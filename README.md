@@ -9,11 +9,12 @@ Run the latest version of the [Elastic stack][elk-stack] with Docker and Docker 
 It gives you the ability to analyze any data set by using the searching/aggregation capabilities of Elasticsearch and
 the visualization power of Kibana.
 
-Based on the [official Docker images][elastic-docker] from Elastic:
+Based on the [official Docker images][elastic-docker] from Elastic and Mitmproxy:
 
 * [Elasticsearch](https://github.com/elastic/elasticsearch/tree/main/distribution/docker)
 * [Logstash](https://github.com/elastic/logstash/tree/main/docker)
 * [Kibana](https://github.com/elastic/kibana/tree/main/src/dev/build/tasks/os_packages/docker_generator)
+* [Mitmproxy](https://mitmproxy.org)
 
 Other available stack variants:
 
@@ -38,6 +39,12 @@ docker-compose up setup
 ```sh
 docker-compose up
 ```
+
+Send some log lines:
+```sh
+cat /var/log/system.log |  nc -c localhost 50000  
+```
+Inspect [Kibana](http://localhost:5601) (username: `elastic`, pass: `changeme`) and [Mitmweb](http://localhost:8081).
 
 ![Animated demo](https://user-images.githubusercontent.com/3299086/155972072-0c89d6db-707a-47a1-818b-5f976565f95a.gif)
 
