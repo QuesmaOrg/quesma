@@ -21,4 +21,5 @@ services:
     networks:
       - elk
     depends_on:
+      - mitmproxy
       - elasticsearch
