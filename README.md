@@ -41,9 +41,11 @@ docker-compose up
 ```
 
 Send some log lines:
+
 ```sh
 cat /var/log/system.log |  nc -c localhost 50000  
 ```
+
 Inspect [Kibana](http://localhost:5601) (username: `elastic`, pass: `changeme`) and [Mitmweb](http://localhost:8081).
 
 ![Animated demo](https://user-images.githubusercontent.com/3299086/155972072-0c89d6db-707a-47a1-818b-5f976565f95a.gif)
