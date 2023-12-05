@@ -17,7 +17,7 @@ metricbeat.autodiscover:
 
 metricbeat.modules:
 - module: elasticsearch
-  hosts: [ http://elasticsearch:9200 ]
+  hosts: [ http://mitmproxy:8080 ]
   username: monitoring_internal
   password: ${MONITORING_INTERNAL_PASSWORD}
   xpack.enabled: true
@@ -59,7 +59,7 @@ monitoring:
     password: ${BEATS_SYSTEM_PASSWORD}
 
 output.elasticsearch:
-  hosts: [ http://elasticsearch:9200 ]
+  hosts: [ http://mitmproxy:8080 ]
   username: metricbeat_internal
   password: ${METRICBEAT_INTERNAL_PASSWORD}
 

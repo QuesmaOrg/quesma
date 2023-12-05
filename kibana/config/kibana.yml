@@ -4,7 +4,7 @@
 #
 server.name: kibana
 server.host: 0.0.0.0
-elasticsearch.hosts: [ http://elasticsearch:9200 ]
+elasticsearch.hosts: [ http://mitmproxy:8080 ]
 
 monitoring.ui.container.elasticsearch.enabled: true
 monitoring.ui.container.logstash.enabled: true
@@ -36,7 +36,7 @@ xpack.fleet.outputs:
   - id: fleet-default-output
     name: default
     type: elasticsearch
-    hosts: [ http://elasticsearch:9200 ]
+    hosts: [ http://mitmproxy:8080 ]
     is_default: true
     is_default_monitoring: true
 

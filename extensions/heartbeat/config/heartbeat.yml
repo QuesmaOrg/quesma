@@ -8,7 +8,7 @@ heartbeat.monitors:
 - type: http
   schedule: '@every 5s'
   urls:
-    - http://elasticsearch:9200
+    - http://mitmproxy:8080
   username: heartbeat_internal
   password: ${HEARTBEAT_INTERNAL_PASSWORD}
 
@@ -27,7 +27,7 @@ monitoring:
     password: ${BEATS_SYSTEM_PASSWORD}
 
 output.elasticsearch:
-  hosts: [ http://elasticsearch:9200 ]
+  hosts: [ http://mitmproxy:8080 ]
   username: heartbeat_internal
   password: ${HEARTBEAT_INTERNAL_PASSWORD}
 

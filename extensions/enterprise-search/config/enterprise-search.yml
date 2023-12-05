@@ -20,7 +20,7 @@ ent_search.external_url: http://localhost:3002
 kibana.host: http://localhost:5601
 
 # Elasticsearch URL and credentials
-elasticsearch.host: http://elasticsearch:9200
+elasticsearch.host: http://mitmproxy:8080
 elasticsearch.username: elastic
 elasticsearch.password: ${ELASTIC_PASSWORD}
 

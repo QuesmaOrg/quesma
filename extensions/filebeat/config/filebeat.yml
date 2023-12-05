@@ -26,7 +26,7 @@ monitoring:
     password: ${BEATS_SYSTEM_PASSWORD}
 
 output.elasticsearch:
-  hosts: [ http://elasticsearch:9200 ]
+  hosts: [ http://mitmproxy:8080 ]
   username: filebeat_internal
   password: ${FILEBEAT_INTERNAL_PASSWORD}
 

@@ -3,7 +3,7 @@
 
 elasticsearch:
   client:
-    hosts: [ http://elasticsearch:9200 ]
+    hosts: [ http://mitmproxy:8080 ]
   other_settings:
     username: elastic
     password: ${ELASTIC_PASSWORD}

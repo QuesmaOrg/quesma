@@ -51,7 +51,7 @@ services:
       - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,Z
       - elasticsearch:/usr/share/elasticsearch/data:Z
     ports:
-      - 9200:9200
+      - 9201:9200
       - 9300:9300
     environment:
       node.name: elasticsearch
@@ -65,6 +65,19 @@ services:
       discovery.type: single-node
     networks:
       - elk
+    restart: unless-stopped
+
+  mitmproxy:
+    image: mitmproxy/mitmproxy:10.1.5
+    tty: true
+    ports:
+      - 9200:8080
+      - 8081:8081
+    command: mitmweb --no-web-open-browser --web-host 0.0.0.0 --mode reverse:http://elasticsearch:9200/
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
     restart: unless-stopped
 
   logstash:
@@ -86,6 +99,7 @@ services:
     networks:
       - elk
     depends_on:
+      - mitmproxy
       - elasticsearch
     restart: unless-stopped
 
