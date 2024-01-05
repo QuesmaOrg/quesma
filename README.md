@@ -7,6 +7,8 @@ Mitmweb is available at [localhost:8081](http://localhost:8081).
 
 It is a man in the middle inspection tool, please [consult the mitmproxy documentation](https://docs.mitmproxy.org/stable/).
 
+You can add your own Python script in `mitmproxy/request.py`. Please consult above documentation or ChatGPT for results.
+
 ### Clickhouse-client
 To connect to the client when `clickhouse-server` is running, run <br>
 ```bash
