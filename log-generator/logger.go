@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"log"
+	"math/rand"
 	"net/http"
 	"time"
 )
-import "math/rand"
 
-const url = "http://mitmproxy:8080/example/_doc"
+const url = "http://mitmproxy:8080/logs-generic-default/_doc"
 
 func main() {
 	for {
