@@ -1,5 +1,15 @@
 version: "3.7"
 services:
+  quesma:
+    build: quesma
+    environment:
+      - ELASTIC_URL=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+      - mitmproxy
+    links:
+      - elasticsearch
+    restart: unless-stopped
   log-generator:
     build: log-generator
     depends_on:
@@ -32,16 +42,13 @@ services:
     container_name: clickhouse
     ports:
       - "8123:8123"
-    profiles:
-      - donotstart
-
   mitmproxy:
     image: mitmproxy/mitmproxy:10.1.5
     tty: true
     ports:
       - "9200:8080"
       - "8081:8081"
-    command: mitmweb --no-web-open-browser --web-host 0.0.0.0 --mode reverse:http://elasticsearch:9200/ -s /var/mitmproxy/request.py
+    command: mitmweb --no-web-open-browser --web-host 0.0.0.0 --mode reverse:http://quesma:8080/ -s /var/mitmproxy/request.py
     restart: unless-stopped
     volumes:
-      - ./mitmproxy:/var/mitmproxy # Bind mount a volume
+      - ./mitmproxy:/var/mitmproxy
