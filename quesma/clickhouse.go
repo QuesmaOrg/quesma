@@ -21,18 +21,18 @@ func main() {
 	driver := "clickhouse"
 	connect, err := sql.Open(driver, connStr)
 	if err != nil {
-		fmt.Printf("Open >> %v", err)
+		fmt.Printf("Open >> %v\n", err)
 	}
 
 	_, err = connect.Query(createTableQuery)
 	if err != nil {
-		fmt.Printf("Query >> %v", err)
+		fmt.Printf("Query >> %v\n", err)
 	}
 
 	err = connect.Ping()
 	if err != nil {
-		fmt.Printf("Ping >> %v", err)
+		fmt.Printf("Ping >> %v\n", err)
 	} else {
-		fmt.Print("Ping OK")
+		fmt.Print("Ping OK\n")
 	}
 }
