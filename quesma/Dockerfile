@@ -1,9 +1,12 @@
 FROM golang:alpine AS builder
 RUN apk update && apk add --no-cache git
 
-ADD quesma.go /app.go
+COPY go.mod go.sum ./app/
+COPY quesma.go /app/app.go
 
-RUN go build -o /service /app.go
+WORKDIR app
+RUN go mod download
+RUN go build -o /service /app/app.go
 
 FROM scratch
 
