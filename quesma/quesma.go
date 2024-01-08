@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mitmproxy/quesma/clickhouse"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -15,6 +16,9 @@ import (
 const targetEnv = "ELASTIC_URL"
 
 func main() {
+	tm := clickhouse.NewTableManager()
+	tm.Migrate()
+
 	remote, err := url.Parse(os.Getenv(targetEnv))
 	if err != nil {
 		panic(err)
@@ -27,7 +31,7 @@ func main() {
 					log.Fatal(err)
 				}
 				r.Body = io.NopCloser(bytes.NewBuffer(body))
-				go dualWrite(string(body))
+				go dualWrite(r.RequestURI, string(body))
 			}
 			r.Host = remote.Host
 			p.ServeHTTP(w, r)
@@ -41,16 +45,15 @@ func main() {
 	}
 }
 
-func dualWrite(r string) {
-	fmt.Printf("POST: %+v\n", r)
-	if strings.Contains(r, "/_bulk") {
-		fmt.Printf("  --> write to clickhouse,body: %+v\n", r)
-		for _, op := range strings.Fields(r) {
+func dualWrite(url string, body string) {
+	if strings.Contains(url, "/_bulk") {
+		fmt.Printf("%s --> clickhouse\n", url)
+		for _, op := range strings.Fields(body) {
 			fmt.Printf("  --> clickhouse, body: %s\n", op)
 		}
-	} else if strings.Contains(r, "/_doc") {
-		fmt.Printf("  --> clickhouse, body: %s\n", r)
+	} else if strings.Contains(url, "/logs-generic-default/_doc") {
+		fmt.Printf("%s --> clickhouse, body: %s\n", url, body)
 	} else {
-		fmt.Printf("  --> pass-through\n")
+		fmt.Printf("%s --> pass-through\n", url)
 	}
 }

@@ -28,7 +28,7 @@ func main() {
 		"User password changed", "User password reset", "User password reset requested", "User password reset failed"}
 
 	for {
-		time.Sleep(time.Duration(1000+rand.Intn(5000)) * time.Millisecond)
+		time.Sleep(time.Duration(1000+rand.Intn(2000)) * time.Millisecond)
 
 		body, err := json.Marshal(map[string]string{
 			"timestamp":    time.Now().Format("2006-01-02T15:04:05.999Z"),

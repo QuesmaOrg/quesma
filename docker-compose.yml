@@ -7,6 +7,7 @@ services:
     depends_on:
       - elasticsearch
       - mitmproxy
+      - clickhouse
     links:
       - elasticsearch
     restart: unless-stopped
