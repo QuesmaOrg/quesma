@@ -15,6 +15,8 @@ import (
 
 const targetEnv = "ELASTIC_URL"
 
+var lm = clickhouse.NewLogManager()
+
 func main() {
 	tm := clickhouse.NewTableManager()
 	tm.Migrate()
@@ -52,6 +54,7 @@ func dualWrite(url string, body string) {
 			fmt.Printf("  --> clickhouse, body: %s\n", op)
 		}
 	} else if strings.Contains(url, "/logs-generic-default/_doc") {
+		lm.Insert(body)
 		fmt.Printf("%s --> clickhouse, body: %s\n", url, body)
 	} else {
 		fmt.Printf("%s --> pass-through\n", url)
