@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -20,7 +22,12 @@ func main() {
 	handler := func(p *httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
 		return func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == "POST" {
-				go dualWrite(r)
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					log.Fatal(err)
+				}
+				r.Body = io.NopCloser(bytes.NewBuffer(body))
+				go dualWrite(string(body))
 			}
 			r.Host = remote.Host
 			p.ServeHTTP(w, r)
@@ -34,18 +41,15 @@ func main() {
 	}
 }
 
-func dualWrite(r *http.Request) {
-	fmt.Printf("POST: %+v\n", r.URL.String())
-	if strings.Contains(r.URL.String(), "/_bulk") {
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(r.Body)
-		for _, op := range strings.Fields(buf.String()) {
+func dualWrite(r string) {
+	fmt.Printf("POST: %+v\n", r)
+	if strings.Contains(r, "/_bulk") {
+		fmt.Printf("  --> write to clickhouse,body: %+v\n", r)
+		for _, op := range strings.Fields(r) {
 			fmt.Printf("  --> clickhouse, body: %s\n", op)
 		}
-	} else if strings.Contains(r.URL.String(), "/_doc") {
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(r.Body)
-		fmt.Printf("  --> clickhouse, body: %s\n", buf.String())
+	} else if strings.Contains(r, "/_doc") {
+		fmt.Printf("  --> clickhouse, body: %s\n", r)
 	} else {
 		fmt.Printf("  --> pass-through\n")
 	}
