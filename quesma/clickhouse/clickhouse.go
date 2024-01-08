@@ -31,6 +31,10 @@ type (
 	}
 )
 
+func (lm *LogManager) Close() {
+	_ = lm.db.Close()
+}
+
 func (lm *LogManager) Insert(rawLog string) {
 	if lm.db == nil {
 		connection, err := sql.Open("clickhouse", url)
