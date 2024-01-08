@@ -1,3 +1,5 @@
 elasticsearch-data
 .idea
 __pycache__
+mitmproxy/requests/*.txt
+mitmproxy/requests/*.mitm

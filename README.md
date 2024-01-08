@@ -9,6 +9,11 @@ It is a man in the middle inspection tool, please [consult the mitmproxy documen
 
 You can add your own Python script in `mitmproxy/request.py`. Please consult above documentation or ChatGPT for results.
 
+You can see sample ElasticSearch queries in `mitmproxy/requests/`. For example
+```bash
+tail -f mitmproxy/requests/logs-X-X.txt
+```
+
 ### Clickhouse-client
 To connect to the client when `clickhouse-server` is running, run <br>
 ```bash
