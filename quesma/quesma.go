@@ -30,20 +30,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	handler := func(p *httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
-		return func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == "POST" {
-				body, err := io.ReadAll(r.Body)
-				if err != nil {
-					log.Fatal(err)
-				}
-				r.Body = io.NopCloser(bytes.NewBuffer(body))
-				go dualWrite(r.RequestURI, string(body), lm)
-			}
-			r.Host = remote.Host
-			p.ServeHTTP(w, r)
-		}
-	}
 	proxy := httputil.NewSingleHostReverseProxy(remote)
 	server := http.Server{
 		Addr: ":8080",
@@ -60,7 +46,6 @@ func main() {
 			proxy.ServeHTTP(w, r)
 		}),
 	}
-	http.HandleFunc("/", handler(proxy))
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
