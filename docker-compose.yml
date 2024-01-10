@@ -52,3 +52,11 @@ services:
     restart: unless-stopped
     volumes:
       - ./mitmproxy:/var/mitmproxy
+  mitmproxyclean:
+    image: mitmproxy/mitmproxy:10.1.5
+    depends_on:
+      - mitmproxy
+    restart: "no"
+    entrypoint: [ "bash", "-c", "python3 /var/mitmproxy/clean.py" ]
+    volumes:
+      - ./mitmproxy:/var/mitmproxy
