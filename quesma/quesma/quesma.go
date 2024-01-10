@@ -103,14 +103,36 @@ func (q *Quesma) Start() {
 }
 
 func dualWrite(url string, body string, lm *clickhouse.LogManager) {
-	if strings.Contains(url, "/_bulk") {
-		fmt.Printf("%s --> clickhouse\n", url)
-		for _, op := range strings.Fields(body) {
-			fmt.Printf("  --> clickhouse, body: %s\n", op)
+	// to make logs more readable by truncating very long request bodies
+	firstNChars := func(s string, n int) string {
+		if len(s) > n {
+			return s[:n]
 		}
-	} else if strings.Contains(url, "/logs-generic-default/_doc") {
-		lm.Insert(body)
-		fmt.Printf("%s --> clickhouse, body: %s\n", url, body)
+		return s
+	}
+
+	if strings.Contains(url, "bulk") || strings.Contains(url, "/_doc") {
+		fmt.Printf("%s  --> clickhouse, body: %s\n", url, firstNChars(body, 34))
+		jsons := strings.Split(body, "\n")
+		for i, singleJson := range jsons {
+			if len(singleJson) == 0 {
+				continue
+			}
+			tableName := url
+			if len(jsons) > 1 {
+				tableName += "_" + strconv.Itoa(i+1)
+			}
+			// very unnecessary trying to create tables with every request
+			// We can improve this later if needed
+			err := lm.CreateTable(tableName, singleJson)
+			if err != nil {
+				log.Fatal(err)
+			}
+			err = lm.Insert(tableName, singleJson)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			}
+		}
 	} else {
 		fmt.Printf("%s --> pass-through\n", url)
 	}

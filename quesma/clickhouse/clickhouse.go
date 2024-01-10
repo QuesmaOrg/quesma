@@ -1,15 +1,19 @@
 package clickhouse
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	_ "github.com/mailru/go-clickhouse"
 	"log"
+	"strings"
 )
 
 const url = "http://clickhouse:8123"
 
+// Keeping this as it's better than new table construction as DateTime is used,
+// instead of String everywhere. Might be of (little) use later.
 const createTableQuery = `CREATE TABLE IF NOT EXISTS logs
 	(
 		timestamp DateTime,
@@ -35,7 +39,74 @@ func (lm *LogManager) Close() {
 	_ = lm.db.Close()
 }
 
-func (lm *LogManager) Insert(rawLog string) {
+func indent(indentLvl int) string {
+	return strings.Repeat("\t", indentLvl)
+}
+
+// m: unmarshalled json from HTTP request
+// Returns nicely formatted string for CREATE TABLE command
+func parseNestedJson(m map[string]interface{}, indentLvl int) string {
+	var result strings.Builder
+	i := 0
+	for name, value := range m {
+		result.WriteString(indent(indentLvl))
+		nestedValue, ok := value.(map[string]interface{})
+		if ok { // value is another (nested) dict
+			// quotes near field names very important. Normally they are not, but
+			// they enable to have fields with reserved names, like e.g. index.
+			result.WriteString(fmt.Sprintf("\"%s\" Tuple\n%s(\n%s%s)", name,
+				indent(indentLvl), parseNestedJson(nestedValue, indentLvl+1), indent(indentLvl)))
+		} else {
+			// value is a single field. Only String/Bool supported for now.
+			fType := "String"
+			_, ok := m[name].(bool)
+			if ok {
+				fType = "Bool"
+			}
+			result.WriteString(fmt.Sprintf("\"%s\" %s", name, fType))
+		}
+		if i+1 < len(m) {
+			result.WriteString(",")
+		}
+		i++
+		result.WriteString("\n")
+	}
+	return result.String()
+}
+
+func PrettyJson(jsonStr string) string {
+	var prettyJSON bytes.Buffer
+	if err := json.Indent(&prettyJSON, []byte(jsonStr), "", "    "); err != nil {
+		return fmt.Sprintf("PrettyJson err: %v\n", err)
+	}
+	return prettyJSON.String()
+}
+
+func (lm *LogManager) CreateTable(name, jsonData string) error {
+	if lm.db == nil {
+		connection, err := sql.Open("clickhouse", url)
+		if err != nil {
+			return fmt.Errorf("Open >> %v", err)
+		}
+		lm.db = connection
+	}
+
+	m := make(map[string]interface{})
+	err := json.Unmarshal([]byte(jsonData), &m)
+	if err != nil {
+		return fmt.Errorf("Can't unmarshall, json: %s\nerr:%v\n", jsonData, err)
+	}
+
+	query := fmt.Sprintf("CREATE TABLE IF NOT EXISTS \"%s\"\n(\n%s)\nENGINE = Log\n",
+		name, parseNestedJson(m, 1))
+	_, err = lm.db.Exec(query)
+	if err != nil {
+		return fmt.Errorf("FATAL: json: %s\nquery: %s\nerr:%v\n", PrettyJson(jsonData), query, err)
+	}
+	return nil
+}
+
+func (lm *LogManager) Insert(tableName, jsonData string) error {
 	if lm.db == nil {
 		connection, err := sql.Open("clickhouse", url)
 		if err != nil {
@@ -44,14 +115,13 @@ func (lm *LogManager) Insert(rawLog string) {
 		lm.db = connection
 	}
 
-	var logs = Log{}
-	err := json.Unmarshal([]byte(rawLog), &logs)
+	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, jsonData)
+	_, err := lm.db.Exec(insert)
 	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = lm.db.Exec("INSERT INTO logs (timestamp, severity, message) VALUES(toDateTime(?),?,?)", logs.Timestamp, logs.Severity, logs.Message)
-	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("tablename: %s, error: %v\njson:%s\n", tableName, err, PrettyJson(jsonData))
+	} else {
+		log.Printf("Inserted into %s\n", tableName)
+		return nil
 	}
 }
 
