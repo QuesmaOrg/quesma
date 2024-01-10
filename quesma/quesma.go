@@ -20,6 +20,25 @@ import (
 
 const targetEnv = "ELASTIC_URL"
 
+type Quesma struct {
+	proxy      *httputil.ReverseProxy
+	logManager *clickhouse.LogManager
+	remoteUrl  *url.URL
+}
+
+func (q *Quesma) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
+		r.Body = io.NopCloser(bytes.NewBuffer(body))
+		go dualWrite(r.RequestURI, string(body), q.logManager)
+	}
+	r.Host = q.remoteUrl.Host
+	q.proxy.ServeHTTP(w, r)
+}
+
 func main() {
 	lm := clickhouse.NewLogManager()
 	defer lm.Close()
@@ -30,21 +49,14 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	proxy := httputil.NewSingleHostReverseProxy(remote)
+	quesma := Quesma{
+		proxy:      httputil.NewSingleHostReverseProxy(remote),
+		logManager: lm,
+		remoteUrl:  remote,
+	}
 	server := http.Server{
-		Addr: ":8080",
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == "POST" {
-				body, err := io.ReadAll(r.Body)
-				if err != nil {
-					log.Fatal(err)
-				}
-				r.Body = io.NopCloser(bytes.NewBuffer(body))
-				go dualWrite(r.RequestURI, string(body), lm)
-			}
-			r.Host = remote.Host
-			proxy.ServeHTTP(w, r)
-		}),
+		Addr:    ":8080",
+		Handler: &quesma,
 	}
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
