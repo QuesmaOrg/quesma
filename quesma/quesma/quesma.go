@@ -1,4 +1,4 @@
-package main
+package quesma
 
 import (
 	"bytes"
@@ -15,8 +15,6 @@ import (
 )
 
 const tcpPortEnv = "TCP_PORT"
-const targetEnv = "ELASTIC_URL"
-
 const internalHttpPort = "8081"
 
 var tcpPort = os.Getenv(tcpPortEnv)
@@ -49,14 +47,14 @@ func New(tableManager *clickhouse.TableManager, logManager *clickhouse.LogManage
 	}
 }
 
-func (q *Quesma) close(ctx context.Context) {
+func (q *Quesma) Close(ctx context.Context) {
 	defer q.logManager.Close()
 	if err := q.server.Shutdown(ctx); err != nil {
 		log.Fatal("Error during server shutdown:", err)
 	}
 }
 
-func (q *Quesma) start() {
+func (q *Quesma) Start() {
 	q.tableManager.Migrate()
 	go func() {
 		if err := q.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
