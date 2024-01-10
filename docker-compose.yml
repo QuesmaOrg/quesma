@@ -3,7 +3,8 @@ services:
   quesma:
     build: quesma
     environment:
-      - ELASTIC_URL=http://elasticsearch:9200
+      - ELASTIC_URL=elasticsearch:9200
+      - TCP_PORT=8080
     depends_on:
       - elasticsearch
       - mitmproxy
