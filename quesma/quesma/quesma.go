@@ -58,7 +58,8 @@ func (q *Quesma) Close(ctx context.Context) {
 	}
 }
 
-func (q *Quesma) listenTCP() (net.Listener, error) {
+func (q *Quesma) listen() (net.Listener, error) {
+	go q.listenHTTP()
 	fmt.Printf("listening TCP at %s\n", q.tcpPort)
 	listener, err := net.Listen("tcp", ":"+q.tcpPort)
 	if err != nil {
@@ -102,8 +103,7 @@ func (q *Quesma) Start() {
 	if q.tableManager != nil {
 		q.tableManager.Migrate()
 	}
-	go q.listenHTTP()
-	listener, err := q.listenTCP()
+	listener, err := q.listen()
 	if err != nil {
 		log.Println(err)
 		return

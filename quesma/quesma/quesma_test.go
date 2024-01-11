@@ -79,9 +79,8 @@ func TestSuccessRequests(t *testing.T) {
 	instance := New(nil, nil, ELASTIC_URL, "8080", "8081")
 
 	go func() {
-		listener, err := instance.listenTCP()
+		listener, err := instance.listen()
 		require.NoError(t, err)
-		go instance.listenHTTP()
 		// below call will block on accept
 		// and wait just for exactly one request
 		// if more needed, duplicate of run in a loop
