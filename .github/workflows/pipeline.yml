@@ -18,8 +18,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          cache-dependency-path: |
-            ${{ matrix.module }}/go.sum
+          cache-dependency-path: ${{ matrix.module }}/go.sum
           go-version: '1.21'
 
       - name: gofmt
@@ -55,6 +54,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
+          cache-dependency-path: smoke-test/go.sum
           go-version: '1.21'
 
       - name: Start docker-compose
