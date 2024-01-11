@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
+	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,7 +37,7 @@ func sendRequest(url string, client *http.Client) (string, error) {
 	return string(body), nil
 }
 
-func runReceiver(serverMux *http.ServeMux, addr string) {
+func runReceiver(serverMux *http.ServeMux, shutdownWG *sync.WaitGroup, addr string) {
 	go func() {
 		receiver := &http.Server{Addr: addr, Handler: serverMux}
 		ctx, cancel := context.WithCancel(context.Background())
@@ -46,11 +45,13 @@ func runReceiver(serverMux *http.ServeMux, addr string) {
 		serverMux.HandleFunc("/shutdown", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(200)
 			_, _ = w.Write([]byte("shutdown receiver"))
+			log.Println("Shutdown receiver:" + addr)
 			cancel()
 		})
 		go func() {
 			if err := receiver.ListenAndServe(); err != nil {
 				log.Println("Receiver ListenAndServe:", err)
+				shutdownWG.Done()
 			}
 		}()
 
@@ -61,48 +62,44 @@ func runReceiver(serverMux *http.ServeMux, addr string) {
 
 const QUESMA_URL = "localhost:8080"
 const ELASTIC_URL = "localhost:9201"
-const CLICKHOUSE_URL = "localhost:8081"
 
 func TestSuccessRequests(t *testing.T) {
 	var Receiver1Response = "ReceiverBody1"
+	var wg sync.WaitGroup
+	wg.Add(1)
 
 	serverMux1 := http.NewServeMux()
 	serverMux1.HandleFunc("/Hello", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
-		_, _ = w.Write([]byte(Receiver1Response))
+		_, err := w.Write([]byte(Receiver1Response))
+		require.NoError(t, err)
 	})
-	runReceiver(serverMux1, ELASTIC_URL)
-
-	serverMux2 := http.NewServeMux()
-	serverMux2.HandleFunc("/Hello", func(w http.ResponseWriter, r *http.Request) {
-		req := fmt.Sprintf("%s%s", r.Host, r.URL.Path)
-		// check whether request path is equal origin
-		// which should request send to quesma
-		assert.Equal(t, req, QUESMA_URL+"/Hello", "should be the same")
-	})
-	runReceiver(serverMux2, CLICKHOUSE_URL)
+	runReceiver(serverMux1, &wg, ELASTIC_URL)
 
 	instance := New(nil, nil, ELASTIC_URL, "8080", "8081")
+
 	go func() {
-		instance.WaitForReadyToListen()
-		log.Println("quesma ready to listen")
-		client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
-		body, err := sendRequest(QUESMA_URL+"/Hello", client)
-		assert.Equal(t, body, Receiver1Response)
-
-		// TODO Wait for request processing completion, this is not reliable
-		time.Sleep(time.Second * 1)
-
-		_, _ = net.Dial("tcp", QUESMA_URL)
-		instance.finishChannel <- struct{}{}
-		close(instance.finishChannel)
+		listener, err := instance.listenTCP()
 		require.NoError(t, err)
-		body, err = sendRequest(ELASTIC_URL+"/shutdown", client)
+		go instance.listenHTTP()
+		// below call will block on accept
+		// and wait just for exactly one request
+		// if more needed, duplicate of run in a loop
+		in, err := listener.Accept()
 		require.NoError(t, err)
-		assert.Equal(t, body, "shutdown receiver")
-		body, err = sendRequest(CLICKHOUSE_URL+"/shutdown", client)
-		require.NoError(t, err)
-		assert.Equal(t, body, "shutdown receiver")
+		instance.handleRequest(in)
 	}()
-	instance.Start()
+
+	log.Println("quesma ready to listen")
+	client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
+
+	body, err := sendRequest(QUESMA_URL+"/Hello", client)
+	assert.Equal(t, Receiver1Response, body)
+	require.NoError(t, err)
+
+	body, err = sendRequest(ELASTIC_URL+"/shutdown", client)
+	require.NoError(t, err)
+	assert.Equal(t, "shutdown receiver", body)
+	wg.Wait()
+
 }

@@ -13,29 +13,25 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 type Quesma struct {
-	server        *http.Server
-	logManager    *clickhouse.LogManager
-	tableManager  *clickhouse.TableManager
-	targetUrl     string
-	tcpPort       string
-	httpPort      string
-	finishChannel chan struct{}
-	ReadyToListen sync.WaitGroup
+	server       *http.Server
+	logManager   *clickhouse.LogManager
+	tableManager *clickhouse.TableManager
+	targetUrl    string
+	tcpPort      string
+	httpPort     string
 }
 
 func New(tableManager *clickhouse.TableManager,
 	logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string) *Quesma {
 	q := &Quesma{
-		tableManager:  tableManager,
-		logManager:    logManager,
-		targetUrl:     target,
-		tcpPort:       tcpPort,
-		httpPort:      httpPort,
-		finishChannel: make(chan struct{}),
+		tableManager: tableManager,
+		logManager:   logManager,
+		targetUrl:    target,
+		tcpPort:      tcpPort,
+		httpPort:     httpPort,
 		server: &http.Server{
 			Addr: ":" + httpPort,
 			Handler: http.HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
@@ -50,12 +46,7 @@ func New(tableManager *clickhouse.TableManager,
 			}),
 		},
 	}
-	q.ReadyToListen.Add(1)
 	return q
-}
-
-func (q *Quesma) WaitForReadyToListen() {
-	q.ReadyToListen.Wait()
 }
 
 func (q *Quesma) Close(ctx context.Context) {
@@ -67,57 +58,65 @@ func (q *Quesma) Close(ctx context.Context) {
 	}
 }
 
+func (q *Quesma) listenTCP() (net.Listener, error) {
+	fmt.Printf("listening TCP at %s\n", q.tcpPort)
+	listener, err := net.Listen("tcp", ":"+q.tcpPort)
+	if err != nil {
+		return nil, err
+	}
+	return listener, nil
+}
+
+func (q *Quesma) handleRequest(in net.Conn) {
+	defer in.Close()
+	elkConnection, err := net.Dial("tcp", q.targetUrl)
+	log.Println("elkConnection:" + q.targetUrl)
+	if err != nil {
+		log.Println("error dialing primary addr", err)
+		return
+	}
+
+	internalHttpServerConnection, err := net.Dial("tcp", ":"+q.httpPort)
+	log.Println("internalHttpServerConnection:" + q.httpPort)
+	if err != nil {
+		log.Println("error dialing secondary addr", err)
+		return
+	}
+
+	defer elkConnection.Close()
+	defer internalHttpServerConnection.Close()
+	signal := make(chan struct{}, 2)
+	go copy(signal, io.MultiWriter(elkConnection, internalHttpServerConnection), in)
+	go copy(signal, in, elkConnection)
+	<-signal
+	log.Println("Connection complete", in.RemoteAddr())
+}
+
+func (q *Quesma) listenHTTP() {
+	if err := q.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Fatal("Error starting server:", err)
+	}
+}
+
 func (q *Quesma) Start() {
 	if q.tableManager != nil {
 		q.tableManager.Migrate()
 	}
-	go func() {
-		if err := q.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatal("Error starting server:", err)
-		}
-	}()
-	fmt.Printf("listening TCP at %s\n", q.tcpPort)
-	listener, err := net.Listen("tcp", ":"+q.tcpPort)
+	go q.listenHTTP()
+	listener, err := q.listenTCP()
 	if err != nil {
-		println(err)
+		log.Println(err)
+		return
 	}
-	q.ReadyToListen.Done()
 
 	for {
-		select {
-		case <-q.finishChannel:
-			log.Println("I'm done")
-			return
-		default:
-			in, err := listener.Accept()
-			log.Println("New connection from: ", in.RemoteAddr())
-			if err != nil {
-				log.Println("error accepting connection", err)
-				continue
-			}
-			go func() {
-				defer in.Close()
-				elkConnection, err := net.Dial("tcp", q.targetUrl)
-				log.Println("elkConnection:" + q.targetUrl)
-				if err != nil {
-					log.Println("error dialing primary addr", err)
-					return
-				}
-				internalHttpServerConnection, err := net.Dial("tcp", ":"+q.httpPort)
-				log.Println("internalHttpServerConnection:" + q.httpPort)
-				if err != nil {
-					log.Println("error dialing secondary addr", err)
-					return
-				}
-				defer elkConnection.Close()
-				defer internalHttpServerConnection.Close()
-				signal := make(chan struct{}, 2)
-				go copy(signal, io.MultiWriter(elkConnection, internalHttpServerConnection), in)
-				go copy(signal, in, elkConnection)
-				<-signal
-				log.Println("Connection complete", in.RemoteAddr())
-			}()
+		in, err := listener.Accept()
+		log.Println("New connection from: ", in.RemoteAddr())
+		if err != nil {
+			log.Println("error accepting connection", err)
+			continue
 		}
+		go q.handleRequest(in)
 	}
 }
 
