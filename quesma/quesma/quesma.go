@@ -98,11 +98,13 @@ func (q *Quesma) Start() {
 			go func() {
 				defer in.Close()
 				elkConnection, err := net.Dial("tcp", q.targetUrl)
+				log.Println("elkConnection:" + q.targetUrl)
 				if err != nil {
 					log.Println("error dialing primary addr", err)
 					return
 				}
 				internalHttpServerConnection, err := net.Dial("tcp", ":"+q.httpPort)
+				log.Println("internalHttpServerConnection:" + q.httpPort)
 				if err != nil {
 					log.Println("error dialing secondary addr", err)
 					return
