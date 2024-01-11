@@ -13,27 +13,31 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
-const tcpPortEnv = "TCP_PORT"
-const internalHttpPort = "8081"
-
-var tcpPort = os.Getenv(tcpPortEnv)
-
 type Quesma struct {
-	server       *http.Server
-	logManager   *clickhouse.LogManager
-	tableManager *clickhouse.TableManager
-	targetUrl    string
+	server        *http.Server
+	logManager    *clickhouse.LogManager
+	tableManager  *clickhouse.TableManager
+	targetUrl     string
+	tcpPort       string
+	httpPort      string
+	finishChannel chan struct{}
+	ReadyToListen sync.WaitGroup
 }
 
-func New(tableManager *clickhouse.TableManager, logManager *clickhouse.LogManager, target string) *Quesma {
-	return &Quesma{
-		tableManager: tableManager,
-		logManager:   logManager,
-		targetUrl:    target,
+func New(tableManager *clickhouse.TableManager,
+	logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string) *Quesma {
+	q := &Quesma{
+		tableManager:  tableManager,
+		logManager:    logManager,
+		targetUrl:     target,
+		tcpPort:       tcpPort,
+		httpPort:      httpPort,
+		finishChannel: make(chan struct{}),
 		server: &http.Server{
-			Addr: ":" + internalHttpPort,
+			Addr: ":" + httpPort,
 			Handler: http.HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 				if r.Method == "POST" {
 					body, err := io.ReadAll(r.Body)
@@ -46,31 +50,45 @@ func New(tableManager *clickhouse.TableManager, logManager *clickhouse.LogManage
 			}),
 		},
 	}
+	q.ReadyToListen.Add(1)
+	return q
+}
+
+func (q *Quesma) WaitForReadyToListen() {
+	q.ReadyToListen.Wait()
 }
 
 func (q *Quesma) Close(ctx context.Context) {
-	defer q.logManager.Close()
+	if q.logManager != nil {
+		defer q.logManager.Close()
+	}
 	if err := q.server.Shutdown(ctx); err != nil {
 		log.Fatal("Error during server shutdown:", err)
 	}
 }
 
 func (q *Quesma) Start() {
-	q.tableManager.Migrate()
+	if q.tableManager != nil {
+		q.tableManager.Migrate()
+	}
 	go func() {
 		if err := q.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal("Error starting server:", err)
 		}
 	}()
-
-	fmt.Printf("listening TCP at %s\n", tcpPort)
-	listener, err := net.Listen("tcp", ":"+tcpPort)
+	fmt.Printf("listening TCP at %s\n", q.tcpPort)
+	listener, err := net.Listen("tcp", ":"+q.tcpPort)
 	if err != nil {
 		println(err)
 	}
+	q.ReadyToListen.Done()
 
-	go func() {
-		for {
+	for {
+		select {
+		case <-q.finishChannel:
+			log.Println("I'm done")
+			return
+		default:
 			in, err := listener.Accept()
 			log.Println("New connection from: ", in.RemoteAddr())
 			if err != nil {
@@ -84,14 +102,13 @@ func (q *Quesma) Start() {
 					log.Println("error dialing primary addr", err)
 					return
 				}
-				internalHttpServerConnection, err := net.Dial("tcp", ":"+internalHttpPort)
+				internalHttpServerConnection, err := net.Dial("tcp", ":"+q.httpPort)
 				if err != nil {
 					log.Println("error dialing secondary addr", err)
 					return
 				}
 				defer elkConnection.Close()
 				defer internalHttpServerConnection.Close()
-
 				signal := make(chan struct{}, 2)
 				go copy(signal, io.MultiWriter(elkConnection, internalHttpServerConnection), in)
 				go copy(signal, in, elkConnection)
@@ -99,8 +116,7 @@ func (q *Quesma) Start() {
 				log.Println("Connection complete", in.RemoteAddr())
 			}()
 		}
-	}()
-
+	}
 }
 
 func dualWrite(url string, body string, lm *clickhouse.LogManager) {
