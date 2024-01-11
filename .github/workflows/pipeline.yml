@@ -1,0 +1,67 @@
+name: Verify
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        module: [ "quesma" ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: gofmt
+        working-directory: ${{ matrix.module }}
+        run: gofmt -l -d . | (! grep . -q) || exit 1
+
+      - name: Go Vet
+        working-directory: ${{ matrix.module }}
+        run: go vet ./...
+
+      - uses: dominikh/staticcheck-action@v1.2.0
+        with:
+          version: "2023.1.6"
+          install-go: false
+          working-directory: ${{ matrix.module }}
+
+      - name: Build
+        working-directory: ${{ matrix.module }}
+        run: go build -v ./...
+
+      - name: Test
+        working-directory: ${{ matrix.module }}
+        run: go test -v ./...
+
+
+  smoke-test:
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Start docker-compose
+        run: docker-compose up -d
+
+      - name: Verify
+        working-directory: smoke-test
+        run: go run main.go
+
+      - name: Stop docker-compose
+        if: always()
+        run: docker-compose down

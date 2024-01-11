@@ -86,7 +86,7 @@ func (lm *LogManager) CreateTable(name, jsonData string) error {
 	if lm.db == nil {
 		connection, err := sql.Open("clickhouse", url)
 		if err != nil {
-			return fmt.Errorf("Open >> %v", err)
+			return fmt.Errorf("open >> %v", err)
 		}
 		lm.db = connection
 	}
@@ -94,14 +94,14 @@ func (lm *LogManager) CreateTable(name, jsonData string) error {
 	m := make(map[string]interface{})
 	err := json.Unmarshal([]byte(jsonData), &m)
 	if err != nil {
-		return fmt.Errorf("Can't unmarshall, json: %s\nerr:%v\n", jsonData, err)
+		return fmt.Errorf("can't unmarshall, json: %s err:%v", jsonData, err)
 	}
 
 	query := fmt.Sprintf("CREATE TABLE IF NOT EXISTS \"%s\"\n(\n%s)\nENGINE = Log\n",
 		name, parseNestedJson(m, 1))
 	_, err = lm.db.Exec(query)
 	if err != nil {
-		return fmt.Errorf("FATAL: json: %s\nquery: %s\nerr:%v\n", PrettyJson(jsonData), query, err)
+		return fmt.Errorf("json: %s\nquery: %s\nerr:%v", PrettyJson(jsonData), query, err)
 	}
 	return nil
 }
@@ -118,7 +118,7 @@ func (lm *LogManager) Insert(tableName, jsonData string) error {
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, jsonData)
 	_, err := lm.db.Exec(insert)
 	if err != nil {
-		return fmt.Errorf("tablename: %s, error: %v\njson:%s\n", tableName, err, PrettyJson(jsonData))
+		return fmt.Errorf("tablename: %s, error: %v\njson:%s", tableName, err, PrettyJson(jsonData))
 	} else {
 		log.Printf("Inserted into %s\n", tableName)
 		return nil

@@ -2,7 +2,8 @@ package quesma
 
 import (
 	"context"
-	"io/ioutil"
+	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -12,7 +13,7 @@ import (
 )
 
 func sendRequest(addr string, client *http.Client, url string) error {
-	req, err := http.NewRequest("GET", "http://"+addr+"/"+url, http.NoBody)
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s/%s", addr, url), http.NoBody)
 	if err != nil {
 		return err
 	}
@@ -27,9 +28,9 @@ func sendRequest(addr string, client *http.Client, url string) error {
 	defer resp.Body.Close()
 
 	// read response body
-	body, error := ioutil.ReadAll(resp.Body)
-	if error != nil {
-		return error
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
 	}
 
 	// print response body
@@ -44,9 +45,8 @@ func runReceiver(serverMux *http.ServeMux, addr string) {
 		defer cancel()
 		serverMux.HandleFunc("/shutdown", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(200)
-			w.Write([]byte("shutdown receiver"))
+			_, _ = w.Write([]byte("shutdown receiver"))
 			cancel()
-			return
 		})
 		go func() {
 			if err := receiver.ListenAndServe(); err != nil {
@@ -54,11 +54,8 @@ func runReceiver(serverMux *http.ServeMux, addr string) {
 			}
 		}()
 
-		select {
-		case <-ctx.Done():
-			// Shutdown the server when the context is canceled
-			receiver.Shutdown(ctx)
-		}
+		<-ctx.Done()
+		_ = receiver.Shutdown(ctx)
 	}()
 }
 
@@ -66,14 +63,14 @@ func TestSuccessRequests(t *testing.T) {
 	serverMux1 := http.NewServeMux()
 	serverMux1.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
-		w.Write([]byte("ReceiverBody"))
+		_, _ = w.Write([]byte("ReceiverBody"))
 	})
 	runReceiver(serverMux1, "localhost:9201")
 
 	serverMux2 := http.NewServeMux()
 	serverMux2.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
-		w.Write([]byte("ReceiverBody"))
+		_, _ = w.Write([]byte("ReceiverBody"))
 	})
 	runReceiver(serverMux2, "localhost:8081")
 	instance := New(nil, nil, "localhost:8081", "8080", "8081")
@@ -82,14 +79,13 @@ func TestSuccessRequests(t *testing.T) {
 		log.Println("quesma ready to listen")
 		client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
 		err := sendRequest("localhost:9201", client, "/")
-		_, err = net.Dial("tcp", "localhost:8080")
+		_, _ = net.Dial("tcp", "localhost:8080")
 		instance.finishChannel <- struct{}{}
 		close(instance.finishChannel)
 		require.NoError(t, err)
 		err = sendRequest("localhost:9201", client, "/shutdown")
 		require.NoError(t, err)
-		err = sendRequest("localhost:8081", client, "/shutdown")
-
+		_ = sendRequest("localhost:8081", client, "/shutdown")
 	}()
 	instance.Start()
 }
