@@ -88,8 +88,8 @@ func (q *Quesma) handleRequest(in net.Conn) {
 	defer elkConnection.Close()
 	defer internalHttpServerConnection.Close()
 	signal := make(chan struct{}, 2)
-	go copy(signal, io.MultiWriter(elkConnection, internalHttpServerConnection), in)
-	go copy(signal, in, elkConnection)
+	go copyAndSignal(signal, io.MultiWriter(elkConnection, internalHttpServerConnection), in)
+	go copyAndSignal(signal, in, elkConnection)
 	<-signal
 	log.Println("Connection complete", in.RemoteAddr())
 }
