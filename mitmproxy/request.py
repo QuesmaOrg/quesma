@@ -24,16 +24,8 @@ class Writer:
 
 writer = Writer(MITM_FILE)
 
-def record_response(index_name, flow: http.HTTPFlow) -> None:
-    with open(os.path.join(LOG_FILE_PREFIX, index_name + '.txt'), "ab") as ofile:
-        ofile.write(flow.request.pretty_url.encode())
-
-        ofile.write(b"\n Request:\n")
-        if flow.request.content:
-            ofile.write(flow.request.content)
-        
-        # Parse json body
-        body = flow.request.content.decode('utf-8')
+def parse_json_body(body, ofile):
+    try:
         json_body = json.loads(body)
         if 'query' in json_body:
             query_body = json_body['query']
@@ -49,7 +41,19 @@ def record_response(index_name, flow: http.HTTPFlow) -> None:
                 ofile.write(b"\n Query:\n")
 
             ofile.write(json.dumps(query_body, indent=2).encode())
+    except:
+        pass
 
+def record_response(index_name, flow: http.HTTPFlow) -> None:
+    with open(os.path.join(LOG_FILE_PREFIX, index_name + '.txt'), "ab") as ofile:
+        ofile.write(flow.request.pretty_url.encode())
+
+        ofile.write(b"\n Request:\n")
+        if flow.request.content:
+            ofile.write(flow.request.content)
+        
+        body = flow.request.content.decode('utf-8')
+        parse_json_body(body, ofile)
 
         ofile.write(b"\n Response:\n")
         if flow.response.content:
