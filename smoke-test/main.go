@@ -18,9 +18,9 @@ const (
 )
 
 func main() {
-	waitForKibana()
 	waitForLogsInClickhouse()
 	waitForLogsInElasticsearch()
+	waitForKibana()
 }
 
 const waitInterval = 5 * time.Second
