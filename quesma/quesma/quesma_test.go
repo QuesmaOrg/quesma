@@ -76,7 +76,7 @@ func TestSuccessRequests(t *testing.T) {
 	})
 	runReceiver(serverMux1, &wg, ELASTIC_URL)
 
-	instance := New(nil, nil, ELASTIC_URL, "8080", "8081")
+	instance := New(nil, ELASTIC_URL, "8080", "8081")
 
 	go func() {
 		listener, err := instance.listen()

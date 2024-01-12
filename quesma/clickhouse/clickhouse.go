@@ -12,19 +12,7 @@ import (
 
 const url = "http://clickhouse:8123"
 
-// Keeping this as it's better than new table construction as DateTime is used,
-// instead of String everywhere. Might be of (little) use later.
-const createTableQuery = `CREATE TABLE IF NOT EXISTS logs
-	(
-		timestamp DateTime,
-		severity String,
-		message String
-	)
-	ENGINE = Log`
-
 type (
-	TableManager struct {
-	}
 	LogManager struct {
 		db *sql.DB
 	}
@@ -123,24 +111,6 @@ func (lm *LogManager) Insert(tableName, jsonData string) error {
 		log.Printf("Inserted into %s\n", tableName)
 		return nil
 	}
-}
-
-func (m *TableManager) Migrate() {
-	db, err := sql.Open("clickhouse", url)
-	if err != nil {
-		fmt.Printf("Open >> %v", err)
-	}
-
-	defer db.Close()
-
-	_, err = db.Exec(createTableQuery)
-	if err != nil {
-		log.Fatalf("clickhouse table creation failed: %s", err)
-	}
-}
-
-func NewTableManager() *TableManager {
-	return &TableManager{}
 }
 
 func NewLogManager() *LogManager {

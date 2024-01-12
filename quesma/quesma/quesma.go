@@ -16,22 +16,19 @@ import (
 )
 
 type Quesma struct {
-	server       *http.Server
-	logManager   *clickhouse.LogManager
-	tableManager *clickhouse.TableManager
-	targetUrl    string
-	tcpPort      string
-	httpPort     string
+	server     *http.Server
+	logManager *clickhouse.LogManager
+	targetUrl  string
+	tcpPort    string
+	httpPort   string
 }
 
-func New(tableManager *clickhouse.TableManager,
-	logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string) *Quesma {
+func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string) *Quesma {
 	q := &Quesma{
-		tableManager: tableManager,
-		logManager:   logManager,
-		targetUrl:    target,
-		tcpPort:      tcpPort,
-		httpPort:     httpPort,
+		logManager: logManager,
+		targetUrl:  target,
+		tcpPort:    tcpPort,
+		httpPort:   httpPort,
 		server: &http.Server{
 			Addr: ":" + httpPort,
 			Handler: http.HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
@@ -102,9 +99,6 @@ func (q *Quesma) listenHTTP() {
 
 func (q *Quesma) Start() {
 	defer quesmaRecover()
-	if q.tableManager != nil {
-		q.tableManager.Migrate()
-	}
 	listener, err := q.listen()
 	if err != nil {
 		log.Println(err)
@@ -150,7 +144,7 @@ func dualWrite(url string, body string, lm *clickhouse.LogManager) {
 			}
 			err = lm.Insert(tableName, singleJson)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
+				_, _ = fmt.Fprintln(os.Stderr, err)
 			}
 		}
 	} else {
