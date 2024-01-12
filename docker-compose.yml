@@ -19,6 +19,13 @@ services:
     links:
       - "mitmproxy"
     restart: unless-stopped
+  query-generator:
+    build: query-generator
+    depends_on:
+      - mitmproxy
+    links:
+      - "mitmproxy"
+    restart: unless-stopped
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
     container_name: elasticsearch
