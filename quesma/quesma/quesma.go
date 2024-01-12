@@ -105,15 +105,17 @@ func (q *Quesma) Start() {
 		return
 	}
 
-	for {
-		in, err := listener.Accept()
-		log.Println("New connection from: ", in.RemoteAddr())
-		if err != nil {
-			log.Println("error accepting connection", err)
-			continue
+	go func() {
+		for {
+			in, err := listener.Accept()
+			log.Println("New connection from: ", in.RemoteAddr())
+			if err != nil {
+				log.Println("error accepting connection", err)
+				continue
+			}
+			go q.handleRequest(in)
 		}
-		go q.handleRequest(in)
-	}
+	}()
 }
 
 func dualWrite(url string, body string, lm *clickhouse.LogManager) {
