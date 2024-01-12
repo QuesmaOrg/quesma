@@ -1,4 +1,5 @@
 import os
+import json
 from mitmproxy import http
 from urllib.parse import urlparse
 from typing import BinaryIO
@@ -30,6 +31,25 @@ def record_response(index_name, flow: http.HTTPFlow) -> None:
         ofile.write(b"\n Request:\n")
         if flow.request.content:
             ofile.write(flow.request.content)
+        
+        # Parse json body
+        body = flow.request.content.decode('utf-8')
+        json_body = json.loads(body)
+        if 'query' in json_body:
+            query_body = json_body['query']
+            filter_only = ('bool' in query_body and 'filter' in query_body['bool'])
+            for field in ['must', 'must_not', 'should']:
+                if field in query_body:
+                    if len(query_body[field]) > 0:
+                        filter_only = False
+            if filter_only:
+                ofile.write(b"\n Query filter:\n")
+                query_body = query_body['bool']['filter']
+            else:
+                ofile.write(b"\n Query:\n")
+
+            ofile.write(json.dumps(query_body, indent=2).encode())
+
 
         ofile.write(b"\n Response:\n")
         if flow.response.content:
