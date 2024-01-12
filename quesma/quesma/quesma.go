@@ -69,6 +69,7 @@ func (q *Quesma) listen() (net.Listener, error) {
 }
 
 func (q *Quesma) handleRequest(in net.Conn) {
+	defer quesmaRecover()
 	defer in.Close()
 	elkConnection, err := net.Dial("tcp", q.targetUrl)
 	log.Println("elkConnection:" + q.targetUrl)
@@ -100,6 +101,7 @@ func (q *Quesma) listenHTTP() {
 }
 
 func (q *Quesma) Start() {
+	defer quesmaRecover()
 	if q.tableManager != nil {
 		q.tableManager.Migrate()
 	}
