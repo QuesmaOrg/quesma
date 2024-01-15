@@ -31,7 +31,7 @@ func main() {
 		time.Sleep(time.Duration(1000+rand.Intn(2000)) * time.Millisecond)
 
 		body, err := json.Marshal(map[string]string{
-			"timestamp":    time.Now().Format("2006-01-02T15:04:05.999Z"),
+			//"timestamp":    time.Now().Format("2006-01-02T15:04:05.999Z"),
 			"message":      messageNames[rand.Intn(len(messageNames))],
 			"severity":     severityNames[rand.Intn(len(severityNames))],
 			"source":       sourceNames[rand.Intn(len(sourceNames))],

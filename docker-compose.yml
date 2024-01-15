@@ -51,6 +51,8 @@ services:
     image: clickhouse/clickhouse-server
     ports:
       - "8123:8123"
+    volumes:
+      - ./quesma/clickhouse/config/additional_config.xml:/etc/clickhouse-server/users.d/additional_config.xml
   mitmproxy:
     image: mitmproxy/mitmproxy:10.1.5
     tty: true

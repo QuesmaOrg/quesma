@@ -20,7 +20,11 @@ func main() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
-	instance := quesma.New(clickhouse.NewLogManager(), os.Getenv(targetEnv), tcpPort, internalHttpPort)
+	lm := clickhouse.NewLogManager(
+		clickhouse.PredefinedTableSchemas,
+		clickhouse.NewRuntimeSchemas,
+	)
+	instance := quesma.New(lm, os.Getenv(targetEnv), tcpPort, internalHttpPort)
 	instance.Start()
 
 	<-sig

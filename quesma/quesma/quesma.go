@@ -126,7 +126,6 @@ func dualWrite(url string, body string, lm *clickhouse.LogManager) {
 		}
 		return s
 	}
-
 	if strings.Contains(url, "bulk") || strings.Contains(url, "/_doc") {
 		fmt.Printf("%s  --> clickhouse, body: %s\n", url, firstNChars(body, 34))
 		jsons := strings.Split(body, "\n")
@@ -140,11 +139,11 @@ func dualWrite(url string, body string, lm *clickhouse.LogManager) {
 			}
 			// very unnecessary trying to create tables with every request
 			// We can improve this later if needed
-			err := lm.CreateTable(tableName, singleJson)
+			err := lm.CreateTable(tableName, singleJson, clickhouse.DefaultCHConfig())
 			if err != nil {
 				log.Fatal(err)
 			}
-			err = lm.Insert(tableName, singleJson)
+			err = lm.Insert(tableName, singleJson, clickhouse.DefaultCHConfig())
 			if err != nil {
 				_, _ = fmt.Fprintln(os.Stderr, err)
 			}

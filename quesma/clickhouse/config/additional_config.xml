@@ -1,0 +1,9 @@
+<clickhouse>
+    <profiles>
+        <default>
+            <allow_experimental_object_type>1</allow_experimental_object_type>
+            <allow_suspicious_ttl_expressions>1</allow_suspicious_ttl_expressions>
+            <date_time_input_format>best_effort</date_time_input_format>
+        </default>
+    </profiles>
+</clickhouse>
