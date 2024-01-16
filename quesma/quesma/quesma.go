@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type Quesma struct {
@@ -84,10 +85,13 @@ func (q *Quesma) handleRequest(in net.Conn) {
 
 	defer elkConnection.Close()
 	defer internalHttpServerConnection.Close()
-	signal := make(chan struct{}, 2)
-	go copyAndSignal(signal, io.MultiWriter(elkConnection, internalHttpServerConnection), in)
-	go copyAndSignal(signal, in, elkConnection)
-	<-signal
+
+	var copyCompletionBarrier sync.WaitGroup
+	copyCompletionBarrier.Add(2)
+	go copyAndSignal(&copyCompletionBarrier, io.MultiWriter(elkConnection, internalHttpServerConnection), in)
+	go copyAndSignal(&copyCompletionBarrier, in, elkConnection)
+	copyCompletionBarrier.Wait()
+
 	log.Println("Connection complete", in.RemoteAddr())
 }
 
