@@ -6,6 +6,7 @@ from typing import BinaryIO
 
 from mitmproxy import http
 from mitmproxy import io
+import query
 
 LOG_FILE_PREFIX = "/var/mitmproxy/requests/"
 MITM_FILE = os.path.join(LOG_FILE_PREFIX, "requests.mitm")
@@ -24,10 +25,11 @@ class Writer:
 
 writer = Writer(MITM_FILE)
 
-def parse_json_body(body, ofile):
+def parse_json_body(index_name, method, body, ofile):
     try:
         json_body = json.loads(body)
         if 'query' in json_body:
+            query.parsed_query_json(index_name, method, json_body['query'])
             query_body = json_body['query']
             filter_only = ('bool' in query_body and 'filter' in query_body['bool'])
             for field in ['must', 'must_not', 'should']:
@@ -44,7 +46,7 @@ def parse_json_body(body, ofile):
     except:
         pass
 
-def record_response(index_name, flow: http.HTTPFlow) -> None:
+def record_response(index_name, method, flow: http.HTTPFlow) -> None:
     with open(os.path.join(LOG_FILE_PREFIX, index_name + '.txt'), "ab") as ofile:
         ofile.write(flow.request.pretty_url.encode())
 
@@ -53,7 +55,7 @@ def record_response(index_name, flow: http.HTTPFlow) -> None:
             ofile.write(flow.request.content)
         
         body = flow.request.content.decode('utf-8')
-        parse_json_body(body, ofile)
+        parse_json_body(index_name, method, body, ofile)
 
         ofile.write(b"\n Response:\n")
         if flow.response.content:
@@ -85,9 +87,10 @@ def response(flow: http.HTTPFlow) -> None:
     
     for method in search_methods:
         if url_path.endswith(method):
-            print("ES Query detected, response", parsed_url)
+            # Uncomment below to debug
+            # print("ES Query detected, response", parsed_url)
             index_name = extract_index_name(parsed_url, method)
-            record_response(index_name, flow)
+            record_response(index_name, method, flow)
             break
 
 
@@ -99,5 +102,4 @@ def request(flow: http.HTTPFlow) -> None:
     
     for method in search_methods:
         if url_path.endswith(method):
-            print("ES Query detected", parsed_url)
-            break
+            break # No-op on purpose for now

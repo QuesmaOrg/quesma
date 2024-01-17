@@ -1,0 +1,77 @@
+import query
+import json
+
+LOG_QUERY_1="""
+{
+  "bool": {
+    "must": [],
+    "filter": [
+      {
+        "multi_match": {
+          "type": "best_fields",
+          "query": "user",
+          "lenient": true
+        }
+      },
+      {
+        "range": {
+          "@timestamp": {
+            "format": "strict_date_optional_time",
+            "gte": "2024-01-17T10:28:18.815Z",
+            "lte": "2024-01-17T10:43:18.815Z"
+          }
+        }
+      }
+    ],
+    "should": [],
+    "must_not": []
+  }
+}
+"""
+
+LOG_QUERY_2 = """
+{
+  "bool": {
+    "filter": [
+      {
+        "term": {
+          "type": "task"
+        }
+      },
+      {
+        "term": {
+          "task.enabled": true
+        }
+      }
+    ]
+  }
+}
+"""
+
+LOG_QUERY_3 = """
+{
+  "bool": {
+    "filter":
+      {
+        "term": {
+          "type": "task"
+        }
+      }
+  }
+}
+"""
+
+def verify_result(human_readable_name, result):
+    if not result.can_parse:
+        print("FAIL:", human_readable_name, "cannot parse", result)
+    else:
+        print("PASS:", human_readable_name, "can parse", result)
+
+def ensure_correct(human_readable_name, json_to_parse):
+    result = query.safe_parse_query(json.loads(json_to_parse))
+    verify_result(human_readable_name, result)
+
+if __name__ == "__main__":
+    ensure_correct("Sample log query", LOG_QUERY_1)
+    ensure_correct("Term as array", LOG_QUERY_2)
+    ensure_correct("Term as dictionary", LOG_QUERY_3)
