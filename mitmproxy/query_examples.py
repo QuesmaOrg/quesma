@@ -215,6 +215,29 @@ LOG_QUERY_11 = """
 }
 """
 
+LOG_QUERY_12 = """
+{
+  "bool": {"must": [
+     {
+       "prefix": {
+         "alert.actions.actionRef": {
+           "value": "preconfigured:"
+         }
+       }
+     }
+   ]
+  }
+}
+"""
+
+LOG_QUERY_13 = """
+{
+  "query": {
+    "prefix" : { "user" : "ki" }
+  }
+}
+"""
+
 def verify_result(human_readable_name, result):
     if not result.can_parse:
         print("FAIL:", human_readable_name, "cannot parse", result)
@@ -236,4 +259,6 @@ if __name__ == "__main__":
     ensure_correct("Exists", LOG_QUERY_8)
     ensure_correct("Simple query string", LOG_QUERY_9)
     ensure_correct("Match all", LOG_QUERY_10)
-    ensure_correct("Simple wildcard", LOG_QUERY_11)\
+    ensure_correct("Simple wildcard", LOG_QUERY_11)
+    ensure_correct("Simple prefix ver1", LOG_QUERY_12)
+    ensure_correct("Simple prefix ver2", LOG_QUERY_13)

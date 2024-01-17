@@ -108,6 +108,17 @@ def _parse_simple_query_string(simple_query_string_json: dict):
     return Result(fields[0] + ' queries ' + simple_query_string_json['query'], True)
   return Result('"hard" simple_query_string not supported', False, ['"Hard" simple_query_string'])
 
+def _parse_prefix(prefix_json: dict):
+  if len(prefix_json) != 1:
+    return Result('prefix len supported = 1', False, ['Invalid prefix len'])
+  for key in prefix_json.keys():
+    value = prefix_json[key]
+    if isinstance(value, dict):
+      if len(value) != 1 or 'value' not in value:
+        return Result('Invalid prefix', False, ['Invalid prefix'])
+      value = value['value']
+    return Result(key + ' like ' + value + '%', True)
+
 def _parse_exists(exists_json: dict):
   if len(exists_json) != 1:
     return Result('exists len supported = 1', False, ['Invalid exists'])
@@ -194,10 +205,10 @@ def _parse_query(query_json: dict):
     return _parse_match_all(query_json['match_all'])
   elif 'wildcard' in query_json:
     return _parse_wildcard(query_json['wildcard'])
+  elif 'prefix' in query_json:
+    return _parse_prefix(query_json['prefix'])
   elif 'nested' in query_json:
     return Result('Not implemented yet', False, ['"Nested" not implemented yet'])
-  elif 'prefix' in query_json:
-    return Result('Not implemented yet', False, ['"Prefix" not implemented yet'])
   else:  
     return Result('Not implemented yet', False, ['Invalid query'])
 
