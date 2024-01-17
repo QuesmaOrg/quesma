@@ -103,8 +103,8 @@ def _parse_match(match_json: dict, match_type: str):
 def _parse_simple_query_string(simple_query_string_json: dict):
   fields = simple_query_string_json["fields"]
   if len(fields) == 1 \
-      and all([c.isalpha() or c == '-' or c == "." or c == '_' for c in fields[0]]) \
-      and all([c.isalpha() or c.isnumeric() or c == "_" for c in simple_query_string_json['query']]):
+      and all([c.isalpha() or c == '-' or c == '.' or c == '_' for c in fields[0]]) \
+      and all([c.isalpha() or c.isnumeric() or c == '_' or c == ' ' for c in simple_query_string_json['query']]):
     return Result(fields[0] + ' queries ' + simple_query_string_json['query'], True)
   return Result('"hard" simple_query_string not supported', False, ['"Hard" simple_query_string'])
 
@@ -112,6 +112,11 @@ def _parse_exists(exists_json: dict):
   if len(exists_json) != 1:
     return Result('exists len supported = 1', False, ['Invalid exists'])
   return Result('exists ' + exists_json['field'], True)
+
+def _parse_match_all(match_all_json: dict):
+    if len(match_all_json) == 0:
+      return Result('match_all', True)
+    return Result('match_all len supported = 0', False, ['Invalid match_all'])
 
 def _parse_range(range_json: dict):
   # TODO: Way more complex
@@ -172,6 +177,8 @@ def _parse_query(query_json: dict):
     return _parse_exists(query_json['exists'])
   elif 'simple_query_string' in query_json:
     return _parse_simple_query_string(query_json['simple_query_string'])
+  elif 'match_all' in query_json:
+    return _parse_match_all(query_json['match_all'])
   elif 'nested' in query_json:
     return Result('Not implemented yet', False, ['"Nested" not implemented yet'])
   elif 'wildcard' in query_json:

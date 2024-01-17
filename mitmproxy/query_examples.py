@@ -191,6 +191,14 @@ LOG_QUERY_9 = """
 }
 """
 
+LOG_QUERY_10 = """
+{
+  "query": {
+    "match_all": {}
+  }
+}
+"""
+
 def verify_result(human_readable_name, result):
     if not result.can_parse:
         print("FAIL:", human_readable_name, "cannot parse", result)
@@ -211,3 +219,4 @@ if __name__ == "__main__":
     ensure_correct("Terms", LOG_QUERY_7)
     ensure_correct("Exists", LOG_QUERY_8)
     ensure_correct("Simple query string", LOG_QUERY_9)
+    ensure_correct("Match all", LOG_QUERY_10)
