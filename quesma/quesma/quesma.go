@@ -183,7 +183,15 @@ func dualWrite(url string, body string, lm *clickhouse.LogManager) {
 
 func handleQuery(url string, body []byte, lm *clickhouse.LogManager, responseMatcher *ResponseMatcher, requestId string) {
 	if strings.Contains(url, "/_search?pretty") {
-		responseMatcher.Push(&QResponse{requestId, body})
+		queryTranslator := &ClickhouseQueryTranslator{clickhouseLM: lm}
+		queryTranslator.Write(body)
+		// TODO query clickhouse
+		// get response
+		// and translate
+		var responseBody []byte
+		responseTranslator := &ClickhouseResultReader{clickhouseLM: lm}
+		responseTranslator.Read(responseBody)
+		responseMatcher.Push(&QResponse{requestId, responseBody})
 		return
 	}
 }
