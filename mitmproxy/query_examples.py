@@ -173,6 +173,24 @@ LOG_QUERY_8 = """
 }
 """
 
+LOG_QUERY_9 = """
+{
+  "bool": {
+    "must": [
+      {
+        "simple_query_string": {
+          "query": "endpoint_event_filters",
+          "fields": [
+            "exception-list-agnostic.list_id"
+          ],
+          "default_operator": "OR"
+        }
+      }
+    ]
+  }
+}
+"""
+
 def verify_result(human_readable_name, result):
     if not result.can_parse:
         print("FAIL:", human_readable_name, "cannot parse", result)
@@ -192,4 +210,4 @@ if __name__ == "__main__":
     ensure_correct("Match", LOG_QUERY_6)
     ensure_correct("Terms", LOG_QUERY_7)
     ensure_correct("Exists", LOG_QUERY_8)
-
+    ensure_correct("Simple query string", LOG_QUERY_9)

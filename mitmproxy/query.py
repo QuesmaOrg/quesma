@@ -100,6 +100,14 @@ def _parse_match(match_json: dict, match_type: str):
   for key in match_json.keys():
     return Result(key + ' ' + match_type + ('s ' if match_type[-1] == 'e' else 'es ') + str(match_json[key]), True)
 
+def _parse_simple_query_string(simple_query_string_json: dict):
+  fields = simple_query_string_json["fields"]
+  if len(fields) == 1 \
+      and all([c.isalpha() or c == '-' or c == "." or c == '_' for c in fields[0]]) \
+      and all([c.isalpha() or c.isnumeric() or c == "_" for c in simple_query_string_json['query']]):
+    return Result(fields[0] + ' queries ' + simple_query_string_json['query'], True)
+  return Result('"hard" simple_query_string not supported', False, ['"Hard" simple_query_string'])
+
 def _parse_exists(exists_json: dict):
   if len(exists_json) != 1:
     return Result('exists len supported = 1', False, ['Invalid exists'])
@@ -162,7 +170,14 @@ def _parse_query(query_json: dict):
     return _parse_match(query_json['match_phrase'], 'match_phrase')
   elif 'exists' in query_json:
     return _parse_exists(query_json['exists'])
-
+  elif 'simple_query_string' in query_json:
+    return _parse_simple_query_string(query_json['simple_query_string'])
+  elif 'nested' in query_json:
+    return Result('Not implemented yet', False, ['"Nested" not implemented yet'])
+  elif 'wildcard' in query_json:
+    return Result('Not implemented yet', False, ['"Wildcard" not implemented yet'])
+  elif 'prefix' in query_json:
+    return Result('Not implemented yet', False, ['"Prefix" not implemented yet'])
   else:  
     return Result('Not implemented yet', False, ['Invalid query'])
 
