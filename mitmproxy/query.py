@@ -77,7 +77,7 @@ def _parse_bool(bool_json: dict):
       resultsNot.append(_parse_query(el))
     if len(resultsNot) > 0:
       results.append(createNot(createResultAnd(resultsNot)))
-  
+  # print("  _parse_bool, bool_json: ", bool_json, " results: ", results[0])
   return createResultAnd(results)
 
 def _parse_multi_match(multi_match_json: dict):
@@ -86,7 +86,13 @@ def _parse_multi_match(multi_match_json: dict):
     return Result('any_field contains ' + multi_match_json['query'], True)
   else:
     return Result('Not implemented', False, ['Invalid multi_match'])
-  
+
+def _parse_term(term_json: dict):
+  if len(term_json) != 1:
+    return Result('term len should be 1 (?)', False, ['Invalid term'])
+  for key in term_json.keys():
+    return Result(key + ' = ' + str(term_json[key]), True)
+
 def _parse_range(range_json: dict):
   # TODO: Way more complex
   for key in range_json.keys():
@@ -105,6 +111,7 @@ def _parse_range(range_json: dict):
   return Result('Invalid', False, ['Invalid range, lack of key'])
       
 def _parse_query(query_json: dict):
+  # print("_parse_query:", query_json)
   if not isinstance(query_json, dict):
         raise TypeError("Input 'query_json' must be a dictionary ")
   # TODO: Check if no extra fields
@@ -129,6 +136,8 @@ def _parse_query(query_json: dict):
     return _parse_multi_match(query_json['multi_match'])
   elif 'range' in query_json:
     return _parse_range(query_json['range'])
+  elif 'term' in query_json:
+    return _parse_term(query_json['term'])
   else:  
     return Result('Not implemented yet', False, ['Invalid query'])
 

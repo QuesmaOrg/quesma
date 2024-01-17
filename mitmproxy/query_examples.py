@@ -61,6 +61,32 @@ LOG_QUERY_3 = """
 }
 """
 
+LOG_QUERY_4 = """
+{
+  "query": {
+    "bool" : {
+      "must" : {
+        "term" : { "user.id" : "kimchy" }
+      },
+      "filter": {
+        "term" : { "tags" : "production" }
+      },
+      "must_not" : {
+        "range" : {
+          "age" : { "gte" : 10, "lte" : 20 }
+        }
+      },
+      "should" : [
+        { "term" : { "tags" : "env1" } },
+        { "term" : { "tags" : "deployed" } }
+      ],
+      "minimum_should_match" : 1,
+      "boost" : 1.0
+    }
+  }
+}
+"""
+
 def verify_result(human_readable_name, result):
     if not result.can_parse:
         print("FAIL:", human_readable_name, "cannot parse", result)
@@ -75,3 +101,4 @@ if __name__ == "__main__":
     ensure_correct("Sample log query", LOG_QUERY_1)
     ensure_correct("Term as array", LOG_QUERY_2)
     ensure_correct("Term as dictionary", LOG_QUERY_3)
+    ensure_correct("Multiple bool query", LOG_QUERY_4)
