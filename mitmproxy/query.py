@@ -114,9 +114,22 @@ def _parse_exists(exists_json: dict):
   return Result('exists ' + exists_json['field'], True)
 
 def _parse_match_all(match_all_json: dict):
-    if len(match_all_json) == 0:
-      return Result('match_all', True)
-    return Result('match_all len supported = 0', False, ['Invalid match_all'])
+  if len(match_all_json) == 0:
+    return Result('match_all', True)
+  return Result('match_all len supported = 0', False, ['Invalid match_all'])
+
+def _parse_wildcard(wildcard_json: dict):
+  if len(wildcard_json) != 1:
+    return Result('wildcard len supported = 1', False, ['Invalid wildcard len'])
+  for key in wildcard_json.keys():
+    query_str = wildcard_json[key]["value"]
+    if not all([c.isalpha() or c == '.' for c in key]):
+      return Result('Too hard key for "wildcard"', False, ['Invalid wildcard, too hard key'])
+    if query_str.count('*') > 1:
+      return Result('Too hard query_str for "wildcard"', False, ['Invalid wildcard, too hard query_str'])
+    if query_str[-1] != '*':
+      return Result('easy * should be in the end of wildcard', False, ['Invalid wildcard, easy * should be in the end of wildcard'])
+    return Result(key + ' like ' + wildcard_json[key]["value"][:-1] + '%', True)
 
 def _parse_range(range_json: dict):
   # TODO: Way more complex
@@ -179,10 +192,10 @@ def _parse_query(query_json: dict):
     return _parse_simple_query_string(query_json['simple_query_string'])
   elif 'match_all' in query_json:
     return _parse_match_all(query_json['match_all'])
+  elif 'wildcard' in query_json:
+    return _parse_wildcard(query_json['wildcard'])
   elif 'nested' in query_json:
     return Result('Not implemented yet', False, ['"Nested" not implemented yet'])
-  elif 'wildcard' in query_json:
-    return Result('Not implemented yet', False, ['"Wildcard" not implemented yet'])
   elif 'prefix' in query_json:
     return Result('Not implemented yet', False, ['"Prefix" not implemented yet'])
   else:  
