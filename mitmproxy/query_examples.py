@@ -134,6 +134,45 @@ LOG_QUERY_7 = """
 }
 """
 
+LOG_QUERY_8 = """
+{
+  "bool": {
+    "filter": [
+      {
+        "bool": {
+          "should": [
+            {
+              "bool": {
+                "must": [
+                  {
+                    "term": {
+                      "type": "upgrade-assistant-reindex-operation"
+                    }
+                  }
+                ],
+                "must_not": [
+                  {
+                    "exists": {
+                      "field": "namespace"
+                    }
+                  },
+                  {
+                    "exists": {
+                      "field": "namespaces"
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "minimum_should_match": 1
+        }
+      }
+    ]
+  }
+}
+"""
+
 def verify_result(human_readable_name, result):
     if not result.can_parse:
         print("FAIL:", human_readable_name, "cannot parse", result)
@@ -152,4 +191,5 @@ if __name__ == "__main__":
     ensure_correct("Match phrase", LOG_QUERY_5)
     ensure_correct("Match", LOG_QUERY_6)
     ensure_correct("Terms", LOG_QUERY_7)
+    ensure_correct("Exists", LOG_QUERY_8)
 

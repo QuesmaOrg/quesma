@@ -76,7 +76,7 @@ def _parse_bool(bool_json: dict):
     for el in iterateListOrDictionary(bool_json['must_not']):
       resultsNot.append(_parse_query(el))
     if len(resultsNot) > 0:
-      results.append(createNot(createResultAnd(resultsNot)))
+      results.append(createNot(createResultOr(resultsNot)))
   # print("  _parse_bool, bool_json: ", bool_json, " results: ", results[0])
   return createResultAnd(results)
 
@@ -99,6 +99,11 @@ def _parse_match(match_json: dict, match_type: str):
     return Result('match len supported = 1', False, ['Invalid match'])
   for key in match_json.keys():
     return Result(key + ' ' + match_type + ('s ' if match_type[-1] == 'e' else 'es ') + str(match_json[key]), True)
+
+def _parse_exists(exists_json: dict):
+  if len(exists_json) != 1:
+    return Result('exists len supported = 1', False, ['Invalid exists'])
+  return Result('exists ' + exists_json['field'], True)
 
 def _parse_range(range_json: dict):
   # TODO: Way more complex
@@ -124,6 +129,10 @@ def _parse_query(query_json: dict):
   # TODO: Check if no extra fields
   if 'bool' in query_json:
     return _parse_bool(query_json['bool'])
+  elif 'query' in query_json:
+    if len(query_json) == 1:
+      return _parse_query(query_json['query'])
+    return Result('Need only 1 query', False, ['Invalid query'])
   elif 'boosting' in query_json:
     result = _parse_query(query_json['boosting']['positive'])
     result.add_skipping_comment('Skipping boosting')
@@ -151,10 +160,9 @@ def _parse_query(query_json: dict):
     return _parse_match(query_json['match'], 'match')
   elif 'match_phrase' in query_json:
     return _parse_match(query_json['match_phrase'], 'match_phrase')
-  elif 'query' in query_json:
-    if len(query_json) == 1:
-      return _parse_query(query_json['query'])
-    return Result('Need only 1 query', False, ['Invalid query'])
+  elif 'exists' in query_json:
+    return _parse_exists(query_json['exists'])
+
   else:  
     return Result('Not implemented yet', False, ['Invalid query'])
 
