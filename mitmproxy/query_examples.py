@@ -87,6 +87,53 @@ LOG_QUERY_4 = """
 }
 """
 
+LOG_QUERY_5 ="""
+{
+  "bool": {
+    "filter": [
+      {
+        "bool": {
+          "must": [],
+          "filter": [
+            {
+              "match_phrase": {
+                "host_name.keyword": "prometheus"
+              }
+            }
+          ],
+          "should": [],
+          "must_not": []
+        }
+      }
+    ]
+  }
+}
+"""
+
+LOG_QUERY_6 = """
+{
+  "query": {
+    "match": {
+      "message": "this is a test"
+    }
+  }
+}
+"""
+
+LOG_QUERY_7 = """
+{
+  "bool": {
+    "must": [
+      {
+        "terms": {
+          "status": ["pending"]
+        }
+      }
+    ]
+  }
+}
+"""
+
 def verify_result(human_readable_name, result):
     if not result.can_parse:
         print("FAIL:", human_readable_name, "cannot parse", result)
@@ -102,3 +149,7 @@ if __name__ == "__main__":
     ensure_correct("Term as array", LOG_QUERY_2)
     ensure_correct("Term as dictionary", LOG_QUERY_3)
     ensure_correct("Multiple bool query", LOG_QUERY_4)
+    ensure_correct("Match phrase", LOG_QUERY_5)
+    ensure_correct("Match", LOG_QUERY_6)
+    ensure_correct("Terms", LOG_QUERY_7)
+

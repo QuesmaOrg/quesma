@@ -87,11 +87,18 @@ def _parse_multi_match(multi_match_json: dict):
   else:
     return Result('Not implemented', False, ['Invalid multi_match'])
 
-def _parse_term(term_json: dict):
+# term_type = 'term' or 'terms'
+def _parse_term(term_json: dict, term_type):
   if len(term_json) != 1:
-    return Result('term len should be 1 (?)', False, ['Invalid term'])
+    return Result(term_type + ' len should be 1', False, ['Invalid ' + term_type])
   for key in term_json.keys():
     return Result(key + ' = ' + str(term_json[key]), True)
+
+def _parse_match(match_json: dict, match_type: str):
+  if len(match_json) != 1:
+    return Result('match len supported = 1', False, ['Invalid match'])
+  for key in match_json.keys():
+    return Result(key + ' ' + match_type + ('s ' if match_type[-1] == 'e' else 'es ') + str(match_json[key]), True)
 
 def _parse_range(range_json: dict):
   # TODO: Way more complex
@@ -137,7 +144,13 @@ def _parse_query(query_json: dict):
   elif 'range' in query_json:
     return _parse_range(query_json['range'])
   elif 'term' in query_json:
-    return _parse_term(query_json['term'])
+    return _parse_term(query_json['term'], 'term')
+  elif 'terms' in query_json:
+    return _parse_term(query_json['terms'], 'terms')
+  elif 'match' in query_json:
+    return _parse_match(query_json['match'], 'match')
+  elif 'match_phrase' in query_json:
+    return _parse_match(query_json['match_phrase'], 'match_phrase')
   elif 'query' in query_json:
     if len(query_json) == 1:
       return _parse_query(query_json['query'])
