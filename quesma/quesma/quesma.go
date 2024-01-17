@@ -2,6 +2,7 @@ package quesma
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
@@ -10,21 +11,32 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
+const TCP_PROXY_PORT = "8888"
+const REMOTE_URL = "http://" + "localhost:" + TCP_PROXY_PORT + "/"
+
 type Quesma struct {
-	server     *http.Server
-	logManager *clickhouse.LogManager
-	targetUrl  string
-	tcpPort    string
-	httpPort   string
+	server            *http.Server
+	logManager        *clickhouse.LogManager
+	targetUrl         string
+	tcpPort           string
+	httpPort          string
+	responseDecorator *http.Server
+	tcpProxyPort      string
+	requestId         int64
+	responseMatcher   *ResponseMatcher
 }
 
 func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string) *Quesma {
+	responseMatcher := NewResponseMatcher()
 	q := &Quesma{
 		logManager: logManager,
 		targetUrl:  target,
@@ -33,18 +45,95 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 		server: &http.Server{
 			Addr: ":" + httpPort,
 			Handler: http.HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					log.Fatal(err)
+				}
+				r.Body = io.NopCloser(bytes.NewBuffer(body))
 				if r.Method == "POST" {
-					body, err := io.ReadAll(r.Body)
-					if err != nil {
-						log.Fatal(err)
-					}
-					r.Body = io.NopCloser(bytes.NewBuffer(body))
 					go dualWrite(r.RequestURI, string(body), logManager)
+				} else {
+					id := r.Header.Get("RequestId")
+					go handleQuery(r.RequestURI, body, logManager, responseMatcher, id)
 				}
 			}),
 		},
+		requestId:       0,
+		tcpProxyPort:    TCP_PROXY_PORT,
+		responseMatcher: responseMatcher,
 	}
+
+	q.responseDecorator = NewResponseDecorator(tcpPort, q.requestId, q.responseMatcher)
 	return q
+}
+
+func unzip(gzippedData []byte) ([]byte, error) {
+	// Create a reader for the gzipped data
+	reader := bytes.NewReader(gzippedData)
+
+	// Create a gzip reader
+	gzipReader, err := gzip.NewReader(reader)
+	if err != nil {
+		return nil, err
+	}
+	defer gzipReader.Close()
+
+	// Read the unzipped data
+	unzippedData, err := io.ReadAll(gzipReader)
+	if err != nil {
+		return nil, err
+	}
+
+	return unzippedData, nil
+}
+
+func NewResponseDecorator(tcpPort string, requestId int64, matcher *ResponseMatcher) *http.Server {
+	remote, err := url.Parse(REMOTE_URL)
+	if err != nil {
+		log.Fatal("Cannot parse target url:", err)
+	}
+	return &http.Server{
+		Addr: ":" + tcpPort,
+		Handler: http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
+			req.Host = remote.Host
+			req.URL.Host = remote.Host
+			req.URL.Scheme = "http"
+			log.Println(req.URL.Host)
+
+			id := atomic.AddInt64(&requestId, 1)
+			req.Header.Add("RequestId", strconv.FormatInt(id, 10))
+
+			// httputil.ReverseProxy does not serve
+			// our purpose which is copy RequestID header from request to response.
+			// The only thing http.ReverseProxy can do is to rewrite returned request OR response
+			// therefore we have to pass id via closure
+			proxy := httputil.NewSingleHostReverseProxy(remote)
+			proxy.ModifyResponse = func(resp *http.Response) error {
+				reader := resp.Body
+				body, err := io.ReadAll(reader)
+				if err != nil {
+					log.Fatal(err)
+				}
+				resp.Body = io.NopCloser(bytes.NewBuffer(body))
+
+				if strings.Contains(req.RequestURI, "/_search?pretty") {
+					isGzipped := strings.Contains(resp.Header.Get("Content-Encoding"), "gzip")
+					if isGzipped {
+						unzippedBuffer, err := unzip(body)
+						if err != nil {
+							log.Println("Error unzipping:", err)
+							return err
+						}
+						matcher.Push(&QResponse{req.Header.Get("RequestId"), unzippedBuffer})
+					} else {
+						matcher.Push(&QResponse{req.Header.Get("RequestId"), body})
+					}
+				}
+				return nil
+			}
+			proxy.ServeHTTP(writer, req)
+		}),
+	}
 }
 
 func (q *Quesma) Close(ctx context.Context) {
@@ -58,8 +147,9 @@ func (q *Quesma) Close(ctx context.Context) {
 
 func (q *Quesma) listen() (net.Listener, error) {
 	go q.listenHTTP()
-	fmt.Printf("listening TCP at %s\n", q.tcpPort)
-	listener, err := net.Listen("tcp", ":"+q.tcpPort)
+	go q.listenResponseDecorator()
+	fmt.Printf("listening TCP at %s\n", q.tcpProxyPort)
+	listener, err := net.Listen("tcp", ":"+q.tcpProxyPort)
 	if err != nil {
 		return nil, err
 	}
@@ -101,6 +191,12 @@ func (q *Quesma) listenHTTP() {
 	}
 }
 
+func (q *Quesma) listenResponseDecorator() {
+	if err := q.responseDecorator.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Fatal("Error starting server:", err)
+	}
+}
+
 func (q *Quesma) Start() {
 	defer quesmaRecover()
 	listener, err := q.listen()
@@ -120,6 +216,7 @@ func (q *Quesma) Start() {
 			go q.handleRequest(in)
 		}
 	}()
+	go q.responseMatcher.Compare()
 }
 
 func dualWrite(url string, body string, lm *clickhouse.LogManager) {
@@ -154,5 +251,12 @@ func dualWrite(url string, body string, lm *clickhouse.LogManager) {
 		}
 	} else {
 		fmt.Printf("%s --> pass-through\n", url)
+	}
+}
+
+func handleQuery(url string, body []byte, lm *clickhouse.LogManager, responseMatcher *ResponseMatcher, requestId string) {
+	if strings.Contains(url, "/_search?pretty") {
+		responseMatcher.Push(&QResponse{requestId, body})
+		return
 	}
 }
