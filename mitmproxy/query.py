@@ -25,7 +25,7 @@ def createResultOr(results):
     return Result(sql, can_parse, skipping_comments)
 
 def createResultAnd(results):
-    sql = '(' + " AND ".join([r.sql for r in results]) + ')'
+    sql = '(' + " AND ".join([r.sql for r in results]) + ')' if len(results) > 1 else results[0].sql
     can_parse = all([r.can_parse for r in results])
     skipping_comments = [comment for result in results for comment in result.skipping_comments]
     return Result(sql, can_parse, skipping_comments)
@@ -73,7 +73,7 @@ def _parse_bool(bool_json: dict):
   # Must not
   if 'must_not' in bool_json:
     resultsNot = []
-    for el in bool_json['must_not']:
+    for el in iterateListOrDictionary(bool_json['must_not']):
       resultsNot.append(_parse_query(el))
     if len(resultsNot) > 0:
       results.append(createNot(createResultAnd(resultsNot)))
@@ -98,20 +98,20 @@ def _parse_range(range_json: dict):
   for key in range_json.keys():
     SQL = key
     if 'format' in range_json[key]:
-      SQL += ' in format ' + range_json[key]['format'] 
+      SQL += ' in format ' + str(range_json[key]['format'])
     if 'gte' in range_json[key]:
-      SQL += ' >= ' + range_json[key]['gte']
+      SQL += ' >= ' + str(range_json[key]['gte'])
     if 'gt' in range_json[key]:
-      SQL += ' > ' + range_json[key]['gt']
+      SQL += ' > ' + str(range_json[key]['gt'])
     if 'lt' in range_json[key]:
-      SQL += ' < ' + range_json[key]['lt']
+      SQL += ' < ' + str(range_json[key]['lt'])
     if 'lte' in range_json[key]:
-      SQL += ' <= ' + range_json[key]['lte']
+      SQL += ' <= ' + str(range_json[key]['lte'])
     return Result('(' + SQL + ')', True)
   return Result('Invalid', False, ['Invalid range, lack of key'])
       
 def _parse_query(query_json: dict):
-  # print("_parse_query:", query_json)
+  # print("_parse_query:", len(query_json), query_json)
   if not isinstance(query_json, dict):
         raise TypeError("Input 'query_json' must be a dictionary ")
   # TODO: Check if no extra fields
@@ -138,6 +138,10 @@ def _parse_query(query_json: dict):
     return _parse_range(query_json['range'])
   elif 'term' in query_json:
     return _parse_term(query_json['term'])
+  elif 'query' in query_json:
+    if len(query_json) == 1:
+      return _parse_query(query_json['query'])
+    return Result('Need only 1 query', False, ['Invalid query'])
   else:  
     return Result('Not implemented yet', False, ['Invalid query'])
 
