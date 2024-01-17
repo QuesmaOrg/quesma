@@ -25,7 +25,13 @@ def createResultOr(results):
     return Result(sql, can_parse, skipping_comments)
 
 def createResultAnd(results):
-    sql = '(' + " AND ".join([r.sql for r in results]) + ')' if len(results) > 1 else results[0].sql
+    sql = ""
+    if len(results) > 1:
+      sql = '(' + " AND ".join([r.sql for r in results]) + ')'
+    elif len(results) == 1:
+      sql = results[0].sql
+    else:
+      sql = '*'
     can_parse = all([r.can_parse for r in results])
     skipping_comments = [comment for result in results for comment in result.skipping_comments]
     return Result(sql, can_parse, skipping_comments)
@@ -121,7 +127,15 @@ def _parse_simple_query_string(simple_query_string_json: dict):
       and (all([c.isalpha() or c == '-' or c == '.' or c == '_' for c in fields[0]]) or okey_field) \
       and all([c.isalpha() or c.isnumeric() or c == '_' or c == ' ' or c == '-' for c in simple_query_string_json['query']]):
     return Result(fields[0] + ' queries ' + simple_query_string_json['query'], True)
+  if len(fields) == 0 or (len(fields) == 1 and fields[0] == '*'):
+    return Result('all_fields ' + simple_query_string_json['query'], True)
   return Result('"hard" simple_query_string not supported', False, ['"Hard" simple_query_string'])
+
+def _parse_query_string(query_string_json: dict):
+  field = '*'
+  if 'default_field' in query_string_json:
+    field = query_string_json['default_field']
+  return Result(field + ' queries ' + query_string_json['query'], True)
 
 def _parse_prefix(prefix_json: dict):
   if len(prefix_json) != 1:
@@ -224,8 +238,10 @@ def _parse_query(query_json: dict):
     return _parse_prefix(query_json['prefix'])
   elif 'nested' in query_json:
     return Result('Not implemented yet', False, ['"Nested" not implemented yet'])
-  else:  
-    return Result('Not implemented yet', False, ['Invalid query'])
+  elif 'query_string' in query_json:
+    return _parse_query_string(query_json['query_string'])
+  else:
+    return Result('Not implemented yet', False, ['Invalid query ' + ",".join(query_json.keys())])
 
 def safe_parse_query(request_json):
   try:

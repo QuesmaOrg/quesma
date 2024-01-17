@@ -257,18 +257,60 @@ LOG_QUERY_14 = """
 }
 """
 
-test_nr = 1
+LOG_QUERY_15 = """
+{
+  "bool": {
+    "must": [
+      {
+        "simple_query_string": {
+          "query": "ingest-agent-policies",
+          "lenient": true,
+          "fields": [
+            "*"
+          ],
+          "default_operator": "OR"
+        }
+      }
+    ]
+  }
+}
+"""
+
+LOG_QUERY_16 = """
+{
+  "query_string": {
+    "fields": [
+      "message"
+    ],
+    "query": "* logged"
+  }
+}
+"""
+
+LOG_QUERY_17 = """
+{
+  "bool": {
+    "must": [],
+    "filter": [],
+    "should": [],
+    "must_not": []
+  }
+}
+"""
+
+test_number = 1
+
 def verify_result(human_readable_name, result):
     if not result.can_parse:
-        print(test_nr, "FAIL:", human_readable_name, "cannot parse", result)
+        print(test_number, "FAIL:", human_readable_name, "cannot be parsed", result)
     else:
-        print(test_nr, "PASS:", human_readable_name, "can parse", result)
+        print(test_number, "PASS:", human_readable_name, "can be parsed", result)
 
 def ensure_correct(human_readable_name, json_to_parse):
-    global test_nr
+    global test_number
     result = query.safe_parse_query(json.loads(json_to_parse))
     verify_result(human_readable_name, result)
-    test_nr += 1
+    test_number += 1
 
 if __name__ == "__main__":
     ensure_correct("Sample log query", LOG_QUERY_1)
@@ -280,8 +322,13 @@ if __name__ == "__main__":
     ensure_correct("Terms", LOG_QUERY_7)
     ensure_correct("Exists", LOG_QUERY_8)
     ensure_correct("Simple query string", LOG_QUERY_9)
+    
     ensure_correct("A bit harder simple query string, but seems doable", LOG_QUERY_10)
     ensure_correct("Match all", LOG_QUERY_11)
     ensure_correct("Simple wildcard", LOG_QUERY_12)
     ensure_correct("Simple prefix ver1", LOG_QUERY_13)
     ensure_correct("Simple prefix ver2", LOG_QUERY_14)
+    ensure_correct("Simple query string wildcard", LOG_QUERY_15)
+    ensure_correct("Query string", LOG_QUERY_16)
+    ensure_correct("Empty bool", LOG_QUERY_17)
+
