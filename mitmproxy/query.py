@@ -101,10 +101,25 @@ def _parse_match(match_json: dict, match_type: str):
     return Result(key + ' ' + match_type + ('s ' if match_type[-1] == 'e' else 'es ') + str(match_json[key]), True)
 
 def _parse_simple_query_string(simple_query_string_json: dict):
+  if len(simple_query_string_json) not in [3, 4]:
+    return Result('simple_query_string len supported = 3 or 4', False, ['Invalid simple_query_string'])
+  for field in ['query', 'fields', 'default_operator']:
+    if field not in simple_query_string_json:
+      return Result('simple_query_string lack of ' + field, False, ['Invalid simple_query_string'])
+
   fields = simple_query_string_json["fields"]
+  okey_field = False
+  if len(simple_query_string_json) == 4:
+    if 'lenient' not in simple_query_string_json:
+      return Result('simple_query_string lack of lenient', False, ['Invalid simple_query_string'])
+    if fields[0] == "*":
+      okey_field = True
+    else:
+      return Result('lenient + hard simple_query_string' + field, False, ['Invalid simple_query_string'])
+
   if len(fields) == 1 \
-      and all([c.isalpha() or c == '-' or c == '.' or c == '_' for c in fields[0]]) \
-      and all([c.isalpha() or c.isnumeric() or c == '_' or c == ' ' for c in simple_query_string_json['query']]):
+      and (all([c.isalpha() or c == '-' or c == '.' or c == '_' for c in fields[0]]) or okey_field) \
+      and all([c.isalpha() or c.isnumeric() or c == '_' or c == ' ' or c == '-' for c in simple_query_string_json['query']]):
     return Result(fields[0] + ' queries ' + simple_query_string_json['query'], True)
   return Result('"hard" simple_query_string not supported', False, ['"Hard" simple_query_string'])
 

@@ -193,13 +193,32 @@ LOG_QUERY_9 = """
 
 LOG_QUERY_10 = """
 {
+  "bool": {
+    "must": [
+      {
+        "simple_query_string": {
+          "query": "ingest-agent-policies",
+          "lenient": true,
+          "fields": [
+            "*"
+          ],
+          "default_operator": "OR"
+        }
+      }
+    ]
+  }
+}
+"""
+
+LOG_QUERY_11 = """
+{
   "query": {
     "match_all": {}
   }
 }
 """
 
-LOG_QUERY_11 = """
+LOG_QUERY_12 = """
 {
   "bool": {
     "must": [
@@ -215,7 +234,7 @@ LOG_QUERY_11 = """
 }
 """
 
-LOG_QUERY_12 = """
+LOG_QUERY_13 = """
 {
   "bool": {"must": [
      {
@@ -230,7 +249,7 @@ LOG_QUERY_12 = """
 }
 """
 
-LOG_QUERY_13 = """
+LOG_QUERY_14 = """
 {
   "query": {
     "prefix" : { "user" : "ki" }
@@ -238,15 +257,18 @@ LOG_QUERY_13 = """
 }
 """
 
+test_nr = 1
 def verify_result(human_readable_name, result):
     if not result.can_parse:
-        print("FAIL:", human_readable_name, "cannot parse", result)
+        print(test_nr, "FAIL:", human_readable_name, "cannot parse", result)
     else:
-        print("PASS:", human_readable_name, "can parse", result)
+        print(test_nr, "PASS:", human_readable_name, "can parse", result)
 
 def ensure_correct(human_readable_name, json_to_parse):
+    global test_nr
     result = query.safe_parse_query(json.loads(json_to_parse))
     verify_result(human_readable_name, result)
+    test_nr += 1
 
 if __name__ == "__main__":
     ensure_correct("Sample log query", LOG_QUERY_1)
@@ -258,7 +280,8 @@ if __name__ == "__main__":
     ensure_correct("Terms", LOG_QUERY_7)
     ensure_correct("Exists", LOG_QUERY_8)
     ensure_correct("Simple query string", LOG_QUERY_9)
-    ensure_correct("Match all", LOG_QUERY_10)
-    ensure_correct("Simple wildcard", LOG_QUERY_11)
-    ensure_correct("Simple prefix ver1", LOG_QUERY_12)
-    ensure_correct("Simple prefix ver2", LOG_QUERY_13)
+    ensure_correct("A bit harder simple query string, but seems doable", LOG_QUERY_10)
+    ensure_correct("Match all", LOG_QUERY_11)
+    ensure_correct("Simple wildcard", LOG_QUERY_12)
+    ensure_correct("Simple prefix ver1", LOG_QUERY_13)
+    ensure_correct("Simple prefix ver2", LOG_QUERY_14)
