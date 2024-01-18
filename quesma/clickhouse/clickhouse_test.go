@@ -501,6 +501,80 @@ func TestRemovingNonSchemaFields(t *testing.T) {
 	assert.Nil(t, nestedMap2["schema221"])
 }
 
+func TestJsonFlatteningToStringAttr(t *testing.T) {
+	config := &ChTableConfig{
+		hasTimestamp:         true,
+		timestampDefaultsNow: true,
+		engine:               "MergeTree",
+		orderBy:              "(timestamp)",
+		partitionBy:          "",
+		primaryKey:           "",
+		ttl:                  "",
+		hasOthers:            false,
+		attributes: []Attribute{
+			NewDefaultInt64Attribute(),
+			NewDefaultFloat64Attribute(),
+			NewDefaultBoolAttribute(),
+			NewDefaultStringAttribute(),
+		},
+		castUnsupportedAttrValueTypesToString: true,
+		preferCastingToOthers:                 true,
+	}
+	m := SchemaMap{
+		"host_name": SchemaMap{
+			"a": SchemaMap{
+				"b": nil,
+			},
+			"b": nil,
+			"c": nil,
+		},
+	}
+	attrs, others, err := BuildAttrsMapAndOthers(m, config)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(others))
+	assert.Equal(t, 2, len(attrs))
+	for k := range attrs {
+		assert.Contains(t, k, "string")
+	}
+}
+
+func TestJsonConvertingBoolToStringAttr(t *testing.T) {
+	config := &ChTableConfig{
+		hasTimestamp:         true,
+		timestampDefaultsNow: true,
+		engine:               "MergeTree",
+		orderBy:              "(timestamp)",
+		partitionBy:          "",
+		primaryKey:           "",
+		ttl:                  "",
+		hasOthers:            false,
+		attributes: []Attribute{
+			NewDefaultStringAttribute(),
+		},
+		castUnsupportedAttrValueTypesToString: true,
+		preferCastingToOthers:                 true,
+	}
+	m := SchemaMap{
+		"b1": true,
+		"b2": false,
+		"b3": SchemaMap{
+			"a": SchemaMap{
+				"b": nil,
+			},
+			"b": nil,
+			"c": nil,
+		},
+	}
+
+	attrs, others, err := BuildAttrsMapAndOthers(m, config)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(others))
+	assert.Equal(t, 2, len(attrs))
+	for k := range attrs {
+		assert.Contains(t, k, "string")
+	}
+}
+
 /*
 Some manual testcases:
 You can send those JSONs the same way it's done in log-generator/logger.go

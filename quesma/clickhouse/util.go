@@ -97,7 +97,6 @@ func parseTypeFromShowColumns(typ, name string) (Type, string) {
 	var parseTypeRec func(s, colName string) (Type, string)
 	parseTypeRec = func(s, colName string) (Type, string) {
 		cols := make([]*Column, 0)
-		fmt.Println("parseTypeRec", s, colName)
 		finish := func() (Type, string) {
 			if len(cols) == 1 {
 				return cols[0].Type, colName
@@ -143,7 +142,6 @@ func parseTypeFromShowColumns(typ, name string) (Type, string) {
 				if isClosest(iRight, iComma, -1) {
 					end = iRight
 				}
-				fmt.Println("appenduje, ", s[:end])
 				cols = append(cols, &Column{Name: name, Type: NewBaseType(s[iSpace+1 : end])}) // TODO inspect type
 			}
 			if isClosest(iComma, iLeft, iRight) { // ',' closest (same ind lvl)
@@ -213,13 +211,9 @@ func shortenDumpSchemasOutput(s string) string {
 	}
 	r, _ := regexp.Compile(`Name:\s*"(.*)",\s*(goType:\s*&reflect\.rtype)`)
 	x := r.FindAllSubmatchIndex([]byte(s), -1)
-	fmt.Println("SDASADSA ", len(x))
-	fmt.Println(x)
-	fmt.Println("AAAAA", r.FindAllString(s, -1))
 	result := ""
 	i := 0
 	for _, y := range x {
-		fmt.Println(s[y[0]:y[1]])
 		result += s[i:y[4]] + `goType: NewBaseType("` + s[y[2]:y[3]] + `").goType`
 		i = findEndOfGoType(s, y[5])
 	}

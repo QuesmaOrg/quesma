@@ -232,7 +232,6 @@ func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfi
 	if !config.hasOthers && len(config.attributes) == 0 {
 		return js, nil
 	}
-
 	// we find all non-schema fields
 	m, err := JsonToFieldsMap(js)
 	if err != nil {
@@ -244,7 +243,6 @@ func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfi
 	if len(mDiff) == 0 {         // no need to modify, just insert 'js'
 		return js, nil
 	}
-
 	var attrsMap map[string][]interface{}
 	var othersMap SchemaMap
 	if len(config.attributes) > 0 {
@@ -268,29 +266,34 @@ func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfi
 	} else {
 		return "", fmt.Errorf("no attributes or others in config, but received non-schema fields: %s", mDiff)
 	}
-
 	nonSchemaStr := ""
 	if len(attrsMap) > 0 {
 		attrs, err := json.Marshal(attrsMap) // check probably bad, they need to be arrays
 		if err != nil {
 			return "", err
 		}
-		nonSchemaStr = fmt.Sprintf("%s,", attrs[1:len(attrs)-1])
+		nonSchemaStr = string(attrs[1 : len(attrs)-1])
 	}
 	if len(othersMap) > 0 {
 		others, err := json.Marshal(othersMap)
 		if err != nil {
 			return "", err
 		}
-		nonSchemaStr += fmt.Sprintf(`"%s":%s,`, othersFieldName, others)
+		if nonSchemaStr != "" {
+			nonSchemaStr += "," // need to watch out where we input commas, CH doesn't tolerate trailing ones
+		}
+		nonSchemaStr += fmt.Sprintf(`"%s":%s`, othersFieldName, others)
 	}
-
 	onlySchemaFields := RemoveNonSchemaFields(m, t)
 	schemaFieldsJson, err := json.Marshal(onlySchemaFields)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("{%s%s", nonSchemaStr, schemaFieldsJson[1:]), nil
+	comma := ""
+	if nonSchemaStr != "" && len(schemaFieldsJson) > 2 {
+		comma = "," // need to watch out where we input commas, CH doesn't tolerate trailing ones
+	}
+	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), nil
 }
 
 func (lm *LogManager) ProcessInsertQuery(tableName, q string) error {
@@ -328,7 +331,6 @@ func (lm *LogManager) Insert(tableName, jsonData string, config *ChTableConfig) 
 		return err
 	}
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertJson)
-
 	_, err = lm.db.Exec(insert)
 	if err != nil {
 		return fmt.Errorf("error Insert, tablename: %s\nerror: %v\njson:%s", tableName, err, PrettyJson(jsonData))

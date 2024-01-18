@@ -65,6 +65,9 @@ func (t MultiValueType) String() string {
 
 // TODO maybe a bit better/faster?
 func (t BaseType) canConvert(v interface{}) bool {
+	if t.Name == "String" {
+		return true
+	}
 	rv := reflect.ValueOf(v)
 	return rv.CanConvert(t.goType) && rv.Equal(rv.Convert(t.goType).Convert(rv.Type()))
 }
