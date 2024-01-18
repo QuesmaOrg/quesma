@@ -1,6 +1,6 @@
 # Minimalistic ELK-CH configuration
 
-Kibana is available at [localhost:5061](http://localhost:5061)
+Kibana is available at [localhost:5601](http://localhost:5601/app/observability-log-explorer/).
 
 ### MITM Proxy
 Mitmweb is available at [localhost:8081](http://localhost:8081).
