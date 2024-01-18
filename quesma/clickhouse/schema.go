@@ -11,6 +11,7 @@ type (
 	Type interface {
 		String() string
 		canConvert(interface{}) bool
+		createTableString(indentLvl int) string // prints type for CREATE TABLE command
 	}
 	Codec struct {
 		Name string // change to enum
@@ -28,9 +29,10 @@ type (
 		Cols []*Column
 	}
 	Column struct {
-		Name  string
-		Type  Type
-		Codec Codec // maybe not needed? idk now
+		Name      string
+		Type      Type
+		Modifiers string
+		Codec     Codec // TODO currently not used, it's part of Modifiers
 	}
 	Table struct {
 		Name     string
@@ -39,6 +41,7 @@ type (
 		Cols     map[string]*Column
 		Config   *ChTableConfig
 		Created  bool // do we need to create it during first insert
+		indexes  []IndexStatement
 	}
 )
 
@@ -46,20 +49,41 @@ func (t BaseType) String() string {
 	return t.Name
 }
 
+func (t BaseType) createTableString(indentLvl int) string {
+	return t.String()
+}
+
 func (t CompoundType) String() string {
 	return t.Name + "(" + t.BaseType.String() + ")"
+}
+
+func (t CompoundType) createTableString(indentLvl int) string {
+	return t.String()
 }
 
 func (t MultiValueType) String() string {
 	var sb strings.Builder
 	sb.WriteString(t.Name + "(")
-	for i, col := range t.Cols {
+	for _, col := range t.Cols {
 		sb.WriteString(col.Name)
-		if i+1 < len(t.Cols) {
-			sb.WriteString(",")
-		}
 	}
 	sb.WriteString(")")
+	return sb.String()
+}
+
+func (t MultiValueType) createTableString(indentLvl int) string {
+	var sb strings.Builder
+	sb.WriteString(t.Name + "\n" + indent(indentLvl) + "(\n")
+	i := 1
+	for _, col := range t.Cols {
+		sb.WriteString(col.createTableString(indentLvl + 1))
+		if i < len(t.Cols) {
+			sb.WriteString(",")
+		}
+		sb.WriteString("\n")
+		i++
+	}
+	sb.WriteString(indent(indentLvl) + ")")
 	return sb.String()
 }
 
@@ -140,6 +164,83 @@ func NewTable(createTableQuery string, config *ChTableConfig) (*Table, error) {
 	} else {
 		return t, fmt.Errorf("error parsing query at character %d, query: %s", i, createTableQuery)
 	}
+}
+
+func (col *Column) createTableString(indentLvl int) string {
+	spaceStr := " "
+	if len(col.Modifiers) == 0 {
+		spaceStr = ""
+	}
+	return indent(indentLvl) + `"` + col.Name + `" ` + col.Type.createTableString(indentLvl) + spaceStr + col.Modifiers
+}
+
+func (table *Table) CreateTableString() string {
+	dbStr := ""
+	if table.Database != "" {
+		dbStr = table.Database + "."
+	}
+	s := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s%s" (
+`, dbStr, table.Name)
+	rows := make([]string, 0)
+	for _, col := range table.Cols {
+		rows = append(rows, col.createTableString(1))
+	}
+	rows = append(rows, table.CreateTableOurFieldsString()...)
+	for _, index := range table.indexes {
+		rows = append(rows, indent(1)+index.statement())
+	}
+	return s + strings.Join(rows, ",\n") + "\n)\n" + table.Config.CreateTablePostFieldsString()
+}
+
+func (table *Table) CreateTableOurFieldsString() []string {
+	rows := make([]string, 0)
+	if table.Config.hasOthers {
+		_, ok := table.Cols[othersFieldName]
+		if !ok {
+			rows = append(rows, fmt.Sprintf("%s\"%s\" JSON", indent(1), othersFieldName))
+		}
+	}
+	if table.Config.hasTimestamp {
+		_, ok := table.Cols[timestampFieldName]
+		if !ok {
+			defaultStr := ""
+			if table.Config.timestampDefaultsNow {
+				defaultStr = " DEFAULT now64()"
+			}
+			rows = append(rows, fmt.Sprintf("%s\"%s\" DateTime64(3)%s", indent(1), timestampFieldName, defaultStr))
+		}
+	}
+	if len(table.Config.attributes) > 0 {
+		for _, a := range table.Config.attributes {
+			_, ok := table.Cols[a.KeysArrayName]
+			if !ok {
+				rows = append(rows, fmt.Sprintf("%s\"%s\" Array(String)", indent(1), a.KeysArrayName))
+			}
+			_, ok = table.Cols[a.ValuesArrayName]
+			if !ok {
+				rows = append(rows, fmt.Sprintf("%s\"%s\" Array(%s)", indent(1), a.ValuesArrayName, a.Type.String()))
+			}
+		}
+	}
+	return rows
+}
+
+// TODO TTL only by timestamp for now!
+func (config *ChTableConfig) CreateTablePostFieldsString() string {
+	s := "ENGINE = " + config.engine + "\n"
+	if config.orderBy != "" {
+		s += "ORDER BY " + config.orderBy + "\n"
+	}
+	if config.partitionBy != "" {
+		s += "PARTITION BY " + config.partitionBy + "\n"
+	}
+	if config.primaryKey != "" {
+		s += "PRIMARY KEY " + config.primaryKey + "\n"
+	}
+	if config.ttl != "" {
+		s += "TTL toDateTime(timestamp) + INTERVAL " + config.ttl + "\n"
+	}
+	return s
 }
 
 func NewDefaultStringAttribute() Attribute {

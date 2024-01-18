@@ -130,7 +130,7 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 	return q[:i+2] + othersStr + timestampStr + attributesStr + q[i+1:]
 }
 
-func (lm *LogManager) ProcessCreateTableQuery(query string, config *ChTableConfig) error {
+func (lm *LogManager) sendCreateTableQuery(query string) error {
 	if lm.db == nil {
 		connection, err := sql.Open("clickhouse", url)
 		if err != nil {
@@ -138,6 +138,14 @@ func (lm *LogManager) ProcessCreateTableQuery(query string, config *ChTableConfi
 		}
 		lm.db = connection
 	}
+	_, err := lm.db.Exec(query)
+	if err != nil {
+		return fmt.Errorf("error in sendCreateTableQuery: query: %s\nerr:%v", query, err)
+	}
+	return nil
+}
+
+func (lm *LogManager) ProcessCreateTableQuery(query string, config *ChTableConfig) error {
 	table, err := NewTable(query, config)
 	if err != nil {
 		return err
@@ -149,11 +157,7 @@ func (lm *LogManager) ProcessCreateTableQuery(query string, config *ChTableConfi
 		return fmt.Errorf("table %s already exists", table.Name)
 	}
 
-	_, err = lm.db.Exec(addOurFieldsToCreateTableQuery(query, config, table))
-	if err != nil {
-		return fmt.Errorf("error in CreateTable: json: %s\nquery: %s\nerr:%v", PrettyJson(query), query, err)
-	}
-	return nil
+	return lm.sendCreateTableQuery(addOurFieldsToCreateTableQuery(query, config, table))
 }
 
 func buildCreateTableQueryNoOurFields(tableName, jsonData string, config *ChTableConfig) (string, error) {
@@ -164,33 +168,13 @@ func buildCreateTableQueryNoOurFields(tableName, jsonData string, config *ChTabl
 		return "", err
 	}
 
-	/*
-		if config.hasTimestamp {
-			m["timestamp"] = "2024-01-09T15:11:19.299Z" // arbitrary
-		}
-	*/
-	orderByStr, partitionByStr, primaryKeyStr, ttlStr := "", "", "", ""
-	if config.orderBy != "" {
-		orderByStr = "ORDER BY " + config.orderBy + "\n"
-	}
-	if config.partitionBy != "" {
-		partitionByStr = "PARTITION BY " + config.partitionBy + "\n"
-	}
-	if config.primaryKey != "" {
-		primaryKeyStr = "PRIMARY KEY " + config.primaryKey + "\n"
-	}
-	if config.ttl != "" {
-		ttlStr = "TTL toDateTime(timestamp) + INTERVAL " + config.ttl + "\n"
-	}
-
 	return fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
 (
 	%s
 )
-ENGINE = %s
-%s%s%s%s`,
-		tableName, FieldsMapToCreateTableString(m, 1, config)+Indexes(m), config.engine,
-		orderByStr, partitionByStr, primaryKeyStr, ttlStr), nil
+%s`,
+		tableName, FieldsMapToCreateTableString(m, 1, config)+Indexes(m),
+		config.CreateTablePostFieldsString()), nil
 }
 
 func Indexes(m SchemaMap) string {
@@ -246,20 +230,6 @@ func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfi
 	var attrsMap map[string][]interface{}
 	var othersMap SchemaMap
 	if len(config.attributes) > 0 {
-		/*
-			// In next 2 cases, I use a separate handler function. I could use one and avoid
-			// some code duplication, but next 2 cases are most frequent. I want code
-			// to be as fast as possible, so I want to avoid unnecessary ifs and stuff.
-			if ok && config.castUnsupportedAttrValueTypesToString {
-				attrsMap = BuildAttrsMapCastUnsupportedToString(mDiff)
-			} else if !config.hasOthers {
-				attrsMap, err = BuildAttrsMapTypeMatchRequired(mDiff, config)
-				if err != nil {
-					return "", err
-				}
-			} else {
-				attrsMap, othersMap = BuildAttrsMapAndOthers(mDiff)
-			}*/
 		attrsMap, othersMap, _ = BuildAttrsMapAndOthers(mDiff, config)
 	} else if config.hasOthers {
 		othersMap = mDiff
@@ -300,7 +270,7 @@ func (lm *LogManager) ProcessInsertQuery(tableName, q string) error {
 	// first, create table if it doesn't exist
 	table := lm.findSchema(tableName) // TODO create tables on start?
 	var config *ChTableConfig
-	if table == nil || !table.Created {
+	if table == nil {
 		config = NewOnlySchemaFieldsCHConfig()
 		if strings.Contains(tableName, "_doc") {
 			config = NewDefaultCHConfig()
@@ -309,6 +279,12 @@ func (lm *LogManager) ProcessInsertQuery(tableName, q string) error {
 		if err != nil {
 			fmt.Println("error ProcessInsertQuery:", err)
 		}
+	} else if !table.Created {
+		err := lm.sendCreateTableQuery(table.CreateTableString())
+		if err != nil {
+			return err
+		}
+		config = table.Config
 	} else {
 		config = table.Config
 	}

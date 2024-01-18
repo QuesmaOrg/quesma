@@ -16,6 +16,8 @@ func getIndexStatement(column string) IndexStatement {
 		return "INDEX trace_flags_idx trace_flags TYPE bloom_filter GRANULARITY 4"
 	case "id":
 		return "INDEX id_idx id TYPE minmax GRANULARITY 1"
+	case "event_name":
+		return "INDEX event_name_idx event_name TYPE minmax GRANULARITY 1"
 	}
 	return ""
 }

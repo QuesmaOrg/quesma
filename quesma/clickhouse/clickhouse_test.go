@@ -575,6 +575,181 @@ func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 	}
 }
 
+func TestCreateTableString_1(t *testing.T) {
+	table := Table{
+		Created:  false,
+		Name:     "abc",
+		Database: "",
+		Cluster:  "",
+		Cols:     map[string]*Column{},
+		Config: &ChTableConfig{
+			hasTimestamp:                          false,
+			timestampDefaultsNow:                  false,
+			engine:                                "MergeTree",
+			orderBy:                               "",
+			partitionBy:                           "",
+			primaryKey:                            "",
+			ttl:                                   "",
+			hasOthers:                             true,
+			attributes:                            nil,
+			castUnsupportedAttrValueTypesToString: true,
+			preferCastingToOthers:                 true,
+		},
+	}
+	expected := `CREATE TABLE IF NOT EXISTS "abc" (
+	"others" JSON
+)
+ENGINE = MergeTree
+`
+	assert.Equal(t, expected, table.CreateTableString())
+}
+
+// Doesn't test for 100% equality, as map iteration isn't deterministic, but should definitely be good enough.
+func TestCreateTableString_2(t *testing.T) {
+	table := Table{
+		Created:  false,
+		Name:     "/_bulk?refresh=false&_source_includes=originId&require_alias=true_16",
+		Database: "",
+		Cluster:  "",
+		Cols: map[string]*Column{
+			"doc": &Column{
+				Name: "doc",
+				Type: MultiValueType{
+					Name: "Tuple",
+					Cols: []*Column{
+						&Column{
+							Name: "Tuple",
+							Type: MultiValueType{
+								Name: "Tuple",
+								Cols: []*Column{
+									&Column{
+										Name: "runAt",
+										Type: BaseType{
+											Name:   "DateTime64",
+											goType: nil,
+										},
+										Codec: Codec{
+											Name: "",
+										},
+									},
+									&Column{
+										Name: "startedAt",
+										Type: BaseType{
+											Name:   "DateTime64",
+											goType: nil,
+										},
+										Codec: Codec{
+											Name: "",
+										},
+									},
+									&Column{
+										Name: "Tuple",
+										Type: BaseType{
+											Name:   "String",
+											goType: NewBaseType("String").goType,
+										},
+										Codec: Codec{
+											Name: "",
+										},
+									},
+									&Column{
+										Name: "status",
+										Type: BaseType{
+											Name:   "String",
+											goType: NewBaseType("String").goType,
+										},
+										Codec: Codec{
+											Name: "",
+										},
+									},
+								},
+							},
+							Codec: Codec{
+								Name: "",
+							},
+						},
+						&Column{
+							Name: "updated_at",
+							Type: BaseType{
+								Name:   "DateTime64",
+								goType: nil,
+							},
+							Codec: Codec{
+								Name: "",
+							},
+						},
+					},
+				},
+				Codec: Codec{
+					Name: "",
+				},
+			},
+			"timestamp": &Column{
+				Name: "timestamp",
+				Type: BaseType{
+					Name:   "DateTime64",
+					goType: nil,
+				},
+				Codec: Codec{
+					Name: "",
+				},
+			},
+		},
+		Config: &ChTableConfig{
+			hasTimestamp:         true,
+			timestampDefaultsNow: true,
+			engine:               "MergeTree",
+			orderBy:              "(timestamp)",
+			partitionBy:          "",
+			primaryKey:           "",
+			ttl:                  "",
+			hasOthers:            false,
+			attributes: []Attribute{
+				NewDefaultInt64Attribute(),
+				NewDefaultStringAttribute(),
+				NewDefaultBoolAttribute(),
+			},
+			castUnsupportedAttrValueTypesToString: false,
+			preferCastingToOthers:                 false,
+		},
+		indexes: []IndexStatement{
+			getIndexStatement("body"),
+			getIndexStatement("severity"),
+		},
+	}
+	expectedRows := []string{
+		`CREATE TABLE IF NOT EXISTS "/_bulk?refresh=false&_source_includes=originId&require_alias=true_16" (`,
+		`"doc" Tuple`,
+		`(`,
+		`"Tuple" Tuple`,
+		`(`,
+		`"runAt" DateTime64,`,
+		`"startedAt" DateTime64,`,
+		`"Tuple" String,`,
+		`"status" String`,
+		`),`,
+		`"updated_at" DateTime64`,
+		`),`,
+		`"timestamp" DateTime64,`,
+		`"attributes_int64_key" Array(String),`,
+		`"attributes_int64_value" Array(Int64),`,
+		`"attributes_string_key" Array(String),`,
+		`"attributes_string_value" Array(String),`,
+		`"attributes_bool_key" Array(String),`,
+		`"attributes_bool_value" Array(Bool),`,
+		`INDEX body_idx body TYPE tokenbf_v1(10240, 3, 0) GRANULARITY 4,`,
+		`INDEX severity_idx severity TYPE set(25) GRANULARITY 4`,
+		`)`,
+		`ENGINE = MergeTree`,
+		`ORDER BY (timestamp)`,
+		"",
+	}
+	createTableString := table.CreateTableString()
+	for _, row := range strings.Split(createTableString, "\n") {
+		assert.Contains(t, expectedRows, strings.TrimSpace(row))
+	}
+}
+
 /*
 Some manual testcases:
 You can send those JSONs the same way it's done in log-generator/logger.go
