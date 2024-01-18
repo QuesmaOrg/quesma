@@ -5,17 +5,74 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/k0kubun/pp"
+	"regexp"
 	"sort"
 	"strings"
 )
 
-// For later we'll probably need a better parser, probably a grammar
-func (lm *LogManager) DumpTableSchema(table string) (interface{}, error) {
+func (lm *LogManager) DumpTableSchema(tableName string) (*Table, error) {
+	columns := make(map[string]*Column)
+	rows, err := lm.db.Query("SHOW COLUMNS FROM \"" + tableName + "\"")
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var name, typ string
+		var s1, s2, s3, s4 sql.NullString
+		err = rows.Scan(&name, &typ, &s1, &s2, &s3, &s4)
+		// hack, when field support gets bigger, it'll only be worse.
+		// probably need grammar or sth like that, soon
+		typ = strings.Replace(typ, "DateTime64(3)", "DateTime64", -1)
+		typ = strings.Replace(typ, "Object('json')", "Object", -1)
+		if err != nil {
+			return nil, err
+		}
+		parsedType, _ := parseTypeFromShowColumns(typ, name)
+		columns[name] = &Column{Name: name, Type: parsedType}
+	}
+	return &Table{Name: tableName, Cols: columns, Config: NewOnlySchemaFieldsCHConfig()}, nil
+}
+
+func (lm *LogManager) DumpTableSchemas() (string, error) {
+	if lm.db == nil {
+		connection, err := sql.Open("clickhouse", url)
+		if err != nil {
+			return "", err
+		}
+		lm.db = connection
+	}
+
+	rows, err := lm.db.Query("SHOW TABLES")
+	if err != nil {
+		return "", err
+	}
+
+	result := make(TableMap)
+	for rows.Next() {
+		var tableName string
+		err = rows.Scan(&tableName)
+		if err != nil {
+			return "", err
+		}
+		schema, err := lm.DumpTableSchema(tableName)
+		if err != nil {
+			return "", err
+		}
+		result[tableName] = schema
+	}
+	return pp.Sprint(result), nil
+}
+
+// Code doesn't need to be pretty, 99.9% it's just for our purposes
+// Parses type from SHOW COLUMNS FROM "table"
+func parseTypeFromShowColumns(typ, name string) (Type, string) {
 	// i1, i2, i3 indices of results of strings.Index
 	// returns if i1 is closer to the beginning than i2 and i3
-	closest := func(i1, i2, i3 int) bool {
+	isClosest := func(i1, i2, i3 int) bool {
 		return i1 != -1 && (i1 < i2 || i2 == -1) && (i1 < i3 || i3 == -1)
 	}
+
 	// '(' -> indentationLvl++
 	// ')' -> indentationLvl--
 	// We want a comma when indentationLvl == 0, so we have a new field
@@ -35,91 +92,70 @@ func (lm *LogManager) DumpTableSchema(table string) (interface{}, error) {
 		}
 		return -1
 	}
-	var parseType func(string) SchemaMap
-	parseType = func(s string) SchemaMap {
-		m := make(SchemaMap)
 
+	// s - type string
+	var parseTypeRec func(s, colName string) (Type, string)
+	parseTypeRec = func(s, colName string) (Type, string) {
+		cols := make([]*Column, 0)
+		fmt.Println("parseTypeRec", s, colName)
+		finish := func() (Type, string) {
+			if len(cols) == 1 {
+				return cols[0].Type, colName
+			} else {
+				return MultiValueType{Name: "Tuple", Cols: cols}, colName
+			}
+		}
 		for {
 			if len(s) == 0 {
-				return m
+				return finish()
 			}
 
 			iSpace := strings.Index(s, " ")
 			iComma := indexCommaSameIndentationLvl(s)
 			iLeft := strings.Index(s, "(")
 			iRight := strings.Index(s, ")")
-			name := s[:iSpace]
-			if closest(iLeft, iComma, iRight) { // '(' is closest
-				m[name] = parseType(s[iLeft+1:])
-				if iComma != -1 {
-					s = s[iComma+2:]
+			if iSpace == -1 && iComma == -1 && iLeft == -1 && iRight == -1 {
+				cols = append(cols, &Column{Name: colName, Type: NewBaseType(s)})
+				return finish()
+			}
+
+			name := ""
+			if iSpace != -1 {
+				name = s[:iSpace]
+			} else if iLeft != -1 {
+				name = s[:iLeft]
+			}
+			if isClosest(iLeft, iComma, iRight) { // '(' is closest
+				if name == "Array" {
+					baseType, _ := parseTypeRec(s[iLeft+1:], "")
+					return CompoundType{Name: "Array", BaseType: baseType}, name
 				} else {
-					return m
+					colType, _ := parseTypeRec(s[iLeft+1:], name)
+					cols = append(cols, &Column{Name: "Tuple", Type: colType})
+					if iComma != -1 {
+						s = s[iComma+2:]
+					} else {
+						return finish() // check if needed to assign typ = typCasted
+					}
 				}
-			} else if closest(iComma, iLeft, iRight) { // ',' closest (same ind lvl)
-				m[name] = nil
+			} else {
+				end := iComma
+				if isClosest(iRight, iComma, -1) {
+					end = iRight
+				}
+				fmt.Println("appenduje, ", s[:end])
+				cols = append(cols, &Column{Name: name, Type: NewBaseType(s[iSpace+1 : end])}) // TODO inspect type
+			}
+			if isClosest(iComma, iLeft, iRight) { // ',' closest (same ind lvl)
+				// TODO
+				// m[name] = nil
 				s = s[iComma+2:]
-			} else { // ')' closest
-				m[name] = nil
-				return m
+			} else if isClosest(iRight, iLeft, iComma) { // ')' closest
+				return finish() // TODO
 			}
 		}
 	}
-
-	columns := make(SchemaMap)
-	rows, err := lm.db.Query("SHOW COLUMNS FROM \"" + table + "\"")
-	if err != nil {
-		return nil, err
-	}
-	for rows.Next() {
-		var name, Type string
-		var s1, s2, s3, s4 sql.NullString
-		err = rows.Scan(&name, &Type, &s1, &s2, &s3, &s4)
-		// hack, when field support gets bigger, it'll only be worse.
-		// probably need grammar or sth like that, soon
-		Type = strings.Replace(Type, "DateTime64(3)", "DateTime64", -1)
-		Type = strings.Replace(Type, "Object('json')", "Object", -1)
-		if err != nil {
-			return nil, err
-		}
-		i := strings.Index(Type, "(")
-		if i == -1 {
-			columns[name] = nil
-		} else {
-			columns[name] = parseType(Type[i+1:])
-		}
-	}
-	return columns, nil
-}
-
-func (lm *LogManager) DumpTableSchemas() (SchemaMap, error) {
-	if lm.db == nil {
-		connection, err := sql.Open("clickhouse", url)
-		if err != nil {
-			return nil, err
-		}
-		lm.db = connection
-	}
-
-	rows, err := lm.db.Query("SHOW TABLES")
-	if err != nil {
-		return nil, err
-	}
-
-	result := make(SchemaMap)
-	for rows.Next() {
-		var table string
-		err = rows.Scan(&table)
-		if err != nil {
-			return nil, err
-		}
-		schema, err := lm.DumpTableSchema(table)
-		if err != nil {
-			return nil, err
-		}
-		result[table] = schema
-	}
-	return result, nil
+	return parseTypeRec(typ, name)
 }
 
 func PrettyPrint(m SchemaMap) string {
@@ -154,4 +190,38 @@ func PrettyJson(jsonStr string) string {
 		return fmt.Sprintf("PrettyJson err: %v\n", err)
 	}
 	return prettyJSON.String()
+}
+
+// Replaces long full 'goType' type with short way to recreate it
+//
+//lint:ignore U1000 Ignore unused function, it's used manually to create 'schemas.go' file
+func shortenDumpSchemasOutput(s string) string {
+	findEndOfGoType := func(s string, i int) int {
+		bracketsCnt := 0
+		for i < len(s) {
+			if s[i] == '{' {
+				bracketsCnt++
+			} else if s[i] == '}' {
+				bracketsCnt--
+			}
+			if bracketsCnt == 0 {
+				return i + 1
+			}
+			i++
+		}
+		return -1 // unreachable
+	}
+	r, _ := regexp.Compile(`Name:\s*"(.*)",\s*(goType:\s*&reflect\.rtype)`)
+	x := r.FindAllSubmatchIndex([]byte(s), -1)
+	fmt.Println("SDASADSA ", len(x))
+	fmt.Println(x)
+	fmt.Println("AAAAA", r.FindAllString(s, -1))
+	result := ""
+	i := 0
+	for _, y := range x {
+		fmt.Println(s[y[0]:y[1]])
+		result += s[i:y[4]] + `goType: NewBaseType("` + s[y[2]:y[3]] + `").goType`
+		i = findEndOfGoType(s, y[5])
+	}
+	return strings.ReplaceAll(result+s[i:], "clickhouse.", "")
 }

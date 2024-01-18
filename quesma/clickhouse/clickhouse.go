@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/k0kubun/pp"
 	_ "github.com/mailru/go-clickhouse"
 	"log"
 	"strings"
@@ -23,14 +24,20 @@ type (
 		// during runtime. It's very unlikely, but (AFAIK) race condition may happen, as we have no
 		// synchronization mechanisms. If we know schemas beforehand, we can put them in 'predefinedTables',
 		// which we never modify, so it's safe to access it from multiple goroutines.
-		predefinedTables map[string]SchemaMap // we don't modify those, safe access
-		newRuntimeTables map[string]SchemaMap // potentially unsafe
+		predefinedTables TableMap // we don't modify those, safe access
+		newRuntimeTables TableMap // potentially unsafe
 	}
-	SchemaMap = map[string]interface{}
+	TableMap  = map[string]*Table
+	SchemaMap = map[string]interface{} // TODO remnove
 	Log       struct {
 		Timestamp string `json:"timestamp,omitempty"`
 		Severity  string `json:"severity,omitempty"`
 		Message   string `json:"message,omitempty"`
+	}
+	Attribute struct {
+		KeysArrayName   string
+		ValuesArrayName string
+		Type            BaseType
 	}
 	ChTableConfig struct {
 		hasTimestamp bool // does table have 'timestamp' field
@@ -49,6 +56,9 @@ type (
 		hasOthers bool // has additional "others" JSON field for out of schema values
 		// TODO make sure it's unique in schema (there's no other 'others' field)
 		// I (Krzysiek) can write it quickly, but don't want to waste time for it right now.
+		attributes                            []Attribute
+		castUnsupportedAttrValueTypesToString bool // if we have e.g. only attrs (String, String), we'll cast e.g. Date to String
+		preferCastingToOthers                 bool // we'll put non-schema field in [String, String] attrs map instead of others, if we have both options
 	}
 )
 
@@ -74,48 +84,56 @@ func determineFieldType(f interface{}) string {
 	return "String"
 }
 
-func buildCreateTableQuery(tableName, jsonData string, config ChTableConfig) (string, error) {
-	m := make(SchemaMap)
-	err := json.Unmarshal([]byte(jsonData), &m)
-	if err != nil {
-		log.Printf("Can't unmarshall, json: %s\nerr:%v\n", jsonData, err)
-		return "", err
-	}
-
-	if config.hasTimestamp {
-		m["timestamp"] = "2024-01-09T15:11:19.299Z" // arbitrary
-	}
-	orderByStr := ""
-	if config.orderBy != "" {
-		orderByStr = "ORDER BY " + config.orderBy + "\n"
-	}
-	partitionByStr := ""
-	if config.partitionBy != "" {
-		partitionByStr = "PARTITION BY " + config.partitionBy + "\n"
-	}
-	primaryKeyStr := ""
-	if config.primaryKey != "" {
-		primaryKeyStr = "PRIMARY KEY " + config.primaryKey + "\n"
-	}
-	ttlStr := ""
-	if config.ttl != "" {
-		ttlStr = "TTL toDateTime(timestamp) + INTERVAL " + config.ttl + "\n"
-	}
-	othersStr := ""
-	if config.hasOthers {
-		othersStr = indent(1) + "others JSON"
-		if len(m) > 0 {
-			othersStr += ","
+// updates also Table TODO stop updating table here, find a better solution
+func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Table) string {
+	if !config.hasOthers && len(config.attributes) == 0 {
+		_, ok := table.Cols[timestampFieldName]
+		if !config.hasTimestamp || ok {
+			return q
 		}
-		othersStr += "\n"
 	}
 
-	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS \"%s\"\n(\n%s%s)\nENGINE = %s\n%s%s%s%s",
-		tableName, othersStr, FieldsMapToCreateTableString(m, 1, config), config.engine,
-		orderByStr, partitionByStr, primaryKeyStr, ttlStr), nil
+	othersStr, timestampStr, attributesStr := "", "", ""
+	if config.hasOthers {
+		_, ok := table.Cols[othersFieldName]
+		if !ok {
+			othersStr = fmt.Sprintf("%s\"%s\" JSON,\n", indent(1), othersFieldName)
+			table.Cols[othersFieldName] = &Column{Name: othersFieldName, Type: NewBaseType("JSON")}
+		}
+	}
+	if config.hasTimestamp {
+		_, ok := table.Cols[timestampFieldName]
+		if !ok {
+			defaultStr := ""
+			if config.timestampDefaultsNow {
+				defaultStr = " DEFAULT now64()"
+			}
+			timestampStr = fmt.Sprintf("%s\"%s\" DateTime64(3)%s,\n", indent(1), timestampFieldName, defaultStr)
+			table.Cols[timestampFieldName] = &Column{Name: timestampFieldName, Type: NewBaseType("DateTime64")}
+		}
+	}
+	if len(config.attributes) > 0 {
+		for _, a := range config.attributes {
+			_, ok := table.Cols[a.KeysArrayName]
+			if !ok {
+				attributesStr += fmt.Sprintf("%s\"%s\" Array(String),\n", indent(1), a.KeysArrayName)
+				table.Cols[a.KeysArrayName] = &Column{Name: a.KeysArrayName, Type: CompoundType{Name: "Array", BaseType: NewBaseType("String")}}
+			}
+			_, ok = table.Cols[a.ValuesArrayName]
+			if !ok {
+				attributesStr += fmt.Sprintf("%s\"%s\" Array(%s),\n", indent(1), a.ValuesArrayName, a.Type.String())
+				table.Cols[a.ValuesArrayName] = &Column{Name: a.ValuesArrayName, Type: a.Type}
+			}
+		}
+	}
+
+	i := strings.Index(q, "(")
+	a := q[:i+2] + othersStr + timestampStr + attributesStr + q[i+1:]
+	fmt.Println(a)
+	return a
 }
 
-func (lm *LogManager) CreateTable(name, jsonData string, config ChTableConfig) error {
+func (lm *LogManager) ProcessCreateTableQuery(query string, config *ChTableConfig) error {
 	if lm.db == nil {
 		connection, err := sql.Open("clickhouse", url)
 		if err != nil {
@@ -123,8 +141,89 @@ func (lm *LogManager) CreateTable(name, jsonData string, config ChTableConfig) e
 		}
 		lm.db = connection
 	}
-	lm.addSchemaIfDoesntExist(name, jsonData)
-	query, err := buildCreateTableQuery(name, jsonData, config)
+	fmt.Println("QQQ Query:\n", query)
+	table, err := NewTable(query, config)
+	if err != nil {
+		return err
+	}
+
+	pp.Print(table)
+	// if exists only then createTable
+	noSuchTable := lm.addSchemaIfDoesntExist(table)
+	if !noSuchTable {
+		return fmt.Errorf("table %s already exists", table.Name)
+	}
+
+	_, err = lm.db.Exec(addOurFieldsToCreateTableQuery(query, config, table))
+	if err != nil {
+		return fmt.Errorf("error in CreateTable: json: %s\nquery: %s\nerr:%v", PrettyJson(query), query, err)
+	}
+	return nil
+}
+
+func buildCreateTableQueryNoOurFields(tableName, jsonData string, config *ChTableConfig) (string, error) {
+	m := make(SchemaMap)
+	err := json.Unmarshal([]byte(jsonData), &m)
+	if err != nil {
+		log.Printf("Can't unmarshall, json: %s\nerr:%v\n", jsonData, err)
+		return "", err
+	}
+
+	/*
+		if config.hasTimestamp {
+			m["timestamp"] = "2024-01-09T15:11:19.299Z" // arbitrary
+		}
+	*/
+	orderByStr, partitionByStr, primaryKeyStr, ttlStr := "", "", "", ""
+	if config.orderBy != "" {
+		orderByStr = "ORDER BY " + config.orderBy + "\n"
+	}
+	if config.partitionBy != "" {
+		partitionByStr = "PARTITION BY " + config.partitionBy + "\n"
+	}
+	if config.primaryKey != "" {
+		primaryKeyStr = "PRIMARY KEY " + config.primaryKey + "\n"
+	}
+	if config.ttl != "" {
+		ttlStr = "TTL toDateTime(timestamp) + INTERVAL " + config.ttl + "\n"
+	}
+
+	return fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
+(
+	%s
+)
+ENGINE = %s
+%s%s%s%s`,
+		tableName, FieldsMapToCreateTableString(m, 1, config)+Indexes(m), config.engine,
+		orderByStr, partitionByStr, primaryKeyStr, ttlStr), nil
+}
+
+func Indexes(m SchemaMap) string {
+	var result strings.Builder
+	for col := range m {
+		index := getIndexStatement(col)
+		if index != "" {
+			result.WriteString(",\n")
+			result.WriteString(indent(1))
+			result.WriteString(index.statement())
+		}
+	}
+	result.WriteString(",\n")
+	return result.String()
+}
+
+func (lm *LogManager) CreateTableFromInsertQuery(name, jsonData string, config *ChTableConfig) error {
+	// TODO fix lm.addSchemaIfDoesntExist(name, jsonData)
+
+	query, err := buildCreateTableQueryNoOurFields(name, jsonData, config)
+	if err != nil {
+		return err
+	}
+	err = lm.ProcessCreateTableQuery(query, config)
+	if err != nil {
+		return err
+	}
+	fmt.Println("CCCCCC\n", query)
 	if err != nil {
 		return fmt.Errorf("can't unmarshall json: %s\nerr:%v", jsonData, err)
 	}
@@ -135,33 +234,97 @@ func (lm *LogManager) CreateTable(name, jsonData string, config ChTableConfig) e
 	return nil
 }
 
-func (lm *LogManager) BuildInsertJson(tableName, js string, config ChTableConfig) (string, error) {
-	if !config.hasOthers {
+func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfig) (string, error) {
+	if !config.hasOthers && len(config.attributes) == 0 {
 		return js, nil
 	}
 
-	// we create "others" field
+	// we find all non-schema fields
 	m, err := JsonToFieldsMap(js)
 	if err != nil {
 		return "", err
 	}
-	mSchema := lm.findSchema(tableName)
-	mDiff := DifferenceMap(mSchema, m)
 
-	others, err := json.Marshal(mDiff)
-	if err != nil {
-		return "", err
+	t := lm.findSchema(tableName)
+	mDiff := DifferenceMap(m, t) // TODO change to DifferenceMap(m, t)
+	if len(mDiff) == 0 {         // no need to modify, just insert 'js'
+		return js, nil
 	}
 
-	onlySchemaFields := RemoveNonSchemaFields(mSchema, m)
+	var attrsMap map[string][]interface{}
+	var othersMap SchemaMap
+	if len(config.attributes) > 0 {
+		/*
+			// In next 2 cases, I use a separate handler function. I could use one and avoid
+			// some code duplication, but next 2 cases are most frequent. I want code
+			// to be as fast as possible, so I want to avoid unnecessary ifs and stuff.
+			if ok && config.castUnsupportedAttrValueTypesToString {
+				attrsMap = BuildAttrsMapCastUnsupportedToString(mDiff)
+			} else if !config.hasOthers {
+				attrsMap, err = BuildAttrsMapTypeMatchRequired(mDiff, config)
+				if err != nil {
+					return "", err
+				}
+			} else {
+				attrsMap, othersMap = BuildAttrsMapAndOthers(mDiff)
+			}*/
+		attrsMap, othersMap, _ = BuildAttrsMapAndOthers(mDiff, config)
+	} else if config.hasOthers {
+		othersMap = mDiff
+	} else {
+		return "", fmt.Errorf("no attributes or others in config, but received non-schema fields: %s", mDiff)
+	}
+
+	nonSchemaStr := ""
+	if len(attrsMap) > 0 {
+		attrs, err := json.Marshal(attrsMap) // check probably bad, they need to be arrays
+		if err != nil {
+			return "", err
+		}
+		nonSchemaStr = fmt.Sprintf("%s,", attrs[1:len(attrs)-1])
+	}
+	if len(othersMap) > 0 {
+		others, err := json.Marshal(othersMap)
+		if err != nil {
+			return "", err
+		}
+		nonSchemaStr += fmt.Sprintf(`"%s":%s,`, othersFieldName, others)
+	}
+
+	onlySchemaFields := RemoveNonSchemaFields(m, t)
 	schemaFieldsJson, err := json.Marshal(onlySchemaFields)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("{\"%s\":%s,%s", othersFieldName, others, schemaFieldsJson[1:]), nil
+	return fmt.Sprintf("{%s%s", nonSchemaStr, schemaFieldsJson[1:]), nil
 }
 
-func (lm *LogManager) Insert(tableName, jsonData string, config ChTableConfig) error {
+func (lm *LogManager) ProcessInsertQuery(tableName, q string) error {
+	// first, create table if it doesn't exist
+	table := lm.findSchema(tableName) // TODO create tables on start?
+	var config *ChTableConfig
+	fmt.Println("QQQQQ:", table == nil)
+	if table != nil {
+		fmt.Println(table.Created)
+	}
+	if table == nil || !table.Created {
+		config = NewOnlySchemaFieldsCHConfig()
+		if strings.Contains(tableName, "_doc") {
+			config = NewDefaultCHConfig()
+		}
+		err := lm.CreateTableFromInsertQuery(tableName, q, config)
+		if err != nil {
+			fmt.Println("error ProcessInsertQuery:", err)
+		}
+	} else {
+		config = table.Config
+	}
+
+	// then insert
+	return lm.Insert(tableName, q, config)
+}
+
+func (lm *LogManager) Insert(tableName, jsonData string, config *ChTableConfig) error {
 	if lm.db == nil {
 		connection, err := sql.Open("clickhouse", url)
 		if err != nil {
@@ -176,6 +339,7 @@ func (lm *LogManager) Insert(tableName, jsonData string, config ChTableConfig) e
 	}
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertJson)
 
+	pp.Println(insert)
 	_, err = lm.db.Exec(insert)
 	if err != nil {
 		return fmt.Errorf("error Insert, tablename: %s\nerror: %v\njson:%s", tableName, err, PrettyJson(jsonData))
@@ -185,23 +349,27 @@ func (lm *LogManager) Insert(tableName, jsonData string, config ChTableConfig) e
 	}
 }
 
-func (lm *LogManager) findSchema(tableName string) SchemaMap {
+func (lm *LogManager) findSchema(tableName string) *Table {
 	v, ok := lm.predefinedTables[tableName]
 	if ok {
 		return v
 	}
 	// possible race condition below!! but very unlikely
-	return lm.newRuntimeTables[tableName]
+	return lm.newRuntimeTables[tableName] // check if it returns nil or error
 }
 
-func (lm *LogManager) addSchemaIfDoesntExist(tableName, jsonInsert string) {
-	if lm.findSchema(tableName) == nil {
-		m, _ := JsonToFieldsMap(jsonInsert)
-		lm.newRuntimeTables[tableName] = m
+// Returns if schema was added
+func (lm *LogManager) addSchemaIfDoesntExist(table *Table) bool {
+	t := lm.findSchema(table.Name)
+	if t == nil {
+		table.Created = true
+		lm.newRuntimeTables[table.Name] = table // possible race condition
+		return true
 	}
+	return !t.Created
 }
 
-func NewLogManager(predefined, newRuntime map[string]SchemaMap) *LogManager {
+func NewLogManager(predefined, newRuntime TableMap) *LogManager {
 	db, err := sql.Open("clickhouse", url)
 	if err != nil {
 		log.Fatal(err)
@@ -210,32 +378,43 @@ func NewLogManager(predefined, newRuntime map[string]SchemaMap) *LogManager {
 }
 
 // right now only for tests purposes
-func NewLogManagerNoConnection(predefined, newRuntime map[string]SchemaMap) *LogManager {
+func NewLogManagerNoConnection(predefined, newRuntime TableMap) *LogManager {
 	return &LogManager{db: nil, predefinedTables: predefined, newRuntimeTables: newRuntime}
 }
 
-func DefaultCHConfig() ChTableConfig {
-	return ChTableConfig{
-		true,
-		true,
-		"MergeTree",
-		"(timestamp)",
-		"",
-		"",
-		"20 SECOND",
-		true,
+func NewOnlySchemaFieldsCHConfig() *ChTableConfig {
+	return &ChTableConfig{
+		hasTimestamp:                          true,
+		timestampDefaultsNow:                  true,
+		engine:                                "MergeTree",
+		orderBy:                               "(timestamp)",
+		partitionBy:                           "",
+		primaryKey:                            "",
+		ttl:                                   "",
+		hasOthers:                             false,
+		attributes:                            []Attribute{},
+		castUnsupportedAttrValueTypesToString: false,
+		preferCastingToOthers:                 false,
 	}
 }
 
-func CustomCHConfig() ChTableConfig {
-	return ChTableConfig{
-		true,
-		true,
-		"MergeTree",
-		"(timestamp)",
-		"",
-		"",
-		"",
-		false,
+func NewDefaultCHConfig() *ChTableConfig {
+	return &ChTableConfig{
+		hasTimestamp:         true,
+		timestampDefaultsNow: true,
+		engine:               "MergeTree",
+		orderBy:              "(timestamp)",
+		partitionBy:          "",
+		primaryKey:           "",
+		ttl:                  "",
+		hasOthers:            false,
+		attributes: []Attribute{
+			NewDefaultInt64Attribute(),
+			NewDefaultFloat64Attribute(),
+			NewDefaultBoolAttribute(),
+			NewDefaultStringAttribute(),
+		},
+		castUnsupportedAttrValueTypesToString: true,
+		preferCastingToOthers:                 true,
 	}
 }

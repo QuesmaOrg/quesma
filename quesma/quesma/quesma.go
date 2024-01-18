@@ -154,8 +154,9 @@ func dualWrite(url string, body string, lm *clickhouse.LogManager) {
 		}
 		return s
 	}
+
 	if strings.Contains(url, "bulk") || strings.Contains(url, "/_doc") {
-		fmt.Printf("%s  --> clickhouse, body: %s\n", url, firstNChars(body, 34))
+		fmt.Printf("%s  --> clickhouse, body: %s\n", url, firstNChars(body, 35))
 		jsons := strings.Split(body, "\n")
 		for i, singleJson := range jsons {
 			if len(singleJson) == 0 {
@@ -167,14 +168,18 @@ func dualWrite(url string, body string, lm *clickhouse.LogManager) {
 			}
 			// very unnecessary trying to create tables with every request
 			// We can improve this later if needed
-			err := lm.CreateTable(tableName, singleJson, clickhouse.DefaultCHConfig())
+			err := lm.ProcessInsertQuery(tableName, singleJson)
 			if err != nil {
 				log.Fatal(err)
 			}
-			err = lm.Insert(tableName, singleJson, clickhouse.DefaultCHConfig())
-			if err != nil {
-				_, _ = fmt.Fprintln(os.Stderr, err)
-			}
+		}
+	} else if strings.Contains(url, "/_createTable") {
+		fmt.Printf("%s --> create table\n", url)
+		_ = lm.ProcessCreateTableQuery(body, clickhouse.NewDefaultCHConfig())
+	} else if strings.Contains(url, "/_insert") {
+		err := lm.ProcessInsertQuery("signoz_logs", body)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
 		}
 	} else {
 		fmt.Printf("%s --> pass-through\n", url)
