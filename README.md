@@ -15,8 +15,17 @@ tail -f mitmproxy/requests/logs-X-X.txt
 ```
 
 ### Clickhouse-client
-To connect to the client when `clickhouse-server` is running, run <br>
+To connect to the client when `clickhouse-server` is running on [localhost:8123/play](http://localhost:8123/play)
+
+Alternatively you can find container name using `docker ps` and use command line:
+
 ```bash
-docker exec -it clickhouse clickhouse-client
+docker exec -it poc-elk-mitmproxy-clickhouse-1 clickhouse-client
 ```
-Alternatively you can visit `http://localhost:8123`
+
+Once you connected you run typical SQL commands such as:
+```sql
+SHOW TABLES;
+DESCRIBE logs;
+SELECT * FROM logs LIMIT 10;
+```
