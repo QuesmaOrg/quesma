@@ -12,6 +12,13 @@ services:
     links:
       - elasticsearch
     restart: unless-stopped
+  device-log-generator:
+    build: device-log-generator
+    depends_on:
+      - mitmproxy
+    links:
+      - "mitmproxy"
+    restart: unless-stopped
   log-generator:
     build: log-generator
     depends_on:
