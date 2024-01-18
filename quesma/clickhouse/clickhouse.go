@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/k0kubun/pp"
 	_ "github.com/mailru/go-clickhouse"
 	"log"
 	"strings"
@@ -128,9 +127,7 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 	}
 
 	i := strings.Index(q, "(")
-	a := q[:i+2] + othersStr + timestampStr + attributesStr + q[i+1:]
-	fmt.Println(a)
-	return a
+	return q[:i+2] + othersStr + timestampStr + attributesStr + q[i+1:]
 }
 
 func (lm *LogManager) ProcessCreateTableQuery(query string, config *ChTableConfig) error {
@@ -141,13 +138,11 @@ func (lm *LogManager) ProcessCreateTableQuery(query string, config *ChTableConfi
 		}
 		lm.db = connection
 	}
-	fmt.Println("QQQ Query:\n", query)
 	table, err := NewTable(query, config)
 	if err != nil {
 		return err
 	}
 
-	pp.Print(table)
 	// if exists only then createTable
 	noSuchTable := lm.addSchemaIfDoesntExist(table)
 	if !noSuchTable {
@@ -223,7 +218,6 @@ func (lm *LogManager) CreateTableFromInsertQuery(name, jsonData string, config *
 	if err != nil {
 		return err
 	}
-	fmt.Println("CCCCCC\n", query)
 	if err != nil {
 		return fmt.Errorf("can't unmarshall json: %s\nerr:%v", jsonData, err)
 	}
@@ -303,10 +297,6 @@ func (lm *LogManager) ProcessInsertQuery(tableName, q string) error {
 	// first, create table if it doesn't exist
 	table := lm.findSchema(tableName) // TODO create tables on start?
 	var config *ChTableConfig
-	fmt.Println("QQQQQ:", table == nil)
-	if table != nil {
-		fmt.Println(table.Created)
-	}
 	if table == nil || !table.Created {
 		config = NewOnlySchemaFieldsCHConfig()
 		if strings.Contains(tableName, "_doc") {
@@ -339,7 +329,6 @@ func (lm *LogManager) Insert(tableName, jsonData string, config *ChTableConfig) 
 	}
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertJson)
 
-	pp.Println(insert)
 	_, err = lm.db.Exec(insert)
 	if err != nil {
 		return fmt.Errorf("error Insert, tablename: %s\nerror: %v\njson:%s", tableName, err, PrettyJson(jsonData))
