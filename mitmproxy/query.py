@@ -171,6 +171,11 @@ def _parse_wildcard(wildcard_json: dict):
       return Result('easy * should be in the end of wildcard', False, ['Invalid wildcard, easy * should be in the end of wildcard'])
     return Result(key + ' like ' + wildcard_json[key]["value"][:-1] + '%', True)
 
+def _parse_nested(nested_json: dict):
+  if len(nested_json) != 2 or 'path' not in nested_json or 'query' not in nested_json:
+    return Result('not supported nested', False, ['Invalid nested'])
+  return _parse_query(nested_json['query'])
+
 def _parse_range(range_json: dict):
   # TODO: Way more complex
   for key in range_json.keys():
@@ -237,7 +242,7 @@ def _parse_query(query_json: dict):
   elif 'prefix' in query_json:
     return _parse_prefix(query_json['prefix'])
   elif 'nested' in query_json:
-    return Result('Not implemented yet', False, ['"Nested" not implemented yet'])
+    return _parse_nested(query_json['nested'])
   elif 'query_string' in query_json:
     return _parse_query_string(query_json['query_string'])
   else:

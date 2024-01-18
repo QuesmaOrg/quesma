@@ -298,6 +298,31 @@ LOG_QUERY_17 = """
 }
 """
 
+LOG_QUERY_18 = """
+{
+  "bool": {
+    "must": [
+      {
+        "nested": {
+          "path": "references",
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "references.type": "tag"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+"""
+
 test_number = 1
 
 def verify_result(human_readable_name, result):
@@ -331,4 +356,5 @@ if __name__ == "__main__":
     ensure_correct("Simple query string wildcard", LOG_QUERY_15)
     ensure_correct("Query string", LOG_QUERY_16)
     ensure_correct("Empty bool", LOG_QUERY_17)
+    ensure_correct("Simple Nested", LOG_QUERY_18)
 
