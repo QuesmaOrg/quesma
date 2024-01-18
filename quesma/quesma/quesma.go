@@ -48,7 +48,6 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 				r.Body = io.NopCloser(bytes.NewBuffer(body))
 				if r.Method == "POST" {
 					go dualWrite(r.RequestURI, string(body), logManager)
-				} else {
 					id := r.Header.Get("RequestId")
 					go handleQuery(r.RequestURI, body, logManager, responseMatcher, id)
 				}
@@ -196,6 +195,7 @@ func handleQuery(url string, body []byte, lm *clickhouse.LogManager, responseMat
 		var responseBody []byte
 		responseTranslator := &ClickhouseResultReader{clickhouseLM: lm}
 		responseTranslator.Read(responseBody)
+		responseBody = []byte("clickhouse")
 		responseMatcher.Push(&QResponse{requestId, responseBody})
 		return
 	}

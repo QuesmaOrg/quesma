@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"io"
 	"log"
 	"math/rand"
@@ -14,8 +15,15 @@ func main() {
 
 	for {
 		time.Sleep(time.Duration(1000+rand.Intn(2000)) * time.Millisecond)
-
-		resp, err := http.Get(url)
+		bstr := `
+		{
+			"query": {
+			  "match_all": {}
+			}
+		 }
+		`
+		body := []byte(bstr)
+		resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))
 
 		if err != nil {
 			log.Fatal(err)
