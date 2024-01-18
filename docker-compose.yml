@@ -55,7 +55,7 @@ services:
     ports:
       - "5601:5601"
   clickhouse:
-    image: clickhouse/clickhouse-server
+    image: clickhouse/clickhouse-server:23.12.2.59-alpine
     ports:
       - "8123:8123"
     volumes:
