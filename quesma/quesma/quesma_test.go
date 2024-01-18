@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,6 +50,7 @@ func runReceiver(serverMux *http.ServeMux, shutdownWG *sync.WaitGroup, addr stri
 			cancel()
 		})
 		go func() {
+			log.Println("Calling receiver.ListenAndServe()...")
 			if err := receiver.ListenAndServe(); err != nil {
 				log.Println("Receiver ListenAndServe:", err)
 				shutdownWG.Done()
@@ -91,7 +93,12 @@ func TestSuccessRequests(t *testing.T) {
 
 	log.Println("quesma ready to listen")
 	client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
-
+	// Wait for 1 second before sending request
+	// to minimize case where http server is not ready
+	// Unfortunately I don't see better method
+	// for that as http.Server.ListenAndServe() is blocking
+	// and cannot tells that it's ready
+	time.Sleep(time.Second)
 	body, err := sendRequest(QUESMA_URL+"/Hello", client)
 	assert.Equal(t, Receiver1Response, body)
 	require.NoError(t, err)
