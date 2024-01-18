@@ -3,7 +3,9 @@ import json
 import traceback
 
 LOG_FILE_QUERY_PREFIX = "/var/mitmproxy/query/"
-LOG_FILE_QUERY_PARSED = os.path.join(LOG_FILE_QUERY_PREFIX, "query.txt")
+
+LOG_FILE_KIBANA_SYSTEM_QUERY = os.path.join(LOG_FILE_QUERY_PREFIX, "system-query.txt")
+LOG_FILE_KIBANA_USER_QUERY = os.path.join(LOG_FILE_QUERY_PREFIX, "user-query.txt")
 
 class Result:
   def __init__(self, sql, can_parse = True, skipping_comments = []):
@@ -264,16 +266,23 @@ def parsed_query_json(index_name, method, request_json):
     if method.startswith('/'):
       method = method[1:]
 
-    with open(LOG_FILE_QUERY_PARSED, "a") as ofile:
+    filename = LOG_FILE_KIBANA_SYSTEM_QUERY
+    is_user_query = False
+    if index_name.startswith('logs-X'):
+      filename = LOG_FILE_KIBANA_USER_QUERY
+      is_user_query = True
+
+    with open(filename, "a") as ofile:
       result = safe_parse_query(request_json)
       if result.can_parse:
         ofile.write("PASS: ")
-        ofile.write("{index_name} {method}\n".format(index_name=index_name, method=method))
       else:
         ofile.write("FAIL: ")
-        ofile.write("{index_name} {method}\n".format(index_name=index_name, method=method))
+      ofile.write("{index_name} {method}\n".format(index_name=index_name, method=method))
+      if not result.can_parse:
         ofile.write(str(result))
         ofile.write("\n")
+      if not result.can_parse or is_user_query:
         request_str = json.dumps(request_json, indent=2)
         ofile.write(request_str)
         ofile.write("\n\n")
