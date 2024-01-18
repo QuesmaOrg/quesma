@@ -29,10 +29,12 @@ type Quesma struct {
 	tcpProxyPort      string
 	requestId         int64
 	responseMatcher   *ResponseMatcher
+	queryDebugger     *QueryDebugger
 }
 
 func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string) *Quesma {
 	responseMatcher := NewResponseMatcher()
+	queryDebugger := NewQueryDebugger()
 	q := &Quesma{
 		logManager: logManager,
 		targetUrl:  target,
@@ -49,16 +51,18 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 				if r.Method == "POST" {
 					go dualWrite(r.RequestURI, string(body), logManager)
 					id := r.Header.Get("RequestId")
-					go handleQuery(r.RequestURI, body, logManager, responseMatcher, id)
+					go handleQuery(r.RequestURI, body, logManager, responseMatcher, queryDebugger, id)
 				}
 			}),
 		},
 		requestId:       0,
 		tcpProxyPort:    TCP_PROXY_PORT,
 		responseMatcher: responseMatcher,
+		queryDebugger:   queryDebugger,
 	}
 
-	q.responseDecorator = NewResponseDecorator(tcpPort, q.requestId, q.responseMatcher)
+	q.responseDecorator = NewResponseDecorator(tcpPort, q.requestId, q.responseMatcher, q.queryDebugger)
+
 	return q
 }
 
@@ -143,6 +147,7 @@ func (q *Quesma) Start() {
 		}
 	}()
 	go q.responseMatcher.Compare()
+	go q.queryDebugger.GenerateReport()
 }
 
 func dualWrite(url string, body string, lm *clickhouse.LogManager) {
@@ -185,8 +190,12 @@ func dualWrite(url string, body string, lm *clickhouse.LogManager) {
 	}
 }
 
-func handleQuery(url string, body []byte, lm *clickhouse.LogManager, responseMatcher *ResponseMatcher, requestId string) {
+func handleQuery(url string, body []byte, lm *clickhouse.LogManager,
+	responseMatcher *ResponseMatcher,
+	queryDebugger *QueryDebugger,
+	requestId string) {
 	if strings.Contains(url, "/_search?pretty") {
+		var translatedQueryBody []byte
 		queryTranslator := &ClickhouseQueryTranslator{clickhouseLM: lm}
 		queryTranslator.Write(body)
 		// TODO query clickhouse
@@ -196,7 +205,16 @@ func handleQuery(url string, body []byte, lm *clickhouse.LogManager, responseMat
 		responseTranslator := &ClickhouseResultReader{clickhouseLM: lm}
 		responseTranslator.Read(responseBody)
 		responseBody = []byte("clickhouse")
+		var rawResults []byte
 		responseMatcher.Push(&QResponse{requestId, responseBody})
+
+		queryDebugger.PushSecondaryInfo(&QueryDebugSecondarySource{
+			id:                     requestId,
+			incomingQueryBody:      body,
+			queryBodyTranslated:    translatedQueryBody,
+			queryRawResults:        rawResults,
+			queryTranslatedResults: responseBody,
+		})
 		return
 	}
 }
