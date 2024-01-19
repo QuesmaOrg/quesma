@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -253,7 +254,8 @@ func RemoveNonSchemaFields(m SchemaMap, t *Table) SchemaMap {
 func BuildAttrsMapAndOthers(m SchemaMap, config *ChTableConfig) (map[string][]interface{}, SchemaMap, error) {
 	result := make(map[string][]interface{}) // check if works
 	others := make(SchemaMap)
-	for name, value := range m {
+	for _, name := range sortedKeys(m) {
+		value := m[name]
 		matched := false
 		for _, a := range config.attributes {
 			if a.Type.canConvert(value) {
@@ -271,5 +273,15 @@ func BuildAttrsMapAndOthers(m SchemaMap, config *ChTableConfig) (map[string][]in
 			}
 		}
 	}
+
 	return result, others, nil
+}
+
+func sortedKeys(m SchemaMap) (keys []string) {
+	for k := range m {
+		keys = append(keys, k)
+	}
+
+	slices.Sort(keys)
+	return keys
 }
