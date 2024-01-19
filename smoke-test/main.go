@@ -18,7 +18,8 @@ const (
 )
 
 func main() {
-	waitForLogsInClickhouse()
+	waitForLogsInClickhouse("/logs-generic-default/_doc")
+	waitForLogsInClickhouse("/device_logs/_doc")
 	waitForLogsInElasticsearch()
 	waitForKibana()
 }
@@ -41,7 +42,7 @@ func waitFor(serviceName string, waitForFunc func() bool) bool {
 	return false
 }
 
-func waitForLogsInClickhouse() {
+func waitForLogsInClickhouse(tableName string) {
 	res := waitFor("clickhouse", func() bool {
 		logCount := -1
 		connection, err := sql.Open("clickhouse", clickhouseUrl)
@@ -50,7 +51,7 @@ func waitForLogsInClickhouse() {
 		}
 		defer connection.Close()
 
-		row := connection.QueryRow("SELECT COUNT(*) FROM `/logs-generic-default/_doc`")
+		row := connection.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM `%s`", tableName))
 		_ = row.Scan(&logCount)
 
 		return logCount > 0
