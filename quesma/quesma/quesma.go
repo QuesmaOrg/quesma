@@ -16,8 +16,11 @@ import (
 	"sync"
 )
 
-const TCP_PROXY_PORT = "8888"
-const REMOTE_URL = "http://" + "localhost:" + TCP_PROXY_PORT + "/"
+const (
+	TcpProxyPort = "8888"
+	RemoteUrl    = "http://" + "localhost:" + TcpProxyPort + "/"
+	HealthUrl    = "/_quesma/health"
+)
 
 type Quesma struct {
 	server            *http.Server
@@ -43,20 +46,25 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 		server: &http.Server{
 			Addr: ":" + httpPort,
 			Handler: http.HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
-				body, err := io.ReadAll(r.Body)
-				if err != nil {
-					log.Fatal(err)
-				}
-				r.Body = io.NopCloser(bytes.NewBuffer(body))
-				if r.Method == "POST" {
-					go dualWrite(r.RequestURI, string(body), logManager)
-					id := r.Header.Get("RequestId")
-					go handleQuery(r.RequestURI, body, logManager, responseMatcher, queryDebugger, id)
+				switch r.RequestURI {
+				case HealthUrl:
+					writer.WriteHeader(200)
+				default:
+					body, err := io.ReadAll(r.Body)
+					if err != nil {
+						log.Fatal(err)
+					}
+					r.Body = io.NopCloser(bytes.NewBuffer(body))
+					if r.Method == "POST" {
+						go dualWrite(r.RequestURI, string(body), logManager)
+						id := r.Header.Get("RequestId")
+						go handleQuery(r.RequestURI, body, logManager, responseMatcher, queryDebugger, id)
+					}
 				}
 			}),
 		},
 		requestId:       0,
-		tcpProxyPort:    TCP_PROXY_PORT,
+		tcpProxyPort:    TcpProxyPort,
 		responseMatcher: responseMatcher,
 		queryDebugger:   queryDebugger,
 	}

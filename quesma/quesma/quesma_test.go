@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 	"testing"
 	"time"
@@ -62,8 +63,10 @@ func runReceiver(serverMux *http.ServeMux, shutdownWG *sync.WaitGroup, addr stri
 	}()
 }
 
-const QUESMA_URL = "localhost:8080"
-const ELASTIC_URL = "localhost:9201"
+const (
+	QuesmaUrl  = "localhost:8080"
+	ElasticUrl = "localhost:9201"
+)
 
 func TestSuccessRequests(t *testing.T) {
 	var Receiver1Response = "ReceiverBody1"
@@ -76,9 +79,9 @@ func TestSuccessRequests(t *testing.T) {
 		_, err := w.Write([]byte(Receiver1Response))
 		require.NoError(t, err)
 	})
-	runReceiver(serverMux1, &wg, ELASTIC_URL)
+	runReceiver(serverMux1, &wg, ElasticUrl)
 
-	instance := New(nil, ELASTIC_URL, "8080", "8081")
+	instance := New(nil, ElasticUrl, "8080", "8081")
 
 	go func() {
 		listener, err := instance.listen()
@@ -93,19 +96,28 @@ func TestSuccessRequests(t *testing.T) {
 
 	log.Println("quesma ready to listen")
 	client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
-	// Wait for 1 second before sending request
-	// to minimize case where http server is not ready
-	// Unfortunately I don't see better method
-	// for that as http.Server.ListenAndServe() is blocking
-	// and cannot tells that it's ready
-	time.Sleep(time.Second)
-	body, err := sendRequest(QUESMA_URL+"/Hello", client)
+	waitForHealthy()
+	body, err := sendRequest(QuesmaUrl+"/Hello", client)
 	assert.Equal(t, Receiver1Response, body)
 	require.NoError(t, err)
 
-	body, err = sendRequest(ELASTIC_URL+"/shutdown", client)
+	body, err = sendRequest(ElasticUrl+"/shutdown", client)
 	require.NoError(t, err)
 	assert.Equal(t, "shutdown receiver", body)
 	wg.Wait()
+}
 
+func waitForHealthy() {
+	fmt.Println("waiting for http server...")
+	client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
+	retries := 0
+	for retries < 5 {
+		time.Sleep(5 * time.Second)
+		request := http.Request{URL: &url.URL{Scheme: "http", Host: QuesmaUrl, Fragment: HealthUrl}, Method: "GET"}
+		body, err := client.Do(&request)
+		if err == nil && body.StatusCode == 200 {
+			return
+		}
+		retries++
+	}
 }

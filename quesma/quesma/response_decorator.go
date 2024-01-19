@@ -34,7 +34,7 @@ func unzip(gzippedData []byte) ([]byte, error) {
 }
 
 func NewResponseDecorator(tcpPort string, requestId int64, matcher *ResponseMatcher, queryDebugger *QueryDebugger) *http.Server {
-	remote, err := url.Parse(REMOTE_URL)
+	remote, err := url.Parse(RemoteUrl)
 	if err != nil {
 		log.Fatal("Cannot parse target url:", err)
 	}
