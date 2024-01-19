@@ -1,6 +1,8 @@
 package quesma
 
-import "mitmproxy/quesma/clickhouse"
+import (
+	"mitmproxy/quesma/clickhouse"
+)
 
 type ClickhouseQueryTranslator struct {
 	clickhouseLM *clickhouse.LogManager
