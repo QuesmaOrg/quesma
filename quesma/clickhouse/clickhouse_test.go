@@ -604,7 +604,7 @@ ENGINE = MergeTree
 	assert.Equal(t, expected, table.CreateTableString())
 }
 
-// Doesn't test for 100% equality, as map iteration isn't deterministic, but should definitely be good enough.
+// Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
 func TestCreateTableString_2(t *testing.T) {
 	table := Table{
 		Created:  false,
@@ -612,87 +612,45 @@ func TestCreateTableString_2(t *testing.T) {
 		Database: "",
 		Cluster:  "",
 		Cols: map[string]*Column{
-			"doc": &Column{
+			"doc": {
 				Name: "doc",
 				Type: MultiValueType{
 					Name: "Tuple",
 					Cols: []*Column{
-						&Column{
+						{
 							Name: "Tuple",
 							Type: MultiValueType{
 								Name: "Tuple",
 								Cols: []*Column{
-									&Column{
+									{
 										Name: "runAt",
-										Type: BaseType{
-											Name:   "DateTime64",
-											goType: nil,
-										},
-										Codec: Codec{
-											Name: "",
-										},
+										Type: NewBaseType("DateTime64"),
 									},
-									&Column{
+									{
 										Name: "startedAt",
-										Type: BaseType{
-											Name:   "DateTime64",
-											goType: nil,
-										},
-										Codec: Codec{
-											Name: "",
-										},
+										Type: NewBaseType("DateTime64"),
 									},
-									&Column{
+									{
 										Name: "Tuple",
-										Type: BaseType{
-											Name:   "String",
-											goType: NewBaseType("String").goType,
-										},
-										Codec: Codec{
-											Name: "",
-										},
+										Type: NewBaseType("String"),
 									},
-									&Column{
+									{
 										Name: "status",
-										Type: BaseType{
-											Name:   "String",
-											goType: NewBaseType("String").goType,
-										},
-										Codec: Codec{
-											Name: "",
-										},
+										Type: NewBaseType("String"),
 									},
 								},
 							},
-							Codec: Codec{
-								Name: "",
-							},
 						},
-						&Column{
+						{
 							Name: "updated_at",
-							Type: BaseType{
-								Name:   "DateTime64",
-								goType: nil,
-							},
-							Codec: Codec{
-								Name: "",
-							},
+							Type: NewBaseType("DateTime64"),
 						},
 					},
 				},
-				Codec: Codec{
-					Name: "",
-				},
 			},
-			"timestamp": &Column{
+			"timestamp": {
 				Name: "timestamp",
-				Type: BaseType{
-					Name:   "DateTime64",
-					goType: nil,
-				},
-				Codec: Codec{
-					Name: "",
-				},
+				Type: NewBaseType("DateTime64"),
 			},
 		},
 		Config: &ChTableConfig{
@@ -741,6 +699,75 @@ func TestCreateTableString_2(t *testing.T) {
 		`INDEX severity_idx severity TYPE set(25) GRANULARITY 4`,
 		`)`,
 		`ENGINE = MergeTree`,
+		`ORDER BY (timestamp)`,
+		"",
+	}
+	createTableString := table.CreateTableString()
+	for _, row := range strings.Split(createTableString, "\n") {
+		assert.Contains(t, expectedRows, strings.TrimSpace(row))
+	}
+}
+
+// Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
+func TestCreateTableString_NewDateTypes(t *testing.T) {
+	table := Table{
+		Created:  false,
+		Name:     "abc",
+		Database: "",
+		Cluster:  "",
+		Cols: map[string]*Column{
+			"low_card_string": {
+				Name: "low_card_string",
+				Type: NewBaseType("LowCardinality(String)"),
+			},
+			"uuid": {
+				Name: "uuid",
+				Type: NewBaseType("UUID"),
+			},
+			"int32": {
+				Name: "int32",
+				Type: NewBaseType("Int32"),
+			},
+			"epoch_time": {
+				Name:      "epoch_time",
+				Type:      NewBaseType("DateTime('Asia/Kolkata')"),
+				Modifiers: "CODEC(DoubleDelta, LZ4)",
+			},
+			"estimated_connection_speedinkbps": {
+				Name:      "estimated_connection_speedinkbps",
+				Type:      NewBaseType("Float64"),
+				Modifiers: "CODEC(DoubleDelta, LZ4)",
+			},
+		},
+		Config: &ChTableConfig{
+			hasTimestamp:         true,
+			timestampDefaultsNow: true,
+			engine:               "MergeTree",
+			orderBy:              "(timestamp)",
+			partitionBy:          "",
+			primaryKey:           "",
+			ttl:                  "",
+			hasOthers:            true,
+			attributes: []Attribute{
+				NewDefaultInt64Attribute(),
+			},
+			castUnsupportedAttrValueTypesToString: true,
+			preferCastingToOthers:                 true,
+		},
+	}
+	expectedRows := []string{
+		`CREATE TABLE IF NOT EXISTS "abc" (`,
+		`"int32" Int32,`,
+		`"low_card_string" LowCardinality(String),`,
+		`"uuid" UUID,`,
+		`"others" JSON,`,
+		`"attributes_int64_key" Array(String),`,
+		`"attributes_int64_value" Array(Int64)`,
+		`"timestamp" DateTime64(3) DEFAULT now64(),`,
+		`"epoch_time" DateTime('Asia/Kolkata') CODEC(DoubleDelta, LZ4),`,
+		`"estimated_connection_speedinkbps" Float64 CODEC(DoubleDelta, LZ4),`,
+		`ENGINE = MergeTree`,
+		`)`,
 		`ORDER BY (timestamp)`,
 		"",
 	}

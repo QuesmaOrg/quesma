@@ -20,7 +20,7 @@ type (
 		Name   string       // ClickHouse name
 		goType reflect.Type // can be nil, e.g. for LowCardinality
 	}
-	CompoundType struct { // Array, LowCardinality TODO LowCardinality should not be here
+	CompoundType struct { // only Array for now I think
 		Name     string
 		BaseType Type
 	}
@@ -106,13 +106,15 @@ func (t MultiValueType) canConvert(v interface{}) bool {
 
 // 'name' = ClickHouse type name
 func NewBaseType(name string) BaseType {
-	var goType reflect.Type = nil
+	var goType = reflect.TypeOf("") // default, probably good for dates, etc.
 	switch name {
-	case "String":
+	case "String", "LowCardinality(String)", "UUID":
 		goType = reflect.TypeOf("")
 	case "UInt8", "UInt16", "UInt32", "UInt64":
 		goType = reflect.TypeOf(uint64(0))
-	case "Int8", "Int16", "Int32", "Int64":
+	case "Int8", "Int16", "Int32":
+		goType = reflect.TypeOf(int32(0))
+	case "Int64":
 		goType = reflect.TypeOf(int64(0))
 	case "Float32", "Float64":
 		goType = reflect.TypeOf(float64(0))
