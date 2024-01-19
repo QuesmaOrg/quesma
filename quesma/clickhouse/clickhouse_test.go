@@ -589,7 +589,7 @@ func TestCreateTableString_1(t *testing.T) {
 			orderBy:                               "",
 			partitionBy:                           "",
 			primaryKey:                            "",
-			ttl:                                   "",
+			ttl:                                   "toDateTime(epoch_time_original / 1000000000) + toIntervalSecond(1296000)",
 			settings:                              "index_granularity = 8192, ttl_only_drop_parts = 1",
 			hasOthers:                             true,
 			attributes:                            nil,
@@ -601,6 +601,7 @@ func TestCreateTableString_1(t *testing.T) {
 	"others" JSON
 )
 ENGINE = MergeTree
+TTL toDateTime(epoch_time_original / 1000000000) + toIntervalSecond(1296000)
 SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1
 `
 	assert.Equal(t, expected, table.CreateTableString())

@@ -240,7 +240,7 @@ func (config *ChTableConfig) CreateTablePostFieldsString() string {
 		s += "PRIMARY KEY " + config.primaryKey + "\n"
 	}
 	if config.ttl != "" {
-		s += "TTL toDateTime(timestamp) + INTERVAL " + config.ttl + "\n"
+		s += "TTL " + config.ttl + "\n"
 	}
 
 	if config.settings != "" {
