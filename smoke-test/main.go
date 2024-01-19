@@ -24,18 +24,25 @@ func main() {
 	waitForKibana()
 }
 
-const waitInterval = 5 * time.Second
+const waitInterval = 100 * time.Millisecond
+const printInterval = 5 * time.Second
 const timeoutAfter = time.Minute
 
 func waitFor(serviceName string, waitForFunc func() bool) bool {
 	startTime := time.Now()
+	lastPrintTime := startTime
 
 	for time.Since(startTime) < timeoutAfter {
 		if waitForFunc() {
 			return true
 		}
 
-		fmt.Printf("elapsed %v, trying %s again in 5s...\n", time.Since(startTime), serviceName)
+		if time.Since(lastPrintTime) > printInterval {
+			elapsed := time.Since(startTime)
+			elapsed = elapsed - (elapsed % time.Second) // round it to seconds
+			fmt.Printf("smoke-test: elapsed %v, keep trying %s again...\n", elapsed, serviceName)
+			lastPrintTime = time.Now()
+		}
 		time.Sleep(waitInterval)
 	}
 
