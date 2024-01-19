@@ -1,7 +1,6 @@
 package quesma
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -10,7 +9,6 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,7 +17,6 @@ import (
 const (
 	TcpProxyPort = "8888"
 	RemoteUrl    = "http://" + "localhost:" + TcpProxyPort + "/"
-	HealthUrl    = "/_quesma/health"
 )
 
 type Quesma struct {
@@ -44,24 +41,8 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 		tcpPort:    tcpPort,
 		httpPort:   httpPort,
 		server: &http.Server{
-			Addr: ":" + httpPort,
-			Handler: http.HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
-				switch r.RequestURI {
-				case HealthUrl:
-					writer.WriteHeader(200)
-				default:
-					body, err := io.ReadAll(r.Body)
-					if err != nil {
-						log.Fatal(err)
-					}
-					r.Body = io.NopCloser(bytes.NewBuffer(body))
-					if r.Method == "POST" {
-						go dualWrite(r.RequestURI, string(body), logManager)
-						id := r.Header.Get("RequestId")
-						go handleQuery(r.RequestURI, body, logManager, responseMatcher, queryDebugger, id)
-					}
-				}
-			}),
+			Addr:    ":" + httpPort,
+			Handler: configureRouting(logManager, responseMatcher, queryDebugger),
 		},
 		requestId:       0,
 		tcpProxyPort:    TcpProxyPort,
@@ -125,13 +106,13 @@ func (q *Quesma) handleRequest(in net.Conn) {
 
 func (q *Quesma) listenHTTP() {
 	if err := q.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatal("Error starting server:", err)
+		log.Fatal("Error starting http server:", err)
 	}
 }
 
 func (q *Quesma) listenResponseDecorator() {
 	if err := q.responseDecorator.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatal("Error starting server:", err)
+		log.Fatal("Error starting response decorator server:", err)
 	}
 }
 
@@ -157,44 +138,40 @@ func (q *Quesma) Start() {
 	go q.responseMatcher.Compare()
 	go q.queryDebugger.GenerateReport()
 }
+func firstNChars(s string, n int) string {
+	if len(s) > n {
+		return s[:n]
+	}
+	return s
+}
+
+func dualWriteBulk(url string, body string, lm *clickhouse.LogManager) {
+	fmt.Printf("%s  --> clickhouse, body: %s\n", url, firstNChars(body, 35))
+	jsons := strings.Split(body, "\n")
+	for i, singleJson := range jsons {
+		if len(singleJson) == 0 {
+			continue
+		}
+		tName := url
+		if len(jsons) > 1 {
+			tName += "_" + strconv.Itoa(i+1)
+		}
+		err := lm.ProcessInsertQuery(tName, singleJson)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+}
 
 func dualWrite(url string, body string, lm *clickhouse.LogManager) {
-	// to make logs more readable by truncating very long request bodies
-	firstNChars := func(s string, n int) string {
-		if len(s) > n {
-			return s[:n]
-		}
-		return s
+	fmt.Printf("%s  --> clickhouse, body: %s\n", url, firstNChars(body, 35))
+	if len(body) == 0 {
+		return
 	}
-
-	if strings.Contains(url, "bulk") || strings.Contains(url, "/_doc") {
-		fmt.Printf("%s  --> clickhouse, body: %s\n", url, firstNChars(body, 35))
-		jsons := strings.Split(body, "\n")
-		for i, singleJson := range jsons {
-			if len(singleJson) == 0 {
-				continue
-			}
-			tableName := url
-			if len(jsons) > 1 {
-				tableName += "_" + strconv.Itoa(i+1)
-			}
-			// very unnecessary trying to create tables with every request
-			// We can improve this later if needed
-			err := lm.ProcessInsertQuery(tableName, singleJson)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-	} else if strings.Contains(url, "/_createTable") {
-		fmt.Printf("%s --> create table\n", url)
-		_ = lm.ProcessCreateTableQuery(body, clickhouse.NewDefaultCHConfig())
-	} else if strings.Contains(url, "/_insert") {
-		err := lm.ProcessInsertQuery("signoz_logs", body)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-	} else {
-		fmt.Printf("%s --> pass-through\n", url)
+	tName := url
+	err := lm.ProcessInsertQuery(tName, body)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 

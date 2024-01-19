@@ -113,7 +113,7 @@ func waitForHealthy() {
 	retries := 0
 	for retries < 5 {
 		time.Sleep(5 * time.Second)
-		request := http.Request{URL: &url.URL{Scheme: "http", Host: QuesmaUrl, Fragment: HealthUrl}, Method: "GET"}
+		request := http.Request{URL: &url.URL{Scheme: "http", Host: QuesmaUrl, Fragment: HealthPath}, Method: "GET"}
 		body, err := client.Do(&request)
 		if err == nil && body.StatusCode == 200 {
 			return
