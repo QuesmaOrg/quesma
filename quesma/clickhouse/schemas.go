@@ -31,6 +31,7 @@ var PredefinedTableSchemas = TableMap{
 			partitionBy:          "",
 			primaryKey:           "",
 			ttl:                  "",
+			settings:             "index_granularity = 8192, ttl_only_drop_parts = 1",
 			hasOthers:            false,
 			attributes: []Attribute{
 				NewDefaultStringAttribute(),

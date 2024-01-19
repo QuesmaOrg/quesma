@@ -49,6 +49,7 @@ type (
 		orderBy              string // "" if none
 		partitionBy          string // "" if none
 		primaryKey           string // "" if none
+		settings             string // "" if none
 		ttl                  string // of type Interval, e.g. 3 MONTH, 1 YEAR
 		// look https://clickhouse.com/docs/en/sql-reference/data-types/special-data-types/interval
 		// "" if none

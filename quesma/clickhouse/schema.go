@@ -242,6 +242,10 @@ func (config *ChTableConfig) CreateTablePostFieldsString() string {
 	if config.ttl != "" {
 		s += "TTL toDateTime(timestamp) + INTERVAL " + config.ttl + "\n"
 	}
+
+	if config.settings != "" {
+		s += "SETTINGS " + config.settings + "\n"
+	}
 	return s
 }
 

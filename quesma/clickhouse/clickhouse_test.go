@@ -590,6 +590,7 @@ func TestCreateTableString_1(t *testing.T) {
 			partitionBy:                           "",
 			primaryKey:                            "",
 			ttl:                                   "",
+			settings:                              "index_granularity = 8192, ttl_only_drop_parts = 1",
 			hasOthers:                             true,
 			attributes:                            nil,
 			castUnsupportedAttrValueTypesToString: true,
@@ -600,6 +601,7 @@ func TestCreateTableString_1(t *testing.T) {
 	"others" JSON
 )
 ENGINE = MergeTree
+SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1
 `
 	assert.Equal(t, expected, table.CreateTableString())
 }
