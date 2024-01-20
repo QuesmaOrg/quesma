@@ -1,8 +1,9 @@
 package clickhouse
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseSignozSchema_1(t *testing.T) {
@@ -77,7 +78,7 @@ func TestParseSignozSchema_2(t *testing.T) {
 }
 
 func TestParseQuotedTablename(t *testing.T) {
-	q := `CREATE TABLE IF NOT EXISTS "/logs-generic-default/_doc"
+	q := `CREATE TABLE IF NOT EXISTS "logs-generic-default"
 		(
 			"source" String,
 			"host_name" String,

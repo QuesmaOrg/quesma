@@ -18,8 +18,8 @@ const (
 )
 
 func main() {
-	waitForLogsInClickhouse("/logs-generic-default/_doc")
-	waitForLogsInClickhouse("/device_logs/_doc")
+	waitForLogsInClickhouse("logs-generic-default")
+	waitForLogsInClickhouse("device_logs")
 	waitForLogsInElasticsearch()
 	waitForKibana()
 }

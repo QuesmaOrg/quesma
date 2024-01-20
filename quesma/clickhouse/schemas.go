@@ -5,9 +5,9 @@ var NewRuntimeSchemas = make(TableMap)
 // A solution for now to remember tables. Didn't want to bother with config files at POC stage.
 // Generated via DumpTableSchemas() and later ShortenDumpSchemasOutput()
 var PredefinedTableSchemas = TableMap{
-	"/device_logs/_doc": &Table{
+	"device_logs": &Table{
 		Created:  false,
-		Name:     "/device_logs/_doc",
+		Name:     "device_logs",
 		Database: "",
 		Cluster:  "",
 		Cols: map[string]*Column{

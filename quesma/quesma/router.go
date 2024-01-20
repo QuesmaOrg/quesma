@@ -39,7 +39,7 @@ func configureRouting(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebug
 	router.HandleFunc(HealthPath, ok)
 	router.PathPrefix(CreateTablePath).HandlerFunc(createTable(lm))
 	router.PathPrefix(InsertPath).HandlerFunc(processInsert(lm))
-	router.PathPrefix(BulkPath).HandlerFunc(bulk(lm, rm, queryDebugger))
+	router.PathPrefix(BulkPath).HandlerFunc(bulk(lm, rm, queryDebugger)).Methods("POST")
 	router.PathPrefix(SearchPath).HandlerFunc(search(lm, rm, queryDebugger))
 	router.PathPrefix(InternalPath).HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		fmt.Printf("unrecognized internal path: %s\n", r.RequestURI)
@@ -47,7 +47,8 @@ func configureRouting(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebug
 	router.PathPrefix("/.").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		fmt.Printf("internal index access '%s', ignoring...\n", strings.Split(r.RequestURI, "/")[1])
 	})
-	router.PathPrefix("/{index}/_doc").HandlerFunc(index(lm, rm, queryDebugger))
+	router.PathPrefix("/{index}/_doc").HandlerFunc(index(lm, rm, queryDebugger)).Methods("POST")
+	router.PathPrefix("/{index}/_bulk").HandlerFunc(bulkVar(lm, rm, queryDebugger)).Methods("POST")
 	return router
 }
 
@@ -66,15 +67,21 @@ func search(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *Query
 
 func index(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
-			go dualWrite(r.RequestURI, string(body), lm)
-		}
+		vars := mux.Vars(r)
+		go dualWrite(vars["index"], string(body), lm)
 	})
 }
 
 func bulk(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		go dualWriteBulk(r.RequestURI, string(body), lm)
+		go dualWriteBulk("", string(body), lm)
+	})
+}
+
+func bulkVar(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
+	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		go dualWriteBulk(vars["index"], string(body), lm)
 	})
 }
 
