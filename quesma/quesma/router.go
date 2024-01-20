@@ -3,13 +3,14 @@ package quesma
 import (
 	"bytes"
 	"fmt"
-	"github.com/gorilla/mux"
 	"io"
 	"log"
 	"mitmproxy/quesma/clickhouse"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/gorilla/mux"
 )
 
 const (
@@ -18,6 +19,7 @@ const (
 	BulkPath           = "/_bulk"
 	CreateTablePath    = "/_createTable"
 	InsertPath         = "/_insert"
+	SearchPath         = "/_search"
 	InternalPath       = "/_"
 )
 
@@ -38,6 +40,7 @@ func configureRouting(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebug
 	router.PathPrefix(CreateTablePath).HandlerFunc(createTable(lm))
 	router.PathPrefix(InsertPath).HandlerFunc(processInsert(lm))
 	router.PathPrefix(BulkPath).HandlerFunc(bulk(lm, rm, queryDebugger))
+	router.PathPrefix(SearchPath).HandlerFunc(search(lm, rm, queryDebugger))
 	router.PathPrefix(InternalPath).HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		fmt.Printf("unrecognized internal path: %s\n", r.RequestURI)
 	})
@@ -52,12 +55,19 @@ func ok(writer http.ResponseWriter, _ *http.Request) {
 	writer.WriteHeader(200)
 }
 
+func search(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
+	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			id := r.Header.Get("RequestId")
+			go handleQuery(r.RequestURI, body, lm, rm, queryDebugger, id)
+		}
+	})
+}
+
 func index(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			go dualWrite(r.RequestURI, string(body), lm)
-			id := r.Header.Get("RequestId")
-			go handleQuery(r.RequestURI, body, lm, rm, queryDebugger, id)
 		}
 	})
 }
@@ -65,8 +75,6 @@ func index(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryD
 func bulk(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		go dualWriteBulk(r.RequestURI, string(body), lm)
-		id := r.Header.Get("RequestId")
-		go handleQuery(r.RequestURI, body, lm, rm, queryDebugger, id)
 	})
 }
 
