@@ -138,15 +138,8 @@ func (q *Quesma) Start() {
 	go q.responseMatcher.Compare()
 	go q.queryDebugger.GenerateReport()
 }
-func firstNChars(s string, n int) string {
-	if len(s) > n {
-		return s[:n]
-	}
-	return s
-}
-
 func dualWriteBulk(url string, body string, lm *clickhouse.LogManager) {
-	fmt.Printf("%s  --> clickhouse, body: %s\n", url, firstNChars(body, 35))
+	fmt.Printf("%s  --> clickhouse, body(shortened): %s\n", url, body[:70])
 	jsons := strings.Split(body, "\n")
 	for i, singleJson := range jsons {
 		if len(singleJson) == 0 {
@@ -164,7 +157,7 @@ func dualWriteBulk(url string, body string, lm *clickhouse.LogManager) {
 }
 
 func dualWrite(url string, body string, lm *clickhouse.LogManager) {
-	fmt.Printf("%s  --> clickhouse, body: %s\n", url, firstNChars(body, 35))
+	fmt.Printf("%s  --> clickhouse, body(shortened): %s\n", url, body[:70])
 	if len(body) == 0 {
 		return
 	}
