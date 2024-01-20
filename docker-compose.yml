@@ -54,6 +54,7 @@ services:
       - quesma
     ports:
       - "5601:5601"
+    restart: unless-stopped
   clickhouse:
     image: clickhouse/clickhouse-server:23.12.2.59-alpine
     ports:
