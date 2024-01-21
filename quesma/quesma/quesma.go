@@ -134,5 +134,5 @@ func (q *Quesma) Start() {
 		}
 	}()
 	go q.responseMatcher.Compare()
-	go q.queryDebugger.GenerateReport()
+	go q.queryDebugger.Run()
 }

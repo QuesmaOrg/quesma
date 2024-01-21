@@ -11,6 +11,10 @@ services:
       - clickhouse
     links:
       - elasticsearch
+    ports:
+      - "9999:9999"
+    volumes:
+      - ./quesma/quesma/ui:/var/quesma/quesma/ui
     restart: unless-stopped
   device-log-generator:
     build: device-log-generator

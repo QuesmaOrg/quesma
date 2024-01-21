@@ -22,7 +22,7 @@ func handleQuery(url string, body []byte, lm *clickhouse.LogManager,
 		responseBody = []byte("clickhouse")
 		var rawResults []byte
 		responseMatcher.Push(&QResponse{requestId, responseBody})
-
+		translatedQueryBody = []byte("select * from ...")
 		queryDebugger.PushSecondaryInfo(&QueryDebugSecondarySource{
 			id:                     requestId,
 			incomingQueryBody:      body,
@@ -50,7 +50,7 @@ func handleSearch(index string, url string, body []byte, lm *clickhouse.LogManag
 	responseBody = []byte("clickhouse")
 	var rawResults []byte
 	responseMatcher.Push(&QResponse{requestId, responseBody})
-
+	translatedQueryBody = []byte("select * from ...")
 	queryDebugger.PushSecondaryInfo(&QueryDebugSecondarySource{
 		id:                     requestId,
 		incomingQueryBody:      body,
