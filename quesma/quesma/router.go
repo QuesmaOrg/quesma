@@ -40,7 +40,7 @@ func configureRouting(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebug
 	router.PathPrefix(CreateTablePath).HandlerFunc(createTable(lm))
 	router.PathPrefix(InsertPath).HandlerFunc(processInsert(lm))
 	router.PathPrefix(BulkPath).HandlerFunc(bulk(lm, rm, queryDebugger)).Methods("POST")
-	router.PathPrefix(SearchPath).HandlerFunc(search(lm, rm, queryDebugger))
+	router.PathPrefix(SearchPath).HandlerFunc(search(lm, rm, queryDebugger)).Methods("POST")
 	router.PathPrefix(InternalPath).HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		fmt.Printf("unrecognized internal path: %s\n", r.RequestURI)
 	})
@@ -49,6 +49,7 @@ func configureRouting(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebug
 	})
 	router.PathPrefix("/{index}/_doc").HandlerFunc(index(lm, rm, queryDebugger)).Methods("POST")
 	router.PathPrefix("/{index}/_bulk").HandlerFunc(bulkVar(lm, rm, queryDebugger)).Methods("POST")
+	router.PathPrefix("/{index}/_search").HandlerFunc(searchVar(lm, rm, queryDebugger)).Methods("POST")
 	return router
 }
 
@@ -58,10 +59,16 @@ func ok(writer http.ResponseWriter, _ *http.Request) {
 
 func search(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
-			id := r.Header.Get("RequestId")
-			go handleQuery(r.RequestURI, body, lm, rm, queryDebugger, id)
-		}
+		id := r.Header.Get("RequestId")
+		go handleQuery(r.RequestURI, body, lm, rm, queryDebugger, id)
+	})
+}
+
+func searchVar(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
+	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
+		id := r.Header.Get("RequestId")
+		vars := mux.Vars(r)
+		go handleSearch(vars["index"], r.RequestURI, body, lm, rm, queryDebugger, id)
 	})
 }
 

@@ -2,7 +2,6 @@ package quesma
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,7 +9,6 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"net"
 	"net/http"
-	"strings"
 	"sync"
 )
 
@@ -137,90 +135,4 @@ func (q *Quesma) Start() {
 	}()
 	go q.responseMatcher.Compare()
 	go q.queryDebugger.GenerateReport()
-}
-
-func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogManager) {
-	fmt.Printf("%s/_bulk  --> clickhouse, body(shortened): %s\n", optionalTableName, body[:70])
-	jsons := strings.Split(body, "\n")
-	for i := 0; i+1 < len(jsons); i += 2 {
-		action := jsons[i]
-		document := jsons[i+1]
-
-		var jsonData map[string]interface{}
-
-		// Unmarshal the JSON data into the map
-		err := json.Unmarshal([]byte(action), &jsonData)
-		if err != nil {
-			fmt.Println("Invalid action JSON in _bulk:", err, action)
-			continue
-		}
-		if jsonData["create"] != nil {
-			createObj, ok := jsonData["create"].(map[string]interface{})
-			if !ok || (createObj["_index]"] == nil || len(tableName) > 0) {
-				fmt.Println("Invalid create JSON in _bulk:", action)
-				continue
-			}
-			tableName, ok := createObj["_index"].(string)
-			if !ok {
-				if len(tableName) == 0 {
-					fmt.Println("Invalid create JSON in _bulk, no _index name:", action)
-					continue
-				} else {
-					tableName = optionalTableName
-				}
-			}
-			err := lm.ProcessInsertQuery(tableName, document)
-			if err != nil {
-				log.Fatal(err)
-			}
-		} else if jsonData["index"] != nil {
-			fmt.Println("Not supporting 'index' _bulk.")
-		} else if jsonData["update"] != nil {
-			fmt.Println("Not supporting 'update' _bulk.")
-		} else if jsonData["delete"] != nil {
-			fmt.Println("Not supporting 'delete' _bulk.")
-		} else {
-			fmt.Println("Invalid action JSON in _bulk:", action)
-		}
-	}
-}
-
-func dualWrite(tableName string, body string, lm *clickhouse.LogManager) {
-	fmt.Printf("%s  --> clickhouse, body(shortened): %s\n", tableName, body[:70])
-	if len(body) == 0 {
-		return
-	}
-	err := lm.ProcessInsertQuery(tableName, body)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func handleQuery(url string, body []byte, lm *clickhouse.LogManager,
-	responseMatcher *ResponseMatcher,
-	queryDebugger *QueryDebugger,
-	requestId string) {
-	if strings.Contains(url, "/_search?pretty") {
-		var translatedQueryBody []byte
-		queryTranslator := &ClickhouseQueryTranslator{clickhouseLM: lm}
-		queryTranslator.Write(body)
-		// TODO query clickhouse
-		// get response
-		// and translate
-		var responseBody []byte
-		responseTranslator := &ClickhouseResultReader{clickhouseLM: lm}
-		responseTranslator.Read(responseBody)
-		responseBody = []byte("clickhouse")
-		var rawResults []byte
-		responseMatcher.Push(&QResponse{requestId, responseBody})
-
-		queryDebugger.PushSecondaryInfo(&QueryDebugSecondarySource{
-			id:                     requestId,
-			incomingQueryBody:      body,
-			queryBodyTranslated:    translatedQueryBody,
-			queryRawResults:        rawResults,
-			queryTranslatedResults: responseBody,
-		})
-		return
-	}
 }
