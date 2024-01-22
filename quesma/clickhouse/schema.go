@@ -5,6 +5,7 @@ import (
 	"math"
 	"reflect"
 	"strings"
+	"time"
 )
 
 type (
@@ -12,6 +13,9 @@ type (
 		String() string
 		canConvert(interface{}) bool
 		createTableString(indentLvl int) string // prints type for CREATE TABLE command
+		isArray() bool
+		newZeroValue() interface{} // all types: their zero value, only bool -> int8, because we can't read bools
+		isBool() bool              // we need to differentiate between bool and other types. Special method to make it fast
 	}
 	Codec struct {
 		Name string // change to enum
@@ -53,6 +57,20 @@ func (t BaseType) createTableString(indentLvl int) string {
 	return t.String()
 }
 
+func (t BaseType) isArray() bool { return false }
+
+// all types the same, bool -> int8, because we can't read bools
+func (t BaseType) newZeroValue() interface{} {
+	if t.goType == reflect.ValueOf(true).Type() {
+		return int8(0)
+	}
+	return reflect.Zero(t.goType)
+}
+
+func (t BaseType) isBool() bool {
+	return t.Name == "Bool"
+}
+
 func (t CompoundType) String() string {
 	return t.Name + "(" + t.BaseType.String() + ")"
 }
@@ -60,6 +78,15 @@ func (t CompoundType) String() string {
 func (t CompoundType) createTableString(indentLvl int) string {
 	return t.String()
 }
+
+func (t CompoundType) isArray() bool { return t.Name == "Array" }
+
+// Not supporting Array(Array(...)) for now for speed&complexity reasons
+func (t CompoundType) newZeroValue() interface{} {
+	return reflect.SliceOf(t.BaseType.(BaseType).goType)
+}
+
+func (t CompoundType) isBool() bool { return false }
 
 func (t MultiValueType) String() string {
 	var sb strings.Builder
@@ -86,6 +113,14 @@ func (t MultiValueType) createTableString(indentLvl int) string {
 	sb.WriteString(indent(indentLvl) + ")")
 	return sb.String()
 }
+
+func (t MultiValueType) isArray() bool { return false }
+
+func (t MultiValueType) newZeroValue() interface{} {
+	return nil // not implemented
+}
+
+func (t MultiValueType) isBool() bool { return false }
 
 // TODO maybe a bit better/faster?
 func (t BaseType) canConvert(v interface{}) bool {
@@ -133,6 +168,10 @@ func NewType(value interface{}) Type {
 	}
 	switch valueCasted := value.(type) {
 	case string:
+		t, err := time.Parse(time.RFC3339Nano, valueCasted)
+		if err == nil {
+			return BaseType{Name: "DateTime64", goType: reflect.TypeOf(t)}
+		}
 		return BaseType{Name: "String", goType: reflect.TypeOf("")}
 	case float64:
 		if isFloatInt(valueCasted) {
@@ -166,6 +205,10 @@ func NewTable(createTableQuery string, config *ChTableConfig) (*Table, error) {
 	} else {
 		return t, fmt.Errorf("error parsing query at character %d, query: %s", i, createTableQuery)
 	}
+}
+
+func (col *Column) isArray() bool {
+	return col.Type.isArray()
 }
 
 func (col *Column) createTableString(indentLvl int) string {

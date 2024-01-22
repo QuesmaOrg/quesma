@@ -71,7 +71,7 @@ func FieldsMapToCreateTableString(m SchemaMap, indentLvl int, config *ChTableCon
 				indent(indentLvl), FieldsMapToCreateTableString(nestedValue, indentLvl+1, config), indent(indentLvl)))
 		} else {
 			// value is a single field. Only String/Bool/DateTime64 supported for now.
-			fType := determineFieldType(value)
+			fType := NewType(value).String()
 			// hack for now
 			if indentLvl == 1 && name == timestampFieldName && config.timestampDefaultsNow {
 				fType += " DEFAULT now64()"

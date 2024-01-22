@@ -1,6 +1,7 @@
 package quesma
 
 import (
+	"fmt"
 	"mitmproxy/quesma/clickhouse"
 )
 
@@ -12,8 +13,12 @@ type ClickhouseResultReader struct {
 	clickhouseLM *clickhouse.LogManager
 }
 
-func (cw *ClickhouseQueryTranslator) Write(buf []byte) (int, error) {
-	return 0, nil
+// TODO come back to (int, error) return type?
+func (cw *ClickhouseQueryTranslator) Write(buf []byte) Query {
+	fmt.Println("ClickhouseQueryTranslator.Write, buf: ", string(buf))
+	query := cw.parseQuery(string(buf))
+	fmt.Printf("ClickhouseQueryTranslator.Write, query: %+v", query)
+	return query
 }
 
 func (cw *ClickhouseResultReader) Read(buf []byte) (int, error) {

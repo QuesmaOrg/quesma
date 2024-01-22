@@ -1,7 +1,9 @@
 package quesma
 
 import (
+	"fmt"
 	"mitmproxy/quesma/clickhouse"
+	"strconv"
 	"strings"
 )
 
@@ -12,17 +14,34 @@ func handleQuery(url string, body []byte, lm *clickhouse.LogManager,
 	if strings.Contains(url, "/_search?pretty") {
 		var translatedQueryBody []byte
 		queryTranslator := &ClickhouseQueryTranslator{clickhouseLM: lm}
-		queryTranslator.Write(body)
-		// TODO query clickhouse
+
+		// old TODO: query clickhouse
 		// get response
 		// and translate
+
+		query := queryTranslator.Write(body)
 		var responseBody []byte
-		responseTranslator := &ClickhouseResultReader{clickhouseLM: lm}
-		responseTranslator.Read(responseBody)
-		responseBody = []byte("clickhouse")
+		if query.canParse {
+			cnt, err := queryTranslator.queryClickhouse(query.sql)
+			if err != nil {
+				responseBody = []byte("Error processing query: " + query.sql + ", err: " + err.Error())
+			}
+			rows, err := queryTranslator.getNMostRecentRows(tableName, "timestamp", 2)
+			if err == nil {
+				fmt.Println(rows)
+			} else {
+				fmt.Println(err)
+			}
+			responseTranslator := &ClickhouseResultReader{clickhouseLM: lm}
+			responseTranslator.Read(responseBody) // TODO implement this, not line below
+			responseBody = []byte(strconv.Itoa(cnt))
+		} else {
+			responseBody = []byte("Invalid Query, err: " + query.sql)
+		}
+
 		var rawResults []byte
 		responseMatcher.Push(&QResponse{requestId, responseBody})
-		translatedQueryBody = []byte("select * from ...")
+		translatedQueryBody = []byte(query.sql)
 		queryDebugger.PushSecondaryInfo(&QueryDebugSecondarySource{
 			id:                     requestId,
 			incomingQueryBody:      body,
@@ -40,17 +59,34 @@ func handleSearch(index string, url string, body []byte, lm *clickhouse.LogManag
 	// TODO: implement
 	var translatedQueryBody []byte
 	queryTranslator := &ClickhouseQueryTranslator{clickhouseLM: lm}
-	queryTranslator.Write(body)
-	// TODO query clickhouse
+
+	// old TODO: query clickhouse
 	// get response
 	// and translate
+
+	query := queryTranslator.Write(body)
 	var responseBody []byte
-	responseTranslator := &ClickhouseResultReader{clickhouseLM: lm}
-	responseTranslator.Read(responseBody)
-	responseBody = []byte("clickhouse")
+	if query.canParse {
+		cnt, err := queryTranslator.queryClickhouse(query.sql)
+		if err != nil {
+			responseBody = []byte("Error processing query: " + query.sql + ", err: " + err.Error())
+		}
+		rows, err := queryTranslator.getNMostRecentRows(tableName, "timestamp", 2)
+		if err == nil {
+			fmt.Println(rows)
+		} else {
+			fmt.Println(err)
+		}
+		responseTranslator := &ClickhouseResultReader{clickhouseLM: lm}
+		responseTranslator.Read(responseBody) // TODO implement this, not line below
+		responseBody = []byte(strconv.Itoa(cnt))
+	} else {
+		responseBody = []byte("Invalid Query, err: " + query.sql)
+	}
+
 	var rawResults []byte
 	responseMatcher.Push(&QResponse{requestId, responseBody})
-	translatedQueryBody = []byte("select * from ...")
+	translatedQueryBody = []byte(query.sql)
 	queryDebugger.PushSecondaryInfo(&QueryDebugSecondarySource{
 		id:                     requestId,
 		incomingQueryBody:      body,

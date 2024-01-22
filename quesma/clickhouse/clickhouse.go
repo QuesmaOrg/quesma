@@ -7,7 +7,6 @@ import (
 	_ "github.com/mailru/go-clickhouse"
 	"log"
 	"strings"
-	"time"
 )
 
 const (
@@ -68,20 +67,6 @@ func (lm *LogManager) Close() {
 
 func indent(indentLvl int) string {
 	return strings.Repeat("\t", indentLvl)
-}
-
-func determineFieldType(f interface{}) string {
-	if _, ok := f.(bool); ok {
-		return "Bool"
-	}
-	s, ok := f.(string)
-	if ok {
-		_, err := time.Parse(time.RFC3339Nano, s)
-		if err == nil {
-			return "DateTime64"
-		}
-	}
-	return "String"
 }
 
 // updates also Table TODO stop updating table here, find a better solution
@@ -380,6 +365,24 @@ func NewDefaultCHConfig() *ChTableConfig {
 			NewDefaultInt64Attribute(),
 			NewDefaultFloat64Attribute(),
 			NewDefaultBoolAttribute(),
+			NewDefaultStringAttribute(),
+		},
+		castUnsupportedAttrValueTypesToString: true,
+		preferCastingToOthers:                 true,
+	}
+}
+
+func NewNoTimestampOnlyStringAttrCHConfig() *ChTableConfig {
+	return &ChTableConfig{
+		hasTimestamp:         false,
+		timestampDefaultsNow: false,
+		engine:               "MergeTree",
+		orderBy:              "(timestamp)",
+		partitionBy:          "",
+		primaryKey:           "",
+		ttl:                  "",
+		hasOthers:            false,
+		attributes: []Attribute{
 			NewDefaultStringAttribute(),
 		},
 		castUnsupportedAttrValueTypesToString: true,
