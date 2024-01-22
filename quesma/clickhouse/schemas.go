@@ -18,6 +18,7 @@ var PredefinedTableSchemas = TableMap{
 			"client_id":           genericString("client_id"),
 			"client_ip":           genericString("client_ip"),
 			"ts_day":              lowCardinalityString("ts_day"),
+			"et_day":              genericString("et_day"),
 			"et_day_hour":         genericString("et_day_hour"),
 			"ts_day_hour":         genericString("ts_day_hour"),
 			"ts_time_druid":       dateTime("ts_time_druid"), // TODO TZ
@@ -31,11 +32,11 @@ var PredefinedTableSchemas = TableMap{
 			hasTimestamp:         false,
 			timestampDefaultsNow: false,
 			engine:               "MergeTree",
-			orderBy:              "(epoch_time_original)",
-			partitionBy:          "toDate(epoch_time_original / 1000000000)",
+			orderBy:              "epoch_time",
+			partitionBy:          "toYYYYMM(epoch_time)",
 			primaryKey:           "",
-			ttl:                  "toDateTime(epoch_time_original / 1000000000) + toIntervalSecond(1296000)",
-			settings:             "index_granularity = 8192, ttl_only_drop_parts = 1",
+			ttl:                  "toDate(epoch_time) + INTERVAL 1 MONTH",
+			settings:             "index_granularity = 8192",
 			hasOthers:            false,
 			attributes: []Attribute{
 				NewDefaultStringAttribute(),

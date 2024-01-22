@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -11,11 +12,19 @@ import (
 
 const url = "http://mitmproxy:8080/device_logs/_doc"
 
+const (
+	epochTimeFormat = "2006-01-02T15:04:05-0700"
+	etDayHourFormat = "2006.01.02.15"
+	etDayFormat     = "2006.01.02"
+)
+
 func main() {
 	for {
 		time.Sleep(time.Duration(1000+rand.Intn(2000)) * time.Millisecond)
 
-		deviceLog := `
+		now := time.Now().UTC()
+
+		deviceLog := fmt.Sprintf(`
         {
         "properties": {
         "enriched_client_ip": "2409:4070:4003:a299:40f9:28e1:eb5b:215e",
@@ -77,12 +86,12 @@ func main() {
         "user_id": "dh123456789",
         "event_name": "story_list_view",
         "ts_time_druid": "2024-01-01T22:00:00",
-        "epoch_time": "2024-01-01T22:51:30+0530",
-        "et_day_hour": "2024.01.01.22",
-        "et_day": "2024.01.01",
+        "epoch_time": "%s",
+        "et_day_hour": "%s",
+        "et_day": "%s",
         "epoch_time_original": 1704129690,
         "ts_day_hour": "2024-01-01-22"
-        }`
+        }`, now.Format(epochTimeFormat), now.Format(etDayHourFormat), now.Format(etDayFormat))
 
 		data := map[string]interface{}{}
 		json.Unmarshal([]byte(deviceLog), &data)
