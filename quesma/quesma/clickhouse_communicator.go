@@ -14,7 +14,7 @@ func (cw *ClickhouseQueryTranslator) getFieldInfo(tableName string, fieldName st
 
 // TODO flatten tuples, I think (or just don't support them for now, we don't want them at the moment in production schemas)
 func (cw *ClickhouseQueryTranslator) getFieldsList(tableName string) []string {
-	return cw.clickhouseLM.GetFieldsList(tableName)
+	return []string{"message"}
 }
 
 func (cw *ClickhouseQueryTranslator) queryClickhouse(query string) (int, error) {

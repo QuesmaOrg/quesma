@@ -85,10 +85,8 @@ var tests = []struct {
 				"must_not": []
 			}
 		}`,
-		[]string{sel + "((message LIKE '%user%' OR timestamp LIKE '%user%') AND (@timestamp>=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z') AND @timestamp<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z')))",
-			sel + "((message LIKE '%user%' OR timestamp LIKE '%user%') AND (@timestamp<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z') AND @timestamp>=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z')))",
-			sel + "((timestamp LIKE '%user%' OR message LIKE '%user%') AND (@timestamp>=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z') AND @timestamp<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z')))",
-			sel + "((timestamp LIKE '%user%' OR message LIKE '%user%') AND (@timestamp<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z') AND @timestamp>=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z')))",
+		[]string{sel + "(message LIKE '%user%' AND (@timestamp>=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z') AND @timestamp<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z')))",
+			sel + "(message LIKE '%user%' AND (@timestamp<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z') AND @timestamp>=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z')))",
 		},
 	},
 	{
@@ -248,8 +246,7 @@ var tests = []struct {
 					]
 				}
 			}`,
-		[]string{sel + "(message LIKE '%ingest-agent-policies%' OR timestamp LIKE '%ingest-agent-policies%')",
-			sel + "(timestamp LIKE '%ingest-agent-policies%' OR message LIKE '%ingest-agent-policies%')"},
+		sel + "message LIKE '%ingest-agent-policies%'",
 	},
 	{
 		"Simple wildcard",
@@ -403,8 +400,8 @@ var tests = []struct {
 			  }
 			`,
 		[]string{
-			sel + "((message LIKE '%user%' OR timestamp LIKE '%user%') AND (@timestamp>=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND @timestamp<=parseDateTime64BestEffort('2024-12-22T09:41:10.299Z')))",
-			sel + "((message LIKE '%user%' OR timestamp LIKE '%user%') AND (@timestamp<=parseDateTime64BestEffort('2024-12-22T09:41:10.299Z') AND (@timestamp>=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')))",
+			sel + "(message LIKE '%user%' AND (@timestamp>=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND @timestamp<=parseDateTime64BestEffort('2024-12-22T09:41:10.299Z')))",
+			sel + "(message LIKE '%user%' AND (@timestamp<=parseDateTime64BestEffort('2024-12-22T09:41:10.299Z') AND @timestamp>=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')))",
 		},
 	},
 	{
