@@ -1,16 +1,21 @@
 package quesma
 
 import (
+	"embed"
 	"errors"
 	"log"
 	"net/http"
-	"os"
 	"sort"
 	"strconv"
 	"sync"
+
+	"github.com/gorilla/mux"
 )
 
 const UI_TCP_PORT = "9999"
+
+//go:embed ui/*
+var uiFs embed.FS
 
 type QueryDebugPrimarySource struct {
 	id        string
@@ -68,11 +73,23 @@ func copyMap(originalMap map[string]QueryDebugInfo) map[string]QueryDebugInfo {
 
 func (qd *QueryDebugger) newHTTPServer() *http.Server {
 	return &http.Server{
-		Addr: ":" + UI_TCP_PORT,
-		Handler: http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
-			buf := qd.generateReport()
-			writer.Write(buf)
-		})}
+		Addr:    ":" + UI_TCP_PORT,
+		Handler: qd.createRouting(),
+	}
+}
+
+func (qd *QueryDebugger) createRouting() *mux.Router {
+	router := mux.NewRouter()
+	router.HandleFunc("/", func(writer http.ResponseWriter, req *http.Request) {
+		buf := qd.generateReport()
+		writer.Write(buf)
+	})
+	router.HandleFunc("/queries", func(writer http.ResponseWriter, req *http.Request) {
+		buf := qd.generateQueries()
+		writer.Write(buf)
+	})
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.FS(uiFs))))
+	return router
 }
 
 func (qd *QueryDebugger) listenAndServe() {
@@ -86,7 +103,7 @@ type DebugKeyValue struct {
 	Value QueryDebugInfo
 }
 
-func (qd *QueryDebugger) generateReport() []byte {
+func (qd *QueryDebugger) generateQueries() []byte {
 	qd.mutex.Lock()
 	localQueryDebugInfo := copyMap(qd.debugInfoMessages)
 	qd.mutex.Unlock()
@@ -103,14 +120,8 @@ func (qd *QueryDebugger) generateReport() []byte {
 	})
 
 	var buf []byte
-	head, err := os.ReadFile("/var/quesma/quesma/ui/head.html")
-	buf = append(buf, head...)
-	if err != nil {
-		buf = append(buf, []byte(err.Error())...)
-	}
-	buf = append(buf, []byte("\n<div class=\"topnav\">")...)
-	buf = append(buf, []byte("\n<h3>Quesma Debugging Interface</h3>")...)
-	buf = append(buf, []byte("\n</div>")...)
+	buf = make([]byte, 0)
+
 	buf = append(buf, []byte("\n<div class=\"left\" id=\"left\">")...)
 	buf = append(buf, []byte("\n<div class=\"title-bar\">Query")...)
 	buf = append(buf, []byte("\n</div>")...)
@@ -151,8 +162,30 @@ func (qd *QueryDebugger) generateReport() []byte {
 		buf = append(buf, []byte("\n</pre>")...)
 	}
 	buf = append(buf, []byte("\n</div>")...)
+
+	return buf
+}
+
+func (qd *QueryDebugger) generateReport() []byte {
+	var buf []byte
+
+	head, err := uiFs.ReadFile("ui/head.html")
+	buf = append(buf, head...)
+	if err != nil {
+		buf = append(buf, []byte(err.Error())...)
+	}
+	buf = append(buf, []byte("\n<div class=\"topnav\">")...)
+	buf = append(buf, []byte("\n<h3>Quesma Debugging Interface</h3>")...)
+	buf = append(buf, []byte(`<button hx-target="#queries" hx-get="/queries">Refresh</button>`)...)
+	buf = append(buf, []byte("\n</div>")...)
+
+	buf = append(buf, []byte("\n<div id=\"queries\">")...)
+	buf = append(buf, qd.generateQueries()...)
+	buf = append(buf, []byte("\n</div>")...)
+
 	buf = append(buf, []byte("\n<div class=\"menu\">")...)
 	buf = append(buf, []byte("\n<h2>Menu</h2>")...)
+
 	buf = append(buf, []byte("&nbsp;<button id=\"find_query_by_id_button\" type=\"button\" class=\"btn\" onclick=\"findquerybyid_clicked(find_query_by_id_input.value)\">Find query by id</button><br>")...)
 	buf = append(buf, []byte("&nbsp;<input type=\"text\" id=\"find_query_by_id_input\" class=\"input\" name=\"find_query_by_id_input\" value=\"\" required size=\"40\"><br><br>")...)
 
