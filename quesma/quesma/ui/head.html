@@ -57,8 +57,13 @@
             display: flex;
         }
 
-        .topnav button {
-            margin: 0 0 10px 10px;
+        .topnav h3 {
+            margin: 0 20px 0 10px;
+        }
+
+        .autorefresh-box {
+            background-color: grey;
+            padding: 0 10px;
         }
 
         .table {
@@ -119,6 +124,36 @@
             white-space: nowrap;
         }
 
+        .debug-body a {
+            text-decoration: none;
+        }
+
+        .left .debug-body a,
+        .bottom_right .debug-body a {
+            color: black;
+            display: block;
+        }
+
+        .right .debug-body a,
+        .bottom_left .debug-body a {
+            color: white;
+            display: block;
+        }
+
+        .left .debug-body a:hover,
+        .bottom_right .debug-body a:hover {
+            background-color: rgb(181, 186, 195)
+        }
+
+        .right .debug-body a:hover,
+        .bottom_left .debug-body a:hover {
+            background-color: rgb(40, 40, 40);
+        }
+
+        .debug-body a:hover {
+            text-decoration: none;
+        }
+
         .title-bar {
             background-color: #333;
             color: white;
@@ -142,89 +177,10 @@
             background-color: rgb(0, 0, 0);
             color: white;
         }
+
+        .menu a,
+        .menu a:visited {
+            color: white;
+        }
     </style>
-    <script type="text/javascript">
-        document.addEventListener("DOMContentLoaded", function () {
-            var pres = document.getElementsByTagName("pre");
-
-            for (var i = 0; i < pres.length; i++) {
-                try {
-                    var obj = JSON.parse(pres[i].innerHTML);
-                    pres[i].innerHTML = JSON.stringify(obj, undefined, 2);
-                } catch (e) {
-                    console.log("Can't parse JSON: ", pres[i].innerHTML);
-                    // do nothing
-                }
-            }
-        });
-
-        function scrollToTag(divId, textToFind, tag) {
-            var scrollableDiv = document.getElementById(divId);
-            var pTags = scrollableDiv.getElementsByTagName(tag);
-
-            for (var i = 0; i < pTags.length; i++) {
-                if (pTags[i].innerHTML.search(textToFind) != -1) {
-                    scrollableDiv.scrollTop = pTags[i].offsetTop;
-                    break;
-                }
-            }
-        }
-
-        function findquerybyid_clicked(id) {
-            var pres = document.getElementsByTagName("pre");
-            for (var i = 0; i < pres.length; i++) {
-                if (pres[i].id == "query" + id ||
-                    pres[i].id == "response" + id ||
-                    pres[i].id == "second_query" + id ||
-                    pres[i].id == "second_response" + id) {
-                    pres[i].style.backgroundColor = "red"
-                    pres[i].style.color = "white"
-                    pres[i].innerHTML = "<b>" + pres[i].innerHTML + "</b>"
-                }
-            }
-            scrollToTag("left", id, "p")
-            scrollToTag("right", id, "p")
-            scrollToTag("bottom_left", id, "p")
-            scrollToTag("bottom_right", id, "p")
-        }
-        function findquerybystr_clicked(str) {
-            var pres = document.getElementsByTagName("pre");
-            for (var i = 0; i < pres.length; i++) {
-                if (pres[i].innerHTML.search(str) != -1) {
-                    pres[i].style.backgroundColor = "red"
-                    pres[i].style.color = "white"
-                    pres[i].innerHTML = "<b>" + pres[i].innerHTML + "</b>"
-                }
-            }
-            scrollToTag("left", str, "pre")
-            scrollToTag("right", str, "pre")
-            scrollToTag("bottom_left", str, "pre")
-            scrollToTag("bottom_right", str, "pre")
-        }
-        function unselect_clicked() {
-            var pres = document.getElementsByTagName("pre");
-            for (var i = 0; i < pres.length; i++) {
-                if (pres[i].id.startsWith("query") && pres[i].style.backgroundColor == "red") {
-                    pres[i].style.color = "black"
-                    pres[i].style.backgroundColor = "rgb(221, 226, 235)"
-                    pres[i].innerHTML = pres[i].innerHTML.slice("<b>".length, -"</b>".length)
-                }
-                if (pres[i].id.startsWith("response") && pres[i].style.backgroundColor == "red") {
-                    pres[i].style.color = "white"
-                    pres[i].style.backgroundColor = "black"
-                    pres[i].innerHTML = pres[i].innerHTML.slice("<b>".length, -"</b>".length)
-                }
-                if (pres[i].id.startsWith("second_query") && pres[i].style.backgroundColor == "red") {
-                    pres[i].style.color = "white"
-                    pres[i].style.backgroundColor = "black"
-                    pres[i].innerHTML = pres[i].innerHTML.slice("<b>".length, -"</b>".length)
-                }
-                if (pres[i].id.startsWith("second_response") && pres[i].style.backgroundColor == "red") {
-                    pres[i].style.color = "black"
-                    pres[i].style.backgroundColor = "rgb(221, 226, 235)"
-                    pres[i].innerHTML = pres[i].innerHTML.slice("<b>".length, -"</b>".length)
-                }
-            }
-        }
-    </script>
 </head>
