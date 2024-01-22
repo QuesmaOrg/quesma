@@ -35,7 +35,7 @@ var PredefinedTableSchemas = TableMap{
 			orderBy:              "epoch_time",
 			partitionBy:          "toYYYYMM(epoch_time)",
 			primaryKey:           "",
-			ttl:                  "toDateTime(epoch_time) + INTERVAL 1 MINUTE",
+			ttl:                  "toDateTime(epoch_time) + INTERVAL 20 MINUTE",
 			settings:             "index_granularity = 8192",
 			hasOthers:            false,
 			attributes: []Attribute{

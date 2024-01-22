@@ -1,6 +1,9 @@
 package quesma
 
-import "mitmproxy/quesma/clickhouse"
+import (
+	"mitmproxy/quesma/clickhouse"
+	"time"
+)
 
 // Feel free to suggest a better name for this file
 
@@ -23,4 +26,8 @@ func (cw *ClickhouseQueryTranslator) queryClickhouse(query string) (int, error) 
 
 func (cw *ClickhouseQueryTranslator) getNMostRecentRows(tableName, timestampFieldName string, limit int) ([]clickhouse.QueryResultRow, error) {
 	return cw.clickhouseLM.GetNMostRecentRows(tableName, timestampFieldName, limit)
+}
+
+func (cw *ClickhouseQueryTranslator) getHistogram(tableName string) ([]clickhouse.HistogramResult, error) {
+	return cw.clickhouseLM.GetHistogram(tableName, "timestamp", 15*time.Minute)
 }

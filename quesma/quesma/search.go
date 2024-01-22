@@ -35,6 +35,8 @@ func handleQuery(url string, body []byte, lm *clickhouse.LogManager,
 			responseTranslator := &ClickhouseResultReader{clickhouseLM: lm}
 			responseTranslator.Read(responseBody) // TODO implement this, not line below
 			responseBody = []byte(strconv.Itoa(cnt))
+			histogram, err := queryTranslator.getHistogram(tableName)
+			fmt.Printf("Histogram: %+v, err: %+v\n", histogram, err)
 		} else {
 			responseBody = []byte("Invalid Query, err: " + query.sql)
 		}
@@ -80,6 +82,8 @@ func handleSearch(index string, url string, body []byte, lm *clickhouse.LogManag
 		responseTranslator := &ClickhouseResultReader{clickhouseLM: lm}
 		responseTranslator.Read(responseBody) // TODO implement this, not line below
 		responseBody = []byte(strconv.Itoa(cnt))
+		histogram, err := queryTranslator.getHistogram(tableName)
+		fmt.Printf("Histogram: %+v, err: %+v\n", histogram, err)
 	} else {
 		responseBody = []byte("Invalid Query, err: " + query.sql)
 	}
