@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"log"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/util"
 	"strings"
 )
 
 func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogManager) {
+	defer recovery.LogPanic()
 	fmt.Printf("%s/_bulk  --> clickhouse, body(shortened): %s\n", optionalTableName, util.Truncate(body))
 	jsons := strings.Split(body, "\n")
 	for i := 0; i+1 < len(jsons); i += 2 {
@@ -56,6 +58,7 @@ func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogMana
 }
 
 func dualWrite(tableName string, body string, lm *clickhouse.LogManager) {
+	defer recovery.LogPanic()
 	fmt.Printf("%s  --> clickhouse, body(shortened): %s\n", tableName, util.Truncate(body))
 	if len(body) == 0 {
 		return

@@ -1,11 +1,11 @@
-package quesma
+package recovery
 
 import (
 	"errors"
 	"log"
 )
 
-func quesmaRecover() {
+func LogPanic() {
 	r := recover()
 	if r != nil {
 		var err error
@@ -17,6 +17,6 @@ func quesmaRecover() {
 		default:
 			err = errors.New("unknown error")
 		}
-		log.Println("Crashed:", err)
+		log.Println("Panic recovered:", err)
 	}
 }

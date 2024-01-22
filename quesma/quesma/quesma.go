@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/quesma/recovery"
 	"net"
 	"net/http"
 	"sync"
@@ -74,7 +75,7 @@ func (q *Quesma) listen() (net.Listener, error) {
 }
 
 func (q *Quesma) handleRequest(in net.Conn) {
-	defer quesmaRecover()
+	defer recovery.LogPanic()
 	defer in.Close()
 	elkConnection, err := net.Dial("tcp", q.targetUrl)
 	log.Println("elkConnection:" + q.targetUrl)
@@ -115,7 +116,7 @@ func (q *Quesma) listenResponseDecorator() {
 }
 
 func (q *Quesma) Start() {
-	defer quesmaRecover()
+	defer recovery.LogPanic()
 	listener, err := q.listen()
 	if err != nil {
 		log.Println(err)
