@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const nestedSeparator = "::"
+
 // TODO remove schemamap type?
 // TODO change all return types to * when worth it like here
 func JsonToFieldsMap(jsonn string) (SchemaMap, error) {
@@ -49,26 +51,23 @@ func JsonToTableSchema(jsonn, tableName string, config *ChTableConfig) (*Table, 
 
 // m: unmarshalled json from HTTP request
 // Returns nicely formatted string for CREATE TABLE command
-func FieldsMapToCreateTableString(m SchemaMap, indentLvl int, config *ChTableConfig) string {
+func FieldsMapToCreateTableString(namespace string, m SchemaMap, indentLvl int, config *ChTableConfig) string {
 	var result strings.Builder
 	i := 0
 	for name, value := range m {
-		result.WriteString("\n")
-		result.WriteString(indent(indentLvl))
-		nestedValue, ok := value.(SchemaMap)
-		if name == "create" {
-			fmt.Println("tutaj! ", ok, nestedValue)
+		if namespace == "" {
+			result.WriteString("\n")
 		}
-		if ok && nestedValue != nil && len(nestedValue) > 0 { // value is another (nested) dict
-			// Care. Empty JSON fields will be replaced by String.
-			// So far, it's better as all JSONs we treat as Tuples, and empty Tuple
-			// is an error in Clickhouse.
-			// But for the future, we might want to change that.
+		nestedValue, ok := value.(SchemaMap)
+		if ok && nestedValue != nil && len(nestedValue) > 0 {
+			var nested []string
+			if namespace == "" {
+				nested = append(nested, FieldsMapToCreateTableString(name, nestedValue, indentLvl, config))
+			} else {
+				nested = append(nested, FieldsMapToCreateTableString(fmt.Sprintf("%s%s%s", namespace, nestedSeparator, name), nestedValue, indentLvl, config))
+			}
 
-			// quotes near field names very important. Normally they are not, but
-			// they enable to have fields with reserved names, like e.g. index.
-			result.WriteString(fmt.Sprintf("\"%s\" Tuple\n%s(\n%s%s)", name,
-				indent(indentLvl), FieldsMapToCreateTableString(nestedValue, indentLvl+1, config), indent(indentLvl)))
+			result.WriteString(strings.Join(nested, ",\n"))
 		} else {
 			// value is a single field. Only String/Bool/DateTime64 supported for now.
 			fType := NewType(value).String()
@@ -76,11 +75,21 @@ func FieldsMapToCreateTableString(m SchemaMap, indentLvl int, config *ChTableCon
 			if indentLvl == 1 && name == timestampFieldName && config.timestampDefaultsNow {
 				fType += " DEFAULT now64()"
 			}
-			result.WriteString(fmt.Sprintf("\"%s\" %s", name, fType))
+			result.WriteString(indent(indentLvl))
+			if namespace == "" {
+				result.WriteString(fmt.Sprintf("\"%s\" %s", name, fType))
+			} else {
+				result.WriteString(fmt.Sprintf("\"%s%s%s\" %s", namespace, nestedSeparator, name, fType))
+			}
 		}
 		if i+1 < len(m) {
 			result.WriteString(",")
 		}
+
+		if namespace != "" && i+1 < len(m) {
+			result.WriteString("\n")
+		}
+
 		i++
 	}
 	return result.String()

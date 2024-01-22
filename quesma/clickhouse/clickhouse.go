@@ -159,7 +159,7 @@ func buildCreateTableQueryNoOurFields(tableName, jsonData string, config *ChTabl
 	%s
 )
 %s`,
-		tableName, FieldsMapToCreateTableString(m, 1, config)+Indexes(m),
+		tableName, FieldsMapToCreateTableString("", m, 1, config)+Indexes(m),
 		config.CreateTablePostFieldsString()), nil
 }
 
@@ -184,6 +184,7 @@ func (lm *LogManager) CreateTableFromInsertQuery(name, jsonData string, config *
 	if err != nil {
 		return err
 	}
+
 	err = lm.ProcessCreateTableQuery(query, config)
 	if err != nil {
 		return err
@@ -210,7 +211,8 @@ func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfi
 
 	t := lm.findSchema(tableName)
 	mDiff := DifferenceMap(m, t) // TODO change to DifferenceMap(m, t)
-	if len(mDiff) == 0 {         // no need to modify, just insert 'js'
+
+	if len(mDiff) == 0 { // no need to modify, just insert 'js'
 		return js, nil
 	}
 	var attrsMap map[string][]interface{}
@@ -252,16 +254,13 @@ func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfi
 	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), nil
 }
 
-func (lm *LogManager) ProcessInsertQuery(tableName, q string) error {
+func (lm *LogManager) ProcessInsertQuery(tableName, jsonData string) error {
 	// first, create table if it doesn't exist
 	table := lm.findSchema(tableName) // TODO create tables on start?
 	var config *ChTableConfig
 	if table == nil {
 		config = NewOnlySchemaFieldsCHConfig()
-		if strings.Contains(tableName, "_doc") {
-			config = NewDefaultCHConfig()
-		}
-		err := lm.CreateTableFromInsertQuery(tableName, q, config)
+		err := lm.CreateTableFromInsertQuery(tableName, jsonData, config)
 		if err != nil {
 			fmt.Println("error ProcessInsertQuery:", err)
 		}
@@ -276,7 +275,7 @@ func (lm *LogManager) ProcessInsertQuery(tableName, q string) error {
 	}
 
 	// then insert
-	return lm.Insert(tableName, q, config)
+	return lm.Insert(tableName, jsonData, config)
 }
 
 func (lm *LogManager) Insert(tableName, jsonData string, config *ChTableConfig) error {
@@ -292,7 +291,7 @@ func (lm *LogManager) Insert(tableName, jsonData string, config *ChTableConfig) 
 	if err != nil {
 		return err
 	}
-	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertJson)
+	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, preprocess(insertJson))
 	_, err = lm.db.Exec(insert)
 	if err != nil {
 		return fmt.Errorf("error Insert, tablename: %s\nerror: %v\njson:%s", tableName, err, PrettyJson(jsonData))

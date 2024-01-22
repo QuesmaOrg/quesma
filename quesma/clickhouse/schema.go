@@ -49,6 +49,10 @@ type (
 	}
 )
 
+func (c *Column) String() string {
+	return fmt.Sprintf("%s %s", c.Name, c.Type.String())
+}
+
 func (t BaseType) String() string {
 	return t.Name
 }
@@ -72,7 +76,7 @@ func (t BaseType) isBool() bool {
 }
 
 func (t CompoundType) String() string {
-	return t.Name + "(" + t.BaseType.String() + ")"
+	return fmt.Sprintf("%s(%s)", t.Name, t.BaseType.String())
 }
 
 func (t CompoundType) createTableString(indentLvl int) string {
