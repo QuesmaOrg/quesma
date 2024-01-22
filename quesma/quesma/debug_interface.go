@@ -175,37 +175,33 @@ func (qd *QueryDebugger) Run() {
 		select {
 		case msg := <-qd.queryDebugPrimarySource:
 			log.Println("Received debug info from primary source:", msg.id)
+			debugPrimaryInfo := QueryDebugPrimarySource{msg.id, msg.queryResp}
 			qd.mutex.Lock()
 			if value, ok := qd.debugInfoMessages[msg.id]; !ok {
 				qd.debugInfoMessages[msg.id] = QueryDebugInfo{
-					QueryDebugPrimarySource: QueryDebugPrimarySource{msg.id, msg.queryResp},
+					QueryDebugPrimarySource: debugPrimaryInfo,
 				}
 			} else {
-				value.QueryDebugPrimarySource = QueryDebugPrimarySource{msg.id, msg.queryResp}
+				value.QueryDebugPrimarySource = debugPrimaryInfo
 				qd.debugInfoMessages[msg.id] = value
 			}
 			qd.mutex.Unlock()
 		case msg := <-qd.queryDebugSecondarySource:
 			log.Println("Received debug info from secondary source:", msg.id)
+			secondaryDebugInfo := QueryDebugSecondarySource{
+				msg.id,
+				msg.incomingQueryBody,
+				msg.queryBodyTranslated,
+				msg.queryRawResults,
+				msg.queryTranslatedResults,
+			}
 			qd.mutex.Lock()
 			if value, ok := qd.debugInfoMessages[msg.id]; !ok {
 				qd.debugInfoMessages[msg.id] = QueryDebugInfo{
-					QueryDebugSecondarySource: QueryDebugSecondarySource{
-						msg.id,
-						msg.incomingQueryBody,
-						msg.queryBodyTranslated,
-						msg.queryRawResults,
-						msg.queryTranslatedResults,
-					},
+					QueryDebugSecondarySource: secondaryDebugInfo,
 				}
 			} else {
-				value.QueryDebugSecondarySource = QueryDebugSecondarySource{
-					msg.id,
-					msg.incomingQueryBody,
-					msg.queryBodyTranslated,
-					msg.queryRawResults,
-					msg.queryTranslatedResults,
-				}
+				value.QueryDebugSecondarySource = secondaryDebugInfo
 				qd.debugInfoMessages[msg.id] = value
 			}
 			qd.mutex.Unlock()
