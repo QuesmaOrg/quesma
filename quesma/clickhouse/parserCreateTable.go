@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"strings"
 	"unicode"
 )
 
@@ -50,7 +51,7 @@ func parseMaybeAndForgetMultiple(q string, i int, ss []string) (int, bool) {
 }
 
 func isGoodIdentChar(r rune) bool {
-	return !unicode.IsSpace(r) && r != ')' && r != '"' && r != '`' && r != ',' && r != '.' && r != '('
+	return !unicode.IsSpace(r) && r != ')' && r != '"' && r != '`' && r != ',' && r != '('
 }
 
 // TODO idents starting with digit accepted, shouldn't probably be
@@ -112,6 +113,9 @@ func parseColumn(q string, i int) (int, Column) {
 	}
 	i = parseExact(q, i, quote)
 	// type
+	if i == -1 {
+		return -1, col
+	}
 	i, col.Type = parseType(q, i)
 	if i == -1 {
 		return -1, col
@@ -326,13 +330,12 @@ func ParseCreateTable(q string) (*Table, int) {
 	if i2 == -1 {
 		return &t, i
 	}
-	if q[i2] == '.' { // it's db name
-		t.Database = ident
-		i2++
-		i2, ident = parseIdent(q, i2)
-		if i2 == -1 {
+	if strings.Contains(ident, ".") { // If it has ".", it means it is DB name
+		split := strings.Split(ident, ".")
+		if len(split) != 2 {
 			return &t, i
 		}
+		t.Database = split[0]
 	}
 	t.Name = ident
 	if quote {

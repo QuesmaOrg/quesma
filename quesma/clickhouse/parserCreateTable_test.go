@@ -81,14 +81,14 @@ func TestParseQuotedTablename(t *testing.T) {
 	q := `CREATE TABLE IF NOT EXISTS "logs-generic-default"
 		(
 			"source" String,
-			"host_name" String,
+			"host.name" String,
 			"message" String,
-			"service_name" String,
+			"service.name" String,
 			"severity" String
 		)
 		ENGINE = MergeTree
 		ORDER BY (timestamp)`
-	fieldNames := []string{"source", "host_name", "message", "service_name", "severity"}
+	fieldNames := []string{"source", "host.name", "message", "service.name", "severity"}
 	table, err := NewTable(q, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, len(fieldNames), len(table.Cols))

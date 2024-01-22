@@ -31,12 +31,14 @@ func main() {
 		time.Sleep(time.Duration(1000+rand.Intn(2000)) * time.Millisecond)
 
 		body, err := json.Marshal(map[string]string{
+			// Please keep using OpenTelemetry names for the fields:
+			// https://opentelemetry.io/docs/specs/semconv/resource/
 			"timestamp":    time.Now().Format("2006-01-02T15:04:05.999Z"),
 			"message":      messageNames[rand.Intn(len(messageNames))],
 			"severity":     severityNames[rand.Intn(len(severityNames))],
 			"source":       sourceNames[rand.Intn(len(sourceNames))],
-			"service_name": serviceNames[rand.Intn(len(serviceNames))],
-			"host_name":    hostNames[rand.Intn(len(hostNames))],
+			"service.name": serviceNames[rand.Intn(len(serviceNames))],
+			"host.name":    hostNames[rand.Intn(len(hostNames))],
 		})
 
 		if err != nil {

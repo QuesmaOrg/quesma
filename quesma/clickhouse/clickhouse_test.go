@@ -24,15 +24,15 @@ var hasOthersConfig = &ChTableConfig{
 // inserting row with 2 non-schema fields
 // they are added to "others" column as JSON (one is nested)
 func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
-	rowToInsert := `{"host_name":"hermes","message":"User password reset requested","service_name":"queue","non-schema2":"2","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z","non-schema1":{"a":"b"}}`
+	rowToInsert := `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","non-schema2":"2","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z","non-schema1":{"a":"b"}}`
 	var emptyMap TableMap
 	// TODO fix columns
 	fieldsMap := TableMap{
 		"tableName": &Table{
 			Cols: map[string]*Column{
-				"host_name":    nil,
+				"host.name":    nil,
 				"message":      nil,
-				"service_name": nil,
+				"service.name": nil,
 				"severity":     nil,
 				"timestamp":    nil,
 				"source":       nil,
@@ -65,15 +65,15 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 /*
 // inserting row with 0 non-schema fields, but support for it
 func TestInsertNonSchemaFields_2(t *testing.T) {
-	rowToInsert := `{"host_name":"hermes","message":"User password reset requested","service_name":"queue","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z"}`
+	rowToInsert := `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z"}`
 	var emptyMap TableMap
 	// TODO fix columns
 	fieldsMap := TableMap{
 		"tableName": &Table{
 			Cols: map[string]*Column{
-				"host_name":    nil,
+				"host.name":    nil,
 				"message":      nil,
-				"service_name": nil,
+				"service.name": nil,
 				"severity":     nil,
 				"timestamp":    nil,
 				"source":       nil,
@@ -114,21 +114,21 @@ func TestAddTimestamp(t *testing.T) {
 		castUnsupportedAttrValueTypesToString: false,
 		preferCastingToOthers:                 false,
 	}
-	query, err := buildCreateTableQueryNoOurFields("tableName", `{"host_name":"hermes","message":"User password reset requested","service_name":"queue","severity":"info","source":"azure"}`, config)
+	query, err := buildCreateTableQueryNoOurFields("tableName", `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`, config)
 	assert.NoError(t, err)
 	assert.True(t, strings.Contains(query, timestampFieldName))
 }
 
 func TestJsonToFieldsMap(t *testing.T) {
 	mExpected := SchemaMap{
-		"host_name":    "hermes",
+		"host.name":    "hermes",
 		"message":      "User password reset requested",
-		"service_name": "queue",
+		"service.name": "queue",
 		"severity":     "info",
 		"source":       "azure",
 		"timestamp":    "2024-01-08T18:56:08.454Z",
 	}
-	j := `{"host_name":"hermes","message":"User password reset requested","service_name":"queue","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z"}`
+	j := `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z"}`
 	m, err := JsonToFieldsMap(j)
 	assert.NoError(t, err)
 	assert.Equal(t, len(mExpected), len(m))
@@ -144,16 +144,16 @@ func TestJsonToFieldsMap(t *testing.T) {
 func TestDifferenceMapSimple_1(t *testing.T) {
 	m := SchemaMap{
 		"message":      nil,
-		"service_name": nil,
+		"service.name": nil,
 		"severity":     nil,
 		"source":       nil,
 		"timestamp":    nil,
 	}
 	table := &Table{
 		Cols: map[string]*Column{
-			"host_name":    nil,
+			"host.name":    nil,
 			"message":      nil,
-			"service_name": nil,
+			"service.name": nil,
 			"severity":     nil,
 			"timestamp":    nil,
 			"source":       nil,
@@ -167,9 +167,9 @@ func TestDifferenceMapSimple_1(t *testing.T) {
 // one extra field
 func TestDifferenceMapSimple_2(t *testing.T) {
 	m := SchemaMap{
-		"host_name":    "a",
+		"host.name":    "a",
 		"message":      "b",
-		"service_name": "c",
+		"service.name": "c",
 		"severity":     "d",
 		"source":       "e",
 		"timestamp":    "f",
@@ -177,7 +177,7 @@ func TestDifferenceMapSimple_2(t *testing.T) {
 	table := &Table{
 		Cols: map[string]*Column{
 			"message":      nil,
-			"service_name": nil,
+			"service.name": nil,
 			"severity":     nil,
 			"timestamp":    nil,
 			"source":       nil,
@@ -186,17 +186,17 @@ func TestDifferenceMapSimple_2(t *testing.T) {
 
 	mDiff := DifferenceMap(m, table)
 	assert.Equal(t, 1, len(mDiff))
-	_, ok := mDiff["host_name"]
+	_, ok := mDiff["host.name"]
 	assert.True(t, ok)
 }
 
 func TestDifferenceMapNested(t *testing.T) {
 	m := SchemaMap{
-		"host_name": SchemaMap{
+		"host.name": SchemaMap{
 			"a": nil,
 		},
 		"message":      nil,
-		"service_name": nil,
+		"service.name": nil,
 		"severity":     nil,
 		"source":       nil,
 		"timestamp":    nil,
@@ -204,7 +204,7 @@ func TestDifferenceMapNested(t *testing.T) {
 	table := &Table{
 		Cols: map[string]*Column{
 			"message":      nil,
-			"service_name": nil,
+			"service.name": nil,
 			"severity":     nil,
 			"timestamp":    nil,
 			"source":       nil,
@@ -213,7 +213,7 @@ func TestDifferenceMapNested(t *testing.T) {
 
 	mDiff := DifferenceMap(m, table)
 	assert.Equal(t, 1, len(mDiff))
-	mNested := mDiff["host_name"].(SchemaMap)
+	mNested := mDiff["host.name"].(SchemaMap)
 	_, ok := mNested["a"]
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(mNested))
@@ -221,13 +221,13 @@ func TestDifferenceMapNested(t *testing.T) {
 
 func TestDifferenceMapSimpleAndNested_1(t *testing.T) {
 	m := SchemaMap{
-		"host_name": SchemaMap{
+		"host.name": SchemaMap{
 			"a": SchemaMap{
 				"b": nil,
 			},
 		},
 		"message":      nil,
-		"service_name": nil,
+		"service.name": nil,
 		"severity":     nil,
 		"source":       nil,
 		"timestamp":    nil,
@@ -236,7 +236,7 @@ func TestDifferenceMapSimpleAndNested_1(t *testing.T) {
 	table := &Table{
 		Cols: map[string]*Column{
 			"message":      nil,
-			"service_name": nil,
+			"service.name": nil,
 			"severity":     nil,
 			"timestamp":    nil,
 			"source":       nil,
@@ -245,7 +245,7 @@ func TestDifferenceMapSimpleAndNested_1(t *testing.T) {
 
 	mDiff := DifferenceMap(m, table)
 	assert.Equal(t, 2, len(mDiff))
-	mNested := mDiff["host_name"].(SchemaMap)
+	mNested := mDiff["host.name"].(SchemaMap)
 	assert.Equal(t, 1, len(mNested))
 	mNestedLvl2, ok := mNested["a"].(SchemaMap)
 	assert.True(t, ok)
@@ -256,14 +256,14 @@ func TestDifferenceMapSimpleAndNested_1(t *testing.T) {
 
 func TestDifferenceMapSimpleAndNested_2(t *testing.T) {
 	m := SchemaMap{
-		"host_name": SchemaMap{
+		"host.name": SchemaMap{
 			"a": SchemaMap{
 				"b": nil,
 			},
 			"b": nil,
 		},
 		"message":      nil,
-		"service_name": nil,
+		"service.name": nil,
 		"severity":     nil,
 		"source":       nil,
 		"timestamp":    nil,
@@ -271,13 +271,13 @@ func TestDifferenceMapSimpleAndNested_2(t *testing.T) {
 	}
 	table := &Table{
 		Cols: map[string]*Column{
-			"host_name": {Name: "host_name", Codec: Codec{Name: ""}, Type: MultiValueType{
+			"host.name": {Name: "host.name", Codec: Codec{Name: ""}, Type: MultiValueType{
 				Name: "Tuple", Cols: []*Column{
 					{Name: "b", Type: NewBaseType("String")},
 				},
 			}},
 			"message":      nil,
-			"service_name": nil,
+			"service.name": nil,
 			"severity":     nil,
 			"timestamp":    nil,
 			"source":       nil,
@@ -286,7 +286,7 @@ func TestDifferenceMapSimpleAndNested_2(t *testing.T) {
 
 	mDiff := DifferenceMap(m, table)
 	assert.Equal(t, 2, len(mDiff))
-	mNested := mDiff["host_name"].(SchemaMap)
+	mNested := mDiff["host.name"].(SchemaMap)
 	assert.Equal(t, 1, len(mNested))
 	mNestedLvl2, ok := mNested["a"].(SchemaMap)
 	assert.True(t, ok)
@@ -297,7 +297,7 @@ func TestDifferenceMapSimpleAndNested_2(t *testing.T) {
 
 func TestDifferenceMapBig(t *testing.T) {
 	m := SchemaMap{
-		"host_name": SchemaMap{
+		"host.name": SchemaMap{
 			"a": SchemaMap{
 				"b": nil,
 			},
@@ -305,7 +305,7 @@ func TestDifferenceMapBig(t *testing.T) {
 			"c": nil,
 		},
 		"message":      nil,
-		"service_name": nil,
+		"service.name": nil,
 		"severity":     nil,
 		"source":       nil,
 		"timestamp":    nil,
@@ -335,7 +335,7 @@ func TestDifferenceMapBig(t *testing.T) {
 	}
 	table := &Table{
 		Cols: map[string]*Column{
-			"host_name": {Name: "host_name", Type: MultiValueType{
+			"host.name": {Name: "host.name", Type: MultiValueType{
 				Name: "Tuple", Cols: []*Column{
 					{Name: "b", Type: NewBaseType("String")},
 				},
@@ -345,7 +345,7 @@ func TestDifferenceMapBig(t *testing.T) {
 					{Name: "m", Type: NewBaseType("String")},
 				},
 			}},
-			"service_name": nil,
+			"service.name": nil,
 			"severity":     nil,
 			"timestamp":    nil,
 			"source":       nil,
@@ -375,7 +375,7 @@ func TestDifferenceMapBig(t *testing.T) {
 	mDiff := DifferenceMap(m, table)
 
 	assert.Equal(t, 3, len(mDiff))
-	mNested := mDiff["host_name"].(SchemaMap)
+	mNested := mDiff["host.name"].(SchemaMap)
 	assert.Equal(t, 2, len(mNested))
 	mNestedLvl2, ok := mNested["a"].(SchemaMap)
 	assert.True(t, ok)
@@ -521,7 +521,7 @@ func TestJsonFlatteningToStringAttr(t *testing.T) {
 		preferCastingToOthers:                 true,
 	}
 	m := SchemaMap{
-		"host_name": SchemaMap{
+		"host.name": SchemaMap{
 			"a": SchemaMap{
 				"b": nil,
 			},
@@ -786,6 +786,6 @@ You can send those JSONs the same way it's done in log-generator/logger.go
 '{"schema1":{"schema11":{"schema111":"1"}},"schema2":{"schema21":{"schema211":"2","schema212":{"schema2121":"3"}},"schema22":{"schema221":"4"}}}'
 '{"schema1":{"schema11":{"schema111":"2"},"non-schema12":{"non-schema111":"2"}},"schema2":{"schema21":{"non-schema211":"3","non-schema212":{"non-schema2121":"4"},"schema211":"5","schema212":{"non-schema2121":"6","schema2121":"7"}},"schema22":{"schema221":"8","non-schema221":"9"}},"non-schema1":{"non-schema11":{"non-schema111":"10"}},"non-schema2":"11"}'
 
-'{"message":"m","service_name":"s","severity":"s","source":"s"}'
-'{"message":"m","service_name":"s","host_name":"h","os":"o","severity":"s","source":"s"}'
+'{"message":"m","service.name":"s","severity":"s","source":"s"}'
+'{"message":"m","service.name":"s","host.name":"h","os":"o","severity":"s","source":"s"}'
 */
