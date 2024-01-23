@@ -192,7 +192,8 @@ func (lm *LogManager) GetHistogram(tableName, timestampFieldName string, duratio
 
 	histogramOneBar := durationToHistogramInterval(duration) // 1 bar duration
 	gbyStmt := "toInt64(toUnixTimestamp64Milli(" + timestampFieldName + ")/" + strconv.FormatInt(histogramOneBar.Milliseconds(), 10) + ")"
-	query := "SELECT " + gbyStmt + ", count() FROM " + tableName + " GROUP BY " + gbyStmt
+	whrStmt := timestampFieldName + ">=timestamp_sub(SECOND," + strconv.FormatInt(int64(duration.Seconds()), 10) + ", now64())"
+	query := "SELECT " + gbyStmt + ", count() FROM " + tableName + " WHERE " + whrStmt + " GROUP BY " + gbyStmt
 	rows, err := lm.db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
