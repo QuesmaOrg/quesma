@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"log"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/util"
 	"strings"
 )
 
-func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogManager) {
+func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
 	defer recovery.LogPanic()
-	fmt.Printf("%s/_bulk  --> clickhouse, body(shortened): %s\n", optionalTableName, util.Truncate(body))
 	jsons := strings.Split(body, "\n")
 	for i := 0; i+1 < len(jsons); i += 2 {
 		action := jsons[i]
@@ -32,19 +32,19 @@ func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogMana
 				fmt.Println("Invalid create JSON in _bulk:", action)
 				continue
 			}
-			tableName, ok := createObj["_index"].(string)
+			indexName, ok := createObj["_index"].(string)
 			if !ok {
-				if len(tableName) == 0 {
+				if len(indexName) == 0 {
 					fmt.Println("Invalid create JSON in _bulk, no _index name:", action)
 					continue
 				} else {
-					tableName = optionalTableName
+					indexName = optionalTableName
 				}
 			}
-			err := lm.ProcessInsertQuery(tableName, document)
-			if err != nil {
-				log.Fatal(err)
-			}
+
+			withConfiguration(cfg, indexName, document, func() error {
+				return lm.ProcessInsertQuery(indexName, body)
+			})
 		} else if jsonData["index"] != nil {
 			fmt.Println("Not supporting 'index' _bulk.")
 		} else if jsonData["update"] != nil {
@@ -57,14 +57,39 @@ func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogMana
 	}
 }
 
-func dualWrite(tableName string, body string, lm *clickhouse.LogManager) {
+func dualWrite(tableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
 	defer recovery.LogPanic()
-	fmt.Printf("%s  --> clickhouse, body(shortened): %s\n", tableName, util.Truncate(body))
 	if len(body) == 0 {
 		return
 	}
-	err := lm.ProcessInsertQuery(tableName, body)
-	if err != nil {
-		log.Fatal(err)
+
+	withConfiguration(cfg, tableName, body, func() error {
+		return lm.ProcessInsertQuery(tableName, body)
+	})
+}
+
+func withConfiguration(cfg config.QuesmaConfiguration, indexName string, body string, action func() error) {
+	if len(cfg.IndexConfig) == 0 {
+		log.Printf("%s  --> clickhouse, body(shortened): %s\n", indexName, util.Truncate(body))
+		err := action()
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		matchingConfig, ok := config.FindMatchingConfig(indexName, cfg)
+		if !ok {
+			log.Printf("index '%s' is not configured, skipping\n", indexName)
+			return
+		}
+		log.Printf("matched index %s with config: %+v\n", indexName, matchingConfig.NamePattern)
+		if matchingConfig.Enabled {
+			log.Printf("%s  --> clickhouse, body(shortened): %s\n", indexName, util.Truncate(body))
+			err := action()
+			if err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			log.Printf("index '%s' is disabled, ignoring\n", indexName)
+		}
 	}
 }

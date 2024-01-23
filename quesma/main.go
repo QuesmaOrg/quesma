@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"log"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/quesma"
+	"mitmproxy/quesma/quesma/config"
 	"os"
 	"os/signal"
 	"syscall"
@@ -24,7 +26,11 @@ func main() {
 		clickhouse.PredefinedTableSchemas,
 		clickhouse.NewRuntimeSchemas,
 	)
-	instance := quesma.New(lm, os.Getenv(targetEnv), tcpPort, internalHttpPort)
+
+	var config = config.Load()
+	log.Printf("loaded config: %+v\n", config)
+
+	instance := quesma.New(lm, os.Getenv(targetEnv), tcpPort, internalHttpPort, config)
 	instance.Start()
 
 	<-sig

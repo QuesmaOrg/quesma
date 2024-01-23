@@ -1,0 +1,8 @@
+quesma:
+  shadow-mode: false
+  index:
+    logs-generic-*:
+      enabled: true
+    device*:
+      enabled: true
+

@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
 	"net"
 	"net/http"
@@ -18,20 +19,23 @@ const (
 	RemoteUrl    = "http://" + "localhost:" + TcpProxyPort + "/"
 )
 
-type Quesma struct {
-	server            *http.Server
-	logManager        *clickhouse.LogManager
-	targetUrl         string
-	tcpPort           string
-	httpPort          string
-	responseDecorator *http.Server
-	tcpProxyPort      string
-	requestId         int64
-	responseMatcher   *ResponseMatcher
-	queryDebugger     *QueryDebugger
-}
+type (
+	Quesma struct {
+		server            *http.Server
+		logManager        *clickhouse.LogManager
+		targetUrl         string
+		tcpPort           string
+		httpPort          string
+		responseDecorator *http.Server
+		tcpProxyPort      string
+		requestId         int64
+		responseMatcher   *ResponseMatcher
+		queryDebugger     *QueryDebugger
+		config            config.QuesmaConfiguration
+	}
+)
 
-func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string) *Quesma {
+func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration) *Quesma {
 	responseMatcher := NewResponseMatcher()
 	queryDebugger := NewQueryDebugger()
 	q := &Quesma{
@@ -41,12 +45,13 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 		httpPort:   httpPort,
 		server: &http.Server{
 			Addr:    ":" + httpPort,
-			Handler: configureRouting(logManager, responseMatcher, queryDebugger),
+			Handler: configureRouting(config, logManager, responseMatcher, queryDebugger),
 		},
 		requestId:       0,
 		tcpProxyPort:    TcpProxyPort,
 		responseMatcher: responseMatcher,
 		queryDebugger:   queryDebugger,
+		config:          config,
 	}
 
 	q.responseDecorator = NewResponseDecorator(tcpPort, q.requestId, q.responseMatcher, q.queryDebugger)

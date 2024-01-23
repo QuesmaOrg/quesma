@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mitmproxy/quesma/quesma/config"
 	"net/http"
 	"net/url"
 	"sync"
@@ -81,7 +82,7 @@ func TestSuccessRequests(t *testing.T) {
 	})
 	runReceiver(serverMux1, &wg, ElasticUrl)
 
-	instance := New(nil, ElasticUrl, "8080", "8081")
+	instance := New(nil, ElasticUrl, "8080", "8081", config.QuesmaConfiguration{})
 
 	go func() {
 		listener, err := instance.listen()

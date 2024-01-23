@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/quesma/config"
 	"net/http"
 	"os"
 	"strings"
@@ -14,13 +15,13 @@ import (
 )
 
 const (
-	QuesmaInternalPath = "/_quesma"
-	HealthPath         = QuesmaInternalPath + "/health"
-	BulkPath           = "/_bulk"
-	CreateTablePath    = "/_createTable"
-	InsertPath         = "/_insert"
-	SearchPath         = "/_search"
-	InternalPath       = "/_"
+	InternalPath        = "/_quesma"
+	HealthPath          = InternalPath + "/health"
+	BulkPath            = "/_bulk"
+	CreateTablePath     = "/_createTable"
+	InsertPath          = "/_insert"
+	SearchPath          = "/_search"
+	ElasticInternalPath = "/_"
 )
 
 func bodyHandler(h func(body []byte, writer http.ResponseWriter, r *http.Request)) func(http.ResponseWriter, *http.Request) {
@@ -34,21 +35,21 @@ func bodyHandler(h func(body []byte, writer http.ResponseWriter, r *http.Request
 	}
 }
 
-func configureRouting(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) *mux.Router {
+func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) *mux.Router {
 	router := mux.NewRouter()
 	router.HandleFunc(HealthPath, ok)
 	router.PathPrefix(CreateTablePath).HandlerFunc(createTable(lm))
 	router.PathPrefix(InsertPath).HandlerFunc(processInsert(lm))
-	router.PathPrefix(BulkPath).HandlerFunc(bulk(lm, rm, queryDebugger)).Methods("POST")
+	router.PathPrefix(BulkPath).HandlerFunc(bulk(lm, rm, queryDebugger, config)).Methods("POST")
 	router.PathPrefix(SearchPath).HandlerFunc(search(lm, rm, queryDebugger)).Methods("POST")
-	router.PathPrefix(InternalPath).HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
+	router.PathPrefix(ElasticInternalPath).HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		fmt.Printf("unrecognized internal path: %s\n", r.RequestURI)
 	})
 	router.PathPrefix("/.").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		fmt.Printf("internal index access '%s', ignoring...\n", strings.Split(r.RequestURI, "/")[1])
 	})
-	router.PathPrefix("/{index}/_doc").HandlerFunc(index(lm, rm, queryDebugger)).Methods("POST")
-	router.PathPrefix("/{index}/_bulk").HandlerFunc(bulkVar(lm, rm, queryDebugger)).Methods("POST")
+	router.PathPrefix("/{index}/_doc").HandlerFunc(index(lm, rm, queryDebugger, config)).Methods("POST")
+	router.PathPrefix("/{index}/_bulk").HandlerFunc(bulkVar(lm, rm, queryDebugger, config)).Methods("POST")
 	router.PathPrefix("/{index}/_search").HandlerFunc(searchVar(lm, rm, queryDebugger)).Methods("POST")
 	return router
 }
@@ -72,23 +73,23 @@ func searchVar(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *Qu
 	})
 }
 
-func index(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
+func index(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		go dualWrite(vars["index"], string(body), lm)
+		go dualWrite(vars["index"], string(body), lm, config)
 	})
 }
 
-func bulk(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
+func bulk(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		go dualWriteBulk("", string(body), lm)
+		go dualWriteBulk("", string(body), lm, config)
 	})
 }
 
-func bulkVar(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
+func bulkVar(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		go dualWriteBulk(vars["index"], string(body), lm)
+		go dualWriteBulk(vars["index"], string(body), lm, config)
 	})
 }
 
