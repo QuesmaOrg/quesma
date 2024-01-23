@@ -279,3 +279,57 @@ func durationToHistogramInterval(d time.Duration) time.Duration {
 		return 30 * 24 * time.Hour
 	}
 }
+
+// TODO make it faster? E.g. not search in all rows?
+// TODO add support for autocomplete for attributes, if we'll find it needed
+func (lm *LogManager) GetAutocompleteSuggestions(tableName, fieldName, prefix string, limit int) ([]QueryResultRow, error) {
+	table := lm.findSchema(tableName)
+	if table == nil {
+		table = lm.findSchema(tableName[1 : len(tableName)-1]) // try remove " " TODO improve this when we get out of the prototype phase
+		if table == nil {
+			return nil, fmt.Errorf("Table " + tableName + " not found")
+		}
+	}
+
+	if lm.db == nil {
+		connection, err := sql.Open("clickhouse", url)
+		if err != nil {
+			return nil, err
+		}
+		lm.db = connection
+	}
+
+	// TODO add support for autocomplete for attributes, if we'll find it needed
+	col, ok := table.Cols[fieldName]
+	if !ok {
+		return nil, fmt.Errorf("Column " + fieldName + " not found")
+	}
+
+	query := "SELECT DISTINCT " + fieldName + " FROM " + tableName
+	if prefix != "" {
+		if !col.Type.isString() {
+			query += " WHERE toString(" + fieldName + ")"
+		} else {
+			query += " WHERE " + fieldName
+		}
+		query += " LIKE '" + prefix + "%'"
+	}
+	if limit > 0 {
+		query += " LIMIT " + strconv.Itoa(limit)
+	}
+	rowsDB, err := lm.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("query >> %v", err)
+	}
+
+	value := col.Type.newZeroValue()
+	rows := make([]QueryResultRow, 0)
+	for rowsDB.Next() {
+		err = rowsDB.Scan(&value)
+		if err != nil {
+			return nil, fmt.Errorf("scan >> %v", err)
+		}
+		rows = append(rows, QueryResultRow{Cols: []QueryResultCol{{ColName: fieldName, Value: value}}})
+	}
+	return rows, nil
+}

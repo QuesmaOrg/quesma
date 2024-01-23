@@ -31,3 +31,8 @@ func (cw *ClickhouseQueryTranslator) getNMostRecentRows(tableName, timestampFiel
 func (cw *ClickhouseQueryTranslator) getHistogram(tableName string) ([]clickhouse.HistogramResult, error) {
 	return cw.clickhouseLM.GetHistogram(tableName, "timestamp", 15*time.Minute)
 }
+
+//lint:ignore U1000 Not used yet
+func (cw *ClickhouseQueryTranslator) getAutocompleteSuggestions(tableName, fieldName string, prefix string, limit int) ([]clickhouse.QueryResultRow, error) {
+	return cw.clickhouseLM.GetAutocompleteSuggestions(tableName, fieldName, prefix, limit)
+}

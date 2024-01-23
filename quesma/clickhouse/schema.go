@@ -16,6 +16,7 @@ type (
 		isArray() bool
 		newZeroValue() interface{} // all types: their zero value, only bool -> int8, because we can't read bools
 		isBool() bool              // we need to differentiate between bool and other types. Special method to make it fast
+		isString() bool
 	}
 	Codec struct {
 		Name string // change to enum
@@ -75,6 +76,10 @@ func (t BaseType) isBool() bool {
 	return t.Name == "Bool"
 }
 
+func (t BaseType) isString() bool {
+	return t.Name == "String"
+}
+
 func (t CompoundType) String() string {
 	return fmt.Sprintf("%s(%s)", t.Name, t.BaseType.String())
 }
@@ -91,6 +96,10 @@ func (t CompoundType) newZeroValue() interface{} {
 }
 
 func (t CompoundType) isBool() bool { return false }
+
+func (t CompoundType) isString() bool {
+	return false
+}
 
 func (t MultiValueType) String() string {
 	var sb strings.Builder
@@ -126,6 +135,10 @@ func (t MultiValueType) newZeroValue() interface{} {
 
 func (t MultiValueType) isBool() bool { return false }
 
+func (t MultiValueType) isString() bool {
+	return false
+}
+
 // TODO maybe a bit better/faster?
 func (t BaseType) canConvert(v interface{}) bool {
 	if t.Name == "String" {
@@ -149,6 +162,8 @@ func NewBaseType(name string) BaseType {
 	switch name {
 	case "String", "LowCardinality(String)", "UUID":
 		goType = reflect.TypeOf("")
+	case "DateTime64", "DateTime":
+		goType = reflect.TypeOf(time.Time{})
 	case "UInt8", "UInt16", "UInt32", "UInt64":
 		goType = reflect.TypeOf(uint64(0))
 	case "Int8", "Int16", "Int32":

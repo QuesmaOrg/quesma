@@ -73,7 +73,7 @@ func dateTime(name string) *Column {
 		Name: name,
 		Type: BaseType{
 			Name:   "DateTime64",
-			goType: nil,
+			goType: NewBaseType("DateTime64").goType,
 		},
 		Modifiers: "CODEC(DoubleDelta, LZ4)",
 	}
