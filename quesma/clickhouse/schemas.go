@@ -5,25 +5,26 @@ var NewRuntimeSchemas = make(TableMap)
 // A solution for now to remember tables. Didn't want to bother with config files at POC stage.
 // Generated via DumpTableSchemas() and later ShortenDumpSchemasOutput()
 var PredefinedTableSchemas = TableMap{
-	"device_logs2": &Table{
+	"device_logs": &Table{
 		Created:  false,
 		Name:     "device_logs",
 		Database: "",
 		Cluster:  "",
 		Cols: map[string]*Column{
-			"event_name":          lowCardinalityString("event_name"),
-			"event_section":       lowCardinalityString("event_section"),
-			"dedup_id":            genericString("dedup_id"),
-			"user_id":             genericString("user_id"),
-			"client_id":           genericString("client_id"),
-			"client_ip":           genericString("client_ip"),
-			"ts_day":              lowCardinalityString("ts_day"),
-			"et_day":              genericString("et_day"),
-			"et_day_hour":         genericString("et_day_hour"),
-			"ts_day_hour":         genericString("ts_day_hour"),
-			"ts_time_druid":       dateTime("ts_time_druid"), // TODO TZ
-			"epoch_time_original": int64CH("epoch_time_original"),
-			"epoch_time":          dateTime("epoch_time"), // TODO TZ
+			"event_name":                      lowCardinalityString("event_name"),
+			"event_section":                   lowCardinalityString("event_section"),
+			"dedup_id":                        genericString("dedup_id"),
+			"user_id":                         genericString("user_id"),
+			"client_id":                       genericString("client_id"),
+			"client_ip":                       genericString("client_ip"),
+			"timestamps::topology_entry_time": genericString("timestamps::topology_entry_time"),
+			"ts_day":                          lowCardinalityString("ts_day"),
+			"et_day":                          genericString("et_day"),
+			"et_day_hour":                     genericString("et_day_hour"),
+			"ts_day_hour":                     genericString("ts_day_hour"),
+			"ts_time_druid":                   dateTime("ts_time_druid"), // TODO TZ
+			"epoch_time_original":             int64CH("epoch_time_original"),
+			"epoch_time":                      dateTime("epoch_time"), // TODO TZ
 		},
 		indexes: []IndexStatement{
 			getIndexStatement("event_name"),

@@ -269,7 +269,7 @@ func BuildAttrsMapAndOthers(m SchemaMap, config *ChTableConfig) (map[string][]in
 		for _, a := range config.attributes {
 			if a.Type.canConvert(value) {
 				result[a.KeysArrayName] = append(result[a.KeysArrayName], name)
-				result[a.ValuesArrayName] = append(result[a.ValuesArrayName], value)
+				result[a.ValuesArrayName] = append(result[a.ValuesArrayName], fmt.Sprintf("%v", value))
 				matched = true
 				break
 			}

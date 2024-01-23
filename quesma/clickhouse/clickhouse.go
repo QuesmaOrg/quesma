@@ -287,11 +287,12 @@ func (lm *LogManager) Insert(tableName, jsonData string, config *ChTableConfig) 
 		lm.db = connection
 	}
 
-	insertJson, err := lm.BuildInsertJson(tableName, jsonData, config)
+	processed := preprocess(jsonData)
+	insertJson, err := lm.BuildInsertJson(tableName, processed, config)
 	if err != nil {
 		return err
 	}
-	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, preprocess(insertJson))
+	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertJson)
 	_, err = lm.db.Exec(insert)
 	if err != nil {
 		return fmt.Errorf("error Insert, tablename: %s\nerror: %v\njson:%s", tableName, err, PrettyJson(jsonData))
