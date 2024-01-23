@@ -60,7 +60,7 @@ func ok(writer http.ResponseWriter, _ *http.Request) {
 func search(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("RequestId")
-		go handleQuery(body, lm, rm, queryDebugger, id)
+		go handleSearch("", body, lm, rm, queryDebugger, id)
 	})
 }
 
