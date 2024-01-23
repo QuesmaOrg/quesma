@@ -10,7 +10,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 	"github.com/gorilla/mux"
+	"github.com/mjibson/sqlfmt"
 )
 
 const UI_TCP_PORT = "9999"
@@ -159,6 +161,24 @@ func prettyPrintJson(jsonData []byte) []byte {
 	return prettyJsonData
 }
 
+func sqlPrettyPrint(sqlData []byte) string {
+	formattingConfig := tree.PrettyCfg{
+		LineWidth:                120,
+		DoNotNewLineAfterColName: true,
+		Simplify:                 true,
+		TabWidth:                 2,
+		UseTabs:                  false,
+		Align:                    tree.PrettyNoAlign,
+	}
+	stmts := []string{string(sqlData)}
+	sqlFormatted, err := sqlfmt.FmtSQL(formattingConfig, stmts)
+	if err != nil {
+		log.Printf("Error while formatting sql: %s\n", err)
+		sqlFormatted = string(sqlData)
+	}
+	return sqlFormatted
+}
+
 func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte {
 	var buf []byte
 	buf = make([]byte, 0)
@@ -211,7 +231,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 		}
 		buf = append(buf, []byte("<p>RequestID:"+v.Key+"</p>")...)
 		buf = append(buf, []byte("\n<pre id=\"second_query"+v.Key+"\">")...)
-		buf = append(buf, []byte(v.Value.queryBodyTranslated)...)
+		buf = append(buf, []byte(sqlPrettyPrint(v.Value.queryBodyTranslated))...)
 		buf = append(buf, []byte("\n</pre>")...)
 		if withLinks {
 			buf = append(buf, []byte("\n</a>")...)
