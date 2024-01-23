@@ -85,8 +85,8 @@ var tests = []struct {
 				"must_not": []
 			}
 		}`,
-		[]string{sel + "(message LIKE '%user%' AND (@timestamp>=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z') AND @timestamp<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z')))",
-			sel + "(message LIKE '%user%' AND (@timestamp<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z') AND @timestamp>=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z')))",
+		[]string{sel + "(message iLIKE '%user%' AND (@timestamp>=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z') AND @timestamp<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z')))",
+			sel + "(message iLIKE '%user%' AND (@timestamp<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z') AND @timestamp>=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z')))",
 		},
 	},
 	{
@@ -141,7 +141,7 @@ var tests = []struct {
 					]
 				}
 			}`,
-		sel + "host_name.keyword LIKE '%prometheus%'",
+		sel + "host_name.keyword iLIKE '%prometheus%'",
 	},
 	{
 		"Match",
@@ -152,7 +152,7 @@ var tests = []struct {
 					}
 				}
 			}`,
-		sel + "(message LIKE '%this%' OR message LIKE '%is%' OR message LIKE '%a%' OR message LIKE '%test%')",
+		sel + "(message iLIKE '%this%' OR message iLIKE '%is%' OR message iLIKE '%a%' OR message iLIKE '%test%')",
 	},
 	{
 		"Terms",
@@ -226,7 +226,7 @@ var tests = []struct {
 					]
 				}
 			}`,
-		sel + "exception-list-agnostic.list_id LIKE '%endpoint_event_filters%'",
+		sel + "exception-list-agnostic.list_id iLIKE '%endpoint_event_filters%'",
 	},
 	{
 		"Simple query string wildcard",
@@ -246,7 +246,7 @@ var tests = []struct {
 					]
 				}
 			}`,
-		sel + "message LIKE '%ingest-agent-policies%'",
+		sel + "message iLIKE '%ingest-agent-policies%'",
 	},
 	{
 		"Simple wildcard",
@@ -263,7 +263,7 @@ var tests = []struct {
 					]
 				}
 			}`,
-		sel + "task.taskType LIKE 'alerting:%'",
+		sel + "task.taskType iLIKE 'alerting:%'",
 	},
 	{
 		"Simple prefix ver1",
@@ -280,7 +280,7 @@ var tests = []struct {
 					]
 				}
 			}`,
-		sel + "alert.actions.actionRef LIKE 'preconfigured:%'",
+		sel + "alert.actions.actionRef iLIKE 'preconfigured:%'",
 	},
 	{
 		"Simple prefix ver2",
@@ -289,7 +289,7 @@ var tests = []struct {
 					"prefix" : { "user" : "ki" }
 				}
 			}`,
-		sel + "user LIKE 'ki%'",
+		sel + "user iLIKE 'ki%'",
 	},
 	{
 		"Query string",
@@ -301,7 +301,7 @@ var tests = []struct {
 					"query": "* logged"
 				}
 			}`,
-		sel + "(message LIKE '%%%' OR message LIKE '%logged%')",
+		sel + "(message iLIKE '%%%' OR message iLIKE '%logged%')",
 	},
 	{
 		"Empty bool",
@@ -400,8 +400,8 @@ var tests = []struct {
 			  }
 			`,
 		[]string{
-			sel + "(message LIKE '%user%' AND (@timestamp>=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND @timestamp<=parseDateTime64BestEffort('2024-12-22T09:41:10.299Z')))",
-			sel + "(message LIKE '%user%' AND (@timestamp<=parseDateTime64BestEffort('2024-12-22T09:41:10.299Z') AND @timestamp>=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')))",
+			sel + "(message iLIKE '%user%' AND (@timestamp>=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND @timestamp<=parseDateTime64BestEffort('2024-12-22T09:41:10.299Z')))",
+			sel + "(message iLIKE '%user%' AND (@timestamp<=parseDateTime64BestEffort('2024-12-22T09:41:10.299Z') AND @timestamp>=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')))",
 		},
 	},
 	{

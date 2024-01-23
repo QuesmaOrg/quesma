@@ -185,7 +185,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(m JsonMap) Query {
 			split := strings.Split(v.(string), " ")
 			qStrs := make([]string, len(split))
 			for i, s := range split {
-				qStrs[i] = k + " LIKE " + "'%" + s + "%'"
+				qStrs[i] = k + " iLIKE " + "'%" + s + "%'"
 			}
 			return NewQuery(or(qStrs), true)
 		}
@@ -206,7 +206,7 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(m JsonMap) Query {
 	i := 0
 	for _, field := range fields {
 		for _, subQ := range subQs {
-			sqls[i] = field + " LIKE '%" + subQ + "%'"
+			sqls[i] = field + " iLIKE '%" + subQ + "%'"
 			i++
 		}
 	}
@@ -219,9 +219,9 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(m JsonMap) Query {
 		for k, v := range m {
 			switch vc := v.(type) {
 			case string:
-				return NewQuery(k+" LIKE '"+vc+"%'", true)
+				return NewQuery(k+" iLIKE '"+vc+"%'", true)
 			case JsonMap:
-				return NewQuery(k+" LIKE '"+vc["value"].(string)+"%'", true)
+				return NewQuery(k+" iLIKE '"+vc["value"].(string)+"%'", true)
 			}
 		}
 	}
@@ -234,7 +234,7 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(m JsonMap) Query {
 func (cw *ClickhouseQueryTranslator) parseWildcard(m JsonMap) Query {
 	// not checking for len == 1 because it's only option in proper query
 	for k, v := range m {
-		return NewQuery(k+" LIKE '"+strings.ReplaceAll(v.(JsonMap)["value"].(string),
+		return NewQuery(k+" iLIKE '"+strings.ReplaceAll(v.(JsonMap)["value"].(string),
 			"*", "%")+"'", true)
 	}
 	return NewQuery("Empty wildcard", false)
@@ -248,7 +248,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(m JsonMap) Query {
 	fields := cw.extractFields(m["fields"].([]interface{}))
 	for _, field := range fields {
 		for _, qStr := range strings.Split(m["query"].(string), " ") {
-			orStmts = append(orStmts, field+" LIKE '%"+strings.ReplaceAll(qStr, "*", "%")+"%'")
+			orStmts = append(orStmts, field+" iLIKE '%"+strings.ReplaceAll(qStr, "*", "%")+"%'")
 		}
 	}
 	return NewQuery(or(orStmts), true)
