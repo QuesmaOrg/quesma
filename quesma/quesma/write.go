@@ -28,7 +28,7 @@ func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogMana
 		}
 		if jsonData["create"] != nil {
 			createObj, ok := jsonData["create"].(map[string]interface{})
-			if !ok || (createObj["_index]"] == nil || len(tableName) > 0) {
+			if !ok {
 				fmt.Println("Invalid create JSON in _bulk:", action)
 				continue
 			}
@@ -43,7 +43,7 @@ func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogMana
 			}
 
 			withConfiguration(cfg, indexName, document, func() error {
-				return lm.ProcessInsertQuery(indexName, body)
+				return lm.ProcessInsertQuery(indexName, document)
 			})
 		} else if jsonData["index"] != nil {
 			fmt.Println("Not supporting 'index' _bulk.")
