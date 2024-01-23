@@ -60,7 +60,7 @@ func ok(writer http.ResponseWriter, _ *http.Request) {
 func search(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("RequestId")
-		go handleQuery(r.RequestURI, body, lm, rm, queryDebugger, id)
+		go handleQuery(body, lm, rm, queryDebugger, id)
 	})
 }
 
@@ -68,7 +68,7 @@ func searchVar(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *Qu
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("RequestId")
 		vars := mux.Vars(r)
-		go handleSearch(vars["index"], r.RequestURI, body, lm, rm, queryDebugger, id)
+		go handleSearch(vars["index"], body, lm, rm, queryDebugger, id)
 	})
 }
 
