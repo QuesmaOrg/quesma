@@ -39,6 +39,9 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 		responseBody = []byte(strconv.Itoa(cnt))
 		histogram, err := queryTranslator.getHistogram(tableName)
 		fmt.Printf("Histogram: %+v, err: %+v\n", histogram, err)
+
+		facets, err := queryTranslator.getFacets(tableName, "severity", 0)
+		fmt.Printf("Facets: %+v, err: %+v\n", facets, err)
 	} else {
 		responseBody = []byte("Invalid Query, err: " + query.sql)
 	}

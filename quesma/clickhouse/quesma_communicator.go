@@ -281,6 +281,64 @@ func durationToHistogramInterval(d time.Duration) time.Duration {
 	}
 }
 
+// TODO add support for autocomplete for attributes, if we'll find it needed
+func (lm *LogManager) GetFacets(tableName, fieldName string, limit int) ([]QueryResultRow, error) {
+	table := lm.findSchema(tableName)
+	if table == nil {
+		table = lm.findSchema(tableName[1 : len(tableName)-1]) // try remove " " TODO improve this when we get out of the prototype phase
+		if table == nil {
+			return nil, fmt.Errorf("Table " + tableName + " not found")
+		}
+	}
+	// TODO add support for autocomplete for attributes, if we'll find it needed
+	col, ok := table.Cols[fieldName]
+	if !ok {
+		return nil, fmt.Errorf("Column " + fieldName + " not found")
+	}
+
+	if lm.db == nil {
+		connection, err := sql.Open("clickhouse", url)
+		if err != nil {
+			return nil, err
+		}
+		lm.db = connection
+	}
+
+	query := "SELECT " + fieldName + ", count() FROM " + tableName + " GROUP BY " + fieldName
+	if limit > 0 {
+		query += " LIMIT " + strconv.Itoa(limit)
+	}
+	rows, err := lm.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("query >> %v", err)
+	}
+
+	value := col.Type.newZeroValue()
+	resultRows := make([]QueryResultRow, 0)
+	total := 0
+	for rows.Next() {
+		var count int
+		err = rows.Scan(&value, &count)
+		if err != nil {
+			return nil, fmt.Errorf("scan >> %v", err)
+		}
+		total += count
+		resultRows = append(resultRows, QueryResultRow{Cols: []QueryResultCol{
+			{ColName: fieldName, Value: value},
+			{ColName: "count", Value: count},
+			{ColName: "percentage", Value: ""},
+		}})
+	}
+	for i := range resultRows {
+		percentage := float64(resultRows[i].Cols[1].Value.(int)*100) / float64(total)
+		resultRows[i].Cols[2].Value = strconv.FormatFloat(percentage, 'f', 1, 64) + "%"
+	}
+	sort.Slice(resultRows, func(i, j int) bool {
+		return resultRows[i].Cols[1].Value.(int) > resultRows[j].Cols[1].Value.(int)
+	})
+	return resultRows, nil
+}
+
 // TODO make it faster? E.g. not search in all rows?
 // TODO add support for autocomplete for attributes, if we'll find it needed
 func (lm *LogManager) GetAutocompleteSuggestions(tableName, fieldName, prefix string, limit int) ([]QueryResultRow, error) {

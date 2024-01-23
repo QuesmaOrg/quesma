@@ -36,3 +36,7 @@ func (cw *ClickhouseQueryTranslator) getHistogram(tableName string) ([]clickhous
 func (cw *ClickhouseQueryTranslator) getAutocompleteSuggestions(tableName, fieldName string, prefix string, limit int) ([]clickhouse.QueryResultRow, error) {
 	return cw.clickhouseLM.GetAutocompleteSuggestions(tableName, fieldName, prefix, limit)
 }
+
+func (cw *ClickhouseQueryTranslator) getFacets(tableName, fieldName string, limit int) ([]clickhouse.QueryResultRow, error) {
+	return cw.clickhouseLM.GetFacets(tableName, fieldName, limit)
+}
