@@ -3,6 +3,7 @@ package quesma
 import (
 	"bytes"
 	"fmt"
+	"github.com/gorilla/mux"
 	"io"
 	"log"
 	"mitmproxy/quesma/clickhouse"
@@ -10,18 +11,16 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
-	"github.com/gorilla/mux"
 )
 
 const (
-	InternalPath        = "/_quesma"
-	HealthPath          = InternalPath + "/health"
-	BulkPath            = "/_bulk"
-	CreateTablePath     = "/_createTable"
-	InsertPath          = "/_insert"
-	SearchPath          = "/_search"
-	ElasticInternalPath = "/_"
+	ManagementInternalPath = "/_quesma"
+	HealthPath             = ManagementInternalPath + "/health"
+	BulkPath               = "/_bulk"
+	CreateTablePath        = "/_createTable"
+	InsertPath             = "/_insert"
+	SearchPath             = "/_search"
+	ElasticInternalPath    = "/_"
 )
 
 func bodyHandler(h func(body []byte, writer http.ResponseWriter, r *http.Request)) func(http.ResponseWriter, *http.Request) {
@@ -52,10 +51,6 @@ func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManag
 	router.PathPrefix("/{index}/_bulk").HandlerFunc(bulkVar(lm, rm, queryDebugger, config)).Methods("POST")
 	router.PathPrefix("/{index}/_search").HandlerFunc(searchVar(lm, rm, queryDebugger)).Methods("POST")
 	return router
-}
-
-func ok(writer http.ResponseWriter, _ *http.Request) {
-	writer.WriteHeader(200)
 }
 
 func search(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {

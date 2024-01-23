@@ -12,6 +12,10 @@ import (
 )
 
 func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
+	if globalBypass.Load() {
+		log.Printf("global bypass on, ignoring writes to %s\n", tableName)
+		return
+	}
 	defer recovery.LogPanic()
 	jsons := strings.Split(body, "\n")
 	for i := 0; i+1 < len(jsons); i += 2 {
@@ -58,6 +62,11 @@ func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogMana
 }
 
 func dualWrite(tableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
+	if globalBypass.Load() {
+		log.Printf("global bypass on, ignoring writes to %s\n", tableName)
+		return
+	}
+
 	defer recovery.LogPanic()
 	if len(body) == 0 {
 		return
@@ -81,7 +90,6 @@ func withConfiguration(cfg config.QuesmaConfiguration, indexName string, body st
 			log.Printf("index '%s' is not configured, skipping\n", indexName)
 			return
 		}
-		log.Printf("matched index %s with config: %+v\n", indexName, matchingConfig.NamePattern)
 		if matchingConfig.Enabled {
 			log.Printf("%s  --> clickhouse, body(shortened): %s\n", indexName, util.Truncate(body))
 			err := action()

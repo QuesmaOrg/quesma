@@ -12,12 +12,15 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"sync/atomic"
 )
 
 const (
 	TcpProxyPort = "8888"
 	RemoteUrl    = "http://" + "localhost:" + TcpProxyPort + "/"
 )
+
+var globalBypass atomic.Bool
 
 type (
 	Quesma struct {

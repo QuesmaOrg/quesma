@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -15,9 +16,17 @@ import (
 	"github.com/mjibson/sqlfmt"
 )
 
-const UI_TCP_PORT = "9999"
-const DISPLAY_LAST_MESSAGES = 100
-const MAX_LAST_MESSAGES = 10000
+const (
+	UI_TCP_PORT           = "9999"
+	DISPLAY_LAST_MESSAGES = 100
+	MAX_LAST_MESSAGES     = 10000
+)
+
+const (
+	managementInternalPath = "/_quesma"
+	healthPath             = managementInternalPath + "/health"
+	bypassPath             = managementInternalPath + "/bypass"
+)
 
 //go:embed ui/*
 var uiFs embed.FS
@@ -98,23 +107,28 @@ func (qd *QueryDebugger) newHTTPServer() *http.Server {
 
 func (qd *QueryDebugger) createRouting() *mux.Router {
 	router := mux.NewRouter()
+
+	router.HandleFunc(healthPath, ok)
+
+	router.HandleFunc(bypassPath, bypassSwitch).Methods("POST")
+
 	router.HandleFunc("/", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qd.generateLiveTail()
-		writer.Write(buf)
+		_, _ = writer.Write(buf)
 	})
 	router.HandleFunc("/queries", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qd.generateQueries()
-		writer.Write(buf)
+		_, _ = writer.Write(buf)
 	})
 	router.PathPrefix("/request-id/{requestId}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		buf := qd.generateReportForRequestId(vars["requestId"])
-		writer.Write(buf)
+		_, _ = writer.Write(buf)
 	})
 	router.PathPrefix("/requests-by-str/{queryString}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		buf := qd.generateReportForRequests(vars["queryString"])
-		writer.Write(buf)
+		_, _ = writer.Write(buf)
 	})
 	router.PathPrefix("/request-id").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		// redirect to /
@@ -126,7 +140,7 @@ func (qd *QueryDebugger) createRouting() *mux.Router {
 	})
 	router.HandleFunc("/queries", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qd.generateQueries()
-		writer.Write(buf)
+		_, _ = writer.Write(buf)
 	})
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.FS(uiFs))))
 	return router
@@ -465,5 +479,34 @@ func (qd *QueryDebugger) Run() {
 			qd.mutex.Unlock()
 
 		}
+	}
+}
+
+func ok(writer http.ResponseWriter, _ *http.Request) {
+	writer.WriteHeader(200)
+}
+
+// curl -X POST localhost:9999/_quesma/bypass -d '{"bypass": true}'
+func bypassSwitch(writer http.ResponseWriter, r *http.Request) {
+	bodyString, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Println("Error reading body:", err)
+		writer.WriteHeader(400)
+		_, _ = writer.Write([]byte("Error reading body: " + err.Error()))
+		return
+	}
+	body := make(map[string]interface{})
+	err = json.Unmarshal(bodyString, &body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if body["bypass"] != nil {
+		val := body["bypass"].(bool)
+		globalBypass.Store(val)
+		fmt.Printf("global bypass set to %t\n", val)
+		writer.WriteHeader(200)
+	} else {
+		writer.WriteHeader(400)
 	}
 }
