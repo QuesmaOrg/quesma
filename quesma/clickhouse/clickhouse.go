@@ -344,7 +344,7 @@ func NewOnlySchemaFieldsCHConfig() *ChTableConfig {
 		primaryKey:                            "",
 		ttl:                                   "",
 		hasOthers:                             false,
-		attributes:                            []Attribute{},
+		attributes:                            []Attribute{NewDefaultStringAttribute()},
 		castUnsupportedAttrValueTypesToString: false,
 		preferCastingToOthers:                 false,
 	}
