@@ -28,7 +28,7 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 		if err != nil {
 			responseBody = []byte("Error processing query: " + query.sql + ", err: " + err.Error())
 		}
-		rows, err := queryTranslator.getNMostRecentRows(tableName, "timestamp", 2)
+		rows, err := queryTranslator.getNMostRecentRows(tableName, "@timestamp", 2)
 		if err == nil {
 			fmt.Println(rows)
 		} else {

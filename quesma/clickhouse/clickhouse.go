@@ -11,7 +11,7 @@ import (
 
 const (
 	url                = "http://clickhouse:8123"
-	timestampFieldName = "timestamp"
+	timestampFieldName = "@timestamp"
 	othersFieldName    = "others"
 )
 
@@ -28,7 +28,7 @@ type (
 	TableMap  = map[string]*Table
 	SchemaMap = map[string]interface{} // TODO remnove
 	Log       struct {
-		Timestamp string `json:"timestamp,omitempty"`
+		Timestamp string `json:"@timestamp,omitempty"`
 		Severity  string `json:"severity,omitempty"`
 		Message   string `json:"message,omitempty"`
 	}
@@ -339,7 +339,7 @@ func NewOnlySchemaFieldsCHConfig() *ChTableConfig {
 		hasTimestamp:                          true,
 		timestampDefaultsNow:                  true,
 		engine:                                "MergeTree",
-		orderBy:                               "(timestamp)",
+		orderBy:                               "(" + "`@timestamp`" + ")",
 		partitionBy:                           "",
 		primaryKey:                            "",
 		ttl:                                   "",
@@ -355,7 +355,7 @@ func NewDefaultCHConfig() *ChTableConfig {
 		hasTimestamp:         true,
 		timestampDefaultsNow: true,
 		engine:               "MergeTree",
-		orderBy:              "(timestamp)",
+		orderBy:              "(" + "`@timestamp`" + ")",
 		partitionBy:          "",
 		primaryKey:           "",
 		ttl:                  "",
@@ -376,7 +376,7 @@ func NewNoTimestampOnlyStringAttrCHConfig() *ChTableConfig {
 		hasTimestamp:         false,
 		timestampDefaultsNow: false,
 		engine:               "MergeTree",
-		orderBy:              "(timestamp)",
+		orderBy:              "(" + "`@timestamp`" + ")",
 		partitionBy:          "",
 		primaryKey:           "",
 		ttl:                  "",

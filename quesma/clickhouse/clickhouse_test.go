@@ -2,9 +2,10 @@ package clickhouse
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var hasOthersConfig = &ChTableConfig{
@@ -105,7 +106,7 @@ func TestAddTimestamp(t *testing.T) {
 		hasTimestamp:                          true,
 		timestampDefaultsNow:                  true,
 		engine:                                "MergeTree",
-		orderBy:                               "(timestamp)",
+		orderBy:                               "(@timestamp)",
 		partitionBy:                           "",
 		primaryKey:                            "",
 		ttl:                                   "",
@@ -651,8 +652,8 @@ func TestCreateTableString_2(t *testing.T) {
 					},
 				},
 			},
-			"timestamp": {
-				Name: "timestamp",
+			"@timestamp": {
+				Name: "@timestamp",
 				Type: NewBaseType("DateTime64"),
 			},
 		},
@@ -660,7 +661,7 @@ func TestCreateTableString_2(t *testing.T) {
 			hasTimestamp:         true,
 			timestampDefaultsNow: true,
 			engine:               "MergeTree",
-			orderBy:              "(timestamp)",
+			orderBy:              "(@timestamp)",
 			partitionBy:          "",
 			primaryKey:           "",
 			ttl:                  "",
@@ -691,7 +692,7 @@ func TestCreateTableString_2(t *testing.T) {
 		`),`,
 		`"updated_at" DateTime64`,
 		`),`,
-		`"timestamp" DateTime64,`,
+		`"@timestamp" DateTime64,`,
 		`"attributes_int64_key" Array(String),`,
 		`"attributes_int64_value" Array(Int64),`,
 		`"attributes_string_key" Array(String),`,
@@ -702,7 +703,7 @@ func TestCreateTableString_2(t *testing.T) {
 		`INDEX severity_idx severity TYPE set(25) GRANULARITY 4`,
 		`)`,
 		`ENGINE = MergeTree`,
-		`ORDER BY (timestamp)`,
+		`ORDER BY (@timestamp)`,
 		"",
 	}
 	createTableString := table.CreateTableString()
@@ -746,7 +747,7 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 			hasTimestamp:         true,
 			timestampDefaultsNow: true,
 			engine:               "MergeTree",
-			orderBy:              "(timestamp)",
+			orderBy:              "(@timestamp)",
 			partitionBy:          "",
 			primaryKey:           "",
 			ttl:                  "",
@@ -766,12 +767,12 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 		`"others" JSON,`,
 		`"attributes_int64_key" Array(String),`,
 		`"attributes_int64_value" Array(Int64)`,
-		`"timestamp" DateTime64(3) DEFAULT now64(),`,
+		`"@timestamp" DateTime64(3) DEFAULT now64(),`,
 		`"epoch_time" DateTime('Asia/Kolkata') CODEC(DoubleDelta, LZ4),`,
 		`"estimated_connection_speedinkbps" Float64 CODEC(DoubleDelta, LZ4),`,
 		`ENGINE = MergeTree`,
 		`)`,
-		`ORDER BY (timestamp)`,
+		`ORDER BY (@timestamp)`,
 		"",
 	}
 	createTableString := table.CreateTableString()

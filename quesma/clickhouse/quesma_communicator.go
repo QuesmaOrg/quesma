@@ -144,16 +144,16 @@ func (lm *LogManager) GetNMostRecentRows(tableName, timestampFieldName string, N
 	row := make([]interface{}, 0, len(table.Cols))
 	colNames := make([]string, 0, len(table.Cols))
 	for colName, col := range table.Cols {
-		colNames = append(colNames, colName)
+		colNames = append(colNames, fmt.Sprintf("\"%s\"", colName))
 		if col.Type.isBool() {
-			queryStr.WriteString("toInt8(" + colName + "),")
+			queryStr.WriteString("toInt8(" + fmt.Sprintf("\"%s\"", colName) + "),")
 		} else {
-			queryStr.WriteString(colName + ",")
+			queryStr.WriteString(fmt.Sprintf("\"%s\"", colName) + ",")
 		}
 		row = append(row, col.Type.newZeroValue())
 	}
 
-	queryStr.WriteString(" FROM " + tableName + " ORDER BY " + timestampFieldName + " DESC LIMIT " + strconv.Itoa(N))
+	queryStr.WriteString(" FROM " + tableName + " ORDER BY " + fmt.Sprintf("\"%s\"", timestampFieldName) + " DESC LIMIT " + strconv.Itoa(N))
 	fmt.Println("query string: ", queryStr.String())
 	rowsDB, err := lm.db.Query(queryStr.String())
 	if err != nil {

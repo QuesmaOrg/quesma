@@ -42,7 +42,7 @@ func TestParseSignozSchema_2(t *testing.T) {
 	// we test here using both "name" and `name` for column names
 	q := `CREATE TABLE IF NOT EXISTS db.signoz_logs ON CLUSTER cluster
 		(
-			` + "`" + "timestamp" + "` " + `UInt64 CODEC(DoubleDelta, LZ4),
+			` + "`" + "@timestamp" + "` " + `UInt64 CODEC(DoubleDelta, LZ4),
 			"observed_timestamp" UInt64 CODEC(DoubleDelta, LZ4),
 			"timestampDT64_1" DateTime64(6, 'UTC') DEFAULT toDateTime64(timestamp, 6, 'UTC') CODEC(DoubleDelta, LZ4),
 			"timestampDT64_2" DateTime64(6, 'UTC') DEFAULT now() + toDateTime64(timestamp, 6, 'UTC'),
@@ -66,7 +66,7 @@ func TestParseSignozSchema_2(t *testing.T) {
 			"attributes_bool_value" Array(Bool) CODEC(ZSTD(1)),
 			"tuple1" Tuple(a String, b String, c Tuple(c String, d Uint128)) CODEC(ZSTD(1)),
 		)`
-	fieldNames := []string{"timestamp", "observed_timestamp", "timestampDT64_1", "timestampDT64_2", "timestampDT64_3", "id", "trace_id", "span_id", "trace_flags", "severity_text", "severity_number", "body", "resources_string_key", "resources_string_value", "attributes_string_key", "attributes_string_value", "attributes_int64_key", "attributes_int64_value", "attributes_float64_key", "attributes_float64_value", "attributes_bool_key", "attributes_bool_value", "tuple1"}
+	fieldNames := []string{"@timestamp", "observed_timestamp", "timestampDT64_1", "timestampDT64_2", "timestampDT64_3", "id", "trace_id", "span_id", "trace_flags", "severity_text", "severity_number", "body", "resources_string_key", "resources_string_value", "attributes_string_key", "attributes_string_value", "attributes_int64_key", "attributes_int64_value", "attributes_float64_key", "attributes_float64_value", "attributes_bool_key", "attributes_bool_value", "tuple1"}
 	table, err := NewTable(q, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, len(fieldNames), len(table.Cols))
