@@ -143,7 +143,7 @@ func (cw *ClickhouseQueryTranslator) parseBool(m JsonMap) Query {
 func (cw *ClickhouseQueryTranslator) parseTerm(m JsonMap) Query {
 	if len(m) == 1 {
 		for k, v := range m {
-			return NewQuery(k+"="+sprint(v), true)
+			return NewQuery(quote(k)+"="+sprint(v), true)
 		}
 	}
 	return NewQuery("Invalid term len, != 1", false)
@@ -156,7 +156,7 @@ func (cw *ClickhouseQueryTranslator) parseTerms(m JsonMap) Query {
 			vc := v.([]interface{})
 			orStmts := make([]string, len(vc))
 			for i, v := range vc {
-				orStmts[i] = k + "=" + sprint(v)
+				orStmts[i] = quote(k) + "=" + sprint(v)
 			}
 			return NewQuery(or(orStmts), true)
 		}
@@ -185,7 +185,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(m JsonMap) Query {
 			split := strings.Split(v.(string), " ")
 			qStrs := make([]string, len(split))
 			for i, s := range split {
-				qStrs[i] = k + " iLIKE " + "'%" + s + "%'"
+				qStrs[i] = quote(k) + " iLIKE " + "'%" + s + "%'"
 			}
 			return NewQuery(or(qStrs), true)
 		}
@@ -206,7 +206,7 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(m JsonMap) Query {
 	i := 0
 	for _, field := range fields {
 		for _, subQ := range subQs {
-			sqls[i] = field + " iLIKE '%" + subQ + "%'"
+			sqls[i] = quote(field) + " iLIKE '%" + subQ + "%'"
 			i++
 		}
 	}
@@ -219,9 +219,9 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(m JsonMap) Query {
 		for k, v := range m {
 			switch vc := v.(type) {
 			case string:
-				return NewQuery(k+" iLIKE '"+vc+"%'", true)
+				return NewQuery(quote(k)+" iLIKE '"+vc+"%'", true)
 			case JsonMap:
-				return NewQuery(k+" iLIKE '"+vc["value"].(string)+"%'", true)
+				return NewQuery(quote(k)+" iLIKE '"+vc["value"].(string)+"%'", true)
 			}
 		}
 	}
@@ -234,7 +234,7 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(m JsonMap) Query {
 func (cw *ClickhouseQueryTranslator) parseWildcard(m JsonMap) Query {
 	// not checking for len == 1 because it's only option in proper query
 	for k, v := range m {
-		return NewQuery(k+" iLIKE '"+strings.ReplaceAll(v.(JsonMap)["value"].(string),
+		return NewQuery(quote(k)+" iLIKE '"+strings.ReplaceAll(v.(JsonMap)["value"].(string),
 			"*", "%")+"'", true)
 	}
 	return NewQuery("Empty wildcard", false)
@@ -248,7 +248,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(m JsonMap) Query {
 	fields := cw.extractFields(m["fields"].([]interface{}))
 	for _, field := range fields {
 		for _, qStr := range strings.Split(m["query"].(string), " ") {
-			orStmts = append(orStmts, field+" iLIKE '%"+strings.ReplaceAll(qStr, "*", "%")+"%'")
+			orStmts = append(orStmts, quote(field)+" iLIKE '%"+strings.ReplaceAll(qStr, "*", "%")+"%'")
 		}
 	}
 	return NewQuery(or(orStmts), true)
@@ -278,13 +278,13 @@ func (cw *ClickhouseQueryTranslator) parseRange(m JsonMap) Query {
 
 			switch op {
 			case "gte":
-				stmts = append(stmts, field+">="+vToPrint)
+				stmts = append(stmts, quote(field)+">="+vToPrint)
 			case "lte":
-				stmts = append(stmts, field+"<="+vToPrint)
+				stmts = append(stmts, quote(field)+"<="+vToPrint)
 			case "gt":
-				stmts = append(stmts, field+">"+vToPrint)
+				stmts = append(stmts, quote(field)+">"+vToPrint)
 			case "lt":
-				stmts = append(stmts, field+"<"+vToPrint)
+				stmts = append(stmts, quote(field)+"<"+vToPrint)
 			}
 		}
 		return NewQuery(and(stmts), true)
@@ -310,7 +310,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(m JsonMap) Query {
 			stmts := make([]string, len(attrs))
 			for i, a := range attrs {
 				stmts[i] = fmt.Sprintf("has(%s,%s) AND %s[indexOf(%s,%s)] IS NOT NULL",
-					a.KeysArrayName, v.(string), a.ValuesArrayName, a.KeysArrayName, v.(string))
+					quote(a.KeysArrayName), quote(v.(string)), quote(a.ValuesArrayName), quote(a.KeysArrayName), quote(v.(string)))
 			}
 			sql = or(stmts)
 		}
@@ -357,4 +357,10 @@ func sprint(i interface{}) string {
 	default:
 		return fmt.Sprintf("%v", i)
 	}
+}
+
+// s -> "s"
+// Used e.g. for column names in search. W/o it e.g. @timestamp in CH will return parsing error.
+func quote(s string) string {
+	return `"` + s + `"`
 }

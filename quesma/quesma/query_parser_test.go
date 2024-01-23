@@ -36,7 +36,7 @@ var tests = []struct {
 					}
 				}
 			}`,
-		sel + "type='task'",
+		sel + `"type"='task'`,
 	},
 	{
 		"Term as array",
@@ -56,7 +56,7 @@ var tests = []struct {
 				]
 			}
 		}`,
-		sel + "(type='task' AND (task.enabled=true OR task.enabled=54))",
+		sel + `("type"='task' AND ("task.enabled"=true OR "task.enabled"=54))`,
 	},
 	{
 		"Sample log query",
@@ -85,8 +85,8 @@ var tests = []struct {
 				"must_not": []
 			}
 		}`,
-		[]string{sel + "(message iLIKE '%user%' AND (@timestamp>=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z') AND @timestamp<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z')))",
-			sel + "(message iLIKE '%user%' AND (@timestamp<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z') AND @timestamp>=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z')))",
+		[]string{sel + `("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z')))`,
+			sel + `("message" iLIKE '%user%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z')))`,
 		},
 	},
 	{
@@ -115,8 +115,8 @@ var tests = []struct {
 				}
 			}`,
 		[]string{
-			sel + "(((user.id='kimchy' AND tags='production') AND (tags='env1' OR tags='deployed')) AND NOT (age<=20 AND age>=10))",
-			sel + "(((user.id='kimchy' AND tags='production') AND (tags='env1' OR tags='deployed')) AND NOT (age>=10 AND age<=20))",
+			sel + `((("user.id"='kimchy' AND "tags"='production') AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age"<=20 AND "age">=10))`,
+			sel + `((("user.id"='kimchy' AND "tags"='production') AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age">=10 AND "age"<=20))`,
 		},
 	},
 	{
@@ -141,7 +141,7 @@ var tests = []struct {
 					]
 				}
 			}`,
-		sel + "host_name.keyword iLIKE '%prometheus%'",
+		sel + `"host_name.keyword" iLIKE '%prometheus%'`,
 	},
 	{
 		"Match",
@@ -152,7 +152,7 @@ var tests = []struct {
 					}
 				}
 			}`,
-		sel + "(message iLIKE '%this%' OR message iLIKE '%is%' OR message iLIKE '%a%' OR message iLIKE '%test%')",
+		sel + `("message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%')`,
 	},
 	{
 		"Terms",
@@ -167,7 +167,7 @@ var tests = []struct {
 					]
 				}
 			}`,
-		sel + "status='pending'",
+		sel + `"status"='pending'`,
 	},
 	{
 		"Exists",
@@ -207,7 +207,7 @@ var tests = []struct {
 					]
 				}
 			}`,
-		sel + "(type='upgrade-assistant-reindex-operation' AND NOT (has(attributes_string_key,namespace) AND attributes_string_value[indexOf(attributes_string_key,namespace)] IS NOT NULL OR has(attributes_string_key,namespaces) AND attributes_string_value[indexOf(attributes_string_key,namespaces)] IS NOT NULL))",
+		sel + `("type"='upgrade-assistant-reindex-operation' AND NOT (has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL OR has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))`,
 	},
 	{
 		"Simple query string",
@@ -226,7 +226,7 @@ var tests = []struct {
 					]
 				}
 			}`,
-		sel + "exception-list-agnostic.list_id iLIKE '%endpoint_event_filters%'",
+		sel + `"exception-list-agnostic.list_id" iLIKE '%endpoint_event_filters%'`,
 	},
 	{
 		"Simple query string wildcard",
@@ -246,7 +246,7 @@ var tests = []struct {
 					]
 				}
 			}`,
-		sel + "message iLIKE '%ingest-agent-policies%'",
+		sel + `"message" iLIKE '%ingest-agent-policies%'`,
 	},
 	{
 		"Simple wildcard",
@@ -263,7 +263,7 @@ var tests = []struct {
 					]
 				}
 			}`,
-		sel + "task.taskType iLIKE 'alerting:%'",
+		sel + `"task.taskType" iLIKE 'alerting:%'`,
 	},
 	{
 		"Simple prefix ver1",
@@ -280,7 +280,7 @@ var tests = []struct {
 					]
 				}
 			}`,
-		sel + "alert.actions.actionRef iLIKE 'preconfigured:%'",
+		sel + `"alert.actions.actionRef" iLIKE 'preconfigured:%'`,
 	},
 	{
 		"Simple prefix ver2",
@@ -289,7 +289,7 @@ var tests = []struct {
 					"prefix" : { "user" : "ki" }
 				}
 			}`,
-		sel + "user iLIKE 'ki%'",
+		sel + `"user" iLIKE 'ki%'`,
 	},
 	{
 		"Query string",
@@ -301,7 +301,7 @@ var tests = []struct {
 					"query": "* logged"
 				}
 			}`,
-		sel + "(message iLIKE '%%%' OR message iLIKE '%logged%')",
+		sel + `("message" iLIKE '%%%' OR "message" iLIKE '%logged%')`,
 	},
 	{
 		"Empty bool",
@@ -339,7 +339,7 @@ var tests = []struct {
 					]
 				}
 			}`,
-		sel + "references.type='tag'",
+		sel + `"references.type"='tag'`,
 	},
 	{
 		"user",
@@ -400,8 +400,8 @@ var tests = []struct {
 			  }
 			`,
 		[]string{
-			sel + "(message iLIKE '%user%' AND (@timestamp>=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND @timestamp<=parseDateTime64BestEffort('2024-12-22T09:41:10.299Z')))",
-			sel + "(message iLIKE '%user%' AND (@timestamp<=parseDateTime64BestEffort('2024-12-22T09:41:10.299Z') AND @timestamp>=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')))",
+			sel + `("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-12-22T09:41:10.299Z')))`,
+			sel + `("message" iLIKE '%user%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-12-22T09:41:10.299Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')))`,
 		},
 	},
 	{
@@ -470,8 +470,8 @@ var tests = []struct {
 		  }
 		`,
 		[]string{
-			sel + "(service.name='admin' AND (@timestamp<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z') AND @timestamp>=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z')))",
-			sel + "(service.name='admin' AND (@timestamp>=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z') AND @timestamp<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z')))",
+			sel + `("service.name"='admin' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z')))`,
+			sel + `("service.name"='admin' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z')))`,
 		},
 	},
 }
