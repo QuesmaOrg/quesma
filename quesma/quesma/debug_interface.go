@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mitmproxy/quesma/util"
 	"net/http"
 	"strings"
 	"sync"
@@ -17,9 +18,8 @@ import (
 )
 
 const (
-	UI_TCP_PORT           = "9999"
-	DISPLAY_LAST_MESSAGES = 100
-	MAX_LAST_MESSAGES     = 10000
+	UI_TCP_PORT       = "9999"
+	MAX_LAST_MESSAGES = 10000
 )
 
 const (
@@ -157,24 +157,6 @@ type DebugKeyValue struct {
 	Value QueryDebugInfo
 }
 
-func prettyPrintJson(jsonData []byte) []byte {
-	// Unmarshal the JSON string into a map
-	var data map[string]interface{}
-	err := json.Unmarshal(jsonData, &data)
-	if err != nil {
-		log.Println("Warning while prettyPrintJson:", err)
-		return jsonData
-	}
-
-	// Marshal the data with an indent of two spaces
-	prettyJsonData, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		log.Println("Warning while prettyPrintJson:", err)
-		return jsonData
-	}
-	return prettyJsonData
-}
-
 func sqlPrettyPrint(sqlData []byte) string {
 	formattingConfig := tree.PrettyCfg{
 		LineWidth:                120,
@@ -207,7 +189,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 		}
 		buf = append(buf, []byte("<p>RequestID:"+v.Key+"</p>")...)
 		buf = append(buf, []byte("\n<pre id=\"query"+v.Key+"\">")...)
-		buf = append(buf, []byte(prettyPrintJson(v.Value.incomingQueryBody))...)
+		buf = append(buf, []byte(util.JsonPrettify(string(v.Value.incomingQueryBody), true))...)
 		buf = append(buf, []byte("\n</pre>")...)
 		if withLinks {
 			buf = append(buf, []byte("\n</a>")...)
