@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -37,19 +38,26 @@ type HistogramResult struct {
 func (c QueryResultCol) String() string {
 	switch c.Value.(type) {
 	case string:
-		return fmt.Sprintf(`"%s": "%v"`, c.ColName, c.Value)
+		return fmt.Sprintf(`%s: "%v"`, c.ColName, c.Value)
 	default:
-		return fmt.Sprintf(`"%s": %v`, c.ColName, c.Value)
+		return fmt.Sprintf(`%s: "%v"`, c.ColName, c.Value)
 	}
 }
 
 func (r QueryResultRow) String() string {
 	str := strings.Builder{}
 	str.WriteString(indent(1) + "{\n")
+	numCols := len(r.Cols)
+	i := 0
 	for _, col := range r.Cols {
-		str.WriteString(indent(2) + col.String() + ",\n")
+		str.WriteString(indent(2) + col.String())
+		if i < numCols-1 {
+			str.WriteString(",")
+		}
+		str.WriteString("\n")
+		i++
 	}
-	str.WriteString("\n" + indent(1) + "}\n")
+	str.WriteString("\n" + indent(1) + "}")
 	return str.String()
 }
 
@@ -57,30 +65,89 @@ func (hr HistogramResult) String() string {
 	return fmt.Sprintf("%v - %v, count: %v", hr.start, hr.end, hr.count)
 }
 
+func extractTableName(query string) (string, error) {
+	// Convert the query to lowercase for case-insensitivity
+	queryLower := strings.ToLower(query)
+
+	words := strings.Fields(queryLower)
+
+	for i := 0; i < len(words)-1; i++ {
+		if words[i] == "from" {
+			// The table name is the next word after "from"
+			tableName := words[i+1]
+			return tableName, nil
+		}
+	}
+
+	return "", fmt.Errorf("Table name not found in the query")
+}
+
 // (int, error) just for the 1st version. Should be changed to something more: rows, etc.
-func (lm *LogManager) ProcessSelectQuery(query string) (int, error) {
+func (lm *LogManager) ProcessSelectQuery(query string) ([]QueryResultRow, error) {
+	//tableName := "logs-generic-default"
+	tableName, err := extractTableName(query)
+	if err != nil {
+		log.Println(err)
+	}
+	table := lm.findSchema(tableName)
+	if table == nil {
+		table = lm.findSchema(tableName[1 : len(tableName)-1]) // try remove " " TODO improve this when we get out of the prototype phase
+		if table == nil {
+			return nil, fmt.Errorf("Table " + tableName + " not found")
+		}
+	}
+
 	if lm.db == nil {
 		connection, err := sql.Open("clickhouse", url)
 		if err != nil {
-			return -1, fmt.Errorf("open >> %v", err)
+			return nil, fmt.Errorf("open >> %v", err)
 		}
 		lm.db = connection
 	}
 
-	query = strings.Replace(query, "SELECT *", "SELECT count(*)", 1)
-	rows, err := lm.db.Query(query)
+	queryStr := strings.Builder{}
+	queryStr.WriteString("SELECT ")
+	row := make([]interface{}, 0, len(table.Cols))
+	colNames := make([]string, 0, len(table.Cols))
+	for colName, col := range table.Cols {
+		colNames = append(colNames, fmt.Sprintf("\"%s\"", colName))
+		if col.Type.isBool() {
+			queryStr.WriteString("toInt8(" + fmt.Sprintf("\"%s\"", colName) + "),")
+		} else {
+			queryStr.WriteString(fmt.Sprintf("\"%s\"", colName) + ",")
+		}
+		row = append(row, col.Type.newZeroValue())
+	}
+
+	queryStr.WriteString(" FROM " + tableName + " DESC LIMIT " + strconv.Itoa(5))
+	query = queryStr.String()
+
+	rowsDB, err := lm.db.Query(query)
 	if err != nil {
-		return -1, fmt.Errorf("query >> %v", err)
+		return nil, fmt.Errorf("query >> %v", err)
 	}
-	var cnt int
-	if !rows.Next() {
-		return -1, fmt.Errorf("no rows")
+
+	rowDB := make([]interface{}, len(table.Cols))
+	for i := 0; i < len(table.Cols); i++ {
+		rowDB[i] = &row[i]
+
 	}
-	err = rows.Scan(&cnt)
-	if err != nil {
-		return -1, fmt.Errorf("scan >> %v", err)
+
+	rows := make([]QueryResultRow, 0)
+	for rowsDB.Next() {
+		err = rowsDB.Scan(rowDB...)
+		if err != nil {
+			return nil, fmt.Errorf("scan >> %v", err)
+		}
+		resultRow := QueryResultRow{Cols: make([]QueryResultCol, 0, len(table.Cols))}
+		for i, v := range row {
+			resultRow.Cols = append(resultRow.Cols, QueryResultCol{ColName: colNames[i], Value: v})
+		}
+		rows = append(rows, resultRow)
 	}
-	return cnt, nil
+
+	return rows, nil
+
 }
 
 func (lm *LogManager) GetAttributesList(tableName string) []Attribute {

@@ -20,7 +20,7 @@ func (cw *ClickhouseQueryTranslator) getFieldsList(tableName string) []string {
 	return []string{"message"}
 }
 
-func (cw *ClickhouseQueryTranslator) queryClickhouse(query string) (int, error) {
+func (cw *ClickhouseQueryTranslator) queryClickhouse(query string) ([]clickhouse.QueryResultRow, error) {
 	return cw.clickhouseLM.ProcessSelectQuery(query)
 }
 
@@ -29,7 +29,7 @@ func (cw *ClickhouseQueryTranslator) getNMostRecentRows(tableName, timestampFiel
 }
 
 func (cw *ClickhouseQueryTranslator) getHistogram(tableName string) ([]clickhouse.HistogramResult, error) {
-	return cw.clickhouseLM.GetHistogram(tableName, "timestamp", 15*time.Minute)
+	return cw.clickhouseLM.GetHistogram(tableName, "@timestamp", 15*time.Minute)
 }
 
 //lint:ignore U1000 Not used yet

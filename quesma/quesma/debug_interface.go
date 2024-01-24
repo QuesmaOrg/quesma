@@ -246,7 +246,8 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 		}
 		buf = append(buf, []byte("<p>ResponseID:"+v.Key+"</p>")...)
 		buf = append(buf, []byte("\n<pre id=\"second_response"+v.Key+"\">")...)
-		buf = append(buf, []byte(v.Value.queryTranslatedResults)...)
+		buf = append(buf, util.JsonPrettify(string(v.Value.queryTranslatedResults), true)...)
+		buf = append(buf, []byte("\n\nThere are more results ...")...)
 		buf = append(buf, []byte("\n</pre>")...)
 		if withLinks {
 			buf = append(buf, []byte("\n</a>")...)

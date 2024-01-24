@@ -3,7 +3,6 @@ package quesma
 import (
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
-	"strconv"
 )
 
 func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
@@ -24,11 +23,25 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 	query := queryTranslator.Write(body)
 	var responseBody []byte
 	if query.canParse {
-		cnt, err := queryTranslator.queryClickhouse(query.sql)
+		rows, err := queryTranslator.queryClickhouse(query.sql)
 		if err != nil {
 			responseBody = []byte("Error processing query: " + query.sql + ", err: " + err.Error())
 		}
-		rows, err := queryTranslator.getNMostRecentRows(tableName, "@timestamp", 2)
+
+		responseBody = append([]byte(responseBody), []byte("{\n")...)
+		responseBody = append([]byte(responseBody), []byte("\"hit\": [")...)
+		numRows := len(rows)
+		i := 0
+		for _, row := range rows {
+			_ = row
+			responseBody = append(responseBody, []byte(row.String())...)
+			if i < numRows-1 {
+				responseBody = append(responseBody, []byte(",\n")...)
+			}
+			i++
+		}
+		responseBody = append([]byte(responseBody), []byte("]}")...)
+		rows, err = queryTranslator.getNMostRecentRows(tableName, "@timestamp", 2)
 		if err == nil {
 			fmt.Println(rows)
 		} else {
@@ -36,7 +49,6 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 		}
 		responseTranslator := &ClickhouseResultReader{clickhouseLM: lm}
 		responseTranslator.Read(responseBody) // TODO implement this, not line below
-		responseBody = []byte(strconv.Itoa(cnt))
 		histogram, err := queryTranslator.getHistogram(tableName)
 		fmt.Printf("Histogram: %+v, err: %+v\n", histogram, err)
 
