@@ -297,7 +297,6 @@ func (lm *LogManager) Insert(tableName, jsonData string, config *ChTableConfig) 
 	if err != nil {
 		return fmt.Errorf("error Insert, tablename: %s\nerror: %v\njson:%s", tableName, err, PrettyJson(jsonData))
 	} else {
-		log.Printf("Inserted into %s\n", tableName)
 		return nil
 	}
 }

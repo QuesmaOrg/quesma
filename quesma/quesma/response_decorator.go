@@ -44,7 +44,6 @@ func NewResponseDecorator(tcpPort string, requestId int64, matcher *ResponseMatc
 			req.Host = remote.Host
 			req.URL.Host = remote.Host
 			req.URL.Scheme = "http"
-			log.Println(req.URL.Host)
 
 			id := atomic.AddInt64(&requestId, 1)
 			req.Header.Add("RequestId", strconv.FormatInt(id, 10))
