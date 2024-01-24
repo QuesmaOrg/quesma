@@ -3,6 +3,7 @@ package recovery
 import (
 	"errors"
 	"log"
+	"runtime/debug"
 )
 
 func LogPanic() {
@@ -17,6 +18,6 @@ func LogPanic() {
 		default:
 			err = errors.New("unknown error")
 		}
-		log.Println("Panic recovered:", err)
+		log.Printf("Panic recovered: %s\n%s", err, string(debug.Stack()))
 	}
 }

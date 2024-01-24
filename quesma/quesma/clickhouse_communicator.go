@@ -24,8 +24,9 @@ func (cw *ClickhouseQueryTranslator) queryClickhouse(query string) ([]clickhouse
 	return cw.clickhouseLM.ProcessSelectQuery(query)
 }
 
-func (cw *ClickhouseQueryTranslator) getNMostRecentRows(tableName, timestampFieldName string, limit int) ([]clickhouse.QueryResultRow, error) {
-	return cw.clickhouseLM.GetNMostRecentRows(tableName, timestampFieldName, limit)
+// fieldName = "*" -> we query all, otherwise only this 1 field
+func (cw *ClickhouseQueryTranslator) getNMostRecentRows(tableName, fieldName, timestampFieldName, originalSelectStmt string, limit int) ([]clickhouse.QueryResultRow, error) {
+	return cw.clickhouseLM.GetNMostRecentRows(tableName, fieldName, timestampFieldName, originalSelectStmt, limit)
 }
 
 func (cw *ClickhouseQueryTranslator) getHistogram(tableName string) ([]clickhouse.HistogramResult, error) {
@@ -37,6 +38,6 @@ func (cw *ClickhouseQueryTranslator) getAutocompleteSuggestions(tableName, field
 	return cw.clickhouseLM.GetAutocompleteSuggestions(tableName, fieldName, prefix, limit)
 }
 
-func (cw *ClickhouseQueryTranslator) getFacets(tableName, fieldName string, limit int) ([]clickhouse.QueryResultRow, error) {
-	return cw.clickhouseLM.GetFacets(tableName, fieldName, limit)
+func (cw *ClickhouseQueryTranslator) getFacets(tableName, fieldName, originalSelectStmt string, limit int) ([]clickhouse.QueryResultRow, error) {
+	return cw.clickhouseLM.GetFacets(tableName, fieldName, originalSelectStmt, limit)
 }

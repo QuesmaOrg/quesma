@@ -35,6 +35,16 @@ type HistogramResult struct {
 	count int
 }
 
+func (hr HistogramResult) String() string {
+	str := strings.Builder{}
+	str.WriteString(indent(1) + "{\n")
+	str.WriteString(indent(2) + `"key":` + strconv.FormatInt(hr.start.UnixNano()/1_000_000, 10) + ",\n")
+	str.WriteString(indent(2) + `"key_as_string":` + strconv.Quote(hr.start.Format(time.RFC3339)) + ",\n")
+	str.WriteString(indent(2) + `"doc_count":` + strconv.Itoa(hr.count) + "\n")
+	str.WriteString("\n" + indent(1) + "}\n")
+	return str.String()
+}
+
 func (c QueryResultCol) String() string {
 	switch c.Value.(type) {
 	case string:
@@ -59,10 +69,6 @@ func (r QueryResultRow) String() string {
 	}
 	str.WriteString("\n" + indent(1) + "}")
 	return str.String()
-}
-
-func (hr HistogramResult) String() string {
-	return fmt.Sprintf("%v - %v, count: %v", hr.start, hr.end, hr.count)
 }
 
 func extractTableName(query string) (string, error) {
@@ -273,7 +279,8 @@ func (lm *LogManager) GetFieldsList(tableName string) []string {
 	return fieldNames
 }
 
-func (lm *LogManager) GetNMostRecentRows(tableName, timestampFieldName string, N int) ([]QueryResultRow, error) {
+// fieldName = "*" -> we query all, otherwise only this 1 field
+func (lm *LogManager) GetNMostRecentRows(tableName, fieldName, timestampFieldName, originalSelectStmt string, N int) ([]QueryResultRow, error) {
 	table := lm.findSchema(tableName)
 	if table == nil {
 		table = lm.findSchema(tableName[1 : len(tableName)-1]) // try remove " " TODO improve this when we get out of the prototype phase
@@ -292,28 +299,45 @@ func (lm *LogManager) GetNMostRecentRows(tableName, timestampFieldName string, N
 
 	queryStr := strings.Builder{}
 	queryStr.WriteString("SELECT ")
-	row := make([]interface{}, 0, len(table.Cols))
-	colNames := make([]string, 0, len(table.Cols))
-	for colName, col := range table.Cols {
-		colNames = append(colNames, fmt.Sprintf("\"%s\"", colName))
+	row := make([]interface{}, 0)
+	colNames := make([]string, 0)
+	if fieldName == "*" {
+		for colName, col := range table.Cols {
+			colNames = append(colNames, fmt.Sprintf("\"%s\"", colName))
+			if col.Type.isBool() {
+				queryStr.WriteString("toInt8(" + fmt.Sprintf("\"%s\"", colName) + "),")
+			} else {
+				queryStr.WriteString(fmt.Sprintf("\"%s\"", colName) + ",")
+			}
+			row = append(row, col.Type.newZeroValue())
+		}
+	} else {
+		// TODO remove this duplication of code
+		col := table.Cols[fieldName]
+		colNames = append(colNames, fmt.Sprintf("\"%s\"", fieldName))
 		if col.Type.isBool() {
-			queryStr.WriteString("toInt8(" + fmt.Sprintf("\"%s\"", colName) + "),")
+			queryStr.WriteString("toInt8(" + fmt.Sprintf("\"%s\"", fieldName) + "),")
 		} else {
-			queryStr.WriteString(fmt.Sprintf("\"%s\"", colName) + ",")
+			queryStr.WriteString(fmt.Sprintf("\"%s\"", fieldName) + ",")
 		}
 		row = append(row, col.Type.newZeroValue())
 	}
 
-	queryStr.WriteString(" FROM " + tableName + " ORDER BY " + fmt.Sprintf("\"%s\"", timestampFieldName) + " DESC LIMIT " + strconv.Itoa(N))
+	whereStmt := strings.ReplaceAll(originalSelectStmt, `SELECT * FROM WHERE`, `WHERE`)
+	queryStr.WriteString(" FROM " + tableName + whereStmt + " ORDER BY " + fmt.Sprintf("\"%s\"", timestampFieldName) + " DESC LIMIT " + strconv.Itoa(N))
 	fmt.Println("query string: ", queryStr.String())
 	rowsDB, err := lm.db.Query(queryStr.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
 
-	rowDB := make([]interface{}, len(table.Cols))
-	for i := 0; i < len(table.Cols); i++ {
-		rowDB[i] = &row[i]
+	rowDB := make([]interface{}, 0)
+	fieldsN := len(table.Cols)
+	if fieldName != "*" {
+		fieldsN = 1
+	}
+	for i := 0; i < fieldsN; i++ {
+		rowDB = append(rowDB, &row[i])
 	}
 
 	rows := make([]QueryResultRow, 0, N)
@@ -322,7 +346,7 @@ func (lm *LogManager) GetNMostRecentRows(tableName, timestampFieldName string, N
 		if err != nil {
 			return nil, fmt.Errorf("scan >> %v", err)
 		}
-		resultRow := QueryResultRow{Cols: make([]QueryResultCol, 0, len(table.Cols))}
+		resultRow := QueryResultRow{Cols: make([]QueryResultCol, 0, fieldsN)}
 		for i, v := range row {
 			resultRow.Cols = append(resultRow.Cols, QueryResultCol{ColName: colNames[i], Value: v})
 		}
@@ -433,7 +457,7 @@ func durationToHistogramInterval(d time.Duration) time.Duration {
 }
 
 // TODO add support for autocomplete for attributes, if we'll find it needed
-func (lm *LogManager) GetFacets(tableName, fieldName string, limit int) ([]QueryResultRow, error) {
+func (lm *LogManager) GetFacets(tableName, fieldName, originalSelectStmt string, limit int) ([]QueryResultRow, error) {
 	table := lm.findSchema(tableName)
 	if table == nil {
 		table = lm.findSchema(tableName[1 : len(tableName)-1]) // try remove " " TODO improve this when we get out of the prototype phase
@@ -455,7 +479,8 @@ func (lm *LogManager) GetFacets(tableName, fieldName string, limit int) ([]Query
 		lm.db = connection
 	}
 
-	query := "SELECT " + fieldName + ", count() FROM " + tableName + " GROUP BY " + fieldName
+	whereStmt := strings.ReplaceAll(originalSelectStmt, `SELECT * FROM WHERE`, "WHERE")
+	query := "SELECT " + fieldName + ", count() FROM " + tableName + whereStmt + " GROUP BY " + fieldName
 	if limit > 0 {
 		query += " LIMIT " + strconv.Itoa(limit)
 	}

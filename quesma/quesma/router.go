@@ -14,13 +14,14 @@ import (
 )
 
 const (
-	ManagementInternalPath = "/_quesma"
-	HealthPath             = ManagementInternalPath + "/health"
-	BulkPath               = "/_bulk"
-	CreateTablePath        = "/_createTable"
-	InsertPath             = "/_insert"
-	SearchPath             = "/_search"
-	ElasticInternalPath    = "/_"
+	InternalPath        = "/_quesma"
+	HealthPath          = InternalPath + "/health"
+	BulkPath            = "/_bulk"
+	CreateTablePath     = "/_createTable"
+	InsertPath          = "/_insert"
+	SearchPath          = "/_search"
+	AsyncSearchPath     = "/logs-*-*/_async_search"
+	ElasticInternalPath = "/_"
 )
 
 func bodyHandler(h func(body []byte, writer http.ResponseWriter, r *http.Request)) func(http.ResponseWriter, *http.Request) {
@@ -41,6 +42,7 @@ func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManag
 	router.PathPrefix(InsertPath).HandlerFunc(processInsert(lm))
 	router.PathPrefix(BulkPath).HandlerFunc(bulk(lm, rm, queryDebugger, config)).Methods("POST")
 	router.PathPrefix(SearchPath).HandlerFunc(search(lm, rm, queryDebugger)).Methods("POST")
+	router.PathPrefix(AsyncSearchPath).HandlerFunc(asyncSearch(lm, rm, queryDebugger)).Methods("POST")
 	router.PathPrefix(ElasticInternalPath).HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		fmt.Printf("unrecognized internal path: %s\n", r.RequestURI)
 	})
@@ -57,6 +59,13 @@ func search(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *Query
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("RequestId")
 		go handleSearch("", body, lm, rm, queryDebugger, id)
+	})
+}
+
+func asyncSearch(lm *clickhouse.LogManager, rm *ResponseMatcher, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
+	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
+		id := r.Header.Get("RequestId")
+		go handleAsyncSearch("", body, lm, rm, queryDebugger, id)
 	})
 }
 

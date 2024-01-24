@@ -1,7 +1,6 @@
 package quesma
 
 import (
-	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"testing"
 
@@ -10,7 +9,7 @@ import (
 
 const sel = "SELECT * FROM " + tableName + " WHERE "
 
-var tests = []struct {
+var testsQueryParser = []struct {
 	name      string
 	queryJson string
 	wantSql   any
@@ -480,7 +479,7 @@ var tests = []struct {
 // 1. 14th test, "Query string". "(message LIKE '%%%' OR message LIKE '%logged%')", is it really
 //    what should be? According to docs, I think so... Maybe test in Kibana?
 
-func Test(t *testing.T) {
+func TestQueryParser(t *testing.T) {
 	testTable, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
@@ -491,7 +490,7 @@ func Test(t *testing.T) {
 	}
 	lm := clickhouse.NewLogManager(clickhouse.TableMap{tableName: testTable}, make(clickhouse.TableMap))
 	cw := ClickhouseQueryTranslator{lm}
-	for i, tt := range tests {
+	for _, tt := range testsQueryParser {
 		t.Run(tt.name, func(t *testing.T) {
 			query := cw.parseQuery(tt.queryJson)
 			assert.True(t, query.canParse)
@@ -501,7 +500,7 @@ func Test(t *testing.T) {
 			case []string:
 				assert.Contains(t, tt.wantSql, query.sql)
 			}
-			fmt.Println(i, ":", query.sql)
+			//fmt.Println(i, ":", query.sql)
 		})
 	}
 }

@@ -18,6 +18,27 @@ type JsonMap = map[string]interface{}
 
 const tableName = `"logs-generic-default"`
 
+type AsyncSearchQueryType int
+
+const (
+	Histogram AsyncSearchQueryType = iota
+	AggsByField
+	ListByField
+	ListAllFields
+	None
+)
+
+type QueryInfo struct {
+	typ       AsyncSearchQueryType
+	fieldName string
+	i1        int
+	i2        int
+}
+
+func NewQueryInfoNone() QueryInfo {
+	return QueryInfo{None, "", 0, 0}
+}
+
 func NewQuery(sql string, canParse bool) Query {
 	return Query{sql, canParse}
 }
@@ -41,11 +62,31 @@ func (cw *ClickhouseQueryTranslator) parseQuery(q string) Query {
 	}
 }
 
+func (cw *ClickhouseQueryTranslator) parseQueryAsyncSearch(q string) (Query, QueryInfo) {
+	m := make(JsonMap)
+	err := json.Unmarshal([]byte(q), &m)
+	if err != nil {
+		return NewQuery("Invalid JSON (parseQueryAsyncSearch)", false), NewQueryInfoNone()
+	}
+
+	queryInfo := cw.tryProcessMetadata(m)
+	parsed := cw.parseJsonMap(m["query"].(JsonMap))
+	if !parsed.canParse {
+		return parsed, NewQueryInfoNone()
+	} else {
+		where := " WHERE "
+		if len(parsed.sql) == 0 {
+			where = ""
+		}
+		return NewQuery("SELECT * FROM "+tableName+where+parsed.sql, true), queryInfo
+	}
+}
+
 // Metadata attributes are the ones that are on the same level as query tag
 // They are moved into separate map for further processing if needed
 func (cw *ClickhouseQueryTranslator) parseMetadata(m JsonMap) map[string]interface{} {
 	queryMetadata := make(map[string]interface{}, 5)
-	for k, v := range queryMetadata {
+	for k, v := range m {
 		if k == "query" {
 			continue
 		}
@@ -363,4 +404,68 @@ func sprint(i interface{}) string {
 // Used e.g. for column names in search. W/o it e.g. @timestamp in CH will return parsing error.
 func quote(s string) string {
 	return `"` + s + `"`
+}
+
+// Return value:
+// - histogram: (Histogram, fixed interval, 0, 0)
+// - aggsByField: (AggsByField, field name, nrOfGroupedBy, sampleSize)
+// - listByField: (ListByField, field name, 0, LIMIT)
+// - listAllFields: (ListAllFields, "*", 0, LIMIT) (LIMIT = how many rows we want to return)
+func (cw *ClickhouseQueryTranslator) tryProcessMetadata(m JsonMap) QueryInfo {
+	metadata := cw.parseMetadata(m)
+	// case 1. Histogram:
+	m1, ok := metadata["aggs"].(JsonMap)
+	if ok {
+		m2, ok := m1["0"].(JsonMap)
+		if ok {
+			m3, ok := m2["date_histogram"].(JsonMap)
+			if ok {
+				return QueryInfo{Histogram, m3["fixed_interval"].(string), 0, 0}
+			}
+		}
+	}
+
+	// aggs by field
+	m1, ok = metadata["aggs"].(JsonMap)
+	aggsByField := false
+	fieldName := ""
+	size := 0
+	if ok {
+		m2, ok := m1["sample"].(JsonMap)
+		if ok {
+			m3, ok := m2["aggs"].(JsonMap)
+			if ok {
+				m4, ok := m3["top_values"].(JsonMap)
+				if ok {
+					m5, ok := m4["terms"].(JsonMap)
+					if ok {
+						aggsByField = true
+						size = int(m5["size"].(float64))
+						fieldName = m5["field"].(string)
+					}
+				}
+			}
+			m3, ok = m2["sampler"].(JsonMap)
+			if ok {
+				shard_size, ok := m3["shard_size"].(float64)
+				if ok && aggsByField {
+					return QueryInfo{AggsByField, fieldName, size, int(shard_size)}
+				}
+			}
+		}
+	}
+
+	// by field or all fields
+	m2, ok := metadata["fields"].([]interface{})
+	if ok {
+		size := int(metadata["size"].(float64))
+		if len(m2) > 1 || m2[0].(JsonMap)["field"].(string) == "*" {
+			// so far everywhere I've seen, > 1 field = "*" is one of them
+			return QueryInfo{ListAllFields, "*", 0, size}
+		} else {
+			return QueryInfo{ListByField, m2[0].(JsonMap)["field"].(string), 0, size}
+		}
+	}
+
+	return NewQueryInfoNone()
 }

@@ -208,7 +208,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 		}
 		buf = append(buf, []byte("<p>ResponseID:"+v.Key+"</p>")...)
 		buf = append(buf, []byte("\n<pre id=\"response"+v.Key+"\">")...)
-		buf = append(buf, []byte(v.Value.queryResp)...)
+		buf = append(buf, []byte(util.JsonPrettify(string(v.Value.queryResp), true))...)
 		buf = append(buf, []byte("\n</pre>")...)
 		if withLinks {
 			buf = append(buf, []byte("\n</a>")...)
@@ -266,8 +266,11 @@ func (qd *QueryDebugger) generateQueries() []byte {
 	debugKeyValueSlice := []DebugKeyValue{}
 	count := 0
 	for i := len(lastMessages) - 1; i >= 0 && count < MAX_LAST_MESSAGES; i-- {
-		debugKeyValueSlice = append(debugKeyValueSlice, DebugKeyValue{lastMessages[i], qd.debugInfoMessages[lastMessages[i]]})
-		count++
+		debugInfoMessage := qd.debugInfoMessages[lastMessages[i]]
+		if len(debugInfoMessage.QueryDebugSecondarySource.incomingQueryBody) > 0 {
+			debugKeyValueSlice = append(debugKeyValueSlice, DebugKeyValue{lastMessages[i], debugInfoMessage})
+			count++
+		}
 	}
 	qd.mutex.Unlock()
 

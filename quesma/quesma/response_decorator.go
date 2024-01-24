@@ -61,7 +61,7 @@ func NewResponseDecorator(tcpPort string, requestId int64, matcher *ResponseMatc
 				}
 				resp.Body = io.NopCloser(bytes.NewBuffer(body))
 
-				if strings.Contains(req.RequestURI, "/_search?pretty") {
+				if strings.Contains(req.RequestURI, "/_search") || strings.Contains(req.RequestURI, "/_async_search") {
 					isGzipped := strings.Contains(resp.Header.Get("Content-Encoding"), "gzip")
 					if isGzipped {
 						unzippedBuffer, err := unzip(body)
