@@ -79,12 +79,70 @@ func extractTableName(query string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("Table name not found in the query")
+	return "", fmt.Errorf("table name not found in the query")
 }
 
-// (int, error) just for the 1st version. Should be changed to something more: rows, etc.
+func extractWhereClause(query string) (string, error) {
+	// Convert the query to lowercase for case-insensitivity
+	queryLower := strings.ToLower(query)
+
+	// Find the index of "where"
+	whereIndex := strings.Index(queryLower, "where")
+
+	// Check if "where" is present
+	if whereIndex == -1 {
+		return "", fmt.Errorf("the 'where' keyword is not present in the query")
+	}
+
+	// Extract everything after "where"
+	afterWhere := strings.TrimSpace(query[whereIndex+len("where"):])
+
+	return afterWhere, nil
+}
+
+func extractColumns(query string) ([]string, error) {
+	// Convert the query to lowercase for case-insensitivity
+	queryLower := strings.ToLower(query)
+
+	// Find the indices of "select" and "from"
+	selectIndex := strings.Index(queryLower, "select")
+	fromIndex := strings.Index(queryLower, "from")
+
+	// Check if "select" and "from" are both present
+	if selectIndex == -1 || fromIndex == -1 {
+		return nil, fmt.Errorf("both 'select' and 'from' keywords are required in the query")
+	}
+
+	// Extract the part between "select" and "from"
+	partBetween := strings.TrimSpace(query[selectIndex+len("select") : fromIndex])
+
+	// Check if '*' is used in the SELECT statement
+	if partBetween == "*" {
+		return []string{"*"}, nil
+	}
+
+	// Split the part between "select" and "from" into individual columns
+	columns := strings.FieldsFunc(partBetween, func(r rune) bool {
+		// Split by commas and ignore spaces after commas
+		return r == ',' || r == ' '
+	})
+
+	// Remove any empty strings from the resulting slice
+	var cleanedColumns []string
+	for _, col := range columns {
+		if col != "" {
+			cleanedColumns = append(cleanedColumns, col)
+		}
+	}
+
+	return cleanedColumns, nil
+}
+
+// ProcessSelectQuery
+// TODO query param should be type safe Query representing all parts of
+// sql statement that were already parsed and not string from which
+// we have to extract again different parts like where clause and columns to build a proper result
 func (lm *LogManager) ProcessSelectQuery(query string) ([]QueryResultRow, error) {
-	//tableName := "logs-generic-default"
 	tableName, err := extractTableName(query)
 	if err != nil {
 		log.Println(err)
@@ -104,12 +162,35 @@ func (lm *LogManager) ProcessSelectQuery(query string) ([]QueryResultRow, error)
 		}
 		lm.db = connection
 	}
+	whereClause, err := extractWhereClause(query)
+	if err != nil {
+		log.Println(err)
+	}
+
+	columnsSql, err := extractColumns(query)
+	_ = columnsSql
+	if err != nil {
+		log.Println(err)
+	}
 
 	queryStr := strings.Builder{}
 	queryStr.WriteString("SELECT ")
 	row := make([]interface{}, 0, len(table.Cols))
 	colNames := make([]string, 0, len(table.Cols))
-	for colName, col := range table.Cols {
+
+	neededColumns := make(map[string]*Column)
+
+	if len(columnsSql) == 1 && columnsSql[0] == "*" {
+		neededColumns = table.Cols
+	} else {
+		for _, col := range columnsSql {
+			if k, ok := table.Cols[col]; ok {
+				neededColumns[k.Name] = table.Cols[col]
+			}
+		}
+	}
+
+	for colName, col := range neededColumns {
 		colNames = append(colNames, fmt.Sprintf("\"%s\"", colName))
 		if col.Type.isBool() {
 			queryStr.WriteString("toInt8(" + fmt.Sprintf("\"%s\"", colName) + "),")
@@ -118,8 +199,11 @@ func (lm *LogManager) ProcessSelectQuery(query string) ([]QueryResultRow, error)
 		}
 		row = append(row, col.Type.newZeroValue())
 	}
-
-	queryStr.WriteString(" FROM " + tableName + " DESC LIMIT " + strconv.Itoa(5))
+	if len(whereClause) > 0 {
+		queryStr.WriteString(" FROM " + tableName + " WHERE " + whereClause)
+	} else {
+		queryStr.WriteString(" FROM " + tableName)
+	}
 	query = queryStr.String()
 
 	rowsDB, err := lm.db.Query(query)
