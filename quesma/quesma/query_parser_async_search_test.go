@@ -655,7 +655,7 @@ func TestQueryParserAsyncSearch(t *testing.T) {
 	for i, tt := range testsAsyncResult {
 		t.Run(tt.name, func(t *testing.T) {
 			query, queryInfo := cw.parseQueryAsyncSearch(tt.queryJson)
-			assert.True(t, query.canParse)
+			assert.True(t, query.CanParse)
 
 			fmt.Println(i, ":", tt.name, queryInfo)
 		})

@@ -2,6 +2,7 @@ package quesma
 
 import (
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/queryparser"
 	"time"
 )
 
@@ -20,7 +21,7 @@ func (cw *ClickhouseQueryTranslator) getFieldsList(tableName string) []string {
 	return []string{"message"}
 }
 
-func (cw *ClickhouseQueryTranslator) queryClickhouse(query string) ([]clickhouse.QueryResultRow, error) {
+func (cw *ClickhouseQueryTranslator) queryClickhouse(query queryparser.Query) ([]clickhouse.QueryResultRow, error) {
 	return cw.clickhouseLM.ProcessSelectQuery(query)
 }
 

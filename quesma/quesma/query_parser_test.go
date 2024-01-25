@@ -493,12 +493,12 @@ func TestQueryParser(t *testing.T) {
 	for _, tt := range testsQueryParser {
 		t.Run(tt.name, func(t *testing.T) {
 			query := cw.parseQuery(tt.queryJson)
-			assert.True(t, query.canParse)
+			assert.True(t, query.CanParse)
 			switch tt.wantSql.(type) {
 			case string:
-				assert.Equal(t, tt.wantSql, query.sql)
+				assert.Equal(t, tt.wantSql, query.Sql)
 			case []string:
-				assert.Contains(t, tt.wantSql, query.sql)
+				assert.Contains(t, tt.wantSql, query.Sql)
 			}
 			//fmt.Println(i, ":", query.sql)
 		})

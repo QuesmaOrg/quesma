@@ -22,10 +22,10 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 
 	query := queryTranslator.Write(body)
 	var responseBody []byte
-	if query.canParse {
-		rows, err := queryTranslator.queryClickhouse(query.sql)
+	if query.CanParse {
+		rows, err := queryTranslator.queryClickhouse(query)
 		if err != nil {
-			responseBody = []byte("Error processing query: " + query.sql + ", err: " + err.Error())
+			responseBody = []byte("Error processing query: " + query.Sql + ", err: " + err.Error())
 		}
 		responseBody = append([]byte(responseBody), []byte("{\n")...)
 		responseBody = append([]byte(responseBody), []byte("\"hit\": [")...)
@@ -40,7 +40,7 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 			i++
 		}
 		responseBody = append([]byte(responseBody), []byte("]}")...)
-		rows, err = queryTranslator.getNMostRecentRows(query.tableName, "*", "timestamp", query.sql, 2)
+		rows, err = queryTranslator.getNMostRecentRows(query.TableName, "*", "timestamp", query.Sql, 2)
 		if err == nil {
 			fmt.Println(rows)
 		} else {
@@ -48,18 +48,18 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 		}
 		responseTranslator := &ClickhouseResultReader{clickhouseLM: lm}
 		responseTranslator.Read(responseBody) // TODO implement this, not line below
-		histogram, err := queryTranslator.getHistogram(query.tableName)
+		histogram, err := queryTranslator.getHistogram(query.TableName)
 		fmt.Printf("Histogram: %+v, err: %+v\n", histogram, err)
 
-		facets, err := queryTranslator.getFacets(query.tableName, "severity", query.sql, 0)
+		facets, err := queryTranslator.getFacets(query.TableName, "severity", query.Sql, 0)
 		fmt.Printf("Facets: %+v, err: %+v\n", facets, err)
 	} else {
-		responseBody = []byte("Invalid Query, err: " + query.sql)
+		responseBody = []byte("Invalid Query, err: " + query.Sql)
 	}
 
 	var rawResults []byte
 	responseMatcher.Push(&QResponse{requestId, responseBody})
-	translatedQueryBody = []byte(query.sql)
+	translatedQueryBody = []byte(query.Sql)
 	queryDebugger.PushSecondaryInfo(&QueryDebugSecondarySource{
 		id:                     requestId,
 		incomingQueryBody:      body,
@@ -123,27 +123,27 @@ func handleAsyncSearch(index string, body []byte, lm *clickhouse.LogManager,
 	query, queryInfo := queryTranslator.WriteAsyncSearch(body)
 	var responseBody []byte
 
-	if query.canParse && queryInfo.typ != None {
+	if query.CanParse && queryInfo.typ != None {
 		// TODO cast results from switch below to responseBody
 		switch queryInfo.typ {
 		case Histogram:
 			// queryInfo = (Histogram, "30s", 0 0) TODO accept different time intervals (now default, 15min)
-			histogram, err := queryTranslator.getHistogram(query.tableName)
+			histogram, err := queryTranslator.getHistogram(query.TableName)
 			fmt.Printf("Histogram: %+v, err: %+v\n", histogram, err)
 			responseBody = createResponseHistogramJson(histogram)
 		case AggsByField:
 			// queryInfo = (AggsByField, fieldName, Limit results, Limit last rows to look into)
-			rows, err := queryTranslator.getFacets(query.tableName, queryInfo.fieldName, query.sql, queryInfo.i2)
+			rows, err := queryTranslator.getFacets(query.TableName, queryInfo.fieldName, query.Sql, queryInfo.i2)
 			fmt.Printf("Rows: %+v, err: %+v\n", rows, err)
 			responseBody = createResponseHitJson(rows)
 		case ListByField:
 			// queryInfo = (ListByField, fieldName, 0, LIMIT)
-			rows, err := queryTranslator.getNMostRecentRows(query.tableName, queryInfo.fieldName, "timestamp", query.sql, queryInfo.i2)
+			rows, err := queryTranslator.getNMostRecentRows(query.TableName, queryInfo.fieldName, "timestamp", query.Sql, queryInfo.i2)
 			fmt.Printf("Rows: %+v, err: %+v\n", rows, err)
 			responseBody = createResponseHitJson(rows)
 		case ListAllFields:
 			// queryInfo = (ListAllFields, "*", 0, LIMIT)
-			rows, err := queryTranslator.getNMostRecentRows(query.tableName, "*", "timestamp", query.sql, queryInfo.i2)
+			rows, err := queryTranslator.getNMostRecentRows(query.TableName, "*", "timestamp", query.Sql, queryInfo.i2)
 			fmt.Printf("Rows: %+v, err: %+v\n", rows, err)
 			responseBody = createResponseHitJson(rows)
 
@@ -157,12 +157,12 @@ func handleAsyncSearch(index string, body []byte, lm *clickhouse.LogManager,
 		//responseTranslator.Read(responseBody) // TODO implement this, not line below
 		// responseBody = []byte(strconv.Itoa(cnt))
 	} else {
-		responseBody = []byte("Invalid Query, err: " + query.sql)
+		responseBody = []byte("Invalid Query, err: " + query.Sql)
 	}
 
 	var rawResults []byte
 	responseMatcher.Push(&QResponse{requestId, responseBody})
-	translatedQueryBody = []byte(query.sql)
+	translatedQueryBody = []byte(query.Sql)
 	queryDebugger.PushSecondaryInfo(&QueryDebugSecondarySource{
 		id:                     requestId,
 		incomingQueryBody:      body,

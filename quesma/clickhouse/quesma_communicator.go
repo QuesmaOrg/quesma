@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"mitmproxy/quesma/queryparser"
 	"sort"
 	"strconv"
 	"strings"
@@ -71,23 +72,6 @@ func (r QueryResultRow) String() string {
 	return str.String()
 }
 
-func extractTableName(query string) (string, error) {
-	// Convert the query to lowercase for case-insensitivity
-	queryLower := strings.ToLower(query)
-
-	words := strings.Fields(queryLower)
-
-	for i := 0; i < len(words)-1; i++ {
-		if words[i] == "from" {
-			// The table name is the next word after "from"
-			tableName := words[i+1]
-			return tableName, nil
-		}
-	}
-
-	return "", fmt.Errorf("table name not found in the query")
-}
-
 func extractWhereClause(query string) (string, error) {
 	// Convert the query to lowercase for case-insensitivity
 	queryLower := strings.ToLower(query)
@@ -148,16 +132,12 @@ func extractColumns(query string) ([]string, error) {
 // TODO query param should be type safe Query representing all parts of
 // sql statement that were already parsed and not string from which
 // we have to extract again different parts like where clause and columns to build a proper result
-func (lm *LogManager) ProcessSelectQuery(query string) ([]QueryResultRow, error) {
-	tableName, err := extractTableName(query)
-	if err != nil {
-		log.Println(err)
-	}
-	table := lm.findSchema(tableName)
+func (lm *LogManager) ProcessSelectQuery(query queryparser.Query) ([]QueryResultRow, error) {
+	table := lm.findSchema(query.TableName)
 	if table == nil {
-		table = lm.findSchema(tableName[1 : len(tableName)-1]) // try remove " " TODO improve this when we get out of the prototype phase
+		table = lm.findSchema(query.TableName[1 : len(query.TableName)-1]) // try remove " " TODO improve this when we get out of the prototype phase
 		if table == nil {
-			return nil, fmt.Errorf("Table " + tableName + " not found")
+			return nil, fmt.Errorf("Table " + query.TableName + " not found")
 		}
 	}
 
@@ -168,12 +148,12 @@ func (lm *LogManager) ProcessSelectQuery(query string) ([]QueryResultRow, error)
 		}
 		lm.db = connection
 	}
-	whereClause, err := extractWhereClause(query)
+	whereClause, err := extractWhereClause(query.Sql)
 	if err != nil {
 		log.Println(err)
 	}
 
-	columnsSql, err := extractColumns(query)
+	columnsSql, err := extractColumns(query.Sql)
 	_ = columnsSql
 	if err != nil {
 		log.Println(err)
@@ -206,13 +186,12 @@ func (lm *LogManager) ProcessSelectQuery(query string) ([]QueryResultRow, error)
 		row = append(row, col.Type.newZeroValue())
 	}
 	if len(whereClause) > 0 {
-		queryStr.WriteString(" FROM " + tableName + " WHERE " + whereClause)
+		queryStr.WriteString(" FROM " + query.TableName + " WHERE " + whereClause)
 	} else {
-		queryStr.WriteString(" FROM " + tableName)
+		queryStr.WriteString(" FROM " + query.TableName)
 	}
-	query = queryStr.String()
 
-	rowsDB, err := lm.db.Query(query)
+	rowsDB, err := lm.db.Query(queryStr.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
