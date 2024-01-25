@@ -1,50 +1,33 @@
-package quesma
+package queryparser
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/queryparser"
+	"mitmproxy/quesma/model"
 	"strings"
 	"time"
 )
 
 type JsonMap = map[string]interface{}
 
-const tableName = `"logs-generic-default"`
+const TableName = `"logs-generic-default"`
 
-type AsyncSearchQueryType int
-
-const (
-	Histogram AsyncSearchQueryType = iota
-	AggsByField
-	ListByField
-	ListAllFields
-	None
-)
-
-type QueryInfo struct {
-	typ       AsyncSearchQueryType
-	fieldName string
-	i1        int
-	i2        int
+func NewQueryInfoNone() model.QueryInfo {
+	return model.QueryInfo{Typ: model.None, FieldName: "", I1: 0, I2: 0}
 }
 
-func NewQueryInfoNone() QueryInfo {
-	return QueryInfo{None, "", 0, 0}
-}
-
-func NewQuery(sql string, tableName string, canParse bool) queryparser.Query {
-	return queryparser.Query{Sql: sql, TableName: tableName, CanParse: canParse}
+func NewQuery(sql string, tableName string, canParse bool) model.Query {
+	return model.Query{Sql: sql, TableName: tableName, CanParse: canParse}
 }
 
 // 'q' - string of a JSON query
-func (cw *ClickhouseQueryTranslator) parseQuery(q string) queryparser.Query {
+func (cw *ClickhouseQueryTranslator) parseQuery(q string) model.Query {
 	m := make(JsonMap)
 	err := json.Unmarshal([]byte(q), &m)
 	if err != nil {
-		return NewQuery("Invalid JSON (parseQuery)", tableName, false)
+		return NewQuery("Invalid JSON (parseQuery)", TableName, false)
 	}
 	parsed := cw.parseJsonMap(m)
 	if !parsed.CanParse {
@@ -54,15 +37,15 @@ func (cw *ClickhouseQueryTranslator) parseQuery(q string) queryparser.Query {
 		if len(parsed.Sql) == 0 {
 			where = ""
 		}
-		return NewQuery("SELECT * FROM "+tableName+where+parsed.Sql, tableName, true)
+		return NewQuery("SELECT * FROM "+TableName+where+parsed.Sql, TableName, true)
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) parseQueryAsyncSearch(q string) (queryparser.Query, QueryInfo) {
+func (cw *ClickhouseQueryTranslator) parseQueryAsyncSearch(q string) (model.Query, model.QueryInfo) {
 	m := make(JsonMap)
 	err := json.Unmarshal([]byte(q), &m)
 	if err != nil {
-		return NewQuery("Invalid JSON (parseQueryAsyncSearch)", tableName, false), NewQueryInfoNone()
+		return NewQuery("Invalid JSON (parseQueryAsyncSearch)", TableName, false), NewQueryInfoNone()
 	}
 
 	queryInfo := cw.tryProcessMetadata(m)
@@ -74,7 +57,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryAsyncSearch(q string) (queryparse
 		if len(parsed.Sql) == 0 {
 			where = ""
 		}
-		return NewQuery("SELECT * FROM "+tableName+where+parsed.Sql, tableName, true), queryInfo
+		return NewQuery("SELECT * FROM "+TableName+where+parsed.Sql, TableName, true), queryInfo
 	}
 }
 
@@ -92,12 +75,12 @@ func (cw *ClickhouseQueryTranslator) parseMetadata(m JsonMap) map[string]interfa
 	return queryMetadata
 }
 
-func (cw *ClickhouseQueryTranslator) parseJsonMap(m JsonMap) queryparser.Query {
+func (cw *ClickhouseQueryTranslator) parseJsonMap(m JsonMap) model.Query {
 	if len(m) != 1 {
 		// TODO suppress metadata for now
 		_ = cw.parseMetadata(m)
 	}
-	parseMap := map[string]func(JsonMap) queryparser.Query{
+	parseMap := map[string]func(JsonMap) model.Query{
 		"match_all":           cw.parseMatchAll,
 		"match":               cw.parseMatch,
 		"multi_match":         cw.parseMultiMatch,
@@ -119,7 +102,7 @@ func (cw *ClickhouseQueryTranslator) parseJsonMap(m JsonMap) queryparser.Query {
 			return f(v.(JsonMap))
 		}
 	}
-	return NewQuery("Can't parse query: "+pp.Sprint(m), tableName, false)
+	return NewQuery("Can't parse query: "+pp.Sprint(m), TableName, false)
 }
 
 // Parses each query separately, returns list of translated SQLs
@@ -143,7 +126,7 @@ func (cw *ClickhouseQueryTranslator) iterateListOrDict(m interface{}) []string {
 }
 
 // TODO: minimum_should_match parameter. Now only ints supported and >1 changed into 1
-func (cw *ClickhouseQueryTranslator) parseBool(m JsonMap) queryparser.Query {
+func (cw *ClickhouseQueryTranslator) parseBool(m JsonMap) model.Query {
 	andStmts := []string{}
 	for _, andPhrase := range []string{"must", "filter"} {
 		if q, ok := m[andPhrase]; ok {
@@ -174,20 +157,20 @@ func (cw *ClickhouseQueryTranslator) parseBool(m JsonMap) queryparser.Query {
 			sql = and([]string{sql, "NOT " + or(sqlNots)})
 		}
 	}
-	return NewQuery(sql, tableName, true)
+	return NewQuery(sql, TableName, true)
 }
 
-func (cw *ClickhouseQueryTranslator) parseTerm(m JsonMap) queryparser.Query {
+func (cw *ClickhouseQueryTranslator) parseTerm(m JsonMap) model.Query {
 	if len(m) == 1 {
 		for k, v := range m {
-			return NewQuery(quote(k)+"="+sprint(v), tableName, true)
+			return NewQuery(quote(k)+"="+sprint(v), TableName, true)
 		}
 	}
-	return NewQuery("Invalid term len, != 1", tableName, false)
+	return NewQuery("Invalid term len, != 1", TableName, false)
 }
 
 // TODO remove optional parameters like boost
-func (cw *ClickhouseQueryTranslator) parseTerms(m JsonMap) queryparser.Query {
+func (cw *ClickhouseQueryTranslator) parseTerms(m JsonMap) model.Query {
 	if len(m) == 1 {
 		for k, v := range m {
 			vc := v.([]interface{})
@@ -195,14 +178,14 @@ func (cw *ClickhouseQueryTranslator) parseTerms(m JsonMap) queryparser.Query {
 			for i, v := range vc {
 				orStmts[i] = quote(k) + "=" + sprint(v)
 			}
-			return NewQuery(or(orStmts), tableName, true)
+			return NewQuery(or(orStmts), TableName, true)
 		}
 	}
-	return NewQuery("Invalid terms len, != 1", tableName, false)
+	return NewQuery("Invalid terms len, != 1", TableName, false)
 }
 
-func (cw *ClickhouseQueryTranslator) parseMatchAll(m JsonMap) queryparser.Query {
-	return NewQuery("", tableName, true)
+func (cw *ClickhouseQueryTranslator) parseMatchAll(m JsonMap) model.Query {
+	return NewQuery("", TableName, true)
 }
 
 // TODO
@@ -216,7 +199,7 @@ func (cw *ClickhouseQueryTranslator) parseMatchAll(m JsonMap) queryparser.Query 
 // TOTHINK:
 // - casting to string. 'Match' on e.g. ints doesn't make sense, does it?
 // - match_phrase also goes here. Maybe some different parsing is needed?
-func (cw *ClickhouseQueryTranslator) parseMatch(m JsonMap) queryparser.Query {
+func (cw *ClickhouseQueryTranslator) parseMatch(m JsonMap) model.Query {
 	if len(m) == 1 {
 		for k, v := range m {
 			split := strings.Split(v.(string), " ")
@@ -224,19 +207,19 @@ func (cw *ClickhouseQueryTranslator) parseMatch(m JsonMap) queryparser.Query {
 			for i, s := range split {
 				qStrs[i] = quote(k) + " iLIKE " + "'%" + s + "%'"
 			}
-			return NewQuery(or(qStrs), tableName, true)
+			return NewQuery(or(qStrs), TableName, true)
 		}
 	}
-	return NewQuery("Unsupported match len != 1", tableName, false)
+	return NewQuery("Unsupported match len != 1", TableName, false)
 }
 
-func (cw *ClickhouseQueryTranslator) parseMultiMatch(m JsonMap) queryparser.Query {
+func (cw *ClickhouseQueryTranslator) parseMultiMatch(m JsonMap) model.Query {
 	var fields []string
 	fieldsAsInterface, ok := m["fields"]
 	if ok {
 		fields = cw.extractFields(fieldsAsInterface.([]interface{}))
 	} else {
-		fields = cw.getFieldsList(tableName)
+		fields = cw.GetFieldsList(TableName)
 	}
 	subQs := strings.Split(m["query"].(string), " ")
 	sqls := make([]string, len(fields)*len(subQs))
@@ -247,40 +230,40 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(m JsonMap) queryparser.Quer
 			i++
 		}
 	}
-	return NewQuery(or(sqls), tableName, true)
+	return NewQuery(or(sqls), TableName, true)
 }
 
 // prefix works only on strings
-func (cw *ClickhouseQueryTranslator) parsePrefix(m JsonMap) queryparser.Query {
+func (cw *ClickhouseQueryTranslator) parsePrefix(m JsonMap) model.Query {
 	if len(m) == 1 {
 		for k, v := range m {
 			switch vc := v.(type) {
 			case string:
-				return NewQuery(quote(k)+" iLIKE '"+vc+"%'", tableName, true)
+				return NewQuery(quote(k)+" iLIKE '"+vc+"%'", TableName, true)
 			case JsonMap:
-				return NewQuery(quote(k)+" iLIKE '"+vc["value"].(string)+"%'", tableName, true)
+				return NewQuery(quote(k)+" iLIKE '"+vc["value"].(string)+"%'", TableName, true)
 			}
 		}
 	}
-	return NewQuery("Invalid prefix len != 1", tableName, false)
+	return NewQuery("Invalid prefix len != 1", TableName, false)
 }
 
 // Not supporting 'case_insensitive' (optional)
 // Also not supporting wildcard (Required, string) (??) In both our example, and their in docs,
 // it's not provided.
-func (cw *ClickhouseQueryTranslator) parseWildcard(m JsonMap) queryparser.Query {
+func (cw *ClickhouseQueryTranslator) parseWildcard(m JsonMap) model.Query {
 	// not checking for len == 1 because it's only option in proper query
 	for k, v := range m {
 		return NewQuery(quote(k)+" iLIKE '"+strings.ReplaceAll(v.(JsonMap)["value"].(string),
-			"*", "%")+"'", tableName, true)
+			"*", "%")+"'", TableName, true)
 	}
-	return NewQuery("Empty wildcard", tableName, false)
+	return NewQuery("Empty wildcard", TableName, false)
 }
 
 // This one is REALLY complicated (https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html)
 // Supporting 'fields' and 'query' (also, * in 'fields' doesn't support other types than string...)
 // + only '*' in query, no '?' or other regex
-func (cw *ClickhouseQueryTranslator) parseQueryString(m JsonMap) queryparser.Query {
+func (cw *ClickhouseQueryTranslator) parseQueryString(m JsonMap) model.Query {
 	orStmts := make([]string, 0)
 	fields := cw.extractFields(m["fields"].([]interface{}))
 	for _, field := range fields {
@@ -288,10 +271,10 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(m JsonMap) queryparser.Que
 			orStmts = append(orStmts, quote(field)+" iLIKE '%"+strings.ReplaceAll(qStr, "*", "%")+"%'")
 		}
 	}
-	return NewQuery(or(orStmts), tableName, true)
+	return NewQuery(or(orStmts), TableName, true)
 }
 
-func (cw *ClickhouseQueryTranslator) parseNested(m JsonMap) queryparser.Query {
+func (cw *ClickhouseQueryTranslator) parseNested(m JsonMap) model.Query {
 	return cw.parseJsonMap(m["query"].(JsonMap))
 }
 
@@ -299,7 +282,7 @@ func (cw *ClickhouseQueryTranslator) parseNested(m JsonMap) queryparser.Query {
 // TODO:
 //   - check if parseDateTime64BestEffort really works for our case (it should)
 //   - implement "needed" date functions like now, now-1d etc.
-func (cw *ClickhouseQueryTranslator) parseRange(m JsonMap) queryparser.Query {
+func (cw *ClickhouseQueryTranslator) parseRange(m JsonMap) model.Query {
 	// not checking for len == 1 because it's only option in proper query
 	for field, v := range m {
 		stmts := make([]string, 0)
@@ -324,26 +307,26 @@ func (cw *ClickhouseQueryTranslator) parseRange(m JsonMap) queryparser.Query {
 				stmts = append(stmts, quote(field)+"<"+vToPrint)
 			}
 		}
-		return NewQuery(and(stmts), tableName, true)
+		return NewQuery(and(stmts), TableName, true)
 	}
-	return NewQuery("Empty range", tableName, false)
+	return NewQuery("Empty range", TableName, false)
 }
 
 // TODO: not supported
 // - The field has "index" : false and "doc_values" : false set in the mapping
 // - The length of the field value exceeded an ignore_above setting in the mapping
 // - The field value was malformed and ignore_malformed was defined in the mapping
-func (cw *ClickhouseQueryTranslator) parseExists(m JsonMap) queryparser.Query {
+func (cw *ClickhouseQueryTranslator) parseExists(m JsonMap) model.Query {
 	// only parameter is 'field', must be string, so cast is safe
 	sql := ""
 	for _, v := range m {
-		switch cw.getFieldInfo(tableName, v.(string)) {
+		switch cw.ClickhouseLM.GetFieldInfo(TableName, v.(string)) {
 		case clickhouse.ExistsAndIsBaseType:
 			sql = v.(string) + " IS NOT NULL"
 		case clickhouse.ExistsAndIsArray:
 			sql = v.(string) + ".size0 = 0"
 		case clickhouse.NotExists:
-			attrs := cw.getAttributesList(tableName)
+			attrs := cw.GetAttributesList(TableName)
 			stmts := make([]string, len(attrs))
 			for i, a := range attrs {
 				stmts[i] = fmt.Sprintf("has(%s,%s) AND %s[indexOf(%s,%s)] IS NOT NULL",
@@ -352,7 +335,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(m JsonMap) queryparser.Query {
 			sql = or(stmts)
 		}
 	}
-	return NewQuery(sql, tableName, true)
+	return NewQuery(sql, TableName, true)
 }
 
 func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []string {
@@ -360,7 +343,7 @@ func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []strin
 	for _, field := range fields {
 		fieldStr := field.(string)
 		if fieldStr == "*" {
-			return cw.getFieldsList(tableName)
+			return cw.GetFieldsList(TableName)
 		}
 		result = append(result, fieldStr)
 	}
@@ -407,7 +390,7 @@ func quote(s string) string {
 // - aggsByField: (AggsByField, field name, nrOfGroupedBy, sampleSize)
 // - listByField: (ListByField, field name, 0, LIMIT)
 // - listAllFields: (ListAllFields, "*", 0, LIMIT) (LIMIT = how many rows we want to return)
-func (cw *ClickhouseQueryTranslator) tryProcessMetadata(m JsonMap) QueryInfo {
+func (cw *ClickhouseQueryTranslator) tryProcessMetadata(m JsonMap) model.QueryInfo {
 	metadata := cw.parseMetadata(m)
 	// case 1. Histogram:
 	m1, ok := metadata["aggs"].(JsonMap)
@@ -416,7 +399,7 @@ func (cw *ClickhouseQueryTranslator) tryProcessMetadata(m JsonMap) QueryInfo {
 		if ok {
 			m3, ok := m2["date_histogram"].(JsonMap)
 			if ok {
-				return QueryInfo{Histogram, m3["fixed_interval"].(string), 0, 0}
+				return model.QueryInfo{Typ: model.Histogram, FieldName: m3["fixed_interval"].(string), I1: 0, I2: 0}
 			}
 		}
 	}
@@ -445,7 +428,7 @@ func (cw *ClickhouseQueryTranslator) tryProcessMetadata(m JsonMap) QueryInfo {
 			if ok {
 				shard_size, ok := m3["shard_size"].(float64)
 				if ok && aggsByField {
-					return QueryInfo{AggsByField, fieldName, size, int(shard_size)}
+					return model.QueryInfo{Typ: model.AggsByField, FieldName: fieldName, I1: size, I2: int(shard_size)}
 				}
 			}
 		}
@@ -457,9 +440,9 @@ func (cw *ClickhouseQueryTranslator) tryProcessMetadata(m JsonMap) QueryInfo {
 		size := int(metadata["size"].(float64))
 		if len(m2) > 1 || m2[0].(JsonMap)["field"].(string) == "*" {
 			// so far everywhere I've seen, > 1 field = "*" is one of them
-			return QueryInfo{ListAllFields, "*", 0, size}
+			return model.QueryInfo{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: size}
 		} else {
-			return QueryInfo{ListByField, m2[0].(JsonMap)["field"].(string), 0, size}
+			return model.QueryInfo{Typ: model.ListByField, FieldName: m2[0].(JsonMap)["field"].(string), I1: 0, I2: size}
 		}
 	}
 

@@ -1,9 +1,10 @@
-package quesma
+package queryparser
 
 import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/model"
 	"testing"
 )
 
@@ -12,7 +13,7 @@ var testsAsyncResult = []struct {
 	queryJson         string
 	resultJson        string // from ELK
 	comment           string
-	wantedParseResult QueryInfo
+	wantedParseResult model.QueryInfo
 }{
 	{
 		"Aggregate by field + match user",
@@ -153,7 +154,7 @@ var testsAsyncResult = []struct {
     "start_time_in_millis": 1706010201964
 }`,
 		"no comment yet",
-		QueryInfo{AggsByField, "host.name", 10, 5000}},
+		model.QueryInfo{Typ: model.AggsByField, FieldName: "host.name", I1: 10, I2: 5000}},
 	{
 		"Query one field, last 'size' results, return list of just that field, no timestamp, etc.",
 		`{
@@ -281,7 +282,7 @@ var testsAsyncResult = []struct {
     "start_time_in_millis": 1706021975538
 }
 `, "there should be 97 results, I truncated most of them",
-		QueryInfo{ListByField, "message", 100, 0}},
+		model.QueryInfo{Typ: model.ListByField, FieldName: "message", I1: 100, I2: 0}},
 	{
 		"Search all fields, return JSON + count (we don't return count atm)",
 		`{
@@ -515,7 +516,7 @@ var testsAsyncResult = []struct {
                     ]
                 },
 `, "Truncated most results. TODO Check what's at the end of response, probably count?",
-		QueryInfo{ListAllFields, "*", 0, 500},
+		model.QueryInfo{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: 500},
 	},
 	{
 		"Histogram",
@@ -646,7 +647,7 @@ var testsAsyncResult = []struct {
 }
 `,
 		"no comment yet",
-		QueryInfo{Histogram, "30s", 0, 0},
+		model.QueryInfo{Typ: model.Histogram, FieldName: "30s", I1: 0, I2: 0},
 	}}
 
 func TestQueryParserAsyncSearch(t *testing.T) {

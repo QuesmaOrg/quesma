@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"mitmproxy/quesma/queryparser"
+	"mitmproxy/quesma/model"
 	"sort"
 	"strconv"
 	"strings"
@@ -132,7 +132,7 @@ func extractColumns(query string) ([]string, error) {
 // TODO query param should be type safe Query representing all parts of
 // sql statement that were already parsed and not string from which
 // we have to extract again different parts like where clause and columns to build a proper result
-func (lm *LogManager) ProcessSelectQuery(query queryparser.Query) ([]QueryResultRow, error) {
+func (lm *LogManager) ProcessSelectQuery(query model.Query) ([]QueryResultRow, error) {
 	table := lm.findSchema(query.TableName)
 	if table == nil {
 		table = lm.findSchema(query.TableName[1 : len(query.TableName)-1]) // try remove " " TODO improve this when we get out of the prototype phase

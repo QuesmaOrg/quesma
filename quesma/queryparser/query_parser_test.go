@@ -1,4 +1,4 @@
-package quesma
+package queryparser
 
 import (
 	"mitmproxy/quesma/clickhouse"
@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const sel = "SELECT * FROM " + tableName + " WHERE "
+const sel = "SELECT * FROM " + TableName + " WHERE "
 
 var testsQueryParser = []struct {
 	name      string
@@ -21,7 +21,7 @@ var testsQueryParser = []struct {
 				"match_all": {}
 			}
 		}`,
-		"SELECT * FROM " + tableName,
+		"SELECT * FROM " + TableName,
 	},
 	{
 		"Term as dictionary",
@@ -312,7 +312,7 @@ var testsQueryParser = []struct {
 					"must_not": []
 				}
 			}`,
-		"SELECT * FROM " + tableName,
+		"SELECT * FROM " + TableName,
 	},
 	{
 		"Simple nested",
@@ -480,7 +480,7 @@ var testsQueryParser = []struct {
 //    what should be? According to docs, I think so... Maybe test in Kibana?
 
 func TestQueryParser(t *testing.T) {
-	testTable, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
+	testTable, err := clickhouse.NewTable(`CREATE TABLE `+TableName+`
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
 		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
@@ -488,7 +488,7 @@ func TestQueryParser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(clickhouse.TableMap{tableName: testTable}, make(clickhouse.TableMap))
+	lm := clickhouse.NewLogManager(clickhouse.TableMap{TableName: testTable}, make(clickhouse.TableMap))
 	cw := ClickhouseQueryTranslator{lm}
 	for _, tt := range testsQueryParser {
 		t.Run(tt.name, func(t *testing.T) {

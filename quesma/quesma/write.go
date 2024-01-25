@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/util"
@@ -13,7 +14,7 @@ import (
 
 func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
 	if globalBypass.Load() {
-		log.Printf("global bypass on, ignoring writes to %s\n", tableName)
+		log.Printf("global bypass on, ignoring writes to %s\n", queryparser.TableName)
 		return
 	}
 	defer recovery.LogPanic()
