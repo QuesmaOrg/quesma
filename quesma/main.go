@@ -12,13 +12,25 @@ import (
 	"time"
 )
 
-const targetEnv = "ELASTIC_URL"
-const tcpPortEnv = "TCP_PORT"
-const internalHttpPort = "8081"
+const banner = `
+               ________                                       
+               \_____  \  __ __   ____   ______ _____ _____   
+                /  / \  \|  |  \_/ __ \ /  ___//     \\__  \  
+               /   \_/.  \  |  /\  ___/ \___ \|  Y Y  \/ __ \_
+               \_____\ \_/____/  \___  >____  >__|_|  (____  /
+                      \__>           \/     \/      \/     \/ 
+`
+
+const (
+	targetEnv        = "ELASTIC_URL"
+	tcpPortEnv       = "TCP_PORT"
+	internalHttpPort = "8081"
+)
 
 var tcpPort = os.Getenv(tcpPortEnv)
 
 func main() {
+	println(banner)
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
