@@ -2,6 +2,8 @@ package queryparser
 
 import (
 	"mitmproxy/quesma/clickhouse"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,11 +11,13 @@ import (
 
 const sel = "SELECT * FROM " + TableName + " WHERE "
 
-var testsQueryParser = []struct {
+type testCase struct {
 	name      string
 	queryJson string
 	wantSql   any
-}{
+}
+
+var testsStringAttr = []testCase{
 	{
 		"Match all",
 		`{
@@ -475,11 +479,51 @@ var testsQueryParser = []struct {
 	},
 }
 
+var testsNoAttrs = []testCase{
+	{
+		"Test empty ANDs, ORs and NOTs",
+		`{
+"query": {
+    "bool": {
+      "filter": [
+        {
+          "range": {
+            "@timestamp": {
+              "gte": "2024-01-25T13:22:45.968Z",
+              "lte": "2024-01-25T13:37:45.968Z"
+            }
+          }
+        },
+        {
+          "exists": {
+            "field": "summary"
+          }
+        },
+        {
+          "bool": {
+            "must_not": {
+              "exists": {
+                "field": "run_once"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}`,
+		[]string{
+			`SELECT * FROM "logs-generic-default" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-25T13:22:45.968Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T13:37:45.968Z'))`,
+			`SELECT * FROM "logs-generic-default" WHERE ("@timestamp"<=parseDateTime64BestEffort('2024-01-25T13:37:45.968Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-25T13:22:45.968Z'))`,
+		},
+	},
+}
+
 // TODO:
 // 1. 14th test, "Query string". "(message LIKE '%%%' OR message LIKE '%logged%')", is it really
 //    what should be? According to docs, I think so... Maybe test in Kibana?
 
-func TestQueryParser(t *testing.T) {
+func TestQueryParserStringAttrConfig(t *testing.T) {
 	testTable, err := clickhouse.NewTable(`CREATE TABLE `+TableName+`
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
@@ -490,7 +534,7 @@ func TestQueryParser(t *testing.T) {
 	}
 	lm := clickhouse.NewLogManager(clickhouse.TableMap{TableName: testTable}, make(clickhouse.TableMap))
 	cw := ClickhouseQueryTranslator{lm}
-	for _, tt := range testsQueryParser {
+	for _, tt := range testsStringAttr {
 		t.Run(tt.name, func(t *testing.T) {
 			query := cw.parseQuery(tt.queryJson)
 			assert.True(t, query.CanParse)
@@ -500,7 +544,95 @@ func TestQueryParser(t *testing.T) {
 			case []string:
 				assert.Contains(t, tt.wantSql, query.Sql)
 			}
-			//fmt.Println(i, ":", query.sql)
+		})
+	}
+}
+
+func TestQueryParserNoAttrsConfig(t *testing.T) {
+	testTable, err := clickhouse.NewTable(`CREATE TABLE `+TableName+`
+		( "message" String, "timestamp" DateTime64(3, 'UTC') )
+		ENGINE = Memory`,
+		clickhouse.NewCHTableConfigNoAttrs(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lm := clickhouse.NewLogManager(clickhouse.TableMap{TableName: testTable}, make(clickhouse.TableMap))
+	cw := ClickhouseQueryTranslator{lm}
+	for _, tt := range testsNoAttrs {
+		t.Run(tt.name, func(t *testing.T) {
+			query := cw.parseQuery(tt.queryJson)
+			assert.True(t, query.CanParse)
+			switch tt.wantSql.(type) {
+			case string:
+				assert.Equal(t, tt.wantSql, query.Sql)
+			case []string:
+				assert.Contains(t, tt.wantSql, query.Sql)
+			}
+		})
+	}
+}
+
+func TestFilterNonEmpty(t *testing.T) {
+	tests := []struct {
+		array    []string
+		filtered []string
+	}{
+		{
+			[]string{"", "", ""},
+			[]string{},
+		},
+		{
+			[]string{"", "a", ""},
+			[]string{"a"},
+		},
+		{
+			[]string{"a", "b", "c"},
+			[]string{"a", "b", "c"},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			assert.Equal(t, tt.filtered, filterNonEmpty(tt.array))
+		})
+	}
+}
+
+func TestOrAndAnd(t *testing.T) {
+	tests := []struct {
+		stmts []string
+		want  string
+	}{
+		{
+			[]string{"a", "b", "c"},
+			"(a AND b AND c)",
+		},
+		{
+			[]string{"a", "", "", "b"},
+			"(a AND b)",
+		},
+		{
+			[]string{"", "", "a", "", "", "", ""},
+			"a",
+		},
+		{
+			[]string{"", "", "", "", "", "", "", "", "", "", "", ""},
+			"",
+		},
+	}
+
+	// copy, because and() and or() modify the slice
+	for i, tt := range tests {
+		t.Run("AND "+strconv.Itoa(i), func(t *testing.T) {
+			b := make([]string, len(tt.stmts))
+			copy(b, tt.stmts)
+			assert.Equal(t, tt.want, and(b))
+		})
+	}
+	for i, tt := range tests {
+		t.Run("OR "+strconv.Itoa(i), func(t *testing.T) {
+			assert.Equal(t, strings.ReplaceAll(tt.want, "AND", "OR"), or(tt.stmts))
 		})
 	}
 }

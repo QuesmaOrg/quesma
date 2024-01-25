@@ -388,3 +388,16 @@ func NewNoTimestampOnlyStringAttrCHConfig() *ChTableConfig {
 		preferCastingToOthers:                 true,
 	}
 }
+
+func NewCHTableConfigNoAttrs() *ChTableConfig {
+	return &ChTableConfig{
+		hasTimestamp:                          false,
+		timestampDefaultsNow:                  false,
+		engine:                                "MergeTree",
+		orderBy:                               "(" + "`@timestamp`" + ")",
+		hasOthers:                             false,
+		attributes:                            []Attribute{},
+		castUnsupportedAttrValueTypesToString: true,
+		preferCastingToOthers:                 true,
+	}
+}

@@ -153,6 +153,7 @@ func (cw *ClickhouseQueryTranslator) parseBool(m JsonMap) model.Query {
 
 	if q, ok := m["must_not"]; ok {
 		sqlNots := cw.iterateListOrDict(q)
+		sqlNots = filterNonEmpty(sqlNots)
 		if len(sqlNots) > 0 {
 			sql = and([]string{sql, "NOT " + or(sqlNots)})
 		}
@@ -350,13 +351,26 @@ func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []strin
 	return result
 }
 
+func filterNonEmpty(slice []string) []string {
+	i := 0
+	for _, el := range slice {
+		if len(el) > 0 {
+			slice[i] = el
+			i++
+		}
+	}
+	return slice[:i]
+}
+
 func combineStatements(stmts []string, sep string) string {
+	stmts = filterNonEmpty(stmts)
 	s := strings.Join(stmts, " "+sep+" ")
 	if len(stmts) > 1 {
 		return "(" + s + ")"
 	}
 	return s
 }
+
 func and(andStmts []string) string {
 	return combineStatements(andStmts, "AND")
 }
