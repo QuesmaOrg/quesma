@@ -120,7 +120,7 @@ func (q *Quesma) listenHTTP() {
 
 func (q *Quesma) listenResponseDecorator() {
 	if err := q.responseDecorator.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatal("Error starting response decorator server:", err)
+		log.Fatal("Error2 starting response decorator server:", err)
 	}
 }
 
