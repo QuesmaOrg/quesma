@@ -41,7 +41,7 @@ type (
 func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration) *Quesma {
 	responseMatcher := NewResponseMatcher()
 	queryDebugger := NewQueryDebugger()
-	globalBypass.Store(config.Shadow)
+	SetGlobalBypass(config.Shadow)
 	q := &Quesma{
 		logManager: logManager,
 		targetUrl:  target,
@@ -145,4 +145,8 @@ func (q *Quesma) Start() {
 	}()
 	go q.responseMatcher.Compare()
 	go q.queryDebugger.Run()
+}
+
+func SetGlobalBypass(val bool) {
+	globalBypass.Store(val)
 }
