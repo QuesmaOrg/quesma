@@ -11,8 +11,9 @@ import (
 )
 
 type Query struct {
-	sql      string
-	canParse bool
+	sql       string
+	tableName string
+	canParse  bool
 }
 type JsonMap = map[string]interface{}
 
@@ -39,8 +40,8 @@ func NewQueryInfoNone() QueryInfo {
 	return QueryInfo{None, "", 0, 0}
 }
 
-func NewQuery(sql string, canParse bool) Query {
-	return Query{sql, canParse}
+func NewQuery(sql string, tableName string, canParse bool) Query {
+	return Query{sql, tableName, canParse}
 }
 
 // 'q' - string of a JSON query
@@ -48,7 +49,7 @@ func (cw *ClickhouseQueryTranslator) parseQuery(q string) Query {
 	m := make(JsonMap)
 	err := json.Unmarshal([]byte(q), &m)
 	if err != nil {
-		return NewQuery("Invalid JSON (parseQuery)", false)
+		return NewQuery("Invalid JSON (parseQuery)", tableName, false)
 	}
 	parsed := cw.parseJsonMap(m)
 	if !parsed.canParse {
@@ -58,7 +59,7 @@ func (cw *ClickhouseQueryTranslator) parseQuery(q string) Query {
 		if len(parsed.sql) == 0 {
 			where = ""
 		}
-		return NewQuery("SELECT * FROM "+tableName+where+parsed.sql, true)
+		return NewQuery("SELECT * FROM "+tableName+where+parsed.sql, tableName, true)
 	}
 }
 
@@ -66,7 +67,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryAsyncSearch(q string) (Query, Que
 	m := make(JsonMap)
 	err := json.Unmarshal([]byte(q), &m)
 	if err != nil {
-		return NewQuery("Invalid JSON (parseQueryAsyncSearch)", false), NewQueryInfoNone()
+		return NewQuery("Invalid JSON (parseQueryAsyncSearch)", tableName, false), NewQueryInfoNone()
 	}
 
 	queryInfo := cw.tryProcessMetadata(m)
@@ -78,7 +79,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryAsyncSearch(q string) (Query, Que
 		if len(parsed.sql) == 0 {
 			where = ""
 		}
-		return NewQuery("SELECT * FROM "+tableName+where+parsed.sql, true), queryInfo
+		return NewQuery("SELECT * FROM "+tableName+where+parsed.sql, tableName, true), queryInfo
 	}
 }
 
@@ -123,7 +124,7 @@ func (cw *ClickhouseQueryTranslator) parseJsonMap(m JsonMap) Query {
 			return f(v.(JsonMap))
 		}
 	}
-	return NewQuery("Can't parse query: "+pp.Sprint(m), false)
+	return NewQuery("Can't parse query: "+pp.Sprint(m), tableName, false)
 }
 
 // Parses each query separately, returns list of translated SQLs
@@ -178,16 +179,16 @@ func (cw *ClickhouseQueryTranslator) parseBool(m JsonMap) Query {
 			sql = and([]string{sql, "NOT " + or(sqlNots)})
 		}
 	}
-	return NewQuery(sql, true)
+	return NewQuery(sql, tableName, true)
 }
 
 func (cw *ClickhouseQueryTranslator) parseTerm(m JsonMap) Query {
 	if len(m) == 1 {
 		for k, v := range m {
-			return NewQuery(quote(k)+"="+sprint(v), true)
+			return NewQuery(quote(k)+"="+sprint(v), tableName, true)
 		}
 	}
-	return NewQuery("Invalid term len, != 1", false)
+	return NewQuery("Invalid term len, != 1", tableName, false)
 }
 
 // TODO remove optional parameters like boost
@@ -199,14 +200,14 @@ func (cw *ClickhouseQueryTranslator) parseTerms(m JsonMap) Query {
 			for i, v := range vc {
 				orStmts[i] = quote(k) + "=" + sprint(v)
 			}
-			return NewQuery(or(orStmts), true)
+			return NewQuery(or(orStmts), tableName, true)
 		}
 	}
-	return NewQuery("Invalid terms len, != 1", false)
+	return NewQuery("Invalid terms len, != 1", tableName, false)
 }
 
 func (cw *ClickhouseQueryTranslator) parseMatchAll(m JsonMap) Query {
-	return NewQuery("", true)
+	return NewQuery("", tableName, true)
 }
 
 // TODO
@@ -228,10 +229,10 @@ func (cw *ClickhouseQueryTranslator) parseMatch(m JsonMap) Query {
 			for i, s := range split {
 				qStrs[i] = quote(k) + " iLIKE " + "'%" + s + "%'"
 			}
-			return NewQuery(or(qStrs), true)
+			return NewQuery(or(qStrs), tableName, true)
 		}
 	}
-	return NewQuery("Unsupported match len != 1", false)
+	return NewQuery("Unsupported match len != 1", tableName, false)
 }
 
 func (cw *ClickhouseQueryTranslator) parseMultiMatch(m JsonMap) Query {
@@ -251,7 +252,7 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(m JsonMap) Query {
 			i++
 		}
 	}
-	return NewQuery(or(sqls), true)
+	return NewQuery(or(sqls), tableName, true)
 }
 
 // prefix works only on strings
@@ -260,13 +261,13 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(m JsonMap) Query {
 		for k, v := range m {
 			switch vc := v.(type) {
 			case string:
-				return NewQuery(quote(k)+" iLIKE '"+vc+"%'", true)
+				return NewQuery(quote(k)+" iLIKE '"+vc+"%'", tableName, true)
 			case JsonMap:
-				return NewQuery(quote(k)+" iLIKE '"+vc["value"].(string)+"%'", true)
+				return NewQuery(quote(k)+" iLIKE '"+vc["value"].(string)+"%'", tableName, true)
 			}
 		}
 	}
-	return NewQuery("Invalid prefix len != 1", false)
+	return NewQuery("Invalid prefix len != 1", tableName, false)
 }
 
 // Not supporting 'case_insensitive' (optional)
@@ -276,9 +277,9 @@ func (cw *ClickhouseQueryTranslator) parseWildcard(m JsonMap) Query {
 	// not checking for len == 1 because it's only option in proper query
 	for k, v := range m {
 		return NewQuery(quote(k)+" iLIKE '"+strings.ReplaceAll(v.(JsonMap)["value"].(string),
-			"*", "%")+"'", true)
+			"*", "%")+"'", tableName, true)
 	}
-	return NewQuery("Empty wildcard", false)
+	return NewQuery("Empty wildcard", tableName, false)
 }
 
 // This one is REALLY complicated (https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html)
@@ -292,7 +293,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(m JsonMap) Query {
 			orStmts = append(orStmts, quote(field)+" iLIKE '%"+strings.ReplaceAll(qStr, "*", "%")+"%'")
 		}
 	}
-	return NewQuery(or(orStmts), true)
+	return NewQuery(or(orStmts), tableName, true)
 }
 
 func (cw *ClickhouseQueryTranslator) parseNested(m JsonMap) Query {
@@ -328,9 +329,9 @@ func (cw *ClickhouseQueryTranslator) parseRange(m JsonMap) Query {
 				stmts = append(stmts, quote(field)+"<"+vToPrint)
 			}
 		}
-		return NewQuery(and(stmts), true)
+		return NewQuery(and(stmts), tableName, true)
 	}
-	return NewQuery("Empty range", false)
+	return NewQuery("Empty range", tableName, false)
 }
 
 // TODO: not supported
@@ -356,7 +357,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(m JsonMap) Query {
 			sql = or(stmts)
 		}
 	}
-	return NewQuery(sql, true)
+	return NewQuery(sql, tableName, true)
 }
 
 func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []string {

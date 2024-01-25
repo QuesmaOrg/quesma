@@ -40,7 +40,7 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 			i++
 		}
 		responseBody = append([]byte(responseBody), []byte("]}")...)
-		rows, err = queryTranslator.getNMostRecentRows(tableName, "*", "timestamp", query.sql, 2)
+		rows, err = queryTranslator.getNMostRecentRows(query.tableName, "*", "timestamp", query.sql, 2)
 		if err == nil {
 			fmt.Println(rows)
 		} else {
@@ -48,10 +48,10 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 		}
 		responseTranslator := &ClickhouseResultReader{clickhouseLM: lm}
 		responseTranslator.Read(responseBody) // TODO implement this, not line below
-		histogram, err := queryTranslator.getHistogram(tableName)
+		histogram, err := queryTranslator.getHistogram(query.tableName)
 		fmt.Printf("Histogram: %+v, err: %+v\n", histogram, err)
 
-		facets, err := queryTranslator.getFacets(tableName, "severity", query.sql, 0)
+		facets, err := queryTranslator.getFacets(query.tableName, "severity", query.sql, 0)
 		fmt.Printf("Facets: %+v, err: %+v\n", facets, err)
 	} else {
 		responseBody = []byte("Invalid Query, err: " + query.sql)
@@ -128,22 +128,22 @@ func handleAsyncSearch(index string, body []byte, lm *clickhouse.LogManager,
 		switch queryInfo.typ {
 		case Histogram:
 			// queryInfo = (Histogram, "30s", 0 0) TODO accept different time intervals (now default, 15min)
-			histogram, err := queryTranslator.getHistogram(tableName)
+			histogram, err := queryTranslator.getHistogram(query.tableName)
 			fmt.Printf("Histogram: %+v, err: %+v\n", histogram, err)
 			responseBody = createResponseHistogramJson(histogram)
 		case AggsByField:
 			// queryInfo = (AggsByField, fieldName, Limit results, Limit last rows to look into)
-			rows, err := queryTranslator.getFacets(tableName, queryInfo.fieldName, query.sql, queryInfo.i2)
+			rows, err := queryTranslator.getFacets(query.tableName, queryInfo.fieldName, query.sql, queryInfo.i2)
 			fmt.Printf("Rows: %+v, err: %+v\n", rows, err)
 			responseBody = createResponseHitJson(rows)
 		case ListByField:
 			// queryInfo = (ListByField, fieldName, 0, LIMIT)
-			rows, err := queryTranslator.getNMostRecentRows(tableName, queryInfo.fieldName, "timestamp", query.sql, queryInfo.i2)
+			rows, err := queryTranslator.getNMostRecentRows(query.tableName, queryInfo.fieldName, "timestamp", query.sql, queryInfo.i2)
 			fmt.Printf("Rows: %+v, err: %+v\n", rows, err)
 			responseBody = createResponseHitJson(rows)
 		case ListAllFields:
 			// queryInfo = (ListAllFields, "*", 0, LIMIT)
-			rows, err := queryTranslator.getNMostRecentRows(tableName, "*", "timestamp", query.sql, queryInfo.i2)
+			rows, err := queryTranslator.getNMostRecentRows(query.tableName, "*", "timestamp", query.sql, queryInfo.i2)
 			fmt.Printf("Rows: %+v, err: %+v\n", rows, err)
 			responseBody = createResponseHitJson(rows)
 
