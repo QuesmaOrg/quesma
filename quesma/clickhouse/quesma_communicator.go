@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"database/sql"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"log"
 	"mitmproxy/quesma/model"
 	"sort"
@@ -22,7 +23,7 @@ const (
 )
 
 type QueryResultCol struct {
-	ColName string
+	ColName string // quoted, e.g. `"message"`
 	Value   interface{}
 }
 
@@ -48,10 +49,10 @@ func (hr HistogramResult) String() string {
 
 func (c QueryResultCol) String() string {
 	switch c.Value.(type) {
-	case string:
+	case string, time.Time:
 		return fmt.Sprintf(`%s: "%v"`, c.ColName, c.Value)
 	default:
-		return fmt.Sprintf(`%s: "%v"`, c.ColName, c.Value)
+		return fmt.Sprintf(`%s: %v`, c.ColName, c.Value)
 	}
 }
 
@@ -302,9 +303,13 @@ func (lm *LogManager) GetNMostRecentRows(tableName, fieldName, timestampFieldNam
 		row = append(row, col.Type.newZeroValue())
 	}
 
-	whereStmt := strings.ReplaceAll(originalSelectStmt, `SELECT * FROM WHERE`, `WHERE`)
-	queryStr.WriteString(" FROM " + tableName + whereStmt + " ORDER BY " + fmt.Sprintf("\"%s\"", timestampFieldName) + " DESC LIMIT " + strconv.Itoa(N))
-	fmt.Println("query string: ", queryStr.String())
+	whereStmt := ""
+	i := strings.Index(originalSelectStmt, "WHERE")
+	if i != -1 {
+		whereStmt = originalSelectStmt[i:]
+	}
+	queryStr.WriteString(" FROM " + tableName + whereStmt + " ORDER BY " + timestampFieldName + " DESC LIMIT " + strconv.Itoa(N))
+
 	rowsDB, err := lm.db.Query(queryStr.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
@@ -458,11 +463,13 @@ func (lm *LogManager) GetFacets(tableName, fieldName, originalSelectStmt string,
 		lm.db = connection
 	}
 
-	whereStmt := strings.ReplaceAll(originalSelectStmt, `SELECT * FROM WHERE`, "WHERE")
-	query := "SELECT " + fieldName + ", count() FROM " + tableName + whereStmt + " GROUP BY " + fieldName
+	pp.Println("Facets, originalSelectStmt: ", originalSelectStmt)
+	query := strings.ReplaceAll(originalSelectStmt, `*`, strconv.Quote(fieldName)+", count()")
+	query += " GROUP BY " + strconv.Quote(fieldName)
 	if limit > 0 {
 		query += " LIMIT " + strconv.Itoa(limit)
 	}
+
 	rows, err := lm.db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
@@ -479,9 +486,9 @@ func (lm *LogManager) GetFacets(tableName, fieldName, originalSelectStmt string,
 		}
 		total += count
 		resultRows = append(resultRows, QueryResultRow{Cols: []QueryResultCol{
-			{ColName: fieldName, Value: value},
-			{ColName: "count", Value: count},
-			{ColName: "percentage", Value: ""},
+			{ColName: strconv.Quote(fieldName), Value: value},
+			{ColName: `"doc_count"`, Value: count},
+			{ColName: `"percentage"`, Value: ""}, // will be filled later
 		}})
 	}
 	for i := range resultRows {
@@ -519,14 +526,14 @@ func (lm *LogManager) GetAutocompleteSuggestions(tableName, fieldName, prefix st
 		return nil, fmt.Errorf("Column " + fieldName + " not found")
 	}
 
-	query := "SELECT DISTINCT " + fieldName + " FROM " + tableName
+	query := "SELECT DISTINCT " + strconv.Quote(fieldName) + " FROM " + tableName
 	if prefix != "" {
 		if !col.Type.isString() {
-			query += " WHERE toString(" + fieldName + ")"
+			query += " WHERE toString(" + strconv.Quote(fieldName) + ")"
 		} else {
-			query += " WHERE " + fieldName
+			query += " WHERE " + strconv.Quote(fieldName)
 		}
-		query += " LIKE '" + prefix + "%'"
+		query += " iLIKE '" + prefix + "%'"
 	}
 	if limit > 0 {
 		query += " LIMIT " + strconv.Itoa(limit)
@@ -543,7 +550,7 @@ func (lm *LogManager) GetAutocompleteSuggestions(tableName, fieldName, prefix st
 		if err != nil {
 			return nil, fmt.Errorf("scan >> %v", err)
 		}
-		rows = append(rows, QueryResultRow{Cols: []QueryResultCol{{ColName: fieldName, Value: value}}})
+		rows = append(rows, QueryResultRow{Cols: []QueryResultCol{{ColName: strconv.Quote(fieldName), Value: value}}})
 	}
 	return rows, nil
 }

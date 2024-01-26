@@ -19,7 +19,7 @@ const (
 	CreateTablePath     = "/_createTable"
 	InsertPath          = "/_insert"
 	SearchPath          = "/_search"
-	AsyncSearchPath     = "/logs-*-*/_async_search"
+	AsyncSearchPath     = "/_async_search"
 	ElasticInternalPath = "/_"
 )
 
@@ -41,7 +41,7 @@ func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManag
 	router.PathPrefix(InsertPath).HandlerFunc(processInsert(lm))
 	router.PathPrefix(BulkPath).HandlerFunc(bulk(lm, rm, queryDebugger, config)).Methods("POST")
 	router.PathPrefix(SearchPath).HandlerFunc(search(lm, rm, queryDebugger)).Methods("POST")
-	router.PathPrefix(AsyncSearchPath).HandlerFunc(asyncSearch(lm, rm, queryDebugger)).Methods("POST")
+	router.PathPrefix("/{index}" + AsyncSearchPath).HandlerFunc(asyncSearch(lm, rm, queryDebugger)).Methods("POST")
 	router.PathPrefix(ElasticInternalPath).HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		fmt.Printf("unrecognized internal path: %s\n", r.RequestURI)
 	})
@@ -49,8 +49,8 @@ func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManag
 		fmt.Printf("internal index access '%s', ignoring...\n", strings.Split(r.RequestURI, "/")[1])
 	})
 	router.PathPrefix("/{index}/_doc").HandlerFunc(index(lm, rm, queryDebugger, config)).Methods("POST")
-	router.PathPrefix("/{index}/_bulk").HandlerFunc(bulkVar(lm, rm, queryDebugger, config)).Methods("POST")
-	router.PathPrefix("/{index}/_search").HandlerFunc(searchVar(lm, rm, queryDebugger)).Methods("POST")
+	router.PathPrefix("/{index}" + BulkPath).HandlerFunc(bulkVar(lm, rm, queryDebugger, config)).Methods("POST")
+	router.PathPrefix("/{index}" + SearchPath).HandlerFunc(searchVar(lm, rm, queryDebugger)).Methods("POST")
 	return router
 }
 

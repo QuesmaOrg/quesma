@@ -16,6 +16,10 @@ const (
 	None
 )
 
+func (queryType AsyncSearchQueryType) String() string {
+	return []string{"Histogram", "AggsByField", "ListByField", "ListAllFields", "None"}[queryType]
+}
+
 type QueryInfo struct {
 	Typ       AsyncSearchQueryType
 	FieldName string

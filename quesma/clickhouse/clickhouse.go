@@ -61,6 +61,10 @@ type (
 	}
 )
 
+func NewLogManagerEmpty() *LogManager {
+	return &LogManager{}
+}
+
 func (lm *LogManager) Close() {
 	_ = lm.db.Close()
 }

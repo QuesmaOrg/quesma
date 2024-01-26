@@ -61,12 +61,12 @@ func (cw *ClickhouseQueryTranslator) QueryClickhouse(query model.Query) ([]click
 }
 
 // fieldName = "*" -> we query all, otherwise only this 1 field
-func (cw *ClickhouseQueryTranslator) GetNMostRecentRows(tableName, fieldName, timestampFieldName, originalSelectStmt string, limit int) ([]clickhouse.QueryResultRow, error) {
-	return cw.ClickhouseLM.GetNMostRecentRows(tableName, fieldName, timestampFieldName, originalSelectStmt, limit)
+func (cw *ClickhouseQueryTranslator) GetNMostRecentRows(tableName, fieldName, originalSelectStmt string, limit int) ([]clickhouse.QueryResultRow, error) {
+	return cw.ClickhouseLM.GetNMostRecentRows(tableName, fieldName, TimestampFieldName, originalSelectStmt, limit)
 }
 
 func (cw *ClickhouseQueryTranslator) GetHistogram(tableName string) ([]clickhouse.HistogramResult, error) {
-	return cw.ClickhouseLM.GetHistogram(tableName, "@timestamp", 15*time.Minute)
+	return cw.ClickhouseLM.GetHistogram(tableName, TimestampFieldName, 15*time.Minute)
 }
 
 //lint:ignore U1000 Not used yet

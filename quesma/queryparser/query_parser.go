@@ -12,7 +12,10 @@ import (
 
 type JsonMap = map[string]interface{}
 
-const TableName = `"logs-generic-default"`
+const (
+	TableName          = `"logs-generic-default"`
+	TimestampFieldName = `"@timestamp"`
+)
 
 func NewQueryInfoNone() model.QueryInfo {
 	return model.QueryInfo{Typ: model.None, FieldName: "", I1: 0, I2: 0}
@@ -406,59 +409,121 @@ func quote(s string) string {
 // - listAllFields: (ListAllFields, "*", 0, LIMIT) (LIMIT = how many rows we want to return)
 func (cw *ClickhouseQueryTranslator) tryProcessMetadata(m JsonMap) model.QueryInfo {
 	metadata := cw.parseMetadata(m)
-	// case 1. Histogram:
-	m1, ok := metadata["aggs"].(JsonMap)
-	if ok {
-		m2, ok := m1["0"].(JsonMap)
-		if ok {
-			m3, ok := m2["date_histogram"].(JsonMap)
-			if ok {
-				return model.QueryInfo{Typ: model.Histogram, FieldName: m3["fixed_interval"].(string), I1: 0, I2: 0}
-			}
-		}
+	// case 1: maybe it's a Histogram request:
+	if queryInfo, ok := cw.isItHistogramRequest(metadata); ok {
+		return queryInfo
 	}
 
-	// aggs by field
-	m1, ok = metadata["aggs"].(JsonMap)
-	aggsByField := false
+	// case 2: maybe it's a AggsByField request
+	if queryInfo, ok := cw.isItAggsByFieldRequest(metadata); ok {
+		return queryInfo
+	}
+
+	// case 3: maybe it's ListByField ListAllFields request
+	// If it's not, we (and isItListRequest) return QueryInfoNone
+	queryInfo, _ := cw.isItListRequest(metadata)
+	return queryInfo
+}
+
+// 'm' - metadata part of the JSON query
+// returns (info, true) if metadata shows it's histogram
+// returns (NewQueryInfoNone, false) if it's not histogram
+func (cw *ClickhouseQueryTranslator) isItHistogramRequest(m JsonMap) (model.QueryInfo, bool) {
+	m, ok := m["aggs"].(JsonMap)
+	if !ok {
+		return NewQueryInfoNone(), false
+	}
+	m2, ok := m["0"].(JsonMap)
+	if ok {
+		if m2, ok = m2["date_histogram"].(JsonMap); ok {
+			return model.QueryInfo{Typ: model.Histogram, FieldName: m2["fixed_interval"].(string), I1: 0, I2: 0}, true
+		}
+	}
+	m, ok = m["stats"].(JsonMap)
+	if !ok {
+		return NewQueryInfoNone(), false
+	}
+	m, ok = m["aggs"].(JsonMap)
+	if !ok {
+		return NewQueryInfoNone(), false
+	}
+	m, ok = m["series"].(JsonMap)
+	if !ok {
+		return NewQueryInfoNone(), false
+	}
+	m, ok = m["date_histogram"].(JsonMap)
+	if ok {
+		return model.QueryInfo{Typ: model.Histogram, FieldName: m["fixed_interval"].(string), I1: 0, I2: 0}, true
+	}
+	return NewQueryInfoNone(), false
+}
+
+// 'm' - metadata part of the JSON query
+// returns (info, true) if metadata shows it's AggsByField request (used e.g. for facets in Kibana)
+// returns (NewQueryInfoNone, false) if it's not AggsByField request
+func (cw *ClickhouseQueryTranslator) isItAggsByFieldRequest(m JsonMap) (model.QueryInfo, bool) {
+	m, ok := m["aggs"].(JsonMap)
+	if !ok {
+		return NewQueryInfoNone(), false
+	}
 	fieldName := ""
 	size := 0
-	if ok {
-		m2, ok := m1["sample"].(JsonMap)
-		if ok {
-			m3, ok := m2["aggs"].(JsonMap)
-			if ok {
-				m4, ok := m3["top_values"].(JsonMap)
-				if ok {
-					m5, ok := m4["terms"].(JsonMap)
-					if ok {
-						aggsByField = true
-						size = int(m5["size"].(float64))
-						fieldName = m5["field"].(string)
-					}
-				}
-			}
-			m3, ok = m2["sampler"].(JsonMap)
-			if ok {
-				shard_size, ok := m3["shard_size"].(float64)
-				if ok && aggsByField {
-					return model.QueryInfo{Typ: model.AggsByField, FieldName: fieldName, I1: size, I2: int(shard_size)}
-				}
-			}
-		}
+	m, ok = m["sample"].(JsonMap)
+	if !ok {
+		return NewQueryInfoNone(), false
+	}
+	m2, ok := m["aggs"].(JsonMap)
+	if !ok {
+		return NewQueryInfoNone(), false
+	}
+	m2, ok = m2["top_values"].(JsonMap)
+	if !ok {
+		return NewQueryInfoNone(), false
+	}
+	m2, ok = m2["terms"].(JsonMap)
+	if !ok {
+		return NewQueryInfoNone(), false
 	}
 
-	// by field or all fields
-	m2, ok := metadata["fields"].([]interface{})
-	if ok {
-		size := int(metadata["size"].(float64))
-		if len(m2) > 1 || m2[0].(JsonMap)["field"].(string) == "*" {
-			// so far everywhere I've seen, > 1 field = "*" is one of them
-			return model.QueryInfo{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: size}
-		} else {
-			return model.QueryInfo{Typ: model.ListByField, FieldName: m2[0].(JsonMap)["field"].(string), I1: 0, I2: size}
-		}
-	}
+	size = int(m2["size"].(float64))
+	fieldName = strings.TrimSuffix(m2["field"].(string), ".keyword")
 
-	return NewQueryInfoNone()
+	m2, ok = m["sampler"].(JsonMap)
+	if !ok {
+		return NewQueryInfoNone(), false
+	}
+	shardSize, ok := m2["shard_size"].(float64)
+	if !ok {
+		return NewQueryInfoNone(), false
+	}
+	return model.QueryInfo{Typ: model.AggsByField, FieldName: fieldName, I1: size, I2: int(shardSize)}, true
+}
+
+// 'm' - metadata part of the JSON query
+// returns (info, true) if metadata shows it's ListAllFields or ListByField request (used e.g. for listing all rows in Kibana)
+// returns (NewQueryInfoNone, false) if it's not ListAllFields/ListByField request
+func (cw *ClickhouseQueryTranslator) isItListRequest(m JsonMap) (model.QueryInfo, bool) {
+	fields, ok := m["fields"].([]interface{})
+	if !ok {
+		return NewQueryInfoNone(), false
+	}
+	size, ok := m["size"].(float64)
+	if !ok {
+		return NewQueryInfoNone(), false
+	}
+	if len(fields) > 1 {
+		// so far everywhere I've seen, > 1 field ==> "*" is one of them
+		return model.QueryInfo{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size)}, true
+	}
+	// so far everywhere I've seen, there's always at least 1 field, so it's safe to do this
+	m, ok = fields[0].(JsonMap)
+	if !ok {
+		return NewQueryInfoNone(), false
+	}
+	// same as above
+	field := m["field"].(string)
+	if field == "*" {
+		return model.QueryInfo{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size)}, true
+	}
+	return model.QueryInfo{Typ: model.ListByField, FieldName: field, I1: 0, I2: int(size)}, true
 }

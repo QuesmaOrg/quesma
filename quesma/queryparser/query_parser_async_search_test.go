@@ -1,7 +1,6 @@
 package queryparser
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/model"
@@ -16,7 +15,7 @@ var testsAsyncResult = []struct {
 	wantedParseResult model.QueryInfo
 }{
 	{
-		"Aggregate by field + match user",
+		"AggsByField (Facet): aggregate by field + additionally match user (filter)",
 		`{
     "aggs": {
         "sample": {
@@ -156,7 +155,7 @@ var testsAsyncResult = []struct {
 		"no comment yet",
 		model.QueryInfo{Typ: model.AggsByField, FieldName: "host.name", I1: 10, I2: 5000}},
 	{
-		"Query one field, last 'size' results, return list of just that field, no timestamp, etc.",
+		"ListByField: query one field, last 'size' results, return list of just that field, no timestamp, etc.",
 		`{
     "_source": false,
     "fields": [
@@ -282,9 +281,9 @@ var testsAsyncResult = []struct {
     "start_time_in_millis": 1706021975538
 }
 `, "there should be 97 results, I truncated most of them",
-		model.QueryInfo{Typ: model.ListByField, FieldName: "message", I1: 100, I2: 0}},
+		model.QueryInfo{Typ: model.ListByField, FieldName: "message", I1: 0, I2: 100}},
 	{
-		"Search all fields, return JSON + count (we don't return count atm)",
+		"ListAllFields: search all fields, return JSON + count (we don't return count atm)",
 		`{
     "_source": false,
     "fields": [
@@ -519,7 +518,7 @@ var testsAsyncResult = []struct {
 		model.QueryInfo{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: 500},
 	},
 	{
-		"Histogram",
+		"Histogram: possible query nr 1",
 		`{
     "_source": {
         "excludes": []
@@ -648,17 +647,62 @@ var testsAsyncResult = []struct {
 `,
 		"no comment yet",
 		model.QueryInfo{Typ: model.Histogram, FieldName: "30s", I1: 0, I2: 0},
-	}}
+	},
+	{
+		"Histogram: possible query nr 2",
+		`{
+	"size":0,
+	"query":
+	{
+		"range":
+		{
+			"@timestamp":
+			{
+				"gt": "2024-01-25T14:53:59.033Z",
+				"lte": "2024-01-25T15:08:59.033Z",
+				"format": "strict_date_optional_time"
+			}
+		}
+	},
+	"aggs":
+	{
+		"stats":
+		{
+			"terms":
+			{
+				"field": "event.dataset",
+				"size": 4,
+				"missing": "unknown"
+			},
+			"aggs":
+			{
+				"series":
+				{
+					"date_histogram":
+					{
+						"field": "@timestamp",
+						"fixed_interval": "60s"
+					}
+				}
+			}
+		}
+	},
+	"track_total_hits":true
+}`,
+		`{}`,
+		"no comment yet",
+		model.QueryInfo{Typ: model.Histogram, FieldName: "60s", I1: 0, I2: 0},
+	},
+}
 
 func TestQueryParserAsyncSearch(t *testing.T) {
 	lm := clickhouse.NewLogManager(make(clickhouse.TableMap), make(clickhouse.TableMap))
 	cw := ClickhouseQueryTranslator{lm}
-	for i, tt := range testsAsyncResult {
+	for _, tt := range testsAsyncResult {
 		t.Run(tt.name, func(t *testing.T) {
 			query, queryInfo := cw.parseQueryAsyncSearch(tt.queryJson)
 			assert.True(t, query.CanParse)
-
-			fmt.Println(i, ":", tt.name, queryInfo)
+			assert.Equal(t, tt.wantedParseResult, queryInfo)
 		})
 	}
 }

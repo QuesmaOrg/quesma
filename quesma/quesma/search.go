@@ -12,7 +12,6 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 	responseMatcher *ResponseMatcher,
 	queryDebugger *QueryDebugger,
 	requestId string) {
-	// TODO: implement
 	var translatedQueryBody []byte
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
 
@@ -31,17 +30,6 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 		if err != nil {
 			log.Println(err)
 		}
-		rows, err = queryTranslator.GetNMostRecentRows(query.TableName, "*", "timestamp", query.Sql, 2)
-		if err == nil {
-			fmt.Println(rows)
-		} else {
-			fmt.Println(err)
-		}
-		histogram, err := queryTranslator.GetHistogram(query.TableName)
-		fmt.Printf("Histogram: %+v, err: %+v\n", histogram, err)
-
-		facets, err := queryTranslator.GetFacets(query.TableName, "severity", query.Sql, 0)
-		fmt.Printf("Facets: %+v, err: %+v\n", facets, err)
 	} else {
 		responseBody = []byte("Invalid Query, err: " + query.Sql)
 	}
@@ -78,7 +66,6 @@ func handleAsyncSearch(index string, body []byte, lm *clickhouse.LogManager,
 	responseMatcher *ResponseMatcher,
 	queryDebugger *QueryDebugger,
 	requestId string) {
-	// TODO: implement
 	var translatedQueryBody []byte
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
 
@@ -103,15 +90,14 @@ func handleAsyncSearch(index string, body []byte, lm *clickhouse.LogManager,
 			responseBody = createResponseHitJson(rows)
 		case model.ListByField:
 			// queryInfo = (ListByField, fieldName, 0, LIMIT)
-			rows, err := queryTranslator.GetNMostRecentRows(query.TableName, queryInfo.FieldName, "timestamp", query.Sql, queryInfo.I2)
+			rows, err := queryTranslator.GetNMostRecentRows(query.TableName, queryInfo.FieldName, query.Sql, queryInfo.I2)
 			fmt.Printf("Rows: %+v, err: %+v\n", rows, err)
 			responseBody = createResponseHitJson(rows)
 		case model.ListAllFields:
 			// queryInfo = (ListAllFields, "*", 0, LIMIT)
-			rows, err := queryTranslator.GetNMostRecentRows(query.TableName, "*", "timestamp", query.Sql, queryInfo.I2)
+			rows, err := queryTranslator.GetNMostRecentRows(query.TableName, "*", query.Sql, queryInfo.I2)
 			fmt.Printf("Rows: %+v, err: %+v\n", rows, err)
 			responseBody = createResponseHitJson(rows)
-
 		}
 	} else {
 		responseBody = []byte("Invalid Query, err: " + query.Sql)
