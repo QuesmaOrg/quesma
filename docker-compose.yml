@@ -6,9 +6,10 @@ services:
       - ELASTIC_URL=elasticsearch:9200
       - TCP_PORT=8080
     depends_on:
-      - elasticsearch
-      - mitmproxy
-      - clickhouse
+      clickhouse:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     links:
       - elasticsearch
     ports:
@@ -46,6 +47,9 @@ services:
     ports:
       - "9201:9200"
       - "9300:9300"
+    healthcheck:
+      test: curl -s http://elasticsearch:9200 >/dev/null || exit 1
+      start_period: 1m
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.1
     links:
@@ -53,9 +57,12 @@ services:
     environment:
       ELASTICSEARCH_HOSTS: '["http://mitmproxy:8080"]'
     depends_on:
-      - elasticsearch
-      - mitmproxy
-      - quesma
+      mitmproxy:
+        condition: service_started
+      quesma:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
     ports:
       - "5601:5601"
     restart: unless-stopped
@@ -66,7 +73,8 @@ services:
     volumes:
       - ./clickhouse/additional_config.xml:/etc/clickhouse-server/users.d/additional_config.xml
     healthcheck:
-      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+      test: wget --no-verbose --tries=1 --spider http://clickhouse:8123/ping || exit 1
+      start_period: 1m
   mitmproxy:
     image: mitmproxy/mitmproxy:10.1.5
     tty: true
@@ -74,9 +82,14 @@ services:
       - "9200:8080"
       - "8081:8081"
     command: mitmweb --no-web-open-browser --web-host 0.0.0.0 --mode reverse:http://quesma:8080/ -s /var/mitmproxy/request.py
+    depends_on:
+      - quesma
     restart: unless-stopped
     volumes:
       - ./mitmproxy:/var/mitmproxy
+    healthcheck:
+      # No curl/wget, going old school
+      test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/8080' || exit 1
   clean:
     build: clean
     depends_on:
