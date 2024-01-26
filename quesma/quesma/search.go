@@ -9,7 +9,6 @@ import (
 )
 
 func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
-	responseMatcher *ResponseMatcher,
 	queryDebugger *QueryDebugger,
 	requestId string) {
 	var translatedQueryBody []byte
@@ -35,7 +34,6 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 	}
 
 	var rawResults []byte
-	responseMatcher.Push(&QResponse{requestId, responseBody})
 	translatedQueryBody = []byte(query.Sql)
 	queryDebugger.PushSecondaryInfo(&QueryDebugSecondarySource{
 		id:                     requestId,
@@ -63,7 +61,6 @@ func createResponseHistogramJson(rows []clickhouse.HistogramResult) []byte {
 }
 
 func handleAsyncSearch(index string, body []byte, lm *clickhouse.LogManager,
-	responseMatcher *ResponseMatcher,
 	queryDebugger *QueryDebugger,
 	requestId string) {
 	var translatedQueryBody []byte
@@ -104,7 +101,6 @@ func handleAsyncSearch(index string, body []byte, lm *clickhouse.LogManager,
 	}
 
 	var rawResults []byte
-	responseMatcher.Push(&QResponse{requestId, responseBody})
 	translatedQueryBody = []byte(query.Sql)
 	queryDebugger.PushSecondaryInfo(&QueryDebugSecondarySource{
 		id:                     requestId,

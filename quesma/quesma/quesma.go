@@ -32,14 +32,12 @@ type (
 		responseDecorator *http.Server
 		tcpProxyPort      string
 		requestId         int64
-		responseMatcher   *ResponseMatcher
 		queryDebugger     *QueryDebugger
 		config            config.QuesmaConfiguration
 	}
 )
 
 func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration) *Quesma {
-	responseMatcher := NewResponseMatcher()
 	queryDebugger := NewQueryDebugger()
 	SetGlobalBypass(config.Shadow)
 	q := &Quesma{
@@ -49,16 +47,15 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 		httpPort:   httpPort,
 		server: &http.Server{
 			Addr:    ":" + httpPort,
-			Handler: configureRouting(config, logManager, responseMatcher, queryDebugger),
+			Handler: configureRouting(config, logManager, queryDebugger),
 		},
-		requestId:       0,
-		tcpProxyPort:    TcpProxyPort,
-		responseMatcher: responseMatcher,
-		queryDebugger:   queryDebugger,
-		config:          config,
+		requestId:     0,
+		tcpProxyPort:  TcpProxyPort,
+		queryDebugger: queryDebugger,
+		config:        config,
 	}
 
-	q.responseDecorator = NewResponseDecorator(tcpPort, q.requestId, q.responseMatcher, q.queryDebugger)
+	q.responseDecorator = NewResponseDecorator(tcpPort, q.requestId, q.queryDebugger)
 
 	return q
 }
@@ -151,7 +148,6 @@ func (q *Quesma) Start() {
 			go q.handleRequest(in)
 		}
 	}()
-	go q.responseMatcher.Compare()
 	go q.queryDebugger.Run()
 }
 

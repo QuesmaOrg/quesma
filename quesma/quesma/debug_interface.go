@@ -58,6 +58,7 @@ type QueryDebugger struct {
 	mutex                     sync.Mutex
 	debugInfoMessages         map[string]QueryDebugInfo
 	debugLastMessages         []string
+	responseMatcherChannel    chan QueryDebugInfo
 }
 
 func NewQueryDebugger() *QueryDebugger {
@@ -66,6 +67,7 @@ func NewQueryDebugger() *QueryDebugger {
 		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 5),
 		debugInfoMessages:         make(map[string]QueryDebugInfo),
 		debugLastMessages:         make([]string, 0),
+		responseMatcherChannel:    make(chan QueryDebugInfo, 5),
 	}
 }
 
@@ -423,6 +425,7 @@ func (gd *QueryDebugger) addNewMessageId(messageId string) {
 }
 
 func (qd *QueryDebugger) Run() {
+	go qd.comparePipelines()
 	go func() {
 		qd.ui = qd.newHTTPServer()
 		qd.listenAndServe()
@@ -441,6 +444,9 @@ func (qd *QueryDebugger) Run() {
 			} else {
 				value.QueryDebugPrimarySource = debugPrimaryInfo
 				qd.debugInfoMessages[msg.id] = value
+				// That's the point where QueryDebugInfo is
+				// complete and we can compare results
+				qd.responseMatcherChannel <- value
 			}
 			qd.mutex.Unlock()
 		case msg := <-qd.queryDebugSecondarySource:
@@ -460,7 +466,10 @@ func (qd *QueryDebugger) Run() {
 				qd.addNewMessageId(msg.id)
 			} else {
 				value.QueryDebugSecondarySource = secondaryDebugInfo
+				// That's the point where QueryDebugInfo is
+				// complete and we can compare results
 				qd.debugInfoMessages[msg.id] = value
+				qd.responseMatcherChannel <- value
 			}
 			qd.mutex.Unlock()
 
@@ -496,5 +505,18 @@ func bypassSwitch(writer http.ResponseWriter, r *http.Request) {
 		writer.WriteHeader(200)
 	} else {
 		writer.WriteHeader(400)
+	}
+}
+
+func (qd *QueryDebugger) comparePipelines() {
+	for {
+		queryDebugInfo, ok := <-qd.responseMatcherChannel
+		if ok {
+			if string(queryDebugInfo.queryResp) != string(queryDebugInfo.queryTranslatedResults) {
+				log.Println("Responses are different:")
+				log.Println("First:" + string(queryDebugInfo.queryResp))
+				log.Println("Second:" + string(queryDebugInfo.queryTranslatedResults))
+			}
+		}
 	}
 }

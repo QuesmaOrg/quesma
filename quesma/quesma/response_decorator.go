@@ -33,7 +33,7 @@ func unzip(gzippedData []byte) ([]byte, error) {
 	return unzippedData, nil
 }
 
-func NewResponseDecorator(tcpPort string, requestId int64, matcher *ResponseMatcher, queryDebugger *QueryDebugger) *http.Server {
+func NewResponseDecorator(tcpPort string, requestId int64, queryDebugger *QueryDebugger) *http.Server {
 	remote, err := url.Parse(RemoteUrl)
 	if err != nil {
 		log.Fatal("Cannot parse target url:", err)
@@ -69,10 +69,8 @@ func NewResponseDecorator(tcpPort string, requestId int64, matcher *ResponseMatc
 							log.Println("Error unzipping:", err)
 							return err
 						}
-						matcher.Push(&QResponse{req.Header.Get("RequestId"), unzippedBuffer})
 						queryDebugger.PushPrimaryInfo(&QueryDebugPrimarySource{req.Header.Get("RequestId"), unzippedBuffer})
 					} else {
-						matcher.Push(&QResponse{req.Header.Get("RequestId"), body})
 						queryDebugger.PushPrimaryInfo(&QueryDebugPrimarySource{req.Header.Get("RequestId"), body})
 					}
 				}
