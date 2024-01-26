@@ -36,10 +36,8 @@ func (cw *ClickhouseQueryTranslator) WriteAsyncSearch(buf []byte) (model.Query, 
 func MakeResponse[T fmt.Stringer](ResultSet []T) ([]byte, error) {
 	searchResponse := model.SearchResp{}
 	for _, row := range ResultSet {
-		var newBuf []byte
-		newBuf = append(newBuf, []byte(row.String())...)
 		searchHit := model.SearchHit{}
-		searchHit.Source = newBuf
+		searchHit.Source = []byte(row.String())
 		searchResponse.Hits.Hits = append(searchResponse.Hits.Hits, searchHit)
 	}
 	return json.MarshalIndent(searchResponse, "", "  ")
