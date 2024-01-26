@@ -65,6 +65,8 @@ services:
       - "8123:8123"
     volumes:
       - ./clickhouse/additional_config.xml:/etc/clickhouse-server/users.d/additional_config.xml
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
   mitmproxy:
     image: mitmproxy/mitmproxy:10.1.5
     tty: true
@@ -75,11 +77,13 @@ services:
     restart: unless-stopped
     volumes:
       - ./mitmproxy:/var/mitmproxy
-  mitmproxyclean:
-    image: mitmproxy/mitmproxy:10.1.5
+  clean:
+    build: clean
     depends_on:
-      - mitmproxy
+      mitmproxy:
+        condition: service_started
+      clickhouse:
+        condition: service_healthy
     restart: "no"
-    entrypoint: [ "bash", "-c", "python3 /var/mitmproxy/clean.py" ]
     volumes:
       - ./mitmproxy:/var/mitmproxy

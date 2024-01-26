@@ -4,3 +4,4 @@ __pycache__
 mitmproxy/requests/*.txt
 mitmproxy/requests/*.mitm
 mitmproxy/query/*.txt
+.env
