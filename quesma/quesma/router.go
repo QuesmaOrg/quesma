@@ -14,8 +14,7 @@ import (
 )
 
 const (
-	InternalPath        = "/_quesma"
-	HealthPath          = InternalPath + "/health"
+	HealthPath          = "/_cluster/health"
 	BulkPath            = "/_bulk"
 	CreateTablePath     = "/_createTable"
 	InsertPath          = "/_insert"

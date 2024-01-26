@@ -470,6 +470,8 @@ func (qd *QueryDebugger) Run() {
 
 func ok(writer http.ResponseWriter, _ *http.Request) {
 	writer.WriteHeader(200)
+	writer.Header().Set("Content-Type", "application/json")
+	_, _ = writer.Write([]byte(`{"cluster_name": "quesma"}`))
 }
 
 // curl -X POST localhost:9999/_quesma/bypass -d '{"bypass": true}'
