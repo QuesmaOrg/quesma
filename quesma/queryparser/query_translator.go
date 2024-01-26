@@ -1,6 +1,7 @@
 package queryparser
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"mitmproxy/quesma/clickhouse"
@@ -32,21 +33,16 @@ func (cw *ClickhouseQueryTranslator) WriteAsyncSearch(buf []byte) (model.Query, 
 	return query, queryInfo
 }
 
-func MakeResponse[T fmt.Stringer](ResultSet []T, header string) ([]byte, error) {
-	var newBuf []byte
-	newBuf = append(newBuf, []byte("{\n")...)
-	newBuf = append(newBuf, []byte(`"`+header+`": [`)...)
-	numRows := len(ResultSet)
-	i := 0
+func MakeResponse[T fmt.Stringer](ResultSet []T) ([]byte, error) {
+	searchResponse := model.SearchResp{}
 	for _, row := range ResultSet {
+		var newBuf []byte
 		newBuf = append(newBuf, []byte(row.String())...)
-		if i < numRows-1 {
-			newBuf = append(newBuf, []byte(",\n")...)
-		}
-		i++
+		searchHit := model.SearchHit{}
+		searchHit.Source = newBuf
+		searchResponse.Hits.Hits = append(searchResponse.Hits.Hits, searchHit)
 	}
-	newBuf = append(newBuf, []byte("]}")...)
-	return newBuf, nil
+	return json.MarshalIndent(searchResponse, "", "  ")
 }
 
 func (cw *ClickhouseQueryTranslator) GetAttributesList(tableName string) []clickhouse.Attribute {
