@@ -2,6 +2,7 @@ package queryparser
 
 import (
 	"fmt"
+	"log"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/model"
 	"time"
@@ -12,26 +13,40 @@ type ClickhouseQueryTranslator struct {
 }
 
 type ClickhouseResultReader struct {
-	ClickhouseLM *clickhouse.LogManager
+}
+
+func NewClickhouseResultReader() *ClickhouseResultReader {
+	return &ClickhouseResultReader{}
 }
 
 // TODO come back to (int, error) return type?
 func (cw *ClickhouseQueryTranslator) Write(buf []byte) model.Query {
-	//fmt.Println("ClickhouseQueryTranslator.Write, buf: ", string(buf))
 	query := cw.parseQuery(string(buf))
-	//fmt.Printf("ClickhouseQueryTranslator.Write, query: %+v", query)
 	return query
 }
 
 func (cw *ClickhouseQueryTranslator) WriteAsyncSearch(buf []byte) (model.Query, model.QueryInfo) {
-	fmt.Println("ClickhouseQueryTranslator.WriteAsyncSearch, buf: ", string(buf))
+	log.Println("ClickhouseQueryTranslator.WriteAsyncSearch, buf: ", string(buf))
 	query, queryInfo := cw.parseQueryAsyncSearch(string(buf))
-	fmt.Printf("ClickhouseQueryTranslator.WriteAsyncSearch, queryInfo: %+v, query: %+v", queryInfo, query)
+	log.Printf("ClickhouseQueryTranslator.WriteAsyncSearch, queryInfo: %+v, query: %+v", queryInfo, query)
 	return query, queryInfo
 }
 
-func (cw *ClickhouseResultReader) Read(buf []byte) (int, error) {
-	return 0, nil
+func MakeResponse[T fmt.Stringer](ResultSet []T, header string) ([]byte, error) {
+	var newBuf []byte
+	newBuf = append(newBuf, []byte("{\n")...)
+	newBuf = append(newBuf, []byte(`"`+header+`": [`)...)
+	numRows := len(ResultSet)
+	i := 0
+	for _, row := range ResultSet {
+		newBuf = append(newBuf, []byte(row.String())...)
+		if i < numRows-1 {
+			newBuf = append(newBuf, []byte(",\n")...)
+		}
+		i++
+	}
+	newBuf = append(newBuf, []byte("]}")...)
+	return newBuf, nil
 }
 
 func (cw *ClickhouseQueryTranslator) GetAttributesList(tableName string) []clickhouse.Attribute {

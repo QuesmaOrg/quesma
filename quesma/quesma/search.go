@@ -2,6 +2,7 @@ package quesma
 
 import (
 	"fmt"
+	"log"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
@@ -18,38 +19,24 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 	// TODO index argument is not used yet
 	_ = index
 
-	// old TODO: query clickhouse
-	// get response
-	// and translate
-
 	query := queryTranslator.Write(body)
 	var responseBody []byte
 	if query.CanParse {
 		rows, err := queryTranslator.QueryClickhouse(query)
 		if err != nil {
-			responseBody = []byte("Error processing query: " + query.Sql + ", err: " + err.Error())
+			log.Println("Error processing query: " + query.Sql + ", err: " + err.Error())
 		}
-		responseBody = append([]byte(responseBody), []byte("{\n")...)
-		responseBody = append([]byte(responseBody), []byte("\"hit\": [")...)
-		numRows := len(rows)
-		i := 0
-		for _, row := range rows {
-			_ = row
-			responseBody = append(responseBody, []byte(row.String())...)
-			if i < numRows-1 {
-				responseBody = append(responseBody, []byte(",\n")...)
-			}
-			i++
+
+		responseBody, err = queryparser.MakeResponse(rows, "hit")
+		if err != nil {
+			log.Println(err)
 		}
-		responseBody = append([]byte(responseBody), []byte("]}")...)
 		rows, err = queryTranslator.GetNMostRecentRows(query.TableName, "*", "timestamp", query.Sql, 2)
 		if err == nil {
 			fmt.Println(rows)
 		} else {
 			fmt.Println(err)
 		}
-		responseTranslator := &queryparser.ClickhouseResultReader{ClickhouseLM: lm}
-		responseTranslator.Read(responseBody) // TODO implement this, not line below
 		histogram, err := queryTranslator.GetHistogram(query.TableName)
 		fmt.Printf("Histogram: %+v, err: %+v\n", histogram, err)
 
@@ -72,38 +59,18 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 }
 
 func createResponseHitJson(rows []clickhouse.QueryResultRow) []byte {
-	responseBody := []byte{}
-	responseBody = append([]byte(responseBody), []byte("{\n")...)
-	numRows := len(rows)
-	i := 0
-	for _, row := range rows {
-		_ = row
-		responseBody = append(responseBody, []byte("\"hit\":"+row.String())...)
-		if i < numRows-1 {
-			responseBody = append(responseBody, []byte(",\n")...)
-		}
-		i++
+	responseBody, err := queryparser.MakeResponse(rows, "hit")
+	if err != nil {
+		log.Println(err)
 	}
-	responseBody = append([]byte(responseBody), []byte("}")...)
-
 	return responseBody
 }
 
 func createResponseHistogramJson(rows []clickhouse.HistogramResult) []byte {
-	responseBody := []byte{}
-	responseBody = append([]byte(responseBody), []byte("{\n")...)
-	numRows := len(rows)
-	i := 0
-	for _, row := range rows {
-		_ = row
-		responseBody = append(responseBody, []byte("\"bucket\":"+row.String())...)
-		if i < numRows-1 {
-			responseBody = append(responseBody, []byte(",\n")...)
-		}
-		i++
+	responseBody, err := queryparser.MakeResponse(rows, "bucket")
+	if err != nil {
+		log.Println(err)
 	}
-	responseBody = append([]byte(responseBody), []byte("}")...)
-
 	return responseBody
 }
 
@@ -117,10 +84,6 @@ func handleAsyncSearch(index string, body []byte, lm *clickhouse.LogManager,
 
 	// TODO index argument is not used yet
 	_ = index
-
-	// old TODO: query clickhouse
-	// get response
-	// and translate
 
 	query, queryInfo := queryTranslator.WriteAsyncSearch(body)
 	var responseBody []byte
@@ -150,14 +113,6 @@ func handleAsyncSearch(index string, body []byte, lm *clickhouse.LogManager,
 			responseBody = createResponseHitJson(rows)
 
 		}
-
-		//cnt, err := queryTranslator.queryClickhouse(query.sql)
-		//if err != nil {
-		//	responseBody = []byte("Error processing query: " + query.sql + ", err: " + err.Error())
-		//}
-		//responseTranslator := &ClickhouseResultReader{clickhouseLM: lm}
-		//responseTranslator.Read(responseBody) // TODO implement this, not line below
-		// responseBody = []byte(strconv.Itoa(cnt))
 	} else {
 		responseBody = []byte("Invalid Query, err: " + query.Sql)
 	}
