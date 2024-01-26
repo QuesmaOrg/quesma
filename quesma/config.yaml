@@ -1,5 +1,6 @@
 quesma:
   shadow-mode: false
+  dual-write-mode: true
   index:
     logs-generic-*:
       enabled: true

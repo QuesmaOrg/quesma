@@ -86,12 +86,6 @@ func (q *Quesma) listen() (net.Listener, error) {
 func (q *Quesma) handleRequest(in net.Conn) {
 	defer recovery.LogPanic()
 	defer in.Close()
-	elkConnection, err := net.Dial("tcp", q.targetUrl)
-	log.Println("elkConnection:" + q.targetUrl)
-	if err != nil {
-		log.Println("error dialing primary addr", err)
-		return
-	}
 
 	internalHttpServerConnection, err := net.Dial("tcp", ":"+q.httpPort)
 	log.Println("internalHttpServerConnection:" + q.httpPort)
@@ -100,13 +94,27 @@ func (q *Quesma) handleRequest(in net.Conn) {
 		return
 	}
 
-	defer elkConnection.Close()
 	defer internalHttpServerConnection.Close()
 
 	var copyCompletionBarrier sync.WaitGroup
 	copyCompletionBarrier.Add(2)
-	go copyAndSignal(&copyCompletionBarrier, io.MultiWriter(elkConnection, internalHttpServerConnection), in)
-	go copyAndSignal(&copyCompletionBarrier, in, elkConnection)
+	if q.config.DualWrite {
+		log.Println("dual write enabled, writing to Elasticsearch and mirroring to Clickhouse")
+		elkConnection, err := net.Dial("tcp", q.targetUrl)
+		log.Println("elkConnection:" + q.targetUrl)
+		if err != nil {
+			log.Println("error dialing primary addr", err)
+			return
+		}
+		defer elkConnection.Close()
+		go copyAndSignal(&copyCompletionBarrier, io.MultiWriter(elkConnection, internalHttpServerConnection), in)
+		go copyAndSignal(&copyCompletionBarrier, in, elkConnection)
+	} else {
+		log.Println("dual write disabled, writing to Clickhouse only")
+		go copyAndSignal(&copyCompletionBarrier, internalHttpServerConnection, in)
+		go copyAndSignal(&copyCompletionBarrier, in, internalHttpServerConnection)
+	}
+
 	copyCompletionBarrier.Wait()
 
 	log.Println("Connection complete", in.RemoteAddr())

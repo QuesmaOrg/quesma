@@ -14,15 +14,20 @@ const (
 )
 
 const (
-	prefix           = "quesma"
-	shadowModeConfig = "shadow-mode"
-	indexConfig      = "index"
-	enabledConfig    = "enabled"
+	shadowMode    = "shadow-mode"
+	dualWriteMode = "dual-write-mode"
+)
+
+const (
+	prefix        = "quesma"
+	indexConfig   = "index"
+	enabledConfig = "enabled"
 )
 
 type (
 	QuesmaConfiguration struct {
 		Shadow      bool
+		DualWrite   bool
 		IndexConfig []IndexConfiguration
 	}
 
@@ -41,12 +46,13 @@ func Load() QuesmaConfiguration {
 		return QuesmaConfiguration{}
 	}
 
-	var shadow = viper.Get(fullyQualifiedConfig(shadowModeConfig)).(bool)
+	var shadow = viper.Get(fullyQualifiedConfig(shadowMode)).(bool)
+	var dualWrite = viper.Get(fullyQualifiedConfig(dualWriteMode)).(bool)
 	var indexBypass = make([]IndexConfiguration, 0)
 	for indexNamePattern, config := range viper.Get(fullyQualifiedConfig(indexConfig)).(map[string]interface{}) {
 		indexBypass = append(indexBypass, IndexConfiguration{NamePattern: indexNamePattern, Enabled: config.(map[string]interface{})[enabledConfig].(bool)})
 	}
-	return QuesmaConfiguration{Shadow: shadow, IndexConfig: indexBypass}
+	return QuesmaConfiguration{Shadow: shadow, DualWrite: dualWrite, IndexConfig: indexBypass}
 }
 
 func fullyQualifiedConfig(config string) string {

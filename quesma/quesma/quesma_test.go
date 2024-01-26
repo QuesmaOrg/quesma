@@ -82,7 +82,7 @@ func TestSuccessRequests(t *testing.T) {
 	})
 	runReceiver(serverMux1, &wg, ElasticUrl)
 
-	instance := New(nil, ElasticUrl, "8080", "8081", config.QuesmaConfiguration{})
+	instance := New(nil, ElasticUrl, "8080", "8081", config.QuesmaConfiguration{DualWrite: true})
 
 	go func() {
 		listener, err := instance.listen()
