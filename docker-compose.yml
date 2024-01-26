@@ -20,21 +20,24 @@ services:
   device-log-generator:
     build: device-log-generator
     depends_on:
-      - mitmproxy
+      mitmproxy:
+        condition: service_healthy
     links:
       - "mitmproxy"
     restart: unless-stopped
   log-generator:
     build: log-generator
     depends_on:
-      - mitmproxy
+      mitmproxy:
+        condition: service_healthy
     links:
       - "mitmproxy"
     restart: unless-stopped
   query-generator:
     build: query-generator
     depends_on:
-      - mitmproxy
+      mitmproxy:
+        condition: service_healthy
     links:
       - "mitmproxy"
     restart: unless-stopped
@@ -50,6 +53,8 @@ services:
     healthcheck:
       test: curl -s http://elasticsearch:9200 >/dev/null || exit 1
       start_period: 1m
+      interval: 1s
+      timeout: 1s
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.1
     links:
@@ -58,9 +63,9 @@ services:
       ELASTICSEARCH_HOSTS: '["http://mitmproxy:8080"]'
     depends_on:
       mitmproxy:
-        condition: service_started
+        condition: service_healthy
       quesma:
-        condition: service_started
+        condition: service_healthy
       elasticsearch:
         condition: service_healthy
     ports:
@@ -74,6 +79,8 @@ services:
       - ./clickhouse/additional_config.xml:/etc/clickhouse-server/users.d/additional_config.xml
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://clickhouse:8123/ping || exit 1
+      interval: 1s
+      timeout: 1s
       start_period: 1m
   mitmproxy:
     image: mitmproxy/mitmproxy:10.1.5
@@ -83,13 +90,17 @@ services:
       - "8081:8081"
     command: mitmweb --no-web-open-browser --web-host 0.0.0.0 --mode reverse:http://quesma:8080/ -s /var/mitmproxy/request.py
     depends_on:
-      - quesma
+      quesma:
+        condition: service_healthy
     restart: unless-stopped
     volumes:
       - ./mitmproxy:/var/mitmproxy
     healthcheck:
       # No curl/wget, going old school
       test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/8080' || exit 1
+      interval: 1s
+      start_period: 1m
+      timeout: 1s
   clean:
     build: clean
     depends_on:

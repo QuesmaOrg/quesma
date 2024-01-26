@@ -12,9 +12,11 @@ COPY . .
 ENV GOCACHE=/root/.cache/go-build
 
 RUN --mount=type=cache,target="/root/.cache/go-build" go build -o bin
+RUN --mount=type=cache,target="/root/.cache/go-build" go build -o healthcheck ./util/healthcheck
 
 FROM scratch
 
-COPY --from=builder /go/app/bin /go/app/config.yaml ./
+COPY --from=builder /go/app/bin /go/app/healthcheck /go/app/config.yaml ./
 
 ENTRYPOINT [ "/bin" ]
+HEALTHCHECK --interval=1s --timeout=1s --start-period=2s --retries=3 CMD [ "/healthcheck" ]
