@@ -14,6 +14,16 @@ You can see sample ElasticSearch queries in `mitmproxy/requests/`. For example
 tail -f mitmproxy/requests/logs-X-X.txt
 ```
 
+Some filters that you might find useful for filtering out noise requests (copy paste into the `Search` box):
+```bash
+
+!/_doc & !security & !metrics & !.kibana_alerting & !_nodes &!kibana_task_manager & !_pit & !_monitoring & !_xpack & !.reporting & !.kibana & !heartbeat & !_aliases & !_field_caps & !_license & !.logs-endpoint & !.fleet- & !traces & !_cluster & !_resolve & !_mapping & !logs-cloud & !.monitoring & !.ds-risk
+```
+This will also filter out insert requests:
+```bash
+!/_doc & !security & !metrics & !.kibana_alerting & !_nodes &!kibana_task_manager & !_pit & !_monitoring & !_xpack & !.reporting & !.kibana & !heartbeat & !_aliases & !_field_caps & !_license & !.logs-endpoint & !.fleet- & !traces & !_cluster & !_resolve & !_mapping & !logs-cloud & !.monitoring & !.ds-risk & !_bulk
+```
+
 ### Clickhouse-client
 To connect to the client when `clickhouse-server` is running on [localhost:8123/play](http://localhost:8123/play)
 
