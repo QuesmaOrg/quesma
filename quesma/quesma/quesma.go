@@ -20,7 +20,7 @@ const (
 	RemoteUrl    = "http://" + "localhost:" + TcpProxyPort + "/"
 )
 
-var globalBypass atomic.Bool
+var trafficAnalysis atomic.Bool
 
 type (
 	Quesma struct {
@@ -39,7 +39,6 @@ type (
 
 func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration) *Quesma {
 	queryDebugger := NewQueryDebugger()
-	SetGlobalBypass(config.Shadow)
 	q := &Quesma{
 		logManager: logManager,
 		targetUrl:  target,
@@ -95,26 +94,55 @@ func (q *Quesma) handleRequest(in net.Conn) {
 
 	var copyCompletionBarrier sync.WaitGroup
 	copyCompletionBarrier.Add(2)
-	if q.config.DualWrite {
-		log.Println("dual write enabled, writing to Elasticsearch and mirroring to Clickhouse")
-		elkConnection, err := net.Dial("tcp", q.targetUrl)
-		log.Println("elkConnection:" + q.targetUrl)
+	switch q.config.Mode {
+	case config.Proxy, config.ProxyInspect:
+		log.Println("TCP proxy to Elasticsearch")
+		elkConnection, err := q.connectElasticsearch()
 		if err != nil {
-			log.Println("error dialing primary addr", err)
-			return
+			panic(err)
+		}
+		defer elkConnection.Close()
+		go copyAndSignal(&copyCompletionBarrier, elkConnection, in)
+		go copyAndSignal(&copyCompletionBarrier, in, elkConnection)
+		if q.config.Mode == config.ProxyInspect {
+			SetTrafficAnalysis(true)
+		}
+	case config.DualWriteQueryElastic:
+		log.Println("writing to Elasticsearch and mirroring to Clickhouse")
+		elkConnection, err := q.connectElasticsearch()
+		if err != nil {
+			panic(err)
 		}
 		defer elkConnection.Close()
 		go copyAndSignal(&copyCompletionBarrier, io.MultiWriter(elkConnection, internalHttpServerConnection), in)
 		go copyAndSignal(&copyCompletionBarrier, in, elkConnection)
-	} else {
-		log.Println("dual write disabled, writing to Clickhouse only")
+	case config.DualWriteQueryClickhouse:
+		panic("DualWriteQueryClickhouse not yet available")
+	case config.DualWriteQueryClickhouseVerify:
+		panic("DualWriteQueryClickhouseVerify not yet available")
+	case config.DualWriteQueryClickhouseFallback:
+		panic("DualWriteQueryClickhouseFallback not yet available")
+	case config.ClickHouse:
+		log.Println("handling Clickhouse only")
 		go copyAndSignal(&copyCompletionBarrier, internalHttpServerConnection, in)
 		go copyAndSignal(&copyCompletionBarrier, in, internalHttpServerConnection)
+	default:
+		panic("unknown operation mode")
 	}
 
 	copyCompletionBarrier.Wait()
 
 	log.Println("Connection complete", in.RemoteAddr())
+}
+
+func (q *Quesma) connectElasticsearch() (net.Conn, error) {
+	elkConnection, err := net.Dial("tcp", q.targetUrl)
+	log.Println("elkConnection:" + q.targetUrl)
+	if err != nil {
+		log.Println("error dialing primary addr", err)
+		return nil, fmt.Errorf("error dialing primary elasticsearch addr: %w", err)
+	}
+	return elkConnection, nil
 }
 
 func (q *Quesma) listenHTTP() {
@@ -151,6 +179,6 @@ func (q *Quesma) Start() {
 	go q.queryDebugger.Run()
 }
 
-func SetGlobalBypass(val bool) {
-	globalBypass.Store(val)
+func SetTrafficAnalysis(val bool) {
+	trafficAnalysis.Store(val)
 }

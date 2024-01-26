@@ -1,6 +1,13 @@
 quesma:
-  shadow-mode: false
-  dual-write-mode: true
+  # https://www.notion.so/Quesma-modes-8435eebbb42542dabe6eeb5084299ac6
+  # ↓ "proxy" (tcp proxy)
+  #	↓ "proxy-inspect" (tcp proxy with traffic inspection)
+  #	↓ "dual-write-query-elastic" (dual write with elastics response) (DEFAULT)
+  #	↓ "dual-write-query-clickhouse" (dual write, query both and compare)
+  #	↓ "dual-write-query-clickhouse-verify" (dual write, query both and compare, ignore Clickhouse if not the same)
+  #	↓ "dual-write-query-clickhouse-fallback" (dual write, query both, fallback only when Clickhouse fails)
+  #	↓ "clickhouse" (100% to Elastic, 0% through Elastic)
+  mode: "dual-write-query-elastic"
   index:
     logs-generic-*:
       enabled: true

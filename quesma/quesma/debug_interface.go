@@ -500,7 +500,7 @@ func bypassSwitch(writer http.ResponseWriter, r *http.Request) {
 
 	if body["bypass"] != nil {
 		val := body["bypass"].(bool)
-		SetGlobalBypass(val)
+		SetTrafficAnalysis(val)
 		fmt.Printf("global bypass set to %t\n", val)
 		writer.WriteHeader(200)
 	} else {

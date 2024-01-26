@@ -13,8 +13,8 @@ import (
 )
 
 func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
-	if globalBypass.Load() {
-		log.Printf("global bypass on, ignoring writes to %s\n", queryparser.TableName)
+	if trafficAnalysis.Load() {
+		log.Printf("analysing traffic, not writing to Clickhouse %s\n", queryparser.TableName)
 		return
 	}
 	defer recovery.LogPanic()
@@ -63,8 +63,8 @@ func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogMana
 }
 
 func dualWrite(tableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
-	if globalBypass.Load() {
-		log.Printf("global bypass on, ignoring writes to %s\n", tableName)
+	if trafficAnalysis.Load() {
+		log.Printf("analysing traffic, not writing to Clickhouse %s\n", queryparser.TableName)
 		return
 	}
 
