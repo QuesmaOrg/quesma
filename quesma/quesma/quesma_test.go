@@ -70,6 +70,10 @@ const (
 )
 
 func TestSuccessRequests(t *testing.T) {
+	if testing.Short() {
+		t.Skip("this test takes ~25sec to complete, skipping in short mode")
+	}
+
 	var Receiver1Response = "ReceiverBody1"
 	var wg sync.WaitGroup
 	wg.Add(1)
