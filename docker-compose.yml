@@ -88,7 +88,7 @@ services:
     ports:
       - "9200:8080"
       - "8081:8081"
-    command: mitmweb --no-web-open-browser --web-host 0.0.0.0 --mode reverse:http://quesma:8080/ -s /var/mitmproxy/request.py
+    command: mitmweb --set termlog_verbosity=warn --no-web-open-browser --web-host 0.0.0.0 --mode reverse:http://quesma:8080/ -s /var/mitmproxy/request.py
     depends_on:
       quesma:
         condition: service_healthy
