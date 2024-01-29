@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/mjibson/sqlfmt"
 	"io"
 	"log"
 	"mitmproxy/quesma/util"
@@ -14,7 +15,7 @@ import (
 
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 	"github.com/gorilla/mux"
-	"github.com/mjibson/sqlfmt"
+	jd "github.com/josephburnett/jd/lib"
 )
 
 const (
@@ -514,8 +515,15 @@ func (qd *QueryDebugger) comparePipelines() {
 		if ok {
 			if string(queryDebugInfo.queryResp) != string(queryDebugInfo.queryTranslatedResults) {
 				log.Println("Responses are different:")
-				log.Println("First:" + string(queryDebugInfo.queryResp))
-				log.Println("Second:" + string(queryDebugInfo.queryTranslatedResults))
+				elasticResponse, err := jd.ReadJsonString(string(queryDebugInfo.queryResp))
+				if err != nil {
+					log.Println(err)
+				}
+				clickhouseResponse, err := jd.ReadJsonString(string(queryDebugInfo.queryTranslatedResults))
+				if err != nil {
+					log.Println(err)
+				}
+				fmt.Print(elasticResponse.Diff(clickhouseResponse).Render())
 			}
 		}
 	}
