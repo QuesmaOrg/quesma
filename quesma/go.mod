@@ -3,6 +3,7 @@ module mitmproxy/quesma
 go 1.21.6
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/cockroachdb/cockroachdb-parser v0.0.0-20221207165326-ea0ac1a4778b
 	github.com/gorilla/mux v1.8.1
 	github.com/k0kubun/pp v3.0.1+incompatible

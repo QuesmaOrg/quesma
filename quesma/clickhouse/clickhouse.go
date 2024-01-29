@@ -61,10 +61,6 @@ type (
 	}
 )
 
-func NewLogManagerEmpty() *LogManager {
-	return &LogManager{}
-}
-
 func (lm *LogManager) Close() {
 	_ = lm.db.Close()
 }
@@ -193,13 +189,6 @@ func (lm *LogManager) CreateTableFromInsertQuery(name, jsonData string, config *
 	if err != nil {
 		return err
 	}
-	if err != nil {
-		return fmt.Errorf("can't unmarshall json: %s\nerr:%v", jsonData, err)
-	}
-	_, err = lm.db.Exec(query)
-	if err != nil {
-		return fmt.Errorf("error in CreateTable: json: %s\nquery: %s\nerr:%v", PrettyJson(jsonData), query, err)
-	}
 	return nil
 }
 
@@ -266,7 +255,8 @@ func (lm *LogManager) ProcessInsertQuery(tableName, jsonData string) error {
 		config = NewOnlySchemaFieldsCHConfig()
 		err := lm.CreateTableFromInsertQuery(tableName, jsonData, config)
 		if err != nil {
-			fmt.Println("error ProcessInsertQuery:", err)
+			fmt.Println("error ProcessInsertQuery, can't create table: ", err)
+			return err
 		}
 	} else if !table.Created {
 		err := lm.sendCreateTableQuery(table.CreateTableString())
@@ -314,7 +304,7 @@ func (lm *LogManager) findSchema(tableName string) *Table {
 	return lm.newRuntimeTables[tableName] // check if it returns nil or error
 }
 
-// Returns if schema was added
+// Returns if schema wasn't created (so it needs to be, and will be in a moment)
 func (lm *LogManager) addSchemaIfDoesntExist(table *Table) bool {
 	t := lm.findSchema(table.Name)
 	if t == nil {
@@ -322,7 +312,9 @@ func (lm *LogManager) addSchemaIfDoesntExist(table *Table) bool {
 		lm.newRuntimeTables[table.Name] = table // possible race condition
 		return true
 	}
-	return !t.Created
+	wasntCreated := !t.Created
+	t.Created = true
+	return wasntCreated
 }
 
 func NewLogManager(predefined, newRuntime TableMap) *LogManager {
@@ -338,12 +330,16 @@ func NewLogManagerNoConnection(predefined, newRuntime TableMap) *LogManager {
 	return &LogManager{db: nil, predefinedTables: predefined, newRuntimeTables: newRuntime}
 }
 
+func NewLogManagerEmpty() *LogManager {
+	return &LogManager{predefinedTables: make(TableMap), newRuntimeTables: make(TableMap)}
+}
+
 func NewOnlySchemaFieldsCHConfig() *ChTableConfig {
 	return &ChTableConfig{
 		hasTimestamp:                          true,
 		timestampDefaultsNow:                  true,
 		engine:                                "MergeTree",
-		orderBy:                               "(" + "`@timestamp`" + ")",
+		orderBy:                               "(" + `"@timestamp"` + ")",
 		partitionBy:                           "",
 		primaryKey:                            "",
 		ttl:                                   "",
@@ -359,7 +355,7 @@ func NewDefaultCHConfig() *ChTableConfig {
 		hasTimestamp:         true,
 		timestampDefaultsNow: true,
 		engine:               "MergeTree",
-		orderBy:              "(" + "`@timestamp`" + ")",
+		orderBy:              "(" + `"@timestamp"` + ")",
 		partitionBy:          "",
 		primaryKey:           "",
 		ttl:                  "",
@@ -380,7 +376,7 @@ func NewNoTimestampOnlyStringAttrCHConfig() *ChTableConfig {
 		hasTimestamp:         false,
 		timestampDefaultsNow: false,
 		engine:               "MergeTree",
-		orderBy:              "(" + "`@timestamp`" + ")",
+		orderBy:              "(" + `"@timestamp"` + ")",
 		partitionBy:          "",
 		primaryKey:           "",
 		ttl:                  "",
@@ -398,7 +394,7 @@ func NewCHTableConfigNoAttrs() *ChTableConfig {
 		hasTimestamp:                          false,
 		timestampDefaultsNow:                  false,
 		engine:                                "MergeTree",
-		orderBy:                               "(" + "`@timestamp`" + ")",
+		orderBy:                               "(" + `"@timestamp"` + ")",
 		hasOthers:                             false,
 		attributes:                            []Attribute{},
 		castUnsupportedAttrValueTypesToString: true,
