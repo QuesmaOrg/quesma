@@ -8,6 +8,7 @@ import (
 	"github.com/mjibson/sqlfmt"
 	"io"
 	"log"
+	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/util"
 	"net/http"
 	"strings"
@@ -119,6 +120,18 @@ func (qd *QueryDebugger) createRouting() *mux.Router {
 		buf := qd.generateLiveTail()
 		_, _ = writer.Write(buf)
 	})
+
+	router.HandleFunc("/statistics", func(writer http.ResponseWriter, req *http.Request) {
+		jsonBody, err := json.Marshal(stats.GlobalStatistics)
+		if err != nil {
+			log.Println("Error marshalling statistics:", err)
+			writer.WriteHeader(500)
+			return
+		}
+		_, _ = writer.Write(jsonBody)
+		writer.WriteHeader(200)
+	})
+
 	router.HandleFunc("/queries", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qd.generateQueries()
 		_, _ = writer.Write(buf)

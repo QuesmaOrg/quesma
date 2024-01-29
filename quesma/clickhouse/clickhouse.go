@@ -6,6 +6,7 @@ import (
 	"fmt"
 	_ "github.com/mailru/go-clickhouse"
 	"log"
+	"mitmproxy/quesma/jsonprocessor"
 	"strings"
 )
 
@@ -281,7 +282,7 @@ func (lm *LogManager) Insert(tableName, jsonData string, config *ChTableConfig) 
 		lm.db = connection
 	}
 
-	processed := preprocess(jsonData)
+	processed := preprocess(jsonData, NestedSeparator)
 	insertJson, err := lm.BuildInsertJson(tableName, processed, config)
 	if err != nil {
 		return err
@@ -400,4 +401,12 @@ func NewCHTableConfigNoAttrs() *ChTableConfig {
 		castUnsupportedAttrValueTypesToString: true,
 		preferCastingToOthers:                 true,
 	}
+}
+
+func preprocess(jsonStr string, nestedSeparator string) string {
+	var data map[string]interface{}
+	_ = json.Unmarshal([]byte(jsonStr), &data)
+
+	resultJSON, _ := json.Marshal(jsonprocessor.FlattenMap(data, nestedSeparator))
+	return string(resultJSON)
 }

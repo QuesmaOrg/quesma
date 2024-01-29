@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const nestedSeparator = "::"
+const NestedSeparator = "::"
 
 // TODO remove schemamap type?
 // TODO change all return types to * when worth it like here
@@ -64,7 +64,7 @@ func FieldsMapToCreateTableString(namespace string, m SchemaMap, indentLvl int, 
 			if namespace == "" {
 				nested = append(nested, FieldsMapToCreateTableString(name, nestedValue, indentLvl, config))
 			} else {
-				nested = append(nested, FieldsMapToCreateTableString(fmt.Sprintf("%s%s%s", namespace, nestedSeparator, name), nestedValue, indentLvl, config))
+				nested = append(nested, FieldsMapToCreateTableString(fmt.Sprintf("%s%s%s", namespace, NestedSeparator, name), nestedValue, indentLvl, config))
 			}
 
 			result.WriteString(strings.Join(nested, ",\n"))
@@ -79,7 +79,7 @@ func FieldsMapToCreateTableString(namespace string, m SchemaMap, indentLvl int, 
 			if namespace == "" {
 				result.WriteString(fmt.Sprintf("\"%s\" %s", name, fType))
 			} else {
-				result.WriteString(fmt.Sprintf("\"%s%s%s\" %s", namespace, nestedSeparator, name, fType))
+				result.WriteString(fmt.Sprintf("\"%s%s%s\" %s", namespace, NestedSeparator, name, fType))
 			}
 		}
 		if i+1 < len(m) {

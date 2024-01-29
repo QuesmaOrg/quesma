@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
+	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/util"
 	"strings"
 )
@@ -48,6 +49,7 @@ func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogMana
 			}
 
 			withConfiguration(cfg, indexName, document, func() error {
+				stats.GlobalStatistics.Process(indexName, document, clickhouse.NestedSeparator)
 				return lm.ProcessInsertQuery(indexName, document)
 			})
 		} else if jsonData["index"] != nil {
@@ -63,6 +65,7 @@ func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogMana
 }
 
 func dualWrite(tableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
+	stats.GlobalStatistics.Process(tableName, body, clickhouse.NestedSeparator)
 	if trafficAnalysis.Load() {
 		log.Printf("analysing traffic, not writing to Clickhouse %s\n", queryparser.TableName)
 		return
