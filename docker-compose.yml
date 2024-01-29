@@ -71,6 +71,11 @@ services:
     ports:
       - "5601:5601"
     restart: unless-stopped
+    healthcheck:
+      test: "curl -s http://localhost:5601/api/status >/dev/null || exit 1"
+      start_period: 2m
+      interval: 1s
+      timeout: 1s
   clickhouse:
     image: clickhouse/clickhouse-server:23.12.2.59-alpine
     ports:
