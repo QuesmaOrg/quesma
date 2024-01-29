@@ -39,10 +39,10 @@ func main() {
 		clickhouse.NewRuntimeSchemas,
 	)
 
-	var config = config.Load()
-	log.Printf("loaded config: %+v\n", config)
+	var cfg = config.Load()
+	log.Printf("loaded config: %+v\n", cfg)
 
-	instance := quesma.New(lm, os.Getenv(targetEnv), tcpPort, internalHttpPort, config)
+	instance := quesma.New(lm, os.Getenv(targetEnv), tcpPort, internalHttpPort, cfg)
 	instance.Start()
 
 	<-sig
