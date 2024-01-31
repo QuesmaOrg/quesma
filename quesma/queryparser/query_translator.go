@@ -42,7 +42,9 @@ func MakeResponse[T fmt.Stringer](ResultSet []T) ([]byte, error) {
 	}
 	// Hits total value is mandatory
 	searchResponse.Hits.Total.Value = len(ResultSet)
-	return json.MarshalIndent(searchResponse, "", "  ")
+	response := model.Response{Response: searchResponse}
+
+	return json.MarshalIndent(response, "", "  ")
 }
 
 func (cw *ClickhouseQueryTranslator) GetAttributesList(tableName string) []clickhouse.Attribute {

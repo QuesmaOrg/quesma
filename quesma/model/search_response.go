@@ -50,3 +50,12 @@ type SearchResp struct {
 	Aggregations json.RawMessage `json:"aggregations"`
 	ScrollID     *string         `json:"_scroll_id,omitempty"`
 }
+
+type Response struct {
+	CompletionTimeInMillis int        `json:"completion_time_in_millis"`
+	ExpirationTimeInMillis int        `json:"expiration_time_in_millis"`
+	ID                     string     `json:"id"`
+	IsPartial              bool       `json:"is_partial"`
+	IsRunning              bool       `json:"is_running"`
+	Response               SearchResp `json:"response"`
+}
