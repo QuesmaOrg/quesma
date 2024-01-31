@@ -2,9 +2,9 @@ package quesma
 
 import (
 	"bytes"
-	"compress/gzip"
 	"io"
 	"log"
+	"mitmproxy/quesma/quesma/gzip"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -12,26 +12,6 @@ import (
 	"strings"
 	"sync/atomic"
 )
-
-func unzip(gzippedData []byte) ([]byte, error) {
-	// Create a reader for the gzipped data
-	reader := bytes.NewReader(gzippedData)
-
-	// Create a gzip reader
-	gzipReader, err := gzip.NewReader(reader)
-	if err != nil {
-		return nil, err
-	}
-	defer gzipReader.Close()
-
-	// Read the unzipped data
-	unzippedData, err := io.ReadAll(gzipReader)
-	if err != nil {
-		return nil, err
-	}
-
-	return unzippedData, nil
-}
 
 func NewResponseDecorator(tcpPort string, requestId int64, queryDebugger *QueryDebugger) *http.Server {
 	remote, err := url.Parse(RemoteUrl)
@@ -64,7 +44,7 @@ func NewResponseDecorator(tcpPort string, requestId int64, queryDebugger *QueryD
 				if strings.Contains(req.RequestURI, "/_search") || strings.Contains(req.RequestURI, "/_async_search") {
 					isGzipped := strings.Contains(resp.Header.Get("Content-Encoding"), "gzip")
 					if isGzipped {
-						unzippedBuffer, err := unzip(body)
+						unzippedBuffer, err := gzip.UnZip(body)
 						if err != nil {
 							log.Println("Error unzipping:", err)
 							return err

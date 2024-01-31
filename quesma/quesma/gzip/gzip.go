@@ -3,6 +3,7 @@ package gzip
 import (
 	"bytes"
 	"compress/gzip"
+	"io"
 )
 
 func Zip(content []byte) ([]byte, error) {
@@ -15,4 +16,14 @@ func Zip(content []byte) ([]byte, error) {
 		return nil, err
 	}
 	return b.Bytes(), nil
+}
+
+func UnZip(gzippedData []byte) ([]byte, error) {
+	reader := bytes.NewReader(gzippedData)
+	gzipReader, err := gzip.NewReader(reader)
+	if err != nil {
+		return nil, err
+	}
+	defer gzipReader.Close()
+	return io.ReadAll(gzipReader)
 }
