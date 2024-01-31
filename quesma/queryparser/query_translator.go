@@ -40,6 +40,8 @@ func MakeResponse[T fmt.Stringer](ResultSet []T) ([]byte, error) {
 		searchHit.Source = []byte(row.String())
 		searchResponse.Hits.Hits = append(searchResponse.Hits.Hits, searchHit)
 	}
+	// Hits total value is mandatory
+	searchResponse.Hits.Total.Value = len(ResultSet)
 	return json.MarshalIndent(searchResponse, "", "  ")
 }
 

@@ -24,7 +24,7 @@ const searchResponseExpectedString = `
   },
   "hits": {
     "total": {
-      "value": 0,
+      "value": 1,
       "relation": ""
     },
     "max_score": 0,
