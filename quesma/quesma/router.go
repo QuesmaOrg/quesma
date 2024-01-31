@@ -68,6 +68,7 @@ func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManag
 	router.PathPrefix("/{index}/_doc").HandlerFunc(index(lm, queryDebugger, config)).Methods("POST")
 	router.PathPrefix("/{index}/_bulk").HandlerFunc(bulkVar(lm, queryDebugger, config)).Methods("POST")
 	router.PathPrefix("/{index}/_search").HandlerFunc(searchVar(lm, queryDebugger)).Methods("POST")
+	router.PathPrefix("/{index}" + AsyncSearchPath).HandlerFunc(asyncSearch(lm, queryDebugger)).Methods("POST")
 	return router
 }
 
