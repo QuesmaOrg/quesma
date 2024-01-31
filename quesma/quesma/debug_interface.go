@@ -93,9 +93,9 @@ func copyMap(originalMap map[string]QueryDebugInfo) map[string]QueryDebugInfo {
 	return copiedMap
 }
 
-func (qdi *QueryDebugInfo) contains(queryStr string) bool {
-	potentialPlaces := [][]byte{qdi.QueryDebugPrimarySource.queryResp, qdi.QueryDebugSecondarySource.incomingQueryBody,
-		qdi.QueryDebugSecondarySource.queryBodyTranslated, qdi.QueryDebugSecondarySource.queryTranslatedResults}
+func (qdi *QueryDebugInfo) requestContains(queryStr string) bool {
+	potentialPlaces := [][]byte{qdi.QueryDebugSecondarySource.incomingQueryBody,
+		qdi.QueryDebugSecondarySource.queryBodyTranslated}
 	for _, potentialPlace := range potentialPlaces {
 		if potentialPlace != nil && strings.Contains(string(potentialPlace), queryStr) {
 			return true
@@ -324,21 +324,22 @@ func (qd *QueryDebugger) generateLiveTail() []byte {
 
 	buffer.WriteString(`<div class="menu">`)
 	buffer.WriteString("\n<h2>Menu</h2>")
+	buffer.WriteString("\n<h3>Find query</h3><br>\n")
 
 	buffer.WriteString(`<form onsubmit="location.href = '/request-id/' + find_query_by_id_input.value; return false;">`)
 	buffer.WriteString("\n")
-	buffer.WriteString(`&nbsp;<input id="find_query_by_id_button" type="submit" class="btn" value="Find query by id" /><br>`)
+	buffer.WriteString(`&nbsp;<input id="find_query_by_id_button" type="submit" class="btn" value="By id" /><br>`)
 	buffer.WriteString(`&nbsp;<input type="text" id="find_query_by_id_input" class="input" name="find_query_by_id_input" value="" required size="32"><br><br>`)
 	buffer.WriteString("</form>")
 
 	buffer.WriteString(`<form onsubmit="location.href = '/requests-by-str/' + find_query_by_str_input.value; return false;">`)
-	buffer.WriteString(`&nbsp;<input id="find_query_by_str_button" type="submit" class="btn" value="Find query by keyword" /><br>`)
+	buffer.WriteString(`&nbsp;<input id="find_query_by_str_button" type="submit" class="btn" value="By keyword in request" /><br>`)
 	buffer.WriteString(`&nbsp;<input type="text" id="find_query_by_str_input" class="input" name="find_query_by_str_input" value="" required size="32"><br><br>`)
 	buffer.WriteString("</form>")
 
 	buffer.WriteString(`<h3>Useful links</h3>`)
 	buffer.WriteString(`<ul>`)
-	buffer.WriteString(`<li><a href="http://localhost:5601">Kibana</a></li>`)
+	buffer.WriteString(`<li><a href="http://localhost:5601/app/observability-log-explorer/">Kibana Log Explorer</a></li>`)
 	buffer.WriteString(`<li><a href="http://localhost:8081">mitmproxy</a></li>`)
 	buffer.WriteString(`<li><a href="http://localhost:8123/play">Clickhouse</a></li>`)
 	buffer.WriteString(`</ul>`)
@@ -393,7 +394,7 @@ func (qd *QueryDebugger) generateReportForRequests(requestStr string) []byte {
 	var debugKeyValueSlice []DebugKeyValue
 	for i := len(lastMessages) - 1; i >= 0; i-- {
 		debugInfo := localQueryDebugInfo[lastMessages[i]]
-		if debugInfo.contains(requestStr) {
+		if debugInfo.requestContains(requestStr) {
 			debugKeyValueSlice = append(debugKeyValueSlice, DebugKeyValue{lastMessages[i], localQueryDebugInfo[lastMessages[i]]})
 		}
 	}
