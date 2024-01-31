@@ -58,7 +58,7 @@ jobs:
           go-version: '1.21'
 
       - name: Start docker-compose
-        timeout-minutes: 5
+        timeout-minutes: 10
         run: |
           docker-compose up -d
           while ! curl -s http://localhost:9200/logs-generic-default/_count >/dev/null; do sleep 1;printf ".\n"; done
