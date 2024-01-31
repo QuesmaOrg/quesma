@@ -1,11 +1,11 @@
 package quesma
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/mjibson/sqlfmt"
 	"io"
 	"log"
 	"mitmproxy/quesma/stats"
@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/mjibson/sqlfmt"
 
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 	"github.com/gorilla/mux"
@@ -192,87 +194,83 @@ func sqlPrettyPrint(sqlData []byte) string {
 }
 
 func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte {
-	var buf []byte
-	buf = make([]byte, 0)
+	var buffer bytes.Buffer
 
-	buf = append(buf, []byte("\n<div class=\"left\" id=\"left\">")...)
-	buf = append(buf, []byte("\n<div class=\"title-bar\">Query")...)
-	buf = append(buf, []byte("\n</div>\n")...)
-	buf = append(buf, []byte(`<div class="debug-body">`)...)
+	buffer.WriteString("\n" + `<div class="left" id="left">` + "\n")
+	buffer.WriteString(`<div class="title-bar">Query`)
+	buffer.WriteString("\n</div>\n")
+	buffer.WriteString(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buf = append(buf, []byte(`<a href="/request-id/`+v.Key+`">`)...)
+			buffer.WriteString(`<a href="/request-id/` + v.Key + `">`)
 		}
-		buf = append(buf, []byte("<p>RequestID:"+v.Key+"</p>")...)
-		buf = append(buf, []byte("\n<pre id=\"query"+v.Key+"\">")...)
-		buf = append(buf, []byte(util.JsonPrettify(string(v.Value.incomingQueryBody), true))...)
-		buf = append(buf, []byte("\n</pre>")...)
+		buffer.WriteString("<p>RequestID:" + v.Key + "</p>\n")
+		buffer.WriteString(`<pre id="query` + v.Key + `">`)
+		buffer.WriteString(util.JsonPrettify(string(v.Value.incomingQueryBody), true))
+		buffer.WriteString("\n</pre>")
 		if withLinks {
-			buf = append(buf, []byte("\n</a>")...)
+			buffer.WriteString("\n</a>")
 		}
 	}
-	buf = append(buf, []byte("\n</div>")...)
-	buf = append(buf, []byte("\n</div>")...)
+	buffer.WriteString("\n</div>")
+	buffer.WriteString("\n</div>\n")
 
-	buf = append(buf, []byte("\n<div class=\"right\" id=\"right\">")...)
-	buf = append(buf, []byte("\n<div class=\"title-bar\">Elasticsearch response")...)
-	buf = append(buf, []byte("\n</div>")...)
-	buf = append(buf, []byte(`<div class="debug-body">`)...)
+	buffer.WriteString(`<div class="right" id="right">` + "\n")
+	buffer.WriteString(`<div class="title-bar">Elasticsearch response` + "\n" + `</div>`)
+	buffer.WriteString(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buf = append(buf, []byte(`<a href="/request-id/`+v.Key+`">`)...)
+			buffer.WriteString(`<a href="/request-id/` + v.Key + `">`)
 		}
-		buf = append(buf, []byte("<p>ResponseID:"+v.Key+"</p>")...)
-		buf = append(buf, []byte("\n<pre id=\"response"+v.Key+"\">")...)
-		buf = append(buf, []byte(util.JsonPrettify(string(v.Value.queryResp), true))...)
-		buf = append(buf, []byte("\n</pre>")...)
+		buffer.WriteString("<p>ResponseID:" + v.Key + "</p>\n")
+		buffer.WriteString(`<pre id="response` + v.Key + `">`)
+		buffer.WriteString(util.JsonPrettify(string(v.Value.queryResp), true))
+		buffer.WriteString("\n</pre>")
 		if withLinks {
-			buf = append(buf, []byte("\n</a>")...)
+			buffer.WriteString("\n</a>")
 		}
 	}
-	buf = append(buf, []byte("\n</div>")...)
-	buf = append(buf, []byte("\n</div>")...)
+	buffer.WriteString("\n</div>")
+	buffer.WriteString("\n</div>\n")
 
-	buf = append(buf, []byte("\n<div class=\"bottom_left\" id=\"bottom_left\">")...)
-	buf = append(buf, []byte("\n<div class=\"title-bar\">Clickhouse translated query")...)
-	buf = append(buf, []byte("\n</div>")...)
-	buf = append(buf, []byte(`<div class="debug-body">`)...)
+	buffer.WriteString(`<div class="bottom_left" id="bottom_left">` + "\n")
+	buffer.WriteString(`<div class="title-bar">Clickhouse translated query` + "\n" + `</div>`)
+	buffer.WriteString(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buf = append(buf, []byte(`<a href="/request-id/`+v.Key+`">`)...)
+			buffer.WriteString(`<a href="/request-id/` + v.Key + `">`)
 		}
-		buf = append(buf, []byte("<p>RequestID:"+v.Key+"</p>")...)
-		buf = append(buf, []byte("\n<pre id=\"second_query"+v.Key+"\">")...)
-		buf = append(buf, []byte(sqlPrettyPrint(v.Value.queryBodyTranslated))...)
-		buf = append(buf, []byte("\n</pre>")...)
+		buffer.WriteString("<p>RequestID:" + v.Key + "</p>\n")
+		buffer.WriteString(`<pre id="second_query` + v.Key + `">`)
+		buffer.WriteString(sqlPrettyPrint(v.Value.queryBodyTranslated))
+		buffer.WriteString("\n</pre>")
 		if withLinks {
-			buf = append(buf, []byte("\n</a>")...)
+			buffer.WriteString("\n</a>")
 		}
 	}
-	buf = append(buf, []byte("\n</div>")...)
-	buf = append(buf, []byte("\n</div>")...)
+	buffer.WriteString("\n</div>")
+	buffer.WriteString("\n</div>\n")
 
-	buf = append(buf, []byte("\n<div class=\"bottom_right\" id=\"bottom_right\">")...)
-	buf = append(buf, []byte("\n<div class=\"title-bar\">Clickhouse response")...)
-	buf = append(buf, []byte("\n</div>")...)
-	buf = append(buf, []byte(`<div class="debug-body">`)...)
+	buffer.WriteString(`<div class="bottom_right" id="bottom_right">` + "\n")
+	buffer.WriteString(`<div class="title-bar">Clickhouse response` + "\n" + `</div>`)
+	buffer.WriteString(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buf = append(buf, []byte(`<a href="/request-id/`+v.Key+`">`)...)
+			buffer.WriteString(`<a href="/request-id/` + v.Key + `">`)
 		}
-		buf = append(buf, []byte("<p>ResponseID:"+v.Key+"</p>")...)
-		buf = append(buf, []byte("\n<pre id=\"second_response"+v.Key+"\">")...)
-		buf = append(buf, util.JsonPrettify(string(v.Value.queryTranslatedResults), true)...)
-		buf = append(buf, []byte("\n\nThere are more results ...")...)
-		buf = append(buf, []byte("\n</pre>")...)
+		buffer.WriteString("<p>ResponseID:" + v.Key + "</p>\n")
+		buffer.WriteString(`<pre id="second_response` + v.Key + `">`)
+		buffer.WriteString(util.JsonPrettify(string(v.Value.queryTranslatedResults), true))
+		buffer.WriteString("\n\nThere are more results ...")
+		buffer.WriteString("\n</pre>")
 		if withLinks {
-			buf = append(buf, []byte("\n</a>")...)
+			buffer.WriteString("\n</a>")
 		}
 	}
-	buf = append(buf, []byte("\n</div>")...)
-	buf = append(buf, []byte("\n</div>")...)
+	buffer.WriteString("\n</div>")
+	buffer.WriteString("\n</div>\n")
 
-	return buf
+	return buffer.Bytes()
 }
 
 func (qd *QueryDebugger) generateQueries() []byte {
@@ -293,54 +291,62 @@ func (qd *QueryDebugger) generateQueries() []byte {
 	return generateQueries(debugKeyValueSlice, true)
 }
 
-func (qd *QueryDebugger) generateLiveTail() []byte {
-	var buf []byte
-
+func newBufferWithHead() bytes.Buffer {
+	const bufferSize = 4 * 1024 // size of ui/head.html
+	var buffer bytes.Buffer
+	buffer.Grow(bufferSize)
 	head, err := uiFs.ReadFile("ui/head.html")
-	buf = append(buf, head...)
+	buffer.Write(head)
 	if err != nil {
-		buf = append(buf, []byte(err.Error())...)
+		buffer.WriteString(err.Error())
 	}
-	buf = append(buf, []byte("\n<div class=\"topnav\">")...)
-	buf = append(buf, []byte("\n<h3>Quesma Live Debugging Interface</h3>")...)
+	buffer.WriteString("\n")
+	return buffer
+}
 
-	buf = append(buf, []byte(`<div class="autorefresh-box">`)...)
-	buf = append(buf, []byte(`<input type="checkbox" id="autorefresh" name="autorefresh" hx-target="#queries" hx-get="/queries" hx-trigger="every 1s [htmx.find('#autorefresh').checked]" checked />`)...)
-	buf = append(buf, []byte(`<label for="autorefresh">Autorefresh every 1s</label>`)...)
-	buf = append(buf, []byte("\n</div>")...)
+func (qd *QueryDebugger) generateLiveTail() []byte {
+	buffer := newBufferWithHead()
 
-	buf = append(buf, []byte("\n</div>")...)
+	buffer.WriteString(`<div class="topnav">`)
+	buffer.WriteString("\n<h3>Quesma Management Console</h3>")
 
-	buf = append(buf, []byte("\n<div id=\"queries\">")...)
-	buf = append(buf, qd.generateQueries()...)
-	buf = append(buf, []byte("\n</div>")...)
+	buffer.WriteString(`<div class="autorefresh-box">` + "\n")
+	buffer.WriteString(`<div class="autorefresh">`)
+	buffer.WriteString(`<input type="checkbox" id="autorefresh" name="autorefresh" hx-target="#queries" hx-get="/queries" hx-trigger="every 1s [htmx.find('#autorefresh').checked]" checked />`)
+	buffer.WriteString(`<label for="autorefresh">Autorefresh every 1s</label>`)
+	buffer.WriteString("\n</div>")
 
-	buf = append(buf, []byte("\n<div class=\"menu\">")...)
-	buf = append(buf, []byte("\n<h2>Menu</h2>")...)
+	buffer.WriteString("\n</div>\n")
 
-	buf = append(buf, []byte(`<form onsubmit="location.href = '/request-id/' + find_query_by_id_input.value; return false;">`)...)
-	buf = append(buf, []byte(`&nbsp;<input id="find_query_by_id_button" type="submit" class="btn" value="Find query by id" /><br>`)...)
-	buf = append(buf, []byte("&nbsp;<input type=\"text\" id=\"find_query_by_id_input\" class=\"input\" name=\"find_query_by_id_input\" value=\"\" required size=\"40\"><br><br>")...)
-	buf = append(buf, []byte(`</form>`)...)
+	buffer.WriteString(`<div id="queries">`)
+	buffer.Write(qd.generateQueries())
+	buffer.WriteString("\n</div>\n\n")
 
-	buf = append(buf, []byte(`<form onsubmit="location.href = '/requests-by-str/' + find_query_by_str_input.value; return false;">`)...)
-	buf = append(buf, []byte(`&nbsp;<input id="find_query_by_str_button" type="submit" class="btn" value="Find query by keyword" /><br>`)...)
-	buf = append(buf, []byte("&nbsp;<input type=\"text\" id=\"find_query_by_str_input\" class=\"input\" name=\"find_query_by_str_input\" value=\"\" required size=\"40\"><br><br>")...)
-	buf = append(buf, []byte(`</form>`)...)
+	buffer.WriteString(`<div class="menu">`)
+	buffer.WriteString("\n<h2>Menu</h2>")
 
-	buf = append(buf, []byte(`<h3>Useful links</h3>`)...)
-	buf = append(buf, []byte(`<ul>`)...)
-	buf = append(buf, []byte(`<li><a href="http://localhost:5601">Kibana</a></li>`)...)
-	buf = append(buf, []byte(`<li><a href="http://localhost:8081">mitmproxy</a></li>`)...)
+	buffer.WriteString(`<form onsubmit="location.href = '/request-id/' + find_query_by_id_input.value; return false;">`)
+	buffer.WriteString("\n")
+	buffer.WriteString(`&nbsp;<input id="find_query_by_id_button" type="submit" class="btn" value="Find query by id" /><br>`)
+	buffer.WriteString(`&nbsp;<input type="text" id="find_query_by_id_input" class="input" name="find_query_by_id_input" value="" required size="32"><br><br>`)
+	buffer.WriteString("</form>")
 
-	buf = append(buf, []byte(`<li><a href="http://localhost:8123/play">Clickhouse</a></li>`)...)
+	buffer.WriteString(`<form onsubmit="location.href = '/requests-by-str/' + find_query_by_str_input.value; return false;">`)
+	buffer.WriteString(`&nbsp;<input id="find_query_by_str_button" type="submit" class="btn" value="Find query by keyword" /><br>`)
+	buffer.WriteString(`&nbsp;<input type="text" id="find_query_by_str_input" class="input" name="find_query_by_str_input" value="" required size="32"><br><br>`)
+	buffer.WriteString("</form>")
 
-	buf = append(buf, []byte(`</ul>`)...)
+	buffer.WriteString(`<h3>Useful links</h3>`)
+	buffer.WriteString(`<ul>`)
+	buffer.WriteString(`<li><a href="http://localhost:5601">Kibana</a></li>`)
+	buffer.WriteString(`<li><a href="http://localhost:8081">mitmproxy</a></li>`)
+	buffer.WriteString(`<li><a href="http://localhost:8123/play">Clickhouse</a></li>`)
+	buffer.WriteString(`</ul>`)
 
-	buf = append(buf, []byte("\n</div>")...)
-	buf = append(buf, []byte("\n</body>")...)
-	buf = append(buf, []byte("\n</html>")...)
-	return buf
+	buffer.WriteString("\n</div>")
+	buffer.WriteString("\n</body>")
+	buffer.WriteString("\n</html>")
+	return buffer.Bytes()
 }
 
 func (qd *QueryDebugger) generateReportForRequestId(requestId string) []byte {
@@ -348,42 +354,34 @@ func (qd *QueryDebugger) generateReportForRequestId(requestId string) []byte {
 	request, requestFound := qd.debugInfoMessages[requestId]
 	qd.mutex.Unlock()
 
-	var buf []byte
-
-	head, err := uiFs.ReadFile("ui/head.html")
-	buf = append(buf, head...)
-	if err != nil {
-		buf = append(buf, []byte(err.Error())...)
-	}
-	buf = append(buf, []byte("\n<div class=\"topnav\">")...)
+	buffer := newBufferWithHead()
+	buffer.WriteString(`<div class="topnav">`)
 	if requestFound {
-		buf = append(buf, []byte("\n<h3>Quesma Report for request id "+requestId+"</h3>")...)
+		buffer.WriteString("\n<h3>Quesma Report for request id " + requestId + "</h3>")
 	} else {
-		buf = append(buf, []byte("\n<h3>Quesma Report not found for "+requestId+"</h3>")...)
+		buffer.WriteString("\n<h3>Quesma Report not found for " + requestId + "</h3>")
 	}
 
-	buf = append(buf, []byte("\n</div>")...)
-
-	buf = append(buf, []byte("\n<div id=\"queries\">")...)
+	buffer.WriteString("\n</div>\n")
+	buffer.WriteString(`<div id="queries">`)
 
 	debugKeyValueSlice := []DebugKeyValue{}
 	if requestFound {
 		debugKeyValueSlice = append(debugKeyValueSlice, DebugKeyValue{requestId, request})
 	}
 
-	buf = append(buf, generateQueries(debugKeyValueSlice, false)...)
+	buffer.Write(generateQueries(debugKeyValueSlice, false))
 
-	buf = append(buf, []byte("\n</div>")...)
+	buffer.WriteString("\n</div>\n")
+	buffer.WriteString(`<div class="menu">`)
+	buffer.WriteString("\n<h2>Menu</h2>")
 
-	buf = append(buf, []byte("\n<div class=\"menu\">")...)
-	buf = append(buf, []byte("\n<h2>Menu</h2>")...)
+	buffer.WriteString(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
 
-	buf = append(buf, []byte(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)...)
-
-	buf = append(buf, []byte("\n</div>")...)
-	buf = append(buf, []byte("\n</body>")...)
-	buf = append(buf, []byte("\n</html>")...)
-	return buf
+	buffer.WriteString("\n</div>")
+	buffer.WriteString("\n</body>")
+	buffer.WriteString("\n</html>")
+	return buffer.Bytes()
 }
 
 func (qd *QueryDebugger) generateReportForRequests(requestStr string) []byte {
@@ -400,34 +398,29 @@ func (qd *QueryDebugger) generateReportForRequests(requestStr string) []byte {
 		}
 	}
 
-	var buf []byte
-
-	head, err := uiFs.ReadFile("ui/head.html")
-	buf = append(buf, head...)
-	if err != nil {
-		buf = append(buf, []byte(err.Error())...)
-	}
-	buf = append(buf, []byte("\n<div class=\"topnav\">")...)
+	buffer := newBufferWithHead()
+	buffer.WriteString(`<div class="topnav">`)
 	title := fmt.Sprintf("Quesma Report for str '%s' with %d results", requestStr, len(debugKeyValueSlice))
-	buf = append(buf, []byte("\n<h3>"+title+"</h3>")...)
+	buffer.WriteString("\n<h3>" + title + "</h3>")
 
-	buf = append(buf, []byte("\n</div>")...)
+	buffer.WriteString("\n</div>\n\n")
 
-	buf = append(buf, []byte("\n<div id=\"queries\">")...)
+	buffer.WriteString(`<div id="queries">`)
 
-	buf = append(buf, generateQueries(debugKeyValueSlice, true)...)
+	buffer.Write(generateQueries(debugKeyValueSlice, true))
 
-	buf = append(buf, []byte("\n</div>")...)
+	buffer.WriteString("\n</div>\n\n")
 
-	buf = append(buf, []byte("\n<div class=\"menu\">")...)
-	buf = append(buf, []byte("\n<h2>Menu</h2>")...)
+	buffer.WriteString(`<div class="menu">`)
+	buffer.WriteString("\n<h2>Menu</h2>")
 
-	buf = append(buf, []byte(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)...)
+	buffer.WriteString(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
 
-	buf = append(buf, []byte("\n</div>")...)
-	buf = append(buf, []byte("\n</body>")...)
-	buf = append(buf, []byte("\n</html>")...)
-	return buf
+	buffer.WriteString("\n</div>")
+	buffer.WriteString("\n</body>")
+	buffer.WriteString("\n</html>")
+
+	return buffer.Bytes()
 }
 
 func (gd *QueryDebugger) addNewMessageId(messageId string) {
