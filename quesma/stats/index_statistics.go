@@ -73,8 +73,6 @@ func (s *Statistics) Process(index string, jsonStr string, nestedSeparator strin
 	_ = json.Unmarshal([]byte(jsonStr), &jsonData)
 	flatJson := jsonprocessor.FlattenMap(jsonData, nestedSeparator)
 
-	fmt.Printf("flatJson: %+v\n", flatJson)
-
 	mu.Lock()
 
 	statistics, ok := (*s)[index]
