@@ -36,7 +36,7 @@ func bodyHandler(h func(body []byte, writer http.ResponseWriter, r *http.Request
 	}
 }
 
-func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManager, queryDebugger *QueryDebugger) *mux.Router {
+func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagementConsole) *mux.Router {
 	router := mux.NewRouter()
 	router.HandleFunc(HealthPath, ok)
 	router.PathPrefix(CreateTablePath).HandlerFunc(createTable(lm))
@@ -56,19 +56,19 @@ func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManag
 		zipped, _ := gzip.Zip(body)
 		_, _ = w.Write(zipped)
 	})
-	router.PathPrefix(BulkPath).HandlerFunc(bulk(lm, queryDebugger, config)).Methods("POST")
-	router.PathPrefix(SearchPath).HandlerFunc(search(lm, queryDebugger)).Methods("POST")
-	router.PathPrefix(AsyncSearchPath).HandlerFunc(asyncSearch(lm, queryDebugger)).Methods("POST")
+	router.PathPrefix(BulkPath).HandlerFunc(bulk(lm, quesmaManagementConsole, config)).Methods("POST")
+	router.PathPrefix(SearchPath).HandlerFunc(search(lm, quesmaManagementConsole)).Methods("POST")
+	router.PathPrefix(AsyncSearchPath).HandlerFunc(asyncSearch(lm, quesmaManagementConsole)).Methods("POST")
 	router.PathPrefix(ElasticInternalPath).HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		fmt.Printf("unrecognized internal path: %s\n", r.RequestURI)
 	})
 	router.PathPrefix("/.").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		fmt.Printf("internal index access '%s', ignoring...\n", strings.Split(r.RequestURI, "/")[1])
 	})
-	router.PathPrefix("/{index}/_doc").HandlerFunc(index(lm, queryDebugger, config)).Methods("POST")
-	router.PathPrefix("/{index}/_bulk").HandlerFunc(bulkVar(lm, queryDebugger, config)).Methods("POST")
-	router.PathPrefix("/{index}/_search").HandlerFunc(searchVar(lm, queryDebugger)).Methods("POST")
-	router.PathPrefix("/{index}" + AsyncSearchPath).HandlerFunc(asyncSearch(lm, queryDebugger)).Methods("POST")
+	router.PathPrefix("/{index}/_doc").HandlerFunc(index(lm, quesmaManagementConsole, config)).Methods("POST")
+	router.PathPrefix("/{index}/_bulk").HandlerFunc(bulkVar(lm, quesmaManagementConsole, config)).Methods("POST")
+	router.PathPrefix("/{index}/_search").HandlerFunc(searchVar(lm, quesmaManagementConsole)).Methods("POST")
+	router.PathPrefix("/{index}" + AsyncSearchPath).HandlerFunc(asyncSearch(lm, quesmaManagementConsole)).Methods("POST")
 	return router
 }
 
@@ -81,15 +81,15 @@ func writeSearchResponse(writer http.ResponseWriter, body []byte, err error) {
 	writer.Write(body)
 }
 
-func search(lm *clickhouse.LogManager, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
+func search(lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("RequestId")
-		responseBody, err := handleSearch("", body, lm, queryDebugger, id)
+		responseBody, err := handleSearch("", body, lm, quesmaManagementConsole, id)
 		writeSearchResponse(writer, responseBody, err)
 	})
 }
 
-func asyncSearch(lm *clickhouse.LogManager, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
+func asyncSearch(lm *clickhouse.LogManager, queryDebugger *QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("RequestId")
 		responseBody, err := handleAsyncSearch("", body, lm, queryDebugger, id)
@@ -97,7 +97,7 @@ func asyncSearch(lm *clickhouse.LogManager, queryDebugger *QueryDebugger) func(h
 	})
 }
 
-func searchVar(lm *clickhouse.LogManager, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
+func searchVar(lm *clickhouse.LogManager, queryDebugger *QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("RequestId")
 		vars := mux.Vars(r)
@@ -106,20 +106,20 @@ func searchVar(lm *clickhouse.LogManager, queryDebugger *QueryDebugger) func(htt
 	})
 }
 
-func index(lm *clickhouse.LogManager, queryDebugger *QueryDebugger, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
+func index(lm *clickhouse.LogManager, queryDebugger *QuesmaManagementConsole, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		go dualWrite(vars["index"], string(body), lm, config)
 	})
 }
 
-func bulk(lm *clickhouse.LogManager, queryDebugger *QueryDebugger, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
+func bulk(lm *clickhouse.LogManager, queryDebugger *QuesmaManagementConsole, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		go dualWriteBulk("", string(body), lm, config)
 	})
 }
 
-func bulkVar(lm *clickhouse.LogManager, queryDebugger *QueryDebugger, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
+func bulkVar(lm *clickhouse.LogManager, queryDebugger *QuesmaManagementConsole, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		go dualWriteBulk(vars["index"], string(body), lm, config)

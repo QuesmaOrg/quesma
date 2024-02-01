@@ -30,17 +30,17 @@ var trafficAnalysis atomic.Bool
 
 type (
 	Quesma struct {
-		processingHttpServer *http.Server
-		routingHttpServer    *http.Server
-		logManager           *clickhouse.LogManager
-		targetUrl            string
-		publicTcpPort        string
-		internalHttpPort     string
-		responseDecorator    *http.Server
-		tcpProxyPort         string
-		requestId            int64
-		queryDebugger        *QueryDebugger
-		config               config.QuesmaConfiguration
+		processingHttpServer    *http.Server
+		routingHttpServer       *http.Server
+		logManager              *clickhouse.LogManager
+		targetUrl               string
+		publicTcpPort           string
+		internalHttpPort        string
+		responseDecorator       *http.Server
+		tcpProxyPort            string
+		requestId               int64
+		quesmaManagementConsole *QuesmaManagementConsole
+		config                  config.QuesmaConfiguration
 	}
 )
 
@@ -75,7 +75,7 @@ func responseFromQuesma(unzipped []byte, w http.ResponseWriter, rId int) {
 }
 
 func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration) *Quesma {
-	queryDebugger := NewQueryDebugger()
+	quesmaManagementConsole := NewQuesmaManagementConsole()
 	q := &Quesma{
 		logManager:       logManager,
 		targetUrl:        target,
@@ -83,7 +83,7 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 		internalHttpPort: httpPort,
 		processingHttpServer: &http.Server{
 			Addr:    ":" + httpPort,
-			Handler: configureRouting(config, logManager, queryDebugger),
+			Handler: configureRouting(config, logManager, quesmaManagementConsole),
 		},
 		routingHttpServer: &http.Server{
 			Addr: ":" + TcpProxyPort,
@@ -142,13 +142,13 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 				}
 			}),
 		},
-		requestId:     0,
-		tcpProxyPort:  TcpProxyPort,
-		queryDebugger: queryDebugger,
-		config:        config,
+		requestId:               0,
+		tcpProxyPort:            TcpProxyPort,
+		quesmaManagementConsole: quesmaManagementConsole,
+		config:                  config,
 	}
 
-	q.responseDecorator = NewResponseDecorator(tcpPort, q.requestId, q.queryDebugger)
+	q.responseDecorator = NewResponseDecorator(tcpPort, q.requestId, q.quesmaManagementConsole)
 
 	return q
 }
@@ -185,7 +185,7 @@ func (q *Quesma) Start() {
 	go q.listenRoutingHTTP()
 	go q.listenHTTP()
 	go q.listenResponseDecorator()
-	go q.queryDebugger.Run()
+	go q.quesmaManagementConsole.Run()
 }
 
 func SetTrafficAnalysis(val bool) {

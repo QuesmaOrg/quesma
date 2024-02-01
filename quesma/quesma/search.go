@@ -10,7 +10,7 @@ import (
 )
 
 func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
-	queryDebugger *QueryDebugger,
+	quesmaManagementConsole *QuesmaManagementConsole,
 	requestId string) ([]byte, error) {
 	var translatedQueryBody []byte
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
@@ -36,7 +36,7 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 
 	var rawResults []byte
 	translatedQueryBody = []byte(query.Sql)
-	queryDebugger.PushSecondaryInfo(&QueryDebugSecondarySource{
+	quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
 		id:                     requestId,
 		incomingQueryBody:      body,
 		queryBodyTranslated:    translatedQueryBody,
@@ -63,7 +63,7 @@ func createResponseHistogramJson(rows []clickhouse.HistogramResult) []byte {
 }
 
 func handleAsyncSearch(index string, body []byte, lm *clickhouse.LogManager,
-	queryDebugger *QueryDebugger,
+	quesmaManagementConsole *QuesmaManagementConsole,
 	requestId string) ([]byte, error) {
 	var translatedQueryBody []byte
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
@@ -105,7 +105,7 @@ func handleAsyncSearch(index string, body []byte, lm *clickhouse.LogManager,
 
 	var rawResults []byte
 	translatedQueryBody = []byte(query.Sql)
-	queryDebugger.PushSecondaryInfo(&QueryDebugSecondarySource{
+	quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
 		id:                     requestId,
 		incomingQueryBody:      body,
 		queryBodyTranslated:    translatedQueryBody,

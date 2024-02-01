@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 )
 
-func NewResponseDecorator(tcpPort string, requestId int64, queryDebugger *QueryDebugger) *http.Server {
+func NewResponseDecorator(tcpPort string, requestId int64, quesmaManagementConsole *QuesmaManagementConsole) *http.Server {
 	remote, err := url.Parse(RemoteUrl)
 	if err != nil {
 		log.Fatal("Cannot parse target url:", err)
@@ -50,7 +50,7 @@ func NewResponseDecorator(tcpPort string, requestId int64, queryDebugger *QueryD
 							return err
 						}
 					}
-					queryDebugger.PushPrimaryInfo(&QueryDebugPrimarySource{req.Header.Get("RequestId"), body})
+					quesmaManagementConsole.PushPrimaryInfo(&QueryDebugPrimarySource{req.Header.Get("RequestId"), body})
 				}
 				return nil
 			}

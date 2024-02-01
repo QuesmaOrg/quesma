@@ -55,7 +55,7 @@ type QueryDebugInfo struct {
 	QueryDebugSecondarySource
 }
 
-type QueryDebugger struct {
+type QuesmaManagementConsole struct {
 	queryDebugPrimarySource   chan *QueryDebugPrimarySource
 	queryDebugSecondarySource chan *QueryDebugSecondarySource
 	ui                        *http.Server
@@ -65,8 +65,8 @@ type QueryDebugger struct {
 	responseMatcherChannel    chan QueryDebugInfo
 }
 
-func NewQueryDebugger() *QueryDebugger {
-	return &QueryDebugger{
+func NewQuesmaManagementConsole() *QuesmaManagementConsole {
+	return &QuesmaManagementConsole{
 		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 5),
 		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 5),
 		debugInfoMessages:         make(map[string]QueryDebugInfo),
@@ -75,11 +75,11 @@ func NewQueryDebugger() *QueryDebugger {
 	}
 }
 
-func (qd *QueryDebugger) PushPrimaryInfo(qdebugInfo *QueryDebugPrimarySource) {
+func (qd *QuesmaManagementConsole) PushPrimaryInfo(qdebugInfo *QueryDebugPrimarySource) {
 	qd.queryDebugPrimarySource <- qdebugInfo
 }
 
-func (qd *QueryDebugger) PushSecondaryInfo(qdebugInfo *QueryDebugSecondarySource) {
+func (qd *QuesmaManagementConsole) PushSecondaryInfo(qdebugInfo *QueryDebugSecondarySource) {
 	qd.queryDebugSecondarySource <- qdebugInfo
 }
 
@@ -104,14 +104,14 @@ func (qdi *QueryDebugInfo) requestContains(queryStr string) bool {
 	return false
 }
 
-func (qd *QueryDebugger) newHTTPServer() *http.Server {
+func (qd *QuesmaManagementConsole) newHTTPServer() *http.Server {
 	return &http.Server{
 		Addr:    ":" + UI_TCP_PORT,
 		Handler: qd.createRouting(),
 	}
 }
 
-func (qd *QueryDebugger) createRouting() *mux.Router {
+func (qd *QuesmaManagementConsole) createRouting() *mux.Router {
 	router := mux.NewRouter()
 
 	router.HandleFunc(healthPath, ok)
@@ -174,7 +174,7 @@ func (qd *QueryDebugger) createRouting() *mux.Router {
 	return router
 }
 
-func (qd *QueryDebugger) listenAndServe() {
+func (qd *QuesmaManagementConsole) listenAndServe() {
 	if err := qd.ui.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal("Error starting server:", err)
 	}
@@ -283,7 +283,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 	return buffer.Bytes()
 }
 
-func (qd *QueryDebugger) generateQueries() []byte {
+func (qd *QuesmaManagementConsole) generateQueries() []byte {
 	// Take last MAX_LAST_MESSAGES to display, e.g. 100 out of potentially 10m000
 	qd.mutex.Lock()
 	lastMessages := qd.debugLastMessages
@@ -314,7 +314,7 @@ func newBufferWithHead() bytes.Buffer {
 	return buffer
 }
 
-func (qd *QueryDebugger) generateStatistics() []byte {
+func (qd *QuesmaManagementConsole) generateStatistics() []byte {
 	var buffer bytes.Buffer
 	const maxTopValues = 5
 
@@ -366,7 +366,7 @@ func (qd *QueryDebugger) generateStatistics() []byte {
 	return buffer.Bytes()
 }
 
-func (qd *QueryDebugger) generateStatisticsLiveTail() []byte {
+func (qd *QuesmaManagementConsole) generateStatisticsLiveTail() []byte {
 	buffer := newBufferWithHead()
 
 	buffer.WriteString(`<div class="topnav">`)
@@ -397,7 +397,7 @@ func (qd *QueryDebugger) generateStatisticsLiveTail() []byte {
 	return buffer.Bytes()
 }
 
-func (qd *QueryDebugger) generateLiveTail() []byte {
+func (qd *QuesmaManagementConsole) generateLiveTail() []byte {
 	buffer := newBufferWithHead()
 
 	buffer.WriteString(`<div class="topnav">`)
@@ -444,7 +444,7 @@ func (qd *QueryDebugger) generateLiveTail() []byte {
 	return buffer.Bytes()
 }
 
-func (qd *QueryDebugger) generateReportForRequestId(requestId string) []byte {
+func (qd *QuesmaManagementConsole) generateReportForRequestId(requestId string) []byte {
 	qd.mutex.Lock()
 	request, requestFound := qd.debugInfoMessages[requestId]
 	qd.mutex.Unlock()
@@ -479,7 +479,7 @@ func (qd *QueryDebugger) generateReportForRequestId(requestId string) []byte {
 	return buffer.Bytes()
 }
 
-func (qd *QueryDebugger) generateReportForRequests(requestStr string) []byte {
+func (qd *QuesmaManagementConsole) generateReportForRequests(requestStr string) []byte {
 	qd.mutex.Lock()
 	localQueryDebugInfo := copyMap(qd.debugInfoMessages)
 	lastMessages := qd.debugLastMessages
@@ -518,7 +518,7 @@ func (qd *QueryDebugger) generateReportForRequests(requestStr string) []byte {
 	return buffer.Bytes()
 }
 
-func (gd *QueryDebugger) addNewMessageId(messageId string) {
+func (gd *QuesmaManagementConsole) addNewMessageId(messageId string) {
 	gd.debugLastMessages = append(gd.debugLastMessages, messageId)
 	if len(gd.debugLastMessages) > MAX_LAST_MESSAGES {
 		delete(gd.debugInfoMessages, gd.debugLastMessages[0])
@@ -526,7 +526,7 @@ func (gd *QueryDebugger) addNewMessageId(messageId string) {
 	}
 }
 
-func (qd *QueryDebugger) Run() {
+func (qd *QuesmaManagementConsole) Run() {
 	go qd.comparePipelines()
 	go func() {
 		qd.ui = qd.newHTTPServer()
@@ -610,7 +610,7 @@ func bypassSwitch(writer http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (qd *QueryDebugger) comparePipelines() {
+func (qd *QuesmaManagementConsole) comparePipelines() {
 	for {
 		queryDebugInfo, ok := <-qd.responseMatcherChannel
 		if ok {
