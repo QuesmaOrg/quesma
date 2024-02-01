@@ -44,15 +44,13 @@ func NewResponseDecorator(tcpPort string, requestId int64, queryDebugger *QueryD
 				if strings.Contains(req.RequestURI, "/_search") || strings.Contains(req.RequestURI, "/_async_search") {
 					isGzipped := strings.Contains(resp.Header.Get("Content-Encoding"), "gzip")
 					if isGzipped {
-						unzippedBuffer, err := gzip.UnZip(body)
+						body, err = gzip.UnZip(body)
 						if err != nil {
 							log.Println("Error unzipping:", err)
 							return err
 						}
-						queryDebugger.PushPrimaryInfo(&QueryDebugPrimarySource{req.Header.Get("RequestId"), unzippedBuffer})
-					} else {
-						queryDebugger.PushPrimaryInfo(&QueryDebugPrimarySource{req.Header.Get("RequestId"), body})
 					}
+					queryDebugger.PushPrimaryInfo(&QueryDebugPrimarySource{req.Header.Get("RequestId"), body})
 				}
 				return nil
 			}
