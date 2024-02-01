@@ -1,6 +1,7 @@
 package quesma
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"mitmproxy/quesma/clickhouse"
@@ -10,27 +11,27 @@ import (
 
 func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 	queryDebugger *QueryDebugger,
-	requestId string) {
+	requestId string) ([]byte, error) {
 	var translatedQueryBody []byte
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
 
 	// TODO index argument is not used yet
 	_ = index
-
 	query := queryTranslator.Write(body)
 	var responseBody []byte
 	if query.CanParse {
 		rows, err := queryTranslator.QueryClickhouse(query)
 		if err != nil {
 			log.Println("Error processing query: " + query.Sql + ", err: " + err.Error())
+			return responseBody, err
 		}
-
 		responseBody, err = queryparser.MakeResponse(rows)
 		if err != nil {
 			log.Println(err)
 		}
 	} else {
 		responseBody = []byte("Invalid Query, err: " + query.Sql)
+		return responseBody, errors.New(string(responseBody))
 	}
 
 	var rawResults []byte
@@ -42,6 +43,7 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 		queryRawResults:        rawResults,
 		queryTranslatedResults: responseBody,
 	})
+	return responseBody, nil
 }
 
 func createResponseHitJson(rows []clickhouse.QueryResultRow) []byte {
@@ -62,7 +64,7 @@ func createResponseHistogramJson(rows []clickhouse.HistogramResult) []byte {
 
 func handleAsyncSearch(index string, body []byte, lm *clickhouse.LogManager,
 	queryDebugger *QueryDebugger,
-	requestId string) {
+	requestId string) ([]byte, error) {
 	var translatedQueryBody []byte
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
 
@@ -98,6 +100,7 @@ func handleAsyncSearch(index string, body []byte, lm *clickhouse.LogManager,
 		}
 	} else {
 		responseBody = []byte("Invalid Query, err: " + query.Sql)
+		return responseBody, errors.New(string(responseBody))
 	}
 
 	var rawResults []byte
@@ -109,4 +112,5 @@ func handleAsyncSearch(index string, body []byte, lm *clickhouse.LogManager,
 		queryRawResults:        rawResults,
 		queryTranslatedResults: responseBody,
 	})
+	return responseBody, nil
 }

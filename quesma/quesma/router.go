@@ -72,17 +72,28 @@ func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManag
 	return router
 }
 
+func writeSearchResponse(writer http.ResponseWriter, body []byte, err error) {
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	writer.WriteHeader(http.StatusOK)
+	writer.Write(body)
+}
+
 func search(lm *clickhouse.LogManager, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("RequestId")
-		go handleSearch("", body, lm, queryDebugger, id)
+		responseBody, err := handleSearch("", body, lm, queryDebugger, id)
+		writeSearchResponse(writer, responseBody, err)
 	})
 }
 
 func asyncSearch(lm *clickhouse.LogManager, queryDebugger *QueryDebugger) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("RequestId")
-		go handleAsyncSearch("", body, lm, queryDebugger, id)
+		responseBody, err := handleAsyncSearch("", body, lm, queryDebugger, id)
+		writeSearchResponse(writer, responseBody, err)
 	})
 }
 
@@ -90,7 +101,8 @@ func searchVar(lm *clickhouse.LogManager, queryDebugger *QueryDebugger) func(htt
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("RequestId")
 		vars := mux.Vars(r)
-		go handleSearch(vars["index"], body, lm, queryDebugger, id)
+		responseBody, err := handleSearch(vars["index"], body, lm, queryDebugger, id)
+		writeSearchResponse(writer, responseBody, err)
 	})
 }
 
