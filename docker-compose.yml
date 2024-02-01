@@ -47,6 +47,7 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
     ports:
       - "9201:9200"
       - "9300:9300"
@@ -55,6 +56,10 @@ services:
       start_period: 1m
       interval: 1s
       timeout: 1s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.1
     links:
