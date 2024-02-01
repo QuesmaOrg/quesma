@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -25,7 +26,8 @@ const (
 	etDayFormat     = "2006.01.02"
 )
 
-func randomizedValue(values []string) string {
+// A generic function which returns random element of an array of any type
+func randomizedValue[T any](values []T) T {
 	randomIndex := rand.Intn(len(values))
 	return values[randomIndex]
 }
@@ -50,16 +52,20 @@ func ipv6Address() string {
 	})
 }
 
-func handsetModel() string {
-	return randomizedValue([]string{
-		"Abcdee-Rdddi 66A",
-		"Xyz 12B",
-		"Samsung Galaxy S21",
-		"iPhone 13 Pro",
-		"Google Pixel 6",
-		"OnePlus 9",
-		"Sony Xperia 5 III",
-		"Huawei P40",
+type Handset struct {
+	Maker, Model string
+}
+
+func handset() Handset {
+	return randomizedValue([]Handset{
+		{"Xiaomi", "Abcdee-Rdddi 66A"},
+		{"Xiaomi", "Xyz 12B"},
+		{"Samsung", "Samsung Galaxy S21"},
+		{"Apple", "iPhone 13 Pro"},
+		{"Google", "Google Pixel 6"},
+		{"OnePlus", "OnePlus 9"},
+		{"Sony", "Sony Xperia 5 III"},
+		{"Huawei", "Huawei P40"},
 	})
 }
 
@@ -83,19 +89,25 @@ func randomHexString(length int) string {
 	return string(b)
 }
 
+func randomBoolString() string {
+	randomBooleanVal := randomizedValue([]bool{true, false})
+	return strconv.FormatBool(randomBooleanVal)
+}
+
 func uuid() string {
 	return fmt.Sprintf("%s-%s-%s-%s-%s", randomHexString(8), randomHexString(4), randomHexString(4), randomHexString(4), randomHexString(12))
 }
 
 func generateLogLine(logTime time.Time) []byte {
+	userHandset := handset()
 	deviceLogArray := []string{`
     {
     "properties": {
     "enriched_client_ip": "`, ipv6Address(), `",
-    "user_handset_model": "`, handsetModel(), `",
+    "user_handset_model": "`, userHandset.Model, `",
     "time_taken_for_network_operation": 1749,
     "enriched_app_id": "DH",
-    "is_in_fg": true,
+    "is_in_fg": `, randomBoolString(), `,
     "signed_state": "signed_in",
     "enriched_event_attribution": "deep_link",
     "user_connection_quality": "`, connectionQuality(), `",
@@ -108,7 +120,7 @@ func generateLogLine(logTime time.Time) []byte {
     "tabname": "మీ కోసం",
     "fbestimation_connection_speedinkbps": 23067.048828125,
     "feed_latency": "531",
-    "pv_event": "true",
+    "pv_event": "`, randomBoolString(), `",
     "user_language_primary": "te",
     "session_start_time": "2024-01-01T22:25:21+0530",
     "card_count": 10,
@@ -127,12 +139,12 @@ func generateLogLine(logTime time.Time) []byte {
     "user_os_ver": "9",
     "user_os_name": "rel",
     "selected_country": "in",
-    "user_handset_maker": "Xiaomi",
+	"user_handset_maker": "`, userHandset.Maker, `",
     "fg_session_count": 202,
     "ab_NewsStickyType": "TYPE1",
     "country_detection_mechanism": "network_country",
     "event_attribution": "deep_link",
-    "isreg": true,
+    "isreg": `, randomBoolString(), `,
     "tabindex": 0,
     "ftd_session_time": 297,
     "tabitem_id": "`, randomHexString(32), `",
@@ -160,12 +172,10 @@ func generateLogLine(logTime time.Time) []byte {
 	deviceLog := strings.Join(deviceLogArray, "")
 
 	data := map[string]interface{}{}
-	json.Unmarshal([]byte(deviceLog), &data)
-	serialized, err := json.Marshal(data)
-	if err != nil {
+	if err := json.Unmarshal([]byte(deviceLog), &data); err != nil {
 		log.Fatal(err)
 	}
-
+	serialized, err := json.Marshal(data)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -201,6 +211,8 @@ func main() {
 			log.Fatal(err)
 		}
 
-		resp.Body.Close()
+		if err := resp.Body.Close(); err != nil {
+			log.Fatal(err)
+		}
 	}
 }
