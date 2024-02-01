@@ -123,7 +123,7 @@ func (qd *QueryDebugger) createRouting() *mux.Router {
 		_, _ = writer.Write(buf)
 	})
 
-	router.HandleFunc("/statistics", func(writer http.ResponseWriter, req *http.Request) {
+	router.HandleFunc("/statistics-json", func(writer http.ResponseWriter, req *http.Request) {
 		jsonBody, err := json.Marshal(stats.GlobalStatistics)
 		if err != nil {
 			log.Println("Error marshalling statistics:", err)
@@ -132,6 +132,16 @@ func (qd *QueryDebugger) createRouting() *mux.Router {
 		}
 		_, _ = writer.Write(jsonBody)
 		writer.WriteHeader(200)
+	})
+
+	router.HandleFunc("/statistics", func(writer http.ResponseWriter, req *http.Request) {
+		buf := qd.generateStatistics()
+		_, _ = writer.Write(buf)
+	})
+
+	router.HandleFunc("/ingest-statistics", func(writer http.ResponseWriter, req *http.Request) {
+		buf := qd.generateStatisticsLiveTail()
+		_, _ = writer.Write(buf)
 	})
 
 	router.HandleFunc("/queries", func(writer http.ResponseWriter, req *http.Request) {
@@ -304,6 +314,89 @@ func newBufferWithHead() bytes.Buffer {
 	return buffer
 }
 
+func (qd *QueryDebugger) generateStatistics() []byte {
+	var buffer bytes.Buffer
+	const maxTopValues = 5
+
+	statistics := stats.GlobalStatistics
+
+	for _, index := range statistics.SortedIndexNames() {
+		buffer.WriteString("\n" + fmt.Sprintf(`<h2>Stats for "%s" <small>from %d requests</small></h2>`, index.IndexName, index.Requests) + "\n")
+
+		buffer.WriteString("<table>\n")
+
+		buffer.WriteString("<thead>\n")
+		buffer.WriteString("<tr>\n")
+		buffer.WriteString(`<th class="key">Key</th>` + "\n")
+		buffer.WriteString(`<th class="key-count">Count</th>` + "\n")
+		buffer.WriteString(`<th class="value">Value</th>` + "\n")
+		buffer.WriteString(`<th class="value-count">Count</th>` + "\n")
+		buffer.WriteString(`<th class="types">Potential type</th>` + "\n")
+		buffer.WriteString("</tr>\n")
+		buffer.WriteString("</thead>\n")
+		buffer.WriteString("<tbody>\n")
+
+		for _, keyStats := range index.SortedKeyStatistics() {
+			topValuesCount := maxTopValues
+			if len(keyStats.Values) < maxTopValues {
+				topValuesCount = len(keyStats.Values)
+			}
+
+			buffer.WriteString("<tr>\n")
+			buffer.WriteString(fmt.Sprintf(`<td class="key" rowspan="%d">%s</td>`+"\n", topValuesCount, keyStats.KeyName))
+			buffer.WriteString(fmt.Sprintf(`<td class="key-count" rowspan="%d">%d</td>`+"\n", topValuesCount, keyStats.Occurrences))
+
+			for i, value := range keyStats.TopNValues(topValuesCount) {
+				if i > 0 {
+					buffer.WriteString("</tr>\n<tr>\n")
+				}
+
+				buffer.WriteString(fmt.Sprintf(`<td class="value">%s</td>`, value.ValueName))
+				buffer.WriteString(fmt.Sprintf(`<td class="value-count">%d</td>`, value.Occurrences))
+				buffer.WriteString(fmt.Sprintf(`<td class="types">%s</td>`, strings.Join(value.Types, ", ")))
+			}
+			buffer.WriteString("</tr>\n")
+		}
+
+		buffer.WriteString("</tbody>\n")
+
+		buffer.WriteString("</table>\n")
+	}
+
+	return buffer.Bytes()
+}
+
+func (qd *QueryDebugger) generateStatisticsLiveTail() []byte {
+	buffer := newBufferWithHead()
+
+	buffer.WriteString(`<div class="topnav">`)
+	buffer.WriteString("\n<h3>Quesma Management Console - ingest statistics</h3>")
+	buffer.WriteString(`<div class="autorefresh-box">` + "\n")
+	buffer.WriteString(`<div class="autorefresh">`)
+	buffer.WriteString(`<input type="checkbox" id="autorefresh" name="autorefresh" hx-target="#statistics" hx-get="/statistics" hx-trigger="every 1s [htmx.find('#autorefresh').checked]" checked />`)
+	buffer.WriteString(`<label for="autorefresh">Autorefresh every 1s</label>`)
+	buffer.WriteString("\n</div>")
+
+	buffer.WriteString("\n</div>\n")
+
+	buffer.WriteString("\n</div>\n\n")
+
+	buffer.WriteString(`<div id="statistics">`)
+	buffer.Write(qd.generateStatistics())
+	buffer.WriteString("\n</div>\n\n")
+
+	buffer.WriteString(`<div class="menu">`)
+	buffer.WriteString("\n<h2>Menu</h2>")
+
+	buffer.WriteString(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+
+	buffer.WriteString("\n</div>")
+
+	buffer.WriteString("\n</body>")
+	buffer.WriteString("\n</html>")
+	return buffer.Bytes()
+}
+
 func (qd *QueryDebugger) generateLiveTail() []byte {
 	buffer := newBufferWithHead()
 
@@ -342,6 +435,7 @@ func (qd *QueryDebugger) generateLiveTail() []byte {
 	buffer.WriteString(`<li><a href="http://localhost:5601/app/observability-log-explorer/">Kibana Log Explorer</a></li>`)
 	buffer.WriteString(`<li><a href="http://localhost:8081">mitmproxy</a></li>`)
 	buffer.WriteString(`<li><a href="http://localhost:8123/play">Clickhouse</a></li>`)
+	buffer.WriteString(`<li><a href="/ingest-statistics">Ingest statistics</a></li>`)
 	buffer.WriteString(`</ul>`)
 
 	buffer.WriteString("\n</div>")

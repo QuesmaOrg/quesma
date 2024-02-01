@@ -6,6 +6,7 @@ import (
 	"log"
 	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/util"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,6 +29,7 @@ type (
 		Values      map[string]*ValueStatistics
 	}
 	ValueStatistics struct {
+		ValueName   string
 		Occurrences int64
 		Types       []string
 	}
@@ -93,7 +95,7 @@ func (s *Statistics) Process(index string, jsonStr string, nestedSeparator strin
 		valueString := fmt.Sprintf("%v", value)
 		valueStatistics, ok := keyStatistics.Values[valueString]
 		if !ok {
-			valueStatistics = &ValueStatistics{}
+			valueStatistics = &ValueStatistics{ValueName: valueString}
 			keyStatistics.Values[valueString] = valueStatistics
 		}
 		valueStatistics.Occurrences++
@@ -101,6 +103,48 @@ func (s *Statistics) Process(index string, jsonStr string, nestedSeparator strin
 	}
 
 	mu.Unlock()
+}
+
+func (s *Statistics) SortedIndexNames() (result []*IndexStatistics) {
+	mu.Lock()
+	for _, value := range *s {
+		result = append(result, value)
+	}
+	mu.Unlock()
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].IndexName < result[j].IndexName
+	})
+
+	return result
+}
+
+func (is *IndexStatistics) SortedKeyStatistics() (result []*KeyStatistics) {
+	mu.Lock()
+	for _, value := range is.Keys {
+		result = append(result, value)
+	}
+	mu.Unlock()
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].KeyName < result[j].KeyName
+	})
+
+	return result
+}
+
+func (vs *KeyStatistics) TopNValues(n int) (result []*ValueStatistics) {
+	mu.Lock()
+	for _, value := range vs.Values {
+		result = append(result, value)
+	}
+	mu.Unlock()
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Occurrences > result[j].Occurrences
+	})
+
+	return result[:n]
 }
 
 func typesOf(str string) (types []string) {
