@@ -2,6 +2,7 @@ package quesma
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/gorilla/mux"
 	"io"
@@ -27,6 +28,8 @@ const (
 
 func bodyHandler(h func(body []byte, writer http.ResponseWriter, r *http.Request)) func(http.ResponseWriter, *http.Request) {
 	return func(writer http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), RequestId{}, r.Header.Get("RequestId"))
+		r = r.WithContext(ctx)
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Fatal(err)
@@ -72,7 +75,8 @@ func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManag
 	return router
 }
 
-func writeSearchResponse(writer http.ResponseWriter, body []byte, err error) {
+func writeSearchResponse(ctx context.Context, writer http.ResponseWriter, body []byte, err error) {
+	_ = ctx
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
@@ -83,46 +87,43 @@ func writeSearchResponse(writer http.ResponseWriter, body []byte, err error) {
 
 func search(lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		id := r.Header.Get("RequestId")
-		responseBody, err := handleSearch("", body, lm, quesmaManagementConsole, id)
-		writeSearchResponse(writer, responseBody, err)
+		responseBody, err := handleSearch(r.Context(), "", body, lm, quesmaManagementConsole)
+		writeSearchResponse(r.Context(), writer, responseBody, err)
 	})
 }
 
 func asyncSearch(lm *clickhouse.LogManager, queryDebugger *QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		id := r.Header.Get("RequestId")
-		responseBody, err := handleAsyncSearch("", body, lm, queryDebugger, id)
-		writeSearchResponse(writer, responseBody, err)
+		responseBody, err := handleAsyncSearch(r.Context(), "", body, lm, queryDebugger)
+		writeSearchResponse(r.Context(), writer, responseBody, err)
 	})
 }
 
 func searchVar(lm *clickhouse.LogManager, queryDebugger *QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		id := r.Header.Get("RequestId")
 		vars := mux.Vars(r)
-		responseBody, err := handleSearch(vars["index"], body, lm, queryDebugger, id)
-		writeSearchResponse(writer, responseBody, err)
+		responseBody, err := handleSearch(r.Context(), vars["index"], body, lm, queryDebugger)
+		writeSearchResponse(r.Context(), writer, responseBody, err)
 	})
 }
 
 func index(lm *clickhouse.LogManager, queryDebugger *QuesmaManagementConsole, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		go dualWrite(vars["index"], string(body), lm, config)
+		go dualWrite(r.Context(), vars["index"], string(body), lm, config)
 	})
 }
 
 func bulk(lm *clickhouse.LogManager, queryDebugger *QuesmaManagementConsole, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		go dualWriteBulk("", string(body), lm, config)
+		go dualWriteBulk(r.Context(), "", string(body), lm, config)
 	})
 }
 
 func bulkVar(lm *clickhouse.LogManager, queryDebugger *QuesmaManagementConsole, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		go dualWriteBulk(vars["index"], string(body), lm, config)
+		go dualWriteBulk(r.Context(), vars["index"], string(body), lm, config)
 	})
 }
 

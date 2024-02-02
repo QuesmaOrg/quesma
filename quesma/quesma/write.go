@@ -1,6 +1,7 @@
 package quesma
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -13,7 +14,8 @@ import (
 	"strings"
 )
 
-func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
+func dualWriteBulk(ctx context.Context, optionalTableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
+	_ = ctx
 	if trafficAnalysis.Load() {
 		log.Printf("analysing traffic, not writing to Clickhouse %s\n", queryparser.TableName)
 		return
@@ -48,7 +50,7 @@ func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogMana
 				}
 			}
 
-			withConfiguration(cfg, indexName, document, func() error {
+			withConfiguration(ctx, cfg, indexName, document, func() error {
 				stats.GlobalStatistics.Process(indexName, document, clickhouse.NestedSeparator)
 				return lm.ProcessInsertQuery(indexName, document)
 			})
@@ -64,7 +66,8 @@ func dualWriteBulk(optionalTableName string, body string, lm *clickhouse.LogMana
 	}
 }
 
-func dualWrite(tableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
+func dualWrite(ctx context.Context, tableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
+	_ = ctx
 	stats.GlobalStatistics.Process(tableName, body, clickhouse.NestedSeparator)
 	if trafficAnalysis.Load() {
 		log.Printf("analysing traffic, not writing to Clickhouse %s\n", queryparser.TableName)
@@ -76,12 +79,12 @@ func dualWrite(tableName string, body string, lm *clickhouse.LogManager, cfg con
 		return
 	}
 
-	withConfiguration(cfg, tableName, body, func() error {
+	withConfiguration(ctx, cfg, tableName, body, func() error {
 		return lm.ProcessInsertQuery(tableName, body)
 	})
 }
 
-func withConfiguration(cfg config.QuesmaConfiguration, indexName string, body string, action func() error) {
+func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, indexName string, body string, action func() error) {
 	if len(cfg.IndexConfig) == 0 {
 		log.Printf("%s  --> clickhouse, body(shortened): %s\n", indexName, util.Truncate(body))
 		err := action()

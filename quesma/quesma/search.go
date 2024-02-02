@@ -1,6 +1,7 @@
 package quesma
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -9,12 +10,10 @@ import (
 	"mitmproxy/quesma/queryparser"
 )
 
-func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
-	quesmaManagementConsole *QuesmaManagementConsole,
-	requestId string) ([]byte, error) {
+func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
+	quesmaManagementConsole *QuesmaManagementConsole) ([]byte, error) {
 	var translatedQueryBody []byte
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
-
 	// TODO index argument is not used yet
 	_ = index
 	query := queryTranslator.Write(body)
@@ -37,7 +36,7 @@ func handleSearch(index string, body []byte, lm *clickhouse.LogManager,
 	var rawResults []byte
 	translatedQueryBody = []byte(query.Sql)
 	quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
-		id:                     requestId,
+		id:                     ctx.Value(RequestId{}).(string),
 		incomingQueryBody:      body,
 		queryBodyTranslated:    translatedQueryBody,
 		queryRawResults:        rawResults,
@@ -62,12 +61,10 @@ func createResponseHistogramJson(rows []clickhouse.HistogramResult) []byte {
 	return responseBody
 }
 
-func handleAsyncSearch(index string, body []byte, lm *clickhouse.LogManager,
-	quesmaManagementConsole *QuesmaManagementConsole,
-	requestId string) ([]byte, error) {
+func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
+	quesmaManagementConsole *QuesmaManagementConsole) ([]byte, error) {
 	var translatedQueryBody []byte
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
-
 	// TODO index argument is not used yet
 	_ = index
 
@@ -106,7 +103,7 @@ func handleAsyncSearch(index string, body []byte, lm *clickhouse.LogManager,
 	var rawResults []byte
 	translatedQueryBody = []byte(query.Sql)
 	quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
-		id:                     requestId,
+		id:                     ctx.Value(RequestId{}).(string),
 		incomingQueryBody:      body,
 		queryBodyTranslated:    translatedQueryBody,
 		queryRawResults:        rawResults,

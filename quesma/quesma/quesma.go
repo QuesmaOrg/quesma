@@ -28,6 +28,8 @@ const (
 
 var trafficAnalysis atomic.Bool
 
+type RequestId struct{}
+
 type (
 	Quesma struct {
 		processingHttpServer    *http.Server
@@ -44,7 +46,8 @@ type (
 	}
 )
 
-func responseFromElastic(elkResponse *http.Response, w http.ResponseWriter, rId int) {
+func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http.ResponseWriter, rId int) {
+	_ = ctx
 	log.Printf("rId: %d, responding from elk\n", rId)
 	_, err := io.Copy(w, elkResponse.Body)
 	if err != nil {
@@ -54,7 +57,8 @@ func responseFromElastic(elkResponse *http.Response, w http.ResponseWriter, rId 
 	elkResponse.Body.Close()
 }
 
-func responseFromQuesma(unzipped []byte, w http.ResponseWriter, rId int) {
+func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, rId int) {
+	_ = ctx
 	log.Printf("rId: %d, responding from quesma\n", rId)
 
 	var response model.Response
@@ -88,7 +92,9 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 		routingHttpServer: &http.Server{
 			Addr: ":" + TcpProxyPort,
 			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				//defer recovery.LogPanic()
+				defer recovery.LogPanic()
+				ctx := context.WithValue(r.Context(), RequestId{}, r.Header.Get("RequestId"))
+
 				reqBody, err := io.ReadAll(r.Body)
 				if err != nil {
 					http.Error(w, "Error reading request body", http.StatusInternalServerError)
@@ -99,8 +105,8 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 
 				log.Printf("rId: %d, URI: %s\n", rId, r.RequestURI)
 
-				elkResponse := sendHttpRequest("http://"+target, r, reqBody)
-				quesmaResponse := sendHttpRequest("http://localhost:"+httpPort, r, reqBody)
+				elkResponse := sendHttpRequest(ctx, "http://"+target, r, reqBody)
+				quesmaResponse := sendHttpRequest(ctx, "http://localhost:"+httpPort, r, reqBody)
 
 				log.Printf("r.RequestURI: %+v\n", r.RequestURI)
 
@@ -132,13 +138,13 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 						// and we have to handle this case.
 						// When this happens, we want to return response from elk (for now), look else branch.
 						if string(unzipped) != "" {
-							responseFromQuesma(unzipped, w, rId)
+							responseFromQuesma(ctx, unzipped, w, rId)
 						} else {
-							responseFromElastic(elkResponse, w, rId)
+							responseFromElastic(ctx, elkResponse, w, rId)
 						}
 					}
 				} else {
-					responseFromElastic(elkResponse, w, rId)
+					responseFromElastic(ctx, elkResponse, w, rId)
 				}
 			}),
 		},
@@ -192,8 +198,8 @@ func SetTrafficAnalysis(val bool) {
 	trafficAnalysis.Store(val)
 }
 
-func sendHttpRequest(address string, originalReq *http.Request, originalReqBody []byte) *http.Response {
-	req, err := http.NewRequest(originalReq.Method, address+originalReq.URL.String(), bytes.NewBuffer(originalReqBody))
+func sendHttpRequest(ctx context.Context, address string, originalReq *http.Request, originalReqBody []byte) *http.Response {
+	req, err := http.NewRequestWithContext(ctx, originalReq.Method, address+originalReq.URL.String(), bytes.NewBuffer(originalReqBody))
 	if err != nil {
 		fmt.Println("Error creating request:", err)
 		return nil
