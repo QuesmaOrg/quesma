@@ -67,6 +67,10 @@ jobs:
         working-directory: smoke-test
         run: go run main.go
 
+      - name: Print docker status
+        if: failure()
+        run: docker-compose ps
+
       - name: Print docker-compose logs
         if: failure()
         run: docker-compose logs
