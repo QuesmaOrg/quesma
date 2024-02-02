@@ -78,6 +78,26 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 	}
 }
 
+func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse *http.Response, console *QuesmaManagementConsole) {
+	reader := elkResponse.Body
+	body, err := io.ReadAll(reader)
+	if err != nil {
+		log.Fatal(err)
+	}
+	elkResponse.Body = io.NopCloser(bytes.NewBuffer(body))
+
+	if strings.Contains(uri, "/_search") || strings.Contains(uri, "/_async_search") {
+		isGzipped := strings.Contains(elkResponse.Header.Get("Content-Encoding"), "gzip")
+		if isGzipped {
+			body, err = gzip.UnZip(body)
+			if err != nil {
+				log.Println("Error unzipping:", err)
+			}
+		}
+		console.PushPrimaryInfo(&QueryDebugPrimarySource{ctx.Value(RequestId{}).(string), body})
+	}
+}
+
 func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration) *Quesma {
 	quesmaManagementConsole := NewQuesmaManagementConsole()
 	q := &Quesma{
@@ -117,6 +137,8 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 				if quesmaResponse == nil {
 					panic("quesmaResponse is nil")
 				}
+
+				sendElkResponseToQuesmaConsole(ctx, r.RequestURI, elkResponse, quesmaManagementConsole)
 
 				for key, values := range elkResponse.Header {
 					for _, value := range values {
