@@ -45,8 +45,6 @@ jobs:
 
 
   smoke-test:
-    needs:
-      - build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -57,13 +55,16 @@ jobs:
           cache-dependency-path: smoke-test/go.sum
           go-version: '1.21'
 
-      - name: Start docker-compose
+      - name: Build and start docker-compose
         timeout-minutes: 10
-        run: |
-          docker-compose up -d
-          while ! curl -s http://localhost:9200/logs-generic-default/_count >/dev/null; do sleep 1;printf ".\n"; done
+        run: docker-compose up -d
 
-      - name: Verify
+      - name: Wait until services are healthy
+        timeout-minutes: 6
+        working-directory: smoke-test
+        run: go run main.go --wait-for-start
+
+      - name: Verify if data is flowing
         working-directory: smoke-test
         run: go run main.go
 
