@@ -74,12 +74,12 @@ func NewQuesmaManagementConsole() *QuesmaManagementConsole {
 	}
 }
 
-func (qd *QuesmaManagementConsole) PushPrimaryInfo(qdebugInfo *QueryDebugPrimarySource) {
-	qd.queryDebugPrimarySource <- qdebugInfo
+func (qmc *QuesmaManagementConsole) PushPrimaryInfo(qdebugInfo *QueryDebugPrimarySource) {
+	qmc.queryDebugPrimarySource <- qdebugInfo
 }
 
-func (qd *QuesmaManagementConsole) PushSecondaryInfo(qdebugInfo *QueryDebugSecondarySource) {
-	qd.queryDebugSecondarySource <- qdebugInfo
+func (qmc *QuesmaManagementConsole) PushSecondaryInfo(qdebugInfo *QueryDebugSecondarySource) {
+	qmc.queryDebugSecondarySource <- qdebugInfo
 }
 
 func copyMap(originalMap map[string]QueryDebugInfo) map[string]QueryDebugInfo {
@@ -103,14 +103,14 @@ func (qdi *QueryDebugInfo) requestContains(queryStr string) bool {
 	return false
 }
 
-func (qd *QuesmaManagementConsole) newHTTPServer() *http.Server {
+func (qmc *QuesmaManagementConsole) newHTTPServer() *http.Server {
 	return &http.Server{
 		Addr:    ":" + UI_TCP_PORT,
-		Handler: qd.createRouting(),
+		Handler: qmc.createRouting(),
 	}
 }
 
-func (qd *QuesmaManagementConsole) createRouting() *mux.Router {
+func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	router := mux.NewRouter()
 
 	router.HandleFunc(healthPath, ok)
@@ -118,7 +118,7 @@ func (qd *QuesmaManagementConsole) createRouting() *mux.Router {
 	router.HandleFunc(bypassPath, bypassSwitch).Methods("POST")
 
 	router.HandleFunc("/", func(writer http.ResponseWriter, req *http.Request) {
-		buf := qd.generateLiveTail()
+		buf := qmc.generateLiveTail()
 		_, _ = writer.Write(buf)
 	})
 
@@ -134,27 +134,27 @@ func (qd *QuesmaManagementConsole) createRouting() *mux.Router {
 	})
 
 	router.HandleFunc("/statistics", func(writer http.ResponseWriter, req *http.Request) {
-		buf := qd.generateStatistics()
+		buf := qmc.generateStatistics()
 		_, _ = writer.Write(buf)
 	})
 
 	router.HandleFunc("/ingest-statistics", func(writer http.ResponseWriter, req *http.Request) {
-		buf := qd.generateStatisticsLiveTail()
+		buf := qmc.generateStatisticsLiveTail()
 		_, _ = writer.Write(buf)
 	})
 
 	router.HandleFunc("/queries", func(writer http.ResponseWriter, req *http.Request) {
-		buf := qd.generateQueries()
+		buf := qmc.generateQueries()
 		_, _ = writer.Write(buf)
 	})
 	router.PathPrefix("/request-id/{requestId}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		buf := qd.generateReportForRequestId(vars["requestId"])
+		buf := qmc.generateReportForRequestId(vars["requestId"])
 		_, _ = writer.Write(buf)
 	})
 	router.PathPrefix("/requests-by-str/{queryString}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		buf := qd.generateReportForRequests(vars["queryString"])
+		buf := qmc.generateReportForRequests(vars["queryString"])
 		_, _ = writer.Write(buf)
 	})
 	router.PathPrefix("/request-id").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
@@ -166,15 +166,15 @@ func (qd *QuesmaManagementConsole) createRouting() *mux.Router {
 		http.Redirect(writer, r, "/", http.StatusSeeOther)
 	})
 	router.HandleFunc("/queries", func(writer http.ResponseWriter, req *http.Request) {
-		buf := qd.generateQueries()
+		buf := qmc.generateQueries()
 		_, _ = writer.Write(buf)
 	})
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.FS(uiFs))))
 	return router
 }
 
-func (qd *QuesmaManagementConsole) listenAndServe() {
-	if err := qd.ui.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+func (qmc *QuesmaManagementConsole) listenAndServe() {
+	if err := qmc.ui.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal("Error starting server:", err)
 	}
 }
@@ -282,20 +282,20 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 	return buffer.Bytes()
 }
 
-func (qd *QuesmaManagementConsole) generateQueries() []byte {
+func (qmc *QuesmaManagementConsole) generateQueries() []byte {
 	// Take last MAX_LAST_MESSAGES to display, e.g. 100 out of potentially 10m000
-	qd.mutex.Lock()
-	lastMessages := qd.debugLastMessages
+	qmc.mutex.Lock()
+	lastMessages := qmc.debugLastMessages
 	debugKeyValueSlice := []DebugKeyValue{}
 	count := 0
 	for i := len(lastMessages) - 1; i >= 0 && count < MAX_LAST_MESSAGES; i-- {
-		debugInfoMessage := qd.debugInfoMessages[lastMessages[i]]
+		debugInfoMessage := qmc.debugInfoMessages[lastMessages[i]]
 		if len(debugInfoMessage.QueryDebugSecondarySource.incomingQueryBody) > 0 {
 			debugKeyValueSlice = append(debugKeyValueSlice, DebugKeyValue{lastMessages[i], debugInfoMessage})
 			count++
 		}
 	}
-	qd.mutex.Unlock()
+	qmc.mutex.Unlock()
 
 	return generateQueries(debugKeyValueSlice, true)
 }
@@ -313,7 +313,7 @@ func newBufferWithHead() bytes.Buffer {
 	return buffer
 }
 
-func (qd *QuesmaManagementConsole) generateStatistics() []byte {
+func (qmc *QuesmaManagementConsole) generateStatistics() []byte {
 	var buffer bytes.Buffer
 	const maxTopValues = 5
 
@@ -365,7 +365,7 @@ func (qd *QuesmaManagementConsole) generateStatistics() []byte {
 	return buffer.Bytes()
 }
 
-func (qd *QuesmaManagementConsole) generateStatisticsLiveTail() []byte {
+func (qmc *QuesmaManagementConsole) generateStatisticsLiveTail() []byte {
 	buffer := newBufferWithHead()
 
 	buffer.WriteString(`<div class="topnav">`)
@@ -381,7 +381,7 @@ func (qd *QuesmaManagementConsole) generateStatisticsLiveTail() []byte {
 	buffer.WriteString("\n</div>\n\n")
 
 	buffer.WriteString(`<div id="statistics">`)
-	buffer.Write(qd.generateStatistics())
+	buffer.Write(qmc.generateStatistics())
 	buffer.WriteString("\n</div>\n\n")
 
 	buffer.WriteString(`<div class="menu">`)
@@ -396,7 +396,7 @@ func (qd *QuesmaManagementConsole) generateStatisticsLiveTail() []byte {
 	return buffer.Bytes()
 }
 
-func (qd *QuesmaManagementConsole) generateLiveTail() []byte {
+func (qmc *QuesmaManagementConsole) generateLiveTail() []byte {
 	buffer := newBufferWithHead()
 
 	buffer.WriteString(`<div class="topnav">`)
@@ -411,7 +411,7 @@ func (qd *QuesmaManagementConsole) generateLiveTail() []byte {
 	buffer.WriteString("\n</div>\n")
 
 	buffer.WriteString(`<div id="queries">`)
-	buffer.Write(qd.generateQueries())
+	buffer.Write(qmc.generateQueries())
 	buffer.WriteString("\n</div>\n\n")
 
 	buffer.WriteString(`<div class="menu">`)
@@ -443,10 +443,10 @@ func (qd *QuesmaManagementConsole) generateLiveTail() []byte {
 	return buffer.Bytes()
 }
 
-func (qd *QuesmaManagementConsole) generateReportForRequestId(requestId string) []byte {
-	qd.mutex.Lock()
-	request, requestFound := qd.debugInfoMessages[requestId]
-	qd.mutex.Unlock()
+func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string) []byte {
+	qmc.mutex.Lock()
+	request, requestFound := qmc.debugInfoMessages[requestId]
+	qmc.mutex.Unlock()
 
 	buffer := newBufferWithHead()
 	buffer.WriteString(`<div class="topnav">`)
@@ -478,11 +478,11 @@ func (qd *QuesmaManagementConsole) generateReportForRequestId(requestId string) 
 	return buffer.Bytes()
 }
 
-func (qd *QuesmaManagementConsole) generateReportForRequests(requestStr string) []byte {
-	qd.mutex.Lock()
-	localQueryDebugInfo := copyMap(qd.debugInfoMessages)
-	lastMessages := qd.debugLastMessages
-	qd.mutex.Unlock()
+func (qmc *QuesmaManagementConsole) generateReportForRequests(requestStr string) []byte {
+	qmc.mutex.Lock()
+	localQueryDebugInfo := copyMap(qmc.debugInfoMessages)
+	lastMessages := qmc.debugLastMessages
+	qmc.mutex.Unlock()
 
 	var debugKeyValueSlice []DebugKeyValue
 	for i := len(lastMessages) - 1; i >= 0; i-- {
@@ -517,40 +517,40 @@ func (qd *QuesmaManagementConsole) generateReportForRequests(requestStr string) 
 	return buffer.Bytes()
 }
 
-func (gd *QuesmaManagementConsole) addNewMessageId(messageId string) {
-	gd.debugLastMessages = append(gd.debugLastMessages, messageId)
-	if len(gd.debugLastMessages) > MAX_LAST_MESSAGES {
-		delete(gd.debugInfoMessages, gd.debugLastMessages[0])
-		gd.debugLastMessages = gd.debugLastMessages[1:]
+func (qmc *QuesmaManagementConsole) addNewMessageId(messageId string) {
+	qmc.debugLastMessages = append(qmc.debugLastMessages, messageId)
+	if len(qmc.debugLastMessages) > MAX_LAST_MESSAGES {
+		delete(qmc.debugInfoMessages, qmc.debugLastMessages[0])
+		qmc.debugLastMessages = qmc.debugLastMessages[1:]
 	}
 }
 
-func (qd *QuesmaManagementConsole) Run() {
-	go qd.comparePipelines()
+func (qmc *QuesmaManagementConsole) Run() {
+	go qmc.comparePipelines()
 	go func() {
-		qd.ui = qd.newHTTPServer()
-		qd.listenAndServe()
+		qmc.ui = qmc.newHTTPServer()
+		qmc.listenAndServe()
 	}()
 	for {
 		select {
-		case msg := <-qd.queryDebugPrimarySource:
+		case msg := <-qmc.queryDebugPrimarySource:
 			log.Println("Received debug info from primary source:", msg.id)
 			debugPrimaryInfo := QueryDebugPrimarySource{msg.id, msg.queryResp}
-			qd.mutex.Lock()
-			if value, ok := qd.debugInfoMessages[msg.id]; !ok {
-				qd.debugInfoMessages[msg.id] = QueryDebugInfo{
+			qmc.mutex.Lock()
+			if value, ok := qmc.debugInfoMessages[msg.id]; !ok {
+				qmc.debugInfoMessages[msg.id] = QueryDebugInfo{
 					QueryDebugPrimarySource: debugPrimaryInfo,
 				}
-				qd.addNewMessageId(msg.id)
+				qmc.addNewMessageId(msg.id)
 			} else {
 				value.QueryDebugPrimarySource = debugPrimaryInfo
-				qd.debugInfoMessages[msg.id] = value
+				qmc.debugInfoMessages[msg.id] = value
 				// That's the point where QueryDebugInfo is
 				// complete and we can compare results
-				qd.responseMatcherChannel <- value
+				qmc.responseMatcherChannel <- value
 			}
-			qd.mutex.Unlock()
-		case msg := <-qd.queryDebugSecondarySource:
+			qmc.mutex.Unlock()
+		case msg := <-qmc.queryDebugSecondarySource:
 			log.Println("Received debug info from secondary source:", msg.id)
 			secondaryDebugInfo := QueryDebugSecondarySource{
 				msg.id,
@@ -559,20 +559,20 @@ func (qd *QuesmaManagementConsole) Run() {
 				msg.queryRawResults,
 				msg.queryTranslatedResults,
 			}
-			qd.mutex.Lock()
-			if value, ok := qd.debugInfoMessages[msg.id]; !ok {
-				qd.debugInfoMessages[msg.id] = QueryDebugInfo{
+			qmc.mutex.Lock()
+			if value, ok := qmc.debugInfoMessages[msg.id]; !ok {
+				qmc.debugInfoMessages[msg.id] = QueryDebugInfo{
 					QueryDebugSecondarySource: secondaryDebugInfo,
 				}
-				qd.addNewMessageId(msg.id)
+				qmc.addNewMessageId(msg.id)
 			} else {
 				value.QueryDebugSecondarySource = secondaryDebugInfo
 				// That's the point where QueryDebugInfo is
 				// complete and we can compare results
-				qd.debugInfoMessages[msg.id] = value
-				qd.responseMatcherChannel <- value
+				qmc.debugInfoMessages[msg.id] = value
+				qmc.responseMatcherChannel <- value
 			}
-			qd.mutex.Unlock()
+			qmc.mutex.Unlock()
 
 		}
 	}
@@ -609,9 +609,9 @@ func bypassSwitch(writer http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (qd *QuesmaManagementConsole) comparePipelines() {
+func (qmc *QuesmaManagementConsole) comparePipelines() {
 	for {
-		queryDebugInfo, ok := <-qd.responseMatcherChannel
+		queryDebugInfo, ok := <-qmc.responseMatcherChannel
 		if ok {
 			if string(queryDebugInfo.queryResp) != string(queryDebugInfo.queryTranslatedResults) {
 				log.Println("Responses are different:")

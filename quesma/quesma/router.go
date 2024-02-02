@@ -91,35 +91,35 @@ func search(lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagement
 	})
 }
 
-func asyncSearch(lm *clickhouse.LogManager, queryDebugger *QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
+func asyncSearch(lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		responseBody, err := handleAsyncSearch(r.Context(), "", body, lm, queryDebugger)
+		responseBody, err := handleAsyncSearch(r.Context(), "", body, lm, quesmaManagementConsole)
 		writeSearchResponse(r.Context(), writer, responseBody, err)
 	})
 }
 
-func searchVar(lm *clickhouse.LogManager, queryDebugger *QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
+func searchVar(lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		responseBody, err := handleSearch(r.Context(), vars["index"], body, lm, queryDebugger)
+		responseBody, err := handleSearch(r.Context(), vars["index"], body, lm, quesmaManagementConsole)
 		writeSearchResponse(r.Context(), writer, responseBody, err)
 	})
 }
 
-func index(lm *clickhouse.LogManager, queryDebugger *QuesmaManagementConsole, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
+func index(lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagementConsole, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		go dualWrite(r.Context(), vars["index"], string(body), lm, config)
 	})
 }
 
-func bulk(lm *clickhouse.LogManager, queryDebugger *QuesmaManagementConsole, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
+func bulk(lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagementConsole, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		go dualWriteBulk(r.Context(), "", string(body), lm, config)
 	})
 }
 
-func bulkVar(lm *clickhouse.LogManager, queryDebugger *QuesmaManagementConsole, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
+func bulkVar(lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagementConsole, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		go dualWriteBulk(r.Context(), vars["index"], string(body), lm, config)
