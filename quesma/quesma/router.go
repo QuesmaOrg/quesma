@@ -61,7 +61,6 @@ func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManag
 	})
 	router.PathPrefix(BulkPath).HandlerFunc(bulk(lm, quesmaManagementConsole, config)).Methods("POST")
 	router.PathPrefix(SearchPath).HandlerFunc(search(lm, quesmaManagementConsole)).Methods("POST")
-	router.PathPrefix("/{index}" + AsyncSearchPath).HandlerFunc(asyncSearch(lm, quesmaManagementConsole)).Methods("POST")
 	router.PathPrefix(ElasticInternalPath).HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		fmt.Printf("unrecognized internal path: %s\n", r.RequestURI)
 	})

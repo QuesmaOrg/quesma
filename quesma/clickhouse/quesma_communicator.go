@@ -235,7 +235,7 @@ func read(rows *sql.Rows, colNames []string, rowToScan []interface{}) ([]QueryRe
 		}
 		resultRow := QueryResultRow{Cols: make([]QueryResultCol, len(colNames))}
 		for i, colName := range colNames {
-			resultRow.Cols[i] = QueryResultCol{ColName: strconv.Quote(colName), Value: rowToScan[i]}
+			resultRow.Cols[i] = QueryResultCol{ColName: colName, Value: rowToScan[i]}
 		}
 		resultRows = append(resultRows, resultRow)
 	}
