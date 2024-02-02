@@ -24,7 +24,7 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 			log.Println("Error processing query: " + query.Sql + ", err: " + err.Error())
 			return responseBody, err
 		}
-		responseBody, err = queryparser.MakeResponse(rows)
+		responseBody, err = queryparser.MakeResponse(rows, false)
 		if err != nil {
 			log.Println(err)
 		}
@@ -46,7 +46,7 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 }
 
 func createResponseHitJson(rows []clickhouse.QueryResultRow) []byte {
-	responseBody, err := queryparser.MakeResponse(rows)
+	responseBody, err := queryparser.MakeResponse(rows, true)
 	if err != nil {
 		log.Println(err)
 	}
@@ -54,7 +54,7 @@ func createResponseHitJson(rows []clickhouse.QueryResultRow) []byte {
 }
 
 func createResponseHistogramJson(rows []clickhouse.HistogramResult) []byte {
-	responseBody, err := queryparser.MakeResponse(rows)
+	responseBody, err := queryparser.MakeResponse(rows, true)
 	if err != nil {
 		log.Println(err)
 	}

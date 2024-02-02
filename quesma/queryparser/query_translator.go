@@ -33,7 +33,7 @@ func (cw *ClickhouseQueryTranslator) WriteAsyncSearch(buf []byte) (model.Query, 
 	return query, queryInfo
 }
 
-func MakeResponse[T fmt.Stringer](ResultSet []T) ([]byte, error) {
+func MakeResponse[T fmt.Stringer](ResultSet []T, asyncSearch bool) ([]byte, error) {
 	searchResponse := model.SearchResp{}
 	for _, row := range ResultSet {
 		searchHit := model.SearchHit{}
@@ -42,9 +42,13 @@ func MakeResponse[T fmt.Stringer](ResultSet []T) ([]byte, error) {
 	}
 	// Hits total value is mandatory
 	searchResponse.Hits.Total.Value = len(ResultSet)
-	response := model.Response{Response: searchResponse}
+	if asyncSearch {
+		// Only async search needs to be wrapped in a response object
+		response := model.Response{Response: searchResponse}
+		return json.MarshalIndent(response, "", "")
+	}
 
-	return json.MarshalIndent(response, "", "  ")
+	return json.MarshalIndent(searchResponse, "", "")
 }
 
 func (cw *ClickhouseQueryTranslator) GetAttributesList(tableName string) []clickhouse.Attribute {

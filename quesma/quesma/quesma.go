@@ -3,14 +3,12 @@ package quesma
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"math/rand"
 	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/gzip"
 	"mitmproxy/quesma/quesma/recovery"
@@ -60,19 +58,9 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, rId int) {
 	_ = ctx
 	log.Printf("rId: %d, responding from quesma\n", rId)
-
-	var response model.Response
-
-	err := json.Unmarshal(unzipped, &response)
-	if err != nil {
-		return
-	}
-	replaced, err := json.Marshal(response)
-
-	if err != nil {
-		return
-	}
-	zipped, err := gzip.Zip(replaced)
+	// Response from clickhouse is always unzipped
+	// so we have to zip it before sending to client
+	zipped, err := gzip.Zip(unzipped)
 	if err == nil {
 		_, _ = io.Copy(w, bytes.NewBuffer(zipped))
 	}
