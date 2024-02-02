@@ -98,6 +98,18 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse
 	}
 }
 
+func NewTcpProxy(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration) *Quesma {
+	return New(logManager, target, tcpPort, httpPort, config)
+}
+
+func NewHttpProxy(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration) *Quesma {
+	return New(logManager, target, tcpPort, httpPort, config)
+}
+
+func NewHttpClickhouseAdapter(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration) *Quesma {
+	return New(logManager, target, tcpPort, httpPort, config)
+}
+
 func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration) *Quesma {
 	quesmaManagementConsole := NewQuesmaManagementConsole()
 	q := &Quesma{
@@ -210,6 +222,7 @@ func (q *Quesma) listenResponseDecorator() {
 
 func (q *Quesma) Start() {
 	defer recovery.LogPanic()
+	log.Println("starting quesma in the mode:", q.config.Mode)
 	go q.listenRoutingHTTP()
 	go q.listenHTTP()
 	go q.listenResponseDecorator()

@@ -10,6 +10,10 @@ const (
 	ClickHouse
 )
 
+func (m OperationMode) String() string {
+	return [...]string{"proxy", "proxy-inspect", "dual-write-query-elastic", "dual-write-query-clickhouse", "dual-write-query-clickhouse-verify", "dual-write-query-clickhouse-fallback", "clickhouse"}[m]
+}
+
 func parseOperationMode(str string) OperationMode {
 	switch str {
 	case "proxy":

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/quesma"
@@ -42,11 +43,23 @@ func main() {
 	var cfg = config.Load()
 	log.Printf("loaded config: %+v\n", cfg)
 
-	instance := quesma.New(lm, os.Getenv(targetEnv), tcpPort, internalHttpPort, cfg)
+	instance := constructQuesma(cfg, lm)
 	instance.Start()
 
 	<-sig
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	instance.Close(ctx)
+}
+
+func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager) *quesma.Quesma {
+	switch cfg.Mode {
+	case config.Proxy, config.ProxyInspect, config.DualWriteQueryElastic:
+		return quesma.NewTcpProxy(lm, os.Getenv(targetEnv), tcpPort, internalHttpPort, cfg)
+	case config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
+		return quesma.NewHttpProxy(lm, os.Getenv(targetEnv), tcpPort, internalHttpPort, cfg)
+	case config.ClickHouse:
+		return quesma.NewHttpClickhouseAdapter(lm, os.Getenv(targetEnv), tcpPort, internalHttpPort, cfg)
+	}
+	panic(fmt.Sprintf("unknown operation mode: %d\n", cfg.Mode))
 }
