@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/k0kubun/pp"
+	"github.com/mjibson/sqlfmt"
 	"io"
 	"log"
 	"mitmproxy/quesma/stats"
@@ -14,11 +16,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/mjibson/sqlfmt"
-
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 	"github.com/gorilla/mux"
-	jd "github.com/josephburnett/jd/lib"
 )
 
 const (
@@ -616,15 +615,13 @@ func (qd *QuesmaManagementConsole) comparePipelines() {
 		if ok {
 			if string(queryDebugInfo.queryResp) != string(queryDebugInfo.queryTranslatedResults) {
 				log.Println("Responses are different:")
-				elasticResponse, err := jd.ReadJsonString(string(queryDebugInfo.queryResp))
+				elasticSurplusFields, ourSurplusFields, err := util.JsonDifference(string(queryDebugInfo.queryResp), string(queryDebugInfo.queryTranslatedResults))
 				if err != nil {
-					log.Println(err)
+					log.Println("Error while comparing responses:", err)
+					continue
 				}
-				clickhouseResponse, err := jd.ReadJsonString(string(queryDebugInfo.queryTranslatedResults))
-				if err != nil {
-					log.Println(err)
-				}
-				fmt.Print(elasticResponse.Diff(clickhouseResponse).Render())
+				pp.Println(`Clickhouse response \ Elastic response: `, ourSurplusFields)
+				pp.Println(`Elastic response \ Clickhouse response: `, elasticSurplusFields)
 			}
 		}
 	}

@@ -219,3 +219,7 @@ func shortenDumpSchemasOutput(s string) string {
 	}
 	return strings.ReplaceAll(result+s[i:], "clickhouse.", "")
 }
+
+func indent(indentLvl int) string {
+	return strings.Repeat("\t", indentLvl)
+}

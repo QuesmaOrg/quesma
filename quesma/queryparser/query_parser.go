@@ -6,91 +6,90 @@ import (
 	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/model"
+	"strconv"
 	"strings"
 	"time"
 )
 
-type JsonMap = map[string]interface{}
+type QueryMap = map[string]interface{}
 
 const (
 	TableName          = `"logs-generic-default"`
 	TimestampFieldName = `"@timestamp"`
 )
 
-func NewQueryInfoNone() model.QueryInfo {
-	return model.QueryInfo{Typ: model.None, FieldName: "", I1: 0, I2: 0}
+type SimpleQuery struct {
+	Sql      Statement
+	CanParse bool
 }
 
-func NewQuery(sql string, tableName string, canParse bool) model.Query {
-	return model.Query{Sql: sql, TableName: tableName, CanParse: canParse}
+type Statement struct {
+	Stmt       string
+	isCompound bool // "a" -> not compound, "a AND b" -> compound. Used to not make unnecessary brackets (not always, but usually)
 }
 
-// 'q' - string of a JSON query
-func (cw *ClickhouseQueryTranslator) parseQuery(q string) model.Query {
-	m := make(JsonMap)
-	err := json.Unmarshal([]byte(q), &m)
+func newSimpleQuery(sql Statement, canParse bool) SimpleQuery {
+	return SimpleQuery{Sql: sql, CanParse: canParse}
+}
+
+func NewSimpleStatement(stmt string) Statement {
+	return Statement{Stmt: stmt, isCompound: false}
+}
+
+func NewCompoundStatement(stmt string) Statement {
+	return Statement{Stmt: stmt, isCompound: true}
+}
+
+func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery, model.SearchQueryType) {
+	queryAsMap := make(QueryMap)
+	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
 	if err != nil {
-		return NewQuery("Invalid JSON (parseQuery)", TableName, false)
+		return newSimpleQuery(NewSimpleStatement("invalid JSON (ParseQuery)"), false), model.Normal
 	}
-	parsed := cw.parseJsonMap(m)
-	if !parsed.CanParse {
-		return parsed
-	} else {
-		where := " WHERE "
-		if len(parsed.Sql) == 0 {
-			where = ""
-		}
-		return NewQuery("SELECT * FROM "+TableName+where+parsed.Sql, TableName, true)
-	}
+	queryInfo := cw.tryProcessMetadataSearch(queryAsMap)
+	fmt.Println("queryInfo: ", queryInfo)
+	return cw.parseQueryMap(queryAsMap), queryInfo
 }
 
-func (cw *ClickhouseQueryTranslator) parseQueryAsyncSearch(q string) (model.Query, model.QueryInfo) {
-	m := make(JsonMap)
-	err := json.Unmarshal([]byte(q), &m)
+func (cw *ClickhouseQueryTranslator) parseQueryAsyncSearch(queryAsJson string) (SimpleQuery, model.QueryInfoAsyncSearch) {
+	queryAsMap := make(QueryMap)
+	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
 	if err != nil {
-		return NewQuery("Invalid JSON (parseQueryAsyncSearch)", TableName, false), NewQueryInfoNone()
+		return newSimpleQuery(NewSimpleStatement("invalid JSON (parseQueryAsyncSearch)"), false), model.NewQueryInfoNone()
 	}
 
-	queryInfo := cw.tryProcessMetadata(m)
-	parsed := cw.parseJsonMap(m["query"].(JsonMap))
-	if !parsed.CanParse {
-		return parsed, NewQueryInfoNone()
-	} else {
-		where := " WHERE "
-		if len(parsed.Sql) == 0 {
-			where = ""
-		}
-		return NewQuery("SELECT * FROM "+TableName+where+parsed.Sql, TableName, true), queryInfo
-	}
+	parsed := cw.parseQueryMap(queryAsMap["query"].(QueryMap))
+	QueryInfo := cw.tryProcessMetadataAsyncSearch(queryAsMap)
+	return parsed, QueryInfo
 }
 
 // Metadata attributes are the ones that are on the same level as query tag
 // They are moved into separate map for further processing if needed
-func (cw *ClickhouseQueryTranslator) parseMetadata(m JsonMap) map[string]interface{} {
-	queryMetadata := make(map[string]interface{}, 5)
-	for k, v := range m {
-		if k == "query" {
+func (cw *ClickhouseQueryTranslator) parseMetadata(queryMap QueryMap) QueryMap {
+	queryMetadata := make(QueryMap, 5)
+	for k, v := range queryMap {
+		if k == "query" || k == "bool" || k == "query_string" { // probably change that, made so tests work, but let's see after more real use cases {
 			continue
 		}
 		queryMetadata[k] = v
-		delete(m, k)
+		delete(queryMap, k)
 	}
 	return queryMetadata
 }
 
-func (cw *ClickhouseQueryTranslator) parseJsonMap(m JsonMap) model.Query {
-	if len(m) != 1 {
+func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuery {
+	if len(queryMap) != 1 {
 		// TODO suppress metadata for now
-		_ = cw.parseMetadata(m)
+		_ = cw.parseMetadata(queryMap)
 	}
-	parseMap := map[string]func(JsonMap) model.Query{
+	parseMap := map[string]func(QueryMap) SimpleQuery{
 		"match_all":           cw.parseMatchAll,
 		"match":               cw.parseMatch,
 		"multi_match":         cw.parseMultiMatch,
 		"bool":                cw.parseBool,
 		"term":                cw.parseTerm,
 		"terms":               cw.parseTerms,
-		"query":               cw.parseJsonMap,
+		"query":               cw.parseQueryMap,
 		"prefix":              cw.parsePrefix,
 		"nested":              cw.parseNested,
 		"match_phrase":        cw.parseMatch,
@@ -100,96 +99,103 @@ func (cw *ClickhouseQueryTranslator) parseJsonMap(m JsonMap) model.Query {
 		"query_string":        cw.parseQueryString,
 		"simple_query_string": cw.parseQueryString,
 	}
-	for k, v := range m {
+	for k, v := range queryMap {
 		if f, ok := parseMap[k]; ok {
-			return f(v.(JsonMap))
+			return f(v.(QueryMap))
 		}
 	}
-	return NewQuery("Can't parse query: "+pp.Sprint(m), TableName, false)
+	return newSimpleQuery(NewSimpleStatement("can't parse query: "+pp.Sprint(queryMap)), false)
 }
 
-// Parses each query separately, returns list of translated SQLs
-func (cw *ClickhouseQueryTranslator) parseJsonMapArray(m []interface{}) []string {
-	results := make([]string, len(m))
-	for i, v := range m {
-		results[i] = cw.parseJsonMap(v.(JsonMap)).Sql
+// Parses each SimpleQuery separately, returns list of translated SQLs
+func (cw *ClickhouseQueryTranslator) parseQueryMapArray(queryMaps []interface{}) []Statement {
+	results := make([]Statement, len(queryMaps))
+	for i, v := range queryMaps {
+		results[i] = cw.parseQueryMap(v.(QueryMap)).Sql
 	}
 	return results
 }
 
-func (cw *ClickhouseQueryTranslator) iterateListOrDict(m interface{}) []string {
-	switch mt := m.(type) {
+func (cw *ClickhouseQueryTranslator) iterateListOrDictAndParse(queryMaps interface{}) []Statement {
+	switch queryMapsTyped := queryMaps.(type) {
 	case []interface{}:
-		return cw.parseJsonMapArray(mt)
-	case JsonMap:
-		return []string{cw.parseJsonMap(mt).Sql}
+		return cw.parseQueryMapArray(queryMapsTyped)
+	case QueryMap:
+		return []Statement{cw.parseQueryMap(queryMapsTyped).Sql}
 	default:
-		return []string{"Invalid iteration"}
+		return []Statement{NewSimpleStatement("Invalid iteration")}
 	}
 }
 
 // TODO: minimum_should_match parameter. Now only ints supported and >1 changed into 1
-func (cw *ClickhouseQueryTranslator) parseBool(m JsonMap) model.Query {
-	andStmts := []string{}
+func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) SimpleQuery {
+	var andStmts []Statement
 	for _, andPhrase := range []string{"must", "filter"} {
-		if q, ok := m[andPhrase]; ok {
-			andStmts = append(andStmts, cw.iterateListOrDict(q)...)
+		if queries, ok := queryMap[andPhrase]; ok {
+			andStmts = append(andStmts, cw.iterateListOrDictAndParse(queries)...)
 		}
 	}
 	sql := and(andStmts)
 
 	minimumShouldMatch := 0
-	if v, ok := m["minimum_should_match"]; ok {
+	if v, ok := queryMap["minimum_should_match"]; ok {
 		minimumShouldMatch = int(v.(float64))
 	}
 	if len(andStmts) == 0 || minimumShouldMatch > 1 {
 		minimumShouldMatch = 1
 	}
-	if q, ok := m["should"]; ok && minimumShouldMatch == 1 {
-		orSql := or(cw.iterateListOrDict(q))
+	if queries, ok := queryMap["should"]; ok && minimumShouldMatch == 1 {
+		orSql := or(cw.iterateListOrDictAndParse(queries))
 		if len(andStmts) == 0 {
 			sql = orSql
-		} else if len(orSql) > 0 {
-			sql = and([]string{sql, orSql})
+		} else if len(orSql.Stmt) > 0 {
+			sql = and([]Statement{sql, orSql})
 		}
 	}
 
-	if q, ok := m["must_not"]; ok {
-		sqlNots := cw.iterateListOrDict(q)
+	if queries, ok := queryMap["must_not"]; ok {
+		sqlNots := cw.iterateListOrDictAndParse(queries)
 		sqlNots = filterNonEmpty(sqlNots)
 		if len(sqlNots) > 0 {
-			sql = and([]string{sql, "NOT " + or(sqlNots)})
+			orSql := or(sqlNots)
+			if orSql.isCompound {
+				orSql.Stmt = "NOT (" + orSql.Stmt + ")"
+				orSql.isCompound = false // NOT (compound) is again simple
+			} else {
+				orSql.Stmt = "NOT " + orSql.Stmt
+			}
+			sql = and([]Statement{sql, orSql})
 		}
 	}
-	return NewQuery(sql, TableName, true)
+	return newSimpleQuery(sql, true)
 }
 
-func (cw *ClickhouseQueryTranslator) parseTerm(m JsonMap) model.Query {
-	if len(m) == 1 {
-		for k, v := range m {
-			return NewQuery(quote(k)+"="+sprint(v), TableName, true)
+func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) SimpleQuery {
+	if len(queryMap) == 1 {
+		for k, v := range queryMap {
+			return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+"="+sprint(v)), true)
 		}
 	}
-	return NewQuery("Invalid term len, != 1", TableName, false)
+	return newSimpleQuery(NewSimpleStatement("invalid term len, != 1"), false)
 }
 
 // TODO remove optional parameters like boost
-func (cw *ClickhouseQueryTranslator) parseTerms(m JsonMap) model.Query {
-	if len(m) == 1 {
-		for k, v := range m {
-			vc := v.([]interface{})
-			orStmts := make([]string, len(vc))
-			for i, v := range vc {
-				orStmts[i] = quote(k) + "=" + sprint(v)
+func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) SimpleQuery {
+	if len(queryMap) == 1 {
+		for k, v := range queryMap {
+			vAsArray := v.([]interface{})
+			orStmts := make([]Statement, len(vAsArray))
+			for i, v := range vAsArray {
+				orStmts[i] = NewSimpleStatement(strconv.Quote(k) + "=" + sprint(v))
 			}
-			return NewQuery(or(orStmts), TableName, true)
+			return newSimpleQuery(or(orStmts), true)
 		}
 	}
-	return NewQuery("Invalid terms len, != 1", TableName, false)
+	return newSimpleQuery(NewSimpleStatement("invalid terms len, != 1"), false)
 }
 
-func (cw *ClickhouseQueryTranslator) parseMatchAll(m JsonMap) model.Query {
-	return NewQuery("", TableName, true)
+func (cw *ClickhouseQueryTranslator) parseMatchAll(_ QueryMap) SimpleQuery {
+	return newSimpleQuery(NewSimpleStatement(""), true)
 }
 
 // TODO
@@ -203,143 +209,144 @@ func (cw *ClickhouseQueryTranslator) parseMatchAll(m JsonMap) model.Query {
 // TOTHINK:
 // - casting to string. 'Match' on e.g. ints doesn't make sense, does it?
 // - match_phrase also goes here. Maybe some different parsing is needed?
-func (cw *ClickhouseQueryTranslator) parseMatch(m JsonMap) model.Query {
-	if len(m) == 1 {
-		for k, v := range m {
+func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap) SimpleQuery {
+	if len(queryMap) == 1 {
+		for k, v := range queryMap {
 			split := strings.Split(v.(string), " ")
-			qStrs := make([]string, len(split))
+			qStrs := make([]Statement, len(split))
 			for i, s := range split {
-				qStrs[i] = quote(k) + " iLIKE " + "'%" + s + "%'"
+				qStrs[i] = NewSimpleStatement(strconv.Quote(k) + " iLIKE " + "'%" + s + "%'")
 			}
-			return NewQuery(or(qStrs), TableName, true)
+			return newSimpleQuery(or(qStrs), true)
 		}
 	}
-	return NewQuery("Unsupported match len != 1", TableName, false)
+	return newSimpleQuery(NewSimpleStatement("unsupported match len != 1"), false)
 }
 
-func (cw *ClickhouseQueryTranslator) parseMultiMatch(m JsonMap) model.Query {
+func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) SimpleQuery {
 	var fields []string
-	fieldsAsInterface, ok := m["fields"]
+	fieldsAsInterface, ok := queryMap["fields"]
 	if ok {
 		fields = cw.extractFields(fieldsAsInterface.([]interface{}))
 	} else {
 		fields = cw.GetFieldsList(TableName)
 	}
-	subQs := strings.Split(m["query"].(string), " ")
-	sqls := make([]string, len(fields)*len(subQs))
+	subQueries := strings.Split(queryMap["query"].(string), " ")
+	sqls := make([]Statement, len(fields)*len(subQueries))
 	i := 0
 	for _, field := range fields {
-		for _, subQ := range subQs {
-			sqls[i] = quote(field) + " iLIKE '%" + subQ + "%'"
+		for _, subQ := range subQueries {
+			sqls[i] = NewSimpleStatement(strconv.Quote(field) + " iLIKE '%" + subQ + "%'")
 			i++
 		}
 	}
-	return NewQuery(or(sqls), TableName, true)
+	return newSimpleQuery(or(sqls), true)
 }
 
 // prefix works only on strings
-func (cw *ClickhouseQueryTranslator) parsePrefix(m JsonMap) model.Query {
-	if len(m) == 1 {
-		for k, v := range m {
-			switch vc := v.(type) {
+func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) SimpleQuery {
+	if len(queryMap) == 1 {
+		for k, v := range queryMap {
+			switch vCasted := v.(type) {
 			case string:
-				return NewQuery(quote(k)+" iLIKE '"+vc+"%'", TableName, true)
-			case JsonMap:
-				return NewQuery(quote(k)+" iLIKE '"+vc["value"].(string)+"%'", TableName, true)
+				return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+" iLIKE '"+vCasted+"%'"), true)
+			case QueryMap:
+				return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+" iLIKE '"+vCasted["value"].(string)+"%'"), true)
 			}
 		}
 	}
-	return NewQuery("Invalid prefix len != 1", TableName, false)
+	return newSimpleQuery(NewSimpleStatement("invalid prefix len != 1"), false)
 }
 
 // Not supporting 'case_insensitive' (optional)
 // Also not supporting wildcard (Required, string) (??) In both our example, and their in docs,
 // it's not provided.
-func (cw *ClickhouseQueryTranslator) parseWildcard(m JsonMap) model.Query {
-	// not checking for len == 1 because it's only option in proper query
-	for k, v := range m {
-		return NewQuery(quote(k)+" iLIKE '"+strings.ReplaceAll(v.(JsonMap)["value"].(string),
-			"*", "%")+"'", TableName, true)
+func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) SimpleQuery {
+	// not checking for len == 1 because it's only option in proper SimpleQuery
+	for k, v := range queryMap {
+		return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+" iLIKE '"+strings.ReplaceAll(v.(QueryMap)["value"].(string),
+			"*", "%")+"'"), true)
 	}
-	return NewQuery("Empty wildcard", TableName, false)
+	return newSimpleQuery(NewSimpleStatement("empty wildcard"), false)
 }
 
 // This one is REALLY complicated (https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html)
 // Supporting 'fields' and 'query' (also, * in 'fields' doesn't support other types than string...)
 // + only '*' in query, no '?' or other regex
-func (cw *ClickhouseQueryTranslator) parseQueryString(m JsonMap) model.Query {
-	orStmts := make([]string, 0)
-	fields := cw.extractFields(m["fields"].([]interface{}))
+func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) SimpleQuery {
+	orStmts := make([]Statement, 0)
+	fields := cw.extractFields(queryMap["fields"].([]interface{}))
 	for _, field := range fields {
-		for _, qStr := range strings.Split(m["query"].(string), " ") {
-			orStmts = append(orStmts, quote(field)+" iLIKE '%"+strings.ReplaceAll(qStr, "*", "%")+"%'")
+		for _, qStr := range strings.Split(queryMap["query"].(string), " ") {
+			orStmts = append(orStmts, NewSimpleStatement(strconv.Quote(field)+" iLIKE '%"+strings.ReplaceAll(qStr, "*", "%")+"%'"))
 		}
 	}
-	return NewQuery(or(orStmts), TableName, true)
+	return newSimpleQuery(or(orStmts), true)
 }
 
-func (cw *ClickhouseQueryTranslator) parseNested(m JsonMap) model.Query {
-	return cw.parseJsonMap(m["query"].(JsonMap))
+func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) SimpleQuery {
+	return cw.parseQueryMap(queryMap["query"].(QueryMap))
 }
 
 // DONE: tested in CH, it works for date format 'YYYY-MM-DDTHH:MM:SS.SSSZ'
 // TODO:
 //   - check if parseDateTime64BestEffort really works for our case (it should)
 //   - implement "needed" date functions like now, now-1d etc.
-func (cw *ClickhouseQueryTranslator) parseRange(m JsonMap) model.Query {
+func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 	// not checking for len == 1 because it's only option in proper query
-	for field, v := range m {
-		stmts := make([]string, 0)
-		for op, v := range v.(JsonMap) {
+	for field, v := range queryMap {
+		stmts := make([]Statement, 0)
+		for op, v := range v.(QueryMap) {
 			vToPrint := sprint(v)
-			s, ok := v.(string)
+			dateTime, ok := v.(string)
 			if ok {
-				_, err := time.Parse(time.RFC3339Nano, s)
+				_, err := time.Parse(time.RFC3339Nano, dateTime)
 				if err == nil {
-					vToPrint = "parseDateTime64BestEffort('" + s + "')"
+					vToPrint = "parseDateTime64BestEffort('" + dateTime + "')"
 				}
 			}
 
 			switch op {
 			case "gte":
-				stmts = append(stmts, quote(field)+">="+vToPrint)
+				stmts = append(stmts, NewSimpleStatement(strconv.Quote(field)+">="+vToPrint))
 			case "lte":
-				stmts = append(stmts, quote(field)+"<="+vToPrint)
+				stmts = append(stmts, NewSimpleStatement(strconv.Quote(field)+"<="+vToPrint))
 			case "gt":
-				stmts = append(stmts, quote(field)+">"+vToPrint)
+				stmts = append(stmts, NewSimpleStatement(strconv.Quote(field)+">"+vToPrint))
 			case "lt":
-				stmts = append(stmts, quote(field)+"<"+vToPrint)
+				stmts = append(stmts, NewSimpleStatement(strconv.Quote(field)+"<"+vToPrint))
 			}
 		}
-		return NewQuery(and(stmts), TableName, true)
+		return newSimpleQuery(and(stmts), true)
 	}
-	return NewQuery("Empty range", TableName, false)
+	return newSimpleQuery(NewSimpleStatement("empty range"), false)
 }
 
-// TODO: not supported
+// TODO: not supported:
 // - The field has "index" : false and "doc_values" : false set in the mapping
 // - The length of the field value exceeded an ignore_above setting in the mapping
 // - The field value was malformed and ignore_malformed was defined in the mapping
-func (cw *ClickhouseQueryTranslator) parseExists(m JsonMap) model.Query {
+func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) SimpleQuery {
 	// only parameter is 'field', must be string, so cast is safe
-	sql := ""
-	for _, v := range m {
+	sql := NewSimpleStatement("")
+	for _, v := range queryMap {
 		switch cw.ClickhouseLM.GetFieldInfo(TableName, v.(string)) {
 		case clickhouse.ExistsAndIsBaseType:
-			sql = v.(string) + " IS NOT NULL"
+			sql = NewSimpleStatement(v.(string) + " IS NOT NULL")
 		case clickhouse.ExistsAndIsArray:
-			sql = v.(string) + ".size0 = 0"
+			sql = NewSimpleStatement(v.(string) + ".size0 = 0")
 		case clickhouse.NotExists:
 			attrs := cw.GetAttributesList(TableName)
-			stmts := make([]string, len(attrs))
+			stmts := make([]Statement, len(attrs))
 			for i, a := range attrs {
-				stmts[i] = fmt.Sprintf("has(%s,%s) AND %s[indexOf(%s,%s)] IS NOT NULL",
-					quote(a.KeysArrayName), quote(v.(string)), quote(a.ValuesArrayName), quote(a.KeysArrayName), quote(v.(string)))
+				stmts[i] = NewCompoundStatement(fmt.Sprintf("has(%s,%s) AND %s[indexOf(%s,%s)] IS NOT NULL",
+					strconv.Quote(a.KeysArrayName), strconv.Quote(v.(string)), strconv.Quote(a.ValuesArrayName),
+					strconv.Quote(a.KeysArrayName), strconv.Quote(v.(string))))
 			}
 			sql = or(stmts)
 		}
 	}
-	return NewQuery(sql, TableName, true)
+	return newSimpleQuery(sql, true)
 }
 
 func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []string {
@@ -354,10 +361,38 @@ func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []strin
 	return result
 }
 
-func filterNonEmpty(slice []string) []string {
+// sep = "AND" or "OR"
+func combineStatements(stmts []Statement, sep string) Statement {
+	stmts = filterNonEmpty(stmts)
+	if len(stmts) > 1 {
+		stmts = quoteWithBracketsIfCompound(stmts)
+		sql := ""
+		for i, stmt := range stmts {
+			sql += stmt.Stmt
+			if i < len(stmts)-1 {
+				sql += " " + sep + " "
+			}
+		}
+		return NewCompoundStatement(sql)
+	}
+	if len(stmts) == 1 {
+		return stmts[0]
+	}
+	return NewSimpleStatement("")
+}
+
+func and(andStmts []Statement) Statement {
+	return combineStatements(andStmts, "AND")
+}
+
+func or(orStmts []Statement) Statement {
+	return combineStatements(orStmts, "OR")
+}
+
+func filterNonEmpty(slice []Statement) []Statement {
 	i := 0
 	for _, el := range slice {
-		if len(el) > 0 {
+		if len(el.Stmt) > 0 {
 			slice[i] = el
 			i++
 		}
@@ -365,30 +400,24 @@ func filterNonEmpty(slice []string) []string {
 	return slice[:i]
 }
 
-func combineStatements(stmts []string, sep string) string {
-	stmts = filterNonEmpty(stmts)
-	s := strings.Join(stmts, " "+sep+" ")
-	if len(stmts) > 1 {
-		return "(" + s + ")"
+// used to combine statements with AND/OR
+// [a, b, a AND b] ==> ["a", "b", "(a AND b)"]
+func quoteWithBracketsIfCompound(slice []Statement) []Statement {
+	for i := range slice {
+		if slice[i].isCompound {
+			slice[i].Stmt = "(" + slice[i].Stmt + ")"
+		}
 	}
-	return s
-}
-
-func and(andStmts []string) string {
-	return combineStatements(andStmts, "AND")
-}
-
-func or(orStmts []string) string {
-	return combineStatements(orStmts, "OR")
+	return slice
 }
 
 func sprint(i interface{}) string {
 	switch i.(type) {
 	case string:
 		return fmt.Sprintf("'%v'", i)
-	case map[string]interface{}:
+	case QueryMap:
 		iface := i
-		mapType := iface.(map[string]interface{})
+		mapType := iface.(QueryMap)
 		value := mapType["value"]
 		return sprint(value)
 	default:
@@ -396,10 +425,22 @@ func sprint(i interface{}) string {
 	}
 }
 
-// s -> "s"
-// Used e.g. for column names in search. W/o it e.g. @timestamp in CH will return parsing error.
-func quote(s string) string {
-	return `"` + s + `"`
+func (cw *ClickhouseQueryTranslator) tryProcessMetadataSearch(queryMap QueryMap) model.SearchQueryType {
+	queryMap = cw.parseMetadata(queryMap) // TODO we can remove this if we need more speed. It's a bit unnecessary call.
+	var ok bool
+	if queryMap, ok = queryMap["aggs"].(QueryMap); !ok {
+		return model.Normal
+	}
+	if queryMap, ok = queryMap["suggestions"].(QueryMap); !ok {
+		return model.Normal
+	}
+	if queryMap, ok = queryMap["terms"].(QueryMap); !ok {
+		return model.Normal
+	}
+	if _, ok = queryMap["field"]; !ok {
+		return model.Normal
+	}
+	return model.Count
 }
 
 // Return value:
@@ -407,8 +448,8 @@ func quote(s string) string {
 // - aggsByField: (AggsByField, field name, nrOfGroupedBy, sampleSize)
 // - listByField: (ListByField, field name, 0, LIMIT)
 // - listAllFields: (ListAllFields, "*", 0, LIMIT) (LIMIT = how many rows we want to return)
-func (cw *ClickhouseQueryTranslator) tryProcessMetadata(m JsonMap) model.QueryInfo {
-	metadata := cw.parseMetadata(m)
+func (cw *ClickhouseQueryTranslator) tryProcessMetadataAsyncSearch(queryMap QueryMap) model.QueryInfoAsyncSearch {
+	metadata := cw.parseMetadata(queryMap) // TODO we can remove this if we need more speed. It's a bit unnecessary call, at least for now, when we're parsing brutally.
 	// case 1: maybe it's a Histogram request:
 	if queryInfo, ok := cw.isItHistogramRequest(metadata); ok {
 		return queryInfo
@@ -420,110 +461,151 @@ func (cw *ClickhouseQueryTranslator) tryProcessMetadata(m JsonMap) model.QueryIn
 	}
 
 	// case 3: maybe it's ListByField ListAllFields request
-	// If it's not, we (and isItListRequest) return QueryInfoNone
-	queryInfo, _ := cw.isItListRequest(metadata)
+	if queryInfo, ok := cw.isItListRequest(metadata); ok {
+		return queryInfo
+	}
+
+	// case 4: maybe it's EarliestLatestTimestamp request
+	// If it's not, we (and isItEarliestLatestTimestampRequest) return QueryInfoNone
+	queryInfo, _ := cw.isItEarliestLatestTimestampRequest(metadata)
 	return queryInfo
 }
 
-// 'm' - metadata part of the JSON query
+// 'queryMap' - metadata part of the JSON query
 // returns (info, true) if metadata shows it's histogram
-// returns (NewQueryInfoNone, false) if it's not histogram
-func (cw *ClickhouseQueryTranslator) isItHistogramRequest(m JsonMap) (model.QueryInfo, bool) {
-	m, ok := m["aggs"].(JsonMap)
+// returns (model.NewQueryInfoNone, false) if it's not histogram
+func (cw *ClickhouseQueryTranslator) isItHistogramRequest(queryMap QueryMap) (model.QueryInfoAsyncSearch, bool) {
+	queryMap, ok := queryMap["aggs"].(QueryMap)
 	if !ok {
-		return NewQueryInfoNone(), false
+		return model.NewQueryInfoNone(), false
 	}
-	m2, ok := m["0"].(JsonMap)
+	queryMapNestOnePossility, ok := queryMap["0"].(QueryMap)
 	if ok {
-		if m2, ok = m2["date_histogram"].(JsonMap); ok {
-			return model.QueryInfo{Typ: model.Histogram, FieldName: m2["fixed_interval"].(string), I1: 0, I2: 0}, true
+		if queryMapNestOnePossility, ok = queryMapNestOnePossility["date_histogram"].(QueryMap); ok {
+			return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: queryMapNestOnePossility["fixed_interval"].(string), I1: 0, I2: 0}, true
 		}
 	}
-	m, ok = m["stats"].(JsonMap)
+
+	queryMap, ok = queryMap["stats"].(QueryMap)
 	if !ok {
-		return NewQueryInfoNone(), false
+		return model.NewQueryInfoNone(), false
 	}
-	m, ok = m["aggs"].(JsonMap)
+	queryMap, ok = queryMap["aggs"].(QueryMap)
 	if !ok {
-		return NewQueryInfoNone(), false
+		return model.NewQueryInfoNone(), false
 	}
-	m, ok = m["series"].(JsonMap)
+	queryMap, ok = queryMap["series"].(QueryMap)
 	if !ok {
-		return NewQueryInfoNone(), false
+		return model.NewQueryInfoNone(), false
 	}
-	m, ok = m["date_histogram"].(JsonMap)
+	queryMap, ok = queryMap["date_histogram"].(QueryMap)
 	if ok {
-		return model.QueryInfo{Typ: model.Histogram, FieldName: m["fixed_interval"].(string), I1: 0, I2: 0}, true
+		return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: queryMap["fixed_interval"].(string), I1: 0, I2: 0}, true
 	}
-	return NewQueryInfoNone(), false
+	return model.NewQueryInfoNone(), false
 }
 
-// 'm' - metadata part of the JSON query
+// 'queryMap' - metadata part of the JSON query
 // returns (info, true) if metadata shows it's AggsByField request (used e.g. for facets in Kibana)
-// returns (NewQueryInfoNone, false) if it's not AggsByField request
-func (cw *ClickhouseQueryTranslator) isItAggsByFieldRequest(m JsonMap) (model.QueryInfo, bool) {
-	m, ok := m["aggs"].(JsonMap)
+// returns (model.NewQueryInfoNone, false) if it's not AggsByField request
+func (cw *ClickhouseQueryTranslator) isItAggsByFieldRequest(queryMap QueryMap) (model.QueryInfoAsyncSearch, bool) {
+	queryMap, ok := queryMap["aggs"].(QueryMap)
 	if !ok {
-		return NewQueryInfoNone(), false
+		return model.NewQueryInfoNone(), false
 	}
 	fieldName := ""
 	size := 0
-	m, ok = m["sample"].(JsonMap)
+	queryMap, ok = queryMap["sample"].(QueryMap)
 	if !ok {
-		return NewQueryInfoNone(), false
+		return model.NewQueryInfoNone(), false
 	}
-	m2, ok := m["aggs"].(JsonMap)
+	nestedOnePossibility, ok := queryMap["aggs"].(QueryMap)
 	if !ok {
-		return NewQueryInfoNone(), false
+		return model.NewQueryInfoNone(), false
 	}
-	m2, ok = m2["top_values"].(JsonMap)
+	nestedOnePossibility, ok = nestedOnePossibility["top_values"].(QueryMap)
 	if !ok {
-		return NewQueryInfoNone(), false
+		return model.NewQueryInfoNone(), false
 	}
-	m2, ok = m2["terms"].(JsonMap)
+	nestedOnePossibility, ok = nestedOnePossibility["terms"].(QueryMap)
 	if !ok {
-		return NewQueryInfoNone(), false
+		return model.NewQueryInfoNone(), false
 	}
 
-	size = int(m2["size"].(float64))
-	fieldName = strings.TrimSuffix(m2["field"].(string), ".keyword")
+	size = int(nestedOnePossibility["size"].(float64))
+	fieldName = strings.TrimSuffix(nestedOnePossibility["field"].(string), ".keyword")
 
-	m2, ok = m["sampler"].(JsonMap)
+	nestedSecondPossibility, ok := queryMap["sampler"].(QueryMap)
 	if !ok {
-		return NewQueryInfoNone(), false
+		return model.NewQueryInfoNone(), false
 	}
-	shardSize, ok := m2["shard_size"].(float64)
+	shardSize, ok := nestedSecondPossibility["shard_size"].(float64)
 	if !ok {
-		return NewQueryInfoNone(), false
+		return model.NewQueryInfoNone(), false
 	}
-	return model.QueryInfo{Typ: model.AggsByField, FieldName: fieldName, I1: size, I2: int(shardSize)}, true
+	return model.QueryInfoAsyncSearch{Typ: model.AggsByField, FieldName: fieldName, I1: size, I2: int(shardSize)}, true
 }
 
-// 'm' - metadata part of the JSON query
+// 'queryMap' - metadata part of the JSON query
 // returns (info, true) if metadata shows it's ListAllFields or ListByField request (used e.g. for listing all rows in Kibana)
-// returns (NewQueryInfoNone, false) if it's not ListAllFields/ListByField request
-func (cw *ClickhouseQueryTranslator) isItListRequest(m JsonMap) (model.QueryInfo, bool) {
-	fields, ok := m["fields"].([]interface{})
+// returns (model.NewQueryInfoNone, false) if it's not ListAllFields/ListByField request
+func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.QueryInfoAsyncSearch, bool) {
+	fields, ok := queryMap["fields"].([]interface{})
 	if !ok {
-		return NewQueryInfoNone(), false
+		return model.NewQueryInfoNone(), false
 	}
-	size, ok := m["size"].(float64)
+	size, ok := queryMap["size"].(float64)
 	if !ok {
-		return NewQueryInfoNone(), false
+		return model.NewQueryInfoNone(), false
 	}
 	if len(fields) > 1 {
 		// so far everywhere I've seen, > 1 field ==> "*" is one of them
-		return model.QueryInfo{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size)}, true
+		return model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size)}, true
 	}
 	// so far everywhere I've seen, there's always at least 1 field, so it's safe to do this
-	m, ok = fields[0].(JsonMap)
+	queryMap, ok = fields[0].(QueryMap)
 	if !ok {
-		return NewQueryInfoNone(), false
+		return model.NewQueryInfoNone(), false
 	}
 	// same as above
-	field := m["field"].(string)
+	field := queryMap["field"].(string)
 	if field == "*" {
-		return model.QueryInfo{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size)}, true
+		return model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size)}, true
 	}
-	return model.QueryInfo{Typ: model.ListByField, FieldName: field, I1: 0, I2: int(size)}, true
+	return model.QueryInfoAsyncSearch{Typ: model.ListByField, FieldName: field, I1: 0, I2: int(size)}, true
+}
+
+func (cw *ClickhouseQueryTranslator) isItEarliestLatestTimestampRequest(queryMap QueryMap) (model.QueryInfoAsyncSearch, bool) {
+	queryMap, ok := queryMap["aggs"].(QueryMap)
+	if !ok {
+		return model.NewQueryInfoNone(), false
+	}
+
+	// min json
+	minQueryMap, ok := queryMap["earliest_timestamp"].(QueryMap)
+	if !ok {
+		return model.NewQueryInfoNone(), false
+	}
+	minQueryMap, ok = minQueryMap["min"].(QueryMap)
+	if !ok {
+		return model.NewQueryInfoNone(), false
+	}
+	timestampFieldName1 := minQueryMap["field"].(string)
+
+	// max json
+	maxQueryMap, ok := queryMap["latest_timestamp"].(QueryMap)
+	if !ok {
+		return model.NewQueryInfoNone(), false
+	}
+	maxQueryMap, ok = maxQueryMap["max"].(QueryMap)
+	if !ok {
+		return model.NewQueryInfoNone(), false
+	}
+	timestampFieldName2 := maxQueryMap["field"].(string)
+
+	// probably unnecessary check, but just in case
+	if timestampFieldName1 == timestampFieldName2 {
+		return model.QueryInfoAsyncSearch{Typ: model.EarliestLatestTimestamp, FieldName: timestampFieldName1}, true
+	}
+	return model.NewQueryInfoNone(), false
 }

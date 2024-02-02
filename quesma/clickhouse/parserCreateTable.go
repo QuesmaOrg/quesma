@@ -170,7 +170,7 @@ func parseType(q string, i int) (int, Type) {
 		return -1, nil
 	}
 	switch name {
-	case "Array", "LowCardinality":
+	case "Array":
 		i, baseType := parseCompoundType(q, i2)
 		if i == -1 {
 			return -1, nil

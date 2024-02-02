@@ -66,8 +66,29 @@ func (lm *LogManager) Close() {
 	_ = lm.db.Close()
 }
 
-func indent(indentLvl int) string {
-	return strings.Repeat("\t", indentLvl)
+func (lm *LogManager) initConnection() error {
+	if lm.db == nil {
+		connection, err := sql.Open("clickhouse", url)
+		if err != nil {
+			return fmt.Errorf("open >> %v", err)
+		}
+		lm.db = connection
+	}
+	return nil
+}
+
+func (lm *LogManager) findSchemaAndInitConnection(tableName string) (*Table, error) {
+	table := lm.findSchema(tableName)
+	if table == nil && len(tableName) > len(`""`) && tableName[0] == '"' && tableName[len(tableName)-1] == '"' {
+		table = lm.findSchema(tableName[1 : len(tableName)-1]) // try remove " " TODO improve this when we get out of the prototype phase
+		if table == nil {
+			return nil, fmt.Errorf("Table " + tableName + " not found")
+		}
+	}
+	if err := lm.initConnection(); err != nil {
+		return nil, err
+	}
+	return table, nil
 }
 
 // updates also Table TODO stop updating table here, find a better solution
@@ -327,8 +348,8 @@ func NewLogManager(predefined, newRuntime TableMap) *LogManager {
 }
 
 // right now only for tests purposes
-func NewLogManagerNoConnection(predefined, newRuntime TableMap) *LogManager {
-	return &LogManager{db: nil, predefinedTables: predefined, newRuntimeTables: newRuntime}
+func NewLogManagerWithConnection(db *sql.DB, predefined, newRuntime TableMap) *LogManager {
+	return &LogManager{db: db, predefinedTables: predefined, newRuntimeTables: newRuntime}
 }
 
 func NewLogManagerEmpty() *LogManager {
@@ -390,7 +411,7 @@ func NewNoTimestampOnlyStringAttrCHConfig() *ChTableConfig {
 	}
 }
 
-func NewCHTableConfigNoAttrs() *ChTableConfig {
+func NewChTableConfigNoAttrs() *ChTableConfig {
 	return &ChTableConfig{
 		hasTimestamp:                          false,
 		timestampDefaultsNow:                  false,
@@ -398,6 +419,24 @@ func NewCHTableConfigNoAttrs() *ChTableConfig {
 		orderBy:                               "(" + `"@timestamp"` + ")",
 		hasOthers:                             false,
 		attributes:                            []Attribute{},
+		castUnsupportedAttrValueTypesToString: true,
+		preferCastingToOthers:                 true,
+	}
+}
+
+func NewChTableConfigFourAttrs() *ChTableConfig {
+	return &ChTableConfig{
+		hasTimestamp:         false,
+		timestampDefaultsNow: true,
+		engine:               "MergeTree",
+		orderBy:              "(" + "`@timestamp`" + ")",
+		hasOthers:            false,
+		attributes: []Attribute{
+			NewDefaultInt64Attribute(),
+			NewDefaultFloat64Attribute(),
+			NewDefaultBoolAttribute(),
+			NewDefaultStringAttribute(),
+		},
 		castUnsupportedAttrValueTypesToString: true,
 		preferCastingToOthers:                 true,
 	}

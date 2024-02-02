@@ -92,7 +92,7 @@ var insertTests = []struct {
 }
 
 var configs = []*ChTableConfig{
-	NewCHTableConfigNoAttrs(),
+	NewChTableConfigNoAttrs(),
 	NewDefaultCHConfig(),
 }
 

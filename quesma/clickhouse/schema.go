@@ -3,7 +3,9 @@ package clickhouse
 import (
 	"fmt"
 	"math"
+	"mitmproxy/quesma/model"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -14,8 +16,7 @@ type (
 		canConvert(interface{}) bool
 		createTableString(indentLvl int) string // prints type for CREATE TABLE command
 		isArray() bool
-		newZeroValue() interface{} // all types: their zero value, only bool -> int8, because we can't read bools
-		isBool() bool              // we need to differentiate between bool and other types. Special method to make it fast
+		isBool() bool // we need to differentiate between bool and other types. Special method to make it fast
 		isString() bool
 	}
 	Codec struct {
@@ -64,14 +65,6 @@ func (t BaseType) createTableString(indentLvl int) string {
 
 func (t BaseType) isArray() bool { return false }
 
-// all types the same, bool -> int8, because we can't read bools
-func (t BaseType) newZeroValue() interface{} {
-	if t.goType == reflect.ValueOf(true).Type() {
-		return int8(0)
-	}
-	return reflect.Zero(t.goType)
-}
-
 func (t BaseType) isBool() bool {
 	return t.Name == "Bool"
 }
@@ -89,11 +82,6 @@ func (t CompoundType) createTableString(indentLvl int) string {
 }
 
 func (t CompoundType) isArray() bool { return t.Name == "Array" }
-
-// Not supporting Array(Array(...)) for now for speed&complexity reasons
-func (t CompoundType) newZeroValue() interface{} {
-	return reflect.SliceOf(t.BaseType.(BaseType).goType)
-}
 
 func (t CompoundType) isBool() bool { return false }
 
@@ -128,10 +116,6 @@ func (t MultiValueType) createTableString(indentLvl int) string {
 }
 
 func (t MultiValueType) isArray() bool { return false }
-
-func (t MultiValueType) newZeroValue() interface{} {
-	return nil // not implemented
-}
 
 func (t MultiValueType) isBool() bool { return false }
 
@@ -287,6 +271,29 @@ func (table *Table) CreateTableOurFieldsString() []string {
 		}
 	}
 	return rows
+}
+
+func (table *Table) extractColumns(query *model.Query) ([]string, error) {
+	N := len(query.Fields) + len(query.NonSchemaFields)
+	if query.IsWildcard() {
+		N = len(table.Cols) + len(query.NonSchemaFields)
+	}
+	cols := make([]string, 0, N)
+	if query.IsWildcard() {
+		for _, col := range table.Cols {
+			cols = append(cols, strconv.Quote(col.Name))
+		}
+	} else {
+		for _, field := range query.Fields {
+			col, ok := table.Cols[field]
+			if !ok {
+				return nil, fmt.Errorf("column %s not found in table %s", field, table.Name)
+			}
+			cols = append(cols, strconv.Quote(col.Name))
+		}
+	}
+	cols = append(cols, query.NonSchemaFields...)
+	return cols, nil
 }
 
 // TODO TTL only by timestamp for now!
