@@ -1,4 +1,21 @@
-# Minimalistic ELK-CH configuration
+# MVP of Quesma using ELK stack with Clickhouse
+
+Minimal Viable Product of Quesma. It provides Elasticsearch API compatibility for observability use case
+with Clickhouse as a backend.
+
+Main debugging interface is available at [localhost:9999](http://localhost:9999). You can follow links.
+
+## Architecture
+
+ASCII art diagram of the architecture:
+```
+kibana             \                        /-> clickhouse
+device-log-generator --> mitmproxy -> quesma --> elasticsearch
+query-generator    /
+log-generator     /
+```
+
+### Kibana
 
 Kibana is available at [localhost:5601](http://localhost:5601/app/observability-log-explorer/).
 
@@ -7,9 +24,11 @@ Mitmweb is available at [localhost:8081](http://localhost:8081).
 
 It is a man in the middle inspection tool, please [consult the mitmproxy documentation](https://docs.mitmproxy.org/stable/).
 
-You can add your own Python script in `mitmproxy/request.py`. Please consult above documentation or ChatGPT for results.
+You can enable Python script by uncommenting `docker-compose.yml` in `services.mitmproxy.run`.
 
-You can see sample ElasticSearch queries in `mitmproxy/requests/`. For example
+You can further edit it `mitmproxy/request.py`.
+
+Very useful for quick dumps in `mitmproxy/requests`:
 ```bash
 tail -f mitmproxy/requests/logs-X-X.txt
 ```
