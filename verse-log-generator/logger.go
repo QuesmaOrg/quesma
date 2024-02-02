@@ -51,7 +51,12 @@ func randomElementUniformDist[T any](array []T) T {
 func randomElementNormalDist[T any](array []T) T {
 	meanIndex, stdDev := len(array)/2, len(array)/3
 	randomIndex := int(rand.NormFloat64()*float64(stdDev) + float64(meanIndex))
-	return array[randomIndex%len(array)]
+	if randomIndex < 0 {
+		randomIndex = 0
+	} else if randomIndex >= len(array) {
+		randomIndex = len(array) - 1
+	}
+	return array[randomIndex]
 }
 
 func ipv6Address() string {
