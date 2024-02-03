@@ -325,7 +325,7 @@ var TestsAsyncSearch = []struct {
 }
 `, "there should be 97 results, I truncated most of them",
 		model.QueryInfoAsyncSearch{Typ: model.ListByField, FieldName: "message", I1: 0, I2: 100},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) AND "message" iLIKE '%user%' AND message IS NOT NULL ORDER BY "@timestamp" DESC LIMIT 100`},
+		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) AND "message" iLIKE '%user%' AND message IS NOT NULL ORDER BY ` + "`@timestamp` DESC LIMIT 100"},
 	},
 	{
 		"ListAllFields: search all fields, return JSON + count (we don't return count atm)",
@@ -561,7 +561,7 @@ var TestsAsyncSearch = []struct {
                 },
 `, "Truncated most results. TODO Check what's at the end of response, probably count?",
 		model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: 500},
-		[]string{`SELECT.*"@timestamp".* FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) ORDER BY "@timestamp" DESC LIMIT 500`},
+		[]string{`SELECT.*"@timestamp".* FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) ORDER BY ` + "`@timestamp` DESC LIMIT 500"},
 	},
 	{
 		"Histogram: possible query nr 1",
@@ -693,7 +693,7 @@ var TestsAsyncSearch = []struct {
 `,
 		"no comment yet",
 		model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: "30s", I1: 0, I2: 0},
-		[]string{`SELECT toInt64(toUnixTimestamp64Milli("@timestamp")/30000), count() FROM "logs-generic-default" WHERE ("message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z'))) AND ("@timestamp">=timestamp_sub(SECOND,900, now64())) GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp")/30000)`},
+		[]string{`SELECT toInt64(toUnixTimestamp64Milli(` + "`@timestamp`" + `)/30000), count() FROM "logs-generic-default" WHERE ("message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z'))) AND ("@timestamp">=timestamp_sub(SECOND,900, now64())) GROUP BY toInt64(toUnixTimestamp64Milli(` + "`@timestamp`"},
 	},
 	{
 		"Histogram: possible query nr 2",
@@ -739,7 +739,7 @@ var TestsAsyncSearch = []struct {
 		`{}`,
 		"no comment yet",
 		model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: "60s", I1: 0, I2: 0},
-		[]string{`SELECT toInt64(toUnixTimestamp64Milli("@timestamp")/30000), count() FROM "logs-generic-default" WHERE ("@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z')) AND ("@timestamp">=timestamp_sub(SECOND,900, now64())) GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp")/30000)`},
+		[]string{`SELECT toInt64(toUnixTimestamp64Milli(` + "`@timestamp`" + `)/30000), count() FROM "logs-generic-default" WHERE ("@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z')) AND ("@timestamp">=timestamp_sub(SECOND,900, now64())) GROUP BY toInt64(toUnixTimestamp64Milli(` + "`@timestamp`)/30000)"},
 	},
 	{
 		"Earliest/latest timestamp",
@@ -821,8 +821,8 @@ var TestsAsyncSearch = []struct {
 		"no comment yet",
 		model.QueryInfoAsyncSearch{Typ: model.EarliestLatestTimestamp, FieldName: "@timestamp"},
 		[]string{
-			`SELECT "@timestamp" FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' ORDER BY "@timestamp" ASC LIMIT 1`,
-			`SELECT "@timestamp" FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' ORDER BY "@timestamp" DESC LIMIT 1`,
+			`SELECT "@timestamp" FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' ORDER BY ` + "`@timestamp` ASC LIMIT 1",
+			`SELECT "@timestamp" FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' ORDER BY ` + "`@timestamp` DESC LIMIT 1",
 		},
 	},
 }

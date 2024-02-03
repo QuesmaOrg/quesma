@@ -84,7 +84,7 @@ func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(tableName, whereClaus
 func (cw *ClickhouseQueryTranslator) BuildNMostRecentRowsQuery(tableName, fieldName, timestampFieldName, whereClause string, limit int) *model.Query {
 	suffixClauses := make([]string, 0)
 	if len(timestampFieldName) > 0 {
-		suffixClauses = append(suffixClauses, `ORDER BY "`+timestampFieldName+`" DESC`)
+		suffixClauses = append(suffixClauses, "ORDER BY `"+timestampFieldName+"` DESC")
 	}
 	if limit > 0 {
 		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(limit))
@@ -102,7 +102,7 @@ func (cw *ClickhouseQueryTranslator) BuildNMostRecentRowsQuery(tableName, fieldN
 func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(tableName, timestampFieldName, whereClauseOriginal string) *model.Query {
 	duration := 15 * time.Minute                                // TODO change this to be dynamic
 	histogramOneBar := cw.durationToHistogramInterval(duration) // 1 bar duration
-	groupByClause := `toInt64(toUnixTimestamp64Milli("` + timestampFieldName + `")/` + strconv.FormatInt(histogramOneBar.Milliseconds(), 10) + ")"
+	groupByClause := "toInt64(toUnixTimestamp64Milli(`" + timestampFieldName + "`)/" + strconv.FormatInt(histogramOneBar.Milliseconds(), 10) + ")"
 	whereClause := strconv.Quote(timestampFieldName) + ">=timestamp_sub(SECOND," + strconv.FormatInt(int64(duration.Seconds()), 10) + ", now64())"
 	if len(whereClauseOriginal) > 0 {
 		whereClause = "(" + whereClauseOriginal + ") AND (" + whereClause + ")"
@@ -157,9 +157,9 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(tableName, fieldName, wher
 func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(tableName, timestampFieldName, whereClause string, earliest bool) *model.Query {
 	var orderBy string
 	if earliest {
-		orderBy = "ORDER BY " + strconv.Quote(timestampFieldName) + " ASC"
+		orderBy = "ORDER BY `" + timestampFieldName + "` ASC"
 	} else {
-		orderBy = "ORDER BY " + strconv.Quote(timestampFieldName) + " DESC"
+		orderBy = "ORDER BY `" + timestampFieldName + "` DESC"
 	}
 	suffixClauses := []string{orderBy, "LIMIT 1"}
 	return &model.Query{

@@ -14,20 +14,20 @@ var tables = []struct {
 	exampleFieldValue map[string]interface{} // example value for each field
 }{
 	{`CREATE TABLE table ( "message" String, "timestamp" DateTime64(3, 'UTC') ) ENGINE = Memory`,
-		[]string{`"message"`, `"timestamp"`},
+		[]string{"message", "timestamp"},
 		map[string]interface{}{"message": "a", "timestamp": "2020-01-01 00:00:00", "count()": int64(0), "toString(count())": "0"},
 	},
 	{
 		`CREATE TABLE table ( "message" LowCardinality(String), "timestamp" DateTime64() DEFAULT now64(), "great" Bool, "json" JSON, "int" Int64) ENGINE = Memory`,
-		[]string{`"message"`, `"timestamp"`, `"great"`, `"json"`, `"int"`},
+		[]string{"message", "timestamp", "great", "json", "int"},
 		map[string]interface{}{"message": "a", "timestamp": "2020-01-01 00:00:00", "great": true, "json": "{}", "int": int64(0), "count()": int64(0), "toString(count())": "0"},
 	},
 	{`CREATE TABLE table ( "tuple" Tuple ("s" String, "i" Int64), "message" String, "timestamp" DateTime64) ENGINE = Memory`,
-		[]string{`"tuple"`, `"message"`, `"timestamp"`},
+		[]string{"tuple", "message", "timestamp"},
 		map[string]interface{}{"tuple": map[string]interface{}{"s": "a", "i": int64(0)}, "message": "a", "timestamp": "2020-01-01 00:00:00", "count()": int64(0), "toString(count())": "0"},
 	}, {
 		`CREATE TABLE table ( "tuple" Tuple ("tuple1" Tuple("i" Int64, "s" String), "i" Int64), "message" LowCardinality(String) CODEC("nocodec"), "timestamp" DateTime64) ENGINE = Memory`,
-		[]string{`"tuple"`, `"message"`, `"timestamp"`},
+		[]string{"tuple", "message", "timestamp"},
 		map[string]interface{}{"tuple": map[string]interface{}{"tuple1": map[string]interface{}{"i": int64(0), "s": "a"}, "i": int64(0)}, "message": "a", "timestamp": "2020-01-01 00:00:00", "count()": int64(0), "toString(count())": "0"},
 	},
 }
@@ -54,11 +54,11 @@ var queries = []struct {
 	},
 	{
 		&model.Query{Fields: []string{"message", "timestamp"}},
-		[]string{`"message"`, `"timestamp"`},
+		[]string{"message", "timestamp"},
 	},
 	{
 		&model.Query{Fields: []string{"message", "non-existent"}},
-		[]string{`"message"`},
+		[]string{"message"},
 	},
 	{
 		&model.Query{Fields: []string{"non-existent"}},
@@ -66,7 +66,7 @@ var queries = []struct {
 	},
 	{
 		&model.Query{Fields: []string{"message", "timestamp"}, NonSchemaFields: []string{"toString(count())"}},
-		[]string{`"message"`, `"timestamp"`, "toString(count())"},
+		[]string{"message", "timestamp"},
 	},
 	//{ // we don't support such a query. Supporting it would slow down query's code, and this query seems pointless
 	//	&model.Query{Fields: []string{"*", "message"}},
@@ -95,7 +95,7 @@ func Test_extractColumns(t *testing.T) {
 			// add attributes to expected values if we're in Attrs config case
 			if len(config.attributes) > 0 {
 				for _, a := range config.attributes {
-					tt.allFields = append(tt.allFields, strconv.Quote(a.KeysArrayName), strconv.Quote(a.ValuesArrayName))
+					tt.allFields = append(tt.allFields, a.KeysArrayName, a.ValuesArrayName)
 					tt.exampleFieldValue[a.KeysArrayName] = []string{"a", "b"}
 					switch a.Type {
 					case NewBaseType("String"):
@@ -122,11 +122,7 @@ func Test_extractColumns(t *testing.T) {
 
 					// assert column names are OK
 					if len(q.answer) >= 1 && q.answer[0] == "all" {
-						if q.query.NonSchemaFields != nil && len(q.query.NonSchemaFields) > 0 {
-							tt.allFields = append(tt.allFields, q.query.NonSchemaFields...)
-						}
 						assertSlicesEqual(t, tt.allFields, colNames)
-						tt.allFields = tt.allFields[:len(tt.allFields)-len(q.query.NonSchemaFields)]
 					} else {
 						assertSlicesEqual(t, q.answer, colNames)
 					}

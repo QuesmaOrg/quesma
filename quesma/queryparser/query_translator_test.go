@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/model"
 	"testing"
 )
@@ -115,5 +116,30 @@ func TestSearchResponse(t *testing.T) {
 
 		assert.Equal(t, searchResponseExpected, searchResponseResult)
 		require.NoError(t, err)
+	}
+}
+
+// tests MakeResponse, in particular if JSON we return is a proper JSON.
+// used to fail before we fixed field quoting.
+func TestMakeResponse(t *testing.T) {
+	queryTranslator := ClickhouseQueryTranslator{}
+	builtQueries := []*model.Query{
+		queryTranslator.BuildSimpleSelectQuery("@", ""),
+		queryTranslator.BuildSimpleCountQuery("@", ""),
+		queryTranslator.BuildNMostRecentRowsQuery("a", "@", "", "", 0),
+		queryTranslator.BuildHistogramQuery("a@", "@", ""),
+		queryTranslator.BuildAutocompleteSuggestionsQuery("@", "@", "", 0),
+		queryTranslator.BuildFacetsQuery("@", "@", "", 0),
+		queryTranslator.BuildTimestampQuery("@", "@", "", true),
+	}
+	for _, query := range builtQueries {
+		resultRow := clickhouse.QueryResultRow{Cols: make([]clickhouse.QueryResultCol, 0)}
+		for _, field := range query.NonSchemaFields {
+			resultRow.Cols = append(resultRow.Cols, clickhouse.QueryResultCol{ColName: field, Value: "not-important"})
+		}
+		_, err := MakeResponse([]clickhouse.QueryResultRow{resultRow}, false)
+		assert.NoError(t, err)
+		_, err = MakeResponse([]clickhouse.QueryResultRow{resultRow}, true)
+		assert.NoError(t, err)
 	}
 }

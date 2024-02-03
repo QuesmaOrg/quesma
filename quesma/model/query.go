@@ -43,13 +43,19 @@ func (q *Query) String() string {
 }
 
 // returns string without * in SELECT
-// colNames - list of columns for SELECT
+// colNames - list of columns (schema fields) for SELECT
 func (q *Query) StringFromColumns(colNames []string) string {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	for i, field := range colNames {
+		sb.WriteString(strconv.Quote(field))
+		if i < len(colNames)-1 || len(q.NonSchemaFields) > 0 {
+			sb.WriteString(", ")
+		}
+	}
+	for i, field := range q.NonSchemaFields {
 		sb.WriteString(field)
-		if i < len(colNames)-1 {
+		if i < len(q.NonSchemaFields)-1 {
 			sb.WriteString(", ")
 		}
 	}

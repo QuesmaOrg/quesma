@@ -36,9 +36,9 @@ func NewQueryResultCol(colName string, value interface{}) QueryResultCol {
 func (c QueryResultCol) String() string {
 	switch c.Value.(type) {
 	case string, time.Time:
-		return fmt.Sprintf(`%s: "%v"`, c.ColName, c.Value)
+		return fmt.Sprintf(`"%s": "%v"`, c.ColName, c.Value)
 	default:
-		return fmt.Sprintf(`%s: %v`, c.ColName, c.Value)
+		return fmt.Sprintf(`"%s": %v`, c.ColName, c.Value)
 	}
 }
 
@@ -108,7 +108,7 @@ func (lm *LogManager) ProcessSimpleSelectQuery(query *model.Query) ([]QueryResul
 		return nil, err
 	}
 	colNames, err := table.extractColumns(query)
-	rowToScan := make([]interface{}, len(colNames))
+	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (lm *LogManager) ProcessSimpleSelectQuery(query *model.Query) ([]QueryResul
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
-	return read(rowsDB, colNames, rowToScan)
+	return read(rowsDB, append(colNames, query.NonSchemaFields...), rowToScan)
 }
 
 // fieldName = "*" -> we query all, otherwise only this 1 field
@@ -134,7 +134,7 @@ func (lm *LogManager) ProcessNMostRecentRowsQuery(query *model.Query) ([]QueryRe
 		return nil, fmt.Errorf("query >> %v", err)
 	}
 	rowToScan := make([]interface{}, len(colNames))
-	return read(rowsDB, colNames, rowToScan)
+	return read(rowsDB, append(colNames, query.NonSchemaFields...), rowToScan)
 }
 
 func (lm *LogManager) ProcessHistogramQuery(query *model.Query) ([]QueryResultRow, error) {
@@ -165,7 +165,7 @@ func (lm *LogManager) ProcessFacetsQuery(query *model.Query) ([]QueryResultRow, 
 	}
 
 	colNames, err := table.extractColumns(query)
-	rowToScan := make([]interface{}, len(colNames))
+	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (lm *LogManager) ProcessFacetsQuery(query *model.Query) ([]QueryResultRow, 
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
-	resultRows, err := read(rows, colNames, rowToScan)
+	resultRows, err := read(rows, append(colNames, query.NonSchemaFields...), rowToScan)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +185,7 @@ func (lm *LogManager) ProcessFacetsQuery(query *model.Query) ([]QueryResultRow, 
 	for i := range resultRows {
 		percentage := float64(resultRows[i].Cols[1].Value.(uint64)*100) / float64(total)
 		resultRows[i].Cols = append(resultRows[i].Cols, NewQueryResultCol(
-			`"percentage"`, strconv.FormatFloat(percentage, 'f', 1, 64)+"%",
+			"percentage", strconv.FormatFloat(percentage, 'f', 1, 64)+"%",
 		))
 	}
 	sort.Slice(resultRows, func(i, j int) bool {
@@ -222,7 +222,9 @@ func (lm *LogManager) ProcessTimestampQuery(query *model.Query) ([]QueryResultRo
 	return read(rows, query.Fields, []interface{}{time.Time{}})
 }
 
-func read(rows *sql.Rows, colNames []string, rowToScan []interface{}) ([]QueryResultRow, error) {
+// 'selectFields' are all values that we return from the query, both columns and non-schema fields,
+// like e.g. count(), or toInt8(boolField)
+func read(rows *sql.Rows, selectFields []string, rowToScan []interface{}) ([]QueryResultRow, error) {
 	rowDb := make([]interface{}, 0, len(rowToScan))
 	for i := range rowToScan {
 		rowDb = append(rowDb, &rowToScan[i])
@@ -233,9 +235,9 @@ func read(rows *sql.Rows, colNames []string, rowToScan []interface{}) ([]QueryRe
 		if err != nil {
 			return nil, fmt.Errorf("scan >> %v", err)
 		}
-		resultRow := QueryResultRow{Cols: make([]QueryResultCol, len(colNames))}
-		for i, colName := range colNames {
-			resultRow.Cols[i] = QueryResultCol{ColName: colName, Value: rowToScan[i]}
+		resultRow := QueryResultRow{Cols: make([]QueryResultCol, len(selectFields))}
+		for i, field := range selectFields {
+			resultRow.Cols[i] = QueryResultCol{ColName: field, Value: rowToScan[i]}
 		}
 		resultRows = append(resultRows, resultRow)
 	}

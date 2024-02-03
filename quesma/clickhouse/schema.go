@@ -5,7 +5,6 @@ import (
 	"math"
 	"mitmproxy/quesma/model"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -274,14 +273,14 @@ func (table *Table) CreateTableOurFieldsString() []string {
 }
 
 func (table *Table) extractColumns(query *model.Query) ([]string, error) {
-	N := len(query.Fields) + len(query.NonSchemaFields)
+	N := len(query.Fields)
 	if query.IsWildcard() {
-		N = len(table.Cols) + len(query.NonSchemaFields)
+		N = len(table.Cols)
 	}
 	cols := make([]string, 0, N)
 	if query.IsWildcard() {
 		for _, col := range table.Cols {
-			cols = append(cols, strconv.Quote(col.Name))
+			cols = append(cols, col.Name)
 		}
 	} else {
 		for _, field := range query.Fields {
@@ -289,10 +288,9 @@ func (table *Table) extractColumns(query *model.Query) ([]string, error) {
 			if !ok {
 				return nil, fmt.Errorf("column %s not found in table %s", field, table.Name)
 			}
-			cols = append(cols, strconv.Quote(col.Name))
+			cols = append(cols, col.Name)
 		}
 	}
-	cols = append(cols, query.NonSchemaFields...)
 	return cols, nil
 }
 

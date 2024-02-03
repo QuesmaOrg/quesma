@@ -33,7 +33,7 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 		}
 		responseBody, err = queryparser.MakeResponse(rows, false)
 		if err != nil {
-			log.Println(err)
+			log.Println(err, "rows: ", rows)
 			return responseBody, err
 		}
 	} else {
@@ -55,7 +55,7 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 func createResponseHitJson(rows []clickhouse.QueryResultRow) []byte {
 	responseBody, err := queryparser.MakeResponse(rows, true)
 	if err != nil {
-		log.Println(err)
+		log.Println(err, "rows:", rows)
 	}
 	return responseBody
 }
