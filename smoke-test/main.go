@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -17,12 +19,89 @@ const (
 	kibanaHealthCheckUrl = "http://localhost:5601/api/status"
 	elasticIndexCountUrl = "http://localhost:9201/logs-generic-default/_count"
 	quesmaIndexCountUrl  = "http://localhost:9200/logs-generic-default/_count"
+	asyncQueryUrl        = "http://localhost:8080/logs-*-*/_async_search?pretty"
 )
 
 const (
 	waitInterval  = 100 * time.Millisecond
 	printInterval = 5 * time.Second
 )
+
+const query = `
+{
+	"_source": false,
+	"fields": [
+		{
+			"field": "*",
+			"include_unmapped": "true"
+		},
+		{
+			"field": "@timestamp",
+			"format": "strict_date_optional_time"
+		}
+	],
+	"highlight": {
+		"fields": {
+			"*": {}
+		},
+		"fragment_size": 2147483647,
+		"post_tags": [
+			"@/kibana-highlighted-field@"
+		],
+		"pre_tags": [
+			"@kibana-highlighted-field@"
+		]
+	},
+	"query": {
+		"bool": {
+			"filter": [
+				{
+					"multi_match": {
+						"lenient": true,
+						"query": "user",
+						"type": "best_fields"
+					}
+				},
+				{
+					"range": {
+						"@timestamp": {
+							"format": "strict_date_optional_time",
+							"gte": "2024-01-23T14:43:19.481Z",
+							"lte": "2024-01-23T14:58:19.481Z"
+						}
+					}
+				}
+			],
+			"must": [],
+			"must_not": [],
+			"should": []
+		}
+	},
+	"runtime_mappings": {},
+	"script_fields": {},
+	"size": 500,
+	"sort": [
+		{
+			"@timestamp": {
+				"format": "strict_date_optional_time",
+				"order": "desc",
+				"unmapped_type": "boolean"
+			}
+		},
+		{
+			"_doc": {
+				"order": "desc",
+				"unmapped_type": "boolean"
+			}
+		}
+	],
+	"stored_fields": [
+		"*"
+	],
+	"track_total_hits": false,
+	"version": true
+}
+`
 
 var timeoutAfter = time.Minute
 
@@ -32,7 +111,7 @@ func main() {
 	flag.Parse()
 
 	// check if command line flag is just wait for count
-   if *waitForStart {
+	if *waitForStart {
 		fmt.Println("Waiting for start of whole system... ")
 		timeoutAfter = 5 * time.Minute
 		waitForLogs()
@@ -42,6 +121,7 @@ func main() {
 		waitForLogsInClickhouse("device_logs")
 		waitForLogsInElasticsearch()
 		waitForKibana()
+		waitForAsyncQuery()
 	}
 }
 
@@ -112,6 +192,10 @@ func waitForLogs() {
 	waitForLogsInElasticsearchRaw("quesma", quesmaIndexCountUrl)
 }
 
+func waitForAsyncQuery() {
+	waitForAsyncQueryRaw("async query", asyncQueryUrl)
+}
+
 func waitForLogsInElasticsearchRaw(serviceName, url string) {
 	res := waitFor(serviceName, func() bool {
 		resp, err := http.Get(url)
@@ -129,6 +213,33 @@ func waitForLogsInElasticsearchRaw(serviceName, url string) {
 				}
 			} else {
 				fmt.Printf("response: %+v\n", resp)
+			}
+		}
+		return false
+	})
+
+	if !res {
+		panic(serviceName + " is not alive or is not receiving logs")
+	}
+}
+
+func waitForAsyncQueryRaw(serviceName, url string) {
+	res := waitFor(serviceName, func() bool {
+		resp, err := http.Post(url, "application/json", bytes.NewBuffer([]byte(query)))
+
+		if err == nil {
+			defer resp.Body.Close()
+			if resp.StatusCode == 200 {
+				body, err := io.ReadAll(resp.Body)
+				if err == nil {
+					var response map[string]interface{}
+					_ = json.Unmarshal(body, &response)
+					if response["completion_time_in_millis"] != nil {
+						return true
+					}
+				} else {
+					log.Println(err)
+				}
 			}
 		}
 		return false

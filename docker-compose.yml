@@ -14,6 +14,7 @@ services:
       - elasticsearch
     ports:
       - "9999:9999"
+      - "8080:8080"
     volumes:
       - ./quesma/quesma/ui:/var/quesma/quesma/ui
     restart: unless-stopped
