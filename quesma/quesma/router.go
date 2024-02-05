@@ -59,7 +59,7 @@ func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManag
 		zipped, _ := gzip.Zip(body)
 		_, _ = w.Write(zipped)
 	})
-	router.PathPrefix(BulkPath).HandlerFunc(bulk(lm, quesmaManagementConsole, config)).Methods("POST")
+	router.PathPrefix(BulkPath).HandlerFunc(bulk(lm, config)).Methods("POST")
 	router.PathPrefix(SearchPath).HandlerFunc(search(lm, quesmaManagementConsole)).Methods("POST")
 	router.PathPrefix("/{index}" + AsyncSearchPath).HandlerFunc(asyncSearch(lm, quesmaManagementConsole)).Methods("POST")
 	router.PathPrefix(ElasticInternalPath).HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
@@ -68,8 +68,8 @@ func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManag
 	router.PathPrefix("/.").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		fmt.Printf("internal index access '%s', ignoring...\n", strings.Split(r.RequestURI, "/")[1])
 	})
-	router.PathPrefix("/{index}/_doc").HandlerFunc(index(lm, quesmaManagementConsole, config)).Methods("POST")
-	router.PathPrefix("/{index}/_bulk").HandlerFunc(bulkVar(lm, quesmaManagementConsole, config)).Methods("POST")
+	router.PathPrefix("/{index}/_doc").HandlerFunc(index(lm, config)).Methods("POST")
+	router.PathPrefix("/{index}/_bulk").HandlerFunc(bulkVar(lm, config)).Methods("POST")
 	router.PathPrefix("/{index}/_search").HandlerFunc(searchVar(lm, quesmaManagementConsole)).Methods("POST")
 	return router
 }
@@ -106,20 +106,20 @@ func searchVar(lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagem
 	})
 }
 
-func index(lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagementConsole, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
+func index(lm *clickhouse.LogManager, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		go dualWrite(r.Context(), vars["index"], string(body), lm, config)
 	})
 }
 
-func bulk(lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagementConsole, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
+func bulk(lm *clickhouse.LogManager, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		go dualWriteBulk(r.Context(), "", string(body), lm, config)
 	})
 }
 
-func bulkVar(lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagementConsole, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
+func bulkVar(lm *clickhouse.LogManager, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		go dualWriteBulk(r.Context(), vars["index"], string(body), lm, config)
