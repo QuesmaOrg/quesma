@@ -11,7 +11,7 @@ import (
 
 func main() {
 	sync_url := "http://mitmproxy:8080/_search?pretty"
-	async_url := "http://mitmproxy:8080/_async_search?pretty"
+	async_url := "http://mitmproxy:8080/logs-*-*/_async_search?pretty"
 	queries := []string{
 		`{
 			"query": {
