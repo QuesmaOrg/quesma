@@ -63,8 +63,7 @@ func (p *dualWriteHttpProxy) Stop(ctx context.Context) {
 func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http.ResponseWriter, rId int) {
 	_ = ctx
 	log.Printf("rId: %d, responding from elk\n", rId)
-	_, err := io.Copy(w, elkResponse.Body)
-	if err != nil {
+	if _, err := io.Copy(w, elkResponse.Body); err != nil {
 		http.Error(w, "Error copying response body", http.StatusInternalServerError)
 		return
 	}

@@ -9,8 +9,7 @@ import (
 
 func CopyAndSignal(copyCompletionBarrier *sync.WaitGroup, dst io.Writer, src io.Reader) {
 	defer recovery.LogPanic()
-	_, err := io.Copy(dst, src)
-	if err != nil {
+	if _, err := io.Copy(dst, src); err != nil {
 		log.Println("Copy error :" + err.Error())
 	}
 	copyCompletionBarrier.Done()

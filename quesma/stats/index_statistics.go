@@ -203,8 +203,7 @@ func isDate(str string) bool {
 	}
 
 	for _, layout := range dateLayouts {
-		_, err := time.Parse(layout, str)
-		if err == nil {
+		if _, err := time.Parse(layout, str); err == nil {
 			return true
 		}
 	}

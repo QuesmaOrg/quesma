@@ -146,8 +146,7 @@ func (lm *LogManager) sendCreateTableQuery(query string) error {
 		}
 		lm.db = connection
 	}
-	_, err := lm.db.Exec(query)
-	if err != nil {
+	if _, err := lm.db.Exec(query); err != nil {
 		return fmt.Errorf("error in sendCreateTableQuery: query: %s\nerr:%v", query, err)
 	}
 	return nil

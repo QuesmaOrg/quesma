@@ -298,10 +298,8 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 		stmts := make([]Statement, 0)
 		for op, v := range v.(QueryMap) {
 			vToPrint := sprint(v)
-			dateTime, ok := v.(string)
-			if ok {
-				_, err := time.Parse(time.RFC3339Nano, dateTime)
-				if err == nil {
+			if dateTime, ok := v.(string); ok {
+				if _, err := time.Parse(time.RFC3339Nano, dateTime); err == nil {
 					vToPrint = "parseDateTime64BestEffort('" + dateTime + "')"
 				}
 			}
