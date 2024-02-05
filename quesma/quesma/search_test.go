@@ -23,7 +23,7 @@ func TestNoAsciiTableName(t *testing.T) {
 	simpleQuery, queryInfo := queryTranslator.WriteAsyncSearch(requestBody)
 	assert.True(t, simpleQuery.CanParse)
 	assert.Equal(t, "", simpleQuery.Sql.Stmt)
-	assert.Equal(t, model.NewQueryInfoNone(), queryInfo)
+	assert.Equal(t, model.NewQueryInfoAsyncSearchNone(), queryInfo)
 
 	query := queryTranslator.BuildSimpleSelectQuery(tableName, simpleQuery.Sql.Stmt)
 	assert.True(t, query.CanParse)

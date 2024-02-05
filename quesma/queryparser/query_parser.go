@@ -55,7 +55,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryAsyncSearch(queryAsJson string) (
 	queryAsMap := make(QueryMap)
 	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
 	if err != nil {
-		return newSimpleQuery(NewSimpleStatement("invalid JSON (parseQueryAsyncSearch)"), false), model.NewQueryInfoNone()
+		return newSimpleQuery(NewSimpleStatement("invalid JSON (parseQueryAsyncSearch)"), false), model.NewQueryInfoAsyncSearchNone()
 	}
 
 	parsed := cw.parseQueryMap(queryAsMap["query"].(QueryMap))
@@ -473,11 +473,11 @@ func (cw *ClickhouseQueryTranslator) tryProcessMetadataAsyncSearch(queryMap Quer
 
 // 'queryMap' - metadata part of the JSON query
 // returns (info, true) if metadata shows it's histogram
-// returns (model.NewQueryInfoNone, false) if it's not histogram
+// returns (model.NewQueryInfoAsyncSearchNone, false) if it's not histogram
 func (cw *ClickhouseQueryTranslator) isItHistogramRequest(queryMap QueryMap) (model.QueryInfoAsyncSearch, bool) {
 	queryMap, ok := queryMap["aggs"].(QueryMap)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	queryMapNestOnePossility, ok := queryMap["0"].(QueryMap)
 	if ok {
@@ -488,48 +488,48 @@ func (cw *ClickhouseQueryTranslator) isItHistogramRequest(queryMap QueryMap) (mo
 
 	queryMap, ok = queryMap["stats"].(QueryMap)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	queryMap, ok = queryMap["aggs"].(QueryMap)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	queryMap, ok = queryMap["series"].(QueryMap)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	queryMap, ok = queryMap["date_histogram"].(QueryMap)
 	if ok {
 		return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: queryMap["fixed_interval"].(string), I1: 0, I2: 0}, true
 	}
-	return model.NewQueryInfoNone(), false
+	return model.NewQueryInfoAsyncSearchNone(), false
 }
 
 // 'queryMap' - metadata part of the JSON query
 // returns (info, true) if metadata shows it's AggsByField request (used e.g. for facets in Kibana)
-// returns (model.NewQueryInfoNone, false) if it's not AggsByField request
+// returns (model.NewQueryInfoAsyncSearchNone, false) if it's not AggsByField request
 func (cw *ClickhouseQueryTranslator) isItAggsByFieldRequest(queryMap QueryMap) (model.QueryInfoAsyncSearch, bool) {
 	queryMap, ok := queryMap["aggs"].(QueryMap)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	fieldName := ""
 	size := 0
 	queryMap, ok = queryMap["sample"].(QueryMap)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	nestedOnePossibility, ok := queryMap["aggs"].(QueryMap)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	nestedOnePossibility, ok = nestedOnePossibility["top_values"].(QueryMap)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	nestedOnePossibility, ok = nestedOnePossibility["terms"].(QueryMap)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 
 	size = int(nestedOnePossibility["size"].(float64))
@@ -537,26 +537,26 @@ func (cw *ClickhouseQueryTranslator) isItAggsByFieldRequest(queryMap QueryMap) (
 
 	nestedSecondPossibility, ok := queryMap["sampler"].(QueryMap)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	shardSize, ok := nestedSecondPossibility["shard_size"].(float64)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	return model.QueryInfoAsyncSearch{Typ: model.AggsByField, FieldName: fieldName, I1: size, I2: int(shardSize)}, true
 }
 
 // 'queryMap' - metadata part of the JSON query
 // returns (info, true) if metadata shows it's ListAllFields or ListByField request (used e.g. for listing all rows in Kibana)
-// returns (model.NewQueryInfoNone, false) if it's not ListAllFields/ListByField request
+// returns (model.NewQueryInfoAsyncSearchNone, false) if it's not ListAllFields/ListByField request
 func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.QueryInfoAsyncSearch, bool) {
 	fields, ok := queryMap["fields"].([]interface{})
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	size, ok := queryMap["size"].(float64)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	if len(fields) > 1 {
 		// so far everywhere I've seen, > 1 field ==> "*" is one of them
@@ -565,7 +565,7 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.Q
 	// so far everywhere I've seen, there's always at least 1 field, so it's safe to do this
 	queryMap, ok = fields[0].(QueryMap)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	// same as above
 	field := queryMap["field"].(string)
@@ -578,28 +578,28 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.Q
 func (cw *ClickhouseQueryTranslator) isItEarliestLatestTimestampRequest(queryMap QueryMap) (model.QueryInfoAsyncSearch, bool) {
 	queryMap, ok := queryMap["aggs"].(QueryMap)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 
 	// min json
 	minQueryMap, ok := queryMap["earliest_timestamp"].(QueryMap)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	minQueryMap, ok = minQueryMap["min"].(QueryMap)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	timestampFieldName1 := minQueryMap["field"].(string)
 
 	// max json
 	maxQueryMap, ok := queryMap["latest_timestamp"].(QueryMap)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	maxQueryMap, ok = maxQueryMap["max"].(QueryMap)
 	if !ok {
-		return model.NewQueryInfoNone(), false
+		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	timestampFieldName2 := maxQueryMap["field"].(string)
 
@@ -607,5 +607,5 @@ func (cw *ClickhouseQueryTranslator) isItEarliestLatestTimestampRequest(queryMap
 	if timestampFieldName1 == timestampFieldName2 {
 		return model.QueryInfoAsyncSearch{Typ: model.EarliestLatestTimestamp, FieldName: timestampFieldName1}, true
 	}
-	return model.NewQueryInfoNone(), false
+	return model.NewQueryInfoAsyncSearchNone(), false
 }

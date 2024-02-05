@@ -31,7 +31,7 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 			log.Println("Error processing query: " + simpleQuery.Sql.Stmt + ", err: " + err.Error())
 			return responseBody, err
 		}
-		responseBody, err = queryparser.MakeResponse(rows, false)
+		responseBody, err = queryparser.MakeResponseSearchQuery(rows, queryInfo)
 		if err != nil {
 			log.Println(err, "rows: ", rows)
 			return responseBody, err
@@ -52,8 +52,8 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 	return responseBody, nil
 }
 
-func createResponseHitJson(rows []clickhouse.QueryResultRow) []byte {
-	responseBody, err := queryparser.MakeResponse(rows, true)
+func createAsyncSearchResponseHitJson(rows []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) []byte {
+	responseBody, err := queryparser.MakeResponseAsyncSearchQuery(rows, typ)
 	if err != nil {
 		log.Println(err, "rows:", rows)
 	}
@@ -77,27 +77,27 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 			fullQuery = queryTranslator.BuildHistogramQuery(queryparser.TableName, "@timestamp", simpleQuery.Sql.Stmt) // TODO change timestamp
 			histogram, err := queryTranslator.ClickhouseLM.ProcessHistogramQuery(fullQuery)
 			log.Printf("Histogram: %+v, err: %+v\n", histogram, err)
-			responseBody = createResponseHitJson(histogram)
+			responseBody = createAsyncSearchResponseHitJson(histogram, model.Histogram)
 		case model.AggsByField:
 			// queryInfo = (AggsByField, fieldName, Limit results, Limit last rows to look into)
 			fullQuery = queryTranslator.BuildFacetsQuery(queryparser.TableName, queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.I2)
 			rows, err := queryTranslator.ClickhouseLM.ProcessFacetsQuery(fullQuery)
 			log.Printf("Rows: %+v, err: %+v\n", rows, err)
-			responseBody = createResponseHitJson(rows)
+			responseBody = createAsyncSearchResponseHitJson(rows, model.AggsByField)
 		case model.ListByField:
 			// queryInfo = (ListByField, fieldName, 0, LIMIT)
 			fullQuery = queryTranslator.BuildNMostRecentRowsQuery(queryparser.TableName, queryInfo.FieldName,
 				"@timestamp", simpleQuery.Sql.Stmt, queryInfo.I2)
 			rows, err := queryTranslator.ClickhouseLM.ProcessNMostRecentRowsQuery(fullQuery)
 			log.Printf("Rows: %+v, err: %+v\n", rows, err)
-			responseBody = createResponseHitJson(rows)
+			responseBody = createAsyncSearchResponseHitJson(rows, model.ListByField)
 		case model.ListAllFields:
 			// queryInfo = (ListAllFields, "*", 0, LIMIT)
 			fullQuery = queryTranslator.BuildNMostRecentRowsQuery(queryparser.TableName, "*",
 				"@timestamp", simpleQuery.Sql.Stmt, queryInfo.I2)
 			rows, err := queryTranslator.ClickhouseLM.ProcessNMostRecentRowsQuery(fullQuery)
 			log.Printf("Rows: %+v, err: %+v\n", rows, err)
-			responseBody = createResponseHitJson(rows)
+			responseBody = createAsyncSearchResponseHitJson(rows, model.ListAllFields)
 		case model.EarliestLatestTimestamp:
 			fullQuery = queryTranslator.BuildTimestampQuery(queryparser.TableName, queryInfo.FieldName, simpleQuery.Sql.Stmt, true)
 			rowsEarliest, err := queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
@@ -109,9 +109,11 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 			if err != nil {
 				log.Println("------------------ CARE Error processing query: " + simpleQuery.Sql.Stmt + ", err: " + err.Error())
 			}
-			responseBody = createResponseHitJson(append(rowsEarliest, rowsLatest...))
+			responseBody = createAsyncSearchResponseHitJson(append(rowsEarliest, rowsLatest...), model.EarliestLatestTimestamp)
 		case model.None:
 			log.Println("------------------------------ CARE! NOT IMPLEMENTED /_async/search REQUEST")
+			responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
+			return responseBody, errors.New(string(responseBody))
 		}
 		translatedQueryBody = []byte(fullQuery.String())
 	} else {

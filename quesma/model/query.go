@@ -93,7 +93,7 @@ func (queryType AsyncSearchQueryType) String() string {
 }
 
 func (queryType SearchQueryType) String() string {
-	return []string{"Count", "NoneSearch"}[queryType]
+	return []string{"Count", "Normal"}[queryType]
 }
 
 type QueryInfoAsyncSearch struct {
@@ -103,6 +103,6 @@ type QueryInfoAsyncSearch struct {
 	I2        int
 }
 
-func NewQueryInfoNone() QueryInfoAsyncSearch {
+func NewQueryInfoAsyncSearchNone() QueryInfoAsyncSearch {
 	return QueryInfoAsyncSearch{Typ: None}
 }

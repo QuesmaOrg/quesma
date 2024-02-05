@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"mitmproxy/quesma/model"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 )
 
 // Implementation of API for Quesma
 
-type FieldInfo int
+type FieldInfo = int
+type FieldAtIndex = int // for facets/histogram what Cols[i] means
 
 const (
 	NotExists FieldInfo = iota
@@ -28,6 +28,12 @@ type QueryResultCol struct {
 type QueryResultRow struct {
 	Cols []QueryResultCol
 }
+
+const (
+	Key         FieldAtIndex = iota // for facets/histogram Col[0] == Key
+	DocCount                        // for facets/histogram Col[1] == DocCount
+	KeyAsString                     // for histogram Col[2] == KeyAsString
+)
 
 func NewQueryResultCol(colName string, value interface{}) QueryResultCol {
 	return QueryResultCol{ColName: colName, Value: value}
@@ -146,18 +152,26 @@ func (lm *LogManager) ProcessHistogramQuery(query *model.Query) ([]QueryResultRo
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
-	result, err := read(rows, query.NonSchemaFields, []interface{}{int64(0), 0})
+	result, err := read(rows, []string{"key", "doc_count"}, []interface{}{int64(0), uint64(0)})
 	if err != nil {
 		return nil, err
 	}
 	sort.Slice(result, func(i, j int) bool {
-		return result[i].Cols[0].Value.(int64) < result[j].Cols[0].Value.(int64)
+		return result[i].Cols[Key].Value.(int64) < result[j].Cols[Key].Value.(int64)
 	})
+
+	// TODO remove hardcoded 30_000...
+	for i := range result {
+		result[i].Cols[Key].Value = result[i].Cols[Key].Value.(int64) * 30_000
+		result[i].Cols = append(result[i].Cols, QueryResultCol{
+			ColName: "key_as_string",
+			Value:   time.UnixMilli(result[i].Cols[Key].Value.(int64)).Format("2006-01-02T15:04:05.000"),
+		})
+	}
 	return result, nil
 }
 
 // TODO add support for autocomplete for attributes, if we'll find it needed
-// TODO total is probably wrong! We should count all rows, not only those that are returned
 func (lm *LogManager) ProcessFacetsQuery(query *model.Query) ([]QueryResultRow, error) {
 	table, err := lm.findSchemaAndInitConnection(query.TableName)
 	if err != nil {
@@ -173,23 +187,12 @@ func (lm *LogManager) ProcessFacetsQuery(query *model.Query) ([]QueryResultRow, 
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
-	resultRows, err := read(rows, append(colNames, query.NonSchemaFields...), rowToScan)
+	resultRows, err := read(rows, []string{"key", "doc_count"}, rowToScan)
 	if err != nil {
 		return nil, err
 	}
-	total := uint64(0)
-	for i := range resultRows {
-		total += resultRows[i].Cols[1].Value.(uint64)
-	}
-	// TODO total is probably wrong! We should count all rows, not only those that are returned
-	for i := range resultRows {
-		percentage := float64(resultRows[i].Cols[1].Value.(uint64)*100) / float64(total)
-		resultRows[i].Cols = append(resultRows[i].Cols, NewQueryResultCol(
-			"percentage", strconv.FormatFloat(percentage, 'f', 1, 64)+"%",
-		))
-	}
 	sort.Slice(resultRows, func(i, j int) bool {
-		return resultRows[i].Cols[1].Value.(uint64) > resultRows[j].Cols[1].Value.(uint64)
+		return resultRows[i].Cols[DocCount].Value.(uint64) > resultRows[j].Cols[DocCount].Value.(uint64)
 	})
 	return resultRows, nil
 }

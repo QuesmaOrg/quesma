@@ -195,7 +195,7 @@ var TestsAsyncSearch = []struct {
 }`,
 		"no comment yet",
 		model.QueryInfoAsyncSearch{Typ: model.AggsByField, FieldName: "host.name", I1: 10, I2: 5000},
-		[]string{`SELECT "host.name", count() FROM "logs-generic-default" WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-23T11:..:16.820Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T11:..:16.820Z')) AND "message" iLIKE '%user%' GROUP BY "host.name" ORDER BY count() DESC LIMIT 5000`},
+		[]string{`SELECT "host.name", count() FROM "logs-generic-default" WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-23T11:..:16.820Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T11:..:16.820Z')) AND "message" iLIKE '%user%' GROUP BY "host.name" ORDER BY count() DESC`},
 	},
 	{
 		"ListByField: query one field, last 'size' results, return list of just that field, no timestamp, etc.",
@@ -985,8 +985,12 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"host_name.keyword" iLIKE '%prometheus%'`},
 		model.Normal,
-		[]model.Query{justWhere(`"host_name.keyword" iLIKE '%prometheus%'`)},
-		qToStr(justWhere(`"host_name.keyword" iLIKE '%prometheus%'`)),
+		[]model.Query{
+			justWhere(`"host_name.keyword" iLIKE '%prometheus%'`),
+		},
+		qToStr(
+			justWhere(`"host_name.keyword" iLIKE '%prometheus%'`),
+		),
 	},
 	{
 		"Match",
@@ -1003,7 +1007,9 @@ var TestsSearch = []SearchTestCase{
 		[]model.Query{
 			justWhere(`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`),
 		},
-		qToStr(justWhere(`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`)),
+		qToStr(
+			justWhere(`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`),
+		),
 	},
 	{
 		"Terms",
@@ -1380,6 +1386,139 @@ var TestsSearch = []SearchTestCase{
 			justWhere(`"service.name"='admin' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z'))`),
 		},
 		`SELECT count() FROM "logs-generic-default" WHERE "service.name"='admin' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z'))`,
+	},
+	{
+		"Count() as /_search query. With filter", // response should be just ["hits"]["total"]["value"] == result of count()
+		`{
+		"aggs": {
+			"suggestions": {
+				"terms": {
+					"field": "data_stream.namespace",
+					"order": {
+						"_count": "desc"
+					},
+					"shard_size": 10,
+					"size": 10
+				}
+			},
+			"unique_terms": {
+				"cardinality": {
+					"field": "data_stream.namespace"
+				}
+			}
+		},
+		"query": {
+			"bool": {
+				"filter": [
+					{
+						"bool": {
+							"filter": [
+								{
+									"match_phrase": {
+										"message": "User logged out"
+									}
+								},
+								{
+									"match_phrase": {
+										"host.name": "poseidon"
+									}
+								},
+								{
+									"range": {
+										"@timestamp": {
+											"format": "strict_date_optional_time",
+											"gte": "2024-01-29T15:36:36.491Z",
+											"lte": "2024-01-29T18:11:36.491Z"
+										}
+									}
+								}
+							],
+							"must": [],
+							"must_not": [],
+							"should": []
+						}
+					}
+				]
+			}
+		},
+		"runtime_mappings": {},
+		"size": 0,
+		"terminate_after": 100000,
+		"timeout": "1000ms"
+	}`,
+		[]string{`("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))`,
+			`("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z'))`},
+		model.Count,
+		[]model.Query{
+			justWhere(`("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))`),
+			justWhere(`("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z'))`),
+		},
+		`SELECT count() FROM "logs-generic-default" WHERE ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z'))`,
+	},
+	{
+		"Count() as /_search or /logs-*-*/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count()
+		`{
+			"aggs": {
+				"suggestions": {
+					"terms": {
+						"field": "data_stream.namespace",
+						"order": {
+							"_count": "desc"
+						},
+						"shard_size": 10,
+						"size": 10
+					}
+				},
+				"unique_terms": {
+					"cardinality": {
+						"field": "data_stream.namespace"
+					}
+				}
+			},
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"bool": {
+								"filter": [
+									{
+										"multi_match": {
+											"lenient": true,
+											"query": "user",
+											"type": "best_fields"
+										}
+									},
+									{
+										"range": {
+											"@timestamp": {
+												"format": "strict_date_optional_time",
+												"gte": "2024-01-22T09:26:10.299Z",
+												"lte": "2024-01-22T09:41:10.299Z"
+											}
+										}
+									}
+								],
+								"must": [],
+								"must_not": [],
+								"should": []
+							}
+						}
+					]
+				}	
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"terminate_after": 100000,
+			"timeout": "1000ms"
+		}`,
+		[]string{`"message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))`,
+			`"message" iLIKE '%user%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z'))`},
+		model.Count,
+		[]model.Query{
+			justWhere(`"message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))`),
+			justWhere(`"message" iLIKE '%user%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z'))`),
+		},
+		`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z'))`,
 	},
 	{
 		"Count() as /_search query. With filter", // response should be just ["hits"]["total"]["value"] == result of count()

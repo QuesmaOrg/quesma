@@ -71,6 +71,7 @@ func TestMapDifference(t *testing.T) {
 			},
 		},
 	}
+
 	mExpected := JsonMap{
 		"took":      0.000000,
 		"timed_out": false,
@@ -103,6 +104,7 @@ func TestMapDifference(t *testing.T) {
 		"errors":       false,
 		"aggregations": nil,
 	}
+
 	wantedActualMinusExpected := JsonMap{
 		"aggregations": JsonMap{
 			"suggestions": JsonMap{
@@ -138,5 +140,104 @@ func TestMapDifference(t *testing.T) {
 
 	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected)
 	assert.Equal(t, wantedActualMinusExpected, actualMinusExpected)
+	assert.Equal(t, wantedExpectedMinusActual, expectedMinusActual)
+}
+
+// regression test, it used to fail before fix.
+func TestJsonDifference(t *testing.T) {
+	actual := `
+	{
+		"start_time_in_millis": 0,
+		"completion_time_in_millis": 0,
+		"expiration_time_in_millis": 0,
+		"id": "fake-id",
+		"is_running": false,
+		"is_partial": false,
+		"response": {
+			"took": 0,
+			"timed_out": false,
+			"_shards": {
+				"total": 0,
+				"successful": 0,
+				"failed": 0,
+				"skipped": 0
+			},
+			"hits": {
+				"total": {
+					"value": 0,
+					"relation": ""
+				},
+				"max_score": 0,
+				"hits": null
+			}
+		}
+	}`
+	expected := `
+	{
+		"completion_time_in_millis": 1706639337527,
+		"expiration_time_in_millis": 1706639397521,
+		"id": "FnhMY09KX3ZLUmFDeGtjLU1YM1RMMGccTTF2dnY2R0dSNEtZYVQ3cjR5ZnBuQTo3NjM0MQ==",
+		"is_partial": false,
+		"is_running": false,
+		"response": {
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"0": {
+					"buckets": [
+						{
+							"doc_count": 1,
+							"key": 1706638410000,
+							"key_as_string": "2024-01-30T19:13:30.000+01:00"
+						},
+						{
+							"doc_count": 14,
+							"key": 1706638440000,
+							"key_as_string": "2024-01-30T19:14:00.000+01:00"
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 87
+				}
+			},
+			"timed_out": false,
+			"took": 6
+		},
+		"start_time_in_millis": 1706639337521
+	}`
+	wantedExpectedMinusActual := JsonMap{
+		"response": JsonMap{
+			"aggregations": JsonMap{
+				"0": JsonMap{
+					"buckets": []interface{}{
+						JsonMap{
+							"doc_count":     1.0,
+							"key":           1706638410000.0,
+							"key_as_string": "2024-01-30T19:13:30.000+01:00",
+						},
+						JsonMap{
+							"doc_count":     14.0,
+							"key":           1706638440000.0,
+							"key_as_string": "2024-01-30T19:14:00.000+01:00",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	actualMinusExpected, expectedMinusActual, err := JsonDifference(actual, expected)
+	assert.NoError(t, err)
+	assert.Empty(t, actualMinusExpected)
 	assert.Equal(t, wantedExpectedMinusActual, expectedMinusActual)
 }

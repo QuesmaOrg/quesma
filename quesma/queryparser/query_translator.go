@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+type JsonMap = map[string]interface{}
+
 type ClickhouseQueryTranslator struct {
 	ClickhouseLM *clickhouse.LogManager
 }
@@ -29,22 +31,174 @@ func (cw *ClickhouseQueryTranslator) WriteAsyncSearch(buf []byte) (SimpleQuery, 
 	return cw.parseQueryAsyncSearch(string(buf))
 }
 
-func MakeResponse[T fmt.Stringer](ResultSet []T, asyncSearch bool) ([]byte, error) {
-	searchResponse := model.SearchResp{}
-	for _, row := range ResultSet {
-		searchHit := model.SearchHit{}
-		searchHit.Source = []byte(row.String())
-		searchResponse.Hits.Hits = append(searchResponse.Hits.Hits, searchHit)
+func makeResponseSearchQueryNormal[T fmt.Stringer](ResultSet []T) ([]byte, error) {
+	hits := make([]model.SearchHit, len(ResultSet))
+	for i, row := range ResultSet {
+		hits[i] = model.SearchHit{
+			Source: []byte(row.String()),
+		}
 	}
-	// Hits total value is mandatory
-	searchResponse.Hits.Total.Value = len(ResultSet)
-	if asyncSearch {
-		// Only async search needs to be wrapped in a response object
-		response := model.Response{Response: searchResponse}
-		return json.MarshalIndent(response, "", "")
+	response := model.SearchResp{
+		Hits: model.SearchHits{
+			Hits: hits,
+			Total: model.Total{
+				Value:    len(ResultSet),
+				Relation: "eq",
+			},
+		},
+	}
+	return json.MarshalIndent(response, "", "  ")
+}
+
+func makeResponseSearchQueryCount[T fmt.Stringer](ResultSet []T) ([]byte, error) {
+	aggregations := model.Aggregations{
+		"suggestions": {
+			"doc_count_error_upper_bound": 0,
+			"sum_other_doc_count":         0,
+			"buckets":                     []interface{}{},
+		},
+		"unique_terms": {
+			"value": 0,
+		},
+	}
+	response := model.SearchResp{
+		Aggregations:      aggregations,
+		DidTerminateEarly: new(bool), // a bit hacky with pointer, but seems like the only way https://stackoverflow.com/questions/37756236/json-golang-boolean-omitempty
+		Hits: model.SearchHits{
+			Hits: []model.SearchHit{},
+			Total: model.Total{
+				Value:    len(ResultSet),
+				Relation: "eq",
+			},
+		},
+	}
+	return json.MarshalIndent(response, "", "  ")
+}
+
+func MakeResponseSearchQuery[T fmt.Stringer](ResultSet []T, typ model.SearchQueryType) ([]byte, error) {
+	switch typ {
+	case model.Normal:
+		return makeResponseSearchQueryNormal(ResultSet)
+	case model.Count:
+		return makeResponseSearchQueryCount(ResultSet)
+	}
+	return nil, fmt.Errorf("unknown SearchQueryType: %v", typ)
+}
+
+func MakeResponseAsyncSearchAggregated(ResultSet []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+	buckets := make([]JsonMap, len(ResultSet))
+	for i, row := range ResultSet {
+		buckets[i] = make(JsonMap)
+		for _, col := range row.Cols {
+			buckets[i][col.ColName] = col.Value
+		}
+	}
+	var sampleCount uint64 // uint64 because that's what clickhouse reader returns
+	for _, row := range ResultSet {
+		sampleCount += row.Cols[clickhouse.DocCount].Value.(uint64)
 	}
 
-	return json.MarshalIndent(searchResponse, "", "")
+	var id *string
+	aggregations := model.Aggregations{}
+	switch typ {
+	case model.Histogram:
+		aggregations["0"] = JsonMap{
+			"buckets": buckets,
+		}
+		id = new(string)
+		*id = "fake-id"
+	case model.AggsByField:
+		aggregations["sample"] = JsonMap{
+			"doc_count": int(sampleCount),
+			"sample_count": JsonMap{
+				"value": int(sampleCount),
+			},
+			"top_values": JsonMap{
+				"buckets":                     buckets,
+				"sum_other_doc_count":         0,
+				"doc_count_error_upper_bound": 0,
+			},
+		}
+	default:
+		return nil, fmt.Errorf("unknown AsyncSearchAggregatedQueryType: %v", typ)
+	}
+
+	response := model.AsyncSearchEntireResp{
+		Response: model.AsyncSearchResp{
+			Aggregations: aggregations,
+			Hits: model.AsyncSearchHits{
+				Hits: []model.AsyncSearchHit{}, // seems redundant, but can't remove this, created JSON won't match
+				Total: &model.Total{
+					Value:    int(sampleCount),
+					Relation: "eq",
+				},
+			},
+		},
+		ID: id,
+	}
+	return json.MarshalIndent(response, "", "  ")
+}
+
+func MakeResponseAsyncSearchList(ResultSet []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+	hits := make([]model.AsyncSearchHit, len(ResultSet))
+	for i := range ResultSet {
+		hits[i].Fields = make(map[string][]interface{})
+		for _, col := range ResultSet[i].Cols {
+			hits[i].Fields[col.ColName] = []interface{}{col.Value}
+		}
+	}
+
+	var total *model.Total
+	var id *string
+	switch typ {
+	case model.ListByField:
+		total = &model.Total{
+			Value:    len(ResultSet),
+			Relation: "eq",
+		}
+	case model.ListAllFields:
+		for i := range ResultSet {
+			hits[i].ID = "fake-id"
+			hits[i].Index = "index-TODO-insert-tablename-index-here"
+			hits[i].Score = 1
+			hits[i].Version = 1
+			hits[i].Sort = []any{
+				"2024-01-30T19:38:54.607Z",
+				2944,
+			}
+			hits[i].Highlight = map[string][]string{
+				"host.name": {
+					"@kibana-highlighted-field@apollo@/kibana-highlighted-field@",
+				},
+			}
+		}
+		id = new(string)
+		*id = "fake-id"
+	default:
+		return nil, fmt.Errorf("unknown AsyncSearchListQueryType: %v", typ)
+	}
+
+	response := model.AsyncSearchEntireResp{
+		Response: model.AsyncSearchResp{
+			Hits: model.AsyncSearchHits{
+				Total: total,
+				Hits:  hits,
+			},
+		},
+		ID: id,
+	}
+	return json.MarshalIndent(response, "", "  ")
+}
+
+func MakeResponseAsyncSearchQuery(ResultSet []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+	switch typ {
+	case model.Histogram, model.AggsByField:
+		return MakeResponseAsyncSearchAggregated(ResultSet, typ)
+	case model.ListByField, model.ListAllFields:
+		return MakeResponseAsyncSearchList(ResultSet, typ)
+	default:
+		return nil, fmt.Errorf("unknown AsyncSearchQueryType: %v", typ)
+	}
 }
 
 func (cw *ClickhouseQueryTranslator) GetAttributesList(tableName string) []clickhouse.Attribute {
@@ -139,9 +293,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(tableName
 
 func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(tableName, fieldName, whereClause string, limit int) *model.Query {
 	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
-	if limit > 0 {
-		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(limit))
-	}
+	_ = limit // we take all rows for now
 	return &model.Query{
 		Fields:          []string{fieldName},
 		NonSchemaFields: []string{"count()"},

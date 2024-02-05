@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-type JsonMap map[string]interface{}
+type JsonMap = map[string]interface{}
 
 func Truncate(body string) string {
 	if len(body) < 70 {
@@ -136,17 +136,27 @@ func MapDifference(mActual, mExpected JsonMap) (JsonMap, JsonMap) {
 					addToResult(vExpected, name, keysNested, resultDiffOther)
 				}
 				lenActual, lenExpected := len(vActualTyped), len(vExpectedArr)
-				for i := 0; i < min(lenActual, lenExpected); i++ {
-					keysNested = append(keysNested, name+"["+strconv.Itoa(i)+"]")
-					// assumption: elements of arrays are maps. From observations, it's always true.
+				for i := 0; i < min(1, lenActual, lenExpected); i++ {
+					// Code below doesn't cover 100% of cases. But covers all we see, so I don't want to
+					// waste time improving it until there's need for it.
+					// Assumption: elements of arrays are maps or base types. From observations, it's always true.
 					// better to assume that until it breaks at least once. Fixing would require a lot of new code.
-					descendRec(vActualTyped[i].(JsonMap), (vExpectedArr)[i].(JsonMap), resultDiffThis, resultDiffOther, keysNested)
-					keysNested = keysNested[:len(keysNested)-1]
+					actualArrElementAsMap, ok1 := vActualTyped[i].(JsonMap)
+					expectedArrElementAsMap, ok2 := vExpectedArr[i].(JsonMap)
+					if ok1 && ok2 {
+						keysNested = append(keysNested, name+"["+strconv.Itoa(i)+"]")
+						descendRec(actualArrElementAsMap, expectedArrElementAsMap, resultDiffThis, resultDiffOther, keysNested)
+						keysNested = keysNested[:len(keysNested)-1]
+					} else if ok1 {
+						addToResult(actualArrElementAsMap, name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffThis)
+					} else if ok2 {
+						addToResult(expectedArrElementAsMap, name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffOther)
+					}
 				}
-				for i := min(lenActual, lenExpected); i < lenActual; i++ {
+				for i := min(lenActual, lenExpected); i < min(1, lenActual); i++ {
 					addToResult(vActualTyped[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffThis)
 				}
-				for i := min(lenActual, lenExpected); i < lenExpected; i++ {
+				for i := min(lenActual, lenExpected); i < min(1, lenExpected); i++ {
 					addToResult(vExpectedArr[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffOther)
 				}
 			}
@@ -170,11 +180,11 @@ func MapDifference(mActual, mExpected JsonMap) (JsonMap, JsonMap) {
 func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
 	mActual, err := JsonToMap(jsonActual)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("%v (first JSON)", err)
 	}
 	mExpected, err := JsonToMap(jsonExpected)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("%v (second JSON)", err)
 	}
 	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected)
 	return actualMinusExpected, expectedMinusActual, nil
