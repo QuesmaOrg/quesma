@@ -14,6 +14,8 @@ import (
 	"mitmproxy/quesma/quesma/recovery"
 	"net"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -30,17 +32,20 @@ type RequestId struct{}
 
 type (
 	Quesma struct {
-		processingHttpServer    *http.Server
-		routingHttpServer       *http.Server
-		logManager              *clickhouse.LogManager
-		targetUrl               string
-		publicTcpPort           string
-		internalHttpPort        string
-		responseDecorator       *http.Server
-		tcpProxyPort            string
-		requestId               int64
+		processor               *dualWriteHttpProxy
+		publicTcpPort           uint8
+		targetUrl               *url.URL
 		quesmaManagementConsole *QuesmaManagementConsole
 		config                  config.QuesmaConfiguration
+	}
+	dualWriteHttpProxy struct {
+		processingHttpServer *http.Server
+		routingHttpServer    *http.Server
+		logManager           *clickhouse.LogManager
+		internalHttpPort     string
+		responseDecorator    *http.Server
+		tcpProxyPort         string
+		requestId            int64
 	}
 )
 
@@ -101,109 +106,139 @@ func NewHttpClickhouseAdapter(logManager *clickhouse.LogManager, target string, 
 func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration) *Quesma {
 	quesmaManagementConsole := NewQuesmaManagementConsole()
 	q := &Quesma{
-		logManager:       logManager,
-		targetUrl:        target,
-		publicTcpPort:    tcpPort,
-		internalHttpPort: httpPort,
-		processingHttpServer: &http.Server{
-			Addr:    ":" + httpPort,
-			Handler: configureRouting(config, logManager, quesmaManagementConsole),
-		},
-		routingHttpServer: &http.Server{
-			Addr: ":" + TcpProxyPort,
-			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				defer recovery.LogPanic()
-				ctx := context.WithValue(r.Context(), RequestId{}, r.Header.Get("RequestId"))
+		processor: &dualWriteHttpProxy{
+			processingHttpServer: &http.Server{
+				Addr:    ":" + httpPort,
+				Handler: configureRouting(config, logManager, quesmaManagementConsole),
+			},
+			routingHttpServer: &http.Server{
+				Addr: ":" + TcpProxyPort,
+				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					defer recovery.LogPanic()
+					ctx := context.WithValue(r.Context(), RequestId{}, r.Header.Get("RequestId"))
 
-				reqBody, err := io.ReadAll(r.Body)
-				if err != nil {
-					http.Error(w, "Error reading request body", http.StatusInternalServerError)
-					return
-				}
+					reqBody, err := io.ReadAll(r.Body)
+					if err != nil {
+						http.Error(w, "Error reading request body", http.StatusInternalServerError)
+						return
+					}
 
-				rId := rand.Intn(1000000)
+					rId := rand.Intn(1000000)
 
-				log.Printf("rId: %d, URI: %s\n", rId, r.RequestURI)
+					log.Printf("rId: %d, URI: %s\n", rId, r.RequestURI)
 
-				elkResponse := sendHttpRequest(ctx, "http://"+target, r, reqBody)
-				quesmaResponse := sendHttpRequest(ctx, "http://localhost:"+httpPort, r, reqBody)
+					elkResponse := sendHttpRequest(ctx, "http://"+target, r, reqBody)
+					quesmaResponse := sendHttpRequest(ctx, "http://localhost:"+httpPort, r, reqBody)
 
-				log.Printf("r.RequestURI: %+v\n", r.RequestURI)
+					log.Printf("r.RequestURI: %+v\n", r.RequestURI)
 
-				if elkResponse == nil {
-					panic("elkResponse is nil")
-				}
+					if elkResponse == nil {
+						panic("elkResponse is nil")
+					}
 
-				if quesmaResponse == nil {
-					panic("quesmaResponse is nil")
-				}
+					if quesmaResponse == nil {
+						panic("quesmaResponse is nil")
+					}
 
-				sendElkResponseToQuesmaConsole(ctx, r.RequestURI, elkResponse, quesmaManagementConsole)
+					sendElkResponseToQuesmaConsole(ctx, r.RequestURI, elkResponse, quesmaManagementConsole)
 
-				for key, values := range elkResponse.Header {
-					for _, value := range values {
-						if key != "Content-Length" {
-							if w.Header().Get(key) == "" {
-								w.Header().Add(key, value)
+					for key, values := range elkResponse.Header {
+						for _, value := range values {
+							if key != "Content-Length" {
+								if w.Header().Get(key) == "" {
+									w.Header().Add(key, value)
+								}
 							}
 						}
 					}
-				}
 
-				w.WriteHeader(elkResponse.StatusCode)
+					w.WriteHeader(elkResponse.StatusCode)
 
-				if quesmaResponse.StatusCode == 200 && (strings.Contains(r.RequestURI, "/_search") || strings.Contains(r.RequestURI, "/_async_search")) {
-					log.Printf("rId: %d, responding from quesma\n", rId)
-					unzipped, err := io.ReadAll(quesmaResponse.Body)
-					if err == nil {
-						// Sometimes when query is invalid, quesma returns empty response,
-						// and we have to handle this case.
-						// When this happens, we want to return response from elk (for now), look else branch.
-						if string(unzipped) != "" {
-							responseFromQuesma(ctx, unzipped, w, rId)
-						} else {
-							responseFromElastic(ctx, elkResponse, w, rId)
+					if quesmaResponse.StatusCode == 200 && (strings.Contains(r.RequestURI, "/_search") || strings.Contains(r.RequestURI, "/_async_search")) {
+						log.Printf("rId: %d, responding from quesma\n", rId)
+						unzipped, err := io.ReadAll(quesmaResponse.Body)
+						if err == nil {
+							// Sometimes when query is invalid, quesma returns empty response,
+							// and we have to handle this case.
+							// When this happens, we want to return response from elk (for now), look else branch.
+							if string(unzipped) != "" {
+								responseFromQuesma(ctx, unzipped, w, rId)
+							} else {
+								responseFromElastic(ctx, elkResponse, w, rId)
+							}
 						}
+					} else {
+						responseFromElastic(ctx, elkResponse, w, rId)
 					}
-				} else {
-					responseFromElastic(ctx, elkResponse, w, rId)
-				}
-			}),
+				}),
+			},
+			logManager:        logManager,
+			internalHttpPort:  httpPort,
+			tcpProxyPort:      TcpProxyPort,
+			requestId:         0,
+			responseDecorator: NewResponseDecorator(tcpPort, 0, quesmaManagementConsole),
 		},
-		requestId:               0,
-		tcpProxyPort:            TcpProxyPort,
+		targetUrl:               parseURL(target),
+		publicTcpPort:           parsePort(tcpPort),
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,
 	}
 
-	q.responseDecorator = NewResponseDecorator(tcpPort, q.requestId, q.quesmaManagementConsole)
-
 	return q
 }
 
-func (q *Quesma) Close(ctx context.Context) {
-	if q.logManager != nil {
-		defer q.logManager.Close()
+func parsePort(tcpPort string) uint8 {
+	tcpPortInt, err := strconv.Atoi(tcpPort)
+	if err != nil {
+		log.Fatalf("Error parsing tcp port: %s", err)
 	}
-	if err := q.processingHttpServer.Shutdown(ctx); err != nil {
+	if tcpPortInt < 0 || tcpPortInt > 65535 {
+		log.Fatalf("Invalid tcp port: %s", tcpPort)
+	}
+	return uint8(tcpPortInt)
+}
+
+func parseURL(urlStr string) *url.URL {
+	parsed, err := url.Parse(urlStr)
+	if err != nil {
+		log.Fatalf("Error parsing target url: %s", err)
+	}
+	return parsed
+}
+
+func (q *Quesma) Close(ctx context.Context) {
+	q.processor.Close(ctx)
+}
+
+func (p *dualWriteHttpProxy) Close(ctx context.Context) {
+	if p.logManager != nil {
+		defer p.logManager.Close()
+	}
+	if err := p.processingHttpServer.Shutdown(ctx); err != nil {
 		log.Fatal("Error during server shutdown:", err)
 	}
 }
 
-func (q *Quesma) listenRoutingHTTP() {
-	if err := q.routingHttpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+func (p *dualWriteHttpProxy) listen() {
+	go p.listenRoutingHTTP()
+	go p.listenHTTP()
+	go p.listenResponseDecorator()
+}
+
+func (p *dualWriteHttpProxy) listenRoutingHTTP() {
+	if err := p.routingHttpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal("Error starting http server:", err)
 	}
 }
 
-func (q *Quesma) listenHTTP() {
-	if err := q.processingHttpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+func (p *dualWriteHttpProxy) listenHTTP() {
+	if err := p.processingHttpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal("Error starting http server:", err)
 	}
 }
 
-func (q *Quesma) listenResponseDecorator() {
-	if err := q.responseDecorator.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+func (p *dualWriteHttpProxy) listenResponseDecorator() {
+	if err := p.responseDecorator.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal("Error starting response decorator server:", err)
 	}
 }
@@ -211,9 +246,7 @@ func (q *Quesma) listenResponseDecorator() {
 func (q *Quesma) Start() {
 	defer recovery.LogPanic()
 	log.Println("starting quesma in the mode:", q.config.Mode)
-	go q.listenRoutingHTTP()
-	go q.listenHTTP()
-	go q.listenResponseDecorator()
+	go q.processor.listen()
 	go q.quesmaManagementConsole.Run()
 }
 
@@ -239,10 +272,10 @@ func sendHttpRequest(ctx context.Context, address string, originalReq *http.Requ
 }
 
 func (q *Quesma) listen() (net.Listener, error) {
-	go q.listenHTTP()
-	go q.listenResponseDecorator()
-	fmt.Printf("listening TCP at %s\n", q.tcpProxyPort)
-	listener, err := net.Listen("tcp", ":"+q.tcpProxyPort)
+	go q.processor.listenHTTP()
+	go q.processor.listenResponseDecorator()
+	fmt.Printf("listening TCP at %s\n", q.processor.tcpProxyPort)
+	listener, err := net.Listen("tcp", ":"+q.processor.tcpProxyPort)
 	if err != nil {
 		return nil, err
 	}
@@ -306,8 +339,8 @@ func (q *Quesma) handleRequest(in net.Conn) {
 }
 
 func (q *Quesma) connectElasticsearch() (net.Conn, error) {
-	elkConnection, err := net.Dial("tcp", q.targetUrl)
-	log.Println("elkConnection:" + q.targetUrl)
+	elkConnection, err := net.Dial("tcp", q.targetUrl.RequestURI())
+	log.Println("elkConnection:" + q.targetUrl.RequestURI())
 	if err != nil {
 		log.Println("error dialing primary addr", err)
 		return nil, fmt.Errorf("error dialing primary elasticsearch addr: %w", err)
