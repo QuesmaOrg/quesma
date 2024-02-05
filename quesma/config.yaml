@@ -1,7 +1,7 @@
 quesma:
   # https://www.notion.so/Quesma-modes-8435eebbb42542dabe6eeb5084299ac6
   # ↓ "proxy" (tcp proxy)
-  #	↓ "proxy-inspect" (tcp proxy with traffic inspection)
+  #	↓ "proxy-inspect" (tcp proxy with traffic inspection) TODO behaves like proxy for now
   #	↓ "dual-write-query-elastic" (dual write with elastics response) (DEFAULT)
   #	↓ "dual-write-query-clickhouse" (dual write, query both and compare)
   #	↓ "dual-write-query-clickhouse-verify" (dual write, query both and compare, ignore Clickhouse if not the same)

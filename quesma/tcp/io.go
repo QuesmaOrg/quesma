@@ -1,4 +1,4 @@
-package quesma
+package tcp
 
 import (
 	"io"
@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-func copyAndSignal(copyCompletionBarrier *sync.WaitGroup, dst io.Writer, src io.Reader) {
+func CopyAndSignal(copyCompletionBarrier *sync.WaitGroup, dst io.Writer, src io.Reader) {
 	defer recovery.LogPanic()
 	_, err := io.Copy(dst, src)
 	if err != nil {

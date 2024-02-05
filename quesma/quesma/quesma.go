@@ -9,9 +9,12 @@ import (
 	"log"
 	"math/rand"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/network"
+	"mitmproxy/quesma/proxy"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/gzip"
 	"mitmproxy/quesma/quesma/recovery"
+	"mitmproxy/quesma/tcp"
 	"net"
 	"net/http"
 	"net/url"
@@ -33,7 +36,7 @@ type RequestId struct{}
 type (
 	Quesma struct {
 		processor               RequestProcessor
-		publicTcpPort           Port
+		publicTcpPort           network.Port
 		targetUrl               *url.URL
 		quesmaManagementConsole *QuesmaManagementConsole
 		config                  config.QuesmaConfiguration
@@ -51,7 +54,6 @@ type (
 		tcpProxyPort         string
 		requestId            int64
 	}
-	Port uint16
 )
 
 func (p *dualWriteHttpProxy) Stop(ctx context.Context) {
@@ -100,8 +102,17 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse
 	}
 }
 
-func NewTcpProxy(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration) *Quesma {
-	return New(logManager, target, tcpPort, httpPort, config)
+func NewTcpProxy(target string, tcpPort string, config config.QuesmaConfiguration) *Quesma {
+	quesmaManagementConsole := NewQuesmaManagementConsole()
+	port := parsePort(tcpPort)
+	targetUrl := parseURL(target)
+	return &Quesma{
+		processor:               proxy.NewTcpProxy(port, targetUrl),
+		targetUrl:               targetUrl,
+		publicTcpPort:           port,
+		quesmaManagementConsole: quesmaManagementConsole,
+		config:                  config,
+	}
 }
 
 func NewHttpProxy(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration) *Quesma {
@@ -196,7 +207,7 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 	return q
 }
 
-func parsePort(port string) Port {
+func parsePort(port string) network.Port {
 	tcpPortInt, err := strconv.Atoi(port)
 	if err != nil {
 		log.Fatalf("Error parsing tcp port: %s", err)
@@ -204,7 +215,7 @@ func parsePort(port string) Port {
 	if tcpPortInt < 0 || tcpPortInt > 65535 {
 		log.Fatalf("Invalid port: %s", port)
 	}
-	return Port(tcpPortInt)
+	return network.Port(tcpPortInt)
 }
 
 func parseURL(urlStr string) *url.URL {
@@ -314,8 +325,8 @@ func (q *Quesma) handleRequest(in net.Conn) {
 			panic(err)
 		}
 		defer elkConnection.Close()
-		go copyAndSignal(&copyCompletionBarrier, elkConnection, in)
-		go copyAndSignal(&copyCompletionBarrier, in, elkConnection)
+		go tcp.CopyAndSignal(&copyCompletionBarrier, elkConnection, in)
+		go tcp.CopyAndSignal(&copyCompletionBarrier, in, elkConnection)
 		if q.config.Mode == config.ProxyInspect {
 			SetTrafficAnalysis(true)
 		}
@@ -326,8 +337,8 @@ func (q *Quesma) handleRequest(in net.Conn) {
 			panic(err)
 		}
 		defer elkConnection.Close()
-		go copyAndSignal(&copyCompletionBarrier, io.MultiWriter(elkConnection, internalHttpServerConnection), in)
-		go copyAndSignal(&copyCompletionBarrier, in, elkConnection)
+		go tcp.CopyAndSignal(&copyCompletionBarrier, io.MultiWriter(elkConnection, internalHttpServerConnection), in)
+		go tcp.CopyAndSignal(&copyCompletionBarrier, in, elkConnection)
 	case config.DualWriteQueryClickhouse:
 		panic("DualWriteQueryClickhouse not yet available")
 	case config.DualWriteQueryClickhouseVerify:
@@ -336,8 +347,8 @@ func (q *Quesma) handleRequest(in net.Conn) {
 		panic("DualWriteQueryClickhouseFallback not yet available")
 	case config.ClickHouse:
 		log.Println("handling Clickhouse only")
-		go copyAndSignal(&copyCompletionBarrier, internalHttpServerConnection, in)
-		go copyAndSignal(&copyCompletionBarrier, in, internalHttpServerConnection)
+		go tcp.CopyAndSignal(&copyCompletionBarrier, internalHttpServerConnection, in)
+		go tcp.CopyAndSignal(&copyCompletionBarrier, in, internalHttpServerConnection)
 	default:
 		panic("unknown operation mode")
 	}

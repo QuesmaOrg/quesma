@@ -54,9 +54,9 @@ func main() {
 
 func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager) *quesma.Quesma {
 	switch cfg.Mode {
-	case config.Proxy, config.ProxyInspect, config.DualWriteQueryElastic:
-		return quesma.NewTcpProxy(lm, os.Getenv(targetEnv), tcpPort, internalHttpPort, cfg)
-	case config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
+	case config.Proxy, config.ProxyInspect:
+		return quesma.NewTcpProxy(os.Getenv(targetEnv), tcpPort, cfg)
+	case config.DualWriteQueryElastic, config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
 		return quesma.NewHttpProxy(lm, os.Getenv(targetEnv), tcpPort, internalHttpPort, cfg)
 	case config.ClickHouse:
 		return quesma.NewHttpClickhouseAdapter(lm, os.Getenv(targetEnv), tcpPort, internalHttpPort, cfg)
