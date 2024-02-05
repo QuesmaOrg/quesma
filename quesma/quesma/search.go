@@ -14,7 +14,7 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
 	// TODO index argument is not used yet
 	_ = index
-
+	var rawResults []byte
 	simpleQuery, queryInfo := queryTranslator.Write(body)
 	var responseBody, translatedQueryBody []byte
 	if simpleQuery.CanParse {
@@ -29,19 +29,40 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 		rows, err := queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(fullQuery)
 		if err != nil {
 			log.Println("Error processing query: " + simpleQuery.Sql.Stmt + ", err: " + err.Error())
+			responseBody = []byte("Error processing query: " + simpleQuery.Sql.Stmt + ", err: " + err.Error())
+			quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
+				id:                     ctx.Value(RequestId{}).(string),
+				incomingQueryBody:      body,
+				queryBodyTranslated:    translatedQueryBody,
+				queryRawResults:        rawResults,
+				queryTranslatedResults: responseBody,
+			})
 			return responseBody, err
 		}
 		responseBody, err = queryparser.MakeResponseSearchQuery(rows, queryInfo)
 		if err != nil {
 			log.Println(err, "rows: ", rows)
+			quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
+				id:                     ctx.Value(RequestId{}).(string),
+				incomingQueryBody:      body,
+				queryBodyTranslated:    translatedQueryBody,
+				queryRawResults:        rawResults,
+				queryTranslatedResults: responseBody,
+			})
 			return responseBody, err
 		}
 	} else {
 		responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
+		quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
+			id:                     ctx.Value(RequestId{}).(string),
+			incomingQueryBody:      body,
+			queryBodyTranslated:    translatedQueryBody,
+			queryRawResults:        rawResults,
+			queryTranslatedResults: responseBody,
+		})
 		return responseBody, errors.New(string(responseBody))
 	}
 
-	var rawResults []byte
 	quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
 		id:                     ctx.Value(RequestId{}).(string),
 		incomingQueryBody:      body,
@@ -65,7 +86,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
 	// TODO index argument is not used yet
 	_ = index
-
+	var rawResults []byte
 	simpleQuery, queryInfo := queryTranslator.WriteAsyncSearch(body)
 	var responseBody, translatedQueryBody []byte
 
@@ -113,15 +134,28 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		case model.None:
 			log.Println("------------------------------ CARE! NOT IMPLEMENTED /_async/search REQUEST")
 			responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
+			quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
+				id:                     ctx.Value(RequestId{}).(string),
+				incomingQueryBody:      body,
+				queryBodyTranslated:    translatedQueryBody,
+				queryRawResults:        rawResults,
+				queryTranslatedResults: responseBody,
+			})
 			return responseBody, errors.New(string(responseBody))
 		}
 		translatedQueryBody = []byte(fullQuery.String())
 	} else {
 		responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
+		quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
+			id:                     ctx.Value(RequestId{}).(string),
+			incomingQueryBody:      body,
+			queryBodyTranslated:    translatedQueryBody,
+			queryRawResults:        rawResults,
+			queryTranslatedResults: responseBody,
+		})
 		return responseBody, errors.New(string(responseBody))
 	}
 
-	var rawResults []byte
 	quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
 		id:                     ctx.Value(RequestId{}).(string),
 		incomingQueryBody:      body,
