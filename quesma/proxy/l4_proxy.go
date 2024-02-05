@@ -31,7 +31,11 @@ func (t *TcpProxy) Ingest() {
 	if err != nil {
 		log.Fatal("Error listening to port:", err)
 	}
-	defer listener.Close()
+	defer func(l net.Listener) {
+		if err := l.Close(); err != nil {
+			log.Printf("Error closing the listener: %s\n", err)
+		}
+	}(listener)
 
 	close(t.ready)
 	t.acceptingConnections.Store(true)
@@ -48,7 +52,7 @@ func (t *TcpProxy) Ingest() {
 		serverConn, err := net.Dial("tcp", t.To.String())
 		if err != nil {
 			fmt.Println("Error connecting to remote server:", err)
-			clientConn.Close()
+			closeConnection(clientConn)
 			continue
 		}
 
@@ -67,8 +71,8 @@ func (t *TcpProxy) Stop(context.Context) {
 
 func (t *TcpProxy) handleConnection(clientConn net.Conn, serverConn net.Conn) {
 	log.Printf("Handling incoming connection from [%s] to [%s]\n", clientConn.RemoteAddr(), serverConn.RemoteAddr())
-	defer clientConn.Close()
-	defer serverConn.Close()
+	defer closeConnection(clientConn)
+	defer closeConnection(serverConn)
 
 	go t.copyData(clientConn, serverConn)
 	t.copyData(serverConn, clientConn)
@@ -77,5 +81,11 @@ func (t *TcpProxy) handleConnection(clientConn net.Conn, serverConn net.Conn) {
 func (t *TcpProxy) copyData(src net.Conn, dest net.Conn) {
 	if _, err := io.Copy(dest, src); err != nil {
 		fmt.Println("Error copying data:", err)
+	}
+}
+
+func closeConnection(connection net.Conn) {
+	if err := connection.Close(); err != nil {
+		log.Printf("Error closing connection: %s\n", err)
 	}
 }
