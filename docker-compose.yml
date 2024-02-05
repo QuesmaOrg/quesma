@@ -2,6 +2,7 @@ version: "3.7"
 services:
   quesma:
     build: quesma
+    image: quesma:latest
     environment:
       - ELASTIC_URL=elasticsearch:9200
       - TCP_PORT=8080
@@ -20,6 +21,7 @@ services:
     restart: unless-stopped
   device-log-generator:
     build: device-log-generator
+    image: device-log-generator:latest
     depends_on:
       mitmproxy:
         condition: service_healthy
@@ -28,6 +30,7 @@ services:
     restart: unless-stopped
   log-generator:
     build: log-generator
+    image: log-generator:latest
     depends_on:
       mitmproxy:
         condition: service_healthy
@@ -36,6 +39,7 @@ services:
     restart: unless-stopped
   query-generator:
     build: query-generator
+    image: query-generator:latest
     depends_on:
       mitmproxy:
         condition: service_healthy

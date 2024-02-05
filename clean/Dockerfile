@@ -1,4 +1,7 @@
-FROM python:3.9 
-COPY .* clean.py ./
+FROM python:3.9-alpine
+
 RUN pip install requests python-dotenv
-CMD ["python", "./clean.py"] 
+
+COPY .* clean.py ./
+
+CMD ["python", "./clean.py"]
