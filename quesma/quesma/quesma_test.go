@@ -10,30 +10,6 @@ import (
 	"testing"
 )
 
-//func sendRequest(url string, client *http.Client) (string, error) {
-//	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s", url), http.NoBody)
-//	if err != nil {
-//		return "", err
-//	}
-//	req.SetBasicAuth("", "")
-//	req.Header.Set("Accept", "*/*")
-//	log.Println("Sending request " + "http://" + url)
-//	resp, err := client.Do(req)
-//
-//	if err != nil {
-//		return "", err
-//	}
-//	defer resp.Body.Close()
-//
-//	// read response body
-//	body, err := io.ReadAll(resp.Body)
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	return string(body), nil
-//}
-
 func runReceiver(serverMux *http.ServeMux, shutdownWG *sync.WaitGroup, addr string) {
 	go func() {
 		receiver := &http.Server{Addr: addr, Handler: serverMux}
@@ -59,7 +35,6 @@ func runReceiver(serverMux *http.ServeMux, shutdownWG *sync.WaitGroup, addr stri
 }
 
 const (
-	QuesmaUrl  = "localhost:8080"
 	ElasticUrl = "localhost:9201"
 )
 
@@ -85,7 +60,7 @@ func TestSuccessRequests(t *testing.T) {
 	// TODO we have rewrite this test according to new architecture
 
 	go func() {
-		listener, err := instance.listen()
+		listener, err := instance.processor.(*dualWriteHttpProxy).listen()
 		require.NoError(t, err)
 		// below call will block on accept
 		// and wait just for exactly one request
@@ -94,35 +69,4 @@ func TestSuccessRequests(t *testing.T) {
 		require.NoError(t, err)
 		instance.handleRequest(in)
 	}()
-	/*
-		log.Println("quesma ready to listen")
-		client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
-		waitForHealthy()
-		body, err := sendRequest(QuesmaUrl+"/Hello", client)
-		assert.Equal(t, Receiver1Response, body)
-		require.NoError(t, err)
-
-		body, err = sendRequest(ElasticUrl+"/shutdown", client)
-		require.NoError(t, err)
-		assert.Equal(t, "shutdown receiver", body)
-		wg.Wait()
-
-	*/
 }
-
-/*
-func waitForHealthy() {
-	fmt.Println("waiting for http server...")
-	client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
-	retries := 0
-	for retries < 5 {
-		time.Sleep(5 * time.Second)
-		request := http.Request{URL: &url.URL{Scheme: "http", Host: QuesmaUrl, Fragment: HealthPath}, Method: "GET"}
-		body, err := client.Do(&request)
-		if err == nil && body.StatusCode == 200 {
-			return
-		}
-		retries++
-	}
-}
-*/

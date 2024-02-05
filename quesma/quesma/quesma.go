@@ -32,11 +32,15 @@ type RequestId struct{}
 
 type (
 	Quesma struct {
-		processor               *dualWriteHttpProxy
-		publicTcpPort           uint16
+		processor               RequestProcessor
+		publicTcpPort           Port
 		targetUrl               *url.URL
 		quesmaManagementConsole *QuesmaManagementConsole
 		config                  config.QuesmaConfiguration
+	}
+	RequestProcessor interface {
+		Ingest()
+		Stop(ctx context.Context)
 	}
 	dualWriteHttpProxy struct {
 		processingHttpServer *http.Server
@@ -47,7 +51,12 @@ type (
 		tcpProxyPort         string
 		requestId            int64
 	}
+	Port uint16
 )
+
+func (p *dualWriteHttpProxy) Stop(ctx context.Context) {
+	p.Close(ctx)
+}
 
 func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http.ResponseWriter, rId int) {
 	_ = ctx
@@ -187,7 +196,7 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 	return q
 }
 
-func parsePort(port string) uint16 {
+func parsePort(port string) Port {
 	tcpPortInt, err := strconv.Atoi(port)
 	if err != nil {
 		log.Fatalf("Error parsing tcp port: %s", err)
@@ -195,7 +204,7 @@ func parsePort(port string) uint16 {
 	if tcpPortInt < 0 || tcpPortInt > 65535 {
 		log.Fatalf("Invalid port: %s", port)
 	}
-	return uint16(tcpPortInt)
+	return Port(tcpPortInt)
 }
 
 func parseURL(urlStr string) *url.URL {
@@ -207,7 +216,7 @@ func parseURL(urlStr string) *url.URL {
 }
 
 func (q *Quesma) Close(ctx context.Context) {
-	q.processor.Close(ctx)
+	q.processor.Stop(ctx)
 }
 
 func (p *dualWriteHttpProxy) Close(ctx context.Context) {
@@ -219,7 +228,7 @@ func (p *dualWriteHttpProxy) Close(ctx context.Context) {
 	}
 }
 
-func (p *dualWriteHttpProxy) listen() {
+func (p *dualWriteHttpProxy) Ingest() {
 	go p.listenRoutingHTTP()
 	go p.listenHTTP()
 	go p.listenResponseDecorator()
@@ -246,7 +255,7 @@ func (p *dualWriteHttpProxy) listenResponseDecorator() {
 func (q *Quesma) Start() {
 	defer recovery.LogPanic()
 	log.Println("starting quesma in the mode:", q.config.Mode)
-	go q.processor.listen()
+	go q.processor.Ingest()
 	go q.quesmaManagementConsole.Run()
 }
 
@@ -271,11 +280,11 @@ func sendHttpRequest(ctx context.Context, address string, originalReq *http.Requ
 	return resp
 }
 
-func (q *Quesma) listen() (net.Listener, error) {
-	go q.processor.listenHTTP()
-	go q.processor.listenResponseDecorator()
-	fmt.Printf("listening TCP at %s\n", q.processor.tcpProxyPort)
-	listener, err := net.Listen("tcp", ":"+q.processor.tcpProxyPort)
+func (q *dualWriteHttpProxy) listen() (net.Listener, error) {
+	go q.listenHTTP()
+	go q.listenResponseDecorator()
+	fmt.Printf("listening TCP at %s\n", q.tcpProxyPort)
+	listener, err := net.Listen("tcp", ":"+q.tcpProxyPort)
 	if err != nil {
 		return nil, err
 	}
