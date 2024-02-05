@@ -33,7 +33,7 @@ type RequestId struct{}
 type (
 	Quesma struct {
 		processor               *dualWriteHttpProxy
-		publicTcpPort           uint8
+		publicTcpPort           uint16
 		targetUrl               *url.URL
 		quesmaManagementConsole *QuesmaManagementConsole
 		config                  config.QuesmaConfiguration
@@ -187,15 +187,15 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 	return q
 }
 
-func parsePort(tcpPort string) uint8 {
-	tcpPortInt, err := strconv.Atoi(tcpPort)
+func parsePort(port string) uint16 {
+	tcpPortInt, err := strconv.Atoi(port)
 	if err != nil {
 		log.Fatalf("Error parsing tcp port: %s", err)
 	}
 	if tcpPortInt < 0 || tcpPortInt > 65535 {
-		log.Fatalf("Invalid tcp port: %s", tcpPort)
+		log.Fatalf("Invalid port: %s", port)
 	}
-	return uint8(tcpPortInt)
+	return uint16(tcpPortInt)
 }
 
 func parseURL(urlStr string) *url.URL {
