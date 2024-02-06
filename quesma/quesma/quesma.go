@@ -102,7 +102,7 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse
 }
 
 func NewTcpProxy(target string, tcpPort string, config config.QuesmaConfiguration) *Quesma {
-	quesmaManagementConsole := NewQuesmaManagementConsole()
+	quesmaManagementConsole := NewQuesmaManagementConsole(config)
 	port := parsePort(tcpPort)
 	targetUrl := parseURL(target)
 	return &Quesma{
@@ -123,7 +123,7 @@ func NewHttpClickhouseAdapter(logManager *clickhouse.LogManager, target string, 
 }
 
 func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration) *Quesma {
-	quesmaManagementConsole := NewQuesmaManagementConsole()
+	quesmaManagementConsole := NewQuesmaManagementConsole(config)
 	q := &Quesma{
 		processor: &dualWriteHttpProxy{
 			processingHttpServer: &http.Server{

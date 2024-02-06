@@ -10,6 +10,7 @@ import (
 	"github.com/mjibson/sqlfmt"
 	"io"
 	"log"
+	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/util"
 	"net/http"
@@ -21,8 +22,8 @@ import (
 )
 
 const (
-	UI_TCP_PORT       = "9999"
-	MAX_LAST_MESSAGES = 10000
+	uiTcpPort       = "9999"
+	maxLastMessages = 10000
 )
 
 const (
@@ -62,15 +63,17 @@ type QuesmaManagementConsole struct {
 	debugInfoMessages         map[string]QueryDebugInfo
 	debugLastMessages         []string
 	responseMatcherChannel    chan QueryDebugInfo
+	config                    config.QuesmaConfiguration
 }
 
-func NewQuesmaManagementConsole() *QuesmaManagementConsole {
+func NewQuesmaManagementConsole(config config.QuesmaConfiguration) *QuesmaManagementConsole {
 	return &QuesmaManagementConsole{
 		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 5),
 		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 5),
 		debugInfoMessages:         make(map[string]QueryDebugInfo),
 		debugLastMessages:         make([]string, 0),
 		responseMatcherChannel:    make(chan QueryDebugInfo, 5),
+		config:                    config,
 	}
 }
 
@@ -105,7 +108,7 @@ func (qdi *QueryDebugInfo) requestContains(queryStr string) bool {
 
 func (qmc *QuesmaManagementConsole) newHTTPServer() *http.Server {
 	return &http.Server{
-		Addr:    ":" + UI_TCP_PORT,
+		Addr:    ":" + uiTcpPort,
 		Handler: qmc.createRouting(),
 	}
 }
@@ -288,7 +291,7 @@ func (qmc *QuesmaManagementConsole) generateQueries() []byte {
 	lastMessages := qmc.debugLastMessages
 	debugKeyValueSlice := []DebugKeyValue{}
 	count := 0
-	for i := len(lastMessages) - 1; i >= 0 && count < MAX_LAST_MESSAGES; i-- {
+	for i := len(lastMessages) - 1; i >= 0 && count < maxLastMessages; i-- {
 		debugInfoMessage := qmc.debugInfoMessages[lastMessages[i]]
 		if len(debugInfoMessage.QueryDebugSecondarySource.incomingQueryBody) > 0 {
 			debugKeyValueSlice = append(debugKeyValueSlice, DebugKeyValue{lastMessages[i], debugInfoMessage})
@@ -437,6 +440,10 @@ func (qmc *QuesmaManagementConsole) generateLiveTail() []byte {
 	buffer.WriteString(`<li><a href="/ingest-statistics">Ingest statistics</a></li>`)
 	buffer.WriteString(`</ul>`)
 
+	buffer.WriteString(`<h3>Details</h3>`)
+	buffer.WriteString(`<ul>`)
+	buffer.WriteString("<li><small>Mode: " + qmc.config.Mode.String() + "</small></li>")
+
 	buffer.WriteString("\n</div>")
 	buffer.WriteString("\n</body>")
 	buffer.WriteString("\n</html>")
@@ -519,7 +526,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequests(requestStr string)
 
 func (qmc *QuesmaManagementConsole) addNewMessageId(messageId string) {
 	qmc.debugLastMessages = append(qmc.debugLastMessages, messageId)
-	if len(qmc.debugLastMessages) > MAX_LAST_MESSAGES {
+	if len(qmc.debugLastMessages) > maxLastMessages {
 		delete(qmc.debugInfoMessages, qmc.debugLastMessages[0])
 		qmc.debugLastMessages = qmc.debugLastMessages[1:]
 	}
