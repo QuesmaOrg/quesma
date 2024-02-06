@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	_ "github.com/mailru/go-clickhouse"
-	"log"
 	"mitmproxy/quesma/jsonprocessor"
+	"mitmproxy/quesma/logger"
 	"strings"
 )
 
@@ -171,7 +171,7 @@ func buildCreateTableQueryNoOurFields(tableName, jsonData string, config *ChTabl
 	m := make(SchemaMap)
 	err := json.Unmarshal([]byte(jsonData), &m)
 	if err != nil {
-		log.Printf("Can't unmarshall, json: %s\nerr:%v\n", jsonData, err)
+		logger.Error().Msgf("Can't unmarshall, json: %s\nerr:%v", jsonData, err)
 		return "", err
 	}
 
@@ -276,7 +276,7 @@ func (lm *LogManager) ProcessInsertQuery(tableName, jsonData string) error {
 		config = NewOnlySchemaFieldsCHConfig()
 		err := lm.CreateTableFromInsertQuery(tableName, jsonData, config)
 		if err != nil {
-			fmt.Println("error ProcessInsertQuery, can't create table: ", err)
+			logger.Error().Msgf("error ProcessInsertQuery, can't create table: %v", err)
 			return err
 		}
 	} else if !table.Created {
@@ -297,7 +297,7 @@ func (lm *LogManager) Insert(tableName, jsonData string, config *ChTableConfig) 
 	if lm.db == nil {
 		connection, err := sql.Open("clickhouse", url)
 		if err != nil {
-			fmt.Printf("Open >> %v", err)
+			logger.Error().Msgf("Open >> %v", err)
 		}
 		lm.db = connection
 	}
@@ -341,7 +341,7 @@ func (lm *LogManager) addSchemaIfDoesntExist(table *Table) bool {
 func NewLogManager(predefined, newRuntime TableMap) *LogManager {
 	db, err := sql.Open("clickhouse", url)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal().Msg(err.Error())
 	}
 	return &LogManager{db: db, predefinedTables: predefined, newRuntimeTables: newRuntime}
 }

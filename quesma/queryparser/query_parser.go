@@ -47,7 +47,6 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery
 		return newSimpleQuery(NewSimpleStatement("invalid JSON (ParseQuery)"), false), model.Normal
 	}
 	queryInfo := cw.tryProcessMetadataSearch(queryAsMap)
-	fmt.Println("queryInfo: ", queryInfo)
 	return cw.parseQueryMap(queryAsMap), queryInfo
 }
 

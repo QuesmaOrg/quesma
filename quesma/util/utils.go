@@ -57,7 +57,7 @@ func JsonPrettify(jsonStr string, shorten bool) string {
 
 	err := json.Unmarshal([]byte(jsonStr), &jsonData)
 	if err != nil {
-		return fmt.Sprintf("Error unmarshalling JSON: %v", err)
+		return fmt.Sprintf("Error unmarshalling JSON: %v, json: %s", err, jsonStr)
 	}
 
 	for k, nested := range jsonData {
@@ -67,7 +67,7 @@ func JsonPrettify(jsonStr string, shorten bool) string {
 	}
 	v, err := json.Marshal(jsonData)
 	if err != nil {
-		return fmt.Sprintf("Error marshalling JSON: %v", err)
+		return fmt.Sprintf("Error marshalling JSON: %v, json: %s", err, jsonStr)
 	}
 	return prettify(string(v))
 }
@@ -182,11 +182,11 @@ func MapDifference(mActual, mExpected JsonMap) (JsonMap, JsonMap) {
 func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
 	mActual, err := JsonToMap(jsonActual)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%v (first JSON)", err)
+		return nil, nil, fmt.Errorf("%v (first JSON, json: %s)", err, jsonActual)
 	}
 	mExpected, err := JsonToMap(jsonExpected)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%v (second JSON)", err)
+		return nil, nil, fmt.Errorf("%v (second JSON, json: %s)", err, jsonExpected)
 	}
 	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected)
 	return actualMinusExpected, expectedMinusActual, nil

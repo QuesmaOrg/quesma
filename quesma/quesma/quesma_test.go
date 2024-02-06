@@ -55,7 +55,7 @@ func TestSuccessRequests(t *testing.T) {
 	})
 	runReceiver(serverMux1, &wg, ElasticUrl)
 
-	instance := New(nil, ElasticUrl, "8080", "8081", config.QuesmaConfiguration{Mode: config.DualWriteQueryElastic})
+	instance := New(nil, ElasticUrl, "8080", "8081", config.QuesmaConfiguration{Mode: config.DualWriteQueryElastic}, make(<-chan string, 50000))
 	_ = instance
 	// TODO we have rewrite this test according to new architecture
 

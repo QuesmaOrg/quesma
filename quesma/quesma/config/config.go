@@ -3,9 +3,10 @@ package config
 import (
 	"fmt"
 	"github.com/spf13/viper"
-	"log"
+	"mitmproxy/quesma/logger"
 	"regexp"
 	"strings"
+	"sync/atomic"
 )
 
 const (
@@ -41,7 +42,7 @@ func Load() QuesmaConfiguration {
 	viper.SetConfigType(configType)
 	viper.AddConfigPath(".")
 	if err := viper.ReadInConfig(); err != nil {
-		log.Printf("Could not read config, using default values: %s\n", err)
+		logger.Error().Msgf("Could not read config, using default values: %v", err)
 		return QuesmaConfiguration{}
 	}
 
@@ -60,21 +61,30 @@ func fullyQualifiedConfig(config string) string {
 func matches(indexName string, indexNamePattern string) bool {
 	r, err := regexp.Compile(strings.Replace(indexNamePattern, "*", ".*", -1))
 	if err != nil {
-		log.Printf("invalid index name pattern [%s]: %s\n", indexNamePattern, err)
+		logger.Error().Msgf("invalid index name pattern [%s]: %s", indexNamePattern, err)
 		return false
 	}
 
 	return r.MatchString(indexName)
 }
 
+var matchCounter = atomic.Int32{}
+
 func FindMatchingConfig(indexName string, config QuesmaConfiguration) (IndexConfiguration, bool) {
+	matchCounter.Add(1)
 	for _, config := range config.IndexConfig {
-		log.Printf("matching index %s with config: %+v\n", indexName, config.NamePattern)
+		if matchCounter.Load()%100 == 1 {
+			logger.Debug().Msgf("matching index %s with config: %+v, ctr: %d", indexName, config.NamePattern, matchCounter.Load())
+		}
 		if matches(indexName, config.NamePattern) {
-			log.Printf("  ╚═ matched index %s with config: %+v\n", indexName, config.NamePattern)
+			if matchCounter.Load()%100 == 1 {
+				logger.Debug().Msgf("  ╚═ matched index %s with config: %+v, ctr: %d", indexName, config.NamePattern, matchCounter.Load())
+			}
 			return config, true
 		} else {
-			log.Printf("  ╚═ not matched index %s with config: %+v\n", indexName, config.NamePattern)
+			if matchCounter.Load()%100 == 1 {
+				logger.Info().Msgf("  ╚═ not matched index %s with config: %+v, ctr: %d", indexName, config.NamePattern, matchCounter.Load())
+			}
 		}
 	}
 	return IndexConfiguration{}, false

@@ -5,3 +5,4 @@ mitmproxy/requests/*.txt
 mitmproxy/requests/*.mitm
 mitmproxy/query/*.txt
 .env
+quesma/logs

@@ -67,7 +67,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 			defer db.Close()
 			assert.NoError(t, err)
 			lm := clickhouse.NewLogManagerWithConnection(db, table, make(clickhouse.TableMap))
-			managementConsole := ui.NewQuesmaManagementConsole(config.Load())
+			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), make(<-chan string, 50000))
 
 			for _, regex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(regex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
@@ -108,7 +108,7 @@ func TestSearchHandler(t *testing.T) {
 			assert.NoError(t, err)
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table, make(clickhouse.TableMap))
-			managementConsole := ui.NewQuesmaManagementConsole(config.Load())
+			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), make(<-chan string, 50000))
 			mock.ExpectQuery(testdata.EscapeBrackets(tt.WantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			_, _ = handleSearch(ctx, "index-placeholder", []byte(tt.QueryJson), lm, managementConsole)
 
@@ -131,7 +131,7 @@ func TestSearcHandlerNoAttrsConfig(t *testing.T) {
 			assert.NoError(t, err)
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table, make(clickhouse.TableMap))
-			managementConsole := ui.NewQuesmaManagementConsole(config.Load())
+			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), make(<-chan string, 50000))
 			mock.ExpectQuery(testdata.EscapeBrackets(tt.WantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			_, _ = handleSearch(ctx, "index-placeholder", []byte(tt.QueryJson), lm, managementConsole)
 

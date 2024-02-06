@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/network"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/util"
@@ -83,11 +84,11 @@ func (t *TcpProxy) Ingest() {
 	}
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", t.From))
 	if err != nil {
-		log.Fatal("Error listening to port:", err)
+		logger.Fatal().Msgf("Error listening to port: %v", err)
 	}
 	defer func(l net.Listener) {
 		if err := l.Close(); err != nil {
-			log.Printf("Error closing the listener: %s\n", err)
+			logger.Error().Msgf("Error closing the listener: %s", err)
 		}
 	}(listener)
 
@@ -95,21 +96,21 @@ func (t *TcpProxy) Ingest() {
 	t.acceptingConnections.Store(true)
 
 	if t.inspect {
-		log.Printf("Listening on port %d and forwarding to %s, inspecting traffic\n", t.From, t.To.String())
+		logger.Info().Msgf("Listening on port %d and forwarding to %s, inspecting traffic\n", t.From, t.To.String())
 	} else {
-		log.Printf("Listening on port %d and forwarding to %s\n", t.From, t.To.String())
+		logger.Info().Msgf("Listening on port %d and forwarding to %s", t.From, t.To.String())
 	}
 
 	for t.acceptingConnections.Load() {
 		fromConn, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Error accepting connection:", err)
+			logger.Error().Msgf("Error accepting connection: %v", err)
 			continue
 		}
 
 		destConn, err := net.Dial("tcp", t.To.String())
 		if err != nil {
-			fmt.Println("Error connecting to remote server:", err)
+			logger.Error().Msgf("Error connecting to remote server: %v", err)
 			closeConnection(fromConn)
 			continue
 		}
@@ -126,7 +127,7 @@ func (t *TcpProxy) WaitUntilReady() {
 			if err == nil && resp.StatusCode == http.StatusOK {
 				serverReady = true
 			} else if err != nil {
-				log.Println("Error waiting for server to be ready:", err)
+				logger.Error().Msgf("Error waiting for server to be ready: %v", err)
 			}
 			_ = resp.Body.Close()
 			time.Sleep(100 * time.Millisecond)
@@ -166,13 +167,13 @@ func (t *TcpProxy) handle(fromConn, destConn net.Conn) {
 
 func (t *TcpProxy) copyData(src io.Reader, dest io.Writer) {
 	if _, err := io.Copy(dest, src); err != nil {
-		fmt.Println("Error copying data:", err)
+		logger.Error().Msgf("Error copying data: %v", err)
 	}
 }
 
 func closeConnection(connection net.Conn) {
 	if err := connection.Close(); err != nil {
-		log.Printf("Error closing connection: %s\n", err)
+		logger.Error().Msgf("Error closing connection: %v", err)
 	}
 }
 
@@ -185,31 +186,30 @@ func forEachInBulk(body string, f func(index string, document string)) {
 		var jsonData map[string]interface{}
 		err := json.Unmarshal([]byte(action), &jsonData)
 		if err != nil {
-			fmt.Println("Invalid action JSON in _bulk:", err, action)
+			logger.Error().Msgf("Invalid action JSON in _bulk: %v %s", err, action)
 			continue
 		}
 		createObj, ok := jsonData[bulkCreate]
 		if ok {
 			createJson, ok := createObj.(map[string]interface{})
 			if !ok {
-				fmt.Println("Invalid create JSON in _bulk:", action)
+				logger.Error().Msgf("Invalid create JSON in _bulk: %s", action)
 				continue
 			}
 			indexName, ok := createJson["_index"].(string)
 			if !ok {
 				if len(indexName) == 0 {
-					fmt.Println("Invalid create JSON in _bulk, no _index name:", action)
+					logger.Error().Msgf("Invalid create JSON in _bulk, no _index name: %s", action)
 					continue
 				}
 			}
 
 			f(indexName, document)
 		} else {
-			fmt.Print("Unsupported actions in _bulk:")
+			logger.Error().Msg("Unsupported actions in _bulk:")
 			for action := range jsonData {
-				fmt.Print(" ", action)
+				logger.Error().Msg(action)
 			}
-			fmt.Println()
 		}
 	}
 }

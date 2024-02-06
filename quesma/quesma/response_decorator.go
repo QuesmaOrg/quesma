@@ -1,7 +1,7 @@
 package quesma
 
 import (
-	"log"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/ui"
 	"net/http"
 	"net/http/httputil"
@@ -13,7 +13,7 @@ import (
 func NewResponseDecorator(tcpPort string, requestId int64, quesmaManagementConsole *ui.QuesmaManagementConsole) *http.Server {
 	remote, err := url.Parse(RemoteUrl)
 	if err != nil {
-		log.Fatal("Cannot parse target url:", err)
+		logger.Fatal().Msgf("Cannot parse target url: %v", err)
 	}
 	return &http.Server{
 		Addr: ":" + tcpPort,

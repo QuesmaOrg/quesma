@@ -9,11 +9,12 @@ import (
 	"github.com/k0kubun/pp"
 	"github.com/mjibson/sqlfmt"
 	"io"
-	"log"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/util"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -31,6 +32,8 @@ const (
 	healthPath             = managementInternalPath + "/health"
 	bypassPath             = managementInternalPath + "/bypass"
 )
+
+var requestIdRegex, _ = regexp.Compile(`request_id":"(\d+)"`)
 
 //go:embed asset/*
 var uiFs embed.FS
@@ -53,11 +56,13 @@ type QueryDebugSecondarySource struct {
 type QueryDebugInfo struct {
 	QueryDebugPrimarySource
 	QueryDebugSecondarySource
+	log string
 }
 
 type QuesmaManagementConsole struct {
 	queryDebugPrimarySource   chan *QueryDebugPrimarySource
 	queryDebugSecondarySource chan *QueryDebugSecondarySource
+	queryDebugLogs            <-chan string
 	ui                        *http.Server
 	mutex                     sync.Mutex
 	debugInfoMessages         map[string]QueryDebugInfo
@@ -66,10 +71,11 @@ type QuesmaManagementConsole struct {
 	config                    config.QuesmaConfiguration
 }
 
-func NewQuesmaManagementConsole(config config.QuesmaConfiguration) *QuesmaManagementConsole {
+func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logChan <-chan string) *QuesmaManagementConsole {
 	return &QuesmaManagementConsole{
 		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 5),
 		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 5),
+		queryDebugLogs:            logChan,
 		debugInfoMessages:         make(map[string]QueryDebugInfo),
 		debugLastMessages:         make([]string, 0),
 		responseMatcherChannel:    make(chan QueryDebugInfo, 5),
@@ -128,7 +134,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	router.HandleFunc("/statistics-json", func(writer http.ResponseWriter, req *http.Request) {
 		jsonBody, err := json.Marshal(stats.GlobalStatistics)
 		if err != nil {
-			log.Println("Error marshalling statistics:", err)
+			logger.Error().Msgf("Error marshalling statistics: %v", err)
 			writer.WriteHeader(500)
 			return
 		}
@@ -155,6 +161,11 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		buf := qmc.generateReportForRequestId(vars["requestId"])
 		_, _ = writer.Write(buf)
 	})
+	router.PathPrefix("/log/{requestId}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		buf := qmc.generateLogForRequestId(vars["requestId"])
+		_, _ = writer.Write(buf)
+	})
 	router.PathPrefix("/requests-by-str/{queryString}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		buf := qmc.generateReportForRequests(vars["queryString"])
@@ -178,7 +189,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 
 func (qmc *QuesmaManagementConsole) listenAndServe() {
 	if err := qmc.ui.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatal("Error starting server:", err)
+		logger.Fatal().Msgf("Error starting server: %v", err)
 	}
 }
 
@@ -199,7 +210,7 @@ func sqlPrettyPrint(sqlData []byte) string {
 	stmts := []string{strings.ReplaceAll(string(sqlData), "`", `"`)} // sqlfmt can't deal with backticks
 	sqlFormatted, err := sqlfmt.FmtSQL(formattingConfig, stmts)
 	if err != nil {
-		log.Printf("Error while formatting sql: %s\n", err)
+		logger.Error().Msgf("Error while formatting sql: %v\n", err)
 		sqlFormatted = string(sqlData)
 	}
 	return sqlFormatted
@@ -476,6 +487,46 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 	buffer.WriteString("\n<h2>Menu</h2>")
 
 	buffer.WriteString(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.WriteString(`<form action="/log/` + requestId + `">&nbsp;<input class="btn" type="submit" value="Go to log" /></form>`)
+
+	buffer.WriteString("\n</div>")
+	buffer.WriteString("\n</body>")
+	buffer.WriteString("\n</html>")
+	return buffer.Bytes()
+}
+
+func (qmc *QuesmaManagementConsole) generateLogForRequestId(requestId string) []byte {
+	qmc.mutex.Lock()
+	request, requestFound := qmc.debugInfoMessages[requestId]
+	qmc.mutex.Unlock()
+
+	buffer := newBufferWithHead()
+	buffer.WriteString(`<div class="topnav">`)
+	if requestFound {
+		buffer.WriteString("\n<h3>Quesma Log for request id " + requestId + "</h3>")
+	} else {
+		buffer.WriteString("\n<h3>Quesma Log not found for " + requestId + "</h3>")
+	}
+	buffer.WriteString("\n</div>\n")
+
+	buffer.WriteString(`<div class="center" id="center">`)
+	buffer.WriteString("\n\n")
+	buffer.WriteString(`<div class="title-bar">Query`)
+	buffer.WriteString("\n</div>\n")
+	buffer.WriteString(`<div class="debug-body">`)
+
+	buffer.WriteString("<p>RequestID:" + requestId + "</p>\n")
+	buffer.WriteString(`<pre id="query` + requestId + `">`)
+	buffer.WriteString(request.log)
+	buffer.WriteString("\n</pre>")
+
+	buffer.WriteString("\n</div>\n")
+	buffer.WriteString("\n</div>\n")
+	buffer.WriteString(`<div class="menu">`)
+	buffer.WriteString("\n<h2>Menu</h2>")
+
+	buffer.WriteString(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.WriteString(`<form action="/request-Id/` + requestId + `">&nbsp;<input class="btn" type="submit" value="Back to request info" /></form>`)
 
 	buffer.WriteString("\n</div>")
 	buffer.WriteString("\n</body>")
@@ -539,7 +590,7 @@ func (qmc *QuesmaManagementConsole) Run() {
 	for {
 		select {
 		case msg := <-qmc.queryDebugPrimarySource:
-			log.Println("Received debug info from primary source:", msg.Id)
+			logger.Info().Msg("Received debug info from primary source: " + msg.Id)
 			debugPrimaryInfo := QueryDebugPrimarySource{msg.Id, msg.QueryResp}
 			qmc.mutex.Lock()
 			if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {
@@ -556,7 +607,7 @@ func (qmc *QuesmaManagementConsole) Run() {
 			}
 			qmc.mutex.Unlock()
 		case msg := <-qmc.queryDebugSecondarySource:
-			log.Println("Received debug info from secondary source:", msg.Id)
+			logger.Info().Msg("Received debug info from secondary source: " + msg.Id)
 			secondaryDebugInfo := QueryDebugSecondarySource{
 				msg.Id,
 				msg.IncomingQueryBody,
@@ -578,7 +629,26 @@ func (qmc *QuesmaManagementConsole) Run() {
 				qmc.responseMatcherChannel <- value
 			}
 			qmc.mutex.Unlock()
+		case msg := <-qmc.queryDebugLogs:
+			match := requestIdRegex.FindStringSubmatch(msg)
+			if len(match) < 2 {
+				// there's no request_id in the log message
+				continue
+			}
+			requestId := match[1]
+			msgPretty := util.JsonPrettify(msg, false) + "\n"
 
+			qmc.mutex.Lock()
+			if value, ok := qmc.debugInfoMessages[requestId]; !ok {
+				qmc.debugInfoMessages[requestId] = QueryDebugInfo{
+					log: msgPretty,
+				}
+				qmc.addNewMessageId(requestId)
+			} else {
+				value.log += msgPretty
+				qmc.debugInfoMessages[requestId] = value
+			}
+			qmc.mutex.Unlock()
 		}
 	}
 }
@@ -593,7 +663,7 @@ func ok(writer http.ResponseWriter, _ *http.Request) {
 func bypassSwitch(writer http.ResponseWriter, r *http.Request) {
 	bodyString, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Println("Error reading body:", err)
+		logger.Error().Msgf("Error reading body: %v", err)
 		writer.WriteHeader(400)
 		_, _ = writer.Write([]byte("Error reading body: " + err.Error()))
 		return
@@ -601,13 +671,13 @@ func bypassSwitch(writer http.ResponseWriter, r *http.Request) {
 	body := make(map[string]interface{})
 	err = json.Unmarshal(bodyString, &body)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal().Msg(err.Error())
 	}
 
 	if body["bypass"] != nil {
 		val := body["bypass"].(bool)
 		config.SetTrafficAnalysis(val)
-		fmt.Printf("global bypass set to %t\n", val)
+		logger.Info().Msgf("global bypass set to %t\n", val)
 		writer.WriteHeader(200)
 	} else {
 		writer.WriteHeader(400)
@@ -619,14 +689,25 @@ func (qmc *QuesmaManagementConsole) comparePipelines() {
 		queryDebugInfo, ok := <-qmc.responseMatcherChannel
 		if ok {
 			if string(queryDebugInfo.QueryResp) != string(queryDebugInfo.QueryTranslatedResults) {
-				log.Println("Responses are different:")
-				elasticSurplusFields, ourSurplusFields, err := util.JsonDifference(string(queryDebugInfo.QueryResp), string(queryDebugInfo.QueryTranslatedResults))
+				logger.Warn().Str(logger.RID, queryDebugInfo.QueryDebugPrimarySource.Id).
+					Msg("Responses are different:")
+				elasticSurplusFields, ourSurplusFields, err := util.JsonDifference(
+					string(queryDebugInfo.QueryResp),
+					string(queryDebugInfo.QueryTranslatedResults),
+				)
 				if err != nil {
-					log.Println("Error while comparing responses:", err)
+					logger.Error().Str(logger.RID, queryDebugInfo.QueryDebugPrimarySource.Id).
+						Msgf("Error while comparing responses: %v", err)
 					continue
 				}
-				pp.Println(`Clickhouse response \ Elastic response: `, ourSurplusFields)
-				pp.Println(`Elastic response \ Clickhouse response: `, elasticSurplusFields)
+				logger.Warn().Str(logger.RID, queryDebugInfo.QueryDebugPrimarySource.Id).
+					Msgf("Clickhouse response - Elastic response: %v", ourSurplusFields)
+				logger.Warn().Str(logger.RID, queryDebugInfo.QueryDebugPrimarySource.Id).
+					Msgf("Elastic response - Clickhouse response: %v", elasticSurplusFields)
+
+				// left below because I find it still easier to debug from this input
+				pp.Println("Clickhouse response - Elastic response: %v", ourSurplusFields)
+				pp.Println("Elastic response - Clickhouse response: %v", elasticSurplusFields)
 			}
 		}
 	}

@@ -18,6 +18,7 @@ services:
       - "8080:8080"
     volumes:
       - ./quesma/quesma/ui:/var/quesma/quesma/ui
+      - ./quesma/logs/:/var/quesma/logs
     restart: unless-stopped
   device-log-generator:
     build: device-log-generator

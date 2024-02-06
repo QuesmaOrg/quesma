@@ -3,17 +3,16 @@ package quesma
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"github.com/gorilla/mux"
 	"io"
 	"log"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/gzip"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -65,10 +64,10 @@ func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManag
 	router.PathPrefix(SearchPath).HandlerFunc(search(lm, quesmaManagementConsole)).Methods("POST")
 	router.PathPrefix("/{index}" + AsyncSearchPath).HandlerFunc(asyncSearch(lm, quesmaManagementConsole)).Methods("POST")
 	router.PathPrefix(ElasticInternalPath).HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
-		fmt.Printf("unrecognized internal path: %s\n", r.RequestURI)
+		logger.Debug().Msgf("unrecognized internal path: %s", r.RequestURI)
 	})
 	router.PathPrefix("/.").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
-		fmt.Printf("internal index access '%s', ignoring...\n", strings.Split(r.RequestURI, "/")[1])
+		logger.Debug().Msgf("internal index access '%s', ignoring...", strings.Split(r.RequestURI, "/")[1])
 	})
 	router.PathPrefix("/{index}/_doc").HandlerFunc(index(lm, config)).Methods("POST")
 	router.PathPrefix("/{index}/_bulk").HandlerFunc(bulkVar(lm, config)).Methods("POST")
@@ -131,14 +130,14 @@ func processInsert(lm *clickhouse.LogManager) func(http.ResponseWriter, *http.Re
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		err := lm.ProcessInsertQuery("signoz_logs", string(body))
 		if err != nil {
-			_, _ = fmt.Fprintln(os.Stderr, err)
+			logger.Error().Msg(err.Error())
 		}
 	})
 }
 
 func createTable(lm *clickhouse.LogManager) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		fmt.Printf("%s --> create table\n", r.RequestURI)
+		logger.Info().Msgf("%s --> create table\n", r.RequestURI)
 		_ = lm.ProcessCreateTableQuery(string(body), clickhouse.NewDefaultCHConfig())
 	})
 }

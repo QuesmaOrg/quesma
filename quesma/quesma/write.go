@@ -3,21 +3,21 @@ package quesma
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"log"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/util"
 	"strings"
+	"sync/atomic"
 )
 
 func dualWriteBulk(ctx context.Context, optionalTableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
 	_ = ctx
 	if config.TrafficAnalysis.Load() {
-		log.Printf("analysing traffic, not writing to Clickhouse %s\n", queryparser.TableName)
+		logger.Info().Msgf("analysing traffic, not writing to Clickhouse %s", queryparser.TableName)
 		return
 	}
 	defer recovery.LogPanic()
@@ -31,19 +31,19 @@ func dualWriteBulk(ctx context.Context, optionalTableName string, body string, l
 		// Unmarshal the JSON data into the map
 		err := json.Unmarshal([]byte(action), &jsonData)
 		if err != nil {
-			fmt.Println("Invalid action JSON in _bulk:", err, action)
+			logger.Info().Msgf("Invalid action JSON in _bulk: %v %s", err, action)
 			continue
 		}
 		if jsonData["create"] != nil {
 			createObj, ok := jsonData["create"].(map[string]interface{})
 			if !ok {
-				fmt.Println("Invalid create JSON in _bulk:", action)
+				logger.Info().Msgf("Invalid create JSON in _bulk: %s", action)
 				continue
 			}
 			indexName, ok := createObj["_index"].(string)
 			if !ok {
 				if len(indexName) == 0 {
-					fmt.Println("Invalid create JSON in _bulk, no _index name:", action)
+					logger.Error().Msgf("Invalid create JSON in _bulk, no _index name: %s", action)
 					continue
 				} else {
 					indexName = optionalTableName
@@ -55,13 +55,13 @@ func dualWriteBulk(ctx context.Context, optionalTableName string, body string, l
 				return lm.ProcessInsertQuery(indexName, document)
 			})
 		} else if jsonData["index"] != nil {
-			fmt.Println("Not supporting 'index' _bulk.")
+			logger.Error().Msg("Not supporting 'index' _bulk.")
 		} else if jsonData["update"] != nil {
-			fmt.Println("Not supporting 'update' _bulk.")
+			logger.Error().Msg("Not supporting 'update' _bulk.")
 		} else if jsonData["delete"] != nil {
-			fmt.Println("Not supporting 'delete' _bulk.")
+			logger.Error().Msg("Not supporting 'delete' _bulk.")
 		} else {
-			fmt.Println("Invalid action JSON in _bulk:", action)
+			logger.Error().Msgf("Invalid action JSON in _bulk: %s", action)
 		}
 	}
 }
@@ -70,7 +70,7 @@ func dualWrite(ctx context.Context, tableName string, body string, lm *clickhous
 	_ = ctx
 	stats.GlobalStatistics.Process(tableName, body, clickhouse.NestedSeparator)
 	if config.TrafficAnalysis.Load() {
-		log.Printf("analysing traffic, not writing to Clickhouse %s\n", queryparser.TableName)
+		logger.Info().Msgf("analysing traffic, not writing to Clickhouse %s", queryparser.TableName)
 		return
 	}
 
@@ -84,27 +84,32 @@ func dualWrite(ctx context.Context, tableName string, body string, lm *clickhous
 	})
 }
 
+var insertCounter = atomic.Int32{}
+
 func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, indexName string, body string, action func() error) {
 	if len(cfg.IndexConfig) == 0 {
-		log.Printf("%s  --> clickhouse, body(shortened): %s\n", indexName, util.Truncate(body))
+		logger.Info().Msgf("%s  --> clickhouse, body(shortened): %s", indexName, util.Truncate(body))
 		err := action()
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal().Msg(err.Error())
 		}
 	} else {
 		matchingConfig, ok := config.FindMatchingConfig(indexName, cfg)
 		if !ok {
-			log.Printf("index '%s' is not configured, skipping\n", indexName)
+			logger.Info().Msgf("index '%s' is not configured, skipping", indexName)
 			return
 		}
 		if matchingConfig.Enabled {
-			log.Printf("%s  --> clickhouse, body(shortened): %s\n", indexName, util.Truncate(body))
+			insertCounter.Add(1)
+			if insertCounter.Load()%50 == 1 {
+				logger.Debug().Msgf("%s  --> clickhouse, body(shortened): %s, ctr: %d", indexName, util.Truncate(body), insertCounter.Load())
+			}
 			err := action()
 			if err != nil {
-				log.Fatal(err)
+				logger.Fatal().Msg(err.Error())
 			}
 		} else {
-			log.Printf("index '%s' is disabled, ignoring\n", indexName)
+			logger.Info().Msgf("index '%s' is disabled, ignoring", indexName)
 		}
 	}
 }

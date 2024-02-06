@@ -2,7 +2,7 @@ package recovery
 
 import (
 	"errors"
-	"log"
+	"mitmproxy/quesma/logger"
 	"runtime/debug"
 )
 
@@ -18,6 +18,6 @@ func LogPanic() {
 		default:
 			err = errors.New("unknown error")
 		}
-		log.Printf("Panic recovered: %s\n%s", err, string(debug.Stack()))
+		logger.Error().Msgf("Panic recovered: %s\n%s", err, string(debug.Stack()))
 	}
 }
