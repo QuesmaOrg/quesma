@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/ui"
+	"mitmproxy/quesma/tracing"
 )
 
 func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
@@ -32,7 +33,7 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 			log.Println("Error processing query: " + simpleQuery.Sql.Stmt + ", err: " + err.Error())
 			responseBody = []byte("Error processing query: " + simpleQuery.Sql.Stmt + ", err: " + err.Error())
 			quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-				Id:                     ctx.Value(RequestId{}).(string),
+				Id:                     ctx.Value(tracing.RequestId).(string),
 				IncomingQueryBody:      body,
 				QueryBodyTranslated:    translatedQueryBody,
 				QueryRawResults:        rawResults,
@@ -44,7 +45,7 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 		if err != nil {
 			log.Println(err, "rows: ", rows)
 			quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-				Id:                     ctx.Value(RequestId{}).(string),
+				Id:                     ctx.Value(tracing.RequestId).(string),
 				IncomingQueryBody:      body,
 				QueryBodyTranslated:    translatedQueryBody,
 				QueryRawResults:        rawResults,
@@ -55,7 +56,7 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 	} else {
 		responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
 		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-			Id:                     ctx.Value(RequestId{}).(string),
+			Id:                     ctx.Value(tracing.RequestId).(string),
 			IncomingQueryBody:      body,
 			QueryBodyTranslated:    translatedQueryBody,
 			QueryRawResults:        rawResults,
@@ -65,7 +66,7 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 	}
 
 	quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-		Id:                     ctx.Value(RequestId{}).(string),
+		Id:                     ctx.Value(tracing.RequestId).(string),
 		IncomingQueryBody:      body,
 		QueryBodyTranslated:    translatedQueryBody,
 		QueryRawResults:        rawResults,
@@ -136,7 +137,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 			log.Println("------------------------------ CARE! NOT IMPLEMENTED /_async/search REQUEST")
 			responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
 			quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-				Id:                     ctx.Value(RequestId{}).(string),
+				Id:                     ctx.Value(tracing.RequestId).(string),
 				IncomingQueryBody:      body,
 				QueryBodyTranslated:    translatedQueryBody,
 				QueryRawResults:        rawResults,
@@ -148,7 +149,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	} else {
 		responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
 		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-			Id:                     ctx.Value(RequestId{}).(string),
+			Id:                     ctx.Value(tracing.RequestId).(string),
 			IncomingQueryBody:      body,
 			QueryBodyTranslated:    translatedQueryBody,
 			QueryRawResults:        rawResults,
@@ -158,7 +159,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	}
 
 	quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-		Id:                     ctx.Value(RequestId{}).(string),
+		Id:                     ctx.Value(tracing.RequestId).(string),
 		IncomingQueryBody:      body,
 		QueryBodyTranslated:    translatedQueryBody,
 		QueryRawResults:        rawResults,

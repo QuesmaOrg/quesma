@@ -10,6 +10,7 @@ import (
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/testdata"
+	"mitmproxy/quesma/tracing"
 	"testing"
 )
 
@@ -32,7 +33,7 @@ func TestNoAsciiTableName(t *testing.T) {
 	assert.Equal(t, `SELECT * FROM `+tableName+" ", query.String())
 }
 
-var ctx = context.WithValue(context.TODO(), RequestId{}, "test")
+var ctx = context.WithValue(context.TODO(), tracing.RequestId, "test")
 
 func TestAsyncSearchHandler(t *testing.T) {
 	table := clickhouse.TableMap{

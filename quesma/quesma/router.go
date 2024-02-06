@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/gzip"
 	"mitmproxy/quesma/quesma/ui"
+	"mitmproxy/quesma/tracing"
 	"net/http"
 	"os"
 	"strings"
@@ -29,7 +30,7 @@ const (
 
 func bodyHandler(h func(body []byte, writer http.ResponseWriter, r *http.Request)) func(http.ResponseWriter, *http.Request) {
 	return func(writer http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), RequestId{}, r.Header.Get("RequestId"))
+		ctx := context.WithValue(r.Context(), tracing.RequestId, r.Header.Get("RequestId"))
 		r = r.WithContext(ctx)
 		body, err := io.ReadAll(r.Body)
 		if err != nil {

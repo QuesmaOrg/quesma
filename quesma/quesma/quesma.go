@@ -16,6 +16,7 @@ import (
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tcp"
+	"mitmproxy/quesma/tracing"
 	"net"
 	"net/http"
 	"net/url"
@@ -28,8 +29,6 @@ const (
 	TcpProxyPort = "8888"
 	RemoteUrl    = "http://" + "localhost:" + TcpProxyPort + "/"
 )
-
-type RequestId struct{}
 
 type (
 	Quesma struct {
@@ -95,7 +94,7 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse
 				log.Println("Error unzipping:", err)
 			}
 		}
-		console.PushPrimaryInfo(&ui.QueryDebugPrimarySource{Id: ctx.Value(RequestId{}).(string), QueryResp: body})
+		console.PushPrimaryInfo(&ui.QueryDebugPrimarySource{Id: ctx.Value(tracing.RequestId).(string), QueryResp: body})
 	}
 }
 
@@ -132,7 +131,7 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 				Addr: ":" + TcpProxyPort,
 				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					defer recovery.LogPanic()
-					ctx := context.WithValue(r.Context(), RequestId{}, r.Header.Get("RequestId"))
+					ctx := context.WithValue(r.Context(), tracing.RequestId, r.Header.Get("RequestId"))
 
 					reqBody, err := io.ReadAll(r.Body)
 					if err != nil {
