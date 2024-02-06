@@ -10,6 +10,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/gzip"
+	"mitmproxy/quesma/quesma/ui"
 	"net/http"
 	"os"
 	"strings"
@@ -39,7 +40,7 @@ func bodyHandler(h func(body []byte, writer http.ResponseWriter, r *http.Request
 	}
 }
 
-func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagementConsole) *mux.Router {
+func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManager, quesmaManagementConsole *ui.QuesmaManagementConsole) *mux.Router {
 	router := mux.NewRouter()
 	router.HandleFunc(HealthPath, ok)
 	router.PathPrefix(CreateTablePath).HandlerFunc(createTable(lm))
@@ -84,21 +85,21 @@ func writeSearchResponse(ctx context.Context, writer http.ResponseWriter, body [
 	writer.Write(body)
 }
 
-func search(lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
+func search(lm *clickhouse.LogManager, quesmaManagementConsole *ui.QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		responseBody, err := handleSearch(r.Context(), "", body, lm, quesmaManagementConsole)
 		writeSearchResponse(r.Context(), writer, responseBody, err)
 	})
 }
 
-func asyncSearch(lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
+func asyncSearch(lm *clickhouse.LogManager, quesmaManagementConsole *ui.QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		responseBody, err := handleAsyncSearch(r.Context(), "", body, lm, quesmaManagementConsole)
 		writeSearchResponse(r.Context(), writer, responseBody, err)
 	})
 }
 
-func searchVar(lm *clickhouse.LogManager, quesmaManagementConsole *QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
+func searchVar(lm *clickhouse.LogManager, quesmaManagementConsole *ui.QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		responseBody, err := handleSearch(r.Context(), vars["index"], body, lm, quesmaManagementConsole)
@@ -139,4 +140,10 @@ func createTable(lm *clickhouse.LogManager) func(http.ResponseWriter, *http.Requ
 		fmt.Printf("%s --> create table\n", r.RequestURI)
 		_ = lm.ProcessCreateTableQuery(string(body), clickhouse.NewDefaultCHConfig())
 	})
+}
+
+func ok(writer http.ResponseWriter, _ *http.Request) {
+	writer.WriteHeader(200)
+	writer.Header().Set("Content-Type", "application/json")
+	_, _ = writer.Write([]byte(`{"cluster_name": "quesma"}`))
 }

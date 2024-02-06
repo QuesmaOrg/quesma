@@ -14,6 +14,7 @@ import (
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/gzip"
 	"mitmproxy/quesma/quesma/recovery"
+	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tcp"
 	"net"
 	"net/http"
@@ -21,15 +22,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 )
 
 const (
 	TcpProxyPort = "8888"
 	RemoteUrl    = "http://" + "localhost:" + TcpProxyPort + "/"
 )
-
-var trafficAnalysis atomic.Bool
 
 type RequestId struct{}
 
@@ -38,7 +36,7 @@ type (
 		processor               RequestProcessor
 		publicTcpPort           network.Port
 		targetUrl               *url.URL
-		quesmaManagementConsole *QuesmaManagementConsole
+		quesmaManagementConsole *ui.QuesmaManagementConsole
 		config                  config.QuesmaConfiguration
 	}
 	RequestProcessor interface {
@@ -81,7 +79,7 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 	}
 }
 
-func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse *http.Response, console *QuesmaManagementConsole) {
+func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse *http.Response, console *ui.QuesmaManagementConsole) {
 	reader := elkResponse.Body
 	body, err := io.ReadAll(reader)
 	if err != nil {
@@ -97,12 +95,12 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse
 				log.Println("Error unzipping:", err)
 			}
 		}
-		console.PushPrimaryInfo(&QueryDebugPrimarySource{ctx.Value(RequestId{}).(string), body})
+		console.PushPrimaryInfo(&ui.QueryDebugPrimarySource{Id: ctx.Value(RequestId{}).(string), QueryResp: body})
 	}
 }
 
 func NewQuesmaTcpProxy(target string, tcpPort string, config config.QuesmaConfiguration, inspect bool) *Quesma {
-	quesmaManagementConsole := NewQuesmaManagementConsole(config)
+	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config)
 	port := parsePort(tcpPort)
 	targetUrl := parseURL(target)
 	return &Quesma{
@@ -123,7 +121,7 @@ func NewHttpClickhouseAdapter(logManager *clickhouse.LogManager, target string, 
 }
 
 func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration) *Quesma {
-	quesmaManagementConsole := NewQuesmaManagementConsole(config)
+	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config)
 	q := &Quesma{
 		processor: &dualWriteHttpProxy{
 			processingHttpServer: &http.Server{
@@ -269,10 +267,6 @@ func (q *Quesma) Start() {
 	go q.quesmaManagementConsole.Run()
 }
 
-func SetTrafficAnalysis(val bool) {
-	trafficAnalysis.Store(val)
-}
-
 func sendHttpRequest(ctx context.Context, address string, originalReq *http.Request, originalReqBody []byte) *http.Response {
 	req, err := http.NewRequestWithContext(ctx, originalReq.Method, address+originalReq.URL.String(), bytes.NewBuffer(originalReqBody))
 	if err != nil {
@@ -327,7 +321,7 @@ func (q *Quesma) handleRequest(in net.Conn) {
 		go tcp.CopyAndSignal(&copyCompletionBarrier, elkConnection, in)
 		go tcp.CopyAndSignal(&copyCompletionBarrier, in, elkConnection)
 		if q.config.Mode == config.ProxyInspect {
-			SetTrafficAnalysis(true)
+			config.SetTrafficAnalysis(true)
 		}
 	case config.DualWriteQueryElastic:
 		log.Println("writing to Elasticsearch and mirroring to Clickhouse")

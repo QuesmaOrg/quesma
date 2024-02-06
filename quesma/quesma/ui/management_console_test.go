@@ -1,4 +1,4 @@
-package quesma
+package ui
 
 import (
 	"strings"

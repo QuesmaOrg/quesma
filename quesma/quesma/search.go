@@ -7,10 +7,11 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
+	"mitmproxy/quesma/quesma/ui"
 )
 
 func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
-	quesmaManagementConsole *QuesmaManagementConsole) ([]byte, error) {
+	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
 	// TODO index argument is not used yet
 	_ = index
@@ -30,45 +31,45 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 		if err != nil {
 			log.Println("Error processing query: " + simpleQuery.Sql.Stmt + ", err: " + err.Error())
 			responseBody = []byte("Error processing query: " + simpleQuery.Sql.Stmt + ", err: " + err.Error())
-			quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
-				id:                     ctx.Value(RequestId{}).(string),
-				incomingQueryBody:      body,
-				queryBodyTranslated:    translatedQueryBody,
-				queryRawResults:        rawResults,
-				queryTranslatedResults: responseBody,
+			quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+				Id:                     ctx.Value(RequestId{}).(string),
+				IncomingQueryBody:      body,
+				QueryBodyTranslated:    translatedQueryBody,
+				QueryRawResults:        rawResults,
+				QueryTranslatedResults: responseBody,
 			})
 			return responseBody, err
 		}
 		responseBody, err = queryparser.MakeResponseSearchQuery(rows, queryInfo)
 		if err != nil {
 			log.Println(err, "rows: ", rows)
-			quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
-				id:                     ctx.Value(RequestId{}).(string),
-				incomingQueryBody:      body,
-				queryBodyTranslated:    translatedQueryBody,
-				queryRawResults:        rawResults,
-				queryTranslatedResults: responseBody,
+			quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+				Id:                     ctx.Value(RequestId{}).(string),
+				IncomingQueryBody:      body,
+				QueryBodyTranslated:    translatedQueryBody,
+				QueryRawResults:        rawResults,
+				QueryTranslatedResults: responseBody,
 			})
 			return responseBody, err
 		}
 	} else {
 		responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
-		quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
-			id:                     ctx.Value(RequestId{}).(string),
-			incomingQueryBody:      body,
-			queryBodyTranslated:    translatedQueryBody,
-			queryRawResults:        rawResults,
-			queryTranslatedResults: responseBody,
+		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+			Id:                     ctx.Value(RequestId{}).(string),
+			IncomingQueryBody:      body,
+			QueryBodyTranslated:    translatedQueryBody,
+			QueryRawResults:        rawResults,
+			QueryTranslatedResults: responseBody,
 		})
 		return responseBody, errors.New(string(responseBody))
 	}
 
-	quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
-		id:                     ctx.Value(RequestId{}).(string),
-		incomingQueryBody:      body,
-		queryBodyTranslated:    translatedQueryBody,
-		queryRawResults:        rawResults,
-		queryTranslatedResults: responseBody,
+	quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+		Id:                     ctx.Value(RequestId{}).(string),
+		IncomingQueryBody:      body,
+		QueryBodyTranslated:    translatedQueryBody,
+		QueryRawResults:        rawResults,
+		QueryTranslatedResults: responseBody,
 	})
 	return responseBody, nil
 }
@@ -82,7 +83,7 @@ func createAsyncSearchResponseHitJson(rows []clickhouse.QueryResultRow, typ mode
 }
 
 func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
-	quesmaManagementConsole *QuesmaManagementConsole) ([]byte, error) {
+	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
 	// TODO index argument is not used yet
 	_ = index
@@ -134,34 +135,34 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		case model.None:
 			log.Println("------------------------------ CARE! NOT IMPLEMENTED /_async/search REQUEST")
 			responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
-			quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
-				id:                     ctx.Value(RequestId{}).(string),
-				incomingQueryBody:      body,
-				queryBodyTranslated:    translatedQueryBody,
-				queryRawResults:        rawResults,
-				queryTranslatedResults: responseBody,
+			quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+				Id:                     ctx.Value(RequestId{}).(string),
+				IncomingQueryBody:      body,
+				QueryBodyTranslated:    translatedQueryBody,
+				QueryRawResults:        rawResults,
+				QueryTranslatedResults: responseBody,
 			})
 			return responseBody, errors.New(string(responseBody))
 		}
 		translatedQueryBody = []byte(fullQuery.String())
 	} else {
 		responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
-		quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
-			id:                     ctx.Value(RequestId{}).(string),
-			incomingQueryBody:      body,
-			queryBodyTranslated:    translatedQueryBody,
-			queryRawResults:        rawResults,
-			queryTranslatedResults: responseBody,
+		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+			Id:                     ctx.Value(RequestId{}).(string),
+			IncomingQueryBody:      body,
+			QueryBodyTranslated:    translatedQueryBody,
+			QueryRawResults:        rawResults,
+			QueryTranslatedResults: responseBody,
 		})
 		return responseBody, errors.New(string(responseBody))
 	}
 
-	quesmaManagementConsole.PushSecondaryInfo(&QueryDebugSecondarySource{
-		id:                     ctx.Value(RequestId{}).(string),
-		incomingQueryBody:      body,
-		queryBodyTranslated:    translatedQueryBody,
-		queryRawResults:        rawResults,
-		queryTranslatedResults: responseBody,
+	quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+		Id:                     ctx.Value(RequestId{}).(string),
+		IncomingQueryBody:      body,
+		QueryBodyTranslated:    translatedQueryBody,
+		QueryRawResults:        rawResults,
+		QueryTranslatedResults: responseBody,
 	})
 	return responseBody, nil
 }

@@ -16,7 +16,7 @@ import (
 
 func dualWriteBulk(ctx context.Context, optionalTableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
 	_ = ctx
-	if trafficAnalysis.Load() {
+	if config.TrafficAnalysis.Load() {
 		log.Printf("analysing traffic, not writing to Clickhouse %s\n", queryparser.TableName)
 		return
 	}
@@ -69,7 +69,7 @@ func dualWriteBulk(ctx context.Context, optionalTableName string, body string, l
 func dualWrite(ctx context.Context, tableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
 	_ = ctx
 	stats.GlobalStatistics.Process(tableName, body, clickhouse.NestedSeparator)
-	if trafficAnalysis.Load() {
+	if config.TrafficAnalysis.Load() {
 		log.Printf("analysing traffic, not writing to Clickhouse %s\n", queryparser.TableName)
 		return
 	}

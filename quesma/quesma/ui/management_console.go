@@ -1,4 +1,4 @@
-package quesma
+package ui
 
 import (
 	"bytes"
@@ -32,22 +32,22 @@ const (
 	bypassPath             = managementInternalPath + "/bypass"
 )
 
-//go:embed ui/*
+//go:embed asset/*
 var uiFs embed.FS
 
 type QueryDebugPrimarySource struct {
-	id        string
-	queryResp []byte
+	Id        string
+	QueryResp []byte
 }
 
 type QueryDebugSecondarySource struct {
-	id string
+	Id string
 
-	incomingQueryBody []byte
+	IncomingQueryBody []byte
 
-	queryBodyTranslated    []byte
-	queryRawResults        []byte
-	queryTranslatedResults []byte
+	QueryBodyTranslated    []byte
+	QueryRawResults        []byte
+	QueryTranslatedResults []byte
 }
 
 type QueryDebugInfo struct {
@@ -96,8 +96,8 @@ func copyMap(originalMap map[string]QueryDebugInfo) map[string]QueryDebugInfo {
 }
 
 func (qdi *QueryDebugInfo) requestContains(queryStr string) bool {
-	potentialPlaces := [][]byte{qdi.QueryDebugSecondarySource.incomingQueryBody,
-		qdi.QueryDebugSecondarySource.queryBodyTranslated}
+	potentialPlaces := [][]byte{qdi.QueryDebugSecondarySource.IncomingQueryBody,
+		qdi.QueryDebugSecondarySource.QueryBodyTranslated}
 	for _, potentialPlace := range potentialPlaces {
 		if potentialPlace != nil && strings.Contains(string(potentialPlace), queryStr) {
 			return true
@@ -150,7 +150,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		buf := qmc.generateQueries()
 		_, _ = writer.Write(buf)
 	})
-	router.PathPrefix("/request-id/{requestId}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
+	router.PathPrefix("/request-Id/{requestId}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		buf := qmc.generateReportForRequestId(vars["requestId"])
 		_, _ = writer.Write(buf)
@@ -160,7 +160,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		buf := qmc.generateReportForRequests(vars["queryString"])
 		_, _ = writer.Write(buf)
 	})
-	router.PathPrefix("/request-id").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
+	router.PathPrefix("/request-Id").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		// redirect to /
 		http.Redirect(writer, r, "/", http.StatusSeeOther)
 	})
@@ -208,17 +208,17 @@ func sqlPrettyPrint(sqlData []byte) string {
 func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte {
 	var buffer bytes.Buffer
 
-	buffer.WriteString("\n" + `<div class="left" id="left">` + "\n")
+	buffer.WriteString("\n" + `<div class="left" Id="left">` + "\n")
 	buffer.WriteString(`<div class="title-bar">Query`)
 	buffer.WriteString("\n</div>\n")
 	buffer.WriteString(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buffer.WriteString(`<a href="/request-id/` + v.Key + `">`)
+			buffer.WriteString(`<a href="/request-Id/` + v.Key + `">`)
 		}
 		buffer.WriteString("<p>RequestID:" + v.Key + "</p>\n")
-		buffer.WriteString(`<pre id="query` + v.Key + `">`)
-		buffer.WriteString(util.JsonPrettify(string(v.Value.incomingQueryBody), true))
+		buffer.WriteString(`<pre Id="query` + v.Key + `">`)
+		buffer.WriteString(util.JsonPrettify(string(v.Value.IncomingQueryBody), true))
 		buffer.WriteString("\n</pre>")
 		if withLinks {
 			buffer.WriteString("\n</a>")
@@ -227,16 +227,16 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 	buffer.WriteString("\n</div>")
 	buffer.WriteString("\n</div>\n")
 
-	buffer.WriteString(`<div class="right" id="right">` + "\n")
+	buffer.WriteString(`<div class="right" Id="right">` + "\n")
 	buffer.WriteString(`<div class="title-bar">Elasticsearch response` + "\n" + `</div>`)
 	buffer.WriteString(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buffer.WriteString(`<a href="/request-id/` + v.Key + `">`)
+			buffer.WriteString(`<a href="/request-Id/` + v.Key + `">`)
 		}
 		buffer.WriteString("<p>ResponseID:" + v.Key + "</p>\n")
-		buffer.WriteString(`<pre id="response` + v.Key + `">`)
-		buffer.WriteString(util.JsonPrettify(string(v.Value.queryResp), true))
+		buffer.WriteString(`<pre Id="response` + v.Key + `">`)
+		buffer.WriteString(util.JsonPrettify(string(v.Value.QueryResp), true))
 		buffer.WriteString("\n</pre>")
 		if withLinks {
 			buffer.WriteString("\n</a>")
@@ -245,16 +245,16 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 	buffer.WriteString("\n</div>")
 	buffer.WriteString("\n</div>\n")
 
-	buffer.WriteString(`<div class="bottom_left" id="bottom_left">` + "\n")
+	buffer.WriteString(`<div class="bottom_left" Id="bottom_left">` + "\n")
 	buffer.WriteString(`<div class="title-bar">Clickhouse translated query` + "\n" + `</div>`)
 	buffer.WriteString(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buffer.WriteString(`<a href="/request-id/` + v.Key + `">`)
+			buffer.WriteString(`<a href="/request-Id/` + v.Key + `">`)
 		}
 		buffer.WriteString("<p>RequestID:" + v.Key + "</p>\n")
-		buffer.WriteString(`<pre id="second_query` + v.Key + `">`)
-		buffer.WriteString(sqlPrettyPrint(v.Value.queryBodyTranslated))
+		buffer.WriteString(`<pre Id="second_query` + v.Key + `">`)
+		buffer.WriteString(sqlPrettyPrint(v.Value.QueryBodyTranslated))
 		buffer.WriteString("\n</pre>")
 		if withLinks {
 			buffer.WriteString("\n</a>")
@@ -263,16 +263,16 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 	buffer.WriteString("\n</div>")
 	buffer.WriteString("\n</div>\n")
 
-	buffer.WriteString(`<div class="bottom_right" id="bottom_right">` + "\n")
+	buffer.WriteString(`<div class="bottom_right" Id="bottom_right">` + "\n")
 	buffer.WriteString(`<div class="title-bar">Clickhouse response` + "\n" + `</div>`)
 	buffer.WriteString(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buffer.WriteString(`<a href="/request-id/` + v.Key + `">`)
+			buffer.WriteString(`<a href="/request-Id/` + v.Key + `">`)
 		}
 		buffer.WriteString("<p>ResponseID:" + v.Key + "</p>\n")
-		buffer.WriteString(`<pre id="second_response` + v.Key + `">`)
-		buffer.WriteString(util.JsonPrettify(string(v.Value.queryTranslatedResults), true))
+		buffer.WriteString(`<pre Id="second_response` + v.Key + `">`)
+		buffer.WriteString(util.JsonPrettify(string(v.Value.QueryTranslatedResults), true))
 		buffer.WriteString("\n\nThere are more results ...")
 		buffer.WriteString("\n</pre>")
 		if withLinks {
@@ -293,7 +293,7 @@ func (qmc *QuesmaManagementConsole) generateQueries() []byte {
 	count := 0
 	for i := len(lastMessages) - 1; i >= 0 && count < maxLastMessages; i-- {
 		debugInfoMessage := qmc.debugInfoMessages[lastMessages[i]]
-		if len(debugInfoMessage.QueryDebugSecondarySource.incomingQueryBody) > 0 {
+		if len(debugInfoMessage.QueryDebugSecondarySource.IncomingQueryBody) > 0 {
 			debugKeyValueSlice = append(debugKeyValueSlice, DebugKeyValue{lastMessages[i], debugInfoMessage})
 			count++
 		}
@@ -307,7 +307,7 @@ func newBufferWithHead() bytes.Buffer {
 	const bufferSize = 4 * 1024 // size of ui/head.html
 	var buffer bytes.Buffer
 	buffer.Grow(bufferSize)
-	head, err := uiFs.ReadFile("ui/head.html")
+	head, err := uiFs.ReadFile("asset/head.html")
 	buffer.Write(head)
 	if err != nil {
 		buffer.WriteString(err.Error())
@@ -375,15 +375,13 @@ func (qmc *QuesmaManagementConsole) generateStatisticsLiveTail() []byte {
 	buffer.WriteString("\n<h3>Quesma Management Console - ingest statistics</h3>")
 	buffer.WriteString(`<div class="autorefresh-box">` + "\n")
 	buffer.WriteString(`<div class="autorefresh">`)
-	buffer.WriteString(`<input type="checkbox" id="autorefresh" name="autorefresh" hx-target="#statistics" hx-get="/statistics" hx-trigger="every 1s [htmx.find('#autorefresh').checked]" checked />`)
+	buffer.WriteString(`<input type="checkbox" Id="autorefresh" name="autorefresh" hx-target="#statistics" hx-get="/statistics" hx-trigger="every 1s [htmx.find('#autorefresh').checked]" checked />`)
 	buffer.WriteString(`<label for="autorefresh">Autorefresh every 1s</label>`)
 	buffer.WriteString("\n</div>")
-
 	buffer.WriteString("\n</div>\n")
-
 	buffer.WriteString("\n</div>\n\n")
 
-	buffer.WriteString(`<div id="statistics">`)
+	buffer.WriteString(`<div Id="statistics">`)
 	buffer.Write(qmc.generateStatistics())
 	buffer.WriteString("\n</div>\n\n")
 
@@ -407,13 +405,13 @@ func (qmc *QuesmaManagementConsole) generateLiveTail() []byte {
 
 	buffer.WriteString(`<div class="autorefresh-box">` + "\n")
 	buffer.WriteString(`<div class="autorefresh">`)
-	buffer.WriteString(`<input type="checkbox" id="autorefresh" name="autorefresh" hx-target="#queries" hx-get="/queries" hx-trigger="every 1s [htmx.find('#autorefresh').checked]" checked />`)
+	buffer.WriteString(`<input type="checkbox" Id="autorefresh" name="autorefresh" hx-target="#queries" hx-get="/queries" hx-trigger="every 1s [htmx.find('#autorefresh').checked]" checked />`)
 	buffer.WriteString(`<label for="autorefresh">Autorefresh every 1s</label>`)
 	buffer.WriteString("\n</div>")
-
+	buffer.WriteString("\n</div>\n")
 	buffer.WriteString("\n</div>\n")
 
-	buffer.WriteString(`<div id="queries">`)
+	buffer.WriteString(`<div Id="queries">`)
 	buffer.Write(qmc.generateQueries())
 	buffer.WriteString("\n</div>\n\n")
 
@@ -421,15 +419,15 @@ func (qmc *QuesmaManagementConsole) generateLiveTail() []byte {
 	buffer.WriteString("\n<h2>Menu</h2>")
 	buffer.WriteString("\n<h3>Find query</h3><br>\n")
 
-	buffer.WriteString(`<form onsubmit="location.href = '/request-id/' + find_query_by_id_input.value; return false;">`)
+	buffer.WriteString(`<form onsubmit="location.href = '/request-Id/' + find_query_by_id_input.value; return false;">`)
 	buffer.WriteString("\n")
-	buffer.WriteString(`&nbsp;<input id="find_query_by_id_button" type="submit" class="btn" value="By id" /><br>`)
-	buffer.WriteString(`&nbsp;<input type="text" id="find_query_by_id_input" class="input" name="find_query_by_id_input" value="" required size="32"><br><br>`)
+	buffer.WriteString(`&nbsp;<input Id="find_query_by_id_button" type="submit" class="btn" value="By Id" /><br>`)
+	buffer.WriteString(`&nbsp;<input type="text" Id="find_query_by_id_input" class="input" name="find_query_by_id_input" value="" required size="32"><br><br>`)
 	buffer.WriteString("</form>")
 
 	buffer.WriteString(`<form onsubmit="location.href = '/requests-by-str/' + find_query_by_str_input.value; return false;">`)
-	buffer.WriteString(`&nbsp;<input id="find_query_by_str_button" type="submit" class="btn" value="By keyword in request" /><br>`)
-	buffer.WriteString(`&nbsp;<input type="text" id="find_query_by_str_input" class="input" name="find_query_by_str_input" value="" required size="32"><br><br>`)
+	buffer.WriteString(`&nbsp;<input Id="find_query_by_str_button" type="submit" class="btn" value="By keyword in request" /><br>`)
+	buffer.WriteString(`&nbsp;<input type="text" Id="find_query_by_str_input" class="input" name="find_query_by_str_input" value="" required size="32"><br><br>`)
 	buffer.WriteString("</form>")
 
 	buffer.WriteString(`<h3>Useful links</h3>`)
@@ -458,13 +456,13 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 	buffer := newBufferWithHead()
 	buffer.WriteString(`<div class="topnav">`)
 	if requestFound {
-		buffer.WriteString("\n<h3>Quesma Report for request id " + requestId + "</h3>")
+		buffer.WriteString("\n<h3>Quesma Report for request Id " + requestId + "</h3>")
 	} else {
 		buffer.WriteString("\n<h3>Quesma Report not found for " + requestId + "</h3>")
 	}
 
 	buffer.WriteString("\n</div>\n")
-	buffer.WriteString(`<div id="queries">`)
+	buffer.WriteString(`<div Id="queries">`)
 
 	debugKeyValueSlice := []DebugKeyValue{}
 	if requestFound {
@@ -506,7 +504,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequests(requestStr string)
 
 	buffer.WriteString("\n</div>\n\n")
 
-	buffer.WriteString(`<div id="queries">`)
+	buffer.WriteString(`<div Id="queries">`)
 
 	buffer.Write(generateQueries(debugKeyValueSlice, true))
 
@@ -541,42 +539,42 @@ func (qmc *QuesmaManagementConsole) Run() {
 	for {
 		select {
 		case msg := <-qmc.queryDebugPrimarySource:
-			log.Println("Received debug info from primary source:", msg.id)
-			debugPrimaryInfo := QueryDebugPrimarySource{msg.id, msg.queryResp}
+			log.Println("Received debug info from primary source:", msg.Id)
+			debugPrimaryInfo := QueryDebugPrimarySource{msg.Id, msg.QueryResp}
 			qmc.mutex.Lock()
-			if value, ok := qmc.debugInfoMessages[msg.id]; !ok {
-				qmc.debugInfoMessages[msg.id] = QueryDebugInfo{
+			if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {
+				qmc.debugInfoMessages[msg.Id] = QueryDebugInfo{
 					QueryDebugPrimarySource: debugPrimaryInfo,
 				}
-				qmc.addNewMessageId(msg.id)
+				qmc.addNewMessageId(msg.Id)
 			} else {
 				value.QueryDebugPrimarySource = debugPrimaryInfo
-				qmc.debugInfoMessages[msg.id] = value
+				qmc.debugInfoMessages[msg.Id] = value
 				// That's the point where QueryDebugInfo is
 				// complete and we can compare results
 				qmc.responseMatcherChannel <- value
 			}
 			qmc.mutex.Unlock()
 		case msg := <-qmc.queryDebugSecondarySource:
-			log.Println("Received debug info from secondary source:", msg.id)
+			log.Println("Received debug info from secondary source:", msg.Id)
 			secondaryDebugInfo := QueryDebugSecondarySource{
-				msg.id,
-				msg.incomingQueryBody,
-				msg.queryBodyTranslated,
-				msg.queryRawResults,
-				msg.queryTranslatedResults,
+				msg.Id,
+				msg.IncomingQueryBody,
+				msg.QueryBodyTranslated,
+				msg.QueryRawResults,
+				msg.QueryTranslatedResults,
 			}
 			qmc.mutex.Lock()
-			if value, ok := qmc.debugInfoMessages[msg.id]; !ok {
-				qmc.debugInfoMessages[msg.id] = QueryDebugInfo{
+			if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {
+				qmc.debugInfoMessages[msg.Id] = QueryDebugInfo{
 					QueryDebugSecondarySource: secondaryDebugInfo,
 				}
-				qmc.addNewMessageId(msg.id)
+				qmc.addNewMessageId(msg.Id)
 			} else {
 				value.QueryDebugSecondarySource = secondaryDebugInfo
 				// That's the point where QueryDebugInfo is
 				// complete and we can compare results
-				qmc.debugInfoMessages[msg.id] = value
+				qmc.debugInfoMessages[msg.Id] = value
 				qmc.responseMatcherChannel <- value
 			}
 			qmc.mutex.Unlock()
@@ -608,7 +606,7 @@ func bypassSwitch(writer http.ResponseWriter, r *http.Request) {
 
 	if body["bypass"] != nil {
 		val := body["bypass"].(bool)
-		SetTrafficAnalysis(val)
+		config.SetTrafficAnalysis(val)
 		fmt.Printf("global bypass set to %t\n", val)
 		writer.WriteHeader(200)
 	} else {
@@ -620,9 +618,9 @@ func (qmc *QuesmaManagementConsole) comparePipelines() {
 	for {
 		queryDebugInfo, ok := <-qmc.responseMatcherChannel
 		if ok {
-			if string(queryDebugInfo.queryResp) != string(queryDebugInfo.queryTranslatedResults) {
+			if string(queryDebugInfo.QueryResp) != string(queryDebugInfo.QueryTranslatedResults) {
 				log.Println("Responses are different:")
-				elasticSurplusFields, ourSurplusFields, err := util.JsonDifference(string(queryDebugInfo.queryResp), string(queryDebugInfo.queryTranslatedResults))
+				elasticSurplusFields, ourSurplusFields, err := util.JsonDifference(string(queryDebugInfo.QueryResp), string(queryDebugInfo.QueryTranslatedResults))
 				if err != nil {
 					log.Println("Error while comparing responses:", err)
 					continue
