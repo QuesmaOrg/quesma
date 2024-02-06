@@ -19,7 +19,10 @@ import (
 	"time"
 )
 
-const internalHttpPort = "8081"
+const (
+	internalHttpPort = "8081"
+	bulkCreate       = "create"
+)
 
 type TcpProxy struct {
 	From                 network.Port
@@ -185,13 +188,14 @@ func forEachInBulk(body string, f func(index string, document string)) {
 			fmt.Println("Invalid action JSON in _bulk:", err, action)
 			continue
 		}
-		if jsonData["create"] != nil {
-			createObj, ok := jsonData["create"].(map[string]interface{})
+		createObj, ok := jsonData[bulkCreate]
+		if ok {
+			createJson, ok := createObj.(map[string]interface{})
 			if !ok {
 				fmt.Println("Invalid create JSON in _bulk:", action)
 				continue
 			}
-			indexName, ok := createObj["_index"].(string)
+			indexName, ok := createJson["_index"].(string)
 			if !ok {
 				if len(indexName) == 0 {
 					fmt.Println("Invalid create JSON in _bulk, no _index name:", action)
@@ -200,6 +204,12 @@ func forEachInBulk(body string, f func(index string, document string)) {
 			}
 
 			f(indexName, document)
+		} else {
+			fmt.Print("Unsupported actions in _bulk:")
+			for action := range jsonData {
+				fmt.Print(" ", action)
+			}
+			fmt.Println()
 		}
 	}
 }
