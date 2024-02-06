@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
+	"net/http"
 	"strconv"
 )
 
@@ -188,4 +190,15 @@ func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
 	}
 	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected)
 	return actualMinusExpected, expectedMinusActual, nil
+}
+
+func BodyHandler(h func(body []byte, writer http.ResponseWriter, r *http.Request)) func(http.ResponseWriter, *http.Request) {
+	return func(writer http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
+		r.Body = io.NopCloser(bytes.NewBuffer(body))
+		h(body, writer, r)
+	}
 }

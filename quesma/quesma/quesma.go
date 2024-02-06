@@ -101,12 +101,12 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse
 	}
 }
 
-func NewTcpProxy(target string, tcpPort string, config config.QuesmaConfiguration) *Quesma {
+func NewQuesmaTcpProxy(target string, tcpPort string, config config.QuesmaConfiguration, inspect bool) *Quesma {
 	quesmaManagementConsole := NewQuesmaManagementConsole(config)
 	port := parsePort(tcpPort)
 	targetUrl := parseURL(target)
 	return &Quesma{
-		processor:               proxy.NewTcpProxy(port, targetUrl),
+		processor:               proxy.NewTcpProxy(port, targetUrl, inspect),
 		targetUrl:               targetUrl,
 		publicTcpPort:           port,
 		quesmaManagementConsole: quesmaManagementConsole,

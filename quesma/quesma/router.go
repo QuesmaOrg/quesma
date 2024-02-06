@@ -121,8 +121,7 @@ func bulk(lm *clickhouse.LogManager, config config.QuesmaConfiguration) func(htt
 
 func bulkVar(lm *clickhouse.LogManager, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		go dualWriteBulk(r.Context(), vars["index"], string(body), lm, config)
+		go dualWriteBulk(r.Context(), mux.Vars(r)["index"], string(body), lm, config)
 	})
 }
 

@@ -53,13 +53,17 @@ func main() {
 }
 
 func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager) *quesma.Quesma {
+	target := os.Getenv(targetEnv)
+
 	switch cfg.Mode {
-	case config.Proxy, config.ProxyInspect:
-		return quesma.NewTcpProxy(os.Getenv(targetEnv), tcpPort, cfg)
+	case config.Proxy:
+		return quesma.NewQuesmaTcpProxy(target, tcpPort, cfg, false)
+	case config.ProxyInspect:
+		return quesma.NewQuesmaTcpProxy(target, tcpPort, cfg, true)
 	case config.DualWriteQueryElastic, config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
-		return quesma.NewHttpProxy(lm, os.Getenv(targetEnv), tcpPort, internalHttpPort, cfg)
+		return quesma.NewHttpProxy(lm, target, tcpPort, internalHttpPort, cfg)
 	case config.ClickHouse:
-		return quesma.NewHttpClickhouseAdapter(lm, os.Getenv(targetEnv), tcpPort, internalHttpPort, cfg)
+		return quesma.NewHttpClickhouseAdapter(lm, target, tcpPort, internalHttpPort, cfg)
 	}
 	panic(fmt.Sprintf("unknown operation mode: %d\n", cfg.Mode))
 }
