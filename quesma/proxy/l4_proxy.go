@@ -143,7 +143,6 @@ func (t *TcpProxy) Stop(context.Context) {
 }
 
 func (t *TcpProxy) handle(fromConn, destConn net.Conn) {
-	log.Printf("Handling incoming connection from [%s] to [%s]\n", fromConn.RemoteAddr(), destConn.RemoteAddr())
 	defer closeConnection(fromConn)
 	defer closeConnection(destConn)
 
