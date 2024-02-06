@@ -7,12 +7,15 @@ Main debugging interface is available at [localhost:9999](http://localhost:9999)
 
 ## Architecture
 
-ASCII art diagram of the architecture:
-```
-kibana             \                        /-> clickhouse
-device-log-generator --> mitmproxy -> quesma --> elasticsearch
-query-generator    /
-log-generator     /
+```mermaid
+flowchart LR;
+    kibana<-->mitmproxy;
+    device-log-generator-->mitmproxy;
+    query-generator-->mitmproxy;
+    log-generator-->mitmproxy;
+    mitmproxy<-->quesma;
+    quesma<-->clickhouse[(clickhouse)];
+    quesma<-->elasticsearch[(elasticsearch)];
 ```
 
 ### Kibana
