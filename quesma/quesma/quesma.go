@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/network"
@@ -58,9 +57,9 @@ func (p *dualWriteHttpProxy) Stop(ctx context.Context) {
 	p.Close(ctx)
 }
 
-func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http.ResponseWriter, rId int) {
+func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http.ResponseWriter) {
 	id := ctx.Value(tracing.RequestId).(string)
-	logger.Debug().Str(logger.RID, id).Msgf("rId: %d, responding from Elk", rId)
+	logger.Debug().Str(logger.RID, id).Msg("responding from Elasticsearch")
 	if _, err := io.Copy(w, elkResponse.Body); err != nil {
 		http.Error(w, "Error copying response body", http.StatusInternalServerError)
 		return
@@ -68,9 +67,9 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 	elkResponse.Body.Close()
 }
 
-func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, rId int) {
+func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter) {
 	id := ctx.Value(tracing.RequestId).(string)
-	logger.Debug().Str(logger.RID, id).Msgf("rId: %d, responding from Quesma", rId)
+	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
 	// Response from clickhouse is always unzipped
 	// so we have to zip it before sending to client
 	zipped, err := gzip.Zip(unzipped)
@@ -142,14 +141,8 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 						return
 					}
 
-					rId := rand.Intn(1000000)
-
-					// logger.Debug().Msgf("rId: %d, URI: %s", rId, r.RequestURI) not removing right now, maybe useful to someone
-
 					elkResponse := sendHttpRequest(ctx, "http://"+target, r, reqBody)
 					quesmaResponse := sendHttpRequest(ctx, "http://localhost:"+httpPort, r, reqBody)
-
-					// logger.Debug().Msgf("r.RequestURI: %+v", r.RequestURI) not removing right now, maybe useful to someone
 
 					if elkResponse == nil {
 						logger.Panic().Msg("elkResponse is nil")
@@ -176,20 +169,20 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 					w.WriteHeader(elkResponse.StatusCode)
 
 					if quesmaResponse.StatusCode == 200 && (strings.Contains(r.RequestURI, "/_search") || strings.Contains(r.RequestURI, "/_async_search")) {
-						logger.Debug().Msgf("rId: %d, responding from quesma", rId)
+						logger.Debug().Ctx(ctx).Msg("responding from quesma")
 						unzipped, err := io.ReadAll(quesmaResponse.Body)
 						if err == nil {
 							// Sometimes when query is invalid, quesma returns empty response,
 							// and we have to handle this case.
 							// When this happens, we want to return response from elk (for now), look else branch.
 							if string(unzipped) != "" {
-								responseFromQuesma(ctx, unzipped, w, rId)
+								responseFromQuesma(ctx, unzipped, w)
 							} else {
-								responseFromElastic(ctx, elkResponse, w, rId)
+								responseFromElastic(ctx, elkResponse, w)
 							}
 						}
 					} else {
-						responseFromElastic(ctx, elkResponse, w, rId)
+						responseFromElastic(ctx, elkResponse, w)
 					}
 				}),
 			},
