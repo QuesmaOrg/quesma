@@ -166,11 +166,7 @@ func MakeResponseAsyncSearchList(ResultSet []clickhouse.QueryResultRow, typ mode
 				"2024-01-30T19:38:54.607Z",
 				2944,
 			}
-			hits[i].Highlight = map[string][]string{
-				"host.name": {
-					"@kibana-highlighted-field@apollo@/kibana-highlighted-field@",
-				},
-			}
+			hits[i].Highlight = map[string][]string{}
 		}
 		id = new(string)
 		*id = "fake-id"

@@ -482,11 +482,6 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 								"alpine"
 							]
 						},
-						"highlight": {
-							"host.name": [
-								"@kibana-highlighted-field@apollo@/kibana-highlighted-field@"
-							]
-						},
 						"sort": [
 							"2024-01-30T19:39:35.767Z",
 							16
@@ -524,11 +519,6 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 							],
 							"source": [
 								"hyperv"
-							]
-						},
-						"highlight": {
-							"host.name": [
-								"@kibana-highlighted-field@apollo@/kibana-highlighted-field@"
 							]
 						},
 						"sort": [
