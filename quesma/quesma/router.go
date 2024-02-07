@@ -9,7 +9,6 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/gzip"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
 	"net/http"
@@ -21,7 +20,6 @@ const (
 	BulkPath            = "/_bulk"
 	CreateTablePath     = "/_createTable"
 	InsertPath          = "/_insert"
-	NodesPath           = "/_nodes"
 	SearchPath          = "/_search"
 	AsyncSearchPath     = "/_async_search"
 	ElasticInternalPath = "/_"
@@ -45,21 +43,6 @@ func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManag
 	router.HandleFunc(HealthPath, ok)
 	router.PathPrefix(CreateTablePath).HandlerFunc(createTable(lm))
 	router.PathPrefix(InsertPath).HandlerFunc(processInsert(lm))
-	router.PathPrefix(NodesPath).HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		body := []byte(`{"nodes": {
-         "UTIfdE4zTLOc_QrCusVWeQ": {
-             "http": {
-                 "publish_address": "mitmproxy:9200"
-             },
-             "ip": "mitmproxy",
-             "version": "8.11.1"
-         }
-     }
- }`)
-
-		zipped, _ := gzip.Zip(body)
-		_, _ = w.Write(zipped)
-	})
 	router.PathPrefix(BulkPath).HandlerFunc(bulk(lm, config)).Methods("POST")
 	router.PathPrefix(SearchPath).HandlerFunc(search(lm, quesmaManagementConsole)).Methods("POST")
 	router.PathPrefix("/{index}" + AsyncSearchPath).HandlerFunc(asyncSearch(lm, quesmaManagementConsole)).Methods("POST")
