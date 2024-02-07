@@ -15,13 +15,6 @@ type ClickhouseQueryTranslator struct {
 	ClickhouseLM *clickhouse.LogManager
 }
 
-type ClickhouseResultReader struct {
-}
-
-func NewClickhouseResultReader() *ClickhouseResultReader {
-	return &ClickhouseResultReader{}
-}
-
 // TODO come back to (int, error) return type?
 func (cw *ClickhouseQueryTranslator) Write(buf []byte) (SimpleQuery, model.SearchQueryType) {
 	return cw.ParseQuery(string(buf))
@@ -195,14 +188,6 @@ func MakeResponseAsyncSearchQuery(ResultSet []clickhouse.QueryResultRow, typ mod
 	default:
 		return nil, fmt.Errorf("unknown AsyncSearchQueryType: %v", typ)
 	}
-}
-
-func (cw *ClickhouseQueryTranslator) GetAttributesList(tableName string) []clickhouse.Attribute {
-	return cw.ClickhouseLM.GetAttributesList(tableName)
-}
-
-func (cw *ClickhouseQueryTranslator) GetFieldInfo(tableName string, fieldName string) clickhouse.FieldInfo {
-	return cw.ClickhouseLM.GetFieldInfo(tableName, fieldName)
 }
 
 // GetFieldsList

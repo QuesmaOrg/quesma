@@ -333,7 +333,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) SimpleQuery 
 		case clickhouse.ExistsAndIsArray:
 			sql = NewSimpleStatement(v.(string) + ".size0 = 0")
 		case clickhouse.NotExists:
-			attrs := cw.GetAttributesList(TableName)
+			attrs := cw.ClickhouseLM.GetAttributesList(TableName)
 			stmts := make([]Statement, len(attrs))
 			for i, a := range attrs {
 				stmts[i] = NewCompoundStatement(fmt.Sprintf("has(%s,%s) AND %s[indexOf(%s,%s)] IS NOT NULL",
