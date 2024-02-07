@@ -29,6 +29,7 @@ flowchart LR;
     routing_proxy-->elasticsearch;
     elasticsearch-->routing_proxy;
     routing_proxy-->http_server;
+    http_server-.->statistics_processor;
     http_server-->clickhouse;
     http_server-->routing_proxy;
     clickhouse-->http_server;
