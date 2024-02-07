@@ -9,17 +9,20 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	_ "github.com/mailru/go-clickhouse"
 )
 
 const (
-	clickhouseUrl        = "http://localhost:8123"
-	kibanaHealthCheckUrl = "http://localhost:5601/api/status"
-	elasticIndexCountUrl = "http://localhost:9201/logs-generic-default/_count"
-	quesmaIndexCountUrl  = "http://localhost:9200/logs-generic-default/_count"
-	asyncQueryUrl        = "http://localhost:8080/logs-*-*/_async_search?pretty"
+	clickhouseUrl            = "http://localhost:8123"
+	kibanaHealthCheckUrl     = "http://localhost:5601/api/status"
+	elasticIndexCountUrl     = "http://localhost:9201/logs-generic-default/_count"
+	quesmaIndexCountUrl      = "http://localhost:9200/logs-generic-default/_count"
+	asyncQueryUrl            = "http://localhost:8080/logs-*-*/_async_search?pretty"
+	kibanaLogExplorerMainUrl = "http://localhost:5601/app/observability-log-explorer/?controlPanels=(data_stream.namespace:(explicitInput:(fieldName:data_stream.namespace,id:data_stream.namespace,title:Namespace),grow:!f,order:0,type:optionsListControl,width:medium))&_a=(columns:!(service.name,host.name,message),filters:!(),grid:(columns:(host.name:(width:320),service.name:(width:240))),index:BQZwpgNmDGAuCWB7AdgFQJ4AcwC4CGEEAlEA,interval:auto,query:(language:kuery,query:%27%27),rowHeight:0,sort:!(!(%27@timestamp%27,desc)))&_g=(filters:!(),refreshInterval:(pause:!t,value:60000),time:(from:now-15m,to:now))"
+	kibanaLogInternalUrl     = "http://localhost:5601/internal/controls/optionsList/logs-*-*"
 )
 
 const (
@@ -103,6 +106,58 @@ const query = `
 }
 `
 
+const kibanaInternalLog = `
+{
+   "size":10,
+   "allowExpensiveQueries":true,
+   "searchString":"",
+   "filters":[
+      {
+         "bool":{
+            "must":[
+
+            ],
+            "filter":[
+               {
+                  "range":{
+                     "@timestamp":{
+                        "format":"strict_date_optional_time",
+                        "gte":"2024-02-07T13:31:07.243Z",
+                        "lte":"2024-02-07T13:46:07.243Z"
+                     }
+                  }
+               }
+            ],
+            "should":[
+
+            ],
+            "must_not":[
+
+            ]
+         }
+      }
+   ],
+   "fieldName":"data_stream.namespace",
+   "fieldSpec":{
+      "count":0,
+      "name":"data_stream.namespace",
+      "type":"string",
+      "esTypes":[
+         "keyword"
+      ],
+      "scripted":false,
+      "searchable":true,
+      "aggregatable":true,
+      "readFromDocValues":true,
+      "shortDotsEnable":false,
+      "isMapped":true
+   },
+   "runtimeFieldMap":{
+      
+   }
+}
+`
+
 var timeoutAfter = time.Minute
 
 func main() {
@@ -122,6 +177,7 @@ func main() {
 		waitForLogsInElasticsearch()
 		waitForKibana()
 		waitForAsyncQuery()
+		waitForKibanaLogExplorer("kibana")
 	}
 }
 
@@ -248,4 +304,50 @@ func waitForAsyncQueryRaw(serviceName, url string) {
 	if !res {
 		panic(serviceName + " is not alive or is not receiving logs")
 	}
+}
+
+func waitForKibanaLogExplorer(serviceName string) {
+	res := waitFor("kibana", func() bool {
+		return sendKibanaRequest(kibanaLogInternalUrl, "POST", kibanaLogExplorerMainUrl, kibanaInternalLog)
+	})
+	if !res {
+		panic(serviceName + " is not alive or is not receiving logs")
+	}
+}
+
+func sendKibanaRequest(url string, method string, referrer, query string) bool {
+
+	req, err := http.NewRequest(method, url, bytes.NewBuffer([]byte(query)))
+	if err != nil {
+		fmt.Println("Error creating request:", err)
+		return false
+	}
+
+	if referrer != "" {
+		// Set the Referer header
+		req.Header.Set("Referer", referrer)
+		req.Header.Set("kbn-xsrf", "reporting")
+		req.Header.Set("Elastic-Api-Version", "1")
+	}
+	// Send the HTTP request
+	client := http.Client{}
+	response, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error sending request:", err)
+		return false
+	}
+	defer response.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		fmt.Println("Error reading response:", err)
+		return false
+	}
+
+	bodyStr := string(body)
+	if strings.Contains(bodyStr, "\"statusCode\":500,\"error\":\"Internal Server Error\"") {
+		return false
+	}
+	return true
 }
