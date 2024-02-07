@@ -55,11 +55,11 @@ func dualWriteBulk(ctx context.Context, optionalTableName string, body string, l
 				return lm.ProcessInsertQuery(indexName, document)
 			})
 		} else if jsonData["index"] != nil {
-			logger.Error().Msg("Not supporting 'index' _bulk.")
+			logger.Warn().Msg("Not supporting 'index' _bulk.")
 		} else if jsonData["update"] != nil {
-			logger.Error().Msg("Not supporting 'update' _bulk.")
+			logger.Warn().Msg("Not supporting 'update' _bulk.")
 		} else if jsonData["delete"] != nil {
-			logger.Error().Msg("Not supporting 'delete' _bulk.")
+			logger.Warn().Msg("Not supporting 'delete' _bulk.")
 		} else {
 			logger.Error().Msgf("Invalid action JSON in _bulk: %s", action)
 		}

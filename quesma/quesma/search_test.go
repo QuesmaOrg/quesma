@@ -33,7 +33,7 @@ func TestNoAsciiTableName(t *testing.T) {
 	assert.Equal(t, `SELECT * FROM `+tableName+" ", query.String())
 }
 
-var ctx = context.WithValue(context.TODO(), tracing.RequestId, "test")
+var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, "test")
 
 func TestAsyncSearchHandler(t *testing.T) {
 	table := clickhouse.TableMap{

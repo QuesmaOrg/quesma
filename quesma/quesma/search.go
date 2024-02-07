@@ -19,7 +19,7 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 	var rawResults []byte
 	simpleQuery, queryInfo := queryTranslator.Write(body)
 	var responseBody, translatedQueryBody []byte
-	id := ctx.Value(tracing.RequestId).(string)
+	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	if simpleQuery.CanParse {
 		var fullQuery *model.Query
 		switch queryInfo {
@@ -93,7 +93,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	simpleQuery, queryInfo := queryTranslator.WriteAsyncSearch(body)
 	var responseBody, translatedQueryBody []byte
 
-	id := ctx.Value(tracing.RequestId).(string)
+	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	if simpleQuery.CanParse && queryInfo.Typ != model.None {
 		var fullQuery *model.Query
 		var err error

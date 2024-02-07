@@ -25,11 +25,6 @@ import (
 	"sync"
 )
 
-const (
-	TcpProxyPort = "8888"
-	RemoteUrl    = "http://" + "localhost:" + TcpProxyPort + "/"
-)
-
 type (
 	Quesma struct {
 		processor               RequestProcessor
@@ -47,9 +42,7 @@ type (
 		routingHttpServer    *http.Server
 		logManager           *clickhouse.LogManager
 		internalHttpPort     string
-		responseDecorator    *http.Server
-		tcpProxyPort         string
-		requestId            int64
+		publicPort           string
 	}
 )
 
@@ -58,7 +51,7 @@ func (p *dualWriteHttpProxy) Stop(ctx context.Context) {
 }
 
 func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http.ResponseWriter) {
-	id := ctx.Value(tracing.RequestId).(string)
+	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Elasticsearch")
 	if _, err := io.Copy(w, elkResponse.Body); err != nil {
 		http.Error(w, "Error copying response body", http.StatusInternalServerError)
@@ -68,7 +61,7 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 }
 
 func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter) {
-	id := ctx.Value(tracing.RequestId).(string)
+	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
 	// Response from clickhouse is always unzipped
 	// so we have to zip it before sending to client
@@ -81,7 +74,7 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse *http.Response, console *ui.QuesmaManagementConsole) {
 	reader := elkResponse.Body
 	body, err := io.ReadAll(reader)
-	id := ctx.Value(tracing.RequestId).(string)
+	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	if err != nil {
 		logger.Fatal().Str(logger.RID, id).Msg(err.Error())
 	}
@@ -130,17 +123,16 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 				Handler: configureRouting(config, logManager, quesmaManagementConsole),
 			},
 			routingHttpServer: &http.Server{
-				Addr: ":" + TcpProxyPort,
+				Addr: ":" + tcpPort,
 				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					defer recovery.LogPanic()
-					ctx := context.WithValue(r.Context(), tracing.RequestId, r.Header.Get("RequestId"))
-
 					reqBody, err := io.ReadAll(r.Body)
 					if err != nil {
 						http.Error(w, "Error reading request body", http.StatusInternalServerError)
 						return
 					}
 
+					ctx := withTracing(r)
 					elkResponse := sendHttpRequest(ctx, "http://"+target, r, reqBody)
 					quesmaResponse := sendHttpRequest(ctx, "http://localhost:"+httpPort, r, reqBody)
 
@@ -186,11 +178,9 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 					}
 				}),
 			},
-			logManager:        logManager,
-			internalHttpPort:  httpPort,
-			tcpProxyPort:      TcpProxyPort,
-			requestId:         0,
-			responseDecorator: NewResponseDecorator(tcpPort, 0, quesmaManagementConsole),
+			logManager:       logManager,
+			internalHttpPort: httpPort,
+			publicPort:       tcpPort,
 		},
 		targetUrl:               parseURL(target),
 		publicTcpPort:           parsePort(tcpPort),
@@ -199,6 +189,12 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 	}
 
 	return q
+}
+
+func withTracing(r *http.Request) context.Context {
+	rid := tracing.GetRequestId()
+	r.Header.Add("RequestId", rid)
+	return context.WithValue(r.Context(), tracing.RequestIdCtxKey, rid)
 }
 
 func parsePort(port string) network.Port {
@@ -236,7 +232,6 @@ func (p *dualWriteHttpProxy) Close(ctx context.Context) {
 func (p *dualWriteHttpProxy) Ingest() {
 	go p.listenRoutingHTTP()
 	go p.listenHTTP()
-	go p.listenResponseDecorator()
 }
 
 func (p *dualWriteHttpProxy) listenRoutingHTTP() {
@@ -251,12 +246,6 @@ func (p *dualWriteHttpProxy) listenHTTP() {
 	}
 }
 
-func (p *dualWriteHttpProxy) listenResponseDecorator() {
-	if err := p.responseDecorator.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Fatal().Msgf("Error starting response decorator server: %v", err)
-	}
-}
-
 func (q *Quesma) Start() {
 	defer recovery.LogPanic()
 	logger.Info().Msgf("starting quesma in the mode: %v", q.config.Mode)
@@ -265,7 +254,7 @@ func (q *Quesma) Start() {
 }
 
 func sendHttpRequest(ctx context.Context, address string, originalReq *http.Request, originalReqBody []byte) *http.Response {
-	id := ctx.Value(tracing.RequestId).(string)
+	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	req, err := http.NewRequestWithContext(ctx, originalReq.Method, address+originalReq.URL.String(), bytes.NewBuffer(originalReqBody))
 	if err != nil {
 		logger.Error().Str(logger.RID, id).Msgf("Error creating request: %v", err)
@@ -284,9 +273,8 @@ func sendHttpRequest(ctx context.Context, address string, originalReq *http.Requ
 
 func (q *dualWriteHttpProxy) listen() (net.Listener, error) {
 	go q.listenHTTP()
-	go q.listenResponseDecorator()
-	logger.Info().Msgf("listening TCP at %s", q.tcpProxyPort)
-	listener, err := net.Listen("tcp", ":"+q.tcpProxyPort)
+	logger.Info().Msgf("listening TCP at %s", q.publicPort)
+	listener, err := net.Listen("tcp", ":"+q.publicPort)
 	if err != nil {
 		return nil, err
 	}
