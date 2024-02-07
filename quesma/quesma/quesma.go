@@ -60,14 +60,18 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 	elkResponse.Body.Close()
 }
 
-func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter) {
+func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, elkResponse *http.Response) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
-	// Response from clickhouse is always unzipped
-	// so we have to zip it before sending to client
-	zipped, err := gzip.Zip(unzipped)
-	if err == nil {
-		_, _ = io.Copy(w, bytes.NewBuffer(zipped))
+	if gzip.IsGzipped(elkResponse) {
+		zipped, err := gzip.Zip(unzipped)
+		if err == nil {
+			w.Header().Add("Content-Length", strconv.Itoa(len(zipped)))
+			_, _ = io.Copy(w, bytes.NewBuffer(zipped))
+		}
+	} else {
+		w.Header().Add("Content-Length", strconv.Itoa(len(unzipped)))
+		_, _ = io.Copy(w, bytes.NewBuffer(unzipped))
 	}
 }
 
@@ -81,8 +85,7 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse
 	elkResponse.Body = io.NopCloser(bytes.NewBuffer(body))
 
 	if strings.Contains(uri, "/_search") || strings.Contains(uri, "/_async_search") {
-		isGzipped := strings.Contains(elkResponse.Header.Get("Content-Encoding"), "gzip")
-		if isGzipped {
+		if gzip.IsGzipped(elkResponse) {
 			body, err = gzip.UnZip(body)
 			if err != nil {
 				logger.Error().Str(logger.RID, id).Msgf("Error unzipping: %v", err)
@@ -168,7 +171,7 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 							// and we have to handle this case.
 							// When this happens, we want to return response from elk (for now), look else branch.
 							if string(unzipped) != "" {
-								responseFromQuesma(ctx, unzipped, w)
+								responseFromQuesma(ctx, unzipped, w, elkResponse)
 							} else {
 								responseFromElastic(ctx, elkResponse, w)
 							}
@@ -268,6 +271,7 @@ func sendHttpRequest(ctx context.Context, address string, originalReq *http.Requ
 		logger.Error().Str(logger.RID, id).Msgf("Error sending request: %v", err)
 		return nil
 	}
+
 	return resp
 }
 

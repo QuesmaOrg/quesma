@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
+	"net/http"
+	"strings"
 )
 
 func Zip(content []byte) ([]byte, error) {
@@ -26,4 +28,8 @@ func UnZip(gzippedData []byte) ([]byte, error) {
 	}
 	defer gzipReader.Close()
 	return io.ReadAll(gzipReader)
+}
+
+func IsGzipped(elkResponse *http.Response) bool {
+	return strings.Contains(elkResponse.Header.Get("Content-Encoding"), "gzip")
 }
