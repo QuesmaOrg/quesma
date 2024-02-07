@@ -3,12 +3,14 @@ package main
 import (
 	"bytes"
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,13 +18,17 @@ import (
 )
 
 const (
-	clickhouseUrl            = "http://localhost:8123"
-	kibanaHealthCheckUrl     = "http://localhost:5601/api/status"
-	elasticIndexCountUrl     = "http://localhost:9201/logs-generic-default/_count"
-	quesmaIndexCountUrl      = "http://localhost:9200/logs-generic-default/_count"
-	asyncQueryUrl            = "http://localhost:8080/logs-*-*/_async_search?pretty"
-	kibanaLogExplorerMainUrl = "http://localhost:5601/app/observability-log-explorer/?controlPanels=(data_stream.namespace:(explicitInput:(fieldName:data_stream.namespace,id:data_stream.namespace,title:Namespace),grow:!f,order:0,type:optionsListControl,width:medium))&_a=(columns:!(service.name,host.name,message),filters:!(),grid:(columns:(host.name:(width:320),service.name:(width:240))),index:BQZwpgNmDGAuCWB7AdgFQJ4AcwC4CGEEAlEA,interval:auto,query:(language:kuery,query:%27%27),rowHeight:0,sort:!(!(%27@timestamp%27,desc)))&_g=(filters:!(),refreshInterval:(pause:!t,value:60000),time:(from:now-15m,to:now))"
-	kibanaLogInternalUrl     = "http://localhost:5601/internal/controls/optionsList/logs-*-*"
+	clickhouseUrl              = "http://localhost:8123"
+	kibanaUrl                  = "http://localhost:5601"
+	kibanaHealthCheckUrl       = "http://localhost:5601/api/status"
+	kibanaDataViewsUrl         = "http://localhost:5601/api/data_views"
+	kibanaCsvReportUrl         = "http://localhost:5601/internal/reporting/generate/csv_searchsource"
+	elasticsearchSampleDataUrl = "http://localhost:9200/kibana_sample_data_flights/_count"
+	elasticIndexCountUrl       = "http://localhost:9201/logs-generic-default/_count"
+	quesmaIndexCountUrl        = "http://localhost:9200/logs-generic-default/_count"
+	asyncQueryUrl              = "http://localhost:8080/logs-*-*/_async_search?pretty"
+	kibanaLogExplorerMainUrl   = "http://localhost:5601/app/observability-log-explorer/?controlPanels=(data_stream.namespace:(explicitInput:(fieldName:data_stream.namespace,id:data_stream.namespace,title:Namespace),grow:!f,order:0,type:optionsListControl,width:medium))&_a=(columns:!(service.name,host.name,message),filters:!(),grid:(columns:(host.name:(width:320),service.name:(width:240))),index:BQZwpgNmDGAuCWB7AdgFQJ4AcwC4CGEEAlEA,interval:auto,query:(language:kuery,query:%27%27),rowHeight:0,sort:!(!(%27@timestamp%27,desc)))&_g=(filters:!(),refreshInterval:(pause:!t,value:60000),time:(from:now-15m,to:now))"
+	kibanaLogInternalUrl       = "http://localhost:5601/internal/controls/optionsList/logs-*-*"
 )
 
 const (
@@ -177,8 +183,82 @@ func main() {
 		waitForLogsInElasticsearch()
 		waitForKibana()
 		waitForAsyncQuery()
+		waitForSampleData()
 		waitForKibanaLogExplorer("kibana")
+		waitForKibanaReportGeneration()
 	}
+}
+
+func waitForSampleData() {
+	waitForLogsInElasticsearchRaw("kibana", elasticsearchSampleDataUrl)
+	waitForDataViews()
+}
+
+func waitForDataViews() {
+	waitFor("kibana", func() bool {
+		if resp, err := http.Get(kibanaDataViewsUrl); err == nil {
+			defer resp.Body.Close()
+			var responseData map[string]interface{}
+			if err := json.NewDecoder(resp.Body).Decode(&responseData); err != nil {
+				return false
+			}
+			if len(responseData) >= 6 {
+				return true
+			}
+		}
+		return false
+	})
+
+}
+
+// just returns the path to the Kibana report for later download
+func scheduleReportGeneration() (string, error) {
+	body := `{"jobParams":"(browserTimezone:Europe/Warsaw,columns:!(),objectType:search,searchSource:(fields:!((field:'*',include_unmapped:true)),filter:!((meta:(field:'@timestamp',index:logs-generic,params:()),query:(range:('@timestamp':(format:strict_date_optional_time,gte:now-1d,lte:now)))),(meta:(field:'@timestamp',index:logs-generic,params:()),query:(range:('@timestamp':(format:strict_date_optional_time,gte:now-1d,lte:now)))),(meta:(field:'@timestamp',index:logs-generic,params:()),query:(range:('@timestamp':(format:strict_date_optional_time,gte:now-1d,lte:now))))),index:logs-generic,query:(language:kuery,query:''),sort:!(('@timestamp':(format:strict_date_optional_time,order:desc)))),title:'Untitled discover search')"}`
+	req, _ := http.NewRequest("POST", kibanaCsvReportUrl, bytes.NewBuffer([]byte(body)))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("kbn-xsrf", "custom-value")
+	client := &http.Client{}
+	if resp, err := client.Do(req); err == nil {
+		defer resp.Body.Close()
+		var responseData map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&responseData); err != nil {
+			return "", fmt.Errorf("error decoding response")
+		}
+		return fmt.Sprintf("%s", responseData["path"]), nil
+	}
+	return "", fmt.Errorf("error scheduling report generation")
+}
+
+func waitForKibanaReportGeneration() {
+	reportUri, err := scheduleReportGeneration()
+	if err != nil {
+		panic("Error scheduling report generation")
+	}
+	var csvReport [][]string
+	waitFor("kibana", func() bool {
+		if resp, err := http.Get(fmt.Sprintf("%s%s", kibanaUrl, reportUri)); err != nil || resp.StatusCode != 200 {
+			return false
+		} else {
+			defer resp.Body.Close()
+			responseBody, _ := io.ReadAll(resp.Body)
+			reader := csv.NewReader(strings.NewReader(string(responseBody)))
+			csvReport, _ = reader.ReadAll()
+
+			return true
+		}
+	})
+	csvHeader := csvReport[0]
+	if slices.Contains(csvHeader, "@timestamp") && slices.Contains(csvHeader, "message") && slices.Contains(csvHeader, "severity") {
+		fmt.Printf("Report generation successful")
+	} else {
+		panic("Report doesn't have proper header")
+	}
+	if entriesCount := len(csvReport); entriesCount < 10 {
+		panic(fmt.Sprintf("Report contains only %d lines", entriesCount))
+	} else {
+		fmt.Printf("Report generation successful, %d entries exported to CSV\n", entriesCount-1)
+	}
+
 }
 
 func waitFor(serviceName string, waitForFunc func() bool) bool {
