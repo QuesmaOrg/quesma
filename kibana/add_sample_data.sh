@@ -28,6 +28,21 @@ curl --no-progress-meter -XPOST \
 -H "kbn-xsrf: arbitrary-header" \
 http://kibana:5601/api/data_views/data_view -d '{
     "data_view": {
+       "name": "Our Generated Logs",
+       "title": "logs-generic-*",
+       "id": "logs-generic",
+       "timeFieldName": "@timestamp",
+       "allowNoIndex": true
+    },
+    "override": true
+}'
+
+echo ""
+curl --no-progress-meter -XPOST \
+-H 'Content-Type: application/json' \
+-H "kbn-xsrf: arbitrary-header" \
+http://kibana:5601/api/data_views/data_view -d '{
+    "data_view": {
        "name": "Device Logs W/O Timestamp",
        "title": "device*",
        "id": "device-logs-no-timestamp",
@@ -45,21 +60,6 @@ http://kibana:5601/api/data_views/data_view -d '{
        "title": "device*",
        "id": "device-logs-elasticsearch-timestamp",
        "timeFieldName": "epoch_time",
-       "allowNoIndex": true
-    },
-    "override": true
-}'
-
-echo ""
-curl --no-progress-meter -XPOST \
--H 'Content-Type: application/json' \
--H "kbn-xsrf: arbitrary-header" \
-http://kibana:5601/api/data_views/data_view -d '{
-    "data_view": {
-       "name": "Our Generated Logs",
-       "title": "logs-generic-*",
-       "id": "logs-generic",
-       "timeFieldName": "@timestamp",
        "allowNoIndex": true
     },
     "override": true

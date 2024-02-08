@@ -102,7 +102,7 @@ jobs:
 
       - name: Build and start docker-compose
         timeout-minutes: 10
-        run: docker-compose up -d
+        run: docker-compose -f ci.yml up -d
 
       - name: Wait until services are healthy
         timeout-minutes: 6

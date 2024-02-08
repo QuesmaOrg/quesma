@@ -32,7 +32,7 @@ const (
 )
 
 const (
-	waitInterval  = 100 * time.Millisecond
+	waitInterval  = 200 * time.Millisecond
 	printInterval = 5 * time.Second
 )
 
@@ -178,37 +178,55 @@ func main() {
 		waitForLogs()
 		fmt.Println("Done")
 	} else {
+		waitForKibana()
+		waitForSampleData()
+		reportUri := waitForScheduleReportGeneration()
 		waitForLogsInClickhouse("logs-generic-default")
 		waitForLogsInClickhouse("device_logs")
 		waitForLogsInElasticsearch()
-		waitForKibana()
 		waitForAsyncQuery()
-		waitForSampleData()
-		waitForKibanaLogExplorer("kibana")
-		waitForKibanaReportGeneration()
+		waitForKibanaLogExplorer("kibana LogExplorer")
+		waitForKibanaReportGeneration(reportUri)
 	}
 }
 
 func waitForSampleData() {
-	waitForLogsInElasticsearchRaw("kibana", elasticsearchSampleDataUrl)
+	waitForLogsInElasticsearchRaw("elasticsearch sample data", elasticsearchSampleDataUrl)
 	waitForDataViews()
 }
 
+type dataView struct {
+	Id    string `json:"id"`
+	Name  string `json:"name"`
+	Title string `json:"title"`
+}
+
+type dataViewsResponse struct {
+	DataViews []dataView `json:"data_view"`
+}
+
 func waitForDataViews() {
-	waitFor("kibana", func() bool {
+	res := waitFor("kibana data views", func() bool {
 		if resp, err := http.Get(kibanaDataViewsUrl); err == nil {
 			defer resp.Body.Close()
-			var responseData map[string]interface{}
-			if err := json.NewDecoder(resp.Body).Decode(&responseData); err != nil {
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
 				return false
 			}
-			if len(responseData) >= 6 {
+			var responseData dataViewsResponse
+			if err := json.Unmarshal(body, &responseData); err != nil {
+				return false
+			}
+			if len(responseData.DataViews) >= 6 {
+
 				return true
 			}
 		}
 		return false
 	})
-
+	if !res {
+		panic("kibana data views failed")
+	}
 }
 
 // just returns the path to the Kibana report for later download
@@ -229,13 +247,17 @@ func scheduleReportGeneration() (string, error) {
 	return "", fmt.Errorf("error scheduling report generation")
 }
 
-func waitForKibanaReportGeneration() {
+func waitForScheduleReportGeneration() string {
 	reportUri, err := scheduleReportGeneration()
 	if err != nil {
 		panic("Error scheduling report generation")
 	}
+	return reportUri
+}
+
+func waitForKibanaReportGeneration(reportUri string) {
 	var csvReport [][]string
-	waitFor("kibana", func() bool {
+	res := waitFor("kibana report", func() bool {
 		if resp, err := http.Get(fmt.Sprintf("%s%s", kibanaUrl, reportUri)); err != nil || resp.StatusCode != 200 {
 			return false
 		} else {
@@ -247,6 +269,9 @@ func waitForKibanaReportGeneration() {
 			return true
 		}
 	})
+	if !res {
+		panic("kibana report failed to generate")
+	}
 	csvHeader := csvReport[0]
 	if slices.Contains(csvHeader, "@timestamp") && slices.Contains(csvHeader, "message") && slices.Contains(csvHeader, "severity") {
 		fmt.Printf("Report generation successful")
@@ -309,7 +334,7 @@ func waitForKibana() {
 			if resp.StatusCode == 200 {
 				return true
 			} else {
-				fmt.Printf("response: %+v\n", resp)
+				fmt.Printf("kibana response: %+v\n", resp)
 			}
 		}
 		return false
@@ -348,7 +373,7 @@ func waitForLogsInElasticsearchRaw(serviceName, url string) {
 					}
 				}
 			} else {
-				fmt.Printf("response: %+v\n", resp)
+				fmt.Printf("%s response: %+v\n", serviceName, resp)
 			}
 		}
 		return false
@@ -387,7 +412,7 @@ func waitForAsyncQueryRaw(serviceName, url string) {
 }
 
 func waitForKibanaLogExplorer(serviceName string) {
-	res := waitFor("kibana", func() bool {
+	res := waitFor(serviceName, func() bool {
 		return sendKibanaRequest(kibanaLogInternalUrl, "POST", kibanaLogExplorerMainUrl, kibanaInternalLog)
 	})
 	if !res {
