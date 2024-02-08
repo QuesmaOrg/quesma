@@ -89,19 +89,19 @@ func searchVar(lm *clickhouse.LogManager, quesmaManagementConsole *ui.QuesmaMana
 func index(lm *clickhouse.LogManager, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		go dualWrite(r.Context(), vars["index"], string(body), lm, config)
+		dualWrite(r.Context(), vars["index"], string(body), lm, config)
 	})
 }
 
 func bulk(lm *clickhouse.LogManager, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		go dualWriteBulk(r.Context(), "", string(body), lm, config)
+		dualWriteBulk(r.Context(), "", string(body), lm, config)
 	})
 }
 
 func bulkVar(lm *clickhouse.LogManager, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		go dualWriteBulk(r.Context(), mux.Vars(r)["index"], string(body), lm, config)
+		dualWriteBulk(r.Context(), mux.Vars(r)["index"], string(body), lm, config)
 	})
 }
 
