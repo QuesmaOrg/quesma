@@ -56,10 +56,41 @@
             color: white;
             white-space: nowrap;
             display: flex;
+            justify-content: space-between;
+        }
+
+        .topnav .topnav-menu {
+            display: flex;
         }
 
         .topnav h3 {
             margin: 0 20px 0 10px;
+        }
+
+        .topnav h3, .topnav a, .topnav label {
+            font-size: 1.2em;
+        }
+
+        .topnav ul {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .topnav ul li {
+            display: inline-block; /* You can also use 'display: inline;' */
+            margin-right: 10px; /* Spacing between menu items */
+        }
+
+        .topnav ul li a {
+            text-decoration: none;
+            padding: 10px 15px;
+            color: black;
+            background-color: rgb(221, 226, 235);
+        }
+
+        .topnav ul li a:hover, .topnav ul li.active a {
+            background-color: rgb(181, 186, 195);
         }
 
         .autorefresh-box {
@@ -196,7 +227,7 @@
             color: white;
         }
 
-        #statistics {
+        #statistics, #dashboard {
             top: 3%;
             position: fixed;
             width: 80%;
