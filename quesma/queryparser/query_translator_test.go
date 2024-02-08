@@ -569,11 +569,11 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 // tests MakeResponseSearchQuery, in particular if JSON we return is a proper JSON.
 // used to fail before we fixed field quoting.
 func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
-	queryTranslator := ClickhouseQueryTranslator{ClickhouseLM: nil, TableName: "@"}
+	queryTranslator := ClickhouseQueryTranslator{}
 	queries := []*model.Query{
 		queryTranslator.BuildSimpleSelectQuery("@", ""),
 		queryTranslator.BuildSimpleCountQuery("@", ""),
-		queryTranslator.BuildNMostRecentRowsQuery("@", "", "", 0),
+		queryTranslator.BuildNMostRecentRowsQuery("a", "@", "", "", 0),
 	}
 	types := []model.SearchQueryType{model.Normal, model.Count, model.Normal}
 	for i, query := range queries {
@@ -591,9 +591,9 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 	queryTranslator := ClickhouseQueryTranslator{}
 	queries := []*model.Query{
-		queryTranslator.BuildHistogramQuery("@", ""),
-		queryTranslator.BuildAutocompleteSuggestionsQuery("@", "", 0),
-		queryTranslator.BuildFacetsQuery("@", "", 0),
+		queryTranslator.BuildHistogramQuery("a@", "@", ""),
+		queryTranslator.BuildAutocompleteSuggestionsQuery("@", "@", "", 0),
+		queryTranslator.BuildFacetsQuery("@", "@", "", 0),
 		// queryTranslator.BuildTimestampQuery("@", "@", "", true), TODO uncomment when add unification for this query type
 	}
 	types := []model.AsyncSearchQueryType{model.Histogram, model.ListAllFields, model.ListByField} //, model.EarliestLatestTimestamp}

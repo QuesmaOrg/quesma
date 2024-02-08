@@ -13,7 +13,7 @@ import (
 
 func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
-	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: index}
+	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
 	// TODO index argument is not used yet
 	_ = index
 	var rawResults []byte
@@ -24,9 +24,9 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 		var fullQuery *model.Query
 		switch queryInfo {
 		case model.Count:
-			fullQuery = queryTranslator.BuildSimpleCountQuery(index, simpleQuery.Sql.Stmt)
+			fullQuery = queryTranslator.BuildSimpleCountQuery(queryparser.TableName, simpleQuery.Sql.Stmt)
 		case model.Normal:
-			fullQuery = queryTranslator.BuildSimpleSelectQuery(index, simpleQuery.Sql.Stmt)
+			fullQuery = queryTranslator.BuildSimpleSelectQuery(queryparser.TableName, simpleQuery.Sql.Stmt)
 		}
 		translatedQueryBody = []byte(fullQuery.String())
 		rows, err := queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(fullQuery)
@@ -86,7 +86,7 @@ func createAsyncSearchResponseHitJson(requestId string, rows []clickhouse.QueryR
 
 func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
-	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: index}
+	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
 	// TODO index argument is not used yet
 	_ = index
 	var rawResults []byte
@@ -101,30 +101,30 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		switch queryInfo.Typ {
 		case model.Histogram:
 			// queryInfo = (Histogram, "30s", 0 0) TODO accept different time intervals (now default, 15min)
-			fullQuery = queryTranslator.BuildHistogramQuery("@timestamp", simpleQuery.Sql.Stmt) // TODO change timestamp
+			fullQuery = queryTranslator.BuildHistogramQuery(queryparser.TableName, "@timestamp", simpleQuery.Sql.Stmt) // TODO change timestamp
 			rows, err = queryTranslator.ClickhouseLM.ProcessHistogramQuery(fullQuery)
 		case model.AggsByField:
 			// queryInfo = (AggsByField, fieldName, Limit results, Limit last rows to look into)
-			fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.I2)
+			fullQuery = queryTranslator.BuildFacetsQuery(queryparser.TableName, queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.I2)
 			rows, err = queryTranslator.ClickhouseLM.ProcessFacetsQuery(fullQuery)
 		case model.ListByField:
 			// queryInfo = (ListByField, fieldName, 0, LIMIT)
-			fullQuery = queryTranslator.BuildNMostRecentRowsQuery(queryInfo.FieldName,
+			fullQuery = queryTranslator.BuildNMostRecentRowsQuery(queryparser.TableName, queryInfo.FieldName,
 				"@timestamp", simpleQuery.Sql.Stmt, queryInfo.I2)
 			rows, err = queryTranslator.ClickhouseLM.ProcessNMostRecentRowsQuery(fullQuery)
 		case model.ListAllFields:
 			// queryInfo = (ListAllFields, "*", 0, LIMIT)
-			fullQuery = queryTranslator.BuildNMostRecentRowsQuery("*",
+			fullQuery = queryTranslator.BuildNMostRecentRowsQuery(queryparser.TableName, "*",
 				"@timestamp", simpleQuery.Sql.Stmt, queryInfo.I2)
 			rows, err = queryTranslator.ClickhouseLM.ProcessNMostRecentRowsQuery(fullQuery)
 		case model.EarliestLatestTimestamp:
 			var rowsEarliest, rowsLatest []clickhouse.QueryResultRow
-			fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, true)
+			fullQuery = queryTranslator.BuildTimestampQuery(queryparser.TableName, queryInfo.FieldName, simpleQuery.Sql.Stmt, true)
 			rowsEarliest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
 			if err != nil {
 				logger.Error().Str(logger.RID, id).Msgf("Rows: %+v, err: %+v\n", rowsEarliest, err)
 			}
-			fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, false)
+			fullQuery = queryTranslator.BuildTimestampQuery(queryparser.TableName, queryInfo.FieldName, simpleQuery.Sql.Stmt, false)
 			rowsLatest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
 			rows = append(rowsEarliest, rowsLatest...)
 		}

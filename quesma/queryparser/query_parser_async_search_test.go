@@ -9,7 +9,7 @@ import (
 
 func TestQueryParserAsyncSearch(t *testing.T) {
 	lm := clickhouse.NewLogManager(make(clickhouse.TableMap), make(clickhouse.TableMap))
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: `"logs-generic-default"`}
+	cw := ClickhouseQueryTranslator{lm}
 	for _, tt := range testdata.TestsAsyncSearch {
 		t.Run(tt.Name, func(t *testing.T) {
 			query, queryInfo := cw.ParseQueryAsyncSearch(tt.QueryJson)
