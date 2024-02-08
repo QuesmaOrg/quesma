@@ -8,6 +8,7 @@ quesma:
   #	↓ "dual-write-query-clickhouse-fallback" (dual write, query both, fallback only when Clickhouse fails)
   #	↓ "clickhouse" (100% to Elastic, 0% through Elastic)
   mode: "dual-write-query-elastic"
+  port: 8080  # public tcp port to listen for incoming traffic
   index:
     logs-generic-*:
       enabled: true

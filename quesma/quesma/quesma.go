@@ -42,7 +42,7 @@ type (
 		routingHttpServer    *http.Server
 		logManager           *clickhouse.LogManager
 		internalHttpPort     string
-		publicPort           string
+		publicPort           network.Port
 	}
 )
 
@@ -95,29 +95,28 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse
 	}
 }
 
-func NewQuesmaTcpProxy(target string, tcpPort string, config config.QuesmaConfiguration, logChan <-chan string, inspect bool) *Quesma {
+func NewQuesmaTcpProxy(target string, config config.QuesmaConfiguration, logChan <-chan string, inspect bool) *Quesma {
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logChan)
-	port := parsePort(tcpPort)
 	targetUrl := parseURL(target)
 	return &Quesma{
-		processor:               proxy.NewTcpProxy(port, targetUrl, inspect),
+		processor:               proxy.NewTcpProxy(config.PublicTcpPort, targetUrl, inspect),
 		targetUrl:               targetUrl,
-		publicTcpPort:           port,
+		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,
 	}
 }
 
-func NewHttpProxy(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
-	return New(logManager, target, tcpPort, httpPort, config, logChan)
+func NewHttpProxy(logManager *clickhouse.LogManager, target string, httpPort string, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
+	return New(logManager, target, httpPort, config, logChan)
 }
 
-func NewHttpClickhouseAdapter(logManager *clickhouse.LogManager, target string, tcpPort string,
-	httpPort string, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
-	return New(logManager, target, tcpPort, httpPort, config, logChan)
+func NewHttpClickhouseAdapter(logManager *clickhouse.LogManager, target string, httpPort string, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
+	return New(logManager, target, httpPort, config, logChan)
 }
 
-func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpPort string, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
+func New(logManager *clickhouse.LogManager, target string, httpPort string, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
+
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logChan)
 	q := &Quesma{
 		processor: &dualWriteHttpProxy{
@@ -126,7 +125,7 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 				Handler: configureRouting(config, logManager, quesmaManagementConsole),
 			},
 			routingHttpServer: &http.Server{
-				Addr: ":" + tcpPort,
+				Addr: ":" + strconv.Itoa(int(config.PublicTcpPort)),
 				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					defer recovery.LogPanic()
 					reqBody, err := io.ReadAll(r.Body)
@@ -183,10 +182,10 @@ func New(logManager *clickhouse.LogManager, target string, tcpPort string, httpP
 			},
 			logManager:       logManager,
 			internalHttpPort: httpPort,
-			publicPort:       tcpPort,
+			publicPort:       config.PublicTcpPort,
 		},
 		targetUrl:               parseURL(target),
-		publicTcpPort:           parsePort(tcpPort),
+		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,
 	}
@@ -198,17 +197,6 @@ func withTracing(r *http.Request) context.Context {
 	rid := tracing.GetRequestId()
 	r.Header.Add("RequestId", rid)
 	return context.WithValue(r.Context(), tracing.RequestIdCtxKey, rid)
-}
-
-func parsePort(port string) network.Port {
-	tcpPortInt, err := strconv.Atoi(port)
-	if err != nil {
-		logger.Fatal().Msgf("Error parsing tcp port %s: %v", port, err)
-	}
-	if tcpPortInt < 0 || tcpPortInt > 65535 {
-		logger.Fatal().Msgf("Invalid port: %s", port)
-	}
-	return network.Port(tcpPortInt)
 }
 
 func parseURL(urlStr string) *url.URL {
@@ -277,8 +265,8 @@ func sendHttpRequest(ctx context.Context, address string, originalReq *http.Requ
 
 func (q *dualWriteHttpProxy) listen() (net.Listener, error) {
 	go q.listenHTTP()
-	logger.Info().Msgf("listening TCP at %s", q.publicPort)
-	listener, err := net.Listen("tcp", ":"+q.publicPort)
+	logger.Info().Msgf("listening TCP at %d", q.publicPort)
+	listener, err := net.Listen("tcp", ":"+strconv.Itoa(int(q.publicPort)))
 	if err != nil {
 		return nil, err
 	}

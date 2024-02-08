@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/stretchr/testify/require"
 	"log"
+	"mitmproxy/quesma/network"
 	"mitmproxy/quesma/quesma/config"
 	"net/http"
 	"sync"
@@ -55,7 +56,7 @@ func TestSuccessRequests(t *testing.T) {
 	})
 	runReceiver(serverMux1, &wg, ElasticUrl)
 
-	instance := New(nil, ElasticUrl, "8080", "8081", config.QuesmaConfiguration{Mode: config.DualWriteQueryElastic}, make(<-chan string, 50000))
+	instance := New(nil, ElasticUrl, "8081", config.QuesmaConfiguration{Mode: config.DualWriteQueryElastic, PublicTcpPort: network.Port(8080)}, make(<-chan string, 50000))
 	_ = instance
 	// TODO we have rewrite this test according to new architecture
 

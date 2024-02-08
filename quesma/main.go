@@ -23,11 +23,8 @@ const banner = `
 
 const (
 	targetEnv        = "ELASTIC_URL"
-	tcpPortEnv       = "TCP_PORT"
 	internalHttpPort = "8081"
 )
-
-var tcpPort = os.Getenv(tcpPortEnv)
 
 func main() {
 	println(banner)
@@ -60,13 +57,13 @@ func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 
 	switch cfg.Mode {
 	case config.Proxy:
-		return quesma.NewQuesmaTcpProxy(target, tcpPort, cfg, logChan, false)
+		return quesma.NewQuesmaTcpProxy(target, cfg, logChan, false)
 	case config.ProxyInspect:
-		return quesma.NewQuesmaTcpProxy(target, tcpPort, cfg, logChan, true)
+		return quesma.NewQuesmaTcpProxy(target, cfg, logChan, true)
 	case config.DualWriteQueryElastic, config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
-		return quesma.NewHttpProxy(lm, target, tcpPort, internalHttpPort, cfg, logChan)
+		return quesma.NewHttpProxy(lm, target, internalHttpPort, cfg, logChan)
 	case config.ClickHouse:
-		return quesma.NewHttpClickhouseAdapter(lm, target, tcpPort, internalHttpPort, cfg, logChan)
+		return quesma.NewHttpClickhouseAdapter(lm, target, internalHttpPort, cfg, logChan)
 	}
 	logger.Panic().Msgf("unknown operation mode: %d", cfg.Mode)
 	panic("unreachable")

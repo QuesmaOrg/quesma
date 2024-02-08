@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/spf13/viper"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/network"
+	"os"
 	"regexp"
 	"strings"
 	"sync/atomic"
@@ -19,6 +21,10 @@ const (
 )
 
 const (
+	publicTcpPort = "port"
+)
+
+const (
 	prefix        = "quesma"
 	indexConfig   = "index"
 	enabledConfig = "enabled"
@@ -27,8 +33,9 @@ const (
 type (
 	OperationMode       int
 	QuesmaConfiguration struct {
-		Mode        OperationMode
-		IndexConfig []IndexConfiguration
+		Mode          OperationMode
+		PublicTcpPort network.Port
+		IndexConfig   []IndexConfiguration
 	}
 
 	IndexConfiguration struct {
@@ -38,6 +45,7 @@ type (
 )
 
 func Load() QuesmaConfiguration {
+	// TODO Add wiser config parsing which fails for good and accumulates errors using https://github.com/hashicorp/go-multierror
 	viper.SetConfigName(configFileName)
 	viper.SetConfigType(configType)
 	viper.AddConfigPath(".")
@@ -51,7 +59,20 @@ func Load() QuesmaConfiguration {
 	for indexNamePattern, config := range viper.Get(fullyQualifiedConfig(indexConfig)).(map[string]interface{}) {
 		indexBypass = append(indexBypass, IndexConfiguration{NamePattern: indexNamePattern, Enabled: config.(map[string]interface{})[enabledConfig].(bool)})
 	}
-	return QuesmaConfiguration{Mode: parseOperationMode(mode), IndexConfig: indexBypass}
+	return QuesmaConfiguration{Mode: parseOperationMode(mode), PublicTcpPort: configurePublicTcpPort(), IndexConfig: indexBypass}
+}
+
+func configurePublicTcpPort() network.Port {
+	var portNumberStr string
+	var isSet bool
+	if portNumberStr, isSet = os.LookupEnv("LOGS_PATH"); !isSet {
+		portNumberStr = viper.GetString(fullyQualifiedConfig(publicTcpPort))
+	}
+	port, err := network.ParsePort(portNumberStr)
+	if err != nil {
+		panic(fmt.Errorf("error configuring public tcp port: %v", err))
+	}
+	return port
 }
 
 func fullyQualifiedConfig(config string) string {
