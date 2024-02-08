@@ -6,6 +6,7 @@ services:
     environment:
       - ELASTIC_URL=elasticsearch:9200
       - TCP_PORT=8080
+      - LOGS_PATH=/var/quesma/logs
     depends_on:
       clickhouse:
         condition: service_healthy

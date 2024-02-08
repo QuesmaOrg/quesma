@@ -31,7 +31,9 @@ func main() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
-	qmcLogChannel := logger.InitLogger()
+	var cfg = config.Load()
+
+	qmcLogChannel := logger.InitLogger(cfg)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
 
@@ -40,7 +42,6 @@ func main() {
 		clickhouse.NewRuntimeSchemas,
 	)
 
-	var cfg = config.Load()
 	logger.Info().Msgf("loaded config: %+v", cfg)
 
 	instance := constructQuesma(cfg, lm, qmcLogChannel)

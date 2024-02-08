@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/util"
+	"regexp"
 	"strings"
 	"sync/atomic"
 )
@@ -93,7 +94,7 @@ func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, inde
 			logger.Fatal().Msg(err.Error())
 		}
 	} else {
-		matchingConfig, ok := config.FindMatchingConfig(indexName, cfg)
+		matchingConfig, ok := findMatchingConfig(indexName, cfg)
 		if !ok {
 			logger.Info().Msgf("index '%s' is not configured, skipping", indexName)
 			return
@@ -111,4 +112,36 @@ func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, inde
 			logger.Info().Msgf("index '%s' is disabled, ignoring", indexName)
 		}
 	}
+}
+
+func matches(indexName string, indexNamePattern string) bool {
+	r, err := regexp.Compile(strings.Replace(indexNamePattern, "*", ".*", -1))
+	if err != nil {
+		logger.Error().Msgf("invalid index name pattern [%s]: %s", indexNamePattern, err)
+		return false
+	}
+
+	return r.MatchString(indexName)
+}
+
+var matchCounter = atomic.Int32{}
+
+func findMatchingConfig(indexName string, cfg config.QuesmaConfiguration) (config.IndexConfiguration, bool) {
+	matchCounter.Add(1)
+	for _, indexConfig := range cfg.IndexConfig {
+		if matchCounter.Load()%100 == 1 {
+			logger.Debug().Msgf("matching index %s with config: %+v, ctr: %d", indexName, indexConfig.NamePattern, matchCounter.Load())
+		}
+		if matches(indexName, indexConfig.NamePattern) {
+			if matchCounter.Load()%100 == 1 {
+				logger.Debug().Msgf("  ╚═ matched index %s with config: %+v, ctr: %d", indexName, indexConfig.NamePattern, matchCounter.Load())
+			}
+			return indexConfig, true
+		} else {
+			if matchCounter.Load()%100 == 1 {
+				logger.Info().Msgf("  ╚═ not matched index %s with config: %+v, ctr: %d", indexName, indexConfig.NamePattern, matchCounter.Load())
+			}
+		}
+	}
+	return config.IndexConfiguration{}, false
 }

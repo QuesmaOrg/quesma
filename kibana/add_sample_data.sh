@@ -64,5 +64,19 @@ http://kibana:5601/api/data_views/data_view -d '{
     },
     "override": true
 }'
+curl --no-progress-meter -XPOST \
+-H 'Content-Type: application/json' \
+-H "kbn-xsrf: arbitrary-header" \
+http://kibana:5601/api/data_views/data_view -d '{
+    "data_view": {
+       "name": "Quesma Logs",
+       "title": "quesma-logs-*",
+       "id": "quesma-logs-from-filebeat",
+       "timeFieldName": "@timestamp",
+       "allowNoIndex": true
+    },
+    "override": true
+}'
+echo ""
 
 echo -e "\nData views added."

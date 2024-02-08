@@ -1,15 +1,17 @@
 package logger
 
 import (
+	"fmt"
 	"github.com/rs/zerolog"
 	"io"
+	"mitmproxy/quesma/quesma/config"
 	"os"
 	"time"
 )
 
 const (
-	stdLogFileName = "/var/quesma/logs/quesma.log"
-	errLogFileName = "/var/quesma/logs/err.log"
+	stdLogFileName = "quesma.log"
+	errLogFileName = "err.log"
 )
 
 var (
@@ -22,13 +24,13 @@ const RID = "request_id" // request id key for the logger
 var logger zerolog.Logger
 
 // Returns channel where log messages will be sent
-func InitLogger() <-chan string {
+func InitLogger(cfg config.QuesmaConfiguration) <-chan string {
 	zerolog.TimeFieldFormat = time.RFC3339Nano // without this we don't have milliseconds timestamp precision
 	var output io.Writer = zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.StampMilli}
 	if os.Getenv("GO_ENV") == "production" { // ConsoleWriter is slow, disable it in production
 		output = os.Stderr
 	}
-	openLogFiles()
+	openLogFiles(cfg.LogsPath)
 
 	logChannel := make(chan string, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
 	chanWriter := channelWriter{ch: logChannel}
@@ -44,10 +46,10 @@ func InitLogger() <-chan string {
 	return logChannel
 }
 
-func openLogFiles() {
+func openLogFiles(logsPath string) {
 	var err error
 	StdLogFile, err = os.OpenFile(
-		stdLogFileName,
+		fmt.Sprintf("%s/%s", logsPath, stdLogFileName),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 		0664,
 	)
@@ -55,7 +57,7 @@ func openLogFiles() {
 		panic(err)
 	}
 	ErrLogFile, err = os.OpenFile(
-		errLogFileName,
+		fmt.Sprintf("%s/%s", logsPath, errLogFileName),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 		0664,
 	)
