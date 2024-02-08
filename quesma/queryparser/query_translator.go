@@ -15,15 +15,6 @@ type ClickhouseQueryTranslator struct {
 	ClickhouseLM *clickhouse.LogManager
 }
 
-// TODO come back to (int, error) return type?
-func (cw *ClickhouseQueryTranslator) Write(buf []byte) (SimpleQuery, model.SearchQueryType) {
-	return cw.ParseQuery(string(buf))
-}
-
-func (cw *ClickhouseQueryTranslator) WriteAsyncSearch(buf []byte) (SimpleQuery, model.QueryInfoAsyncSearch) {
-	return cw.parseQueryAsyncSearch(string(buf))
-}
-
 func makeResponseSearchQueryNormal[T fmt.Stringer](ResultSet []T) ([]byte, error) {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i, row := range ResultSet {

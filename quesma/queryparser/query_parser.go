@@ -50,7 +50,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery
 	return cw.parseQueryMap(queryAsMap), queryInfo
 }
 
-func (cw *ClickhouseQueryTranslator) parseQueryAsyncSearch(queryAsJson string) (SimpleQuery, model.QueryInfoAsyncSearch) {
+func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (SimpleQuery, model.QueryInfoAsyncSearch) {
 	queryAsMap := make(QueryMap)
 	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
 	if err != nil {

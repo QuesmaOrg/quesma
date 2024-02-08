@@ -23,7 +23,7 @@ func TestNoAsciiTableName(t *testing.T) {
 	tableName := `"table-namea$한Иb}~"`
 	lm := clickhouse.NewLogManagerEmpty()
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
-	simpleQuery, queryInfo := queryTranslator.WriteAsyncSearch(requestBody)
+	simpleQuery, queryInfo := queryTranslator.ParseQueryAsyncSearch(string(requestBody))
 	assert.True(t, simpleQuery.CanParse)
 	assert.Equal(t, "", simpleQuery.Sql.Stmt)
 	assert.Equal(t, model.NewQueryInfoAsyncSearchNone(), queryInfo)

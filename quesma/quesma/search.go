@@ -17,7 +17,7 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 	// TODO index argument is not used yet
 	_ = index
 	var rawResults []byte
-	simpleQuery, queryInfo := queryTranslator.Write(body)
+	simpleQuery, queryInfo := queryTranslator.ParseQuery(string(body))
 	var responseBody, translatedQueryBody []byte
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	if simpleQuery.CanParse {
@@ -90,7 +90,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	// TODO index argument is not used yet
 	_ = index
 	var rawResults []byte
-	simpleQuery, queryInfo := queryTranslator.WriteAsyncSearch(body)
+	simpleQuery, queryInfo := queryTranslator.ParseQueryAsyncSearch(string(body))
 	var responseBody, translatedQueryBody []byte
 
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
