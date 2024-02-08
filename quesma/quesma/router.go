@@ -18,7 +18,6 @@ import (
 const (
 	HealthPath          = "/_cluster/health"
 	BulkPath            = "/_bulk"
-	CreateTablePath     = "/_createTable"
 	InsertPath          = "/_insert"
 	SearchPath          = "/_search"
 	AsyncSearchPath     = "/_async_search"
@@ -41,7 +40,6 @@ func bodyHandler(h func(body []byte, writer http.ResponseWriter, r *http.Request
 func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManager, quesmaManagementConsole *ui.QuesmaManagementConsole) *mux.Router {
 	router := mux.NewRouter()
 	router.HandleFunc(HealthPath, ok)
-	router.PathPrefix(CreateTablePath).HandlerFunc(createTable(lm))
 	router.PathPrefix(InsertPath).HandlerFunc(processInsert(lm))
 	router.PathPrefix(BulkPath).HandlerFunc(bulk(lm, config)).Methods("POST")
 	router.PathPrefix(SearchPath).HandlerFunc(search(lm, quesmaManagementConsole)).Methods("POST")
@@ -115,13 +113,6 @@ func processInsert(lm *clickhouse.LogManager) func(http.ResponseWriter, *http.Re
 		if err != nil {
 			logger.Error().Msg(err.Error())
 		}
-	})
-}
-
-func createTable(lm *clickhouse.LogManager) func(http.ResponseWriter, *http.Request) {
-	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		logger.Info().Msgf("%s --> create table\n", r.RequestURI)
-		_ = lm.ProcessCreateTableQuery(string(body), clickhouse.NewDefaultCHConfig())
 	})
 }
 
