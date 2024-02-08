@@ -18,7 +18,6 @@ import (
 const (
 	HealthPath          = "/_cluster/health"
 	BulkPath            = "/_bulk"
-	InsertPath          = "/_insert"
 	SearchPath          = "/_search"
 	AsyncSearchPath     = "/_async_search"
 	ElasticInternalPath = "/_"
@@ -40,7 +39,6 @@ func bodyHandler(h func(body []byte, writer http.ResponseWriter, r *http.Request
 func configureRouting(config config.QuesmaConfiguration, lm *clickhouse.LogManager, quesmaManagementConsole *ui.QuesmaManagementConsole) *mux.Router {
 	router := mux.NewRouter()
 	router.HandleFunc(HealthPath, ok)
-	router.PathPrefix(InsertPath).HandlerFunc(processInsert(lm))
 	router.PathPrefix(BulkPath).HandlerFunc(bulk(lm, config)).Methods("POST")
 	router.PathPrefix(SearchPath).HandlerFunc(search(lm, quesmaManagementConsole)).Methods("POST")
 	router.PathPrefix("/{index}" + AsyncSearchPath).HandlerFunc(asyncSearch(lm, quesmaManagementConsole)).Methods("POST")
@@ -104,15 +102,6 @@ func bulk(lm *clickhouse.LogManager, config config.QuesmaConfiguration) func(htt
 func bulkVar(lm *clickhouse.LogManager, config config.QuesmaConfiguration) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		go dualWriteBulk(r.Context(), mux.Vars(r)["index"], string(body), lm, config)
-	})
-}
-
-func processInsert(lm *clickhouse.LogManager) func(http.ResponseWriter, *http.Request) {
-	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		err := lm.ProcessInsertQuery("signoz_logs", string(body))
-		if err != nil {
-			logger.Error().Msg(err.Error())
-		}
 	})
 }
 
