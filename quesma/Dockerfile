@@ -4,14 +4,23 @@ WORKDIR app
 
 COPY go.mod go.sum ./
 
-RUN go mod download
-
-COPY . .
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 
 ENV GOCACHE=/root/.cache/go-build
 
-RUN --mount=type=cache,target="/root/.cache/go-build" go build -o bin
-RUN --mount=type=cache,target="/root/.cache/go-build" go build -o healthcheck ./util/healthcheck
+
+COPY util/healthcheck util/healthcheck
+
+RUN --mount=type=cache,target="/root/.cache/go-build" \
+    --mount=type=cache,target=/go/pkg/mod  \
+    go build -o healthcheck ./util/healthcheck
+
+COPY . .
+
+RUN --mount=type=cache,target="/root/.cache/go-build" \
+    --mount=type=cache,target=/go/pkg/mod  \
+    go build -o bin
 
 FROM scratch
 
