@@ -182,7 +182,6 @@ func main() {
 		waitForSampleData()
 		reportUri := waitForScheduleReportGeneration()
 		waitForLogsInClickhouse("logs-generic-default")
-		waitForLogsInClickhouse("device_logs")
 		waitForLogsInElasticsearch()
 		waitForAsyncQuery()
 		waitForKibanaLogExplorer("kibana LogExplorer")

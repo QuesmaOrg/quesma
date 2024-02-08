@@ -20,15 +20,6 @@ services:
     volumes:
       - ./quesma/logs/:/var/quesma/logs
     restart: unless-stopped
-  device-log-generator:
-    build: device-log-generator
-    image: device-log-generator:latest
-    depends_on:
-      quesma:
-        condition: service_healthy
-    links:
-      - "quesma:mitmproxy"
-    restart: unless-stopped
   log-generator:
     build: log-generator
     image: log-generator:latest

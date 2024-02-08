@@ -46,8 +46,7 @@ jobs:
   build:
     strategy:
         matrix:
-            module: [ "quesma", "device-log-generator", "log-generator", "query-generator" ]
-            # clean is slower with caching, so we disable it
+            module: [ "quesma", "log-generator" ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
