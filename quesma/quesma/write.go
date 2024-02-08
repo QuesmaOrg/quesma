@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/stats"
@@ -17,7 +16,7 @@ import (
 func dualWriteBulk(ctx context.Context, optionalTableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
 	_ = ctx
 	if config.TrafficAnalysis.Load() {
-		logger.Info().Msgf("analysing traffic, not writing to Clickhouse %s", queryparser.TableName)
+		logger.Info().Msgf("analysing traffic, not writing to Clickhouse %s", optionalTableName)
 		return
 	}
 	defer recovery.LogPanic()
@@ -70,7 +69,7 @@ func dualWrite(ctx context.Context, tableName string, body string, lm *clickhous
 	_ = ctx
 	stats.GlobalStatistics.Process(tableName, body, clickhouse.NestedSeparator)
 	if config.TrafficAnalysis.Load() {
-		logger.Info().Msgf("analysing traffic, not writing to Clickhouse %s", queryparser.TableName)
+		logger.Info().Msgf("analysing traffic, not writing to Clickhouse %s", tableName)
 		return
 	}
 

@@ -35,10 +35,13 @@ func TestNoAsciiTableName(t *testing.T) {
 
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, "test")
 
+const tableName = `"logs-generic-default"`
+
 func TestAsyncSearchHandler(t *testing.T) {
+
 	table := clickhouse.TableMap{
-		queryparser.TableName: &clickhouse.Table{
-			Name:   queryparser.TableName,
+		tableName: &clickhouse.Table{
+			Name:   tableName,
 			Config: clickhouse.NewDefaultCHConfig(),
 			Cols: map[string]*clickhouse.Column{
 				"@timestamp": {
@@ -72,7 +75,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 			for _, regex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(regex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			_, _ = handleAsyncSearch(ctx, "index-placeholder", []byte(tt.QueryJson), lm, managementConsole)
+			_, _ = handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
 
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -82,8 +85,8 @@ func TestAsyncSearchHandler(t *testing.T) {
 }
 
 var table = clickhouse.TableMap{
-	queryparser.TableName: &clickhouse.Table{
-		Name:   queryparser.TableName,
+	tableName: &clickhouse.Table{
+		Name:   tableName,
 		Config: clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
 		Cols: map[string]*clickhouse.Column{
 			// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
@@ -110,7 +113,7 @@ func TestSearchHandler(t *testing.T) {
 			lm := clickhouse.NewLogManagerWithConnection(db, table, make(clickhouse.TableMap))
 			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), make(<-chan string, 50000))
 			mock.ExpectQuery(testdata.EscapeBrackets(tt.WantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
-			_, _ = handleSearch(ctx, "index-placeholder", []byte(tt.QueryJson), lm, managementConsole)
+			_, _ = handleSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
 
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -133,7 +136,7 @@ func TestSearcHandlerNoAttrsConfig(t *testing.T) {
 			lm := clickhouse.NewLogManagerWithConnection(db, table, make(clickhouse.TableMap))
 			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), make(<-chan string, 50000))
 			mock.ExpectQuery(testdata.EscapeBrackets(tt.WantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
-			_, _ = handleSearch(ctx, "index-placeholder", []byte(tt.QueryJson), lm, managementConsole)
+			_, _ = handleSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
 
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)

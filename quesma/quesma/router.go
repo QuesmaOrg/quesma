@@ -66,14 +66,16 @@ func writeSearchResponse(ctx context.Context, writer http.ResponseWriter, body [
 
 func search(lm *clickhouse.LogManager, quesmaManagementConsole *ui.QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		responseBody, err := handleSearch(r.Context(), "", body, lm, quesmaManagementConsole)
+		// Just for now, hardcoding the index to "logs-generic-default"
+		TableName := `"logs-generic-default"`
+		responseBody, err := handleSearch(r.Context(), TableName, body, lm, quesmaManagementConsole)
 		writeSearchResponse(r.Context(), writer, responseBody, err)
 	})
 }
 
 func asyncSearch(lm *clickhouse.LogManager, quesmaManagementConsole *ui.QuesmaManagementConsole) func(http.ResponseWriter, *http.Request) {
 	return bodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		responseBody, err := handleAsyncSearch(r.Context(), "", body, lm, quesmaManagementConsole)
+		responseBody, err := handleAsyncSearch(r.Context(), mux.Vars(r)["index"], body, lm, quesmaManagementConsole)
 		writeSearchResponse(r.Context(), writer, responseBody, err)
 	})
 }

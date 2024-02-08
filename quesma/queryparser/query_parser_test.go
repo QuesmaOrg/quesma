@@ -15,7 +15,8 @@ import (
 //     what should be? According to docs, I think so... Maybe test in Kibana?
 //     OK, Kibana disagrees, it is indeed wrong.
 func TestQueryParserStringAttrConfig(t *testing.T) {
-	testTable, err := clickhouse.NewTable(`CREATE TABLE `+TableName+`
+	tableName := `"logs-generic-default"`
+	testTable, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
 		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
@@ -23,8 +24,8 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(clickhouse.TableMap{TableName: testTable}, make(clickhouse.TableMap))
-	cw := ClickhouseQueryTranslator{lm}
+	lm := clickhouse.NewLogManager(clickhouse.TableMap{tableName: testTable}, make(clickhouse.TableMap))
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: tableName}
 	for _, tt := range testdata.TestsSearch {
 		t.Run(tt.Name, func(t *testing.T) {
 			simpleQuery, queryType := cw.ParseQuery(tt.QueryJson)
@@ -32,7 +33,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt)
 			assert.Equal(t, tt.WantedQueryType, queryType)
 
-			query := cw.BuildSimpleSelectQuery(TableName, simpleQuery.Sql.Stmt)
+			query := cw.BuildSimpleSelectQuery(tableName, simpleQuery.Sql.Stmt)
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}
@@ -40,7 +41,8 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 // TODO this test gives wrong results??
 func TestQueryParserNoAttrsConfig(t *testing.T) {
-	testTable, err := clickhouse.NewTable(`CREATE TABLE `+TableName+`
+	tableName := `"logs-generic-default"`
+	testTable, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
 		clickhouse.NewChTableConfigNoAttrs(),
@@ -48,8 +50,8 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(clickhouse.TableMap{TableName: testTable}, make(clickhouse.TableMap))
-	cw := ClickhouseQueryTranslator{lm}
+	lm := clickhouse.NewLogManager(clickhouse.TableMap{tableName: testTable}, make(clickhouse.TableMap))
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: tableName}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
 			simpleQuery, queryType := cw.ParseQuery(tt.QueryJson)
@@ -57,7 +59,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt)
 			assert.Equal(t, tt.WantedQueryType, queryType)
 
-			query := cw.BuildSimpleSelectQuery(TableName, simpleQuery.Sql.Stmt)
+			query := cw.BuildSimpleSelectQuery(tableName, simpleQuery.Sql.Stmt)
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}
