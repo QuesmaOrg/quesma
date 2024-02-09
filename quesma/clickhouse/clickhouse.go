@@ -7,6 +7,7 @@ import (
 	_ "github.com/mailru/go-clickhouse"
 	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
+	"regexp"
 	"strings"
 )
 
@@ -77,7 +78,38 @@ func (lm *LogManager) initConnection() error {
 	return nil
 }
 
+func (lm *LogManager) matchIndex(indexNamePattern, indexName string) bool {
+	r, err := regexp.Compile(strings.Replace(indexNamePattern, "*", ".*", -1))
+	if err != nil {
+		logger.Error().Msgf("invalid index name pattern [%s]: %s", indexNamePattern, err)
+		return false
+	}
+	return r.MatchString(indexName)
+}
+
+// Indexes can be in a form of wildcard, e.g. "index-*"
+// If we have such index, we need to resolve it to a real table name.
+func (lm *LogManager) ResolveTableName(index string) string {
+	for k := range lm.predefinedTables {
+		if lm.matchIndex(index, k) {
+			index = k
+			break
+		}
+	}
+	for k := range lm.newRuntimeTables {
+		if lm.matchIndex(index, k) {
+			index = k
+			break
+		}
+	}
+	if !strings.Contains(index, `"`) {
+		return "\"" + index + "\""
+	}
+	return index
+}
+
 func (lm *LogManager) findSchemaAndInitConnection(tableName string) (*Table, error) {
+
 	table := lm.findSchema(tableName)
 	if table == nil && len(tableName) > len(`""`) && tableName[0] == '"' && tableName[len(tableName)-1] == '"' {
 		table = lm.findSchema(tableName[1 : len(tableName)-1]) // try remove " " TODO improve this when we get out of the prototype phase

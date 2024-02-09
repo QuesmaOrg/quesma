@@ -42,9 +42,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		return string(responseBody), nil
 	})
 	router.RegisterPath("/:index/_async_search", "POST", func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
-		// Just for now, hardcoding the index to "logs-generic-default"
-		TableName := `"logs-generic-default"`
-		responseBody, err := handleAsyncSearch(ctx, TableName, []byte(body), lm, console)
+		responseBody, err := handleAsyncSearch(ctx, params["index"], []byte(body), lm, console)
 		if err != nil {
 			return "", err
 		}

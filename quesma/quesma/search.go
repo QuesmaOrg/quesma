@@ -86,9 +86,8 @@ func createAsyncSearchResponseHitJson(requestId string, rows []clickhouse.QueryR
 
 func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
-	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: index}
-	// TODO index argument is not used yet
-	_ = index
+
+	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: lm.ResolveTableName(index)}
 	var rawResults []byte
 	simpleQuery, queryInfo := queryTranslator.ParseQueryAsyncSearch(string(body))
 	var responseBody, translatedQueryBody []byte
