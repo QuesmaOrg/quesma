@@ -14,7 +14,6 @@ import (
 type QueryMap = map[string]interface{}
 
 const (
-	TableName          = `"logs-generic-default"`
 	TimestampFieldName = `"@timestamp"`
 )
 
@@ -228,7 +227,7 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) SimpleQu
 	if ok {
 		fields = cw.extractFields(fieldsAsInterface.([]interface{}))
 	} else {
-		fields = cw.GetFieldsList(TableName)
+		fields = cw.GetFieldsList(cw.TableName)
 	}
 	subQueries := strings.Split(queryMap["query"].(string), " ")
 	sqls := make([]Statement, len(fields)*len(subQueries))
@@ -327,13 +326,13 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) SimpleQuery 
 	// only parameter is 'field', must be string, so cast is safe
 	sql := NewSimpleStatement("")
 	for _, v := range queryMap {
-		switch cw.ClickhouseLM.GetFieldInfo(TableName, v.(string)) {
+		switch cw.ClickhouseLM.GetFieldInfo(cw.TableName, v.(string)) {
 		case clickhouse.ExistsAndIsBaseType:
 			sql = NewSimpleStatement(v.(string) + " IS NOT NULL")
 		case clickhouse.ExistsAndIsArray:
 			sql = NewSimpleStatement(v.(string) + ".size0 = 0")
 		case clickhouse.NotExists:
-			attrs := cw.ClickhouseLM.GetAttributesList(TableName)
+			attrs := cw.ClickhouseLM.GetAttributesList(cw.TableName)
 			stmts := make([]Statement, len(attrs))
 			for i, a := range attrs {
 				stmts[i] = NewCompoundStatement(fmt.Sprintf("has(%s,%s) AND %s[indexOf(%s,%s)] IS NOT NULL",
@@ -351,7 +350,7 @@ func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []strin
 	for _, field := range fields {
 		fieldStr := field.(string)
 		if fieldStr == "*" {
-			return cw.GetFieldsList(TableName)
+			return cw.GetFieldsList(cw.TableName)
 		}
 		result = append(result, fieldStr)
 	}

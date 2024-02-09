@@ -2,6 +2,7 @@ package clickhouse
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"mitmproxy/quesma/model"
 	"sort"
@@ -110,6 +111,10 @@ func (lm *LogManager) GetFieldsList(tableName string) []string {
 // we have to extract again different parts like where clause and columns to build a proper result
 func (lm *LogManager) ProcessSimpleSelectQuery(query *model.Query) ([]QueryResultRow, error) {
 	table, err := lm.findSchemaAndInitConnection(query.TableName)
+	if table == nil {
+		return nil, errors.New("Table not found : " + query.TableName)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -128,6 +133,9 @@ func (lm *LogManager) ProcessSimpleSelectQuery(query *model.Query) ([]QueryResul
 // fieldName = "*" -> we query all, otherwise only this 1 field
 func (lm *LogManager) ProcessNMostRecentRowsQuery(query *model.Query) ([]QueryResultRow, error) {
 	table, err := lm.findSchemaAndInitConnection(query.TableName)
+	if table == nil {
+		return nil, errors.New("Table not found : " + query.TableName)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -174,6 +182,10 @@ func (lm *LogManager) ProcessHistogramQuery(query *model.Query) ([]QueryResultRo
 // TODO add support for autocomplete for attributes, if we'll find it needed
 func (lm *LogManager) ProcessFacetsQuery(query *model.Query) ([]QueryResultRow, error) {
 	table, err := lm.findSchemaAndInitConnection(query.TableName)
+	if table == nil {
+		return nil, errors.New("Table not found : " + query.TableName)
+	}
+
 	if err != nil {
 		return nil, err
 	}

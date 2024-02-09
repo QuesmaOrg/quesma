@@ -13,6 +13,7 @@ type JsonMap = map[string]interface{}
 
 type ClickhouseQueryTranslator struct {
 	ClickhouseLM *clickhouse.LogManager
+	TableName    string
 }
 
 func makeResponseSearchQueryNormal[T fmt.Stringer](ResultSet []T) ([]byte, error) {
@@ -207,7 +208,7 @@ func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(tableName, whereClaus
 
 // GetNMostRecentRows fieldName == "*" ==> we query all
 // otherwise ==> only this 1 field
-func (cw *ClickhouseQueryTranslator) BuildNMostRecentRowsQuery(tableName, fieldName, timestampFieldName, whereClause string, limit int) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildNMostRecentRowsQuery(fieldName, timestampFieldName, whereClause string, limit int) *model.Query {
 	suffixClauses := make([]string, 0)
 	if len(timestampFieldName) > 0 {
 		suffixClauses = append(suffixClauses, "ORDER BY `"+timestampFieldName+"` DESC")
@@ -220,12 +221,12 @@ func (cw *ClickhouseQueryTranslator) BuildNMostRecentRowsQuery(tableName, fieldN
 		NonSchemaFields: []string{},
 		WhereClause:     whereClause,
 		SuffixClauses:   suffixClauses,
-		TableName:       tableName,
+		TableName:       cw.TableName,
 		CanParse:        true,
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(tableName, timestampFieldName, whereClauseOriginal string) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(timestampFieldName, whereClauseOriginal string) *model.Query {
 	duration := 15 * time.Minute                                // TODO change this to be dynamic
 	histogramOneBar := cw.durationToHistogramInterval(duration) // 1 bar duration
 	groupByClause := "toInt64(toUnixTimestamp64Milli(`" + timestampFieldName + "`)/" + strconv.FormatInt(histogramOneBar.Milliseconds(), 10) + ")"
@@ -238,13 +239,13 @@ func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(tableName, timestampFie
 		NonSchemaFields: []string{groupByClause, "count()"},
 		WhereClause:     whereClause,
 		SuffixClauses:   []string{"GROUP BY " + groupByClause},
-		TableName:       tableName,
+		TableName:       cw.TableName,
 		CanParse:        true,
 	}
 }
 
 //lint:ignore U1000 Not used yet
-func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(tableName, fieldName string, prefix string, limit int) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName string, prefix string, limit int) *model.Query {
 	whereClause := ""
 	if len(prefix) > 0 {
 		whereClause = strconv.Quote(fieldName) + " iLIKE '" + prefix + "%'"
@@ -258,12 +259,12 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(tableName
 		NonSchemaFields: []string{},
 		WhereClause:     whereClause,
 		SuffixClauses:   suffixClauses,
-		TableName:       tableName,
+		TableName:       cw.TableName,
 		CanParse:        true,
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(tableName, fieldName, whereClause string, limit int) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName, whereClause string, limit int) *model.Query {
 	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
 	_ = limit // we take all rows for now
 	return &model.Query{
@@ -271,14 +272,14 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(tableName, fieldName, wher
 		NonSchemaFields: []string{"count()"},
 		WhereClause:     whereClause,
 		SuffixClauses:   suffixClauses,
-		TableName:       tableName,
+		TableName:       cw.TableName,
 		CanParse:        true,
 	}
 }
 
 // earliest == true  <==> we want earliest timestamp
 // earliest == false <==> we want latest timestamp
-func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(tableName, timestampFieldName, whereClause string, earliest bool) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName, whereClause string, earliest bool) *model.Query {
 	var orderBy string
 	if earliest {
 		orderBy = "ORDER BY `" + timestampFieldName + "` ASC"
@@ -290,7 +291,7 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(tableName, timestampFie
 		Fields:        []string{timestampFieldName},
 		WhereClause:   whereClause,
 		SuffixClauses: suffixClauses,
-		TableName:     tableName,
+		TableName:     cw.TableName,
 		CanParse:      true,
 	}
 }
