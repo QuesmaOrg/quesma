@@ -9,8 +9,11 @@ require (
 	github.com/k0kubun/pp v3.0.1+incompatible
 	github.com/mailru/go-clickhouse v1.8.0
 	github.com/mjibson/sqlfmt v0.5.0
+	github.com/rs/zerolog v1.32.0
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.8.4
+	github.com/ucarion/urlpath v0.0.0-20200424170820-7ccc79b76bbb
+	golang.org/x/net v0.19.0
 )
 
 require (
@@ -43,7 +46,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
-	github.com/rs/zerolog v1.32.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect

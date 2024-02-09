@@ -28,12 +28,10 @@ flowchart LR;
     client-->routing_proxy;
     routing_proxy-->elasticsearch;
     elasticsearch-->routing_proxy;
-    routing_proxy-->http_server;
-    http_server-.->statistics_processor;
-    http_server-->clickhouse;
-    http_server-->routing_proxy;
-    clickhouse-->http_server;
-    http_server-->response_matcher;
+    routing_proxy-.->statistics_processor;
+    routing_proxy-->clickhouse;
+    clickhouse-->routing_proxy;
+    routing_proxy-->response_matcher;
     routing_proxy-->response_matcher;
     routing_proxy-->client;
     response_matcher-.->UI((UI))

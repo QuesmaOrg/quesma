@@ -4,25 +4,21 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"io"
-	"log"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/network"
 	"mitmproxy/quesma/proxy"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/gzip"
+	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/ui"
-	"mitmproxy/quesma/tcp"
 	"mitmproxy/quesma/tracing"
-	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 type (
@@ -38,16 +34,15 @@ type (
 		Stop(ctx context.Context)
 	}
 	dualWriteHttpProxy struct {
-		processingHttpServer *http.Server
-		routingHttpServer    *http.Server
-		logManager           *clickhouse.LogManager
-		internalHttpPort     string
-		publicPort           network.Port
+		routingHttpServer *http.Server
+		elasticRouter     *mux.PathRouter
+		logManager        *clickhouse.LogManager
+		publicPort        network.Port
 	}
 )
 
-func (p *dualWriteHttpProxy) Stop(ctx context.Context) {
-	p.Close(ctx)
+func (q *dualWriteHttpProxy) Stop(ctx context.Context) {
+	q.Close(ctx)
 }
 
 func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http.ResponseWriter) {
@@ -84,7 +79,7 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse
 	}
 	elkResponse.Body = io.NopCloser(bytes.NewBuffer(body))
 
-	if strings.Contains(uri, "/_search") || strings.Contains(uri, "/_async_search") {
+	if isSearch(uri) {
 		if gzip.IsGzipped(elkResponse) {
 			body, err = gzip.UnZip(body)
 			if err != nil {
@@ -107,23 +102,20 @@ func NewQuesmaTcpProxy(target string, config config.QuesmaConfiguration, logChan
 	}
 }
 
-func NewHttpProxy(logManager *clickhouse.LogManager, target string, httpPort string, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
-	return New(logManager, target, httpPort, config, logChan)
+func NewHttpProxy(logManager *clickhouse.LogManager, target string, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
+	return New(logManager, target, config, logChan)
 }
 
-func NewHttpClickhouseAdapter(logManager *clickhouse.LogManager, target string, httpPort string, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
-	return New(logManager, target, httpPort, config, logChan)
+func NewHttpClickhouseAdapter(logManager *clickhouse.LogManager, target string, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
+	return New(logManager, target, config, logChan)
 }
 
-func New(logManager *clickhouse.LogManager, target string, httpPort string, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
-
+func New(logManager *clickhouse.LogManager, target string, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logChan)
+	router := configureRouter(config, logManager, quesmaManagementConsole)
 	q := &Quesma{
 		processor: &dualWriteHttpProxy{
-			processingHttpServer: &http.Server{
-				Addr:    ":" + httpPort,
-				Handler: configureRouting(config, logManager, quesmaManagementConsole),
-			},
+			elasticRouter: router,
 			routingHttpServer: &http.Server{
 				Addr: ":" + strconv.Itoa(int(config.PublicTcpPort)),
 				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -136,53 +128,22 @@ func New(logManager *clickhouse.LogManager, target string, httpPort string, conf
 
 					ctx := withTracing(r)
 					elkResponse := sendHttpRequest(ctx, "http://"+target, r, reqBody)
-					quesmaResponse := sendHttpRequest(ctx, "http://localhost:"+httpPort, r, reqBody)
+					copyHeaders(w, elkResponse)
+					copyStatusCode(w, elkResponse)
 
-					if elkResponse == nil {
-						logger.Panic().Msg("elkResponse is nil")
-						panic("elkResponse is nil") // probably unnecessary, as previous call should do the job. Suppresses linter.
-					}
-
-					if quesmaResponse == nil {
-						logger.Panic().Msg("quesmaResponse is nil")
-						panic("quesmaResponse is nil") // probably unnecessary, as previous call should do the job. Suppresses linter.
-					}
-
-					sendElkResponseToQuesmaConsole(ctx, r.RequestURI, elkResponse, quesmaManagementConsole)
-
-					for key, values := range elkResponse.Header {
-						for _, value := range values {
-							if key != "Content-Length" {
-								if w.Header().Get(key) == "" {
-									w.Header().Add(key, value)
-								}
-							}
-						}
-					}
-
-					w.WriteHeader(elkResponse.StatusCode)
-
-					if quesmaResponse.StatusCode == 200 && (strings.Contains(r.RequestURI, "/_search") || strings.Contains(r.RequestURI, "/_async_search")) {
-						logger.Debug().Ctx(ctx).Msg("responding from quesma")
-						unzipped, err := io.ReadAll(quesmaResponse.Body)
-						if err == nil {
-							// Sometimes when query is invalid, quesma returns empty response,
-							// and we have to handle this case.
-							// When this happens, we want to return response from elk (for now), look else branch.
-							if string(unzipped) != "" {
-								responseFromQuesma(ctx, unzipped, w, elkResponse)
-							} else {
-								responseFromElastic(ctx, elkResponse, w)
-							}
-						}
-					} else {
+					// TODO check with Quesma config
+					if strings.HasPrefix(r.URL.Path, "/.") && !strings.HasPrefix(r.URL.Path, "/logs") && !strings.HasPrefix(r.URL.Path, "/device") {
+						logger.Debug().Ctx(ctx).Msgf("unrecognized index '%s', ignoring...", strings.Split(r.RequestURI, "/")[1])
 						responseFromElastic(ctx, elkResponse, w)
+					} else {
+						quesmaResponse, err := router.Execute(ctx, r.URL.Path, string(reqBody), r.Method)
+						sendElkResponseToQuesmaConsole(ctx, r.RequestURI, elkResponse, quesmaManagementConsole)
+						copyBody(w, r, err, ctx, quesmaResponse, elkResponse)
 					}
 				}),
 			},
-			logManager:       logManager,
-			internalHttpPort: httpPort,
-			publicPort:       config.PublicTcpPort,
+			logManager: logManager,
+			publicPort: config.PublicTcpPort,
 		},
 		targetUrl:               parseURL(target),
 		publicTcpPort:           config.PublicTcpPort,
@@ -191,6 +152,43 @@ func New(logManager *clickhouse.LogManager, target string, httpPort string, conf
 	}
 
 	return q
+}
+
+func copyBody(w http.ResponseWriter, r *http.Request, err error, ctx context.Context, quesmaResponse string, elkResponse *http.Response) {
+	if isSearch(r.URL.Path) && err == nil {
+		logger.Debug().Ctx(ctx).Msg("responding from quesma")
+		unzipped := []byte(quesmaResponse)
+		if string(unzipped) != "" {
+			responseFromQuesma(ctx, unzipped, w, elkResponse)
+		} else {
+			responseFromElastic(ctx, elkResponse, w)
+		}
+	} else {
+		if err != nil {
+			logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from elastic", err)
+		}
+		responseFromElastic(ctx, elkResponse, w)
+	}
+}
+
+func copyStatusCode(w http.ResponseWriter, elkResponse *http.Response) {
+	w.WriteHeader(elkResponse.StatusCode)
+}
+
+func copyHeaders(w http.ResponseWriter, elkResponse *http.Response) {
+	for key, values := range elkResponse.Header {
+		for _, value := range values {
+			if key != "Content-Length" {
+				if w.Header().Get(key) == "" {
+					w.Header().Add(key, value)
+				}
+			}
+		}
+	}
+}
+
+func isSearch(path string) bool {
+	return strings.Contains(path, "/_search") || strings.Contains(path, "/_async_search")
 }
 
 func withTracing(r *http.Request) context.Context {
@@ -211,30 +209,17 @@ func (q *Quesma) Close(ctx context.Context) {
 	q.processor.Stop(ctx)
 }
 
-func (p *dualWriteHttpProxy) Close(ctx context.Context) {
-	if p.logManager != nil {
-		defer p.logManager.Close()
+func (q *dualWriteHttpProxy) Close(ctx context.Context) {
+	if q.logManager != nil {
+		defer q.logManager.Close()
 	}
-	if err := p.processingHttpServer.Shutdown(ctx); err != nil {
+	if err := q.routingHttpServer.Shutdown(ctx); err != nil {
 		logger.Fatal().Msgf("Error during server shutdown: %v", err)
 	}
 }
 
-func (p *dualWriteHttpProxy) Ingest() {
-	go p.listenRoutingHTTP()
-	go p.listenHTTP()
-}
-
-func (p *dualWriteHttpProxy) listenRoutingHTTP() {
-	if err := p.routingHttpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Fatal().Msgf("Error starting http server: %v", err)
-	}
-}
-
-func (p *dualWriteHttpProxy) listenHTTP() {
-	if err := p.processingHttpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Fatal().Msgf("Error starting http server: %v", err)
-	}
+func (q *dualWriteHttpProxy) Ingest() {
+	go q.listen()
 }
 
 func (q *Quesma) Start() {
@@ -263,78 +248,9 @@ func sendHttpRequest(ctx context.Context, address string, originalReq *http.Requ
 	return resp
 }
 
-func (q *dualWriteHttpProxy) listen() (net.Listener, error) {
-	go q.listenHTTP()
-	logger.Info().Msgf("listening TCP at %d", q.publicPort)
-	listener, err := net.Listen("tcp", ":"+strconv.Itoa(int(q.publicPort)))
-	if err != nil {
-		return nil, err
+func (q *dualWriteHttpProxy) listen() {
+	if err := q.routingHttpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		logger.Fatal().Msgf("Error starting http server: %v", err)
 	}
-	return listener, nil
-}
-
-func (q *Quesma) handleRequest(in net.Conn) {
-	defer recovery.LogPanic()
-	defer in.Close()
-	httpPort := ""
-	internalHttpServerConnection, err := net.Dial("tcp", ":"+httpPort)
-	logger.Info().Msgf("internalHttpServerConnection: %s", httpPort)
-	if err != nil {
-		logger.Error().Msgf("error dialing secondary addr %v", err)
-		return
-	}
-
-	defer internalHttpServerConnection.Close()
-
-	var copyCompletionBarrier sync.WaitGroup
-	copyCompletionBarrier.Add(2)
-	switch q.config.Mode {
-	case config.Proxy, config.ProxyInspect:
-		log.Println("TCP proxy to Elasticsearch")
-		elkConnection, err := q.connectElasticsearch()
-		if err != nil {
-			logger.Panic().Msg(err.Error())
-		}
-		defer elkConnection.Close()
-		go tcp.CopyAndSignal(&copyCompletionBarrier, elkConnection, in)
-		go tcp.CopyAndSignal(&copyCompletionBarrier, in, elkConnection)
-		if q.config.Mode == config.ProxyInspect {
-			config.SetTrafficAnalysis(true)
-		}
-	case config.DualWriteQueryElastic:
-		logger.Info().Msg("writing to Elasticsearch and mirroring to Clickhouse")
-		elkConnection, err := q.connectElasticsearch()
-		if err != nil {
-			logger.Panic().Msg(err.Error())
-		}
-		defer elkConnection.Close()
-		go tcp.CopyAndSignal(&copyCompletionBarrier, io.MultiWriter(elkConnection, internalHttpServerConnection), in)
-		go tcp.CopyAndSignal(&copyCompletionBarrier, in, elkConnection)
-	case config.DualWriteQueryClickhouse:
-		logger.Panic().Msg("DualWriteQueryClickhouse not yet available")
-	case config.DualWriteQueryClickhouseVerify:
-		logger.Panic().Msg("DualWriteQueryClickhouseVerify not yet available")
-	case config.DualWriteQueryClickhouseFallback:
-		logger.Panic().Msg("DualWriteQueryClickhouseFallback not yet available")
-	case config.ClickHouse:
-		logger.Info().Msg("handling Clickhouse only")
-		go tcp.CopyAndSignal(&copyCompletionBarrier, internalHttpServerConnection, in)
-		go tcp.CopyAndSignal(&copyCompletionBarrier, in, internalHttpServerConnection)
-	default:
-		logger.Panic().Msg("unknown operation mode")
-	}
-
-	copyCompletionBarrier.Wait()
-
-	logger.Info().Msgf("Connection complete %v", in.RemoteAddr())
-}
-
-func (q *Quesma) connectElasticsearch() (net.Conn, error) {
-	elkConnection, err := net.Dial("tcp", q.targetUrl.RequestURI())
-	logger.Info().Msg("elkConnection:" + q.targetUrl.RequestURI())
-	if err != nil {
-		logger.Error().Msgf("error dialing primary addr %v", err)
-		return nil, fmt.Errorf("error dialing primary elasticsearch addr: %w", err)
-	}
-	return elkConnection, nil
+	logger.Info().Msgf("Accepting HTTP at :%d", q.publicPort)
 }

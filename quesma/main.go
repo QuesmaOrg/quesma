@@ -22,8 +22,7 @@ const banner = `
 `
 
 const (
-	targetEnv        = "ELASTIC_URL"
-	internalHttpPort = "8081"
+	targetEnv = "ELASTIC_URL"
 )
 
 func main() {
@@ -62,9 +61,9 @@ func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	case config.ProxyInspect:
 		return quesma.NewQuesmaTcpProxy(target, cfg, logChan, true)
 	case config.DualWriteQueryElastic, config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
-		return quesma.NewHttpProxy(lm, target, internalHttpPort, cfg, logChan)
+		return quesma.NewHttpProxy(lm, target, cfg, logChan)
 	case config.ClickHouse:
-		return quesma.NewHttpClickhouseAdapter(lm, target, internalHttpPort, cfg, logChan)
+		return quesma.NewHttpClickhouseAdapter(lm, target, cfg, logChan)
 	}
 	logger.Panic().Msgf("unknown operation mode: %d", cfg.Mode)
 	panic("unreachable")
