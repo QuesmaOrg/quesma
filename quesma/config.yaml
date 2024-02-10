@@ -9,6 +9,7 @@ quesma:
   #	↓ "clickhouse" (100% to Elastic, 0% through Elastic)
   mode: "dual-write-query-elastic"
   port: 8080  # public tcp port to listen for incoming traffic
+  elasticsearch_target: "localhost:9200"
   logs_path: "logs"
   index:
     logs-generic-*:

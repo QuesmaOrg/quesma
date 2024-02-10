@@ -17,20 +17,22 @@ const (
 )
 
 const (
-	prefix         = "quesma"
-	indexConfig    = "index"
-	enabledConfig  = "enabled"
-	logsPathConfig = "logs_path"
-	publicTcpPort  = "port"
+	prefix             = "quesma"
+	indexConfig        = "index"
+	enabledConfig      = "enabled"
+	logsPathConfig     = "logs_path"
+	publicTcpPort      = "port"
+	elasticsarchTarget = "elasticsearch_target"
 )
 
 type (
 	OperationMode       int
 	QuesmaConfiguration struct {
-		Mode          OperationMode
-		IndexConfig   []IndexConfiguration
-		LogsPath      string
-		PublicTcpPort network.Port
+		Mode                    OperationMode
+		TargetElasticsearchAddr string
+		IndexConfig             []IndexConfiguration
+		LogsPath                string
+		PublicTcpPort           network.Port
 	}
 
 	IndexConfiguration struct {
@@ -53,7 +55,15 @@ func Load() QuesmaConfiguration {
 	for indexNamePattern, config := range viper.Get(fullyQualifiedConfig(indexConfig)).(map[string]interface{}) {
 		indexBypass = append(indexBypass, IndexConfiguration{NamePattern: indexNamePattern, Enabled: config.(map[string]interface{})[enabledConfig].(bool)})
 	}
-	return QuesmaConfiguration{Mode: parseOperationMode(mode), PublicTcpPort: configurePublicTcpPort(), IndexConfig: indexBypass, LogsPath: configureLogsPath()}
+	return QuesmaConfiguration{Mode: parseOperationMode(mode), PublicTcpPort: configurePublicTcpPort(), TargetElasticsearchAddr: configureTargetElasticsearch(), IndexConfig: indexBypass, LogsPath: configureLogsPath()}
+}
+
+func configureTargetElasticsearch() string {
+	if targetHost, isSet := os.LookupEnv("ELASTICSEARCH_TARGET"); isSet {
+		return targetHost
+	} else {
+		return viper.GetString(fullyQualifiedConfig(elasticsarchTarget))
+	}
 }
 
 func configurePublicTcpPort() network.Port {

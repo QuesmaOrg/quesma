@@ -1,47 +1,18 @@
 version: "3.7"
 services:
-  quesma:
-    build: quesma
-    image: quesma:latest
-    environment:
-      - ELASTICSEARCH_TARGET=elasticsearch:9200
-      - TCP_PORT=8080
-      - LOGS_PATH=/var/quesma/logs
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-    links:
-      - elasticsearch
-    ports:
-      - "9999:9999"
-      - "8080:8080"
-      - "9200:8080"
-    volumes:
-      - ./quesma/logs/:/var/quesma/logs
-    restart: unless-stopped
-  log-generator:
-    build: log-generator
-    image: log-generator:latest
-    depends_on:
-      quesma:
-        condition: service_healthy
-    links:
-      - "quesma:mitmproxy"
-    restart: unless-stopped
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
     container_name: elasticsearch
+    network_mode: "bridge"
     environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
+      discovery.type: single-node
+      xpack.security.enabled: false
+      ES_JAVA_OPTS: "-Xms1024m -Xmx1024m"
     ports:
-      - "9201:9200"
+      - "9200:9200"
       - "9300:9300"
     healthcheck:
-      test: curl -s http://elasticsearch:9200 >/dev/null || exit 1
+      test: curl -s http://localhost:9200 >/dev/null || exit 1
       start_period: 1m
       interval: 1s
       timeout: 1s
@@ -49,13 +20,28 @@ services:
       resources:
         limits:
           memory: 4G
+  mitmproxy:
+    image: mitmproxy/mitmproxy:10.1.5
+    container_name: mitmproxy
+    network_mode: "bridge"
+    tty: true
+    ports:
+    - "6666:6666"
+    - "8081:8081"
+    command: >
+      mitmweb --set termlog_verbosity=warn --no-web-open-browser --listen-port 6666 --web-host 0.0.0.0 --mode reverse:http://${HOST_IP}:8080/
+    restart: unless-stopped
+    volumes:
+      - ./mitmproxy:/var/mitmproxy
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.1
+    container_name: kibana
+    links:
+      - "mitmproxy"
+    network_mode: "bridge"
     environment:
-      ELASTICSEARCH_HOSTS: '["http://quesma:8080"]'
+      ELASTICSEARCH_HOSTS: '["http://mitmproxy:6666"]'
     depends_on:
-      quesma:
-        condition: service_healthy
       elasticsearch:
         condition: service_healthy
     ports:
@@ -68,6 +54,8 @@ services:
       timeout: 1s
   kibana-sidecar:
     image: docker.elastic.co/kibana/kibana:8.11.1
+    container_name: kiabana-sidecar
+    network_mode: "bridge"
     restart: "no"
     links:
       - "kibana"
@@ -79,13 +67,14 @@ services:
     command: ["/bin/bash", "-c", "/local_mount/add_sample_data.sh"]
   clickhouse:
     image: clickhouse/clickhouse-server:23.12.2.59-alpine
+    container_name: clickhouse
+    network_mode: "bridge"
     ports:
       - "8123:8123"
     volumes:
       - ./clickhouse/additional_config.xml:/etc/clickhouse-server/users.d/additional_config.xml
     healthcheck:
-      test: wget --no-verbose --tries=1 --spider http://clickhouse:8123/ping || exit 1
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
       interval: 1s
       timeout: 1s
       start_period: 1m
-

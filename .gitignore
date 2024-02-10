@@ -5,4 +5,5 @@ mitmproxy/requests/*.txt
 mitmproxy/requests/*.mitm
 mitmproxy/query/*.txt
 .env
+.DS_Store
 quesma/logs

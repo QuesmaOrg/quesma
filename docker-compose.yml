@@ -4,7 +4,7 @@ services:
     build: quesma
     image: quesma:latest
     environment:
-      - ELASTIC_URL=elasticsearch:9200
+      - ELASTICSEARCH_TARGET=elasticsearch:9200
       - TCP_PORT=8080
       - LOGS_PATH=/var/quesma/logs
     depends_on:

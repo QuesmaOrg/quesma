@@ -90,9 +90,9 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse
 	}
 }
 
-func NewQuesmaTcpProxy(target string, config config.QuesmaConfiguration, logChan <-chan string, inspect bool) *Quesma {
+func NewQuesmaTcpProxy(config config.QuesmaConfiguration, logChan <-chan string, inspect bool) *Quesma {
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logChan)
-	targetUrl := parseURL(target)
+	targetUrl := parseURL(config.TargetElasticsearchAddr)
 	return &Quesma{
 		processor:               proxy.NewTcpProxy(config.PublicTcpPort, targetUrl, inspect),
 		targetUrl:               targetUrl,
@@ -102,15 +102,16 @@ func NewQuesmaTcpProxy(target string, config config.QuesmaConfiguration, logChan
 	}
 }
 
-func NewHttpProxy(logManager *clickhouse.LogManager, target string, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
-	return New(logManager, target, config, logChan)
+func NewHttpProxy(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
+	return New(logManager, config, logChan)
 }
 
-func NewHttpClickhouseAdapter(logManager *clickhouse.LogManager, target string, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
-	return New(logManager, target, config, logChan)
+func NewHttpClickhouseAdapter(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
+	return New(logManager, config, logChan)
 }
 
-func New(logManager *clickhouse.LogManager, target string, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
+func New(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
+
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logChan)
 	router := configureRouter(config, logManager, quesmaManagementConsole)
 	q := &Quesma{
@@ -127,7 +128,7 @@ func New(logManager *clickhouse.LogManager, target string, config config.QuesmaC
 					}
 
 					ctx := withTracing(r)
-					elkResponse := sendHttpRequest(ctx, "http://"+target, r, reqBody)
+					elkResponse := sendHttpRequest(ctx, "http://"+config.TargetElasticsearchAddr, r, reqBody)
 					copyHeaders(w, elkResponse)
 					copyStatusCode(w, elkResponse)
 
@@ -145,7 +146,7 @@ func New(logManager *clickhouse.LogManager, target string, config config.QuesmaC
 			logManager: logManager,
 			publicPort: config.PublicTcpPort,
 		},
-		targetUrl:               parseURL(target),
+		targetUrl:               parseURL(config.TargetElasticsearchAddr),
 		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,

@@ -21,10 +21,6 @@ const banner = `
                       \__>           \/     \/      \/     \/ 
 `
 
-const (
-	targetEnv = "ELASTIC_URL"
-)
-
 func main() {
 	println(banner)
 	sig := make(chan os.Signal, 1)
@@ -53,17 +49,16 @@ func main() {
 }
 
 func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, logChan <-chan string) *quesma.Quesma {
-	target := os.Getenv(targetEnv)
 
 	switch cfg.Mode {
 	case config.Proxy:
-		return quesma.NewQuesmaTcpProxy(target, cfg, logChan, false)
+		return quesma.NewQuesmaTcpProxy(cfg, logChan, false)
 	case config.ProxyInspect:
-		return quesma.NewQuesmaTcpProxy(target, cfg, logChan, true)
+		return quesma.NewQuesmaTcpProxy(cfg, logChan, true)
 	case config.DualWriteQueryElastic, config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
-		return quesma.NewHttpProxy(lm, target, cfg, logChan)
+		return quesma.NewHttpProxy(lm, cfg, logChan)
 	case config.ClickHouse:
-		return quesma.NewHttpClickhouseAdapter(lm, target, cfg, logChan)
+		return quesma.NewHttpClickhouseAdapter(lm, cfg, logChan)
 	}
 	logger.Panic().Msgf("unknown operation mode: %d", cfg.Mode)
 	panic("unreachable")

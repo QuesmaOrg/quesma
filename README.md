@@ -97,3 +97,22 @@ SHOW TABLES;
 DESCRIBE logs;
 SELECT * FROM logs LIMIT 10;
 ```
+
+
+### Running locally with debugger
+
+It's possible to run Quesma from IDE with a debugger. For that, you need to start the auxiliary services with the `local-debug.yml` file,
+which provides minimal set of dependencies - Elasticsearch, Clickhouse, and Kibana with sample data sets.
+
+1. Navigate to `quesma/main.go` and click `Run application` menu in your IDE. Optionally you can also run the `main.go` file from the command line.
+2. Start auxiliary services with the following command:
+    ```bash
+    HOST_IP=$(ifconfig en0 | awk '/inet / {print $2}') docker-compose -f local-debug.yml up
+    ```
+   This is minimalistic setup with `Elasticsearch`, `ClickHouse`, and `Kibana` populated with sample data sets.
+   There's also `MITM proxy` to help you inspect the actual traffic.
+   
+   **NOTE:** Since we're all using Mac's, Docker deamon cannot use `host` network mode. The only option for processes running
+   in containers to connect locally running Quesma process is to pass the IP address like this.
+3. If you set proper breakpoints in your IDE, you should see the execution stopped at the breakpoint.
+4. Profit!
