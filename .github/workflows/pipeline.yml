@@ -23,7 +23,7 @@ jobs:
 
       - name: gofmt
         working-directory: ${{ matrix.module }}
-        run: gofmt -l -d . | (! grep . -q) || exit 1
+        run: gofmt -l -d . | (! grep . -q) || (gofmt -l -d .;exit 1)
 
       - name: Go Vet
         working-directory: ${{ matrix.module }}
