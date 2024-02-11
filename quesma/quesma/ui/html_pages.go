@@ -140,14 +140,46 @@ func (qmc *QuesmaManagementConsole) generateStatistics() []byte {
 	return buffer.Bytes()
 }
 
-var tmpNum int
-
 func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	var buffer bytes.Buffer
-	buffer.WriteString(`<h2>`)
-	tmpNum += 1
-	buffer.WriteString(fmt.Sprintf(`TODO %d`, tmpNum))
-	buffer.WriteString(`</h2>`)
+
+	buffer.WriteString(`<div id="dashboard-kibana" class="component">`)
+	buffer.WriteString(`<h3>Kibana</h3>`)
+	buffer.WriteString(`<div class="status">OK</div>`)
+	buffer.WriteString(`</div>`)
+
+	buffer.WriteString(`<div id="dashboard-ingest" class="component">`)
+	buffer.WriteString(`<h3>Ingest</h3>`)
+	buffer.WriteString(`<div class="status">OK</div>`)
+	buffer.WriteString(`</div>`)
+
+	buffer.WriteString(`<div id="dashboard-elasticsearch" class="component">`)
+	buffer.WriteString(`<h3>Elastic</h3><h3>search</h3>`)
+	buffer.WriteString(`<div class="status">OK</div>`)
+	buffer.WriteString(`</div>`)
+
+	buffer.WriteString(`<div id="dashboard-clickhouse" class="component">`)
+	buffer.WriteString(`<h3>ClickHouse</h3>`)
+	buffer.WriteString(`<div class="status">OK</div>`)
+	buffer.WriteString(`</div>`)
+
+	buffer.WriteString(`<div id="dashboard-traffic" class="component">`)
+
+	buffer.WriteString(`<div id="dashboard-quesma" class="component">`)
+	buffer.WriteString(`<h3>Quesma</h3>`)
+	buffer.WriteString(`<div class="status">CPU: 17%</div>`)
+	buffer.WriteString(`<div class="status">RAM: 1.3GB</div>`)
+	buffer.WriteString(`<div class="status">Uptime: 1d4h</div>`)
+	buffer.WriteString(`</div>`)
+
+	buffer.WriteString(`<div id="dashboard-errors" class="component">`)
+	buffer.WriteString(`<h3>Top errors:</h3>`)
+	buffer.WriteString(`<div class="status">7: Unknown error</div>`)
+	buffer.WriteString(`<div class="status">2: Parsing error</div>`)
+	buffer.WriteString(`<div class="status">1: Request out of bound</div>`)
+	buffer.WriteString(`</div>`)
+
+	buffer.WriteString(`</div>`)
 
 	return buffer.Bytes()
 }
@@ -192,9 +224,9 @@ func (qmc *QuesmaManagementConsole) generateStatisticsLiveTail() []byte {
 	buffer := newBufferWithHead()
 	buffer.Write(generateTopNavigation("statistics"))
 
-	buffer.WriteString(`<div id="statistics">`)
+	buffer.WriteString(`<main id="statistics">`)
 	buffer.Write(qmc.generateStatistics())
-	buffer.WriteString("\n</div>\n\n")
+	buffer.WriteString("\n</main>\n\n")
 
 	buffer.WriteString(`<div class="menu">`)
 	buffer.WriteString("\n<h2>Menu</h2>")
@@ -212,9 +244,9 @@ func (qmc *QuesmaManagementConsole) generateLiveTail() []byte {
 	buffer := newBufferWithHead()
 	buffer.Write(generateTopNavigation("queries"))
 
-	buffer.WriteString(`<div id="queries">`)
+	buffer.WriteString(`<main id="queries">`)
 	buffer.Write(qmc.generateQueries())
-	buffer.WriteString("\n</div>\n\n")
+	buffer.WriteString("\n</main>\n\n")
 
 	buffer.WriteString(`<div class="menu">`)
 	buffer.WriteString("\n<h2>Menu</h2>")
@@ -252,9 +284,9 @@ func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 	buffer := newBufferWithHead()
 	buffer.Write(generateTopNavigation("dashboard"))
 
-	buffer.WriteString(`<div id="dashboard">`)
+	buffer.WriteString(`<main id="dashboard">`)
 	buffer.Write(qmc.generateDashboardPanel())
-	buffer.WriteString("\n</div>\n\n")
+	buffer.WriteString("\n</main>\n\n")
 
 	buffer.WriteString(`<div class="menu">`)
 	buffer.WriteString("\n<h2>Menu</h2>")
@@ -292,7 +324,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 	}
 
 	buffer.WriteString("\n</div>\n")
-	buffer.WriteString(`<div Id="queries">`)
+	buffer.WriteString(`<main id="queries">`)
 
 	debugKeyValueSlice := []DebugKeyValue{}
 	if requestFound {
@@ -301,7 +333,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 
 	buffer.Write(generateQueries(debugKeyValueSlice, false))
 
-	buffer.WriteString("\n</div>\n")
+	buffer.WriteString("\n</main>\n")
 	buffer.WriteString(`<div class="menu">`)
 	buffer.WriteString("\n<h2>Menu</h2>")
 
@@ -328,7 +360,7 @@ func (qmc *QuesmaManagementConsole) generateLogForRequestId(requestId string) []
 	}
 	buffer.WriteString("\n</div>\n")
 
-	buffer.WriteString(`<div class="center" id="center">`)
+	buffer.WriteString(`<main class="center" id="center">`)
 	buffer.WriteString("\n\n")
 	buffer.WriteString(`<div class="title-bar">Query`)
 	buffer.WriteString("\n</div>\n")
@@ -340,7 +372,7 @@ func (qmc *QuesmaManagementConsole) generateLogForRequestId(requestId string) []
 	buffer.WriteString("\n</pre>")
 
 	buffer.WriteString("\n</div>\n")
-	buffer.WriteString("\n</div>\n")
+	buffer.WriteString("\n</main>\n")
 	buffer.WriteString(`<div class="menu">`)
 	buffer.WriteString("\n<h2>Menu</h2>")
 
@@ -374,11 +406,11 @@ func (qmc *QuesmaManagementConsole) generateReportForRequests(requestStr string)
 
 	buffer.WriteString("\n</div>\n\n")
 
-	buffer.WriteString(`<div Id="queries">`)
+	buffer.WriteString(`<main id="queries">`)
 
 	buffer.Write(generateQueries(debugKeyValueSlice, true))
 
-	buffer.WriteString("\n</div>\n\n")
+	buffer.WriteString("\n</main>\n\n")
 
 	buffer.WriteString(`<div class="menu">`)
 	buffer.WriteString("\n<h2>Menu</h2>")

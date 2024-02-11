@@ -51,7 +51,7 @@
             margin-top: 0;
             position: absolute;
             width: 100%;
-            height: 3%;
+            height: 35px;
             background-color: rgb(0, 0, 0);
             color: white;
             white-space: nowrap;
@@ -105,64 +105,63 @@
             max-width: none;
         }
 
-        .left,
-        .right {
-            font-size: 0.975em;
+        .left, .right, .bottom_left, .bottom_right {
             height: 50%;
-            position: fixed;
-            z-index: 1;
-            top: 3%;
-            overflow-y: auto;
-        }
-
-        .left {
-            left: 0;
-            width: 40%;
+            position: absolute;
             overflow-x: auto;
-            background-color: rgb(221, 226, 235);
-            color: black;
+            overflow-y: auto;
+            width: 40%;
             white-space: nowrap;
         }
 
-        .right {
-            right: 20%;
+        .left, .bottom_left {
             width: 39.75%;
-            overflow-x: auto;
+            left: 0;
+        }
+
+        .left, .right {
+            font-size: 0.975em;
+            z-index: 1;
+            top: 0;
+        }
+
+        .left {
+            background-color: rgb(221, 226, 235);
+            color: black;
+        }
+
+        .right {
+            left: 40%;
             background-color: rgb(0, 0, 0);
             color: white;
         }
 
         .bottom_left {
-            left: 0;
-            top: 53%;
-            position: fixed;
-            width: 40%;
-            height: 50%;
-            overflow-x: auto;
+            top: 50%;
             background-color: rgb(0, 0, 0);
             color: white;
-            white-space: nowrap;
         }
 
         .bottom_right {
-            right: 20%;
-            top: 53%;
-            position: fixed;
-            width: 39.75%;
-            height: 50%;
-            overflow-x: auto;
+            left: 40%;
+            top: 50%;
             background-color: rgb(221, 226, 235);
             color: black;
-            white-space: nowrap;
+        }
+
+        main {
+            height: calc(100vh - 35px);
+            position: absolute;
+            top: 35px;
+            left: 0;
+            width: 100%;
         }
 
         .center {
             font-size: 0.975em;
             position: fixed;
             z-index: 1;
-            top: 3%;
             overflow-y: auto;
-            left: 0;
             right: 20%;
             background-color: rgb(0, 0, 0);
             color: white;
@@ -213,7 +212,7 @@
             height: 100%;
             position: fixed;
             z-index: 1;
-            top: 3%;
+            top: 35px;
             overflow-y: auto;
             right: 0%;
             width: 19.75%;
@@ -228,10 +227,7 @@
         }
 
         #statistics, #dashboard {
-            top: 3%;
-            position: fixed;
             width: 80%;
-            height: 97%;
             overflow-y: auto;
         }
 
@@ -267,5 +263,63 @@
         #statistics .types {
             width: 10%;
         }
+
+        #dashboard {
+            width: 80%;
+        }
+
+        #dashboard .component {
+            border: 1px solid black;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            position: absolute;
+        }
+
+        #dashboard-kibana, #dashboard-ingest, #dashboard-elasticsearch, #dashboard-clickhouse {
+            width: 19%;
+            height: 40%;
+            top: 9%;
+            background-color: rgb(221, 226, 235);
+        }
+
+        #dashboard-kibana, #dashboard-ingest {
+            left: 1%;
+        }
+
+        #dashboard-elasticsearch, #dashboard-clickhouse {
+            left: 80%;
+        }
+
+        #dashboard-ingest, #dashboard-elasticsearch {
+            top: 51%;
+        }
+
+        #dashboard-traffic {
+            top: 1%;
+            left: 21%;
+            width: 58%;
+            height: 98%;
+        }
+
+        #dashboard-quesma {
+            top: 1%;
+        }
+
+        #dashboard-quesma, #dashboard-errors {
+            height: 20%;
+            width: 90%;
+            align-items: flex-start !important;
+            justify-content: start !important;
+            box-sizing: border-box;
+            padding: 20px;
+        }
+
+        #dashboard-errors {
+            top: 79%;
+        }
+
     </style>
 </head>
