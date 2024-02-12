@@ -2,7 +2,6 @@ package stats
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -44,11 +43,7 @@ func TestStatistics_process(t *testing.T) {
 	stats.Process("index1", string(marshal3), "::")
 	stats.Process("index1", string(marshal3), "::")
 
-	fmt.Printf("stats: %+v\n", stats)
-
 	indexStats := (*stats)["index1"]
-
-	fmt.Printf("stats: %+v\n", stats)
 
 	assert.Equal(t, 1, len(*stats))
 	assert.Equal(t, int64(4), indexStats.Requests)
