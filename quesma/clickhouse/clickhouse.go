@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	_ "github.com/mailru/go-clickhouse"
+	"mitmproxy/quesma/index"
 	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
 	"net/url"
@@ -350,6 +351,13 @@ func (lm *LogManager) Insert(tableName, jsonData string, config *ChTableConfig) 
 }
 
 func (lm *LogManager) findSchema(tableName string) *Table {
+	tableNamePattern := index.TableNamePatternRegexp(tableName)
+	for table := range lm.predefinedTables {
+		if tableNamePattern.MatchString(table) {
+			return lm.predefinedTables[table]
+		}
+	}
+
 	v, ok := lm.predefinedTables[tableName]
 	if ok {
 		return v

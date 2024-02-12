@@ -790,3 +790,69 @@ You can send those JSONs the same way it's done in log-generator/logger.go
 '{"message":"m","service.name":"s","severity":"s","source":"s"}'
 '{"message":"m","service.name":"s","host.name":"h","os":"o","severity":"s","source":"s"}'
 */
+
+func TestLogManager_findSchema(t *testing.T) {
+	tests := []struct {
+		name             string
+		predefinedTables TableMap
+		tableNamePattern string
+		found            bool
+	}{
+		{
+			name:             "empty",
+			predefinedTables: TableMap{},
+			tableNamePattern: "table",
+			found:            false,
+		},
+		{
+			name:             "should find by name",
+			predefinedTables: TableMap{"table1": &Table{Name: "table1"}},
+			tableNamePattern: "table1",
+			found:            true,
+		},
+		{
+			name:             "should not find by name",
+			predefinedTables: TableMap{"table1": &Table{Name: "table1"}},
+			tableNamePattern: "foo",
+			found:            false,
+		},
+		{
+			name:             "should find by pattern",
+			predefinedTables: TableMap{"logs-generic-default": &Table{Name: "logs-generic-default"}},
+			tableNamePattern: "logs-generic-*",
+			found:            true,
+		},
+		{
+			name:             "should find by pattern",
+			predefinedTables: TableMap{"logs-generic-default": &Table{Name: "logs-generic-default"}},
+			tableNamePattern: "*-*-*",
+			found:            true,
+		},
+		{
+			name:             "should find by pattern",
+			predefinedTables: TableMap{"logs-generic-default": &Table{Name: "logs-generic-default"}},
+			tableNamePattern: "logs-*-default",
+			found:            true,
+		},
+		{
+			name:             "should find by pattern",
+			predefinedTables: TableMap{"logs-generic-default": &Table{Name: "logs-generic-default"}},
+			tableNamePattern: "*",
+			found:            true,
+		},
+		{
+			name:             "should not find by pattern",
+			predefinedTables: TableMap{"logs-generic-default": &Table{Name: "logs-generic-default"}},
+			tableNamePattern: "foo-*",
+			found:            false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lm := &LogManager{
+				predefinedTables: tt.predefinedTables,
+			}
+			assert.Equalf(t, tt.found, lm.findSchema(tt.tableNamePattern) != nil, "findSchema(%v)", tt.tableNamePattern)
+		})
+	}
+}
