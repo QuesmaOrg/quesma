@@ -2,7 +2,6 @@ package mux
 
 import (
 	"context"
-	"fmt"
 	"github.com/ucarion/urlpath"
 	"mitmproxy/quesma/logger"
 )
@@ -32,13 +31,14 @@ func (receiver *PathRouter) RegisterPath(pattern string, httpMethod string, hand
 	receiver.mappings = append(receiver.mappings, mapping)
 }
 
-func (receiver *PathRouter) Execute(ctx context.Context, path string, body string, httpMethod string) (string, error) {
+func (receiver *PathRouter) Execute(ctx context.Context, path string, body string, httpMethod string) (string, bool, error) {
 	for _, m := range receiver.mappings {
 		meta, match := m.compiledPath.Match(path)
 		if match && m.httpMethod == httpMethod {
 			logger.Debug().Str("path", path).Str("pattern", m.pattern).Msg("matched")
-			return m.handler(ctx, body, path, meta.Params)
+			resp, err := m.handler(ctx, body, path, meta.Params)
+			return resp, true, err
 		}
 	}
-	return "", fmt.Errorf("no handler found for path: %s", path)
+	return "", false, nil
 }

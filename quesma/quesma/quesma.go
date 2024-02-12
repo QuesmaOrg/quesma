@@ -137,9 +137,9 @@ func New(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, l
 						logger.Debug().Ctx(ctx).Msgf("unrecognized index '%s', ignoring...", strings.Split(r.RequestURI, "/")[1])
 						responseFromElastic(ctx, elkResponse, w)
 					} else {
-						quesmaResponse, err := router.Execute(ctx, r.URL.Path, string(reqBody), r.Method)
+						quesmaResponse, matched, err := router.Execute(ctx, r.URL.Path, string(reqBody), r.Method)
 						sendElkResponseToQuesmaConsole(ctx, r.RequestURI, elkResponse, quesmaManagementConsole)
-						copyBody(w, r, err, ctx, quesmaResponse, elkResponse)
+						copyBody(w, r, matched, err, ctx, quesmaResponse, elkResponse)
 					}
 				}),
 			},
@@ -155,8 +155,8 @@ func New(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, l
 	return q
 }
 
-func copyBody(w http.ResponseWriter, r *http.Request, err error, ctx context.Context, quesmaResponse string, elkResponse *http.Response) {
-	if isSearch(r.URL.Path) && err == nil {
+func copyBody(w http.ResponseWriter, r *http.Request, matched bool, err error, ctx context.Context, quesmaResponse string, elkResponse *http.Response) {
+	if matched && isSearch(r.URL.Path) && err == nil {
 		logger.Debug().Ctx(ctx).Msg("responding from quesma")
 		unzipped := []byte(quesmaResponse)
 		if string(unzipped) != "" {
@@ -165,8 +165,11 @@ func copyBody(w http.ResponseWriter, r *http.Request, err error, ctx context.Con
 			responseFromElastic(ctx, elkResponse, w)
 		}
 	} else {
+		if !matched {
+			logger.Debug().Ctx(ctx).Msgf("Handler not found for URI, routing to Elastic: %s", r.URL.Path)
+		}
 		if err != nil {
-			logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from elastic", err)
+			logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from Elastic", err)
 		}
 		responseFromElastic(ctx, elkResponse, w)
 	}
