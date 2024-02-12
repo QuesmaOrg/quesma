@@ -9,7 +9,6 @@ import (
 	"mitmproxy/quesma/stats"
 	"net"
 	"net/http"
-	"net/url"
 	"slices"
 	"strconv"
 	"testing"
@@ -19,9 +18,8 @@ import (
 func TestTcpProxy_Ingest(t *testing.T) {
 	fromPort := findFreePort()
 	toPort := findFreePort()
-	toUrl, _ := url.Parse("localhost:" + strconv.Itoa(int(toPort)))
 
-	proxy := NewTcpProxy(fromPort, toUrl, false)
+	proxy := NewTcpProxy(fromPort, "localhost:"+strconv.Itoa(int(toPort)), false)
 
 	go proxy.Ingest()
 	proxy.WaitUntilReady()
@@ -32,9 +30,8 @@ func TestTcpProxy_Ingest(t *testing.T) {
 func TestTcpProxy_IngestAndProcess(t *testing.T) {
 	fromPort := findFreePort()
 	toPort := findFreePort()
-	toUrl, _ := url.Parse("localhost:" + strconv.Itoa(int(toPort)))
 
-	proxy := NewTcpProxy(fromPort, toUrl, true)
+	proxy := NewTcpProxy(fromPort, "localhost:"+strconv.Itoa(int(toPort)), true)
 
 	go proxy.Ingest()
 	proxy.WaitUntilReady()

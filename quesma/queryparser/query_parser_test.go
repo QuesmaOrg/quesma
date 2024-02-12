@@ -3,12 +3,15 @@ package queryparser
 import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/testdata"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+var chUrl, _ = url.Parse("")
 
 // TODO:
 //  1. 14th test, "Query string". "(message LIKE '%%%' OR message LIKE '%logged%')", is it really
@@ -24,7 +27,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(clickhouse.TableMap{tableName: testTable}, make(clickhouse.TableMap))
+	lm := clickhouse.NewLogManager(chUrl, clickhouse.TableMap{tableName: testTable}, make(clickhouse.TableMap))
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: tableName}
 	for _, tt := range testdata.TestsSearch {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -50,7 +53,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(clickhouse.TableMap{tableName: testTable}, make(clickhouse.TableMap))
+	lm := clickhouse.NewLogManager(chUrl, clickhouse.TableMap{tableName: testTable}, make(clickhouse.TableMap))
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: tableName}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {

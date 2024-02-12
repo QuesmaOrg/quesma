@@ -16,7 +16,6 @@ import (
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 )
@@ -25,7 +24,6 @@ type (
 	Quesma struct {
 		processor               RequestProcessor
 		publicTcpPort           network.Port
-		targetUrl               *url.URL
 		quesmaManagementConsole *ui.QuesmaManagementConsole
 		config                  config.QuesmaConfiguration
 	}
@@ -92,10 +90,8 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse
 
 func NewQuesmaTcpProxy(config config.QuesmaConfiguration, logChan <-chan string, inspect bool) *Quesma {
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logChan)
-	targetUrl := parseURL(config.TargetElasticsearchAddr)
 	return &Quesma{
-		processor:               proxy.NewTcpProxy(config.PublicTcpPort, targetUrl, inspect),
-		targetUrl:               targetUrl,
+		processor:               proxy.NewTcpProxy(config.PublicTcpPort, config.ElasticsearchUrl.Host, inspect),
 		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,
@@ -128,7 +124,7 @@ func New(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, l
 					}
 
 					ctx := withTracing(r)
-					elkResponse := sendHttpRequest(ctx, "http://"+config.TargetElasticsearchAddr, r, reqBody)
+					elkResponse := sendHttpRequest(ctx, config.ElasticsearchUrl.String(), r, reqBody)
 					copyHeaders(w, elkResponse)
 					copyStatusCode(w, elkResponse)
 
@@ -146,7 +142,6 @@ func New(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, l
 			logManager: logManager,
 			publicPort: config.PublicTcpPort,
 		},
-		targetUrl:               parseURL(config.TargetElasticsearchAddr),
 		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,
@@ -199,14 +194,6 @@ func withTracing(r *http.Request) context.Context {
 	rid := tracing.GetRequestId()
 	r.Header.Add("RequestId", rid)
 	return context.WithValue(r.Context(), tracing.RequestIdCtxKey, rid)
-}
-
-func parseURL(urlStr string) *url.URL {
-	parsed, err := url.Parse(urlStr)
-	if err != nil {
-		logger.Fatal().Msgf("Error parsing target url: %v", err)
-	}
-	return parsed
 }
 
 func (q *Quesma) Close(ctx context.Context) {

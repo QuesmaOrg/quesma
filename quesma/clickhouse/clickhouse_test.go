@@ -42,7 +42,7 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	}
 
 	f := func(t1, t2 TableMap) {
-		lm := NewLogManager(emptyMap, fieldsMap)
+		lm := NewLogManager(chUrl, emptyMap, fieldsMap)
 		j, err := lm.BuildInsertJson("tableName", rowToInsert, hasOthersConfig)
 		assert.NoError(t, err)
 		m := make(SchemaMap)

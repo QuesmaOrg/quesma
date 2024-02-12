@@ -7,19 +7,20 @@ import (
 	_ "github.com/mailru/go-clickhouse"
 	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
+	"net/url"
 	"regexp"
 	"strings"
 )
 
 const (
-	url                = "http://clickhouse:8123"
 	timestampFieldName = "@timestamp"
 	othersFieldName    = "others"
 )
 
 type (
 	LogManager struct {
-		db *sql.DB
+		chUrl *url.URL
+		chDb  *sql.DB
 		// I split schemas into 2. My motivation is that 'newRuntimeTables' are modified
 		// during runtime. It's very unlikely, but (AFAIK) race condition may happen, as we have no
 		// synchronization mechanisms. If we know schemas beforehand, we can put them in 'predefinedTables',
@@ -64,16 +65,16 @@ type (
 )
 
 func (lm *LogManager) Close() {
-	_ = lm.db.Close()
+	_ = lm.chDb.Close()
 }
 
 func (lm *LogManager) initConnection() error {
-	if lm.db == nil {
-		connection, err := sql.Open("clickhouse", url)
+	if lm.chDb == nil {
+		connection, err := sql.Open("clickhouse", lm.chUrl.String())
 		if err != nil {
 			return fmt.Errorf("open >> %v", err)
 		}
-		lm.db = connection
+		lm.chDb = connection
 	}
 	return nil
 }
@@ -171,14 +172,14 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 }
 
 func (lm *LogManager) sendCreateTableQuery(query string) error {
-	if lm.db == nil {
-		connection, err := sql.Open("clickhouse", url)
+	if lm.chDb == nil {
+		connection, err := sql.Open("clickhouse", lm.chUrl.String())
 		if err != nil {
 			return fmt.Errorf("open >> %v", err)
 		}
-		lm.db = connection
+		lm.chDb = connection
 	}
-	if _, err := lm.db.Exec(query); err != nil {
+	if _, err := lm.chDb.Exec(query); err != nil {
 		return fmt.Errorf("error in sendCreateTableQuery: query: %s\nerr:%v", query, err)
 	}
 	return nil
@@ -326,12 +327,12 @@ func (lm *LogManager) ProcessInsertQuery(tableName, jsonData string) error {
 }
 
 func (lm *LogManager) Insert(tableName, jsonData string, config *ChTableConfig) error {
-	if lm.db == nil {
-		connection, err := sql.Open("clickhouse", url)
+	if lm.chDb == nil {
+		connection, err := sql.Open("clickhouse", lm.chUrl.String())
 		if err != nil {
 			logger.Error().Msgf("Open >> %v", err)
 		}
-		lm.db = connection
+		lm.chDb = connection
 	}
 
 	processed := preprocess(jsonData, NestedSeparator)
@@ -340,7 +341,7 @@ func (lm *LogManager) Insert(tableName, jsonData string, config *ChTableConfig) 
 		return err
 	}
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertJson)
-	_, err = lm.db.Exec(insert)
+	_, err = lm.chDb.Exec(insert)
 	if err != nil {
 		return fmt.Errorf("error Insert, tablename: %s\nerror: %v\njson:%s", tableName, err, PrettyJson(jsonData))
 	} else {
@@ -370,17 +371,17 @@ func (lm *LogManager) addSchemaIfDoesntExist(table *Table) bool {
 	return wasntCreated
 }
 
-func NewLogManager(predefined, newRuntime TableMap) *LogManager {
-	db, err := sql.Open("clickhouse", url)
+func NewLogManager(dbUrl *url.URL, predefined, newRuntime TableMap) *LogManager {
+	db, err := sql.Open("clickhouse", dbUrl.String())
 	if err != nil {
 		logger.Fatal().Msg(err.Error())
 	}
-	return &LogManager{db: db, predefinedTables: predefined, newRuntimeTables: newRuntime}
+	return &LogManager{chUrl: dbUrl, chDb: db, predefinedTables: predefined, newRuntimeTables: newRuntime}
 }
 
 // right now only for tests purposes
 func NewLogManagerWithConnection(db *sql.DB, predefined, newRuntime TableMap) *LogManager {
-	return &LogManager{db: db, predefinedTables: predefined, newRuntimeTables: newRuntime}
+	return &LogManager{chDb: db, predefinedTables: predefined, newRuntimeTables: newRuntime}
 }
 
 func NewLogManagerEmpty() *LogManager {

@@ -33,6 +33,7 @@ func main() {
 	defer logger.ErrLogFile.Close()
 
 	lm := clickhouse.NewLogManager(
+		cfg.ClickHouseUrl,
 		clickhouse.PredefinedTableSchemas,
 		clickhouse.NewRuntimeSchemas,
 	)

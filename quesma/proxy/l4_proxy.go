@@ -14,7 +14,6 @@ import (
 	"mitmproxy/quesma/util"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -27,14 +26,14 @@ const (
 
 type TcpProxy struct {
 	From                 network.Port
-	To                   *url.URL
+	To                   string
 	inspect              bool
 	inspectHttpServer    *http.Server
 	ready                chan struct{}
 	acceptingConnections atomic.Bool
 }
 
-func NewTcpProxy(From network.Port, To *url.URL, inspect bool) *TcpProxy {
+func NewTcpProxy(From network.Port, To string, inspect bool) *TcpProxy {
 	return &TcpProxy{
 		From:              From,
 		To:                To,
@@ -96,9 +95,9 @@ func (t *TcpProxy) Ingest() {
 	t.acceptingConnections.Store(true)
 
 	if t.inspect {
-		logger.Info().Msgf("Listening on port %d and forwarding to %s, inspecting traffic\n", t.From, t.To.String())
+		logger.Info().Msgf("Listening on port %d and forwarding to %s, inspecting traffic\n", t.From, t.To)
 	} else {
-		logger.Info().Msgf("Listening on port %d and forwarding to %s", t.From, t.To.String())
+		logger.Info().Msgf("Listening on port %d and forwarding to %s", t.From, t.To)
 	}
 
 	for t.acceptingConnections.Load() {
@@ -108,7 +107,7 @@ func (t *TcpProxy) Ingest() {
 			continue
 		}
 
-		destConn, err := net.Dial("tcp", t.To.String())
+		destConn, err := net.Dial("tcp", t.To)
 		if err != nil {
 			logger.Error().Msgf("Error connecting to remote server: %v", err)
 			closeConnection(fromConn)

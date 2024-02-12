@@ -13,7 +13,7 @@ import (
 
 func (lm *LogManager) DumpTableSchema(tableName string) (*Table, error) {
 	columns := make(map[string]*Column)
-	rows, err := lm.db.Query("SHOW COLUMNS FROM \"" + tableName + "\"")
+	rows, err := lm.chDb.Query("SHOW COLUMNS FROM \"" + tableName + "\"")
 	if err != nil {
 		return nil, err
 	}
@@ -35,15 +35,15 @@ func (lm *LogManager) DumpTableSchema(tableName string) (*Table, error) {
 }
 
 func (lm *LogManager) DumpTableSchemas() (string, error) {
-	if lm.db == nil {
-		connection, err := sql.Open("clickhouse", url)
+	if lm.chDb == nil {
+		connection, err := sql.Open("clickhouse", lm.chUrl.String())
 		if err != nil {
 			return "", err
 		}
-		lm.db = connection
+		lm.chDb = connection
 	}
 
-	rows, err := lm.db.Query("SHOW TABLES")
+	rows, err := lm.chDb.Query("SHOW TABLES")
 	if err != nil {
 		return "", err
 	}

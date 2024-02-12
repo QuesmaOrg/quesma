@@ -123,7 +123,7 @@ func (lm *LogManager) ProcessSimpleSelectQuery(query *model.Query) ([]QueryResul
 	if err != nil {
 		return nil, err
 	}
-	rowsDB, err := lm.db.Query(query.StringFromColumns(colNames))
+	rowsDB, err := lm.chDb.Query(query.StringFromColumns(colNames))
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
@@ -143,7 +143,7 @@ func (lm *LogManager) ProcessNMostRecentRowsQuery(query *model.Query) ([]QueryRe
 	if err != nil {
 		return nil, err
 	}
-	rowsDB, err := lm.db.Query(query.StringFromColumns(colNames))
+	rowsDB, err := lm.chDb.Query(query.StringFromColumns(colNames))
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
@@ -156,7 +156,7 @@ func (lm *LogManager) ProcessHistogramQuery(query *model.Query) ([]QueryResultRo
 	if err != nil {
 		return nil, err
 	}
-	rows, err := lm.db.Query(query.String())
+	rows, err := lm.chDb.Query(query.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
@@ -195,7 +195,7 @@ func (lm *LogManager) ProcessFacetsQuery(query *model.Query) ([]QueryResultRow, 
 	if err != nil {
 		return nil, err
 	}
-	rows, err := lm.db.Query(query.StringFromColumns(colNames))
+	rows, err := lm.chDb.Query(query.StringFromColumns(colNames))
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
@@ -217,7 +217,7 @@ func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(query *model.Query) ([
 	if err != nil {
 		return nil, err
 	}
-	rowsDB, err := lm.db.Query(strings.Replace(query.String(), "SELECT", "SELECT DISTINCT", 1))
+	rowsDB, err := lm.chDb.Query(strings.Replace(query.String(), "SELECT", "SELECT DISTINCT", 1))
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
@@ -230,7 +230,7 @@ func (lm *LogManager) ProcessTimestampQuery(query *model.Query) ([]QueryResultRo
 	if err != nil {
 		return nil, err
 	}
-	rows, err := lm.db.Query(query.String())
+	rows, err := lm.chDb.Query(query.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}

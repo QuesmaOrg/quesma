@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"github.com/spf13/viper"
 	"mitmproxy/quesma/network"
+	"net/url"
 	"os"
+	"strings"
 )
 
 const (
@@ -17,22 +19,24 @@ const (
 )
 
 const (
-	prefix             = "quesma"
-	indexConfig        = "index"
-	enabledConfig      = "enabled"
-	logsPathConfig     = "logs_path"
-	publicTcpPort      = "port"
-	elasticsarchTarget = "elasticsearch_target"
+	prefix           = "quesma"
+	indexConfig      = "index"
+	enabledConfig    = "enabled"
+	logsPathConfig   = "logs_path"
+	publicTcpPort    = "port"
+	elasticsearchUrl = "elasticsearch_url"
+	clickhouseUrl    = "clickhouse_url"
 )
 
 type (
 	OperationMode       int
 	QuesmaConfiguration struct {
-		Mode                    OperationMode
-		TargetElasticsearchAddr string
-		IndexConfig             []IndexConfiguration
-		LogsPath                string
-		PublicTcpPort           network.Port
+		Mode             OperationMode
+		ElasticsearchUrl *url.URL
+		ClickHouseUrl    *url.URL
+		IndexConfig      []IndexConfiguration
+		LogsPath         string
+		PublicTcpPort    network.Port
 	}
 
 	IndexConfiguration struct {
@@ -55,15 +59,27 @@ func Load() QuesmaConfiguration {
 	for indexNamePattern, config := range viper.Get(fullyQualifiedConfig(indexConfig)).(map[string]interface{}) {
 		indexBypass = append(indexBypass, IndexConfiguration{NamePattern: indexNamePattern, Enabled: config.(map[string]interface{})[enabledConfig].(bool)})
 	}
-	return QuesmaConfiguration{Mode: parseOperationMode(mode), PublicTcpPort: configurePublicTcpPort(), TargetElasticsearchAddr: configureTargetElasticsearch(), IndexConfig: indexBypass, LogsPath: configureLogsPath()}
+	return QuesmaConfiguration{
+		Mode:             parseOperationMode(mode),
+		PublicTcpPort:    configurePublicTcpPort(),
+		ElasticsearchUrl: configureUrl(elasticsearchUrl),
+		ClickHouseUrl:    configureUrl(clickhouseUrl),
+		IndexConfig:      indexBypass,
+		LogsPath:         configureLogsPath(),
+	}
 }
 
-func configureTargetElasticsearch() string {
-	if targetHost, isSet := os.LookupEnv("ELASTICSEARCH_TARGET"); isSet {
-		return targetHost
-	} else {
-		return viper.GetString(fullyQualifiedConfig(elasticsarchTarget))
+func configureUrl(configParamName string) *url.URL {
+	var urlString string
+	var isSet bool
+	if urlString, isSet = os.LookupEnv(strings.ToUpper(configParamName)); !isSet {
+		urlString = viper.GetString(fullyQualifiedConfig(configParamName))
 	}
+	esUrl, err := url.Parse(urlString)
+	if err != nil {
+		panic(fmt.Errorf("error parsing %s: %s", configParamName, err))
+	}
+	return esUrl
 }
 
 func configurePublicTcpPort() network.Port {

@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,6 +19,8 @@ import (
 // 3) that predefined schema trumps (is more important) schema from insert's JSON
 
 const tableName = "test_table"
+
+var chUrl, _ = url.Parse("")
 
 var insertTests = []struct {
 	name                  string
@@ -127,9 +130,9 @@ func logManagersNonEmpty(config *ChTableConfig) []logManagerHelper {
 				},
 			}
 			if predefinedNotRuntime {
-				lms = append(lms, logManagerHelper{NewLogManager(full, empty), created})
+				lms = append(lms, logManagerHelper{NewLogManager(chUrl, full, empty), created})
 			} else {
-				lms = append(lms, logManagerHelper{NewLogManager(empty, full), created})
+				lms = append(lms, logManagerHelper{NewLogManager(chUrl, empty, full), created})
 			}
 		}
 	}
@@ -204,7 +207,7 @@ func TestProcessInsertQuery(t *testing.T) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], logManager["+strconv.Itoa(index3)+"]", func(t *testing.T) {
 					db, mock, err := sqlmock.New()
 					assert.NoError(t, err)
-					lm.lm.db = db
+					lm.lm.chDb = db
 					defer db.Close()
 
 					// info: result values aren't important, this '.WillReturnResult[...]' just needs to be there
