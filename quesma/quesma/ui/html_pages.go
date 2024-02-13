@@ -3,6 +3,7 @@ package ui
 import (
 	"bytes"
 	"fmt"
+	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/util"
 	"strings"
@@ -84,6 +85,26 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 	}
 	buffer.WriteString("\n</div>")
 	buffer.WriteString("\n</div>\n")
+
+	return buffer.Bytes()
+}
+
+func (qmc *QuesmaManagementConsole) generateRouterStatistics() []byte {
+	var buffer bytes.Buffer
+
+	matchStatistics := mux.MatchStatistics()
+
+	buffer.WriteString("\n<h2>Matched URLs</h2>\n<ul>")
+	for _, url := range matchStatistics.Matched {
+		buffer.WriteString(fmt.Sprintf("<li>%s</li>\n", url))
+	}
+
+	buffer.WriteString("</ul>\n")
+	buffer.WriteString("\n<h2>Not matched URLs</h2>\n<ul>")
+	for _, url := range matchStatistics.Nonmatched {
+		buffer.WriteString(fmt.Sprintf("<li>%s</li>\n", url))
+	}
+	buffer.WriteString("</ul>\n")
 
 	return buffer.Bytes()
 }
@@ -205,6 +226,12 @@ func generateTopNavigation(target string) []byte {
 		buffer.WriteString(` class="active"`)
 	}
 	buffer.WriteString(`><a href="/ingest-statistics">Ingest statistics</a></li>`)
+	buffer.WriteString("<li")
+	if target == "routing-statistics" {
+		buffer.WriteString(` class="active"`)
+	}
+	buffer.WriteString(`><a href="/routing-statistics">Routing statistics</a></li>`)
+
 	buffer.WriteString("\n</ul>\n")
 	buffer.WriteString("\n</div>\n")
 
@@ -217,6 +244,26 @@ func generateTopNavigation(target string) []byte {
 	buffer.WriteString("\n</div>")
 	buffer.WriteString("\n</div>\n")
 	buffer.WriteString("\n</div>\n\n")
+	return buffer.Bytes()
+}
+
+func (qmc *QuesmaManagementConsole) generateRouterStatisticsLiveTail() []byte {
+	buffer := newBufferWithHead()
+	buffer.Write(generateTopNavigation("routing-statistics"))
+
+	buffer.WriteString(`<main id="routing-statistics">`)
+	buffer.Write(qmc.generateRouterStatistics())
+	buffer.WriteString("\n</main>\n\n")
+
+	buffer.WriteString(`<div class="menu">`)
+	buffer.WriteString("\n<h2>Menu</h2>")
+
+	buffer.WriteString(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+
+	buffer.WriteString("\n</div>")
+
+	buffer.WriteString("\n</body>")
+	buffer.WriteString("\n</html>")
 	return buffer.Bytes()
 }
 

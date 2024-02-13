@@ -107,7 +107,6 @@ func NewHttpClickhouseAdapter(logManager *clickhouse.LogManager, config config.Q
 }
 
 func New(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
-
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logChan)
 	router := configureRouter(config, logManager, quesmaManagementConsole)
 	q := &Quesma{

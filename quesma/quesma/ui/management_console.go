@@ -130,6 +130,11 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		_, _ = writer.Write(buf)
 	})
 
+	router.HandleFunc("/routing-statistics", func(writer http.ResponseWriter, req *http.Request) {
+		buf := qmc.generateRouterStatisticsLiveTail()
+		_, _ = writer.Write(buf)
+	})
+
 	router.HandleFunc("/ingest-statistics", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateStatisticsLiveTail()
 		_, _ = writer.Write(buf)
@@ -149,6 +154,11 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		}
 		_, _ = writer.Write(jsonBody)
 		writer.WriteHeader(200)
+	})
+
+	router.HandleFunc("/panel/routing-statistics", func(writer http.ResponseWriter, req *http.Request) {
+		buf := qmc.generateRouterStatistics()
+		_, _ = writer.Write(buf)
 	})
 
 	router.HandleFunc("/panel/statistics", func(writer http.ResponseWriter, req *http.Request) {
