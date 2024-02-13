@@ -26,7 +26,7 @@ func makeResponseSearchQueryNormal[T fmt.Stringer](ResultSet []T) ([]byte, error
 	response := model.SearchResp{
 		Hits: model.SearchHits{
 			Hits: hits,
-			Total: model.Total{
+			Total: &model.Total{
 				Value:    len(ResultSet),
 				Relation: "eq",
 			},
@@ -51,7 +51,7 @@ func makeResponseSearchQueryCount[T fmt.Stringer](ResultSet []T) ([]byte, error)
 		DidTerminateEarly: new(bool), // a bit hacky with pointer, but seems like the only way https://stackoverflow.com/questions/37756236/json-golang-boolean-omitempty
 		Hits: model.SearchHits{
 			Hits: []model.SearchHit{},
-			Total: model.Total{
+			Total: &model.Total{
 				Value:    len(ResultSet),
 				Relation: "eq",
 			},
@@ -109,10 +109,10 @@ func MakeResponseAsyncSearchAggregated(ResultSet []clickhouse.QueryResultRow, ty
 	}
 
 	response := model.AsyncSearchEntireResp{
-		Response: model.AsyncSearchResp{
+		Response: model.SearchResp{
 			Aggregations: aggregations,
-			Hits: model.AsyncSearchHits{
-				Hits: []model.AsyncSearchHit{}, // seems redundant, but can't remove this, created JSON won't match
+			Hits: model.SearchHits{
+				Hits: []model.SearchHit{}, // seems redundant, but can't remove this, created JSON won't match
 				Total: &model.Total{
 					Value:    int(sampleCount),
 					Relation: "eq",
@@ -125,7 +125,7 @@ func MakeResponseAsyncSearchAggregated(ResultSet []clickhouse.QueryResultRow, ty
 }
 
 func MakeResponseAsyncSearchList(ResultSet []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
-	hits := make([]model.AsyncSearchHit, len(ResultSet))
+	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
 		hits[i].Fields = make(map[string][]interface{})
 		for _, col := range ResultSet[i].Cols {
@@ -160,8 +160,8 @@ func MakeResponseAsyncSearchList(ResultSet []clickhouse.QueryResultRow, typ mode
 	}
 
 	response := model.AsyncSearchEntireResp{
-		Response: model.AsyncSearchResp{
-			Hits: model.AsyncSearchHits{
+		Response: model.SearchResp{
+			Hits: model.SearchHits{
 				Total: total,
 				Hits:  hits,
 			},

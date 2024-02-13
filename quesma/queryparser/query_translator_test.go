@@ -101,10 +101,10 @@ func TestSearchResponse(t *testing.T) {
 
 		searchRespBuf, err := MakeResponseAsyncSearchQuery(row, model.ListAllFields)
 		require.NoError(t, err)
-		var searchResponseResult model.AsyncSearchResp
+		var searchResponseResult model.SearchResp
 		err = json.Unmarshal([]byte(searchRespBuf), &searchResponseResult)
 		require.NoError(t, err)
-		var searchResponseExpected model.AsyncSearchResp
+		var searchResponseExpected model.SearchResp
 		err = json.Unmarshal([]byte(asyncSearchResponseExpectedString), &searchResponseExpected)
 		require.NoError(t, err)
 		assert.Equal(t, searchResponseExpected, searchResponseResult)

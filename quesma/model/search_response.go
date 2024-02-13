@@ -23,36 +23,24 @@ type ResponseShards struct {
 }
 
 type SearchHit struct {
-	Index  string          `json:"_index"`
-	ID     string          `json:"_id"`
-	Score  float32         `json:"_score"`
-	Source json.RawMessage `json:"_source"`
-	Type   string          `json:"_type,omitempty"` // Deprecated field
-	Sort   []any           `json:"sort,omitempty"`
-}
-
-type AsyncSearchHit struct {
 	Index  string                   `json:"_index"`
 	ID     string                   `json:"_id"`
 	Score  float32                  `json:"_score"`
+	Source json.RawMessage          `json:"_source,omitempty"`
 	Fields map[string][]interface{} `json:"fields,omitempty"`
 
 	// fields below only in ListAllFields request type
 	Version   int                 `json:"_version,omitempty"`
 	Highlight map[string][]string `json:"highlight,omitempty"`
-	Sort      []any               `json:"sort,omitempty"`
+
+	Type string `json:"_type,omitempty"` // Deprecated field
+	Sort []any  `json:"sort,omitempty"`
 }
 
 type SearchHits struct {
-	Total    Total       `json:"total"`
+	Total    *Total      `json:"total,omitempty"`
 	MaxScore float32     `json:"max_score"`
 	Hits     []SearchHit `json:"hits"`
-}
-
-type AsyncSearchHits struct {
-	Total    *Total           `json:"total,omitempty"` // doesn't work without pointer
-	MaxScore float32          `json:"max_score"`
-	Hits     []AsyncSearchHit `json:"hits"`
 }
 
 type Total struct {
@@ -72,20 +60,12 @@ type SearchResp struct {
 	ScrollID          *string        `json:"_scroll_id,omitempty"`
 }
 
-type AsyncSearchResp struct {
-	Took         int             `json:"took"`
-	Timeout      bool            `json:"timed_out"`
-	Shards       ResponseShards  `json:"_shards"`
-	Hits         AsyncSearchHits `json:"hits"`
-	Aggregations Aggregations    `json:"aggregations,omitempty"`
-}
-
 type AsyncSearchEntireResp struct {
-	StartTimeInMillis      uint64          `json:"start_time_in_millis"`
-	CompletionTimeInMillis uint64          `json:"completion_time_in_millis"`
-	ExpirationTimeInMillis uint64          `json:"expiration_time_in_millis"`
-	ID                     *string         `json:"id,omitempty"`
-	IsRunning              bool            `json:"is_running"`
-	IsPartial              bool            `json:"is_partial"`
-	Response               AsyncSearchResp `json:"response"`
+	StartTimeInMillis      uint64     `json:"start_time_in_millis"`
+	CompletionTimeInMillis uint64     `json:"completion_time_in_millis"`
+	ExpirationTimeInMillis uint64     `json:"expiration_time_in_millis"`
+	ID                     *string    `json:"id,omitempty"`
+	IsRunning              bool       `json:"is_running"`
+	IsPartial              bool       `json:"is_partial"`
+	Response               SearchResp `json:"response"`
 }
