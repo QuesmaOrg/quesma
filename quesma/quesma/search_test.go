@@ -38,7 +38,6 @@ var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, "test")
 const tableName = `"logs-generic-default"`
 
 func TestAsyncSearchHandler(t *testing.T) {
-
 	table := clickhouse.TableMap{
 		tableName: &clickhouse.Table{
 			Name:   tableName,

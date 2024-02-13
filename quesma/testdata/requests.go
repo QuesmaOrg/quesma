@@ -1,13 +1,17 @@
 package testdata
 
 import (
+	"fmt"
 	"mitmproxy/quesma/model"
 	"strings"
+	"time"
 )
 
 // Used in at least 2 different packages/test files for now, so it's moved to a separate package.
 
 const TableName = `"logs-generic-default"`
+
+const oneMinute = 60 * time.Second
 
 func newSimplestQuery() model.Query {
 	return model.Query{
@@ -738,8 +742,8 @@ var TestsAsyncSearch = []struct {
 }`,
 		`{}`,
 		"no comment yet",
-		model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: "60s", I1: 0, I2: 0},
-		[]string{`SELECT toInt64(toUnixTimestamp64Milli(` + "`@timestamp`" + `)/30000), count() FROM "logs-generic-default" WHERE ("@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z')) AND ("@timestamp">=timestamp_sub(SECOND,900, now64())) GROUP BY toInt64(toUnixTimestamp64Milli(` + "`@timestamp`)/30000)"},
+		model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: fmt.Sprintf("%ds", int(oneMinute.Seconds())), I1: 0, I2: 0},
+		[]string{fmt.Sprintf(`SELECT toInt64(toUnixTimestamp64Milli(`+"`@timestamp`"+`)/%d), count() FROM "logs-generic-default" WHERE ("@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z')) AND ("@timestamp">=timestamp_sub(SECOND,900, now64())) GROUP BY toInt64(toUnixTimestamp64Milli(`+"`@timestamp`)/%d)", oneMinute.Milliseconds(), oneMinute.Milliseconds())},
 	},
 	{
 		"Earliest/latest timestamp",

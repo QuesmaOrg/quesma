@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/util"
 	"testing"
+	"time"
 )
 
 type Row struct {
@@ -590,8 +591,10 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 // used to fail before we fixed field quoting.
 func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 	queryTranslator := ClickhouseQueryTranslator{}
+	where := `"@timestamp">=parseDateTime64BestEffort('2024-02-13T10:04:40.703Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-13T10:19:40.703Z')"`
+	query, _ := queryTranslator.BuildHistogramQuery("@", where, "30s")
 	queries := []*model.Query{
-		queryTranslator.BuildHistogramQuery("@", ""),
+		query,
 		queryTranslator.BuildAutocompleteSuggestionsQuery("@", "", 0),
 		queryTranslator.BuildFacetsQuery("@", "", 0),
 		// queryTranslator.BuildTimestampQuery("@", "@", "", true), TODO uncomment when add unification for this query type
@@ -608,5 +611,35 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 		}
 		_, err := MakeResponseAsyncSearchQuery([]clickhouse.QueryResultRow{resultRow}, types[i])
 		assert.NoError(t, err)
+	}
+}
+
+func Test_extractAndCalculateDuration(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  time.Duration
+	}{
+		{
+			name:  "1 minute",
+			input: `"@timestamp">=parseDateTime64BestEffort('2024-02-13T10:04:40.703Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-13T10:05:40.703Z')"`,
+			want:  1 * time.Minute,
+		},
+		{
+			name:  "5 minutes",
+			input: `"@timestamp">=parseDateTime64BestEffort('2024-02-13T10:04:40.703Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-13T10:09:40.703Z')"`,
+			want:  5 * time.Minute,
+		},
+		{
+			name:  "15 minutes",
+			input: `"@timestamp">=parseDateTime64BestEffort('2024-02-13T10:04:40.703Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-13T10:19:40.703Z')"`,
+			want:  15 * time.Minute,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _ := durationFromWhere(tt.input)
+			assert.Equalf(t, tt.want, got, "extractAndCalculateDuration(%v)", tt.input)
+		})
 	}
 }

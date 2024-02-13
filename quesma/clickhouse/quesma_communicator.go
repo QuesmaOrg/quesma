@@ -151,7 +151,7 @@ func (lm *LogManager) ProcessNMostRecentRowsQuery(query *model.Query) ([]QueryRe
 	return read(rowsDB, append(colNames, query.NonSchemaFields...), rowToScan)
 }
 
-func (lm *LogManager) ProcessHistogramQuery(query *model.Query) ([]QueryResultRow, error) {
+func (lm *LogManager) ProcessHistogramQuery(query *model.Query, bucket time.Duration) ([]QueryResultRow, error) {
 	err := lm.initConnection()
 	if err != nil {
 		return nil, err
@@ -168,9 +168,8 @@ func (lm *LogManager) ProcessHistogramQuery(query *model.Query) ([]QueryResultRo
 		return result[i].Cols[Key].Value.(int64) < result[j].Cols[Key].Value.(int64)
 	})
 
-	// TODO remove hardcoded 30_000...
 	for i := range result {
-		result[i].Cols[Key].Value = result[i].Cols[Key].Value.(int64) * 30_000
+		result[i].Cols[Key].Value = result[i].Cols[Key].Value.(int64) * bucket.Milliseconds()
 		result[i].Cols = append(result[i].Cols, QueryResultCol{
 			ColName: "key_as_string",
 			Value:   time.UnixMilli(result[i].Cols[Key].Value.(int64)).Format("2006-01-02T15:04:05.000"),

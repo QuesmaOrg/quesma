@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/model"
+	"regexp"
 	"strconv"
 	"time"
 )
@@ -226,15 +227,21 @@ func (cw *ClickhouseQueryTranslator) BuildNMostRecentRowsQuery(fieldName, timest
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(timestampFieldName, whereClauseOriginal string) *model.Query {
-	duration := 15 * time.Minute                                // TODO change this to be dynamic
-	histogramOneBar := cw.durationToHistogramInterval(duration) // 1 bar duration
+func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(timestampFieldName, whereClauseOriginal, fixedInterval string) (*model.Query, time.Duration) {
+	duration, err := durationFromWhere(whereClauseOriginal)
+	if err != nil {
+		panic(err)
+	}
+	histogramOneBar, err := time.ParseDuration(fixedInterval)
+	if err != nil {
+		panic(err)
+	}
 	groupByClause := "toInt64(toUnixTimestamp64Milli(`" + timestampFieldName + "`)/" + strconv.FormatInt(histogramOneBar.Milliseconds(), 10) + ")"
 	whereClause := strconv.Quote(timestampFieldName) + ">=timestamp_sub(SECOND," + strconv.FormatInt(int64(duration.Seconds()), 10) + ", now64())"
 	if len(whereClauseOriginal) > 0 {
 		whereClause = "(" + whereClauseOriginal + ") AND (" + whereClause + ")"
 	}
-	return &model.Query{
+	query := model.Query{
 		Fields:          []string{},
 		NonSchemaFields: []string{groupByClause, "count()"},
 		WhereClause:     whereClause,
@@ -242,6 +249,7 @@ func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(timestampFieldName, whe
 		TableName:       cw.TableName,
 		CanParse:        true,
 	}
+	return &query, duration
 }
 
 //lint:ignore U1000 Not used yet
@@ -296,63 +304,22 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName, whe
 	}
 }
 
-/*
-		How Kibana shows histogram (how long one bar is):
-	    query duration -> one histogram's bar ...
-	    10s  -> 200ms
-		14s  -> 280ms
-		20s  -> 400ms
-		24s  -> 480ms
-		25s  -> 1s
-		[25s, 4m]   -> 1s
-		[5m, 6m]    -> 5s
-		[7m, 12m]   -> 10s
-		[13m, 37m]  -> 30s
-		[38m, 140m] -> 1m
-		[150m, 7h]  -> 5m
-		[8h, 16h]   -> 10m
-		[17h, 37h]  -> 30m
-		[38h, 99h]  -> 1h
-		[100h, 12d] -> 3h
-		[13d, 49d]  -> 12h
-		[50d, 340d] -> 1d
-		[350d, 34m] -> 7d
-		[35m, 15y]  -> 1m
-*/
+var fromRegexp = regexp.MustCompile(`>=?parseDateTime64BestEffort\('([^']+)'\)`)
+var toRegexp = regexp.MustCompile(`<=?parseDateTime64BestEffort\('([^']+)'\)`)
 
-func (cw *ClickhouseQueryTranslator) durationToHistogramInterval(d time.Duration) time.Duration {
-	switch {
-	case d < 25*time.Second:
-		ms := d.Milliseconds() / 50
-		ms += 20 - (ms % 20)
-		return time.Millisecond * time.Duration(ms)
-	case d <= 4*time.Minute:
-		return time.Second
-	case d < 7*time.Minute:
-		return 5 * time.Second
-	case d < 13*time.Minute:
-		return 10 * time.Second
-	case d < 38*time.Minute:
-		return 30 * time.Second
-	case d <= 140*time.Minute:
-		return time.Minute
-	case d <= 7*time.Hour:
-		return 5 * time.Minute
-	case d <= 16*time.Hour:
-		return 10 * time.Minute
-	case d <= 37*time.Hour:
-		return 30 * time.Minute
-	case d <= 99*time.Hour:
-		return time.Hour
-	case d <= 12*24*time.Hour:
-		return 3 * time.Hour
-	case d <= 49*24*time.Hour:
-		return 12 * time.Hour
-	case d <= 340*24*time.Hour:
-		return 24 * time.Hour
-	case d <= 35*30*24*time.Hour:
-		return 7 * 24 * time.Hour
-	default:
-		return 30 * 24 * time.Hour
+func durationFromWhere(input string) (time.Duration, error) {
+	from := fromRegexp.FindAllStringSubmatch(input, -1)[0]
+	to := toRegexp.FindAllStringSubmatch(input, -1)[0]
+
+	startTime, err := time.Parse(time.RFC3339, from[1])
+	if err != nil {
+		return 0, err
 	}
+
+	endTime, err := time.Parse(time.RFC3339, to[1])
+	if err != nil {
+		return 0, err
+	}
+
+	return endTime.Sub(startTime), nil
 }

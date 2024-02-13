@@ -99,9 +99,8 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		var rows []clickhouse.QueryResultRow
 		switch queryInfo.Typ {
 		case model.Histogram:
-			// queryInfo = (Histogram, "30s", 0 0) TODO accept different time intervals (now default, 15min)
-			fullQuery = queryTranslator.BuildHistogramQuery("@timestamp", simpleQuery.Sql.Stmt) // TODO change timestamp
-			rows, err = queryTranslator.ClickhouseLM.ProcessHistogramQuery(fullQuery)
+			fullQuery, bucket := queryTranslator.BuildHistogramQuery("@timestamp", simpleQuery.Sql.Stmt, queryInfo.FieldName)
+			rows, err = queryTranslator.ClickhouseLM.ProcessHistogramQuery(fullQuery, bucket)
 		case model.AggsByField:
 			// queryInfo = (AggsByField, fieldName, Limit results, Limit last rows to look into)
 			fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.I2)
@@ -131,7 +130,12 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 			logger.Error().Str(logger.RID, id).Msgf("Rows: %+v, err: %+v\n", rows, err)
 		}
 		responseBody = createAsyncSearchResponseHitJson(id, rows, queryInfo.Typ)
-		translatedQueryBody = []byte(fullQuery.String())
+		if fullQuery != nil {
+			translatedQueryBody = []byte(fullQuery.String())
+		} else {
+			logger.Error().Str(logger.RID, id).Msgf("fullQuery is nil")
+			return responseBody, errors.New("fullQuery is nil")
+		}
 	} else {
 		responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
 		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
