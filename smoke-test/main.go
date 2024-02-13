@@ -23,7 +23,8 @@ const (
 	kibanaHealthCheckUrl       = "http://localhost:5601/api/status"
 	kibanaDataViewsUrl         = "http://localhost:5601/api/data_views"
 	kibanaCsvReportUrl         = "http://localhost:5601/internal/reporting/generate/csv_searchsource"
-	elasticsearchSampleDataUrl = "http://localhost:9200/kibana_sample_data_flights/_count"
+	elasticsearchSampleDataUrl = "http://localhost:9201/kibana_sample_data_flights/_count"
+	elasticsearchBaseUrl       = "http://localhost:9201"
 	elasticIndexCountUrl       = "http://localhost:9201/logs-generic-default/_count"
 	quesmaIndexCountUrl        = "http://localhost:9200/logs-generic-default/_count"
 	asyncQueryUrl              = "http://localhost:8080/logs-generic-default/_async_search?pretty"
@@ -179,13 +180,16 @@ func main() {
 		fmt.Println("Done")
 	} else {
 		waitForKibana()
+		timeoutAfter = 2 * time.Minute
 		waitForSampleData()
+		timeoutAfter = time.Minute
 		reportUri := waitForScheduleReportGeneration()
 		waitForLogsInClickhouse("logs-generic-default")
 		waitForLogsInElasticsearch()
 		waitForAsyncQuery()
 		waitForKibanaLogExplorer("kibana LogExplorer")
 		waitForKibanaReportGeneration(reportUri)
+		compareKibanaSampleDataInClickHouseWithElasticsearch()
 	}
 }
 
@@ -205,6 +209,7 @@ type dataViewsResponse struct {
 }
 
 func waitForDataViews() {
+	var responseData dataViewsResponse
 	res := waitFor("kibana data views", func() bool {
 		if resp, err := http.Get(kibanaDataViewsUrl); err == nil {
 			defer resp.Body.Close()
@@ -212,20 +217,63 @@ func waitForDataViews() {
 			if err != nil {
 				return false
 			}
-			var responseData dataViewsResponse
 			if err := json.Unmarshal(body, &responseData); err != nil {
 				return false
 			}
-			if len(responseData.DataViews) >= 6 {
-
+			if len(responseData.DataViews) >= 5 {
 				return true
 			}
 		}
 		return false
 	})
 	if !res {
-		panic("kibana data views failed")
+		panic("kibana data views failed: " + fmt.Sprintf("%+v", responseData))
 	}
+}
+
+func getClickHouseTableCount(tableName string) int {
+	connection, err := sql.Open("clickhouse", clickhouseUrl)
+	var rowsInClickHouse int
+	if err != nil {
+		panic(err)
+	}
+	defer connection.Close()
+	row := connection.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM `%s`", tableName))
+	_ = row.Scan(&rowsInClickHouse)
+	return rowsInClickHouse
+}
+
+func getElasticsearchIndexCount(indexName string) int {
+	if resp, err := http.Get(fmt.Sprintf("%s/%s/_count", elasticsearchBaseUrl, indexName)); err == nil {
+		defer resp.Body.Close()
+		if resp.StatusCode == 200 {
+			if body, err := io.ReadAll(resp.Body); err == nil {
+				var response map[string]int
+				_ = json.Unmarshal(body, &response)
+				return response["count"]
+			}
+		}
+	}
+	return -1
+}
+
+func compareClickHouseTableWithElasticsearchIndex(tableOrIndexName string) {
+	var clickHouseCount, elasticSearchCount int
+	s := waitFor("Elastic/ClickHouse document count comparison", func() bool {
+		clickHouseCount = getClickHouseTableCount(tableOrIndexName)
+		elasticSearchCount = getElasticsearchIndexCount(tableOrIndexName)
+		fmt.Printf("[%s] -> compating ClickHouse=(%d) with Elasticsearch=(%d) document count\n", tableOrIndexName, clickHouseCount, elasticSearchCount)
+		return clickHouseCount == elasticSearchCount
+	})
+	if !s {
+		panic(fmt.Sprintf("Data set [%s] has %d elements in Clickhouse whereas in Elasticsearch it has %d", tableOrIndexName, clickHouseCount, elasticSearchCount))
+	}
+
+}
+
+func compareKibanaSampleDataInClickHouseWithElasticsearch() {
+	// CI jobs uses LIMITED_DATASET and only this `flight` data index will get installed
+	compareClickHouseTableWithElasticsearchIndex("kibana_sample_data_flights")
 }
 
 // just returns the path to the Kibana report for later download

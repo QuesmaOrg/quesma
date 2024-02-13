@@ -106,7 +106,7 @@ func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, inde
 			}
 			err := action()
 			if err != nil {
-				logger.Fatal().Msg(err.Error())
+				logger.Error().Msg(err.Error())
 			}
 		} else {
 			logger.Info().Msgf("index '%s' is disabled, ignoring", indexName)

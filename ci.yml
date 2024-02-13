@@ -70,6 +70,8 @@ services:
   kibana-sidecar:
     image: docker.elastic.co/kibana/kibana:8.11.1
     restart: "no"
+    environment:
+      - LIMITED_DATASET=true
     links:
       - "kibana"
     depends_on:

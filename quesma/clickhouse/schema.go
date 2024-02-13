@@ -91,9 +91,16 @@ func (t CompoundType) isString() bool {
 func (t MultiValueType) String() string {
 	var sb strings.Builder
 	sb.WriteString(t.Name + "(")
+	var tupleParams []string
 	for _, col := range t.Cols {
-		sb.WriteString(col.Name)
+		if col != nil {
+			// TODO `kibana_sample_data_ecommerce` infers Int64 for those fields as first entries have value `0`
+			// 		WORKAROUND: if col.Name == "discount_amount" || col.Name == "unit_discount_amount" -> tupleParams = append(tupleParams, fmt.Sprintf("%s %s", col.Name, "Float64"))
+			//	But it's not a good solution, need to find a better one
+			tupleParams = append(tupleParams, fmt.Sprintf("%s %s", col.Name, col.Type))
+		}
 	}
+	sb.WriteString(strings.Join(tupleParams, ", "))
 	sb.WriteString(")")
 	return sb.String()
 }
@@ -164,7 +171,7 @@ func NewBaseType(name string) BaseType {
 }
 
 // 'value': value of a field, from unmarshalled JSON
-func NewType(value interface{}) Type {
+func NewType(value any) Type {
 	isFloatInt := func(f float64) bool {
 		return math.Mod(f, 1.0) == 0.0
 	}

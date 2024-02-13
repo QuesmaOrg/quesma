@@ -10,20 +10,26 @@ while [ "$http_code" != "200" ]; do
     fi
 done
 
+add_kibana_sample_dataset() {
+    local sample_data=$1
+    START_TIME=$(date +%s)
+    echo "Adding $sample_data dataset"
+    curl --no-progress-meter -XPOST -H "kbn-xsrf: arbitrary-header" http://kibana:5601/api/sample_data/$sample_data
+    END_TIME=$(date +%s)
+    echo -e "\nAdded $sample_data dataset, took $((END_TIME-START_TIME)) seconds"
+}
 
-# Kibana just requires `kbn-xsrf` header presence, any value can be used
-echo "Adding logs dataset"
-curl --no-progress-meter -XPOST -H "kbn-xsrf: arbitrary-header" http://kibana:5601/api/sample_data/logs
-echo -e "\nAdding ecommerce dataset"
-curl --no-progress-meter -XPOST -H "kbn-xsrf: arbitrary-header" http://kibana:5601/api/sample_data/ecommerce
-echo -e "\nAdding flights dataset"
-curl --no-progress-meter -XPOST -H "kbn-xsrf: arbitrary-header"  http://kibana:5601/api/sample_data/flights
+if [ -z "$LIMITED_DATASET" ] || [ "$LIMITED_DATASET" != "true" ]; then
+    add_kibana_sample_dataset "flights"
+    add_kibana_sample_dataset "logs"
+    add_kibana_sample_dataset "ecommerce"
+else
+    echo "Using limited dataset - only 'flights' index"
+    add_kibana_sample_dataset "flights"
+fi
 
-echo -e "\nSample datasets added."
 
-echo -e "\nAdding data views for our test data"
-
-curl --no-progress-meter -XPOST \
+curl --silent -o /dev/null  --no-progress-meter -XPOST \
 -H 'Content-Type: application/json' \
 -H "kbn-xsrf: arbitrary-header" \
 http://kibana:5601/api/data_views/data_view -d '{
@@ -38,7 +44,7 @@ http://kibana:5601/api/data_views/data_view -d '{
 }'
 
 echo ""
-curl --no-progress-meter -XPOST \
+curl --silent -o /dev/null  --no-progress-meter -XPOST \
 -H 'Content-Type: application/json' \
 -H "kbn-xsrf: arbitrary-header" \
 http://kibana:5601/api/data_views/data_view -d '{
@@ -51,7 +57,7 @@ http://kibana:5601/api/data_views/data_view -d '{
     "override": true
 }'
 echo ""
-curl --no-progress-meter -XPOST \
+curl --silent -o /dev/null  --no-progress-meter -XPOST \
 -H 'Content-Type: application/json' \
 -H "kbn-xsrf: arbitrary-header" \
 http://kibana:5601/api/data_views/data_view -d '{
@@ -64,7 +70,7 @@ http://kibana:5601/api/data_views/data_view -d '{
     },
     "override": true
 }'
-curl --no-progress-meter -XPOST \
+curl --silent -o /dev/null --no-progress-meter -XPOST \
 -H 'Content-Type: application/json' \
 -H "kbn-xsrf: arbitrary-header" \
 http://kibana:5601/api/data_views/data_view -d '{
@@ -80,3 +86,4 @@ http://kibana:5601/api/data_views/data_view -d '{
 echo ""
 
 echo -e "\nData views added."
+

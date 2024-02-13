@@ -58,8 +58,13 @@ func FieldsMapToCreateTableString(namespace string, m SchemaMap, indentLvl int, 
 		if namespace == "" {
 			result.WriteString("\n")
 		}
+
+		listValue, isListValue := value.([]interface{})
+		if isListValue {
+			value = listValue
+		}
 		nestedValue, ok := value.(SchemaMap)
-		if ok && nestedValue != nil && len(nestedValue) > 0 {
+		if (ok && nestedValue != nil && len(nestedValue) > 0) && !isListValue {
 			var nested []string
 			if namespace == "" {
 				nested = append(nested, FieldsMapToCreateTableString(name, nestedValue, indentLvl, config))
@@ -70,7 +75,12 @@ func FieldsMapToCreateTableString(namespace string, m SchemaMap, indentLvl int, 
 			result.WriteString(strings.Join(nested, ",\n"))
 		} else {
 			// value is a single field. Only String/Bool/DateTime64 supported for now.
-			fType := NewType(value).String()
+			var fType string
+			if value == nil { // HACK ALERT -> We're treating null values as strings for now, so that we don't completely discard documents with empty values
+				fType = "Nullable(String)"
+			} else {
+				fType = NewType(value).String()
+			}
 			// hack for now
 			if indentLvl == 1 && name == timestampFieldName && config.timestampDefaultsNow {
 				fType += " DEFAULT now64()"

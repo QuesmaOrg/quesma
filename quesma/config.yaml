@@ -13,8 +13,8 @@ quesma:
   clickhouse_url: "http://localhost:8123"
   logs_path: "logs"
   index:
-#    kibana_sample*:
-#      enabled: true
+    kibana_sample_data*:
+      enabled: true
     logs-generic-*:
       enabled: true
     device*:
