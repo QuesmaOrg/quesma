@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
+	"time"
 )
 
 func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
@@ -76,12 +77,13 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 	return responseBody, nil
 }
 
-func createAsyncSearchResponseHitJson(requestId string, rows []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) []byte {
+func createAsyncSearchResponseHitJson(requestId string, rows []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
 	responseBody, err := queryparser.MakeResponseAsyncSearchQuery(rows, typ)
 	if err != nil {
 		logger.Error().Str(logger.RID, requestId).Msgf("%v rows: %v", err, rows)
+		return nil, err
 	}
-	return responseBody
+	return responseBody, nil
 }
 
 func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
@@ -99,7 +101,8 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		var rows []clickhouse.QueryResultRow
 		switch queryInfo.Typ {
 		case model.Histogram:
-			fullQuery, bucket := queryTranslator.BuildHistogramQuery("@timestamp", simpleQuery.Sql.Stmt, queryInfo.FieldName)
+			var bucket time.Duration
+			fullQuery, bucket = queryTranslator.BuildHistogramQuery("@timestamp", simpleQuery.Sql.Stmt, queryInfo.FieldName)
 			rows, err = queryTranslator.ClickhouseLM.ProcessHistogramQuery(fullQuery, bucket)
 		case model.AggsByField:
 			// queryInfo = (AggsByField, fieldName, Limit results, Limit last rows to look into)
@@ -120,16 +123,19 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 			fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, true)
 			rowsEarliest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
 			if err != nil {
-				logger.Error().Str(logger.RID, id).Msgf("Rows: %+v, err: %+v\n", rowsEarliest, err)
+				logger.Error().Str(logger.RID, id).Msgf("Rows: %+v, err: %+v", rowsEarliest, err)
 			}
 			fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, false)
 			rowsLatest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
 			rows = append(rowsEarliest, rowsLatest...)
 		}
 		if err != nil {
-			logger.Error().Str(logger.RID, id).Msgf("Rows: %+v, err: %+v\n", rows, err)
+			logger.Error().Str(logger.RID, id).Msgf("Rows: %+v, err: %+v", rows, err)
 		}
-		responseBody = createAsyncSearchResponseHitJson(id, rows, queryInfo.Typ)
+		responseBody, err = createAsyncSearchResponseHitJson(id, rows, queryInfo.Typ)
+		if err != nil {
+			return responseBody, err
+		}
 		if fullQuery != nil {
 			translatedQueryBody = []byte(fullQuery.String())
 		} else {

@@ -72,7 +72,7 @@ func MakeResponseSearchQuery[T fmt.Stringer](ResultSet []T, typ model.SearchQuer
 	return nil, fmt.Errorf("unknown SearchQueryType: %v", typ)
 }
 
-func MakeResponseAsyncSearchAggregated(ResultSet []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+func makeResponseAsyncSearchAggregated(ResultSet []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
 	buckets := make([]JsonMap, len(ResultSet))
 	for i, row := range ResultSet {
 		buckets[i] = make(JsonMap)
@@ -126,7 +126,7 @@ func MakeResponseAsyncSearchAggregated(ResultSet []clickhouse.QueryResultRow, ty
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func MakeResponseAsyncSearchList(ResultSet []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+func makeResponseAsyncSearchList(ResultSet []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
 		hits[i].Fields = make(map[string][]interface{})
@@ -173,12 +173,47 @@ func MakeResponseAsyncSearchList(ResultSet []clickhouse.QueryResultRow, typ mode
 	return json.MarshalIndent(response, "", "  ")
 }
 
+func makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet []clickhouse.QueryResultRow) ([]byte, error) {
+	var earliest, latest *string = nil, nil
+	if len(ResultSet) >= 1 {
+		earliest = new(string)
+		*earliest = ResultSet[0].Cols[0].Value.(string)
+	}
+	if len(ResultSet) >= 2 {
+		latest = new(string)
+		*latest = ResultSet[1].Cols[0].Value.(string)
+	}
+	response := model.AsyncSearchEntireResp{
+		Response: model.SearchResp{
+			Aggregations: model.Aggregations{
+				"earliest_timestamp": {
+					"value": earliest,
+				},
+				"latest_timestamp": {
+					"value": latest,
+				},
+			},
+			Hits: model.SearchHits{
+				Hits: []model.SearchHit{}, // seems redundant, but can't remove this, created JSON won't match
+				Total: &model.Total{
+					Value:    len(ResultSet),
+					Relation: "eq",
+				},
+			},
+		},
+	}
+	return json.MarshalIndent(response, "", "  ")
+}
+
 func MakeResponseAsyncSearchQuery(ResultSet []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+	fmt.Println(typ)
 	switch typ {
 	case model.Histogram, model.AggsByField:
-		return MakeResponseAsyncSearchAggregated(ResultSet, typ)
+		return makeResponseAsyncSearchAggregated(ResultSet, typ)
 	case model.ListByField, model.ListAllFields:
-		return MakeResponseAsyncSearchList(ResultSet, typ)
+		return makeResponseAsyncSearchList(ResultSet, typ)
+	case model.EarliestLatestTimestamp:
+		return makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet)
 	default:
 		return nil, fmt.Errorf("unknown AsyncSearchQueryType: %v", typ)
 	}

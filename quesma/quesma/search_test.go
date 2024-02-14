@@ -74,7 +74,8 @@ func TestAsyncSearchHandler(t *testing.T) {
 			for _, regex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(regex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			_, _ = handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
+			_, err = handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
+			assert.NoError(t, err)
 
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)

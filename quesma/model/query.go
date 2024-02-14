@@ -89,7 +89,7 @@ const (
 )
 
 func (queryType AsyncSearchQueryType) String() string {
-	return []string{"Histogram", "AggsByField", "ListByField", "ListAllFields", "EarliestLatestTimestamp, None"}[queryType]
+	return []string{"Histogram", "AggsByField", "ListByField", "ListAllFields", "EarliestLatestTimestamp", "None"}[queryType]
 }
 
 func (queryType SearchQueryType) String() string {
