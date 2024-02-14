@@ -199,7 +199,6 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	buffer.WriteString(`<div class="status">2: Parsing error</div>`)
 	buffer.WriteString(`<div class="status">1: Request out of bound</div>`)
 	buffer.WriteString(`</div>`)
-
 	buffer.WriteString(`</div>`)
 
 	return buffer.Bytes()
@@ -331,8 +330,40 @@ func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 	buffer := newBufferWithHead()
 	buffer.Write(generateTopNavigation("dashboard"))
 
-	buffer.WriteString(`<main id="dashboard">`)
+	buffer.WriteString(`<main id="dashboard-main">` + "\n")
+
+	// Unfortunately, we need tiny bit of javascript to pause the animation.
+	buffer.WriteString(`<script type="text/javascript">`)
+	buffer.WriteString(`var checkbox = document.getElementById("autorefresh");`)
+	buffer.WriteString(`var dashboard = document.getElementById("dashboard-main");`)
+	buffer.WriteString(`checkbox.addEventListener('change', function() {`)
+	buffer.WriteString(`if (this.checked) {`)
+	buffer.WriteString(`dashboard.classList.remove("paused");`)
+	buffer.WriteString(`} else {`)
+	buffer.WriteString(`dashboard.classList.add("paused");`)
+	buffer.WriteString(`}`)
+	buffer.WriteString(`});`)
+	buffer.WriteString(`</script>` + "\n")
+
+	buffer.WriteString(`<svg width="100%" height="100%" viewBox="0 0 1000 1000">` + "\n")
+	// Clickhouse -> Kibana
+	buffer.WriteString(`<path d="M 1000 250 L 0 250" fill="none" stroke="red" />`)
+	buffer.WriteString(`<text x="500" y="240" class="red">4 rps / 0% err / 10ms</text>`)
+	// Elasticsearch -> Kibana
+	buffer.WriteString(`<path d="M 1000 700 L 150 700 L 150 350 L 0 350" fill="none" stroke="green" />`)
+	buffer.WriteString(`<text x="500" y="690" class="green">7 rps / 3% err / 17ms</text>`)
+
+	// Ingest -> Clickhouse
+	buffer.WriteString(`<path d="M 0 650 L 300 650 L 300 350 L 1000 350" fill="none" stroke="green" />`)
+	buffer.WriteString(`<text x="500" y="340" class="green">29 rps / 1% err / 3ms</text>`)
+	// Ingest -> Elasticsearch
+	buffer.WriteString(`<path d="M 0 800 L 1000 800" fill="none" stroke="green" />`)
+	buffer.WriteString(`<text x="500" y="790" class="green">29 rps / 0% err / 1ms</text>`)
+
+	buffer.WriteString(`</svg>` + "\n")
+	buffer.WriteString(`<div id="dashboard">` + "\n")
 	buffer.Write(qmc.generateDashboardPanel())
+	buffer.WriteString("</div>\n")
 	buffer.WriteString("\n</main>\n\n")
 
 	buffer.WriteString(`<div class="menu">`)

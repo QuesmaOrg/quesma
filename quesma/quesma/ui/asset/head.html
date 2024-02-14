@@ -226,7 +226,7 @@
             color: white;
         }
 
-        #statistics, #dashboard {
+        #statistics, #dashboard-main {
             width: 80%;
             overflow-y: auto;
         }
@@ -264,10 +264,6 @@
             width: 10%;
         }
 
-        #dashboard {
-            width: 80%;
-        }
-
         #dashboard .component {
             border: 1px solid black;
             border-radius: 20px;
@@ -276,6 +272,43 @@
             justify-content: center;
             flex-direction: column;
             position: absolute;
+        }
+
+        #dashboard-main svg {
+            z-index: 1;
+            position: relative;
+            width: 60%;
+            left: 20%;
+        }
+
+        #dashboard-main svg path {
+            stroke-dasharray: 20px;
+            animation: dash 20s linear;
+            animation-iteration-count: infinite;
+            animation-play-state: running;
+        }
+
+        #dashboard-main.paused svg path {
+            animation-play-state: paused;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -1000;
+            }
+        }
+
+        #dashboard-main svg text {
+            padding: 5px;
+            font-size: 1.5em;
+        }
+
+        #dashboard-main svg text.red {
+            fill: red;
+        }
+
+        #dashboard-main svg text.green {
+            fill: green;
         }
 
         #dashboard-kibana, #dashboard-ingest, #dashboard-elasticsearch, #dashboard-clickhouse {
