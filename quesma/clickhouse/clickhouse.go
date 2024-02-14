@@ -81,7 +81,7 @@ func (lm *LogManager) initConnection() error {
 }
 
 func (lm *LogManager) matchIndex(indexNamePattern, indexName string) bool {
-	r, err := regexp.Compile(strings.Replace(indexNamePattern, "*", ".*", -1))
+	r, err := regexp.Compile("^" + strings.Replace(indexNamePattern, "*", ".*", -1) + "$")
 	if err != nil {
 		logger.Error().Msgf("invalid index name pattern [%s]: %s", indexNamePattern, err)
 		return false

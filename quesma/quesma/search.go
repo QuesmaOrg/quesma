@@ -14,7 +14,7 @@ import (
 
 func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
-	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: index}
+	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: lm.ResolveTableName(index)}
 	// TODO index argument is not used yet
 	_ = index
 	var rawResults []byte

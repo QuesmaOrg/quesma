@@ -18,8 +18,8 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		return "", nil
 	})
 	router.RegisterPath("/_search", "POST", func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
-		// Just for now, hardcoding the index to "logs-generic-default"
-		TableName := `"logs-generic-default"`
+		// TODO Just for now, hardcoding the index to "logs-generic-default"
+		TableName := `logs-generic-default`
 		responseBody, err := handleSearch(ctx, TableName, []byte(body), lm, console)
 		if err != nil {
 			return "", err
