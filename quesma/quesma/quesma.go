@@ -159,9 +159,6 @@ func copyBody(w http.ResponseWriter, r *http.Request, matched bool, err error, c
 			responseFromElastic(ctx, elkResponse, w)
 		}
 	} else {
-		if !matched {
-			logger.Debug().Ctx(ctx).Msgf("Handler not found for URI, routing to Elastic: %s", r.URL.Path)
-		}
 		if err != nil {
 			logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from Elastic", err)
 		}
