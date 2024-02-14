@@ -55,7 +55,25 @@ func dualWriteBulk(ctx context.Context, optionalTableName string, body string, l
 				return lm.ProcessInsertQuery(indexName, document)
 			})
 		} else if jsonData["index"] != nil {
-			logger.Warn().Msg("Not supporting 'index' _bulk.")
+			indexObj, ok := jsonData["index"].(map[string]interface{})
+			if !ok {
+				logger.Info().Msgf("Invalid index JSON in _bulk: %s", action)
+				continue
+			}
+			indexName, ok := indexObj["_index"].(string)
+			if !ok {
+				if len(indexName) == 0 {
+					logger.Error().Msgf("Invalid index JSON in _bulk, no _index name: %s", action)
+					continue
+				} else {
+					indexName = optionalTableName
+				}
+			}
+
+			withConfiguration(ctx, cfg, indexName, document, func() error {
+				stats.GlobalStatistics.Process(indexName, document, clickhouse.NestedSeparator)
+				return lm.ProcessInsertQuery(indexName, document)
+			})
 		} else if jsonData["update"] != nil {
 			logger.Warn().Msg("Not supporting 'update' _bulk.")
 		} else if jsonData["delete"] != nil {

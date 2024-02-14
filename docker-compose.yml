@@ -158,3 +158,110 @@ services:
     restart: "no"
     volumes:
       - ./mitmproxy:/var/mitmproxy
+  broker:
+    profiles: [kafka]
+    image: confluentinc/cp-kafka:7.2.0
+    hostname: broker
+    container_name: broker
+    depends_on:
+      - zookeeper
+    ports:
+      - '29092:29092'
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+  kafka-connect:
+    profiles: [kafka]
+    image: confluentinc/cp-kafka-connect:6.0.0 # bumped from 5.4.9
+    container_name: kafka-connect
+    ports:
+      - '8083:8083'
+    depends_on:
+      - zookeeper
+      - broker
+      - elasticsearch
+      - quesma
+    healthcheck:
+      test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/8083' || exit 1
+      interval: 1s
+      start_period: 1m
+      timeout: 1s
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: broker:9092
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: 'connect'
+      CONNECT_CONFIG_STORAGE_TOPIC: connect-config
+      CONNECT_OFFSET_STORAGE_TOPIC: connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: connect-status
+      CONNECT_REPLICATION_FACTOR: 1
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      # CONNECT_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
+      CONNECT_KEY_CONVERTER: 'org.apache.kafka.connect.storage.StringConverter'
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: 'false'
+      CONNECT_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: 'false'
+      # CONNECT_INTERNAL_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
+      CONNECT_INTERNAL_KEY_CONVERTER: 'org.apache.kafka.connect.storage.StringConverter'
+      CONNECT_INTERNAL_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
+      CONNECT_PRODUCER_INTERCEPTOR_CLASSES: 'io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor'
+      CONNECT_CONSUMER_INTERCEPTOR_CLASSES: 'io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor'
+      CONNECT_REST_ADVERTISED_HOST_NAME: 'connect'
+      CONNECT_ZOOKEEPER_CONNECT: zookeeper:2181
+      CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components
+      CONNECT_LOG4J_ROOT_LOGLEVEL: INFO
+      CONNECT_LOG4J_LOGGERS: org.reflections=ERROR
+      CLASSPATH: /usr/share/java/monitoring-interceptors/monitoring-interceptors-3.3.0.jar
+    command:
+      - bash
+      - -c
+      - |
+        echo "Installing Connector"
+        confluent-hub install --no-prompt confluentinc/kafka-connect-elasticsearch:14.0.12
+        #
+        echo "Launching Kafka Connect worker"
+        /etc/confluent/docker/run &
+        #
+        sleep infinity
+  kafka-connect-sidecar:
+    profiles: [kafka]
+    image: confluentinc/cp-kafka-connect:6.0.0
+    restart: "no"
+    links:
+      - "kafka-connect"
+    depends_on:
+      kafka-connect:
+        condition: service_healthy
+    volumes:
+      - ./kafka/:/local_mount
+    command: [ "/bin/bash", "-c", "/local_mount/setup-sink.sh" ]
+  kafka-producer:
+    profiles: [kafka]
+    image: confluentinc/cp-kafka-connect:6.0.0
+    restart: "no"
+    links:
+      - "kafka-connect"
+    depends_on:
+      kafka-connect:
+        condition: service_healthy
+    volumes:
+      - ./kafka/:/local_mount
+    command: [ "/bin/bash", "-c", "/local_mount/write-with-console-producer.sh" ]
+
+  zookeeper:
+    profiles: [kafka]
+    image: confluentinc/cp-zookeeper:7.2.0
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - '2181:2181'
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000

@@ -15,6 +15,8 @@ quesma:
   index:
     kibana_sample_data*:
       enabled: true
+    kafka-example-topi*:
+      enabled: true
     logs-generic-*:
       enabled: true
     device*:
