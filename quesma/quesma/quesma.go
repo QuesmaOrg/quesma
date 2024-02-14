@@ -127,14 +127,13 @@ func New(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, l
 					copyHeaders(w, elkResponse)
 					copyStatusCode(w, elkResponse)
 
-					// TODO check with Quesma config
-					if strings.HasPrefix(r.URL.Path, "/.") && !strings.HasPrefix(r.URL.Path, "/logs") && !strings.HasPrefix(r.URL.Path, "/device") {
-						logger.Debug().Ctx(ctx).Msgf("unrecognized index '%s', ignoring...", strings.Split(r.RequestURI, "/")[1])
+					if strings.HasPrefix(r.URL.Path, "/.") {
+						logger.Debug().Ctx(ctx).Msgf("hitting internal index '%s', ignoring...", r.RequestURI)
 						responseFromElastic(ctx, elkResponse, w)
 					} else {
 						quesmaResponse, matched, err := router.Execute(ctx, r.URL.Path, string(reqBody), r.Method)
 						sendElkResponseToQuesmaConsole(ctx, r.RequestURI, elkResponse, quesmaManagementConsole)
-						copyBody(w, r, matched, err, ctx, quesmaResponse, elkResponse)
+						copyBody(w, r, matched, err, ctx, quesmaResponse, elkResponse, config)
 					}
 				}),
 			},
@@ -149,8 +148,16 @@ func New(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, l
 	return q
 }
 
-func copyBody(w http.ResponseWriter, r *http.Request, matched bool, err error, ctx context.Context, quesmaResponse string, elkResponse *http.Response) {
-	if matched && isSearch(r.URL.Path) && err == nil {
+func isEnabled(path string, configuration config.QuesmaConfiguration) bool {
+	if indexConfig, found := configuration.GetIndexConfig(strings.Split(path, "/")[1]); found {
+		return indexConfig.Enabled
+	} else {
+		return false
+	}
+}
+
+func copyBody(w http.ResponseWriter, r *http.Request, matched bool, err error, ctx context.Context, quesmaResponse string, elkResponse *http.Response, configuration config.QuesmaConfiguration) {
+	if matched && isEnabled(r.URL.Path, configuration) && isSearch(r.URL.Path) && err == nil {
 		logger.Debug().Ctx(ctx).Msg("responding from quesma")
 		unzipped := []byte(quesmaResponse)
 		if string(unzipped) != "" {

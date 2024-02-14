@@ -6,6 +6,7 @@ import (
 	"mitmproxy/quesma/network"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -44,6 +45,10 @@ type (
 		Enabled     bool
 	}
 )
+
+func (c IndexConfiguration) Matches(indexName string) bool {
+	return regexp.MustCompile(fmt.Sprintf("^%s$", strings.Replace(c.NamePattern, "*", ".*", -1))).MatchString(indexName)
+}
 
 func Load() QuesmaConfiguration {
 	// TODO Add wiser config parsing which fails for good and accumulates errors using https://github.com/hashicorp/go-multierror
@@ -105,4 +110,13 @@ func configureLogsPath() string {
 	} else {
 		return viper.GetString(fullyQualifiedConfig(logsPathConfig))
 	}
+}
+
+func (c *QuesmaConfiguration) GetIndexConfig(indexName string) (IndexConfiguration, bool) {
+	for _, indexConfig := range c.IndexConfig {
+		if indexConfig.Matches(indexName) {
+			return indexConfig, true
+		}
+	}
+	return IndexConfiguration{}, false
 }
