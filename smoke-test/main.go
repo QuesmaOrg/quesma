@@ -180,7 +180,7 @@ func main() {
 		fmt.Println("Done")
 	} else {
 		waitForKibana()
-		timeoutAfter = 2 * time.Minute
+		timeoutAfter = 4 * time.Minute
 		waitForSampleData()
 		timeoutAfter = time.Minute
 		reportUri := waitForScheduleReportGeneration()
