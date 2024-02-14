@@ -478,6 +478,13 @@ func (cw *ClickhouseQueryTranslator) isItHistogramRequest(queryMap QueryMap) (mo
 	queryMapNestOnePossility, ok := queryMap["0"].(QueryMap)
 	if ok {
 		if queryMapNestOnePossility, ok = queryMapNestOnePossility["date_histogram"].(QueryMap); ok {
+			if fixedInterval, exists := queryMapNestOnePossility["fixed_interval"]; exists {
+				return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: fixedInterval.(string), I1: 0, I2: 0}, true
+			}
+
+			if calendarInterval, exists := queryMapNestOnePossility["calendar_interval"]; exists {
+				return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: calendarInterval.(string), I1: 0, I2: 0}, true
+			}
 			return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: queryMapNestOnePossility["fixed_interval"].(string), I1: 0, I2: 0}, true
 		}
 	}
@@ -496,7 +503,15 @@ func (cw *ClickhouseQueryTranslator) isItHistogramRequest(queryMap QueryMap) (mo
 	}
 	queryMap, ok = queryMap["date_histogram"].(QueryMap)
 	if ok {
+		if fixedInterval, exists := queryMap["fixed_interval"]; exists {
+			return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: fixedInterval.(string), I1: 0, I2: 0}, true
+		}
+		if calendarInterval, exists := queryMap["fixed_interval"]; exists {
+			return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: calendarInterval.(string), I1: 0, I2: 0}, true
+		}
+
 		return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: queryMap["fixed_interval"].(string), I1: 0, I2: 0}, true
+
 	}
 	return model.NewQueryInfoAsyncSearchNone(), false
 }

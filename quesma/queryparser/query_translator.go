@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/kibana"
 	"mitmproxy/quesma/model"
 	"regexp"
 	"strconv"
@@ -232,7 +233,7 @@ func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(timestampFieldName, whe
 	if err != nil {
 		panic(err)
 	}
-	histogramOneBar, err := time.ParseDuration(fixedInterval)
+	histogramOneBar, err := kibana.ParseInterval(fixedInterval)
 	if err != nil {
 		panic(err)
 	}
