@@ -12,11 +12,11 @@ import (
 	"time"
 )
 
-func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
+func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
-	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: lm.ResolveTableName(index)}
-	// TODO index argument is not used yet
-	_ = index
+	resolvedTableName := lm.ResolveTableName(indexPattern)
+	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: resolvedTableName}
+
 	var rawResults []byte
 	simpleQuery, queryInfo := queryTranslator.ParseQuery(string(body))
 	var responseBody, translatedQueryBody []byte
@@ -25,15 +25,15 @@ func handleSearch(ctx context.Context, index string, body []byte, lm *clickhouse
 		var fullQuery *model.Query
 		switch queryInfo {
 		case model.Count:
-			fullQuery = queryTranslator.BuildSimpleCountQuery(index, simpleQuery.Sql.Stmt)
+			fullQuery = queryTranslator.BuildSimpleCountQuery(resolvedTableName, simpleQuery.Sql.Stmt)
 		case model.Normal:
-			fullQuery = queryTranslator.BuildSimpleSelectQuery(index, simpleQuery.Sql.Stmt)
+			fullQuery = queryTranslator.BuildSimpleSelectQuery(resolvedTableName, simpleQuery.Sql.Stmt)
 		}
 		translatedQueryBody = []byte(fullQuery.String())
 		rows, err := queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(fullQuery)
 		if err != nil {
-			logger.Error().Str(logger.RID, id).Msgf("Error processing query: %s, err: %s", simpleQuery.Sql.Stmt, err.Error())
-			responseBody = []byte("Error processing query: " + simpleQuery.Sql.Stmt + ", err: " + err.Error())
+			logger.Error().Str(logger.RID, id).Msgf("Error processing query: %s, err: %s", fullQuery.String(), err.Error())
+			responseBody = []byte("Error processing query: " + fullQuery.String() + ", err: " + err.Error())
 			quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 				Id:                     id,
 				IncomingQueryBody:      body,

@@ -18,7 +18,7 @@ var chUrl, _ = url.Parse("")
 //     what should be? According to docs, I think so... Maybe test in Kibana?
 //     OK, Kibana disagrees, it is indeed wrong.
 func TestQueryParserStringAttrConfig(t *testing.T) {
-	tableName := `"logs-generic-default"`
+	tableName := "logs-generic-default"
 	testTable, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
@@ -44,7 +44,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 // TODO this test gives wrong results??
 func TestQueryParserNoAttrsConfig(t *testing.T) {
-	tableName := `"logs-generic-default"`
+	tableName := "logs-generic-default"
 	testTable, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,

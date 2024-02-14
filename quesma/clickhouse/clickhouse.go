@@ -94,30 +94,21 @@ func (lm *LogManager) matchIndex(indexNamePattern, indexName string) bool {
 func (lm *LogManager) ResolveTableName(index string) string {
 	for k := range lm.predefinedTables {
 		if lm.matchIndex(index, k) {
-			index = k
-			break
+			return k
 		}
 	}
 	for k := range lm.newRuntimeTables {
 		if lm.matchIndex(index, k) {
-			index = k
-			break
+			return k
 		}
 	}
-	if !strings.Contains(index, `"`) {
-		return "\"" + index + "\""
-	}
-	return index
+	return ""
 }
 
 func (lm *LogManager) findSchemaAndInitConnection(tableName string) (*Table, error) {
-
 	table := lm.findSchema(tableName)
-	if table == nil && len(tableName) > len(`""`) && tableName[0] == '"' && tableName[len(tableName)-1] == '"' {
-		table = lm.findSchema(tableName[1 : len(tableName)-1]) // try remove " " TODO improve this when we get out of the prototype phase
-		if table == nil {
-			return nil, fmt.Errorf("Table " + tableName + " not found")
-		}
+	if table == nil {
+		return nil, fmt.Errorf("table matching [%s] not found", tableName)
 	}
 	if err := lm.initConnection(); err != nil {
 		return nil, err
@@ -352,9 +343,14 @@ func (lm *LogManager) Insert(tableName, jsonData string, config *ChTableConfig) 
 
 func (lm *LogManager) findSchema(tableName string) *Table {
 	tableNamePattern := index.TableNamePatternRegexp(tableName)
-	for table := range lm.predefinedTables {
-		if tableNamePattern.MatchString(table) {
-			return lm.predefinedTables[table]
+	for name, table := range lm.predefinedTables {
+		if tableNamePattern.MatchString(name) {
+			return table
+		}
+	}
+	for name, table := range lm.newRuntimeTables {
+		if tableNamePattern.MatchString(name) {
+			return table
 		}
 	}
 

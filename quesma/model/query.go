@@ -38,7 +38,7 @@ func (q *Query) String() string {
 	if len(q.WhereClause) == 0 {
 		where = ""
 	}
-	sb.WriteString(" FROM " + q.TableName + where + q.WhereClause + " " + strings.Join(q.SuffixClauses, " "))
+	sb.WriteString(" FROM " + `"` + q.TableName + `"` + where + q.WhereClause + " " + strings.Join(q.SuffixClauses, " "))
 	return sb.String()
 }
 
@@ -63,7 +63,7 @@ func (q *Query) StringFromColumns(colNames []string) string {
 	if len(q.WhereClause) == 0 {
 		where = ""
 	}
-	sb.WriteString(" FROM " + q.TableName + where + q.WhereClause + " " + strings.Join(q.SuffixClauses, " "))
+	sb.WriteString(" FROM " + `"` + q.TableName + `"` + where + q.WhereClause + " " + strings.Join(q.SuffixClauses, " "))
 	return sb.String()
 }
 

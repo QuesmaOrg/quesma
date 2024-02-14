@@ -2,6 +2,7 @@ package quesma
 
 import (
 	"context"
+	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
@@ -20,7 +21,7 @@ func TestNoAsciiTableName(t *testing.T) {
 			"match_all": {}
 		}
 	}`)
-	tableName := `"table-namea$한Иb}~"`
+	tableName := `table-namea$한Иb}~`
 	lm := clickhouse.NewLogManagerEmpty()
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
 	simpleQuery, queryInfo := queryTranslator.ParseQueryAsyncSearch(string(requestBody))
@@ -30,12 +31,12 @@ func TestNoAsciiTableName(t *testing.T) {
 
 	query := queryTranslator.BuildSimpleSelectQuery(tableName, simpleQuery.Sql.Stmt)
 	assert.True(t, query.CanParse)
-	assert.Equal(t, `SELECT * FROM `+tableName+" ", query.String())
+	assert.Equal(t, fmt.Sprintf(`SELECT * FROM "%s" `, tableName), query.String())
 }
 
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, "test")
 
-const tableName = `"logs-generic-default"`
+const tableName = `logs-generic-default`
 
 func TestAsyncSearchHandler(t *testing.T) {
 	table := clickhouse.TableMap{

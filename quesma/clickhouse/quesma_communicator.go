@@ -2,7 +2,6 @@ package clickhouse
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"mitmproxy/quesma/model"
 	"sort"
@@ -112,7 +111,7 @@ func (lm *LogManager) GetFieldsList(tableName string) []string {
 func (lm *LogManager) ProcessSimpleSelectQuery(query *model.Query) ([]QueryResultRow, error) {
 	table, err := lm.findSchemaAndInitConnection(query.TableName)
 	if table == nil {
-		return nil, errors.New("Table not found : " + query.TableName)
+		return nil, fmt.Errorf("table not found1 [%s]", query.TableName)
 	}
 
 	if err != nil {
@@ -134,7 +133,7 @@ func (lm *LogManager) ProcessSimpleSelectQuery(query *model.Query) ([]QueryResul
 func (lm *LogManager) ProcessNMostRecentRowsQuery(query *model.Query) ([]QueryResultRow, error) {
 	table, err := lm.findSchemaAndInitConnection(query.TableName)
 	if table == nil {
-		return nil, errors.New("Table not found : " + query.TableName)
+		return nil, fmt.Errorf("table not found2 [%s]", query.TableName)
 	}
 	if err != nil {
 		return nil, err
@@ -182,7 +181,7 @@ func (lm *LogManager) ProcessHistogramQuery(query *model.Query, bucket time.Dura
 func (lm *LogManager) ProcessFacetsQuery(query *model.Query) ([]QueryResultRow, error) {
 	table, err := lm.findSchemaAndInitConnection(query.TableName)
 	if table == nil {
-		return nil, errors.New("Table not found : " + query.TableName)
+		return nil, fmt.Errorf("table not found3 [%s]", query.TableName)
 	}
 
 	if err != nil {

@@ -9,7 +9,7 @@ import (
 
 // Used in at least 2 different packages/test files for now, so it's moved to a separate package.
 
-const TableName = `"logs-generic-default"`
+const TableName = `logs-generic-default`
 
 const oneMinute = 60 * time.Second
 
