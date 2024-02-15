@@ -120,3 +120,20 @@ func (c *QuesmaConfiguration) GetIndexConfig(indexName string) (IndexConfigurati
 	}
 	return IndexConfiguration{}, false
 }
+
+func (c *QuesmaConfiguration) ReadsFromClickhouse() bool {
+	return c.Mode == DualWriteQueryClickhouse || c.Mode == DualWriteQueryClickhouseFallback ||
+		c.Mode == DualWriteQueryClickhouseVerify || c.Mode == ClickHouse
+}
+
+func (c *QuesmaConfiguration) ReadsFromElasticsearch() bool {
+	return c.Mode == Proxy || c.Mode == ProxyInspect || c.Mode == DualWriteQueryElastic
+}
+
+func (c *QuesmaConfiguration) WritesToClickhouse() bool {
+	return c.Mode != Proxy && c.Mode != ProxyInspect
+}
+
+func (c *QuesmaConfiguration) WritesToElasticsearch() bool {
+	return c.Mode != ClickHouse
+}
