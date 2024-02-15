@@ -126,6 +126,7 @@ func (qmc *QuesmaManagementConsole) generateStatistics() []byte {
 		buffer.WriteString(`<th class="key-count">Count</th>` + "\n")
 		buffer.WriteString(`<th class="value">Value</th>` + "\n")
 		buffer.WriteString(`<th class="value-count">Count</th>` + "\n")
+		buffer.WriteString(`<th class="value-count">Percentage</th>` + "\n")
 		buffer.WriteString(`<th class="types">Potential type</th>` + "\n")
 		buffer.WriteString("</tr>\n")
 		buffer.WriteString("</thead>\n")
@@ -148,6 +149,7 @@ func (qmc *QuesmaManagementConsole) generateStatistics() []byte {
 
 				buffer.WriteString(fmt.Sprintf(`<td class="value">%s</td>`, value.ValueName))
 				buffer.WriteString(fmt.Sprintf(`<td class="value-count">%d</td>`, value.Occurrences))
+				buffer.WriteString(fmt.Sprintf(`<td class="value-count">%.1f%%</td>`, 100*float32(value.Occurrences)/float32(keyStats.Occurrences)))
 				buffer.WriteString(fmt.Sprintf(`<td class="types">%s</td>`, strings.Join(value.Types, ", ")))
 			}
 			buffer.WriteString("</tr>\n")
