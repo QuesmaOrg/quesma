@@ -1,17 +1,28 @@
 package model
 
 import (
+	"mitmproxy/quesma/util"
 	"strconv"
 	"strings"
 )
 
+const RowNumberColumnName = "row_number"
+
+// implements String() (now) and MakeResponse() interface (in the future (?))
 type Query struct {
 	Fields          []string // Fields in 'SELECT Fields FROM ...'
 	NonSchemaFields []string // Fields that are not in schema, but are in 'SELECT ...', e.g. count()
 	WhereClause     string   // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
-	SuffixClauses   []string // GROUP BY, ORDER BY, etc.
+	GroupByFields   []string // if not empty, we do GROUP BY GroupByFields...
+	SuffixClauses   []string // ORDER BY, etc.
 	TableName       string
 	CanParse        bool // true <=> query is valid
+}
+
+// implements String() (now) and MakeResponse() interface (in the future (?))
+type QueryWithAggregation struct {
+	Query
+	AggregatorsNames []string // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
 }
 
 // returns string with * in SELECT
@@ -39,6 +50,16 @@ func (q *Query) String() string {
 		where = ""
 	}
 	sb.WriteString(" FROM " + `"` + q.TableName + `"` + where + q.WhereClause + " " + strings.Join(q.SuffixClauses, " "))
+	if len(q.GroupByFields) > 0 {
+		sb.WriteString(" GROUP BY (")
+		for i, field := range q.GroupByFields {
+			sb.WriteString(strconv.Quote(field))
+			if i < len(q.GroupByFields)-1 {
+				sb.WriteString(", ")
+			}
+		}
+		sb.WriteString(")")
+	}
 	return sb.String()
 }
 
@@ -69,6 +90,18 @@ func (q *Query) StringFromColumns(colNames []string) string {
 
 func (q *Query) IsWildcard() bool {
 	return len(q.Fields) == 1 && q.Fields[0] == "*"
+}
+
+func (q *QueryWithAggregation) CopyAggregationFields(qwa QueryWithAggregation) {
+	q.GroupByFields = make([]string, len(qwa.GroupByFields))
+	q.Fields = make([]string, len(qwa.Fields))
+	copy(q.GroupByFields, qwa.GroupByFields)
+	copy(q.Fields, qwa.Fields)
+}
+
+func (q *QueryWithAggregation) FilterEmptyAggregationFields() {
+	q.GroupByFields = util.FilterNonEmpty(q.GroupByFields)
+	q.Fields = util.FilterNonEmpty(q.Fields)
 }
 
 type AsyncSearchQueryType int

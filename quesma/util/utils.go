@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
+	"testing"
 )
 
 type JsonMap = map[string]interface{}
@@ -201,4 +203,85 @@ func BodyHandler(h func(body []byte, writer http.ResponseWriter, r *http.Request
 		r.Body = io.NopCloser(bytes.NewBuffer(body))
 		h(body, writer, r)
 	}
+}
+
+// returns a slice with non-empty strings from input slice (in place of input slice)
+func FilterNonEmpty(slice []string) []string {
+	i := 0
+	for _, el := range slice {
+		if len(el) > 0 {
+			slice[i] = el
+			i++
+		}
+	}
+	return slice[:i]
+}
+
+// Compares 2 strings for SQL-like equality, which is a bit looser than normal strings ==.
+// E.g. "some-prefix A OR B some-suffix" == (SQL-like) "some-prefix B OR A some-suffix".
+// It's useful in tests.
+// This implementation is not correct in general case, it can return that some more complex
+// strings aren't SQL-like equal, when they are, but it's good enough for our simple tests.
+// (e.g. it only tries to find permutations of size 2)
+func AssertSqlEqual(t *testing.T, expected, actual string) {
+	if !IsSqlEqual(expected, actual) {
+		t.Errorf("Expected: %s, got: %s", expected, actual)
+	}
+}
+
+// Asserts that 'actual' is SQL-equal to one of the strings from 'expected'.
+func AssertContainsSqlEqual(t *testing.T, expected []string, actual string) {
+	for _, el := range expected {
+		if IsSqlEqual(el, actual) {
+			return
+		}
+	}
+	t.Errorf("Expected: %v, got: %s", expected, actual)
+}
+
+// Compares 2 strings for SQL-like equality, which is a bit looser than normal strings ==.
+// E.g. "some-prefix A OR B some-suffix" == (SQL-like) "some-prefix B OR A some-suffix"
+// It's useful in tests.
+// This implementation is not correct in general case, it can return that some more complex
+// strings aren't SQL-like equal, when they are, but it's good enough for our simple tests.
+// (e.g. it only tries to find permutations of size 2)
+func IsSqlEqual(expected, actual string) bool {
+	if expected == actual {
+		return true
+	}
+	if len(expected) != len(actual) {
+		return false
+	}
+	split1 := strings.Split(expected, " ")
+	split2 := strings.Split(actual, " ")
+	if len(split1) != len(split2) {
+		return false
+	}
+	for i := 0; i < len(split1); i++ {
+		if split1[i] != split2[i] {
+			// we try to change A OR/AND B into B OR/AND A
+			if i+2 >= len(split1) {
+				return false
+			}
+
+			// we compare a X b with c Y d
+			a, b := split1[i], split1[i+2]
+			c, d := split2[i], split2[i+2]
+			if a == d && b == c {
+				i += 2
+				continue
+			}
+			if split1[i+1] != split2[i+1] || (split1[i+1] != "OR" && split1[i+1] != "AND") || len(a) != len(d) || len(b) != len(c) {
+				return false
+			}
+			aTrimmed, cTrimmed := strings.TrimLeft(a, "("), strings.TrimLeft(c, "(")
+			bTrimmed, dTrimmed := strings.TrimRight(b, ")"), strings.TrimRight(d, ")")
+			if aTrimmed != dTrimmed || bTrimmed != cTrimmed {
+				return false
+			}
+
+			i += 2
+		}
+	}
+	return true
 }

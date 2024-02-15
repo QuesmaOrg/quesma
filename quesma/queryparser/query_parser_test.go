@@ -68,6 +68,193 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 	}
 }
 
+// TODO this will be updated in the next PR
+var tests = []string{
+	`{
+		"_source": {
+			"excludes": []
+		},
+		"aggs": {
+			"0": {
+				"histogram": {
+					"field": "FlightDelayMin",
+					"interval": 1,
+					"min_doc_count": 1
+				}
+			}
+		},
+		"fields": [
+			{
+				"field": "timestamp",
+				"format": "date_time"
+			}
+		],
+		"query": {
+			"bool": {
+				"filter": [
+					{
+						"range": {
+							"timestamp": {
+								"format": "strict_date_optional_time",
+								"gte": "2024-02-02T13:47:16.029Z",
+								"lte": "2024-02-09T13:47:16.029Z"
+							}
+						}
+					}
+				],
+				"must": [],
+				"must_not": [
+					{
+						"match_phrase": {
+							"FlightDelayMin": {
+								"query": 0
+							}
+						}
+					}
+				],
+				"should": []
+			}
+		},
+		"runtime_mappings": {
+			"hour_of_day": {
+				"script": {
+					"source": "emit(doc['timestamp'].value.getHour());"
+				},
+				"type": "long"
+			}
+		},
+		"script_fields": {},
+		"size": 0,
+		"stored_fields": [
+			"*"
+		],
+		"track_total_hits": true
+	}`,
+	`{
+		"_source": {
+			"excludes": []
+		},
+		"aggs": {
+			"0": {
+				"aggs": {
+					"1-bucket": {
+						"filter": {
+							"bool": {
+								"filter": [
+									{
+										"bool": {
+											"minimum_should_match": 1,
+											"should": [
+												{
+													"match": {
+														"FlightDelay": true
+													}
+												}
+											]
+										}
+									}
+								],
+								"must": [],
+								"must_not": [],
+								"should": []
+							}
+						}
+					},
+					"3-bucket": {
+						"filter": {
+							"bool": {
+								"filter": [
+									{
+										"bool": {
+											"minimum_should_match": 1,
+											"should": [
+												{
+													"match": {
+														"Cancelled": true
+													}
+												}
+											]
+										}
+									}
+								],
+								"must": [],
+								"must_not": [],
+								"should": []
+							}
+						}
+					}
+				},
+				"terms": {
+					"field": "OriginCityName",
+					"order": {
+						"_key": "asc"
+					},
+					"size": 1000
+				}
+			}
+		},
+		"fields": [
+			{
+				"field": "timestamp",
+				"format": "date_time"
+			}
+		],
+		"query": {
+			"bool": {
+				"filter": [
+					{
+						"range": {
+							"timestamp": {
+								"format": "strict_date_optional_time",
+								"gte": "2024-02-02T13:47:16.029Z",
+								"lte": "2024-02-09T13:47:16.029Z"
+							}
+						}
+					}
+				],
+				"must": [],
+				"must_not": [],
+				"should": []
+			}
+		},
+		"runtime_mappings": {
+			"hour_of_day": {
+				"script": {
+					"source": "emit(doc['timestamp'].value.getHour());"
+				},
+				"type": "long"
+			}
+		},
+		"script_fields": {},
+		"size": 0,
+		"stored_fields": [
+			"*"
+		],
+		"track_total_hits": true
+	}`,
+}
+
+// TODO this will be updated in the next PR
+func TestNew(t *testing.T) {
+	tableName := `"logs-generic-default"`
+	testTable, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
+		( "message" String, "timestamp" DateTime64(3, 'UTC') )
+		ENGINE = Memory`,
+		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lm := clickhouse.NewLogManager(chUrl, clickhouse.TableMap{tableName: testTable}, make(clickhouse.TableMap))
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: tableName}
+	for _, tt := range tests {
+		t.Run("test", func(t *testing.T) {
+			simpleQuery, _ := cw.ParseQueryAsyncSearch(tt)
+			assert.True(t, simpleQuery.CanParse)
+		})
+	}
+}
+
 func TestFilterNonEmpty(t *testing.T) {
 	tests := []struct {
 		array    []Statement

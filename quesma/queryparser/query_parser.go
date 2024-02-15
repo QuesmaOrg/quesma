@@ -205,17 +205,26 @@ func (cw *ClickhouseQueryTranslator) parseMatchAll(_ QueryMap) SimpleQuery {
 // - fuzzy_transpositions
 // (Optional, Boolean) If true, edits for fuzzy matching include transpositions of two adjacent characters (ab → ba). Defaults to true.
 // TOTHINK:
-// - casting to string. 'Match' on e.g. ints doesn't make sense, does it?
 // - match_phrase also goes here. Maybe some different parsing is needed?
 func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap) SimpleQuery {
 	if len(queryMap) == 1 {
 		for k, v := range queryMap {
-			split := strings.Split(v.(string), " ")
-			qStrs := make([]Statement, len(split))
-			for i, s := range split {
-				qStrs[i] = NewSimpleStatement(strconv.Quote(k) + " iLIKE " + "'%" + s + "%'")
+			// (k, v) = either e.g. ("message", "this is a test")
+			//                  or  ("message", map["query": "this is a test", ...]). Here we only care about "query" until we find a case where we need more.
+			vUnNested := v
+			if vAsQueryMap, ok := v.(QueryMap); ok {
+				vUnNested = vAsQueryMap["query"]
 			}
-			return newSimpleQuery(or(qStrs), true)
+			if vAsString, ok := vUnNested.(string); ok {
+				split := strings.Split(vAsString, " ")
+				qStrs := make([]Statement, len(split))
+				for i, s := range split {
+					qStrs[i] = NewSimpleStatement(strconv.Quote(k) + " iLIKE " + "'%" + s + "%'")
+				}
+				return newSimpleQuery(or(qStrs), true)
+			}
+			// so far we assume that only strings can be ORed here
+			return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+" == "+sprint(vUnNested)), true)
 		}
 	}
 	return newSimpleQuery(NewSimpleStatement("unsupported match len != 1"), false)
@@ -273,13 +282,30 @@ func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) SimpleQuer
 // + only '*' in query, no '?' or other regex
 func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) SimpleQuery {
 	orStmts := make([]Statement, 0)
-	fields := cw.extractFields(queryMap["fields"].([]interface{}))
-	for _, field := range fields {
-		for _, qStr := range strings.Split(queryMap["query"].(string), " ") {
-			orStmts = append(orStmts, NewSimpleStatement(strconv.Quote(field)+" iLIKE '%"+strings.ReplaceAll(qStr, "*", "%")+"%'"))
+	if fields, ok := queryMap["fields"]; ok {
+		fieldsAsStrings := cw.extractFields(fields.([]interface{}))
+		for _, field := range fieldsAsStrings {
+			for _, qStr := range strings.Split(queryMap["query"].(string), " ") {
+				orStmts = append(orStmts, NewSimpleStatement(strconv.Quote(field)+" iLIKE '%"+strings.ReplaceAll(qStr, "*", "%")+"%'"))
+			}
 		}
+	} else {
+		return cw.parseQueryStringField(queryMap["query"].(string))
 	}
 	return newSimpleQuery(or(orStmts), true)
+}
+
+// TODO it's a very simple implementation. Implement better if needed.
+func (cw *ClickhouseQueryTranslator) parseQueryStringField(query string) SimpleQuery {
+	split := strings.Split(query, ":")
+	if len(split) != 2 {
+		return newSimpleQuery(NewSimpleStatement("invalid query string"), false)
+	}
+	if split[1][0] == '>' || split[1][0] == '<' {
+		// to support fieldName>value, <value, etc. We see such request in Kibana
+		return newSimpleQuery(NewSimpleStatement(split[0]+split[1]), true)
+	}
+	return newSimpleQuery(NewSimpleStatement(split[0]+" iLIKE '%"+split[1]+"%'"), true)
 }
 
 func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) SimpleQuery {

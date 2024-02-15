@@ -3,6 +3,7 @@ package util
 import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
+	"strconv"
 	"testing"
 )
 
@@ -240,4 +241,53 @@ func TestJsonDifference(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, actualMinusExpected)
 	assert.Equal(t, wantedExpectedMinusActual, expectedMinusActual)
+}
+
+func TestIsSqlEqual(t *testing.T) {
+	var cases = []struct {
+		sql1    string
+		sql2    string
+		isEqual bool
+	}{
+		{"abc", "ab", false},
+		{"abc", "abc", true},
+		{"abcd OR abc", "abc OR abcd", true},
+		{"a OR (b AND c)", "a OR (c AND b)", true},
+		{"a OR (b AND c)", "a OR (c OR b)", false},
+		{
+			`SELECT count() FROM add-this WHERE \"timestamp\"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') AND \"timestamp\">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')`,
+			`SELECT count() FROM add-this WHERE \"timestamp\">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND \"timestamp\"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
+			true,
+		},
+	}
+	for i, tt := range cases {
+		t.Run("TestIsSqlEqual_"+strconv.Itoa(i)+": "+tt.sql1+", "+tt.sql2, func(t *testing.T) {
+			assert.Equal(t, tt.isEqual, IsSqlEqual(tt.sql1, tt.sql2))
+		})
+	}
+}
+
+func TestFilterNonEmpty(t *testing.T) {
+	tests := []struct {
+		array    []string
+		filtered []string
+	}{
+		{
+			[]string{"", ""},
+			[]string{},
+		},
+		{
+			[]string{"", "a", ""},
+			[]string{"a"},
+		},
+		{
+			[]string{"a", "b", "c", " ", "  "},
+			[]string{"a", "b", "c", " ", "  "},
+		},
+	}
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			assert.Equal(t, tt.filtered, FilterNonEmpty(tt.array))
+		})
+	}
 }

@@ -1217,6 +1217,37 @@ var TestsSearch = []SearchTestCase{
 		qToStr(newSimplestQuery()),
 	},
 	{
+		"Simplest 'match_phrase'",
+		`{
+			"query": {
+				"match_phrase": {
+					"message": "this is a test"
+				}
+			}
+		}`,
+		[]string{`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`},
+		model.Normal,
+		[]model.Query{justWhere(`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`)},
+		qToStr(justWhere(`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`)),
+	},
+	{
+		"More nested 'match_phrase'",
+		`{
+			"query": {
+				"match_phrase": {
+					"message": {
+						"query": "this is a test",
+						"analyzer": "my_analyzer"
+					}
+				}
+			}
+		}`,
+		[]string{`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`},
+		model.Normal,
+		[]model.Query{justWhere(`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`)},
+		qToStr(justWhere(`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`)),
+	},
+	{
 		"Simple nested",
 		`
 		{

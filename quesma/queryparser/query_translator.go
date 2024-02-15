@@ -206,7 +206,6 @@ func makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet []clickhouse.Query
 }
 
 func MakeResponseAsyncSearchQuery(ResultSet []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
-	fmt.Println(typ)
 	switch typ {
 	case model.Histogram, model.AggsByField:
 		return makeResponseAsyncSearchAggregated(ResultSet, typ)
