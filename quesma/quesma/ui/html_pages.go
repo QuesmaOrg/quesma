@@ -151,7 +151,7 @@ func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 	buffer.WriteString(`<svg width="100%" height="100%" viewBox="0 0 1000 1000">` + "\n")
 	// Clickhouse -> Kibana
 	if qmc.config.ReadsFromClickhouse() {
-		buffer.WriteString(`<path d="M 1000 250 L 0 250" fill="none" stroke="red" />`)
+		buffer.WriteString(`<path d="M 1000 250 L 0 250" fill="none" stroke="green" />`)
 	}
 	// Elasticsearch -> Kibana
 	if qmc.config.ReadsFromElasticsearch() {

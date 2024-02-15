@@ -256,7 +256,7 @@ func (qmc *QuesmaManagementConsole) generateDashboardTrafficPanel() []byte {
 		rps = rand.Int31n(100) + 5
 		err = rand.Int31n(5)
 		latency = rand.Int31n(20) + 10
-		buffer.WriteString(fmt.Sprintf(`<text x="500" y="240" class="red">%d rps / %d%% err / %dms</text>`,
+		buffer.WriteString(fmt.Sprintf(`<text x="500" y="240" class="green">%d rps / %d%% err / %dms</text>`,
 			rps, err, latency))
 	}
 
