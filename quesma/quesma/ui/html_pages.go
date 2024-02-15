@@ -137,7 +137,7 @@ func (qmc *QuesmaManagementConsole) generateStatistics() []byte {
 				topValuesCount = len(keyStats.Values)
 			}
 
-			buffer.WriteString("<tr>\n")
+			buffer.WriteString("<tr class='group-divider'>\n")
 			buffer.WriteString(fmt.Sprintf(`<td class="key" rowspan="%d">%s</td>`+"\n", topValuesCount, keyStats.KeyName))
 			buffer.WriteString(fmt.Sprintf(`<td class="key-count" rowspan="%d">%d</td>`+"\n", topValuesCount, keyStats.Occurrences))
 
