@@ -107,7 +107,7 @@ which provides minimal set of dependencies - Elasticsearch, Clickhouse, and Kiba
 1. Navigate to `quesma/main.go` and click `Run application` menu in your IDE. Optionally you can also run the `main.go` file from the command line.
 2. Start auxiliary services with the following command:
     ```bash
-    HOST_IP=$(ifconfig en0 | awk '/inet / {print $2}') docker-compose -f local-debug.yml up
+    HOST_IP=$(ifconfig en0 | awk '/inet / {print $2}') docker-compose -f docker/local-debug.yml up
     ```
    This is minimalistic setup with `Elasticsearch`, `ClickHouse`, and `Kibana` populated with sample data sets.
    There's also `MITM proxy` to help you inspect the actual traffic.

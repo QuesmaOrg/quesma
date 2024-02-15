@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  code-and-unit-tests:
+  quesma-test-and-compile:
     strategy:
       matrix:
         module: [ "quesma" ]
@@ -43,10 +43,10 @@ jobs:
         working-directory: ${{ matrix.module }}
         run: go test -v ./...
 
-  build:
+  build-quesma-docker-image:
     strategy:
-        matrix:
-            module: [ "quesma", "log-generator" ]
+      matrix:
+        module: [ "quesma" ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -75,9 +75,41 @@ jobs:
           name: ${{ matrix.module }}
           path: /tmp/image.tar
 
+  build-log-generator:
+    strategy:
+        matrix:
+            module: [ "log-generator" ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+          go-version: '1.22'
+
+      - name: Build and export
+        uses: docker/build-push-action@v5
+        with:
+          context: docker/${{ matrix.module }}/.
+          tags: ${{ matrix.module }}:latest
+          outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.module }}
+          path: /tmp/image.tar
+
   smoke-test:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build-log-generator, build-quesma-docker-image]
     steps:
       - uses: actions/checkout@v4
 
@@ -101,7 +133,7 @@ jobs:
 
       - name: Build and start docker-compose
         timeout-minutes: 10
-        run: docker-compose -f ci.yml up -d
+        run: docker-compose -f docker/ci.yml up -d
 
       - name: Wait until services are healthy
         timeout-minutes: 6

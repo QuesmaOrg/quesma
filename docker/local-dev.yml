@@ -1,7 +1,7 @@
 version: "3.7"
 services:
   quesma:
-    build: quesma
+    build: ../quesma
     image: quesma:latest
     environment:
       - ELASTICSEARCH_URL=http://elasticsearch:9200
@@ -18,18 +18,49 @@ services:
     ports:
       - "9999:9999"
       - "8080:8080"
-      - "9200:8080"
     volumes:
+      - ./quesma/quesma/ui:/var/quesma/quesma/ui
       - ./quesma/logs/:/var/quesma/logs
+    restart: unless-stopped
+  device-log-generator:
+    build: device-log-generator
+    image: device-log-generator:latest
+    depends_on:
+      mitmproxy:
+        condition: service_healthy
+    links:
+      - "mitmproxy"
     restart: unless-stopped
   log-generator:
     build: log-generator
     image: log-generator:latest
     depends_on:
-      quesma:
+      mitmproxy:
         condition: service_healthy
     links:
-      - "quesma:mitmproxy"
+      - "mitmproxy"
+    restart: unless-stopped
+  query-generator:
+    build: query-generator
+    image: query-generator:latest
+    depends_on:
+      mitmproxy:
+        condition: service_healthy
+    links:
+      - "mitmproxy"
+    restart: unless-stopped
+  fileabeat:  # Ingests quesma logs to Elasticsearch to be visualized in Kibana
+    image: docker.elastic.co/beats/filebeat:8.11.1
+    links:
+      - "elasticsearch"
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
+      - ./quesma/logs/:/quesma-ingest/
+    depends_on:
+      quesma:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     restart: unless-stopped
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
@@ -37,7 +68,7 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
+      - "ES_JAVA_OPTS=-Xmx2G"
     ports:
       - "9201:9200"
       - "9300:9300"
@@ -52,9 +83,14 @@ services:
           memory: 4G
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.1
+    links:
+      - "mitmproxy"
     environment:
-      ELASTICSEARCH_HOSTS: '["http://quesma:8080"]'
+      ELASTICSEARCH_HOSTS: '["http://mitmproxy:8080"]'
+#      LOGGING_ROOT_LEVEL: 'debug'
     depends_on:
+      mitmproxy:
+        condition: service_healthy
       quesma:
         condition: service_healthy
       elasticsearch:
@@ -70,8 +106,6 @@ services:
   kibana-sidecar:
     image: docker.elastic.co/kibana/kibana:8.11.1
     restart: "no"
-    environment:
-      - LIMITED_DATASET=true
     links:
       - "kibana"
     depends_on:
@@ -91,4 +125,36 @@ services:
       interval: 1s
       timeout: 1s
       start_period: 1m
-
+  mitmproxy:
+    image: mitmproxy/mitmproxy:10.1.5
+    tty: true
+    ports:
+      - "9200:8080"
+      - "8081:8081"
+    command: >
+      mitmweb --set termlog_verbosity=warn --no-web-open-browser --web-host 0.0.0.0 --mode reverse:http://quesma:8080/
+    # -s /var/mitmproxy/request.py
+    # Uncomment above, if you would like to log requests using mitmproxy/request.py
+    #   The files will be available in mitmproxy/{query,requests}/*.txt
+    depends_on:
+      quesma:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./mitmproxy:/var/mitmproxy
+    healthcheck:
+      # No curl/wget, going old school
+      test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/8080' || exit 1
+      interval: 1s
+      start_period: 1m
+      timeout: 1s
+  clean:
+    build: clean
+    depends_on:
+      mitmproxy:
+        condition: service_started
+      clickhouse:
+        condition: service_healthy
+    restart: "no"
+    volumes:
+      - ./mitmproxy:/var/mitmproxy
