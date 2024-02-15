@@ -139,6 +139,10 @@ func (vs *KeyStatistics) TopNValues(n int) (result []*ValueStatistics) {
 	mu.Unlock()
 
 	sort.Slice(result, func(i, j int) bool {
+		if result[i].Occurrences == result[j].Occurrences {
+			return result[i].ValueName < result[j].ValueName
+		}
+
 		return result[i].Occurrences > result[j].Occurrences
 	})
 
