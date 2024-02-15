@@ -179,7 +179,6 @@ func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 
 	buffer.WriteString(`<div class="menu">`)
 	buffer.WriteString("\n<h2>Menu</h2>")
-	buffer.WriteString("\n<h3>Find query</h3><br>\n")
 
 	buffer.WriteString(`<h3>Useful links</h3>`)
 	buffer.WriteString(`<ul>`)
