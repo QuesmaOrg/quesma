@@ -13,6 +13,7 @@ import (
 	"mitmproxy/quesma/quesma/gzip"
 	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/recovery"
+	"mitmproxy/quesma/quesma/routes"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
 	"net/http"
@@ -77,7 +78,7 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse
 	}
 	elkResponse.Body = io.NopCloser(bytes.NewBuffer(body))
 
-	if isSearch(uri) {
+	if routes.IsIndexSearchPath(uri) || routes.IsIndexAsyncSearchPath(uri) {
 		if gzip.IsGzipped(elkResponse) {
 			body, err = gzip.UnZip(body)
 			if err != nil {
@@ -157,7 +158,7 @@ func isEnabled(path string, configuration config.QuesmaConfiguration) bool {
 }
 
 func copyBody(w http.ResponseWriter, r *http.Request, matched bool, err error, ctx context.Context, quesmaResponse string, elkResponse *http.Response, configuration config.QuesmaConfiguration) {
-	if matched && isEnabled(r.URL.Path, configuration) && isSearch(r.URL.Path) && err == nil {
+	if matched && isEnabled(r.URL.Path, configuration) && (routes.IsIndexAsyncSearchPath(r.URL.Path) || routes.IsIndexSearchPath(r.URL.Path)) && err == nil {
 		logger.Debug().Ctx(ctx).Msg("responding from quesma")
 		unzipped := []byte(quesmaResponse)
 		if string(unzipped) != "" {
@@ -187,10 +188,6 @@ func copyHeaders(w http.ResponseWriter, elkResponse *http.Response) {
 			}
 		}
 	}
-}
-
-func isSearch(path string) bool {
-	return strings.Contains(path, "/_search") || strings.Contains(path, "/_async_search")
 }
 
 func withTracing(r *http.Request) context.Context {
