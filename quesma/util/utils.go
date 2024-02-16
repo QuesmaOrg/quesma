@@ -285,3 +285,8 @@ func IsSqlEqual(expected, actual string) bool {
 	}
 	return true
 }
+
+// Returns a string of 'indentLvl' number of tabs
+func Indent(indentLvl int) string {
+	return strings.Repeat("\t", indentLvl)
+}

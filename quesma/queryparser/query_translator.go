@@ -72,7 +72,7 @@ func MakeResponseSearchQuery[T fmt.Stringer](ResultSet []T, typ model.SearchQuer
 	return nil, fmt.Errorf("unknown SearchQueryType: %v", typ)
 }
 
-func makeResponseAsyncSearchAggregated(ResultSet []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+func makeResponseAsyncSearchAggregated(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
 	buckets := make([]JsonMap, len(ResultSet))
 	for i, row := range ResultSet {
 		buckets[i] = make(JsonMap)
@@ -82,7 +82,7 @@ func makeResponseAsyncSearchAggregated(ResultSet []clickhouse.QueryResultRow, ty
 	}
 	var sampleCount uint64 // uint64 because that's what clickhouse reader returns
 	for _, row := range ResultSet {
-		sampleCount += row.Cols[clickhouse.DocCount].Value.(uint64)
+		sampleCount += row.Cols[model.ResultColDocCountIndex].Value.(uint64)
 	}
 
 	var id *string
@@ -126,7 +126,7 @@ func makeResponseAsyncSearchAggregated(ResultSet []clickhouse.QueryResultRow, ty
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func makeResponseAsyncSearchList(ResultSet []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+func makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
 		hits[i].Fields = make(map[string][]interface{})
@@ -173,7 +173,7 @@ func makeResponseAsyncSearchList(ResultSet []clickhouse.QueryResultRow, typ mode
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet []clickhouse.QueryResultRow) ([]byte, error) {
+func makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet []model.QueryResultRow) ([]byte, error) {
 	var earliest, latest *string = nil, nil
 	if len(ResultSet) >= 1 {
 		earliest = new(string)
@@ -205,7 +205,7 @@ func makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet []clickhouse.Query
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func MakeResponseAsyncSearchQuery(ResultSet []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+func MakeResponseAsyncSearchQuery(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
 	switch typ {
 	case model.Histogram, model.AggsByField:
 		return makeResponseAsyncSearchAggregated(ResultSet, typ)

@@ -77,7 +77,7 @@ func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *cli
 	return responseBody, nil
 }
 
-func createAsyncSearchResponseHitJson(requestId string, rows []clickhouse.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+func createAsyncSearchResponseHitJson(requestId string, rows []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
 	responseBody, err := queryparser.MakeResponseAsyncSearchQuery(rows, typ)
 	if err != nil {
 		logger.Error().Str(logger.RID, requestId).Msgf("%v rows: %v", err, rows)
@@ -98,7 +98,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	if simpleQuery.CanParse && queryInfo.Typ != model.None {
 		var fullQuery *model.Query
 		var err error
-		var rows []clickhouse.QueryResultRow
+		var rows []model.QueryResultRow
 		switch queryInfo.Typ {
 		case model.Histogram:
 			var bucket time.Duration
@@ -119,7 +119,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 				"@timestamp", simpleQuery.Sql.Stmt, queryInfo.I2)
 			rows, err = queryTranslator.ClickhouseLM.ProcessNMostRecentRowsQuery(fullQuery)
 		case model.EarliestLatestTimestamp:
-			var rowsEarliest, rowsLatest []clickhouse.QueryResultRow
+			var rowsEarliest, rowsLatest []model.QueryResultRow
 			fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, true)
 			rowsEarliest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
 			if err != nil {

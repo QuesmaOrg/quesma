@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/util"
 	"testing"
@@ -98,7 +97,7 @@ func TestSearchResponse(t *testing.T) {
 		require.NoError(t, err)
 	}
 	{
-		row := []clickhouse.QueryResultRow{{}}
+		row := []model.QueryResultRow{{}}
 
 		searchRespBuf, err := MakeResponseAsyncSearchQuery(row, model.ListAllFields)
 		require.NoError(t, err)
@@ -116,7 +115,7 @@ func TestSearchResponse(t *testing.T) {
 func TestMakeResponseSearchQuery(t *testing.T) {
 	var args = []struct {
 		elasticResponseJson string
-		ourQueryResult      clickhouse.QueryResultRow
+		ourQueryResult      model.QueryResultRow
 		queryType           model.SearchQueryType
 	}{
 		{
@@ -158,10 +157,10 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 		"timed_out": false,
 		"took": 1
 	}`,
-			clickhouse.QueryResultRow{
-				Cols: []clickhouse.QueryResultCol{
-					clickhouse.NewQueryResultCol("source", "ubuntu"),
-					clickhouse.NewQueryResultCol("@timestamp", "2024-01-30T14:48:20.962Z"),
+			model.QueryResultRow{
+				Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("source", "ubuntu"),
+					model.NewQueryResultCol("@timestamp", "2024-01-30T14:48:20.962Z"),
 				},
 			},
 			model.Normal,
@@ -197,9 +196,9 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 		"timed_out": false,
 		"took": 1
 	}`,
-			clickhouse.QueryResultRow{
-				Cols: []clickhouse.QueryResultCol{
-					clickhouse.NewQueryResultCol("count()", 1376),
+			model.QueryResultRow{
+				Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("count()", 1376),
 				},
 			},
 			model.Count,
@@ -208,7 +207,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
-			ourResponse, err := MakeResponseSearchQuery([]clickhouse.QueryResultRow{args[i].ourQueryResult}, args[i].queryType)
+			ourResponse, err := MakeResponseSearchQuery([]model.QueryResultRow{args[i].ourQueryResult}, args[i].queryType)
 			assert.NoError(t, err)
 
 			difference1, difference2, err := util.JsonDifference(args[i].elasticResponseJson, string(ourResponse))
@@ -224,7 +223,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 	var args = []struct {
 		elasticResponseJson string
-		ourQueryResult      []clickhouse.QueryResultRow
+		ourQueryResult      []model.QueryResultRow
 		queryType           model.AsyncSearchQueryType
 	}{
 		{
@@ -271,19 +270,19 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 		},
 		"start_time_in_millis": 1706639337521
 	}`,
-			[]clickhouse.QueryResultRow{
+			[]model.QueryResultRow{
 				{
-					Cols: []clickhouse.QueryResultCol{
-						clickhouse.NewQueryResultCol("key", 1706638410000),
-						clickhouse.NewQueryResultCol("doc_count", uint64(1)),
-						clickhouse.NewQueryResultCol("key_as_string", "2024-01-30T19:13:30.000+01:00"),
+					Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("key", 1706638410000),
+						model.NewQueryResultCol("doc_count", uint64(1)),
+						model.NewQueryResultCol("key_as_string", "2024-01-30T19:13:30.000+01:00"),
 					},
 				},
 				{
-					Cols: []clickhouse.QueryResultCol{
-						clickhouse.NewQueryResultCol("key", 1706638440000),
-						clickhouse.NewQueryResultCol("doc_count", uint64(14)),
-						clickhouse.NewQueryResultCol("key_as_string", "2024-01-30T19:14:00.000+01:00"),
+					Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("key", 1706638440000),
+						model.NewQueryResultCol("doc_count", uint64(14)),
+						model.NewQueryResultCol("key_as_string", "2024-01-30T19:14:00.000+01:00"),
 					},
 				},
 			},
@@ -338,17 +337,17 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 		},
 		"start_time_in_millis": 1706642705524
 	}`,
-			[]clickhouse.QueryResultRow{
+			[]model.QueryResultRow{
 				{
-					Cols: []clickhouse.QueryResultCol{
-						clickhouse.NewQueryResultCol("key", "hercules"),
-						clickhouse.NewQueryResultCol("doc_count", uint64(3)),
+					Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("key", "hercules"),
+						model.NewQueryResultCol("doc_count", uint64(3)),
 					},
 				},
 				{
-					Cols: []clickhouse.QueryResultCol{
-						clickhouse.NewQueryResultCol("key", "athena"),
-						clickhouse.NewQueryResultCol("doc_count", uint64(2)),
+					Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("key", "athena"),
+						model.NewQueryResultCol("doc_count", uint64(2)),
 					},
 				},
 			},
@@ -412,20 +411,20 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 			}
 		}
 	}`,
-			[]clickhouse.QueryResultRow{
+			[]model.QueryResultRow{
 				{
-					Cols: []clickhouse.QueryResultCol{
-						clickhouse.NewQueryResultCol("message", "User deleted"),
+					Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("message", "User deleted"),
 					},
 				},
 				{
-					Cols: []clickhouse.QueryResultCol{
-						clickhouse.NewQueryResultCol("message", "User updated"),
+					Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("message", "User updated"),
 					},
 				},
 				{
-					Cols: []clickhouse.QueryResultCol{
-						clickhouse.NewQueryResultCol("message", "User created"),
+					Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("message", "User created"),
 					},
 				},
 			},
@@ -535,18 +534,18 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
   		},
 		"start_time_in_millis": 1706643613499
 	}`,
-			[]clickhouse.QueryResultRow{
+			[]model.QueryResultRow{
 				{
-					Cols: []clickhouse.QueryResultCol{
-						clickhouse.NewQueryResultCol("message", "User logged out"),
-						clickhouse.NewQueryResultCol("host.name", "apollo"),
-						clickhouse.NewQueryResultCol("host.name.text", "apollo"),
-						clickhouse.NewQueryResultCol("@timestamp", "2024-01-30T19:38:54.607Z"),
-						clickhouse.NewQueryResultCol("service.name", "frontend"),
-						clickhouse.NewQueryResultCol("service.name.text", "frontend"),
-						clickhouse.NewQueryResultCol("severity", "warning"),
-						clickhouse.NewQueryResultCol("source", "hyperv"),
-						clickhouse.NewQueryResultCol("data_stream.type", "logs"),
+					Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("message", "User logged out"),
+						model.NewQueryResultCol("host.name", "apollo"),
+						model.NewQueryResultCol("host.name.text", "apollo"),
+						model.NewQueryResultCol("@timestamp", "2024-01-30T19:38:54.607Z"),
+						model.NewQueryResultCol("service.name", "frontend"),
+						model.NewQueryResultCol("service.name.text", "frontend"),
+						model.NewQueryResultCol("severity", "warning"),
+						model.NewQueryResultCol("source", "hyperv"),
+						model.NewQueryResultCol("data_stream.type", "logs"),
 					},
 				},
 			},
@@ -578,11 +577,11 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 	}
 	types := []model.SearchQueryType{model.Normal, model.Count, model.Normal}
 	for i, query := range queries {
-		resultRow := clickhouse.QueryResultRow{Cols: make([]clickhouse.QueryResultCol, 0)}
+		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}
 		for _, field := range query.NonSchemaFields {
-			resultRow.Cols = append(resultRow.Cols, clickhouse.QueryResultCol{ColName: field, Value: "not-important"})
+			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field, Value: "not-important"})
 		}
-		_, err := MakeResponseSearchQuery([]clickhouse.QueryResultRow{resultRow}, types[i])
+		_, err := MakeResponseSearchQuery([]model.QueryResultRow{resultRow}, types[i])
 		assert.NoError(t, err)
 	}
 }
@@ -601,15 +600,15 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 	}
 	types := []model.AsyncSearchQueryType{model.Histogram, model.ListAllFields, model.ListByField} //, model.EarliestLatestTimestamp}
 	for i, query := range queries {
-		resultRow := clickhouse.QueryResultRow{Cols: make([]clickhouse.QueryResultCol, 0)}
+		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}
 		for j, field := range query.NonSchemaFields {
 			var value interface{} = "not-important"
-			if j == clickhouse.DocCount {
+			if j == model.ResultColDocCountIndex {
 				value = uint64(5)
 			}
-			resultRow.Cols = append(resultRow.Cols, clickhouse.QueryResultCol{ColName: field, Value: value})
+			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field, Value: value})
 		}
-		_, err := MakeResponseAsyncSearchQuery([]clickhouse.QueryResultRow{resultRow}, types[i])
+		_, err := MakeResponseAsyncSearchQuery([]model.QueryResultRow{resultRow}, types[i])
 		assert.NoError(t, err)
 	}
 }
