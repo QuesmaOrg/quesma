@@ -5,7 +5,6 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
-	"github.com/k0kubun/pp"
 	"github.com/mjibson/sqlfmt"
 	"io"
 	"mitmproxy/quesma/logger"
@@ -289,7 +288,7 @@ func (qmc *QuesmaManagementConsole) Run() {
 	for {
 		select {
 		case msg := <-qmc.queryDebugPrimarySource:
-			logger.Info().Msg("Received debug info from primary source: " + msg.Id)
+			logger.Debug().Msg("Received debug info from primary source: " + msg.Id)
 			debugPrimaryInfo := QueryDebugPrimarySource{msg.Id, msg.QueryResp}
 			qmc.mutex.Lock()
 			if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {
@@ -306,7 +305,7 @@ func (qmc *QuesmaManagementConsole) Run() {
 			}
 			qmc.mutex.Unlock()
 		case msg := <-qmc.queryDebugSecondarySource:
-			logger.Info().Msg("Received debug info from secondary source: " + msg.Id)
+			logger.Debug().Msg("Received debug info from secondary source: " + msg.Id)
 			secondaryDebugInfo := QueryDebugSecondarySource{
 				msg.Id,
 				msg.IncomingQueryBody,
@@ -388,8 +387,6 @@ func (qmc *QuesmaManagementConsole) comparePipelines() {
 		queryDebugInfo, ok := <-qmc.responseMatcherChannel
 		if ok {
 			if string(queryDebugInfo.QueryResp) != string(queryDebugInfo.QueryTranslatedResults) {
-				logger.Warn().Str(logger.RID, queryDebugInfo.QueryDebugPrimarySource.Id).
-					Msg("Responses are different:")
 				elasticSurplusFields, ourSurplusFields, err := util.JsonDifference(
 					string(queryDebugInfo.QueryResp),
 					string(queryDebugInfo.QueryTranslatedResults),
@@ -399,14 +396,16 @@ func (qmc *QuesmaManagementConsole) comparePipelines() {
 						Msgf("Error while comparing responses: %v", err)
 					continue
 				}
-				logger.Warn().Str(logger.RID, queryDebugInfo.QueryDebugPrimarySource.Id).
-					Msgf("Clickhouse response - Elastic response: %v", ourSurplusFields)
-				logger.Warn().Str(logger.RID, queryDebugInfo.QueryDebugPrimarySource.Id).
-					Msgf("Elastic response - Clickhouse response: %v", elasticSurplusFields)
-
-				// left below because I find it still easier to debug from this input
-				pp.Println("Clickhouse response - Elastic response: %v", ourSurplusFields)
-				pp.Println("Elastic response - Clickhouse response: %v", elasticSurplusFields)
+				if len(elasticSurplusFields) > 0 || len(ourSurplusFields) > 0 {
+					logger.Info().Str(logger.RID, queryDebugInfo.QueryDebugPrimarySource.Id).
+						Msgf("Response structure different, extra keys:\n"+
+							" Clickhouse response - Elastic response: %v\n"+
+							" Elastic response - Clickhouse response: %v",
+							ourSurplusFields, elasticSurplusFields)
+				} else {
+					logger.Debug().Str(logger.RID, queryDebugInfo.QueryDebugPrimarySource.Id).
+						Msg("Responses are different, but src structure is the same")
+				}
 			}
 		}
 	}

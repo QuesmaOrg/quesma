@@ -36,7 +36,7 @@ func InitLogger(cfg config.QuesmaConfiguration) <-chan string {
 	chanWriter := channelWriter{ch: logChannel}
 	multi := zerolog.MultiLevelWriter(output, StdLogFile, errorFileLogger{ErrLogFile}, chanWriter)
 	logger = zerolog.New(multi).
-		Level(zerolog.TraceLevel).
+		Level(cfg.LogLevel).
 		With().
 		Timestamp().
 		Caller().

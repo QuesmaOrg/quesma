@@ -12,6 +12,7 @@ quesma:
   elasticsearch_url: "http://localhost:9200"
   clickhouse_url: "http://localhost:8123"
   logs_path: "logs"
+  log_level: "info"
   index:
     kibana_sample_data*:
       enabled: true

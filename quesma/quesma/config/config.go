@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"mitmproxy/quesma/network"
 	"net/url"
@@ -24,6 +25,7 @@ const (
 	indexConfig      = "index"
 	enabledConfig    = "enabled"
 	logsPathConfig   = "logs_path"
+	logLevelConfig   = "log_level"
 	publicTcpPort    = "port"
 	elasticsearchUrl = "elasticsearch_url"
 	clickhouseUrl    = "clickhouse_url"
@@ -37,6 +39,7 @@ type (
 		ClickHouseUrl    *url.URL
 		IndexConfig      []IndexConfiguration
 		LogsPath         string
+		LogLevel         zerolog.Level
 		PublicTcpPort    network.Port
 	}
 
@@ -71,6 +74,7 @@ func Load() QuesmaConfiguration {
 		ClickHouseUrl:    configureUrl(clickhouseUrl),
 		IndexConfig:      indexBypass,
 		LogsPath:         configureLogsPath(),
+		LogLevel:         configureLogLevel(),
 	}
 }
 
@@ -110,6 +114,24 @@ func configureLogsPath() string {
 	} else {
 		return viper.GetString(fullyQualifiedConfig(logsPathConfig))
 	}
+}
+
+func configureLogLevel() zerolog.Level {
+	var logLevelStr string
+	var isSet bool
+	if logLevelStr, isSet = os.LookupEnv("LOG_LEVEL"); !isSet {
+		if viper.IsSet(fullyQualifiedConfig(logLevelConfig)) {
+			isSet = true
+			logLevelStr = viper.GetString(fullyQualifiedConfig(logLevelConfig))
+		} else {
+			logLevelStr = zerolog.LevelDebugValue
+		}
+	}
+	level, err := zerolog.ParseLevel(logLevelStr)
+	if err != nil {
+		panic(fmt.Errorf("error configuring log level: %v, string: %s, isSet: %t", err, logLevelStr, isSet))
+	}
+	return level
 }
 
 func (c *QuesmaConfiguration) GetIndexConfig(indexName string) (IndexConfiguration, bool) {
