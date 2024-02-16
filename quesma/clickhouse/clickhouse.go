@@ -103,6 +103,7 @@ func (lm *LogManager) ResolveTableName(index string) string {
 			return k
 		}
 	}
+	logger.Warn().Msgf("could not resolve table name for [%s]", index)
 	return ""
 }
 
