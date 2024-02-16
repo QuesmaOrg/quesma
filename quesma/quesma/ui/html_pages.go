@@ -135,12 +135,10 @@ func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 
 	// Unfortunately, we need tiny bit of javascript to pause the animation.
 	buffer.WriteString(`<script type="text/javascript">`)
-	buffer.WriteString(`var isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);`)
 	buffer.WriteString(`var checkbox = document.getElementById("autorefresh");`)
 	buffer.WriteString(`var dashboard = document.getElementById("dashboard-main");`)
-	buffer.WriteString(`if (isSafari) { dashboard.classList.add("paused"); }`)
 	buffer.WriteString(`checkbox.addEventListener('change', function() {`)
-	buffer.WriteString(`if (this.checked && !isSafari) {`)
+	buffer.WriteString(`if (this.checked) {`)
 	buffer.WriteString(`dashboard.classList.remove("paused");`)
 	buffer.WriteString(`} else {`)
 	buffer.WriteString(`dashboard.classList.add("paused");`)
@@ -151,20 +149,20 @@ func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 	buffer.WriteString(`<svg width="100%" height="100%" viewBox="0 0 1000 1000">` + "\n")
 	// Clickhouse -> Kibana
 	if qmc.config.ReadsFromClickhouse() {
-		buffer.WriteString(`<path d="M 1000 250 L 0 250" fill="none" stroke="green" />`)
+		buffer.WriteString(`<path d="M 0 250 L 1000 250" fill="none" stroke="green" />`)
 	}
 	// Elasticsearch -> Kibana
 	if qmc.config.ReadsFromElasticsearch() {
-		buffer.WriteString(`<path d="M 1000 700 L 150 700 L 150 350 L 0 350" fill="none" stroke="green" />`)
+		buffer.WriteString(`<path d="M 0 350 L 150 350 L 150 700 L 1000 700" fill="none" stroke="green" />`)
 	}
 
 	// Ingest -> Clickhouse
 	if qmc.config.WritesToClickhouse() {
-		buffer.WriteString(`<path d="M 0 650 L 300 650 L 300 350 L 1000 350" fill="none" stroke="green" />`)
+		buffer.WriteString(`<path d="M 1000 350 L 300 350 L 300 650 L 0 650" fill="none" stroke="green" />`)
 	}
 	// Ingest -> Elasticsearch
 	if qmc.config.WritesToElasticsearch() {
-		buffer.WriteString(`<path d="M 0 800 L 1000 800" fill="none" stroke="green" />`)
+		buffer.WriteString(`<path d="M 1000 800 L 0 800" fill="none" stroke="green" />`)
 	}
 	buffer.WriteString(`</svg>` + "\n")
 
