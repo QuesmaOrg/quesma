@@ -294,8 +294,7 @@ func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfi
 	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), nil
 }
 
-func (lm *LogManager) ProcessInsertQuery(tableName, jsonData string) error {
-	// first, create table if it doesn't exist
+func (lm *LogManager) GetTableConfig(tableName, jsonData string) (*ChTableConfig, error) {
 	table := lm.findSchema(tableName) // TODO create tables on start?
 	var config *ChTableConfig
 	if table == nil {
@@ -303,23 +302,30 @@ func (lm *LogManager) ProcessInsertQuery(tableName, jsonData string) error {
 		err := lm.CreateTableFromInsertQuery(tableName, jsonData, config)
 		if err != nil {
 			logger.Error().Msgf("error ProcessInsertQuery, can't create table: %v", err)
-			return err
+			return nil, err
 		}
+		return config, nil
 	} else if !table.Created {
 		err := lm.sendCreateTableQuery(table.CreateTableString())
 		if err != nil {
-			return err
+			return nil, err
 		}
 		config = table.Config
 	} else {
 		config = table.Config
 	}
-
-	// then insert
-	return lm.Insert(tableName, jsonData, config)
+	return config, nil
 }
 
-func (lm *LogManager) Insert(tableName, jsonData string, config *ChTableConfig) error {
+func (lm *LogManager) ProcessInsertQuery(tableName string, jsonData []string) error {
+	if config, err := lm.GetTableConfig(tableName, jsonData[0]); err != nil {
+		return err
+	} else {
+		return lm.Insert(tableName, jsonData, config)
+	}
+}
+
+func (lm *LogManager) Insert(tableName string, jsons []string, config *ChTableConfig) error {
 	if lm.chDb == nil {
 		connection, err := sql.Open("clickhouse", lm.chUrl.String())
 		if err != nil {
@@ -328,15 +334,23 @@ func (lm *LogManager) Insert(tableName, jsonData string, config *ChTableConfig) 
 		lm.chDb = connection
 	}
 
-	processed := preprocess(jsonData, NestedSeparator)
-	insertJson, err := lm.BuildInsertJson(tableName, processed, config)
-	if err != nil {
-		return err
+	var jsonsReadyForInsertion []string
+	for _, jsonValue := range jsons {
+		preprocessedJson := preprocess(jsonValue, NestedSeparator)
+		insertJson, err := lm.BuildInsertJson(tableName, preprocessedJson, config)
+		if err != nil {
+			logger.Error().Msgf("error BuildInsertJson, tablename: %s\nerror: %v\njson:%s", tableName, err, PrettyJson(insertJson))
+		}
+		jsonsReadyForInsertion = append(jsonsReadyForInsertion, insertJson)
 	}
-	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertJson)
-	_, err = lm.chDb.Exec(insert)
+
+	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
+
+	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertValues)
+
+	_, err := lm.chDb.Exec(insert)
 	if err != nil {
-		return fmt.Errorf("error Insert, tablename: %s\nerror: %v\njson:%s", tableName, err, PrettyJson(jsonData))
+		return fmt.Errorf("error on Insert, tablename: [%s]\nerror: [%v]\nexact statement:[%s]", tableName, err, insert)
 	} else {
 		return nil
 	}

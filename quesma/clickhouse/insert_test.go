@@ -225,7 +225,7 @@ func TestProcessInsertQuery(t *testing.T) {
 						mock.ExpectExec(expectedInserts[2*index1+1]).WillReturnResult(sqlmock.NewResult(1, 1))
 					}
 
-					err = lm.lm.ProcessInsertQuery(tableName, tt.insertJson)
+					err = lm.lm.ProcessInsertQuery(tableName, []string{tt.insertJson})
 					assert.NoError(t, err)
 					if err := mock.ExpectationsWereMet(); err != nil {
 						t.Fatal("there were unfulfilled expections:", err)

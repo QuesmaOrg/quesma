@@ -14,6 +14,11 @@ import (
 	"sync/atomic"
 )
 
+type DocumentTarget struct {
+	Index *string `json:"_index"`
+	Id    *string `json:"_id"` // document's target id in Elasticsearch, we ignore it when writing to Clickhouse.
+}
+
 func dualWriteBulk(ctx context.Context, optionalTableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
 	_ = ctx
 	if config.TrafficAnalysis.Load() {
@@ -22,66 +27,50 @@ func dualWriteBulk(ctx context.Context, optionalTableName string, body string, l
 	}
 	defer recovery.LogPanic()
 	jsons := strings.Split(body, "\n")
+
+	indicesWithDocumentsToInsert := make(map[string][]string)
 	for i := 0; i+1 < len(jsons); i += 2 {
-		action := jsons[i]
-		document := jsons[i+1]
+		operationDef := jsons[i] // {"create":{"_index":"kibana_sample_data_flights", "_id": 1}}
+		document := jsons[i+1]   // {"FlightNum":"9HY9SWR","DestCountry":"AU","OriginWeather":"Sunny","OriginCityName":"Frankfurt am Main" }
 
-		var jsonData map[string]interface{}
+		var operation map[string]DocumentTarget // operationName (create, index, update, delete) -> DocumentTarget
 
-		// Unmarshal the JSON data into the map
-		err := json.Unmarshal([]byte(action), &jsonData)
-		if err != nil {
-			logger.Info().Msgf("Invalid action JSON in _bulk: %v %s", err, action)
+		err := json.Unmarshal([]byte(operationDef), &operation)
+		if err != nil || len(operation) != 1 {
+			logger.Info().Msgf("Invalid action JSON in _bulk: %v %+v", err, operation)
 			continue
 		}
-		if jsonData["create"] != nil {
-			createObj, ok := jsonData["create"].(map[string]interface{})
-			if !ok {
-				logger.Info().Msgf("Invalid create JSON in _bulk: %s", action)
-				continue
-			}
-			indexName, ok := createObj["_index"].(string)
-			if !ok {
-				if len(indexName) == 0 {
-					logger.Error().Msgf("Invalid create JSON in _bulk, no _index name: %s", action)
-					continue
-				} else {
-					indexName = optionalTableName
-				}
-			}
+		index := getTargetIndex(operation, optionalTableName)
 
-			withConfiguration(ctx, cfg, indexName, document, func() error {
-				stats.GlobalStatistics.Process(indexName, document, clickhouse.NestedSeparator)
-				return lm.ProcessInsertQuery(indexName, document)
-			})
-		} else if jsonData["index"] != nil {
-			indexObj, ok := jsonData["index"].(map[string]interface{})
-			if !ok {
-				logger.Info().Msgf("Invalid index JSON in _bulk: %s", action)
-				continue
-			}
-			indexName, ok := indexObj["_index"].(string)
-			if !ok {
-				if len(indexName) == 0 {
-					logger.Error().Msgf("Invalid index JSON in _bulk, no _index name: %s", action)
-					continue
-				} else {
-					indexName = optionalTableName
-				}
-			}
-
-			withConfiguration(ctx, cfg, indexName, document, func() error {
-				stats.GlobalStatistics.Process(indexName, document, clickhouse.NestedSeparator)
-				return lm.ProcessInsertQuery(indexName, document)
-			})
-		} else if jsonData["update"] != nil {
+		if _, ok := operation["create"]; ok {
+			indicesWithDocumentsToInsert[index] = append(indicesWithDocumentsToInsert[index], document)
+		} else if _, ok = operation["index"]; ok {
+			indicesWithDocumentsToInsert[index] = append(indicesWithDocumentsToInsert[index], document)
+		} else if _, ok = operation["update"]; ok {
 			logger.Warn().Msg("Not supporting 'update' _bulk.")
-		} else if jsonData["delete"] != nil {
+		} else if _, ok = operation["delete"]; ok {
 			logger.Warn().Msg("Not supporting 'delete' _bulk.")
 		} else {
-			logger.Error().Msgf("Invalid action JSON in _bulk: %s", action)
+			logger.Error().Msgf("Invalid JSON with operation definition in _bulk: %s", operationDef)
 		}
 	}
+	for indexName, documents := range indicesWithDocumentsToInsert {
+		withConfiguration(ctx, cfg, indexName, "{ BULK_PAYLOAD }", func() error {
+			for _, document := range documents {
+				stats.GlobalStatistics.Process(indexName, document, clickhouse.NestedSeparator)
+			}
+			return lm.ProcessInsertQuery(indexName, documents)
+		})
+	}
+}
+
+func getTargetIndex(operation map[string]DocumentTarget, fallback string) string {
+	for _, target := range operation { // this map contains only 1 element though
+		if target.Index != nil {
+			return *target.Index
+		}
+	}
+	return fallback
 }
 
 func dualWrite(ctx context.Context, tableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
@@ -98,7 +87,7 @@ func dualWrite(ctx context.Context, tableName string, body string, lm *clickhous
 	}
 
 	withConfiguration(ctx, cfg, tableName, body, func() error {
-		return lm.ProcessInsertQuery(tableName, body)
+		return lm.ProcessInsertQuery(tableName, []string{body})
 	})
 }
 
