@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"encoding/json"
 	"fmt"
+	"mitmproxy/quesma/util"
 	"slices"
 	"strings"
 )
@@ -85,7 +86,7 @@ func FieldsMapToCreateTableString(namespace string, m SchemaMap, indentLvl int, 
 			if indentLvl == 1 && name == timestampFieldName && config.timestampDefaultsNow {
 				fType += " DEFAULT now64()"
 			}
-			result.WriteString(indent(indentLvl))
+			result.WriteString(util.Indent(indentLvl))
 			if namespace == "" {
 				result.WriteString(fmt.Sprintf("\"%s\" %s", name, fType))
 			} else {

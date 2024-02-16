@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/k0kubun/pp"
+	"mitmproxy/quesma/util"
 	"regexp"
 	"sort"
 	"strings"
@@ -168,10 +169,10 @@ func PrettyPrint(m SchemaMap) string {
 		sort.Strings(keys)
 
 		for _, key := range keys {
-			s += fmt.Sprintf("%s\"%s\": ", indent(i), key)
+			s += fmt.Sprintf("%s\"%s\": ", util.Indent(i), key)
 			nestedMap, ok := m[key].(SchemaMap)
 			if ok {
-				s += fmt.Sprintf("SchemaMap {\n%s%s},\n", helper(nestedMap, i+1), indent(i))
+				s += fmt.Sprintf("SchemaMap {\n%s%s},\n", helper(nestedMap, i+1), util.Indent(i))
 			} else {
 				s += "nil,\n"
 			}
@@ -218,8 +219,4 @@ func shortenDumpSchemasOutput(s string) string {
 		i = findEndOfGoType(s, y[5])
 	}
 	return strings.ReplaceAll(result+s[i:], "clickhouse.", "")
-}
-
-func indent(indentLvl int) string {
-	return strings.Repeat("\t", indentLvl)
 }

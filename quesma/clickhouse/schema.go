@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/util"
 	"reflect"
 	"strings"
 	"time"
@@ -107,7 +108,7 @@ func (t MultiValueType) String() string {
 
 func (t MultiValueType) createTableString(indentLvl int) string {
 	var sb strings.Builder
-	sb.WriteString(t.Name + "\n" + indent(indentLvl) + "(\n")
+	sb.WriteString(t.Name + "\n" + util.Indent(indentLvl) + "(\n")
 	i := 1
 	for _, col := range t.Cols {
 		sb.WriteString(col.createTableString(indentLvl + 1))
@@ -117,7 +118,7 @@ func (t MultiValueType) createTableString(indentLvl int) string {
 		sb.WriteString("\n")
 		i++
 	}
-	sb.WriteString(indent(indentLvl) + ")")
+	sb.WriteString(util.Indent(indentLvl) + ")")
 	return sb.String()
 }
 
@@ -225,7 +226,7 @@ func (col *Column) createTableString(indentLvl int) string {
 	if len(col.Modifiers) == 0 {
 		spaceStr = ""
 	}
-	return indent(indentLvl) + `"` + col.Name + `" ` + col.Type.createTableString(indentLvl) + spaceStr + col.Modifiers
+	return util.Indent(indentLvl) + `"` + col.Name + `" ` + col.Type.createTableString(indentLvl) + spaceStr + col.Modifiers
 }
 
 func (table *Table) CreateTableString() string {
@@ -241,7 +242,7 @@ func (table *Table) CreateTableString() string {
 	}
 	rows = append(rows, table.CreateTableOurFieldsString()...)
 	for _, index := range table.indexes {
-		rows = append(rows, indent(1)+index.statement())
+		rows = append(rows, util.Indent(1)+index.statement())
 	}
 	return s + strings.Join(rows, ",\n") + "\n)\n" + table.Config.CreateTablePostFieldsString()
 }
@@ -251,7 +252,7 @@ func (table *Table) CreateTableOurFieldsString() []string {
 	if table.Config.hasOthers {
 		_, ok := table.Cols[othersFieldName]
 		if !ok {
-			rows = append(rows, fmt.Sprintf("%s\"%s\" JSON", indent(1), othersFieldName))
+			rows = append(rows, fmt.Sprintf("%s\"%s\" JSON", util.Indent(1), othersFieldName))
 		}
 	}
 	if table.Config.hasTimestamp {
@@ -261,18 +262,18 @@ func (table *Table) CreateTableOurFieldsString() []string {
 			if table.Config.timestampDefaultsNow {
 				defaultStr = " DEFAULT now64()"
 			}
-			rows = append(rows, fmt.Sprintf("%s\"%s\" DateTime64(3)%s", indent(1), timestampFieldName, defaultStr))
+			rows = append(rows, fmt.Sprintf("%s\"%s\" DateTime64(3)%s", util.Indent(1), timestampFieldName, defaultStr))
 		}
 	}
 	if len(table.Config.attributes) > 0 {
 		for _, a := range table.Config.attributes {
 			_, ok := table.Cols[a.KeysArrayName]
 			if !ok {
-				rows = append(rows, fmt.Sprintf("%s\"%s\" Array(String)", indent(1), a.KeysArrayName))
+				rows = append(rows, fmt.Sprintf("%s\"%s\" Array(String)", util.Indent(1), a.KeysArrayName))
 			}
 			_, ok = table.Cols[a.ValuesArrayName]
 			if !ok {
-				rows = append(rows, fmt.Sprintf("%s\"%s\" Array(%s)", indent(1), a.ValuesArrayName, a.Type.String()))
+				rows = append(rows, fmt.Sprintf("%s\"%s\" Array(%s)", util.Indent(1), a.ValuesArrayName, a.Type.String()))
 			}
 		}
 	}

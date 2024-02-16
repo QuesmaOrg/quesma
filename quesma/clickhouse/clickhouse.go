@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/index"
 	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/util"
 	"net/url"
 	"regexp"
 	"strings"
@@ -129,7 +130,7 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 	if config.hasOthers {
 		_, ok := table.Cols[othersFieldName]
 		if !ok {
-			othersStr = fmt.Sprintf("%s\"%s\" JSON,\n", indent(1), othersFieldName)
+			othersStr = fmt.Sprintf("%s\"%s\" JSON,\n", util.Indent(1), othersFieldName)
 			table.Cols[othersFieldName] = &Column{Name: othersFieldName, Type: NewBaseType("JSON")}
 		}
 	}
@@ -140,7 +141,7 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 			if config.timestampDefaultsNow {
 				defaultStr = " DEFAULT now64()"
 			}
-			timestampStr = fmt.Sprintf("%s\"%s\" DateTime64(3)%s,\n", indent(1), timestampFieldName, defaultStr)
+			timestampStr = fmt.Sprintf("%s\"%s\" DateTime64(3)%s,\n", util.Indent(1), timestampFieldName, defaultStr)
 			table.Cols[timestampFieldName] = &Column{Name: timestampFieldName, Type: NewBaseType("DateTime64")}
 		}
 	}
@@ -148,12 +149,12 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 		for _, a := range config.attributes {
 			_, ok := table.Cols[a.KeysArrayName]
 			if !ok {
-				attributesStr += fmt.Sprintf("%s\"%s\" Array(String),\n", indent(1), a.KeysArrayName)
+				attributesStr += fmt.Sprintf("%s\"%s\" Array(String),\n", util.Indent(1), a.KeysArrayName)
 				table.Cols[a.KeysArrayName] = &Column{Name: a.KeysArrayName, Type: CompoundType{Name: "Array", BaseType: NewBaseType("String")}}
 			}
 			_, ok = table.Cols[a.ValuesArrayName]
 			if !ok {
-				attributesStr += fmt.Sprintf("%s\"%s\" Array(%s),\n", indent(1), a.ValuesArrayName, a.Type.String())
+				attributesStr += fmt.Sprintf("%s\"%s\" Array(%s),\n", util.Indent(1), a.ValuesArrayName, a.Type.String())
 				table.Cols[a.ValuesArrayName] = &Column{Name: a.ValuesArrayName, Type: a.Type}
 			}
 		}
@@ -215,7 +216,7 @@ func Indexes(m SchemaMap) string {
 		index := getIndexStatement(col)
 		if index != "" {
 			result.WriteString(",\n")
-			result.WriteString(indent(1))
+			result.WriteString(util.Indent(1))
 			result.WriteString(index.statement())
 		}
 	}
