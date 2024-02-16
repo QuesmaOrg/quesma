@@ -67,6 +67,7 @@ type QuesmaManagementConsole struct {
 	debugLastMessages         []string
 	responseMatcherChannel    chan QueryDebugInfo
 	config                    config.QuesmaConfiguration
+	requestsStore             stats.RequestStatisticStore
 }
 
 func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logChan <-chan string) *QuesmaManagementConsole {
@@ -87,6 +88,10 @@ func (qmc *QuesmaManagementConsole) PushPrimaryInfo(qdebugInfo *QueryDebugPrimar
 
 func (qmc *QuesmaManagementConsole) PushSecondaryInfo(qdebugInfo *QueryDebugSecondarySource) {
 	qmc.queryDebugSecondarySource <- qdebugInfo
+}
+
+func (qmc *QuesmaManagementConsole) RecordRequest(typeName string, tookMs uint64, error bool) {
+	qmc.requestsStore.RecordRequest(typeName, tookMs, error)
 }
 
 func copyMap(originalMap map[string]QueryDebugInfo) map[string]QueryDebugInfo {
