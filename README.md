@@ -44,7 +44,6 @@ flowchart LR;
     kibana-->mitmproxy;
     mitmproxy-->kibana;
     device-log-generator-->mitmproxy;
-    query-generator-->mitmproxy;
     log-generator-->mitmproxy;
     mitmproxy-->quesma;
     quesma-->mitmproxy;
