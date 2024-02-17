@@ -100,53 +100,68 @@ func NewQuesmaTcpProxy(config config.QuesmaConfiguration, logChan <-chan string,
 }
 
 func NewHttpProxy(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
-	return New(logManager, config, logChan)
-}
-
-func NewHttpClickhouseAdapter(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
-	return New(logManager, config, logChan)
-}
-
-func New(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logChan)
 	router := configureRouter(config, logManager, quesmaManagementConsole)
-	q := &Quesma{
-		processor: &dualWriteHttpProxy{
-			elasticRouter: router,
-			routingHttpServer: &http.Server{
-				Addr: ":" + strconv.Itoa(int(config.PublicTcpPort)),
-				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					defer recovery.LogPanic()
-					reqBody, err := io.ReadAll(r.Body)
-					if err != nil {
-						http.Error(w, "Error reading request body", http.StatusInternalServerError)
-						return
-					}
-
-					ctx := withTracing(r)
-					elkResponse := sendHttpRequest(ctx, config.ElasticsearchUrl.String(), r, reqBody)
-					copyHeaders(w, elkResponse)
-					copyStatusCode(w, elkResponse)
-
-					if strings.HasPrefix(r.URL.Path, "/.") {
-						logger.Debug().Ctx(ctx).Msgf("hitting internal index '%s', ignoring...", r.RequestURI)
-						responseFromElastic(ctx, elkResponse, w)
-					} else {
-						quesmaResponse, matched, err := router.Execute(ctx, r.URL.Path, string(reqBody), r.Method)
-						sendElkResponseToQuesmaConsole(ctx, r.RequestURI, elkResponse, quesmaManagementConsole)
-						copyBody(w, r, matched, err, ctx, quesmaResponse, elkResponse, config)
-					}
-				}),
-			},
-			logManager: logManager,
-			publicPort: config.PublicTcpPort,
-		},
+	return &Quesma{
+		processor:               newDualWriteProxy(logManager, config, router, quesmaManagementConsole),
 		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,
 	}
+}
 
-	return q
+func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, router *mux.PathRouter, quesmaManagementConsole *ui.QuesmaManagementConsole) *dualWriteHttpProxy {
+	return &dualWriteHttpProxy{
+		elasticRouter: router,
+		routingHttpServer: &http.Server{
+			Addr: ":" + strconv.Itoa(int(config.PublicTcpPort)),
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				defer recovery.LogPanic()
+				reqBody, err := peekBody(req)
+				if err != nil {
+					http.Error(w, "Error reading request body", http.StatusInternalServerError)
+					return
+				}
+
+				reroute(withTracing(req), w, req, reqBody, router, config, quesmaManagementConsole)
+			}),
+		},
+		logManager: logManager,
+		publicPort: config.PublicTcpPort,
+	}
+}
+
+func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, config config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole) {
+	if isElasticInternalRequest(req) {
+		response := sendHttpRequest(ctx, config.ElasticsearchUrl.String(), req, reqBody)
+		copyHeaders(w, response)
+		copyStatusCode(w, response)
+		responseFromElastic(ctx, response, w)
+	} else {
+		elkResponseChan := make(chan *http.Response)
+		go func() {
+			elkResponseChan <- sendHttpRequest(ctx, config.ElasticsearchUrl.String(), req, reqBody)
+		}()
+		quesmaResponse, matched, err := router.Execute(ctx, req.URL.Path, string(reqBody), req.Method)
+		elkResponse := <-elkResponseChan
+		copyHeaders(w, elkResponse)
+		copyStatusCode(w, elkResponse)
+		sendElkResponseToQuesmaConsole(ctx, req.RequestURI, elkResponse, quesmaManagementConsole)
+		copyBody(w, req, matched, err, ctx, quesmaResponse, elkResponse, config)
+	}
+}
+
+func peekBody(r *http.Request) ([]byte, error) {
+	reqBody, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+	r.Body = io.NopCloser(bytes.NewBuffer(reqBody))
+	return reqBody, nil
+}
+
+func isElasticInternalRequest(r *http.Request) bool {
+	return strings.HasPrefix(r.URL.Path, "/.")
 }
 
 func isEnabled(path string, configuration config.QuesmaConfiguration) bool {
@@ -164,6 +179,7 @@ func copyBody(w http.ResponseWriter, r *http.Request, matched bool, err error, c
 		if string(unzipped) != "" {
 			responseFromQuesma(ctx, unzipped, w, elkResponse)
 		} else {
+			logger.Error().Ctx(ctx).Msg("Empty response from Quesma, responding from Elastic")
 			responseFromElastic(ctx, elkResponse, w)
 		}
 	} else {

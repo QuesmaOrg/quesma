@@ -58,8 +58,6 @@ func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		return quesma.NewQuesmaTcpProxy(cfg, logChan, true)
 	case config.DualWriteQueryElastic, config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
 		return quesma.NewHttpProxy(lm, cfg, logChan)
-	case config.ClickHouse:
-		return quesma.NewHttpClickhouseAdapter(lm, cfg, logChan)
 	}
 	logger.Panic().Msgf("unknown operation mode: %d", cfg.Mode)
 	panic("unreachable")
