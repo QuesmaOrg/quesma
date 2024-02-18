@@ -146,8 +146,8 @@ jobs:
 
       - name: Print docker status
         if: failure()
-        run: docker-compose ps
+        run: docker-compose -f docker/ci.yml ps
 
       - name: Print docker-compose logs
         if: failure()
-        run: docker-compose logs
+        run: docker-compose -f docker/ci.yml logs
