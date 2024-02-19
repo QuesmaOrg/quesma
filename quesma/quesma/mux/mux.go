@@ -20,6 +20,7 @@ type (
 		pattern      string
 		compiledPath urlpath.Path
 		httpMethod   string
+		predicate    MatchPredicate
 		handler      handler
 	}
 	handler                     func(ctx context.Context, body string, uri string, params map[string]string) (string, error)
@@ -28,6 +29,7 @@ type (
 		matched    map[string]bool
 		nonmatched map[string]bool
 	}
+	MatchPredicate func(map[string]string) bool
 )
 
 // TODO make it bounded and use RWMutex
@@ -44,22 +46,45 @@ func NewPathRouter() *PathRouter {
 }
 
 func (p *PathRouter) RegisterPath(pattern string, httpMethod string, handler handler) {
-	mapping := mapping{pattern, urlpath.New(pattern), httpMethod, handler}
+	mapping := mapping{pattern, urlpath.New(pattern), httpMethod, identity(), handler}
 	p.mappings = append(p.mappings, mapping)
 }
 
-func (p *PathRouter) Execute(ctx context.Context, path string, body string, httpMethod string) (string, bool, error) {
+func (p *PathRouter) RegisterPathMatcher(pattern string, httpMethod string, predicate MatchPredicate, handler handler) {
+	mapping := mapping{pattern, urlpath.New(pattern), httpMethod, predicate, handler}
+	p.mappings = append(p.mappings, mapping)
+}
+
+func (p *PathRouter) Execute(ctx context.Context, path string, body string, httpMethod string) (string, error) {
+	handler, meta, found := p.findHandler(path, httpMethod)
+	if found {
+		resp, err := handler(ctx, body, path, meta.Params)
+		return resp, err
+	}
+	return "", nil
+}
+
+func (p *PathRouter) Matches(path string, httpMethod string) bool {
+	_, _, found := p.findHandler(path, httpMethod)
+	if found {
+		routerStatistics.addMatched(path)
+		logger.Debug().Msgf("Matched path: %s", path)
+		return true
+	} else {
+		routerStatistics.addNonmatched(path)
+		logger.Debug().Msgf("Non-matched path: %s", path)
+		return false
+	}
+}
+
+func (p *PathRouter) findHandler(path string, httpMethod string) (handler, urlpath.Match, bool) {
 	for _, m := range p.mappings {
 		meta, match := m.compiledPath.Match(path)
-		if match && m.httpMethod == httpMethod {
-			logger.Debug().Str("path", path).Str("pattern", m.pattern).Msg("matched")
-			routerStatistics.addMatched(path)
-			resp, err := m.handler(ctx, body, path, meta.Params)
-			return resp, true, err
+		if match && m.httpMethod == httpMethod && m.predicate(meta.Params) {
+			return m.handler, meta, true
 		}
 	}
-	routerStatistics.addNonmatched(path)
-	return "", false, nil
+	return nil, urlpath.Match{}, false
 }
 
 func MatchStatistics() Statistics {
@@ -101,4 +126,10 @@ func (a *routerStatisticsAccumulator) withLock(action func()) {
 	a.mu.Lock()
 	action()
 	a.mu.Unlock()
+}
+
+func identity() MatchPredicate {
+	return func(map[string]string) bool {
+		return true
+	}
 }

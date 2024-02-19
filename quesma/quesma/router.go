@@ -31,17 +31,17 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		}
 		return string(responseBody), nil
 	})
-	router.RegisterPath(routes.IndexDocPath, "POST", func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
+	router.RegisterPathMatcher(routes.IndexDocPath, "POST", withIndexEnabled(config), func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
 		dualWrite(ctx, params["index"], body, lm, config)
 		return "", nil
 	})
 
-	router.RegisterPath(routes.IndexBulkPath, "POST", func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
+	router.RegisterPathMatcher(routes.IndexBulkPath, "POST", withIndexEnabled(config), func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
 		dualWriteBulk(ctx, params["index"], body, lm, config)
 		return "", nil
 	})
 
-	router.RegisterPath(routes.IndexSearchPath, "POST", func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
+	router.RegisterPathMatcher(routes.IndexSearchPath, "POST", withIndexEnabled(config), func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
 		if strings.Contains(params["index"], ",") {
 			return "", errors.New("multi index search is not yet supported")
 		} else {
@@ -52,7 +52,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 			return string(responseBody), nil
 		}
 	})
-	router.RegisterPath(routes.IndexAsyncSearchPath, "POST", func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
+	router.RegisterPathMatcher(routes.IndexAsyncSearchPath, "POST", withIndexEnabled(config), func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
 		if strings.Contains(params["index"], ",") {
 			return "", errors.New("multi index search is not yet supported")
 		} else {
@@ -64,4 +64,11 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		}
 	})
 	return router
+}
+
+func withIndexEnabled(config config.QuesmaConfiguration) mux.MatchPredicate {
+	return func(m map[string]string) bool {
+		indexConfig, exists := config.GetIndexConfig(m["index"])
+		return exists && indexConfig.Enabled
+	}
 }
