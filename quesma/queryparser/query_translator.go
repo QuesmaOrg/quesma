@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/kibana"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"regexp"
 	"strconv"
@@ -38,13 +39,13 @@ func makeResponseSearchQueryNormal[T fmt.Stringer](ResultSet []T) ([]byte, error
 }
 
 func makeResponseSearchQueryCount[T fmt.Stringer](ResultSet []T) ([]byte, error) {
-	aggregations := model.Aggregations{
-		"suggestions": {
+	aggregations := JsonMap{
+		"suggestions": JsonMap{
 			"doc_count_error_upper_bound": 0,
 			"sum_other_doc_count":         0,
 			"buckets":                     []interface{}{},
 		},
-		"unique_terms": {
+		"unique_terms": JsonMap{
 			"value": 0,
 		},
 	}
@@ -86,7 +87,7 @@ func makeResponseAsyncSearchAggregated(ResultSet []model.QueryResultRow, typ mod
 	}
 
 	var id *string
-	aggregations := model.Aggregations{}
+	aggregations := JsonMap{}
 	switch typ {
 	case model.Histogram:
 		aggregations["0"] = JsonMap{
@@ -185,11 +186,11 @@ func makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet []model.QueryResul
 	}
 	response := model.AsyncSearchEntireResp{
 		Response: model.SearchResp{
-			Aggregations: model.Aggregations{
-				"earliest_timestamp": {
+			Aggregations: JsonMap{
+				"earliest_timestamp": JsonMap{
 					"value": earliest,
 				},
-				"latest_timestamp": {
+				"latest_timestamp": JsonMap{
 					"value": latest,
 				},
 			},
@@ -216,6 +217,52 @@ func MakeResponseAsyncSearchQuery(ResultSet []model.QueryResultRow, typ model.As
 	default:
 		return nil, fmt.Errorf("unknown AsyncSearchQueryType: %v", typ)
 	}
+}
+
+func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(query model.QueryWithAggregation, ResultSet []model.QueryResultRow) model.JsonMap {
+	aggregations := model.JsonMap{}
+	if len(query.AggregatorsNames) == 0 {
+		// this should never happen, I think. Let's panic so we notice if it does.
+		logger.Panic().Msgf("empty AggregatorsNames in query: %v", query)
+		return model.JsonMap{}
+	}
+
+	var last JsonMap // we'll be appending results to this
+	currentAggrs := aggregations
+	iterationRange := len(query.AggregatorsNames) - 1
+	if query.Type.IsBucketAggregation() {
+		iterationRange++
+	}
+	for _, field := range query.AggregatorsNames[:iterationRange] {
+		subMap := make(JsonMap, 1)
+		subMap[field] = make(JsonMap, 1)
+		currentAggrs[field] = make(JsonMap, 1)
+		buckets := []any{JsonMap{}}
+		currentAggrs[field].(JsonMap)["buckets"] = buckets
+		last = currentAggrs[field].(JsonMap)
+		currentAggrs = currentAggrs[field].(JsonMap)["buckets"].([]any)[0].(JsonMap)
+	}
+
+	nrToAppend := max(0, len(ResultSet)-1) // we need len(ResultSet), but created 1 already above
+	for range nrToAppend {
+		last["buckets"] = append(last["buckets"].([]any), JsonMap{})
+	}
+	lastAggregator := query.AggregatorsNames[len(query.AggregatorsNames)-1]
+	if query.Type.IsBucketAggregation() {
+		for i, row := range query.Type.TranslateSqlResponseToJson(ResultSet) {
+			last["buckets"].([]any)[i] = row
+		}
+	} else if len(query.AggregatorsNames) > 1 {
+		// we already have buckets before, as len > 1
+		response := query.Type.TranslateSqlResponseToJson(ResultSet)
+		for i, row := range response {
+			last["buckets"].([]any)[i].(JsonMap)[lastAggregator] = row
+		}
+	} else {
+		aggregations[lastAggregator] = query.Type.TranslateSqlResponseToJson(ResultSet)[0]
+	}
+
+	return aggregations
 }
 
 // GetFieldsList

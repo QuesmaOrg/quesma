@@ -57,8 +57,22 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 	}
 
 	parsed := cw.parseQueryMap(queryAsMap["query"].(QueryMap))
-	QueryInfo := cw.tryProcessMetadataAsyncSearch(queryAsMap)
-	return parsed, QueryInfo
+	queryInfo := cw.tryProcessMetadataAsyncSearch(queryAsMap)
+	/* leaving as comment, as that's how it'll work after next PR
+
+	if queryInfo.Typ != model.None {
+		// if we parsed it via old, non-general way, let's just use it for now, because it's known to be working
+		return parsed, queryInfo
+	}
+
+	if aggs, ok := queryAsMap["aggs"].(QueryMap); ok {
+		aggregations := make([]model.QueryWithAggregation, 0)
+		currentAggr := aggrQueryBuilder{}
+		cw.parseAggregation(&currentAggr, aggs, &aggregations)
+		pp.Println(aggregations)
+	}
+	*/
+	return parsed, queryInfo
 }
 
 // Metadata attributes are the ones that are on the same level as query tag

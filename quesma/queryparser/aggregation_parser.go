@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/model/bucket_aggregations"
+	"mitmproxy/quesma/model/metrics_aggregations"
 	"slices"
 	"strings"
 )
@@ -38,7 +40,7 @@ func (b *aggrQueryBuilder) buildCountAggregation() model.QueryWithAggregation {
 func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregation) model.QueryWithAggregation {
 	query := b.buildAggregationCommon()
 	switch metricsAggr.AggrType {
-	case "sum", "min", "avg", "max", "quantile":
+	case "sum", "min", "max", "avg", "quantile", "cardinality": // TODO fix cardinality's SQL
 		query.NonSchemaFields = append(query.NonSchemaFields, metricsAggr.AggrType+`("`+metricsAggr.FieldNames[0]+`")`)
 	case "top_hits", "top_metrics":
 		query.Fields = append(query.Fields, metricsAggr.FieldNames...)
@@ -50,6 +52,24 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	default:
 		logger.Warn().Msgf("unknown metrics aggregation: %s", metricsAggr.AggrType)
 		query.CanParse = false
+	}
+	switch metricsAggr.AggrType {
+	case "sum":
+		query.Type = metrics_aggregations.QueryTypeSum{}
+	case "min":
+		query.Type = metrics_aggregations.QueryTypeMin{}
+	case "max":
+		query.Type = metrics_aggregations.QueryTypeMax{}
+	case "avg":
+		query.Type = metrics_aggregations.QueryTypeAvg{}
+	case "cardinality":
+		query.Type = metrics_aggregations.QueryTypeCardinality{}
+	case "quantile":
+		query.Type = metrics_aggregations.QueryTypeQuantile{}
+	case "top_hits":
+		query.Type = metrics_aggregations.QueryTypeTopHits{}
+	case "top_metrics":
+		query.Type = metrics_aggregations.QueryTypeTopMetrics{}
 	}
 	return query
 }
@@ -63,7 +83,8 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 	aggregations := make([]model.QueryWithAggregation, 0)
 	currentAggr := aggrQueryBuilder{}
 	currentAggr.TableName = cw.TableName
-	cw.parseAggregation(&currentAggr, queryAsMap, &aggregations)
+	currentAggr.Type = metrics_aggregations.QueryTypeCount{}
+	cw.parseAggregation(&currentAggr, queryAsMap["aggs"].(QueryMap), &aggregations)
 	return aggregations, nil
 }
 
@@ -76,6 +97,10 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		return
 	}
 
+	filterOnThisLevel := false
+	whereBeforeFilter := "" // to restore it after processing this level
+	currentQueryType := currentAggr.Type
+
 	// 1. Metrics aggregation => always leaf
 	metricsAggrResult, ok := tryMetricsAggregation(queryMap)
 	if ok {
@@ -84,10 +109,9 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	}
 
 	// 2. Now process filter(s) first, because they apply to everything else on the same level or below.
-	filterOnThisLevel := false
-	whereBeforeFilter := "" // to restore it after processing this level
 	if filter, ok := queryMap["filter"]; ok {
 		filterOnThisLevel, whereBeforeFilter = true, currentAggr.whereBuilder.Sql.Stmt
+		currentAggr.Type = metrics_aggregations.QueryTypeCount{}
 		currentAggr.whereBuilder = cw.parseBool(filter.(QueryMap)["bool"].(QueryMap)) // todo change to filter handler
 		delete(queryMap, "filter")
 	}
@@ -102,14 +126,18 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	// If 'aggs' is present, we only aggregate if also 'terms' is present. It then introduces a new GROUP BY,
 	// and we need counts for that.
 	weWantToAggregateHere := true
+	termsPresent := false
+	if terms, ok := queryMap["terms"]; ok {
+		termsPresent = true
+		currentAggr.Type = bucket_aggregations.QueryTypeTerms{}
+		currentAggr.GroupByFields[len(currentAggr.GroupByFields)-1] = terms.(QueryMap)["field"].(string)
+		currentAggr.Fields[len(currentAggr.Fields)-1] = terms.(QueryMap)["field"].(string)
+		delete(queryMap, "terms")
+	}
+
 	if aggs, ok := queryMap["aggs"]; ok {
-		weWantToAggregateHere = false
-		if terms, ok := queryMap["terms"]; ok {
-			weWantToAggregateHere = true
-			currentAggr.GroupByFields[len(currentAggr.GroupByFields)-1] = terms.(QueryMap)["field"].(string)
-			currentAggr.Fields[len(currentAggr.Fields)-1] = terms.(QueryMap)["field"].(string)
-			weWantToAggregateHere = true
-			delete(queryMap, "terms")
+		if !termsPresent {
+			weWantToAggregateHere = false
 		}
 		cw.parseAggregation(currentAggr, aggs.(QueryMap), resultAccumulator)
 		delete(queryMap, "aggs")
@@ -138,10 +166,11 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		currentAggr.GroupByFields = currentAggr.GroupByFields[:len(currentAggr.GroupByFields)-1]
 	}
 
-	// remove filters set from this level after processing it fully
+	// restore current state, removing subaggregation state
 	if filterOnThisLevel {
 		currentAggr.whereBuilder.Sql.Stmt = whereBeforeFilter
 	}
+	currentAggr.Type = currentQueryType
 }
 
 // Tries to parse metrics aggregation from queryMap. If it's not a metrics aggregation, returns false.
@@ -153,7 +182,7 @@ func tryMetricsAggregation(queryMap QueryMap) (metricsAggregation, bool) {
 	// full list: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-Aggregations-metrics.html
 	// shouldn't be hard to handle others, if necessary
 
-	metricsAggregations := []string{"sum", "avg", "min", "max"}
+	metricsAggregations := []string{"sum", "avg", "min", "max", "cardinality"}
 	for k, v := range queryMap {
 		if slices.Contains(metricsAggregations, k) {
 			return metricsAggregation{
@@ -198,11 +227,13 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	if histogram, ok := queryMap["histogram"]; ok {
 		currentAggr.GroupByFields[len(currentAggr.GroupByFields)-1] = histogram.(QueryMap)["field"].(string)
 		currentAggr.Fields[len(currentAggr.Fields)-1] = histogram.(QueryMap)["field"].(string)
+		currentAggr.Type = bucket_aggregations.QueryTypeHistogram{}
 		delete(queryMap, "histogram")
 	}
 	if dateHistogram, ok := queryMap["date_histogram"]; ok {
 		currentAggr.GroupByFields[len(currentAggr.GroupByFields)-1] = dateHistogram.(QueryMap)["field"].(string)
 		currentAggr.Fields[len(currentAggr.Fields)-1] = dateHistogram.(QueryMap)["field"].(string)
+		currentAggr.Type = bucket_aggregations.QueryTypeDateHistogram{}
 		delete(queryMap, "date_histogram")
 	}
 	if Range, ok := queryMap["range"]; ok {

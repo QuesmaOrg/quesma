@@ -3,6 +3,7 @@ package util
 import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
+	"reflect"
 	"strconv"
 	"testing"
 )
@@ -139,9 +140,32 @@ func TestMapDifference(t *testing.T) {
 		},
 	}
 
-	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected)
+	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected, false)
 	assert.Equal(t, wantedActualMinusExpected, actualMinusExpected)
 	assert.Equal(t, wantedExpectedMinusActual, expectedMinusActual)
+}
+
+func TestMapDifference_compareValues_different(t *testing.T) {
+	mActual := JsonMap{"key": 101}
+	mExpected := JsonMap{"key": 102}
+
+	// if we don't compare values, maps are equal
+	mdiff1, mdiff2 := MapDifference(mActual, mExpected, false)
+	assert.Empty(t, mdiff1)
+	assert.Empty(t, mdiff2)
+
+	// if we compare values, maps are different
+	mdiff1, mdiff2 = MapDifference(mActual, mExpected, true)
+	assert.Equal(t, mActual, mdiff1)
+	assert.Equal(t, mExpected, mdiff2)
+}
+
+func TestMapDifference_compareValues_floatEqualsInt(t *testing.T) {
+	mActual := JsonMap{"key": 101}
+	mExpected := JsonMap{"key": 101.00}
+	mdiff1, mdiff2 := MapDifference(mActual, mExpected, true)
+	assert.Empty(t, mdiff1)
+	assert.Empty(t, mdiff2)
 }
 
 // regression test, it used to fail before fix.
@@ -220,7 +244,7 @@ func TestJsonDifference(t *testing.T) {
 		"response": JsonMap{
 			"aggregations": JsonMap{
 				"0": JsonMap{
-					"buckets": []interface{}{
+					"buckets": []any{
 						JsonMap{
 							"doc_count":     1.0,
 							"key":           1706638410000.0,
@@ -241,6 +265,89 @@ func TestJsonDifference(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, actualMinusExpected)
 	assert.Equal(t, wantedExpectedMinusActual, expectedMinusActual)
+}
+
+func TestMergeMaps(t *testing.T) {
+	var cases = []struct {
+		m1     JsonMap
+		m2     JsonMap
+		wanted JsonMap
+	}{
+		{
+			JsonMap{"key1": "value1", "key2": "value2"},
+			JsonMap{"key2": "value2", "key3": "value3"},
+			JsonMap{"key1": "value1", "key2": "value2", "key3": "value3"},
+		},
+		{
+			JsonMap{
+				"start_time_in_millis": 0, "is_partial": false,
+				"only-in-m1": "value", // different
+				"response": JsonMap{
+					"took": 0, "timed_out": false,
+					"_shards": JsonMap{"total": 0, "successful": 0, "failed": 0, "skipped": 0},
+					"hits":    JsonMap{"total": JsonMap{"value": 1, "relation": "eq"}, "max_score": 0, "hits": []any{}},
+					"aggregations": JsonMap{"origins": JsonMap{"buckets": []any{
+						JsonMap{ // different
+							"distinations": JsonMap{
+								"buckets": []any{
+									JsonMap{
+										"destLocation": JsonMap{
+											"value": "New York",
+										},
+									},
+								},
+							},
+						},
+					}}},
+				},
+			},
+			JsonMap{
+				"start_time_in_millis": 0, "is_partial": false,
+				"only-in-m2": "value", // different
+				"response": JsonMap{
+					"took": 0, "timed_out": false,
+					"_shards": JsonMap{"total": 0, "successful": 0, "failed": 0, "skipped": 0},
+					"hits":    JsonMap{"total": JsonMap{"value": 1, "relation": "eq"}, "max_score": 0, "hits": []any{}},
+					"aggregations": JsonMap{"origins": JsonMap{"buckets": []any{
+						JsonMap{ //different
+							"distinations": JsonMap{
+								"value": "New York",
+							},
+						},
+					}}},
+				},
+			},
+			JsonMap{
+				"start_time_in_millis": 0, "is_partial": false,
+				"only-in-m1": "value", "only-in-m2": "value", // merge from both maps
+				"response": JsonMap{
+					"took": 0, "timed_out": false,
+					"_shards": JsonMap{"total": 0, "successful": 0, "failed": 0, "skipped": 0},
+					"hits":    JsonMap{"total": JsonMap{"value": 1, "relation": "eq"}, "max_score": 0, "hits": []any{}},
+					"aggregations": JsonMap{"origins": JsonMap{"buckets": []any{
+						JsonMap{
+							"distinations": JsonMap{
+								"buckets": []any{ // from m1
+									JsonMap{
+										"destLocation": JsonMap{
+											"value": "New York",
+										},
+									},
+								},
+								"value": "New York", // from m2
+							},
+						},
+					}}},
+				},
+			},
+		},
+	}
+	for i, tt := range cases {
+		t.Run("TestMergeMaps_"+strconv.Itoa(i), func(t *testing.T) {
+			// simple == or Equal doesn't work on nested maps => need DeepEqual
+			assert.True(t, reflect.DeepEqual(tt.wanted, MergeMaps(tt.m1, tt.m2)))
+		})
+	}
 }
 
 func TestIsSqlEqual(t *testing.T) {
@@ -289,5 +396,25 @@ func TestFilterNonEmpty(t *testing.T) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			assert.Equal(t, tt.filtered, FilterNonEmpty(tt.array))
 		})
+	}
+}
+
+func Test_equal(t *testing.T) {
+	tests := []struct {
+		a, b any
+		want bool
+	}{
+		{1, 1, true},
+		{1, 2, false},
+		{1, 1.5, false},
+		{1.5, 1.5, true},
+		{1, 1.0, true},
+		{1.0, 1.0, true},
+		{1.0, 1.0000000000000001, true},
+		{1.0, 1, true},
+	}
+	for _, tt := range tests {
+		got := equal(tt.a, tt.b)
+		assert.Equal(t, tt.want, got)
 	}
 }

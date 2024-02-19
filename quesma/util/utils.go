@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mitmproxy/quesma/logger"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -86,7 +87,9 @@ func JsonToMap(jsonn string) (JsonMap, error) {
 
 // returns pair of maps with fields that are present in one of input maps and not in the other
 // specifically (mActual - mExpected, mExpected - mActual)
-func MapDifference(mActual, mExpected JsonMap) (JsonMap, JsonMap) {
+// compareBaseTypes - if true, we compare base type values as well (e.g. if mActual["key1"]["key2"] == 1,
+// and mExpected["key1"]["key2"] == 2, we say that they are different)
+func MapDifference(mActual, mExpected JsonMap, compareBaseTypes bool) (JsonMap, JsonMap) {
 	// We're adding 'mapToAdd' to 'resultDiff' at the key keysNested + name (`keysNested` is a list of keys, as JSONs can be nested)
 	// (or before, if such map doesn't exist on previous nested levels)
 	// append(keysNested, name) - list of keys to get to the current map ('mapToAdd')
@@ -164,6 +167,11 @@ func MapDifference(mActual, mExpected JsonMap) (JsonMap, JsonMap) {
 				for i := min(lenActual, lenExpected); i < min(1, lenExpected); i++ {
 					addToResult(vExpectedArr[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffOther)
 				}
+			default:
+				if compareBaseTypes && !equal(vActual, vExpected) {
+					addToResult(vActual, name, keysNested, resultDiffThis)
+					addToResult(vExpected, name, keysNested, resultDiffOther)
+				}
 			}
 		}
 	}
@@ -191,8 +199,66 @@ func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("%v (second JSON, json: %s)", err, jsonExpected)
 	}
-	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected)
+	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected, false)
 	return actualMinusExpected, expectedMinusActual, nil
+}
+
+// If there's type conflict, e.g. one map has {"a": map}, and second has {"a": array}, we panic.
+// Tried https://stackoverflow.com/a/71545414 and https://stackoverflow.com/a/71652767
+// but none of them works for nested maps, so needed to write our own.
+func MergeMaps(m1, m2 JsonMap) JsonMap {
+	var mergeMapsRec func(m1, m2 JsonMap) JsonMap
+
+	// merges 'i1' and 'i2' in 3 cases: both are JsonMap, both are []JsonMap, or both are some base type
+	mergeAny := func(i1, i2 any) any {
+		switch i1Typed := i1.(type) {
+		case JsonMap:
+			i2Typed, ok := i2.(JsonMap)
+			if !ok {
+				logger.Panic().Msgf("mergeAny: i1 is map, i2 is not. i1: %v, i2: %v", i1, i2)
+				return i1
+			}
+			return mergeMapsRec(i1Typed, i2Typed)
+		case []any:
+			i2Typed, ok := i2.([]any)
+			if !ok {
+				logger.Panic().Msgf("mergeAny: i1 is []any, i2 is not. i1: %v, i2: %v", i1, i2)
+				return i1
+			}
+
+			// lengths should be always equal in our usage of this function, maybe that'll change
+			if len(i1Typed) != len(i2Typed) {
+				logger.Panic().Msgf("mergeAny: i1 and i2 are slices, but have different lengths. i1: %v, i2: %v", i1, i2)
+			}
+			mergedArray := make([]any, len(i1Typed))
+			for i := range i1Typed {
+				mergedArray[i] = mergeMapsRec(i1Typed[i].(JsonMap), i2Typed[i].(JsonMap))
+			}
+			return mergedArray
+		default:
+			return i1
+		}
+	}
+
+	mergeMapsRec = func(m1, m2 JsonMap) JsonMap {
+		mergedMap := make(JsonMap)
+		for k, v1 := range m1 {
+			v2, ok := m2[k]
+			if ok {
+				mergedMap[k] = mergeAny(v1, v2)
+			} else {
+				mergedMap[k] = v1
+			}
+		}
+		for k, v2 := range m2 {
+			_, ok := m1[k]
+			if !ok {
+				mergedMap[k] = v2
+			}
+		}
+		return mergedMap
+	}
+	return mergeMapsRec(m1, m2)
 }
 
 func BodyHandler(h func(body []byte, writer http.ResponseWriter, r *http.Request)) func(http.ResponseWriter, *http.Request) {
@@ -338,4 +404,25 @@ func IsInt(value interface{}) bool {
 // passed as a parameter
 func ValueKind(value interface{}) reflect.Kind {
 	return reflect.TypeOf(value).Kind()
+}
+
+// Returns a == b, but it's better in 1 way: equal(1, 1.0) == true, equal(1.0, 1) == true
+// Useful in comparing JSONs, where we can have 1 and 1.0, and we want them to be equal.
+func equal(a, b any) bool {
+	if a == b {
+		return true
+	}
+	switch aTyped := a.(type) {
+	case float64:
+		bAsInt, ok := b.(int)
+		if ok && aTyped == float64(bAsInt) {
+			return true
+		}
+	case int:
+		bAsFloat, ok := b.(float64)
+		if ok && float64(aTyped) == bAsFloat {
+			return true
+		}
+	}
+	return false
 }

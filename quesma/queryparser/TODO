@@ -1,0 +1,20 @@
+Remove this file after fixing all issues/tests
+
+1. Main goal is to make queryparser/aggregation_parser_test.go/Test2AggregationParserExternalTestcases work
+It's called like this to run only this test easily via `go test -run Test2`
+
+Status:
+("aggregation" part, "hits" aren't supported at all now...)
+[0] - works
+[1] - almost works, this isn't present: "doc_count_error_upper_bound": 0, "sum_other_doc_count": 0
+[2] - needs some more work - double/3x/4x/... aggregation ([]buckets: []buckets ([]buckets...) doesn't work)
+[3] - works
+[4] - almost works, this isn't present: "doc_count_error_upper_bound": 0, "sum_other_doc_count": 0
+[5] - works
+[6] - almost works, buckets are [], not {} like in response :( It's stupid, first try as it is, maybe it'll work...
+[7] - needs some more work - double/3x/4x/... aggregation ([]buckets: []buckets ([]buckets...) doesn't work)
+
+
+2. send COUNT(*) query for "hits" field
+3. "query" part of the request fully works. "aggs" is about to work (I hope).
+   Need to combine those two, so look at "query" when dealing with "aggs". Now we only look "aggs".

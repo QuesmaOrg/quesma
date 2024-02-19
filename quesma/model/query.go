@@ -23,6 +23,7 @@ type Query struct {
 type QueryWithAggregation struct {
 	Query
 	AggregatorsNames []string // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
+	Type             QueryType
 }
 
 // returns string with * in SELECT
@@ -95,8 +96,10 @@ func (q *Query) IsWildcard() bool {
 func (q *QueryWithAggregation) CopyAggregationFields(qwa QueryWithAggregation) {
 	q.GroupByFields = make([]string, len(qwa.GroupByFields))
 	q.Fields = make([]string, len(qwa.Fields))
+	q.AggregatorsNames = make([]string, len(qwa.AggregatorsNames))
 	copy(q.GroupByFields, qwa.GroupByFields)
 	copy(q.Fields, qwa.Fields)
+	copy(q.AggregatorsNames, qwa.AggregatorsNames)
 }
 
 func (q *QueryWithAggregation) FilterEmptyAggregationFields() {

@@ -1,9 +1,13 @@
 package queryparser
 
 import (
+	"cmp"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/testdata"
 	"mitmproxy/quesma/util"
+	"slices"
 	"strconv"
 	"testing"
 )
@@ -415,6 +419,29 @@ var aggregationTests = []struct {
 			`SELECT "taxful_total_price" FROM "(SELECT taxful_total_price, ROW_NUMBER() OVER (PARTITION BY taxful_total_price) AS row_number FROM ` + tableName + `)" WHERE taxful_total_price>250 `,
 		},
 	},
+	/*
+		{ // [12]
+			`{
+				"aggs": {
+					"suggestions": {
+						"terms": {
+							"field": "OriginCityName",
+							"order": {
+								"_count": "desc"
+							},
+							"shard_size": 10,
+							"size": 10
+						}
+					},
+					"unique_terms": {
+						"cardinality": {
+							"field": "OriginCityName"
+						}
+					}
+				}
+			}`,
+			[]string{},
+		}, */
 }
 
 func TestAggregationParser(t *testing.T) {
@@ -437,6 +464,50 @@ func TestAggregationParser(t *testing.T) {
 			for _, aggregation := range aggregations {
 				util.AssertContainsSqlEqual(t, test.translatedSqls, aggregation.String())
 			}
+		})
+	}
+}
+
+// Used in tests to make processing `aggregations` in a deterministic way
+func sortAggregations(aggregations []model.QueryWithAggregation) {
+	slices.SortFunc(aggregations, func(a, b model.QueryWithAggregation) int {
+		for i := range min(len(a.AggregatorsNames), len(b.AggregatorsNames)) {
+			if a.AggregatorsNames[i] != b.AggregatorsNames[i] {
+				return cmp.Compare(a.AggregatorsNames[i], b.AggregatorsNames[i])
+			}
+		}
+		// longer list is first, as we first go deeper when parsing aggregations
+		return cmp.Compare(len(b.AggregatorsNames), len(a.AggregatorsNames))
+	})
+}
+
+// TODO change name, for now called like this to easily run only this test via `go test -run Test2`
+func Test2AggregationParserExternalTestcases(t *testing.T) {
+	lm := clickhouse.NewLogManager(chUrl, make(clickhouse.TableMap), make(clickhouse.TableMap))
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: "logs-generic-default"}
+	for i, test := range testdata.AggregationTests {
+		t.Run(test.TestName, func(t *testing.T) {
+			if i != 0 && i != 3 && i != 5 {
+				// 3 work 100%, 2 more work, but have 2 missing fields in expected response
+				t.Skip("Skipping test", i, "as it's not fully implemented yet")
+			}
+			aggregations, err := cw.ParseAggregationJson(test.QueryRequestJson)
+			// fmt.Println("Aggregations len", len(aggregations))
+			assert.NoError(t, err)
+			// assert.Equal(t, len(test.translatedSqls), len(aggregations))
+			A := model.JsonMap{}           // replace with algorithm not in tests
+			sortAggregations(aggregations) // to make test run deterministic
+			for i, aggregation := range aggregations {
+				// fmt.Println(aggregation)
+				A = util.MergeMaps(A, cw.MakeResponseAggregation(aggregation, test.ExpectedResults[i]))
+			}
+			// pp.Println(A)
+			expectedResponseMap, _ := util.JsonToMap(test.ExpectedResponse)
+			expectedAggregationsPart := expectedResponseMap["response"].(JsonMap)["aggregations"].(JsonMap)
+			diff1, diff2 := util.MapDifference(A, expectedAggregationsPart, true)
+			assert.Empty(t, diff1)
+			assert.Empty(t, diff2)
+			// pp.Println(expectedAggregationsPart, diff1, diff2)
 		})
 	}
 }

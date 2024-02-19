@@ -48,15 +48,13 @@ type Total struct {
 	Relation string `json:"relation"`
 }
 
-type Aggregations = map[string]JsonMap
-
 type SearchResp struct {
 	Took              int            `json:"took"`
 	Timeout           bool           `json:"timed_out"`
 	DidTerminateEarly *bool          `json:"terminated_early,omitempty"` // needs to be *bool https://stackoverflow.com/questions/37756236/json-golang-boolean-omitempty
 	Shards            ResponseShards `json:"_shards"`
 	Hits              SearchHits     `json:"hits"`
-	Aggregations      Aggregations   `json:"aggregations,omitempty"`
+	Aggregations      JsonMap        `json:"aggregations,omitempty"`
 	ScrollID          *string        `json:"_scroll_id,omitempty"`
 }
 
