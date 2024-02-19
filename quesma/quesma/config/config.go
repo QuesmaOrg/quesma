@@ -50,7 +50,11 @@ type (
 )
 
 func (c IndexConfiguration) Matches(indexName string) bool {
-	return regexp.MustCompile(fmt.Sprintf("^%s$", strings.Replace(c.NamePattern, "*", ".*", -1))).MatchString(indexName)
+	return MatchName(c.NamePattern, indexName)
+}
+
+func MatchName(pattern, name string) bool {
+	return regexp.MustCompile(fmt.Sprintf("^%s$", strings.Replace(pattern, "*", ".*", -1))).MatchString(name)
 }
 
 func Load() QuesmaConfiguration {

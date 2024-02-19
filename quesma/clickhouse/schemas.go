@@ -123,3 +123,13 @@ func int64CH(name string) *Column {
 		Modifiers: "CODEC(DoubleDelta, LZ4)",
 	}
 }
+
+func Tables() (schemas []string) {
+	for name := range PredefinedTableSchemas {
+		schemas = append(schemas, name)
+	}
+	for name := range NewRuntimeSchemas {
+		schemas = append(schemas, name)
+	}
+	return schemas
+}
