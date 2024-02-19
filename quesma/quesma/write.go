@@ -40,7 +40,21 @@ func dualWriteBulk(ctx context.Context, optionalTableName string, body string, l
 			logger.Info().Msgf("Invalid action JSON in _bulk: %v %+v", err, operation)
 			continue
 		}
-		index := getTargetIndex(operation, optionalTableName)
+		index := getTargetIndex(operation)
+		if index == "" {
+			logger.Error().Msgf("Invalid index name in _bulk: %s", operationDef)
+			continue
+		}
+
+		indexConfig, found := cfg.GetIndexConfig(index)
+		if !found {
+			logger.Debug().Msgf("index '%s' is not configured, skipping", index)
+			continue
+		}
+		if !indexConfig.Enabled {
+			logger.Debug().Msgf("index '%s' is disabled, ignoring", index)
+			continue
+		}
 
 		if _, ok := operation["create"]; ok {
 			indicesWithDocumentsToInsert[index] = append(indicesWithDocumentsToInsert[index], document)
@@ -64,13 +78,13 @@ func dualWriteBulk(ctx context.Context, optionalTableName string, body string, l
 	}
 }
 
-func getTargetIndex(operation map[string]DocumentTarget, fallback string) string {
+func getTargetIndex(operation map[string]DocumentTarget) string {
 	for _, target := range operation { // this map contains only 1 element though
 		if target.Index != nil {
 			return *target.Index
 		}
 	}
-	return fallback
+	return ""
 }
 
 func dualWrite(ctx context.Context, tableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
@@ -146,7 +160,7 @@ func findMatchingConfig(indexName string, cfg config.QuesmaConfiguration) (confi
 			return indexConfig, true
 		} else {
 			if matchCounter.Load()%100 == 1 {
-				logger.Info().Msgf("  ╚═ not matched index %s with config: %+v, ctr: %d", indexName, indexConfig.NamePattern, matchCounter.Load())
+				logger.Debug().Msgf("  ╚═ not matched index %s with config: %+v, ctr: %d", indexName, indexConfig.NamePattern, matchCounter.Load())
 			}
 		}
 	}
