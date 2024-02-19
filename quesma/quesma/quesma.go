@@ -60,7 +60,7 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 	}
 }
 
-func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse *http.Response, console *ui.QuesmaManagementConsole) {
+func sendElkResponseToQuesmaConsole(ctx context.Context, elkResponse *http.Response, console *ui.QuesmaManagementConsole) {
 	reader := elkResponse.Body
 	body, err := io.ReadAll(reader)
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
@@ -69,15 +69,13 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, uri string, elkResponse
 	}
 	elkResponse.Body = io.NopCloser(bytes.NewBuffer(body))
 
-	if routes.IsIndexSearchPath(uri) || routes.IsIndexAsyncSearchPath(uri) {
-		if gzip.IsGzipped(elkResponse) {
-			body, err = gzip.UnZip(body)
-			if err != nil {
-				logger.Error().Str(logger.RID, id).Msgf("Error unzipping: %v", err)
-			}
+	if gzip.IsGzipped(elkResponse) {
+		body, err = gzip.UnZip(body)
+		if err != nil {
+			logger.Error().Str(logger.RID, id).Msgf("Error unzipping: %v", err)
 		}
-		console.PushPrimaryInfo(&ui.QueryDebugPrimarySource{Id: id, QueryResp: body})
 	}
+	console.PushPrimaryInfo(&ui.QueryDebugPrimarySource{Id: id, QueryResp: body})
 }
 
 func NewQuesmaTcpProxy(config config.QuesmaConfiguration, logChan <-chan string, inspect bool) *Quesma {
@@ -108,7 +106,7 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 		elkResponse := <-elkResponseChan
 		copyHeaders(w, elkResponse)
 		copyStatusCode(w, elkResponse)
-		sendElkResponseToQuesmaConsole(ctx, req.RequestURI, elkResponse, quesmaManagementConsole)
+		sendElkResponseToQuesmaConsole(ctx, elkResponse, quesmaManagementConsole)
 		copyBody(w, req, err, ctx, quesmaResponse, elkResponse, config)
 	} else {
 		response := sendHttpRequest(ctx, config.ElasticsearchUrl.String(), req, reqBody)
