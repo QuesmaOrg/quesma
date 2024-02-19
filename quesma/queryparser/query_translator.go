@@ -175,14 +175,16 @@ func makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.Asy
 }
 
 func makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet []model.QueryResultRow) ([]byte, error) {
-	var earliest, latest *string = nil, nil
+	var earliest, latest *time.Time = nil, nil
 	if len(ResultSet) >= 1 {
-		earliest = new(string)
-		*earliest = ResultSet[0].Cols[0].Value.(string)
+		if date, ok := ResultSet[0].Cols[0].Value.(time.Time); ok {
+			earliest = &date
+		}
 	}
 	if len(ResultSet) >= 2 {
-		latest = new(string)
-		*latest = ResultSet[1].Cols[0].Value.(string)
+		if date, ok := ResultSet[1].Cols[0].Value.(time.Time); ok {
+			latest = &date
+		}
 	}
 	response := model.AsyncSearchEntireResp{
 		Response: model.SearchResp{
