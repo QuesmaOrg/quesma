@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"net/url"
@@ -233,5 +234,66 @@ func TestProcessInsertQuery(t *testing.T) {
 				})
 			}
 		}
+	}
+}
+
+// Tests a big integer both as a schema field and as an attribute
+func TestInsertVeryBigIntegers(t *testing.T) {
+	t.Skip("TODO not implemented yet. Need a custom unmarshaller, and maybe also a marshaller.")
+	bigInts := []string{"18444073709551615", "9223372036854775807"} // ~2^54, 2^63-1
+	expectedInsertJsons := []string{
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int": %s, "severity": "sev"}`, tableName, bigInts[0]),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int": %s, "severity": "sev"}`, tableName, bigInts[1]),
+	}
+
+	// big integer as a schema field
+	for i, bigInt := range bigInts {
+		t.Run("big integer schema field: "+bigInt, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			assert.NoError(t, err)
+			lm := NewLogManagerEmpty()
+			lm.chDb = db
+			defer db.Close()
+
+			mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))
+			mock.ExpectExec(expectedInsertJsons[i]).WillReturnResult(sqlmock.NewResult(0, 0))
+
+			err = lm.ProcessInsertQuery(tableName, []string{fmt.Sprintf(`{"severity":"sev","int": %s}`, bigInt)})
+			assert.NoError(t, err)
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatal("there were unfulfilled expections:", err)
+			}
+		})
+	}
+
+	// big integer as an attribute field
+	tableMapNoSchemaFields := TableMap{
+		tableName: &Table{
+			Name:    tableName,
+			Config:  NewChTableConfigFourAttrs(),
+			Cols:    map[string]*Column{},
+			Created: true,
+		},
+	}
+	for i, bigInt := range bigInts {
+		t.Run("big integer attribute field: "+bigInt, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			assert.NoError(t, err)
+			lm := NewLogManagerEmpty()
+			lm.chDb = db
+			lm.predefinedTables = tableMapNoSchemaFields
+			defer db.Close()
+
+			mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))
+			mock.ExpectExec(expectedInsertJsons[i]).WillReturnResult(sqlmock.NewResult(0, 0))
+
+			bigIntAsInt, _ := strconv.ParseInt(bigInt, 10, 64)
+			fmt.Printf(`{"severity":"sev","int": %d}\n`, bigIntAsInt)
+			err = lm.ProcessInsertQuery(tableName, []string{fmt.Sprintf(`{"severity":"sev","int": %d}`, bigIntAsInt)})
+			assert.NoError(t, err)
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatal("there were unfulfilled expections:", err)
+			}
+		})
 	}
 }
