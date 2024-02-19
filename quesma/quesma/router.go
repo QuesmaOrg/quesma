@@ -2,11 +2,13 @@ package quesma
 
 import (
 	"context"
+	"errors"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/routes"
 	"mitmproxy/quesma/quesma/ui"
+	"strings"
 )
 
 func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole) *mux.PathRouter {
@@ -40,18 +42,26 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 	})
 
 	router.RegisterPath(routes.IndexSearchPath, "POST", func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
-		responseBody, err := handleSearch(ctx, params["index"], []byte(body), lm, console)
-		if err != nil {
-			return "", err
+		if strings.Contains(params["index"], ",") {
+			return "", errors.New("multi index search is not yet supported")
+		} else {
+			responseBody, err := handleSearch(ctx, params["index"], []byte(body), lm, console)
+			if err != nil {
+				return "", err
+			}
+			return string(responseBody), nil
 		}
-		return string(responseBody), nil
 	})
 	router.RegisterPath(routes.IndexAsyncSearchPath, "POST", func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
-		responseBody, err := handleAsyncSearch(ctx, params["index"], []byte(body), lm, console)
-		if err != nil {
-			return "", err
+		if strings.Contains(params["index"], ",") {
+			return "", errors.New("multi index search is not yet supported")
+		} else {
+			responseBody, err := handleAsyncSearch(ctx, params["index"], []byte(body), lm, console)
+			if err != nil {
+				return "", err
+			}
+			return string(responseBody), nil
 		}
-		return string(responseBody), nil
 	})
 	return router
 }
