@@ -38,7 +38,7 @@ func main() {
 		clickhouse.NewRuntimeSchemas,
 	)
 
-	logger.Info().Msgf("loaded config: %+v", cfg)
+	logger.Info().Msgf("loaded config: %s", cfg.String())
 
 	instance := constructQuesma(cfg, lm, qmcLogChannel)
 	instance.Start()

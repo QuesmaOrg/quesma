@@ -159,3 +159,38 @@ func (c *QuesmaConfiguration) WritesToClickhouse() bool {
 func (c *QuesmaConfiguration) WritesToElasticsearch() bool {
 	return c.Mode != ClickHouse
 }
+
+func (c *QuesmaConfiguration) String() string {
+	var indexConfigs string
+	for _, index := range c.IndexConfig {
+		indexConfigs += fmt.Sprintf("\n\t\t%s, enabled: %t", index.NamePattern, index.Enabled)
+	}
+
+	elasticUrl := "<nil>"
+	if c.ElasticsearchUrl != nil {
+		elasticUrl = c.ElasticsearchUrl.String()
+	}
+
+	clickhouseUrl := "<nil>"
+	if c.ClickHouseUrl != nil {
+		clickhouseUrl = c.ClickHouseUrl.String()
+	}
+
+	return fmt.Sprintf(`
+Quesma Configuration:
+	Mode: %d
+	Elasticsearch URL: %s
+	ClickHouse URL: %s
+	Indexes: %s
+	Logs Path: %s
+	Log Level: %v
+	Public TCP Port: %d`,
+		c.Mode,
+		elasticUrl,
+		clickhouseUrl,
+		indexConfigs,
+		c.LogsPath,
+		c.LogLevel,
+		c.PublicTcpPort,
+	)
+}
