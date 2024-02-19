@@ -55,7 +55,7 @@ func dualWriteBulk(ctx context.Context, optionalTableName string, body string, l
 		}
 	}
 	for indexName, documents := range indicesWithDocumentsToInsert {
-		withConfiguration(ctx, cfg, indexName, "{ BULK_PAYLOAD }", func() error {
+		withConfiguration(cfg, indexName, "{ BULK_PAYLOAD }", func() error {
 			for _, document := range documents {
 				stats.GlobalStatistics.Process(indexName, document, clickhouse.NestedSeparator)
 			}
@@ -86,14 +86,14 @@ func dualWrite(ctx context.Context, tableName string, body string, lm *clickhous
 		return
 	}
 
-	withConfiguration(ctx, cfg, tableName, body, func() error {
+	withConfiguration(cfg, tableName, body, func() error {
 		return lm.ProcessInsertQuery(tableName, []string{body})
 	})
 }
 
 var insertCounter = atomic.Int32{}
 
-func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, indexName string, body string, action func() error) {
+func withConfiguration(cfg config.QuesmaConfiguration, indexName string, body string, action func() error) {
 	if len(cfg.IndexConfig) == 0 {
 		logger.Info().Msgf("%s  --> clickhouse, body(shortened): %s", indexName, util.Truncate(body))
 		err := action()
