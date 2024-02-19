@@ -81,6 +81,9 @@ func FieldsMapToCreateTableString(namespace string, m SchemaMap, indentLvl int, 
 				fType = "Nullable(String)"
 			} else {
 				fType = NewType(value).String()
+				if !strings.Contains(fType, "Array") && !strings.Contains(fType, "DateTime") {
+					fType = "Nullable(" + fType + ")"
+				}
 			}
 			// hack for now
 			if indentLvl == 1 && name == timestampFieldName && config.timestampDefaultsNow {
@@ -205,15 +208,96 @@ func DifferenceMap(sm SchemaMap, t *Table) SchemaMap {
 	return mDiff
 }
 
+func RemoveTypeMismatchSchemaFields(m SchemaMap, t *Table) SchemaMap {
+	handleType := func(col *Column, schema SchemaMap, value interface{}) {
+		kind, err := util.KindFromString(col.Type.String())
+		// All numbers in json are by default float type
+		// We don't want to filter out those that
+		// have empty decimal part
+		if err == nil && util.ValueKind(value) != kind && util.IsInt(value) {
+			delete(schema, col.Name)
+		}
+	}
+	var descendRec func(_ *Column, _ SchemaMap)
+	descendRec = func(col *Column, mCur SchemaMap) {
+		switch columnType := col.Type.(type) {
+		case BaseType:
+			value := mCur[col.Name]
+			handleType(col, mCur, value)
+		case CompoundType:
+			multi, ok := columnType.BaseType.(MultiValueType)
+			if !ok {
+				return
+			}
+			for _, col := range multi.Cols {
+				value, ok := mCur[col.Name]
+				if ok {
+					handleType(col, mCur, value)
+					mCurNestedMap, ok := value.(SchemaMap)
+					if ok {
+						descendRec(col, mCurNestedMap)
+					}
+				}
+			}
+		case MultiValueType:
+			for _, col := range columnType.Cols {
+				value, ok := mCur[col.Name]
+				if ok {
+					handleType(col, mCur, value)
+					mCurNestedMap, ok := value.(SchemaMap)
+					if ok {
+						descendRec(col, mCurNestedMap)
+					}
+				}
+			}
+		}
+	}
+	for fieldName, v := range m {
+		col, ok := t.Cols[fieldName]
+		if ok && col != nil {
+			switch v := v.(type) {
+			case SchemaMap:
+				descendRec(col, v)
+
+			case []interface{}:
+				for _, arrayElement := range v {
+					vCasted, ok := arrayElement.(SchemaMap)
+					if ok {
+						descendRec(col, vCasted)
+					} else {
+						innerType, ok := col.Type.(CompoundType)
+						if ok {
+							kind, err := util.KindFromString(innerType.BaseType.String())
+							valueKind := util.ValueKind(arrayElement)
+							if err == nil && valueKind != kind {
+								delete(m, fieldName)
+							}
+						}
+					}
+				}
+			case interface{}:
+				_, ok := col.Type.(BaseType)
+
+				if ok {
+					kind, err := util.KindFromString(col.Type.String())
+					valueKind := util.ValueKind(v)
+					if err == nil && valueKind != kind {
+						delete(m, fieldName)
+					}
+				}
+
+			}
+		}
+	}
+	return m
+}
+
 // removes fields from 'm' that are not in 't'
 func RemoveNonSchemaFields(m SchemaMap, t *Table) SchemaMap {
-	var descendRec func(_ *Column, _, _ SchemaMap)
-	descendRec = func(col *Column, mCur, mCurParent SchemaMap) {
+	var descendRec func(_ *Column, _ SchemaMap)
+	descendRec = func(col *Column, mCur SchemaMap) {
 		mvc, ok := col.Type.(MultiValueType)
 		if !ok {
-			// most likely case first
-			mCurParent[col.Name] = nil // that might be wrong, but in tests it seems fine
-			// some less trivial handling might be needed
 			return
 		}
 
@@ -224,7 +308,7 @@ func RemoveNonSchemaFields(m SchemaMap, t *Table) SchemaMap {
 			if ok {
 				mCurNestedMap, ok := mCurNested.(SchemaMap)
 				if ok {
-					descendRec(col, mCurNestedMap, mCur)
+					descendRec(col, mCurNestedMap)
 				}
 			}
 		}
@@ -262,7 +346,7 @@ func RemoveNonSchemaFields(m SchemaMap, t *Table) SchemaMap {
 		if ok {
 			vCasted, ok := v.(SchemaMap)
 			if ok {
-				descendRec(col, vCasted, m)
+				descendRec(col, vCasted)
 			}
 		} else {
 			delete(m, fieldName) // TODO check if it's fine? In c++ not, but here seems to work

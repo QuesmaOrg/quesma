@@ -201,14 +201,14 @@ func buildCreateTableQueryNoOurFields(tableName, jsonData string, config *ChTabl
 		logger.Error().Msgf("Can't unmarshall, json: %s\nerr:%v", jsonData, err)
 		return "", err
 	}
-
-	return fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
+	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
 (
 	%s
 )
 %s`,
 		tableName, FieldsMapToCreateTableString("", m, 1, config)+Indexes(m),
-		config.CreateTablePostFieldsString()), nil
+		config.CreateTablePostFieldsString())
+	return createTableCmd, nil
 }
 
 func Indexes(m SchemaMap) string {
@@ -251,9 +251,16 @@ func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfi
 	}
 
 	t := lm.findSchema(tableName)
+	onlySchemaFields := RemoveTypeMismatchSchemaFields(m, t)
+	schemaFieldsJson, err := json.Marshal(onlySchemaFields)
+
+	if err != nil {
+		return "", err
+	}
+
 	mDiff := DifferenceMap(m, t) // TODO change to DifferenceMap(m, t)
 
-	if len(mDiff) == 0 { // no need to modify, just insert 'js'
+	if len(mDiff) == 0 && string(schemaFieldsJson) == js { // no need to modify, just insert 'js'
 		return js, nil
 	}
 	var attrsMap map[string][]interface{}
@@ -283,8 +290,8 @@ func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfi
 		}
 		nonSchemaStr += fmt.Sprintf(`"%s":%s`, othersFieldName, others)
 	}
-	onlySchemaFields := RemoveNonSchemaFields(m, t)
-	schemaFieldsJson, err := json.Marshal(onlySchemaFields)
+	onlySchemaFields = RemoveNonSchemaFields(m, t)
+	schemaFieldsJson, err = json.Marshal(onlySchemaFields)
 	if err != nil {
 		return "", err
 	}

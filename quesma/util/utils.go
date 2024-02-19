@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -289,4 +290,52 @@ func IsSqlEqual(expected, actual string) bool {
 // Returns a string of 'indentLvl' number of tabs
 func Indent(indentLvl int) string {
 	return strings.Repeat("\t", indentLvl)
+}
+
+// Returns Kind of type from passed string
+// Example : KindFromString("Int")
+func KindFromString(typeName string) (reflect.Kind, error) {
+	switch typeName {
+	case "Int64", "Int":
+		return reflect.Int, nil
+	case "Float64":
+		return reflect.Float64, nil
+	case "String":
+		return reflect.String, nil
+	default:
+		return reflect.Invalid, fmt.Errorf("unsupported type: %s", typeName)
+	}
+}
+
+// Checks whether passed value is a float type
+// with zeros after decimal point
+// Example: 1.00 will return true
+// Example: 1.54 will return false
+func IsInt(value interface{}) bool {
+	// Get the type of the value
+	valueType := reflect.TypeOf(value)
+
+	// Check if the type is float64
+	if valueType.Kind() == reflect.Float64 {
+		// Convert the float value to string
+		stringValue := fmt.Sprintf("%f", value)
+
+		// Split the string by decimal point
+		parts := strings.Split(stringValue, ".")
+		if len(parts) == 2 && len(parts[1]) > 0 {
+			// Check if the decimal part contains only zeros
+			for _, digit := range parts[1] {
+				if digit != '0' {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// Function returns a type - kind for specific value
+// passed as a parameter
+func ValueKind(value interface{}) reflect.Kind {
+	return reflect.TypeOf(value).Kind()
 }

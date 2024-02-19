@@ -71,6 +71,29 @@ func parseIdent(q string, i int) (int, string) {
 	return j, q[i:j]
 }
 
+func parseNullable(q string, i int) (int, Type) {
+	i = omitWhitespace(q, i)
+	if q[i] == 'N' {
+		i, ok := parseMaybeAndForget(q, i, "Nullable")
+		if ok {
+			i = parseExact(q, i, "(")
+			if i == -1 {
+				return -1, nil
+			}
+			i, ident := parseType(q, i)
+			if i == -1 {
+				return -1, nil
+			}
+			i = parseExact(q, i, ")")
+			if i == -1 {
+				return -1, nil
+			}
+			return i, ident
+		}
+	}
+	return parseType(q, i)
+}
+
 // Returns -1 if not matched, otherwise returns (index after the match, ident)
 func parseIdentWithBrackets(q string, i int) (int, string) {
 	i = omitWhitespace(q, i)
@@ -116,7 +139,7 @@ func parseColumn(q string, i int) (int, Column) {
 	if i == -1 {
 		return -1, col
 	}
-	i, col.Type = parseType(q, i)
+	i, col.Type = parseNullable(q, i)
 	if i == -1 {
 		return -1, col
 	}
@@ -199,7 +222,7 @@ func parseCompoundType(q string, i int) (int, Type) {
 	if i == -1 {
 		return -1, nil
 	}
-	i, typ := parseType(q, i)
+	i, typ := parseNullable(q, i)
 	if i == -1 {
 		return -1, nil
 	}
@@ -233,7 +256,7 @@ func parseMultiValueType(q string, i int) (int, []*Column) {
 			j++
 		}
 		j = omitWhitespace(q, j)
-		j, typ := parseType(q, j)
+		j, typ := parseNullable(q, j)
 		if j == -1 {
 			return -1, nil
 		}
