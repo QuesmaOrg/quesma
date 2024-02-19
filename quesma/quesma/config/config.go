@@ -178,14 +178,14 @@ func (c *QuesmaConfiguration) String() string {
 
 	return fmt.Sprintf(`
 Quesma Configuration:
-	Mode: %d
+	Mode: %s
 	Elasticsearch URL: %s
 	ClickHouse URL: %s
 	Indexes: %s
 	Logs Path: %s
 	Log Level: %v
 	Public TCP Port: %d`,
-		c.Mode,
+		c.Mode.String(),
 		elasticUrl,
 		clickhouseUrl,
 		indexConfigs,
