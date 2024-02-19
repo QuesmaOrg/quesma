@@ -8,3 +8,5 @@ mitmproxy/query/*.txt
 .DS_Store
 docker/quesma/logs/err.log
 docker/quesma/logs/quesma.log
+quesma/logs/err.log
+quesma/logs/quesma.log
