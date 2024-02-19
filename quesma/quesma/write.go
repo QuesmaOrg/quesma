@@ -47,9 +47,9 @@ func dualWriteBulk(ctx context.Context, optionalTableName string, body string, l
 		} else if _, ok = operation["index"]; ok {
 			indicesWithDocumentsToInsert[index] = append(indicesWithDocumentsToInsert[index], document)
 		} else if _, ok = operation["update"]; ok {
-			logger.Warn().Msg("Not supporting 'update' _bulk.")
+			logger.Debug().Msg("Not supporting 'update' _bulk.")
 		} else if _, ok = operation["delete"]; ok {
-			logger.Warn().Msg("Not supporting 'delete' _bulk.")
+			logger.Debug().Msg("Not supporting 'delete' _bulk.")
 		} else {
 			logger.Error().Msgf("Invalid JSON with operation definition in _bulk: %s", operationDef)
 		}
