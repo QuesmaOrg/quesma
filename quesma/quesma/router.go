@@ -28,7 +28,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		dualWriteBulk(ctx, params["index"], body, lm, config)
 		return "", nil
 	})
-	router.RegisterPathMatcher(routes.IndexSearchPath, "POST", matchedAgainstPattern(config), func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
+	router.RegisterPathMatcher(routes.IndexSearchPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
 		if strings.Contains(params["index"], ",") {
 			return "", errors.New("multi index search is not yet supported")
 		} else {
@@ -39,7 +39,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 			return string(responseBody), nil
 		}
 	})
-	router.RegisterPathMatcher(routes.IndexAsyncSearchPath, "POST", matchedAgainstPattern(config), func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
+	router.RegisterPathMatcher(routes.IndexAsyncSearchPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
 		if strings.Contains(params["index"], ",") {
 			return "", errors.New("multi index search is not yet supported")
 		} else {
@@ -53,6 +53,12 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 	return router
 }
 
+func fromClickhouse() func() []string {
+	return func() []string {
+		return clickhouse.Tables()
+	}
+}
+
 func matchedAgainstConfig(config config.QuesmaConfiguration) mux.MatchPredicate {
 	return func(m map[string]string) bool {
 		indexConfig, exists := config.GetIndexConfig(m["index"])
@@ -60,11 +66,10 @@ func matchedAgainstConfig(config config.QuesmaConfiguration) mux.MatchPredicate 
 	}
 }
 
-func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.MatchPredicate {
+func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func() []string) mux.MatchPredicate {
 	return func(m map[string]string) bool {
-
 		var candidates []string
-		for _, tableName := range clickhouse.Tables() {
+		for _, tableName := range tables() {
 			if config.MatchName(m["index"], tableName) {
 				candidates = append(candidates, tableName)
 			}
