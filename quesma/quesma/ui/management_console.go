@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 	"github.com/gorilla/mux"
@@ -29,6 +30,13 @@ const (
 	managementInternalPath = "/_quesma"
 	healthPath             = managementInternalPath + "/health"
 	bypassPath             = managementInternalPath + "/bypass"
+)
+
+const (
+	RequestStatisticKibana2Clickhouse    = "kibana2clickhouse"
+	RequestStatisticKibana2Elasticsearch = "kibana2elasticsearch"
+	RequestStatisticIngest2Clickhouse    = "ingest2clickhouse"
+	RequestStatisticIngest2Elasticsearch = "ingest2elasticsearch"
 )
 
 var requestIdRegex, _ = regexp.Compile(`request_id":"(\d+)"`)
@@ -57,6 +65,12 @@ type QueryDebugInfo struct {
 	log string
 }
 
+type recordRequests struct {
+	typeName string
+	took     time.Duration
+	error    bool
+}
+
 type QuesmaManagementConsole struct {
 	queryDebugPrimarySource   chan *QueryDebugPrimarySource
 	queryDebugSecondarySource chan *QueryDebugSecondarySource
@@ -67,7 +81,8 @@ type QuesmaManagementConsole struct {
 	debugLastMessages         []string
 	responseMatcherChannel    chan QueryDebugInfo
 	config                    config.QuesmaConfiguration
-	requestsStore             stats.RequestStatisticStore
+	requestsStore             *stats.RequestStatisticStore
+	requestsSource            chan *recordRequests
 }
 
 func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logChan <-chan string) *QuesmaManagementConsole {
@@ -79,6 +94,8 @@ func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logChan <-cha
 		debugLastMessages:         make([]string, 0),
 		responseMatcherChannel:    make(chan QueryDebugInfo, 5),
 		config:                    config,
+		requestsStore:             stats.NewRequestStatisticStore(),
+		requestsSource:            make(chan *recordRequests, 100),
 	}
 }
 
@@ -90,8 +107,8 @@ func (qmc *QuesmaManagementConsole) PushSecondaryInfo(qdebugInfo *QueryDebugSeco
 	qmc.queryDebugSecondarySource <- qdebugInfo
 }
 
-func (qmc *QuesmaManagementConsole) RecordRequest(typeName string, tookMs uint64, error bool) {
-	qmc.requestsStore.RecordRequest(typeName, tookMs, error)
+func (qmc *QuesmaManagementConsole) RecordRequest(typeName string, took time.Duration, error bool) {
+	qmc.requestsSource <- &recordRequests{typeName, took, error}
 }
 
 func copyMap(originalMap map[string]QueryDebugInfo) map[string]QueryDebugInfo {
@@ -352,6 +369,8 @@ func (qmc *QuesmaManagementConsole) Run() {
 				qmc.debugInfoMessages[requestId] = value
 			}
 			qmc.mutex.Unlock()
+		case record := <-qmc.requestsSource:
+			qmc.requestsStore.RecordRequest(record.typeName, record.took, record.error)
 		}
 	}
 }

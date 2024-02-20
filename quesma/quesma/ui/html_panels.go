@@ -6,7 +6,6 @@ import (
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
-	"math/rand"
 	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/util"
@@ -245,38 +244,41 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	return buffer.Bytes()
 }
 
+func (qmc *QuesmaManagementConsole) generateDashboardTrafficText(typeName string) (string, string) {
+	reqStats := qmc.requestsStore.GetRequestsStats(typeName)
+	// TODO: Decide if we want to show error and potentially nicer time stats
+	return "green", fmt.Sprintf("%4.1f req/s, err:%5.1f%%, p99:%3dms",
+		reqStats.RatePerMinute/60, reqStats.ErrorRate*100, reqStats.Duration99Percentile)
+}
+
+func (qmc *QuesmaManagementConsole) generateDashboardTrafficElement(typeName string, y int) string {
+	status, text := qmc.generateDashboardTrafficText(typeName)
+	return fmt.Sprintf(`<text x="400" y="%d" class="%s" xml:space="preserve">%s</text>`, y, status, text)
+}
+
 func (qmc *QuesmaManagementConsole) generateDashboardTrafficPanel() []byte {
 	var buffer bytes.Buffer
-	var rps, err, latency int32
 
 	buffer.WriteString(`<svg width="100%" height="100%" viewBox="0 0 1000 1000">`)
 
 	// Clickhouse -> Kibana
 	if qmc.config.ReadsFromClickhouse() {
-		rps = rand.Int31n(100) + 5
-		err = rand.Int31n(5)
-		latency = rand.Int31n(20) + 10
-		buffer.WriteString(fmt.Sprintf(`<text x="500" y="240" class="green">%d rps / %d%% err / %dms</text>`,
-			rps, err, latency))
+		buffer.WriteString(qmc.generateDashboardTrafficElement(RequestStatisticKibana2Clickhouse, 240))
 	}
 
 	// Elasticsearch -> Kibana
 	if qmc.config.ReadsFromElasticsearch() {
-		rps = rand.Int31n(100) + 5
-		err = 0
-		latency = rand.Int31n(20) + 10
-		buffer.WriteString(fmt.Sprintf(`<text x="500" y="690" class="green">%d rps / %d%% err / %dms</text>`,
-			rps, err, latency))
+		buffer.WriteString(qmc.generateDashboardTrafficElement(RequestStatisticKibana2Elasticsearch, 690))
 	}
 
 	// Ingest -> Clickhouse
 	if qmc.config.WritesToClickhouse() {
-		buffer.WriteString(`<text x="500" y="340" class="green">29 rps / 1% err / 3ms</text>`)
+		buffer.WriteString(qmc.generateDashboardTrafficElement(RequestStatisticIngest2Clickhouse, 340))
 	}
 
 	// Ingest -> Elasticsearch
 	if qmc.config.WritesToElasticsearch() {
-		buffer.WriteString(`<text x="500" y="790" class="green">29 rps / 0% err / 1ms</text>`)
+		buffer.WriteString(qmc.generateDashboardTrafficElement(RequestStatisticIngest2Elasticsearch, 790))
 	}
 	buffer.WriteString(`</svg>`)
 

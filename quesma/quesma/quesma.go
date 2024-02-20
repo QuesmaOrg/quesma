@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const httpHeaderContentLength = "Content-Length"
@@ -101,27 +102,64 @@ func NewHttpProxy(logManager *clickhouse.LogManager, config config.QuesmaConfigu
 
 func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, config config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole) {
 	if router.Matches(req.URL.Path, req.Method) {
-		elkResponseChan := sendHttpRequestToElastic(ctx, config, req, reqBody)
-		quesmaResponse, err := router.Execute(ctx, req.URL.Path, string(reqBody), req.Method)
+		elkResponseChan := sendHttpRequestToElastic(ctx, config, quesmaManagementConsole, req, reqBody)
+		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, quesmaManagementConsole, func() (string, error) {
+			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method)
+		})
 		elkResponse := <-elkResponseChan
 		copyHeaders(w, elkResponse)
 		copyStatusCode(w, elkResponse)
 		sendElkResponseToQuesmaConsole(ctx, elkResponse, quesmaManagementConsole)
 		copyBody(w, req, err, ctx, quesmaResponse, elkResponse, config)
 	} else {
-		response := sendHttpRequest(ctx, config.ElasticsearchUrl.String(), req, reqBody)
+		response := recordRequestToElastic(req.URL.Path, quesmaManagementConsole, func() *http.Response {
+			return sendHttpRequest(ctx, config.ElasticsearchUrl.String(), req, reqBody)
+		})
 		copyHeaders(w, response)
 		copyStatusCode(w, response)
 		responseFromElastic(ctx, response, w)
 	}
 }
 
-func sendHttpRequestToElastic(ctx context.Context, config config.QuesmaConfiguration, req *http.Request, reqBody []byte) chan *http.Response {
+func sendHttpRequestToElastic(ctx context.Context, config config.QuesmaConfiguration, qmc *ui.QuesmaManagementConsole,
+	req *http.Request, reqBody []byte) chan *http.Response {
 	elkResponseChan := make(chan *http.Response)
 	go func() {
-		elkResponseChan <- sendHttpRequest(ctx, config.ElasticsearchUrl.String(), req, reqBody)
+		elkResponseChan <- recordRequestToElastic(req.URL.Path, qmc, func() *http.Response {
+			return sendHttpRequest(ctx, config.ElasticsearchUrl.String(), req, reqBody)
+		})
 	}()
 	return elkResponseChan
+}
+
+func isResponseOk(resp *http.Response) bool {
+	return resp.StatusCode >= 200 && resp.StatusCode < 500
+}
+
+func isIngest(path string) bool {
+	return strings.HasSuffix(path, routes.BulkPath) // We may add more methods in future such as `_put` or `_create`
+}
+
+func recordRequestToClickhouse(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() (string, error)) (string, error) {
+	statName := ui.RequestStatisticKibana2Clickhouse
+	if isIngest(path) {
+		statName = ui.RequestStatisticIngest2Clickhouse
+	}
+	now := time.Now()
+	response, err := requestFunc()
+	qmc.RecordRequest(statName, time.Since(now), err != nil)
+	return response, err
+}
+
+func recordRequestToElastic(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() *http.Response) *http.Response {
+	statName := ui.RequestStatisticKibana2Elasticsearch
+	if isIngest(path) {
+		statName = ui.RequestStatisticIngest2Elasticsearch
+	}
+	now := time.Now()
+	response := requestFunc()
+	qmc.RecordRequest(statName, time.Since(now), !isResponseOk(response))
+	return response
 }
 
 func peekBody(r *http.Request) ([]byte, error) {

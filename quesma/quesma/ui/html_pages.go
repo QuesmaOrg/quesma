@@ -147,22 +147,28 @@ func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 	buffer.WriteString(`</script>` + "\n")
 
 	buffer.WriteString(`<svg width="100%" height="100%" viewBox="0 0 1000 1000">` + "\n")
+	// One limitation is that, we don't update color of paths after initial draw.
+	// They rarely change, so it's not a big deal for now.
 	// Clickhouse -> Kibana
 	if qmc.config.ReadsFromClickhouse() {
-		buffer.WriteString(`<path d="M 0 250 L 1000 250" fill="none" stroke="green" />`)
+		status, _ := qmc.generateDashboardTrafficText(RequestStatisticKibana2Clickhouse)
+		buffer.WriteString(fmt.Sprintf(`<path d="M 0 250 L 1000 250" fill="none" stroke="%s" />`, status))
 	}
 	// Elasticsearch -> Kibana
 	if qmc.config.ReadsFromElasticsearch() {
-		buffer.WriteString(`<path d="M 0 350 L 150 350 L 150 700 L 1000 700" fill="none" stroke="green" />`)
+		status, _ := qmc.generateDashboardTrafficText(RequestStatisticKibana2Elasticsearch)
+		buffer.WriteString(fmt.Sprintf(`<path d="M 0 350 L 150 350 L 150 700 L 1000 700" fill="none" stroke="%s" />`, status))
 	}
 
 	// Ingest -> Clickhouse
 	if qmc.config.WritesToClickhouse() {
-		buffer.WriteString(`<path d="M 1000 350 L 300 350 L 300 650 L 0 650" fill="none" stroke="green" />`)
+		status, _ := qmc.generateDashboardTrafficText(RequestStatisticIngest2Clickhouse)
+		buffer.WriteString(fmt.Sprintf(`<path d="M 1000 350 L 300 350 L 300 650 L 0 650" fill="none" stroke="%s" />`, status))
 	}
 	// Ingest -> Elasticsearch
 	if qmc.config.WritesToElasticsearch() {
-		buffer.WriteString(`<path d="M 1000 800 L 0 800" fill="none" stroke="green" />`)
+		status, _ := qmc.generateDashboardTrafficText(RequestStatisticIngest2Elasticsearch)
+		buffer.WriteString(fmt.Sprintf(`<path d="M 1000 800 L 0 800" fill="none" stroke="%s" />`, status))
 	}
 	buffer.WriteString(`</svg>` + "\n")
 

@@ -153,7 +153,9 @@ func (c *QuesmaConfiguration) ReadsFromClickhouse() bool {
 }
 
 func (c *QuesmaConfiguration) ReadsFromElasticsearch() bool {
-	return c.Mode == Proxy || c.Mode == ProxyInspect || c.Mode == DualWriteQueryElastic
+	return c.Mode == Proxy || c.Mode == ProxyInspect || c.Mode == DualWriteQueryElastic ||
+		c.Mode == DualWriteQueryClickhouse || c.Mode == DualWriteQueryClickhouseFallback ||
+		c.Mode == DualWriteQueryClickhouseVerify
 }
 
 func (c *QuesmaConfiguration) WritesToClickhouse() bool {
