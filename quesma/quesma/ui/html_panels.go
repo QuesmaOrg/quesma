@@ -93,20 +93,50 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 	return buffer.Bytes()
 }
 
+func dropFirstSegment(path string) string {
+	segments := strings.SplitN(path, "/", 3)
+	if len(segments) > 1 {
+		return "/" + segments[2]
+	}
+	return path
+}
+
 func (qmc *QuesmaManagementConsole) generateRouterStatistics() []byte {
 	var buffer bytes.Buffer
 
-	matchStatistics := mux.MatchStatistics()
+	matchedKeys, matched, unmatchedKeys, unmatched := mux.MatchStatistics().GroupByFirstSegment()
 
 	buffer.WriteString("\n<h2>Matched URLs</h2>\n<ul>")
-	for _, url := range matchStatistics.Matched {
-		buffer.WriteString(fmt.Sprintf("<li>%s</li>\n", url))
+	for _, segment := range matchedKeys {
+		paths := matched[segment]
+		if len(paths) > 1 {
+			buffer.WriteString(fmt.Sprintf("<li>%s</li>\n", segment))
+
+			buffer.WriteString("<ul>\n")
+			for _, path := range paths {
+				buffer.WriteString(fmt.Sprintf("<li><small>%s</small></li>\n", dropFirstSegment(path)))
+			}
+			buffer.WriteString("</ul>\n")
+		} else {
+			buffer.WriteString(fmt.Sprintf("<li>%s</li>\n", paths[0]))
+		}
 	}
 
 	buffer.WriteString("</ul>\n")
 	buffer.WriteString("\n<h2>Not matched URLs</h2>\n<ul>")
-	for _, url := range matchStatistics.Nonmatched {
-		buffer.WriteString(fmt.Sprintf("<li>%s</li>\n", url))
+	for _, segment := range unmatchedKeys {
+		paths := unmatched[segment]
+		if len(paths) > 1 {
+			buffer.WriteString(fmt.Sprintf("<li>%s</li>\n", segment))
+
+			buffer.WriteString("<ul>\n")
+			for _, path := range paths {
+				buffer.WriteString(fmt.Sprintf("<li><small>%s</small></li>\n", dropFirstSegment(path)))
+			}
+			buffer.WriteString("</ul>\n")
+		} else {
+			buffer.WriteString(fmt.Sprintf("<li>%s</li>\n", paths[0]))
+		}
 	}
 	buffer.WriteString("</ul>\n")
 
