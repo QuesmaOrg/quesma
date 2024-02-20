@@ -40,7 +40,7 @@ services:
     links:
       - "mitmproxy"
     restart: unless-stopped
-  fileabeat:  # Ingests quesma logs to Elasticsearch to be visualized in Kibana
+  filebeat:  # Ingests quesma logs to Elasticsearch to be visualized in Kibana
     image: docker.elastic.co/beats/filebeat:8.11.1
     links:
       - "elasticsearch"
