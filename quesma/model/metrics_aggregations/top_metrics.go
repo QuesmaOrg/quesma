@@ -9,9 +9,9 @@ func (qt QueryTypeTopMetrics) IsBucketAggregation() bool {
 }
 
 // TODO implement correct
-func (qt QueryTypeTopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow) []model.JsonMap {
+func (qt QueryTypeTopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	return []model.JsonMap{{
-		"avg": rows[0].Cols[0].Value,
+		"avg": rows[0].Cols[level].Value,
 	}}
 }
 

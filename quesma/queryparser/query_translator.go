@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/kibana"
-	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"regexp"
 	"strconv"
@@ -221,50 +220,81 @@ func MakeResponseAsyncSearchQuery(ResultSet []model.QueryResultRow, typ model.As
 	}
 }
 
+func (cw *ClickhouseQueryTranslator) finishMakeResponse(query model.QueryWithAggregation, ResultSet []model.QueryResultRow, level int) []model.JsonMap {
+	if len(ResultSet) == 0 {
+		return []JsonMap{}
+	}
+	if query.Type.IsBucketAggregation() {
+		return query.Type.TranslateSqlResponseToJson(ResultSet, level)
+	} else { // metrics
+		lastAggregator := query.AggregatorsNames[len(query.AggregatorsNames)-1]
+		return []model.JsonMap{
+			{
+				lastAggregator: query.Type.TranslateSqlResponseToJson(ResultSet, level)[0],
+			},
+		}
+	}
+}
+
+// Returns if row1 and row2 have the same values for the first level + 1 fields
+func (cw *ClickhouseQueryTranslator) sameGroupByFields(row1, row2 model.QueryResultRow, level int) bool {
+	for i := 0; i <= level; i++ {
+		if row1.Cols[i].Value != row2.Cols[i].Value {
+			return false
+		}
+	}
+	return true
+}
+
+// Splits ResultSet into buckets, based on the first level + 1 fields
+// E.g. if level == 0, we split into buckets based on the first field,
+// e.g. [row(1, ...), row(1, ...), row(2, ...), row(2, ...), row(3, ...)] -> [[row(1, ...), row(1, ...)], [row(2, ...), row(2, ...)], [row(3, ...)]]
+func (cw *ClickhouseQueryTranslator) splitResultSetIntoBuckets(ResultSet []model.QueryResultRow, level int) [][]model.QueryResultRow {
+	if len(ResultSet) == 0 {
+		return [][]model.QueryResultRow{}
+	}
+
+	buckets := [][]model.QueryResultRow{{}}
+	curBucket := 0
+	lastRow := ResultSet[0]
+	for _, row := range ResultSet {
+		if cw.sameGroupByFields(row, lastRow, level) {
+			buckets[curBucket] = append(buckets[curBucket], row)
+		} else {
+			curBucket++
+			buckets = append(buckets, []model.QueryResultRow{row})
+		}
+		lastRow = row
+	}
+	return buckets
+}
+
+// DFS algorithm
+func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query model.QueryWithAggregation, ResultSet []model.QueryResultRow, level int) []model.JsonMap {
+	// either we finish
+	if level == len(query.AggregatorsNames) || (level == len(query.AggregatorsNames)-1 && !query.Type.IsBucketAggregation()) {
+		return cw.finishMakeResponse(query, ResultSet, level)
+	}
+
+	buckets := cw.splitResultSetIntoBuckets(ResultSet, level)
+	if len(buckets) == 0 {
+		return nil
+	}
+
+	// or we need to go deeper
+	var bucketsReturnMap []model.JsonMap
+	for _, bucket := range buckets {
+		bucketsReturnMap = append(bucketsReturnMap, cw.makeResponseAggregationRecursive(query, bucket, level+1)...)
+	}
+	result := make(model.JsonMap, 1)
+	subResult := make(model.JsonMap, 1)
+	subResult["buckets"] = bucketsReturnMap
+	result[query.AggregatorsNames[level]] = subResult
+	return []model.JsonMap{result}
+}
+
 func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(query model.QueryWithAggregation, ResultSet []model.QueryResultRow) model.JsonMap {
-	aggregations := model.JsonMap{}
-	if len(query.AggregatorsNames) == 0 {
-		// this should never happen, I think. Let's panic so we notice if it does.
-		logger.Panic().Msgf("empty AggregatorsNames in query: %v", query)
-		return model.JsonMap{}
-	}
-
-	var last JsonMap // we'll be appending results to this
-	currentAggrs := aggregations
-	iterationRange := len(query.AggregatorsNames) - 1
-	if query.Type.IsBucketAggregation() {
-		iterationRange++
-	}
-	for _, field := range query.AggregatorsNames[:iterationRange] {
-		subMap := make(JsonMap, 1)
-		subMap[field] = make(JsonMap, 1)
-		currentAggrs[field] = make(JsonMap, 1)
-		buckets := []any{JsonMap{}}
-		currentAggrs[field].(JsonMap)["buckets"] = buckets
-		last = currentAggrs[field].(JsonMap)
-		currentAggrs = currentAggrs[field].(JsonMap)["buckets"].([]any)[0].(JsonMap)
-	}
-
-	nrToAppend := max(0, len(ResultSet)-1) // we need len(ResultSet), but created 1 already above
-	for range nrToAppend {
-		last["buckets"] = append(last["buckets"].([]any), JsonMap{})
-	}
-	lastAggregator := query.AggregatorsNames[len(query.AggregatorsNames)-1]
-	if query.Type.IsBucketAggregation() {
-		for i, row := range query.Type.TranslateSqlResponseToJson(ResultSet) {
-			last["buckets"].([]any)[i] = row
-		}
-	} else if len(query.AggregatorsNames) > 1 {
-		// we already have buckets before, as len > 1
-		response := query.Type.TranslateSqlResponseToJson(ResultSet)
-		for i, row := range response {
-			last["buckets"].([]any)[i].(JsonMap)[lastAggregator] = row
-		}
-	} else {
-		aggregations[lastAggregator] = query.Type.TranslateSqlResponseToJson(ResultSet)[0]
-	}
-
-	return aggregations
+	return cw.makeResponseAggregationRecursive(query, ResultSet, 0)[0] // result of root node is always a single map, thus [0]
 }
 
 // GetFieldsList

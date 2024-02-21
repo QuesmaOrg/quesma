@@ -10,8 +10,8 @@ func (qt QueryTypeMax) IsBucketAggregation() bool {
 	return false
 }
 
-func (qt QueryTypeMax) TranslateSqlResponseToJson(rows []model.QueryResultRow) []model.JsonMap {
-	return model.MetricsTranslateSqlResponseToJson(rows)
+func (qt QueryTypeMax) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+	return metricsTranslateSqlResponseToJson(rows, level)
 }
 
 func (qt QueryTypeMax) String() string {

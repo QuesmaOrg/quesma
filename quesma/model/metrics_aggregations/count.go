@@ -8,10 +8,11 @@ func (qt QueryTypeCount) IsBucketAggregation() bool {
 	return false
 }
 
-func (qt QueryTypeCount) TranslateSqlResponseToJson(rows []model.QueryResultRow) []model.JsonMap {
+// TODO is that correct? If so, why not bucket? Seems to work now...
+func (qt QueryTypeCount) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	var response []model.JsonMap
 	for _, row := range rows {
-		response = append(response, model.JsonMap{row.Cols[0].ColName: row.Cols[0].Value})
+		response = append(response, model.JsonMap{row.Cols[level].ColName: row.Cols[level].Value})
 	}
 	return response
 }

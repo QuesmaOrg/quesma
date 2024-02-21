@@ -10,8 +10,8 @@ func (qt QueryTypeSum) IsBucketAggregation() bool {
 	return false
 }
 
-func (qt QueryTypeSum) TranslateSqlResponseToJson(rows []model.QueryResultRow) []model.JsonMap {
-	return model.MetricsTranslateSqlResponseToJson(rows)
+func (qt QueryTypeSum) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+	return metricsTranslateSqlResponseToJson(rows, level)
 }
 
 func (qt QueryTypeSum) String() string {

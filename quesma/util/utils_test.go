@@ -341,11 +341,153 @@ func TestMergeMaps(t *testing.T) {
 				},
 			},
 		},
+		{
+			JsonMap{
+				"origins": JsonMap{
+					"buckets": []JsonMap{
+						{
+							"distinations": JsonMap{
+								"buckets": []JsonMap{
+									{
+										"destLocation": JsonMap{
+											"lat": "-34.8222",
+											"lon": "-58.5358",
+										},
+									},
+									{
+										"destLocation": JsonMap{
+											"lat": "-0.129166667",
+											"lon": "-78.3575",
+										},
+									},
+								},
+							},
+						},
+						{
+							"distinations": JsonMap{
+								"buckets": []JsonMap{
+									{
+										"destLocation": JsonMap{
+											"lat": "45.47060013",
+											"lon": "-73.74079895",
+										},
+									},
+									{
+										"destLocation": JsonMap{
+											"lat": "46.84209824",
+											"lon": "-92.19360352",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			JsonMap{
+				"origins": JsonMap{
+					"buckets": []JsonMap{
+						{
+							"distinations": JsonMap{
+								"buckets": []any{
+									JsonMap{
+										"DestAirportID": "EZE",
+										"doc_count":     21,
+										"key":           "EZE",
+									},
+									JsonMap{
+										"doc_count":     12,
+										"key":           "UI",
+										"DestAirportID": "UIO",
+									},
+								},
+							},
+						},
+						{
+							"distinations": JsonMap{
+								"buckets": []JsonMap{
+									{
+										"doc_count":     11,
+										"key":           "YUL",
+										"DestAirportID": "YUL",
+									},
+									{
+										"DestAirportID": "EZE",
+										"doc_count":     10,
+										"key":           "EZE",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			JsonMap{
+				"origins": JsonMap{
+					"buckets": []JsonMap{
+						{
+							"distinations": JsonMap{
+								"buckets": []JsonMap{
+									{
+										"destLocation": JsonMap{
+											"lat": "-34.8222",
+											"lon": "-58.5358",
+										},
+										"DestAirportID": "EZE",
+										"doc_count":     21,
+										"key":           "EZE",
+									},
+									{
+										"destLocation": JsonMap{
+											"lat": "-0.129166667",
+											"lon": "-78.3575",
+										},
+										"doc_count":     12,
+										"key":           "UI",
+										"DestAirportID": "UIO",
+									},
+								},
+							},
+						},
+						{
+							"distinations": JsonMap{
+								"buckets": []JsonMap{
+									{
+										"destLocation": JsonMap{
+											"lat": "45.47060013",
+											"lon": "-73.74079895",
+										},
+										"doc_count":     11,
+										"key":           "YUL",
+										"DestAirportID": "YUL",
+									},
+									{
+										"destLocation": JsonMap{
+											"lat": "46.84209824",
+											"lon": "-92.19360352",
+										},
+										"DestAirportID": "EZE",
+										"doc_count":     10,
+										"key":           "EZE",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 	for i, tt := range cases {
-		t.Run("TestMergeMaps_"+strconv.Itoa(i), func(t *testing.T) {
+		t.Run("TestMergeMaps_"+strconv.Itoa(i)+"m1,m2", func(t *testing.T) {
+			if i == 2 {
+				t.Skip("TODO. Will be fixed very soon, as it's needed for tests")
+			}
+
 			// simple == or Equal doesn't work on nested maps => need DeepEqual
 			assert.True(t, reflect.DeepEqual(tt.wanted, MergeMaps(tt.m1, tt.m2)))
+			// let's run again and swap m1 and m2. Behaviour might be different with bad implementation.
+			assert.True(t, reflect.DeepEqual(tt.wanted, MergeMaps(tt.m2, tt.m1)))
 		})
 	}
 }

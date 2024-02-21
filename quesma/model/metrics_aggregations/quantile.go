@@ -11,8 +11,8 @@ func (qt QueryTypeQuantile) IsBucketAggregation() bool {
 }
 
 // TODO implement correct
-func (qt QueryTypeQuantile) TranslateSqlResponseToJson(rows []model.QueryResultRow) []model.JsonMap {
-	return model.MetricsTranslateSqlResponseToJson(rows)
+func (qt QueryTypeQuantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+	return metricsTranslateSqlResponseToJson(rows, level)
 }
 
 func (qt QueryTypeQuantile) String() string {

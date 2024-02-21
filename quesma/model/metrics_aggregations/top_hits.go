@@ -9,11 +9,11 @@ func (qt QueryTypeTopHits) IsBucketAggregation() bool {
 }
 
 // TODO implement correct
-func (qt QueryTypeTopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow) []model.JsonMap {
+func (qt QueryTypeTopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	response := make([]model.JsonMap, len(rows))
 	for i, row := range rows {
 		response[i] = make(model.JsonMap, len(row.Cols))
-		for _, col := range row.Cols {
+		for _, col := range row.Cols[level:] {
 			response[i][col.ColName] = col.Value
 		}
 	}

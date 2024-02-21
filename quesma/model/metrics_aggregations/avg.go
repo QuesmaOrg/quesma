@@ -10,8 +10,8 @@ func (qt QueryTypeAvg) IsBucketAggregation() bool {
 	return false
 }
 
-func (qt QueryTypeAvg) TranslateSqlResponseToJson(rows []model.QueryResultRow) []model.JsonMap {
-	return model.MetricsTranslateSqlResponseToJson(rows)
+func (qt QueryTypeAvg) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+	return metricsTranslateSqlResponseToJson(rows, level)
 }
 
 func (qt QueryTypeAvg) String() string {

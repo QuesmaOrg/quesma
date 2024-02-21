@@ -265,14 +265,32 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		[][]model.QueryResultRow{
 			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 7)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 3)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 0)}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("OriginCityName", "Abu Dhabi"),
+					model.NewQueryResultCol("doc_count", 7),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("OriginCityName", "Adelaide"),
+					model.NewQueryResultCol("doc_count", 3),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("OriginCityName", "Albuquerque"),
+					model.NewQueryResultCol("doc_count", 0),
+				}},
 			},
 			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 3)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 2)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 3)}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("OriginCityName", "Abu Dhabi"),
+					model.NewQueryResultCol("doc_count", 3),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("OriginCityName", "Adelaide"),
+					model.NewQueryResultCol("doc_count", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("OriginCityName", "Albuquerque"),
+					model.NewQueryResultCol("doc_count", 3),
+				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
@@ -436,8 +454,48 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1707486436405
 		}`,
 		[][]model.QueryResultRow{
-			{},
-			{},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("FlightDelayType", "No Delay"),
+					model.NewQueryResultCol("key", "1706871600000"),
+					model.NewQueryResultCol("doc_count", 2),
+					model.NewQueryResultCol("key_as_string", "2024-02-02T12:00:00.000+01:00"),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("FlightDelayType", "No Delay"),
+					model.NewQueryResultCol("key", "1706872400000"),
+					model.NewQueryResultCol("doc_count", 27),
+					model.NewQueryResultCol("key_as_string", "2024-02-02T15:00:00.000+01:00"),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("FlightDelayType", "No Delay"),
+					model.NewQueryResultCol("key", "1706873200000"),
+					model.NewQueryResultCol("doc_count", 34),
+					model.NewQueryResultCol("key_as_string", "2024-02-02T18:00:00.000+01:00"),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("FlightDelayType", "Security Delay"),
+					model.NewQueryResultCol("key", "1706871600000"),
+					model.NewQueryResultCol("doc_count", 2),
+					model.NewQueryResultCol("key_as_string", "2024-02-02T12:00:00.000+01:00"),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("FlightDelayType", "Security Delay"),
+					model.NewQueryResultCol("key", "1706872400000"),
+					model.NewQueryResultCol("doc_count", 27),
+					model.NewQueryResultCol("key_as_string", "2024-02-02T15:00:00.000+01:00"),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "No Delay"),
+					model.NewQueryResultCol("doc_count", 1647),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "Security Delay"),
+					model.NewQueryResultCol("doc_count", 45),
+				}},
+			},
 		},
 	},
 	{ // [3] works
@@ -888,8 +946,14 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1707486436414
 		}`,
 		[][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 553)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 351)}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("", nil), // nil aggregation
+				model.NewQueryResultCol("doc_count", 553),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("", nil), // nil aggregation
+				model.NewQueryResultCol("doc_count", 351),
+			}}},
 		},
 	},
 	{ // [7]
@@ -1158,29 +1222,37 @@ var AggregationTests = []AggregationTestCase{
 		[][]model.QueryResultRow{
 			{
 				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("OriginAirportID", "UIO"), model.NewQueryResultCol("DestAirportID", "EZE"),
 					model.NewQueryResultCol("lat", "-34.8222"), model.NewQueryResultCol("lon", "-58.5358"),
 				}},
 				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("OriginAirportID", "UIO"), model.NewQueryResultCol("DestAirportID", "UIO"),
 					model.NewQueryResultCol("lat", "-0.129166667"), model.NewQueryResultCol("lon", "-78.3575"),
 				}},
 				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("OriginAirportID", "DLH"), model.NewQueryResultCol("DestAirportID", "YUL"),
 					model.NewQueryResultCol("lat", "45.47060013"), model.NewQueryResultCol("lon", "-73.74079895"),
 				}},
 				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("OriginAirportID", "DLH"), model.NewQueryResultCol("DestAirportID", "EZE"),
 					model.NewQueryResultCol("lat", "46.84209824"), model.NewQueryResultCol("lon", "-92.19360352"),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("OriginAirportID", "UIO"), model.NewQueryResultCol("DestAirportID", "EZE"),
 					model.NewQueryResultCol("doc_count", 21), model.NewQueryResultCol("key", "EZE"),
 				}},
 				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("OriginAirportID", "UIO"), model.NewQueryResultCol("DestAirportID", "UIO"),
 					model.NewQueryResultCol("doc_count", 12), model.NewQueryResultCol("key", "UI"),
 				}},
 				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("OriginAirportID", "DLH"), model.NewQueryResultCol("DestAirportID", "YUL"),
 					model.NewQueryResultCol("doc_count", 11), model.NewQueryResultCol("key", "YUL"),
 				}},
 				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("OriginAirportID", "DLH"), model.NewQueryResultCol("DestAirportID", "EZE"),
 					model.NewQueryResultCol("doc_count", 10), model.NewQueryResultCol("key", "EZE"),
 				}},
 			},
@@ -1198,6 +1270,583 @@ var AggregationTests = []AggregationTestCase{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 283), model.NewQueryResultCol("key", "UIO")}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 15), model.NewQueryResultCol("key", "DLH")}},
 			},
+		},
+	},
+	{ // [8]
+		"histogram, different field than timestamp",
+		`{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"histogram": {
+						"field": "FlightDelayMin",
+						"interval": 1,
+						"min_doc_count": 1
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-02-02T13:47:16.029Z",
+									"lte": "2024-02-09T13:47:16.029Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [
+						{
+							"match_phrase": {
+								"FlightDelayMin": {
+									"query": 0
+								}
+							}
+						}
+					],
+					"should": []
+				}
+			},
+			"runtime_mappings": {
+				"hour_of_day": {
+					"script": {
+						"source": "emit(doc['timestamp'].value.getHour());"
+					},
+					"type": "long"
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		`{
+			"completion_time_in_millis": 1707486436932,
+			"expiration_time_in_millis": 1707486496930,
+			"id": "FlBmNVhsNlNkU3lXWEhQVzN1UmxEb2ccc3VtTlI1T25TVGFSYlI0dFM1dkNHQTo0MzU0OQ==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{
+								"doc_count": 21,
+								"key": 15.0
+							},
+							{
+								"doc_count": 22,
+								"key": 30.0
+							},
+							{
+								"doc_count": 13,
+								"key": 345.0
+							},
+							{
+								"doc_count": 22,
+								"key": 360.0
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+					"relation": "eq",
+					"value": 553
+				}
+				},
+				"timed_out": false,
+				"took": 2
+			},
+			"start_time_in_millis": 1707486436930
+		}`,
+		[][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 21), model.NewQueryResultCol("key", 15.0)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 22), model.NewQueryResultCol("key", 30.0)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 13), model.NewQueryResultCol("key", 345.0)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 22), model.NewQueryResultCol("key", 360.0)}},
+			},
+		},
+	},
+	{ // [9]
+		"double aggregation with histogram + harder query",
+		`{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"date_histogram": {
+								"field": "@timestamp",
+								"fixed_interval": "3h",
+								"min_doc_count": 1,
+								"time_zone": "Europe/Warsaw"
+							}
+						}
+					},
+					"terms": {
+						"field": "severity",
+						"order": {
+							"_count": "desc"
+						},
+						"shard_size": 25,
+						"size": 3
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"match_phrase": {
+								"host.name": "prometheus"
+							}
+						},
+						{
+							"range": {
+								"@timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-02-02T16:36:49.940Z",
+									"lte": "2024-02-09T16:36:49.940Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		`{
+			"completion_time_in_millis": 1707496610024,
+			"expiration_time_in_millis": 1707496670022,
+			"id": "FjdRTVZiQkVFU3FtQlpMVXdVeHhMdmcdc3VtTlI1T25TVGFSYlI0dFM1dkNHQToyMjM1MDk=",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{
+								"1": {
+									"buckets": [
+										{
+											"doc_count": 22,
+											"key": 1707476400000,
+											"key_as_string": "2024-02-09T12:00:00.000+01:00"
+										},
+										{
+											"doc_count": 80,
+											"key": 1707487200000,
+											"key_as_string": "2024-02-09T15:00:00.000+01:00"
+										}
+									]
+								},
+								"doc_count": 102,
+								"key": "info"
+							},
+							{
+								"1": {
+									"buckets": [
+										{
+											"doc_count": 17,
+											"key": 1707476400000,
+											"key_as_string": "2024-02-09T12:00:00.000+01:00"
+										},
+										{
+											"doc_count": 32,
+											"key": 1707487200000,
+											"key_as_string": "2024-02-09T15:00:00.000+01:00"
+										}
+									]
+								},
+								"doc_count": 49,
+								"key": "debug"
+							},
+							{
+								"1": {
+									"buckets": [
+										{
+											"doc_count": 5,
+											"key": 1707476400000,
+											"key_as_string": "2024-02-09T12:00:00.000+01:00"
+										},
+										{
+											"doc_count": 11,
+											"key": 1707487200000,
+											"key_as_string": "2024-02-09T15:00:00.000+01:00"
+										}
+									]
+								},
+								"doc_count": 16,
+								"key": "critical"
+							}
+						],
+						"doc_count_error_upper_bound": 0,
+						"sum_other_doc_count": 31
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 198
+					}
+				},
+				"timed_out": false,
+				"took": 2
+			},
+			"start_time_in_millis": 1707496610022
+		}`,
+		[][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "info"),
+					model.NewQueryResultCol("doc_count", 22),
+					model.NewQueryResultCol("key", 1707476400000),
+					model.NewQueryResultCol("key_as_string", "2024-02-09T12:00:00.000+01:00"),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "info"),
+					model.NewQueryResultCol("doc_count", 80),
+					model.NewQueryResultCol("key", 1707487200000),
+					model.NewQueryResultCol("key_as_string", "2024-02-09T15:00:00.000+01:00"),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "debug"),
+					model.NewQueryResultCol("doc_count", 17),
+					model.NewQueryResultCol("key", 1707476400000),
+					model.NewQueryResultCol("key_as_string", "2024-02-09T12:00:00.000+01:00"),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "debug"),
+					model.NewQueryResultCol("doc_count", 32),
+					model.NewQueryResultCol("key", 1707487200000),
+					model.NewQueryResultCol("key_as_string", "2024-02-09T15:00:00.000+01:00"),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "critical"),
+					model.NewQueryResultCol("doc_count", 5),
+					model.NewQueryResultCol("key", 1707476400000),
+					model.NewQueryResultCol("key_as_string", "2024-02-09T12:00:00.000+01:00"),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "critical"),
+					model.NewQueryResultCol("doc_count", 11),
+					model.NewQueryResultCol("key", 1707487200000),
+					model.NewQueryResultCol("key_as_string", "2024-02-09T15:00:00.000+01:00"),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "info"),
+					model.NewQueryResultCol("doc_count", 102),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "debug"),
+					model.NewQueryResultCol("doc_count", 49),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "critical"),
+					model.NewQueryResultCol("doc_count", 16),
+				}},
+			},
+		},
+	},
+	{ // [10] doesn't work yet :(( harder than all before
+		"very long: multiple top_metrics + histogram",
+		`{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"1": {
+					"aggs": {
+						"2": {
+							"aggs": {
+								"4": {
+									"top_metrics": {
+										"metrics": {
+											"field": "order_date"
+										},
+										"size": 10,
+										"sort": {
+											"order_date": "asc"
+										}
+									}
+								},
+								"5": {
+									"top_metrics": {
+										"metrics": {
+											"field": "taxful_total_price"
+										},
+										"size": 10,
+										"sort": {
+											"order_date": "asc"
+										}
+									}
+								}
+							},
+							"date_histogram": {
+								"field": "order_date",
+								"fixed_interval": "12h",
+								"min_doc_count": 1,
+								"time_zone": "Europe/Warsaw"
+							}
+						}
+					},
+					"filters": {
+						"filters": {
+							"c8c30be0-b88f-11e8-a451-f37365e9f268": {
+								"bool": {
+									"filter": [],
+									"must": [
+										{
+											"query_string": {
+												"analyze_wildcard": true,
+												"query": "taxful_total_price:>250",
+												"time_zone": "Europe/Warsaw"
+											}
+										}
+									],
+									"must_not": [],
+									"should": []
+								}
+							}
+						}
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "customer_birth_date",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				},
+				{
+					"field": "products.created_on",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"order_date": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-02-06T09:59:57.034Z",
+									"lte": "2024-02-13T09:59:57.034Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		`{
+			"completion_time_in_millis": 1707818398410,
+			"expiration_time_in_millis": 1707818458408,
+			"id": "FlFDakdBS29jUWNTRllCa1hGdS1wVmccQVQxSHZodzJSbW1penpRdThTa0lKUTo2NDg1Mg==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"1": {
+						"buckets": {
+							"c8c30be0-b88f-11e8-a451-f37365e9f268": {
+								"2": {
+									"buckets": [
+										{
+											"4": {
+												"top": [
+													{
+														"metrics": {
+															"order_date": "2024-02-09T17:16:48.000Z"
+														},
+														"sort": [
+															"2024-02-09T17:16:48.000Z"
+														]
+													},
+													{
+														"metrics": {
+															"order_date": "2024-02-09T21:34:34.000Z"
+														},
+														"sort": [
+															"2024-02-09T21:34:34.000Z"
+														]
+													}
+												]
+											},
+											"5": {
+												"top": [
+													{
+														"metrics": {
+															"taxful_total_price": 310.0
+														},
+														"sort": [
+															"2024-02-09T17:16:48.000Z"
+														]
+													},
+													{
+														"metrics": {
+															"taxful_total_price": 393.0
+														},
+														"sort": [
+															"2024-02-09T21:34:34.000Z"
+														]
+													}
+												]
+											},
+											"doc_count": 2,
+											"key": 1707476400000,
+											"key_as_string": "2024-02-09T12:00:00.000+01:00"
+										},
+										{
+											"4": {
+												"top": [
+													{
+														"metrics": {
+															"order_date": "2024-02-12T11:38:24.000Z"
+														},
+														"sort": [
+															"2024-02-12T11:38:24.000Z"
+														]
+													}
+												]
+											},
+											"5": {
+												"top": [
+													{
+														"metrics": {
+															"taxful_total_price": 283.0
+														},
+														"sort": [
+															"2024-02-12T11:38:24.000Z"
+														]
+													}
+												]
+											},
+											"doc_count": 1,
+											"key": 1707735600000,
+											"key_as_string": "2024-02-12T12:00:00.000+01:00"
+										},
+										{
+											"4": {
+												"top": [
+													{
+														"metrics": {
+															"order_date": "2024-02-13T03:50:24.000Z"
+														},
+														"sort": [
+															"2024-02-13T03:50:24.000Z"
+														]
+													}
+												]
+											},
+											"5": {
+												"top": [
+													{
+														"metrics": {
+															"taxful_total_price": 301.0
+														},
+														"sort": [
+															"2024-02-13T03:50:24.000Z"
+														]
+													}
+												]
+											},
+											"doc_count": 1,
+											"key": 1707778800000,
+											"key_as_string": "2024-02-13T00:00:00.000+01:00"
+										}
+									]
+								},
+								"doc_count": 4
+							}
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 1043
+					}
+				},
+				"timed_out": false,
+				"took": 2
+			},
+			"start_time_in_millis": 1707818398408
+		}`,
+		[][]model.QueryResultRow{
+			{},
 		},
 	},
 }
