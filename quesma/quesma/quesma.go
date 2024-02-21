@@ -51,10 +51,11 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
 	if gzip.IsGzipped(elkResponse) {
 		zipped, err := gzip.Zip(unzipped)
-		if err == nil {
-			w.Header().Add(httpHeaderContentLength, strconv.Itoa(len(zipped)))
-			_, _ = io.Copy(w, bytes.NewBuffer(zipped))
+		if err != nil {
+			logger.Error().Str(logger.RID, id).Msgf("Error zipping: %v", err)
 		}
+		w.Header().Add(httpHeaderContentLength, strconv.Itoa(len(zipped)))
+		_, _ = io.Copy(w, bytes.NewBuffer(zipped))
 	} else {
 		w.Header().Add(httpHeaderContentLength, strconv.Itoa(len(unzipped)))
 		_, _ = io.Copy(w, bytes.NewBuffer(unzipped))
