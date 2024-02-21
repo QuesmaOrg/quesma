@@ -47,7 +47,7 @@ func TestMapDifference(t *testing.T) {
 	mActual := JsonMap{
 		"aggregations": JsonMap{
 			"suggestions": JsonMap{
-				"buckets":                     []interface{}{},
+				"buckets":                     []JsonMap{},
 				"doc_count_error_upper_bound": 0.000000,
 				"sum_other_doc_count":         0.000000,
 			},
@@ -66,7 +66,7 @@ func TestMapDifference(t *testing.T) {
 		},
 		"hits": JsonMap{
 			"max_score": nil,
-			"hits":      []interface{}{},
+			"hits":      []JsonMap{},
 			"total": JsonMap{
 				"value":    6.000000,
 				"relation": "eq",
@@ -86,7 +86,7 @@ func TestMapDifference(t *testing.T) {
 		},
 		"hits": JsonMap{
 			"max_score": 0.000000,
-			"hits": []interface{}{
+			"hits": []any{
 				JsonMap{
 					"_index": "",
 					"_id":    "",
@@ -110,7 +110,7 @@ func TestMapDifference(t *testing.T) {
 	wantedActualMinusExpected := JsonMap{
 		"aggregations": JsonMap{
 			"suggestions": JsonMap{
-				"buckets":                     []interface{}{},
+				"buckets":                     []JsonMap{},
 				"doc_count_error_upper_bound": 0.000000,
 				"sum_other_doc_count":         0.000000,
 			},
@@ -140,7 +140,7 @@ func TestMapDifference(t *testing.T) {
 		},
 	}
 
-	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected, false)
+	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected, false, true)
 	assert.Equal(t, wantedActualMinusExpected, actualMinusExpected)
 	assert.Equal(t, wantedExpectedMinusActual, expectedMinusActual)
 }
@@ -150,12 +150,12 @@ func TestMapDifference_compareValues_different(t *testing.T) {
 	mExpected := JsonMap{"key": 102}
 
 	// if we don't compare values, maps are equal
-	mdiff1, mdiff2 := MapDifference(mActual, mExpected, false)
+	mdiff1, mdiff2 := MapDifference(mActual, mExpected, false, true)
 	assert.Empty(t, mdiff1)
 	assert.Empty(t, mdiff2)
 
 	// if we compare values, maps are different
-	mdiff1, mdiff2 = MapDifference(mActual, mExpected, true)
+	mdiff1, mdiff2 = MapDifference(mActual, mExpected, true, true)
 	assert.Equal(t, mActual, mdiff1)
 	assert.Equal(t, mExpected, mdiff2)
 }
@@ -163,7 +163,7 @@ func TestMapDifference_compareValues_different(t *testing.T) {
 func TestMapDifference_compareValues_floatEqualsInt(t *testing.T) {
 	mActual := JsonMap{"key": 101}
 	mExpected := JsonMap{"key": 101.00}
-	mdiff1, mdiff2 := MapDifference(mActual, mExpected, true)
+	mdiff1, mdiff2 := MapDifference(mActual, mExpected, true, true)
 	assert.Empty(t, mdiff1)
 	assert.Empty(t, mdiff2)
 }
@@ -265,6 +265,64 @@ func TestJsonDifference(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, actualMinusExpected)
 	assert.Equal(t, wantedExpectedMinusActual, expectedMinusActual)
+}
+
+func Test22MapDifference_compareFullArrays(t *testing.T) {
+	var cases = []struct {
+		actual                    JsonMap
+		expected                  JsonMap
+		wantedActualMinusExpected JsonMap
+		wantedExpectedMinusActual JsonMap
+	}{
+		{
+			JsonMap{
+				"suggestions": JsonMap{
+					"buckets": []JsonMap{
+						{
+							"key": "Rome", "doc_count": 73,
+							"differentBase": "value1",
+							"differentMap":  JsonMap{"nested-different": true},
+						},
+						{"key": "Bogota", "doc_count": 44},
+						{"doc_count": 32, "key": "Milan"},
+					},
+				},
+				"unique_terms": JsonMap{"value": 143},
+			},
+			JsonMap{
+				"suggestions": JsonMap{
+					"buckets": []interface{}{
+						JsonMap{"doc_count": 73.000000, "key": "Rome"},
+						JsonMap{"doc_count": 44.000000, "key": "Bogota"},
+						JsonMap{"key": "Milan", "doc_count": 32.000000},
+					},
+					"doc_count_error_upper_bound": 0.000000,
+					"sum_other_doc_count":         1706.000000,
+				},
+				"unique_terms": JsonMap{"value": 143.000000},
+			},
+			JsonMap{
+				"suggestions": JsonMap{
+					"buckets[0]": JsonMap{
+						"differentBase": "value1",
+						"differentMap":  JsonMap{"nested-different": true},
+					},
+				},
+			},
+			JsonMap{
+				"suggestions": JsonMap{
+					"doc_count_error_upper_bound": 0.000000,
+					"sum_other_doc_count":         1706.000000,
+				},
+			},
+		},
+	}
+
+	for _, tt := range cases {
+		actualMinusExpected, expectedMinusActual := MapDifference(tt.actual, tt.expected, true, true)
+		assert.True(t, reflect.DeepEqual(tt.wantedActualMinusExpected, actualMinusExpected))
+		assert.True(t, reflect.DeepEqual(tt.wantedExpectedMinusActual, expectedMinusActual))
+	}
 }
 
 func TestMergeMaps(t *testing.T) {

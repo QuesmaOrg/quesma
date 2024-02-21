@@ -85,11 +85,14 @@ func JsonToMap(jsonn string) (JsonMap, error) {
 	return m, nil
 }
 
-// returns pair of maps with fields that are present in one of input maps and not in the other
+// MapDifference returns pair of maps with fields that are present in one of input maps and not in the other
 // specifically (mActual - mExpected, mExpected - mActual)
-// compareBaseTypes - if true, we compare base type values as well (e.g. if mActual["key1"]["key2"] == 1,
+// * compareBaseTypes - if true, we compare base type values as well (e.g. if mActual["key1"]["key2"] == 1,
 // and mExpected["key1"]["key2"] == 2, we say that they are different)
-func MapDifference(mActual, mExpected JsonMap, compareBaseTypes bool) (JsonMap, JsonMap) {
+// * compareFullArrays - if true, we compare entire arrays, if false just first element ([0])
+// * mActual - uses JsonMap fully: values are []JsonMap, or JsonMap, or base types
+// * mExpected - value can also be []any, because it's generated from Golang's json.Unmarshal
+func MapDifference(mActual, mExpected JsonMap, compareBaseTypes, compareFullArrays bool) (JsonMap, JsonMap) {
 	// We're adding 'mapToAdd' to 'resultDiff' at the key keysNested + name (`keysNested` is a list of keys, as JSONs can be nested)
 	// (or before, if such map doesn't exist on previous nested levels)
 	// append(keysNested, name) - list of keys to get to the current map ('mapToAdd')
@@ -136,35 +139,45 @@ func MapDifference(mActual, mExpected JsonMap, compareBaseTypes bool) (JsonMap, 
 				keysNested = append(keysNested, name)
 				descendRec(vActualTyped, vExpectedMap, resultDiffThis, resultDiffOther, keysNested)
 				keysNested = keysNested[:len(keysNested)-1]
-			case []interface{}:
-				vExpectedArr, ok := vExpected.([]interface{})
+			case []JsonMap:
+				vExpectedArr, ok := vExpected.([]any)
 				if !ok {
-					// Just a safe check. If they are different types, we add to both results. Can be changed, but they shouldn't be different anyway.
-					addToResult(vActualTyped, name, keysNested, resultDiffThis)
-					addToResult(vExpected, name, keysNested, resultDiffOther)
+					// might be a bit slower, casting all JsonMaps to []any, but it's simpler this way. Change if it becomes a bottleneck.
+					vExpectedArr = make([]any, 0)
+					if vExpectedAsJsonMap, ok := vExpected.([]JsonMap); ok {
+						for _, val := range vExpectedAsJsonMap {
+							vExpectedArr = append(vExpectedArr, val)
+						}
+					} else {
+						// Just a safe check. If they are different types, we add to both results. Can be changed, but they shouldn't be different anyway.
+						addToResult(vActualTyped, name, keysNested, resultDiffThis)
+						addToResult(vExpected, name, keysNested, resultDiffOther)
+						continue
+					}
 				}
+
 				lenActual, lenExpected := len(vActualTyped), len(vExpectedArr)
-				for i := 0; i < min(1, lenActual, lenExpected); i++ {
+				if !compareFullArrays {
+					lenActual, lenExpected = min(1, lenActual), min(1, lenExpected)
+				}
+				for i := 0; i < min(lenActual, lenExpected); i++ {
 					// Code below doesn't cover 100% of cases. But covers all we see, so I don't want to
 					// waste time improving it until there's need for it.
 					// Assumption: elements of arrays are maps or base types. From observations, it's always true.
 					// better to assume that until it breaks at least once. Fixing would require a lot of new code.
-					actualArrElementAsMap, ok1 := vActualTyped[i].(JsonMap)
-					expectedArrElementAsMap, ok2 := vExpectedArr[i].(JsonMap)
-					if ok1 && ok2 {
+					expectedArrElementAsMap, ok := vExpectedArr[i].(JsonMap)
+					if ok {
 						keysNested = append(keysNested, name+"["+strconv.Itoa(i)+"]")
-						descendRec(actualArrElementAsMap, expectedArrElementAsMap, resultDiffThis, resultDiffOther, keysNested)
+						descendRec(vActualTyped[i], expectedArrElementAsMap, resultDiffThis, resultDiffOther, keysNested)
 						keysNested = keysNested[:len(keysNested)-1]
-					} else if ok1 {
-						addToResult(actualArrElementAsMap, name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffThis)
-					} else if ok2 {
-						addToResult(expectedArrElementAsMap, name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffOther)
+					} else {
+						addToResult(vActualTyped[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffThis)
 					}
 				}
-				for i := min(lenActual, lenExpected); i < min(1, lenActual); i++ {
+				for i := min(lenActual, lenExpected); i < lenActual; i++ {
 					addToResult(vActualTyped[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffThis)
 				}
-				for i := min(lenActual, lenExpected); i < min(1, lenExpected); i++ {
+				for i := min(lenActual, lenExpected); i < lenExpected; i++ {
 					addToResult(vExpectedArr[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffOther)
 				}
 			default:
@@ -199,7 +212,7 @@ func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("%v (second JSON, json: %s)", err, jsonExpected)
 	}
-	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected, false)
+	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected, false, false)
 	return actualMinusExpected, expectedMinusActual, nil
 }
 

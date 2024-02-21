@@ -505,10 +505,12 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			pp.Println("ACTUAL", A)
 			expectedResponseMap, _ := util.JsonToMap(test.ExpectedResponse)
 			expectedAggregationsPart := expectedResponseMap["response"].(JsonMap)["aggregations"].(JsonMap)
-			diff1, diff2 := util.MapDifference(A, expectedAggregationsPart, true)
+			diff1, diff2 := util.MapDifference(A, expectedAggregationsPart, true, true)
 			assert.Empty(t, diff1)
 			assert.Empty(t, diff2)
 			pp.Println("EXPECTED", expectedAggregationsPart)
+			pp.Println("diff1", diff1)
+			pp.Println("diff2", diff2)
 		})
 	}
 }
