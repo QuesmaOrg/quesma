@@ -285,11 +285,11 @@ func TestMergeMaps(t *testing.T) {
 				"response": JsonMap{
 					"took": 0, "timed_out": false,
 					"_shards": JsonMap{"total": 0, "successful": 0, "failed": 0, "skipped": 0},
-					"hits":    JsonMap{"total": JsonMap{"value": 1, "relation": "eq"}, "max_score": 0, "hits": []any{}},
-					"aggregations": JsonMap{"origins": JsonMap{"buckets": []any{
+					"hits":    JsonMap{"total": JsonMap{"value": 1, "relation": "eq"}, "max_score": 0, "hits": []JsonMap{}},
+					"aggregations": JsonMap{"origins": JsonMap{"buckets": []JsonMap{
 						JsonMap{ // different
 							"distinations": JsonMap{
-								"buckets": []any{
+								"buckets": []JsonMap{
 									JsonMap{
 										"destLocation": JsonMap{
 											"value": "New York",
@@ -323,11 +323,11 @@ func TestMergeMaps(t *testing.T) {
 				"response": JsonMap{
 					"took": 0, "timed_out": false,
 					"_shards": JsonMap{"total": 0, "successful": 0, "failed": 0, "skipped": 0},
-					"hits":    JsonMap{"total": JsonMap{"value": 1, "relation": "eq"}, "max_score": 0, "hits": []any{}},
-					"aggregations": JsonMap{"origins": JsonMap{"buckets": []any{
+					"hits":    JsonMap{"total": JsonMap{"value": 1, "relation": "eq"}, "max_score": 0, "hits": []JsonMap{}},
+					"aggregations": JsonMap{"origins": JsonMap{"buckets": []JsonMap{
 						JsonMap{
 							"distinations": JsonMap{
-								"buckets": []any{ // from m1
+								"buckets": []JsonMap{ // from m1
 									JsonMap{
 										"destLocation": JsonMap{
 											"value": "New York",
@@ -479,15 +479,9 @@ func TestMergeMaps(t *testing.T) {
 		},
 	}
 	for i, tt := range cases {
-		t.Run("TestMergeMaps_"+strconv.Itoa(i)+"m1,m2", func(t *testing.T) {
-			if i == 2 {
-				t.Skip("TODO. Will be fixed very soon, as it's needed for tests")
-			}
-
+		t.Run("TestMergeMaps_"+strconv.Itoa(i), func(t *testing.T) {
 			// simple == or Equal doesn't work on nested maps => need DeepEqual
 			assert.True(t, reflect.DeepEqual(tt.wanted, MergeMaps(tt.m1, tt.m2)))
-			// let's run again and swap m1 and m2. Behaviour might be different with bad implementation.
-			assert.True(t, reflect.DeepEqual(tt.wanted, MergeMaps(tt.m2, tt.m1)))
 		})
 	}
 }

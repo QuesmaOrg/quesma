@@ -203,10 +203,12 @@ func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
 	return actualMinusExpected, expectedMinusActual, nil
 }
 
-// If there's type conflict, e.g. one map has {"a": map}, and second has {"a": array}, we panic.
+// If there's type conflict, e.g. one map has {"a": map}, and second has {"a": array}, we log an error.
 // Tried https://stackoverflow.com/a/71545414 and https://stackoverflow.com/a/71652767
 // but none of them works for nested maps, so needed to write our own.
-func MergeMaps(m1, m2 JsonMap) JsonMap {
+// * mActual - uses JsonMap fully: values are []JsonMap, or JsonMap, or base types
+// * mExpected - value can also be []any, because it's generated from Golang's json.Unmarshal
+func MergeMaps(mActual, mExpected JsonMap) JsonMap {
 	var mergeMapsRec func(m1, m2 JsonMap) JsonMap
 
 	// merges 'i1' and 'i2' in 3 cases: both are JsonMap, both are []JsonMap, or both are some base type
@@ -215,24 +217,31 @@ func MergeMaps(m1, m2 JsonMap) JsonMap {
 		case JsonMap:
 			i2Typed, ok := i2.(JsonMap)
 			if !ok {
-				logger.Panic().Msgf("mergeAny: i1 is map, i2 is not. i1: %v, i2: %v", i1, i2)
+				logger.Error().Msgf("mergeAny: i1 is map, i2 is not. i1: %v, i2: %v", i1, i2)
 				return i1
 			}
 			return mergeMapsRec(i1Typed, i2Typed)
-		case []any:
+		case []JsonMap:
 			i2Typed, ok := i2.([]any)
 			if !ok {
-				logger.Panic().Msgf("mergeAny: i1 is []any, i2 is not. i1: %v, i2: %v", i1, i2)
-				return i1
+				// might be a bit slower, casting all JsonMaps to []any, but it's simpler this way. Change if it becomes a bottleneck.
+				i2Typed = make([]any, 0)
+				if i2AsJsonMap, ok := i2.([]JsonMap); ok {
+					for _, val := range i2AsJsonMap {
+						i2Typed = append(i2Typed, val)
+					}
+				} else {
+					logger.Error().Msgf("mergeAny: i1 is []JsonMap, i2 is not an array. i1: %v, i2: %v", i1Typed, i2)
+				}
 			}
 
 			// lengths should be always equal in our usage of this function, maybe that'll change
 			if len(i1Typed) != len(i2Typed) {
-				logger.Panic().Msgf("mergeAny: i1 and i2 are slices, but have different lengths. i1: %v, i2: %v", i1, i2)
+				logger.Error().Msgf("mergeAny: i1 and i2 are slices, but have different lengths. i1: %v, i2: %v", i1, i2)
 			}
-			mergedArray := make([]any, len(i1Typed))
+			mergedArray := make([]JsonMap, len(i1Typed))
 			for i := range i1Typed {
-				mergedArray[i] = mergeMapsRec(i1Typed[i].(JsonMap), i2Typed[i].(JsonMap))
+				mergedArray[i] = mergeMapsRec(i1Typed[i], i2Typed[i].(JsonMap))
 			}
 			return mergedArray
 		default:
@@ -258,7 +267,7 @@ func MergeMaps(m1, m2 JsonMap) JsonMap {
 		}
 		return mergedMap
 	}
-	return mergeMapsRec(m1, m2)
+	return mergeMapsRec(mActual, mExpected)
 }
 
 func BodyHandler(h func(body []byte, writer http.ResponseWriter, r *http.Request)) func(http.ResponseWriter, *http.Request) {
