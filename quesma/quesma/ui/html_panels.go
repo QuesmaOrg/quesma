@@ -96,7 +96,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 func dropFirstSegment(path string) string {
 	segments := strings.SplitN(path, "/", 3)
 	if len(segments) > 1 {
-		return "/" + segments[2]
+		return "/" + segments[1]
 	}
 	return path
 }
