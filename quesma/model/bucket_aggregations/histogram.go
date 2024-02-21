@@ -12,9 +12,8 @@ func (qt QueryTypeHistogram) TranslateSqlResponseToJson(rows []model.QueryResult
 	var response []model.JsonMap
 	for _, row := range rows {
 		response = append(response, model.JsonMap{
-			"key":           row.Cols[level-1].Value,
-			"doc_count":     row.Cols[level].Value,
-			"key_as_string": 1, // TODO fill this
+			"key":       row.Cols[level-1].Value,
+			"doc_count": row.Cols[level].Value,
 		})
 	}
 	return response

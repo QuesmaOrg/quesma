@@ -289,7 +289,7 @@ var AggregationTests = []AggregationTestCase{
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("OriginCityName", "Albuquerque"),
-					model.NewQueryResultCol("doc_count", 3),
+					model.NewQueryResultCol("doc_count", 2),
 				}},
 			},
 			{
@@ -457,32 +457,32 @@ var AggregationTests = []AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("FlightDelayType", "No Delay"),
-					model.NewQueryResultCol("key", "1706871600000"),
+					model.NewQueryResultCol("key", 1706871600000),
 					model.NewQueryResultCol("doc_count", 2),
 					model.NewQueryResultCol("key_as_string", "2024-02-02T12:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("FlightDelayType", "No Delay"),
-					model.NewQueryResultCol("key", "1706872400000"),
+					model.NewQueryResultCol("key", 1706882400000),
 					model.NewQueryResultCol("doc_count", 27),
 					model.NewQueryResultCol("key_as_string", "2024-02-02T15:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("FlightDelayType", "No Delay"),
-					model.NewQueryResultCol("key", "1706873200000"),
+					model.NewQueryResultCol("key", 1706893200000),
 					model.NewQueryResultCol("doc_count", 34),
 					model.NewQueryResultCol("key_as_string", "2024-02-02T18:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("FlightDelayType", "Security Delay"),
-					model.NewQueryResultCol("key", "1706871600000"),
-					model.NewQueryResultCol("doc_count", 2),
+					model.NewQueryResultCol("key", 1706871600000),
+					model.NewQueryResultCol("doc_count", 0),
 					model.NewQueryResultCol("key_as_string", "2024-02-02T12:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("FlightDelayType", "Security Delay"),
-					model.NewQueryResultCol("key", "1706872400000"),
-					model.NewQueryResultCol("doc_count", 27),
+					model.NewQueryResultCol("key", 1706882400000),
+					model.NewQueryResultCol("doc_count", 2),
 					model.NewQueryResultCol("key_as_string", "2024-02-02T15:00:00.000+01:00"),
 				}},
 			},
@@ -688,9 +688,9 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		[][]model.QueryResultRow{
 			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 73), model.NewQueryResultCol("key", "Rome")}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 44), model.NewQueryResultCol("key", "Bogota")}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 32), model.NewQueryResultCol("key", "Milan")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Rome"), model.NewQueryResultCol("doc_count", 73)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Bogota"), model.NewQueryResultCol("doc_count", 44)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Milan"), model.NewQueryResultCol("doc_count", 32)}},
 			},
 			{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", 143)}},
@@ -1384,10 +1384,10 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		[][]model.QueryResultRow{
 			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 21), model.NewQueryResultCol("key", 15.0)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 22), model.NewQueryResultCol("key", 30.0)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 13), model.NewQueryResultCol("key", 345.0)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 22), model.NewQueryResultCol("key", 360.0)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 15.0), model.NewQueryResultCol("doc_count", 21)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 30.0), model.NewQueryResultCol("doc_count", 22)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 345.0), model.NewQueryResultCol("doc_count", 13)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 360.0), model.NewQueryResultCol("doc_count", 22)}},
 			},
 		},
 	},
@@ -1548,38 +1548,38 @@ var AggregationTests = []AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "info"),
-					model.NewQueryResultCol("doc_count", 22),
 					model.NewQueryResultCol("key", 1707476400000),
+					model.NewQueryResultCol("doc_count", 22),
 					model.NewQueryResultCol("key_as_string", "2024-02-09T12:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "info"),
+					model.NewQueryResultCol("key", 1707487200000),
 					model.NewQueryResultCol("doc_count", 80),
-					model.NewQueryResultCol("key", 1707487200000),
 					model.NewQueryResultCol("key_as_string", "2024-02-09T15:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "debug"),
+					model.NewQueryResultCol("key", 1707476400000),
 					model.NewQueryResultCol("doc_count", 17),
-					model.NewQueryResultCol("key", 1707476400000),
 					model.NewQueryResultCol("key_as_string", "2024-02-09T12:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "debug"),
-					model.NewQueryResultCol("doc_count", 32),
 					model.NewQueryResultCol("key", 1707487200000),
+					model.NewQueryResultCol("doc_count", 32),
 					model.NewQueryResultCol("key_as_string", "2024-02-09T15:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "critical"),
-					model.NewQueryResultCol("doc_count", 5),
 					model.NewQueryResultCol("key", 1707476400000),
+					model.NewQueryResultCol("doc_count", 5),
 					model.NewQueryResultCol("key_as_string", "2024-02-09T12:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "critical"),
-					model.NewQueryResultCol("doc_count", 11),
 					model.NewQueryResultCol("key", 1707487200000),
+					model.NewQueryResultCol("doc_count", 11),
 					model.NewQueryResultCol("key_as_string", "2024-02-09T15:00:00.000+01:00"),
 				}},
 			},

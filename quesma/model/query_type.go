@@ -1,8 +1,8 @@
 package model
 
 type QueryType interface {
-	// TranslateSqlResponseToJson 'level' - we want to translate [level:] or [level-1:] columns to JSON
-	// (depending on query type). Previous columns are used for bucketing.
+	// TranslateSqlResponseToJson 'level' - we want to translate [level:] (metrics aggr) or [level-1:] (bucket aggr) columns to JSON
+	// Previous columns are used for bucketing.
 	// For 'bucket' aggregation result is a slice of buckets, for 'metrics' aggregation it's a single bucket (only look at [0])
 	TranslateSqlResponseToJson(rows []QueryResultRow, level int) []JsonMap
 
