@@ -13,30 +13,40 @@ import (
 
 type QueryMap = map[string]interface{}
 
-const (
-	TimestampFieldName = `"@timestamp"`
-)
-
 type SimpleQuery struct {
-	Sql      Statement
-	CanParse bool
+	Sql       Statement
+	CanParse  bool
+	FieldName string
 }
 
 type Statement struct {
 	Stmt       string
 	isCompound bool // "a" -> not compound, "a AND b" -> compound. Used to not make unnecessary brackets (not always, but usually)
+	FieldName  string
 }
 
 func newSimpleQuery(sql Statement, canParse bool) SimpleQuery {
 	return SimpleQuery{Sql: sql, CanParse: canParse}
 }
 
+func newSimpleQueryWithFieldName(sql Statement, canParse bool, fieldName string) SimpleQuery {
+	return SimpleQuery{Sql: sql, CanParse: canParse, FieldName: fieldName}
+}
+
 func NewSimpleStatement(stmt string) Statement {
 	return Statement{Stmt: stmt, isCompound: false}
 }
 
+func NewSimpleStatementWithFieldName(stmt, fieldName string) Statement {
+	return Statement{Stmt: stmt, isCompound: false, FieldName: fieldName}
+}
+
 func NewCompoundStatement(stmt string) Statement {
 	return Statement{Stmt: stmt, isCompound: true}
+}
+
+func NewCompoundStatementWithFieldName(stmt, fieldName string) Statement {
+	return Statement{Stmt: stmt, isCompound: true, FieldName: fieldName}
 }
 
 func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery, model.SearchQueryType) {
@@ -123,7 +133,9 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 func (cw *ClickhouseQueryTranslator) parseQueryMapArray(queryMaps []interface{}) []Statement {
 	results := make([]Statement, len(queryMaps))
 	for i, v := range queryMaps {
-		results[i] = cw.parseQueryMap(v.(QueryMap)).Sql
+		qmap := cw.parseQueryMap(v.(QueryMap))
+		results[i] = qmap.Sql
+		results[i].FieldName = qmap.FieldName
 	}
 	return results
 }
@@ -179,7 +191,7 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) SimpleQuery {
 			sql = and([]Statement{sql, orSql})
 		}
 	}
-	return newSimpleQuery(sql, true)
+	return newSimpleQueryWithFieldName(sql, true, sql.FieldName)
 }
 
 func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) SimpleQuery {
@@ -353,7 +365,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 				stmts = append(stmts, NewSimpleStatement(strconv.Quote(field)+"<"+vToPrint))
 			}
 		}
-		return newSimpleQuery(and(stmts), true)
+		return newSimpleQueryWithFieldName(and(stmts), true, field)
 	}
 	return newSimpleQuery(NewSimpleStatement("empty range"), false)
 }
@@ -402,14 +414,18 @@ func combineStatements(stmts []Statement, sep string) Statement {
 	stmts = filterNonEmpty(stmts)
 	if len(stmts) > 1 {
 		stmts = quoteWithBracketsIfCompound(stmts)
+		var fieldName string
 		sql := ""
 		for i, stmt := range stmts {
 			sql += stmt.Stmt
 			if i < len(stmts)-1 {
 				sql += " " + sep + " "
 			}
+			if stmt.FieldName != "" {
+				fieldName = stmt.FieldName
+			}
 		}
-		return NewCompoundStatement(sql)
+		return NewCompoundStatementWithFieldName(sql, fieldName)
 	}
 	if len(stmts) == 1 {
 		return stmts[0]

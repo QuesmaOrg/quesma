@@ -102,7 +102,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		switch queryInfo.Typ {
 		case model.Histogram:
 			var bucket time.Duration
-			fullQuery, bucket = queryTranslator.BuildHistogramQuery("@timestamp", simpleQuery.Sql.Stmt, queryInfo.FieldName)
+			fullQuery, bucket = queryTranslator.BuildHistogramQuery(simpleQuery.FieldName, simpleQuery.Sql.Stmt, queryInfo.FieldName)
 			rows, err = queryTranslator.ClickhouseLM.ProcessHistogramQuery(fullQuery, bucket)
 		case model.AggsByField:
 			// queryInfo = (AggsByField, fieldName, Limit results, Limit last rows to look into)
@@ -110,13 +110,11 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 			rows, err = queryTranslator.ClickhouseLM.ProcessFacetsQuery(fullQuery)
 		case model.ListByField:
 			// queryInfo = (ListByField, fieldName, 0, LIMIT)
-			fullQuery = queryTranslator.BuildNMostRecentRowsQuery(queryInfo.FieldName,
-				"@timestamp", simpleQuery.Sql.Stmt, queryInfo.I2)
+			fullQuery = queryTranslator.BuildNMostRecentRowsQuery(queryInfo.FieldName, simpleQuery.FieldName, simpleQuery.Sql.Stmt, queryInfo.I2)
 			rows, err = queryTranslator.ClickhouseLM.ProcessNMostRecentRowsQuery(fullQuery)
 		case model.ListAllFields:
 			// queryInfo = (ListAllFields, "*", 0, LIMIT)
-			fullQuery = queryTranslator.BuildNMostRecentRowsQuery("*",
-				"@timestamp", simpleQuery.Sql.Stmt, queryInfo.I2)
+			fullQuery = queryTranslator.BuildNMostRecentRowsQuery("*", simpleQuery.FieldName, simpleQuery.Sql.Stmt, queryInfo.I2)
 			rows, err = queryTranslator.ClickhouseLM.ProcessNMostRecentRowsQuery(fullQuery)
 		case model.EarliestLatestTimestamp:
 			var rowsEarliest, rowsLatest []model.QueryResultRow
