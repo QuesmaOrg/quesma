@@ -629,7 +629,9 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.Q
 		// so far everywhere I've seen, > 1 field ==> "*" is one of them
 		return model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size)}, true
 	}
-	// so far everywhere I've seen, there's always at least 1 field, so it's safe to do this
+	if len(fields) == 0 {
+		return model.NewQueryInfoAsyncSearchNone(), false
+	}
 	queryMap, ok = fields[0].(QueryMap)
 	if !ok {
 		return model.NewQueryInfoAsyncSearchNone(), false
