@@ -40,8 +40,10 @@ func (b *aggrQueryBuilder) buildCountAggregation() model.QueryWithAggregation {
 func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregation) model.QueryWithAggregation {
 	query := b.buildAggregationCommon()
 	switch metricsAggr.AggrType {
-	case "sum", "min", "max", "avg", "quantile", "cardinality": // TODO fix cardinality's SQL
+	case "sum", "min", "max", "avg", "quantile":
 		query.NonSchemaFields = append(query.NonSchemaFields, metricsAggr.AggrType+`("`+metricsAggr.FieldNames[0]+`")`)
+	case "cardinality":
+		query.NonSchemaFields = append(query.NonSchemaFields, `COUNT(DISTINCT "`+metricsAggr.FieldNames[0]+`")`)
 	case "top_hits", "top_metrics":
 		query.Fields = append(query.Fields, metricsAggr.FieldNames...)
 		fieldsAsString := strings.Join(metricsAggr.FieldNames, ", ")

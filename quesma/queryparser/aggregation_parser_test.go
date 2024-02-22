@@ -421,9 +421,8 @@ var aggregationTests = []struct {
 			`SELECT "taxful_total_price" FROM "(SELECT taxful_total_price, ROW_NUMBER() OVER (PARTITION BY taxful_total_price) AS row_number FROM ` + tableName + `)" WHERE taxful_total_price>250 `,
 		},
 	},
-	/*
-		{ // [12]
-			`{
+	{ // [12]
+		`{
 				"aggs": {
 					"suggestions": {
 						"terms": {
@@ -442,8 +441,11 @@ var aggregationTests = []struct {
 					}
 				}
 			}`,
-			[]string{},
-		}, */
+		[]string{
+			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + `  GROUP BY ("OriginCityName")`,
+			`SELECT COUNT(DISTINCT "OriginCityName") FROM ` + tableNameQuoted + " ",
+		},
+	},
 }
 
 func TestAggregationParser(t *testing.T) {
