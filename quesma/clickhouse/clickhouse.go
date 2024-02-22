@@ -373,6 +373,14 @@ func (lm *LogManager) findSchema(tableName string) *Table {
 	return lm.newRuntimeTables[tableName] // check if it returns nil or error
 }
 
+func (lm *LogManager) GetRuntimeTables() TableMap {
+	return lm.newRuntimeTables
+}
+
+func (lm *LogManager) GetPredefinedTables() TableMap {
+	return lm.predefinedTables
+}
+
 // Returns if schema wasn't created (so it needs to be, and will be in a moment)
 func (lm *LogManager) addSchemaIfDoesntExist(table *Table) bool {
 	t := lm.findSchema(table.Name)
