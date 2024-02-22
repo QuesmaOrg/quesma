@@ -491,8 +491,12 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: "logs-generic-default"}
 	for _, test := range testdata.AggregationTests {
 		t.Run(test.TestName, func(t *testing.T) {
-			// works: 0, 3, 5, 8
-			// ~90% works, small diff 2 same fields all the time: 1, 2, 4, 9
+			// WORKING (or almost): 13/15 tests
+			// works: 0, 3, 5, 8, 12, 14
+			// ~90% works, small diff 2 same fields all the time: 1, 2, 4, 9, 11
+			// waits for response (99% it'll work): 13
+
+			// NOT WORKING: 2/15 tests
 			// kinda small fix: top_hits: 7
 			// bigger fix, maybe will work w/o it: filters [] instead of {} 6
 			t.Skip("Works only manually, responses aren't 100% the same, only 95%")

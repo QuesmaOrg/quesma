@@ -221,9 +221,6 @@ func MakeResponseAsyncSearchQuery(ResultSet []model.QueryResultRow, typ model.As
 }
 
 func (cw *ClickhouseQueryTranslator) finishMakeResponse(query model.QueryWithAggregation, ResultSet []model.QueryResultRow, level int) []model.JsonMap {
-	if len(ResultSet) == 0 {
-		return []JsonMap{}
-	}
 	if query.Type.IsBucketAggregation() {
 		return query.Type.TranslateSqlResponseToJson(ResultSet, level)
 	} else { // metrics
@@ -288,7 +285,18 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 	}
 	result := make(model.JsonMap, 1)
 	subResult := make(model.JsonMap, 1)
-	subResult["buckets"] = bucketsReturnMap
+
+	// The if below: very hacky, but works for now. I have an idea how to fix this and make code nice, but it'll take a while to refactor.
+	// Basically, for now every not-ending subaggregation has "buckets" key. Only exception is "sampler", which doesn't, thus this if.
+	//
+	// I'd like to keep an actual tree after the refactor, not a list of paths from root to leaf, as it is now.
+	// Then in the tree (in each node) I'd remember where I am at the moment (e.g. here I'm in "sampler",
+	// so I don't need buckets). It'd enable some custom handling for another weird types of requests.
+	if query.AggregatorsNames[level] != "sample" {
+		subResult["buckets"] = bucketsReturnMap
+	} else {
+		subResult = bucketsReturnMap[0]
+	}
 	result[query.AggregatorsNames[level]] = subResult
 	return []model.JsonMap{result}
 }

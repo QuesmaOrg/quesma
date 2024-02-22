@@ -1849,4 +1849,365 @@ var AggregationTests = []AggregationTestCase{
 			{},
 		},
 	},
+	{ // [11], "old" test, also can be found in testdata/requests.go TestAsyncSearch[0]
+		// Copied it also here to be more sure we do not create some regression
+		"value_count + top_values: regression test",
+		`{
+			"aggs": {
+				"sample": {
+					"aggs": {
+						"sample_count": {
+							"value_count": {
+								"field": "host.name"
+							}
+						},
+						"top_values": {
+							"terms": {
+								"field": "host.name",
+								"shard_size": 25,
+								"size": 10
+							}
+						}
+					},
+					"sampler": {
+						"shard_size": 5000
+					}
+				}
+			},
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"@timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-01-23T11:27:16.820Z",
+									"lte": "2024-01-23T11:42:16.820Z"
+								}
+							}
+						},
+						{
+							"bool": {
+								"filter": [
+									{
+										"multi_match": {
+											"lenient": true,
+											"query": "user",
+											"type": "best_fields"
+										}
+									}
+								],
+								"must": [],
+								"must_not": [],
+								"should": []
+							}
+						}
+					]
+				}
+			},
+			"runtime_mappings": {},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		`{
+			"completion_time_in_millis": 1706010201967,
+			"expiration_time_in_millis": 1706010261964,
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"sample": {
+						"doc_count": 442,
+						"sample_count": {
+							"value": 442
+						},
+						"top_values": {
+							"buckets": [
+								{"doc_count": 30, "key": "hephaestus"},
+								{"doc_count": 29, "key": "poseidon"},
+								{"doc_count": 28, "key": "jupiter"},
+								{"doc_count": 26, "key": "selen"},
+								{"doc_count": 24, "key": "demeter"},
+								{"doc_count": 24, "key": "iris"},
+								{"doc_count": 24, "key": "pan"},
+								{"doc_count": 22, "key": "hades"},
+								{"doc_count": 22, "key": "hermes"},
+								{"doc_count": 21, "key": "persephone"}
+							],
+							"doc_count_error_upper_bound": 0,
+							"sum_other_doc_count": 192
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 442
+					}
+				},
+				"timed_out": false,
+				"took": 3
+			},
+			"start_time_in_millis": 1706010201964
+		}`,
+		[][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 442)}},
+			},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "todo"), model.NewQueryResultCol("key", "hephaestus"), model.NewQueryResultCol("doc_count", 30)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "poseidon"), model.NewQueryResultCol("doc_count", 29)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "jupiter"), model.NewQueryResultCol("doc_count", 28)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "selen"), model.NewQueryResultCol("doc_count", 26)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "demeter"), model.NewQueryResultCol("doc_count", 24)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "iris"), model.NewQueryResultCol("doc_count", 24)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "pan"), model.NewQueryResultCol("doc_count", 24)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "hades"), model.NewQueryResultCol("doc_count", 22)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "hermes"), model.NewQueryResultCol("doc_count", 22)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "persephone"), model.NewQueryResultCol("doc_count", 21)}},
+			},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 442)}},
+			},
+		},
+	},
+	{ // [12], "old" test, also can be found in testdata/requests.go TestAsyncSearch[3]
+		// Copied it also here to be more sure we do not create some regression
+		"date_histogram: regression test",
+		`{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"date_histogram": {
+						"field": "@timestamp",
+						"fixed_interval": "30s",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"multi_match": {
+								"lenient": true,
+								"query": "user",
+								"type": "best_fields"
+							}
+						},
+						{
+							"range": {
+								"@timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-01-23T14:43:19.481Z",
+									"lte": "2024-01-23T14:58:19.481Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		`{
+			"completion_time_in_millis": 1706021899595,
+			"expiration_time_in_millis": 1706021959594,
+			"id": "FjFQMlBUNnJmUU1pWml0WkllNmJWYXcdNVFvOUloYTBUZ3U0Q25MRTJtQTA0dzoyMTEyNzI=",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{"doc_count": 2,  "key": 1706021670000, "key_as_string": "2024-01-23T15:54:30.000+01:00"},
+							{"doc_count": 13, "key": 1706021700000, "key_as_string": "2024-01-23T15:55:00.000+01:00"},
+							{"doc_count": 14, "key": 1706021730000, "key_as_string": "2024-01-23T15:55:30.000+01:00"},
+							{"doc_count": 14, "key": 1706021760000, "key_as_string": "2024-01-23T15:56:00.000+01:00"},
+							{"doc_count": 15, "key": 1706021790000, "key_as_string": "2024-01-23T15:56:30.000+01:00"},
+							{"doc_count": 13, "key": 1706021820000, "key_as_string": "2024-01-23T15:57:00.000+01:00"},
+							{"doc_count": 15, "key": 1706021850000, "key_as_string": "2024-01-23T15:57:30.000+01:00"},
+							{"doc_count": 11, "key": 1706021880000, "key_as_string": "2024-01-23T15:58:00.000+01:00"}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 97
+					}
+				},
+				"timed_out": false,
+				"took": 1
+			},
+			"start_time_in_millis": 1706021899594
+		}`,
+		[][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021670000), model.NewQueryResultCol("doc_count", 2), model.NewQueryResultCol("key_as_string", "2024-01-23T15:54:30.000+01:00")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021700000), model.NewQueryResultCol("doc_count", 13), model.NewQueryResultCol("key_as_string", "2024-01-23T15:55:00.000+01:00")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021730000), model.NewQueryResultCol("doc_count", 14), model.NewQueryResultCol("key_as_string", "2024-01-23T15:55:30.000+01:00")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021760000), model.NewQueryResultCol("doc_count", 14), model.NewQueryResultCol("key_as_string", "2024-01-23T15:56:00.000+01:00")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021790000), model.NewQueryResultCol("doc_count", 15), model.NewQueryResultCol("key_as_string", "2024-01-23T15:56:30.000+01:00")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021820000), model.NewQueryResultCol("doc_count", 13), model.NewQueryResultCol("key_as_string", "2024-01-23T15:57:00.000+01:00")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021850000), model.NewQueryResultCol("doc_count", 15), model.NewQueryResultCol("key_as_string", "2024-01-23T15:57:30.000+01:00")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021880000), model.NewQueryResultCol("doc_count", 11), model.NewQueryResultCol("key_as_string", "2024-01-23T15:58:00.000+01:00")}},
+			},
+		},
+	},
+	{ // [13], "old" test, also can be found in testdata/requests.go TestAsyncSearch[4]
+		// Copied it also here to be more sure we do not create some regression
+		// TODO let's copy results once we see this test it happens very often but we don't have a response.
+		"histogram: regression test",
+		`{
+			"size":0,
+			"query": {
+				"range": {
+					"@timestamp": {
+						"gt": "2024-01-25T14:53:59.033Z",
+						"lte": "2024-01-25T15:08:59.033Z",
+						"format": "strict_date_optional_time"
+					}
+				}
+			},
+			"aggs": {
+				"stats": {
+					"terms": {
+						"field": "event.dataset",
+						"size": 4,
+						"missing": "unknown"
+					},
+					"aggs": {
+						"series": {
+							"date_histogram": {
+								"field": "@timestamp",
+								"fixed_interval": "60s"
+							}
+						}
+					}
+				}
+			},
+			"track_total_hits":true
+		}`,
+		`TODO!!!`,
+		[][]model.QueryResultRow{
+			{},
+		},
+	},
+	{ // [14], "old" test, also can be found in testdata/requests.go TestAsyncSearch[5]
+		// Copied it also here to be more sure we do not create some regression
+		"earliest/latest timestamp: regression test",
+		`{
+			"aggs": {
+				"earliest_timestamp": {
+					"min": {
+						"field": "@timestamp"
+					}
+				},
+				"latest_timestamp": {
+					"max": {
+						"field": "@timestamp"
+					}
+				}
+			},
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"multi_match": {
+								"lenient": true,
+								"query": "posei",
+								"type": "best_fields"
+							}
+						},
+						{
+							"match_phrase": {
+								"message": "User logged out"
+							}
+						},
+						{
+							"match_phrase": {
+								"host.name": "poseidon"
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		`{
+			"completion_time_in_millis": 1706551812667,
+			"expiration_time_in_millis": 1706551872665,
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"earliest_timestamp": {
+						"value": null
+					},
+					"latest_timestamp": {
+						"value": null
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 0
+					}
+				},
+				"timed_out": false,
+				"took": 2
+			},
+			"start_time_in_millis": 1706551812665
+		}`,
+		[][]model.QueryResultRow{
+			{}, // on purpose, simulates no rows returned
+			{}, // on purpose, simulates no rows returned
+		},
+	},
 }

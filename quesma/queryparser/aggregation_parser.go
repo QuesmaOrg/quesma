@@ -40,7 +40,7 @@ func (b *aggrQueryBuilder) buildCountAggregation() model.QueryWithAggregation {
 func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregation) model.QueryWithAggregation {
 	query := b.buildAggregationCommon()
 	switch metricsAggr.AggrType {
-	case "sum", "min", "max", "avg", "quantile":
+	case "sum", "min", "max", "avg", "quantile", "value_count": // TODO fix value_count's SQL
 		query.NonSchemaFields = append(query.NonSchemaFields, metricsAggr.AggrType+`("`+metricsAggr.FieldNames[0]+`")`)
 	case "cardinality":
 		query.NonSchemaFields = append(query.NonSchemaFields, `COUNT(DISTINCT "`+metricsAggr.FieldNames[0]+`")`)
@@ -72,6 +72,8 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		query.Type = metrics_aggregations.QueryTypeTopHits{}
 	case "top_metrics":
 		query.Type = metrics_aggregations.QueryTypeTopMetrics{}
+	case "value_count":
+		query.Type = metrics_aggregations.QueryTypeValueCount{}
 	}
 	return query
 }
@@ -123,22 +125,25 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		delete(queryMap, "filters")
 	}
 
-	// 3. aggs, terms. They introduce new subaggregations.
+	// 3. terms, sampler. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
 
-	// If 'aggs' is present, we only aggregate if also 'terms' is present. It then introduces a new GROUP BY,
-	// and we need counts for that.
 	weWantToAggregateHere := true
-	termsPresent := false
+	termsOrSamplerPresent := false
 	if terms, ok := queryMap["terms"]; ok {
-		termsPresent = true
+		termsOrSamplerPresent = true
 		currentAggr.Type = bucket_aggregations.QueryTypeTerms{}
 		currentAggr.GroupByFields[len(currentAggr.GroupByFields)-1] = terms.(QueryMap)["field"].(string)
 		currentAggr.Fields[len(currentAggr.Fields)-1] = terms.(QueryMap)["field"].(string)
 		delete(queryMap, "terms")
+	} else if _, ok := queryMap["sampler"]; ok {
+		termsOrSamplerPresent = true
+		delete(queryMap, "sampler")
 	}
 
+	// If 'aggs' is present, we only aggregate if also 'terms'/'sampler' is present. It then introduces a new GROUP BY,
+	// and we need counts for that.
 	if aggs, ok := queryMap["aggs"]; ok {
-		if !termsPresent {
+		if !termsOrSamplerPresent {
 			weWantToAggregateHere = false
 		}
 		cw.parseAggregation(currentAggr, aggs.(QueryMap), resultAccumulator)
@@ -184,7 +189,7 @@ func tryMetricsAggregation(queryMap QueryMap) (metricsAggregation, bool) {
 	// full list: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-Aggregations-metrics.html
 	// shouldn't be hard to handle others, if necessary
 
-	metricsAggregations := []string{"sum", "avg", "min", "max", "cardinality"}
+	metricsAggregations := []string{"sum", "avg", "min", "max", "cardinality", "value_count"}
 	for k, v := range queryMap {
 		if slices.Contains(metricsAggregations, k) {
 			return metricsAggregation{

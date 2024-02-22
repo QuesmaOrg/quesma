@@ -58,8 +58,9 @@ var TestsAsyncSearch = []struct {
 	Comment           string
 	WantedParseResult model.QueryInfoAsyncSearch
 	WantedRegexes     []string // queries might be a bit weird at times, because of non-determinism of our parser (need to use a lot of "." in regexes) (they also need to happen as ordered in this slice)
+	IsAggregation     bool     // is it an aggregation query?
 }{
-	{
+	{ // [0]
 		"AggsByField (Facet): aggregate by field + additionally match user (filter)",
 		`{
     "aggs": {
@@ -200,8 +201,9 @@ var TestsAsyncSearch = []struct {
 		"no comment yet",
 		model.QueryInfoAsyncSearch{Typ: model.AggsByField, FieldName: "host.name", I1: 10, I2: 5000},
 		[]string{`SELECT "host.name", count() FROM "logs-generic-default" WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-23T11:..:16.820Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T11:..:16.820Z')) AND "message" iLIKE '%user%' GROUP BY "host.name" ORDER BY count() DESC`},
+		true,
 	},
-	{
+	{ // [1]
 		"ListByField: query one field, last 'size' results, return list of just that field, no timestamp, etc.",
 		`{
     "_source": false,
@@ -330,8 +332,9 @@ var TestsAsyncSearch = []struct {
 `, "there should be 97 results, I truncated most of them",
 		model.QueryInfoAsyncSearch{Typ: model.ListByField, FieldName: "message", I1: 0, I2: 100},
 		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) AND "message" iLIKE '%user%' AND message IS NOT NULL ORDER BY ` + "`@timestamp` DESC LIMIT 100"},
+		false,
 	},
-	{
+	{ // [2]
 		"ListAllFields: search all fields, return JSON + count (we don't return count atm)",
 		`{
     "_source": false,
@@ -566,8 +569,9 @@ var TestsAsyncSearch = []struct {
 `, "Truncated most results. TODO Check what's at the end of response, probably count?",
 		model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: 500},
 		[]string{`SELECT.*"@timestamp".* FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) ORDER BY ` + "`@timestamp` DESC LIMIT 500"},
+		false,
 	},
-	{
+	{ // [3]
 		"Histogram: possible query nr 1",
 		`{
     "_source": {
@@ -698,39 +702,31 @@ var TestsAsyncSearch = []struct {
 		"no comment yet",
 		model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: "30s", I1: 0, I2: 0},
 		[]string{`SELECT toInt64(toUnixTimestamp64Milli(` + "`@timestamp`" + `)/30000), count() FROM "logs-generic-default" WHERE ("message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z'))) AND ("@timestamp">=timestamp_sub(SECOND,900, now64())) GROUP BY toInt64(toUnixTimestamp64Milli(` + "`@timestamp`"},
+		true,
 	},
-	{
+	{ // [4]
 		"Histogram: possible query nr 2",
 		`{
 	"size":0,
-	"query":
-	{
-		"range":
-		{
-			"@timestamp":
-			{
+	"query": {
+		"range": {
+			"@timestamp": {
 				"gt": "2024-01-25T14:53:59.033Z",
 				"lte": "2024-01-25T15:08:59.033Z",
 				"format": "strict_date_optional_time"
 			}
 		}
 	},
-	"aggs":
-	{
-		"stats":
-		{
-			"terms":
-			{
+	"aggs": {
+		"stats": {
+			"terms": {
 				"field": "event.dataset",
 				"size": 4,
 				"missing": "unknown"
 			},
-			"aggs":
-			{
-				"series":
-				{
-					"date_histogram":
-					{
+			"aggs": {
+				"series": {
+					"date_histogram": {
 						"field": "@timestamp",
 						"fixed_interval": "60s"
 					}
@@ -744,8 +740,9 @@ var TestsAsyncSearch = []struct {
 		"no comment yet",
 		model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: fmt.Sprintf("%ds", int(oneMinute.Seconds())), I1: 0, I2: 0},
 		[]string{fmt.Sprintf(`SELECT toInt64(toUnixTimestamp64Milli(`+"`@timestamp`"+`)/%d), count() FROM "logs-generic-default" WHERE ("@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z')) AND ("@timestamp">=timestamp_sub(SECOND,900, now64())) GROUP BY toInt64(toUnixTimestamp64Milli(`+"`@timestamp`)/%d)", oneMinute.Milliseconds(), oneMinute.Milliseconds())},
+		true,
 	},
-	{
+	{ // [5]
 		"Earliest/latest timestamp",
 		`{
 			"aggs": {
@@ -828,6 +825,7 @@ var TestsAsyncSearch = []struct {
 			`SELECT "@timestamp" FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' ORDER BY ` + "`@timestamp` ASC LIMIT 1",
 			`SELECT "@timestamp" FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' ORDER BY ` + "`@timestamp` DESC LIMIT 1",
 		},
+		true,
 	},
 }
 
