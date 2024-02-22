@@ -562,7 +562,7 @@ func (cw *ClickhouseQueryTranslator) isItHistogramRequest(queryMap QueryMap) (mo
 		if fixedInterval, exists := queryMap["fixed_interval"]; exists {
 			return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: fixedInterval.(string), I1: 0, I2: 0}, true
 		}
-		if calendarInterval, exists := queryMap["fixed_interval"]; exists {
+		if calendarInterval, exists := queryMap["calendar_interval"]; exists {
 			return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: calendarInterval.(string), I1: 0, I2: 0}, true
 		}
 
