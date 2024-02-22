@@ -118,7 +118,7 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 		copyHeaders(w, elkResponse)
 		sendElkResponseToQuesmaConsole(ctx, elkResponse, quesmaManagementConsole)
 
-		if isEnabled(req.URL.Path, config) && (routes.IsIndexAsyncSearchPath(req.URL.Path) || routes.IsIndexSearchPath(req.URL.Path)) && err == nil {
+		if err == nil {
 			logger.Debug().Ctx(ctx).Msg("responding from quesma")
 			unzipped := []byte(quesmaResponse)
 			if string(unzipped) != "" {
@@ -126,15 +126,13 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 				w.WriteHeader(elkResponse.StatusCode)
 				responseFromQuesma(ctx, unzipped, w, elkResponse)
 			} else {
-				logger.Error().Ctx(ctx).Msg("Empty response from Quesma, responding from Elastic")
+				logger.Warn().Ctx(ctx).Str("url", req.URL.Path).Msg("Empty response from Quesma, responding from Elastic")
 				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 				w.WriteHeader(elkResponse.StatusCode)
 				responseFromElastic(ctx, elkResponse, w)
 			}
 		} else {
-			if err != nil {
-				logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from Elastic", err)
-			}
+			logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from Elastic", err)
 			w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 			w.WriteHeader(elkResponse.StatusCode)
 			responseFromElastic(ctx, elkResponse, w)
@@ -198,14 +196,6 @@ func peekBody(r *http.Request) ([]byte, error) {
 	}
 	r.Body = io.NopCloser(bytes.NewBuffer(reqBody))
 	return reqBody, nil
-}
-
-func isEnabled(path string, configuration config.QuesmaConfiguration) bool {
-	if indexConfig, found := configuration.GetIndexConfig(strings.Split(path, "/")[1]); found {
-		return indexConfig.Enabled
-	} else {
-		return false
-	}
 }
 
 func copyHeaders(w http.ResponseWriter, elkResponse *http.Response) {
