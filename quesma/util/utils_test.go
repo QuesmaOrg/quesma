@@ -560,6 +560,11 @@ func TestIsSqlEqual(t *testing.T) {
 			`SELECT count() FROM add-this WHERE \"timestamp\">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND \"timestamp\"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
 			true,
 		},
+		{
+			`SELECT count() FROM "logs-generic-default" WHERE ("FlightDelay" == true AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) AND ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
+			`SELECT count() FROM "logs-generic-default" WHERE ("FlightDelay" == true AND (("timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') AND "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')) OR ("timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z')))) AND ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
+			true,
+		},
 	}
 	for i, tt := range cases {
 		t.Run("TestIsSqlEqual_"+strconv.Itoa(i)+": "+tt.sql1+", "+tt.sql2, func(t *testing.T) {

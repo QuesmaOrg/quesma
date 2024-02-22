@@ -341,30 +341,29 @@ func IsSqlEqual(expected, actual string) bool {
 	if len(expected) != len(actual) {
 		return false
 	}
-	split1 := strings.Split(expected, " ")
-	split2 := strings.Split(actual, " ")
-	if len(split1) != len(split2) {
+	splitExpected := strings.Split(expected, " ")
+	splitActual := strings.Split(actual, " ")
+	if len(splitExpected) != len(splitActual) {
 		return false
 	}
-	for i := 0; i < len(split1); i++ {
-		if split1[i] != split2[i] {
+	for i := 0; i < len(splitExpected); i++ {
+		if splitExpected[i] != splitActual[i] {
 			// we try to change A OR/AND B into B OR/AND A
-			if i+2 >= len(split1) {
+			if i+2 >= len(splitExpected) || splitExpected[i+1] != splitActual[i+1] || (splitExpected[i+1] != "OR" && splitExpected[i+1] != "AND") {
 				return false
 			}
 
 			// we compare a X b with c Y d
-			a, b := split1[i], split1[i+2]
-			c, d := split2[i], split2[i+2]
+			a, b := splitExpected[i], splitExpected[i+2]
+			c, d := splitActual[i], splitActual[i+2]
 			if a == d && b == c {
 				i += 2
 				continue
 			}
-			if split1[i+1] != split2[i+1] || (split1[i+1] != "OR" && split1[i+1] != "AND") || len(a) != len(d) || len(b) != len(c) {
-				return false
-			}
-			aTrimmed, cTrimmed := strings.TrimLeft(a, "("), strings.TrimLeft(c, "(")
-			bTrimmed, dTrimmed := strings.TrimRight(b, ")"), strings.TrimRight(d, ")")
+			aTrimmed := strings.TrimRight(strings.TrimLeft(a, "("), ")")
+			bTrimmed := strings.TrimRight(strings.TrimLeft(b, "("), ")")
+			cTrimmed := strings.TrimRight(strings.TrimLeft(c, "("), ")")
+			dTrimmed := strings.TrimRight(strings.TrimLeft(d, "("), ")")
 			if aTrimmed != dTrimmed || bTrimmed != cTrimmed {
 				return false
 			}
