@@ -27,7 +27,7 @@ const (
 	elasticsearchBaseUrl       = "http://localhost:9201"
 	elasticIndexCountUrl       = "http://localhost:9201/logs-generic-default/_count"
 	quesmaIndexCountUrl        = "http://localhost:9200/logs-generic-default/_count"
-	asyncQueryUrl              = "http://localhost:8080/logs-generic-default/_async_search?pretty"
+	asyncQueryUrl              = "http://localhost:8080/logs-*/_async_search?pretty"
 	kibanaLogExplorerMainUrl   = "http://localhost:5601/app/observability-log-explorer/?controlPanels=(data_stream.namespace:(explicitInput:(fieldName:data_stream.namespace,id:data_stream.namespace,title:Namespace),grow:!f,order:0,type:optionsListControl,width:medium))&_a=(columns:!(service.name,host.name,message),filters:!(),grid:(columns:(host.name:(width:320),service.name:(width:240))),index:BQZwpgNmDGAuCWB7AdgFQJ4AcwC4CGEEAlEA,interval:auto,query:(language:kuery,query:%27%27),rowHeight:0,sort:!(!(%27@timestamp%27,desc)))&_g=(filters:!(),refreshInterval:(pause:!t,value:60000),time:(from:now-15m,to:now))"
 	kibanaLogInternalUrl       = "http://localhost:5601/internal/controls/optionsList/logs-*-*"
 )
@@ -400,10 +400,6 @@ func waitForLogs() {
 	waitForLogsInElasticsearchRaw("quesma", quesmaIndexCountUrl)
 }
 
-func waitForAsyncQuery() {
-	waitForAsyncQueryRaw("async query", asyncQueryUrl)
-}
-
 func waitForLogsInElasticsearchRaw(serviceName, url string) {
 	res := waitFor(serviceName, func() bool {
 		resp, err := http.Get(url)
@@ -431,9 +427,10 @@ func waitForLogsInElasticsearchRaw(serviceName, url string) {
 	}
 }
 
-func waitForAsyncQueryRaw(serviceName, url string) {
+func waitForAsyncQuery() {
+	serviceName := "async query"
 	res := waitFor(serviceName, func() bool {
-		resp, err := http.Post(url, "application/json", bytes.NewBuffer([]byte(query)))
+		resp, err := http.Post(asyncQueryUrl, "application/json", bytes.NewBuffer([]byte(query)))
 
 		if err == nil {
 			defer resp.Body.Close()
@@ -442,8 +439,13 @@ func waitForAsyncQueryRaw(serviceName, url string) {
 				if err == nil {
 					var response map[string]interface{}
 					_ = json.Unmarshal(body, &response)
+
 					if response["completion_time_in_millis"] != nil {
-						return true
+						if sourceClickhouse(resp) {
+							return true
+						} else {
+							panic("invalid X-Quesma-Source header value")
+						}
 					}
 				} else {
 					log.Println(err)
@@ -456,6 +458,19 @@ func waitForAsyncQueryRaw(serviceName, url string) {
 	if !res {
 		panic(serviceName + " is not alive or is not receiving logs")
 	}
+}
+
+func headerExists(headers http.Header, key string, value string) bool {
+	for _, val := range headers[key] {
+		if val == value {
+			return true
+		}
+	}
+	return false
+}
+
+func sourceClickhouse(resp *http.Response) bool {
+	return headerExists(resp.Header, "X-Quesma-Source", "Clickhouse")
 }
 
 func waitForKibanaLogExplorer(serviceName string) {
