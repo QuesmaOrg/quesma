@@ -21,7 +21,14 @@ import (
 	"time"
 )
 
-const httpHeaderContentLength = "Content-Length"
+const (
+	httpHeaderContentLength = "Content-Length"
+)
+const (
+	quesmaSourceHeader  = "X-Quesma-Source"
+	quesmaSourceElastic = "Elasticsearch"
+	quesmaSourceQuesma  = "Quesma"
+)
 
 type (
 	Quesma struct {
@@ -109,15 +116,36 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 		})
 		elkResponse := <-elkResponseChan
 		copyHeaders(w, elkResponse)
-		copyStatusCode(w, elkResponse)
 		sendElkResponseToQuesmaConsole(ctx, elkResponse, quesmaManagementConsole)
-		copyBody(w, req, err, ctx, quesmaResponse, elkResponse, config)
+
+		if isEnabled(req.URL.Path, config) && (routes.IsIndexAsyncSearchPath(req.URL.Path) || routes.IsIndexSearchPath(req.URL.Path)) && err == nil {
+			logger.Debug().Ctx(ctx).Msg("responding from quesma")
+			unzipped := []byte(quesmaResponse)
+			if string(unzipped) != "" {
+				w.Header().Set(quesmaSourceHeader, quesmaSourceQuesma)
+				w.WriteHeader(elkResponse.StatusCode)
+				responseFromQuesma(ctx, unzipped, w, elkResponse)
+			} else {
+				logger.Error().Ctx(ctx).Msg("Empty response from Quesma, responding from Elastic")
+				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
+				w.WriteHeader(elkResponse.StatusCode)
+				responseFromElastic(ctx, elkResponse, w)
+			}
+		} else {
+			if err != nil {
+				logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from Elastic", err)
+			}
+			w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
+			w.WriteHeader(elkResponse.StatusCode)
+			responseFromElastic(ctx, elkResponse, w)
+		}
 	} else {
 		response := recordRequestToElastic(req.URL.Path, quesmaManagementConsole, func() *http.Response {
 			return sendHttpRequest(ctx, config.ElasticsearchUrl.String(), req, reqBody)
 		})
 		copyHeaders(w, response)
-		copyStatusCode(w, response)
+		w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
+		w.WriteHeader(response.StatusCode)
 		responseFromElastic(ctx, response, w)
 	}
 }
@@ -178,28 +206,6 @@ func isEnabled(path string, configuration config.QuesmaConfiguration) bool {
 	} else {
 		return false
 	}
-}
-
-func copyBody(w http.ResponseWriter, r *http.Request, err error, ctx context.Context, quesmaResponse string, elkResponse *http.Response, configuration config.QuesmaConfiguration) {
-	if isEnabled(r.URL.Path, configuration) && (routes.IsIndexAsyncSearchPath(r.URL.Path) || routes.IsIndexSearchPath(r.URL.Path)) && err == nil {
-		logger.Debug().Ctx(ctx).Msg("responding from quesma")
-		unzipped := []byte(quesmaResponse)
-		if string(unzipped) != "" {
-			responseFromQuesma(ctx, unzipped, w, elkResponse)
-		} else {
-			logger.Error().Ctx(ctx).Msg("Empty response from Quesma, responding from Elastic")
-			responseFromElastic(ctx, elkResponse, w)
-		}
-	} else {
-		if err != nil {
-			logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from Elastic", err)
-		}
-		responseFromElastic(ctx, elkResponse, w)
-	}
-}
-
-func copyStatusCode(w http.ResponseWriter, elkResponse *http.Response) {
-	w.WriteHeader(elkResponse.StatusCode)
 }
 
 func copyHeaders(w http.ResponseWriter, elkResponse *http.Response) {
