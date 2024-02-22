@@ -41,6 +41,7 @@ services:
     network_mode: "bridge"
     environment:
       ELASTICSEARCH_HOSTS: '["http://mitmproxy:6666"]'
+      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTION_KEY: 'QUESMA' # Just to get rid of annoying ERROR in logs
     depends_on:
       elasticsearch:
         condition: service_healthy
