@@ -25,9 +25,9 @@ const (
 	httpHeaderContentLength = "Content-Length"
 )
 const (
-	quesmaSourceHeader  = "X-Quesma-Source"
-	quesmaSourceElastic = "Elasticsearch"
-	quesmaSourceQuesma  = "Quesma"
+	quesmaSourceHeader     = "X-Quesma-Source"
+	quesmaSourceElastic    = "Elasticsearch"
+	quesmaSourceClickhouse = "Clickhouse"
 )
 
 type (
@@ -122,7 +122,7 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 			logger.Debug().Ctx(ctx).Msg("responding from quesma")
 			unzipped := []byte(quesmaResponse)
 			if string(unzipped) != "" {
-				w.Header().Set(quesmaSourceHeader, quesmaSourceQuesma)
+				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
 				w.WriteHeader(elkResponse.StatusCode)
 				responseFromQuesma(ctx, unzipped, w, elkResponse)
 			} else {
