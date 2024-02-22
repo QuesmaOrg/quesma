@@ -72,6 +72,7 @@ services:
     network_mode: "bridge"
     ports:
       - "8123:8123"
+      - "9000:9000"
     volumes:
       - ./clickhouse/additional_config.xml:/etc/clickhouse-server/users.d/additional_config.xml
     healthcheck:

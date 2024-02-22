@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	_ "github.com/mailru/go-clickhouse"
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"mitmproxy/quesma/index"
 	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
@@ -72,13 +72,9 @@ func (lm *LogManager) Close() {
 
 func (lm *LogManager) initConnection() error {
 	if lm.chDb == nil {
-		connection, err := sql.Open("clickhouse", lm.chUrl.String())
-		if err != nil {
-			return fmt.Errorf("open >> %v", err)
-		}
-		lm.chDb = connection
+		lm.chDb = clickhouse.OpenDB(&clickhouse.Options{Addr: []string{lm.chUrl.Host}})
 	}
-	return nil
+	return lm.chDb.Ping()
 }
 
 func (lm *LogManager) matchIndex(indexNamePattern, indexName string) bool {
@@ -166,12 +162,8 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 }
 
 func (lm *LogManager) sendCreateTableQuery(query string) error {
-	if lm.chDb == nil {
-		connection, err := sql.Open("clickhouse", lm.chUrl.String())
-		if err != nil {
-			return fmt.Errorf("open >> %v", err)
-		}
-		lm.chDb = connection
+	if err := lm.initConnection(); err != nil {
+		return err
 	}
 	if _, err := lm.chDb.Exec(query); err != nil {
 		return fmt.Errorf("error in sendCreateTableQuery: query: %s\nerr:%v", query, err)
@@ -334,12 +326,8 @@ func (lm *LogManager) ProcessInsertQuery(tableName string, jsonData []string) er
 }
 
 func (lm *LogManager) Insert(tableName string, jsons []string, config *ChTableConfig) error {
-	if lm.chDb == nil {
-		connection, err := sql.Open("clickhouse", lm.chUrl.String())
-		if err != nil {
-			logger.Error().Msgf("Open >> %v", err)
-		}
-		lm.chDb = connection
+	if err := lm.initConnection(); err != nil {
+		return err
 	}
 
 	var jsonsReadyForInsertion []string
@@ -358,7 +346,7 @@ func (lm *LogManager) Insert(tableName string, jsons []string, config *ChTableCo
 
 	_, err := lm.chDb.Exec(insert)
 	if err != nil {
-		return fmt.Errorf("error on Insert, tablename: [%s]\nerror: [%v]\nexact statement:[%s]", tableName, err, insert)
+		return fmt.Errorf("error on Insert, tablename: [%s]\nerror: [%v]", tableName, err)
 	} else {
 		return nil
 	}
@@ -399,11 +387,7 @@ func (lm *LogManager) addSchemaIfDoesntExist(table *Table) bool {
 }
 
 func NewLogManager(dbUrl *url.URL, predefined, newRuntime TableMap) *LogManager {
-	db, err := sql.Open("clickhouse", dbUrl.String())
-	if err != nil {
-		logger.Fatal().Msg(err.Error())
-	}
-	return &LogManager{chUrl: dbUrl, chDb: db, predefinedTables: predefined, newRuntimeTables: newRuntime}
+	return &LogManager{chUrl: dbUrl, chDb: nil, predefinedTables: predefined, newRuntimeTables: newRuntime}
 }
 
 // right now only for tests purposes

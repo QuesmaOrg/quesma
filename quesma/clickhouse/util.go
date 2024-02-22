@@ -36,12 +36,8 @@ func (lm *LogManager) DumpTableSchema(tableName string) (*Table, error) {
 }
 
 func (lm *LogManager) DumpTableSchemas() (string, error) {
-	if lm.chDb == nil {
-		connection, err := sql.Open("clickhouse", lm.chUrl.String())
-		if err != nil {
-			return "", err
-		}
-		lm.chDb = connection
+	if err := lm.initConnection(); err != nil {
+		return "", err
 	}
 
 	rows, err := lm.chDb.Query("SHOW TABLES")

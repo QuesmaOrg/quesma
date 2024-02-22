@@ -105,8 +105,7 @@ func (lm *LogManager) ProcessNMostRecentRowsQuery(query *model.Query) ([]model.Q
 }
 
 func (lm *LogManager) ProcessHistogramQuery(query *model.Query, bucket time.Duration) ([]model.QueryResultRow, error) {
-	err := lm.initConnection()
-	if err != nil {
+	if err := lm.initConnection(); err != nil {
 		return nil, err
 	}
 	rows, err := lm.chDb.Query(query.String())
@@ -165,8 +164,7 @@ func (lm *LogManager) ProcessFacetsQuery(query *model.Query) ([]model.QueryResul
 // TODO add support for autocomplete for attributes, if we'll find it needed
 // With autocomplete, I assume field is a string, so we can use iLIKE
 func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(query *model.Query) ([]model.QueryResultRow, error) {
-	err := lm.initConnection()
-	if err != nil {
+	if err := lm.initConnection(); err != nil {
 		return nil, err
 	}
 	rowsDB, err := lm.chDb.Query(strings.Replace(query.String(), "SELECT", "SELECT DISTINCT", 1))
@@ -178,8 +176,7 @@ func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(query *model.Query) ([
 }
 
 func (lm *LogManager) ProcessTimestampQuery(query *model.Query) ([]model.QueryResultRow, error) {
-	err := lm.initConnection()
-	if err != nil {
+	if err := lm.initConnection(); err != nil {
 		return nil, err
 	}
 	rows, err := lm.chDb.Query(query.String())

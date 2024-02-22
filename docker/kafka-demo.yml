@@ -7,7 +7,7 @@ services:
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - TCP_PORT=8080
       - LOGS_PATH=/var/quesma/logs
-      - CLICKHOUSE_URL=http://clickhouse:8123
+      - CLICKHOUSE_URL=clickhouse://clickhouse:9000
     depends_on:
       clickhouse:
         condition: service_healthy
@@ -110,6 +110,7 @@ services:
     image: clickhouse/clickhouse-server:23.12.2.59-alpine
     ports:
       - "8123:8123"
+      - "9000:9000"
     volumes:
       - ./clickhouse/additional_config.xml:/etc/clickhouse-server/users.d/additional_config.xml
     healthcheck:

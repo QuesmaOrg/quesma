@@ -1,5 +1,7 @@
 package clickhouse
 
+import "reflect"
+
 var NewRuntimeSchemas = make(TableMap)
 
 // A solution for now to remember tables. Didn't want to bother with config files at POC stage.
@@ -11,30 +13,30 @@ var PredefinedTableSchemas = TableMap{
 		Database: "",
 		Cluster:  "",
 		Cols: map[string]*Column{
-			"event_name":                      lowCardinalityString("event_name"),
-			"event_section":                   lowCardinalityString("event_section"),
-			"dedup_id":                        genericString("dedup_id"),
-			"user_id":                         genericString("user_id"),
-			"client_id":                       genericString("client_id"),
-			"client_ip":                       genericString("client_ip"),
-			"timestamps::topology_entry_time": genericString("timestamps::topology_entry_time"),
-			"ts_day":                          lowCardinalityString("ts_day"),
-			"et_day":                          genericString("et_day"),
-			"et_day_hour":                     genericString("et_day_hour"),
-			"ts_day_hour":                     genericString("ts_day_hour"),
-			"ts_time_druid":                   dateTime("ts_time_druid"), // TODO TZ
-			"epoch_time_original":             int64CH("epoch_time_original"),
-			"epoch_time":                      dateTime("epoch_time"), // TODO TZ
-			//"properties::isreg":                       boolean("properties::isreg"), // TODO - Boolean is not supported by Go's stdlib SQL parser
-			"properties::enriched_client_ip":             genericString("properties::enriched_client_ip"),
-			"properties::enriched_app_id":                genericString("properties::enriched_app_id"),
-			"properties::enriched_user_id":               genericString("properties::enriched_user_id"),
-			"properties::app_id":                         genericString("properties::app_id"),
-			"properties::server_loc":                     genericString("properties::server_loc"),
-			"properties::pv_event":                       lowCardinalityString("properties::pv_event"),
-			"properties::ab_NewsStickyType":              lowCardinalityString("properties::ab_NewsStickyType"),
-			"properties::signed_state":                   lowCardinalityString("properties::signed_state"),
-			"properties::country_detection_mechanism":    lowCardinalityString("properties::country_detection_mechanism"),
+			"event_name":                              lowCardinalityString("event_name"),
+			"event_section":                           lowCardinalityString("event_section"),
+			"dedup_id":                                genericString("dedup_id"),
+			"user_id":                                 genericString("user_id"),
+			"client_id":                               genericString("client_id"),
+			"client_ip":                               genericString("client_ip"),
+			"timestamps::topology_entry_time":         genericString("timestamps::topology_entry_time"),
+			"ts_day":                                  lowCardinalityString("ts_day"),
+			"et_day":                                  genericString("et_day"),
+			"et_day_hour":                             genericString("et_day_hour"),
+			"ts_day_hour":                             genericString("ts_day_hour"),
+			"ts_time_druid":                           dateTime("ts_time_druid"), // TODO TZ
+			"epoch_time_original":                     int64CH("epoch_time_original"),
+			"epoch_time":                              dateTime("epoch_time"), // TODO TZ
+			"properties::isreg":                       boolean("properties::isreg"),
+			"properties::enriched_client_ip":          genericString("properties::enriched_client_ip"),
+			"properties::enriched_app_id":             genericString("properties::enriched_app_id"),
+			"properties::enriched_user_id":            genericString("properties::enriched_user_id"),
+			"properties::app_id":                      genericString("properties::app_id"),
+			"properties::server_loc":                  genericString("properties::server_loc"),
+			"properties::pv_event":                    lowCardinalityString("properties::pv_event"),
+			"properties::ab_NewsStickyType":           lowCardinalityString("properties::ab_NewsStickyType"),
+			"properties::signed_state":                lowCardinalityString("properties::signed_state"),
+			"properties::country_detection_mechanism": lowCardinalityString("properties::country_detection_mechanism"),
 			"properties::enriched_user_language_primary": lowCardinalityString("properties::enriched_user_language_primary"),
 			"properties::selected_country":               lowCardinalityString("properties::selected_country"),
 			"properties::user_os_name":                   lowCardinalityString("properties::user_os_name"),
@@ -82,13 +84,13 @@ func genericString(name string) *Column {
 	}
 }
 
-//func boolean(name string) *Column {
-//	return &Column{
-//		Name:      name,
-//		Type:      BaseType{Name: "Bool", goType: reflect.TypeOf(true)},
-//		Modifiers: "",
-//	}
-//}
+func boolean(name string) *Column {
+	return &Column{
+		Name:      name,
+		Type:      BaseType{Name: "Bool", goType: reflect.TypeOf(true)},
+		Modifiers: "",
+	}
+}
 
 func lowCardinalityString(name string) *Column {
 	return &Column{
