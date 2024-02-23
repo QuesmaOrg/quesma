@@ -3,6 +3,7 @@ package quesma
 import (
 	"context"
 	"errors"
+	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
@@ -32,8 +33,9 @@ func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *cli
 		translatedQueryBody = []byte(fullQuery.String())
 		rows, err := queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(fullQuery)
 		if err != nil {
-			logger.Error().Str(logger.RID, id).Msgf("Error processing query: %s, err: %s", fullQuery.String(), err.Error())
-			responseBody = []byte("Error processing query: " + fullQuery.String() + ", err: " + err.Error())
+			errorMsg := fmt.Sprintf("Error processing query: %s, err: %s", fullQuery.String(), err.Error())
+			logger.ErrorWithCtx(ctx).Msg(errorMsg)
+			responseBody = []byte(errorMsg)
 			quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 				Id:                     id,
 				IncomingQueryBody:      body,
@@ -45,7 +47,7 @@ func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *cli
 		}
 		responseBody, err = queryparser.MakeResponseSearchQuery(rows, queryInfo)
 		if err != nil {
-			logger.Error().Str(logger.RID, id).Msgf(err.Error(), "rows: ", rows)
+			logger.ErrorWithCtx(ctx).Msgf("Error making response: %v rows: %v", err, rows)
 			quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 				Id:                     id,
 				IncomingQueryBody:      body,
@@ -57,6 +59,7 @@ func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *cli
 		}
 	} else {
 		responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
+		logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(string(responseBody))
 		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 			Id:                     id,
 			IncomingQueryBody:      body,
@@ -77,10 +80,10 @@ func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *cli
 	return responseBody, nil
 }
 
-func createAsyncSearchResponseHitJson(requestId string, rows []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+func createAsyncSearchResponseHitJson(ctx context.Context, rows []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
 	responseBody, err := queryparser.MakeResponseAsyncSearchQuery(rows, typ)
 	if err != nil {
-		logger.Error().Str(logger.RID, requestId).Msgf("%v rows: %v", err, rows)
+		logger.ErrorWithCtx(ctx).Msgf("%v rows: %v", err, rows)
 		return nil, err
 	}
 	return responseBody, nil
@@ -121,23 +124,23 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 			fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, true)
 			rowsEarliest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
 			if err != nil {
-				logger.Error().Str(logger.RID, id).Msgf("Rows: %+v, err: %+v", rowsEarliest, err)
+				logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rowsEarliest, err)
 			}
 			fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, false)
 			rowsLatest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
 			rows = append(rowsEarliest, rowsLatest...)
 		}
 		if err != nil {
-			logger.Error().Str(logger.RID, id).Msgf("Rows: %+v, err: %+v", rows, err)
+			logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rows, err)
 		}
-		responseBody, err = createAsyncSearchResponseHitJson(id, rows, queryInfo.Typ)
+		responseBody, err = createAsyncSearchResponseHitJson(ctx, rows, queryInfo.Typ)
 		if err != nil {
 			return responseBody, err
 		}
 		if fullQuery != nil {
 			translatedQueryBody = []byte(fullQuery.String())
 		} else {
-			logger.Error().Str(logger.RID, id).Msgf("fullQuery is nil")
+			logger.ErrorWithCtx(ctx).Msgf("fullQuery is nil")
 			return responseBody, errors.New("fullQuery is nil")
 		}
 	} else {

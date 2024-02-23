@@ -1,10 +1,13 @@
 package logger
 
 import (
+	"context"
 	"fmt"
 	"github.com/rs/zerolog"
 	"io"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/stats/errorstats"
+	"mitmproxy/quesma/tracing"
 	"os"
 	"time"
 )
@@ -19,7 +22,10 @@ var (
 	ErrLogFile *os.File
 )
 
-const RID = "request_id" // request id key for the logger
+const (
+	RID    = "request_id" // request id key for the logger
+	Reason = "reason"     // Known error reason key for the logger
+)
 
 var logger zerolog.Logger
 
@@ -41,6 +47,9 @@ func InitLogger(cfg config.QuesmaConfiguration) <-chan string {
 		Timestamp().
 		Caller().
 		Logger()
+
+	globalError := errorstats.GlobalErrorHook{}
+	logger = logger.Hook(&globalError)
 
 	logger.Info().Msg("Logger initialized")
 	return logChannel
@@ -80,6 +89,21 @@ func Warn() *zerolog.Event {
 
 func Error() *zerolog.Event {
 	return logger.Error()
+}
+
+func ErrorWithCtx(ctx context.Context) *zerolog.Event {
+	event := logger.Error().Ctx(ctx)
+	if requestId, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
+		event = event.Str(RID, requestId)
+	}
+	if reason, ok := ctx.Value(tracing.ReasonCtxKey).(string); ok {
+		event = event.Str(Reason, reason)
+	}
+	return event
+}
+
+func ErrorWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
+	return ErrorWithCtx(context.WithValue(ctx, tracing.ReasonCtxKey, reason))
 }
 
 func Fatal() *zerolog.Event {

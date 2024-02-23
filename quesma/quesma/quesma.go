@@ -47,6 +47,7 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Elasticsearch")
 	if _, err := io.Copy(w, elkResponse.Body); err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("Error copying response body: %v", err)
 		http.Error(w, "Error copying response body", http.StatusInternalServerError)
 		return
 	}
@@ -59,7 +60,7 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 	if gzip.IsGzipped(elkResponse) {
 		zipped, err := gzip.Zip(unzipped)
 		if err != nil {
-			logger.Error().Str(logger.RID, id).Msgf("Error zipping: %v", err)
+			logger.ErrorWithCtx(ctx).Msgf("Error zipping: %v", err)
 		}
 		w.Header().Add(httpHeaderContentLength, strconv.Itoa(len(zipped)))
 		_, _ = io.Copy(w, bytes.NewBuffer(zipped))
@@ -74,14 +75,15 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, elkResponse *http.Respo
 	body, err := io.ReadAll(reader)
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	if err != nil {
-		logger.Fatal().Str(logger.RID, id).Msg(err.Error())
+		logger.ErrorWithCtx(ctx).Msgf("Error reading response body: %v", err)
+		return
 	}
 	elkResponse.Body = io.NopCloser(bytes.NewBuffer(body))
 
 	if gzip.IsGzipped(elkResponse) {
 		body, err = gzip.UnZip(body)
 		if err != nil {
-			logger.Error().Str(logger.RID, id).Msgf("Error unzipping: %v", err)
+			logger.ErrorWithCtx(ctx).Msgf("Error unzipping: %v", err)
 		}
 	}
 	console.PushPrimaryInfo(&ui.QueryDebugPrimarySource{Id: id, QueryResp: body})
@@ -160,7 +162,7 @@ func sendHttpRequestToElastic(ctx context.Context, config config.QuesmaConfigura
 }
 
 func isResponseOk(resp *http.Response) bool {
-	return resp.StatusCode >= 200 && resp.StatusCode < 500
+	return resp != nil && resp.StatusCode >= 200 && resp.StatusCode < 500
 }
 
 func isIngest(path string) bool {
@@ -192,6 +194,8 @@ func recordRequestToElastic(path string, qmc *ui.QuesmaManagementConsole, reques
 func peekBody(r *http.Request) ([]byte, error) {
 	reqBody, err := io.ReadAll(r.Body)
 	if err != nil {
+		logger.ErrorWithCtxAndReason(r.Context(), "incomplete request").
+			Msgf("Error reading request body: %v", err)
 		return nil, err
 	}
 	r.Body = io.NopCloser(bytes.NewBuffer(reqBody))
@@ -228,10 +232,9 @@ func (q *Quesma) Start() {
 }
 
 func sendHttpRequest(ctx context.Context, address string, originalReq *http.Request, originalReqBody []byte) *http.Response {
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	req, err := http.NewRequestWithContext(ctx, originalReq.Method, address+originalReq.URL.String(), bytes.NewBuffer(originalReqBody))
 	if err != nil {
-		logger.Error().Str(logger.RID, id).Msgf("Error creating request: %v", err)
+		logger.ErrorWithCtx(ctx).Msgf("Error creating request: %v", err)
 		return nil
 	}
 
@@ -239,7 +242,8 @@ func sendHttpRequest(ctx context.Context, address string, originalReq *http.Requ
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		logger.Error().Str(logger.RID, id).Msgf("Error sending request: %v", err)
+		logger.ErrorWithCtxAndReason(ctx, "No network connection").
+			Msgf("Error sending request: %v", err)
 		return nil
 	}
 

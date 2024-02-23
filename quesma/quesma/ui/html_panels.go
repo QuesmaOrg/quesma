@@ -8,7 +8,9 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/stats"
+	"mitmproxy/quesma/stats/errorstats"
 	"mitmproxy/quesma/util"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -255,19 +257,25 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	uptimeStr := ""
 	h, errH := host.Info()
 	if errH == nil {
-		uptimeStr = fmt.Sprintf("Uptime: %s", secondsToTerseString(h.Uptime))
+		uptimeStr = fmt.Sprintf("Host uptime: %s", secondsToTerseString(h.Uptime))
 	} else {
-		uptimeStr = fmt.Sprintf("Uptime: N/A (error: %s)", errH.Error())
+		uptimeStr = fmt.Sprintf("Host uptime: N/A (error: %s)", errH.Error())
 	}
 	buffer.WriteString(fmt.Sprintf(`<div class="status">%s</div>`, uptimeStr))
 	buffer.WriteString(fmt.Sprintf(`<div class="status">Mode: %s</div>`, qmc.config.Mode.String()))
 	buffer.WriteString(`</div>`)
 
 	buffer.WriteString(`<div id="dashboard-errors" class="component">`)
-	buffer.WriteString(`<h3>Top errors:</h3>`)
-	buffer.WriteString(`<div class="status">7: Unknown error</div>`)
-	buffer.WriteString(`<div class="status">2: Parsing error</div>`)
-	buffer.WriteString(`<div class="status">1: Request out of bound</div>`)
+	errors := errorstats.GlobalErrorStatistics.ReturnTopErrors(5)
+	if len(errors) > 0 {
+		buffer.WriteString(`<h3>Top errors:</h3>`)
+		for _, e := range errors {
+			buffer.WriteString(fmt.Sprintf(`<div class="status">%d: <a href="/error/%s">%s</a></div>`,
+				e.Count, url.PathEscape(e.Reason), e.Reason))
+		}
+	} else {
+		buffer.WriteString(`<h3>No errors</h3>`)
+	}
 	buffer.WriteString(`</div>`)
 	buffer.WriteString(`</div>`)
 

@@ -3,11 +3,13 @@ package quesma
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/stats"
+	errorstats "mitmproxy/quesma/stats/errorstats"
 	"mitmproxy/quesma/util"
 	"regexp"
 	"strings"
@@ -20,7 +22,6 @@ type DocumentTarget struct {
 }
 
 func dualWriteBulk(ctx context.Context, optionalTableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
-	_ = ctx
 	if config.TrafficAnalysis.Load() {
 		logger.Info().Msgf("analysing traffic, not writing to Clickhouse %s", optionalTableName)
 		return
@@ -42,7 +43,8 @@ func dualWriteBulk(ctx context.Context, optionalTableName string, body string, l
 		}
 		index := getTargetIndex(operation)
 		if index == "" {
-			logger.Error().Msgf("Invalid index name in _bulk: %s", operationDef)
+			logger.ErrorWithCtxAndReason(ctx, "no index name in _bulk").
+				Msgf("Invalid index name in _bulk: %s", operationDef)
 			continue
 		}
 
@@ -61,15 +63,21 @@ func dualWriteBulk(ctx context.Context, optionalTableName string, body string, l
 		} else if _, ok = operation["index"]; ok {
 			indicesWithDocumentsToInsert[index] = append(indicesWithDocumentsToInsert[index], document)
 		} else if _, ok = operation["update"]; ok {
+			errorstats.GlobalErrorStatistics.RecordKnownError("_bulk update is not supported", nil,
+				"We do not support 'update' in _bulk")
 			logger.Debug().Msg("Not supporting 'update' _bulk.")
 		} else if _, ok = operation["delete"]; ok {
+			errorstats.GlobalErrorStatistics.RecordKnownError("_bulk delete is not supported", nil,
+				"We do not support 'delete' in _bulk")
 			logger.Debug().Msg("Not supporting 'delete' _bulk.")
 		} else {
+			errorstats.GlobalErrorStatistics.RecordUnknownError(nil,
+				"Unexpected operation in _bulk: "+operationDef)
 			logger.Error().Msgf("Invalid JSON with operation definition in _bulk: %s", operationDef)
 		}
 	}
 	for indexName, documents := range indicesWithDocumentsToInsert {
-		withConfiguration(cfg, indexName, "{ BULK_PAYLOAD }", func() error {
+		withConfiguration(ctx, cfg, indexName, "{ BULK_PAYLOAD }", func() error {
 			for _, document := range documents {
 				stats.GlobalStatistics.Process(indexName, document, clickhouse.NestedSeparator)
 			}
@@ -100,22 +108,22 @@ func dualWrite(ctx context.Context, tableName string, body string, lm *clickhous
 		return
 	}
 
-	withConfiguration(cfg, tableName, body, func() error {
+	withConfiguration(ctx, cfg, tableName, body, func() error {
 		return lm.ProcessInsertQuery(tableName, []string{body})
 	})
 }
 
 var insertCounter = atomic.Int32{}
 
-func withConfiguration(cfg config.QuesmaConfiguration, indexName string, body string, action func() error) {
+func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, indexName string, body string, action func() error) {
 	if len(cfg.IndexConfig) == 0 {
 		logger.Info().Msgf("%s  --> clickhouse, body(shortened): %s", indexName, util.Truncate(body))
 		err := action()
 		if err != nil {
-			logger.Fatal().Msg(err.Error())
+			logger.Fatal().Msg("Can't write to index: " + err.Error())
 		}
 	} else {
-		matchingConfig, ok := findMatchingConfig(indexName, cfg)
+		matchingConfig, ok := findMatchingConfig(ctx, indexName, cfg)
 		if !ok {
 			logger.Info().Msgf("index '%s' is not configured, skipping", indexName)
 			return
@@ -127,7 +135,7 @@ func withConfiguration(cfg config.QuesmaConfiguration, indexName string, body st
 			}
 			err := action()
 			if err != nil {
-				logger.Error().Msg(err.Error())
+				logger.ErrorWithCtx(ctx).Msg("Can't write to Clickhouse: " + err.Error())
 			}
 		} else {
 			logger.Info().Msgf("index '%s' is disabled, ignoring", indexName)
@@ -135,10 +143,11 @@ func withConfiguration(cfg config.QuesmaConfiguration, indexName string, body st
 	}
 }
 
-func matches(indexName string, indexNamePattern string) bool {
+func matches(ctx context.Context, indexName string, indexNamePattern string) bool {
 	r, err := regexp.Compile(strings.Replace(indexNamePattern, "*", ".*", -1))
 	if err != nil {
-		logger.Error().Msgf("invalid index name pattern [%s]: %s", indexNamePattern, err)
+		msg := fmt.Sprintf("invalid index name pattern [%s]: %s", indexNamePattern, err)
+		logger.ErrorWithCtxAndReason(ctx, "invalid index name pattern").Msg(msg)
 		return false
 	}
 
@@ -147,13 +156,13 @@ func matches(indexName string, indexNamePattern string) bool {
 
 var matchCounter = atomic.Int32{}
 
-func findMatchingConfig(indexName string, cfg config.QuesmaConfiguration) (config.IndexConfiguration, bool) {
+func findMatchingConfig(ctx context.Context, indexName string, cfg config.QuesmaConfiguration) (config.IndexConfiguration, bool) {
 	matchCounter.Add(1)
 	for _, indexConfig := range cfg.IndexConfig {
 		if matchCounter.Load()%100 == 1 {
 			logger.Debug().Msgf("matching index %s with config: %+v, ctr: %d", indexName, indexConfig.NamePattern, matchCounter.Load())
 		}
-		if matches(indexName, indexConfig.NamePattern) {
+		if matches(ctx, indexName, indexConfig.NamePattern) {
 			if matchCounter.Load()%100 == 1 {
 				logger.Debug().Msgf("  ╚═ matched index %s with config: %+v, ctr: %d", indexName, indexConfig.NamePattern, matchCounter.Load())
 			}

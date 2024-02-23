@@ -9,6 +9,7 @@ type ContextKey string
 
 const (
 	RequestIdCtxKey ContextKey = "RequestId"
+	ReasonCtxKey    ContextKey = "Reason"
 )
 
 var lastRequestId atomic.Int64

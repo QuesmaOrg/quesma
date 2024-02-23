@@ -1,6 +1,7 @@
 package quesma
 
 import (
+	"context"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -34,7 +35,7 @@ func Test_matches(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%s->%s[%v]", tt.args.indexName, tt.args.indexNamePattern, tt.want), func(t *testing.T) {
-			assert.Equalf(t, tt.want, matches(tt.args.indexName, tt.args.indexNamePattern), "matches(%v, %v)", tt.args.indexName, tt.args.indexNamePattern)
+			assert.Equalf(t, tt.want, matches(context.Background(), tt.args.indexName, tt.args.indexNamePattern), "matches(%v, %v)", tt.args.indexName, tt.args.indexNamePattern)
 		})
 	}
 }

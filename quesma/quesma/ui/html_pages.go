@@ -3,6 +3,7 @@ package ui
 import (
 	"bytes"
 	"fmt"
+	"mitmproxy/quesma/stats/errorstats"
 )
 
 func generateTopNavigation(target string) []byte {
@@ -306,6 +307,35 @@ func (qmc *QuesmaManagementConsole) generateReportForRequests(requestStr string)
 	buffer.WriteString(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
 
 	buffer.WriteString("\n</div>")
+	buffer.WriteString("\n</body>")
+	buffer.WriteString("\n</html>")
+
+	return buffer.Bytes()
+}
+
+func (qmc *QuesmaManagementConsole) generateErrorForReason(reason string) []byte {
+	buffer := newBufferWithHead()
+	buffer.WriteString(`<div class="topnav">`)
+	title := fmt.Sprintf("Quesma Errors with reason '%s'", reason)
+	buffer.WriteString("\n<h3>" + title + "</h3>")
+	buffer.WriteString("\n</div>\n\n")
+
+	buffer.WriteString(`<main id="errors">`)
+	errors := errorstats.GlobalErrorStatistics.ErrorReportsForReason(reason)
+	// TODO: Make it nicer
+	for _, errorReport := range errors {
+		buffer.WriteString("<p>" + errorReport.ReportedAt.String() + " " + errorReport.DebugMessage + "</p>\n")
+	}
+	buffer.WriteString("\n</main>\n\n")
+
+	buffer.WriteString(`<div class="menu">`)
+	buffer.WriteString("\n<h2>Menu</h2>")
+
+	buffer.WriteString(`<form action="/dashboard">&nbsp;<input class="btn" type="submit" value="Back to dashboard" /></form>`)
+	// TODO: implement
+	// buffer.WriteString(`<form action="/dashboard">&nbsp;<input class="btn" type="submit" value="See requests with errors" /></form>`)
+	buffer.WriteString("\n</div>")
+
 	buffer.WriteString("\n</body>")
 	buffer.WriteString("\n</html>")
 

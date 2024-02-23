@@ -212,6 +212,11 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		buf := qmc.generateLogForRequestId(vars["requestId"])
 		_, _ = writer.Write(buf)
 	})
+	router.PathPrefix("/error/{reason}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		buf := qmc.generateErrorForReason(vars["reason"])
+		_, _ = writer.Write(buf)
+	})
 	router.PathPrefix("/requests-by-str/{queryString}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		buf := qmc.generateReportForRequests(vars["queryString"])
