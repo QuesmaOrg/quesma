@@ -359,14 +359,15 @@ func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(timestampFieldName, whe
 		panic(err)
 	}
 	groupByClause := "toInt64(toUnixTimestamp64Milli(`" + timestampFieldName + "`)/" + strconv.FormatInt(histogramOneBar.Milliseconds(), 10) + ")"
-	whereClause := strconv.Quote(timestampFieldName) + ">=timestamp_sub(SECOND," + strconv.FormatInt(int64(duration.Seconds()), 10) + ", now64())"
-	if len(whereClauseOriginal) > 0 {
-		whereClause = "(" + whereClauseOriginal + ") AND (" + whereClause + ")"
-	}
+	// [WARNING] This is a little oversimplified, but it seems to be good enough for now (==satisfies Kibana's histogram)
+	//
+	// In Elasticsearch's `date_histogram` aggregation implementation, the timestamps for the intervals are generated independently of the document data.
+	// The aggregation divides the specified time range into intervals based on the interval unit (e.g., minute, hour, day) and generates timestamps for each interval,
+	// irrespective of the actual timestamps of the documents.
 	query := model.Query{
 		Fields:          []string{},
-		NonSchemaFields: []string{groupByClause, "count()"},
-		WhereClause:     whereClause,
+		NonSchemaFields: []string{"MIN(toInt64(toUnixTimestamp64Milli(" + strconv.Quote(timestampFieldName) + ")))", "count()"},
+		WhereClause:     whereClauseOriginal,
 		SuffixClauses:   []string{"GROUP BY " + groupByClause},
 		TableName:       cw.TableName,
 		CanParse:        true,
