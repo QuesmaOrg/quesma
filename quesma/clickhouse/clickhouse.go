@@ -8,8 +8,8 @@ import (
 	"mitmproxy/quesma/index"
 	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/util"
-	"net/url"
 	"regexp"
 	"strings"
 )
@@ -21,14 +21,14 @@ const (
 
 type (
 	LogManager struct {
-		chUrl *url.URL
-		chDb  *sql.DB
+		chDb *sql.DB
 		// I split schemas into 2. My motivation is that 'newRuntimeTables' are modified
 		// during runtime. It's very unlikely, but (AFAIK) race condition may happen, as we have no
 		// synchronization mechanisms. If we know schemas beforehand, we can put them in 'predefinedTables',
 		// which we never modify, so it's safe to access it from multiple goroutines.
 		predefinedTables TableMap // we don't modify those, safe access
 		newRuntimeTables TableMap // potentially unsafe
+		cfg              config.QuesmaConfiguration
 	}
 	TableMap  = map[string]*Table
 	SchemaMap = map[string]interface{} // TODO remnove
@@ -66,13 +66,73 @@ type (
 	}
 )
 
+func (lm *LogManager) Start() {
+	if lm.initConnection() != nil {
+		logger.Error().Msg("could not connect to clickhouse")
+	}
+
+	lm.loadTables()
+}
+
+func (lm *LogManager) loadTables() {
+	configuredTables := make(map[string]map[string]string)
+	if tables, err := lm.DescribeTables("default"); err != nil {
+		logger.Error().Msgf("could not describe tables: %v", err)
+		return
+	} else {
+		for table, columns := range tables {
+			if indexConfig, found := lm.cfg.GetIndexConfig(table); found {
+				logger.Info().Msgf("table '%s' is managed by Quesma", table)
+				if indexConfig.Enabled {
+					configuredTables[table] = columns
+				}
+			} else {
+				logger.Debug().Msgf("table '%s' disabled or not configured explicitly\n", table)
+			}
+		}
+	}
+
+	for name, columns := range configuredTables {
+		logger.Debug().Msgf("table: %v", name)
+		for col, colType := range columns {
+			logger.Debug().Msgf("column: %s, type: %s", col, colType)
+		}
+	}
+}
+
+func (lm *LogManager) DescribeTables(database string) (map[string]map[string]string, error) {
+	logger.Debug().Msgf("describing tables: %s", database)
+
+	if err := lm.initConnection(); err != nil {
+		return map[string]map[string]string{}, err
+	}
+	rows, err := lm.chDb.Query("SELECT table, name, type FROM system.columns WHERE database = ?", database)
+	if err != nil {
+		return map[string]map[string]string{}, err
+	}
+	defer rows.Close()
+	columnsPerTable := make(map[string]map[string]string)
+	for rows.Next() {
+		var table, colName, colType string
+		if err := rows.Scan(&table, &colName, &colType); err != nil {
+			return map[string]map[string]string{}, err
+		}
+		if _, ok := columnsPerTable[table]; !ok {
+			columnsPerTable[table] = make(map[string]string)
+		}
+		columnsPerTable[table][colName] = colType
+	}
+
+	return columnsPerTable, nil
+}
+
 func (lm *LogManager) Close() {
 	_ = lm.chDb.Close()
 }
 
 func (lm *LogManager) initConnection() error {
 	if lm.chDb == nil {
-		lm.chDb = clickhouse.OpenDB(&clickhouse.Options{Addr: []string{lm.chUrl.Host}})
+		lm.chDb = clickhouse.OpenDB(&clickhouse.Options{Addr: []string{lm.cfg.ClickHouseUrl.Host}})
 	}
 	return lm.chDb.Ping()
 }
@@ -394,8 +454,8 @@ func (lm *LogManager) addSchemaIfDoesntExist(table *Table) bool {
 	return wasntCreated
 }
 
-func NewLogManager(dbUrl *url.URL, predefined, newRuntime TableMap) *LogManager {
-	return &LogManager{chUrl: dbUrl, chDb: nil, predefinedTables: predefined, newRuntimeTables: newRuntime}
+func NewLogManager(predefined, newRuntime TableMap, cfg config.QuesmaConfiguration) *LogManager {
+	return &LogManager{chDb: nil, predefinedTables: predefined, newRuntimeTables: newRuntime, cfg: cfg}
 }
 
 // right now only for tests purposes

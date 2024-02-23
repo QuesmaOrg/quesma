@@ -2,6 +2,7 @@ package clickhouse
 
 import (
 	"encoding/json"
+	"mitmproxy/quesma/quesma/config"
 	"strings"
 	"testing"
 
@@ -42,7 +43,7 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	}
 
 	f := func(t1, t2 TableMap) {
-		lm := NewLogManager(chUrl, emptyMap, fieldsMap)
+		lm := NewLogManager(emptyMap, fieldsMap, config.QuesmaConfiguration{ClickHouseUrl: chUrl})
 		j, err := lm.BuildInsertJson("tableName", rowToInsert, hasOthersConfig)
 		assert.NoError(t, err)
 		m := make(SchemaMap)

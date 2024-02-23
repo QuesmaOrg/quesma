@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"mitmproxy/quesma/quesma/config"
 	"net/url"
 	"slices"
 	"strconv"
@@ -112,7 +113,7 @@ type logManagerHelper struct {
 	tableAlreadyCreated bool
 }
 
-func logManagersNonEmpty(config *ChTableConfig) []logManagerHelper {
+func logManagersNonEmpty(cfg *ChTableConfig) []logManagerHelper {
 	lms := make([]logManagerHelper, 0, 4)
 	for _, created := range []bool{true, false} {
 		for _, predefinedNotRuntime := range []bool{true, false} {
@@ -120,7 +121,7 @@ func logManagersNonEmpty(config *ChTableConfig) []logManagerHelper {
 			full := TableMap{
 				tableName: &Table{
 					Name:   tableName,
-					Config: config,
+					Config: cfg,
 					Cols: map[string]*Column{
 						"@timestamp":       dateTime("@timestamp"),
 						"host.name":        genericString("host.name"),
@@ -131,9 +132,9 @@ func logManagersNonEmpty(config *ChTableConfig) []logManagerHelper {
 				},
 			}
 			if predefinedNotRuntime {
-				lms = append(lms, logManagerHelper{NewLogManager(chUrl, full, empty), created})
+				lms = append(lms, logManagerHelper{NewLogManager(full, empty, config.QuesmaConfiguration{ClickHouseUrl: chUrl}), created})
 			} else {
-				lms = append(lms, logManagerHelper{NewLogManager(chUrl, empty, full), created})
+				lms = append(lms, logManagerHelper{NewLogManager(empty, full, config.QuesmaConfiguration{ClickHouseUrl: chUrl}), created})
 			}
 		}
 	}

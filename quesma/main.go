@@ -33,9 +33,9 @@ func main() {
 	defer logger.ErrLogFile.Close()
 
 	lm := clickhouse.NewLogManager(
-		cfg.ClickHouseUrl,
 		clickhouse.PredefinedTableSchemas,
 		clickhouse.NewRuntimeSchemas,
+		cfg,
 	)
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())

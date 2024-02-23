@@ -2,6 +2,7 @@ package queryparser
 
 import (
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/testdata"
 	"net/url"
 	"strconv"
@@ -27,7 +28,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(chUrl, clickhouse.TableMap{tableName: testTable}, make(clickhouse.TableMap))
+	lm := clickhouse.NewLogManager(clickhouse.TableMap{tableName: testTable}, make(clickhouse.TableMap), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: tableName}
 	for _, tt := range testdata.TestsSearch {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -53,7 +54,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(chUrl, clickhouse.TableMap{tableName: testTable}, make(clickhouse.TableMap))
+	lm := clickhouse.NewLogManager(clickhouse.TableMap{tableName: testTable}, make(clickhouse.TableMap), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: tableName}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -245,7 +246,7 @@ func TestNew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(chUrl, clickhouse.TableMap{tableName: testTable}, make(clickhouse.TableMap))
+	lm := clickhouse.NewLogManager(clickhouse.TableMap{tableName: testTable}, make(clickhouse.TableMap), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: tableName}
 	for _, tt := range tests {
 		t.Run("test", func(t *testing.T) {

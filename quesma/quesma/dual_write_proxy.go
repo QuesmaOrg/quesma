@@ -56,6 +56,7 @@ func (q *dualWriteHttpProxy) Close(ctx context.Context) {
 }
 
 func (q *dualWriteHttpProxy) Ingest() {
+	q.logManager.Start()
 	go func() {
 		if err := q.routingHttpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Fatal().Msgf("Error starting http server: %v", err)
