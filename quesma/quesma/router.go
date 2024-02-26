@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/routes"
@@ -73,6 +74,11 @@ func matchedAgainstConfig(config config.QuesmaConfiguration) mux.MatchPredicate 
 
 func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func() []string) mux.MatchPredicate {
 	return func(m map[string]string) bool {
+		if strings.HasPrefix(m["index"], ".") {
+			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", m["index"])
+			return false
+		}
+
 		var candidates []string
 		for _, tableName := range tables() {
 			if config.MatchName(m["index"], tableName) {
@@ -85,6 +91,7 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func
 			indexConfig, exists := configuration.GetIndexConfig(candidates[0])
 			return exists && indexConfig.Enabled
 		} else {
+			logger.Warn().Msgf("no index found for pattern %s", m["index"])
 			return false
 		}
 	}
