@@ -124,5 +124,15 @@ func handleFieldCapsIndex(_ context.Context, resolvedIndex string, tables clickh
 }
 
 func hanndleFieldCaps(ctx context.Context, index string, _ []byte, lm *clickhouse.LogManager) ([]byte, error) {
-	return handleFieldCapsIndex(ctx, lm.ResolveTableName(index), lm.GetRuntimeTables())
+	return handleFieldCapsIndex(ctx, lm.ResolveTableName(index), concatTableMap(lm.GetRuntimeTables(), lm.GetPredefinedTables()))
+}
+
+func concatTableMap(maps ...clickhouse.TableMap) clickhouse.TableMap {
+	res := make(clickhouse.TableMap)
+	for _, m := range maps {
+		for k, v := range m {
+			res[k] = v
+		}
+	}
+	return res
 }
