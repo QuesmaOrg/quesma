@@ -7,6 +7,7 @@ const (
 	IndexAsyncSearchPath = "/:index/_async_search"
 	IndexDocPath         = "/:index/_doc"
 	IndexBulkPath        = "/:index/_bulk"
+	FieldCapsPath        = "/:index/_field_caps"
 	ClusterHealthPath    = "/_cluster/health"
 	BulkPath             = "/_bulk"
 	SearchPath           = "/_search"

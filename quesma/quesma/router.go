@@ -56,6 +56,17 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 			return string(responseBody), nil
 		}
 	})
+	router.RegisterPathMatcher(routes.FieldCapsPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
+		if strings.Contains(params["index"], ",") {
+			return "", errors.New("multi index search is not yet supported")
+		} else {
+			responseBody, err := hanndleFieldCaps(ctx, params["index"], []byte(body), lm)
+			if err != nil {
+				return "", err
+			}
+			return string(responseBody), nil
+		}
+	})
 	return router
 }
 

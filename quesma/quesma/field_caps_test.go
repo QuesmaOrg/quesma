@@ -1,0 +1,134 @@
+package quesma
+
+import (
+	"encoding/json"
+	"github.com/stretchr/testify/assert"
+	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/util"
+	"strconv"
+	"testing"
+)
+
+const testTableName = "logs-generic-default"
+
+func TestFieldCaps(t *testing.T) {
+	table := &clickhouse.Table{
+		Name: tableName,
+		Cols: map[string]*clickhouse.Column{
+			"service.name": {Name: "service.name", Type: clickhouse.BaseType{Name: "String"}},
+			"host.name": {Name: "host.name", Type: clickhouse.MultiValueType{
+				Name: "Tuple", Cols: []*clickhouse.Column{
+					{Name: "b", Type: clickhouse.NewBaseType("String")},
+				},
+			}},
+			"arrayOfTuples": {Name: "arrayOfTuples", Type: clickhouse.CompoundType{
+				Name: "arrayOfTuples", BaseType: clickhouse.MultiValueType{
+					Name: "Tuple", Cols: []*clickhouse.Column{
+						{Name: "b", Type: clickhouse.NewBaseType("String")},
+					},
+				},
+			}},
+			"arrayOfArraysOfStrings": {Name: "arrayOfArraysOfStrings", Type: clickhouse.CompoundType{
+				Name: "arrayOfStringsOfStrings", BaseType: clickhouse.CompoundType{
+					Name: "b", BaseType: clickhouse.NewBaseType("String"),
+				},
+			}},
+		},
+	}
+	expected := []byte(`{
+  "fields": {
+    "QUESMA_CLICKHOUSE_RESPONSE": {
+      "text": {
+        "aggregatable": false,
+        "metadata_field": false,
+        "searchable": true,
+        "type": "text"
+      }
+    },
+    "arrayOfArraysOfStrings": {
+      "text": {
+        "aggregatable": false,
+        "metadata_field": false,
+        "searchable": true,
+        "type": "text"
+      }
+    },
+    "arrayOfTuples": {
+      "object": {
+        "aggregatable": false,
+        "metadata_field": false,
+        "searchable": true,
+        "type": "object"
+      }
+    },
+    "host.name": {
+      "object": {
+        "aggregatable": false,
+        "metadata_field": false,
+        "searchable": true,
+        "type": "object"
+      }
+    },
+    "service.name": {
+      "text": {
+        "aggregatable": false,
+        "metadata_field": false,
+        "searchable": true,
+        "type": "text"
+      }
+    }
+  },
+  "Indices": [
+    "logs-generic-default"
+  ]
+}
+`)
+	tableMap := clickhouse.TableMap{}
+	tableMap[testTableName] = table
+	resp, err := handleFieldCapsIndex(ctx, testTableName, tableMap)
+	assert.NoError(t, err)
+	expectedResp, err := json.MarshalIndent(expected, "", "  ")
+	assert.NoError(t, err)
+	err = json.Unmarshal(expectedResp, &expectedResp)
+	assert.NoError(t, err)
+
+	difference1, difference2, err := util.JsonDifference(
+		string(resp),
+		string(expectedResp),
+	)
+
+	assert.NoError(t, err)
+	assert.Empty(t, difference1)
+	assert.Empty(t, difference2)
+}
+
+func TestAddNewFieldCapability(t *testing.T) {
+	Cols := map[string]*clickhouse.Column{
+		"service.name": {Name: "service.name", Type: clickhouse.BaseType{Name: "String"}}}
+
+	numericTypes := []clickhouse.BaseType{
+		{Name: "DateTime"},
+		{Name: "Int64"},
+		{Name: "Int32"},
+		{Name: "Int16"},
+		{Name: "Int8"},
+		{Name: "UInt8"},
+		{Name: "Float32"},
+		{Name: "Float64"}}
+
+	for index, clickhouseType := range numericTypes {
+		Cols["col"+strconv.Itoa(index)] = &clickhouse.Column{Name: mapPrimitiveType(clickhouseType.Name), Type: clickhouseType}
+	}
+
+	fields := make(map[string]map[string]model.FieldCapability)
+	for _, col := range Cols {
+		addNewFieldCapability(fields, col)
+	}
+
+	// Check aggregatable property
+	assert.Equal(t, false, fields["service.name"]["text"].Aggregatable)
+	for _, clickhouseType := range numericTypes {
+		assert.Equal(t, true, fields[mapPrimitiveType(clickhouseType.Name)][mapPrimitiveType(clickhouseType.Name)].Aggregatable)
+	}
+}
