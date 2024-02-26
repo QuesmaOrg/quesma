@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/stats/errorstats"
 	"mitmproxy/quesma/util"
 	"net/url"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -203,27 +204,31 @@ func secondsToTerseString(second uint64) string {
 	return (time.Duration(second) * time.Second).String()
 }
 
+func statusToDiv(s healthCheckStatus) string {
+	return fmt.Sprintf(`<div class="status %s" title="%s">%s</div>`, s.status, s.tooltip, s.message)
+}
+
 func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	var buffer bytes.Buffer
 
 	buffer.WriteString(`<div id="dashboard-kibana" class="component">`)
 	buffer.WriteString(`<h3>Kibana</h3>`)
-	buffer.WriteString(`<div class="status">OK</div>`)
+	buffer.WriteString(statusToDiv(qmc.checkKibana()))
 	buffer.WriteString(`</div>`)
 
 	buffer.WriteString(`<div id="dashboard-ingest" class="component">`)
 	buffer.WriteString(`<h3>Ingest</h3>`)
-	buffer.WriteString(`<div class="status">OK</div>`)
+	buffer.WriteString(statusToDiv(qmc.checkIngest()))
 	buffer.WriteString(`</div>`)
 
 	buffer.WriteString(`<div id="dashboard-elasticsearch" class="component">`)
 	buffer.WriteString(`<h3>Elastic</h3><h3>search</h3>`)
-	buffer.WriteString(`<div class="status">OK</div>`)
+	buffer.WriteString(statusToDiv(qmc.checkElasticsearch()))
 	buffer.WriteString(`</div>`)
 
 	buffer.WriteString(`<div id="dashboard-clickhouse" class="component">`)
 	buffer.WriteString(`<h3>ClickHouse</h3>`)
-	buffer.WriteString(`<div class="status">OK</div>`)
+	buffer.WriteString(statusToDiv(qmc.checkClickhouseHealth()))
 	buffer.WriteString(`</div>`)
 
 	buffer.WriteString(`<div id="dashboard-traffic" class="component">`)
@@ -235,34 +240,30 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	c0, err0 := cpu.Percent(0, false)
 
 	if err0 == nil {
-		cpuStr = fmt.Sprintf("CPU: %.1f%%", c0[0])
+		cpuStr = fmt.Sprintf("Host CPU: %.1f%%", c0[0])
 	} else {
-		cpuStr = fmt.Sprintf("CPU: N/A (error: %s)", err0.Error())
+		cpuStr = fmt.Sprintf("Host CPU: N/A (error: %s)", err0.Error())
 	}
 
 	buffer.WriteString(fmt.Sprintf(`<div class="status">%s</div>`, cpuStr))
 
-	memStr := ""
-	v, errV := mem.VirtualMemory()
-	if errV == nil {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	memStr := fmt.Sprintf("Memory - used: %1.f MB", float64(m.Alloc)/1024.0/1024.0)
+	if v, errV := mem.VirtualMemory(); errV == nil {
 		total := float64(v.Total) / 1024.0 / 1024.0 / 1024.0
-		used := float64(v.Used) / 1024.0 / 1024.0 / 1024.0
-		memStr = fmt.Sprintf("Memory - used: %1.f GB, total: %.1f GB", used, total)
-	} else {
-		memStr = fmt.Sprintf("Memory: N/A (error: %s)", errV.Error())
+		memStr += fmt.Sprintf(", available: %.1f GB", total)
 	}
 	buffer.WriteString(fmt.Sprintf(`<div class="status">%s</div>`, memStr))
 
-	// TODO: Currently we check host uptime, not application uptime
-	uptimeStr := ""
-	h, errH := host.Info()
-	if errH == nil {
-		uptimeStr = fmt.Sprintf("Host uptime: %s", secondsToTerseString(h.Uptime))
-	} else {
-		uptimeStr = fmt.Sprintf("Host uptime: N/A (error: %s)", errH.Error())
-	}
-	buffer.WriteString(fmt.Sprintf(`<div class="status">%s</div>`, uptimeStr))
+	duration := uint64(time.Since(qmc.startedAt).Seconds())
+
+	buffer.WriteString(fmt.Sprintf(`<div class="status">Started: %s ago</div>`, secondsToTerseString(duration)))
 	buffer.WriteString(fmt.Sprintf(`<div class="status">Mode: %s</div>`, qmc.config.Mode.String()))
+
+	if h, errH := host.Info(); errH == nil {
+		buffer.WriteString(fmt.Sprintf(`<div class="status">Host uptime: %s</div>`, secondsToTerseString(h.Uptime)))
+	}
 	buffer.WriteString(`</div>`)
 
 	buffer.WriteString(`<div id="dashboard-errors" class="component">`)
@@ -284,8 +285,11 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 
 func (qmc *QuesmaManagementConsole) generateDashboardTrafficText(typeName string) (string, string) {
 	reqStats := qmc.requestsStore.GetRequestsStats(typeName)
-	// TODO: Decide if we want to show error and potentially nicer time stats
-	return "green", fmt.Sprintf("%4.1f req/s, err:%5.1f%%, p99:%3dms",
+	status := "green"
+	if reqStats.ErrorRate > 0.20 {
+		status = "red"
+	}
+	return status, fmt.Sprintf("%4.1f req/s, err:%5.1f%%, p99:%3dms",
 		reqStats.RatePerMinute/60, reqStats.ErrorRate*100, reqStats.Duration99Percentile)
 }
 

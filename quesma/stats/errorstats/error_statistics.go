@@ -1,7 +1,6 @@
 package errorstats
 
 import (
-	"fmt"
 	"github.com/rs/zerolog"
 	"mitmproxy/quesma/tracing"
 	"sort"
@@ -120,7 +119,6 @@ func (e *ErrorStatisticsStore) ReturnTopErrors(count int) []ErrorStatistics {
 type GlobalErrorHook struct{}
 
 func (s *GlobalErrorHook) Run(e *zerolog.Event, level zerolog.Level, message string) {
-	fmt.Println("JM: ", e, level, message)
 	if level == zerolog.ErrorLevel || level == zerolog.FatalLevel || level == zerolog.PanicLevel {
 		var requestId *string
 		var reason *string

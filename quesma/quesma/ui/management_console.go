@@ -83,6 +83,9 @@ type QuesmaManagementConsole struct {
 	config                    config.QuesmaConfiguration
 	requestsStore             *stats.RequestStatisticStore
 	requestsSource            chan *recordRequests
+	startedAt                 time.Time
+	clickhouseStatusCache     healthCheckStatusCache
+	elasticStatusCache        healthCheckStatusCache
 }
 
 func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logChan <-chan string) *QuesmaManagementConsole {
@@ -96,6 +99,9 @@ func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logChan <-cha
 		config:                    config,
 		requestsStore:             stats.NewRequestStatisticStore(),
 		requestsSource:            make(chan *recordRequests, 100),
+		startedAt:                 time.Now(),
+		clickhouseStatusCache:     newHealthCheckStatusCache(),
+		elasticStatusCache:        newHealthCheckStatusCache(),
 	}
 }
 
