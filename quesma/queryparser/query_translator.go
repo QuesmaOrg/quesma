@@ -3,6 +3,7 @@ package queryparser
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/kibana"
 	"mitmproxy/quesma/model"
@@ -431,8 +432,13 @@ var fromRegexp = regexp.MustCompile(`>=?parseDateTime64BestEffort\('([^']+)'\)`)
 var toRegexp = regexp.MustCompile(`<=?parseDateTime64BestEffort\('([^']+)'\)`)
 
 func durationFromWhere(input string) (time.Duration, error) {
-	from := fromRegexp.FindAllStringSubmatch(input, -1)[0]
-	to := toRegexp.FindAllStringSubmatch(input, -1)[0]
+	fromMatch := fromRegexp.FindAllStringSubmatch(input, -1)
+	toMatch := toRegexp.FindAllStringSubmatch(input, -1)
+	if len(fromMatch) < 1 || len(toMatch) < 1 {
+		return 0, errors.New("date match failed")
+	}
+	from := fromMatch[0]
+	to := toMatch[0]
 
 	startTime, err := time.Parse(time.RFC3339, from[1])
 	if err != nil {
