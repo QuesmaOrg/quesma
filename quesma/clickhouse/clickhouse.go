@@ -33,11 +33,6 @@ type (
 	}
 	TableMap  = map[string]*Table
 	SchemaMap = map[string]interface{} // TODO remove
-	Log       struct {
-		Timestamp string `json:"@timestamp,omitempty"`
-		Severity  string `json:"severity,omitempty"`
-		Message   string `json:"message,omitempty"`
-	}
 	Attribute struct {
 		KeysArrayName   string
 		ValuesArrayName string
