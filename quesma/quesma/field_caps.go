@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/model"
 )
@@ -94,6 +95,18 @@ func addNewFieldCapability(fields map[string]map[string]model.FieldCapability, c
 	fieldCapability.Type = typeName
 	fieldCapabilitiesMap := make(map[string]model.FieldCapability)
 	fieldCapabilitiesMap[typeName] = fieldCapability
+
+	// This is a tiny hack to smoothen Kibana experience :)
+	if (typeName == "text" || typeName == "LowCardinality(String)") && col.Name != quesmaDebuggingFieldName {
+		keywordMap := make(map[string]model.FieldCapability)
+		keywordMap["keyword"] = model.FieldCapability{
+			Aggregatable: true,
+			Searchable:   true,
+			Type:         "keyword",
+		}
+		fields[fmt.Sprintf("%s.keyword", col.Name)] = keywordMap
+	}
+
 	fields[col.Name] = fieldCapabilitiesMap
 }
 
