@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/host"
@@ -17,81 +16,81 @@ import (
 )
 
 func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte {
-	var buffer bytes.Buffer
+	var buffer HtmlBuffer
 
-	buffer.WriteString("\n" + `<div class="left" Id="left">` + "\n")
-	buffer.WriteString(`<div class="title-bar">Query`)
-	buffer.WriteString("\n</div>\n")
-	buffer.WriteString(`<div class="debug-body">`)
+	buffer.Html("\n" + `<div class="left" Id="left">` + "\n")
+	buffer.Html(`<div class="title-bar">Query`)
+	buffer.Html("\n</div>\n")
+	buffer.Html(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buffer.WriteString(`<a href="/request-Id/` + v.Key + `">`)
+			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
 		}
-		buffer.WriteString("<p>RequestID:" + v.Key + "</p>\n")
-		buffer.WriteString(`<pre Id="query` + v.Key + `">`)
-		buffer.WriteString(util.JsonPrettify(string(v.Value.IncomingQueryBody), true))
-		buffer.WriteString("\n</pre>")
+		buffer.Html("<p>RequestID:").Text(v.Key).Html("</p>\n")
+		buffer.Html(`<pre Id="query`).Text(v.Key).Html(`">`)
+		buffer.Text(util.JsonPrettify(string(v.Value.IncomingQueryBody), true))
+		buffer.Html("\n</pre>")
 		if withLinks {
-			buffer.WriteString("\n</a>")
+			buffer.Html("\n</a>")
 		}
 	}
-	buffer.WriteString("\n</div>")
-	buffer.WriteString("\n</div>\n")
+	buffer.Html("\n</div>")
+	buffer.Html("\n</div>\n")
 
-	buffer.WriteString(`<div class="right" Id="right">` + "\n")
-	buffer.WriteString(`<div class="title-bar">Elasticsearch response` + "\n" + `</div>`)
-	buffer.WriteString(`<div class="debug-body">`)
+	buffer.Html(`<div class="right" Id="right">` + "\n")
+	buffer.Html(`<div class="title-bar">Elasticsearch response` + "\n" + `</div>`)
+	buffer.Html(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buffer.WriteString(`<a href="/request-Id/` + v.Key + `">`)
+			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
 		}
-		buffer.WriteString("<p>ResponseID:" + v.Key + "</p>\n")
-		buffer.WriteString(`<pre Id="response` + v.Key + `">`)
-		buffer.WriteString(util.JsonPrettify(string(v.Value.QueryResp), true))
-		buffer.WriteString("\n</pre>")
+		buffer.Html("<p>ResponseID:").Text(v.Key).Html("</p>\n")
+		buffer.Html(`<pre Id="response`).Text(v.Key).Html(`">`)
+		buffer.Text(util.JsonPrettify(string(v.Value.QueryResp), true))
+		buffer.Html("\n</pre>")
 		if withLinks {
-			buffer.WriteString("\n</a>")
+			buffer.Html("\n</a>")
 		}
 	}
-	buffer.WriteString("\n</div>")
-	buffer.WriteString("\n</div>\n")
+	buffer.Html("\n</div>")
+	buffer.Html("\n</div>\n")
 
-	buffer.WriteString(`<div class="bottom_left" Id="bottom_left">` + "\n")
-	buffer.WriteString(`<div class="title-bar">Clickhouse translated query` + "\n" + `</div>`)
-	buffer.WriteString(`<div class="debug-body">`)
+	buffer.Html(`<div class="bottom_left" Id="bottom_left">` + "\n")
+	buffer.Html(`<div class="title-bar">Clickhouse translated query` + "\n" + `</div>`)
+	buffer.Html(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buffer.WriteString(`<a href="/request-Id/` + v.Key + `">`)
+			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
 		}
-		buffer.WriteString("<p>RequestID:" + v.Key + "</p>\n")
-		buffer.WriteString(`<pre Id="second_query` + v.Key + `">`)
-		buffer.WriteString(sqlPrettyPrint(v.Value.QueryBodyTranslated))
-		buffer.WriteString("\n</pre>")
+		buffer.Html("<p>RequestID:").Text(v.Key).Html("</p>\n")
+		buffer.Html(`<pre Id="second_query`).Text(v.Key).Html(`">`)
+		buffer.Text(sqlPrettyPrint(v.Value.QueryBodyTranslated))
+		buffer.Html("\n</pre>")
 		if withLinks {
-			buffer.WriteString("\n</a>")
+			buffer.Html("\n</a>")
 		}
 	}
-	buffer.WriteString("\n</div>")
-	buffer.WriteString("\n</div>\n")
+	buffer.Html("\n</div>")
+	buffer.Html("\n</div>\n")
 
-	buffer.WriteString(`<div class="bottom_right" Id="bottom_right">` + "\n")
-	buffer.WriteString(`<div class="title-bar">Clickhouse response` + "\n" + `</div>`)
-	buffer.WriteString(`<div class="debug-body">`)
+	buffer.Html(`<div class="bottom_right" Id="bottom_right">` + "\n")
+	buffer.Html(`<div class="title-bar">Clickhouse response` + "\n" + `</div>`)
+	buffer.Html(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buffer.WriteString(`<a href="/request-Id/` + v.Key + `">`)
+			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
 		}
-		buffer.WriteString("<p>ResponseID:" + v.Key + "</p>\n")
-		buffer.WriteString(`<pre Id="second_response` + v.Key + `">`)
-		buffer.WriteString(util.JsonPrettify(string(v.Value.QueryTranslatedResults), true))
-		buffer.WriteString("\n\nThere are more results ...")
-		buffer.WriteString("\n</pre>")
+		buffer.Html("<p>ResponseID:").Text(v.Key).Html("</p>\n")
+		buffer.Html(`<pre Id="second_response`).Text(v.Key).Html(`">`)
+		buffer.Text(util.JsonPrettify(string(v.Value.QueryTranslatedResults), true))
+		buffer.Html("\n\nThere are more results ...")
+		buffer.Html("\n</pre>")
 		if withLinks {
-			buffer.WriteString("\n</a>")
+			buffer.Html("\n</a>")
 		}
 	}
-	buffer.WriteString("\n</div>")
-	buffer.WriteString("\n</div>\n")
+	buffer.Html("\n</div>")
+	buffer.Html("\n</div>\n")
 
 	return buffer.Bytes()
 }
@@ -105,69 +104,70 @@ func dropFirstSegment(path string) string {
 }
 
 func (qmc *QuesmaManagementConsole) generateRouterStatistics() []byte {
-	var buffer bytes.Buffer
+	var buffer HtmlBuffer
 
 	matchedKeys, matched, unmatchedKeys, unmatched := mux.MatchStatistics().GroupByFirstSegment()
 
-	buffer.WriteString("\n<h2>Matched URLs</h2>\n<ul>")
+	buffer.Html("\n<h2>Matched URLs</h2>\n<ul>")
 	for _, segment := range matchedKeys {
 		paths := matched[segment]
 		if len(paths) > 1 {
-			buffer.WriteString(fmt.Sprintf("<li>%s</li>\n", segment))
+			buffer.Html("<li>").Text(segment).Html("</li>")
 
-			buffer.WriteString("<ul>\n")
+			buffer.Html("<ul>\n")
 			for _, path := range paths {
-				buffer.WriteString(fmt.Sprintf("<li><small>%s</small></li>\n", dropFirstSegment(path)))
+				buffer.Html("<li><small>").Text(dropFirstSegment(path)).Html("</small></li>")
 			}
-			buffer.WriteString("</ul>\n")
+			buffer.Html("</ul>\n")
 		} else {
-			buffer.WriteString(fmt.Sprintf("<li>%s</li>\n", paths[0]))
+			buffer.Html("<li>").Text(paths[0]).Html("</li>\n")
 		}
 	}
 
-	buffer.WriteString("</ul>\n")
-	buffer.WriteString("\n<h2>Not matched URLs</h2>\n<ul>")
+	buffer.Html("</ul>\n")
+	buffer.Html("\n<h2>Not matched URLs</h2>\n<ul>")
 	for _, segment := range unmatchedKeys {
 		paths := unmatched[segment]
 		if len(paths) > 1 {
-			buffer.WriteString(fmt.Sprintf("<li>%s</li>\n", segment))
+			buffer.Html("<li>").Text(segment).Html("</li>")
 
-			buffer.WriteString("<ul>\n")
+			buffer.Html("<ul>\n")
 			for _, path := range paths {
-				buffer.WriteString(fmt.Sprintf("<li><small>%s</small></li>\n", dropFirstSegment(path)))
+				buffer.Html("<li><small>").Text(dropFirstSegment(path)).Html("</small></li>")
 			}
-			buffer.WriteString("</ul>\n")
+			buffer.Html("</ul>\n")
 		} else {
-			buffer.WriteString(fmt.Sprintf("<li>%s</li>\n", paths[0]))
+			buffer.Html("<li>").Text(paths[0]).Html("</li>\n")
 		}
 	}
-	buffer.WriteString("</ul>\n")
+	buffer.Html("</ul>\n")
 
 	return buffer.Bytes()
 }
 
 func (qmc *QuesmaManagementConsole) generateStatistics() []byte {
-	var buffer bytes.Buffer
+	var buffer HtmlBuffer
 	const maxTopValues = 5
 
 	statistics := stats.GlobalStatistics
 
 	for _, index := range statistics.SortedIndexNames() {
-		buffer.WriteString("\n" + fmt.Sprintf(`<h2>Stats for "%s" <small>from %d requests</small></h2>`, index.IndexName, index.Requests) + "\n")
+		buffer.Html("\n<h2> Stats for \"").Text(index.IndexName).
+			Html(fmt.Sprintf("\" <small>from %d requests</small></h2>\n", index.Requests))
 
-		buffer.WriteString("<table>\n")
+		buffer.Html("<table>\n")
 
-		buffer.WriteString("<thead>\n")
-		buffer.WriteString(`<tr>` + "\n")
-		buffer.WriteString(`<th class="key">Key</th>` + "\n")
-		buffer.WriteString(`<th class="key-count">Count</th>` + "\n")
-		buffer.WriteString(`<th class="value">Value</th>` + "\n")
-		buffer.WriteString(`<th class="value-count">Count</th>` + "\n")
-		buffer.WriteString(`<th class="value-count">Percentage</th>` + "\n")
-		buffer.WriteString(`<th class="types">Potential type</th>` + "\n")
-		buffer.WriteString("</tr>\n")
-		buffer.WriteString("</thead>\n")
-		buffer.WriteString("<tbody>\n")
+		buffer.Html("<thead>\n")
+		buffer.Html(`<tr>` + "\n")
+		buffer.Html(`<th class="key">Key</th>` + "\n")
+		buffer.Html(`<th class="key-count">Count</th>` + "\n")
+		buffer.Html(`<th class="value">Value</th>` + "\n")
+		buffer.Html(`<th class="value-count">Count</th>` + "\n")
+		buffer.Html(`<th class="value-count">Percentage</th>` + "\n")
+		buffer.Html(`<th class="types">Potential type</th>` + "\n")
+		buffer.Html("</tr>\n")
+		buffer.Html("</thead>\n")
+		buffer.Html("<tbody>\n")
 
 		for _, keyStats := range index.SortedKeyStatistics() {
 			topValuesCount := maxTopValues
@@ -175,26 +175,26 @@ func (qmc *QuesmaManagementConsole) generateStatistics() []byte {
 				topValuesCount = len(keyStats.Values)
 			}
 
-			buffer.WriteString(`<tr class="group-divider">` + "\n")
-			buffer.WriteString(fmt.Sprintf(`<td class="key" rowspan="%d">%s</td>`+"\n", topValuesCount, keyStats.KeyName))
-			buffer.WriteString(fmt.Sprintf(`<td class="key-count" rowspan="%d">%d</td>`+"\n", topValuesCount, keyStats.Occurrences))
+			buffer.Html(`<tr class="group-divider">` + "\n")
+			buffer.Html(fmt.Sprintf(`<td class="key" rowspan="%d">`, topValuesCount)).Text(keyStats.KeyName).Html("</td>\n")
+			buffer.Html(fmt.Sprintf(`<td class="key-count" rowspan="%d">%d</td>`+"\n", topValuesCount, keyStats.Occurrences))
 
 			for i, value := range keyStats.TopNValues(topValuesCount) {
 				if i > 0 {
-					buffer.WriteString("</tr>\n<tr>\n")
+					buffer.Html("</tr>\n<tr>\n")
 				}
 
-				buffer.WriteString(fmt.Sprintf(`<td class="value">%s</td>`, value.ValueName))
-				buffer.WriteString(fmt.Sprintf(`<td class="value-count">%d</td>`, value.Occurrences))
-				buffer.WriteString(fmt.Sprintf(`<td class="value-count">%.1f%%</td>`, 100*float32(value.Occurrences)/float32(keyStats.Occurrences)))
-				buffer.WriteString(fmt.Sprintf(`<td class="types">%s</td>`, strings.Join(value.Types, ", ")))
+				buffer.Html(`<td class="value">`).Text(value.ValueName).Html(`</td>`)
+				buffer.Html(fmt.Sprintf(`<td class="value-count">%d</td>`, value.Occurrences))
+				buffer.Html(fmt.Sprintf(`<td class="value-count">%.1f%%</td>`, 100*float32(value.Occurrences)/float32(keyStats.Occurrences)))
+				buffer.Html(fmt.Sprintf(`<td class="types">%s</td>`, strings.Join(value.Types, ", ")))
 			}
-			buffer.WriteString("</tr>\n")
+			buffer.Html("</tr>\n")
 		}
 
-		buffer.WriteString("</tbody>\n")
+		buffer.Html("</tbody>\n")
 
-		buffer.WriteString("</table>\n")
+		buffer.Html("</table>\n")
 	}
 
 	return buffer.Bytes()
@@ -209,32 +209,32 @@ func statusToDiv(s healthCheckStatus) string {
 }
 
 func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
-	var buffer bytes.Buffer
+	var buffer HtmlBuffer
 
-	buffer.WriteString(`<div id="dashboard-kibana" class="component">`)
-	buffer.WriteString(`<h3>Kibana</h3>`)
-	buffer.WriteString(statusToDiv(qmc.checkKibana()))
-	buffer.WriteString(`</div>`)
+	buffer.Html(`<div id="dashboard-kibana" class="component">`)
+	buffer.Html(`<h3>Kibana</h3>`)
+	buffer.Html(statusToDiv(qmc.checkKibana()))
+	buffer.Html(`</div>`)
 
-	buffer.WriteString(`<div id="dashboard-ingest" class="component">`)
-	buffer.WriteString(`<h3>Ingest</h3>`)
-	buffer.WriteString(statusToDiv(qmc.checkIngest()))
-	buffer.WriteString(`</div>`)
+	buffer.Html(`<div id="dashboard-ingest" class="component">`)
+	buffer.Html(`<h3>Ingest</h3>`)
+	buffer.Html(statusToDiv(qmc.checkIngest()))
+	buffer.Html(`</div>`)
 
-	buffer.WriteString(`<div id="dashboard-elasticsearch" class="component">`)
-	buffer.WriteString(`<h3>Elastic</h3><h3>search</h3>`)
-	buffer.WriteString(statusToDiv(qmc.checkElasticsearch()))
-	buffer.WriteString(`</div>`)
+	buffer.Html(`<div id="dashboard-elasticsearch" class="component">`)
+	buffer.Html(`<h3>Elastic</h3><h3>search</h3>`)
+	buffer.Html(statusToDiv(qmc.checkElasticsearch()))
+	buffer.Html(`</div>`)
 
-	buffer.WriteString(`<div id="dashboard-clickhouse" class="component">`)
-	buffer.WriteString(`<h3>ClickHouse</h3>`)
-	buffer.WriteString(statusToDiv(qmc.checkClickhouseHealth()))
-	buffer.WriteString(`</div>`)
+	buffer.Html(`<div id="dashboard-clickhouse" class="component">`)
+	buffer.Html(`<h3>ClickHouse</h3>`)
+	buffer.Html(statusToDiv(qmc.checkClickhouseHealth()))
+	buffer.Html(`</div>`)
 
-	buffer.WriteString(`<div id="dashboard-traffic" class="component">`)
+	buffer.Html(`<div id="dashboard-traffic" class="component">`)
 
-	buffer.WriteString(`<div id="dashboard-quesma" class="component">`)
-	buffer.WriteString(`<h3>Quesma</h3>`)
+	buffer.Html(`<div id="dashboard-quesma" class="component">`)
+	buffer.Html(`<h3>Quesma</h3>`)
 
 	cpuStr := ""
 	c0, err0 := cpu.Percent(0, false)
@@ -245,7 +245,7 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 		cpuStr = fmt.Sprintf("Host CPU: N/A (error: %s)", err0.Error())
 	}
 
-	buffer.WriteString(fmt.Sprintf(`<div class="status">%s</div>`, cpuStr))
+	buffer.Html(fmt.Sprintf(`<div class="status">%s</div>`, cpuStr))
 
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
@@ -254,31 +254,31 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 		total := float64(v.Total) / 1024.0 / 1024.0 / 1024.0
 		memStr += fmt.Sprintf(", available: %.1f GB", total)
 	}
-	buffer.WriteString(fmt.Sprintf(`<div class="status">%s</div>`, memStr))
+	buffer.Html(fmt.Sprintf(`<div class="status">%s</div>`, memStr))
 
 	duration := uint64(time.Since(qmc.startedAt).Seconds())
 
-	buffer.WriteString(fmt.Sprintf(`<div class="status">Started: %s ago</div>`, secondsToTerseString(duration)))
-	buffer.WriteString(fmt.Sprintf(`<div class="status">Mode: %s</div>`, qmc.config.Mode.String()))
+	buffer.Html(fmt.Sprintf(`<div class="status">Started: %s ago</div>`, secondsToTerseString(duration)))
+	buffer.Html(fmt.Sprintf(`<div class="status">Mode: %s</div>`, qmc.config.Mode.String()))
 
 	if h, errH := host.Info(); errH == nil {
-		buffer.WriteString(fmt.Sprintf(`<div class="status">Host uptime: %s</div>`, secondsToTerseString(h.Uptime)))
+		buffer.Html(fmt.Sprintf(`<div class="status">Host uptime: %s</div>`, secondsToTerseString(h.Uptime)))
 	}
-	buffer.WriteString(`</div>`)
+	buffer.Html(`</div>`)
 
-	buffer.WriteString(`<div id="dashboard-errors" class="component">`)
+	buffer.Html(`<div id="dashboard-errors" class="component">`)
 	errors := errorstats.GlobalErrorStatistics.ReturnTopErrors(5)
 	if len(errors) > 0 {
-		buffer.WriteString(`<h3>Top errors:</h3>`)
+		buffer.Html(`<h3>Top errors:</h3>`)
 		for _, e := range errors {
-			buffer.WriteString(fmt.Sprintf(`<div class="status">%d: <a href="/error/%s">%s</a></div>`,
+			buffer.Html(fmt.Sprintf(`<div class="status">%d: <a href="/error/%s">%s</a></div>`,
 				e.Count, url.PathEscape(e.Reason), e.Reason))
 		}
 	} else {
-		buffer.WriteString(`<h3>No errors</h3>`)
+		buffer.Html(`<h3>No errors</h3>`)
 	}
-	buffer.WriteString(`</div>`)
-	buffer.WriteString(`</div>`)
+	buffer.Html(`</div>`)
+	buffer.Html(`</div>`)
 
 	return buffer.Bytes()
 }
@@ -299,30 +299,30 @@ func (qmc *QuesmaManagementConsole) generateDashboardTrafficElement(typeName str
 }
 
 func (qmc *QuesmaManagementConsole) generateDashboardTrafficPanel() []byte {
-	var buffer bytes.Buffer
+	var buffer HtmlBuffer
 
-	buffer.WriteString(`<svg width="100%" height="100%" viewBox="0 0 1000 1000">`)
+	buffer.Html(`<svg width="100%" height="100%" viewBox="0 0 1000 1000">`)
 
 	// Clickhouse -> Kibana
 	if qmc.config.ReadsFromClickhouse() {
-		buffer.WriteString(qmc.generateDashboardTrafficElement(RequestStatisticKibana2Clickhouse, 240))
+		buffer.Html(qmc.generateDashboardTrafficElement(RequestStatisticKibana2Clickhouse, 240))
 	}
 
 	// Elasticsearch -> Kibana
 	if qmc.config.ReadsFromElasticsearch() {
-		buffer.WriteString(qmc.generateDashboardTrafficElement(RequestStatisticKibana2Elasticsearch, 690))
+		buffer.Html(qmc.generateDashboardTrafficElement(RequestStatisticKibana2Elasticsearch, 690))
 	}
 
 	// Ingest -> Clickhouse
 	if qmc.config.WritesToClickhouse() {
-		buffer.WriteString(qmc.generateDashboardTrafficElement(RequestStatisticIngest2Clickhouse, 340))
+		buffer.Html(qmc.generateDashboardTrafficElement(RequestStatisticIngest2Clickhouse, 340))
 	}
 
 	// Ingest -> Elasticsearch
 	if qmc.config.WritesToElasticsearch() {
-		buffer.WriteString(qmc.generateDashboardTrafficElement(RequestStatisticIngest2Elasticsearch, 790))
+		buffer.Html(qmc.generateDashboardTrafficElement(RequestStatisticIngest2Elasticsearch, 790))
 	}
-	buffer.WriteString(`</svg>`)
+	buffer.Html(`</svg>`)
 
 	return buffer.Bytes()
 }

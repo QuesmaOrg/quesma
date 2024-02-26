@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"bytes"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -291,16 +290,16 @@ func (qmc *QuesmaManagementConsole) generateQueries() []byte {
 	return generateQueries(debugKeyValueSlice, true)
 }
 
-func newBufferWithHead() bytes.Buffer {
+func newBufferWithHead() HtmlBuffer {
 	const bufferSize = 4 * 1024 // size of ui/head.html
-	var buffer bytes.Buffer
+	var buffer HtmlBuffer
 	buffer.Grow(bufferSize)
 	head, err := uiFs.ReadFile("asset/head.html")
 	buffer.Write(head)
 	if err != nil {
-		buffer.WriteString(err.Error())
+		buffer.Text(err.Error())
 	}
-	buffer.WriteString("\n")
+	buffer.Html("\n")
 	return buffer
 }
 
@@ -312,6 +311,73 @@ func (qmc *QuesmaManagementConsole) addNewMessageId(messageId string) {
 	}
 }
 
+func (qmc *QuesmaManagementConsole) processChannelMessage() {
+	select {
+	case msg := <-qmc.queryDebugPrimarySource:
+		logger.Debug().Msg("Received debug info from primary source: " + msg.Id)
+		debugPrimaryInfo := QueryDebugPrimarySource{msg.Id, msg.QueryResp}
+		qmc.mutex.Lock()
+		if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {
+			qmc.debugInfoMessages[msg.Id] = QueryDebugInfo{
+				QueryDebugPrimarySource: debugPrimaryInfo,
+			}
+			qmc.addNewMessageId(msg.Id)
+		} else {
+			value.QueryDebugPrimarySource = debugPrimaryInfo
+			qmc.debugInfoMessages[msg.Id] = value
+			// That's the point where QueryDebugInfo is
+			// complete and we can compare results
+			qmc.responseMatcherChannel <- value
+		}
+		qmc.mutex.Unlock()
+	case msg := <-qmc.queryDebugSecondarySource:
+		logger.Debug().Msg("Received debug info from secondary source: " + msg.Id)
+		secondaryDebugInfo := QueryDebugSecondarySource{
+			msg.Id,
+			msg.IncomingQueryBody,
+			msg.QueryBodyTranslated,
+			msg.QueryRawResults,
+			msg.QueryTranslatedResults,
+		}
+		qmc.mutex.Lock()
+		if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {
+			qmc.debugInfoMessages[msg.Id] = QueryDebugInfo{
+				QueryDebugSecondarySource: secondaryDebugInfo,
+			}
+			qmc.addNewMessageId(msg.Id)
+		} else {
+			value.QueryDebugSecondarySource = secondaryDebugInfo
+			// That's the point where QueryDebugInfo is
+			// complete and we can compare results
+			qmc.debugInfoMessages[msg.Id] = value
+			qmc.responseMatcherChannel <- value
+		}
+		qmc.mutex.Unlock()
+	case msg := <-qmc.queryDebugLogs:
+		match := requestIdRegex.FindStringSubmatch(msg)
+		if len(match) < 2 {
+			// there's no request_id in the log message
+			return
+		}
+		requestId := match[1]
+		msgPretty := util.JsonPrettify(msg, false) + "\n"
+
+		qmc.mutex.Lock()
+		if value, ok := qmc.debugInfoMessages[requestId]; !ok {
+			qmc.debugInfoMessages[requestId] = QueryDebugInfo{
+				log: msgPretty,
+			}
+			qmc.addNewMessageId(requestId)
+		} else {
+			value.log += msgPretty
+			qmc.debugInfoMessages[requestId] = value
+		}
+		qmc.mutex.Unlock()
+	case record := <-qmc.requestsSource:
+		qmc.requestsStore.RecordRequest(record.typeName, record.took, record.error)
+	}
+}
+
 func (qmc *QuesmaManagementConsole) Run() {
 	go qmc.comparePipelines()
 	go func() {
@@ -319,70 +385,7 @@ func (qmc *QuesmaManagementConsole) Run() {
 		qmc.listenAndServe()
 	}()
 	for {
-		select {
-		case msg := <-qmc.queryDebugPrimarySource:
-			logger.Debug().Msg("Received debug info from primary source: " + msg.Id)
-			debugPrimaryInfo := QueryDebugPrimarySource{msg.Id, msg.QueryResp}
-			qmc.mutex.Lock()
-			if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {
-				qmc.debugInfoMessages[msg.Id] = QueryDebugInfo{
-					QueryDebugPrimarySource: debugPrimaryInfo,
-				}
-				qmc.addNewMessageId(msg.Id)
-			} else {
-				value.QueryDebugPrimarySource = debugPrimaryInfo
-				qmc.debugInfoMessages[msg.Id] = value
-				// That's the point where QueryDebugInfo is
-				// complete and we can compare results
-				qmc.responseMatcherChannel <- value
-			}
-			qmc.mutex.Unlock()
-		case msg := <-qmc.queryDebugSecondarySource:
-			logger.Debug().Msg("Received debug info from secondary source: " + msg.Id)
-			secondaryDebugInfo := QueryDebugSecondarySource{
-				msg.Id,
-				msg.IncomingQueryBody,
-				msg.QueryBodyTranslated,
-				msg.QueryRawResults,
-				msg.QueryTranslatedResults,
-			}
-			qmc.mutex.Lock()
-			if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {
-				qmc.debugInfoMessages[msg.Id] = QueryDebugInfo{
-					QueryDebugSecondarySource: secondaryDebugInfo,
-				}
-				qmc.addNewMessageId(msg.Id)
-			} else {
-				value.QueryDebugSecondarySource = secondaryDebugInfo
-				// That's the point where QueryDebugInfo is
-				// complete and we can compare results
-				qmc.debugInfoMessages[msg.Id] = value
-				qmc.responseMatcherChannel <- value
-			}
-			qmc.mutex.Unlock()
-		case msg := <-qmc.queryDebugLogs:
-			match := requestIdRegex.FindStringSubmatch(msg)
-			if len(match) < 2 {
-				// there's no request_id in the log message
-				continue
-			}
-			requestId := match[1]
-			msgPretty := util.JsonPrettify(msg, false) + "\n"
-
-			qmc.mutex.Lock()
-			if value, ok := qmc.debugInfoMessages[requestId]; !ok {
-				qmc.debugInfoMessages[requestId] = QueryDebugInfo{
-					log: msgPretty,
-				}
-				qmc.addNewMessageId(requestId)
-			} else {
-				value.log += msgPretty
-				qmc.debugInfoMessages[requestId] = value
-			}
-			qmc.mutex.Unlock()
-		case record := <-qmc.requestsSource:
-			qmc.requestsStore.RecordRequest(record.typeName, record.took, record.error)
-		}
+		qmc.processChannelMessage()
 	}
 }
 

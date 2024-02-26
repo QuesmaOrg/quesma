@@ -1,50 +1,51 @@
 package ui
 
 import (
-	"bytes"
 	"fmt"
 	"mitmproxy/quesma/stats/errorstats"
+	"net/url"
 )
 
 func generateTopNavigation(target string) []byte {
-	var buffer bytes.Buffer
-	buffer.WriteString(`<div class="topnav">` + "\n")
-	buffer.WriteString(`<div class="topnav-menu">` + "\n")
-	buffer.WriteString("<h3>Quesma</h3>\n")
-	buffer.WriteString("<ul>\n")
-	buffer.WriteString("<li")
+	var buffer HtmlBuffer
+	buffer.Html(`<div class="topnav">` + "\n")
+	buffer.Html(`<div class="topnav-menu">` + "\n")
+	buffer.Html("<h3>Quesma</h3>\n")
+	buffer.Html("<ul>\n")
+	buffer.Html("<li")
 	if target == "queries" {
-		buffer.WriteString(` class="active"`)
+		buffer.Html(` class="active"`)
 	}
-	buffer.WriteString(`><a href="/">Live tail</a></li>`)
-	buffer.WriteString("<li")
+	buffer.Html(`><a href="/">Live tail</a></li>`)
+	buffer.Html("<li")
 	if target == "dashboard" {
-		buffer.WriteString(` class="active"`)
+		buffer.Html(` class="active"`)
 	}
-	buffer.WriteString(`><a href="/dashboard">Dashboard</a></li>`)
-	buffer.WriteString("<li")
+	buffer.Html(`><a href="/dashboard">Dashboard</a></li>`)
+	buffer.Html("<li")
 	if target == "statistics" {
-		buffer.WriteString(` class="active"`)
+		buffer.Html(` class="active"`)
 	}
-	buffer.WriteString(`><a href="/ingest-statistics">Ingest statistics</a></li>`)
-	buffer.WriteString("<li")
+	buffer.Html(`><a href="/ingest-statistics">Ingest statistics</a></li>`)
+	buffer.Html("<li")
 	if target == "routing-statistics" {
-		buffer.WriteString(` class="active"`)
+		buffer.Html(` class="active"`)
 	}
-	buffer.WriteString(`><a href="/routing-statistics">Routing statistics</a></li>`)
+	buffer.Html(`><a href="/routing-statistics">Routing statistics</a></li>`)
 
-	buffer.WriteString("\n</ul>\n")
-	buffer.WriteString("\n</div>\n")
+	buffer.Html("\n</ul>\n")
+	buffer.Html("\n</div>\n")
 
-	buffer.WriteString(`<div class="autorefresh-box">` + "\n")
-	buffer.WriteString(`<div class="autorefresh">`)
-	buffer.WriteString(fmt.Sprintf(
+	buffer.Html(`<div class="autorefresh-box">` + "\n")
+	buffer.Html(`<div class="autorefresh">`)
+	buffer.Html(fmt.Sprintf(
 		`<input type="checkbox" Id="autorefresh" name="autorefresh" hx-target="#%s" hx-get="/panel/%s"
-				hx-trigger="every 1s [htmx.find('#autorefresh').checked]" checked />`, target, target))
-	buffer.WriteString(`<label for="autorefresh">Autorefresh every 1s</label>`)
-	buffer.WriteString("\n</div>")
-	buffer.WriteString("\n</div>\n")
-	buffer.WriteString("\n</div>\n\n")
+				hx-trigger="every 1s [htmx.find('#autorefresh').checked]" checked />`,
+		url.PathEscape(target), url.PathEscape(target)))
+	buffer.Html(`<label for="autorefresh">Autorefresh every 1s</label>`)
+	buffer.Html("\n</div>")
+	buffer.Html("\n</div>\n")
+	buffer.Html("\n</div>\n\n")
 	return buffer.Bytes()
 }
 
@@ -52,19 +53,19 @@ func (qmc *QuesmaManagementConsole) generateRouterStatisticsLiveTail() []byte {
 	buffer := newBufferWithHead()
 	buffer.Write(generateTopNavigation("routing-statistics"))
 
-	buffer.WriteString(`<main id="routing-statistics">`)
+	buffer.Html(`<main id="routing-statistics">`)
 	buffer.Write(qmc.generateRouterStatistics())
-	buffer.WriteString("\n</main>\n\n")
+	buffer.Html("\n</main>\n\n")
 
-	buffer.WriteString(`<div class="menu">`)
-	buffer.WriteString("\n<h2>Menu</h2>")
+	buffer.Html(`<div class="menu">`)
+	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.WriteString(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
 
-	buffer.WriteString("\n</div>")
+	buffer.Html("\n</div>")
 
-	buffer.WriteString("\n</body>")
-	buffer.WriteString("\n</html>")
+	buffer.Html("\n</body>")
+	buffer.Html("\n</html>")
 	return buffer.Bytes()
 }
 
@@ -72,19 +73,19 @@ func (qmc *QuesmaManagementConsole) generateStatisticsLiveTail() []byte {
 	buffer := newBufferWithHead()
 	buffer.Write(generateTopNavigation("statistics"))
 
-	buffer.WriteString(`<main id="statistics">`)
+	buffer.Html(`<main id="statistics">`)
 	buffer.Write(qmc.generateStatistics())
-	buffer.WriteString("\n</main>\n\n")
+	buffer.Html("\n</main>\n\n")
 
-	buffer.WriteString(`<div class="menu">`)
-	buffer.WriteString("\n<h2>Menu</h2>")
+	buffer.Html(`<div class="menu">`)
+	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.WriteString(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
 
-	buffer.WriteString("\n</div>")
+	buffer.Html("\n</div>")
 
-	buffer.WriteString("\n</body>")
-	buffer.WriteString("\n</html>")
+	buffer.Html("\n</body>")
+	buffer.Html("\n</html>")
 	return buffer.Bytes()
 }
 
@@ -92,39 +93,39 @@ func (qmc *QuesmaManagementConsole) generateLiveTail() []byte {
 	buffer := newBufferWithHead()
 	buffer.Write(generateTopNavigation("queries"))
 
-	buffer.WriteString(`<main id="queries">`)
+	buffer.Html(`<main id="queries">`)
 	buffer.Write(qmc.generateQueries())
-	buffer.WriteString("\n</main>\n\n")
+	buffer.Html("\n</main>\n\n")
 
-	buffer.WriteString(`<div class="menu">`)
-	buffer.WriteString("\n<h2>Menu</h2>")
-	buffer.WriteString("\n<h3>Find query</h3><br>\n")
+	buffer.Html(`<div class="menu">`)
+	buffer.Html("\n<h2>Menu</h2>")
+	buffer.Html("\n<h3>Find query</h3><br>\n")
 
-	buffer.WriteString(`<form onsubmit="location.href = '/request-Id/' + find_query_by_id_input.value; return false;">`)
-	buffer.WriteString("\n")
-	buffer.WriteString(`&nbsp;<input Id="find_query_by_id_button" type="submit" class="btn" value="By Id" /><br>`)
-	buffer.WriteString(`&nbsp;<input type="text" Id="find_query_by_id_input" class="input" name="find_query_by_id_input" value="" required size="32"><br><br>`)
-	buffer.WriteString("</form>")
+	buffer.Html(`<form onsubmit="location.href = '/request-Id/' + find_query_by_id_input.value; return false;">`)
+	buffer.Html("\n")
+	buffer.Html(`&nbsp;<input Id="find_query_by_id_button" type="submit" class="btn" value="By Id" /><br>`)
+	buffer.Html(`&nbsp;<input type="text" Id="find_query_by_id_input" class="input" name="find_query_by_id_input" value="" required size="32"><br><br>`)
+	buffer.Html("</form>")
 
-	buffer.WriteString(`<form onsubmit="location.href = '/requests-by-str/' + find_query_by_str_input.value; return false;">`)
-	buffer.WriteString(`&nbsp;<input Id="find_query_by_str_button" type="submit" class="btn" value="By keyword in request" /><br>`)
-	buffer.WriteString(`&nbsp;<input type="text" Id="find_query_by_str_input" class="input" name="find_query_by_str_input" value="" required size="32"><br><br>`)
-	buffer.WriteString("</form>")
+	buffer.Html(`<form onsubmit="location.href = '/requests-by-str/' + find_query_by_str_input.value; return false;">`)
+	buffer.Html(`&nbsp;<input Id="find_query_by_str_button" type="submit" class="btn" value="By keyword in request" /><br>`)
+	buffer.Html(`&nbsp;<input type="text" Id="find_query_by_str_input" class="input" name="find_query_by_str_input" value="" required size="32"><br><br>`)
+	buffer.Html("</form>")
 
-	buffer.WriteString(`<h3>Useful links</h3>`)
-	buffer.WriteString(`<ul>`)
-	buffer.WriteString(`<li><a href="http://localhost:5601/app/observability-log-explorer/">Kibana Log Explorer</a></li>`)
-	buffer.WriteString(`<li><a href="http://localhost:8081">mitmproxy</a></li>`)
-	buffer.WriteString(`<li><a href="http://localhost:8123/play">Clickhouse</a></li>`)
-	buffer.WriteString(`</ul>`)
+	buffer.Html(`<h3>Useful links</h3>`)
+	buffer.Html(`<ul>`)
+	buffer.Html(`<li><a href="http://localhost:5601/app/observability-log-explorer/">Kibana Log Explorer</a></li>`)
+	buffer.Html(`<li><a href="http://localhost:8081">mitmproxy</a></li>`)
+	buffer.Html(`<li><a href="http://localhost:8123/play">Clickhouse</a></li>`)
+	buffer.Html(`</ul>`)
 
-	buffer.WriteString(`<h3>Details</h3>`)
-	buffer.WriteString(`<ul>`)
-	buffer.WriteString("<li><small>Mode: " + qmc.config.Mode.String() + "</small></li>")
+	buffer.Html(`<h3>Details</h3>`)
+	buffer.Html(`<ul>`)
+	buffer.Html("<li><small>Mode: ").Text(qmc.config.Mode.String()).Html("</small></li>")
 
-	buffer.WriteString("\n</div>")
-	buffer.WriteString("\n</body>")
-	buffer.WriteString("\n</html>")
+	buffer.Html("\n</div>")
+	buffer.Html("\n</body>")
+	buffer.Html("\n</html>")
 	return buffer.Bytes()
 }
 
@@ -132,70 +133,70 @@ func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 	buffer := newBufferWithHead()
 	buffer.Write(generateTopNavigation("dashboard"))
 
-	buffer.WriteString(`<main id="dashboard-main">` + "\n")
+	buffer.Html(`<main id="dashboard-main">` + "\n")
 
 	// Unfortunately, we need tiny bit of javascript to pause the animation.
-	buffer.WriteString(`<script type="text/javascript">`)
-	buffer.WriteString(`var checkbox = document.getElementById("autorefresh");`)
-	buffer.WriteString(`var dashboard = document.getElementById("dashboard-main");`)
-	buffer.WriteString(`checkbox.addEventListener('change', function() {`)
-	buffer.WriteString(`if (this.checked) {`)
-	buffer.WriteString(`dashboard.classList.remove("paused");`)
-	buffer.WriteString(`} else {`)
-	buffer.WriteString(`dashboard.classList.add("paused");`)
-	buffer.WriteString(`}`)
-	buffer.WriteString(`});`)
-	buffer.WriteString(`</script>` + "\n")
+	buffer.Html(`<script type="text/javascript">`)
+	buffer.Html(`var checkbox = document.getElementById("autorefresh");`)
+	buffer.Html(`var dashboard = document.getElementById("dashboard-main");`)
+	buffer.Html(`checkbox.addEventListener('change', function() {`)
+	buffer.Html(`if (this.checked) {`)
+	buffer.Html(`dashboard.classList.remove("paused");`)
+	buffer.Html(`} else {`)
+	buffer.Html(`dashboard.classList.add("paused");`)
+	buffer.Html(`}`)
+	buffer.Html(`});`)
+	buffer.Html(`</script>` + "\n")
 
-	buffer.WriteString(`<svg width="100%" height="100%" viewBox="0 0 1000 1000">` + "\n")
+	buffer.Html(`<svg width="100%" height="100%" viewBox="0 0 1000 1000">` + "\n")
 	// One limitation is that, we don't update color of paths after initial draw.
 	// They rarely change, so it's not a big deal for now.
 	// Clickhouse -> Kibana
 	if qmc.config.ReadsFromClickhouse() {
 		status, _ := qmc.generateDashboardTrafficText(RequestStatisticKibana2Clickhouse)
-		buffer.WriteString(fmt.Sprintf(`<path d="M 0 250 L 1000 250" fill="none" stroke="%s" />`, status))
+		buffer.Html(fmt.Sprintf(`<path d="M 0 250 L 1000 250" fill="none" stroke="%s" />`, status))
 	}
 	// Elasticsearch -> Kibana
 	if qmc.config.ReadsFromElasticsearch() {
 		status, _ := qmc.generateDashboardTrafficText(RequestStatisticKibana2Elasticsearch)
-		buffer.WriteString(fmt.Sprintf(`<path d="M 0 350 L 150 350 L 150 700 L 1000 700" fill="none" stroke="%s" />`, status))
+		buffer.Html(fmt.Sprintf(`<path d="M 0 350 L 150 350 L 150 700 L 1000 700" fill="none" stroke="%s" />`, status))
 	}
 
 	// Ingest -> Clickhouse
 	if qmc.config.WritesToClickhouse() {
 		status, _ := qmc.generateDashboardTrafficText(RequestStatisticIngest2Clickhouse)
-		buffer.WriteString(fmt.Sprintf(`<path d="M 1000 350 L 300 350 L 300 650 L 0 650" fill="none" stroke="%s" />`, status))
+		buffer.Html(fmt.Sprintf(`<path d="M 1000 350 L 300 350 L 300 650 L 0 650" fill="none" stroke="%s" />`, status))
 	}
 	// Ingest -> Elasticsearch
 	if qmc.config.WritesToElasticsearch() {
 		status, _ := qmc.generateDashboardTrafficText(RequestStatisticIngest2Elasticsearch)
-		buffer.WriteString(fmt.Sprintf(`<path d="M 1000 800 L 0 800" fill="none" stroke="%s" />`, status))
+		buffer.Html(fmt.Sprintf(`<path d="M 1000 800 L 0 800" fill="none" stroke="%s" />`, status))
 	}
-	buffer.WriteString(`</svg>` + "\n")
+	buffer.Html(`</svg>` + "\n")
 
-	buffer.WriteString(`<div hx-get="/panel/dashboard-traffic" hx-trigger="every 1s [htmx.find('#autorefresh').checked]">`)
+	buffer.Html(`<div hx-get="/panel/dashboard-traffic" hx-trigger="every 1s [htmx.find('#autorefresh').checked]">`)
 	buffer.Write(qmc.generateDashboardTrafficPanel())
-	buffer.WriteString(`</div>`)
+	buffer.Html(`</div>`)
 
-	buffer.WriteString(`<div id="dashboard">` + "\n")
+	buffer.Html(`<div id="dashboard">` + "\n")
 	buffer.Write(qmc.generateDashboardPanel())
-	buffer.WriteString("</div>\n")
-	buffer.WriteString("\n</main>\n\n")
+	buffer.Html("</div>\n")
+	buffer.Html("\n</main>\n\n")
 
-	buffer.WriteString(`<div class="menu">`)
-	buffer.WriteString("\n<h2>Menu</h2>")
+	buffer.Html(`<div class="menu">`)
+	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.WriteString(`<h3>Useful links</h3>`)
-	buffer.WriteString(`<ul>`)
-	buffer.WriteString(`<li><a href="http://localhost:5601/app/observability-log-explorer/">Kibana Log Explorer</a></li>`)
-	buffer.WriteString(`<li><a href="http://localhost:8081">mitmproxy</a></li>`)
-	buffer.WriteString(`<li><a href="http://localhost:8123/play">Clickhouse</a></li>`)
-	buffer.WriteString(`<li><a href="/ingest-statistics">Ingest statistics</a></li>`)
-	buffer.WriteString(`</ul>`)
+	buffer.Html(`<h3>Useful links</h3>`)
+	buffer.Html(`<ul>`)
+	buffer.Html(`<li><a href="http://localhost:5601/app/observability-log-explorer/">Kibana Log Explorer</a></li>`)
+	buffer.Html(`<li><a href="http://localhost:8081">mitmproxy</a></li>`)
+	buffer.Html(`<li><a href="http://localhost:8123/play">Clickhouse</a></li>`)
+	buffer.Html(`<li><a href="/ingest-statistics">Ingest statistics</a></li>`)
+	buffer.Html(`</ul>`)
 
-	buffer.WriteString("\n</div>")
-	buffer.WriteString("\n</body>")
-	buffer.WriteString("\n</html>")
+	buffer.Html("\n</div>")
+	buffer.Html("\n</body>")
+	buffer.Html("\n</html>")
 	return buffer.Bytes()
 }
 
@@ -205,15 +206,15 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 	qmc.mutex.Unlock()
 
 	buffer := newBufferWithHead()
-	buffer.WriteString(`<div class="topnav">`)
+	buffer.Html(`<div class="topnav">`)
 	if requestFound {
-		buffer.WriteString("\n<h3>Quesma Report for request Id " + requestId + "</h3>")
+		buffer.Html("\n<h3>Quesma Report for request Id ").Text(requestId).Html("</h3>")
 	} else {
-		buffer.WriteString("\n<h3>Quesma Report not found for " + requestId + "</h3>")
+		buffer.Html("\n<h3>Quesma Report not found for ").Text(requestId).Html("</h3>")
 	}
 
-	buffer.WriteString("\n</div>\n")
-	buffer.WriteString(`<main id="queries">`)
+	buffer.Html("\n</div>\n")
+	buffer.Html(`<main id="queries">`)
 
 	debugKeyValueSlice := []DebugKeyValue{}
 	if requestFound {
@@ -222,16 +223,16 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 
 	buffer.Write(generateQueries(debugKeyValueSlice, false))
 
-	buffer.WriteString("\n</main>\n")
-	buffer.WriteString(`<div class="menu">`)
-	buffer.WriteString("\n<h2>Menu</h2>")
+	buffer.Html("\n</main>\n")
+	buffer.Html(`<div class="menu">`)
+	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.WriteString(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
-	buffer.WriteString(`<form action="/log/` + requestId + `">&nbsp;<input class="btn" type="submit" value="Go to log" /></form>`)
+	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/log/`).Text(requestId).Html(`">&nbsp;<input class="btn" type="submit" value="Go to log" /></form>`)
 
-	buffer.WriteString("\n</div>")
-	buffer.WriteString("\n</body>")
-	buffer.WriteString("\n</html>")
+	buffer.Html("\n</div>")
+	buffer.Html("\n</body>")
+	buffer.Html("\n</html>")
 	return buffer.Bytes()
 }
 
@@ -241,36 +242,36 @@ func (qmc *QuesmaManagementConsole) generateLogForRequestId(requestId string) []
 	qmc.mutex.Unlock()
 
 	buffer := newBufferWithHead()
-	buffer.WriteString(`<div class="topnav">`)
+	buffer.Html(`<div class="topnav">`)
 	if requestFound {
-		buffer.WriteString("\n<h3>Quesma Log for request id " + requestId + "</h3>")
+		buffer.Html("\n<h3>Quesma Log for request id ").Text(requestId).Html("</h3>")
 	} else {
-		buffer.WriteString("\n<h3>Quesma Log not found for " + requestId + "</h3>")
+		buffer.Html("\n<h3>Quesma Log not found for ").Text(requestId).Html("</h3>")
 	}
-	buffer.WriteString("\n</div>\n")
+	buffer.Html("\n</div>\n")
 
-	buffer.WriteString(`<main class="center" id="center">`)
-	buffer.WriteString("\n\n")
-	buffer.WriteString(`<div class="title-bar">Query`)
-	buffer.WriteString("\n</div>\n")
-	buffer.WriteString(`<div class="debug-body">`)
+	buffer.Html(`<main class="center" id="center">`)
+	buffer.Html("\n\n")
+	buffer.Html(`<div class="title-bar">Query`)
+	buffer.Html("\n</div>\n")
+	buffer.Html(`<div class="debug-body">`)
 
-	buffer.WriteString("<p>RequestID:" + requestId + "</p>\n")
-	buffer.WriteString(`<pre id="query` + requestId + `">`)
-	buffer.WriteString(request.log)
-	buffer.WriteString("\n</pre>")
+	buffer.Html("<p>RequestID:").Text(requestId).Html("</p>\n")
+	buffer.Html(`<pre id="query`).Text(requestId).Html(`">`)
+	buffer.Text(request.log)
+	buffer.Html("\n</pre>")
 
-	buffer.WriteString("\n</div>\n")
-	buffer.WriteString("\n</main>\n")
-	buffer.WriteString(`<div class="menu">`)
-	buffer.WriteString("\n<h2>Menu</h2>")
+	buffer.Html("\n</div>\n")
+	buffer.Html("\n</main>\n")
+	buffer.Html(`<div class="menu">`)
+	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.WriteString(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
-	buffer.WriteString(`<form action="/request-Id/` + requestId + `">&nbsp;<input class="btn" type="submit" value="Back to request info" /></form>`)
+	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/request-Id/`).Text(requestId).Html(`">&nbsp;<input class="btn" type="submit" value="Back to request info" /></form>`)
 
-	buffer.WriteString("\n</div>")
-	buffer.WriteString("\n</body>")
-	buffer.WriteString("\n</html>")
+	buffer.Html("\n</div>")
+	buffer.Html("\n</body>")
+	buffer.Html("\n</html>")
 	return buffer.Bytes()
 }
 
@@ -289,55 +290,55 @@ func (qmc *QuesmaManagementConsole) generateReportForRequests(requestStr string)
 	}
 
 	buffer := newBufferWithHead()
-	buffer.WriteString(`<div class="topnav">`)
+	buffer.Html(`<div class="topnav">`)
 	title := fmt.Sprintf("Quesma Report for str '%s' with %d results", requestStr, len(debugKeyValueSlice))
-	buffer.WriteString("\n<h3>" + title + "</h3>")
+	buffer.Html("\n<h3>" + title + "</h3>")
 
-	buffer.WriteString("\n</div>\n\n")
+	buffer.Html("\n</div>\n\n")
 
-	buffer.WriteString(`<main id="queries">`)
+	buffer.Html(`<main id="queries">`)
 
 	buffer.Write(generateQueries(debugKeyValueSlice, true))
 
-	buffer.WriteString("\n</main>\n\n")
+	buffer.Html("\n</main>\n\n")
 
-	buffer.WriteString(`<div class="menu">`)
-	buffer.WriteString("\n<h2>Menu</h2>")
+	buffer.Html(`<div class="menu">`)
+	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.WriteString(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
 
-	buffer.WriteString("\n</div>")
-	buffer.WriteString("\n</body>")
-	buffer.WriteString("\n</html>")
+	buffer.Html("\n</div>")
+	buffer.Html("\n</body>")
+	buffer.Html("\n</html>")
 
 	return buffer.Bytes()
 }
 
 func (qmc *QuesmaManagementConsole) generateErrorForReason(reason string) []byte {
 	buffer := newBufferWithHead()
-	buffer.WriteString(`<div class="topnav">`)
+	buffer.Html(`<div class="topnav">`)
 	title := fmt.Sprintf("Quesma Errors with reason '%s'", reason)
-	buffer.WriteString("\n<h3>" + title + "</h3>")
-	buffer.WriteString("\n</div>\n\n")
+	buffer.Html("\n<h3>").Text(title).Html("</h3>")
+	buffer.Html("\n</div>\n\n")
 
-	buffer.WriteString(`<main id="errors">`)
+	buffer.Html(`<main id="errors">`)
 	errors := errorstats.GlobalErrorStatistics.ErrorReportsForReason(reason)
 	// TODO: Make it nicer
 	for _, errorReport := range errors {
-		buffer.WriteString("<p>" + errorReport.ReportedAt.String() + " " + errorReport.DebugMessage + "</p>\n")
+		buffer.Html("<p>").Text(errorReport.ReportedAt.String() + " " + errorReport.DebugMessage).Html("</p>\n")
 	}
-	buffer.WriteString("\n</main>\n\n")
+	buffer.Html("\n</main>\n\n")
 
-	buffer.WriteString(`<div class="menu">`)
-	buffer.WriteString("\n<h2>Menu</h2>")
+	buffer.Html(`<div class="menu">`)
+	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.WriteString(`<form action="/dashboard">&nbsp;<input class="btn" type="submit" value="Back to dashboard" /></form>`)
+	buffer.Html(`<form action="/dashboard">&nbsp;<input class="btn" type="submit" value="Back to dashboard" /></form>`)
 	// TODO: implement
-	// buffer.WriteString(`<form action="/dashboard">&nbsp;<input class="btn" type="submit" value="See requests with errors" /></form>`)
-	buffer.WriteString("\n</div>")
+	// buffer.Html(`<form action="/dashboard">&nbsp;<input class="btn" type="submit" value="See requests with errors" /></form>`)
+	buffer.Html("\n</div>")
 
-	buffer.WriteString("\n</body>")
-	buffer.WriteString("\n</html>")
+	buffer.Html("\n</body>")
+	buffer.Html("\n</html>")
 
 	return buffer.Bytes()
 }
