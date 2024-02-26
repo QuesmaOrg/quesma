@@ -214,7 +214,9 @@ func RemoveTypeMismatchSchemaFields(m SchemaMap, t *Table) SchemaMap {
 		// All numbers in json are by default float type
 		// We don't want to filter out those that
 		// have empty decimal part
-		if err == nil && util.ValueKind(value) != kind && util.IsInt(value) {
+		// "!isFloat64" -> to make e.g. string column with integer value fail, as it would in the actual insert
+		_, isFloat64 := value.(float64)
+		if err == nil && util.ValueKind(value) != kind && (!isFloat64 || !util.IsInt(value)) {
 			delete(schema, col.Name)
 		}
 	}
@@ -267,6 +269,7 @@ func RemoveTypeMismatchSchemaFields(m SchemaMap, t *Table) SchemaMap {
 					} else {
 						innerType, ok := col.Type.(CompoundType)
 						if ok {
+							handleType(col, m, arrayElement)
 							kind, err := util.KindFromString(innerType.BaseType.String())
 							valueKind := util.ValueKind(arrayElement)
 							if err == nil && valueKind != kind {
@@ -277,15 +280,9 @@ func RemoveTypeMismatchSchemaFields(m SchemaMap, t *Table) SchemaMap {
 				}
 			case interface{}:
 				_, ok := col.Type.(BaseType)
-
 				if ok {
-					kind, err := util.KindFromString(col.Type.String())
-					valueKind := util.ValueKind(v)
-					if err == nil && valueKind != kind {
-						delete(m, fieldName)
-					}
+					handleType(col, m, v)
 				}
-
 			}
 		}
 	}

@@ -47,7 +47,7 @@ func TestRemoveTypeMismatchSchemaField_ArrayOfTuples(t *testing.T) {
 	assert.Len(t, products, 1)
 }
 
-func Test2RemoveTypeMismatchSchemaField_ArrayOfTuples(t *testing.T) {
+func TestRemoveTypeMismatchSchemaField_ArrayOfTuples_2(t *testing.T) {
 	createTableString := `CREATE TABLE kibana_sample_data_ecommerce
 		(
 		    "array-ints" Array(Int64),
@@ -69,11 +69,13 @@ func Test2RemoveTypeMismatchSchemaField_ArrayOfTuples(t *testing.T) {
 	assert.Len(t, removedMismatch, 0)
 }
 
-func Test2RemoveTypeMismatchSchemaField_BaseTypes(t *testing.T) {
+func TestRemoveTypeMismatchSchemaField_BaseTypes(t *testing.T) {
 	createTableString := `CREATE TABLE kibana_sample_data_ecommerce
 		(
-		    "int" Int64,
-			"str" String,
+		    "int1" Int64,
+		    "int2" Int64,
+		    "str1" String,
+		    "str2" String
 		)
 		ENGINE = MergeTree
 		ORDER BY "@timestamp"
@@ -83,10 +85,30 @@ func Test2RemoveTypeMismatchSchemaField_BaseTypes(t *testing.T) {
 	assert.NoError(t, err)
 
 	incomingInsert := SchemaMap{
-		"int": "1",
-		"str": 1,
+		"int1": "1",
+		"int2": "1.5",
+		"str1": 1,
+		"str2": 1.5,
 	}
 
 	removedMismatch := RemoveTypeMismatchSchemaFields(incomingInsert, table)
 	assert.Len(t, removedMismatch, 0)
+}
+
+func TestRemoveTypeMismatchSchemaField_intsAndFloats(t *testing.T) {
+	createTableString := `CREATE TABLE kibana_sample_data_ecommerce
+		(
+		    "int" Int64
+		)
+		ENGINE = MergeTree
+		ORDER BY "@timestamp"
+		SETTINGS index_granularity = 8192`
+	table, err := NewTable(createTableString, NewChTableConfigNoAttrs())
+	assert.NoError(t, err)
+
+	incomingInsert := SchemaMap{
+		"int": 1.0,
+	}
+	removedMismatch := RemoveTypeMismatchSchemaFields(incomingInsert, table)
+	assert.Len(t, removedMismatch, 1)
 }

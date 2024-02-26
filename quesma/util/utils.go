@@ -406,19 +406,19 @@ func IsInt(value interface{}) bool {
 	if valueType.Kind() == reflect.Float64 {
 		// Convert the float value to string
 		stringValue := fmt.Sprintf("%f", value)
-
 		// Split the string by decimal point
 		parts := strings.Split(stringValue, ".")
 		if len(parts) == 2 && len(parts[1]) > 0 {
 			// Check if the decimal part contains only zeros
 			for _, digit := range parts[1] {
 				if digit != '0' {
-					return true
+					return false
 				}
 			}
 		}
+		return true
 	}
-	return false
+	return valueType.Kind() == reflect.Int || valueType.Kind() == reflect.Int64 || valueType.Kind() == reflect.Int32
 }
 
 // Function returns a type - kind for specific value
