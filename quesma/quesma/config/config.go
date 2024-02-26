@@ -21,26 +21,35 @@ const (
 )
 
 const (
-	prefix           = "quesma"
-	indexConfig      = "index"
-	enabledConfig    = "enabled"
-	logsPathConfig   = "logs_path"
-	logLevelConfig   = "log_level"
-	publicTcpPort    = "port"
-	elasticsearchUrl = "elasticsearch_url"
-	clickhouseUrl    = "clickhouse_url"
+	prefix             = "quesma"
+	indexConfig        = "index"
+	enabledConfig      = "enabled"
+	logsPathConfig     = "logs_path"
+	logLevelConfig     = "log_level"
+	publicTcpPort      = "port"
+	elasticsearchUrl   = "elasticsearch_url"
+	clickhouseUrl      = "clickhouse_url"
+	clickhouseDatabase = "clickhouse_database"
+)
+
+const (
+	clickhouseUserEnv     = "CLICKHOUSE_USER"
+	clickhousePasswordEnv = "CLICKHOUSE_PASSWORD"
 )
 
 type (
 	OperationMode       int
 	QuesmaConfiguration struct {
-		Mode             OperationMode
-		ElasticsearchUrl *url.URL
-		ClickHouseUrl    *url.URL
-		IndexConfig      []IndexConfiguration
-		LogsPath         string
-		LogLevel         zerolog.Level
-		PublicTcpPort    network.Port
+		Mode               OperationMode
+		ElasticsearchUrl   *url.URL
+		ClickHouseUrl      *url.URL
+		ClickHouseUser     *string
+		ClickHousePassword *string
+		ClickHouseDatabase *string
+		IndexConfig        []IndexConfiguration
+		LogsPath           string
+		LogLevel           zerolog.Level
+		PublicTcpPort      network.Port
 	}
 
 	IndexConfiguration struct {
@@ -72,13 +81,16 @@ func Load() QuesmaConfiguration {
 		indexBypass = append(indexBypass, IndexConfiguration{NamePattern: indexNamePattern, Enabled: config.(map[string]interface{})[enabledConfig].(bool)})
 	}
 	return QuesmaConfiguration{
-		Mode:             parseOperationMode(mode),
-		PublicTcpPort:    configurePublicTcpPort(),
-		ElasticsearchUrl: configureUrl(elasticsearchUrl),
-		ClickHouseUrl:    configureUrl(clickhouseUrl),
-		IndexConfig:      indexBypass,
-		LogsPath:         configureLogsPath(),
-		LogLevel:         configureLogLevel(),
+		Mode:               parseOperationMode(mode),
+		PublicTcpPort:      configurePublicTcpPort(),
+		ElasticsearchUrl:   configureUrl(elasticsearchUrl),
+		ClickHouseUrl:      configureUrl(clickhouseUrl),
+		IndexConfig:        indexBypass,
+		LogsPath:           configureLogsPath(),
+		LogLevel:           configureLogLevel(),
+		ClickHouseUser:     configureOptionalEnvVar(clickhouseUserEnv),
+		ClickHousePassword: configureOptionalEnvVar(clickhousePasswordEnv),
+		ClickHouseDatabase: configureOptionalConfig(clickhouseDatabase),
 	}
 }
 
@@ -110,6 +122,24 @@ func configurePublicTcpPort() network.Port {
 
 func fullyQualifiedConfig(config string) string {
 	return fmt.Sprintf("%s.%s", prefix, config)
+}
+
+func configureOptionalEnvVar(envVarName string) *string {
+	if value, isSet := os.LookupEnv(envVarName); isSet {
+		return &value
+	}
+	return nil
+}
+
+func configureOptionalConfig(configName string) *string {
+	if envVar := configureOptionalEnvVar(strings.ToUpper(configName)); envVar != nil {
+		return envVar
+	}
+	if viper.IsSet(fullyQualifiedConfig(configName)) {
+		value := viper.GetString(fullyQualifiedConfig(configName))
+		return &value
+	}
+	return nil
 }
 
 func configureLogsPath() string {
@@ -182,11 +212,22 @@ func (c *QuesmaConfiguration) String() string {
 		clickhouseUrl = c.ClickHouseUrl.String()
 	}
 
+	clickhouseExtra := ""
+	if c.ClickHouseUser != nil {
+		clickhouseExtra = fmt.Sprintf("\n      ClickHouse user: %s", *c.ClickHouseUser)
+	}
+	if c.ClickHousePassword != nil {
+		clickhouseExtra += "\n      ClickHouse password: ***"
+	}
+	if c.ClickHouseDatabase != nil {
+		clickhouseExtra += fmt.Sprintf("\n      ClickHouse database: %s", *c.ClickHouseDatabase)
+	}
+
 	return fmt.Sprintf(`
 Quesma Configuration:
 	Mode: %s
 	Elasticsearch URL: %s
-	ClickHouse URL: %s
+	ClickHouse URL: %s%s
 	Indexes: %s
 	Logs Path: %s
 	Log Level: %v
@@ -194,6 +235,7 @@ Quesma Configuration:
 		c.Mode.String(),
 		elasticUrl,
 		clickhouseUrl,
+		clickhouseExtra,
 		indexConfigs,
 		c.LogsPath,
 		c.LogLevel,

@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -76,7 +77,11 @@ func (lm *LogManager) Start() {
 
 func (lm *LogManager) loadTables() {
 	configuredTables := make(map[string]map[string]string)
-	if tables, err := lm.DescribeTables("default"); err != nil {
+	databaseName := "default"
+	if lm.cfg.ClickHouseDatabase != nil {
+		databaseName = *lm.cfg.ClickHouseDatabase
+	}
+	if tables, err := lm.DescribeTables(databaseName); err != nil {
 		logger.Error().Msgf("could not describe tables: %v", err)
 		return
 	} else {
@@ -130,9 +135,29 @@ func (lm *LogManager) Close() {
 	_ = lm.chDb.Close()
 }
 
+func withDefault(optStr *string, def string) string {
+	if optStr == nil {
+		return def
+	}
+	return *optStr
+}
+
 func (lm *LogManager) initConnection() error {
 	if lm.chDb == nil {
-		lm.chDb = clickhouse.OpenDB(&clickhouse.Options{Addr: []string{lm.cfg.ClickHouseUrl.Host}})
+		options := clickhouse.Options{Addr: []string{lm.cfg.ClickHouseUrl.Host}}
+		if lm.cfg.ClickHouseUser != nil || lm.cfg.ClickHousePassword != nil || lm.cfg.ClickHouseDatabase != nil {
+			options.TLS = &tls.Config{
+				InsecureSkipVerify: true, // TODO: fix it
+			}
+
+			options.Auth = clickhouse.Auth{
+				Username: withDefault(lm.cfg.ClickHouseUser, ""),
+				Password: withDefault(lm.cfg.ClickHousePassword, ""),
+				Database: withDefault(lm.cfg.ClickHouseDatabase, ""),
+			}
+		}
+
+		lm.chDb = clickhouse.OpenDB(&options)
 	}
 	return lm.chDb.Ping()
 }
