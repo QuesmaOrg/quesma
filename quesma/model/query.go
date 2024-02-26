@@ -116,7 +116,8 @@ const (
 	ListByField
 	ListAllFields
 	EarliestLatestTimestamp // query for 2 timestamps: earliest and latest
-	None                    // called None, not Normal, like below, as it basically never happens, I don't even know how to trigger it/reply to this
+	CountAsync
+	None // called None, not Normal, like below, as it basically never happens, I don't even know how to trigger it/reply to this
 )
 
 const (
@@ -125,7 +126,7 @@ const (
 )
 
 func (queryType AsyncSearchQueryType) String() string {
-	return []string{"Histogram", "AggsByField", "ListByField", "ListAllFields", "EarliestLatestTimestamp", "None"}[queryType]
+	return []string{"Histogram", "AggsByField", "ListByField", "ListAllFields", "EarliestLatestTimestamp", "CountAsync", "None"}[queryType]
 }
 
 func (queryType SearchQueryType) String() string {

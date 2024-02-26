@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/kibana"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"regexp"
 	"strconv"
@@ -139,6 +140,21 @@ func makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.Asy
 	var total *model.Total
 	var id *string
 	switch typ {
+	case model.CountAsync:
+		var countValue uint64
+		if len(ResultSet) > 0 && len(ResultSet[0].Cols) > 0 {
+			if val, ok := ResultSet[0].Cols[0].Value.(uint64); ok {
+				countValue = val
+			} else {
+				logger.Error().Msgf("Failed extracting Count value SQL query result [%v]", ResultSet)
+				countValue = 0
+			}
+		}
+		hits = make([]model.SearchHit, 0) // need to remove count result from hits
+		total = &model.Total{
+			Value:    int(countValue),
+			Relation: "eq",
+		}
 	case model.ListByField:
 		total = &model.Total{
 			Value:    len(ResultSet),
@@ -216,6 +232,8 @@ func MakeResponseAsyncSearchQuery(ResultSet []model.QueryResultRow, typ model.As
 		return makeResponseAsyncSearchList(ResultSet, typ)
 	case model.EarliestLatestTimestamp:
 		return makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet)
+	case model.CountAsync:
+		return makeResponseAsyncSearchList(ResultSet, typ)
 	default:
 		return nil, fmt.Errorf("unknown AsyncSearchQueryType: %v", typ)
 	}

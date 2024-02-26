@@ -630,6 +630,10 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.Q
 		return model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size)}, true
 	}
 	if len(fields) == 0 {
+		isCount, ok := queryMap["track_total_hits"].(bool)
+		if ok && isCount {
+			return model.QueryInfoAsyncSearch{Typ: model.CountAsync, FieldName: "", I1: 0, I2: 0}, true
+		}
 		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	queryMap, ok = fields[0].(QueryMap)

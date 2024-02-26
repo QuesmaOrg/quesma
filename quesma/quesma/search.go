@@ -117,6 +117,9 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 			var bucket time.Duration
 			fullQuery, bucket = queryTranslator.BuildHistogramQuery(simpleQuery.FieldName, simpleQuery.Sql.Stmt, queryInfo.FieldName)
 			rows, err = queryTranslator.ClickhouseLM.ProcessHistogramQuery(fullQuery, bucket)
+		case model.CountAsync:
+			fullQuery = queryTranslator.BuildSimpleCountQuery(queryTranslator.TableName, simpleQuery.Sql.Stmt)
+			rows, err = queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(fullQuery)
 		case model.AggsByField:
 			// queryInfo = (AggsByField, fieldName, Limit results, Limit last rows to look into)
 			fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.I2)
