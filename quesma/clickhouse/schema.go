@@ -10,6 +10,12 @@ import (
 	"time"
 )
 
+const (
+	attributesKeyColumn   = "attributes_string_key"
+	attributesValueColumn = "attributes_string_value"
+	attributesColumnType  = "Array(String)"
+)
+
 type (
 	Type interface {
 		String() string
@@ -151,28 +157,35 @@ func (t MultiValueType) canConvert(v interface{}) bool {
 	return false // TODO for now. For sure can implement tuples easily, maybe some other too
 }
 
-// 'name' = ClickHouse type name
-func NewBaseType(name string) BaseType {
-	var goType = reflect.TypeOf("") // default, probably good for dates, etc.
-	switch name {
-	case "String", "LowCardinality(String)", "UUID":
+func NewBaseType(clickHouseTypeName string) BaseType {
+	var goType = ResolveType(clickHouseTypeName)
+	if goType == nil {
+		// default, probably good for dates, etc.
 		goType = reflect.TypeOf("")
-	case "DateTime64", "DateTime":
-		goType = reflect.TypeOf(time.Time{})
-	case "UInt8", "UInt16", "UInt32", "UInt64":
-		goType = reflect.TypeOf(uint64(0))
-	case "Int8", "Int16", "Int32":
-		goType = reflect.TypeOf(int32(0))
-	case "Int64":
-		goType = reflect.TypeOf(int64(0))
-	case "Float32", "Float64":
-		goType = reflect.TypeOf(float64(0))
-	case "Bool":
-		goType = reflect.TypeOf(true)
-	case "JSON":
-		goType = reflect.TypeOf(map[string]interface{}{})
 	}
-	return BaseType{Name: name, goType: goType}
+	return BaseType{Name: clickHouseTypeName, goType: goType}
+}
+
+func ResolveType(clickHouseTypeName string) reflect.Type {
+	switch clickHouseTypeName {
+	case "String", "LowCardinality(String)", "UUID":
+		return reflect.TypeOf("")
+	case "DateTime64", "DateTime":
+		return reflect.TypeOf(time.Time{})
+	case "UInt8", "UInt16", "UInt32", "UInt64":
+		return reflect.TypeOf(uint64(0))
+	case "Int8", "Int16", "Int32":
+		return reflect.TypeOf(int32(0))
+	case "Int64":
+		return reflect.TypeOf(int64(0))
+	case "Float32", "Float64":
+		return reflect.TypeOf(float64(0))
+	case "Bool":
+		return reflect.TypeOf(true)
+	case "JSON":
+		return reflect.TypeOf(map[string]interface{}{})
+	}
+	return nil
 }
 
 // 'value': value of a field, from unmarshalled JSON
@@ -330,8 +343,8 @@ func (config *ChTableConfig) CreateTablePostFieldsString() string {
 
 func NewDefaultStringAttribute() Attribute {
 	return Attribute{
-		KeysArrayName:   "attributes_string_key",
-		ValuesArrayName: "attributes_string_value",
+		KeysArrayName:   attributesKeyColumn,
+		ValuesArrayName: attributesValueColumn,
 		Type:            NewBaseType("String"),
 	}
 }

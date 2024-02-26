@@ -32,7 +32,7 @@ type (
 		cfg              config.QuesmaConfiguration
 	}
 	TableMap  = map[string]*Table
-	SchemaMap = map[string]interface{} // TODO remnove
+	SchemaMap = map[string]interface{} // TODO remove
 	Log       struct {
 		Timestamp string `json:"@timestamp,omitempty"`
 		Severity  string `json:"severity,omitempty"`
@@ -72,7 +72,7 @@ func (lm *LogManager) Start() {
 		logger.Error().Msg("could not connect to clickhouse")
 	}
 
-	lm.loadTables()
+	lm.loadTables() // TODO fetch from config
 }
 
 func (lm *LogManager) loadTables() {
@@ -81,13 +81,12 @@ func (lm *LogManager) loadTables() {
 	if lm.cfg.ClickHouseDatabase != nil {
 		databaseName = *lm.cfg.ClickHouseDatabase
 	}
-	if tables, err := lm.DescribeTables(databaseName); err != nil {
+	if tables, err := lm.describeTables(databaseName); err != nil {
 		logger.Error().Msgf("could not describe tables: %v", err)
 		return
 	} else {
 		for table, columns := range tables {
 			if indexConfig, found := lm.cfg.GetIndexConfig(table); found {
-				logger.Info().Msgf("table '%s' is managed by Quesma", table)
 				if indexConfig.Enabled {
 					configuredTables[table] = columns
 				}
@@ -97,15 +96,12 @@ func (lm *LogManager) loadTables() {
 		}
 	}
 
-	for name, columns := range configuredTables {
-		logger.Debug().Msgf("table: %v", name)
-		for col, colType := range columns {
-			logger.Debug().Msgf("column: %s, type: %s", col, colType)
-		}
-	}
+	logger.Info().Msgf("discovered tables: [%s]", strings.Join(util.MapKeys(configuredTables), ","))
+
+	populateTableDefinitions(configuredTables, lm)
 }
 
-func (lm *LogManager) DescribeTables(database string) (map[string]map[string]string, error) {
+func (lm *LogManager) describeTables(database string) (map[string]map[string]string, error) {
 	logger.Debug().Msgf("describing tables: %s", database)
 
 	if err := lm.initConnection(); err != nil {
@@ -184,7 +180,6 @@ func (lm *LogManager) ResolveTableName(index string) string {
 			return k
 		}
 	}
-	logger.Warn().Msgf("could not resolve table name for [%s]", index)
 	return ""
 }
 

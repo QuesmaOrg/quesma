@@ -16,6 +16,11 @@ import (
 func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
 	resolvedTableName := lm.ResolveTableName(indexPattern)
+	if resolvedTableName == "" {
+		logger.Warn().Msgf("could not resolve table name for [%s]", indexPattern)
+		return nil, errors.New("could not resolve table name")
+	}
+
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: resolvedTableName}
 
 	var rawResults []byte
@@ -92,7 +97,12 @@ func createAsyncSearchResponseHitJson(ctx context.Context, rows []model.QueryRes
 func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
 
-	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: lm.ResolveTableName(index)}
+	name := lm.ResolveTableName(index)
+	if name == "" {
+		logger.Warn().Msgf("could not resolve table name for [%s]", index)
+		return nil, errors.New("could not resolve table name")
+	}
+	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: name}
 	var rawResults []byte
 	simpleQuery, queryInfo := queryTranslator.ParseQueryAsyncSearch(string(body))
 	var responseBody, translatedQueryBody []byte
