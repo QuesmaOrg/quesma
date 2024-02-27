@@ -2,6 +2,8 @@ package concurrent
 
 import "sync"
 
+// Map is a generics-friendly wrapper on top of sync.Map with a few extra handy methods,
+// especially Snapshot since sync.Map can't be used with 'range' directly
 type Map[K comparable, V any] struct {
 	syncMap *sync.Map
 }
