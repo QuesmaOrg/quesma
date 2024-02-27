@@ -142,3 +142,26 @@ func TestSearcHandlerNoAttrsConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestAsyncSearchFilterEmpty(t *testing.T) {
+	t.Skip()
+	for _, tt := range testdata.TestSearchEmptyFilter {
+		t.Run(tt.Name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			assert.NoError(t, err)
+
+			lm := clickhouse.NewLogManagerWithConnection(db, table)
+			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), make(<-chan string, 50000))
+			mock.ExpectQuery(testdata.EscapeBrackets(tt.WantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+			_, _ = handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
+
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatal("there were unfulfilled expections:", err)
+			}
+		})
+	}
+}

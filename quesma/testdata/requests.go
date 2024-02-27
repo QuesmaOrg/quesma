@@ -1735,3 +1735,56 @@ var TestsSearchNoAttrs = []SearchTestCase{
 		`SELECT "message" FROM "logs-generic-default" WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-25T13:..:45.968Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-25T13:..:45.968Z')) AND (has("attributes_string_key","summary") AND "attributes_string_value"[indexOf("attributes_string_key","summary")] IS NOT NULL) AND NOT (has("attributes_string_key","run_once") AND "attributes_string_value"[indexOf("attributes_string_key","run_once")] IS NOT NULL)`,
 	},
 }
+
+var TestSearchEmptyFilter = []SearchTestCase{
+	{
+		"Test empty ANDs, ORs and NOTs",
+		`{
+		  "_source": {
+			"excludes": []
+		  },
+		  "aggs": {
+			"0": {
+			  "date_histogram": {
+				"field": "@timestamp",
+				"fixed_interval": "30s",
+				"min_doc_count": 1,
+				"time_zone": "Europe/Warsaw"
+			  }
+			}
+		  },
+		  "fields": [
+			{
+			  "field": "@timestamp",
+			  "format": "date_time"
+			}
+		  ],
+		  "query": {
+			"bool": {
+			  "filter": [
+			  ],
+			  "must": [],
+			  "must_not": [],
+			  "should": []
+			}
+		  },
+		  "runtime_mappings": {},
+		  "script_fields": {},
+		  "size": 0,
+		  "stored_fields": [
+			"*"
+		  ],
+		  "track_total_hits": true
+		}`,
+		[]string{
+			``,
+			``,
+		},
+		model.Normal,
+		[]model.Query{
+			justWhere(``),
+			justWhere(``),
+		},
+		`todo fix wantedRegex`,
+	},
+}
