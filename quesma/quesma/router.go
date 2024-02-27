@@ -67,6 +67,17 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 			return string(responseBody), nil
 		}
 	})
+	router.RegisterPathMatcher(routes.TermsEnumPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
+		if strings.Contains(params["index"], ",") {
+			return "", errors.New("multi index terms enum is not yet supported")
+		} else {
+			if responseBody, err := handleTermsEnum(ctx, params["index"], []byte(body), lm); err != nil {
+				return "", err
+			} else {
+				return string(responseBody), nil
+			}
+		}
+	})
 	return router
 }
 

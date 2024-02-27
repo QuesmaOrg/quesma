@@ -48,14 +48,6 @@ func TestFieldCaps(t *testing.T) {
       }
     },
     "arrayOfArraysOfStrings": {
-      "text": {
-        "aggregatable": false,
-        "metadata_field": false,
-        "searchable": true,
-        "type": "text"
-      }
-    },
-    "arrayOfArraysOfStrings.keyword": {
       "keyword": {
         "aggregatable": true,
         "searchable": true,
@@ -79,14 +71,6 @@ func TestFieldCaps(t *testing.T) {
       }
     },
     "service.name": {
-      "text": {
-        "aggregatable": false,
-        "metadata_field": false,
-        "searchable": true,
-        "type": "text"
-      }
-    },
-    "service.name.keyword": {
       "keyword": {
         "aggregatable": true,
         "searchable": true,

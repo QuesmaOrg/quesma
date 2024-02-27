@@ -330,6 +330,15 @@ func (cw *ClickhouseQueryTranslator) GetFieldsList(tableName string) []string {
 	return []string{"message"}
 }
 
+func (cw *ClickhouseQueryTranslator) BuildSelectQuery(fields []string, tableName, whereClause string) *model.Query {
+	return &model.Query{
+		Fields:      fields,
+		WhereClause: whereClause,
+		TableName:   tableName,
+		CanParse:    true,
+	}
+}
+
 func (cw *ClickhouseQueryTranslator) BuildSimpleSelectQuery(tableName, whereClause string) *model.Query {
 	return &model.Query{
 		Fields:      []string{"*"},

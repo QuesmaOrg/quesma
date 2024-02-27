@@ -90,13 +90,17 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 func (cw *ClickhouseQueryTranslator) parseMetadata(queryMap QueryMap) QueryMap {
 	queryMetadata := make(QueryMap, 5)
 	for k, v := range queryMap {
-		if k == "query" || k == "bool" || k == "query_string" { // probably change that, made so tests work, but let's see after more real use cases {
+		if k == "query" || k == "bool" || k == "query_string" || k == "index_filter" { // probably change that, made so tests work, but let's see after more real use cases {
 			continue
 		}
 		queryMetadata[k] = v
 		delete(queryMap, k)
 	}
 	return queryMetadata
+}
+
+func (cw *ClickhouseQueryTranslator) ParseQueryMap(queryMap QueryMap) SimpleQuery {
+	return cw.parseQueryMap(queryMap)
 }
 
 func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuery {
@@ -112,6 +116,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 		"term":                cw.parseTerm,
 		"terms":               cw.parseTerms,
 		"query":               cw.parseQueryMap,
+		"index_filter":        cw.parseQueryMap, // used in terms enum API
 		"prefix":              cw.parsePrefix,
 		"nested":              cw.parseNested,
 		"match_phrase":        cw.parseMatch,
@@ -207,6 +212,11 @@ func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) SimpleQuery {
 func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) SimpleQuery {
 	if len(queryMap) == 1 {
 		for k, v := range queryMap {
+			if strings.HasPrefix(k, "_") {
+				// terms enum API uses _tier terms ( data_hot, data_warm, etc.)
+				// we don't want these internal fields to percolate to the SQL query
+				return newSimpleQuery(NewSimpleStatement(""), true)
+			}
 			vAsArray := v.([]interface{})
 			orStmts := make([]Statement, len(vAsArray))
 			for i, v := range vAsArray {

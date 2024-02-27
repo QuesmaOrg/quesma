@@ -159,9 +159,6 @@ func (lm *LogManager) ProcessFacetsQuery(query *model.Query) ([]model.QueryResul
 	return resultRows, nil
 }
 
-// TODO make it faster? E.g. not search in all rows?
-// TODO add support for autocomplete for attributes, if we'll find it needed
-// With autocomplete, I assume field is a string, so we can use iLIKE
 func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(query *model.Query) ([]model.QueryResultRow, error) {
 	if err := lm.initConnection(); err != nil {
 		return nil, err

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/model"
 )
@@ -96,18 +95,21 @@ func addNewFieldCapability(fields map[string]map[string]model.FieldCapability, c
 	fieldCapabilitiesMap := make(map[string]model.FieldCapability)
 	fieldCapabilitiesMap[typeName] = fieldCapability
 
-	// This is a tiny hack to smoothen Kibana experience :)
+	// Unlike Elasticsearch, we do not create additional fields named `FIELD_NAME.keyword` for keyword fields.
+	//
+	// For now, we make all text fields keyword fields so that users can filter them nicely with KQL,
+	// but in the future we may want to revisit this and perhaps add even more (if not all) fields as keyword fields.
 	if (typeName == "text" || typeName == "LowCardinality(String)") && col.Name != quesmaDebuggingFieldName {
-		keywordMap := make(map[string]model.FieldCapability)
-		keywordMap["keyword"] = model.FieldCapability{
+		keywordFieldCap := make(map[string]model.FieldCapability)
+		keywordFieldCap["keyword"] = model.FieldCapability{
 			Aggregatable: true,
 			Searchable:   true,
 			Type:         "keyword",
 		}
-		fields[fmt.Sprintf("%s.keyword", col.Name)] = keywordMap
+		fields[col.Name] = keywordFieldCap
+	} else {
+		fields[col.Name] = fieldCapabilitiesMap
 	}
-
-	fields[col.Name] = fieldCapabilitiesMap
 }
 
 func handleFieldCapsIndex(_ context.Context, resolvedIndex string, tables clickhouse.TableMap) ([]byte, error) {

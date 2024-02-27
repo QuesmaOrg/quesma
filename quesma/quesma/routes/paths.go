@@ -8,6 +8,7 @@ const (
 	IndexDocPath         = "/:index/_doc"
 	IndexBulkPath        = "/:index/_bulk"
 	FieldCapsPath        = "/:index/_field_caps"
+	TermsEnumPath        = "/:index/_terms_enum"
 	ClusterHealthPath    = "/_cluster/health"
 	BulkPath             = "/_bulk"
 	SearchPath           = "/_search"
