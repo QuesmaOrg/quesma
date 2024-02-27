@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
+	"mitmproxy/quesma/index"
 	"mitmproxy/quesma/network"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 )
 
@@ -63,7 +63,7 @@ func (c IndexConfiguration) Matches(indexName string) bool {
 }
 
 func MatchName(pattern, name string) bool {
-	return regexp.MustCompile(fmt.Sprintf("^%s$", strings.Replace(pattern, "*", ".*", -1))).MatchString(name)
+	return index.TableNamePatternRegexp(pattern).MatchString(name)
 }
 
 func Load() QuesmaConfiguration {
