@@ -1736,9 +1736,59 @@ var TestsSearchNoAttrs = []SearchTestCase{
 	},
 }
 
-var TestSearchEmptyFilter = []SearchTestCase{
+var TestSearchFilter = []SearchTestCase{
 	{
-		"Test empty ANDs, ORs and NOTs",
+		"Empty filter clause",
+		`{
+			  "_source": {
+				"excludes": []
+			  },
+			  "aggs": {
+				"0": {
+				  "date_histogram": {
+					"field": "@timestamp",
+					"fixed_interval": "30s",
+					"min_doc_count": 1,
+					"time_zone": "Europe/Warsaw"
+				  }
+				}
+			  },
+			  "fields": [
+				{
+				  "field": "@timestamp",
+				  "format": "date_time"
+				}
+			  ],
+			  "query": {
+				"bool": {
+				  "filter": [
+				  ],
+				  "must": [],
+				  "must_not": [],
+				  "should": []
+				}
+			  },
+			  "runtime_mappings": {},
+			  "script_fields": {},
+			  "size": 0,
+			  "stored_fields": [
+				"*"
+			  ],
+			  "track_total_hits": true
+			}`,
+		[]string{
+			``,
+			``,
+		},
+		model.Normal,
+		[]model.Query{
+			justWhere(``),
+			justWhere(``),
+		},
+		`todo fix wantedRegex`,
+	},
+	{
+		"Filter with now in range",
 		`{
 		  "_source": {
 			"excludes": []
@@ -1762,6 +1812,13 @@ var TestSearchEmptyFilter = []SearchTestCase{
 		  "query": {
 			"bool": {
 			  "filter": [
+				{
+				  "range": {
+					"@timestamp": {
+					  "gt": "now-15m"
+					}
+				  }
+				}
 			  ],
 			  "must": [],
 			  "must_not": [],
