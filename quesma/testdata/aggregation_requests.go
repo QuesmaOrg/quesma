@@ -4,9 +4,10 @@ import "mitmproxy/quesma/model"
 
 type AggregationTestCase struct {
 	TestName         string
-	QueryRequestJson string
-	ExpectedResponse string
+	QueryRequestJson string                   // JSON query request, just like received from Kibana
+	ExpectedResponse string                   // JSON response, just like Elastic would respond to the query request
 	ExpectedResults  [][]model.QueryResultRow // [0] = result for first aggregation, [1] = result for second aggregation, etc.
+	ExpectedSQLs     []string                 // [0] = translated SQLs for first aggregation, [1] = translated SQL for second aggregation, etc.
 }
 
 var AggregationTests = []AggregationTestCase{
@@ -103,6 +104,10 @@ var AggregationTests = []AggregationTestCase{
 		[][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", 1199.72900390625)}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", 100.14596557617188)}}},
+		},
+		[]string{
+			`SELECT max("AvgTicketPrice") FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') `,
+			`SELECT min("AvgTicketPrice") FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') `,
 		},
 	},
 	{ // [1]
@@ -307,6 +312,11 @@ var AggregationTests = []AggregationTestCase{
 				}},
 			},
 		},
+		[]string{
+			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE "FlightDelay" == true  GROUP BY ("OriginCityName")`,
+			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE "Cancelled" == true  GROUP BY ("OriginCityName")`,
+			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')  GROUP BY ("OriginCityName")`,
+		},
 	},
 	{ // [2] needs some more work - double/3x/4x/... aggregation ([]buckets: []buckets ([]buckets...) doesn't work)
 		"date_histogram",
@@ -497,6 +507,10 @@ var AggregationTests = []AggregationTestCase{
 				}},
 			},
 		},
+		[]string{
+			`SELECT "FlightDelayType", "timestamp", count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')  GROUP BY ("FlightDelayType", "timestamp")`,
+			`SELECT "FlightDelayType", count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')  GROUP BY ("FlightDelayType")`,
+		},
 	},
 	{ // [3] works
 		"Sum",
@@ -584,6 +598,9 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		[][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", 76631.67578125)}}},
+		},
+		[]string{
+			`SELECT sum("taxful_total_price") FROM "` + TableName + `" WHERE "order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z') `,
 		},
 	},
 	{ // [4] works
@@ -696,6 +713,10 @@ var AggregationTests = []AggregationTestCase{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", 143)}},
 			},
 		},
+		[]string{
+			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')  GROUP BY ("OriginCityName")`,
+			`SELECT COUNT(DISTINCT "OriginCityName") FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') `,
+		},
 	},
 	{ // [5] works
 		"simple filter/count",
@@ -800,6 +821,9 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		[][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 553)}}},
+		},
+		[]string{
+			`SELECT count() FROM "` + TableName + `" WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) AND "FlightDelay" == true `,
 		},
 	},
 	{ // [6] works but buckets are [], not {} like in response :(
@@ -954,6 +978,16 @@ var AggregationTests = []AggregationTestCase{
 				model.NewQueryResultCol("", nil), // nil aggregation
 				model.NewQueryResultCol("doc_count", 351),
 			}}},
+		},
+		[]string{
+			`SELECT count() FROM "` + TableName + `" WHERE ("FlightDelay" == true ` +
+				`AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
+				`OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) ` +
+				`AND ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) `,
+			`SELECT count() FROM "` + TableName + `" WHERE ("FlightDelay" == true ` +
+				`AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
+				`OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) ` +
+				`AND ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')) `,
 		},
 	},
 	{ // [7]
@@ -1271,6 +1305,12 @@ var AggregationTests = []AggregationTestCase{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 15), model.NewQueryResultCol("key", "DLH")}},
 			},
 		},
+		[]string{
+			``,
+			``,
+			``,
+			``,
+		},
 	},
 	{ // [8]
 		"histogram, different field than timestamp",
@@ -1389,6 +1429,9 @@ var AggregationTests = []AggregationTestCase{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 345.0), model.NewQueryResultCol("doc_count", 13)}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 360.0), model.NewQueryResultCol("doc_count", 22)}},
 			},
+		},
+		[]string{
+			`TODO fix histogram SQL`,
 		},
 	},
 	{ // [9]
@@ -1597,6 +1640,10 @@ var AggregationTests = []AggregationTestCase{
 					model.NewQueryResultCol("doc_count", 16),
 				}},
 			},
+		},
+		[]string{
+			`SELECT "severity", "@timestamp", count() FROM "` + TableName + `" WHERE "host.name" iLIKE '%prometheus%' AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))  GROUP BY ("severity", "@timestamp")`,
+			`SELECT "severity", count() FROM "` + TableName + `" WHERE "host.name" iLIKE '%prometheus%' AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))  GROUP BY ("severity")`,
 		},
 	},
 	{ // [10] doesn't work yet :(( harder than all before
@@ -1848,6 +1895,9 @@ var AggregationTests = []AggregationTestCase{
 		[][]model.QueryResultRow{
 			{},
 		},
+		[]string{
+			``,
+		},
 	},
 	{ // [11], "old" test, also can be found in testdata/requests.go TestAsyncSearch[0]
 		// Copied it also here to be more sure we do not create some regression
@@ -1959,9 +2009,7 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1706010201964
 		}`,
 		[][]model.QueryResultRow{
-			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 442)}},
-			},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 442)}}},
 			{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "todo"), model.NewQueryResultCol("key", "hephaestus"), model.NewQueryResultCol("doc_count", 30)}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "poseidon"), model.NewQueryResultCol("doc_count", 29)}},
@@ -1974,9 +2022,12 @@ var AggregationTests = []AggregationTestCase{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "hermes"), model.NewQueryResultCol("doc_count", 22)}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "persephone"), model.NewQueryResultCol("doc_count", 21)}},
 			},
-			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 442)}},
-			},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 442)}}},
+		},
+		[]string{
+			`SELECT value_count("host.name") FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%' `,
+			`SELECT "host.name", count() FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%'  GROUP BY ("host.name")`,
+			`SELECT count() FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%' `,
 		},
 	},
 	{ // [12], "old" test, also can be found in testdata/requests.go TestAsyncSearch[3]
@@ -2087,6 +2138,7 @@ var AggregationTests = []AggregationTestCase{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021880000), model.NewQueryResultCol("doc_count", 11), model.NewQueryResultCol("key_as_string", "2024-01-23T15:58:00.000+01:00")}},
 			},
 		},
+		[]string{`SELECT "@timestamp", count() FROM "` + TableName + `" WHERE "message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))  GROUP BY ("@timestamp")`},
 	},
 	{ // [13], "old" test, also can be found in testdata/requests.go TestAsyncSearch[4]
 		// Copied it also here to be more sure we do not create some regression
@@ -2126,6 +2178,7 @@ var AggregationTests = []AggregationTestCase{
 		[][]model.QueryResultRow{
 			{},
 		},
+		[]string{`TODO`},
 	},
 	{ // [14], "old" test, also can be found in testdata/requests.go TestAsyncSearch[5]
 		// Copied it also here to be more sure we do not create some regression
@@ -2208,6 +2261,10 @@ var AggregationTests = []AggregationTestCase{
 		[][]model.QueryResultRow{
 			{}, // on purpose, simulates no rows returned
 			{}, // on purpose, simulates no rows returned
+		},
+		[]string{
+			`SELECT min("@timestamp") FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' `,
+			`SELECT max("@timestamp") FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' `,
 		},
 	},
 }

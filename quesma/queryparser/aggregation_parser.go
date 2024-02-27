@@ -88,6 +88,9 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 	currentAggr := aggrQueryBuilder{}
 	currentAggr.TableName = cw.TableName
 	currentAggr.Type = metrics_aggregations.QueryTypeCount{}
+	if queryPart, ok := queryAsMap["query"]; ok {
+		currentAggr.whereBuilder = cw.parseQueryMap(queryPart.(QueryMap))
+	}
 	cw.parseAggregation(&currentAggr, queryAsMap["aggs"].(QueryMap), &aggregations)
 	return aggregations, nil
 }
@@ -102,7 +105,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	}
 
 	filterOnThisLevel := false
-	whereBeforeFilter := "" // to restore it after processing this level
+	whereBeforeNesting := currentAggr.whereBuilder // to restore it after processing this level
 	currentQueryType := currentAggr.Type
 
 	// 1. Metrics aggregation => always leaf
@@ -114,13 +117,16 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 
 	// 2. Now process filter(s) first, because they apply to everything else on the same level or below.
 	if filter, ok := queryMap["filter"]; ok {
-		filterOnThisLevel, whereBeforeFilter = true, currentAggr.whereBuilder.Sql.Stmt
 		currentAggr.Type = metrics_aggregations.QueryTypeCount{}
-		currentAggr.whereBuilder = cw.parseBool(filter.(QueryMap)["bool"].(QueryMap)) // todo change to filter handler
+		currentAggr.whereBuilder = cw.combineWheres(
+			currentAggr.whereBuilder,
+			cw.parseBool(filter.(QueryMap)["bool"].(QueryMap)),
+		)
+		filterOnThisLevel, whereBeforeNesting = true, currentAggr.whereBuilder
 		delete(queryMap, "filter")
 	}
 	if filters, ok := queryMap["filters"]; ok {
-		filterOnThisLevel, whereBeforeFilter = true, currentAggr.whereBuilder.Sql.Stmt
+		filterOnThisLevel = true
 		cw.parseAggregation(currentAggr, filters.(QueryMap)["filters"].(QueryMap), resultAccumulator)
 		delete(queryMap, "filters")
 	}
@@ -167,6 +173,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		currentAggr.GroupByFields = append(currentAggr.GroupByFields, "")
 		currentAggr.Fields = append(currentAggr.Fields, "")
 		cw.parseAggregation(currentAggr, v.(QueryMap), resultAccumulator)
+		currentAggr.whereBuilder = whereBeforeNesting
 		logger.Debug().Str(logger.RID, "TODO fill this out").Msgf("Names -= %s", k)
 		currentAggr.AggregatorsNames = currentAggr.AggregatorsNames[:len(currentAggr.AggregatorsNames)-1]
 		currentAggr.Fields = currentAggr.Fields[:len(currentAggr.Fields)-1]
@@ -175,7 +182,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 
 	// restore current state, removing subaggregation state
 	if filterOnThisLevel {
-		currentAggr.whereBuilder.Sql.Stmt = whereBeforeFilter
+		currentAggr.whereBuilder = whereBeforeNesting
 	}
 	currentAggr.Type = currentQueryType
 }
@@ -244,11 +251,33 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		delete(queryMap, "date_histogram")
 	}
 	if Range, ok := queryMap["range"]; ok {
-		currentAggr.whereBuilder = cw.parseRange(Range.(QueryMap))
+		currentAggr.whereBuilder = cw.combineWheres(
+			currentAggr.whereBuilder,
+			cw.parseRange(Range.(QueryMap)),
+		)
 		delete(queryMap, "range")
 	}
 	if Bool, ok := queryMap["bool"]; ok {
-		currentAggr.whereBuilder = cw.parseBool(Bool.(QueryMap))
+		currentAggr.whereBuilder = cw.combineWheres(
+			currentAggr.whereBuilder,
+			cw.parseBool(Bool.(QueryMap)),
+		)
 		delete(queryMap, "bool")
 	}
+}
+
+func (cw *ClickhouseQueryTranslator) combineWheres(where1, where2 SimpleQuery) SimpleQuery {
+	combined := SimpleQuery{
+		Sql:      and([]Statement{where1.Sql, where2.Sql}),
+		CanParse: where1.CanParse && where2.CanParse,
+	}
+	if len(where1.FieldName) > 0 && len(where2.FieldName) > 0 {
+		logger.Warn().Msgf("combining 2 where clauses with non-empty field names: %s, %s, where queries: %v %v", where1.FieldName, where2.FieldName, where1, where2)
+	}
+	if len(where1.FieldName) > 0 {
+		combined.FieldName = where1.FieldName
+	} else {
+		combined.FieldName = where2.FieldName
+	}
+	return combined
 }
