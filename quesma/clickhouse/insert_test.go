@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/quesma/config"
 	"net/url"
 	"slices"
@@ -116,27 +117,18 @@ type logManagerHelper struct {
 func logManagersNonEmpty(cfg *ChTableConfig) []logManagerHelper {
 	lms := make([]logManagerHelper, 0, 4)
 	for _, created := range []bool{true, false} {
-		for _, predefinedNotRuntime := range []bool{true, false} {
-			empty := make(TableMap)
-			full := TableMap{
-				tableName: &Table{
-					Name:   tableName,
-					Config: cfg,
-					Cols: map[string]*Column{
-						"@timestamp":       dateTime("@timestamp"),
-						"host.name":        genericString("host.name"),
-						"message":          lowCardinalityString("message"),
-						"non-insert-field": genericString("non-insert-field"),
-					},
-					Created: created,
-				},
-			}
-			if predefinedNotRuntime {
-				lms = append(lms, logManagerHelper{NewLogManager(full, empty, config.QuesmaConfiguration{ClickHouseUrl: chUrl}), created})
-			} else {
-				lms = append(lms, logManagerHelper{NewLogManager(empty, full, config.QuesmaConfiguration{ClickHouseUrl: chUrl}), created})
-			}
-		}
+		full := concurrent.NewMapWith(tableName, &Table{
+			Name:   tableName,
+			Config: cfg,
+			Cols: map[string]*Column{
+				"@timestamp":       dateTime("@timestamp"),
+				"host.name":        genericString("host.name"),
+				"message":          lowCardinalityString("message"),
+				"non-insert-field": genericString("non-insert-field"),
+			},
+			Created: created,
+		})
+		lms = append(lms, logManagerHelper{NewLogManager(full, config.QuesmaConfiguration{ClickHouseUrl: chUrl}), created})
 	}
 	return lms
 }
@@ -169,7 +161,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 							assert.Contains(t, tt.createTableLines, line)
 						}
 					}
-					logManagerEmpty := len(lm.lm.newRuntimeTables) == 0 && len(lm.lm.predefinedTables) == 0
+					logManagerEmpty := lm.lm.tableDefinitions.Size() == 0
 
 					// check if we properly create table in our tables table :) (:) suggested by Copilot) if needed
 					tableInMemory := lm.lm.findSchema(tableName)
@@ -186,15 +178,16 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					assert.True(t, tableInMemory.Created)
 
 					// and we have a schema in memory in every case
-					assert.Equal(t, 1, len(lm.lm.newRuntimeTables)+len(lm.lm.predefinedTables))
+					assert.Equal(t, 1, lm.lm.tableDefinitions.Size())
 
 					// and that schema in memory is what it should be (predefined, if it was predefined, new if it was new)
+					resolvedTable, _ := lm.lm.tableDefinitions.Load(tableName)
 					if logManagerEmpty {
-						assert.Equal(t, 6+2*len(config.attributes), len(lm.lm.newRuntimeTables[tableName].Cols))
-					} else if len(lm.lm.predefinedTables) > 0 {
-						assert.Equal(t, 4, len(lm.lm.predefinedTables[tableName].Cols))
+						assert.Equal(t, 6+2*len(config.attributes), len(resolvedTable.Cols))
+					} else if lm.lm.tableDefinitions.Size() > 0 {
+						assert.Equal(t, 4, len(resolvedTable.Cols))
 					} else {
-						assert.Equal(t, 4, len(lm.lm.newRuntimeTables[tableName].Cols))
+						assert.Equal(t, 4, len(resolvedTable.Cols))
 					}
 				})
 			}
@@ -215,13 +208,13 @@ func TestProcessInsertQuery(t *testing.T) {
 					// info: result values aren't important, this '.WillReturnResult[...]' just needs to be there
 					if !lm.tableAlreadyCreated {
 						// we check here if we try to create table from predefined schema, not from insert's JSON
-						if len(lm.lm.predefinedTables) > 0 || len(lm.lm.newRuntimeTables) > 0 {
+						if lm.lm.tableDefinitions.Size() > 0 {
 							mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName + `.*non-insert-field`).WillReturnResult(sqlmock.NewResult(0, 0))
 						} else {
 							mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))
 						}
 					}
-					if len(config.attributes) == 0 || (len(lm.lm.predefinedTables) == 0 && len(lm.lm.newRuntimeTables) == 0) {
+					if len(config.attributes) == 0 || (lm.lm.tableDefinitions.Size() == 0) {
 						mock.ExpectExec(expectedInserts[2*index1]).WillReturnResult(sqlmock.NewResult(545, 54))
 					} else {
 						mock.ExpectExec(expectedInserts[2*index1+1]).WillReturnResult(sqlmock.NewResult(1, 1))
@@ -268,21 +261,20 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 	}
 
 	// big integer as an attribute field
-	tableMapNoSchemaFields := TableMap{
-		tableName: &Table{
-			Name:    tableName,
-			Config:  NewChTableConfigFourAttrs(),
-			Cols:    map[string]*Column{},
-			Created: true,
-		},
-	}
+	tableMapNoSchemaFields := concurrent.NewMapWith(tableName, &Table{
+		Name:    tableName,
+		Config:  NewChTableConfigFourAttrs(),
+		Cols:    map[string]*Column{},
+		Created: true,
+	})
+
 	for i, bigInt := range bigInts {
 		t.Run("big integer attribute field: "+bigInt, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			assert.NoError(t, err)
 			lm := NewLogManagerEmpty()
 			lm.chDb = db
-			lm.predefinedTables = tableMapNoSchemaFields
+			lm.tableDefinitions = tableMapNoSchemaFields
 			defer db.Close()
 
 			mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))

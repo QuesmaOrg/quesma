@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/k0kubun/pp"
+	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/util"
 	"regexp"
 	"sort"
@@ -45,7 +46,7 @@ func (lm *LogManager) DumpTableSchemas() (string, error) {
 		return "", err
 	}
 
-	result := make(TableMap)
+	result := &concurrent.Map[string, *Table]{}
 	for rows.Next() {
 		var tableName string
 		err = rows.Scan(&tableName)
@@ -56,7 +57,7 @@ func (lm *LogManager) DumpTableSchemas() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		result[tableName] = schema
+		result.Store(tableName, schema)
 	}
 	return pp.Sprint(result), nil
 }

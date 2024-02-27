@@ -2,6 +2,7 @@ package clickhouse
 
 import (
 	"encoding/json"
+	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/quesma/config"
 	"strings"
 	"testing"
@@ -29,21 +30,19 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	rowToInsert := `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","non-schema2":"2","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z","non-schema1":{"a":"b"}}`
 	var emptyMap TableMap
 	// TODO fix columns
-	fieldsMap := TableMap{
-		"tableName": &Table{
-			Cols: map[string]*Column{
-				"host.name":    nil,
-				"message":      nil,
-				"service.name": nil,
-				"severity":     nil,
-				"timestamp":    nil,
-				"source":       nil,
-			},
+	fieldsMap := concurrent.NewMapWith("tableName", &Table{
+		Cols: map[string]*Column{
+			"host.name":    nil,
+			"message":      nil,
+			"service.name": nil,
+			"severity":     nil,
+			"timestamp":    nil,
+			"source":       nil,
 		},
-	}
+	})
 
 	f := func(t1, t2 TableMap) {
-		lm := NewLogManager(emptyMap, fieldsMap, config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+		lm := NewLogManager(fieldsMap, config.QuesmaConfiguration{ClickHouseUrl: chUrl})
 		j, err := lm.BuildInsertJson("tableName", rowToInsert, hasOthersConfig)
 		assert.NoError(t, err)
 		m := make(SchemaMap)
@@ -801,58 +800,56 @@ func TestLogManager_findSchema(t *testing.T) {
 	}{
 		{
 			name:             "empty",
-			predefinedTables: TableMap{},
+			predefinedTables: concurrent.NewMap[string, *Table](),
 			tableNamePattern: "table",
 			found:            false,
 		},
 		{
 			name:             "should find by name",
-			predefinedTables: TableMap{"table1": &Table{Name: "table1"}},
+			predefinedTables: concurrent.NewMapWith("table1", &Table{Name: "table1"}),
 			tableNamePattern: "table1",
 			found:            true,
 		},
 		{
 			name:             "should not find by name",
-			predefinedTables: TableMap{"table1": &Table{Name: "table1"}},
+			predefinedTables: concurrent.NewMapWith("table1", &Table{Name: "table1"}),
 			tableNamePattern: "foo",
 			found:            false,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: TableMap{"logs-generic-default": &Table{Name: "logs-generic-default"}},
+			predefinedTables: concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-generic-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: TableMap{"logs-generic-default": &Table{Name: "logs-generic-default"}},
+			predefinedTables: concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*-*-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: TableMap{"logs-generic-default": &Table{Name: "logs-generic-default"}},
+			predefinedTables: concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-*-default",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: TableMap{"logs-generic-default": &Table{Name: "logs-generic-default"}},
+			predefinedTables: concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*",
 			found:            true,
 		},
 		{
 			name:             "should not find by pattern",
-			predefinedTables: TableMap{"logs-generic-default": &Table{Name: "logs-generic-default"}},
+			predefinedTables: concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "foo-*",
 			found:            false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			lm := &LogManager{
-				predefinedTables: tt.predefinedTables,
-			}
+			lm := &LogManager{tableDefinitions: tt.predefinedTables}
 			assert.Equalf(t, tt.found, lm.findSchema(tt.tableNamePattern) != nil, "findSchema(%v)", tt.tableNamePattern)
 		})
 	}

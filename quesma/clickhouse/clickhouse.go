@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/index"
 	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
@@ -22,16 +23,11 @@ const (
 
 type (
 	LogManager struct {
-		chDb *sql.DB
-		// I split schemas into 2. My motivation is that 'newRuntimeTables' are modified
-		// during runtime. It's very unlikely, but (AFAIK) race condition may happen, as we have no
-		// synchronization mechanisms. If we know schemas beforehand, we can put them in 'predefinedTables',
-		// which we never modify, so it's safe to access it from multiple goroutines.
-		predefinedTables TableMap // we don't modify those, safe access
-		newRuntimeTables TableMap // potentially unsafe
+		chDb             *sql.DB
+		tableDefinitions TableMap
 		cfg              config.QuesmaConfiguration
 	}
-	TableMap  = map[string]*Table
+	TableMap  = *concurrent.Map[string, *Table]
 	SchemaMap = map[string]interface{} // TODO remove
 	Attribute struct {
 		KeysArrayName   string
@@ -165,12 +161,7 @@ func (lm *LogManager) matchIndex(indexNamePattern, indexName string) bool {
 // Indexes can be in a form of wildcard, e.g. "index-*"
 // If we have such index, we need to resolve it to a real table name.
 func (lm *LogManager) ResolveTableName(index string) string {
-	for k := range lm.predefinedTables {
-		if lm.matchIndex(index, k) {
-			return k
-		}
-	}
-	for k := range lm.newRuntimeTables {
+	for k := range lm.tableDefinitions.Snapshot() {
 		if lm.matchIndex(index, k) {
 			return k
 		}
@@ -429,31 +420,18 @@ func (lm *LogManager) Insert(tableName string, jsons []string, config *ChTableCo
 
 func (lm *LogManager) findSchema(tableName string) *Table {
 	tableNamePattern := index.TableNamePatternRegexp(tableName)
-	for name, table := range lm.predefinedTables {
-		if tableNamePattern.MatchString(name) {
-			return table
-		}
-	}
-	for name, table := range lm.newRuntimeTables {
+	for name, table := range lm.tableDefinitions.Snapshot() {
 		if tableNamePattern.MatchString(name) {
 			return table
 		}
 	}
 
-	v, ok := lm.predefinedTables[tableName]
-	if ok {
-		return v
-	}
-	// possible race condition below!! but very unlikely
-	return lm.newRuntimeTables[tableName] // check if it returns nil or error
+	table, _ := lm.tableDefinitions.Load(tableName)
+	return table
 }
 
-func (lm *LogManager) GetRuntimeTables() TableMap {
-	return lm.newRuntimeTables
-}
-
-func (lm *LogManager) GetPredefinedTables() TableMap {
-	return lm.predefinedTables
+func (lm *LogManager) GetTableDefinitions() TableMap {
+	return lm.tableDefinitions
 }
 
 // Returns if schema wasn't created (so it needs to be, and will be in a moment)
@@ -461,7 +439,7 @@ func (lm *LogManager) addSchemaIfDoesntExist(table *Table) bool {
 	t := lm.findSchema(table.Name)
 	if t == nil {
 		table.Created = true
-		lm.newRuntimeTables[table.Name] = table // possible race condition
+		lm.tableDefinitions.Store(table.Name, table)
 		return true
 	}
 	wasntCreated := !t.Created
@@ -469,17 +447,17 @@ func (lm *LogManager) addSchemaIfDoesntExist(table *Table) bool {
 	return wasntCreated
 }
 
-func NewLogManager(predefined, newRuntime TableMap, cfg config.QuesmaConfiguration) *LogManager {
-	return &LogManager{chDb: nil, predefinedTables: predefined, newRuntimeTables: newRuntime, cfg: cfg}
+func NewLogManager(tables TableMap, cfg config.QuesmaConfiguration) *LogManager {
+	return &LogManager{chDb: nil, tableDefinitions: tables, cfg: cfg}
 }
 
 // right now only for tests purposes
-func NewLogManagerWithConnection(db *sql.DB, predefined, newRuntime TableMap) *LogManager {
-	return &LogManager{chDb: db, predefinedTables: predefined, newRuntimeTables: newRuntime}
+func NewLogManagerWithConnection(db *sql.DB, tables TableMap) *LogManager {
+	return &LogManager{chDb: db, tableDefinitions: tables}
 }
 
 func NewLogManagerEmpty() *LogManager {
-	return &LogManager{predefinedTables: make(TableMap), newRuntimeTables: make(TableMap)}
+	return &LogManager{tableDefinitions: concurrent.NewMap[string, *Table]()}
 }
 
 func NewOnlySchemaFieldsCHConfig() *ChTableConfig {

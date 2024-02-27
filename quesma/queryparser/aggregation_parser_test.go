@@ -6,6 +6,7 @@ import (
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/testdata"
@@ -458,7 +459,7 @@ func TestAggregationParser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(clickhouse.TableMap{tableName: testTable}, make(clickhouse.TableMap), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, testTable), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: tableName}
 
 	for testIdx, test := range aggregationTests {
@@ -488,7 +489,7 @@ func sortAggregations(aggregations []model.QueryWithAggregation) {
 
 // TODO change name, for now called like this to easily run only this test via `go test -run Test2`
 func Test2AggregationParserExternalTestcases(t *testing.T) {
-	lm := clickhouse.NewLogManager(make(clickhouse.TableMap), make(clickhouse.TableMap), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	lm := clickhouse.NewLogManager(concurrent.NewMap[string, *clickhouse.Table](), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: "logs-generic-default"}
 	for _, test := range testdata.AggregationTests {
 		t.Run(test.TestName, func(t *testing.T) {

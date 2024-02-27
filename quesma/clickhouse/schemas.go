@@ -1,13 +1,12 @@
 package clickhouse
 
-import "reflect"
+import (
+	"mitmproxy/quesma/concurrent"
+	"reflect"
+)
 
-var NewRuntimeSchemas = make(TableMap)
-
-// A solution for now to remember tables. Didn't want to bother with config files at POC stage.
-// Generated via DumpTableSchemas() and later ShortenDumpSchemasOutput()
-var PredefinedTableSchemas = TableMap{
-	"device_logs": &Table{
+var predefined = map[string]*Table{
+	"device_logs": {
 		Created:  false,
 		Name:     "device_logs",
 		Database: "",
@@ -73,6 +72,16 @@ var PredefinedTableSchemas = TableMap{
 	},
 }
 
+func withPredefinedTables() TableMap {
+	var m = concurrent.NewMap[string, *Table]()
+	for k, v := range predefined {
+		m.Store(k, v)
+	}
+	return m
+}
+
+var TableDefinitions = withPredefinedTables()
+
 func genericString(name string) *Column {
 	return &Column{
 		Name: name,
@@ -125,10 +134,7 @@ func int64CH(name string) *Column {
 }
 
 func Tables() (schemas []string) {
-	for name := range PredefinedTableSchemas {
-		schemas = append(schemas, name)
-	}
-	for name := range NewRuntimeSchemas {
+	for name := range TableDefinitions.Snapshot() {
 		schemas = append(schemas, name)
 	}
 	return schemas

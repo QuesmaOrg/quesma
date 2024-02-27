@@ -3,13 +3,14 @@ package queryparser
 import (
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/testdata"
 	"testing"
 )
 
 func TestQueryParserAsyncSearch(t *testing.T) {
-	lm := clickhouse.NewLogManager(make(clickhouse.TableMap), make(clickhouse.TableMap), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	lm := clickhouse.NewLogManager(concurrent.NewMap[string, *clickhouse.Table](), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: "logs-generic-default"}
 	for _, tt := range testdata.TestsAsyncSearch {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -22,7 +23,7 @@ func TestQueryParserAsyncSearch(t *testing.T) {
 
 // TODO this test doesn't work for now, as it's left for next (last) PR
 func TestQueryParserAggregation(t *testing.T) {
-	lm := clickhouse.NewLogManager(make(clickhouse.TableMap), make(clickhouse.TableMap), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	lm := clickhouse.NewLogManager(concurrent.NewMap[string, *clickhouse.Table](), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: "logs-generic-default"}
 	for _, tt := range testdata.AggregationTests {
 		t.Run(tt.TestName, func(t *testing.T) {

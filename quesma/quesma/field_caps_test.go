@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/util"
 	"strconv"
@@ -98,8 +99,7 @@ func TestFieldCaps(t *testing.T) {
   ]
 }
 `)
-	tableMap := clickhouse.TableMap{}
-	tableMap[testTableName] = table
+	tableMap := concurrent.NewMapWith(testTableName, table)
 	resp, err := handleFieldCapsIndex(ctx, testTableName, tableMap)
 	assert.NoError(t, err)
 	expectedResp, err := json.MarshalIndent(expected, "", "  ")
