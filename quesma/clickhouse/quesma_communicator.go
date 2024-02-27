@@ -120,10 +120,11 @@ func (lm *LogManager) ProcessHistogramQuery(query *model.Query, bucket time.Dura
 		return result[i].Cols[model.ResultColKeyIndex].Value.(int64) < result[j].Cols[model.ResultColKeyIndex].Value.(int64)
 	})
 	for i := range result {
-		result[i].Cols[model.ResultColKeyIndex].Value = result[i].Cols[model.ResultColKeyIndex].Value.(int64)
+		timestamp := result[i].Cols[model.ResultColKeyIndex].Value.(int64) * bucket.Milliseconds()
+		result[i].Cols[model.ResultColKeyIndex].Value = timestamp
 		result[i].Cols = append(result[i].Cols, model.QueryResultCol{
 			ColName: "key_as_string",
-			Value:   time.UnixMilli(result[i].Cols[model.ResultColKeyIndex].Value.(int64)).Format("2006-01-02T15:04:05.000"),
+			Value:   time.UnixMilli(timestamp).Format("2006-01-02T15:04:05.000"),
 		})
 	}
 	return result, nil

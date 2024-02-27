@@ -3,7 +3,6 @@ package testdata
 import (
 	"fmt"
 	"mitmproxy/quesma/model"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -702,7 +701,7 @@ var TestsAsyncSearch = []struct {
 `,
 		"no comment yet",
 		model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: "30s", I1: 0, I2: 0},
-		[]string{`SELECT MIN(toInt64(toUnixTimestamp64Milli(` + strconv.Quote("@timestamp") + `))), count() FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) GROUP BY toInt64(toUnixTimestamp64Milli(` + "`@timestamp`"},
+		[]string{`SELECT toInt64(toUnixTimestamp64Milli(` + "`@timestamp`" + `)/30000), count() FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) GROUP BY toInt64(toUnixTimestamp64Milli(` + "`@timestamp`)/30000)"},
 		true,
 	},
 	{ // [4]
@@ -740,7 +739,7 @@ var TestsAsyncSearch = []struct {
 		`{}`,
 		"no comment yet",
 		model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: fmt.Sprintf("%ds", int(oneMinute.Seconds())), I1: 0, I2: 0},
-		[]string{fmt.Sprintf(`SELECT MIN(toInt64(toUnixTimestamp64Milli(`+strconv.Quote("@timestamp")+`))), count() FROM "logs-generic-default" WHERE "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') GROUP BY toInt64(toUnixTimestamp64Milli(`+"`@timestamp`)/%d)", oneMinute.Milliseconds())},
+		[]string{fmt.Sprintf(`SELECT toInt64(toUnixTimestamp64Milli(`+"`@timestamp`"+`)/%d), count() FROM "logs-generic-default" WHERE "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') GROUP BY toInt64(toUnixTimestamp64Milli(`+"`@timestamp`)/%d)", oneMinute.Milliseconds(), oneMinute.Milliseconds())},
 		true,
 	},
 	{ // [5]

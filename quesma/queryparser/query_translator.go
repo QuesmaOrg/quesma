@@ -378,10 +378,6 @@ func (cw *ClickhouseQueryTranslator) BuildNMostRecentRowsQuery(fieldName, timest
 }
 
 func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(timestampFieldName, whereClauseOriginal, fixedInterval string) (*model.Query, time.Duration) {
-	duration, err := durationFromWhere(whereClauseOriginal)
-	if err != nil {
-		panic(err)
-	}
 	histogramOneBar, err := kibana.ParseInterval(fixedInterval)
 	if err != nil {
 		panic(err)
@@ -394,13 +390,13 @@ func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(timestampFieldName, whe
 	// irrespective of the actual timestamps of the documents.
 	query := model.Query{
 		Fields:          []string{},
-		NonSchemaFields: []string{"MIN(toInt64(toUnixTimestamp64Milli(" + strconv.Quote(timestampFieldName) + ")))", "count()"},
+		NonSchemaFields: []string{groupByClause, "count()"},
 		WhereClause:     whereClauseOriginal,
 		SuffixClauses:   []string{"GROUP BY " + groupByClause},
 		TableName:       cw.TableName,
 		CanParse:        true,
 	}
-	return &query, duration
+	return &query, histogramOneBar
 }
 
 //lint:ignore U1000 Not used yet
