@@ -62,7 +62,18 @@ func Test_resolveColumn(t *testing.T) {
 			args: args{colName: "@timestamp", colType: "DateTime64"},
 			want: &Column{Name: "@timestamp", Type: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{})}},
 		},
+		{
+			name: "Array(String)",
+			args: args{colName: "tags", colType: "Array(String)"},
+			want: &Column{Name: "tags", Type: CompoundType{Name: "Array", BaseType: BaseType{Name: "String", goType: reflect.TypeOf("")}}},
+		},
+		{
+			name: "Array(DateTime64)",
+			args: args{colName: "tags", colType: "Array(DateTime64)"},
+			want: &Column{Name: "tags", Type: CompoundType{Name: "Array", BaseType: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{})}}},
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equalf(t, tt.want, resolveColumn(tt.args.colName, tt.args.colType), "resolveColumn(%v, %v)", tt.args.colName, tt.args.colType)

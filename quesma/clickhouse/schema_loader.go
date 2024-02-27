@@ -56,13 +56,23 @@ func resolveColumn(colName, colType string) *Column {
 	}
 
 	if isArrayType(colType) {
-		// TODO
-		return nil
+		arrayType := strings.TrimSuffix(strings.TrimPrefix(colType, "Array("), ")")
+		goType := ResolveType(arrayType)
+		if goType != nil {
+			return &Column{
+				Name: colName,
+				Type: CompoundType{
+					Name:     "Array",
+					BaseType: BaseType{Name: arrayType, goType: goType},
+				},
+			}
+		} else {
+			return nil
+		}
 	}
 
 	_ = isNullable
 
-	// TODO array
 	// TODO nullable
 	// TODO tuple
 	// TODO Array(Tuple(...))
@@ -85,7 +95,7 @@ func resolveColumn(colName, colType string) *Column {
 }
 
 func isArrayType(colType string) bool {
-	return strings.HasPrefix(colType, "Array(")
+	return strings.HasPrefix(colType, "Array(") && strings.HasSuffix(colType, ")")
 }
 
 func isNullableType(colType string) bool {
