@@ -11,6 +11,7 @@ services:
       - CLICKHOUSE_USER=${HYDROLIX_USER}
       - CLICKHOUSE_PASSWORD=${HYDROLIX_PASSWORD}
       - CLICKHOUSE_DATABASE=${HYDROLIX_DATABASE}
+      - QUESMA_CONFIG=/var/quesma/config/hydrolix.yml
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -20,7 +21,7 @@ services:
       - "9999:9999"
       - "8080:8080"
     volumes:
-      - ./quesma/quesma/ui:/var/quesma/quesma/ui
+      - ./quesma/config:/var/quesma/config
       - ./quesma/logs/:/var/quesma/logs
     restart: unless-stopped
   elasticsearch:

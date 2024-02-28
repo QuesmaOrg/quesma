@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	configFileName = "config"
-	configType     = "yaml"
+	defaultConfigFileName = "config"
+	defaultConfigType     = "yaml"
+	configEnvVar          = "QUESMA_CONFIG"
 )
 
 const (
@@ -68,9 +69,16 @@ func MatchName(pattern, name string) bool {
 
 func Load() QuesmaConfiguration {
 	// TODO Add wiser config parsing which fails for good and accumulates errors using https://github.com/hashicorp/go-multierror
-	viper.SetConfigName(configFileName)
-	viper.SetConfigType(configType)
-	viper.AddConfigPath(".")
+
+	if configFileName, isSet := os.LookupEnv(configEnvVar); isSet {
+		fmt.Printf("Using config file: %s\n", configFileName)
+		viper.SetConfigFile(configFileName)
+	} else {
+		viper.SetConfigName(defaultConfigFileName)
+		viper.SetConfigType(defaultConfigType)
+		viper.AddConfigPath(".")
+	}
+
 	if err := viper.ReadInConfig(); err != nil {
 		return QuesmaConfiguration{}
 	}

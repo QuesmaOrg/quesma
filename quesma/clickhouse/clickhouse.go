@@ -80,9 +80,11 @@ func (lm *LogManager) loadTables() {
 			if indexConfig, found := lm.cfg.GetIndexConfig(table); found {
 				if indexConfig.Enabled {
 					configuredTables[table] = columns
+				} else {
+					logger.Debug().Msgf("table '%s' is disabled\n", table)
 				}
 			} else {
-				logger.Debug().Msgf("table '%s' disabled or not configured explicitly\n", table)
+				logger.Info().Msgf("table '%s' not configured explicitly\n", table)
 			}
 		}
 	}
