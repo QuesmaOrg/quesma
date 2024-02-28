@@ -161,6 +161,10 @@ func makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.Asy
 			Relation: "eq",
 		}
 	case model.ListAllFields:
+		total = &model.Total{
+			Value:    len(ResultSet),
+			Relation: "eq",
+		}
 		for i := range ResultSet {
 			hits[i].ID = "fake-id"
 			hits[i].Index = "index-TODO-insert-tablename-index-here"

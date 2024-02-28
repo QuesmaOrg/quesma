@@ -527,7 +527,11 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 						]
 					}
 				],
-				"max_score": null
+				"max_score": null,
+					  "total": {
+						"relation": "eq",
+						"value": 1
+				  }
 			},
 			"timed_out": false,
 			"took": 9
