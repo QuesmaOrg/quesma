@@ -1,0 +1,90 @@
+package quesma
+
+import (
+	"encoding/json"
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/stretchr/testify/assert"
+	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/concurrent"
+	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/queryparser"
+	"regexp"
+	"testing"
+)
+
+var rawRequestBody = []byte(`{
+  "field": "client_name",
+  "string": "",
+  "index_filter": {
+    "bool": {
+      "must": [
+        {
+          "range": {
+            "epoch_time": {
+              "format": "strict_date_optional_time",
+              "gte": "2024-02-27T12:25:00.000Z",
+              "lte": "2024-02-27T12:40:59.999Z"
+            }
+          }
+        },
+        {
+          "terms": {
+            "_tier": [
+              "data_hot",
+              "data_warm",
+              "data_content",
+              "data_cold"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}`)
+
+func TestHandleTermsEnumRequest(t *testing.T) {
+	table := concurrent.NewMapWith(testTableName, &clickhouse.Table{
+		Name:   testTableName,
+		Config: clickhouse.NewDefaultCHConfig(),
+		Cols: map[string]*clickhouse.Column{
+			"epoch_time": {
+				Name: "epoch_time",
+				Type: clickhouse.NewBaseType("DateTime"),
+			},
+			"message": {
+				Name: "message",
+				Type: clickhouse.NewBaseType("String"),
+			},
+			"client_name": {
+				Name: "client_name",
+				Type: clickhouse.NewBaseType("LowCardinality(String)"),
+			},
+		},
+		Created: true,
+	})
+
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	lm := clickhouse.NewLogManagerWithConnection(db, table)
+	qt := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: testTableName}
+
+	// Here we additionally verify that terms for `_tier` are **NOT** included in the SQL query
+	expectedQuery := `SELECT DISTINCT "client_name" FROM "` + testTableName + `" WHERE "epoch_time">=parseDateTime64BestEffort('2024-02-27T12:25:00.000Z') AND "epoch_time"<=parseDateTime64BestEffort('2024-02-27T12:40:59.999Z')`
+	mock.ExpectQuery(regexp.QuoteMeta(expectedQuery)).
+		WillReturnRows(sqlmock.NewRows([]string{"client_name"}).AddRow("client_a").AddRow("client_b"))
+
+	resp, err := handleTermsEnumRequest(ctx, rawRequestBody, qt)
+	assert.NoError(t, err)
+
+	var responseModel model.TermsEnumResponse
+	if err = json.Unmarshal(resp, &responseModel); err != nil {
+		t.Fatal("error unmarshalling terms enum API response:", err)
+	}
+
+	assert.ElementsMatch(t, []string{"client_a", "client_b"}, responseModel.Terms)
+	assert.True(t, responseModel.Complete)
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal("there were unfulfilled expections:", err)
+	}
+}
