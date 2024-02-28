@@ -54,10 +54,11 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 	elkResponse.Body.Close()
 }
 
-func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, elkResponse *http.Response) {
+func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, elkResponse *http.Response, zip bool) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
-	if gzip.IsGzipped(elkResponse) {
+	logUnexpected(elkResponse.Header, w.Header(), id)
+	if zip {
 		zipped, err := gzip.Zip(unzipped)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("Error zipping: %v", err)
@@ -110,6 +111,14 @@ func NewHttpProxy(logManager *clickhouse.LogManager, config config.QuesmaConfigu
 	}
 }
 
+func logUnexpected(elasticHeader, quesmaHeader http.Header, id string) {
+	for headerKey := range elasticHeader {
+		if _, ok := quesmaHeader[headerKey]; !ok {
+			logger.Warn().Str(logger.RID, id).Msgf("Header %s is missing in Quesma's response", headerKey)
+		}
+	}
+}
+
 func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, config config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole) {
 	if router.Matches(req.URL.Path, req.Method) {
 		elkResponseChan := sendHttpRequestToElastic(ctx, config, quesmaManagementConsole, req, reqBody)
@@ -117,7 +126,6 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method)
 		})
 		elkResponse := <-elkResponseChan
-		copyHeaders(w, elkResponse)
 		sendElkResponseToQuesmaConsole(ctx, elkResponse, quesmaManagementConsole)
 
 		if err == nil {
@@ -127,11 +135,18 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 				unzipped = []byte(quesmaResponse.Body)
 			}
 			if string(unzipped) != "" {
+				for key, value := range quesmaResponse.Meta {
+					w.Header().Set(key, value)
+				}
+				zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
+				if zip {
+					w.Header().Set("Content-Encoding", "gzip")
+				}
 				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
 				w.WriteHeader(elkResponse.StatusCode)
-				responseFromQuesma(ctx, unzipped, w, elkResponse)
+				responseFromQuesma(ctx, unzipped, w, elkResponse, zip)
 			} else {
-				logger.Warn().Ctx(ctx).Str("url", req.URL.Path).Msg("Empty response from Quesma, responding from Elastic")
+				copyHeaders(w, elkResponse)
 				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 				w.WriteHeader(elkResponse.StatusCode)
 				responseFromElastic(ctx, elkResponse, w)

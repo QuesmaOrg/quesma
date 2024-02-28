@@ -25,10 +25,6 @@ type (
 	MatchPredicate func(map[string]string) bool
 )
 
-func HeaderlessResult(body string) *Result {
-	return &Result{Body: body, Meta: make(map[string]string)}
-}
-
 // Url router where you can register multiple URL paths with handler.
 // We need our own component as default libraries caused side-effects on requests or response.
 // The pattern syntax is based on ucarion/urlpath project. e.g. "/shelves/:shelf/books/:book"
