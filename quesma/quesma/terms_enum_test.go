@@ -2,6 +2,7 @@ package quesma
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
@@ -69,8 +70,11 @@ func TestHandleTermsEnumRequest(t *testing.T) {
 	qt := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: testTableName}
 
 	// Here we additionally verify that terms for `_tier` are **NOT** included in the SQL query
-	expectedQuery := `SELECT DISTINCT "client_name" FROM "` + testTableName + `" WHERE "epoch_time">=parseDateTime64BestEffort('2024-02-27T12:25:00.000Z') AND "epoch_time"<=parseDateTime64BestEffort('2024-02-27T12:40:59.999Z')`
-	mock.ExpectQuery(regexp.QuoteMeta(expectedQuery)).
+	expectedQuery1 := `SELECT DISTINCT "client_name" FROM "` + testTableName + `" WHERE "epoch_time">=parseDateTime64BestEffort('2024-02-27T12:25:00.000Z') AND "epoch_time"<=parseDateTime64BestEffort('2024-02-27T12:40:59.999Z')`
+	expectedQuery2 := `SELECT DISTINCT "client_name" FROM "` + testTableName + `" WHERE "epoch_time"<=parseDateTime64BestEffort('2024-02-27T12:40:59.999Z') AND "epoch_time">=parseDateTime64BestEffort('2024-02-27T12:25:00.000Z')`
+
+	// Once in a while `AND` conditions could be swapped, so we match both cases
+	mock.ExpectQuery(fmt.Sprintf("%s|%s", regexp.QuoteMeta(expectedQuery1), regexp.QuoteMeta(expectedQuery2))).
 		WillReturnRows(sqlmock.NewRows([]string{"client_name"}).AddRow("client_a").AddRow("client_b"))
 
 	resp, err := handleTermsEnumRequest(ctx, rawRequestBody, qt)

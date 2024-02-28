@@ -124,11 +124,11 @@ func (t *TcpProxy) WaitUntilReady() {
 		for !serverReady {
 			resp, err := http.Get("http://localhost:" + internalHttpPort + "/")
 			if err == nil && resp.StatusCode == http.StatusOK {
+				_ = resp.Body.Close()
 				serverReady = true
 			} else if err != nil {
 				logger.Error().Msgf("Error waiting for server to be ready: %v", err)
 			}
-			_ = resp.Body.Close()
 			time.Sleep(100 * time.Millisecond)
 		}
 	}

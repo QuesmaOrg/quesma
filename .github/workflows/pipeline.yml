@@ -41,7 +41,7 @@ jobs:
 
       - name: Test
         working-directory: ${{ matrix.module }}
-        run: go test -v ./...
+        run: go test -race -v ./...
 
   build-quesma-docker-image:
     strategy:

@@ -50,11 +50,11 @@ func verifyStatistics(t *testing.T, port network.Port) {
 	}()
 
 	for i := 0; i < 50; i++ {
-		stats, ok := (*stats.GlobalStatistics)["logs"]
-		if ok && stats.Requests > 0 {
+		indexStats, err := stats.GlobalStatistics.GetIndexStatistics("logs")
+		if err == nil && indexStats != nil && indexStats.Requests > 0 {
 			return
 		}
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 
 	t.Fatal("Statistics not updated")

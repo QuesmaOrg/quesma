@@ -103,6 +103,16 @@ func (s *Statistics) Process(index string, jsonStr string, nestedSeparator strin
 	mu.Unlock()
 }
 
+func (s *Statistics) GetIndexStatistics(indexName string) (*IndexStatistics, error) {
+	mu.Lock()
+	defer mu.Unlock()
+	if stats, ok := (*s)[indexName]; ok {
+		return stats, nil
+	} else {
+		return nil, fmt.Errorf("index %s not found", indexName)
+	}
+}
+
 func (s *Statistics) SortedIndexNames() (result []*IndexStatistics) {
 	mu.Lock()
 	for _, value := range *s {
