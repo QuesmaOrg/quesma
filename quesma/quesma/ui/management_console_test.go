@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSqlPrettPrint(t *testing.T) {
+func TestSqlPrettyPrint(t *testing.T) {
 	sql := `SELECT * FROM "logs-generic-default" WHERE (message LIKE '%user%' AND (timestamp>=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND timestamp<=parseDateTime64BestEffort('2024-12-22T09:41:10.299Z')))`
 
 	sqlFormatted := sqlPrettyPrint([]byte(sql))
@@ -18,6 +18,67 @@ WHERE message LIKE '%user%'
 AND (
     "timestamp" >= parsedatetime64besteffort('2024-01-22T09:26:10.299Z')
     AND "timestamp" <= parsedatetime64besteffort('2024-12-22T09:41:10.299Z')
+  );`
+
+	assert.Equal(t, sqlExpected, sqlFormatted)
+}
+
+func TestSqlPrettyPrint_multipleSqls(t *testing.T) {
+	sql := `SELECT '', '', count() FROM "kibana_sample_data_ecommerce" WHERE (("order_date">=parseDateTime64BestEffort('2024-02-19T12:59:40.626Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-26T12:59:40.626Z')) OR ("order_date"<=parseDateTime64BestEffort('2024-02-19T12:59:40.626Z') AND "order_date">=parseDateTime64BestEffort('2024-02-12T12:59:40.626Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-19T12:59:40.626Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-26T12:59:40.626Z'))
+SELECT '', '', count() FROM "kibana_sample_data_ecommerce" WHERE (("order_date">=parseDateTime64BestEffort('2024-02-19T12:59:40.626Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-26T12:59:40.626Z')) OR ("order_date"<=parseDateTime64BestEffort('2024-02-19T12:59:40.626Z') AND "order_date">=parseDateTime64BestEffort('2024-02-12T12:59:40.626Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-12T12:59:40.626Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-19T12:59:40.626Z'))
+SELECT '', '', '', sum("taxful_total_price") FROM "kibana_sample_data_ecommerce" WHERE ("order_date">=parseDateTime64BestEffort('2024-02-19T12:59:40.626Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-26T12:59:40.626Z')) OR ("order_date"<=parseDateTime64BestEffort('2024-02-19T12:59:40.626Z') AND "order_date">=parseDateTime64BestEffort('2024-02-12T12:59:40.626Z'))`
+
+	sqlFormatted := sqlPrettyPrint([]byte(sql))
+	sqlExpected := `SELECT '',
+'',
+count()
+FROM kibana_sample_data_ecommerce
+WHERE (
+  (
+    order_date >= parsedatetime64besteffort('2024-02-19T12:59:40.626Z')
+    AND order_date <= parsedatetime64besteffort('2024-02-26T12:59:40.626Z')
+  )
+  OR (
+      order_date <= parsedatetime64besteffort('2024-02-19T12:59:40.626Z')
+      AND order_date >= parsedatetime64besteffort('2024-02-12T12:59:40.626Z')
+    )
+)
+AND (
+    order_date >= parsedatetime64besteffort('2024-02-19T12:59:40.626Z')
+    AND order_date <= parsedatetime64besteffort('2024-02-26T12:59:40.626Z')
+  );
+
+SELECT '',
+'',
+count()
+FROM kibana_sample_data_ecommerce
+WHERE (
+  (
+    order_date >= parsedatetime64besteffort('2024-02-19T12:59:40.626Z')
+    AND order_date <= parsedatetime64besteffort('2024-02-26T12:59:40.626Z')
+  )
+  OR (
+      order_date <= parsedatetime64besteffort('2024-02-19T12:59:40.626Z')
+      AND order_date >= parsedatetime64besteffort('2024-02-12T12:59:40.626Z')
+    )
+)
+AND (
+    order_date >= parsedatetime64besteffort('2024-02-12T12:59:40.626Z')
+    AND order_date <= parsedatetime64besteffort('2024-02-19T12:59:40.626Z')
+  );
+
+SELECT '',
+'',
+'',
+sum(taxful_total_price)
+FROM kibana_sample_data_ecommerce
+WHERE (
+  order_date >= parsedatetime64besteffort('2024-02-19T12:59:40.626Z')
+  AND order_date <= parsedatetime64besteffort('2024-02-26T12:59:40.626Z')
+)
+OR (
+    order_date <= parsedatetime64besteffort('2024-02-19T12:59:40.626Z')
+    AND order_date >= parsedatetime64besteffort('2024-02-12T12:59:40.626Z')
   );`
 
 	assert.Equal(t, sqlExpected, sqlFormatted)

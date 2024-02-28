@@ -108,6 +108,8 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	var responseBody, translatedQueryBody []byte
 
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
+
+	// Until we're sure new solution is stable, let's try to use the old one
 	if simpleQuery.CanParse && queryInfo.Typ != model.None {
 		var fullQuery *model.Query
 		var err error
@@ -156,6 +158,35 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 			logger.ErrorWithCtx(ctx).Msgf("fullQuery is nil")
 			return responseBody, errors.New("fullQuery is nil")
 		}
+	} else if aggregations, err := queryTranslator.ParseAggregationJson(string(body)); err == nil && aggregations != nil {
+		logger.Info().Msg("We're using new Aggregation handling.")
+		// for _, agg := range aggregations {
+		//	logger.Info().Msg(agg.String())
+		//}
+		var results [][]model.QueryResultRow
+		sqls := ""
+		for _, agg := range aggregations {
+			// logger.Info().Msg("Processing query.")
+			rows, err := queryTranslator.ClickhouseLM.ProcessGeneralAggregationQuery(&agg.Query)
+			if err != nil {
+				logger.Error().Msg(err.Error())
+				continue
+			}
+			// logger.Info().Msgf("Error: %v, first 2 rows:", err)
+			// howMany := 2 // this variable and generally a lot in this code: just debug to be removed
+			// if len(rows) < howMany {
+			// 	howMany = len(rows)
+			// }
+			// for _, row := range rows[:howMany] {
+			// logger.Info().Msgf("Row: %+v", row)
+			// }
+			// logger.Error().Msgf("len: %v", len(rows))
+			results = append(results, rows)
+			sqls += agg.Query.String() + "\n"
+		}
+		translatedQueryBody = []byte(sqls)
+		responseBody, _ = queryTranslator.MakeResponseAggregation(aggregations, results)
+		// fmt.Println("HOHOH\n", err, string(responseBody))
 	} else {
 		responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
 		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{

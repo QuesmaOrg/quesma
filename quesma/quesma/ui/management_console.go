@@ -263,7 +263,7 @@ func sqlPrettyPrint(sqlData []byte) string {
 		UseTabs:                  false,
 		Align:                    tree.PrettyNoAlign,
 	}
-	stmts := []string{strings.ReplaceAll(string(sqlData), "`", `"`)} // sqlfmt can't deal with backticks
+	stmts := strings.Split(strings.ReplaceAll(string(sqlData), "`", `"`), "\n") // sqlfmt can't deal with backticks
 	sqlFormatted, err := sqlfmt.FmtSQL(formattingConfig, stmts)
 	if err != nil {
 		logger.Error().Msgf("Error while formatting sql: %v, stmts: %v", err, stmts)

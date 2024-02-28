@@ -183,6 +183,28 @@ func (lm *LogManager) ProcessTimestampQuery(query *model.Query) ([]model.QueryRe
 	return read(rows, query.Fields, []interface{}{time.Time{}})
 }
 
+func (lm *LogManager) ProcessGeneralAggregationQuery(query *model.Query) ([]model.QueryResultRow, error) {
+	table, err := lm.findSchemaAndInitConnection(query.TableName)
+	if err != nil {
+		return nil, err
+	}
+	if table == nil {
+		return nil, fmt.Errorf("table not found [%s]", query.TableName)
+	}
+
+	rows, err := lm.chDb.Query(query.String())
+	if err != nil {
+		return nil, fmt.Errorf("query >> %v", err)
+	}
+	colNames, err := table.extractColumns(query)
+	if err != nil {
+		return nil, err
+	}
+	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
+	result, err := read(rows, make([]string, len(rowToScan)), rowToScan)
+	return result, err
+}
+
 // 'selectFields' are all values that we return from the query, both columns and non-schema fields,
 // like e.g. count(), or toInt8(boolField)
 func read(rows *sql.Rows, selectFields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {

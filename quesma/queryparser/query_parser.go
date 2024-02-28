@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"strconv"
 	"strings"
@@ -544,14 +545,7 @@ func (cw *ClickhouseQueryTranslator) isItHistogramRequest(queryMap QueryMap) (mo
 	queryMapNestOnePossility, ok := queryMap["0"].(QueryMap)
 	if ok {
 		if queryMapNestOnePossility, ok = queryMapNestOnePossility["date_histogram"].(QueryMap); ok {
-			if fixedInterval, exists := queryMapNestOnePossility["fixed_interval"]; exists {
-				return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: fixedInterval.(string), I1: 0, I2: 0}, true
-			}
-
-			if calendarInterval, exists := queryMapNestOnePossility["calendar_interval"]; exists {
-				return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: calendarInterval.(string), I1: 0, I2: 0}, true
-			}
-			return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: queryMapNestOnePossility["fixed_interval"].(string), I1: 0, I2: 0}, true
+			return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: cw.extractInterval(queryMapNestOnePossility), I1: 0, I2: 0}, true
 		}
 	}
 
@@ -569,15 +563,7 @@ func (cw *ClickhouseQueryTranslator) isItHistogramRequest(queryMap QueryMap) (mo
 	}
 	queryMap, ok = queryMap["date_histogram"].(QueryMap)
 	if ok {
-		if fixedInterval, exists := queryMap["fixed_interval"]; exists {
-			return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: fixedInterval.(string), I1: 0, I2: 0}, true
-		}
-		if calendarInterval, exists := queryMap["calendar_interval"]; exists {
-			return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: calendarInterval.(string), I1: 0, I2: 0}, true
-		}
-
-		return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: queryMap["fixed_interval"].(string), I1: 0, I2: 0}, true
-
+		return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: cw.extractInterval(queryMap), I1: 0, I2: 0}, true
 	}
 	return model.NewQueryInfoAsyncSearchNone(), false
 }
@@ -691,4 +677,18 @@ func (cw *ClickhouseQueryTranslator) isItEarliestLatestTimestampRequest(queryMap
 		return model.QueryInfoAsyncSearch{Typ: model.EarliestLatestTimestamp, FieldName: timestampFieldName1}, true
 	}
 	return model.NewQueryInfoAsyncSearchNone(), false
+}
+
+func (cw *ClickhouseQueryTranslator) extractInterval(queryMap QueryMap) string {
+	if fixedInterval, exists := queryMap["fixed_interval"]; exists {
+		return fixedInterval.(string)
+	}
+
+	if calendarInterval, exists := queryMap["calendar_interval"]; exists {
+		return calendarInterval.(string)
+	}
+
+	defaultInterval := "30s"
+	logger.Warn().Msgf("histogram query, extractInterval: no interval found, returning default: %s", defaultInterval)
+	return defaultInterval
 }

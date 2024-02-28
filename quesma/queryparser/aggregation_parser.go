@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/model/bucket_aggregations"
 	"mitmproxy/quesma/model/metrics_aggregations"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -27,7 +28,10 @@ func (b *aggrQueryBuilder) buildAggregationCommon() model.QueryWithAggregation {
 
 	// Need to copy, as we might be proceeding to modify 'b' pointer
 	query.CopyAggregationFields(b.QueryWithAggregation)
-	query.FilterEmptyAggregationFields()
+	if len(query.Fields) > 0 && query.Fields[len(query.Fields)-1] == model.EmptyFieldSelection { // TODO 99% sure it's removed in next PR, let's leave for now
+		query.Fields = query.Fields[:len(query.Fields)-1]
+	}
+	query.RemoveEmptyGroupBy()
 	return query
 }
 
@@ -40,15 +44,17 @@ func (b *aggrQueryBuilder) buildCountAggregation() model.QueryWithAggregation {
 func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregation) model.QueryWithAggregation {
 	query := b.buildAggregationCommon()
 	switch metricsAggr.AggrType {
-	case "sum", "min", "max", "avg", "quantile", "value_count": // TODO fix value_count's SQL
+	case "sum", "min", "max", "avg", "quantile":
 		query.NonSchemaFields = append(query.NonSchemaFields, metricsAggr.AggrType+`("`+metricsAggr.FieldNames[0]+`")`)
 	case "cardinality":
 		query.NonSchemaFields = append(query.NonSchemaFields, `COUNT(DISTINCT "`+metricsAggr.FieldNames[0]+`")`)
+	case "value_count":
+		query.NonSchemaFields = append(query.NonSchemaFields, "count()")
 	case "top_hits", "top_metrics":
 		query.Fields = append(query.Fields, metricsAggr.FieldNames...)
 		fieldsAsString := strings.Join(metricsAggr.FieldNames, ", ")
 		query.TableName = fmt.Sprintf(
-			`(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s) AS %s FROM %s)`,
+			"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s) AS %s FROM %s)",
 			fieldsAsString, fieldsAsString, model.RowNumberColumnName, query.TableName,
 		)
 	default:
@@ -78,20 +84,34 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	return query
 }
 
+// ParseAggregationJson parses JSON with aggregation query and returns array of queries with aggregations.
+// If there are no aggregations, returns nil.
 func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([]model.QueryWithAggregation, error) {
 	queryAsMap := make(QueryMap)
 	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal error: %v", err)
 	}
-	aggregations := make([]model.QueryWithAggregation, 0)
 	currentAggr := aggrQueryBuilder{}
 	currentAggr.TableName = cw.TableName
 	currentAggr.Type = metrics_aggregations.QueryTypeCount{}
 	if queryPart, ok := queryAsMap["query"]; ok {
 		currentAggr.whereBuilder = cw.parseQueryMap(queryPart.(QueryMap))
 	}
-	cw.parseAggregation(&currentAggr, queryAsMap["aggs"].(QueryMap), &aggregations)
+
+	// COUNT(*) is needed for every request. We should change it and don't duplicate it, as some
+	// requests also ask for that themselves, but let's leave it for later.
+	aggregations := []model.QueryWithAggregation{currentAggr.buildCountAggregation()}
+
+	if aggs, ok := queryAsMap["aggs"]; ok {
+		cw.parseAggregation(&currentAggr, aggs.(QueryMap), &aggregations)
+	} else {
+		return nil, fmt.Errorf("no aggs")
+	}
+
+	if len(aggregations) == 1 { // there were no aggregations, only COUNT(*) we added a few lines above
+		return nil, nil
+	}
 	return aggregations, nil
 }
 
@@ -117,12 +137,12 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 
 	// 2. Now process filter(s) first, because they apply to everything else on the same level or below.
 	if filter, ok := queryMap["filter"]; ok {
+		filterOnThisLevel = true
 		currentAggr.Type = metrics_aggregations.QueryTypeCount{}
 		currentAggr.whereBuilder = cw.combineWheres(
 			currentAggr.whereBuilder,
 			cw.parseBool(filter.(QueryMap)["bool"].(QueryMap)),
 		)
-		filterOnThisLevel, whereBeforeNesting = true, currentAggr.whereBuilder
 		delete(queryMap, "filter")
 	}
 	if filters, ok := queryMap["filters"]; ok {
@@ -138,7 +158,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	if terms, ok := queryMap["terms"]; ok {
 		termsOrSamplerPresent = true
 		currentAggr.Type = bucket_aggregations.QueryTypeTerms{}
-		currentAggr.GroupByFields[len(currentAggr.GroupByFields)-1] = terms.(QueryMap)["field"].(string)
+		currentAggr.GroupByFields[len(currentAggr.GroupByFields)-1] = strconv.Quote(terms.(QueryMap)["field"].(string))
 		currentAggr.Fields[len(currentAggr.Fields)-1] = terms.(QueryMap)["field"].(string)
 		delete(queryMap, "terms")
 	} else if _, ok := queryMap["sampler"]; ok {
@@ -170,10 +190,9 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		currentAggr.AggregatorsNames = append(currentAggr.AggregatorsNames, k)
 
 		// we have no idea what it is yet, we'll only find out in the level below and set GROUP BY field accordingly
-		currentAggr.GroupByFields = append(currentAggr.GroupByFields, "")
-		currentAggr.Fields = append(currentAggr.Fields, "")
+		currentAggr.GroupByFields = append(currentAggr.GroupByFields, model.EmptyFieldSelection)
+		currentAggr.Fields = append(currentAggr.Fields, model.EmptyFieldSelection)
 		cw.parseAggregation(currentAggr, v.(QueryMap), resultAccumulator)
-		currentAggr.whereBuilder = whereBeforeNesting
 		logger.Debug().Str(logger.RID, "TODO fill this out").Msgf("Names -= %s", k)
 		currentAggr.AggregatorsNames = currentAggr.AggregatorsNames[:len(currentAggr.AggregatorsNames)-1]
 		currentAggr.Fields = currentAggr.Fields[:len(currentAggr.Fields)-1]
@@ -239,15 +258,16 @@ func tryMetricsAggregation(queryMap QueryMap) (metricsAggregation, bool) {
 // It can be changed, and we'll probably need it, as I see 'date_histogram' case with its subaggregations.
 func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQueryBuilder, queryMap QueryMap) {
 	if histogram, ok := queryMap["histogram"]; ok {
-		currentAggr.GroupByFields[len(currentAggr.GroupByFields)-1] = histogram.(QueryMap)["field"].(string)
+		currentAggr.GroupByFields[len(currentAggr.GroupByFields)-1] = strconv.Quote(histogram.(QueryMap)["field"].(string))
 		currentAggr.Fields[len(currentAggr.Fields)-1] = histogram.(QueryMap)["field"].(string)
 		currentAggr.Type = bucket_aggregations.QueryTypeHistogram{}
 		delete(queryMap, "histogram")
 	}
 	if dateHistogram, ok := queryMap["date_histogram"]; ok {
-		currentAggr.GroupByFields[len(currentAggr.GroupByFields)-1] = dateHistogram.(QueryMap)["field"].(string)
-		currentAggr.Fields[len(currentAggr.Fields)-1] = dateHistogram.(QueryMap)["field"].(string)
-		currentAggr.Type = bucket_aggregations.QueryTypeDateHistogram{}
+		histogramPartOfQuery := cw.createHistogramPartOfQuery(dateHistogram.(QueryMap))
+		currentAggr.GroupByFields[len(currentAggr.GroupByFields)-1] = histogramPartOfQuery
+		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, histogramPartOfQuery)
+		currentAggr.Type = bucket_aggregations.QueryTypeDateHistogram{Interval: cw.extractInterval(dateHistogram.(QueryMap))}
 		delete(queryMap, "date_histogram")
 	}
 	if Range, ok := queryMap["range"]; ok {

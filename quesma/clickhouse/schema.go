@@ -309,6 +309,10 @@ func (table *Table) extractColumns(query *model.Query) ([]string, error) {
 		}
 	} else {
 		for _, field := range query.Fields {
+			if field == model.EmptyFieldSelection {
+				cols = append(cols, "")
+				continue
+			}
 			col, ok := table.Cols[field]
 			if !ok {
 				return nil, fmt.Errorf("column %s not found in table %s", field, table.Name)

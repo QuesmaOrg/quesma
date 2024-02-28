@@ -1,19 +1,19 @@
 package model
 
 import (
-	"mitmproxy/quesma/util"
 	"strconv"
 	"strings"
 )
 
 const RowNumberColumnName = "row_number"
+const EmptyFieldSelection = "''" // we can query SELECT '', that's why such quotes
 
 // implements String() (now) and MakeResponse() interface (in the future (?))
 type Query struct {
 	Fields          []string // Fields in 'SELECT Fields FROM ...'
 	NonSchemaFields []string // Fields that are not in schema, but are in 'SELECT ...', e.g. count()
 	WhereClause     string   // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
-	GroupByFields   []string // if not empty, we do GROUP BY GroupByFields...
+	GroupByFields   []string // if not empty, we do GROUP BY GroupByFields... They are quoted if they are column names, unquoted if non-schema. So no quotes need to be added.
 	SuffixClauses   []string // ORDER BY, etc.
 	TableName       string
 	CanParse        bool // true <=> query is valid
@@ -31,8 +31,8 @@ func (q *Query) String() string {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	for i, field := range q.Fields {
-		if field == "*" {
-			sb.WriteString("*")
+		if field == "*" || field == EmptyFieldSelection {
+			sb.WriteString(field)
 		} else {
 			sb.WriteString(strconv.Quote(field))
 		}
@@ -54,7 +54,7 @@ func (q *Query) String() string {
 	if len(q.GroupByFields) > 0 {
 		sb.WriteString(" GROUP BY (")
 		for i, field := range q.GroupByFields {
-			sb.WriteString(strconv.Quote(field))
+			sb.WriteString(field)
 			if i < len(q.GroupByFields)-1 {
 				sb.WriteString(", ")
 			}
@@ -70,7 +70,11 @@ func (q *Query) StringFromColumns(colNames []string) string {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	for i, field := range colNames {
-		sb.WriteString(strconv.Quote(field))
+		if field != EmptyFieldSelection {
+			sb.WriteString(strconv.Quote(field))
+		} else {
+			sb.WriteString(field)
+		}
 		if i < len(colNames)-1 || len(q.NonSchemaFields) > 0 {
 			sb.WriteString(", ")
 		}
@@ -96,15 +100,23 @@ func (q *Query) IsWildcard() bool {
 func (q *QueryWithAggregation) CopyAggregationFields(qwa QueryWithAggregation) {
 	q.GroupByFields = make([]string, len(qwa.GroupByFields))
 	q.Fields = make([]string, len(qwa.Fields))
+	q.NonSchemaFields = make([]string, len(qwa.NonSchemaFields))
 	q.AggregatorsNames = make([]string, len(qwa.AggregatorsNames))
 	copy(q.GroupByFields, qwa.GroupByFields)
 	copy(q.Fields, qwa.Fields)
+	copy(q.NonSchemaFields, qwa.NonSchemaFields)
 	copy(q.AggregatorsNames, qwa.AggregatorsNames)
 }
 
-func (q *QueryWithAggregation) FilterEmptyAggregationFields() {
-	q.GroupByFields = util.FilterNonEmpty(q.GroupByFields)
-	q.Fields = util.FilterNonEmpty(q.Fields)
+// RemoveEmptyGroupBy removes EmptyFieldSelection from GroupByFields
+func (q *QueryWithAggregation) RemoveEmptyGroupBy() {
+	nonEmptyFields := make([]string, 0)
+	for _, field := range q.GroupByFields {
+		if field != EmptyFieldSelection {
+			nonEmptyFields = append(nonEmptyFields, field)
+		}
+	}
+	q.GroupByFields = nonEmptyFields
 }
 
 type AsyncSearchQueryType int

@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/kibana"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/util"
 	"regexp"
 	"strconv"
 	"time"
@@ -244,6 +245,7 @@ func MakeResponseAsyncSearchQuery(ResultSet []model.QueryResultRow, typ model.As
 }
 
 func (cw *ClickhouseQueryTranslator) finishMakeResponse(query model.QueryWithAggregation, ResultSet []model.QueryResultRow, level int) []model.JsonMap {
+	// fmt.Println("FinishMakeResponse", query, ResultSet, level, query.Type.String())
 	if query.Type.IsBucketAggregation() {
 		return query.Type.TranslateSqlResponseToJson(ResultSet, level)
 	} else { // metrics
@@ -324,8 +326,26 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 	return []model.JsonMap{result}
 }
 
-func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(query model.QueryWithAggregation, ResultSet []model.QueryResultRow) model.JsonMap {
-	return cw.makeResponseAggregationRecursive(query, ResultSet, 0)[0] // result of root node is always a single map, thus [0]
+func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) ([]byte, error) {
+	aggregations := model.JsonMap{}
+	for i, query := range queries[1:] { // first is count, we don't use that for aggregations
+		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i+1], 0)[0] // result of root node is always a single map, thus [0]
+		aggregations = util.MergeMaps(aggregations, aggregation)
+	}
+
+	response := model.AsyncSearchEntireResp{
+		Response: model.SearchResp{
+			Aggregations: aggregations,
+			Hits: model.SearchHits{
+				Hits: []model.SearchHit{}, // seems redundant, but can't remove this, created JSON won't match
+				Total: &model.Total{
+					Value:    int(ResultSets[0][0].Cols[0].Value.(uint64)), // TODO just change this to uint64? It works now.
+					Relation: "eq",
+				},
+			},
+		},
+	}
+	return json.MarshalIndent(response, "", "  ")
 }
 
 // GetFieldsList
@@ -453,6 +473,15 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName, whe
 		TableName:     cw.TableName,
 		CanParse:      true,
 	}
+}
+
+func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMap) string {
+	fieldName := queryMap["field"].(string)
+	interval, err := kibana.ParseInterval(cw.extractInterval(queryMap))
+	if err != nil {
+		panic(err)
+	}
+	return fmt.Sprintf("toInt64(toUnixTimestamp64Milli(`%s`)/%s)", fieldName, strconv.FormatInt(interval.Milliseconds(), 10))
 }
 
 var fromRegexp = regexp.MustCompile(`>=?parseDateTime64BestEffort\('([^']+)'\)`)
