@@ -113,7 +113,7 @@ func NewHttpProxy(logManager *clickhouse.LogManager, config config.QuesmaConfigu
 func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, config config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole) {
 	if router.Matches(req.URL.Path, req.Method) {
 		elkResponseChan := sendHttpRequestToElastic(ctx, config, quesmaManagementConsole, req, reqBody)
-		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, quesmaManagementConsole, func() (string, error) {
+		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, quesmaManagementConsole, func() (*mux.Result, error) {
 			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method)
 		})
 		elkResponse := <-elkResponseChan
@@ -122,7 +122,10 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 
 		if err == nil {
 			logger.Debug().Ctx(ctx).Msg("responding from quesma")
-			unzipped := []byte(quesmaResponse)
+			unzipped := []byte{}
+			if quesmaResponse != nil {
+				unzipped = []byte(quesmaResponse.Body)
+			}
 			if string(unzipped) != "" {
 				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
 				w.WriteHeader(elkResponse.StatusCode)
@@ -169,7 +172,7 @@ func isIngest(path string) bool {
 	return strings.HasSuffix(path, routes.BulkPath) // We may add more methods in future such as `_put` or `_create`
 }
 
-func recordRequestToClickhouse(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() (string, error)) (string, error) {
+func recordRequestToClickhouse(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() (*mux.Result, error)) (*mux.Result, error) {
 	statName := ui.RequestStatisticKibana2Clickhouse
 	if isIngest(path) {
 		statName = ui.RequestStatisticIngest2Clickhouse

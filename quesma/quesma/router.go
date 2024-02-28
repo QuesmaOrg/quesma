@@ -15,66 +15,66 @@ import (
 
 func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole) *mux.PathRouter {
 	router := mux.NewPathRouter()
-	router.RegisterPath(routes.ClusterHealthPath, "GET", func(_ context.Context, body string, _ string, params map[string]string) (string, error) {
-		return `{"cluster_name": "quesma"}`, nil
+	router.RegisterPath(routes.ClusterHealthPath, "GET", func(_ context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+		return mux.HeaderlessResult(`{"cluster_name": "quesma"}`), nil
 	})
-	router.RegisterPath(routes.BulkPath, "POST", func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
+	router.RegisterPath(routes.BulkPath, "POST", func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		dualWriteBulk(ctx, "", body, lm, config)
-		return "", nil
+		return nil, nil
 	})
-	router.RegisterPathMatcher(routes.IndexDocPath, "POST", matchedAgainstConfig(config), func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
+	router.RegisterPathMatcher(routes.IndexDocPath, "POST", matchedAgainstConfig(config), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		dualWrite(ctx, params["index"], body, lm, config)
-		return "", nil
+		return nil, nil
 	})
-	router.RegisterPathMatcher(routes.IndexBulkPath, "POST", matchedAgainstConfig(config), func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
+	router.RegisterPathMatcher(routes.IndexBulkPath, "POST", matchedAgainstConfig(config), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		dualWriteBulk(ctx, params["index"], body, lm, config)
-		return "", nil
+		return nil, nil
 	})
-	router.RegisterPathMatcher(routes.IndexSearchPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
+	router.RegisterPathMatcher(routes.IndexSearchPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		if strings.Contains(params["index"], ",") {
 			errorstats.GlobalErrorStatistics.RecordKnownError("Multi index search is not supported", nil,
 				"Multi index search is not yet supported: "+params["index"])
-			return "", errors.New("multi index search is not yet supported")
+			return nil, errors.New("multi index search is not yet supported")
 		} else {
 			responseBody, err := handleSearch(ctx, params["index"], []byte(body), lm, console)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
-			return string(responseBody), nil
+			return mux.HeaderlessResult(string(responseBody)), nil
 		}
 	})
-	router.RegisterPathMatcher(routes.IndexAsyncSearchPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
+	router.RegisterPathMatcher(routes.IndexAsyncSearchPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		if strings.Contains(params["index"], ",") {
 			errorstats.GlobalErrorStatistics.RecordKnownError("Multi index search is not supported", nil,
 				"Multi index search is not yet supported: "+params["index"])
-			return "", errors.New("multi index search is not yet supported")
+			return nil, errors.New("multi index search is not yet supported")
 		} else {
 			responseBody, err := handleAsyncSearch(ctx, params["index"], []byte(body), lm, console)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
-			return string(responseBody), nil
+			return mux.HeaderlessResult(string(responseBody)), nil
 		}
 	})
-	router.RegisterPathMatcher(routes.FieldCapsPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
+	router.RegisterPathMatcher(routes.FieldCapsPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		if strings.Contains(params["index"], ",") {
-			return "", errors.New("multi index search is not yet supported")
+			return nil, errors.New("multi index search is not yet supported")
 		} else {
 			responseBody, err := hanndleFieldCaps(ctx, params["index"], []byte(body), lm)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
-			return string(responseBody), nil
+			return mux.HeaderlessResult(string(responseBody)), nil
 		}
 	})
-	router.RegisterPathMatcher(routes.TermsEnumPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (string, error) {
+	router.RegisterPathMatcher(routes.TermsEnumPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		if strings.Contains(params["index"], ",") {
-			return "", errors.New("multi index terms enum is not yet supported")
+			return nil, errors.New("multi index terms enum is not yet supported")
 		} else {
 			if responseBody, err := handleTermsEnum(ctx, params["index"], []byte(body), lm); err != nil {
-				return "", err
+				return nil, err
 			} else {
-				return string(responseBody), nil
+				return mux.HeaderlessResult(string(responseBody)), nil
 			}
 		}
 	})

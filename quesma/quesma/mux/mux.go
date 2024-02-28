@@ -17,9 +17,17 @@ type (
 		predicate    MatchPredicate
 		handler      handler
 	}
-	handler        func(ctx context.Context, body string, uri string, params map[string]string) (string, error)
+	Result struct {
+		Body string
+		Meta map[string]string
+	}
+	handler        func(ctx context.Context, body string, uri string, params map[string]string) (*Result, error)
 	MatchPredicate func(map[string]string) bool
 )
+
+func HeaderlessResult(body string) *Result {
+	return &Result{Body: body, Meta: make(map[string]string)}
+}
 
 // Url router where you can register multiple URL paths with handler.
 // We need our own component as default libraries caused side-effects on requests or response.
@@ -38,13 +46,12 @@ func (p *PathRouter) RegisterPathMatcher(pattern string, httpMethod string, pred
 	p.mappings = append(p.mappings, mapping)
 }
 
-func (p *PathRouter) Execute(ctx context.Context, path string, body string, httpMethod string) (string, error) {
+func (p *PathRouter) Execute(ctx context.Context, path string, body string, httpMethod string) (*Result, error) {
 	handler, meta, found := p.findHandler(path, httpMethod)
 	if found {
-		resp, err := handler(ctx, body, path, meta.Params)
-		return resp, err
+		return handler(ctx, body, path, meta.Params)
 	}
-	return "", nil
+	return nil, nil
 }
 
 func (p *PathRouter) Matches(path string, httpMethod string) bool {
