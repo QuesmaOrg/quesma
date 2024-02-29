@@ -3,7 +3,7 @@ module mitmproxy/quesma
 go 1.22.0
 
 require (
-	github.com/ClickHouse/clickhouse-go/v2 v2.19.0
+	github.com/ClickHouse/clickhouse-go/v2 v2.20.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/cockroachdb/cockroachdb-parser v0.0.0-20221207165326-ea0ac1a4778b
 	github.com/gorilla/mux v1.8.1
@@ -72,8 +72,8 @@ require (
 	github.com/twpayne/go-geom v1.4.2 // indirect
 	github.com/twpayne/go-kml v1.5.2 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
-	go.opentelemetry.io/otel v1.23.1 // indirect
-	go.opentelemetry.io/otel/trace v1.23.1 // indirect
+	go.opentelemetry.io/otel v1.24.0 // indirect
+	go.opentelemetry.io/otel/trace v1.24.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 	golang.org/x/sys v0.17.0 // indirect
