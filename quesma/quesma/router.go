@@ -113,7 +113,7 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func
 			indexConfig, exists := configuration.GetIndexConfig(candidates[0])
 			return exists && indexConfig.Enabled
 		} else {
-			logger.Warn().Msgf("no index found for pattern %s", m["index"])
+			logger.Debug().Msgf("no index found for pattern %s", m["index"])
 			return false
 		}
 	}
