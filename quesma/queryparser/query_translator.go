@@ -326,16 +326,19 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 	return []model.JsonMap{result}
 }
 
-func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) model.JsonMap {
 	aggregations := model.JsonMap{}
 	for i, query := range queries[1:] { // first is count, we don't use that for aggregations
 		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i+1], 0)[0] // result of root node is always a single map, thus [0]
 		aggregations = util.MergeMaps(aggregations, aggregation)
 	}
+	return aggregations
+}
 
+func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) ([]byte, error) {
 	response := model.AsyncSearchEntireResp{
 		Response: model.SearchResp{
-			Aggregations: aggregations,
+			Aggregations: cw.MakeAggregationPartOfResponse(queries, ResultSets),
 			Hits: model.SearchHits{
 				Hits: []model.SearchHit{}, // seems redundant, but can't remove this, created JSON won't match
 				Total: &model.Total{
@@ -478,7 +481,7 @@ func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMa
 	fieldName := queryMap["field"].(string)
 	interval, err := kibana.ParseInterval(cw.extractInterval(queryMap))
 	if err != nil {
-		panic(err)
+		logger.Error().Msg(err.Error())
 	}
 	return fmt.Sprintf("toInt64(toUnixTimestamp64Milli(`%s`)/%s)", fieldName, strconv.FormatInt(interval.Milliseconds(), 10))
 }

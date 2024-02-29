@@ -2,8 +2,8 @@ package testdata
 
 import (
 	"fmt"
+	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/util"
 	"strconv"
 	"strings"
 	"time"
@@ -1843,6 +1843,6 @@ var TestSearchFilter = []SearchTestCase{
 			justWhere(``),
 			justWhere(``),
 		},
-		"SELECT " + util.TimestampGroupBy("@timestamp", 30*time.Second),
+		"SELECT " + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second),
 	},
 }

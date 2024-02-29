@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 )
 
 type JsonMap = map[string]interface{}
@@ -445,10 +444,11 @@ func equal(a, b any) bool {
 		if ok && float64(aTyped) == bAsFloat {
 			return true
 		}
+	case uint64:
+		bAsFloat, ok := b.(float64)
+		if ok && float64(aTyped) == bAsFloat {
+			return true
+		}
 	}
 	return false
-}
-
-func TimestampGroupBy(timestampFieldName string, groupByInterval time.Duration) string {
-	return fmt.Sprintf("toInt64(toUnixTimestamp64Milli(`%s`)/%d)", timestampFieldName, groupByInterval.Milliseconds())
 }

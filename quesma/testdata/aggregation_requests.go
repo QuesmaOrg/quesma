@@ -1,6 +1,12 @@
 package testdata
 
-import "mitmproxy/quesma/model"
+import (
+	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/model"
+	"time"
+)
+
+var timestampGroupByClause = clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second)
 
 type AggregationTestCase struct {
 	TestName         string
@@ -102,10 +108,12 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1707486436397
 		}`,
 		[][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2200))}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", 1199.72900390625)}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", 100.14596557617188)}}},
 		},
 		[]string{
+			`SELECT count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') `,
 			`SELECT max("AvgTicketPrice") FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') `,
 			`SELECT min("AvgTicketPrice") FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') `,
 		},
@@ -269,6 +277,7 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1707486436403
 		}`,
 		[][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2200))}}},
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("OriginCityName", "Abu Dhabi"),
@@ -313,6 +322,7 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		[]string{
+			`SELECT count() FROM "` + TableName + `" WHERE "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') AND "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') `,
 			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE "FlightDelay" == true  GROUP BY ("OriginCityName")`,
 			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE "Cancelled" == true  GROUP BY ("OriginCityName")`,
 			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')  GROUP BY ("OriginCityName")`,
@@ -464,50 +474,52 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1707486436405
 		}`,
 		[][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2200))}}},
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("FlightDelayType", "No Delay"),
-					model.NewQueryResultCol("key", 1706871600000),
-					model.NewQueryResultCol("doc_count", 2),
+					model.NewQueryResultCol("key", int64(1706871600000/1000/60/60/3)), // / 3h
+					model.NewQueryResultCol("doc_count", uint64(2)),
 					model.NewQueryResultCol("key_as_string", "2024-02-02T12:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("FlightDelayType", "No Delay"),
-					model.NewQueryResultCol("key", 1706882400000),
-					model.NewQueryResultCol("doc_count", 27),
+					model.NewQueryResultCol("key", int64(1706882400000/1000/60/60/3)),
+					model.NewQueryResultCol("doc_count", uint64(27)),
 					model.NewQueryResultCol("key_as_string", "2024-02-02T15:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("FlightDelayType", "No Delay"),
-					model.NewQueryResultCol("key", 1706893200000),
-					model.NewQueryResultCol("doc_count", 34),
+					model.NewQueryResultCol("key", int64(1706893200000/1000/60/60/3)),
+					model.NewQueryResultCol("doc_count", uint64(34)),
 					model.NewQueryResultCol("key_as_string", "2024-02-02T18:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("FlightDelayType", "Security Delay"),
-					model.NewQueryResultCol("key", 1706871600000),
-					model.NewQueryResultCol("doc_count", 0),
+					model.NewQueryResultCol("key", int64(1706871600000/1000/60/60/3)),
+					model.NewQueryResultCol("doc_count", uint64(0)),
 					model.NewQueryResultCol("key_as_string", "2024-02-02T12:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("FlightDelayType", "Security Delay"),
-					model.NewQueryResultCol("key", 1706882400000),
-					model.NewQueryResultCol("doc_count", 2),
+					model.NewQueryResultCol("key", int64(1706882400000/1000/60/60/3)),
+					model.NewQueryResultCol("doc_count", uint64(2)),
 					model.NewQueryResultCol("key_as_string", "2024-02-02T15:00:00.000+01:00"),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "No Delay"),
-					model.NewQueryResultCol("doc_count", 1647),
+					model.NewQueryResultCol("doc_count", uint64(1647)),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "Security Delay"),
-					model.NewQueryResultCol("doc_count", 45),
+					model.NewQueryResultCol("doc_count", uint64(45)),
 				}},
 			},
 		},
 		[]string{
+			`SELECT count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') `,
 			`SELECT "FlightDelayType", "timestamp", count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')  GROUP BY ("FlightDelayType", "timestamp")`,
 			`SELECT "FlightDelayType", count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')  GROUP BY ("FlightDelayType")`,
 		},
@@ -597,6 +609,7 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1707818398417
 		}`,
 		[][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(1043))}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", 76631.67578125)}}},
 		},
 		[]string{
@@ -704,14 +717,13 @@ var AggregationTests = []AggregationTestCase{
 			}
 		}`,
 		[][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2200))}}},
 			{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Rome"), model.NewQueryResultCol("doc_count", 73)}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Bogota"), model.NewQueryResultCol("doc_count", 44)}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Milan"), model.NewQueryResultCol("doc_count", 32)}},
 			},
-			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", 143)}},
-			},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", 143)}}},
 		},
 		[]string{
 			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')  GROUP BY ("OriginCityName")`,
@@ -820,7 +832,8 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1707486436414
 		}`,
 		[][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 553)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2200))}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", uint64(553))}}},
 		},
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) AND "FlightDelay" == true `,
@@ -970,6 +983,7 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1707486436414
 		}`,
 		[][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(904))}}},
 			{{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("", nil), // nil aggregation
 				model.NewQueryResultCol("doc_count", 553),
@@ -1254,6 +1268,7 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1707486436501
 		}`,
 		[][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(13014))}}},
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("OriginAirportID", "UIO"), model.NewQueryResultCol("DestAirportID", "EZE"),
@@ -1423,6 +1438,7 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1707486436930
 		}`,
 		[][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(553))}}},
 			{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 15.0), model.NewQueryResultCol("doc_count", 21)}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 30.0), model.NewQueryResultCol("doc_count", 22)}},
@@ -1431,7 +1447,8 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		[]string{
-			`TODO fix histogram SQL`,
+			`SELECT count() FROM "` + TableName + `" WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) AND NOT "FlightDelayMin" == 0 `,
+			`SELECT "FlightDelayMin", count() FROM "` + TableName + `" WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) AND NOT "FlightDelayMin" == 0  GROUP BY (FlightDelayMin)`,
 		},
 	},
 	{ // [9]
@@ -1588,42 +1605,37 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1707496610022
 		}`,
 		[][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(198))}}},
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "info"),
-					model.NewQueryResultCol("key", 1707476400000),
+					model.NewQueryResultCol("key", int64(1707476400000/1000/60/60/3)), // divide by 3h
 					model.NewQueryResultCol("doc_count", 22),
-					model.NewQueryResultCol("key_as_string", "2024-02-09T12:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "info"),
-					model.NewQueryResultCol("key", 1707487200000),
+					model.NewQueryResultCol("key", int64(1707487200000/1000/60/60/3)), // divide by 3h
 					model.NewQueryResultCol("doc_count", 80),
-					model.NewQueryResultCol("key_as_string", "2024-02-09T15:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "debug"),
-					model.NewQueryResultCol("key", 1707476400000),
+					model.NewQueryResultCol("key", int64(1707476400000/1000/60/60/3)), // divide by 3h
 					model.NewQueryResultCol("doc_count", 17),
-					model.NewQueryResultCol("key_as_string", "2024-02-09T12:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "debug"),
-					model.NewQueryResultCol("key", 1707487200000),
+					model.NewQueryResultCol("key", int64(1707487200000/1000/60/60/3)), // divide by 3h
 					model.NewQueryResultCol("doc_count", 32),
-					model.NewQueryResultCol("key_as_string", "2024-02-09T15:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "critical"),
-					model.NewQueryResultCol("key", 1707476400000),
+					model.NewQueryResultCol("key", int64(1707476400000/1000/60/60/3)), // divide by 3h
 					model.NewQueryResultCol("doc_count", 5),
-					model.NewQueryResultCol("key_as_string", "2024-02-09T12:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "critical"),
-					model.NewQueryResultCol("key", 1707487200000),
+					model.NewQueryResultCol("key", int64(1707487200000/1000/60/60/3)), // divide by 3h
 					model.NewQueryResultCol("doc_count", 11),
-					model.NewQueryResultCol("key_as_string", "2024-02-09T15:00:00.000+01:00"),
 				}},
 			},
 			{
@@ -1642,8 +1654,9 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		[]string{
-			`SELECT "severity", "@timestamp", count() FROM "` + TableName + `" WHERE "host.name" iLIKE '%prometheus%' AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))  GROUP BY ("severity", "@timestamp")`,
-			`SELECT "severity", count() FROM "` + TableName + `" WHERE "host.name" iLIKE '%prometheus%' AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))  GROUP BY ("severity")`,
+			`SELECT count() FROM "` + TableName + `" WHERE "host.name" iLIKE '%prometheus%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z') AND "@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z')) `,
+			`SELECT "severity", toInt64(toUnixTimestamp64Milli(` + "`@timestamp`" + `)/10800000), count() FROM "` + TableName + `" WHERE "host.name" iLIKE '%prometheus%' AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))  GROUP BY (severity, toInt64(toUnixTimestamp64Milli(` + "`@timestamp`)/10800000))",
+			`SELECT "severity", count() FROM "` + TableName + `" WHERE "host.name" iLIKE '%prometheus%' AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))  GROUP BY (severity)`,
 		},
 	},
 	{ // [10] doesn't work yet :(( harder than all before
@@ -2009,24 +2022,26 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1706010201964
 		}`,
 		[][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 442)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(442))}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("doc_count", 442)}}},
 			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "todo"), model.NewQueryResultCol("key", "hephaestus"), model.NewQueryResultCol("doc_count", 30)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "poseidon"), model.NewQueryResultCol("doc_count", 29)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "jupiter"), model.NewQueryResultCol("doc_count", 28)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "selen"), model.NewQueryResultCol("doc_count", 26)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "demeter"), model.NewQueryResultCol("doc_count", 24)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "iris"), model.NewQueryResultCol("doc_count", 24)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "pan"), model.NewQueryResultCol("doc_count", 24)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "hades"), model.NewQueryResultCol("doc_count", 22)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "hermes"), model.NewQueryResultCol("doc_count", 22)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("pos", "todo"), model.NewQueryResultCol("pos", "persephone"), model.NewQueryResultCol("doc_count", 21)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("key", "hephaestus"), model.NewQueryResultCol("doc_count", 30)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "poseidon"), model.NewQueryResultCol("doc_count", 29)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "jupiter"), model.NewQueryResultCol("doc_count", 28)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "selen"), model.NewQueryResultCol("doc_count", 26)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "demeter"), model.NewQueryResultCol("doc_count", 24)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "iris"), model.NewQueryResultCol("doc_count", 24)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "pan"), model.NewQueryResultCol("doc_count", 24)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "hades"), model.NewQueryResultCol("doc_count", 22)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "hermes"), model.NewQueryResultCol("doc_count", 22)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "persephone"), model.NewQueryResultCol("doc_count", 21)}},
 			},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 442)}}},
 		},
 		[]string{
+			`SELECT count() FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%' `,
 			`SELECT value_count("host.name") FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%' `,
-			`SELECT "host.name", count() FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%'  GROUP BY ("host.name")`,
+			`SELECT '', "host.name", count() FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%'  GROUP BY (host.name)`,
 			`SELECT count() FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%' `,
 		},
 	},
@@ -2127,18 +2142,21 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1706021899594
 		}`,
 		[][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(97))}}},
 			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021670000), model.NewQueryResultCol("doc_count", 2), model.NewQueryResultCol("key_as_string", "2024-01-23T15:54:30.000+01:00")}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021700000), model.NewQueryResultCol("doc_count", 13), model.NewQueryResultCol("key_as_string", "2024-01-23T15:55:00.000+01:00")}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021730000), model.NewQueryResultCol("doc_count", 14), model.NewQueryResultCol("key_as_string", "2024-01-23T15:55:30.000+01:00")}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021760000), model.NewQueryResultCol("doc_count", 14), model.NewQueryResultCol("key_as_string", "2024-01-23T15:56:00.000+01:00")}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021790000), model.NewQueryResultCol("doc_count", 15), model.NewQueryResultCol("key_as_string", "2024-01-23T15:56:30.000+01:00")}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021820000), model.NewQueryResultCol("doc_count", 13), model.NewQueryResultCol("key_as_string", "2024-01-23T15:57:00.000+01:00")}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021850000), model.NewQueryResultCol("doc_count", 15), model.NewQueryResultCol("key_as_string", "2024-01-23T15:57:30.000+01:00")}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1706021880000), model.NewQueryResultCol("doc_count", 11), model.NewQueryResultCol("key_as_string", "2024-01-23T15:58:00.000+01:00")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021670000/30000)), model.NewQueryResultCol("doc_count", 2)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021700000/30000)), model.NewQueryResultCol("doc_count", 13)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021730000/30000)), model.NewQueryResultCol("doc_count", 14)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021760000/30000)), model.NewQueryResultCol("doc_count", 14)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021790000/30000)), model.NewQueryResultCol("doc_count", 15)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021820000/30000)), model.NewQueryResultCol("doc_count", 13)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021850000/30000)), model.NewQueryResultCol("doc_count", 15)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021880000/30000)), model.NewQueryResultCol("doc_count", 11)}},
 			},
 		},
-		[]string{`SELECT "@timestamp", count() FROM "` + TableName + `" WHERE "message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))  GROUP BY ("@timestamp")`},
+		[]string{
+			`SELECT count() FROM "` + TableName + `" WHERE "message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z')) `,
+			`SELECT ` + timestampGroupByClause + `, count() FROM "` + TableName + `" WHERE "message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))  GROUP BY (` + timestampGroupByClause + ")"},
 	},
 	{ // [13], "old" test, also can be found in testdata/requests.go TestAsyncSearch[4]
 		// Copied it also here to be more sure we do not create some regression
@@ -2259,12 +2277,143 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1706551812665
 		}`,
 		[][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(0))}}},
 			{}, // on purpose, simulates no rows returned
 			{}, // on purpose, simulates no rows returned
 		},
 		[]string{
+			`SELECT count() FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' `,
 			`SELECT min("@timestamp") FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' `,
 			`SELECT max("@timestamp") FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' `,
+		},
+	},
+	{ // [15]
+		"date_histogram: regression test",
+		`{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"sum": {
+								"field": "taxful_total_price"
+							}
+						}
+					},
+					"date_histogram": {
+						"calendar_interval": "1d",
+						"extended_bounds": {
+							"max": 1708969256351,
+							"min": 1708364456351
+						},
+						"field": "order_date",
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"order_date": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-02-19T17:40:56.351Z",
+									"lte": "2024-02-26T17:40:56.351Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		`{
+			"completion_time_in_millis": 1708969258827,
+			"expiration_time_in_millis": 1708969318819,
+			"id": "FlduNmpMRzJhU1p1dEV3bEhCbFdSaEEcVnRjbXJfX19RZk9wNjhid3IxWnhuZzoyMjAzOA==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{
+								"1": {
+									"value": 2221.5625
+								},
+								"doc_count": 31,
+								"key": 1708297200000,
+								"key_as_string": "2024-02-19T00:00:00.000+01:00"
+							},
+							{
+								"1": {
+									"value": 11116.45703125
+								},
+								"doc_count": 158,
+								"key": 1708383600000,
+								"key_as_string": "2024-02-20T00:00:00.000+01:00"
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 1049
+					}
+				},
+				"timed_out": false,
+				"took": 8
+			},
+			"start_time_in_millis": 1708969258819
+		}`,
+		[][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", uint64(1049))}},
+			},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19772)), model.NewQueryResultCol("1", 2221.5625)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19773)), model.NewQueryResultCol("1", 11116.45703125)}},
+			},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19772)), model.NewQueryResultCol("doc_count", uint64(31))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19773)), model.NewQueryResultCol("doc_count", uint64(158))}},
+			},
+		},
+		[]string{
+			`SELECT count() FROM "` + TableName + `" WHERE "order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z') `,
+			``,
+			`SELECT ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime, 24*time.Hour) + `, count() FROM "` + TableName + `" WHERE "order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z')  GROUP BY (` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime, 24*time.Hour) + ")",
 		},
 	},
 }

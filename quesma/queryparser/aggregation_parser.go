@@ -32,6 +32,7 @@ func (b *aggrQueryBuilder) buildAggregationCommon() model.QueryWithAggregation {
 		query.Fields = query.Fields[:len(query.Fields)-1]
 	}
 	query.RemoveEmptyGroupBy()
+	query.TrimKeywordFromFields()
 	return query
 }
 
@@ -102,7 +103,6 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 	// COUNT(*) is needed for every request. We should change it and don't duplicate it, as some
 	// requests also ask for that themselves, but let's leave it for later.
 	aggregations := []model.QueryWithAggregation{currentAggr.buildCountAggregation()}
-
 	if aggs, ok := queryAsMap["aggs"]; ok {
 		cw.parseAggregation(&currentAggr, aggs.(QueryMap), &aggregations)
 	} else {
@@ -151,33 +151,19 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		delete(queryMap, "filters")
 	}
 
-	// 3. terms, sampler. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
-
+	// 3. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
 	weWantToAggregateHere := true
-	termsOrSamplerPresent := false
-	if terms, ok := queryMap["terms"]; ok {
-		termsOrSamplerPresent = true
-		currentAggr.Type = bucket_aggregations.QueryTypeTerms{}
-		currentAggr.GroupByFields[len(currentAggr.GroupByFields)-1] = strconv.Quote(terms.(QueryMap)["field"].(string))
-		currentAggr.Fields[len(currentAggr.Fields)-1] = terms.(QueryMap)["field"].(string)
-		delete(queryMap, "terms")
-	} else if _, ok := queryMap["sampler"]; ok {
-		termsOrSamplerPresent = true
-		delete(queryMap, "sampler")
-	}
+	bucketAggrPresent, addedNonSchemaField := cw.tryBucketAggregation(currentAggr, queryMap)
 
 	// If 'aggs' is present, we only aggregate if also 'terms'/'sampler' is present. It then introduces a new GROUP BY,
 	// and we need counts for that.
 	if aggs, ok := queryMap["aggs"]; ok {
-		if !termsOrSamplerPresent {
+		if !bucketAggrPresent {
 			weWantToAggregateHere = false
 		}
 		cw.parseAggregation(currentAggr, aggs.(QueryMap), resultAccumulator)
 		delete(queryMap, "aggs")
 	}
-
-	// 4. Bucket aggregations (https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket.html)
-	cw.tryBucketAggregation(currentAggr, queryMap)
 
 	if len(queryMap) == 0 && weWantToAggregateHere {
 		*resultAccumulator = append(*resultAccumulator, currentAggr.buildCountAggregation())
@@ -202,6 +188,9 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	// restore current state, removing subaggregation state
 	if filterOnThisLevel {
 		currentAggr.whereBuilder = whereBeforeNesting
+	}
+	if addedNonSchemaField {
+		currentAggr.NonSchemaFields = currentAggr.NonSchemaFields[:len(currentAggr.NonSchemaFields)-1]
 	}
 	currentAggr.Type = currentQueryType
 }
@@ -253,15 +242,19 @@ func tryMetricsAggregation(queryMap QueryMap) (metricsAggregation, bool) {
 	return metricsAggregation{}, false
 }
 
-// TODO where clauses should be combined, not just replaced like now
-// I treat all clauses as ending (leaf) subAggregation.
-// It can be changed, and we'll probably need it, as I see 'date_histogram' case with its subaggregations.
-func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQueryBuilder, queryMap QueryMap) {
+// tryBucketAggregation checks if 'queryMap' represents a bucket aggregation on current level and if it does, updates 'currentAggr'.
+// Returns:
+// * 'success': was it bucket aggreggation?
+// * 'nonSchemaFieldAdded': did we add a non-schema field to 'currentAggr', if it turned out to be bucket aggregation? If we did, we need to know, to remove it later.
+func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQueryBuilder, queryMap QueryMap) (
+	success bool, nonSchemaFieldAdded bool) {
+	success, nonSchemaFieldAdded = true, false // returned in most cases
 	if histogram, ok := queryMap["histogram"]; ok {
 		currentAggr.GroupByFields[len(currentAggr.GroupByFields)-1] = strconv.Quote(histogram.(QueryMap)["field"].(string))
 		currentAggr.Fields[len(currentAggr.Fields)-1] = histogram.(QueryMap)["field"].(string)
 		currentAggr.Type = bucket_aggregations.QueryTypeHistogram{}
 		delete(queryMap, "histogram")
+		return
 	}
 	if dateHistogram, ok := queryMap["date_histogram"]; ok {
 		histogramPartOfQuery := cw.createHistogramPartOfQuery(dateHistogram.(QueryMap))
@@ -269,6 +262,19 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, histogramPartOfQuery)
 		currentAggr.Type = bucket_aggregations.QueryTypeDateHistogram{Interval: cw.extractInterval(dateHistogram.(QueryMap))}
 		delete(queryMap, "date_histogram")
+		nonSchemaFieldAdded = true // only case for that
+		return
+	}
+	if terms, ok := queryMap["terms"]; ok {
+		currentAggr.Type = bucket_aggregations.QueryTypeTerms{}
+		currentAggr.GroupByFields[len(currentAggr.GroupByFields)-1] = terms.(QueryMap)["field"].(string)
+		currentAggr.Fields[len(currentAggr.Fields)-1] = terms.(QueryMap)["field"].(string)
+		delete(queryMap, "terms")
+		return
+	}
+	if _, ok := queryMap["sampler"]; ok {
+		delete(queryMap, "sampler")
+		return
 	}
 	if Range, ok := queryMap["range"]; ok {
 		currentAggr.whereBuilder = cw.combineWheres(
@@ -276,6 +282,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			cw.parseRange(Range.(QueryMap)),
 		)
 		delete(queryMap, "range")
+		return
 	}
 	if Bool, ok := queryMap["bool"]; ok {
 		currentAggr.whereBuilder = cw.combineWheres(
@@ -283,7 +290,10 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			cw.parseBool(Bool.(QueryMap)),
 		)
 		delete(queryMap, "bool")
+		return
 	}
+	success = false
+	return
 }
 
 func (cw *ClickhouseQueryTranslator) combineWheres(where1, where2 SimpleQuery) SimpleQuery {

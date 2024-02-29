@@ -1,6 +1,7 @@
 package model
 
 import (
+	"mitmproxy/quesma/logger"
 	"strconv"
 	"strings"
 )
@@ -97,15 +98,25 @@ func (q *Query) IsWildcard() bool {
 	return len(q.Fields) == 1 && q.Fields[0] == "*"
 }
 
+// CopyAggregationFields copies all aggregation fields from qwa to q
 func (q *QueryWithAggregation) CopyAggregationFields(qwa QueryWithAggregation) {
 	q.GroupByFields = make([]string, len(qwa.GroupByFields))
-	q.Fields = make([]string, len(qwa.Fields))
-	q.NonSchemaFields = make([]string, len(qwa.NonSchemaFields))
-	q.AggregatorsNames = make([]string, len(qwa.AggregatorsNames))
 	copy(q.GroupByFields, qwa.GroupByFields)
+
+	q.Fields = make([]string, len(qwa.Fields))
 	copy(q.Fields, qwa.Fields)
+
+	q.NonSchemaFields = make([]string, len(qwa.NonSchemaFields))
 	copy(q.NonSchemaFields, qwa.NonSchemaFields)
+
+	q.AggregatorsNames = make([]string, len(qwa.AggregatorsNames))
 	copy(q.AggregatorsNames, qwa.AggregatorsNames)
+
+	// let's leave this comment until algorithm is 100% correct. I'm still trying to figure out what's the correct way to do it.
+	// also probably move this to some other function
+	/* if q.Type.IsBucketAggregation() && len(q.Fields) > 0 {
+		q.Fields = q.Fields[:len(q.Fields)-1]
+	} */
 }
 
 // RemoveEmptyGroupBy removes EmptyFieldSelection from GroupByFields
@@ -117,6 +128,23 @@ func (q *QueryWithAggregation) RemoveEmptyGroupBy() {
 		}
 	}
 	q.GroupByFields = nonEmptyFields
+}
+
+// TrimKeywordFromFields trims .keyword from fields and group by fields
+// In future probably handle it in a better way
+func (q *QueryWithAggregation) TrimKeywordFromFields() {
+	for i := range q.Fields {
+		if strings.HasSuffix(q.Fields[i], ".keyword") {
+			logger.Warn().Msgf("Trimming .keyword from field %s", q.Fields[i])
+		}
+		q.Fields[i] = strings.TrimSuffix(q.Fields[i], ".keyword")
+	}
+	for i := range q.GroupByFields {
+		if strings.HasSuffix(q.GroupByFields[i], ".keyword") {
+			logger.Warn().Msgf("Trimming .keyword from group by field %s", q.GroupByFields[i])
+		}
+		q.GroupByFields[i] = strings.TrimSuffix(q.GroupByFields[i], ".keyword")
+	}
 }
 
 type AsyncSearchQueryType int

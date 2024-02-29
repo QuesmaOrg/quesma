@@ -1,17 +1,14 @@
 package queryparser
 
 import (
-	"cmp"
 	"fmt"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
-	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/testdata"
 	"mitmproxy/quesma/util"
-	"slices"
 	"strconv"
 	"testing"
 )
@@ -498,6 +495,7 @@ func TestAggregationParser(t *testing.T) {
 	}
 }
 
+/* commenting for a bit
 // Used in tests to make processing `aggregations` in a deterministic way
 func sortAggregations(aggregations []model.QueryWithAggregation) {
 	slices.SortFunc(aggregations, func(a, b model.QueryWithAggregation) int {
@@ -510,6 +508,7 @@ func sortAggregations(aggregations []model.QueryWithAggregation) {
 		return cmp.Compare(len(b.AggregatorsNames), len(a.AggregatorsNames))
 	})
 }
+*/
 
 func Test2AggregationParserExternalTestcases(t *testing.T) {
 	table := clickhouse.NewEmptyTable(testdata.TableName)
@@ -519,14 +518,16 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			// WORKING (or almost): 12/15 tests
 			// works: 0, 3, 5, 8, 12, 14
-			// ~90% works, small diff 2 same fields all the time: 1, 2, 4, 9, 11
+			// ~98% works, small diff 2 same fields all the time: 1, 2, 4, 9, 11
+			// 2, 9: +-1h doesn't work too... But Kibana seems to accept this difference well. Can't make it work somehow... :(
 			// waits for response (99% it'll work): 13
+
+			// TODO FIX 11 VALUE_COUNT
 
 			// NOT WORKING: 3/15 tests
 			// kinda small fix: top_hits: 7
 			// bigger fix, maybe will work w/o it: filters [] instead of {} 6
 			// harder than all others: 10
-
 			t.Skip("Works only manually, some responses aren't 100% the same, only 98%")
 
 			// Leaving a lot of comments, I'll need them in next PR. Test is skipped anyway.
@@ -534,20 +535,23 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			fmt.Println("Aggregations len", len(aggregations))
 			assert.NoError(t, err)
 			// assert.Equal(t, len(test.translatedSqls), len(aggregations))
-			A := model.JsonMap{}           // replace with algorithm not in tests
-			sortAggregations(aggregations) // to make test run deterministic
+			// sortAggregations(aggregations) // to make test run deterministic
 			for i, aggregation := range aggregations {
 				fmt.Println(aggregation)
+				fmt.Println()
 				fmt.Println(aggregation.String())
 				util.AssertSqlEqual(t, test.ExpectedSQLs[i], aggregation.String())
-				// A = util.MergeMaps(A, cw.MakeResponseAggregation(aggregation, test.ExpectedResults[i]))
 			}
+			A := cw.MakeAggregationPartOfResponse(aggregations, test.ExpectedResults)
+			qw, err := cw.MakeResponseAggregation(aggregations, test.ExpectedResults)
+			fmt.Println(err, string(qw))
 			pp.Println("ACTUAL", A)
 			expectedResponseMap, _ := util.JsonToMap(test.ExpectedResponse)
 			expectedAggregationsPart := expectedResponseMap["response"].(JsonMap)["aggregations"].(JsonMap)
 			diff1, diff2 := util.MapDifference(A, expectedAggregationsPart, true, true)
 			assert.Empty(t, diff1)
 			assert.Empty(t, diff2)
+			assert.Contains(t, string(qw), `"value": `+strconv.FormatUint(test.ExpectedResults[0][0].Cols[0].Value.(uint64), 10)) // checks if hits nr is OK
 			pp.Println("EXPECTED", expectedAggregationsPart)
 			pp.Println("diff1", diff1)
 			pp.Println("diff2", diff2)
