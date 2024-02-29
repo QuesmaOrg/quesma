@@ -73,7 +73,7 @@ func TestParseSignozSchema_2(t *testing.T) {
 	for _, fieldName := range fieldNames {
 		assert.Contains(t, table.Cols, fieldName)
 	}
-	assert.Equal(t, "db", table.Database)
+	assert.Equal(t, "db", table.DatabaseName)
 	assert.Equal(t, "cluster", table.Cluster)
 }
 

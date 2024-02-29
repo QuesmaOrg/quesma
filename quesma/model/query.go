@@ -15,8 +15,8 @@ type Query struct {
 	WhereClause     string   // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
 	GroupByFields   []string // if not empty, we do GROUP BY GroupByFields... They are quoted if they are column names, unquoted if non-schema. So no quotes need to be added.
 	SuffixClauses   []string // ORDER BY, etc.
-	TableName       string
-	CanParse        bool // true <=> query is valid
+	FromClause      string   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
+	CanParse        bool     // true <=> query is valid
 }
 
 // implements String() (now) and MakeResponse() interface (in the future (?))
@@ -50,7 +50,7 @@ func (q *Query) String() string {
 	if len(q.WhereClause) == 0 {
 		where = ""
 	}
-	sb.WriteString(" FROM " + `"` + q.TableName + `"` + where + q.WhereClause + " " + strings.Join(q.SuffixClauses, " "))
+	sb.WriteString(" FROM " + q.FromClause + where + q.WhereClause + " " + strings.Join(q.SuffixClauses, " "))
 	if len(q.GroupByFields) > 0 {
 		sb.WriteString(" GROUP BY (")
 		for i, field := range q.GroupByFields {
@@ -89,7 +89,7 @@ func (q *Query) StringFromColumns(colNames []string) string {
 	if len(q.WhereClause) == 0 {
 		where = ""
 	}
-	sb.WriteString(" FROM " + `"` + q.TableName + `"` + where + q.WhereClause + " " + strings.Join(q.SuffixClauses, " "))
+	sb.WriteString(" FROM " + q.FromClause + where + q.WhereClause + " " + strings.Join(q.SuffixClauses, " "))
 	return sb.String()
 }
 

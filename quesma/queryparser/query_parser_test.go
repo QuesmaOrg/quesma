@@ -21,16 +21,16 @@ var chUrl, _ = url.Parse("")
 //     OK, Kibana disagrees, it is indeed wrong.
 func TestQueryParserStringAttrConfig(t *testing.T) {
 	tableName := "logs-generic-default"
-	testTable, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
-		( "message" String, "timestamp" DateTime64(3, 'UTC') )
+	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
+		( "message" String, "@timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
 		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, testTable), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: tableName}
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
 	for _, tt := range testdata.TestsSearch {
 		t.Run(tt.Name, func(t *testing.T) {
 			simpleQuery, queryType := cw.ParseQuery(tt.QueryJson)
@@ -38,7 +38,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt)
 			assert.Equal(t, tt.WantedQueryType, queryType)
 
-			query := cw.BuildSimpleSelectQuery(tableName, simpleQuery.Sql.Stmt)
+			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}
@@ -47,16 +47,16 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 // TODO this test gives wrong results??
 func TestQueryParserNoAttrsConfig(t *testing.T) {
 	tableName := "logs-generic-default"
-	testTable, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
-		( "message" String, "timestamp" DateTime64(3, 'UTC') )
+	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
+		( "message" String, "@timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
 		clickhouse.NewChTableConfigNoAttrs(),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, testTable), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: tableName}
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
 			simpleQuery, queryType := cw.ParseQuery(tt.QueryJson)
@@ -64,7 +64,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt)
 			assert.Equal(t, tt.WantedQueryType, queryType)
 
-			query := cw.BuildSimpleSelectQuery(tableName, simpleQuery.Sql.Stmt)
+			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}
@@ -239,7 +239,7 @@ var tests = []string{
 // TODO this will be updated in the next PR
 func TestNew(t *testing.T) {
 	tableName := `"logs-generic-default"`
-	testTable, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
+	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
 		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
@@ -247,14 +247,64 @@ func TestNew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, testTable), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: tableName}
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
 	for _, tt := range tests {
 		t.Run("test", func(t *testing.T) {
 			simpleQuery, _ := cw.ParseQueryAsyncSearch(tt)
 			assert.True(t, simpleQuery.CanParse)
 		})
 	}
+}
+
+// Test_parseRange tests if DateTime64 field properly uses Clickhouse's 'parseDateTime64BestEffort' function
+func Test_parseRange_DateTime64(t *testing.T) {
+	rangePartOfQuery := QueryMap{
+		"timestamp": QueryMap{
+			"format": "strict_date_optional_time",
+			"gte":    "2024-02-02T13:47:16.029Z",
+			"lte":    "2024-02-09T13:47:16.029Z",
+		},
+	}
+	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
+		( "message" String, "timestamp" DateTime64(3, 'UTC') )
+		ENGINE = Memory`,
+		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+
+	whereClause := cw.parseRange(rangePartOfQuery).Sql.Stmt
+	split := strings.Split(whereClause, "parseDateTime64BestEffort")
+	assert.Len(t, split, 3)
+}
+
+// Test_parseRange tests if DateTime field properly uses Clickhouse's 'parseDateTimeBestEffort' function
+func Test_parseRange_DateTime(t *testing.T) {
+	rangePartOfQuery := QueryMap{
+		"timestamp": QueryMap{
+			"format": "strict_date_optional_time",
+			"gte":    "2024-02-02T13:47:16.029Z",
+			"lte":    "2024-02-09T13:47:16.029Z",
+		},
+	}
+	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
+		( "message" String, "timestamp" DateTime )
+		ENGINE = Memory`,
+		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+
+	whereClause := cw.parseRange(rangePartOfQuery).Sql.Stmt
+	split := strings.Split(whereClause, "parseDateTimeBestEffort")
+	assert.Len(t, split, 3)
 }
 
 func TestFilterNonEmpty(t *testing.T) {

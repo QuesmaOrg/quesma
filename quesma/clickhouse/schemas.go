@@ -7,10 +7,10 @@ import (
 
 var predefined = map[string]*Table{
 	"device_logs": {
-		Created:  false,
-		Name:     "device_logs",
-		Database: "",
-		Cluster:  "",
+		Created:      false,
+		Name:         "device_logs",
+		DatabaseName: "",
+		Cluster:      "",
 		Cols: map[string]*Column{
 			"event_name":                              lowCardinalityString("event_name"),
 			"event_section":                           lowCardinalityString("event_section"),

@@ -18,7 +18,7 @@ type JsonMap = map[string]interface{}
 
 type ClickhouseQueryTranslator struct {
 	ClickhouseLM *clickhouse.LogManager
-	TableName    string
+	Table        *clickhouse.Table
 }
 
 func makeResponseSearchQueryNormal[T fmt.Stringer](ResultSet []T) ([]byte, error) {
@@ -350,33 +350,33 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 
 // GetFieldsList
 // TODO flatten tuples, I think (or just don't support them for now, we don't want them at the moment in production schemas)
-func (cw *ClickhouseQueryTranslator) GetFieldsList(tableName string) []string {
+func (cw *ClickhouseQueryTranslator) GetFieldsList() []string {
 	return []string{"message"}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildSelectQuery(fields []string, tableName, whereClause string) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildSelectQuery(fields []string, whereClause string) *model.Query {
 	return &model.Query{
 		Fields:      fields,
 		WhereClause: whereClause,
-		TableName:   tableName,
+		FromClause:  cw.Table.FullTableName(),
 		CanParse:    true,
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildSimpleSelectQuery(tableName, whereClause string) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildSimpleSelectQuery(whereClause string) *model.Query {
 	return &model.Query{
 		Fields:      []string{"*"},
 		WhereClause: whereClause,
-		TableName:   tableName,
+		FromClause:  cw.Table.FullTableName(),
 		CanParse:    true,
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(tableName, whereClause string) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause string) *model.Query {
 	return &model.Query{
 		NonSchemaFields: []string{"count()"},
 		WhereClause:     whereClause,
-		TableName:       tableName,
+		FromClause:      cw.Table.FullTableName(),
 		CanParse:        true,
 	}
 }
@@ -396,7 +396,7 @@ func (cw *ClickhouseQueryTranslator) BuildNMostRecentRowsQuery(fieldName, timest
 		NonSchemaFields: []string{},
 		WhereClause:     whereClause,
 		SuffixClauses:   suffixClauses,
-		TableName:       cw.TableName,
+		FromClause:      cw.Table.FullTableName(),
 		CanParse:        true,
 	}
 }
@@ -406,7 +406,7 @@ func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(timestampFieldName, whe
 	if err != nil {
 		panic(err)
 	}
-	groupByClause := "toInt64(toUnixTimestamp64Milli(`" + timestampFieldName + "`)/" + strconv.FormatInt(histogramOneBar.Milliseconds(), 10) + ")"
+	groupByClause := clickhouse.TimestampGroupBy(timestampFieldName, cw.Table.GetDateTimeType(timestampFieldName), histogramOneBar)
 	// [WARNING] This is a little oversimplified, but it seems to be good enough for now (==satisfies Kibana's histogram)
 	//
 	// In Elasticsearch's `date_histogram` aggregation implementation, the timestamps for the intervals are generated independently of the document data.
@@ -417,7 +417,7 @@ func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(timestampFieldName, whe
 		NonSchemaFields: []string{groupByClause, "count()"},
 		WhereClause:     whereClauseOriginal,
 		SuffixClauses:   []string{"GROUP BY " + groupByClause},
-		TableName:       cw.TableName,
+		FromClause:      cw.Table.FullTableName(),
 		CanParse:        true,
 	}
 	return &query, histogramOneBar
@@ -438,20 +438,19 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 		NonSchemaFields: []string{},
 		WhereClause:     whereClause,
 		SuffixClauses:   suffixClauses,
-		TableName:       cw.TableName,
+		FromClause:      cw.Table.FullTableName(),
 		CanParse:        true,
 	}
 }
 
 func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName, whereClause string, limit int) *model.Query {
-	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
-	_ = limit // we take all rows for now
+	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC LIMIT 10"} // TODO hardcoded 10. fix this hack via parsing number
 	return &model.Query{
 		Fields:          []string{fieldName},
 		NonSchemaFields: []string{"count()"},
 		WhereClause:     whereClause,
 		SuffixClauses:   suffixClauses,
-		TableName:       cw.TableName,
+		FromClause:      cw.Table.FullTableName(),
 		CanParse:        true,
 	}
 }
@@ -470,7 +469,7 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName, whe
 		Fields:        []string{timestampFieldName},
 		WhereClause:   whereClause,
 		SuffixClauses: suffixClauses,
-		TableName:     cw.TableName,
+		FromClause:    cw.Table.FullTableName(),
 		CanParse:      true,
 	}
 }

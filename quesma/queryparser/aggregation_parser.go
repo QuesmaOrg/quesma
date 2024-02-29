@@ -53,9 +53,9 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "top_hits", "top_metrics":
 		query.Fields = append(query.Fields, metricsAggr.FieldNames...)
 		fieldsAsString := strings.Join(metricsAggr.FieldNames, ", ")
-		query.TableName = fmt.Sprintf(
+		query.FromClause = fmt.Sprintf(
 			"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s) AS %s FROM %s)",
-			fieldsAsString, fieldsAsString, model.RowNumberColumnName, query.TableName,
+			fieldsAsString, fieldsAsString, model.RowNumberColumnName, query.FromClause,
 		)
 	default:
 		logger.Warn().Msgf("unknown metrics aggregation: %s", metricsAggr.AggrType)
@@ -93,7 +93,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 		return nil, fmt.Errorf("unmarshal error: %v", err)
 	}
 	currentAggr := aggrQueryBuilder{}
-	currentAggr.TableName = cw.TableName
+	currentAggr.FromClause = cw.Table.FullTableName()
 	currentAggr.Type = metrics_aggregations.QueryTypeCount{}
 	if queryPart, ok := queryAsMap["query"]; ok {
 		currentAggr.whereBuilder = cw.parseQueryMap(queryPart.(QueryMap))

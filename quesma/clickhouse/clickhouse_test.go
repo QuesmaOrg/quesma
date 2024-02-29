@@ -578,11 +578,9 @@ func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 
 func TestCreateTableString_1(t *testing.T) {
 	table := Table{
-		Created:  false,
-		Name:     "abc",
-		Database: "",
-		Cluster:  "",
-		Cols:     map[string]*Column{},
+		Created: false,
+		Name:    "abc",
+		Cols:    map[string]*Column{},
 		Config: &ChTableConfig{
 			hasTimestamp:                          false,
 			timestampDefaultsNow:                  false,
@@ -611,10 +609,8 @@ SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1
 // Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
 func TestCreateTableString_2(t *testing.T) {
 	table := Table{
-		Created:  false,
-		Name:     "/_bulk?refresh=false&_source_includes=originId&require_alias=true_16",
-		Database: "",
-		Cluster:  "",
+		Created: false,
+		Name:    "/_bulk?refresh=false&_source_includes=originId&require_alias=true_16",
 		Cols: map[string]*Column{
 			"doc": {
 				Name: "doc",
@@ -715,10 +711,8 @@ func TestCreateTableString_2(t *testing.T) {
 // Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
 func TestCreateTableString_NewDateTypes(t *testing.T) {
 	table := Table{
-		Created:  false,
-		Name:     "abc",
-		Database: "",
-		Cluster:  "",
+		Created: false,
+		Name:    "abc",
 		Cols: map[string]*Column{
 			"low_card_string": {
 				Name: "low_card_string",
@@ -781,17 +775,7 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 	}
 }
 
-/*
-Some manual testcases:
-You can send those JSONs the same way it's done in log-generator/logger.go
-'{"schema1":{"schema11":{"schema111":"1"}},"schema2":{"schema21":{"schema211":"2","schema212":{"schema2121":"3"}},"schema22":{"schema221":"4"}}}'
-'{"schema1":{"schema11":{"schema111":"2"},"non-schema12":{"non-schema111":"2"}},"schema2":{"schema21":{"non-schema211":"3","non-schema212":{"non-schema2121":"4"},"schema211":"5","schema212":{"non-schema2121":"6","schema2121":"7"}},"schema22":{"schema221":"8","non-schema221":"9"}},"non-schema1":{"non-schema11":{"non-schema111":"10"}},"non-schema2":"11"}'
-
-'{"message":"m","service.name":"s","severity":"s","source":"s"}'
-'{"message":"m","service.name":"s","host.name":"h","os":"o","severity":"s","source":"s"}'
-*/
-
-func TestLogManager_findSchema(t *testing.T) {
+func TestLogManager_GetTable(t *testing.T) {
 	tests := []struct {
 		name             string
 		predefinedTables TableMap
@@ -850,7 +834,7 @@ func TestLogManager_findSchema(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lm := &LogManager{tableDefinitions: tt.predefinedTables}
-			assert.Equalf(t, tt.found, lm.findSchema(tt.tableNamePattern) != nil, "findSchema(%v)", tt.tableNamePattern)
+			assert.Equalf(t, tt.found, lm.GetTable(tt.tableNamePattern) != nil, "GetTable(%v)", tt.tableNamePattern)
 		})
 	}
 }

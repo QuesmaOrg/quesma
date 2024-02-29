@@ -474,7 +474,7 @@ var aggregationTests = []struct {
 
 // Simple unit test, testing only "aggs" part of the request json query
 func TestAggregationParser(t *testing.T) {
-	testTable, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
+	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
 		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
@@ -482,8 +482,8 @@ func TestAggregationParser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, testTable), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: tableName}
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
 
 	for testIdx, test := range aggregationTests {
 		t.Run(strconv.Itoa(testIdx), func(t *testing.T) {
@@ -512,8 +512,9 @@ func sortAggregations(aggregations []model.QueryWithAggregation) {
 }
 
 func Test2AggregationParserExternalTestcases(t *testing.T) {
-	lm := clickhouse.NewLogManager(concurrent.NewMap[string, *clickhouse.Table](), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: testdata.TableName}
+	table := clickhouse.NewEmptyTable(testdata.TableName)
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
 	for i, test := range testdata.AggregationTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			// WORKING (or almost): 12/15 tests

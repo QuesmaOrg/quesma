@@ -15,56 +15,17 @@ import (
 
 func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
+
+	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	resolvedTableName := lm.ResolveTableName(indexPattern)
 	if resolvedTableName == "" {
-		logger.Warn().Msgf("could not resolve table name for [%s]", indexPattern)
+		logger.Warn().Str(logger.RID, id).Msgf("could not resolve table name for [%s]", indexPattern)
 		return nil, errors.New("could not resolve table name")
 	}
+	table := lm.GetTable(resolvedTableName)
 
-	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: resolvedTableName}
-
-	var rawResults []byte
-	simpleQuery, queryInfo := queryTranslator.ParseQuery(string(body))
-	var responseBody, translatedQueryBody []byte
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
-	if simpleQuery.CanParse {
-		var fullQuery *model.Query
-		switch queryInfo {
-		case model.Count:
-			fullQuery = queryTranslator.BuildSimpleCountQuery(resolvedTableName, simpleQuery.Sql.Stmt)
-		case model.Normal:
-			fullQuery = queryTranslator.BuildSimpleSelectQuery(resolvedTableName, simpleQuery.Sql.Stmt)
-		}
-		translatedQueryBody = []byte(fullQuery.String())
-		rows, err := queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(fullQuery)
-		if err != nil {
-			errorMsg := fmt.Sprintf("Error processing query: %s, err: %s", fullQuery.String(), err.Error())
-			logger.ErrorWithCtx(ctx).Msg(errorMsg)
-			responseBody = []byte(errorMsg)
-			quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-				Id:                     id,
-				IncomingQueryBody:      body,
-				QueryBodyTranslated:    translatedQueryBody,
-				QueryRawResults:        rawResults,
-				QueryTranslatedResults: responseBody,
-			})
-			return responseBody, err
-		}
-		responseBody, err = queryparser.MakeResponseSearchQuery(rows, queryInfo)
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("Error making response: %v rows: %v", err, rows)
-			quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-				Id:                     id,
-				IncomingQueryBody:      body,
-				QueryBodyTranslated:    translatedQueryBody,
-				QueryRawResults:        rawResults,
-				QueryTranslatedResults: responseBody,
-			})
-			return responseBody, err
-		}
-	} else {
-		responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
-		logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(string(responseBody))
+	var rawResults, responseBody, translatedQueryBody []byte
+	pushSecondaryInfoToManagementConsole := func() {
 		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 			Id:                     id,
 			IncomingQueryBody:      body,
@@ -72,16 +33,41 @@ func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *cli
 			QueryRawResults:        rawResults,
 			QueryTranslatedResults: responseBody,
 		})
+	}
+
+	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+	simpleQuery, queryInfo := queryTranslator.ParseQuery(string(body))
+	if simpleQuery.CanParse {
+		var fullQuery *model.Query
+		switch queryInfo {
+		case model.Count:
+			fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
+		case model.Normal:
+			fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
+		}
+		translatedQueryBody = []byte(fullQuery.String())
+		rows, err := queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(table, fullQuery)
+		if err != nil {
+			errorMsg := fmt.Sprintf("Error processing query: %s, err: %s", fullQuery.String(), err.Error())
+			logger.ErrorWithCtx(ctx).Msg(errorMsg)
+			responseBody = []byte(errorMsg)
+			pushSecondaryInfoToManagementConsole()
+			return responseBody, err
+		}
+		responseBody, err = queryparser.MakeResponseSearchQuery(rows, queryInfo)
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("Error making response: %v rows: %v", err, rows)
+			pushSecondaryInfoToManagementConsole()
+			return responseBody, err
+		}
+	} else {
+		responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
+		logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(string(responseBody))
+		pushSecondaryInfoToManagementConsole()
 		return responseBody, errors.New(string(responseBody))
 	}
 
-	quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-		Id:                     id,
-		IncomingQueryBody:      body,
-		QueryBodyTranslated:    translatedQueryBody,
-		QueryRawResults:        rawResults,
-		QueryTranslatedResults: responseBody,
-	})
+	pushSecondaryInfoToManagementConsole()
 	return responseBody, nil
 }
 
@@ -97,17 +83,18 @@ func createAsyncSearchResponseHitJson(ctx context.Context, rows []model.QueryRes
 func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
 
-	name := lm.ResolveTableName(index)
-	if name == "" {
-		logger.Warn().Msgf("could not resolve table name for [%s]", index)
+	id := ctx.Value(tracing.RequestIdCtxKey).(string)
+	resolvedTableName := lm.ResolveTableName(index)
+	if resolvedTableName == "" {
+		logger.Warn().Str(logger.RID, id).Msgf("could not resolve table name for [%s]", index)
 		return nil, errors.New("could not resolve table name")
 	}
-	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: name}
+	table := lm.GetTable(resolvedTableName)
+
+	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
 	var rawResults []byte
 	simpleQuery, queryInfo := queryTranslator.ParseQueryAsyncSearch(string(body))
 	var responseBody, translatedQueryBody []byte
-
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 
 	// Until we're sure new solution is stable, let's try to use the old one
 	if simpleQuery.CanParse && queryInfo.Typ != model.None {
@@ -120,20 +107,21 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 			fullQuery, bucket = queryTranslator.BuildHistogramQuery(simpleQuery.FieldName, simpleQuery.Sql.Stmt, queryInfo.FieldName)
 			rows, err = queryTranslator.ClickhouseLM.ProcessHistogramQuery(fullQuery, bucket)
 		case model.CountAsync:
-			fullQuery = queryTranslator.BuildSimpleCountQuery(queryTranslator.TableName, simpleQuery.Sql.Stmt)
-			rows, err = queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(fullQuery)
+			fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
+			rows, err = queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(table, fullQuery)
 		case model.AggsByField:
 			// queryInfo = (AggsByField, fieldName, Limit results, Limit last rows to look into)
+			fmt.Println("AggsByField")
 			fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.I2)
-			rows, err = queryTranslator.ClickhouseLM.ProcessFacetsQuery(fullQuery)
+			rows, err = queryTranslator.ClickhouseLM.ProcessFacetsQuery(table, fullQuery)
 		case model.ListByField:
 			// queryInfo = (ListByField, fieldName, 0, LIMIT)
 			fullQuery = queryTranslator.BuildNMostRecentRowsQuery(queryInfo.FieldName, simpleQuery.FieldName, simpleQuery.Sql.Stmt, queryInfo.I2)
-			rows, err = queryTranslator.ClickhouseLM.ProcessNMostRecentRowsQuery(fullQuery)
+			rows, err = queryTranslator.ClickhouseLM.ProcessNMostRecentRowsQuery(table, fullQuery)
 		case model.ListAllFields:
 			// queryInfo = (ListAllFields, "*", 0, LIMIT)
 			fullQuery = queryTranslator.BuildNMostRecentRowsQuery("*", simpleQuery.FieldName, simpleQuery.Sql.Stmt, queryInfo.I2)
-			rows, err = queryTranslator.ClickhouseLM.ProcessNMostRecentRowsQuery(fullQuery)
+			rows, err = queryTranslator.ClickhouseLM.ProcessNMostRecentRowsQuery(table, fullQuery)
 		case model.EarliestLatestTimestamp:
 			var rowsEarliest, rowsLatest []model.QueryResultRow
 			fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, true)
@@ -159,7 +147,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 			return responseBody, errors.New("fullQuery is nil")
 		}
 	} else if aggregations, err := queryTranslator.ParseAggregationJson(string(body)); err == nil && aggregations != nil {
-		logger.Info().Msg("We're using new Aggregation handling.")
+		logger.Info().Ctx(ctx).Msg("We're using new Aggregation handling.")
 		// for _, agg := range aggregations {
 		//	logger.Info().Msg(agg.String())
 		//}
@@ -167,9 +155,9 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		sqls := ""
 		for _, agg := range aggregations {
 			// logger.Info().Msg("Processing query.")
-			rows, err := queryTranslator.ClickhouseLM.ProcessGeneralAggregationQuery(&agg.Query)
+			rows, err := queryTranslator.ClickhouseLM.ProcessGeneralAggregationQuery(table, &agg.Query)
 			if err != nil {
-				logger.Error().Msg(err.Error())
+				logger.ErrorWithCtx(ctx).Msg(err.Error())
 				continue
 			}
 			// logger.Info().Msgf("Error: %v, first 2 rows:", err)

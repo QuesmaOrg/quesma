@@ -19,21 +19,13 @@ const (
 	ExistsAndIsArray
 )
 
-func (lm *LogManager) GetAttributesList(tableName string) []Attribute {
-	table := lm.findSchema(tableName)
-	if table == nil {
-		return make([]Attribute, 0)
-	}
+func (lm *LogManager) GetAttributesList(table *Table) []Attribute {
 	return table.Config.attributes
 }
 
 // TODO Won't work with tuples, e.g. trying to access via tupleName.tupleField will return NotExists,
 // instead of some other response. Fix this when needed (we seem to not need tuples right now)
-func (lm *LogManager) GetFieldInfo(tableName string, fieldName string) FieldInfo {
-	table := lm.findSchema(tableName)
-	if table == nil {
-		return NotExists
-	}
+func (lm *LogManager) GetFieldInfo(table *Table, fieldName string) FieldInfo {
 	col, ok := table.Cols[fieldName]
 	if !ok {
 		return NotExists
@@ -46,11 +38,7 @@ func (lm *LogManager) GetFieldInfo(tableName string, fieldName string) FieldInfo
 
 // TODO again, fix tuples.
 // t tuple(a String, b String) should return [t.a, t.b], now returns [t]
-func (lm *LogManager) GetFieldsList(tableName string) []string {
-	table := lm.findSchema(tableName)
-	if table == nil {
-		return make([]string, 0)
-	}
+func (lm *LogManager) GetFieldsList(table *Table) []string {
 	fieldNames := make([]string, 0, len(table.Cols))
 	for colName := range table.Cols {
 		fieldNames = append(fieldNames, colName)
@@ -62,13 +50,8 @@ func (lm *LogManager) GetFieldsList(tableName string) []string {
 // TODO query param should be type safe Query representing all parts of
 // sql statement that were already parsed and not string from which
 // we have to extract again different parts like where clause and columns to build a proper result
-func (lm *LogManager) ProcessSimpleSelectQuery(query *model.Query) ([]model.QueryResultRow, error) {
-	table, err := lm.findSchemaAndInitConnection(query.TableName)
-	if table == nil {
-		return nil, fmt.Errorf("table not found1 [%s]", query.TableName)
-	}
-
-	if err != nil {
+func (lm *LogManager) ProcessSimpleSelectQuery(table *Table, query *model.Query) ([]model.QueryResultRow, error) {
+	if err := lm.initConnection(); err != nil {
 		return nil, err
 	}
 	colNames, err := table.extractColumns(query)
@@ -84,12 +67,8 @@ func (lm *LogManager) ProcessSimpleSelectQuery(query *model.Query) ([]model.Quer
 }
 
 // fieldName = "*" -> we query all, otherwise only this 1 field
-func (lm *LogManager) ProcessNMostRecentRowsQuery(query *model.Query) ([]model.QueryResultRow, error) {
-	table, err := lm.findSchemaAndInitConnection(query.TableName)
-	if table == nil {
-		return nil, fmt.Errorf("table not found2 [%s]", query.TableName)
-	}
-	if err != nil {
+func (lm *LogManager) ProcessNMostRecentRowsQuery(table *Table, query *model.Query) ([]model.QueryResultRow, error) {
+	if err := lm.initConnection(); err != nil {
 		return nil, err
 	}
 	colNames, err := table.extractColumns(query)
@@ -104,6 +83,7 @@ func (lm *LogManager) ProcessNMostRecentRowsQuery(query *model.Query) ([]model.Q
 	return read(rowsDB, append(colNames, query.NonSchemaFields...), rowToScan)
 }
 
+// TODO add test
 func (lm *LogManager) ProcessHistogramQuery(query *model.Query, bucket time.Duration) ([]model.QueryResultRow, error) {
 	if err := lm.initConnection(); err != nil {
 		return nil, err
@@ -131,16 +111,10 @@ func (lm *LogManager) ProcessHistogramQuery(query *model.Query, bucket time.Dura
 }
 
 // TODO add support for autocomplete for attributes, if we'll find it needed
-func (lm *LogManager) ProcessFacetsQuery(query *model.Query) ([]model.QueryResultRow, error) {
-	table, err := lm.findSchemaAndInitConnection(query.TableName)
-	if table == nil {
-		return nil, fmt.Errorf("table not found3 [%s]", query.TableName)
-	}
-
-	if err != nil {
+func (lm *LogManager) ProcessFacetsQuery(table *Table, query *model.Query) ([]model.QueryResultRow, error) {
+	if err := lm.initConnection(); err != nil {
 		return nil, err
 	}
-
 	colNames, err := table.extractColumns(query)
 	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
@@ -183,15 +157,10 @@ func (lm *LogManager) ProcessTimestampQuery(query *model.Query) ([]model.QueryRe
 	return read(rows, query.Fields, []interface{}{time.Time{}})
 }
 
-func (lm *LogManager) ProcessGeneralAggregationQuery(query *model.Query) ([]model.QueryResultRow, error) {
-	table, err := lm.findSchemaAndInitConnection(query.TableName)
-	if err != nil {
+func (lm *LogManager) ProcessGeneralAggregationQuery(table *Table, query *model.Query) ([]model.QueryResultRow, error) {
+	if err := lm.initConnection(); err != nil {
 		return nil, err
 	}
-	if table == nil {
-		return nil, fmt.Errorf("table not found [%s]", query.TableName)
-	}
-
 	rows, err := lm.chDb.Query(query.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)

@@ -6,6 +6,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/util"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -47,14 +48,21 @@ type (
 		Codec     Codec // TODO currently not used, it's part of Modifiers
 	}
 	Table struct {
-		Name     string
-		Database string `default:""`
-		Cluster  string `default:""`
-		Cols     map[string]*Column
-		Config   *ChTableConfig
-		Created  bool // do we need to create it during first insert
-		indexes  []IndexStatement
+		Name         string
+		DatabaseName string `default:""`
+		Cluster      string `default:""`
+		Cols         map[string]*Column
+		Config       *ChTableConfig
+		Created      bool // do we need to create it during first insert
+		indexes      []IndexStatement
 	}
+	DateTimeType int
+)
+
+const (
+	DateTime64 DateTimeType = iota
+	DateTime
+	Invalid
 )
 
 func (c *Column) String() string {
@@ -234,6 +242,10 @@ func NewTable(createTableQuery string, config *ChTableConfig) (*Table, error) {
 	}
 }
 
+func NewEmptyTable(tableName string) *Table {
+	return &Table{Name: tableName, Config: NewChTableConfigNoAttrs()}
+}
+
 func (col *Column) isArray() bool {
 	return col.Type.isArray()
 }
@@ -246,13 +258,38 @@ func (col *Column) createTableString(indentLvl int) string {
 	return util.Indent(indentLvl) + `"` + col.Name + `" ` + col.Type.createTableString(indentLvl) + spaceStr + col.Modifiers
 }
 
-func (table *Table) CreateTableString() string {
-	dbStr := ""
-	if table.Database != "" {
-		dbStr = table.Database + "."
+// FullTableName returns full table name with database name if it's not empty.
+// in a format: ["database".]"table" as it seems to work for all cases in Clickhouse.
+// You can use it in any query to Clickhouse, e.g. in FROM ... clause.
+func (table *Table) FullTableName() string {
+	if table.DatabaseName != "" {
+		return strconv.Quote(table.DatabaseName) + "." + strconv.Quote(table.Name)
+	} else {
+		return strconv.Quote(table.Name)
 	}
-	s := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s%s" (
-`, dbStr, table.Name)
+}
+
+// GetDateTimeType returns type of a field (currently DateTime/DateTime64), if it's a DateTime type. Invalid otherwise.
+// Timestamp from config defaults to DateTime64.
+func (table *Table) GetDateTimeType(fieldName string) DateTimeType {
+	if col, ok := table.Cols[fieldName]; ok {
+		typeName := col.Type.String()
+		// hasPrefix, not equal, because we can have DateTime64(3) and we want to catch it
+		if strings.HasPrefix(typeName, "DateTime64") {
+			return DateTime64
+		}
+		if strings.HasPrefix(typeName, "DateTime") {
+			return DateTime
+		}
+	}
+	if table.Config.hasTimestamp && fieldName == timestampFieldName {
+		return DateTime64
+	}
+	return Invalid
+}
+
+func (table *Table) CreateTableString() string {
+	s := "CREATE TABLE IF NOT EXISTS " + table.FullTableName() + " (\n"
 	rows := make([]string, 0)
 	for _, col := range table.Cols {
 		rows = append(rows, col.createTableString(1))

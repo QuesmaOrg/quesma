@@ -358,7 +358,7 @@ func ParseCreateTable(q string) (*Table, int) {
 		if len(split) != 2 {
 			return &t, i
 		}
-		t.Database = split[0]
+		t.DatabaseName = split[0]
 	}
 	t.Name = ident
 	if quote {

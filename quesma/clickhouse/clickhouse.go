@@ -59,8 +59,8 @@ type (
 )
 
 func (lm *LogManager) Start() {
-	if lm.initConnection() != nil {
-		logger.Error().Msg("could not connect to clickhouse")
+	if err := lm.initConnection(); err != nil {
+		logger.Error().Msgf("could not connect to clickhouse. error: %v", err)
 	}
 
 	lm.loadTables() // TODO fetch from config
@@ -91,7 +91,7 @@ func (lm *LogManager) loadTables() {
 
 	logger.Info().Msgf("discovered tables: [%s]", strings.Join(util.MapKeys(configuredTables), ","))
 
-	populateTableDefinitions(configuredTables, lm)
+	populateTableDefinitions(configuredTables, databaseName, lm)
 }
 
 func (lm *LogManager) describeTables(database string) (map[string]map[string]string, error) {
@@ -169,17 +169,6 @@ func (lm *LogManager) ResolveTableName(index string) string {
 		}
 	}
 	return ""
-}
-
-func (lm *LogManager) findSchemaAndInitConnection(tableName string) (*Table, error) {
-	table := lm.findSchema(tableName)
-	if table == nil {
-		return nil, fmt.Errorf("table matching [%s] not found", tableName)
-	}
-	if err := lm.initConnection(); err != nil {
-		return nil, err
-	}
-	return table, nil
 }
 
 // updates also Table TODO stop updating table here, find a better solution
@@ -310,7 +299,7 @@ func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfi
 		return "", err
 	}
 
-	t := lm.findSchema(tableName)
+	t := lm.GetTable(tableName)
 	onlySchemaFields := RemoveTypeMismatchSchemaFields(m, t)
 	schemaFieldsJson, err := json.Marshal(onlySchemaFields)
 
@@ -363,7 +352,7 @@ func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfi
 }
 
 func (lm *LogManager) GetTableConfig(tableName, jsonData string) (*ChTableConfig, error) {
-	table := lm.findSchema(tableName) // TODO create tables on start?
+	table := lm.GetTable(tableName)
 	var config *ChTableConfig
 	if table == nil {
 		config = NewOnlySchemaFieldsCHConfig()
@@ -420,7 +409,7 @@ func (lm *LogManager) Insert(tableName string, jsons []string, config *ChTableCo
 	}
 }
 
-func (lm *LogManager) findSchema(tableName string) *Table {
+func (lm *LogManager) GetTable(tableName string) *Table {
 	tableNamePattern := index.TableNamePatternRegexp(tableName)
 	for name, table := range lm.tableDefinitions.Snapshot() {
 		if tableNamePattern.MatchString(name) {
@@ -438,7 +427,7 @@ func (lm *LogManager) GetTableDefinitions() TableMap {
 
 // Returns if schema wasn't created (so it needs to be, and will be in a moment)
 func (lm *LogManager) addSchemaIfDoesntExist(table *Table) bool {
-	t := lm.findSchema(table.Name)
+	t := lm.GetTable(table.Name)
 	if t == nil {
 		table.Created = true
 		lm.tableDefinitions.Store(table.Name, table)
@@ -543,6 +532,19 @@ func NewChTableConfigFourAttrs() *ChTableConfig {
 			NewDefaultBoolAttribute(),
 			NewDefaultStringAttribute(),
 		},
+		castUnsupportedAttrValueTypesToString: true,
+		preferCastingToOthers:                 true,
+	}
+}
+
+func NewChTableConfigTimestampStringAttr() *ChTableConfig {
+	return &ChTableConfig{
+		hasTimestamp:                          true,
+		timestampDefaultsNow:                  true,
+		attributes:                            []Attribute{NewDefaultStringAttribute()},
+		engine:                                "MergeTree",
+		orderBy:                               "(" + "`@timestamp`" + ")",
+		hasOthers:                             false,
 		castUnsupportedAttrValueTypesToString: true,
 		preferCastingToOthers:                 true,
 	}

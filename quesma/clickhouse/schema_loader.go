@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func populateTableDefinitions(configuredTables map[string]map[string]string, lm *LogManager) {
+func populateTableDefinitions(configuredTables map[string]map[string]string, databaseName string, lm *LogManager) {
 	for tableName, columns := range configuredTables {
 		if lm.ResolveTableName(tableName) == "" {
 			var columnsMap = make(map[string]*Column)
@@ -24,9 +24,10 @@ func populateTableDefinitions(configuredTables map[string]map[string]string, lm 
 
 			if !partiallyResolved {
 				table := Table{
-					Created: true,
-					Name:    tableName,
-					Cols:    columnsMap,
+					Created:      true,
+					Name:         tableName,
+					DatabaseName: databaseName,
+					Cols:         columnsMap,
 					Config: &ChTableConfig{
 						attributes:                            []Attribute{},
 						castUnsupportedAttrValueTypesToString: true,

@@ -44,7 +44,7 @@ var rawRequestBody = []byte(`{
 }`)
 
 func TestHandleTermsEnumRequest(t *testing.T) {
-	table := concurrent.NewMapWith(testTableName, &clickhouse.Table{
+	table := &clickhouse.Table{
 		Name:   testTableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 		Cols: map[string]*clickhouse.Column{
@@ -62,16 +62,16 @@ func TestHandleTermsEnumRequest(t *testing.T) {
 			},
 		},
 		Created: true,
-	})
+	}
 
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	lm := clickhouse.NewLogManagerWithConnection(db, table)
-	qt := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: testTableName}
+	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(testTableName, table))
+	qt := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
 
 	// Here we additionally verify that terms for `_tier` are **NOT** included in the SQL query
-	expectedQuery1 := `SELECT DISTINCT "client_name" FROM "` + testTableName + `" WHERE "epoch_time">=parseDateTime64BestEffort('2024-02-27T12:25:00.000Z') AND "epoch_time"<=parseDateTime64BestEffort('2024-02-27T12:40:59.999Z')`
-	expectedQuery2 := `SELECT DISTINCT "client_name" FROM "` + testTableName + `" WHERE "epoch_time"<=parseDateTime64BestEffort('2024-02-27T12:40:59.999Z') AND "epoch_time">=parseDateTime64BestEffort('2024-02-27T12:25:00.000Z')`
+	expectedQuery1 := `SELECT DISTINCT "client_name" FROM "` + testTableName + `" WHERE "epoch_time">=parseDateTimeBestEffort('2024-02-27T12:25:00.000Z') AND "epoch_time"<=parseDateTimeBestEffort('2024-02-27T12:40:59.999Z')`
+	expectedQuery2 := `SELECT DISTINCT "client_name" FROM "` + testTableName + `" WHERE "epoch_time"<=parseDateTimeBestEffort('2024-02-27T12:40:59.999Z') AND "epoch_time">=parseDateTimeBestEffort('2024-02-27T12:25:00.000Z')`
 
 	// Once in a while `AND` conditions could be swapped, so we match both cases
 	mock.ExpectQuery(fmt.Sprintf("%s|%s", regexp.QuoteMeta(expectedQuery1), regexp.QuoteMeta(expectedQuery2))).

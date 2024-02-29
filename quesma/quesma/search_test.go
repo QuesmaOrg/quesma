@@ -24,13 +24,13 @@ func TestNoAsciiTableName(t *testing.T) {
 	}`)
 	tableName := `table-namea$한Иb}~`
 	lm := clickhouse.NewLogManagerEmpty()
-	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm}
+	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: clickhouse.NewEmptyTable(tableName)}
 	simpleQuery, queryInfo := queryTranslator.ParseQueryAsyncSearch(string(requestBody))
 	assert.True(t, simpleQuery.CanParse)
 	assert.Equal(t, "", simpleQuery.Sql.Stmt)
 	assert.Equal(t, model.NewQueryInfoAsyncSearchNone(), queryInfo)
 
-	query := queryTranslator.BuildSimpleSelectQuery(tableName, simpleQuery.Sql.Stmt)
+	query := queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
 	assert.True(t, query.CanParse)
 	assert.Equal(t, fmt.Sprintf(`SELECT * FROM "%s" `, tableName), query.String())
 }
@@ -46,7 +46,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp": {
 				Name: "@timestamp",
-				Type: clickhouse.NewBaseType("DateTime"),
+				Type: clickhouse.NewBaseType("DateTime64"),
 			},
 			"message": {
 				Name: "message",
@@ -86,7 +86,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 
 var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
 	Name:   tableName,
-	Config: clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+	Config: clickhouse.NewChTableConfigTimestampStringAttr(),
 	Cols: map[string]*clickhouse.Column{
 		// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
 		// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)

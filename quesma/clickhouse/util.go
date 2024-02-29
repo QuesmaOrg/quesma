@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/concurrent"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/util"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 func (lm *LogManager) DumpTableSchema(tableName string) (*Table, error) {
@@ -216,4 +218,20 @@ func shortenDumpSchemasOutput(s string) string {
 		i = findEndOfGoType(s, y[5])
 	}
 	return strings.ReplaceAll(result+s[i:], "clickhouse.", "")
+}
+
+// TimestampGroupBy returns string to be used in the select part of Clickhouse query, when grouping by timestamp interval.
+// e.g.
+// - timestampGroupBy("@timestamp", DateTime64, 30 seconds) --> toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)
+// - timestampGroupBy("@timestamp", DateTime, 30 seconds)   --> toInt64(toUnixTimestamp(`@timestamp`)/30.0)
+func TimestampGroupBy(timestampFieldName string, typ DateTimeType, groupByInterval time.Duration) string {
+	switch typ {
+	case DateTime64:
+		return fmt.Sprintf("toInt64(toUnixTimestamp64Milli(`%s`)/%d)", timestampFieldName, groupByInterval.Milliseconds())
+	case DateTime:
+		return fmt.Sprintf("toInt64(toUnixTimestamp(`%s`)/%f)", timestampFieldName, groupByInterval.Seconds())
+	default:
+		logger.Error().Msgf("invalid timestamp fieldname: %s", timestampFieldName)
+		return "invalid"
+	}
 }

@@ -16,7 +16,7 @@ func handleTermsEnum(ctx context.Context, index string, reqBody []byte, lm *clic
 		logger.Error().Msg(errorMsg)
 		return nil, fmt.Errorf(errorMsg)
 	} else {
-		return handleTermsEnumRequest(ctx, reqBody, &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, TableName: resolvedTableName})
+		return handleTermsEnumRequest(ctx, reqBody, &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: lm.GetTable(resolvedTableName)})
 	}
 }
 
@@ -28,7 +28,7 @@ func handleTermsEnumRequest(_ context.Context, reqBody []byte, qt *queryparser.C
 	}
 	fieldName := jsonReq["field"].(string)
 	simpleQ := qt.ParseQueryMap(jsonReq)
-	selectQuery := qt.BuildSelectQuery([]string{fieldName}, qt.TableName, simpleQ.Sql.Stmt)
+	selectQuery := qt.BuildSelectQuery([]string{fieldName}, simpleQ.Sql.Stmt)
 	if rows, err := qt.ClickhouseLM.ProcessAutocompleteSuggestionsQuery(selectQuery); err != nil {
 		logger.Error().Msgf("terms enum failed - error processing SQL query [%s]", err)
 		return json.Marshal(emptyTermsEnumResponse())

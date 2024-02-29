@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/util"
 	"testing"
 	"time"
@@ -573,11 +576,11 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 // tests MakeResponseSearchQuery, in particular if JSON we return is a proper JSON.
 // used to fail before we fixed field quoting.
 func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
-	queryTranslator := ClickhouseQueryTranslator{ClickhouseLM: nil, TableName: "@"}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: nil, Table: clickhouse.NewEmptyTable("@")}
 	queries := []*model.Query{
-		queryTranslator.BuildSimpleSelectQuery("@", ""),
-		queryTranslator.BuildSimpleCountQuery("@", ""),
-		queryTranslator.BuildNMostRecentRowsQuery("@", "", "", 0),
+		cw.BuildSimpleSelectQuery(""),
+		cw.BuildSimpleCountQuery(""),
+		cw.BuildNMostRecentRowsQuery("@", "", "", 0),
 	}
 	types := []model.SearchQueryType{model.Normal, model.Count, model.Normal}
 	for i, query := range queries {
@@ -593,13 +596,19 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 // tests MakeResponseAsyncSearchQuery, in particular if JSON we return is a proper JSON.
 // used to fail before we fixed field quoting.
 func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
-	queryTranslator := ClickhouseQueryTranslator{}
+	table, _ := clickhouse.NewTable(`CREATE TABLE `+tableName+`
+		( "message" String, "timestamp" DateTime )
+		ENGINE = Memory`,
+		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+	)
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
 	where := `"@timestamp">=parseDateTime64BestEffort('2024-02-13T10:04:40.703Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-13T10:19:40.703Z')"`
-	query, _ := queryTranslator.BuildHistogramQuery("@", where, "30s")
+	query, _ := cw.BuildHistogramQuery("@", where, "30s")
 	queries := []*model.Query{
 		query,
-		queryTranslator.BuildAutocompleteSuggestionsQuery("@", "", 0),
-		queryTranslator.BuildFacetsQuery("@", "", 0),
+		cw.BuildAutocompleteSuggestionsQuery("@", "", 0),
+		cw.BuildFacetsQuery("@", "", 0),
 		// queryTranslator.BuildTimestampQuery("@", "@", "", true), TODO uncomment when add unification for this query type
 	}
 	types := []model.AsyncSearchQueryType{model.Histogram, model.ListAllFields, model.ListByField} //, model.EarliestLatestTimestamp}
