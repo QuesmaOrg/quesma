@@ -143,7 +143,7 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 					w.Header().Set("Content-Encoding", "gzip")
 				}
 				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-				w.WriteHeader(elkResponse.StatusCode)
+				w.WriteHeader(quesmaResponse.StatusCode)
 				responseFromQuesma(ctx, unzipped, w, elkResponse, zip)
 			} else {
 				copyHeaders(w, elkResponse)

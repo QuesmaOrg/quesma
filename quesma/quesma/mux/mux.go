@@ -18,8 +18,9 @@ type (
 		handler      handler
 	}
 	Result struct {
-		Body string
-		Meta map[string]string
+		Body       string
+		Meta       map[string]string
+		StatusCode int
 	}
 	handler        func(ctx context.Context, body string, uri string, params map[string]string) (*Result, error)
 	MatchPredicate func(map[string]string) bool

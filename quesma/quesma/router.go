@@ -16,7 +16,7 @@ import (
 func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole) *mux.PathRouter {
 	router := mux.NewPathRouter()
 	router.RegisterPath(routes.ClusterHealthPath, "GET", func(_ context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
-		return ElasticsearchResult(`{"cluster_name": "quesma"}`), nil
+		return elasticsearchResult(`{"cluster_name": "quesma"}`, 200), nil
 	})
 	router.RegisterPath(routes.BulkPath, "POST", func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		dualWriteBulk(ctx, "", body, lm, config)
@@ -40,7 +40,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 			if err != nil {
 				return nil, err
 			}
-			return ElasticsearchResult(string(responseBody)), nil
+			return elasticsearchResult(string(responseBody), 200), nil
 		}
 	})
 	router.RegisterPathMatcher(routes.IndexAsyncSearchPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
@@ -53,7 +53,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 			if err != nil {
 				return nil, err
 			}
-			return ElasticsearchResult(string(responseBody)), nil
+			return elasticsearchResult(string(responseBody), 200), nil
 		}
 	})
 	router.RegisterPathMatcher(routes.FieldCapsPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
@@ -64,7 +64,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 			if err != nil {
 				return nil, err
 			}
-			return ElasticsearchResult(string(responseBody)), nil
+			return elasticsearchResult(string(responseBody), 200), nil
 		}
 	})
 	router.RegisterPathMatcher(routes.TermsEnumPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
@@ -74,7 +74,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 			if responseBody, err := handleTermsEnum(ctx, params["index"], []byte(body), lm); err != nil {
 				return nil, err
 			} else {
-				return ElasticsearchResult(string(responseBody)), nil
+				return elasticsearchResult(string(responseBody), 200), nil
 			}
 		}
 	})
@@ -119,7 +119,7 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func
 	}
 }
 
-func ElasticsearchResult(body string) *mux.Result {
+func elasticsearchResult(body string, statusCode int) *mux.Result {
 	return &mux.Result{Body: body, Meta: map[string]string{
 		"X-Elastic-Product": "Elasticsearch",
 		// TODO copy paste from the original request
@@ -127,5 +127,5 @@ func ElasticsearchResult(body string) *mux.Result {
 		"Content-Type":            "application/vnd.elasticsearch+json;compatible-with=8",
 		"Location":                "/.clickhouse",
 		"X-Quesma-Headers-Source": "Quesma",
-	}}
+	}, StatusCode: statusCode}
 }
