@@ -3,6 +3,7 @@ package testdata
 import (
 	"fmt"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/util"
 	"strconv"
 	"strings"
 	"time"
@@ -1785,7 +1786,7 @@ var TestSearchFilter = []SearchTestCase{
 			justWhere(``),
 			justWhere(``),
 		},
-		`todo fix wantedRegex`,
+		``,
 	},
 	{
 		"Filter with now in range",
@@ -1842,6 +1843,6 @@ var TestSearchFilter = []SearchTestCase{
 			justWhere(``),
 			justWhere(``),
 		},
-		`todo fix wantedRegex`,
+		"SELECT " + util.TimestampGroupBy("@timestamp", 30*time.Second),
 	},
 }

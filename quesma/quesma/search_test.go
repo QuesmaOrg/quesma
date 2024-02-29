@@ -144,7 +144,6 @@ func TestSearcHandlerNoAttrsConfig(t *testing.T) {
 }
 
 func TestAsyncSearchFilter(t *testing.T) {
-	t.Skip()
 	for _, tt := range testdata.TestSearchFilter {
 		t.Run(tt.Name, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
