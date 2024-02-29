@@ -11,7 +11,6 @@ const (
 	TermsEnumPath        = "/:index/_terms_enum"
 	ClusterHealthPath    = "/_cluster/health"
 	BulkPath             = "/_bulk"
-	SearchPath           = "/_search"
 )
 
 var (

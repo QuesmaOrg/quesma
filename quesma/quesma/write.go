@@ -96,7 +96,6 @@ func getTargetIndex(operation map[string]DocumentTarget) string {
 }
 
 func dualWrite(ctx context.Context, tableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
-	_ = ctx
 	stats.GlobalStatistics.Process(tableName, body, clickhouse.NestedSeparator)
 	if config.TrafficAnalysis.Load() {
 		logger.Info().Msgf("analysing traffic, not writing to Clickhouse %s", tableName)

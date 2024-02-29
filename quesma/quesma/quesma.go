@@ -57,7 +57,6 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, elkResponse *http.Response, zip bool) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
-	logUnexpected(elkResponse.Header, w.Header(), id)
 	if zip {
 		zipped, err := gzip.Zip(unzipped)
 		if err != nil {
@@ -69,6 +68,7 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 		w.Header().Add(httpHeaderContentLength, strconv.Itoa(len(unzipped)))
 		_, _ = io.Copy(w, bytes.NewBuffer(unzipped))
 	}
+	logUnexpected(elkResponse.Header, w.Header(), id)
 }
 
 func sendElkResponseToQuesmaConsole(ctx context.Context, elkResponse *http.Response, console *ui.QuesmaManagementConsole) {
