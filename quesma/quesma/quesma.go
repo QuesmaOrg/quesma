@@ -120,7 +120,7 @@ func logUnexpected(elasticHeader, quesmaHeader http.Header, id string) {
 }
 
 func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, config config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole) {
-	if router.Matches(req.URL.Path, req.Method) {
+	if router.Matches(req.URL.Path, req.Method, string(reqBody)) {
 		elkResponseChan := sendHttpRequestToElastic(ctx, config, quesmaManagementConsole, req, reqBody)
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, quesmaManagementConsole, func() (*mux.Result, error) {
 			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method)

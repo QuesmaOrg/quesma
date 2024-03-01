@@ -95,14 +95,14 @@ func fromClickhouse() func() []string {
 }
 
 func matchedAgainstConfig(config config.QuesmaConfiguration) mux.MatchPredicate {
-	return func(m map[string]string) bool {
+	return func(m map[string]string, _ string) bool {
 		indexConfig, exists := config.GetIndexConfig(m["index"])
 		return exists && indexConfig.Enabled
 	}
 }
 
 func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func() []string) mux.MatchPredicate {
-	return func(m map[string]string) bool {
+	return func(m map[string]string, _ string) bool {
 		if strings.HasPrefix(m["index"], ".") {
 			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", m["index"])
 			return false

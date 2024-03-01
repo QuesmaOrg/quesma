@@ -10,6 +10,7 @@ func Test_matchedAgainstConfig(t *testing.T) {
 	tests := []struct {
 		name   string
 		index  string
+		body   string
 		config config.QuesmaConfiguration
 		want   bool
 	}{
@@ -52,7 +53,7 @@ func Test_matchedAgainstConfig(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, matchedAgainstConfig(tt.config)(map[string]string{"index": tt.index}), "matchedAgainstConfig(%v), index: %s", tt.config, tt.index)
+			assert.Equalf(t, tt.want, matchedAgainstConfig(tt.config)(map[string]string{"index": tt.index}, tt.body), "matchedAgainstConfig(%v), index: %s", tt.config, tt.index)
 		})
 	}
 }
@@ -61,6 +62,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 	tests := []struct {
 		name          string
 		index         string
+		body          string
 		tables        []string
 		configuration config.QuesmaConfiguration
 		want          bool
@@ -161,7 +163,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equalf(t, tt.want, matchedAgainstPattern(tt.configuration, func() []string {
 				return tt.tables
-			})(map[string]string{"index": tt.index}), "matchedAgainstPattern(%v)", tt.configuration)
+			})(map[string]string{"index": tt.index}, tt.body), "matchedAgainstPattern(%v)", tt.configuration)
 		})
 	}
 }
