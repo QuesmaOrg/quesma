@@ -40,7 +40,10 @@ func handleTermsEnumRequest(_ context.Context, reqBody []byte, qt *queryparser.C
 func makeTermsEnumResponse(rows []model.QueryResultRow) *model.TermsEnumResponse {
 	terms := make([]string, 0)
 	for _, row := range rows {
-		terms = append(terms, row.Cols[0].Value.(string))
+		value := row.Cols[0].Value
+		if value != nil {
+			terms = append(terms, *value.(*string))
+		}
 	}
 	return &model.TermsEnumResponse{
 		Complete: true,
