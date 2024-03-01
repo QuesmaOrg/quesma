@@ -28,6 +28,11 @@ func TestTcpProxy_Ingest(t *testing.T) {
 }
 
 func TestTcpProxy_IngestAndProcess(t *testing.T) {
+	t.Skip(`This test turned out to cause problems on GitHub Actions CI 
+		(goroutines got stuck on IO Wait for 10 minutes and whole job timed out). 
+		This is probably due to some resource problem with GitHub workers.
+		We've discussed this in https://quesma.slack.com/archives/C06CNHT9944/p1709136102128349
+		It's also not a critical test, so it's skipped for now.`)
 	fromPort := findFreePort()
 	toPort := findFreePort()
 
