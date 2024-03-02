@@ -9,19 +9,25 @@ import (
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/stats"
-	errorstats "mitmproxy/quesma/stats/errorstats"
+	"mitmproxy/quesma/stats/errorstats"
 	"mitmproxy/quesma/util"
 	"regexp"
 	"strings"
 	"sync/atomic"
 )
 
-type DocumentTarget struct {
-	Index *string `json:"_index"`
-	Id    *string `json:"_id"` // document's target id in Elasticsearch, we ignore it when writing to Clickhouse.
-}
+type (
+	DocumentTarget struct {
+		Index *string `json:"_index"`
+		Id    *string `json:"_id"` // document's target id in Elasticsearch, we ignore it when writing to Clickhouse.
+	}
+	WriteResult struct {
+		Operation string
+		Index     string
+	}
+)
 
-func dualWriteBulk(ctx context.Context, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
+func dualWriteBulk(ctx context.Context, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) (results []WriteResult) {
 	if config.TrafficAnalysis.Load() {
 		logger.Info().Msg("analysing traffic, not writing to Clickhouse")
 		return
@@ -59,8 +65,10 @@ func dualWriteBulk(ctx context.Context, body string, lm *clickhouse.LogManager, 
 		}
 
 		if _, ok := operation["create"]; ok {
+			results = append(results, WriteResult{"create", index})
 			indicesWithDocumentsToInsert[index] = append(indicesWithDocumentsToInsert[index], document)
 		} else if _, ok = operation["index"]; ok {
+			results = append(results, WriteResult{"index", index})
 			indicesWithDocumentsToInsert[index] = append(indicesWithDocumentsToInsert[index], document)
 		} else if _, ok = operation["update"]; ok {
 			errorstats.GlobalErrorStatistics.RecordKnownError("_bulk update is not supported", nil,
@@ -84,6 +92,7 @@ func dualWriteBulk(ctx context.Context, body string, lm *clickhouse.LogManager, 
 			return lm.ProcessInsertQuery(indexName, documents)
 		})
 	}
+	return results
 }
 
 func getTargetIndex(operation map[string]DocumentTarget) string {

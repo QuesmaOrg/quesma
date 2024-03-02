@@ -171,3 +171,42 @@ func Test_matchedAgainstPattern(t *testing.T) {
 func indexConfig(pattern string, enabled bool) config.QuesmaConfiguration {
 	return config.QuesmaConfiguration{IndexConfig: []config.IndexConfiguration{{NamePattern: pattern, Enabled: enabled}}}
 }
+
+func Test_matchedAgainstBulkBody(t *testing.T) {
+	tests := []struct {
+		name   string
+		body   string
+		config config.QuesmaConfiguration
+		want   bool
+	}{
+		{
+			name:   "single index, config present",
+			body:   `{"create":{"_index":"logs-generic-default"}}`,
+			config: indexConfig("logs-*", true),
+			want:   true,
+		},
+		{
+			name:   "single index, table not present",
+			body:   `{"create":{"_index":"logs-generic-default"}}`,
+			config: indexConfig("foo", true),
+			want:   false,
+		},
+		{
+			name:   "multiple indexes, table present",
+			body:   `{"create":{"_index":"logs-generic-default"}}` + "\n{}\n" + `{"create":{"_index":"logs-generic-default"}}`,
+			config: indexConfig("logs-*", true),
+			want:   true,
+		},
+		{
+			name:   "multiple indexes, some tables not present",
+			body:   `{"create":{"_index":"logs-generic-default"}}` + "\n{}\n" + `{"create":{"_index":"non-existent"}}`,
+			config: indexConfig("logs-*", true),
+			want:   false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, matchedAgainstBulkBody(tt.config)(map[string]string{}, tt.body), "matchedAgainstBulkBody(%+v)", tt.config)
+		})
+	}
+}

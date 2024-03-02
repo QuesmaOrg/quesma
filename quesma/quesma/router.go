@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/quesma/routes"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/stats/errorstats"
+	"regexp"
 	"strings"
 )
 
@@ -22,9 +23,9 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, httpOk), nil
 	})
 
-	router.RegisterPath(routes.BulkPath, "POST", func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
-		dualWriteBulk(ctx, body, lm, config)
-		return nil, nil
+	router.RegisterPathMatcher(routes.BulkPath, "POST", matchedAgainstBulkBody(config), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+		results := dualWriteBulk(ctx, body, lm, config)
+		return bulkInsertResult(results), nil
 	})
 
 	router.RegisterPathMatcher(routes.IndexDocPath, "POST", matchedAgainstConfig(config), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
@@ -88,6 +89,20 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 	return router
 }
 
+func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) func(m map[string]string, body string) bool {
+	return func(m map[string]string, body string) bool {
+		for idx, s := range strings.Split(body, "\n") {
+			if idx%2 == 0 && len(s) > 0 {
+				indexConfig, found := configuration.GetIndexConfig(extractIndexName(s))
+				if !found || !indexConfig.Enabled {
+					return false
+				}
+			}
+		}
+		return true
+	}
+}
+
 func fromClickhouse() func() []string {
 	return func() []string {
 		return clickhouse.Tables()
@@ -137,6 +152,19 @@ func elasticsearchQueryResult(body string, statusCode int) *mux.Result {
 	}, StatusCode: statusCode}
 }
 
+func bulkInsertResult(ops []WriteResult) *mux.Result {
+	body, err := json.Marshal(bulkResponse{
+		Errors: false,
+		Items:  toBulkItems(ops),
+		Took:   42,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return elasticsearchInsertResult(string(body), httpOk)
+}
+
 func elasticsearchInsertResult(body string, statusCode int) *mux.Result {
 	return &mux.Result{Body: body, Meta: map[string]string{
 		"X-Elastic-Product": "Elasticsearch",
@@ -168,18 +196,82 @@ func indexDocResult(index string, statusCode int) *mux.Result {
 	return elasticsearchInsertResult(string(body), statusCode)
 }
 
-type indexDocResponse struct {
-	Id          string         `json:"_id"`
-	Index       string         `json:"_index"`
-	PrimaryTerm int            `json:"_primary_term"`
-	SeqNo       int            `json:"_seq_no"`
-	Shards      shardsResponse `json:"_shards"`
-	Version     int            `json:"_version"`
-	Result      string         `json:"result"`
+func bulkSingleResult(opName string, index string) any {
+	response := bulkSingleResponse{
+		ID:          "fakeId",
+		Index:       index,
+		PrimaryTerm: 1,
+		SeqNo:       0,
+		Shards: shardsResponse{
+			Failed:     0,
+			Successful: 1,
+			Total:      1,
+		},
+		Version: 0,
+		Result:  "created",
+		Status:  201,
+	}
+	if opName == "create" {
+		return struct {
+			Create bulkSingleResponse `json:"create"`
+		}{Create: response}
+	} else if opName == "index" {
+		return struct {
+			Index bulkSingleResponse `json:"index"`
+		}{Index: response}
+	} else {
+		panic("unsupported operation name: " + opName)
+	}
 }
 
-type shardsResponse struct {
-	Failed     int `json:"failed"`
-	Successful int `json:"successful"`
-	Total      int `json:"total"`
+type (
+	indexDocResponse struct {
+		Id          string         `json:"_id"`
+		Index       string         `json:"_index"`
+		PrimaryTerm int            `json:"_primary_term"`
+		SeqNo       int            `json:"_seq_no"`
+		Shards      shardsResponse `json:"_shards"`
+		Version     int            `json:"_version"`
+		Result      string         `json:"result"`
+	}
+	bulkSingleResponse struct {
+		ID          string         `json:"_id"`
+		Index       string         `json:"_index"`
+		PrimaryTerm int            `json:"_primary_term"`
+		SeqNo       int            `json:"_seq_no"`
+		Shards      shardsResponse `json:"_shards"`
+		Version     int            `json:"_version"`
+		Result      string         `json:"result"`
+		Status      int            `json:"status"`
+	}
+	bulkResponse struct {
+		Errors bool  `json:"errors"`
+		Items  []any `json:"items"`
+		Took   int   `json:"took"`
+	}
+	shardsResponse struct {
+		Failed     int `json:"failed"`
+		Successful int `json:"successful"`
+		Total      int `json:"total"`
+	}
+)
+
+func toBulkItems(ops []WriteResult) []any {
+	var items []any
+	for _, op := range ops {
+		items = append(items, bulkSingleResult(op.Operation, op.Index))
+	}
+	return items
+}
+
+var indexNamePattern = regexp.MustCompile(`"_index"\s*:\s*"([^"]+)"`)
+
+func extractIndexName(input string) string {
+	results := indexNamePattern.FindStringSubmatch(input)
+
+	if len(results) < 2 {
+		return ""
+	}
+
+	return results[1]
 }
