@@ -23,7 +23,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 	})
 
 	router.RegisterPath(routes.BulkPath, "POST", func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
-		dualWriteBulk(ctx, "", body, lm, config)
+		dualWriteBulk(ctx, body, lm, config)
 		return nil, nil
 	})
 
@@ -33,7 +33,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 	})
 
 	router.RegisterPathMatcher(routes.IndexBulkPath, "POST", matchedAgainstConfig(config), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
-		dualWriteBulk(ctx, params["index"], body, lm, config)
+		dualWriteBulk(ctx, body, lm, config)
 		return nil, nil
 	})
 

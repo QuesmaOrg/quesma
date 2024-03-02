@@ -21,9 +21,9 @@ type DocumentTarget struct {
 	Id    *string `json:"_id"` // document's target id in Elasticsearch, we ignore it when writing to Clickhouse.
 }
 
-func dualWriteBulk(ctx context.Context, optionalTableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
+func dualWriteBulk(ctx context.Context, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
 	if config.TrafficAnalysis.Load() {
-		logger.Info().Msgf("analysing traffic, not writing to Clickhouse %s", optionalTableName)
+		logger.Info().Msg("analysing traffic, not writing to Clickhouse")
 		return
 	}
 	defer recovery.LogPanic()
