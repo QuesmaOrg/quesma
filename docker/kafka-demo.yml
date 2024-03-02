@@ -9,8 +9,8 @@ services:
       - LOGS_PATH=/var/quesma/logs
       - CLICKHOUSE_URL=clickhouse://clickhouse:9000
     depends_on:
-      clickhouse:
-        condition: service_healthy
+      clean-clickhouse:
+        condition: service_completed_successfully
       elasticsearch:
         condition: service_healthy
     links:
@@ -129,6 +129,8 @@ services:
     # Uncomment above, if you would like to log requests using mitmproxy/request.py
     #   The files will be available in mitmproxy/{query,requests}/*.txt
     depends_on:
+      clean-mitmproxy:
+        condition: service_completed_successfully
       quesma:
         condition: service_healthy
     restart: unless-stopped
@@ -140,11 +142,19 @@ services:
       interval: 1s
       start_period: 1m
       timeout: 1s
-  clean:
-    build: clean
+  clean-clickhouse:
+    build: clean-clickhouse
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    restart: "no"
+    volumes:
+      - ./mitmproxy:/var/mitmproxy
+  clean-mitmproxy:
+    build: clean-mitmproxy
     depends_on:
       mitmproxy:
-        condition: service_started
+        condition: service_healthy
       clickhouse:
         condition: service_healthy
     restart: "no"
