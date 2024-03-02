@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"log"
 	"mitmproxy/quesma/network"
 	"mitmproxy/quesma/stats"
@@ -22,7 +23,8 @@ func TestTcpProxy_Ingest(t *testing.T) {
 	proxy := NewTcpProxy(fromPort, "localhost:"+strconv.Itoa(int(toPort)), false)
 
 	go proxy.Ingest()
-	proxy.WaitUntilReady()
+	err := proxy.WaitUntilReady(time.Minute)
+	assert.NoError(t, err, "Error waiting for proxy to be ready")
 
 	verifyTCPProxy(t, "hello", fromPort, toPort)
 }
@@ -39,7 +41,8 @@ func TestTcpProxy_IngestAndProcess(t *testing.T) {
 	proxy := NewTcpProxy(fromPort, "localhost:"+strconv.Itoa(int(toPort)), true)
 
 	go proxy.Ingest()
-	proxy.WaitUntilReady()
+	err := proxy.WaitUntilReady(time.Minute)
+	assert.NoError(t, err, "Error waiting for proxy to be ready")
 
 	verifyTCPProxy(t, exampleLog(), fromPort, toPort)
 	verifyStatistics(t, fromPort)

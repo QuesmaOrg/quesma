@@ -118,11 +118,14 @@ func (t *TcpProxy) Ingest() {
 	}
 }
 
-func (t *TcpProxy) WaitUntilReady() {
+func (t *TcpProxy) WaitUntilReady(timeout time.Duration) error {
 	if t.inspect {
+		var resp *http.Response
+		var err error
 		serverReady := false
-		for !serverReady {
-			resp, err := http.Get("http://localhost:" + internalHttpPort + "/")
+		startTime := time.Now()
+		for !serverReady && time.Since(startTime) < timeout {
+			resp, err = http.Get("http://localhost:" + internalHttpPort + "/")
 			if err == nil && resp.StatusCode == http.StatusOK {
 				_ = resp.Body.Close()
 				serverReady = true
@@ -131,9 +134,14 @@ func (t *TcpProxy) WaitUntilReady() {
 			}
 			time.Sleep(100 * time.Millisecond)
 		}
+
+		if !serverReady {
+			return fmt.Errorf("server not ready after %v: %v", timeout, err)
+		}
 	}
 
 	<-t.ready
+	return nil
 }
 
 func (t *TcpProxy) Stop(context.Context) {
