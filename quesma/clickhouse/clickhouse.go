@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	timestampFieldName = "@timestamp"
+	timestampFieldName = "@timestamp" // it's always DateTime64 for now, don't want to waste time changing that, we don't seem to use that anyway
 	othersFieldName    = "others"
 )
 

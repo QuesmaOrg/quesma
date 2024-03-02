@@ -83,7 +83,6 @@ func (lm *LogManager) ProcessNMostRecentRowsQuery(table *Table, query *model.Que
 	return read(rowsDB, append(colNames, query.NonSchemaFields...), rowToScan)
 }
 
-// TODO add test
 func (lm *LogManager) ProcessHistogramQuery(query *model.Query, bucket time.Duration) ([]model.QueryResultRow, error) {
 	if err := lm.initConnection(); err != nil {
 		return nil, err
@@ -104,7 +103,7 @@ func (lm *LogManager) ProcessHistogramQuery(query *model.Query, bucket time.Dura
 		result[i].Cols[model.ResultColKeyIndex].Value = timestamp
 		result[i].Cols = append(result[i].Cols, model.QueryResultCol{
 			ColName: "key_as_string",
-			Value:   time.UnixMilli(timestamp).Format("2006-01-02T15:04:05.000"),
+			Value:   time.UnixMilli(timestamp).UTC().Format("2006-01-02T15:04:05.000"),
 		})
 	}
 	return result, nil

@@ -104,7 +104,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		switch queryInfo.Typ {
 		case model.Histogram:
 			var bucket time.Duration
-			fullQuery, bucket = queryTranslator.BuildHistogramQuery(simpleQuery.FieldName, simpleQuery.Sql.Stmt, queryInfo.FieldName)
+			fullQuery, bucket = queryTranslator.BuildHistogramQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.Interval)
 			rows, err = queryTranslator.ClickhouseLM.ProcessHistogramQuery(fullQuery, bucket)
 		case model.CountAsync:
 			fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)

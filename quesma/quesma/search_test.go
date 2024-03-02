@@ -2,6 +2,7 @@ package quesma
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
@@ -13,6 +14,7 @@ import (
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/testdata"
 	"mitmproxy/quesma/tracing"
+	"strconv"
 	"testing"
 )
 
@@ -162,5 +164,80 @@ func TestAsyncSearchFilter(t *testing.T) {
 				t.Fatal("there were unfulfilled expections:", err)
 			}
 		})
+	}
+}
+
+// TestHandlingDateTimeFields tests handling DateTime, DateTime64 fields in queries, as well as our timestamp field.
+// Unfortunately, it's not an 100% end-to-end test, which would test the full `handleAsyncSearch` function
+// (testing of creating response is lacking), because of `sqlmock` limitation.
+// It can't return uint64, thus creating response code panics because of that.
+func TestHandlingDateTimeFields(t *testing.T) {
+	// I'm testing querying for all 3 types of fields that we support right now.
+	const dateTimeTimestampField = "timestamp"
+	const dateTime64TimestampField = "timestamp64"
+	const dateTime64OurTimestampField = "@timestamp"
+	table := clickhouse.Table{Name: tableName, Config: clickhouse.NewChTableConfigTimestampStringAttr(), Created: true,
+		Cols: map[string]*clickhouse.Column{
+			"timestamp":   {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime")},
+			"timestamp64": {Name: "timestamp64", Type: clickhouse.NewBaseType("DateTime64")},
+		},
+	}
+	query := func(fieldName string) string {
+		return `{
+			"aggs": {"0": {"date_histogram": {"field": ` + strconv.Quote(fieldName) + `, "fixed_interval": "60s"}}},
+			"query": {"bool": {"filter": [{"bool": {
+				"filter": [{"range": {
+					"timestamp": {
+						"format": "strict_date_optional_time",
+						"gte": "2024-01-29T15:36:36.491Z",
+						"lte": "2024-01-29T18:11:36.491Z"
+					}
+				}}],
+				"must": [{"range": {
+					"timestamp64": {
+						"format": "strict_date_optional_time",
+						"gte": "2024-01-29T15:36:36.491Z",
+						"lte": "2024-01-29T18:11:36.491Z"
+					}
+				}}],
+				"must_not": [{"range": {
+					"@timestamp": {
+						"format": "strict_date_optional_time",
+						"gte": "2024-01-29T15:36:36.491Z",
+						"lte": "2024-01-29T18:11:36.491Z"
+					}
+				}}],
+				"should": []
+			}}]}}
+		}`
+	}
+	expectedSelectStatementRegex := map[string]string{
+		dateTimeTimestampField:      "SELECT toInt64(toUnixTimestamp(`timestamp`)/60.000000), count() FROM",
+		dateTime64TimestampField:    "SELECT toInt64(toUnixTimestamp64Milli(`timestamp64`)/60000), count() FROM",
+		dateTime64OurTimestampField: "SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/60000), count() FROM",
+	}
+
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
+	managementConsole := ui.NewQuesmaManagementConsole(config.Load(), make(<-chan string, 50000))
+
+	for _, fieldName := range []string{dateTimeTimestampField, dateTime64TimestampField, dateTime64OurTimestampField} {
+		mock.ExpectQuery(testdata.EscapeBrackets(expectedSelectStatementRegex[fieldName])).
+			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))
+		// .AddRow(1000, uint64(10)).AddRow(1001, uint64(20))) // here rows should be added if uint64 were supported
+		response, err := handleAsyncSearch(ctx, tableName, []byte(query(fieldName)), lm, managementConsole)
+		assert.NoError(t, err)
+
+		var responseMap model.JsonMap
+		err = json.Unmarshal(response, &responseMap)
+		assert.NoError(t, err, "error unmarshalling search API response:")
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatal("there were unfulfilled expections:", err)
+		}
 	}
 }

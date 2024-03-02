@@ -176,6 +176,7 @@ func (queryType SearchQueryType) String() string {
 type QueryInfoAsyncSearch struct {
 	Typ       AsyncSearchQueryType
 	FieldName string
+	Interval  string
 	I1        int
 	I2        int
 }

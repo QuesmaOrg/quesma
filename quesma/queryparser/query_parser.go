@@ -71,8 +71,8 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 
 	parsed := cw.parseQueryMap(queryAsMap["query"].(QueryMap))
 	queryInfo := cw.tryProcessMetadataAsyncSearch(queryAsMap)
-	/* leaving as comment, as that's how it'll work after next PR
 
+	/* leaving as comment, as that's how it'll work after next PR
 	if queryInfo.Typ != model.None {
 		// if we parsed it via old, non-general way, let's just use it for now, because it's known to be working
 		return parsed, queryInfo
@@ -672,7 +672,13 @@ func (cw *ClickhouseQueryTranslator) isItHistogramRequest(queryMap QueryMap) (mo
 	queryMapNestOnePossility, ok := queryMap["0"].(QueryMap)
 	if ok {
 		if queryMapNestOnePossility, ok = queryMapNestOnePossility["date_histogram"].(QueryMap); ok {
-			return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: cw.extractInterval(queryMapNestOnePossility), I1: 0, I2: 0}, true
+			return model.QueryInfoAsyncSearch{
+				Typ:       model.Histogram,
+				FieldName: queryMapNestOnePossility["field"].(string),
+				Interval:  cw.extractInterval(queryMapNestOnePossility),
+				I1:        0,
+				I2:        0,
+			}, true
 		}
 	}
 
@@ -690,7 +696,13 @@ func (cw *ClickhouseQueryTranslator) isItHistogramRequest(queryMap QueryMap) (mo
 	}
 	queryMap, ok = queryMap["date_histogram"].(QueryMap)
 	if ok {
-		return model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: cw.extractInterval(queryMap), I1: 0, I2: 0}, true
+		return model.QueryInfoAsyncSearch{
+			Typ:       model.Histogram,
+			FieldName: queryMap["field"].(string),
+			Interval:  cw.extractInterval(queryMap),
+			I1:        0,
+			I2:        0,
+		}, true
 	}
 	return model.NewQueryInfoAsyncSearchNone(), false
 }

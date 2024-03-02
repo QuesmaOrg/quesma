@@ -702,7 +702,7 @@ var TestsAsyncSearch = []struct {
 }
 `,
 		"no comment yet",
-		model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: "30s", I1: 0, I2: 0},
+		model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: "@timestamp", Interval: "30s", I1: 0, I2: 0},
 		[]string{`SELECT toInt64(toUnixTimestamp64Milli(` + "`@timestamp`" + `)/30000), count() FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) GROUP BY toInt64(toUnixTimestamp64Milli(` + "`@timestamp`)/30000)"},
 		true,
 	},
@@ -740,7 +740,7 @@ var TestsAsyncSearch = []struct {
 }`,
 		`{}`,
 		"no comment yet",
-		model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: fmt.Sprintf("%ds", int(oneMinute.Seconds())), I1: 0, I2: 0},
+		model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: "@timestamp", Interval: fmt.Sprintf("%ds", int(oneMinute.Seconds())), I1: 0, I2: 0},
 		[]string{fmt.Sprintf(`SELECT toInt64(toUnixTimestamp64Milli(`+"`@timestamp`"+`)/%d), count() FROM "logs-generic-default" WHERE "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') GROUP BY toInt64(toUnixTimestamp64Milli(`+"`@timestamp`)/%d)", oneMinute.Milliseconds(), oneMinute.Milliseconds())},
 		true,
 	},
