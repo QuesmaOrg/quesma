@@ -1,7 +1,11 @@
 #!/bin/bash
 
+ENDPOINT=${OPENSEARCH_DASHBOARD_HOST:-kibana:5601}
+XSRF=${OPENSEARCH_XSRF:-kbn-xsrf}
+
+
 while [ "$http_code" != "200" ]; do
-    http_code=$(curl --no-progress-meter -k -s -w "%{http_code}" -XGET http://kibana:5601/api/status -o /dev/null )
+    http_code=$(curl --no-progress-meter -k -s -w "%{http_code}" -XGET http://$ENDPOINT/api/status -o /dev/null )
     echo "HTTP Status Code: $http_code"
 
     if [ "$http_code" != "200" ]; then
@@ -14,7 +18,7 @@ add_kibana_sample_dataset() {
     local sample_data=$1
     START_TIME=$(date +%s)
     echo "Adding $sample_data dataset"
-    curl --no-progress-meter -XPOST -H "kbn-xsrf: arbitrary-header" http://kibana:5601/api/sample_data/$sample_data
+    curl --no-progress-meter -XPOST -H "$XSRF: arbitrary-header" http://$ENDPOINT/api/sample_data/$sample_data
     END_TIME=$(date +%s)
     echo -e "\nAdded $sample_data dataset, took $((END_TIME-START_TIME)) seconds"
 }
@@ -31,8 +35,8 @@ fi
 
 curl --silent -o /dev/null  --no-progress-meter -XPOST \
 -H 'Content-Type: application/json' \
--H "kbn-xsrf: arbitrary-header" \
-http://kibana:5601/api/data_views/data_view -d '{
+-H "$XSRF: arbitrary-header" \
+http://$ENDPOINT/api/data_views/data_view -d '{
     "data_view": {
        "name": "Our Generated Logs",
        "title": "logs-generic-*",
@@ -46,8 +50,8 @@ http://kibana:5601/api/data_views/data_view -d '{
 echo ""
 curl --silent -o /dev/null  --no-progress-meter -XPOST \
 -H 'Content-Type: application/json' \
--H "kbn-xsrf: arbitrary-header" \
-http://kibana:5601/api/data_views/data_view -d '{
+-H "$XSRF: arbitrary-header" \
+http://$ENDPOINT/api/data_views/data_view -d '{
     "data_view": {
        "name": "Device Logs W/O Timestamp",
        "title": "device*",
@@ -59,8 +63,8 @@ http://kibana:5601/api/data_views/data_view -d '{
 echo ""
 curl --silent -o /dev/null  --no-progress-meter -XPOST \
 -H 'Content-Type: application/json' \
--H "kbn-xsrf: arbitrary-header" \
-http://kibana:5601/api/data_views/data_view -d '{
+-H "$XSRF: arbitrary-header" \
+http://$ENDPOINT/api/data_views/data_view -d '{
     "data_view": {
        "name": "Device Logs",
        "title": "device*",
@@ -72,8 +76,8 @@ http://kibana:5601/api/data_views/data_view -d '{
 }'
 curl --silent -o /dev/null --no-progress-meter -XPOST \
 -H 'Content-Type: application/json' \
--H "kbn-xsrf: arbitrary-header" \
-http://kibana:5601/api/data_views/data_view -d '{
+-H "$XSRF: arbitrary-header" \
+http://$ENDPOINT/api/data_views/data_view -d '{
     "data_view": {
        "name": "Quesma Logs",
        "title": "quesma-logs-*",
