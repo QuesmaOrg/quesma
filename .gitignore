@@ -10,3 +10,7 @@ docker/quesma/logs/err.log
 docker/quesma/logs/quesma.log
 quesma/logs/err.log
 quesma/logs/quesma.log
+**/.terraform.lock.hcl
+**/terraform.tfstate*
+**/.terraform.tfstate*
+**/.terraform
