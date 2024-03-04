@@ -1,15 +1,16 @@
 package metrics_aggregations
 
-import "mitmproxy/quesma/model"
+import (
+	"mitmproxy/quesma/model"
+)
 
-type QueryTypeCount struct{}
+type Count struct{}
 
-func (qt QueryTypeCount) IsBucketAggregation() bool {
+func (query Count) IsBucketAggregation() bool {
 	return false
 }
 
-// TODO is that correct? If so, why not bucket? Seems to work now...
-func (qt QueryTypeCount) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Count) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	var response []model.JsonMap
 	for _, row := range rows {
 		response = append(response, model.JsonMap{row.Cols[level].ColName: row.Cols[level].Value})
@@ -17,6 +18,6 @@ func (qt QueryTypeCount) TranslateSqlResponseToJson(rows []model.QueryResultRow,
 	return response
 }
 
-func (qt QueryTypeCount) String() string {
+func (query Count) String() string {
 	return "count"
 }

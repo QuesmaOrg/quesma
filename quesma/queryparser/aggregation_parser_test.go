@@ -1,14 +1,15 @@
 package queryparser
 
 import (
-	"fmt"
-	"github.com/k0kubun/pp"
+	"cmp"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
+	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/testdata"
 	"mitmproxy/quesma/util"
+	"slices"
 	"strconv"
 	"testing"
 )
@@ -495,66 +496,74 @@ func TestAggregationParser(t *testing.T) {
 	}
 }
 
-/* commenting for a bit
 // Used in tests to make processing `aggregations` in a deterministic way
 func sortAggregations(aggregations []model.QueryWithAggregation) {
 	slices.SortFunc(aggregations, func(a, b model.QueryWithAggregation) int {
-		for i := range min(len(a.AggregatorsNames), len(b.AggregatorsNames)) {
-			if a.AggregatorsNames[i] != b.AggregatorsNames[i] {
-				return cmp.Compare(a.AggregatorsNames[i], b.AggregatorsNames[i])
+		for i := range min(len(a.Aggregators), len(b.Aggregators)) {
+			if a.Aggregators[i].Name != b.Aggregators[i].Name {
+				return cmp.Compare(a.Aggregators[i].Name, b.Aggregators[i].Name)
 			}
 		}
 		// longer list is first, as we first go deeper when parsing aggregations
-		return cmp.Compare(len(b.AggregatorsNames), len(a.AggregatorsNames))
+		return cmp.Compare(len(b.Aggregators), len(a.Aggregators))
 	})
 }
-*/
 
 func Test2AggregationParserExternalTestcases(t *testing.T) {
-	table := clickhouse.NewEmptyTable(testdata.TableName)
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+	table := clickhouse.Table{
+		Cols: map[string]*clickhouse.Column{
+			"@timestamp": {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"timestamp":  {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"order_date": {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
+		},
+		Name: "logs-generic-default",
+	}
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table}
 	for i, test := range testdata.AggregationTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			// WORKING (or almost): 12/15 tests
-			// works: 0, 3, 5, 8, 12, 14
-			// ~98% works, small diff 2 same fields all the time: 1, 2, 4, 9, 11
-			// 2, 9: +-1h doesn't work too... But Kibana seems to accept this difference well. Can't make it work somehow... :(
-			// waits for response (99% it'll work): 13
-
-			// TODO FIX 11 VALUE_COUNT
-
-			// NOT WORKING: 3/15 tests
-			// kinda small fix: top_hits: 7
-			// bigger fix, maybe will work w/o it: filters [] instead of {} 6
-			// harder than all others: 10
-			t.Skip("Works only manually, some responses aren't 100% the same, only 98%")
-
-			// Leaving a lot of comments, I'll need them in next PR. Test is skipped anyway.
-			aggregations, err := cw.ParseAggregationJson(test.QueryRequestJson)
-			fmt.Println("Aggregations len", len(aggregations))
-			assert.NoError(t, err)
-			// assert.Equal(t, len(test.translatedSqls), len(aggregations))
-			// sortAggregations(aggregations) // to make test run deterministic
-			for i, aggregation := range aggregations {
-				fmt.Println(aggregation)
-				fmt.Println()
-				fmt.Println(aggregation.String())
-				util.AssertSqlEqual(t, test.ExpectedSQLs[i], aggregation.String())
+			if i == 7 {
+				t.Skip("Let's implement top_hits in next PR. Easily doable, just a bit of code.")
 			}
-			A := cw.MakeAggregationPartOfResponse(aggregations, test.ExpectedResults)
-			qw, err := cw.MakeResponseAggregation(aggregations, test.ExpectedResults)
-			fmt.Println(err, string(qw))
-			pp.Println("ACTUAL", A)
+			if i == 6 || i == 10 || i == 18 {
+				t.Skip("Filters aggregation doesn't work yet. Should be 100% and quite easily doable with improved algorithm.")
+			}
+
+			aggregations, err := cw.ParseAggregationJson(test.QueryRequestJson)
+			// fmt.Println("Aggregations len", len(aggregations))
+			assert.NoError(t, err)
+			assert.Len(t, test.ExpectedResults, len(aggregations))
+			sortAggregations(aggregations[1:]) // to make test run deterministic
+
+			if test.ExpectedResponse == "" {
+				// We haven't recorded expected response yet, so we can't compare it
+				return
+			}
+
+			// Let's leave those commented debugs for now, they'll be useful in next PRs
+			for j, aggregation := range aggregations {
+				// fmt.Println("--- Aggregation "+strconv.Itoa(j)+":", aggregation)
+				// fmt.Println("--- SQL string ", aggregation.String())
+				// fmt.Println("--- Group by: ", aggregation.GroupByFields)
+				util.AssertSqlEqual(t, test.ExpectedSQLs[j], aggregation.String())
+			}
+
+			actualAggregationsPart := cw.MakeAggregationPartOfResponse(aggregations, test.ExpectedResults)
+			// pp.Println("ACTUAL", actualAggregationPart)
+
+			fullResponse, err := cw.MakeResponseAggregation(aggregations, test.ExpectedResults)
+			assert.NoError(t, err)
+			// fmt.Println(err, string(response))
+
 			expectedResponseMap, _ := util.JsonToMap(test.ExpectedResponse)
 			expectedAggregationsPart := expectedResponseMap["response"].(JsonMap)["aggregations"].(JsonMap)
-			diff1, diff2 := util.MapDifference(A, expectedAggregationsPart, true, true)
-			assert.Empty(t, diff1)
-			assert.Empty(t, diff2)
-			assert.Contains(t, string(qw), `"value": `+strconv.FormatUint(test.ExpectedResults[0][0].Cols[0].Value.(uint64), 10)) // checks if hits nr is OK
-			pp.Println("EXPECTED", expectedAggregationsPart)
-			pp.Println("diff1", diff1)
-			pp.Println("diff2", diff2)
+			actualMinusExpected, expectedMinusActual := util.MapDifference(actualAggregationsPart, expectedAggregationsPart, true, true)
+			// pp.Println("DIFF1", actualMinusExpected)
+			// pp.Println("DIFF2", expectedMinusActual)
+			acceptableDifference := []string{"doc_count_error_upper_bound", "sum_other_doc_count"}
+			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
+			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
+			assert.Contains(t, string(fullResponse), `"value": `+strconv.FormatUint(test.ExpectedResults[0][0].Cols[0].Value.(uint64), 10)) // checks if hits nr is OK
 		})
 	}
 }

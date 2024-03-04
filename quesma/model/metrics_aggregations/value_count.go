@@ -4,13 +4,13 @@ import (
 	"mitmproxy/quesma/model"
 )
 
-type QueryTypeValueCount struct{}
+type ValueCount struct{}
 
-func (qt QueryTypeValueCount) IsBucketAggregation() bool {
+func (query ValueCount) IsBucketAggregation() bool {
 	return false
 }
 
-func (qt QueryTypeValueCount) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query ValueCount) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	var value any = nil
 	if len(rows) > 0 {
 		value = rows[0].Cols[level].Value
@@ -20,6 +20,6 @@ func (qt QueryTypeValueCount) TranslateSqlResponseToJson(rows []model.QueryResul
 	}}
 }
 
-func (qt QueryTypeValueCount) String() string {
+func (query ValueCount) String() string {
 	return "value_count"
 }

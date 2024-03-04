@@ -4,16 +4,16 @@ import (
 	"mitmproxy/quesma/model"
 )
 
-type QueryTypeMax struct{}
+type Max struct{}
 
-func (qt QueryTypeMax) IsBucketAggregation() bool {
+func (query Max) IsBucketAggregation() bool {
 	return false
 }
 
-func (qt QueryTypeMax) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Max) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	return metricsTranslateSqlResponseToJson(rows, level)
 }
 
-func (qt QueryTypeMax) String() string {
+func (query Max) String() string {
 	return "max"
 }

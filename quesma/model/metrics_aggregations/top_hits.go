@@ -2,14 +2,14 @@ package metrics_aggregations
 
 import "mitmproxy/quesma/model"
 
-type QueryTypeTopHits struct{}
+type TopHits struct{}
 
-func (qt QueryTypeTopHits) IsBucketAggregation() bool {
+func (query TopHits) IsBucketAggregation() bool {
 	return false
 }
 
 // TODO implement correct
-func (qt QueryTypeTopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	response := make([]model.JsonMap, len(rows))
 	for i, row := range rows {
 		response[i] = make(model.JsonMap, len(row.Cols))
@@ -20,6 +20,6 @@ func (qt QueryTypeTopHits) TranslateSqlResponseToJson(rows []model.QueryResultRo
 	return response
 }
 
-func (qt QueryTypeTopHits) String() string {
+func (query TopHits) String() string {
 	return "top_hits"
 }

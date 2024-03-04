@@ -9,7 +9,6 @@ func metricsTranslateSqlResponseToJson(rows []model.QueryResultRow, level int) [
 	if len(rows) > 0 {
 		value = rows[0].Cols[level].Value
 	}
-	// fmt.Println("common level: ", level, "value: ", value) // very needed for debugging in next PRs
 	return []model.JsonMap{{
 		"value": value,
 	}}

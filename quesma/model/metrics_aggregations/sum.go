@@ -4,16 +4,16 @@ import (
 	"mitmproxy/quesma/model"
 )
 
-type QueryTypeSum struct{}
+type Sum struct{}
 
-func (qt QueryTypeSum) IsBucketAggregation() bool {
+func (query Sum) IsBucketAggregation() bool {
 	return false
 }
 
-func (qt QueryTypeSum) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Sum) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	return metricsTranslateSqlResponseToJson(rows, level)
 }
 
-func (qt QueryTypeSum) String() string {
+func (query Sum) String() string {
 	return "sum"
 }

@@ -4,16 +4,16 @@ import (
 	"mitmproxy/quesma/model"
 )
 
-type QueryTypeMin struct{}
+type Min struct{}
 
-func (qt QueryTypeMin) IsBucketAggregation() bool {
+func (query Min) IsBucketAggregation() bool {
 	return false
 }
 
-func (qt QueryTypeMin) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Min) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	return metricsTranslateSqlResponseToJson(rows, level)
 }
 
-func (qt QueryTypeMin) String() string {
+func (query Min) String() string {
 	return "min"
 }

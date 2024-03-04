@@ -4,17 +4,17 @@ import (
 	"mitmproxy/quesma/model"
 )
 
-type QueryTypeQuantile struct{}
+type Quantile struct{}
 
-func (qt QueryTypeQuantile) IsBucketAggregation() bool {
+func (query Quantile) IsBucketAggregation() bool {
 	return false
 }
 
 // TODO implement correct
-func (qt QueryTypeQuantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	return metricsTranslateSqlResponseToJson(rows, level)
 }
 
-func (qt QueryTypeQuantile) String() string {
+func (query Quantile) String() string {
 	return "quantile"
 }

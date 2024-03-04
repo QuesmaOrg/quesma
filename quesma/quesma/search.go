@@ -97,7 +97,8 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	var responseBody, translatedQueryBody []byte
 
 	// Until we're sure new solution is stable, let's try to use the old one
-	if simpleQuery.CanParse && queryInfo.Typ != model.None {
+	if simpleQuery.CanParse {
+		logger.Info().Str(logger.RID, id).Ctx(ctx).Msgf("Received _async_search request, type: %v", queryInfo.Typ)
 		var fullQuery *model.Query
 		var err error
 		var rows []model.QueryResultRow
@@ -146,11 +147,11 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 			logger.ErrorWithCtx(ctx).Msgf("fullQuery is nil")
 			return responseBody, errors.New("fullQuery is nil")
 		}
-	} else if aggregations, err := queryTranslator.ParseAggregationJson(string(body)); err == nil && aggregations != nil {
-		logger.Info().Ctx(ctx).Msg("We're using new Aggregation handling.")
-		// for _, agg := range aggregations {
-		//	logger.Info().Msg(agg.String())
-		//}
+	} else if aggregations, err := queryTranslator.ParseAggregationJson(string(body)); err == nil {
+		logger.Info().Str(logger.RID, id).Ctx(ctx).Msg("We're using new Aggregation handling.")
+		for _, agg := range aggregations {
+			logger.Info().Msg(agg.String()) // I'd keep for now until aggregations work fully
+		}
 		var results [][]model.QueryResultRow
 		sqls := ""
 		for _, agg := range aggregations {

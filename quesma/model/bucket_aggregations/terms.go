@@ -1,14 +1,16 @@
 package bucket_aggregations
 
-import "mitmproxy/quesma/model"
+import (
+	"mitmproxy/quesma/model"
+)
 
-type QueryTypeTerms struct{}
+type Terms struct{}
 
-func (qt QueryTypeTerms) IsBucketAggregation() bool {
+func (query Terms) IsBucketAggregation() bool {
 	return true
 }
 
-func (qt QueryTypeTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	var response []model.JsonMap
 	for _, row := range rows {
 		response = append(response, model.JsonMap{
@@ -19,6 +21,6 @@ func (qt QueryTypeTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow,
 	return response
 }
 
-func (qt QueryTypeTerms) String() string {
+func (query Terms) String() string {
 	return "terms"
 }

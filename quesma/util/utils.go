@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"net/http"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -223,7 +224,6 @@ func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
 // * mExpected - value can also be []any, because it's generated from Golang's json.Unmarshal
 func MergeMaps(mActual, mExpected JsonMap) JsonMap {
 	var mergeMapsRec func(m1, m2 JsonMap) JsonMap
-
 	// merges 'i1' and 'i2' in 3 cases: both are JsonMap, both are []JsonMap, or both are some base type
 	mergeAny := func(i1, i2 any) any {
 		switch i1Typed := i1.(type) {
@@ -251,6 +251,7 @@ func MergeMaps(mActual, mExpected JsonMap) JsonMap {
 			// lengths should be always equal in our usage of this function, maybe that'll change
 			if len(i1Typed) != len(i2Typed) {
 				logger.Error().Msgf("mergeAny: i1 and i2 are slices, but have different lengths. i1: %v, i2: %v", i1, i2)
+				return []JsonMap{}
 			}
 			mergedArray := make([]JsonMap, len(i1Typed))
 			for i := range i1Typed {
@@ -374,6 +375,22 @@ func IsSqlEqual(expected, actual string) bool {
 	return true
 }
 
+func AlmostEmpty(jsonMap JsonMap, acceptableKeys []string) bool {
+	for k, v := range jsonMap {
+		switch vTyped := v.(type) {
+		case JsonMap:
+			if !AlmostEmpty(vTyped, acceptableKeys) {
+				return false
+			}
+		default:
+			if !slices.Contains(acceptableKeys, k) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // Returns a string of 'indentLvl' number of tabs
 func Indent(indentLvl int) string {
 	return strings.Repeat("\t", indentLvl)
@@ -440,6 +457,11 @@ func equal(a, b any) bool {
 			return true
 		}
 	case int:
+		bAsFloat, ok := b.(float64)
+		if ok && float64(aTyped) == bAsFloat {
+			return true
+		}
+	case int64:
 		bAsFloat, ok := b.(float64)
 		if ok && float64(aTyped) == bAsFloat {
 			return true

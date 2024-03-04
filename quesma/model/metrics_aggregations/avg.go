@@ -4,16 +4,16 @@ import (
 	"mitmproxy/quesma/model"
 )
 
-type QueryTypeAvg struct{}
+type Avg struct{}
 
-func (qt QueryTypeAvg) IsBucketAggregation() bool {
+func (query Avg) IsBucketAggregation() bool {
 	return false
 }
 
-func (qt QueryTypeAvg) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Avg) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	return metricsTranslateSqlResponseToJson(rows, level)
 }
 
-func (qt QueryTypeAvg) String() string {
+func (query Avg) String() string {
 	return "avg"
 }

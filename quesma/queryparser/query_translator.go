@@ -249,7 +249,7 @@ func (cw *ClickhouseQueryTranslator) finishMakeResponse(query model.QueryWithAgg
 	if query.Type.IsBucketAggregation() {
 		return query.Type.TranslateSqlResponseToJson(ResultSet, level)
 	} else { // metrics
-		lastAggregator := query.AggregatorsNames[len(query.AggregatorsNames)-1]
+		lastAggregator := query.Aggregators[len(query.Aggregators)-1].Name
 		return []model.JsonMap{
 			{
 				lastAggregator: query.Type.TranslateSqlResponseToJson(ResultSet, level)[0],
@@ -273,7 +273,7 @@ func (cw *ClickhouseQueryTranslator) sameGroupByFields(row1, row2 model.QueryRes
 // e.g. [row(1, ...), row(1, ...), row(2, ...), row(2, ...), row(3, ...)] -> [[row(1, ...), row(1, ...)], [row(2, ...), row(2, ...)], [row(3, ...)]]
 func (cw *ClickhouseQueryTranslator) splitResultSetIntoBuckets(ResultSet []model.QueryResultRow, level int) [][]model.QueryResultRow {
 	if len(ResultSet) == 0 {
-		return [][]model.QueryResultRow{}
+		return [][]model.QueryResultRow{{}}
 	}
 
 	buckets := [][]model.QueryResultRow{{}}
@@ -292,22 +292,39 @@ func (cw *ClickhouseQueryTranslator) splitResultSetIntoBuckets(ResultSet []model
 }
 
 // DFS algorithm
-func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query model.QueryWithAggregation, ResultSet []model.QueryResultRow, level int) []model.JsonMap {
-	// either we finish
-	if level == len(query.AggregatorsNames) || (level == len(query.AggregatorsNames)-1 && !query.Type.IsBucketAggregation()) {
-		return cw.finishMakeResponse(query, ResultSet, level)
-	}
+// 'aggregatorsLevel' - index saying which (sub)aggregation we're handling
+// 'selectLevel' - which field from select we're grouping by at current level (or not grouping by, if query.Aggregators[aggregatorsLevel].Empty == true)
+func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query model.QueryWithAggregation,
+	ResultSet []model.QueryResultRow, aggregatorsLevel, selectLevel int) []model.JsonMap {
 
-	buckets := cw.splitResultSetIntoBuckets(ResultSet, level)
-	if len(buckets) == 0 {
+	// either we finish
+	if aggregatorsLevel == len(query.Aggregators) || (aggregatorsLevel == len(query.Aggregators)-1 && !query.Type.IsBucketAggregation()) {
+		/*
+			if len(ResultSet) > 0 {
+				pp.Println(query.Type, "level1: ", level1, "level2: ", level2, "cols: ", len(ResultSet[0].Cols))
+			} else {
+				pp.Println(query.Type, "level1: ", level1, "cols: no cols")
+			}
+		*/
+		return cw.finishMakeResponse(query, ResultSet, selectLevel)
+	}
+	if len(ResultSet) == 0 {
 		return nil
 	}
 
+	// fmt.Println("level1 :/", level1, " level2 B):", level2)
+
 	// or we need to go deeper
 	var bucketsReturnMap []model.JsonMap
-	for _, bucket := range buckets {
-		bucketsReturnMap = append(bucketsReturnMap, cw.makeResponseAggregationRecursive(query, bucket, level+1)...)
+	if query.Aggregators[aggregatorsLevel].Empty {
+		bucketsReturnMap = append(bucketsReturnMap, cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel)...)
+	} else {
+		buckets := cw.splitResultSetIntoBuckets(ResultSet, selectLevel)
+		for _, bucket := range buckets {
+			bucketsReturnMap = append(bucketsReturnMap, cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+1)...)
+		}
 	}
+
 	result := make(model.JsonMap, 1)
 	subResult := make(model.JsonMap, 1)
 
@@ -317,19 +334,20 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 	// I'd like to keep an actual tree after the refactor, not a list of paths from root to leaf, as it is now.
 	// Then in the tree (in each node) I'd remember where I am at the moment (e.g. here I'm in "sampler",
 	// so I don't need buckets). It'd enable some custom handling for another weird types of requests.
-	if query.AggregatorsNames[level] != "sample" {
-		subResult["buckets"] = bucketsReturnMap
-	} else {
+	if query.Aggregators[aggregatorsLevel].Empty {
 		subResult = bucketsReturnMap[0]
+	} else {
+		subResult["buckets"] = bucketsReturnMap
 	}
-	result[query.AggregatorsNames[level]] = subResult
+
+	result[query.Aggregators[aggregatorsLevel].Name] = subResult
 	return []model.JsonMap{result}
 }
 
 func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) model.JsonMap {
 	aggregations := model.JsonMap{}
 	for i, query := range queries[1:] { // first is count, we don't use that for aggregations
-		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i+1], 0)[0] // result of root node is always a single map, thus [0]
+		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i+1], 0, 0)[0] // result of root node is always a single map, thus [0]
 		aggregations = util.MergeMaps(aggregations, aggregation)
 	}
 	return aggregations

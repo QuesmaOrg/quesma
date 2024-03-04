@@ -1,14 +1,16 @@
 package bucket_aggregations
 
-import "mitmproxy/quesma/model"
+import (
+	"mitmproxy/quesma/model"
+)
 
-type QueryTypeHistogram struct{}
+type Histogram struct{}
 
-func (qt QueryTypeHistogram) IsBucketAggregation() bool {
+func (query Histogram) IsBucketAggregation() bool {
 	return true
 }
 
-func (qt QueryTypeHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	var response []model.JsonMap
 	for _, row := range rows {
 		response = append(response, model.JsonMap{
@@ -19,6 +21,6 @@ func (qt QueryTypeHistogram) TranslateSqlResponseToJson(rows []model.QueryResult
 	return response
 }
 
-func (qt QueryTypeHistogram) String() string {
+func (query Histogram) String() string {
 	return "histogram"
 }

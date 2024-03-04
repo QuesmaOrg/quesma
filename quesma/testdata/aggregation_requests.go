@@ -323,8 +323,8 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') AND "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') `,
-			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE "FlightDelay" == true  GROUP BY ("OriginCityName")`,
-			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE "Cancelled" == true  GROUP BY ("OriginCityName")`,
+			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) AND "FlightDelay" == true  GROUP BY ("OriginCityName")`,
+			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) AND "Cancelled" == true  GROUP BY ("OriginCityName")`,
 			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')  GROUP BY ("OriginCityName")`,
 		},
 	},
@@ -419,18 +419,18 @@ var AggregationTests = []AggregationTestCase{
 									"buckets": [
 										{
 											"doc_count": 2,
-											"key": 1706871600000,
-											"key_as_string": "2024-02-02T12:00:00.000+01:00"
+											"key": 1706875200000,
+											"key_as_string": "2024-02-02T12:00:00.000"
 										},
 										{
 											"doc_count": 27,
-											"key": 1706882400000,
-											"key_as_string": "2024-02-02T15:00:00.000+01:00"
+											"key": 1706886000000,
+											"key_as_string": "2024-02-02T15:00:00.000"
 										},
 										{
 											"doc_count": 34,
-											"key": 1706893200000,
-											"key_as_string": "2024-02-02T18:00:00.000+01:00"
+											"key": 1706896800000,
+											"key_as_string": "2024-02-02T18:00:00.000"
 										}
 									]
 								},
@@ -442,13 +442,13 @@ var AggregationTests = []AggregationTestCase{
 									"buckets": [
 										{
 											"doc_count": 0,
-											"key": 1706871600000,
-											"key_as_string": "2024-02-02T12:00:00.000+01:00"
+											"key": 1706875200000,
+											"key_as_string": "2024-02-02T12:00:00.000"
 										},
 										{
 											"doc_count": 2,
-											"key": 1706882400000,
-											"key_as_string": "2024-02-02T15:00:00.000+01:00"
+											"key": 1706886000000,
+											"key_as_string": "2024-02-02T15:00:00.000"
 										}
 									]
 								},
@@ -478,33 +478,28 @@ var AggregationTests = []AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("FlightDelayType", "No Delay"),
-					model.NewQueryResultCol("key", int64(1706871600000/1000/60/60/3)), // / 3h
+					model.NewQueryResultCol("key", int64(1706875200000/1000/60/60/3)), // / 3h
 					model.NewQueryResultCol("doc_count", uint64(2)),
-					model.NewQueryResultCol("key_as_string", "2024-02-02T12:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("FlightDelayType", "No Delay"),
-					model.NewQueryResultCol("key", int64(1706882400000/1000/60/60/3)),
+					model.NewQueryResultCol("key", int64(1706886000000/1000/60/60/3)),
 					model.NewQueryResultCol("doc_count", uint64(27)),
-					model.NewQueryResultCol("key_as_string", "2024-02-02T15:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("FlightDelayType", "No Delay"),
-					model.NewQueryResultCol("key", int64(1706893200000/1000/60/60/3)),
+					model.NewQueryResultCol("key", int64(1706896800000/1000/60/60/3)),
 					model.NewQueryResultCol("doc_count", uint64(34)),
-					model.NewQueryResultCol("key_as_string", "2024-02-02T18:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("FlightDelayType", "Security Delay"),
-					model.NewQueryResultCol("key", int64(1706871600000/1000/60/60/3)),
+					model.NewQueryResultCol("key", int64(1706875200000/1000/60/60/3)),
 					model.NewQueryResultCol("doc_count", uint64(0)),
-					model.NewQueryResultCol("key_as_string", "2024-02-02T12:00:00.000+01:00"),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("FlightDelayType", "Security Delay"),
-					model.NewQueryResultCol("key", int64(1706882400000/1000/60/60/3)),
+					model.NewQueryResultCol("key", int64(1706886000000/1000/60/60/3)),
 					model.NewQueryResultCol("doc_count", uint64(2)),
-					model.NewQueryResultCol("key_as_string", "2024-02-02T15:00:00.000+01:00"),
 				}},
 			},
 			{
@@ -520,11 +515,11 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') `,
-			`SELECT "FlightDelayType", "timestamp", count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')  GROUP BY ("FlightDelayType", "timestamp")`,
+			`SELECT "FlightDelayType", ` + clickhouse.TimestampGroupBy("timestamp", clickhouse.DateTime64, 3*time.Hour) + `, count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')  GROUP BY ("FlightDelayType", ` + clickhouse.TimestampGroupBy("timestamp", clickhouse.DateTime64, 3*time.Hour) + `)`,
 			`SELECT "FlightDelayType", count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')  GROUP BY ("FlightDelayType")`,
 		},
 	},
-	{ // [3] works
+	{ // [3]
 		"Sum",
 		`{
 			"_source": {
@@ -613,10 +608,11 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", 76631.67578125)}}},
 		},
 		[]string{
+			`SELECT count() FROM "` + TableName + `" WHERE "order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z') `,
 			`SELECT sum("taxful_total_price") FROM "` + TableName + `" WHERE "order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z') `,
 		},
 	},
-	{ // [4] works
+	{ // [4]
 		"cardinality",
 		`{
 			"aggs": {
@@ -726,11 +722,12 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", 143)}}},
 		},
 		[]string{
+			`SELECT count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') `,
 			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')  GROUP BY ("OriginCityName")`,
 			`SELECT COUNT(DISTINCT "OriginCityName") FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') `,
 		},
 	},
-	{ // [5] works
+	{ // [5]
 		"simple filter/count",
 		`{
 			"_source": {
@@ -795,7 +792,7 @@ var AggregationTests = []AggregationTestCase{
 			},
 			"script_fields": {},
 			"size": 0,
-			"stored_fields": [
+			"stored_xfields": [
 				"*"
 			],
 			"track_total_hits": true
@@ -836,10 +833,11 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", uint64(553))}}},
 		},
 		[]string{
+			`SELECT count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') `,
 			`SELECT count() FROM "` + TableName + `" WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) AND "FlightDelay" == true `,
 		},
 	},
-	{ // [6] works but buckets are [], not {} like in response :(
+	{ // [6]
 		"idk",
 		`{
 			"_source": {
@@ -994,11 +992,12 @@ var AggregationTests = []AggregationTestCase{
 			}}},
 		},
 		[]string{
-			`SELECT count() FROM "` + TableName + `" WHERE ("FlightDelay" == true ` +
+			`SELECT count() FROM "` + TableName + `" WHERE "FlightDelay" == true AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z'))) `,
+			`SELECT '', count() FROM "` + TableName + `" WHERE ("FlightDelay" == true ` +
 				`AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
 				`OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) ` +
 				`AND ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) `,
-			`SELECT count() FROM "` + TableName + `" WHERE ("FlightDelay" == true ` +
+			`SELECT '', count() FROM "` + TableName + `" WHERE (("FlightDelay" == true ` +
 				`AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
 				`OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) ` +
 				`AND ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')) `,
@@ -1321,7 +1320,7 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		[]string{
-			``,
+			`SELECT count() FROM "` + TableName + `" `,
 			``,
 			``,
 			``,
@@ -1448,7 +1447,7 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) AND NOT "FlightDelayMin" == 0 `,
-			`SELECT "FlightDelayMin", count() FROM "` + TableName + `" WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) AND NOT "FlightDelayMin" == 0  GROUP BY (FlightDelayMin)`,
+			`SELECT "FlightDelayMin", count() FROM "` + TableName + `" WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) AND NOT "FlightDelayMin" == 0  GROUP BY ("FlightDelayMin")`,
 		},
 	},
 	{ // [9]
@@ -1537,13 +1536,13 @@ var AggregationTests = []AggregationTestCase{
 									"buckets": [
 										{
 											"doc_count": 22,
-											"key": 1707476400000,
-											"key_as_string": "2024-02-09T12:00:00.000+01:00"
+											"key": 1707480000000,
+											"key_as_string": "2024-02-09T12:00:00.000"
 										},
 										{
 											"doc_count": 80,
-											"key": 1707487200000,
-											"key_as_string": "2024-02-09T15:00:00.000+01:00"
+											"key": 1707490800000,
+											"key_as_string": "2024-02-09T15:00:00.000"
 										}
 									]
 								},
@@ -1555,13 +1554,13 @@ var AggregationTests = []AggregationTestCase{
 									"buckets": [
 										{
 											"doc_count": 17,
-											"key": 1707476400000,
-											"key_as_string": "2024-02-09T12:00:00.000+01:00"
+											"key": 1707480000000,
+											"key_as_string": "2024-02-09T12:00:00.000"
 										},
 										{
 											"doc_count": 32,
-											"key": 1707487200000,
-											"key_as_string": "2024-02-09T15:00:00.000+01:00"
+											"key": 1707490800000,
+											"key_as_string": "2024-02-09T15:00:00.000"
 										}
 									]
 								},
@@ -1573,13 +1572,13 @@ var AggregationTests = []AggregationTestCase{
 									"buckets": [
 										{
 											"doc_count": 5,
-											"key": 1707476400000,
-											"key_as_string": "2024-02-09T12:00:00.000+01:00"
+											"key": 1707480000000,
+											"key_as_string": "2024-02-09T12:00:00.000"
 										},
 										{
 											"doc_count": 11,
-											"key": 1707487200000,
-											"key_as_string": "2024-02-09T15:00:00.000+01:00"
+											"key": 1707490800000,
+											"key_as_string": "2024-02-09T15:00:00.000"
 										}
 									]
 								},
@@ -1609,32 +1608,32 @@ var AggregationTests = []AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "info"),
-					model.NewQueryResultCol("key", int64(1707476400000/1000/60/60/3)), // divide by 3h
+					model.NewQueryResultCol("key", int64(1707480000000/1000/60/60/3)), // divide by 3h
 					model.NewQueryResultCol("doc_count", 22),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "info"),
-					model.NewQueryResultCol("key", int64(1707487200000/1000/60/60/3)), // divide by 3h
+					model.NewQueryResultCol("key", int64(1707490800000/1000/60/60/3)), // divide by 3h
 					model.NewQueryResultCol("doc_count", 80),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "debug"),
-					model.NewQueryResultCol("key", int64(1707476400000/1000/60/60/3)), // divide by 3h
+					model.NewQueryResultCol("key", int64(1707480000000/1000/60/60/3)), // divide by 3h
 					model.NewQueryResultCol("doc_count", 17),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "debug"),
-					model.NewQueryResultCol("key", int64(1707487200000/1000/60/60/3)), // divide by 3h
+					model.NewQueryResultCol("key", int64(1707490800000/1000/60/60/3)), // divide by 3h
 					model.NewQueryResultCol("doc_count", 32),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "critical"),
-					model.NewQueryResultCol("key", int64(1707476400000/1000/60/60/3)), // divide by 3h
+					model.NewQueryResultCol("key", int64(1707480000000/1000/60/60/3)), // divide by 3h
 					model.NewQueryResultCol("doc_count", 5),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", "critical"),
-					model.NewQueryResultCol("key", int64(1707487200000/1000/60/60/3)), // divide by 3h
+					model.NewQueryResultCol("key", int64(1707490800000/1000/60/60/3)), // divide by 3h
 					model.NewQueryResultCol("doc_count", 11),
 				}},
 			},
@@ -1655,11 +1654,11 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE "host.name" iLIKE '%prometheus%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z') AND "@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z')) `,
-			`SELECT "severity", toInt64(toUnixTimestamp64Milli(` + "`@timestamp`" + `)/10800000), count() FROM "` + TableName + `" WHERE "host.name" iLIKE '%prometheus%' AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))  GROUP BY (severity, toInt64(toUnixTimestamp64Milli(` + "`@timestamp`)/10800000))",
-			`SELECT "severity", count() FROM "` + TableName + `" WHERE "host.name" iLIKE '%prometheus%' AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))  GROUP BY (severity)`,
+			`SELECT "severity", toInt64(toUnixTimestamp64Milli(` + "`@timestamp`" + `)/10800000), count() FROM "` + TableName + `" WHERE "host.name" iLIKE '%prometheus%' AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))  GROUP BY ("severity", toInt64(toUnixTimestamp64Milli(` + "`@timestamp`)/10800000))",
+			`SELECT "severity", count() FROM "` + TableName + `" WHERE "host.name" iLIKE '%prometheus%' AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))  GROUP BY ("severity")`,
 		},
 	},
-	{ // [10] doesn't work yet :(( harder than all before
+	{ // [10]
 		"very long: multiple top_metrics + histogram",
 		`{
 			"_source": {
@@ -2023,25 +2022,25 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		[][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(442))}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("doc_count", 442)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 442)}}},
 			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("key", "hephaestus"), model.NewQueryResultCol("doc_count", 30)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "poseidon"), model.NewQueryResultCol("doc_count", 29)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "jupiter"), model.NewQueryResultCol("doc_count", 28)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "selen"), model.NewQueryResultCol("doc_count", 26)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "demeter"), model.NewQueryResultCol("doc_count", 24)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "iris"), model.NewQueryResultCol("doc_count", 24)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "pan"), model.NewQueryResultCol("doc_count", 24)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "hades"), model.NewQueryResultCol("doc_count", 22)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "hermes"), model.NewQueryResultCol("doc_count", 22)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("", ""), model.NewQueryResultCol("pos", "persephone"), model.NewQueryResultCol("doc_count", 21)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "hephaestus"), model.NewQueryResultCol("doc_count", 30)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "poseidon"), model.NewQueryResultCol("doc_count", 29)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "jupiter"), model.NewQueryResultCol("doc_count", 28)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "selen"), model.NewQueryResultCol("doc_count", 26)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "demeter"), model.NewQueryResultCol("doc_count", 24)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "iris"), model.NewQueryResultCol("doc_count", 24)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "pan"), model.NewQueryResultCol("doc_count", 24)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "hades"), model.NewQueryResultCol("doc_count", 22)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "hermes"), model.NewQueryResultCol("doc_count", 22)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "persephone"), model.NewQueryResultCol("doc_count", 21)}},
 			},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 442)}}},
 		},
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%' `,
-			`SELECT value_count("host.name") FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%' `,
-			`SELECT '', "host.name", count() FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%'  GROUP BY (host.name)`,
+			`SELECT count() FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%' `,
+			`SELECT "host.name", count() FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%'  GROUP BY ("host.name")`,
 			`SELECT count() FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%' `,
 		},
 	},
@@ -2117,14 +2116,14 @@ var AggregationTests = []AggregationTestCase{
 				"aggregations": {
 					"0": {
 						"buckets": [
-							{"doc_count": 2,  "key": 1706021670000, "key_as_string": "2024-01-23T15:54:30.000+01:00"},
-							{"doc_count": 13, "key": 1706021700000, "key_as_string": "2024-01-23T15:55:00.000+01:00"},
-							{"doc_count": 14, "key": 1706021730000, "key_as_string": "2024-01-23T15:55:30.000+01:00"},
-							{"doc_count": 14, "key": 1706021760000, "key_as_string": "2024-01-23T15:56:00.000+01:00"},
-							{"doc_count": 15, "key": 1706021790000, "key_as_string": "2024-01-23T15:56:30.000+01:00"},
-							{"doc_count": 13, "key": 1706021820000, "key_as_string": "2024-01-23T15:57:00.000+01:00"},
-							{"doc_count": 15, "key": 1706021850000, "key_as_string": "2024-01-23T15:57:30.000+01:00"},
-							{"doc_count": 11, "key": 1706021880000, "key_as_string": "2024-01-23T15:58:00.000+01:00"}
+							{"doc_count": 2,  "key": 1706021670000, "key_as_string": "2024-01-23T14:54:30.000"},
+							{"doc_count": 13, "key": 1706021700000, "key_as_string": "2024-01-23T14:55:00.000"},
+							{"doc_count": 14, "key": 1706021730000, "key_as_string": "2024-01-23T14:55:30.000"},
+							{"doc_count": 14, "key": 1706021760000, "key_as_string": "2024-01-23T14:56:00.000"},
+							{"doc_count": 15, "key": 1706021790000, "key_as_string": "2024-01-23T14:56:30.000"},
+							{"doc_count": 13, "key": 1706021820000, "key_as_string": "2024-01-23T14:57:00.000"},
+							{"doc_count": 15, "key": 1706021850000, "key_as_string": "2024-01-23T14:57:30.000"},
+							{"doc_count": 11, "key": 1706021880000, "key_as_string": "2024-01-23T14:58:00.000"}
 						]
 					}
 				},
@@ -2192,11 +2191,13 @@ var AggregationTests = []AggregationTestCase{
 			},
 			"track_total_hits":true
 		}`,
-		`TODO!!!`,
+		``,
 		[][]model.QueryResultRow{
 			{},
+			{},
+			{},
 		},
-		[]string{`TODO`},
+		[]string{`TODO`, `TODO`, `TODO`},
 	},
 	{ // [14], "old" test, also can be found in testdata/requests.go TestAsyncSearch[5]
 		// Copied it also here to be more sure we do not create some regression
@@ -2370,16 +2371,16 @@ var AggregationTests = []AggregationTestCase{
 									"value": 2221.5625
 								},
 								"doc_count": 31,
-								"key": 1708297200000,
-								"key_as_string": "2024-02-19T00:00:00.000+01:00"
+								"key": 1708300800000,
+								"key_as_string": "2024-02-19T00:00:00.000"
 							},
 							{
 								"1": {
 									"value": 11116.45703125
 								},
 								"doc_count": 158,
-								"key": 1708383600000,
-								"key_as_string": "2024-02-20T00:00:00.000+01:00"
+								"key": 1708387200000,
+								"key_as_string": "2024-02-20T00:00:00.000"
 							}
 						]
 					}
@@ -2412,8 +2413,589 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE "order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z') `,
-			``,
-			`SELECT ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime, 24*time.Hour) + `, count() FROM "` + TableName + `" WHERE "order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z')  GROUP BY (` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime, 24*time.Hour) + ")",
+			`SELECT ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 24*time.Hour) + `, sum("taxful_total_price") FROM "` + TableName + `" WHERE "order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z')  GROUP BY (` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 24*time.Hour) + ")",
+			`SELECT ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 24*time.Hour) + `, count() FROM "` + TableName + `" WHERE "order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z')  GROUP BY (` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 24*time.Hour) + ")",
 		},
+	},
+	{ // [16]
+		"simple terms, seen at client's",
+		`{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"terms": {
+						"field": "ip_masked",
+						"order": {
+							"_count": "desc"
+						},
+						"shard_size": 25,
+						"size": 5
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-02-20T19:13:33.795Z",
+									"lte": "2024-02-21T04:01:14.920Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		``,
+		[][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1049))}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19772)), model.NewQueryResultCol("doc_count", uint64(31))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19773)), model.NewQueryResultCol("doc_count", uint64(158))}},
+			},
+		},
+		[]string{
+			``,
+			``,
+		},
+	},
+	{ // [17]
+		"triple nested aggs",
+		`{
+			"aggs": {
+				"0": {
+					"date_histogram": {
+						"field": "order_date",
+						"fixed_interval": "12h",
+						"time_zone": "Europe/Warsaw",
+						"extended_bounds": {
+							"min": 1708627654149,
+							"max": 1709232454149
+						}
+					},
+					"aggs": {
+						"1-bucket": {
+							"filter": {
+								"bool": {
+									"must": [
+										{
+											"query_string": {
+												"query": "products.product_name:*watch*",
+												"analyze_wildcard": true,
+												"time_zone": "Europe/Warsaw"
+											}
+										}
+									],
+									"filter": [],
+									"should": [],
+									"must_not": []
+								}
+							},
+							"aggs": {
+								"1-metric": {
+									"sum": {
+										"field": "taxful_total_price"
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			"size": 0,
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				}
+			],
+			"script_fields": {},
+			"stored_fields": [
+				"*"
+			],
+			"runtime_mappings": {},
+			"_source": {
+				"excludes": []
+			},
+			"query": {
+				"bool": {
+					"must": [],
+					"filter": [
+						{
+							"range": {
+								"order_date": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-02-22T18:47:34.149Z",
+									"lte": "2024-02-29T18:47:34.149Z"
+								}
+							}
+						}
+					],
+					"should": [],
+					"must_not": []
+				}
+			},
+			"track_total_hits": true
+		}`,
+		`{
+			"completion_time_in_millis": 1709243857592,
+			"expiration_time_in_millis": 1709243917570,
+			"id": "FjI4Y1Q2cFNzUnJDVUc1d3NsaThCTHccRkVwTVBXQW1UOXE1cHl0MHpnT0ZVQTo4MDQxNw==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{
+								"1-bucket": {
+									"1-metric": {
+										"value": 0.0
+									},
+									"doc_count": 0
+								},
+								"doc_count": 10,
+								"key": 1708603200000,
+								"key_as_string": "2024-02-22T12:00:00.000"
+							},
+							{
+								"1-bucket": {
+									"1-metric": {
+										"value": 1222.65625
+									},
+									"doc_count": 13
+								},
+								"doc_count": 83,
+								"key": 1708646400000,
+								"key_as_string": "2024-02-23T00:00:00.000"
+							},
+							{
+								"1-bucket": {
+									"1-metric": {
+										"value": 931.96875
+									},
+									"doc_count": 9
+								},
+								"doc_count": 83,
+								"key": 1708689600000,
+								"key_as_string": "2024-02-23T12:00:00.000"
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 1051
+					}
+				},
+				"timed_out": false,
+				"took": 22
+			},
+			"start_time_in_millis": 1709243857570
+		}`,
+		[][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1051))}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(39551)), model.NewQueryResultCol("1-metric", 0.0)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(39552)), model.NewQueryResultCol("1-metric", 1222.65625)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(39553)), model.NewQueryResultCol("1-metric", 931.96875)}},
+			},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(39551)), model.NewQueryResultCol("doc_count", uint64(0))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(39552)), model.NewQueryResultCol("doc_count", uint64(13))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(39553)), model.NewQueryResultCol("doc_count", uint64(9))}},
+			},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(39551)), model.NewQueryResultCol("doc_count", uint64(10))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(39552)), model.NewQueryResultCol("doc_count", uint64(83))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(39553)), model.NewQueryResultCol("doc_count", uint64(83))}},
+			},
+		},
+		[]string{
+			`SELECT count() FROM "` + TableName + `" WHERE "order_date">=parseDateTime64BestEffort('2024-02-22T18:47:34.149Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T18:47:34.149Z') `,
+			`SELECT ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour) + `, sum("taxful_total_price") FROM "` + TableName + `" WHERE ("order_date">=parseDateTime64BestEffort('2024-02-22T18:47:34.149Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T18:47:34.149Z')) AND products.product_name iLIKE '%*watch*%'  GROUP BY (` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour) + ")",
+			`SELECT ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour) + `, count() FROM "` + TableName + `" WHERE ("order_date">=parseDateTime64BestEffort('2024-02-22T18:47:34.149Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T18:47:34.149Z')) AND products.product_name iLIKE '%*watch*%'  GROUP BY (` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour) + ")",
+			`SELECT ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour) + `, count() FROM "` + TableName + `" WHERE "order_date">=parseDateTime64BestEffort('2024-02-22T18:47:34.149Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T18:47:34.149Z')  GROUP BY (` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour) + ")",
+		},
+	},
+	{ // [18]
+		"probably shorten the response",
+		`{
+    "_source": {
+        "excludes": []
+    },
+    "aggs": {
+        "time_offset_split": {
+            "aggs": {
+                "0": {
+                    "aggs": {
+                        "1": {
+                            "sum": {
+                                "field": "taxful_total_price"
+                            }
+                        },
+                        "2": {
+                            "sum": {
+                                "field": "taxful_total_price"
+                            }
+                        }
+                    },
+                    "date_histogram": {
+                        "calendar_interval": "1d",
+                        "field": "order_date",
+                        "time_zone": "Europe/Warsaw"
+                    }
+                }
+            },
+            "filters": {
+                "filters": {
+                    "0": {
+                        "range": {
+                            "order_date": {
+                                "format": "strict_date_optional_time",
+                                "gte": "2024-02-22T21:57:36.376Z",
+                                "lte": "2024-02-29T21:57:36.376Z"
+                            }
+                        }
+                    },
+                    "604800000": {
+                        "range": {
+                            "order_date": {
+                                "format": "strict_date_optional_time",
+                                "gte": "2024-02-15T21:57:36.376Z",
+                                "lte": "2024-02-22T21:57:36.376Z"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "fields": [
+        {
+            "field": "customer_birth_date",
+            "format": "date_time"
+        },
+        {
+            "field": "order_date",
+            "format": "date_time"
+        },
+        {
+            "field": "products.created_on",
+            "format": "date_time"
+        }
+    ],
+    "query": {
+        "bool": {
+            "filter": [
+                {
+                    "bool": {
+                        "minimum_should_match": 1,
+                        "should": [
+                            {
+                                "bool": {
+                                    "filter": [
+                                        {
+                                            "range": {
+                                                "order_date": {
+                                                    "format": "strict_date_optional_time",
+                                                    "gte": "2024-02-22T21:57:36.376Z",
+                                                    "lte": "2024-02-29T21:57:36.376Z"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "bool": {
+                                    "filter": [
+                                        {
+                                            "range": {
+                                                "order_date": {
+                                                    "format": "strict_date_optional_time",
+                                                    "gte": "2024-02-15T21:57:36.376Z",
+                                                    "lte": "2024-02-22T21:57:36.376Z"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                }
+            ],
+            "must": [],
+            "must_not": [],
+            "should": []
+        }
+    },
+    "runtime_mappings": {},
+    "script_fields": {},
+    "size": 0,
+    "stored_fields": [
+        "*"
+    ],
+    "track_total_hits": true
+}`,
+		`{
+			"completion_time_in_millis": 1709243857589,
+			"expiration_time_in_millis": 1709243917582,
+			"id": "FnV5ZURIdDdHVGlPZ0xfdTJrQnc3MFEcRkVwTVBXQW1UOXE1cHl0MHpnT0ZVQTo4MDQ1Ng==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"time_offset_split": {
+						"buckets": {
+							"0": {
+								"0": {
+									"buckets": [
+										{
+											"1": {
+												"value": 840.921875
+											},
+											"2": {
+												"value": 840.921875
+											},
+											"doc_count": 10,
+											"key": 1708556400000,
+											"key_as_string": "2024-02-22T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 13902.15625
+											},
+											"2": {
+												"value": 13902.15625
+											},
+											"doc_count": 166,
+											"key": 1708642800000,
+											"key_as_string": "2024-02-23T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 9844.875
+											},
+											"2": {
+												"value": 9844.875
+											},
+											"doc_count": 139,
+											"key": 1708729200000,
+											"key_as_string": "2024-02-24T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 10807.5625
+											},
+											"2": {
+												"value": 10807.5625
+											},
+											"doc_count": 149,
+											"key": 1708815600000,
+											"key_as_string": "2024-02-25T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 10270.8828125
+											},
+											"2": {
+												"value": 10270.8828125
+											},
+											"doc_count": 143,
+											"key": 1708902000000,
+											"key_as_string": "2024-02-26T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 10514.515625
+											},
+											"2": {
+												"value": 10514.515625
+											},
+											"doc_count": 144,
+											"key": 1708988400000,
+											"key_as_string": "2024-02-27T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 11515.84375
+											},
+											"2": {
+												"value": 11515.84375
+											},
+											"doc_count": 142,
+											"key": 1709074800000,
+											"key_as_string": "2024-02-28T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 12531.7421875
+											},
+											"2": {
+												"value": 12531.7421875
+											},
+											"doc_count": 158,
+											"key": 1709161200000,
+											"key_as_string": "2024-02-29T00:00:00.000+01:00"
+										}
+									]
+								},
+								"doc_count": 1051
+							},
+							"604800000": {
+								"0": {
+									"buckets": [
+										{
+											"1": {
+												"value": 460.84375
+											},
+											"2": {
+												"value": 460.84375
+											},
+											"doc_count": 7,
+											"key": 1707951600000,
+											"key_as_string": "2024-02-15T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 10181.015625
+											},
+											"2": {
+												"value": 10181.015625
+											},
+											"doc_count": 152,
+											"key": 1708038000000,
+											"key_as_string": "2024-02-16T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 10141.484375
+											},
+											"2": {
+												"value": 10141.484375
+											},
+											"doc_count": 141,
+											"key": 1708124400000,
+											"key_as_string": "2024-02-17T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 10248.6015625
+											},
+											"2": {
+												"value": 10248.6015625
+											},
+											"doc_count": 140,
+											"key": 1708210800000,
+											"key_as_string": "2024-02-18T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 12272.59375
+											},
+											"2": {
+												"value": 12272.59375
+											},
+											"doc_count": 141,
+											"key": 1708297200000,
+											"key_as_string": "2024-02-19T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 11116.45703125
+											},
+											"2": {
+												"value": 11116.45703125
+											},
+											"doc_count": 158,
+											"key": 1708383600000,
+											"key_as_string": "2024-02-20T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 10555.515625
+											},
+											"2": {
+												"value": 10555.515625
+											},
+											"doc_count": 146,
+											"key": 1708470000000,
+											"key_as_string": "2024-02-21T00:00:00.000+01:00"
+										},
+										{
+											"1": {
+												"value": 10291.4453125
+											},
+											"2": {
+												"value": 10291.4453125
+											},
+											"doc_count": 141,
+											"key": 1708556400000,
+											"key_as_string": "2024-02-22T00:00:00.000+01:00"
+										}
+									]
+								},
+								"doc_count": 1026
+							}
+						}
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 2077
+					}
+				},
+				"timed_out": false,
+				"took": 7
+			},
+			"start_time_in_millis": 1709243857582
+		}`,
+		[][]model.QueryResultRow{{}},
+		[]string{},
 	},
 }

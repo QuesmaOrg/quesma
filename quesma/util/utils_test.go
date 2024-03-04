@@ -636,6 +636,35 @@ func TestIsSqlEqual(t *testing.T) {
 	}
 }
 
+func TestAlmostEmpty(t *testing.T) {
+	var cases = []struct {
+		jsonMap              JsonMap
+		acceptableDifference []string
+		expectedResult       bool
+	}{
+		{
+			JsonMap{"non-acceptable": true},
+			[]string{},
+			false,
+		},
+		{
+			JsonMap{"acceptable": true},
+			[]string{"acceptable"},
+			true,
+		},
+		{
+			JsonMap{"acceptable1": true, "doesnt-matter": JsonMap{"acceptable2": true}},
+			[]string{"acceptable1", "acceptable2"},
+			true,
+		},
+	}
+	for i, tt := range cases {
+		t.Run("TestAlmostEmpty_"+strconv.Itoa(i), func(t *testing.T) {
+			assert.Equal(t, tt.expectedResult, AlmostEmpty(tt.jsonMap, tt.acceptableDifference))
+		})
+	}
+}
+
 func TestFilterNonEmpty(t *testing.T) {
 	tests := []struct {
 		array    []string
@@ -674,6 +703,8 @@ func Test_equal(t *testing.T) {
 		{1.0, 1.0, true},
 		{1.0, 1.0000000000000001, true},
 		{1.0, 1, true},
+		{int64(1), 1.0, true},
+		{uint64(1), 1.0, true},
 	}
 	for _, tt := range tests {
 		got := equal(tt.a, tt.b)

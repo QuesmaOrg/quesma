@@ -4,16 +4,16 @@ import (
 	"mitmproxy/quesma/model"
 )
 
-type QueryTypeCardinality struct{}
+type Cardinality struct{}
 
-func (qt QueryTypeCardinality) IsBucketAggregation() bool {
+func (query Cardinality) IsBucketAggregation() bool {
 	return false
 }
 
-func (qt QueryTypeCardinality) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Cardinality) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	return metricsTranslateSqlResponseToJson(rows, level)
 }
 
-func (qt QueryTypeCardinality) String() string {
+func (query Cardinality) String() string {
 	return "cardinality"
 }

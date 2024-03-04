@@ -24,8 +24,8 @@ type Query struct {
 // implements String() (now) and MakeResponse() interface (in the future (?))
 type QueryWithAggregation struct {
 	Query
-	AggregatorsNames []string // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
-	Type             QueryType
+	Aggregators []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
+	Type        QueryType
 }
 
 // returns string with * in SELECT
@@ -113,14 +113,8 @@ func (q *QueryWithAggregation) CopyAggregationFields(qwa QueryWithAggregation) {
 	q.NonSchemaFields = make([]string, len(qwa.NonSchemaFields))
 	copy(q.NonSchemaFields, qwa.NonSchemaFields)
 
-	q.AggregatorsNames = make([]string, len(qwa.AggregatorsNames))
-	copy(q.AggregatorsNames, qwa.AggregatorsNames)
-
-	// let's leave this comment until algorithm is 100% correct. I'm still trying to figure out what's the correct way to do it.
-	// also probably move this to some other function
-	/* if q.Type.IsBucketAggregation() && len(q.Fields) > 0 {
-		q.Fields = q.Fields[:len(q.Fields)-1]
-	} */
+	q.Aggregators = make([]Aggregator, len(qwa.Aggregators))
+	copy(q.Aggregators, qwa.Aggregators)
 }
 
 // RemoveEmptyGroupBy removes EmptyFieldSelection from GroupByFields
@@ -138,17 +132,35 @@ func (q *QueryWithAggregation) RemoveEmptyGroupBy() {
 // In future probably handle it in a better way
 func (q *QueryWithAggregation) TrimKeywordFromFields() {
 	for i := range q.Fields {
-		if strings.HasSuffix(q.Fields[i], ".keyword") {
+		if strings.HasSuffix(q.Fields[i], `.keyword"`) {
 			logger.Warn().Msgf("Trimming .keyword from field %s", q.Fields[i])
+			q.Fields[i] = strings.TrimSuffix(q.Fields[i], `.keyword"`)
+			q.Fields[i] += `"`
 		}
-		q.Fields[i] = strings.TrimSuffix(q.Fields[i], ".keyword")
 	}
 	for i := range q.GroupByFields {
-		if strings.HasSuffix(q.GroupByFields[i], ".keyword") {
+		if strings.HasSuffix(q.GroupByFields[i], `.keyword"`) {
 			logger.Warn().Msgf("Trimming .keyword from group by field %s", q.GroupByFields[i])
+			q.GroupByFields[i] = strings.TrimSuffix(q.GroupByFields[i], `.keyword"`)
+			q.GroupByFields[i] += `"`
 		}
-		q.GroupByFields[i] = strings.TrimSuffix(q.GroupByFields[i], ".keyword")
 	}
+	for i := range q.NonSchemaFields {
+		if strings.HasSuffix(q.NonSchemaFields[i], `.keyword"`) {
+			logger.Warn().Msgf("Trimming .keyword from group by field %s", q.GroupByFields[i])
+			q.NonSchemaFields[i] = strings.TrimSuffix(q.NonSchemaFields[i], `.keyword"`)
+			q.NonSchemaFields[i] += `"`
+		}
+	}
+}
+
+type Aggregator struct {
+	Name  string
+	Empty bool // is this aggregator empty, so no buckets
+}
+
+func NewAggregatorEmpty(name string) Aggregator {
+	return Aggregator{Name: name, Empty: true}
 }
 
 type AsyncSearchQueryType int
