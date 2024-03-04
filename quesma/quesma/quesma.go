@@ -136,22 +136,19 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 			if quesmaResponse != nil {
 				unzipped = []byte(quesmaResponse.Body)
 			}
-			if string(unzipped) != "" {
-				for key, value := range quesmaResponse.Meta {
-					w.Header().Set(key, value)
-				}
-				if zip {
-					w.Header().Set("Content-Encoding", "gzip")
-				}
-				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-				w.WriteHeader(quesmaResponse.StatusCode)
-				responseFromQuesma(ctx, unzipped, w, elkResponse, zip)
-			} else {
-				copyHeaders(w, elkResponse)
-				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
-				w.WriteHeader(elkResponse.StatusCode)
-				responseFromElastic(ctx, elkResponse, w)
+			if len(unzipped) == 0 {
+				logger.Warn().Ctx(ctx).Str("url", req.URL.Path).Msg("Empty response from Clickhouse")
 			}
+			for key, value := range quesmaResponse.Meta {
+				w.Header().Set(key, value)
+			}
+			if zip {
+				w.Header().Set("Content-Encoding", "gzip")
+			}
+			w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+			w.WriteHeader(quesmaResponse.StatusCode)
+			responseFromQuesma(ctx, unzipped, w, elkResponse, zip)
+
 		} else {
 			if cfg.Mode == config.DualWriteQueryClickhouseFallback {
 				logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from Elastic", err)
