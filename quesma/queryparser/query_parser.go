@@ -102,8 +102,25 @@ func (cw *ClickhouseQueryTranslator) parseMetadata(queryMap QueryMap) QueryMap {
 	return queryMetadata
 }
 
-func (cw *ClickhouseQueryTranslator) ParseQueryMap(queryMap QueryMap) SimpleQuery {
-	return cw.parseQueryMap(queryMap)
+func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fieldName string, prefix *string, caseIns bool) SimpleQuery {
+	canParse := true
+	stmts := make([]Statement, 0)
+	if indexFilter != nil {
+		res := cw.parseQueryMap(*indexFilter)
+		canParse = res.CanParse
+		stmts = append(stmts, res.Sql)
+	}
+	if prefix != nil && len(*prefix) > 0 {
+		// Maybe quote it?
+		var like string
+		if caseIns {
+			like = "iLIKE"
+		} else {
+			like = "LIKE"
+		}
+		stmts = append(stmts, NewSimpleStatement(fieldName+" "+like+" '"+*prefix+"%'"))
+	}
+	return newSimpleQuery(and(stmts), canParse)
 }
 
 func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuery {
@@ -119,7 +136,6 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 		"term":                cw.parseTerm,
 		"terms":               cw.parseTerms,
 		"query":               cw.parseQueryMap,
-		"index_filter":        cw.parseQueryMap, // used in terms enum API
 		"prefix":              cw.parsePrefix,
 		"nested":              cw.parseNested,
 		"match_phrase":        cw.parseMatch,

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"mitmproxy/quesma/model"
 	"sort"
-	"strings"
 	"time"
 )
 
@@ -137,7 +136,7 @@ func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(query *model.Query) ([
 	if err := lm.initConnection(); err != nil {
 		return nil, err
 	}
-	rowsDB, err := lm.chDb.Query(strings.Replace(query.String(), "SELECT", "SELECT DISTINCT", 1))
+	rowsDB, err := lm.chDb.Query(query.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}

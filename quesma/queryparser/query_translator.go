@@ -404,6 +404,22 @@ func (cw *ClickhouseQueryTranslator) BuildNMostRecentRowsQuery(fieldName, timest
 	}
 }
 
+func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, whereClause string, limit int) *model.Query {
+	suffixClauses := make([]string, 0)
+	if limit > 0 {
+		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(limit))
+	}
+	return &model.Query{
+		IsDistinct:      true,
+		Fields:          []string{fieldName},
+		NonSchemaFields: []string{},
+		WhereClause:     whereClause,
+		SuffixClauses:   suffixClauses,
+		FromClause:      cw.Table.FullTableName(),
+		CanParse:        true,
+	}
+}
+
 func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(timestampFieldName, whereClauseOriginal, fixedInterval string) (*model.Query, time.Duration) {
 	histogramOneBar, err := kibana.ParseInterval(fixedInterval)
 	if err != nil {

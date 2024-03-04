@@ -11,6 +11,7 @@ const EmptyFieldSelection = "''" // we can query SELECT '', that's why such quot
 
 // implements String() (now) and MakeResponse() interface (in the future (?))
 type Query struct {
+	IsDistinct      bool     // true <=> query is SELECT DISTINCT
 	Fields          []string // Fields in 'SELECT Fields FROM ...'
 	NonSchemaFields []string // Fields that are not in schema, but are in 'SELECT ...', e.g. count()
 	WhereClause     string   // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
@@ -31,6 +32,9 @@ type QueryWithAggregation struct {
 func (q *Query) String() string {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
+	if q.IsDistinct {
+		sb.WriteString("DISTINCT ")
+	}
 	for i, field := range q.Fields {
 		if field == "*" || field == EmptyFieldSelection {
 			sb.WriteString(field)

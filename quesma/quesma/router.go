@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/routes"
+	"mitmproxy/quesma/quesma/termsenum"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/stats/errorstats"
 	"regexp"
@@ -79,7 +80,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		if strings.Contains(params["index"], ",") {
 			return nil, errors.New("multi index terms enum is not yet supported")
 		} else {
-			if responseBody, err := handleTermsEnum(ctx, params["index"], []byte(body), lm); err != nil {
+			if responseBody, err := termsenum.HandleTermsEnum(ctx, params["index"], []byte(body), lm, console); err != nil {
 				return nil, err
 			} else {
 				return elasticsearchQueryResult(string(responseBody), httpOk), nil
