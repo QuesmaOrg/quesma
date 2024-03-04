@@ -126,7 +126,9 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method)
 		})
 		elkResponse := <-elkResponseChan
-		sendElkResponseToQuesmaConsole(ctx, elkResponse, quesmaManagementConsole)
+		if elkResponse != nil {
+			sendElkResponseToQuesmaConsole(ctx, elkResponse, quesmaManagementConsole)
+		}
 
 		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
 
@@ -147,15 +149,18 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 			}
 			w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
 			w.WriteHeader(quesmaResponse.StatusCode)
-			responseFromQuesma(ctx, unzipped, w, elkResponse, zip)
+			if elkResponse != nil {
+				responseFromQuesma(ctx, unzipped, w, elkResponse, zip)
+			}
 
 		} else {
-			if cfg.Mode == config.DualWriteQueryClickhouseFallback {
+			if elkResponse != nil && cfg.Mode == config.DualWriteQueryClickhouseFallback {
 				logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from Elastic", err)
 				copyHeaders(w, elkResponse)
 				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 				w.WriteHeader(elkResponse.StatusCode)
 				responseFromElastic(ctx, elkResponse, w)
+
 			} else {
 				logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from Quesma", err)
 				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
@@ -167,10 +172,12 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 		response := recordRequestToElastic(req.URL.Path, quesmaManagementConsole, func() *http.Response {
 			return sendHttpRequest(ctx, cfg.ElasticsearchUrl.String(), req, reqBody)
 		})
-		copyHeaders(w, response)
-		w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
-		w.WriteHeader(response.StatusCode)
-		responseFromElastic(ctx, response, w)
+		if response != nil {
+			copyHeaders(w, response)
+			w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
+			w.WriteHeader(response.StatusCode)
+			responseFromElastic(ctx, response, w)
+		}
 	}
 }
 
