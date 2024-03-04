@@ -119,14 +119,16 @@ func logUnexpected(elasticHeader, quesmaHeader http.Header, id string) {
 	}
 }
 
-func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, config config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole) {
+func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, cfg config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole) {
 	if router.Matches(req.URL.Path, req.Method, string(reqBody)) {
-		elkResponseChan := sendHttpRequestToElastic(ctx, config, quesmaManagementConsole, req, reqBody)
+		elkResponseChan := sendHttpRequestToElastic(ctx, cfg, quesmaManagementConsole, req, reqBody)
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, quesmaManagementConsole, func() (*mux.Result, error) {
 			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method)
 		})
 		elkResponse := <-elkResponseChan
 		sendElkResponseToQuesmaConsole(ctx, elkResponse, quesmaManagementConsole)
+
+		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
 
 		if err == nil {
 			logger.Debug().Ctx(ctx).Msg("responding from quesma")
@@ -138,7 +140,6 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 				for key, value := range quesmaResponse.Meta {
 					w.Header().Set(key, value)
 				}
-				zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
 				if zip {
 					w.Header().Set("Content-Encoding", "gzip")
 				}
@@ -152,14 +153,22 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 				responseFromElastic(ctx, elkResponse, w)
 			}
 		} else {
-			logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from Elastic", err)
-			w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
-			w.WriteHeader(elkResponse.StatusCode)
-			responseFromElastic(ctx, elkResponse, w)
+			if cfg.Mode == config.DualWriteQueryClickhouseFallback {
+				logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from Elastic", err)
+				copyHeaders(w, elkResponse)
+				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
+				w.WriteHeader(elkResponse.StatusCode)
+				responseFromElastic(ctx, elkResponse, w)
+			} else {
+				logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from Quesma", err)
+				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+				w.WriteHeader(500)
+				responseFromQuesma(ctx, []byte(err.Error()), w, elkResponse, zip)
+			}
 		}
 	} else {
 		response := recordRequestToElastic(req.URL.Path, quesmaManagementConsole, func() *http.Response {
-			return sendHttpRequest(ctx, config.ElasticsearchUrl.String(), req, reqBody)
+			return sendHttpRequest(ctx, cfg.ElasticsearchUrl.String(), req, reqBody)
 		})
 		copyHeaders(w, response)
 		w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
