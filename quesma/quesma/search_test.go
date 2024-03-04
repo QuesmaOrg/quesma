@@ -71,7 +71,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 			defer db.Close()
 			assert.NoError(t, err)
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), make(<-chan string, 50000))
+			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000))
 
 			for _, regex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(regex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
@@ -111,7 +111,7 @@ func TestSearchHandler(t *testing.T) {
 			assert.NoError(t, err)
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), make(<-chan string, 50000))
+			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000))
 			mock.ExpectQuery(testdata.EscapeBrackets(tt.WantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			_, _ = handleSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
 
@@ -134,7 +134,7 @@ func TestSearcHandlerNoAttrsConfig(t *testing.T) {
 			assert.NoError(t, err)
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), make(<-chan string, 50000))
+			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000))
 			mock.ExpectQuery(testdata.EscapeBrackets(tt.WantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			_, _ = handleSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
 
@@ -156,7 +156,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 			assert.NoError(t, err)
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), make(<-chan string, 50000))
+			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000))
 			mock.ExpectQuery(testdata.EscapeBrackets(tt.WantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			_, _ = handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
 
@@ -223,7 +223,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 	}
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
-	managementConsole := ui.NewQuesmaManagementConsole(config.Load(), make(<-chan string, 50000))
+	managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000))
 
 	for _, fieldName := range []string{dateTimeTimestampField, dateTime64TimestampField, dateTime64OurTimestampField} {
 		mock.ExpectQuery(testdata.EscapeBrackets(expectedSelectStatementRegex[fieldName])).

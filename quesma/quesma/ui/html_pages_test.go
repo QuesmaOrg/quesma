@@ -14,7 +14,7 @@ func TestHtmlPages(t *testing.T) {
 	xssBytes := []byte(xss)
 	id := "MagicId_123"
 	logChan := make(chan string, 5)
-	qmc := NewQuesmaManagementConsole(config.Load(), logChan)
+	qmc := NewQuesmaManagementConsole(config.Load(), nil, logChan)
 	qmc.PushPrimaryInfo(&QueryDebugPrimarySource{Id: id, QueryResp: xssBytes})
 	qmc.PushSecondaryInfo(&QueryDebugSecondarySource{Id: id,
 		IncomingQueryBody:      xssBytes,
@@ -52,6 +52,12 @@ func TestHtmlPages(t *testing.T) {
 	t.Run("statistics got no XSS", func(t *testing.T) {
 		stats.GlobalStatistics.Process(xss, "{}", clickhouse.NestedSeparator)
 		response := string(qmc.generateStatistics())
+		assert.NotContains(t, response, xss)
+	})
+
+	// generateSchema relies on the LogManager instance, which is not initialized in this test
+	t.Run("schema got no XSS and no panic", func(t *testing.T) {
+		response := string(qmc.generateSchema())
 		assert.NotContains(t, response, xss)
 	})
 }

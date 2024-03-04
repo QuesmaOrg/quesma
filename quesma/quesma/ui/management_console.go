@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/mjibson/sqlfmt"
 	"io"
+	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/stats"
@@ -85,9 +86,10 @@ type QuesmaManagementConsole struct {
 	startedAt                 time.Time
 	clickhouseStatusCache     healthCheckStatusCache
 	elasticStatusCache        healthCheckStatusCache
+	logManager                *clickhouse.LogManager
 }
 
-func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logChan <-chan string) *QuesmaManagementConsole {
+func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *clickhouse.LogManager, logChan <-chan string) *QuesmaManagementConsole {
 	return &QuesmaManagementConsole{
 		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 5),
 		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 5),
@@ -101,6 +103,7 @@ func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logChan <-cha
 		startedAt:                 time.Now(),
 		clickhouseStatusCache:     newHealthCheckStatusCache(),
 		elasticStatusCache:        newHealthCheckStatusCache(),
+		logManager:                logManager,
 	}
 }
 
@@ -153,6 +156,11 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 
 	router.HandleFunc("/", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateLiveTail()
+		_, _ = writer.Write(buf)
+	})
+
+	router.HandleFunc("/schema", func(writer http.ResponseWriter, req *http.Request) {
+		buf := qmc.generateSchema()
 		_, _ = writer.Write(buf)
 	})
 

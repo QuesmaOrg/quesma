@@ -74,3 +74,12 @@ func (m *Map[K, V]) Range(f func(key K, value V) bool) {
 	m.syncMap.Range(func(key, value any) bool { return f(key.(K), value.(V)) })
 }
 func (m *Map[K, V]) Store(key K, value V) { m.syncMap.Store(key, value) }
+
+func (m *Map[K, V]) Keys() []K {
+	keys := make([]K, 0)
+	m.syncMap.Range(func(key, _ any) bool {
+		keys = append(keys, key.(K))
+		return true
+	})
+	return keys
+}

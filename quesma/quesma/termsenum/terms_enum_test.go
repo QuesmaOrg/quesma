@@ -73,7 +73,7 @@ func TestHandleTermsEnumRequest(t *testing.T) {
 		Created: true,
 	}
 
-	managementConsole := ui.NewQuesmaManagementConsole(config.Load(), make(<-chan string, 50000))
+	managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000))
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(testTableName, table))

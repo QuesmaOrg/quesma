@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mitmproxy/quesma/stats/errorstats"
 	"net/url"
+	"sort"
 )
 
 func generateTopNavigation(target string) []byte {
@@ -33,6 +34,12 @@ func generateTopNavigation(target string) []byte {
 	}
 	buffer.Html(`><a href="/routing-statistics">Routing</a></li>`)
 
+	buffer.Html("<li")
+	if target == "schema" {
+		buffer.Html(` class="active"`)
+	}
+	buffer.Html(`><a href="/schema">Schema</a></li>`)
+
 	buffer.Html("\n</ul>\n")
 	buffer.Html("\n</div>\n")
 
@@ -46,6 +53,163 @@ func generateTopNavigation(target string) []byte {
 	buffer.Html("\n</div>")
 	buffer.Html("\n</div>\n")
 	buffer.Html("\n</div>\n\n")
+	return buffer.Bytes()
+}
+
+func (qmc *QuesmaManagementConsole) generateSchema() []byte {
+	type menuEntry struct {
+		label  string
+		target string
+	}
+
+	var menuEntries []menuEntry
+
+	buffer := newBufferWithHead()
+	buffer.Write(generateTopNavigation("schema"))
+	buffer.Html(`<main id="schema">`)
+
+	if qmc.logManager != nil && qmc.logManager.GetTableDefinitions() != nil {
+
+		// Not sure if we should read directly from the TableMap or we should use the Snapshot of it.
+		// Let's leave it as is for now.
+		schema := qmc.logManager.GetTableDefinitions()
+
+		tableNames := schema.Keys()
+		sort.Strings(tableNames)
+
+		buffer.Html("\n<table>")
+
+		for i, tableName := range tableNames {
+			table, ok := schema.Load(tableName)
+			if !ok {
+				continue
+			}
+
+			id := fmt.Sprintf("schema-table-%d", i)
+			var menu menuEntry
+			menu.label = table.Name
+			menu.target = fmt.Sprintf("#%s", id)
+			menuEntries = append(menuEntries, menu)
+
+			buffer.Html(`<tr class="tableName"`)
+			buffer.Html(fmt.Sprintf(` id="%s"`, id))
+			buffer.Html(`>`)
+			buffer.Html(`<th colspan=2><h2>`)
+			buffer.Html(`Table: `)
+			buffer.Text(table.Name)
+			buffer.Html(`</h2></th>`)
+			buffer.Html(`</tr>`)
+
+			buffer.Html(`<tr>`)
+			buffer.Html(`<th>`)
+			buffer.Html(`Name`)
+			buffer.Html(`</th>`)
+			buffer.Html(`<th>`)
+			buffer.Html(`Type`)
+			buffer.Html(`</th>`)
+			buffer.Html(`</tr>`)
+
+			var columnNames []string
+			for k := range table.Cols {
+				columnNames = append(columnNames, k)
+			}
+			sort.Strings(columnNames)
+
+			for _, columnName := range columnNames {
+				column, ok := table.Cols[columnName]
+				if !ok {
+					continue
+				}
+
+				buffer.Html(`<tr>`)
+				buffer.Html(`<td class="columnName">`)
+				buffer.Text(column.Name)
+				buffer.Html(`</td>`)
+				buffer.Html(`<td class="columnType">`)
+				if column.Type != nil {
+					buffer.Text(column.Type.String())
+				} else {
+					buffer.Text(`not available`)
+				}
+				buffer.Html(`</td>`)
+				buffer.Html(`</tr>`)
+			}
+
+		}
+
+		buffer.Html("\n</table>")
+
+	} else {
+		buffer.Html(`<p>Schema is not available</p>`)
+	}
+
+	var configKeys []string
+	config := make(map[string]bool)
+	for _, cfg := range qmc.config.IndexConfig {
+		configKeys = append(configKeys, cfg.NamePattern)
+		config[cfg.NamePattern] = cfg.Enabled
+	}
+
+	buffer.Html("\n<table>")
+	buffer.Html(`<tr class="tableName" id="quesma-config">`)
+	buffer.Html(`<th colspan=2><h2>`)
+	buffer.Html(`Quesma Config`)
+	buffer.Html(`</h2></th>`)
+	buffer.Html(`</tr>`)
+
+	buffer.Html(`<tr>`)
+	buffer.Html(`<th>`)
+	buffer.Html(`Name Pattern`)
+	buffer.Html(`</th>`)
+	buffer.Html(`<th>`)
+	buffer.Html(`Enabled?`)
+	buffer.Html(`</th>`)
+	buffer.Html(`</tr>`)
+
+	sort.Strings(configKeys)
+	for _, key := range configKeys {
+		buffer.Html(`<tr>`)
+		buffer.Html(`<th>`)
+		buffer.Text(key)
+		buffer.Html(`</th>`)
+		buffer.Html(`<th>`)
+		if config[key] {
+			buffer.Text("true")
+		} else {
+			buffer.Text("false")
+		}
+		buffer.Html(`</th>`)
+		buffer.Html(`</tr>`)
+	}
+
+	buffer.Html("\n</table>")
+
+	buffer.Html("\n</main>\n\n")
+
+	buffer.Html(`<div class="menu">`)
+	buffer.Html("\n<h2>Menu</h2>")
+
+	buffer.Html("Tables:")
+	buffer.Html("<ol>")
+
+	for _, menu := range menuEntries {
+		buffer.Html(`<li><a href="`)
+		buffer.Text(menu.target)
+		buffer.Html(`">`)
+		buffer.Text(menu.label)
+		buffer.Html(`</a></li>`)
+	}
+
+	buffer.Html("</ol>")
+
+	buffer.Html(`<a href="#quesma-config">Quesma Config</a>`)
+
+	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+
+	buffer.Html("\n</div>")
+
+	buffer.Html("\n</body>")
+	buffer.Html("\n</html>")
 	return buffer.Bytes()
 }
 

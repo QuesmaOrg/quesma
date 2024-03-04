@@ -91,7 +91,7 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, elkResponse *http.Respo
 }
 
 func NewQuesmaTcpProxy(config config.QuesmaConfiguration, logChan <-chan string, inspect bool) *Quesma {
-	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logChan)
+	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, nil, logChan)
 	return &Quesma{
 		processor:               proxy.NewTcpProxy(config.PublicTcpPort, config.ElasticsearchUrl.Host, inspect),
 		publicTcpPort:           config.PublicTcpPort,
@@ -101,7 +101,7 @@ func NewQuesmaTcpProxy(config config.QuesmaConfiguration, logChan <-chan string,
 }
 
 func NewHttpProxy(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
-	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logChan)
+	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logManager, logChan)
 	router := configureRouter(config, logManager, quesmaManagementConsole)
 	return &Quesma{
 		processor:               newDualWriteProxy(logManager, config, router, quesmaManagementConsole),
