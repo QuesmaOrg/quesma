@@ -72,6 +72,43 @@ func Test_resolveColumn(t *testing.T) {
 			args: args{colName: "tags", colType: "Array(DateTime64)"},
 			want: &Column{Name: "tags", Type: CompoundType{Name: "Array", BaseType: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{})}}},
 		},
+		{
+			name: "Tuple",
+			args: args{colName: "tuple", colType: "Tuple(taxful_price Nullable(Float64), product_id Nullable(Int64), category Nullable(String), created_on DateTime64(3), manufacturer Nullable(String))"},
+			want: &Column{
+				Name: "tuple",
+				Type: MultiValueType{
+					Name: "Tuple",
+					Cols: []*Column{
+						{Name: "taxful_price", Type: BaseType{Name: "Float64", goType: reflect.TypeOf(float64(0))}},
+						{Name: "product_id", Type: BaseType{Name: "Int64", goType: reflect.TypeOf(int64(0))}},
+						{Name: "category", Type: BaseType{Name: "String", goType: reflect.TypeOf("")}},
+						{Name: "created_on", Type: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{})}},
+						{Name: "manufacturer", Type: BaseType{Name: "String", goType: reflect.TypeOf("")}},
+					},
+				},
+			},
+		},
+		{
+			name: "Array(Tuple(...))",
+			args: args{colName: "array", colType: "Array(Tuple(taxful_price Nullable(Float64), product_id Nullable(Int64), category Nullable(String), created_on DateTime64(3), manufacturer Nullable(String)))"},
+			want: &Column{
+				Name: "array",
+				Type: CompoundType{
+					Name: "Array",
+					BaseType: MultiValueType{
+						Name: "Tuple",
+						Cols: []*Column{
+							{Name: "taxful_price", Type: BaseType{Name: "Float64", goType: reflect.TypeOf(float64(0))}},
+							{Name: "product_id", Type: BaseType{Name: "Int64", goType: reflect.TypeOf(int64(0))}},
+							{Name: "category", Type: BaseType{Name: "String", goType: reflect.TypeOf("")}},
+							{Name: "created_on", Type: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{})}},
+							{Name: "manufacturer", Type: BaseType{Name: "String", goType: reflect.TypeOf("")}},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {

@@ -233,6 +233,7 @@ func parseCompoundType(q string, i int) (int, Type) {
 	return i, typ
 }
 
+// parseMultiValueType returns -1 if failed, otherwise (index after the match, []*Column)
 // TO THINK: subcolumns shouldn't have codecs? Maybe fix it somehow
 // TODO maybe merge with 'parseColumn'? Can wait, for now it works as it is.
 func parseMultiValueType(q string, i int) (int, []*Column) {

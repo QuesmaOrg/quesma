@@ -67,16 +67,41 @@ func resolveColumn(colName, colType string) *Column {
 					BaseType: BaseType{Name: arrayType, goType: goType},
 				},
 			}
+		} else if isTupleType(arrayType) {
+			tupleColumn := resolveColumn("Tuple", arrayType)
+			tupleTyp, ok := tupleColumn.Type.(MultiValueType)
+			if !ok {
+				logger.Warn().Msgf("invalid tuple type for column %s, %s", colName, colType)
+				return nil
+			}
+			return &Column{
+				Name: colName,
+				Type: CompoundType{
+					Name:     "Array",
+					BaseType: tupleTyp,
+				},
+			}
 		} else {
 			return nil
+		}
+	} else if isTupleType(colType) {
+		indexAfterMatch, columns := parseMultiValueType(colType, len("Tuple"))
+		if indexAfterMatch == -1 {
+			logger.Warn().Msgf("failed parsing tuple type for column %s, %s", colName, colType)
+			return nil
+		}
+		return &Column{
+			Name: colName,
+			Type: MultiValueType{
+				Name: "Tuple",
+				Cols: columns,
+			},
 		}
 	}
 
 	_ = isNullable
 
 	// TODO nullable
-	// TODO tuple
-	// TODO Array(Tuple(...))
 
 	if strings.HasPrefix(colType, "DateTime") {
 		colType = removePrecision(colType)
@@ -97,6 +122,10 @@ func resolveColumn(colName, colType string) *Column {
 
 func isArrayType(colType string) bool {
 	return strings.HasPrefix(colType, "Array(") && strings.HasSuffix(colType, ")")
+}
+
+func isTupleType(colType string) bool {
+	return strings.HasPrefix(colType, "Tuple(") && strings.HasSuffix(colType, ")")
 }
 
 func isNullableType(colType string) bool {
