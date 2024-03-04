@@ -51,8 +51,10 @@ func (b *aggrQueryBuilder) buildBucketAggregation() model.QueryWithAggregation {
 func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregation) model.QueryWithAggregation {
 	query := b.buildAggregationCommon()
 	switch metricsAggr.AggrType {
-	case "sum", "min", "max", "avg", "quantile":
+	case "sum", "min", "max", "avg":
 		query.NonSchemaFields = append(query.NonSchemaFields, metricsAggr.AggrType+`("`+metricsAggr.FieldNames[0]+`")`)
+	case "quantile": // those 7 percentiles are default returned by ES, unless request specifies otherwise (ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-aggregation.html)
+		query.NonSchemaFields = append(query.NonSchemaFields, `quantiles(0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99)(`+metricsAggr.FieldNames[0]+`)`)
 	case "cardinality":
 		query.NonSchemaFields = append(query.NonSchemaFields, `COUNT(DISTINCT "`+metricsAggr.FieldNames[0]+`")`)
 	case "value_count":

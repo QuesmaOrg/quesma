@@ -69,6 +69,10 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 		return newSimpleQuery(NewSimpleStatement("invalid JSON (parseQueryAsyncSearch)"), false), model.NewQueryInfoAsyncSearchNone()
 	}
 
+	if _, ok := queryAsMap["query"]; !ok {
+		return newSimpleQuery(NewSimpleStatement("no query in async search"), false), model.NewQueryInfoAsyncSearchNone()
+	}
+
 	parsed := cw.parseQueryMap(queryAsMap["query"].(QueryMap))
 	queryInfo := cw.tryProcessMetadataAsyncSearch(queryAsMap)
 
