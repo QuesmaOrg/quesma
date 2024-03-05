@@ -489,6 +489,9 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 	// not checking for len == 1 because it's only option in proper query
 	for field, v := range queryMap {
 		stmts := make([]Statement, 0)
+		if _, ok := v.(QueryMap); !ok {
+			continue
+		}
 		for op, v := range v.(QueryMap) {
 			vToPrint := sprint(v)
 			if dateTime, ok := v.(string); ok {
