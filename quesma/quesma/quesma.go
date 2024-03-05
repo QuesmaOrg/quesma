@@ -68,7 +68,9 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 		w.Header().Add(httpHeaderContentLength, strconv.Itoa(len(unzipped)))
 		_, _ = io.Copy(w, bytes.NewBuffer(unzipped))
 	}
-	logUnexpected(elkResponse.Header, w.Header(), id)
+	if elkResponse != nil {
+		logUnexpected(elkResponse.Header, w.Header(), id)
+	}
 }
 
 func sendElkResponseToQuesmaConsole(ctx context.Context, elkResponse *http.Response, console *ui.QuesmaManagementConsole) {
@@ -149,9 +151,7 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 			}
 			w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
 			w.WriteHeader(quesmaResponse.StatusCode)
-			if elkResponse != nil {
-				responseFromQuesma(ctx, unzipped, w, elkResponse, zip)
-			}
+			responseFromQuesma(ctx, unzipped, w, elkResponse, zip)
 
 		} else {
 			if elkResponse != nil && cfg.Mode == config.DualWriteQueryClickhouseFallback {
