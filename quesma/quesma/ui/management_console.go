@@ -433,6 +433,9 @@ func (qmc *QuesmaManagementConsole) comparePipelines() {
 		queryDebugInfo, ok := <-qmc.responseMatcherChannel
 		if ok {
 			if string(queryDebugInfo.QueryResp) != string(queryDebugInfo.QueryTranslatedResults) {
+				if len(queryDebugInfo.QueryResp) == 0 {
+					queryDebugInfo.QueryResp = []byte("{}")
+				}
 				elasticSurplusFields, ourSurplusFields, err := util.JsonDifference(
 					string(queryDebugInfo.QueryResp),
 					string(queryDebugInfo.QueryTranslatedResults),
