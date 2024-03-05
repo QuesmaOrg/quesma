@@ -29,16 +29,52 @@ func NewQueryResultCol(colName string, value interface{}) QueryResultCol {
 }
 
 func (c QueryResultCol) String() string {
-	switch c.Value.(type) {
-	case *string:
-		return fmt.Sprintf(`"%s": "%s"`, c.ColName, *c.Value.(*string))
-	case *time.Time:
-		return fmt.Sprintf(`"%s": "%v"`, c.ColName, *c.Value.(*time.Time))
+	switch valueTyped := c.Value.(type) {
 	case string, time.Time:
 		return fmt.Sprintf(`"%s": "%v"`, c.ColName, c.Value)
-	default:
+	case int, int64, float64, uint64, bool:
 		return fmt.Sprintf(`"%s": %v`, c.ColName, c.Value)
+	case *string:
+		if valueTyped == nil {
+			return fmt.Sprintf(`"%s": null`, c.ColName)
+		} else {
+			return fmt.Sprintf(`"%s": "%v"`, c.ColName, *valueTyped)
+		}
+	case *time.Time:
+		if valueTyped == nil {
+			return fmt.Sprintf(`"%s": null`, c.ColName)
+		} else {
+			return fmt.Sprintf(`"%s": "%v"`, c.ColName, *valueTyped)
+		}
+	case *int64:
+		if valueTyped == nil {
+			return fmt.Sprintf(`"%s": null`, c.ColName)
+		} else {
+			return fmt.Sprintf(`"%s": %v`, c.ColName, *valueTyped)
+		}
+	case *float64:
+		if valueTyped == nil {
+			return fmt.Sprintf(`"%s": null`, c.ColName)
+		} else {
+			return fmt.Sprintf(`"%s": %v`, c.ColName, *valueTyped)
+		}
+	case *int:
+		if valueTyped == nil {
+			return fmt.Sprintf(`"%s": null`, c.ColName)
+		} else {
+			return fmt.Sprintf(`"%s": %v`, c.ColName, *valueTyped)
+		}
+	case *bool:
+		if valueTyped == nil {
+			return fmt.Sprintf(`"%s": null`, c.ColName)
+		} else {
+			return fmt.Sprintf(`"%s": %v`, c.ColName, *valueTyped)
+		}
 	}
+
+	// TODO Add arrays
+
+	return fmt.Sprintf(`"%s": %v`, c.ColName, c.Value)
 }
 
 func (r QueryResultRow) String() string {

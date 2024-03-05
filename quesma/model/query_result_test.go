@@ -1,0 +1,61 @@
+package model
+
+import (
+	"testing"
+	"time"
+)
+
+func TestQueryResultCol_String(t *testing.T) {
+	var str = ""
+	var strPtr, strPtrNil *string = &str, nil
+
+	var Time = time.Time{}
+	var timePtr, timePtrNil *time.Time = &Time, nil
+
+	var Int64 = int64(1)
+	var int64Ptr, int64PtrNil *int64 = &Int64, nil
+
+	var Float64 = float64(1)
+	var float64Ptr, float64PtrNil *float64 = &Float64, nil
+
+	var Int = 1
+	var intPtr, intPtrNil *int = &Int, nil
+
+	var Bool = true
+	var boolPtr, boolPtrNil *bool = &Bool, nil
+
+	var testcases = []struct {
+		value    any
+		expected string
+	}{
+		{"test", `"name": "test"`},
+		{1, `"name": 1`},
+		{1.0, `"name": 1`},
+		{int64(1), `"name": 1`},
+		{uint64(1), `"name": 1`},
+		{true, `"name": true`},
+		{time.Time{}, `"name": "0001-01-01 00:00:00 +0000 UTC"`},
+		{strPtr, `"name": ""`},
+		{strPtrNil, `"name": null`},
+		{timePtr, `"name": "0001-01-01 00:00:00 +0000 UTC"`},
+		{timePtrNil, `"name": null`},
+		{int64Ptr, `"name": 1`},
+		{int64PtrNil, `"name": null`},
+		{float64Ptr, `"name": 1`},
+		{float64PtrNil, `"name": null`},
+		{intPtr, `"name": 1`},
+		{intPtrNil, `"name": null`},
+		{boolPtr, `"name": true`},
+		{boolPtrNil, `"name": null`},
+	}
+
+	for _, tt := range testcases {
+		t.Run(tt.expected, func(t *testing.T) {
+			col := QueryResultCol{ColName: "name", Value: tt.value}
+			got := col.String()
+			if got != tt.expected {
+				t.Errorf("Expected %v, got %v", tt.expected, got)
+			}
+		})
+	}
+}
