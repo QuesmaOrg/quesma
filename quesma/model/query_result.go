@@ -30,6 +30,10 @@ func NewQueryResultCol(colName string, value interface{}) QueryResultCol {
 
 func (c QueryResultCol) String() string {
 	switch c.Value.(type) {
+	case *string:
+		return fmt.Sprintf(`"%s": "%s"`, c.ColName, *c.Value.(*string))
+	case *time.Time:
+		return fmt.Sprintf(`"%s": "%v"`, c.ColName, *c.Value.(*time.Time))
 	case string, time.Time:
 		return fmt.Sprintf(`"%s": "%v"`, c.ColName, c.Value)
 	default:
