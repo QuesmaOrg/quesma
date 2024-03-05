@@ -12,6 +12,7 @@ import (
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/util"
 	"net/http"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -335,7 +336,9 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 			qmc.debugInfoMessages[msg.Id] = value
 			// That's the point where QueryDebugInfo is
 			// complete and we can compare results
-			qmc.responseMatcherChannel <- value
+			if isComplete(value) {
+				qmc.responseMatcherChannel <- value
+			}
 		}
 		qmc.mutex.Unlock()
 	case msg := <-qmc.queryDebugSecondarySource:
@@ -358,7 +361,9 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 			// That's the point where QueryDebugInfo is
 			// complete and we can compare results
 			qmc.debugInfoMessages[msg.Id] = value
-			qmc.responseMatcherChannel <- value
+			if isComplete(value) {
+				qmc.responseMatcherChannel <- value
+			}
 		}
 		qmc.mutex.Unlock()
 	case msg := <-qmc.queryDebugLogs:
@@ -384,6 +389,10 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 	case record := <-qmc.requestsSource:
 		qmc.requestsStore.RecordRequest(record.typeName, record.took, record.error)
 	}
+}
+
+func isComplete(value QueryDebugInfo) bool {
+	return !reflect.DeepEqual(value.QueryDebugPrimarySource, QueryDebugPrimarySource{}) && !reflect.DeepEqual(value.QueryDebugSecondarySource, QueryDebugSecondarySource{})
 }
 
 func (qmc *QuesmaManagementConsole) Run() {

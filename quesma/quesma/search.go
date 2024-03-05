@@ -98,7 +98,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 
 	// Until we're sure new solution is stable, let's try to use the old one
 	if simpleQuery.CanParse {
-		logger.Info().Str(logger.RID, id).Ctx(ctx).Msgf("Received _async_search request, type: %v", queryInfo.Typ)
+		logger.Debug().Str(logger.RID, id).Ctx(ctx).Msgf("Received _async_search request, type: %v", queryInfo.Typ)
 		var fullQuery *model.Query
 		var err error
 		var rows []model.QueryResultRow
