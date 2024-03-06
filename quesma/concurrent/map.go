@@ -14,7 +14,7 @@ type MapEntry[K comparable, V any] struct {
 }
 
 func NewMap[K comparable, V any]() *Map[K, V] {
-	return &Map[K, V]{syncMap: new(sync.Map)}
+	return &Map[K, V]{syncMap: &sync.Map{}}
 }
 
 func NewMapWith[K comparable, V any](k K, v V) *Map[K, V] {

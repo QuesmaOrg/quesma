@@ -40,7 +40,7 @@ func populateTableDefinitions(configuredTables map[string]map[string]string, dat
 					}
 				}
 
-				lm.tableDefinitions.Store(tableName, &table)
+				lm.tableDefinitions.Load().Store(tableName, &table)
 				logger.Info().Msgf("schema for table [%s] loaded", tableName)
 			} else {
 				logger.Warn().Msgf("table %s not fully resolved, skipping", tableName)

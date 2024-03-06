@@ -14,6 +14,7 @@ import (
 	"mitmproxy/quesma/util"
 	"regexp"
 	"strings"
+	"sync/atomic"
 )
 
 const (
@@ -24,10 +25,10 @@ const (
 type (
 	LogManager struct {
 		chDb             *sql.DB
-		tableDefinitions TableMap
+		tableDefinitions *atomic.Pointer[TableMap]
 		cfg              config.QuesmaConfiguration
 	}
-	TableMap  = *concurrent.Map[string, *Table]
+	TableMap  = concurrent.Map[string, *Table]
 	SchemaMap = map[string]interface{} // TODO remove
 	Attribute struct {
 		KeysArrayName   string
@@ -57,6 +58,10 @@ type (
 		preferCastingToOthers                 bool // we'll put non-schema field in [String, String] attrs map instead of others, if we have both options
 	}
 )
+
+func NewTableMap() *TableMap {
+	return concurrent.NewMap[string, *Table]()
+}
 
 func (lm *LogManager) Start() {
 	if err := lm.initConnection(); err != nil {
@@ -163,13 +168,14 @@ func (lm *LogManager) matchIndex(indexNamePattern, indexName string) bool {
 // Indexes can be in a form of wildcard, e.g. "index-*"
 // If we have such index, we need to resolve it to a real table name.
 func (lm *LogManager) ResolveTableName(index string) (result string) {
-	lm.tableDefinitions.Range(func(k string, v *Table) bool {
-		if lm.matchIndex(index, k) {
-			result = k
-			return false
-		}
-		return true
-	})
+	lm.tableDefinitions.Load().
+		Range(func(k string, v *Table) bool {
+			if lm.matchIndex(index, k) {
+				result = k
+				return false
+			}
+			return true
+		})
 	return result
 }
 
@@ -413,19 +419,20 @@ func (lm *LogManager) Insert(tableName string, jsons []string, config *ChTableCo
 
 func (lm *LogManager) GetTable(tableName string) (result *Table) {
 	tableNamePattern := index.TableNamePatternRegexp(tableName)
-	lm.tableDefinitions.Range(func(name string, table *Table) bool {
-		if tableNamePattern.MatchString(name) {
-			result = table
-			return false
-		}
-		return true
-	})
+	lm.tableDefinitions.Load().
+		Range(func(name string, table *Table) bool {
+			if tableNamePattern.MatchString(name) {
+				result = table
+				return false
+			}
+			return true
+		})
 
 	return result
 }
 
 func (lm *LogManager) GetTableDefinitions() TableMap {
-	return lm.tableDefinitions
+	return *lm.tableDefinitions.Load()
 }
 
 // Returns if schema wasn't created (so it needs to be, and will be in a moment)
@@ -433,7 +440,7 @@ func (lm *LogManager) addSchemaIfDoesntExist(table *Table) bool {
 	t := lm.GetTable(table.Name)
 	if t == nil {
 		table.Created = true
-		lm.tableDefinitions.Store(table.Name, table)
+		lm.tableDefinitions.Load().Store(table.Name, table)
 		return true
 	}
 	wasntCreated := !t.Created
@@ -441,17 +448,23 @@ func (lm *LogManager) addSchemaIfDoesntExist(table *Table) bool {
 	return wasntCreated
 }
 
-func NewLogManager(tables TableMap, cfg config.QuesmaConfiguration) *LogManager {
-	return &LogManager{chDb: nil, tableDefinitions: tables, cfg: cfg}
+func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager {
+	var tableDefinitions = atomic.Pointer[TableMap]{}
+	tableDefinitions.Store(tables)
+	return &LogManager{chDb: nil, tableDefinitions: &tableDefinitions, cfg: cfg}
 }
 
 // right now only for tests purposes
-func NewLogManagerWithConnection(db *sql.DB, tables TableMap) *LogManager {
-	return &LogManager{chDb: db, tableDefinitions: tables}
+func NewLogManagerWithConnection(db *sql.DB, tables *TableMap) *LogManager {
+	var tableDefinitions = atomic.Pointer[TableMap]{}
+	tableDefinitions.Store(tables)
+	return &LogManager{chDb: db, tableDefinitions: &tableDefinitions}
 }
 
 func NewLogManagerEmpty() *LogManager {
-	return &LogManager{tableDefinitions: concurrent.NewMap[string, *Table]()}
+	var tableDefinitions = atomic.Pointer[TableMap]{}
+	tableDefinitions.Store(NewTableMap())
+	return &LogManager{tableDefinitions: &tableDefinitions}
 }
 
 func NewOnlySchemaFieldsCHConfig() *ChTableConfig {

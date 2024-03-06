@@ -77,7 +77,7 @@ func withPredefinedTables() TableMap {
 	for k, v := range predefined {
 		m.Store(k, v)
 	}
-	return m
+	return *m
 }
 
 var TableDefinitions = withPredefinedTables()

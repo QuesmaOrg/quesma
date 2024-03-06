@@ -48,7 +48,7 @@ func (lm *LogManager) DumpTableSchemas() (string, error) {
 		return "", err
 	}
 
-	result := &concurrent.Map[string, *Table]{}
+	result := concurrent.NewMap[string, *Table]()
 	for rows.Next() {
 		var tableName string
 		err = rows.Scan(&tableName)

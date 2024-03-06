@@ -5,6 +5,7 @@ import (
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/quesma/config"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -58,8 +59,8 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	}
 
 	// both cases need to be OK
-	f(emptyMap, fieldsMap)
-	f(fieldsMap, emptyMap)
+	f(emptyMap, *fieldsMap)
+	f(*fieldsMap, emptyMap)
 }
 
 // TODO update this test now it doesn't do many useful things
@@ -784,56 +785,58 @@ func TestLogManager_GetTable(t *testing.T) {
 	}{
 		{
 			name:             "empty",
-			predefinedTables: concurrent.NewMap[string, *Table](),
+			predefinedTables: *concurrent.NewMap[string, *Table](),
 			tableNamePattern: "table",
 			found:            false,
 		},
 		{
 			name:             "should find by name",
-			predefinedTables: concurrent.NewMapWith("table1", &Table{Name: "table1"}),
+			predefinedTables: *concurrent.NewMapWith("table1", &Table{Name: "table1"}),
 			tableNamePattern: "table1",
 			found:            true,
 		},
 		{
 			name:             "should not find by name",
-			predefinedTables: concurrent.NewMapWith("table1", &Table{Name: "table1"}),
+			predefinedTables: *concurrent.NewMapWith("table1", &Table{Name: "table1"}),
 			tableNamePattern: "foo",
 			found:            false,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-generic-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*-*-*",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "logs-*-default",
 			found:            true,
 		},
 		{
 			name:             "should find by pattern",
-			predefinedTables: concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "*",
 			found:            true,
 		},
 		{
 			name:             "should not find by pattern",
-			predefinedTables: concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
+			predefinedTables: *concurrent.NewMapWith("logs-generic-default", &Table{Name: "logs-generic-default"}),
 			tableNamePattern: "foo-*",
 			found:            false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			lm := &LogManager{tableDefinitions: tt.predefinedTables}
+			var tableDefinitions = atomic.Pointer[TableMap]{}
+			tableDefinitions.Store(&tt.predefinedTables)
+			lm := NewLogManager(&tt.predefinedTables, config.QuesmaConfiguration{})
 			assert.Equalf(t, tt.found, lm.GetTable(tt.tableNamePattern) != nil, "GetTable(%v)", tt.tableNamePattern)
 		})
 	}

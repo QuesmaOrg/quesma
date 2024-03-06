@@ -75,7 +75,7 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 	buffer.Write(generateTopNavigation("schema"))
 	buffer.Html(`<main id="schema">`)
 
-	if qmc.logManager != nil && qmc.logManager.GetTableDefinitions() != nil {
+	if qmc.logManager != nil {
 
 		// Not sure if we should read directly from the TableMap or we should use the Snapshot of it.
 		// Let's leave it as is for now.

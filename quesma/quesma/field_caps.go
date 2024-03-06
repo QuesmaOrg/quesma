@@ -112,7 +112,7 @@ func addNewFieldCapability(fields map[string]map[string]model.FieldCapability, c
 	}
 }
 
-func handleFieldCapsIndex(_ context.Context, resolvedIndex string, tables clickhouse.TableMap) ([]byte, error) {
+func handleFieldCapsIndex(_ context.Context, resolvedIndex string, tables *clickhouse.TableMap) ([]byte, error) {
 	if len(resolvedIndex) == 0 {
 		return nil, errors.New("unknown index : " + resolvedIndex)
 	}
@@ -139,5 +139,6 @@ func handleFieldCapsIndex(_ context.Context, resolvedIndex string, tables clickh
 }
 
 func hanndleFieldCaps(ctx context.Context, index string, _ []byte, lm *clickhouse.LogManager) ([]byte, error) {
-	return handleFieldCapsIndex(ctx, lm.ResolveTableName(index), lm.GetTableDefinitions())
+	definitions := lm.GetTableDefinitions()
+	return handleFieldCapsIndex(ctx, lm.ResolveTableName(index), &definitions)
 }
