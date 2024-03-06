@@ -21,15 +21,6 @@ import (
 	"time"
 )
 
-const (
-	httpHeaderContentLength = "Content-Length"
-)
-const (
-	quesmaSourceHeader     = "X-Quesma-Source"
-	quesmaSourceElastic    = "Elasticsearch"
-	quesmaSourceClickhouse = "Clickhouse"
-)
-
 type (
 	Quesma struct {
 		processor               requestProcessor
@@ -143,6 +134,7 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 			if len(unzipped) == 0 {
 				logger.Warn().Ctx(ctx).Str("url", req.URL.Path).Msg("Empty response from Clickhouse")
 			}
+			addProductAndContentHeaders(req.Header, w.Header())
 			for key, value := range quesmaResponse.Meta {
 				w.Header().Set(key, value)
 			}

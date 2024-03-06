@@ -144,10 +144,7 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func
 
 func elasticsearchQueryResult(body string, statusCode int) *mux.Result {
 	return &mux.Result{Body: body, Meta: map[string]string{
-		"X-Elastic-Product": "Elasticsearch",
 		// TODO copy paste from the original request
-		"X-Opaque-Id":             "unknownId",
-		"Content-Type":            "application/vnd.elasticsearch+json;compatible-with=8",
 		"Location":                "/.clickhouse",
 		"X-Quesma-Headers-Source": "Quesma",
 	}, StatusCode: statusCode}
@@ -168,10 +165,8 @@ func bulkInsertResult(ops []WriteResult) *mux.Result {
 
 func elasticsearchInsertResult(body string, statusCode int) *mux.Result {
 	return &mux.Result{Body: body, Meta: map[string]string{
-		"X-Elastic-Product": "Elasticsearch",
 		// TODO copy paste from the original request
-		"X-Opaque-Id":             "unknownId",
-		"Content-Type":            "application/json",
+		contentTypeHeaderKey:      "application/json",
 		"Location":                "/.clickhouse",
 		"X-Quesma-Headers-Source": "Quesma",
 	}, StatusCode: statusCode}
