@@ -1,6 +1,7 @@
 package quesma
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -96,9 +97,10 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	simpleQuery, queryInfo := queryTranslator.ParseQueryAsyncSearch(string(body))
 	var responseBody, translatedQueryBody []byte
 
-	// Until we're sure new solution is stable, let's try to use the old one
-	if simpleQuery.CanParse {
-		logger.Debug().Str(logger.RID, id).Ctx(ctx).Msgf("Received _async_search request, type: %v", queryInfo.Typ)
+	// Let's try old one only if it's a ListFields type without "aggs" part.
+	// It doesn't have "aggs" part, so we can't handle it with new logic.
+	if simpleQuery.CanParse && (queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields) && !bytes.Contains(body, []byte("aggs")) {
+		logger.Info().Str(logger.RID, id).Ctx(ctx).Msgf("Received _async_search request, type: %v", queryInfo.Typ)
 		var fullQuery *model.Query
 		var err error
 		var rows []model.QueryResultRow

@@ -65,6 +65,15 @@ func (q *Query) String() string {
 			}
 		}
 		sb.WriteString(")")
+
+		sb.WriteString(" ORDER BY (")
+		for i, field := range q.GroupByFields {
+			sb.WriteString(field)
+			if i < len(q.GroupByFields)-1 {
+				sb.WriteString(", ")
+			}
+		}
+		sb.WriteString(")")
 	}
 	return sb.String()
 }

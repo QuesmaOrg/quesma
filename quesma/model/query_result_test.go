@@ -1,6 +1,7 @@
 package model
 
 import (
+	"strconv"
 	"testing"
 	"time"
 )
@@ -55,6 +56,60 @@ func TestQueryResultCol_String(t *testing.T) {
 			got := col.String()
 			if got != tt.expected {
 				t.Errorf("Expected %v, got %v", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestQueryResultCol_ExtractValue(t *testing.T) {
+	var str = ""
+	var strPtr, strPtrNil *string = &str, nil
+
+	var Time = time.Time{}
+	var timePtr, timePtrNil *time.Time = &Time, nil
+
+	var Int64 = int64(1)
+	var int64Ptr, int64PtrNil *int64 = &Int64, nil
+
+	var Float64 = float64(1)
+	var float64Ptr, float64PtrNil *float64 = &Float64, nil
+
+	var Int = 1
+	var intPtr, intPtrNil *int = &Int, nil
+
+	var Bool = true
+	var boolPtr, boolPtrNil *bool = &Bool, nil
+
+	var testcases = []struct {
+		value    any
+		expected any
+	}{
+		{str, ""},
+		{1, 1},
+		{1.0, 1.0},
+		{int64(1), int64(1)},
+		{uint64(1), uint64(1)},
+		{true, true},
+		{time.Time{}, time.Time{}},
+		{strPtr, str},
+		{strPtrNil, nil},
+		{timePtr, Time},
+		{timePtrNil, nil},
+		{int64Ptr, Int64},
+		{int64PtrNil, nil},
+		{float64Ptr, Float64},
+		{float64PtrNil, nil},
+		{intPtr, Int},
+		{intPtrNil, nil},
+		{boolPtr, Bool},
+		{boolPtrNil, nil},
+	}
+
+	for i, tt := range testcases {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			col := QueryResultCol{ColName: "name", Value: tt.value}
+			if col.ExtractValue() != tt.expected {
+				t.Errorf("Expected %v, got %v", tt.expected, col.ExtractValue())
 			}
 		})
 	}

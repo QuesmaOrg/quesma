@@ -261,7 +261,7 @@ func (cw *ClickhouseQueryTranslator) finishMakeResponse(query model.QueryWithAgg
 // Returns if row1 and row2 have the same values for the first level + 1 fields
 func (cw *ClickhouseQueryTranslator) sameGroupByFields(row1, row2 model.QueryResultRow, level int) bool {
 	for i := 0; i <= level; i++ {
-		if row1.Cols[i].Value != row2.Cols[i].Value {
+		if row1.Cols[i].ExtractValue() != row2.Cols[i].ExtractValue() {
 			return false
 		}
 	}
@@ -517,7 +517,12 @@ func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMa
 	if err != nil {
 		logger.Error().Msg(err.Error())
 	}
-	return fmt.Sprintf("toInt64(toUnixTimestamp64Milli(`%s`)/%s)", fieldName, strconv.FormatInt(interval.Milliseconds(), 10))
+	dateTimeType := cw.Table.GetDateTimeType(fieldName)
+	if dateTimeType == clickhouse.Invalid {
+		logger.Error().Msgf("Invalid date type for field %v", fieldName)
+		dateTimeType = clickhouse.DateTime64
+	}
+	return clickhouse.TimestampGroupBy(fieldName, dateTimeType, interval)
 }
 
 var fromRegexp = regexp.MustCompile(`>=?parseDateTime64BestEffort\('([^']+)'\)`)
