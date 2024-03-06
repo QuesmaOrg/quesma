@@ -550,6 +550,10 @@ func NewChTableConfigTimestampStringAttr() *ChTableConfig {
 	}
 }
 
+func (c *ChTableConfig) GetAttributes() []Attribute {
+	return c.attributes
+}
+
 func preprocess(jsonStr string, nestedSeparator string) string {
 	var data map[string]interface{}
 	_ = json.Unmarshal([]byte(jsonStr), &data)

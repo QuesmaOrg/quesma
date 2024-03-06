@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/stats/errorstats"
 	"net/url"
 	"sort"
@@ -64,6 +65,12 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 
 	var menuEntries []menuEntry
 
+	type tableColumn struct {
+		name        string
+		typeName    string
+		isAttribute bool
+	}
+
 	buffer := newBufferWithHead()
 	buffer.Write(generateTopNavigation("schema"))
 	buffer.Html(`<main id="schema">`)
@@ -110,27 +117,74 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 			buffer.Html(`</tr>`)
 
 			var columnNames []string
+			var columnMap = make(map[string]tableColumn)
+
+			// standard columns, visible for the user
 			for k := range table.Cols {
+				c := tableColumn{}
+
+				c.name = k
+				if table.Cols[k].Type != nil {
+					c.typeName = table.Cols[k].Type.String()
+				} else {
+					c.typeName = "n/a"
+				}
+
+				c.isAttribute = false
+
 				columnNames = append(columnNames, k)
+				columnMap[k] = c
 			}
+
+			// columns added by Quesma, not visible for the user
+			//
+			// this part is based on addOurFieldsToCreateTableQuery in log_manager.go
+			attributes := table.Config.GetAttributes()
+			if len(attributes) > 0 {
+				for _, a := range attributes {
+					_, ok := table.Cols[a.KeysArrayName]
+					if !ok {
+						c := tableColumn{}
+						c.name = a.KeysArrayName
+						c.typeName = clickhouse.CompoundType{Name: "Array", BaseType: clickhouse.NewBaseType("String")}.String()
+						c.isAttribute = true
+						columnNames = append(columnNames, c.name)
+						columnMap[c.name] = c
+					}
+					_, ok = table.Cols[a.ValuesArrayName]
+					if !ok {
+						c := tableColumn{}
+						c.name = a.ValuesArrayName
+						c.typeName = a.Type.String()
+						c.isAttribute = true
+						columnNames = append(columnNames, c.name)
+						columnMap[c.name] = c
+					}
+				}
+			}
+
 			sort.Strings(columnNames)
 
 			for _, columnName := range columnNames {
-				column, ok := table.Cols[columnName]
+				column, ok := columnMap[columnName]
 				if !ok {
 					continue
 				}
 
-				buffer.Html(`<tr>`)
+				buffer.Html(`<tr class="`)
+
+				if column.isAttribute {
+					buffer.Html(`columnAttribute `)
+				}
+				buffer.Html(`column`)
+
+				buffer.Html(`">`)
 				buffer.Html(`<td class="columnName">`)
-				buffer.Text(column.Name)
+
+				buffer.Text(column.name)
 				buffer.Html(`</td>`)
 				buffer.Html(`<td class="columnType">`)
-				if column.Type != nil {
-					buffer.Text(column.Type.String())
-				} else {
-					buffer.Text(`not available`)
-				}
+				buffer.Text(column.typeName)
 				buffer.Html(`</td>`)
 				buffer.Html(`</tr>`)
 			}
