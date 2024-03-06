@@ -3,6 +3,7 @@ package stats
 import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
+	"mitmproxy/quesma/quesma/config"
 	"testing"
 )
 
@@ -38,10 +39,13 @@ func TestStatistics_process(t *testing.T) {
 	marshal1, _ := json.Marshal(json1)
 	marshal2, _ := json.Marshal(json2)
 	marshal3, _ := json.Marshal(json3)
-	stats.Process("index1", string(marshal1), "::")
-	stats.Process("index1", string(marshal2), "::")
-	stats.Process("index1", string(marshal3), "::")
-	stats.Process("index1", string(marshal3), "::")
+	cfg := config.QuesmaConfiguration{
+		IngestStatistics: true,
+	}
+	stats.Process(cfg, "index1", string(marshal1), "::")
+	stats.Process(cfg, "index1", string(marshal2), "::")
+	stats.Process(cfg, "index1", string(marshal3), "::")
+	stats.Process(cfg, "index1", string(marshal3), "::")
 
 	indexStats := (*stats)["index1"]
 

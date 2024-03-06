@@ -10,6 +10,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/network"
+	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/util"
 	"net"
@@ -55,18 +56,19 @@ func resolveHttpServer(inspect bool) *http.Server {
 
 func configureRouting() *mux.Router {
 	router := mux.NewRouter()
+	cfg := config.QuesmaConfiguration{}
 	router.Path("/").Methods("GET").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		writer.WriteHeader(http.StatusOK)
 	})
 	router.PathPrefix("/{index}/_doc").Methods("POST").HandlerFunc(util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		stats.GlobalStatistics.Process(mux.Vars(r)["index"], string(body), clickhouse.NestedSeparator)
+		stats.GlobalStatistics.Process(cfg, mux.Vars(r)["index"], string(body), clickhouse.NestedSeparator)
 	}))
 	router.PathPrefix("/{index}/_bulk").Methods("POST").HandlerFunc(util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		stats.GlobalStatistics.Process(mux.Vars(r)["index"], string(body), clickhouse.NestedSeparator)
+		stats.GlobalStatistics.Process(cfg, mux.Vars(r)["index"], string(body), clickhouse.NestedSeparator)
 	}))
 	router.PathPrefix("/_bulk").Methods("POST").HandlerFunc(util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		forEachInBulk(string(body), func(index string, document string) {
-			stats.GlobalStatistics.Process(index, document, clickhouse.NestedSeparator)
+			stats.GlobalStatistics.Process(cfg, index, document, clickhouse.NestedSeparator)
 		})
 	}))
 	return router

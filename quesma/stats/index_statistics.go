@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"mitmproxy/quesma/jsonprocessor"
+	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/util"
 	"sort"
 	"strconv"
@@ -15,6 +16,11 @@ import (
 
 var mu sync.Mutex
 var GlobalStatistics = &Statistics{}
+
+const (
+	// we gather statistics only for the first 10000 requests
+	STATISTICS_LIMIT = 10000
+)
 
 type (
 	Statistics      map[string]*IndexStatistics
@@ -63,7 +69,11 @@ func New() *Statistics {
 	return &statistics
 }
 
-func (s *Statistics) Process(index string, jsonStr string, nestedSeparator string) {
+func (s *Statistics) Process(cfg config.QuesmaConfiguration, index string, jsonStr string, nestedSeparator string) {
+	// TODO reading cfg.IngestStatistics is not thread safe
+	if !cfg.IngestStatistics {
+		return
+	}
 	if !util.IsValidJson(jsonStr) {
 		log.Println("Invalid JSON, ignoring:", jsonStr)
 		return
@@ -74,11 +84,18 @@ func (s *Statistics) Process(index string, jsonStr string, nestedSeparator strin
 	flatJson := jsonprocessor.FlattenMap(jsonData, nestedSeparator)
 
 	mu.Lock()
+	defer mu.Unlock()
 
 	statistics, ok := (*s)[index]
 	if !ok {
 		statistics = &IndexStatistics{IndexName: index, Keys: make(map[string]*KeyStatistics)}
 		(*s)[index] = statistics
+	}
+	// TODO as proper eviction strategy requires some time
+	// to be implemented, we limit the number of requests for now
+	if statistics.Requests >= STATISTICS_LIMIT {
+		cfg.IngestStatistics = false
+		return
 	}
 	statistics.Requests++
 
@@ -99,8 +116,6 @@ func (s *Statistics) Process(index string, jsonStr string, nestedSeparator strin
 		valueStatistics.Occurrences++
 		valueStatistics.Types = typesOf(valueString)
 	}
-
-	mu.Unlock()
 }
 
 func (s *Statistics) GetIndexStatistics(indexName string) (*IndexStatistics, error) {

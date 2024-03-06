@@ -86,10 +86,8 @@ func dualWriteBulk(ctx context.Context, body string, lm *clickhouse.LogManager, 
 	}
 	for indexName, documents := range indicesWithDocumentsToInsert {
 		withConfiguration(ctx, cfg, indexName, "{ BULK_PAYLOAD }", func() error {
-			if cfg.IngestStatistics {
-				for _, document := range documents {
-					stats.GlobalStatistics.Process(indexName, document, clickhouse.NestedSeparator)
-				}
+			for _, document := range documents {
+				stats.GlobalStatistics.Process(cfg, indexName, document, clickhouse.NestedSeparator)
 			}
 			return lm.ProcessInsertQuery(indexName, documents)
 		})
@@ -107,9 +105,7 @@ func getTargetIndex(operation map[string]DocumentTarget) string {
 }
 
 func dualWrite(ctx context.Context, tableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
-	if cfg.IngestStatistics {
-		stats.GlobalStatistics.Process(tableName, body, clickhouse.NestedSeparator)
-	}
+	stats.GlobalStatistics.Process(cfg, tableName, body, clickhouse.NestedSeparator)
 	if config.TrafficAnalysis.Load() {
 		logger.Info().Msgf("analysing traffic, not writing to Clickhouse %s", tableName)
 		return
