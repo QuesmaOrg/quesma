@@ -23,7 +23,7 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 		return emptyPercentilesResult
 	}
 
-	countedPercentiles := rows[0].Cols[0].Value
+	countedPercentiles := rows[0].Cols[level].Value
 	for i, percentile := range countedPercentiles.([]float64) {
 		valueMap[percentiles[i]] = percentile
 	}
