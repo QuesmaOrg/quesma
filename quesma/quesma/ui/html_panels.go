@@ -149,6 +149,12 @@ func (qmc *QuesmaManagementConsole) generateStatistics() []byte {
 	var buffer HtmlBuffer
 	const maxTopValues = 5
 
+	if !qmc.config.IngestStatistics {
+		buffer.Html("<h2>Statistics are disabled.</h2>\n")
+		buffer.Html("<p>&nbsp;You can enable them by changing ingest_statistics setting to true.</p>\n")
+		return buffer.Bytes()
+	}
+
 	statistics := stats.GlobalStatistics
 
 	for _, index := range statistics.SortedIndexNames() {

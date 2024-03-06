@@ -31,6 +31,7 @@ const (
 	elasticsearchUrl   = "elasticsearch_url"
 	clickhouseUrl      = "clickhouse_url"
 	clickhouseDatabase = "clickhouse_database"
+	ingestStatistics   = "ingest_statistics"
 )
 
 const (
@@ -51,6 +52,7 @@ type (
 		LogsPath           string
 		LogLevel           zerolog.Level
 		PublicTcpPort      network.Port
+		IngestStatistics   bool
 	}
 
 	IndexConfiguration struct {
@@ -88,6 +90,11 @@ func Load() QuesmaConfiguration {
 	for indexNamePattern, config := range viper.Get(fullyQualifiedConfig(indexConfig)).(map[string]interface{}) {
 		indexBypass = append(indexBypass, IndexConfiguration{NamePattern: indexNamePattern, Enabled: config.(map[string]interface{})[enabledConfig].(bool)})
 	}
+	ingestStatistics, ok := viper.Get(fullyQualifiedConfig(ingestStatistics)).(bool)
+	if !ok {
+		ingestStatistics = true
+	}
+
 	return QuesmaConfiguration{
 		Mode:               parseOperationMode(mode),
 		PublicTcpPort:      configurePublicTcpPort(),
@@ -99,6 +106,7 @@ func Load() QuesmaConfiguration {
 		ClickHouseUser:     configureOptionalEnvVar(clickhouseUserEnv),
 		ClickHousePassword: configureOptionalEnvVar(clickhousePasswordEnv),
 		ClickHouseDatabase: configureOptionalConfig(clickhouseDatabase),
+		IngestStatistics:   ingestStatistics,
 	}
 }
 
@@ -239,7 +247,8 @@ Quesma Configuration:
 	Indexes: %s
 	Logs Path: %s
 	Log Level: %v
-	Public TCP Port: %d`,
+	Public TCP Port: %d
+	Ingest Statistics: %t`,
 		c.Mode.String(),
 		elasticUrl,
 		clickhouseUrl,
@@ -248,5 +257,5 @@ Quesma Configuration:
 		c.LogsPath,
 		c.LogLevel,
 		c.PublicTcpPort,
-	)
+		c.IngestStatistics)
 }
