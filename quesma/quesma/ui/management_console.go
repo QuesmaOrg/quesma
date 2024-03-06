@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -148,8 +149,32 @@ func (qmc *QuesmaManagementConsole) newHTTPServer() *http.Server {
 	}
 }
 
+func panicRecovery(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				buf := make([]byte, 2048)
+				n := runtime.Stack(buf, false)
+				buf = buf[:n]
+
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Header().Set("Content-Type", "text/plain")
+				w.Write([]byte("Internal Server Error\n\n"))
+
+				w.Write([]byte("Stack:\n"))
+				w.Write(buf)
+				logger.Error().Msgf("recovering from err %v\n %s", err, buf)
+			}
+		}()
+
+		h.ServeHTTP(w, r)
+	})
+}
+
 func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	router := mux.NewRouter()
+
+	router.Use(panicRecovery)
 
 	router.HandleFunc(healthPath, ok)
 
@@ -248,6 +273,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		buf := qmc.generateQueries()
 		_, _ = writer.Write(buf)
 	})
+
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.FS(uiFs))))
 	return router
 }
