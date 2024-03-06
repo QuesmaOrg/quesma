@@ -134,8 +134,9 @@ func int64CH(name string) *Column {
 }
 
 func Tables() (schemas []string) {
-	for name := range TableDefinitions.Snapshot() {
+	TableDefinitions.Range(func(name string, _ *Table) bool {
 		schemas = append(schemas, name)
-	}
+		return true
+	})
 	return schemas
 }

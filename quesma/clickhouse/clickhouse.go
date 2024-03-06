@@ -162,13 +162,15 @@ func (lm *LogManager) matchIndex(indexNamePattern, indexName string) bool {
 
 // Indexes can be in a form of wildcard, e.g. "index-*"
 // If we have such index, we need to resolve it to a real table name.
-func (lm *LogManager) ResolveTableName(index string) string {
-	for k := range lm.tableDefinitions.Snapshot() {
+func (lm *LogManager) ResolveTableName(index string) (result string) {
+	lm.tableDefinitions.Range(func(k string, v *Table) bool {
 		if lm.matchIndex(index, k) {
-			return k
+			result = k
+			return false
 		}
-	}
-	return ""
+		return true
+	})
+	return result
 }
 
 // updates also Table TODO stop updating table here, find a better solution
@@ -409,16 +411,17 @@ func (lm *LogManager) Insert(tableName string, jsons []string, config *ChTableCo
 	}
 }
 
-func (lm *LogManager) GetTable(tableName string) *Table {
+func (lm *LogManager) GetTable(tableName string) (result *Table) {
 	tableNamePattern := index.TableNamePatternRegexp(tableName)
-	for name, table := range lm.tableDefinitions.Snapshot() {
+	lm.tableDefinitions.Range(func(name string, table *Table) bool {
 		if tableNamePattern.MatchString(name) {
-			return table
+			result = table
+			return false
 		}
-	}
+		return true
+	})
 
-	table, _ := lm.tableDefinitions.Load(tableName)
-	return table
+	return result
 }
 
 func (lm *LogManager) GetTableDefinitions() TableMap {
