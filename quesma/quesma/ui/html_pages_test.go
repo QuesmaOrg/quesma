@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/stats"
 	"testing"
@@ -60,4 +61,48 @@ func TestHtmlPages(t *testing.T) {
 		response := string(qmc.generateSchema())
 		assert.NotContains(t, response, xss)
 	})
+}
+
+func TestHtmlSchemaPage(t *testing.T) {
+	xss := "<script>alert('xss')</script>"
+
+	logChan := make(chan string, 5)
+
+	var columnsMap = make(map[string]*clickhouse.Column)
+
+	column := &clickhouse.Column{
+		Name:      xss,
+		Modifiers: xss,
+		Type:      clickhouse.NewBaseType(xss),
+	}
+
+	columnsMap[xss] = column
+
+	table := &clickhouse.Table{
+		Created:      true,
+		Name:         xss,
+		DatabaseName: xss,
+		Cols:         columnsMap,
+		Config:       &clickhouse.ChTableConfig{},
+	}
+
+	cfg := config.QuesmaConfiguration{}
+
+	cfg.IndexConfig = append(cfg.IndexConfig, config.IndexConfiguration{
+		NamePattern: xss,
+		Enabled:     true,
+	})
+
+	tables := concurrent.NewMap[string, *clickhouse.Table]()
+	tables.Store(table.Name, table)
+
+	logManager := clickhouse.NewLogManager(tables, cfg)
+
+	qmc := NewQuesmaManagementConsole(cfg, logManager, logChan)
+
+	t.Run("schema got no XSS and no panic", func(t *testing.T) {
+		response := string(qmc.generateSchema())
+		assert.NotContains(t, response, xss)
+	})
+
 }
