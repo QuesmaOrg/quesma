@@ -18,8 +18,9 @@ type aggrQueryBuilder struct {
 }
 
 type metricsAggregation struct {
-	AggrType   string
-	FieldNames []string // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
+	AggrType    string
+	FieldNames  []string // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
+	Percentiles map[string]float64
 }
 
 func (b *aggrQueryBuilder) buildAggregationCommon() model.QueryWithAggregation {
@@ -53,8 +54,10 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	switch metricsAggr.AggrType {
 	case "sum", "min", "max", "avg":
 		query.NonSchemaFields = append(query.NonSchemaFields, metricsAggr.AggrType+`("`+metricsAggr.FieldNames[0]+`")`)
-	case "quantile": // those 7 percentiles are default returned by ES, unless request specifies otherwise (ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-aggregation.html)
-		query.NonSchemaFields = append(query.NonSchemaFields, `quantiles(0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99)(`+metricsAggr.FieldNames[0]+`)`)
+	case "quantile":
+		for usersPercent, percentAsFloat := range metricsAggr.Percentiles {
+			query.NonSchemaFields = append(query.NonSchemaFields, fmt.Sprintf("quantiles(%6f)(`%s`) AS `quantile_%s`", percentAsFloat, metricsAggr.FieldNames[0], usersPercent))
+		}
 	case "cardinality":
 		query.NonSchemaFields = append(query.NonSchemaFields, `COUNT(DISTINCT "`+metricsAggr.FieldNames[0]+`")`)
 	case "value_count":
@@ -226,9 +229,11 @@ func tryMetricsAggregation(queryMap QueryMap) (metricsAggregation, bool) {
 	}
 
 	if percentile, ok := queryMap["percentiles"]; ok {
+		fieldName, percentiles := parsePercentilesAggregation(percentile.(QueryMap))
 		return metricsAggregation{
-			AggrType:   "quantile",
-			FieldNames: []string{percentile.(QueryMap)["field"].(string)},
+			AggrType:    "quantile",
+			FieldNames:  []string{fieldName},
+			Percentiles: percentiles,
 		}, true
 	}
 

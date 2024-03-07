@@ -335,7 +335,7 @@ func (table *Table) CreateTableOurFieldsString() []string {
 	return rows
 }
 
-func (table *Table) extractColumns(query *model.Query) ([]string, error) {
+func (table *Table) extractColumns(query *model.Query, addNonSchemaFields bool) ([]string, error) {
 	N := len(query.Fields)
 	if query.IsWildcard() {
 		N = len(table.Cols)
@@ -356,6 +356,17 @@ func (table *Table) extractColumns(query *model.Query) ([]string, error) {
 				return nil, fmt.Errorf("column %s not found in table %s", field, table.Name)
 			}
 			cols = append(cols, col.Name)
+		}
+		if addNonSchemaFields {
+			for _, field := range query.NonSchemaFields {
+				if strings.Contains(field, "AS") {
+					components := strings.Split(field, " AS ")
+					fieldNameMaybeQuoted := strings.TrimSpace(components[1])
+					cols = append(cols, strings.Trim(fieldNameMaybeQuoted, "`"))
+				} else {
+					cols = append(cols, field)
+				}
+			}
 		}
 	}
 	return cols, nil

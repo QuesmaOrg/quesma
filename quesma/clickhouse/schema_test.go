@@ -112,7 +112,7 @@ func Test_extractColumns(t *testing.T) {
 
 			for j, q := range queries {
 				t.Run("Test_extractColumns, case config["+strconv.Itoa(configIdx)+"], createTableStr["+strconv.Itoa(i)+"], queries["+strconv.Itoa(j)+"]", func(t *testing.T) {
-					colNames, err := table.extractColumns(q.query)
+					colNames, err := table.extractColumns(q.query, false)
 					if slices.Contains(q.query.Fields, "non-existent") {
 						assert.Error(t, err)
 						return

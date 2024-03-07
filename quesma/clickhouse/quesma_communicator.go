@@ -53,7 +53,7 @@ func (lm *LogManager) ProcessSimpleSelectQuery(table *Table, query *model.Query)
 	if err := lm.initConnection(); err != nil {
 		return nil, err
 	}
-	colNames, err := table.extractColumns(query)
+	colNames, err := table.extractColumns(query, false)
 	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (lm *LogManager) ProcessNRowsQuery(table *Table, query *model.Query) ([]mod
 	if err := lm.initConnection(); err != nil {
 		return nil, err
 	}
-	colNames, err := table.extractColumns(query)
+	colNames, err := table.extractColumns(query, false)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func (lm *LogManager) ProcessFacetsQuery(table *Table, query *model.Query) ([]mo
 	if err := lm.initConnection(); err != nil {
 		return nil, err
 	}
-	colNames, err := table.extractColumns(query)
+	colNames, err := table.extractColumns(query, false)
 	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
 		return nil, err
@@ -160,11 +160,10 @@ func (lm *LogManager) ProcessGeneralAggregationQuery(table *Table, query *model.
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
-	colNames, err := table.extractColumns(query)
+	colNames, err := table.extractColumns(query, true)
 	if err != nil {
 		return nil, err
 	}
-	colNames = append(colNames, query.NonSchemaFields...)
 	rowToScan := make([]interface{}, len(colNames))
 	result, err := read(rows, colNames, rowToScan)
 	return result, err

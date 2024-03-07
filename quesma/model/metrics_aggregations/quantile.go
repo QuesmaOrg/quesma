@@ -2,6 +2,7 @@ package metrics_aggregations
 
 import (
 	"mitmproxy/quesma/model"
+	"strings"
 )
 
 type Quantile struct{}
@@ -10,11 +11,8 @@ func (query Quantile) IsBucketAggregation() bool {
 	return false
 }
 
-// TODO implement correct
 func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
-	// For now we just always return 7 default percentiles
 	valueMap := make(map[string]float64)
-	percentiles := []string{"1.0", "5.0", "25.0", "50.0", "75.0", "95.0", "99.0"}
 
 	if len(rows) == 0 {
 		return emptyPercentilesResult
@@ -23,9 +21,12 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 		return emptyPercentilesResult
 	}
 
-	countedPercentiles := rows[0].Cols[level].Value
-	for i, percentile := range countedPercentiles.([]float64) {
-		valueMap[percentiles[i]] = percentile
+	for _, res := range rows[0].Cols {
+		if strings.HasPrefix(res.ColName, "quantile") {
+			percentile := res.Value.([]float64)
+			percentileName, _ := strings.CutPrefix(res.ColName, "quantile_")
+			valueMap[percentileName] = percentile[0]
+		}
 	}
 
 	return []model.JsonMap{{
