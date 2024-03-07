@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/util"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -415,10 +416,10 @@ func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause string) *
 
 // GetNMostRecentRows fieldName == "*" ==> we query all
 // otherwise ==> only this 1 field
-func (cw *ClickhouseQueryTranslator) BuildNMostRecentRowsQuery(fieldName, timestampFieldName, whereClause string, limit int) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query SimpleQuery, limit int) *model.Query {
 	suffixClauses := make([]string, 0)
-	if len(timestampFieldName) > 0 {
-		suffixClauses = append(suffixClauses, "ORDER BY `"+timestampFieldName+"` DESC")
+	if len(query.SortFields) > 0 {
+		suffixClauses = append(suffixClauses, "ORDER BY "+strings.Join(query.SortFields, ", "))
 	}
 	if limit > 0 {
 		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(limit))
@@ -426,7 +427,7 @@ func (cw *ClickhouseQueryTranslator) BuildNMostRecentRowsQuery(fieldName, timest
 	return &model.Query{
 		Fields:          []string{fieldName},
 		NonSchemaFields: []string{},
-		WhereClause:     whereClause,
+		WhereClause:     query.Sql.Stmt,
 		SuffixClauses:   suffixClauses,
 		FromClause:      cw.Table.FullTableName(),
 		CanParse:        true,

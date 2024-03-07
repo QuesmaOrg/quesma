@@ -430,3 +430,35 @@ func TestQueryParseDateMathExpression(t *testing.T) {
 		assert.Equal(t, expected, resultExpr)
 	}
 }
+
+func Test_parseSortFields(t *testing.T) {
+	tests := []struct {
+		sortMap    []any
+		sortFields []string
+	}{
+		{
+			[]any{
+				QueryMap{"@timestamp": QueryMap{"format": "strict_date_optional_time", "order": "desc", "unmapped_type": "boolean"}},
+				QueryMap{"service.name": QueryMap{"order": "asc", "unmapped_type": "boolean"}},
+				QueryMap{"no_order_field": QueryMap{"unmapped_type": "boolean"}},
+				QueryMap{"_table_field_with_underscore": QueryMap{"order": "asc", "unmapped_type": "boolean"}}, // this should be accepted, as it exists in the table
+				QueryMap{"_doc": QueryMap{"order": "desc", "unmapped_type": "boolean"}},                        // this should be discarded, as it doesn't exist in the table
+			},
+			[]string{`"@timestamp" desc`, `"service.name" asc`, `"no_order_field"`, `"_table_field_with_underscore" asc`},
+		},
+		{
+			[]any{},
+			[]string{},
+		},
+	}
+	table, _ := clickhouse.NewTable(`CREATE TABLE `+tableName+`
+		( "@timestamp" DateTime64(3, 'UTC'), "service.name" String, "no_order_field" String, "_table_field_with_underscore" Int64 )
+		ENGINE = Memory`,
+		clickhouse.NewChTableConfigNoAttrs(),
+	)
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+	for _, tt := range tests {
+		assert.Equal(t, tt.sortFields, cw.parseSortFields(tt.sortMap))
+	}
+}

@@ -17,9 +17,10 @@ import (
 type QueryMap = map[string]interface{}
 
 type SimpleQuery struct {
-	Sql       Statement
-	CanParse  bool
-	FieldName string
+	Sql        Statement
+	CanParse   bool
+	FieldName  string
+	SortFields []string
 }
 
 type Statement struct {
@@ -59,7 +60,14 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery
 		return newSimpleQuery(NewSimpleStatement("invalid JSON (ParseQuery)"), false), model.Normal
 	}
 	queryInfo := cw.tryProcessMetadataSearch(queryAsMap)
-	return cw.parseQueryMap(queryAsMap), queryInfo
+
+	parsedQuery := cw.parseQueryMap(queryAsMap)
+	if sort, ok := queryAsMap["sort"]; ok {
+		if sortAsArray, ok := sort.([]any); ok {
+			parsedQuery.SortFields = cw.parseSortFields(sortAsArray)
+		}
+	}
+	return parsedQuery, queryInfo
 }
 
 func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (SimpleQuery, model.QueryInfoAsyncSearch) {
@@ -73,7 +81,12 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 		return newSimpleQuery(NewSimpleStatement("no query in async search"), false), model.NewQueryInfoAsyncSearchNone()
 	}
 
-	parsed := cw.parseQueryMap(queryAsMap["query"].(QueryMap))
+	parsedQuery := cw.parseQueryMap(queryAsMap["query"].(QueryMap))
+	if sort, ok := queryAsMap["sort"]; ok {
+		if sortAsArray, ok := sort.([]any); ok {
+			parsedQuery.SortFields = cw.parseSortFields(sortAsArray)
+		}
+	}
 	queryInfo := cw.tryProcessMetadataAsyncSearch(queryAsMap)
 
 	/* leaving as comment, as that's how it'll work after next PR
@@ -89,7 +102,7 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 		pp.Println(aggregations)
 	}
 	*/
-	return parsed, queryInfo
+	return parsedQuery, queryInfo
 }
 
 // Metadata attributes are the ones that are on the same level as query tag
@@ -853,4 +866,35 @@ func (cw *ClickhouseQueryTranslator) extractInterval(queryMap QueryMap) string {
 	defaultInterval := "30s"
 	logger.Warn().Msgf("histogram query, extractInterval: no interval found, returning default: %s", defaultInterval)
 	return defaultInterval
+}
+
+// parseSortFields parses sort fields from the query
+// We're skipping ELK internal fields, like "_doc", "_id", etc. (we only accept field starting with "_" if it exists in our table)
+func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps []any) []string {
+	sortFields := make([]string, 0)
+	for _, sortMapAsAny := range sortMaps {
+		sortMap, ok := sortMapAsAny.(QueryMap)
+		if !ok {
+			logger.Warn().Msgf("parseSortFields: unexpected type of value: %T", sortMapAsAny)
+			continue
+		}
+
+		// sortMap has only 1 key, so we can just iterate over it
+		for k, v := range sortMap {
+			if strings.HasPrefix(k, "_") && cw.ClickhouseLM.GetFieldInfo(cw.Table, k) == clickhouse.NotExists {
+				// we're skipping ELK internal fields, like "_doc", "_id", etc.
+				continue
+			}
+			if vAsMap, ok := v.(QueryMap); ok {
+				if order, ok := vAsMap["order"]; ok {
+					sortFields = append(sortFields, strconv.Quote(k)+" "+order.(string))
+				} else {
+					sortFields = append(sortFields, strconv.Quote(k))
+				}
+			} else {
+				logger.Warn().Msgf("parseSortFields: unexpected type of value for key %s: %T", k, v)
+			}
+		}
+	}
+	return sortFields
 }

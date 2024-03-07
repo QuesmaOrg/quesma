@@ -66,7 +66,7 @@ func (lm *LogManager) ProcessSimpleSelectQuery(table *Table, query *model.Query)
 }
 
 // fieldName = "*" -> we query all, otherwise only this 1 field
-func (lm *LogManager) ProcessNMostRecentRowsQuery(table *Table, query *model.Query) ([]model.QueryResultRow, error) {
+func (lm *LogManager) ProcessNRowsQuery(table *Table, query *model.Query) ([]model.QueryResultRow, error) {
 	if err := lm.initConnection(); err != nil {
 		return nil, err
 	}

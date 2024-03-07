@@ -101,7 +101,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	// 1) it's a ListFields type without "aggs" part. It doesn't have "aggs" part, so we can't handle it with new logic.
 	// 2) it's AggsByField request. It's facets - better handled here.
 	//    ==== CARE ====
-	//    Maybe there are requests with similar structure, so we're label them as AggsByField, but they would be better handled with the new logic.
+	//    Maybe there are requests with similar structure, so we label them as AggsByField, but they would be better handled with the new logic.
 	if simpleQuery.CanParse && (((queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields) && !bytes.Contains(body, []byte("aggs"))) || queryInfo.Typ == model.AggsByField) {
 		logger.Info().Str(logger.RID, id).Ctx(ctx).Msgf("Received _async_search request, type: %v", queryInfo.Typ)
 		var fullQuery *model.Query
@@ -122,12 +122,12 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 			rows, err = queryTranslator.ClickhouseLM.ProcessFacetsQuery(table, fullQuery)
 		case model.ListByField:
 			// queryInfo = (ListByField, fieldName, 0, LIMIT)
-			fullQuery = queryTranslator.BuildNMostRecentRowsQuery(queryInfo.FieldName, simpleQuery.FieldName, simpleQuery.Sql.Stmt, queryInfo.I2)
-			rows, err = queryTranslator.ClickhouseLM.ProcessNMostRecentRowsQuery(table, fullQuery)
+			fullQuery = queryTranslator.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
+			rows, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(table, fullQuery)
 		case model.ListAllFields:
 			// queryInfo = (ListAllFields, "*", 0, LIMIT)
-			fullQuery = queryTranslator.BuildNMostRecentRowsQuery("*", simpleQuery.FieldName, simpleQuery.Sql.Stmt, queryInfo.I2)
-			rows, err = queryTranslator.ClickhouseLM.ProcessNMostRecentRowsQuery(table, fullQuery)
+			fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
+			rows, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(table, fullQuery)
 		case model.EarliestLatestTimestamp:
 			var rowsEarliest, rowsLatest []model.QueryResultRow
 			fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, true)

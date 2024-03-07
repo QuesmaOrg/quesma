@@ -580,7 +580,7 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 	queries := []*model.Query{
 		cw.BuildSimpleSelectQuery(""),
 		cw.BuildSimpleCountQuery(""),
-		cw.BuildNMostRecentRowsQuery("@", "", "", 0),
+		cw.BuildNRowsQuery("@", SimpleQuery{}, 0),
 	}
 	types := []model.SearchQueryType{model.Normal, model.Count, model.Normal}
 	for i, query := range queries {
