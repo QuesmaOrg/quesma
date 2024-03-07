@@ -66,6 +66,13 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s) AS %s FROM %s)",
 			fieldsAsString, fieldsAsString, model.RowNumberColumnName, query.FromClause,
 		)
+	case "percentile_ranks":
+		fieldName := metricsAggr.FieldNames[0]
+		for _, cutValueAsString := range metricsAggr.FieldNames[1:] {
+			cutValue, _ := strconv.ParseFloat(cutValueAsString, 64)
+			Select := fmt.Sprintf("count(if(%s<=%f, 1, NULL))/count(*)*100", strconv.Quote(fieldName), cutValue)
+			query.NonSchemaFields = append(query.NonSchemaFields, Select)
+		}
 	default:
 		logger.Warn().Msgf("unknown metrics aggregation: %s", metricsAggr.AggrType)
 		query.CanParse = false
@@ -89,6 +96,8 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		query.Type = metrics_aggregations.TopMetrics{}
 	case "value_count":
 		query.Type = metrics_aggregations.ValueCount{}
+	case "percentile_ranks":
+		query.Type = metrics_aggregations.PercentileRanks{}
 	}
 	return query
 }
@@ -238,6 +247,25 @@ func tryMetricsAggregation(queryMap QueryMap) (metricsAggregation, bool) {
 		return metricsAggregation{
 			AggrType:   "top_hits",
 			FieldNames: fieldsAsStrings,
+		}, true
+	}
+
+	// Shortcut here. Percentile_ranks has "field" and a list of "values"
+	// I'm keeping all of them in `fieldNames' array for "simplicity".
+	if percentileRanks, ok := queryMap["percentile_ranks"]; ok {
+		fieldNames := []string{percentileRanks.(QueryMap)["field"].(string)}
+		cutValues := percentileRanks.(QueryMap)["values"].([]interface{})
+		for _, cutValue := range cutValues {
+			switch cutValueTyped := cutValue.(type) {
+			case float64:
+				fieldNames = append(fieldNames, strconv.FormatFloat(cutValueTyped, 'f', -1, 64))
+			case int64:
+				fieldNames = append(fieldNames, strconv.FormatInt(cutValueTyped, 10))
+			}
+		}
+		return metricsAggregation{
+			AggrType:   "percentile_ranks",
+			FieldNames: fieldNames,
 		}, true
 	}
 

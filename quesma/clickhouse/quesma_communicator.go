@@ -164,8 +164,9 @@ func (lm *LogManager) ProcessGeneralAggregationQuery(table *Table, query *model.
 	if err != nil {
 		return nil, err
 	}
-	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
-	result, err := read(rows, make([]string, len(rowToScan)), rowToScan)
+	colNames = append(colNames, query.NonSchemaFields...)
+	rowToScan := make([]interface{}, len(colNames))
+	result, err := read(rows, colNames, rowToScan)
 	return result, err
 }
 

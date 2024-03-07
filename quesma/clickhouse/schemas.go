@@ -18,6 +18,7 @@ var predefined = map[string]*Table{
 			"user_id":                                 genericString("user_id"),
 			"client_id":                               genericString("client_id"),
 			"client_ip":                               genericString("client_ip"),
+			"ftd_session_time":                        int64CH("ftd_session_time"),
 			"timestamps::topology_entry_time":         genericString("timestamps::topology_entry_time"),
 			"ts_day":                                  lowCardinalityString("ts_day"),
 			"et_day":                                  genericString("et_day"),
