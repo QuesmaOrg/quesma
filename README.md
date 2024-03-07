@@ -81,6 +81,18 @@ This will also filter out insert requests:
 !/_doc & !security & !metrics & !.kibana_alerting & !_nodes &!kibana_task_manager & !_pit & !_monitoring & !_xpack & !.reporting & !.kibana & !heartbeat & !_aliases & !_field_caps & !_license & !.logs-endpoint & !.fleet- & !traces & !_cluster & !_resolve & !_mapping & !logs-cloud & !.monitoring & !.ds-risk & !_bulk
 ```
 
+### Memory Profiling
+Container-friendly _pprof_ endpoint is exposed at [localhost:9999/debug/pprof/](http://localhost:9999/debug/pprof/)
+
+#### Fetch a memory profile
+
+```bash
+curl http://localhost:9999/debug/pprof/heap > heap.out
+go tool pprof -http=:8082 heap.out 
+````
+
+Now, head over to localhost:8082 and you can inspect the memory profile
+
 ### Clickhouse-client
 To connect to the client when `clickhouse-server` is running on [localhost:8123/play](http://localhost:8123/play)
 
