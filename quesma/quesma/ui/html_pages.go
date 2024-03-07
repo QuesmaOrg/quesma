@@ -243,7 +243,17 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.Html("Tables:")
+	buffer.Html(`<h3>Admin</h3>`)
+	buffer.Html(`<ul>`)
+
+	buffer.Html(`<li><button onclick="reloadSchemas()">Reload Schemas</button></li>`)
+
+	buffer.Html(`</ul>`)
+
+	buffer.Html(`<script>function reloadSchemas() {  fetch("/schema-reload", {method: 'POST'})}</script>`)
+
+	buffer.Html(`<h3>Tables:</h3>`)
+
 	buffer.Html("<ol>")
 
 	for _, menu := range menuEntries {
@@ -340,6 +350,7 @@ func (qmc *QuesmaManagementConsole) generateLiveTail() []byte {
 	buffer.Html(`<h3>Details</h3>`)
 	buffer.Html(`<ul>`)
 	buffer.Html("<li><small>Mode: ").Text(qmc.config.Mode.String()).Html("</small></li>")
+	buffer.Html(`</ul>`)
 
 	buffer.Html("\n</div>")
 	buffer.Html("\n</body>")
