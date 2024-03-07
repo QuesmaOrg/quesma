@@ -40,7 +40,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		return nil, nil
 	})
 
-	router.RegisterPathMatcher(routes.IndexSearchPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.IndexSearchPath, "POST", matchedAgainstPattern(config, fromClickhouse(lm)), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		if strings.Contains(params["index"], ",") {
 			errorstats.GlobalErrorStatistics.RecordKnownError("Multi index search is not supported", nil,
 				"Multi index search is not yet supported: "+params["index"])
@@ -53,7 +53,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 			return elasticsearchQueryResult(string(responseBody), httpOk), nil
 		}
 	})
-	router.RegisterPathMatcher(routes.IndexAsyncSearchPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.IndexAsyncSearchPath, "POST", matchedAgainstPattern(config, fromClickhouse(lm)), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		if strings.Contains(params["index"], ",") {
 			errorstats.GlobalErrorStatistics.RecordKnownError("Multi index search is not supported", nil,
 				"Multi index search is not yet supported: "+params["index"])
@@ -66,7 +66,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 			return elasticsearchQueryResult(string(responseBody), httpOk), nil
 		}
 	})
-	router.RegisterPathMatcher(routes.FieldCapsPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.FieldCapsPath, "POST", matchedAgainstPattern(config, fromClickhouse(lm)), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		if strings.Contains(params["index"], ",") {
 			return nil, errors.New("multi index search is not yet supported")
 		} else {
@@ -77,7 +77,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 			return elasticsearchQueryResult(string(responseBody), httpOk), nil
 		}
 	})
-	router.RegisterPathMatcher(routes.TermsEnumPath, "POST", matchedAgainstPattern(config, fromClickhouse()), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.TermsEnumPath, "POST", matchedAgainstPattern(config, fromClickhouse(lm)), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		if strings.Contains(params["index"], ",") {
 			return nil, errors.New("multi index terms enum is not yet supported")
 		} else {
@@ -105,9 +105,10 @@ func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) func(m map
 	}
 }
 
-func fromClickhouse() func() []string {
+func fromClickhouse(lm *clickhouse.LogManager) func() []string {
 	return func() []string {
-		return clickhouse.Tables()
+		definitions := lm.GetTableDefinitions()
+		return definitions.Keys()
 	}
 }
 

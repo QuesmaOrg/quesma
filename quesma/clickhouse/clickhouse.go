@@ -68,10 +68,11 @@ func (lm *LogManager) Start() {
 		logger.Error().Msgf("could not connect to clickhouse. error: %v", err)
 	}
 
-	lm.loadTables() // TODO fetch from config
+	lm.ReloadTables()
 }
 
-func (lm *LogManager) loadTables() {
+func (lm *LogManager) ReloadTables() {
+	logger.Info().Msg("reloading tables definitions")
 	configuredTables := make(map[string]map[string]string)
 	databaseName := "default"
 	if lm.cfg.ClickHouseDatabase != nil {
@@ -446,6 +447,12 @@ func (lm *LogManager) addSchemaIfDoesntExist(table *Table) bool {
 	wasntCreated := !t.Created
 	t.Created = true
 	return wasntCreated
+}
+
+func NewEmptyLogManager(cfg config.QuesmaConfiguration) *LogManager {
+	var tableDefinitions = atomic.Pointer[TableMap]{}
+	tableDefinitions.Store(NewTableMap())
+	return &LogManager{chDb: nil, tableDefinitions: &tableDefinitions, cfg: cfg}
 }
 
 func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager {

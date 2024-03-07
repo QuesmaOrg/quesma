@@ -32,7 +32,7 @@ func main() {
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
 
-	lm := clickhouse.NewLogManager(&clickhouse.TableDefinitions, cfg)
+	lm := clickhouse.NewEmptyLogManager(cfg)
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())
 

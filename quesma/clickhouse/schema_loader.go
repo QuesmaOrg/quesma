@@ -6,47 +6,50 @@ import (
 )
 
 func populateTableDefinitions(configuredTables map[string]map[string]string, databaseName string, lm *LogManager) {
+	tableMap := withPredefinedTables()
 	for tableName, columns := range configuredTables {
-		if lm.ResolveTableName(tableName) == "" {
-			var columnsMap = make(map[string]*Column)
-			partiallyResolved := false
-			for col, colType := range columns {
-				if col != attributesKeyColumn && col != attributesValueColumn {
-					column := resolveColumn(col, colType)
-					if column != nil {
-						columnsMap[col] = column
-					} else {
-						logger.Debug().Msgf("column %s, %s not resolved", col, colType)
-						partiallyResolved = true
-					}
+		if lm.ResolveTableName(tableName) != "" {
+			continue
+		}
+		var columnsMap = make(map[string]*Column)
+		partiallyResolved := false
+		for col, colType := range columns {
+			if col != attributesKeyColumn && col != attributesValueColumn {
+				column := resolveColumn(col, colType)
+				if column != nil {
+					columnsMap[col] = column
+				} else {
+					logger.Debug().Msgf("column %s, %s not resolved", col, colType)
+					partiallyResolved = true
 				}
-			}
-
-			if !partiallyResolved {
-				table := Table{
-					Created:      true,
-					Name:         tableName,
-					DatabaseName: databaseName,
-					Cols:         columnsMap,
-					Config: &ChTableConfig{
-						attributes:                            []Attribute{},
-						castUnsupportedAttrValueTypesToString: true,
-						preferCastingToOthers:                 true,
-					},
-				}
-				if lm.containsAttributes(columns) {
-					table.Config.attributes = []Attribute{
-						NewDefaultStringAttribute(),
-					}
-				}
-
-				lm.tableDefinitions.Load().Store(tableName, &table)
-				logger.Info().Msgf("schema for table [%s] loaded", tableName)
-			} else {
-				logger.Warn().Msgf("table %s not fully resolved, skipping", tableName)
 			}
 		}
+
+		if !partiallyResolved {
+			table := Table{
+				Created:      true,
+				Name:         tableName,
+				DatabaseName: databaseName,
+				Cols:         columnsMap,
+				Config: &ChTableConfig{
+					attributes:                            []Attribute{},
+					castUnsupportedAttrValueTypesToString: true,
+					preferCastingToOthers:                 true,
+				},
+			}
+			if lm.containsAttributes(columns) {
+				table.Config.attributes = []Attribute{NewDefaultStringAttribute()}
+			}
+
+			tableMap.Store(tableName, &table)
+
+			logger.Info().Msgf("schema for table [%s] loaded", tableName)
+		} else {
+			logger.Warn().Msgf("table %s not fully resolved, skipping", tableName)
+		}
 	}
+
+	lm.tableDefinitions.Store(&tableMap)
 }
 
 func resolveColumn(colName, colType string) *Column {

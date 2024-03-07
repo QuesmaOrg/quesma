@@ -80,8 +80,6 @@ func withPredefinedTables() TableMap {
 	return *m
 }
 
-var TableDefinitions = withPredefinedTables()
-
 func genericString(name string) *Column {
 	return &Column{
 		Name: name,
@@ -131,12 +129,4 @@ func int64CH(name string) *Column {
 		},
 		Modifiers: "CODEC(DoubleDelta, LZ4)",
 	}
-}
-
-func Tables() (schemas []string) {
-	TableDefinitions.Range(func(name string, _ *Table) bool {
-		schemas = append(schemas, name)
-		return true
-	})
-	return schemas
 }
