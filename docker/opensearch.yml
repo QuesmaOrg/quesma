@@ -93,15 +93,12 @@ services:
     restart: "no"
     links:
       - "opensearch-dashboards"
-    environment:
-      - 'OPENSEARCH_DASHBOARD_HOST=opensearch-dashboards:5601'
-      - 'OPENSEARCH_XSRF=osd-xsrf'
     depends_on:
       opensearch-dashboards:
         condition: service_healthy
     volumes:
       - ./kibana/:/local_mount
-    command: ["/bin/bash", "-c", "/local_mount/add_sample_data.sh"]
+    command: ["/bin/bash", "-c", "/local_mount/add_osd_sample_data.sh"]
   clickhouse:
     image: clickhouse/clickhouse-server:23.12.2.59-alpine
     ports:

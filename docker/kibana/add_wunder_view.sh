@@ -1,9 +1,12 @@
 #!/bin/bash
 # Adds a data view to Kibana
-set -e
+cd "$(dirname "$0")"
+source lib.sh
 
-curl -X POST "kibana:5601/api/data_views/data_view" -H 'kbn-xsrf: true' -H 'Content-Type: application/json' -d'
-{
+wait_until_available
+
+echo -n "Adding data view Wunder... "
+do_silent_http_post "api/data_views/data_view" '{
   "data_view": {
     "title": "211318",
     "name": "Wunder",
