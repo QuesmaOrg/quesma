@@ -101,8 +101,8 @@ func TestSearchResponse(t *testing.T) {
 	}
 	{
 		row := []model.QueryResultRow{{}}
-
-		searchRespBuf, err := MakeResponseAsyncSearchQuery(row, model.ListAllFields)
+		cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}}
+		searchRespBuf, err := cw.MakeResponseAsyncSearchQuery(row, model.ListAllFields)
 		require.NoError(t, err)
 		var searchResponseResult model.SearchResp
 		err = json.Unmarshal([]byte(searchRespBuf), &searchResponseResult)
@@ -559,10 +559,10 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 			model.ListAllFields,
 		},
 	}
-
+	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}}
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
-			ourResponse, err := MakeResponseAsyncSearchQuery(args[i].ourQueryResult, args[i].queryType)
+			ourResponse, err := cw.MakeResponseAsyncSearchQuery(args[i].ourQueryResult, args[i].queryType)
 			assert.NoError(t, err)
 
 			difference1, difference2, err := util.JsonDifference(args[i].elasticResponseJson, string(ourResponse))
@@ -621,7 +621,7 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 			}
 			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field, Value: value})
 		}
-		_, err := MakeResponseAsyncSearchQuery([]model.QueryResultRow{resultRow}, types[i])
+		_, err := cw.MakeResponseAsyncSearchQuery([]model.QueryResultRow{resultRow}, types[i])
 		assert.NoError(t, err)
 	}
 }

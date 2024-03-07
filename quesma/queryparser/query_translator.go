@@ -75,7 +75,7 @@ func MakeResponseSearchQuery[T fmt.Stringer](ResultSet []T, typ model.SearchQuer
 	return nil, fmt.Errorf("unknown SearchQueryType: %v", typ)
 }
 
-func makeResponseAsyncSearchAggregated(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchAggregated(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
 	buckets := make([]JsonMap, 0, len(ResultSet))
 	returnedRows := 0
 	for i, row := range ResultSet {
@@ -134,7 +134,7 @@ func makeResponseAsyncSearchAggregated(ResultSet []model.QueryResultRow, typ mod
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
 		hits[i].Fields = make(map[string][]interface{})
@@ -173,7 +173,7 @@ func makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.Asy
 		}
 		for i := range ResultSet {
 			hits[i].ID = strconv.Itoa(i + 1)
-			hits[i].Index = "index-TODO-insert-tablename-index-here"
+			hits[i].Index = cw.Table.Name
 			hits[i].Score = 1
 			hits[i].Version = 1
 			hits[i].Sort = []any{
@@ -200,7 +200,7 @@ func makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.Asy
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet []model.QueryResultRow) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet []model.QueryResultRow) ([]byte, error) {
 	var earliest, latest *time.Time = nil, nil
 	if len(ResultSet) >= 1 {
 		if date, ok := ResultSet[0].Cols[0].Value.(time.Time); ok {
@@ -234,16 +234,16 @@ func makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet []model.QueryResul
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func MakeResponseAsyncSearchQuery(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) MakeResponseAsyncSearchQuery(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
 	switch typ {
 	case model.Histogram, model.AggsByField:
-		return makeResponseAsyncSearchAggregated(ResultSet, typ)
+		return cw.makeResponseAsyncSearchAggregated(ResultSet, typ)
 	case model.ListByField, model.ListAllFields:
-		return makeResponseAsyncSearchList(ResultSet, typ)
+		return cw.makeResponseAsyncSearchList(ResultSet, typ)
 	case model.EarliestLatestTimestamp:
-		return makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet)
+		return cw.makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet)
 	case model.CountAsync:
-		return makeResponseAsyncSearchList(ResultSet, typ)
+		return cw.makeResponseAsyncSearchList(ResultSet, typ)
 	default:
 		return nil, fmt.Errorf("unknown AsyncSearchQueryType: %v", typ)
 	}

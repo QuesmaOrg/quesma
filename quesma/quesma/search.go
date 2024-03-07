@@ -72,8 +72,8 @@ func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *cli
 	return responseBody, nil
 }
 
-func createAsyncSearchResponseHitJson(ctx context.Context, rows []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
-	responseBody, err := queryparser.MakeResponseAsyncSearchQuery(rows, typ)
+func createAsyncSearchResponseHitJson(ctx context.Context, rows []model.QueryResultRow, typ model.AsyncSearchQueryType, queryTranslator *queryparser.ClickhouseQueryTranslator) ([]byte, error) {
+	responseBody, err := queryTranslator.MakeResponseAsyncSearchQuery(rows, typ)
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("%v rows: %v", err, rows)
 		return nil, err
@@ -142,7 +142,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rows, err)
 		}
-		responseBody, err = createAsyncSearchResponseHitJson(ctx, rows, queryInfo.Typ)
+		responseBody, err = createAsyncSearchResponseHitJson(ctx, rows, queryInfo.Typ, queryTranslator)
 		if err != nil {
 			return responseBody, err
 		}
