@@ -38,6 +38,8 @@ func populateTableDefinitions(configuredTables map[string]map[string]string, dat
 				table.Config.attributes = []Attribute{NewDefaultStringAttribute()}
 			}
 
+			lm.applyFullTextSearchConfig(&table)
+
 			tableMap.Store(tableName, &table)
 
 			logger.Info().Msgf("schema for table [%s] loaded", tableName)

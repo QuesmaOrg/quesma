@@ -20,6 +20,9 @@ quesma:
       enabled: true
     logs-generic-*:
       enabled: true
+      fulltext_fields: message,host.name
     device*:
       enabled: true
+      fulltext_fields: message
+
 

@@ -6,6 +6,7 @@ import (
 	"mitmproxy/quesma/stats/errorstats"
 	"net/url"
 	"sort"
+	"strings"
 )
 
 func generateTopNavigation(target string) []byte {
@@ -68,9 +69,10 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 	var menuEntries []menuEntry
 
 	type tableColumn struct {
-		name        string
-		typeName    string
-		isAttribute bool
+		name             string
+		typeName         string
+		isAttribute      bool
+		isFullTextSearch bool
 	}
 
 	buffer := newBufferWithHead()
@@ -133,6 +135,7 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 				}
 
 				c.isAttribute = false
+				c.isFullTextSearch = table.Cols[k].IsFullTextMatch
 
 				columnNames = append(columnNames, k)
 				columnMap[k] = c
@@ -186,7 +189,12 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 				buffer.Text(column.name)
 				buffer.Html(`</td>`)
 				buffer.Html(`<td class="columnType">`)
+
 				buffer.Text(column.typeName)
+				if column.isFullTextSearch {
+					buffer.Html(` <i>(Full text match)</i>`)
+				}
+
 				buffer.Html(`</td>`)
 				buffer.Html(`</tr>`)
 			}
@@ -199,16 +207,9 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 		buffer.Html(`<p>Schema is not available</p>`)
 	}
 
-	var configKeys []string
-	config := make(map[string]bool)
-	for _, cfg := range qmc.config.IndexConfig {
-		configKeys = append(configKeys, cfg.NamePattern)
-		config[cfg.NamePattern] = cfg.Enabled
-	}
-
 	buffer.Html("\n<table>")
 	buffer.Html(`<tr class="tableName" id="quesma-config">`)
-	buffer.Html(`<th colspan=2><h2>`)
+	buffer.Html(`<th colspan=3><h2>`)
 	buffer.Html(`Quesma Config`)
 	buffer.Html(`</h2></th>`)
 	buffer.Html(`</tr>`)
@@ -220,21 +221,29 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 	buffer.Html(`<th>`)
 	buffer.Html(`Enabled?`)
 	buffer.Html(`</th>`)
+	buffer.Html(`<th>`)
+	buffer.Html(`Full Text Search Fields`)
+	buffer.Html(`</th>`)
+
 	buffer.Html(`</tr>`)
 
-	sort.Strings(configKeys)
-	for _, key := range configKeys {
+	for _, cfg := range qmc.config.IndexConfig {
 		buffer.Html(`<tr>`)
-		buffer.Html(`<th>`)
-		buffer.Text(key)
-		buffer.Html(`</th>`)
-		buffer.Html(`<th>`)
-		if config[key] {
+		buffer.Html(`<td>`)
+		buffer.Text(cfg.NamePattern)
+		buffer.Html(`</td>`)
+		buffer.Html(`<td>`)
+		if cfg.Enabled {
 			buffer.Text("true")
 		} else {
 			buffer.Text("false")
 		}
-		buffer.Html(`</th>`)
+		buffer.Html(`</td>`)
+
+		buffer.Html(`<td>`)
+		buffer.Text(strings.Join(cfg.FullTextFields, ", "))
+		buffer.Html(`</td>`)
+
 		buffer.Html(`</tr>`)
 	}
 

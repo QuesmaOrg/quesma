@@ -42,10 +42,11 @@ type (
 		Cols []*Column
 	}
 	Column struct {
-		Name      string
-		Type      Type
-		Modifiers string
-		Codec     Codec // TODO currently not used, it's part of Modifiers
+		Name            string
+		Type            Type
+		Modifiers       string
+		Codec           Codec // TODO currently not used, it's part of Modifiers
+		IsFullTextMatch bool  // this comes from config
 	}
 	Table struct {
 		Name         string

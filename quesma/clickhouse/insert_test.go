@@ -170,7 +170,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					if tableInMemory != nil && tableInMemory.Created {
 						needCreate = false
 					}
-					noSuchTable := lm.lm.addSchemaIfDoesntExist(table)
+					noSuchTable := lm.lm.AddTableIfDoesntExist(table)
 					assert.Equal(t, needCreate, noSuchTable)
 
 					// and Created is set to true

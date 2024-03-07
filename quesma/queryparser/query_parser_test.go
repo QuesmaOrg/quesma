@@ -30,14 +30,17 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+
+	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	lm.AddTableIfDoesntExist(table)
+
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
 	for _, tt := range testdata.TestsSearch {
 		t.Run(tt.Name, func(t *testing.T) {
 			simpleQuery, queryType := cw.ParseQuery(tt.QueryJson)
-			assert.True(t, simpleQuery.CanParse)
-			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt)
-			assert.Equal(t, tt.WantedQueryType, queryType)
+			assert.True(t, simpleQuery.CanParse, "can parse")
+			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
+			assert.Equal(t, tt.WantedQueryType, queryType, "equals to wanted query type")
 
 			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
 			assert.Contains(t, tt.WantedQuery, *query)

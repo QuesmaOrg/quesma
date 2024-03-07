@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/network"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -25,6 +26,7 @@ const (
 	prefix             = "quesma"
 	indexConfig        = "index"
 	enabledConfig      = "enabled"
+	fullTextFields     = "fulltext_fields"
 	logsPathConfig     = "logs_path"
 	logLevelConfig     = "log_level"
 	publicTcpPort      = "port"
@@ -56,13 +58,38 @@ type (
 	}
 
 	IndexConfiguration struct {
-		NamePattern string
-		Enabled     bool
+		NamePattern    string
+		Enabled        bool
+		FullTextFields []string
 	}
 )
 
 func (c IndexConfiguration) Matches(indexName string) bool {
 	return MatchName(c.NamePattern, indexName)
+}
+
+func (c IndexConfiguration) FullTextField(indexName, fieldName string) bool {
+	if !c.Matches(indexName) {
+		return false
+	}
+
+	return slices.Contains(c.FullTextFields, fieldName)
+}
+
+func (cfg QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string) bool {
+
+	// This is hardcoded default. We assume that field 'message' is always full text.
+	if fieldName == "message" {
+		return true
+	}
+
+	for _, indexConfig := range cfg.IndexConfig {
+		if indexConfig.FullTextField(indexName, fieldName) {
+			return true
+		}
+	}
+	return false
+
 }
 
 func MatchName(pattern, name string) bool {
@@ -88,7 +115,14 @@ func Load() QuesmaConfiguration {
 	var mode = viper.Get(fullyQualifiedConfig(modeConfigName)).(string)
 	var indexBypass = make([]IndexConfiguration, 0)
 	for indexNamePattern, config := range viper.Get(fullyQualifiedConfig(indexConfig)).(map[string]interface{}) {
-		indexBypass = append(indexBypass, IndexConfiguration{NamePattern: indexNamePattern, Enabled: config.(map[string]interface{})[enabledConfig].(bool)})
+		var fields []string
+		v, ok := config.(map[string]interface{})[fullTextFields]
+
+		if ok {
+			fields = strings.Split(v.(string), ",")
+		}
+
+		indexBypass = append(indexBypass, IndexConfiguration{NamePattern: indexNamePattern, Enabled: config.(map[string]interface{})[enabledConfig].(bool), FullTextFields: fields})
 	}
 	ingestStatistics, ok := viper.Get(fullyQualifiedConfig(ingestStatistics)).(bool)
 	if !ok {
@@ -215,7 +249,7 @@ func (c *QuesmaConfiguration) WritesToElasticsearch() bool {
 func (c *QuesmaConfiguration) String() string {
 	var indexConfigs string
 	for _, index := range c.IndexConfig {
-		indexConfigs += fmt.Sprintf("\n\t\t%s, enabled: %t", index.NamePattern, index.Enabled)
+		indexConfigs += fmt.Sprintf("\n\t\t%s, enabled: %t, fullTextFields: %s", index.NamePattern, index.Enabled, strings.Join(index.FullTextFields, ", "))
 	}
 
 	elasticUrl := "<nil>"

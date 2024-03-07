@@ -377,7 +377,13 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 // GetFieldsList
 // TODO flatten tuples, I think (or just don't support them for now, we don't want them at the moment in production schemas)
 func (cw *ClickhouseQueryTranslator) GetFieldsList() []string {
-	return []string{"message"}
+	var res []string
+	for _, col := range cw.Table.Cols {
+		if col.IsFullTextMatch {
+			res = append(res, col.Name)
+		}
+	}
+	return res
 }
 
 func (cw *ClickhouseQueryTranslator) BuildSelectQuery(fields []string, whereClause string) *model.Query {

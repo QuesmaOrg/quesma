@@ -121,7 +121,7 @@ func TestAddNewFieldCapability(t *testing.T) {
 
 	fields := make(map[string]map[string]model.FieldCapability)
 	for _, col := range Cols {
-		addNewFieldCapability(fields, col)
+		addNewDefaultFieldCapability(fields, col)
 	}
 
 	// Check aggregatable property

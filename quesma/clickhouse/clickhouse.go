@@ -98,6 +98,14 @@ func (lm *LogManager) ReloadTables() {
 	logger.Info().Msgf("discovered tables: [%s]", strings.Join(util.MapKeys(configuredTables), ","))
 
 	populateTableDefinitions(configuredTables, databaseName, lm)
+
+}
+
+// applyFullTextSearchConfig applies full text search configuration to the table
+func (lm *LogManager) applyFullTextSearchConfig(table *Table) {
+	for _, c := range table.Cols {
+		c.IsFullTextMatch = lm.getConfig().IsFullTextMatchField(table.Name, c.Name)
+	}
 }
 
 func (lm *LogManager) describeTables(database string) (map[string]map[string]string, error) {
@@ -135,6 +143,10 @@ func withDefault(optStr *string, def string) string {
 		return def
 	}
 	return *optStr
+}
+
+func (lm *LogManager) getConfig() config.QuesmaConfiguration {
+	return lm.cfg
 }
 
 func (lm *LogManager) initConnection() error {
@@ -244,7 +256,7 @@ func (lm *LogManager) ProcessCreateTableQuery(query string, config *ChTableConfi
 	}
 
 	// if exists only then createTable
-	noSuchTable := lm.addSchemaIfDoesntExist(table)
+	noSuchTable := lm.AddTableIfDoesntExist(table)
 	if !noSuchTable {
 		return fmt.Errorf("table %s already exists", table.Name)
 	}
@@ -284,7 +296,7 @@ func Indexes(m SchemaMap) string {
 }
 
 func (lm *LogManager) CreateTableFromInsertQuery(name, jsonData string, config *ChTableConfig) error {
-	// TODO fix lm.addSchemaIfDoesntExist(name, jsonData)
+	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
 
 	query, err := buildCreateTableQueryNoOurFields(name, jsonData, config)
 	if err != nil {
@@ -437,10 +449,13 @@ func (lm *LogManager) GetTableDefinitions() TableMap {
 }
 
 // Returns if schema wasn't created (so it needs to be, and will be in a moment)
-func (lm *LogManager) addSchemaIfDoesntExist(table *Table) bool {
+func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
 	t := lm.GetTable(table.Name)
 	if t == nil {
 		table.Created = true
+
+		lm.applyFullTextSearchConfig(table)
+
 		lm.tableDefinitions.Load().Store(table.Name, table)
 		return true
 	}

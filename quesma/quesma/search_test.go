@@ -94,8 +94,9 @@ var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
 		// only one field because currently we have non-determinism in translating * -> all fields :( and can't regex that easily.
 		// (TODO Maybe we can, don't want to waste time for this now https://stackoverflow.com/questions/3533408/regex-i-want-this-and-that-and-that-in-any-order)
 		"message": {
-			Name: "message",
-			Type: clickhouse.NewBaseType("String"),
+			Name:            "message",
+			Type:            clickhouse.NewBaseType("String"),
+			IsFullTextMatch: true,
 		},
 	},
 	Created: true,

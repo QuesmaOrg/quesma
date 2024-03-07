@@ -8,6 +8,9 @@ import (
 	"mitmproxy/quesma/model"
 )
 
+// this will be added to every artificial field that is full text matchable
+const quesmaTextFieldMatchableSuffix = ".quesma_textsearch"
+
 const quesmaDebuggingFieldName = "QUESMA_CLICKHOUSE_RESPONSE"
 
 func mapPrimitiveType(typeName string) string {
@@ -79,10 +82,8 @@ func IsAggregatable(typeName string) bool {
 	return false
 }
 
-func addNewFieldCapability(fields map[string]map[string]model.FieldCapability, col *clickhouse.Column) {
-	if col == nil {
-		return
-	}
+func addNewDefaultFieldCapability(fields map[string]map[string]model.FieldCapability, col *clickhouse.Column) {
+
 	typeName := mapClickhouseToElasticType(col)
 	fieldCapability := model.FieldCapability{}
 	fieldCapability.Aggregatable = IsAggregatable(typeName)
@@ -92,24 +93,27 @@ func addNewFieldCapability(fields map[string]map[string]model.FieldCapability, c
 	// We treat all fields as non-metadata ones
 	*fieldCapability.MetadataField = false
 	fieldCapability.Type = typeName
+
 	fieldCapabilitiesMap := make(map[string]model.FieldCapability)
 	fieldCapabilitiesMap[typeName] = fieldCapability
 
-	// Unlike Elasticsearch, we do not create additional fields named `FIELD_NAME.keyword` for keyword fields.
-	//
-	// For now, we make all text fields keyword fields so that users can filter them nicely with KQL,
-	// but in the future we may want to revisit this and perhaps add even more (if not all) fields as keyword fields.
-	if (typeName == "text" || typeName == "LowCardinality(String)") && col.Name != quesmaDebuggingFieldName {
-		keywordFieldCap := make(map[string]model.FieldCapability)
-		keywordFieldCap["keyword"] = model.FieldCapability{
-			Aggregatable: true,
-			Searchable:   true,
-			Type:         "keyword",
-		}
-		fields[col.Name] = keywordFieldCap
-	} else {
-		fields[col.Name] = fieldCapabilitiesMap
+	fields[col.Name] = fieldCapabilitiesMap
+}
+
+func canBeKeywordField(col *clickhouse.Column) bool {
+	typeName := mapClickhouseToElasticType(col)
+	return typeName == "text" || typeName == "LowCardinality(String)"
+}
+
+func addNewKeywordFieldCapability(fields map[string]map[string]model.FieldCapability, col *clickhouse.Column) {
+
+	keywordFieldCap := make(map[string]model.FieldCapability)
+	keywordFieldCap["keyword"] = model.FieldCapability{
+		Aggregatable: true,
+		Searchable:   true,
+		Type:         "keyword",
 	}
+	fields[col.Name] = keywordFieldCap
 }
 
 func handleFieldCapsIndex(_ context.Context, resolvedIndex string, tables *clickhouse.TableMap) ([]byte, error) {
@@ -122,14 +126,30 @@ func handleFieldCapsIndex(_ context.Context, resolvedIndex string, tables *click
 		if table == nil {
 			return nil, errors.New("could not find table for index : " + resolvedIndex)
 		}
+
 		for _, col := range table.Cols {
-			addNewFieldCapability(fields, col)
+
+			if col == nil {
+				continue
+			}
+
+			if canBeKeywordField(col) {
+				addNewKeywordFieldCapability(fields, col)
+			} else {
+				addNewDefaultFieldCapability(fields, col)
+			}
+
+			if col.IsFullTextMatch {
+				textFieldName := col.Name + quesmaTextFieldMatchableSuffix
+				textCol := &clickhouse.Column{Name: textFieldName, Type: clickhouse.BaseType{Name: "String"}}
+				addNewDefaultFieldCapability(fields, textCol)
+			}
 		}
 	}
 
 	// Adding artificial quesma field
 	quesmaCol := &clickhouse.Column{Name: quesmaDebuggingFieldName, Type: clickhouse.BaseType{Name: "String"}}
-	addNewFieldCapability(fields, quesmaCol)
+	addNewDefaultFieldCapability(fields, quesmaCol)
 
 	fieldCapsResponse := model.FieldCapsResponse{Fields: fields}
 
