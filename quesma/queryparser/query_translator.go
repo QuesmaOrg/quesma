@@ -76,12 +76,17 @@ func MakeResponseSearchQuery[T fmt.Stringer](ResultSet []T, typ model.SearchQuer
 }
 
 func makeResponseAsyncSearchAggregated(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
-	buckets := make([]JsonMap, len(ResultSet))
+	buckets := make([]JsonMap, 0, len(ResultSet))
+	returnedRows := 0
 	for i, row := range ResultSet {
-		buckets[i] = make(JsonMap)
+		if typ == model.AggsByField && i == 10 { // facets show only 10 top values
+			break
+		}
+		buckets = append(buckets, make(JsonMap))
 		for _, col := range row.Cols {
 			buckets[i][col.ColName] = col.Value
 		}
+		returnedRows += int(row.Cols[model.ResultColDocCountIndex].Value.(uint64))
 	}
 	var sampleCount uint64 // uint64 because that's what clickhouse reader returns
 	for _, row := range ResultSet {
@@ -105,7 +110,7 @@ func makeResponseAsyncSearchAggregated(ResultSet []model.QueryResultRow, typ mod
 			},
 			"top_values": JsonMap{
 				"buckets":                     buckets,
-				"sum_other_doc_count":         0,
+				"sum_other_doc_count":         int(sampleCount) - returnedRows,
 				"doc_count_error_upper_bound": 0,
 			},
 		}
@@ -481,7 +486,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 }
 
 func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName, whereClause string, limit int) *model.Query {
-	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC LIMIT 10"} // TODO hardcoded 10. fix this hack via parsing number
+	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
 	return &model.Query{
 		Fields:          []string{fieldName},
 		NonSchemaFields: []string{"count()"},

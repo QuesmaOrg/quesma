@@ -126,9 +126,6 @@ func (lm *LogManager) ProcessFacetsQuery(table *Table, query *model.Query) ([]mo
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(resultRows, func(i, j int) bool {
-		return resultRows[i].Cols[model.ResultColDocCountIndex].Value.(uint64) > resultRows[j].Cols[model.ResultColDocCountIndex].Value.(uint64)
-	})
 	return resultRows, nil
 }
 

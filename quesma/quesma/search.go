@@ -97,9 +97,12 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	simpleQuery, queryInfo := queryTranslator.ParseQueryAsyncSearch(string(body))
 	var responseBody, translatedQueryBody []byte
 
-	// Let's try old one only if it's a ListFields type without "aggs" part.
-	// It doesn't have "aggs" part, so we can't handle it with new logic.
-	if simpleQuery.CanParse && (queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields) && !bytes.Contains(body, []byte("aggs")) {
+	// Let's try old one only if:
+	// 1) it's a ListFields type without "aggs" part. It doesn't have "aggs" part, so we can't handle it with new logic.
+	// 2) it's AggsByField request. It's facets - better handled here.
+	//    ==== CARE ====
+	//    Maybe there are requests with similar structure, so we're label them as AggsByField, but they would be better handled with the new logic.
+	if simpleQuery.CanParse && (((queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields) && !bytes.Contains(body, []byte("aggs"))) || queryInfo.Typ == model.AggsByField) {
 		logger.Info().Str(logger.RID, id).Ctx(ctx).Msgf("Received _async_search request, type: %v", queryInfo.Typ)
 		var fullQuery *model.Query
 		var err error
