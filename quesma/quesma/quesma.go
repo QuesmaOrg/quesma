@@ -119,7 +119,8 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method)
 		})
 		elkResponse := <-elkResponseChan
-		if elkResponse != nil {
+		// We should send only responses for search queries to Quesma console
+		if elkResponse != nil && strings.Contains(req.URL.Path, "_search") {
 			sendElkResponseToQuesmaConsole(ctx, elkResponse, quesmaManagementConsole)
 		}
 
