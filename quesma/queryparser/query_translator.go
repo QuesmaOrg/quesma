@@ -172,7 +172,7 @@ func makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.Asy
 			Relation: "eq",
 		}
 		for i := range ResultSet {
-			hits[i].ID = "fake-id"
+			hits[i].ID = strconv.Itoa(i + 1)
 			hits[i].Index = "index-TODO-insert-tablename-index-here"
 			hits[i].Score = 1
 			hits[i].Version = 1
