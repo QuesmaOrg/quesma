@@ -8,9 +8,6 @@ import (
 func populateTableDefinitions(configuredTables map[string]map[string]string, databaseName string, lm *LogManager) {
 	tableMap := withPredefinedTables()
 	for tableName, columns := range configuredTables {
-		if lm.ResolveTableName(tableName) != "" {
-			continue
-		}
 		var columnsMap = make(map[string]*Column)
 		partiallyResolved := false
 		for col, colType := range columns {

@@ -44,15 +44,17 @@ func generateTopNavigation(target string) []byte {
 	buffer.Html("\n</ul>\n")
 	buffer.Html("\n</div>\n")
 
-	buffer.Html(`<div class="autorefresh-box">` + "\n")
-	buffer.Html(`<div class="autorefresh">`)
-	buffer.Html(fmt.Sprintf(
-		`<input type="checkbox" Id="autorefresh" name="autorefresh" hx-target="#%s" hx-get="/panel/%s"
+	if target != "schema" {
+		buffer.Html(`<div class="autorefresh-box">` + "\n")
+		buffer.Html(`<div class="autorefresh">`)
+		buffer.Html(fmt.Sprintf(
+			`<input type="checkbox" Id="autorefresh" name="autorefresh" hx-target="#%s" hx-get="/panel/%s"
 				hx-trigger="every 1s [htmx.find('#autorefresh').checked]" checked />`,
-		url.PathEscape(target), url.PathEscape(target)))
-	buffer.Html(`<label for="autorefresh">Autorefresh every 1s</label>`)
-	buffer.Html("\n</div>")
-	buffer.Html("\n</div>\n")
+			url.PathEscape(target), url.PathEscape(target)))
+		buffer.Html(`<label for="autorefresh">Autorefresh every 1s</label>`)
+		buffer.Html("\n</div>")
+		buffer.Html("\n</div>\n")
+	}
 	buffer.Html("\n</div>\n\n")
 	return buffer.Bytes()
 }
@@ -246,11 +248,9 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 	buffer.Html(`<h3>Admin</h3>`)
 	buffer.Html(`<ul>`)
 
-	buffer.Html(`<li><button onclick="reloadSchemas()">Reload Schemas</button></li>`)
+	buffer.Html(`<li><button hx-post="/schema/reload" hx-target="body">Reload Schemas</button></li>`)
 
 	buffer.Html(`</ul>`)
-
-	buffer.Html(`<script>function reloadSchemas() {  fetch("/schema-reload", {method: 'POST'})}</script>`)
 
 	buffer.Html(`<h3>Tables:</h3>`)
 

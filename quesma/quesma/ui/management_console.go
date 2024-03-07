@@ -189,9 +189,10 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		_, _ = writer.Write(buf)
 	})
 
-	router.HandleFunc("/schema-reload", func(writer http.ResponseWriter, req *http.Request) {
+	router.HandleFunc("/schema/reload", func(writer http.ResponseWriter, req *http.Request) {
 		qmc.logManager.ReloadTables()
-		writer.WriteHeader(200)
+		buf := qmc.generateSchema()
+		_, _ = writer.Write(buf)
 	}).Methods("POST")
 
 	router.HandleFunc("/schema", func(writer http.ResponseWriter, req *http.Request) {
