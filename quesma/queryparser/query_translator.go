@@ -314,9 +314,6 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 		*/
 		return cw.finishMakeResponse(query, ResultSet, selectLevel)
 	}
-	if len(ResultSet) == 0 {
-		return nil
-	}
 
 	// fmt.Println("level1 :/", level1, " level2 B):", level2)
 

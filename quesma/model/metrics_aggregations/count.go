@@ -13,7 +13,7 @@ func (query Count) IsBucketAggregation() bool {
 func (query Count) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	var response []model.JsonMap
 	for _, row := range rows {
-		response = append(response, model.JsonMap{row.Cols[level].ColName: row.Cols[level].Value})
+		response = append(response, model.JsonMap{"doc_count": row.Cols[level].Value})
 	}
 	return response
 }

@@ -2477,8 +2477,8 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		[]string{
-			``,
-			``,
+			`TODO`,
+			`TODO`,
 		},
 	},
 	{ // [17]
@@ -2998,5 +2998,114 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		[][]model.QueryResultRow{{}},
 		[]string{},
+	},
+	{ // [19]
+		"random sampler, from Explorer > Field statistics",
+		`{
+			"aggs": {
+				"sampler": {
+					"aggs": {
+						"eventRate": {
+							"date_histogram": {
+								"extended_bounds": {
+									"max": 1709816694995,
+									"min": 1709815794995
+								},
+								"field": "@timestamp",
+								"fixed_interval": "15000ms",
+								"min_doc_count": 0
+							}
+						}
+					},
+					"random_sampler": {
+						"probability": 1e-06,
+						"seed": "1225474982"
+					}
+				}
+			},
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"@timestamp": {
+									"format": "epoch_millis",
+									"gte": 1709815794995,
+									"lte": 1709816694995
+								}
+							}
+						},
+						{
+							"bool": {
+								"filter": [],
+								"must": [
+									{
+										"match_all": {}
+									}
+								],
+								"must_not": []
+							}
+						}
+					]
+				}
+			},
+			"size": 0,
+			"track_total_hits": false
+		}`,
+		`{
+			"completion_time_in_millis": 1709817695887,
+			"expiration_time_in_millis": 1709817755884,
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"sampler": {
+						"doc_count": 15,
+						"eventRate": {
+							"buckets": [
+								{
+									"doc_count": 0,
+									"key": 1709816790000,
+									"key_as_string": "2024-03-07T13:06:30.000"
+								},
+								{
+									"doc_count": 0,
+									"key": 1709816805000,
+									"key_as_string": "2024-03-07T13:06:45.000"
+								}
+							]
+						},
+						"probability": 1.0,
+						"seed": 1740377510
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null
+				},
+				"timed_out": false,
+				"took": 3
+			},
+			"start_time_in_millis": 1709817695884
+		}`,
+		[][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(15))}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1709816790000/15000)), model.NewQueryResultCol("doc_count", uint64(0))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1709816805000/15000)), model.NewQueryResultCol("doc_count", uint64(0))}},
+			},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", uint64(15))}}},
+		},
+		[]string{
+			`SELECT count() FROM "` + TableName + `" WHERE "@timestamp">=1.709815794995e+12 AND "@timestamp"<=1.709816694995e+12 `,
+			`SELECT ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + `, count() FROM "` + TableName + `" WHERE "@timestamp">=1.709815794995e+12 AND "@timestamp"<=1.709816694995e+12  GROUP BY (` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + `) ORDER BY (` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + ")",
+			`SELECT count() FROM "` + TableName + `" WHERE "@timestamp">=1.709815794995e+12 AND "@timestamp"<=1.709816694995e+12 `,
+		},
 	},
 }

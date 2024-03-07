@@ -122,8 +122,17 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 	// COUNT(*) is needed for every request. We should change it and don't duplicate it, as some
 	// requests also ask for that themselves, but let's leave it for later.
 	aggregations := []model.QueryWithAggregation{currentAggr.buildCountAggregation()}
+
 	if aggs, ok := queryAsMap["aggs"]; ok {
-		cw.parseAggregation(&currentAggr, aggs.(QueryMap), &aggregations)
+		// The 'for' below duplicates the logic of parseAggregation a little bit, but let's refactor that later.
+		// Duplication is needed, because one request's most outer aggregator's name is "sampler", which
+		// is the same as the name of one bucket aggregation, and parsing algorithm mishandles the aggregator name
+		// for bucket aggregation name...
+		for aggrName, aggr := range aggs.(QueryMap) {
+			currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(aggrName))
+			cw.parseAggregation(&currentAggr, aggr.(QueryMap), &aggregations)
+			currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
+		}
 	} else {
 		return nil, fmt.Errorf("no aggs")
 	}
@@ -312,6 +321,14 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	if _, ok := queryMap["sampler"]; ok {
 		currentAggr.Type = metrics_aggregations.Count{}
 		delete(queryMap, "sampler")
+		return
+	}
+	// Let's treat random_sampler just like sampler for now, until we add `LIMIT` logic to sampler.
+	// Random sampler doesn't have `size` field, but `probability`, so logic in the final version should be different.
+	// So far I've only observed its "probability" field to be 1.0, so it's not really important.
+	if _, ok := queryMap["random_sampler"]; ok {
+		currentAggr.Type = metrics_aggregations.Count{}
+		delete(queryMap, "random_sampler")
 		return
 	}
 	if Range, ok := queryMap["range"]; ok {
