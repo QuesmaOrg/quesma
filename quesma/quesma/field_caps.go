@@ -8,9 +8,6 @@ import (
 	"mitmproxy/quesma/model"
 )
 
-// this will be added to every artificial field that is full text matchable
-const quesmaTextFieldMatchableSuffix = ".quesma_textsearch"
-
 const quesmaDebuggingFieldName = "QUESMA_CLICKHOUSE_RESPONSE"
 
 func mapPrimitiveType(typeName string) string {
@@ -137,12 +134,6 @@ func handleFieldCapsIndex(_ context.Context, resolvedIndex string, tables *click
 				addNewKeywordFieldCapability(fields, col)
 			} else {
 				addNewDefaultFieldCapability(fields, col)
-			}
-
-			if col.IsFullTextMatch {
-				textFieldName := col.Name + quesmaTextFieldMatchableSuffix
-				textCol := &clickhouse.Column{Name: textFieldName, Type: clickhouse.BaseType{Name: "String"}}
-				addNewDefaultFieldCapability(fields, textCol)
 			}
 		}
 	}
