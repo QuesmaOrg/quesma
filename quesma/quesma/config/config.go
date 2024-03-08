@@ -94,58 +94,81 @@ func MatchName(pattern, name string) bool {
 func Load() QuesmaConfiguration {
 	// TODO Add wiser config parsing which fails for good and accumulates errors using https://github.com/hashicorp/go-multierror
 
+	v := viper.New()
+
 	if configFileName, isSet := os.LookupEnv(configEnvVar); isSet {
 		fmt.Printf("Using config file: %s\n", configFileName)
-		viper.SetConfigFile(configFileName)
+		v.SetConfigFile(configFileName)
 	} else {
-		viper.SetConfigName(defaultConfigFileName)
-		viper.SetConfigType(defaultConfigType)
-		viper.AddConfigPath(".")
+		v.SetConfigName(defaultConfigFileName)
+		v.SetConfigType(defaultConfigType)
+		v.AddConfigPath(".")
 	}
 
-	if err := viper.ReadInConfig(); err != nil {
+	if err := v.ReadInConfig(); err != nil {
+
 		return QuesmaConfiguration{}
 	}
 
-	var mode = viper.Get(fullyQualifiedConfig(modeConfigName)).(string)
+	parser := NewQuesmaConfigurationParser(v)
+	return parser.Parse()
+}
+
+type QuesmaConfigurationParser struct {
+	parsedViper *viper.Viper
+}
+
+func NewQuesmaConfigurationParser(v *viper.Viper) *QuesmaConfigurationParser {
+	return &QuesmaConfigurationParser{parsedViper: v}
+}
+
+func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
+
+	var mode = p.parsedViper.Get(fullyQualifiedConfig(modeConfigName)).(string)
 	var indexBypass = make([]IndexConfiguration, 0)
-	for indexNamePattern, config := range viper.Get(fullyQualifiedConfig(indexConfig)).(map[string]interface{}) {
+
+	for indexNamePattern, config := range p.parsedViper.Get(fullyQualifiedConfig(indexConfig)).(map[string]interface{}) {
 		var fields []string
 		v, ok := config.(map[string]interface{})[fullTextFields]
 
 		if ok {
-			fields = strings.Split(v.(string), ",")
+			if v == nil {
+				fields = []string{}
+			} else {
+				fields = strings.Split(v.(string), ",")
+			}
 		} else {
 			fields = []string{"message"}
 		}
 
 		indexBypass = append(indexBypass, IndexConfiguration{NamePattern: indexNamePattern, Enabled: config.(map[string]interface{})[enabledConfig].(bool), FullTextFields: fields})
 	}
-	ingestStatistics, ok := viper.Get(fullyQualifiedConfig(ingestStatistics)).(bool)
+
+	ingestStatistics, ok := p.parsedViper.Get(fullyQualifiedConfig(ingestStatistics)).(bool)
 	if !ok {
 		ingestStatistics = true
 	}
 
 	return QuesmaConfiguration{
 		Mode:               parseOperationMode(mode),
-		PublicTcpPort:      configurePublicTcpPort(),
-		ElasticsearchUrl:   configureUrl(elasticsearchUrl),
-		ClickHouseUrl:      configureUrl(clickhouseUrl),
+		PublicTcpPort:      p.configurePublicTcpPort(),
+		ElasticsearchUrl:   p.configureUrl(elasticsearchUrl),
+		ClickHouseUrl:      p.configureUrl(clickhouseUrl),
 		IndexConfig:        indexBypass,
-		LogsPath:           configureLogsPath(),
-		LogLevel:           configureLogLevel(),
+		LogsPath:           p.configureLogsPath(),
+		LogLevel:           p.configureLogLevel(),
 		ClickHouseUser:     configureOptionalEnvVar(clickhouseUserEnv),
 		ClickHousePassword: configureOptionalEnvVar(clickhousePasswordEnv),
-		ClickHouseDatabase: configureOptionalConfig(clickhouseDatabase),
+		ClickHouseDatabase: p.configureOptionalConfig(clickhouseDatabase),
 		IngestStatistics:   ingestStatistics,
 	}
 }
 
-func configureUrl(configParamName string) *url.URL {
+func (p *QuesmaConfigurationParser) configureUrl(configParamName string) *url.URL {
 	var urlString string
 	var isSet bool
 	if urlString, isSet = os.LookupEnv(strings.ToUpper(configParamName)); !isSet {
-		urlString = viper.GetString(fullyQualifiedConfig(configParamName))
+		urlString = p.parsedViper.GetString(fullyQualifiedConfig(configParamName))
 	}
 	esUrl, err := url.Parse(urlString)
 	if err != nil {
@@ -154,11 +177,11 @@ func configureUrl(configParamName string) *url.URL {
 	return esUrl
 }
 
-func configurePublicTcpPort() network.Port {
+func (p *QuesmaConfigurationParser) configurePublicTcpPort() network.Port {
 	var portNumberStr string
 	var isSet bool
 	if portNumberStr, isSet = os.LookupEnv("TCP_PORT"); !isSet {
-		portNumberStr = viper.GetString(fullyQualifiedConfig(publicTcpPort))
+		portNumberStr = p.parsedViper.GetString(fullyQualifiedConfig(publicTcpPort))
 	}
 	port, err := network.ParsePort(portNumberStr)
 	if err != nil {
@@ -178,39 +201,39 @@ func configureOptionalEnvVar(envVarName string) *string {
 	return nil
 }
 
-func configureOptionalConfig(configName string) *string {
+func (p *QuesmaConfigurationParser) configureOptionalConfig(configName string) *string {
 	if envVar := configureOptionalEnvVar(strings.ToUpper(configName)); envVar != nil {
 		return envVar
 	}
-	if viper.IsSet(fullyQualifiedConfig(configName)) {
-		value := viper.GetString(fullyQualifiedConfig(configName))
+	if p.parsedViper.IsSet(fullyQualifiedConfig(configName)) {
+		value := p.parsedViper.GetString(fullyQualifiedConfig(configName))
 		return &value
 	}
 	return nil
 }
 
-func configureLogsPath() string {
+func (p *QuesmaConfigurationParser) configureLogsPath() string {
 	if logsPathEnv, isSet := os.LookupEnv("LOGS_PATH"); isSet {
 		return logsPathEnv
 	} else {
-		return viper.GetString(fullyQualifiedConfig(logsPathConfig))
+		return p.parsedViper.GetString(fullyQualifiedConfig(logsPathConfig))
 	}
 }
 
-func configureLogLevel() zerolog.Level {
+func (p *QuesmaConfigurationParser) configureLogLevel() zerolog.Level {
 	var logLevelStr string
 	var isSet bool
 	if logLevelStr, isSet = os.LookupEnv("LOG_LEVEL"); !isSet {
-		if viper.IsSet(fullyQualifiedConfig(logLevelConfig)) {
+		if p.parsedViper.IsSet(fullyQualifiedConfig(logLevelConfig)) {
 			isSet = true
-			logLevelStr = viper.GetString(fullyQualifiedConfig(logLevelConfig))
+			logLevelStr = p.parsedViper.GetString(fullyQualifiedConfig(logLevelConfig))
 		} else {
 			logLevelStr = zerolog.LevelDebugValue
 		}
 	}
 	level, err := zerolog.ParseLevel(logLevelStr)
 	if err != nil {
-		panic(fmt.Errorf("error configuring log level: %v, string: %s, isSet: %t", err, logLevelStr, isSet))
+		panic(fmt.Errorf("error configuring log level: %parsedViper, string: %s, isSet: %t", err, logLevelStr, isSet))
 	}
 	return level
 }
