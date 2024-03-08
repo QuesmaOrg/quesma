@@ -320,6 +320,27 @@ func Test_parseRange_DateTime(t *testing.T) {
 	assert.Len(t, split, 3)
 }
 
+func Test_parseRange_numeric(t *testing.T) {
+	rangePartOfQuery := QueryMap{
+		"time_taken": QueryMap{
+			"gt": "100",
+		},
+	}
+	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
+		( "message" String, "timestamp" DateTime, "time_taken" UInt32 )
+		ENGINE = Memory`,
+		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+
+	whereClause := cw.parseRange(rangePartOfQuery).Sql.Stmt
+	assert.Equal(t, "\"time_taken\">100", whereClause)
+}
+
 func TestFilterNonEmpty(t *testing.T) {
 	tests := []struct {
 		array    []Statement

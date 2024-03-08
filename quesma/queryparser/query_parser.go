@@ -506,14 +506,36 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 			continue
 		}
 		for op, v := range v.(QueryMap) {
+			fieldType := cw.Table.GetDateTimeType(field)
 			vToPrint := sprint(v)
-			if dateTime, ok := v.(string); ok {
-				if _, err := time.Parse(time.RFC3339Nano, dateTime); err == nil {
-					vToPrint = cw.parseDateTimeString(cw.Table, field, dateTime)
-				} else if op == "gte" || op == "lte" || op == "gt" || op == "lt" {
-					vToPrint = parseDateMathExpression(vToPrint)
+
+			switch fieldType {
+			case clickhouse.DateTime64, clickhouse.DateTime:
+				if dateTime, ok := v.(string); ok {
+					// if it's a date, we need to parse it to Clickhouse's DateTime format
+					// how to check if it does not contain date math expression?
+					if _, err := time.Parse(time.RFC3339Nano, dateTime); err == nil {
+						vToPrint = cw.parseDateTimeString(cw.Table, field, dateTime)
+					} else if op == "gte" || op == "lte" || op == "gt" || op == "lt" {
+						vToPrint = parseDateMathExpression(vToPrint)
+					}
+				}
+			case clickhouse.Invalid: // assumes it is number that does not need formatting
+				if len(vToPrint) > 2 && vToPrint[0] == '\'' && vToPrint[len(vToPrint)-1] == '\'' {
+					isNumber := true
+					for _, c := range vToPrint[1 : len(vToPrint)-1] {
+						if !unicode.IsDigit(c) && c != '.' {
+							isNumber = false
+						}
+					}
+					if isNumber {
+						vToPrint = vToPrint[1 : len(vToPrint)-1]
+					} else {
+						logger.Warn().Msgf("We use range with unknown literal %s, field %s", vToPrint, field)
+					}
 				}
 			}
+
 			switch op {
 			case "gte":
 				stmts = append(stmts, NewSimpleStatement(strconv.Quote(field)+">="+vToPrint))
