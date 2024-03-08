@@ -35,16 +35,6 @@ func (lm *LogManager) GetFieldInfo(table *Table, fieldName string) FieldInfo {
 	return ExistsAndIsBaseType
 }
 
-// TODO again, fix tuples.
-// t tuple(a String, b String) should return [t.a, t.b], now returns [t]
-func (lm *LogManager) GetFieldsList(table *Table) []string {
-	fieldNames := make([]string, 0, len(table.Cols))
-	for colName := range table.Cols {
-		fieldNames = append(fieldNames, colName)
-	}
-	return fieldNames
-}
-
 // ProcessSimpleSelectQuery - only WHERE clause
 // TODO query param should be type safe Query representing all parts of
 // sql statement that were already parsed and not string from which
