@@ -1,6 +1,9 @@
 package routes
 
-import "github.com/ucarion/urlpath"
+import (
+	"github.com/ucarion/urlpath"
+	"strings"
+)
 
 const (
 	IndexSearchPath      = "/:index/_search"
@@ -12,6 +15,13 @@ const (
 	ClusterHealthPath    = "/_cluster/health"
 	BulkPath             = "/_bulk"
 )
+
+var NotQueryPaths = []string{
+	"_bulk",
+	"_doc",
+	"_field_caps",
+	"_health",
+}
 
 var (
 	indexSearchPathMatcher  = urlpath.New(IndexSearchPath)
@@ -26,4 +36,17 @@ func IsIndexSearchPath(path string) bool {
 func IsIndexAsyncSearchPath(path string) bool {
 	_, match := indexAsyncSearchMatcher.Match(path)
 	return match
+}
+
+func IsNotQueryPath(path string) bool {
+	for _, p := range NotQueryPaths {
+		if strings.Contains(path, p) {
+			return true
+		}
+	}
+	return false
+}
+
+func IsQueryPath(path string) bool {
+	return !IsNotQueryPath(path)
 }
