@@ -2,63 +2,12 @@ package clickhouse
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/k0kubun/pp"
-	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/util"
-	"regexp"
-	"sort"
 	"strings"
 	"time"
 )
-
-func (lm *LogManager) DumpTableSchema(tableName string) (*Table, error) {
-	columns := make(map[string]*Column)
-	rows, err := lm.chDb.Query("SHOW COLUMNS FROM \"" + tableName + "\"")
-	if err != nil {
-		return nil, err
-	}
-	for rows.Next() {
-		var name, typ string
-		var s1, s2, s3, s4 sql.NullString
-		err = rows.Scan(&name, &typ, &s1, &s2, &s3, &s4)
-		// hack, when field support gets bigger, it'll only be worse.
-		// probably need grammar or sth like that, soon
-		typ = strings.Replace(typ, "DateTime64(3)", "DateTime64", -1)
-		typ = strings.Replace(typ, "Object('json')", "Object", -1)
-		if err != nil {
-			return nil, err
-		}
-		parsedType, _ := parseTypeFromShowColumns(typ, name)
-		columns[name] = &Column{Name: name, Type: parsedType}
-	}
-	return &Table{Name: tableName, Cols: columns, Config: NewOnlySchemaFieldsCHConfig()}, nil
-}
-
-func (lm *LogManager) DumpTableSchemas() (string, error) {
-	rows, err := lm.chDb.Query("SHOW TABLES")
-	if err != nil {
-		return "", err
-	}
-
-	result := concurrent.NewMap[string, *Table]()
-	for rows.Next() {
-		var tableName string
-		err = rows.Scan(&tableName)
-		if err != nil {
-			return "", err
-		}
-		schema, err := lm.DumpTableSchema(tableName)
-		if err != nil {
-			return "", err
-		}
-		result.Store(tableName, schema)
-	}
-	return pp.Sprint(result), nil
-}
 
 // Code doesn't need to be pretty, 99.9% it's just for our purposes
 // Parses type from SHOW COLUMNS FROM "table"
@@ -152,68 +101,12 @@ func parseTypeFromShowColumns(typ, name string) (Type, string) {
 	return parseTypeRec(typ, name)
 }
 
-func PrettyPrint(m SchemaMap) string {
-	var helper func(SchemaMap, int) string
-
-	helper = func(m SchemaMap, i int) string {
-		s := ""
-		keys := make([]string, 0, len(m))
-		for k := range m {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-
-		for _, key := range keys {
-			s += fmt.Sprintf("%s\"%s\": ", util.Indent(i), key)
-			nestedMap, ok := m[key].(SchemaMap)
-			if ok {
-				s += fmt.Sprintf("SchemaMap {\n%s%s},\n", helper(nestedMap, i+1), util.Indent(i))
-			} else {
-				s += "nil,\n"
-			}
-		}
-		return s
-	}
-	name := "n"
-	return name + " := map[string]SchemaMap {\n" + helper(m, 1) + "}"
-}
-
 func PrettyJson(jsonStr string) string {
 	var prettyJSON bytes.Buffer
 	if err := json.Indent(&prettyJSON, []byte(jsonStr), "", "    "); err != nil {
 		return fmt.Sprintf("PrettyJson err: %v\n", err)
 	}
 	return prettyJSON.String()
-}
-
-// Replaces long full 'goType' type with short way to recreate it
-//
-//lint:ignore U1000 Ignore unused function, it's used manually to create 'schemas.go' file
-func shortenDumpSchemasOutput(s string) string {
-	findEndOfGoType := func(s string, i int) int {
-		bracketsCnt := 0
-		for i < len(s) {
-			if s[i] == '{' {
-				bracketsCnt++
-			} else if s[i] == '}' {
-				bracketsCnt--
-			}
-			if bracketsCnt == 0 {
-				return i + 1
-			}
-			i++
-		}
-		return -1 // unreachable
-	}
-	r, _ := regexp.Compile(`Name:\s*"(.*)",\s*(goType:\s*&reflect\.rtype)`)
-	x := r.FindAllSubmatchIndex([]byte(s), -1)
-	result := ""
-	i := 0
-	for _, y := range x {
-		result += s[i:y[4]] + `goType: NewBaseType("` + s[y[2]:y[3]] + `").goType`
-		i = findEndOfGoType(s, y[5])
-	}
-	return strings.ReplaceAll(result+s[i:], "clickhouse.", "")
 }
 
 // TimestampGroupBy returns string to be used in the select part of Clickhouse query, when grouping by timestamp interval.
