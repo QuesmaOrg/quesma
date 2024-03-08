@@ -138,3 +138,20 @@ func (t *Table) applyFullTextSearchConfig(configuration config.QuesmaConfigurati
 		c.IsFullTextMatch = configuration.IsFullTextMatchField(t.Name, c.Name)
 	}
 }
+
+func (t *Table) GetAttributesList() []Attribute {
+	return t.Config.attributes
+}
+
+// TODO Won't work with tuples, e.g. trying to access via tupleName.tupleField will return NotExists,
+// instead of some other response. Fix this when needed (we seem to not need tuples right now)
+func (t *Table) GetFieldInfo(fieldName string) FieldInfo {
+	col, ok := t.Cols[fieldName]
+	if !ok {
+		return NotExists
+	}
+	if col.isArray() {
+		return ExistsAndIsArray
+	}
+	return ExistsAndIsBaseType
+}

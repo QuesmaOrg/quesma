@@ -18,23 +18,6 @@ const (
 	ExistsAndIsArray
 )
 
-func (lm *LogManager) GetAttributesList(table *Table) []Attribute {
-	return table.Config.attributes
-}
-
-// TODO Won't work with tuples, e.g. trying to access via tupleName.tupleField will return NotExists,
-// instead of some other response. Fix this when needed (we seem to not need tuples right now)
-func (lm *LogManager) GetFieldInfo(table *Table, fieldName string) FieldInfo {
-	col, ok := table.Cols[fieldName]
-	if !ok {
-		return NotExists
-	}
-	if col.isArray() {
-		return ExistsAndIsArray
-	}
-	return ExistsAndIsBaseType
-}
-
 // ProcessSimpleSelectQuery - only WHERE clause
 // TODO query param should be type safe Query representing all parts of
 // sql statement that were already parsed and not string from which

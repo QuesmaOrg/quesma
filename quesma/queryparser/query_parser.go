@@ -574,13 +574,13 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) SimpleQuery 
 	// only parameter is 'field', must be string, so cast is safe
 	sql := NewSimpleStatement("")
 	for _, v := range queryMap {
-		switch cw.ClickhouseLM.GetFieldInfo(cw.Table, v.(string)) {
+		switch cw.Table.GetFieldInfo(v.(string)) {
 		case clickhouse.ExistsAndIsBaseType:
 			sql = NewSimpleStatement(v.(string) + " IS NOT NULL")
 		case clickhouse.ExistsAndIsArray:
 			sql = NewSimpleStatement(v.(string) + ".size0 = 0")
 		case clickhouse.NotExists:
-			attrs := cw.ClickhouseLM.GetAttributesList(cw.Table)
+			attrs := cw.Table.GetAttributesList()
 			stmts := make([]Statement, len(attrs))
 			for i, a := range attrs {
 				stmts[i] = NewCompoundStatement(fmt.Sprintf("has(%s,%s) AND %s[indexOf(%s,%s)] IS NOT NULL",
@@ -903,7 +903,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps []any) []string {
 
 		// sortMap has only 1 key, so we can just iterate over it
 		for k, v := range sortMap {
-			if strings.HasPrefix(k, "_") && cw.ClickhouseLM.GetFieldInfo(cw.Table, k) == clickhouse.NotExists {
+			if strings.HasPrefix(k, "_") && cw.Table.GetFieldInfo(k) == clickhouse.NotExists {
 				// we're skipping ELK internal fields, like "_doc", "_id", etc.
 				continue
 			}
