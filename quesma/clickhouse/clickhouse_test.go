@@ -604,7 +604,7 @@ ENGINE = MergeTree
 TTL toDateTime(epoch_time_original / 1000000000) + toIntervalSecond(1296000)
 SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1
 `
-	assert.Equal(t, expected, table.CreateTableString())
+	assert.Equal(t, expected, table.createTableString())
 }
 
 // Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
@@ -703,7 +703,7 @@ func TestCreateTableString_2(t *testing.T) {
 		`ORDER BY (@timestamp)`,
 		"",
 	}
-	createTableString := table.CreateTableString()
+	createTableString := table.createTableString()
 	for _, row := range strings.Split(createTableString, "\n") {
 		assert.Contains(t, expectedRows, strings.TrimSpace(row))
 	}
@@ -770,7 +770,7 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 		`ORDER BY (@timestamp)`,
 		"",
 	}
-	createTableString := table.CreateTableString()
+	createTableString := table.createTableString()
 	for _, row := range strings.Split(createTableString, "\n") {
 		assert.Contains(t, expectedRows, strings.TrimSpace(row))
 	}

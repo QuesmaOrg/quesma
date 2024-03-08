@@ -101,13 +101,6 @@ func (lm *LogManager) ReloadTables() {
 
 }
 
-// applyFullTextSearchConfig applies full text search configuration to the table
-func (lm *LogManager) applyFullTextSearchConfig(table *Table) {
-	for _, c := range table.Cols {
-		c.IsFullTextMatch = lm.getConfig().IsFullTextMatchField(table.Name, c.Name)
-	}
-}
-
 func (lm *LogManager) describeTables(database string) (map[string]map[string]string, error) {
 	logger.Debug().Msgf("describing tables: %s", database)
 
@@ -143,10 +136,6 @@ func withDefault(optStr *string, def string) string {
 		return def
 	}
 	return *optStr
-}
-
-func (lm *LogManager) getConfig() config.QuesmaConfiguration {
-	return lm.cfg
 }
 
 func (lm *LogManager) initConnection() error {
@@ -384,7 +373,7 @@ func (lm *LogManager) GetTableConfig(tableName, jsonData string) (*ChTableConfig
 		}
 		return config, nil
 	} else if !table.Created {
-		err := lm.sendCreateTableQuery(table.CreateTableString())
+		err := lm.sendCreateTableQuery(table.createTableString())
 		if err != nil {
 			return nil, err
 		}
@@ -454,7 +443,7 @@ func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
 	if t == nil {
 		table.Created = true
 
-		lm.applyFullTextSearchConfig(table)
+		table.applyFullTextSearchConfig(lm.cfg)
 
 		lm.tableDefinitions.Load().Store(table.Name, table)
 		return true

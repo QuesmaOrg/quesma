@@ -38,7 +38,7 @@ func populateTableDefinitions(configuredTables map[string]map[string]string, dat
 				table.Config.attributes = []Attribute{NewDefaultStringAttribute()}
 			}
 
-			lm.applyFullTextSearchConfig(&table)
+			table.applyFullTextSearchConfig(lm.cfg)
 
 			tableMap.Store(tableName, &table)
 
