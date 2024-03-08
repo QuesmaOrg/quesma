@@ -78,11 +78,6 @@ func (c IndexConfiguration) FullTextField(indexName, fieldName string) bool {
 
 func (cfg QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string) bool {
 
-	// This is hardcoded default. We assume that field 'message' is always full text.
-	if fieldName == "message" {
-		return true
-	}
-
 	for _, indexConfig := range cfg.IndexConfig {
 		if indexConfig.FullTextField(indexName, fieldName) {
 			return true
@@ -120,6 +115,8 @@ func Load() QuesmaConfiguration {
 
 		if ok {
 			fields = strings.Split(v.(string), ",")
+		} else {
+			fields = []string{"message"}
 		}
 
 		indexBypass = append(indexBypass, IndexConfiguration{NamePattern: indexNamePattern, Enabled: config.(map[string]interface{})[enabledConfig].(bool), FullTextFields: fields})

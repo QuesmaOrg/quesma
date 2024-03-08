@@ -30,8 +30,17 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	cfg := config.QuesmaConfiguration{ClickHouseUrl: chUrl}
 
-	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	indexConfig := config.IndexConfiguration{
+		NamePattern:    "logs-generic-default",
+		Enabled:        true,
+		FullTextFields: []string{"message"},
+	}
+
+	cfg.IndexConfig = append(cfg.IndexConfig, indexConfig)
+
+	lm := clickhouse.NewEmptyLogManager(cfg)
 	lm.AddTableIfDoesntExist(table)
 
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
