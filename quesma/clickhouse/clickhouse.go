@@ -1,11 +1,9 @@
 package clickhouse
 
 import (
-	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/ClickHouse/clickhouse-go/v2"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/index"
 	"mitmproxy/quesma/jsonprocessor"
@@ -64,7 +62,8 @@ func NewTableMap() *TableMap {
 }
 
 func (lm *LogManager) Start() {
-	if err := lm.initConnection(); err != nil {
+	lm.chDb = initDBConnectionPool(lm.cfg)
+	if err := lm.chDb.Ping(); err != nil {
 		logger.Error().Msgf("could not connect to clickhouse. error: %v", err)
 	}
 
@@ -104,9 +103,6 @@ func (lm *LogManager) ReloadTables() {
 func (lm *LogManager) describeTables(database string) (map[string]map[string]string, error) {
 	logger.Debug().Msgf("describing tables: %s", database)
 
-	if err := lm.initConnection(); err != nil {
-		return map[string]map[string]string{}, err
-	}
 	rows, err := lm.chDb.Query("SELECT table, name, type FROM system.columns WHERE database = ?", database)
 	if err != nil {
 		return map[string]map[string]string{}, err
@@ -136,26 +132,6 @@ func withDefault(optStr *string, def string) string {
 		return def
 	}
 	return *optStr
-}
-
-func (lm *LogManager) initConnection() error {
-	if lm.chDb == nil {
-		options := clickhouse.Options{Addr: []string{lm.cfg.ClickHouseUrl.Host}}
-		if lm.cfg.ClickHouseUser != nil || lm.cfg.ClickHousePassword != nil || lm.cfg.ClickHouseDatabase != nil {
-			options.TLS = &tls.Config{
-				InsecureSkipVerify: true, // TODO: fix it
-			}
-
-			options.Auth = clickhouse.Auth{
-				Username: withDefault(lm.cfg.ClickHouseUser, ""),
-				Password: withDefault(lm.cfg.ClickHousePassword, ""),
-				Database: withDefault(lm.cfg.ClickHouseDatabase, ""),
-			}
-		}
-
-		lm.chDb = clickhouse.OpenDB(&options)
-	}
-	return lm.chDb.Ping()
 }
 
 func (lm *LogManager) matchIndex(indexNamePattern, indexName string) bool {
@@ -229,9 +205,6 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 }
 
 func (lm *LogManager) sendCreateTableQuery(query string) error {
-	if err := lm.initConnection(); err != nil {
-		return err
-	}
 	if _, err := lm.chDb.Exec(query); err != nil {
 		return fmt.Errorf("error in sendCreateTableQuery: query: %s\nerr:%v", query, err)
 	}
@@ -393,10 +366,6 @@ func (lm *LogManager) ProcessInsertQuery(tableName string, jsonData []string) er
 }
 
 func (lm *LogManager) Insert(tableName string, jsons []string, config *ChTableConfig) error {
-	if err := lm.initConnection(); err != nil {
-		return err
-	}
-
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
 		preprocessedJson := preprocess(jsonValue, NestedSeparator)

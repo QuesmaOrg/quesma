@@ -40,9 +40,6 @@ func (lm *LogManager) GetFieldInfo(table *Table, fieldName string) FieldInfo {
 // sql statement that were already parsed and not string from which
 // we have to extract again different parts like where clause and columns to build a proper result
 func (lm *LogManager) ProcessSimpleSelectQuery(table *Table, query *model.Query) ([]model.QueryResultRow, error) {
-	if err := lm.initConnection(); err != nil {
-		return nil, err
-	}
 	colNames, err := table.extractColumns(query, false)
 	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
@@ -57,9 +54,6 @@ func (lm *LogManager) ProcessSimpleSelectQuery(table *Table, query *model.Query)
 
 // fieldName = "*" -> we query all, otherwise only this 1 field
 func (lm *LogManager) ProcessNRowsQuery(table *Table, query *model.Query) ([]model.QueryResultRow, error) {
-	if err := lm.initConnection(); err != nil {
-		return nil, err
-	}
 	colNames, err := table.extractColumns(query, false)
 	if err != nil {
 		return nil, err
@@ -73,9 +67,6 @@ func (lm *LogManager) ProcessNRowsQuery(table *Table, query *model.Query) ([]mod
 }
 
 func (lm *LogManager) ProcessHistogramQuery(query *model.Query, bucket time.Duration) ([]model.QueryResultRow, error) {
-	if err := lm.initConnection(); err != nil {
-		return nil, err
-	}
 	rows, err := lm.chDb.Query(query.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
@@ -100,9 +91,6 @@ func (lm *LogManager) ProcessHistogramQuery(query *model.Query, bucket time.Dura
 
 // TODO add support for autocomplete for attributes, if we'll find it needed
 func (lm *LogManager) ProcessFacetsQuery(table *Table, query *model.Query) ([]model.QueryResultRow, error) {
-	if err := lm.initConnection(); err != nil {
-		return nil, err
-	}
 	colNames, err := table.extractColumns(query, false)
 	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
@@ -120,9 +108,6 @@ func (lm *LogManager) ProcessFacetsQuery(table *Table, query *model.Query) ([]mo
 }
 
 func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(query *model.Query) ([]model.QueryResultRow, error) {
-	if err := lm.initConnection(); err != nil {
-		return nil, err
-	}
 	rowsDB, err := lm.chDb.Query(query.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
@@ -132,9 +117,6 @@ func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(query *model.Query) ([
 }
 
 func (lm *LogManager) ProcessTimestampQuery(query *model.Query) ([]model.QueryResultRow, error) {
-	if err := lm.initConnection(); err != nil {
-		return nil, err
-	}
 	rows, err := lm.chDb.Query(query.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
@@ -143,9 +125,6 @@ func (lm *LogManager) ProcessTimestampQuery(query *model.Query) ([]model.QueryRe
 }
 
 func (lm *LogManager) ProcessGeneralAggregationQuery(table *Table, query *model.Query) ([]model.QueryResultRow, error) {
-	if err := lm.initConnection(); err != nil {
-		return nil, err
-	}
 	rows, err := lm.chDb.Query(query.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)

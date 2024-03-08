@@ -39,10 +39,6 @@ func (lm *LogManager) DumpTableSchema(tableName string) (*Table, error) {
 }
 
 func (lm *LogManager) DumpTableSchemas() (string, error) {
-	if err := lm.initConnection(); err != nil {
-		return "", err
-	}
-
 	rows, err := lm.chDb.Query("SHOW TABLES")
 	if err != nil {
 		return "", err
