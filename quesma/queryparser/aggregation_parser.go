@@ -19,8 +19,11 @@ type aggrQueryBuilder struct {
 
 type metricsAggregation struct {
 	AggrType    string
-	FieldNames  []string // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
-	Percentiles map[string]float64
+	FieldNames  []string           // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
+	Percentiles map[string]float64 // Only for percentiles aggregation
+	SortBy      string             // Only for top_metrics
+	Size        int                // Only for top_metrics
+	Order       string             // Only for top_metrics
 }
 
 func (b *aggrQueryBuilder) buildAggregationCommon() model.QueryWithAggregation {
@@ -62,13 +65,44 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		query.NonSchemaFields = append(query.NonSchemaFields, `COUNT(DISTINCT "`+metricsAggr.FieldNames[0]+`")`)
 	case "value_count":
 		query.NonSchemaFields = append(query.NonSchemaFields, "count()")
-	case "top_hits", "top_metrics":
+	case "top_hits":
 		query.Fields = append(query.Fields, metricsAggr.FieldNames...)
 		fieldsAsString := strings.Join(metricsAggr.FieldNames, ", ")
 		query.FromClause = fmt.Sprintf(
 			"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s) AS %s FROM %s)",
 			fieldsAsString, fieldsAsString, model.RowNumberColumnName, query.FromClause,
 		)
+	case "top_metrics":
+		// This appending of `metricsAggr.SortBy` and having it duplicated in SELECT block
+		// is a way to pass value we're sorting by to the query result. In the future we might add SQL aliasing support, e.g. SELECT x AS 'sort_by' FROM ...
+		if len(b.QueryWithAggregation.Query.GroupByFields) > 0 {
+			var ordFunc string
+			switch metricsAggr.Order {
+			case "asc":
+				ordFunc = `MAX`
+			case "desc":
+				ordFunc = `MIN`
+			}
+			var topSelectFields []string
+			innerFields := append(metricsAggr.FieldNames, metricsAggr.SortBy)
+			for _, field := range innerFields {
+				topSelectFields = append(topSelectFields, fmt.Sprintf(`%s("%s") AS windowed_%s`, ordFunc, field, field))
+			}
+			query.NonSchemaFields = append(query.NonSchemaFields, topSelectFields...)
+			partitionBy := strings.Join(b.QueryWithAggregation.Query.GroupByFields, "")
+			fieldsAsString := strings.Join(innerFields, ", ") // need those fields in the inner clause
+			query.FromClause = fmt.Sprintf(
+				"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s %s) AS %s FROM %s WHERE %s)",
+				fieldsAsString, partitionBy,
+				metricsAggr.SortBy, metricsAggr.Order,
+				model.RowNumberColumnName, query.FromClause, b.whereBuilder.Sql.Stmt,
+			)
+			query.WhereClause = query.WhereClause + fmt.Sprintf(" AND %s <= %d", model.RowNumberColumnName, metricsAggr.Size)
+		} else {
+			query.Fields = append(metricsAggr.FieldNames, metricsAggr.SortBy)
+			query.SuffixClauses = append(query.SuffixClauses,
+				fmt.Sprintf(`ORDER BY %s %s LIMIT %d`, metricsAggr.SortBy, metricsAggr.Order, metricsAggr.Size))
+		}
 	case "percentile_ranks":
 		fieldName := metricsAggr.FieldNames[0]
 		for _, cutValueAsString := range metricsAggr.FieldNames[1:] {
@@ -211,7 +245,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	if filterOnThisLevel {
 		currentAggr.whereBuilder = whereBeforeNesting
 	}
-	if addedNonSchemaField {
+	if addedNonSchemaField && len(currentAggr.GroupByFields) > 0 {
 		currentAggr.GroupByFields = currentAggr.GroupByFields[:len(currentAggr.GroupByFields)-1]
 		currentAggr.NonSchemaFields = currentAggr.NonSchemaFields[:len(currentAggr.NonSchemaFields)-1]
 	}
@@ -247,10 +281,8 @@ func tryMetricsAggregation(queryMap QueryMap) (metricsAggregation, bool) {
 	}
 
 	if topMetrics, ok := queryMap["top_metrics"]; ok {
-		return metricsAggregation{
-			AggrType:   "top_metrics",
-			FieldNames: []string{topMetrics.(QueryMap)["metrics"].(QueryMap)["field"].(string)},
-		}, true
+		topMetricsAggrParams := ParseTopMetricsAggregation(topMetrics.(QueryMap))
+		return topMetricsAggrParams, true
 	}
 	if topHits, ok := queryMap["top_hits"]; ok {
 		fields := topHits.(QueryMap)["_source"].(QueryMap)["includes"].([]interface{})
