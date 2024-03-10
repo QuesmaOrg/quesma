@@ -27,10 +27,14 @@ const (
 	Reason = "reason"     // Known error reason key for the logger
 )
 
+const (
+	initialBufferSize = 32 * 1024
+)
+
 var logger zerolog.Logger
 
 // Returns channel where log messages will be sent
-func InitLogger(cfg config.QuesmaConfiguration) <-chan string {
+func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan struct{}) <-chan string {
 	zerolog.TimeFieldFormat = time.RFC3339Nano // without this we don't have milliseconds timestamp precision
 	var output io.Writer = zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.StampMilli}
 	if os.Getenv("GO_ENV") == "production" { // ConsoleWriter is slow, disable it in production
@@ -40,7 +44,29 @@ func InitLogger(cfg config.QuesmaConfiguration) <-chan string {
 
 	logChannel := make(chan string, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
 	chanWriter := channelWriter{ch: logChannel}
-	multi := zerolog.MultiLevelWriter(output, StdLogFile, errorFileLogger{ErrLogFile}, chanWriter)
+
+	var multi zerolog.LevelWriter
+
+	if cfg.QuesmaInternalTelemetryUrl == nil {
+		multi = zerolog.MultiLevelWriter(output, StdLogFile, errorFileLogger{ErrLogFile}, chanWriter)
+	} else {
+		logForwarder := LogForwarder{logSender: LogSender{
+			Url: cfg.QuesmaInternalTelemetryUrl,
+			LogBuffer: make([]byte, 0,
+				initialBufferSize),
+			LastSendTime: time.Now(),
+			Interval:     time.Minute,
+		}, logCh: make(chan []byte, initialBufferSize),
+			ticker: time.NewTicker(time.Second),
+			sigCh:  sig,
+			doneCh: doneCh,
+		}
+
+		logForwarder.Run()
+		logForwarder.TriggerFlush()
+		multi = zerolog.MultiLevelWriter(output, StdLogFile, errorFileLogger{ErrLogFile}, chanWriter, &logForwarder)
+	}
+
 	logger = zerolog.New(multi).
 		Level(cfg.LogLevel).
 		With().

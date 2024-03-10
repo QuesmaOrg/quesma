@@ -25,10 +25,10 @@ func main() {
 	println(banner)
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-
+	doneCh := make(chan struct{})
 	var cfg = config.Load()
 
-	qmcLogChannel := logger.InitLogger(cfg)
+	qmcLogChannel := logger.InitLogger(cfg, sig, doneCh)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
 
@@ -39,10 +39,12 @@ func main() {
 	instance := constructQuesma(cfg, lm, qmcLogChannel)
 	instance.Start()
 
-	<-sig
+	<-doneCh
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	instance.Close(ctx)
+
 }
 
 func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, logChan <-chan string) *quesma.Quesma {

@@ -23,17 +23,18 @@ const (
 )
 
 const (
-	prefix             = "quesma"
-	indexConfig        = "index"
-	enabledConfig      = "enabled"
-	fullTextFields     = "fulltext_fields"
-	logsPathConfig     = "logs_path"
-	logLevelConfig     = "log_level"
-	publicTcpPort      = "port"
-	elasticsearchUrl   = "elasticsearch_url"
-	clickhouseUrl      = "clickhouse_url"
-	clickhouseDatabase = "clickhouse_database"
-	ingestStatistics   = "ingest_statistics"
+	prefix                     = "quesma"
+	indexConfig                = "index"
+	enabledConfig              = "enabled"
+	fullTextFields             = "fulltext_fields"
+	logsPathConfig             = "logs_path"
+	logLevelConfig             = "log_level"
+	publicTcpPort              = "port"
+	elasticsearchUrl           = "elasticsearch_url"
+	clickhouseUrl              = "clickhouse_url"
+	clickhouseDatabase         = "clickhouse_database"
+	ingestStatistics           = "ingest_statistics"
+	quesmaInternalTelemetryUrl = "quesma_internal_telemetry_url"
 )
 
 const (
@@ -44,17 +45,18 @@ const (
 type (
 	OperationMode       int
 	QuesmaConfiguration struct {
-		Mode               OperationMode
-		ElasticsearchUrl   *url.URL
-		ClickHouseUrl      *url.URL
-		ClickHouseUser     *string
-		ClickHousePassword *string
-		ClickHouseDatabase *string
-		IndexConfig        []IndexConfiguration
-		LogsPath           string
-		LogLevel           zerolog.Level
-		PublicTcpPort      network.Port
-		IngestStatistics   bool
+		Mode                       OperationMode
+		ElasticsearchUrl           *url.URL
+		ClickHouseUrl              *url.URL
+		ClickHouseUser             *string
+		ClickHousePassword         *string
+		ClickHouseDatabase         *string
+		IndexConfig                []IndexConfiguration
+		LogsPath                   string
+		LogLevel                   zerolog.Level
+		PublicTcpPort              network.Port
+		IngestStatistics           bool
+		QuesmaInternalTelemetryUrl *url.URL
 	}
 
 	IndexConfiguration struct {
@@ -150,17 +152,18 @@ func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
 	}
 
 	return QuesmaConfiguration{
-		Mode:               parseOperationMode(mode),
-		PublicTcpPort:      p.configurePublicTcpPort(),
-		ElasticsearchUrl:   p.configureUrl(elasticsearchUrl),
-		ClickHouseUrl:      p.configureUrl(clickhouseUrl),
-		IndexConfig:        indexBypass,
-		LogsPath:           p.configureLogsPath(),
-		LogLevel:           p.configureLogLevel(),
-		ClickHouseUser:     configureOptionalEnvVar(clickhouseUserEnv),
-		ClickHousePassword: configureOptionalEnvVar(clickhousePasswordEnv),
-		ClickHouseDatabase: p.configureOptionalConfig(clickhouseDatabase),
-		IngestStatistics:   ingestStatistics,
+		Mode:                       parseOperationMode(mode),
+		PublicTcpPort:              p.configurePublicTcpPort(),
+		ElasticsearchUrl:           p.configureUrl(elasticsearchUrl),
+		ClickHouseUrl:              p.configureUrl(clickhouseUrl),
+		IndexConfig:                indexBypass,
+		LogsPath:                   p.configureLogsPath(),
+		LogLevel:                   p.configureLogLevel(),
+		ClickHouseUser:             configureOptionalEnvVar(clickhouseUserEnv),
+		ClickHousePassword:         configureOptionalEnvVar(clickhousePasswordEnv),
+		ClickHouseDatabase:         p.configureOptionalConfig(clickhouseDatabase),
+		IngestStatistics:           ingestStatistics,
+		QuesmaInternalTelemetryUrl: p.configureUrl(quesmaInternalTelemetryUrl),
 	}
 }
 
@@ -292,7 +295,10 @@ func (c *QuesmaConfiguration) String() string {
 	if c.ClickHouseDatabase != nil {
 		clickhouseExtra += fmt.Sprintf("\n      ClickHouse database: %s", *c.ClickHouseDatabase)
 	}
-
+	quesmaInternalTelemetryUrl := "disabled"
+	if c.QuesmaInternalTelemetryUrl != nil {
+		quesmaInternalTelemetryUrl = c.QuesmaInternalTelemetryUrl.String()
+	}
 	return fmt.Sprintf(`
 Quesma Configuration:
 	Mode: %s
@@ -302,7 +308,8 @@ Quesma Configuration:
 	Logs Path: %s
 	Log Level: %v
 	Public TCP Port: %d
-	Ingest Statistics: %t`,
+	Ingest Statistics: %t,
+	Quesma Telemetry URL: %s`,
 		c.Mode.String(),
 		elasticUrl,
 		clickhouseUrl,
@@ -311,5 +318,7 @@ Quesma Configuration:
 		c.LogsPath,
 		c.LogLevel,
 		c.PublicTcpPort,
-		c.IngestStatistics)
+		c.IngestStatistics,
+		quesmaInternalTelemetryUrl,
+	)
 }
