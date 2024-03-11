@@ -43,9 +43,8 @@ const (
 )
 
 type (
-	OperationMode       int
 	QuesmaConfiguration struct {
-		Mode                       OperationMode
+		Mode                       operationMode
 		ElasticsearchUrl           *url.URL
 		ClickHouseUrl              *url.URL
 		ClickHouseUser             string
@@ -152,7 +151,7 @@ func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
 	}
 
 	return QuesmaConfiguration{
-		Mode:                       parseOperationMode(mode),
+		Mode:                       operationMode(mode),
 		PublicTcpPort:              p.configurePublicTcpPort(),
 		ElasticsearchUrl:           p.configureUrl(elasticsearchUrl),
 		ClickHouseUrl:              p.configureUrl(clickhouseUrl),
