@@ -490,13 +490,14 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 }
 
 func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName, whereClause string, limit int) *model.Query {
+	const sampleSize = "20000"
 	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
 	return &model.Query{
 		Fields:          []string{fieldName},
 		NonSchemaFields: []string{"count()"},
 		WhereClause:     whereClause,
 		SuffixClauses:   suffixClauses,
-		FromClause:      cw.Table.FullTableName(),
+		FromClause:      "(SELECT * FROM " + cw.Table.FullTableName() + " LIMIT " + sampleSize + ")",
 		CanParse:        true,
 	}
 }
