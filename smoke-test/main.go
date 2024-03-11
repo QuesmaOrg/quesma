@@ -24,6 +24,7 @@ const (
 	kibanaDataViewsUrl         = "http://localhost:5601/api/data_views"
 	kibanaCsvReportUrl         = "http://localhost:5601/internal/reporting/generate/csv_searchsource"
 	elasticsearchSampleDataUrl = "http://localhost:9201/kibana_sample_data_flights/_count"
+	quesmaSampleDataUrl        = "http://localhost:9200/kibana_sample_data_flights/_count"
 	elasticsearchBaseUrl       = "http://localhost:9201"
 	elasticIndexCountUrl       = "http://localhost:9201/logs-generic-default/_count"
 	quesmaIndexCountUrl        = "http://localhost:9200/logs-generic-default/_count"
@@ -194,7 +195,7 @@ func main() {
 }
 
 func waitForSampleData() {
-	waitForLogsInElasticsearchRaw("elasticsearch sample data", elasticsearchSampleDataUrl)
+	waitForLogsInElasticsearchRaw("elasticsearch sample data", quesmaSampleDataUrl, true)
 	waitForDataViews()
 }
 
@@ -393,14 +394,14 @@ func waitForKibana() {
 }
 
 func waitForLogsInElasticsearch() {
-	waitForLogsInElasticsearchRaw("elasticsearch", elasticIndexCountUrl)
+	waitForLogsInElasticsearchRaw("elasticsearch", elasticIndexCountUrl, false)
 }
 
 func waitForLogs() {
-	waitForLogsInElasticsearchRaw("quesma", quesmaIndexCountUrl)
+	waitForLogsInElasticsearchRaw("quesma", quesmaIndexCountUrl, true)
 }
 
-func waitForLogsInElasticsearchRaw(serviceName, url string) {
+func waitForLogsInElasticsearchRaw(serviceName, url string, quesmaSource bool) {
 	res := waitFor(serviceName, func() bool {
 		resp, err := http.Get(url)
 		if err == nil {
@@ -412,7 +413,11 @@ func waitForLogsInElasticsearchRaw(serviceName, url string) {
 					_ = json.Unmarshal(body, &response)
 					var foo = response["count"]
 					if foo > 0 {
-						return true
+						if quesmaSource {
+							return sourceClickhouse(resp)
+						} else {
+							return !sourceClickhouse(resp)
+						}
 					}
 				}
 			} else {
