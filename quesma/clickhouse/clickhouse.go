@@ -23,6 +23,7 @@ const (
 type (
 	LogManager struct {
 		chDb             *sql.DB
+		schemaManagement *SchemaManagement
 		tableDefinitions *atomic.Pointer[TableMap]
 		cfg              config.QuesmaConfiguration
 	}
@@ -62,7 +63,6 @@ func NewTableMap() *TableMap {
 }
 
 func (lm *LogManager) Start() {
-	lm.chDb = initDBConnectionPool(lm.cfg)
 	if err := lm.chDb.Ping(); err != nil {
 		logger.Error().Msgf("could not connect to clickhouse. error: %v", err)
 	}
@@ -74,10 +74,10 @@ func (lm *LogManager) ReloadTables() {
 	logger.Info().Msg("reloading tables definitions")
 	configuredTables := make(map[string]map[string]string)
 	databaseName := "default"
-	if lm.cfg.ClickHouseDatabase != nil {
-		databaseName = *lm.cfg.ClickHouseDatabase
+	if lm.cfg.ClickHouseDatabase != "" {
+		databaseName = lm.cfg.ClickHouseDatabase
 	}
-	if tables, err := lm.describeTables(databaseName); err != nil {
+	if tables, err := lm.schemaManagement.readTables(databaseName); err != nil {
 		logger.Error().Msgf("could not describe tables: %v", err)
 		return
 	} else {
@@ -97,41 +97,10 @@ func (lm *LogManager) ReloadTables() {
 	logger.Info().Msgf("discovered tables: [%s]", strings.Join(util.MapKeys(configuredTables), ","))
 
 	populateTableDefinitions(configuredTables, databaseName, lm)
-
-}
-
-func (lm *LogManager) describeTables(database string) (map[string]map[string]string, error) {
-	logger.Debug().Msgf("describing tables: %s", database)
-
-	rows, err := lm.chDb.Query("SELECT table, name, type FROM system.columns WHERE database = ?", database)
-	if err != nil {
-		return map[string]map[string]string{}, err
-	}
-	defer rows.Close()
-	columnsPerTable := make(map[string]map[string]string)
-	for rows.Next() {
-		var table, colName, colType string
-		if err := rows.Scan(&table, &colName, &colType); err != nil {
-			return map[string]map[string]string{}, err
-		}
-		if _, ok := columnsPerTable[table]; !ok {
-			columnsPerTable[table] = make(map[string]string)
-		}
-		columnsPerTable[table][colName] = colType
-	}
-
-	return columnsPerTable, nil
 }
 
 func (lm *LogManager) Close() {
 	_ = lm.chDb.Close()
-}
-
-func withDefault(optStr *string, def string) string {
-	if optStr == nil {
-		return def
-	}
-	return *optStr
 }
 
 func (lm *LogManager) matchIndex(indexNamePattern, indexName string) bool {
@@ -422,10 +391,11 @@ func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
 	return wasntCreated
 }
 
-func NewEmptyLogManager(cfg config.QuesmaConfiguration) *LogManager {
+func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB) *LogManager {
+	var schemaManagement = NewSchemaManagement(chDb)
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
-	return &LogManager{chDb: nil, tableDefinitions: &tableDefinitions, cfg: cfg}
+	return &LogManager{chDb: chDb, tableDefinitions: &tableDefinitions, cfg: cfg, schemaManagement: schemaManagement}
 }
 
 func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager {
@@ -438,7 +408,7 @@ func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager
 func NewLogManagerWithConnection(db *sql.DB, tables *TableMap) *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
-	return &LogManager{chDb: db, tableDefinitions: &tableDefinitions}
+	return &LogManager{chDb: db, tableDefinitions: &tableDefinitions, schemaManagement: NewSchemaManagement(db)}
 }
 
 func NewLogManagerEmpty() *LogManager {

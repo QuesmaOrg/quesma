@@ -7,17 +7,17 @@ import (
 	"mitmproxy/quesma/quesma/config"
 )
 
-func initDBConnectionPool(configuration config.QuesmaConfiguration) *sql.DB {
-	options := clickhouse.Options{Addr: []string{configuration.ClickHouseUrl.Host}}
-	if configuration.ClickHouseUser != nil || configuration.ClickHousePassword != nil || configuration.ClickHouseDatabase != nil {
+func InitDBConnectionPool(c config.QuesmaConfiguration) *sql.DB {
+	options := clickhouse.Options{Addr: []string{c.ClickHouseUrl.Host}}
+	if c.ClickHouseUser != "" || c.ClickHousePassword != "" || c.ClickHouseDatabase != "" {
 		options.TLS = &tls.Config{
 			InsecureSkipVerify: true, // TODO: fix it
 		}
 
 		options.Auth = clickhouse.Auth{
-			Username: withDefault(configuration.ClickHouseUser, ""),
-			Password: withDefault(configuration.ClickHousePassword, ""),
-			Database: withDefault(configuration.ClickHouseDatabase, ""),
+			Username: c.ClickHouseUser,
+			Password: c.ClickHousePassword,
+			Database: c.ClickHouseDatabase,
 		}
 	}
 

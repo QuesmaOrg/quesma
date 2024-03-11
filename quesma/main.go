@@ -27,12 +27,13 @@ func main() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	doneCh := make(chan struct{})
 	var cfg = config.Load()
+	var connectionPool = clickhouse.InitDBConnectionPool(cfg)
 
 	qmcLogChannel := logger.InitLogger(cfg, sig, doneCh)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
 
-	lm := clickhouse.NewEmptyLogManager(cfg)
+	lm := clickhouse.NewEmptyLogManager(cfg, connectionPool)
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())
 

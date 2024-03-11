@@ -48,9 +48,9 @@ type (
 		Mode                       OperationMode
 		ElasticsearchUrl           *url.URL
 		ClickHouseUrl              *url.URL
-		ClickHouseUser             *string
-		ClickHousePassword         *string
-		ClickHouseDatabase         *string
+		ClickHouseUser             string
+		ClickHousePassword         string
+		ClickHouseDatabase         string
 		IndexConfig                []IndexConfiguration
 		LogsPath                   string
 		LogLevel                   zerolog.Level
@@ -201,22 +201,22 @@ func fullyQualifiedConfig(config string) string {
 	return fmt.Sprintf("%s.%s", prefix, config)
 }
 
-func configureOptionalEnvVar(envVarName string) *string {
+func configureOptionalEnvVar(envVarName string) string {
 	if value, isSet := os.LookupEnv(envVarName); isSet {
-		return &value
+		return value
 	}
-	return nil
+	return ""
 }
 
-func (p *QuesmaConfigurationParser) configureOptionalConfig(configName string) *string {
-	if envVar := configureOptionalEnvVar(strings.ToUpper(configName)); envVar != nil {
+func (p *QuesmaConfigurationParser) configureOptionalConfig(configName string) string {
+	if envVar := configureOptionalEnvVar(strings.ToUpper(configName)); envVar != "" {
 		return envVar
 	}
 	if p.parsedViper.IsSet(fullyQualifiedConfig(configName)) {
 		value := p.parsedViper.GetString(fullyQualifiedConfig(configName))
-		return &value
+		return value
 	}
-	return nil
+	return ""
 }
 
 func (p *QuesmaConfigurationParser) configureLogsPath() string {
@@ -290,14 +290,14 @@ func (c *QuesmaConfiguration) String() string {
 	}
 
 	clickhouseExtra := ""
-	if c.ClickHouseUser != nil {
-		clickhouseExtra = fmt.Sprintf("\n      ClickHouse user: %s", *c.ClickHouseUser)
+	if c.ClickHouseUser != "" {
+		clickhouseExtra = fmt.Sprintf("\n      ClickHouse user: %s", c.ClickHouseUser)
 	}
-	if c.ClickHousePassword != nil {
+	if c.ClickHousePassword != "" {
 		clickhouseExtra += "\n      ClickHouse password: ***"
 	}
-	if c.ClickHouseDatabase != nil {
-		clickhouseExtra += fmt.Sprintf("\n      ClickHouse database: %s", *c.ClickHouseDatabase)
+	if c.ClickHouseDatabase != "" {
+		clickhouseExtra += fmt.Sprintf("\n      ClickHouse database: %s", c.ClickHouseDatabase)
 	}
 	quesmaInternalTelemetryUrl := "disabled"
 	if c.QuesmaInternalTelemetryUrl != nil {

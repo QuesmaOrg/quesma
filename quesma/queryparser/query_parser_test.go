@@ -40,7 +40,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	cfg.IndexConfig = append(cfg.IndexConfig, indexConfig)
 
-	lm := clickhouse.NewEmptyLogManager(cfg)
+	lm := clickhouse.NewEmptyLogManager(cfg, nil)
 	lm.AddTableIfDoesntExist(table)
 
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
