@@ -171,7 +171,11 @@ func (p *QuesmaConfigurationParser) configureUrl(configParamName string) *url.UR
 	var urlString string
 	var isSet bool
 	if urlString, isSet = os.LookupEnv(strings.ToUpper(configParamName)); !isSet {
-		urlString = p.parsedViper.GetString(fullyQualifiedConfig(configParamName))
+		if p.parsedViper.IsSet(fullyQualifiedConfig(configParamName)) {
+			urlString = p.parsedViper.GetString(fullyQualifiedConfig(configParamName))
+		} else {
+			return nil
+		}
 	}
 	esUrl, err := url.Parse(urlString)
 	if err != nil {

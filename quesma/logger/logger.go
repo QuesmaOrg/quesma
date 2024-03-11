@@ -29,6 +29,7 @@ const (
 
 const (
 	initialBufferSize = 32 * 1024
+	bufferSizeChannel = 1024
 )
 
 var logger zerolog.Logger
@@ -51,12 +52,11 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 		multi = zerolog.MultiLevelWriter(output, StdLogFile, errorFileLogger{ErrLogFile}, chanWriter)
 	} else {
 		logForwarder := LogForwarder{logSender: LogSender{
-			Url: cfg.QuesmaInternalTelemetryUrl,
-			LogBuffer: make([]byte, 0,
-				initialBufferSize),
+			Url:          cfg.QuesmaInternalTelemetryUrl,
+			LogBuffer:    make([]byte, 0, initialBufferSize),
 			LastSendTime: time.Now(),
 			Interval:     time.Minute,
-		}, logCh: make(chan []byte, initialBufferSize),
+		}, logCh: make(chan []byte, bufferSizeChannel),
 			ticker: time.NewTicker(time.Second),
 			sigCh:  sig,
 			doneCh: doneCh,
