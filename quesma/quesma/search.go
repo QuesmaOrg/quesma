@@ -83,8 +83,8 @@ func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *cli
 	return responseBody, nil
 }
 
-func createAsyncSearchResponseHitJson(ctx context.Context, rows []model.QueryResultRow, typ model.AsyncSearchQueryType, queryTranslator *queryparser.ClickhouseQueryTranslator) ([]byte, error) {
-	responseBody, err := queryTranslator.MakeResponseAsyncSearchQuery(rows, typ)
+func createAsyncSearchResponseHitJson(ctx context.Context, rows []model.QueryResultRow, typ model.AsyncSearchQueryType, queryTranslator *queryparser.ClickhouseQueryTranslator, highlighter queryparser.Highlighter) ([]byte, error) {
+	responseBody, err := queryTranslator.MakeResponseAsyncSearchQuery(rows, typ, highlighter)
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("%v rows: %v", err, rows)
 		return nil, err
@@ -105,7 +105,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
 	var rawResults []byte
-	simpleQuery, queryInfo := queryTranslator.ParseQueryAsyncSearch(string(body))
+	simpleQuery, queryInfo, highlighter := queryTranslator.ParseQueryAsyncSearch(string(body))
 	var responseBody, translatedQueryBody []byte
 
 	// Let's try old one only if:
@@ -153,7 +153,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rows, err)
 		}
-		responseBody, err = createAsyncSearchResponseHitJson(ctx, rows, queryInfo.Typ, queryTranslator)
+		responseBody, err = createAsyncSearchResponseHitJson(ctx, rows, queryInfo.Typ, queryTranslator, highlighter)
 		if err != nil {
 			return responseBody, err
 		}

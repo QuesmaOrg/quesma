@@ -29,6 +29,55 @@ type Statement struct {
 	FieldName  string
 }
 
+type Highlighter struct {
+	Tokens []string
+	Fields map[string]bool
+
+	PreTags  []string
+	PostTags []string
+}
+
+// NewEmptyHighlighter returns no-op for error branches and tests
+func NewEmptyHighlighter() Highlighter {
+	return Highlighter{
+		Fields: make(map[string]bool),
+	}
+}
+
+func (h Highlighter) ShouldHighlight(columnName string) bool {
+	_, ok := h.Fields[columnName]
+	return ok
+}
+
+func (h Highlighter) HighlightValue(value string) []string {
+
+	// paranoia check for empty tags
+	if len(h.PreTags) < 1 && len(h.PostTags) < 1 {
+		return []string{}
+	}
+
+	var highlights []string
+
+	for _, token := range h.Tokens {
+
+		lowerValue := strings.ToLower(value)
+
+		// here  we compare the lower cased values
+		idx := strings.Index(lowerValue, token)
+
+		if idx > -1 {
+			// but we must return matched value in original case
+			// to make kibana happy
+			val := value[idx : idx+len(token)]
+
+			// right now we're using only first tags, not sure if is enough
+			highlights = append(highlights, h.PreTags[0]+val+h.PostTags[0])
+		}
+	}
+
+	return highlights
+}
+
 func newSimpleQuery(sql Statement, canParse bool) SimpleQuery {
 	return SimpleQuery{Sql: sql, CanParse: canParse}
 }
@@ -59,6 +108,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery
 	if err != nil {
 		return newSimpleQuery(NewSimpleStatement("invalid JSON (ParseQuery)"), false), model.Normal
 	}
+
 	queryInfo := cw.tryProcessMetadataSearch(queryAsMap)
 
 	parsedQuery := cw.parseQueryMap(queryAsMap)
@@ -70,16 +120,85 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery
 	return parsedQuery, queryInfo
 }
 
-func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (SimpleQuery, model.QueryInfoAsyncSearch) {
+func (cw *ClickhouseQueryTranslator) ParseHighlighter(queryMap QueryMap) Highlighter {
+
+	highlight, ok := queryMap["highlight"].(QueryMap)
+
+	// if the kibana is not interested in highlighting, we return dummy object
+	if !ok {
+		return NewEmptyHighlighter()
+	}
+
+	var highlighter Highlighter
+
+	if pre, ok := highlight["pre_tags"]; ok {
+		for _, x := range pre.([]interface{}) {
+			highlighter.PreTags = append(highlighter.PreTags, x.(string))
+		}
+	}
+	if post, ok := highlight["post_tags"]; ok {
+		for _, x := range post.([]interface{}) {
+			highlighter.PostTags = append(highlighter.PostTags, x.(string))
+		}
+	}
+
+	// TODO parse other fields:
+	// - fields
+	// - fragment_size
+
+	highlighter.Fields = make(map[string]bool)
+	for k, v := range cw.Table.Cols {
+		if v.IsFullTextMatch {
+			highlighter.Fields[k] = true
+		}
+	}
+
+	// We're parsing here the "query" field. This field is parsed
+	// also in the parseQueryMap function. We should refactor
+	// parseQueryMap function to return tokens.
+	// Refactor is too risky for this functionality, so we're leaving it as is.
+
+	if query, ok := queryMap["query"].(QueryMap); ok {
+		// query type : bool
+		for _, queryTypes := range query {
+			// predicate type: must, filter,
+			for _, predicates := range queryTypes.(QueryMap) {
+				// list of predicates
+				for _, params := range predicates.([]interface{}) {
+					// predictates parameters
+					for _, paramValue := range params.(QueryMap) {
+
+						for fieldName, value := range paramValue.(QueryMap) {
+							// and finally
+							if fieldName == "query" {
+								tokens := strings.Split(value.(string), " ")
+								for _, token := range tokens {
+									highlighter.Tokens = append(highlighter.Tokens, strings.ToLower(token))
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return highlighter
+}
+
+func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (SimpleQuery, model.QueryInfoAsyncSearch, Highlighter) {
 	queryAsMap := make(QueryMap)
 	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
 	if err != nil {
-		return newSimpleQuery(NewSimpleStatement("invalid JSON (parseQueryAsyncSearch)"), false), model.NewQueryInfoAsyncSearchNone()
+		return newSimpleQuery(NewSimpleStatement("invalid JSON (parseQueryAsyncSearch)"), false), model.NewQueryInfoAsyncSearchNone(), NewEmptyHighlighter()
+
 	}
 
 	if _, ok := queryAsMap["query"]; !ok {
-		return newSimpleQuery(NewSimpleStatement("no query in async search"), false), model.NewQueryInfoAsyncSearchNone()
+		return newSimpleQuery(NewSimpleStatement("no query in async search"), false), model.NewQueryInfoAsyncSearchNone(), NewEmptyHighlighter()
 	}
+
+	// we must parse "highlights" here, because it is stripped from the queryAsMap later
+	highlighter := cw.ParseHighlighter(queryAsMap)
 
 	parsedQuery := cw.parseQueryMap(queryAsMap["query"].(QueryMap))
 	if sort, ok := queryAsMap["sort"]; ok {
@@ -102,7 +221,7 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 		pp.Println(aggregations)
 	}
 	*/
-	return parsedQuery, queryInfo
+	return parsedQuery, queryInfo, highlighter
 }
 
 // Metadata attributes are the ones that are on the same level as query tag
@@ -292,6 +411,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap) SimpleQuery {
 				qStrs := make([]Statement, len(split))
 				for i, s := range split {
 					qStrs[i] = NewSimpleStatement(strconv.Quote(k) + " iLIKE " + "'%" + s + "%'")
+
 				}
 				return newSimpleQuery(or(qStrs), true)
 			}
@@ -313,6 +433,7 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) SimpleQu
 	subQueries := strings.Split(queryMap["query"].(string), " ")
 	sqls := make([]Statement, len(fields)*len(subQueries))
 	i := 0
+
 	for _, field := range fields {
 		for _, subQ := range subQueries {
 			sqls[i] = NewSimpleStatement(strconv.Quote(field) + " iLIKE '%" + subQ + "%'")

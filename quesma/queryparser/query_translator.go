@@ -135,12 +135,26 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchAggregated(ResultSet
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, highligher Highlighter) ([]byte, error) {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
 		hits[i].Fields = make(map[string][]interface{})
+		hits[i].Highlight = make(map[string][]string)
 		for _, col := range ResultSet[i].Cols {
+
 			hits[i].Fields[col.ColName] = []interface{}{col.Value}
+
+			if highligher.ShouldHighlight(col.ColName) {
+				// check if we have a string here and if so, highlight it
+				switch valueAsString := col.Value.(type) {
+				case string:
+					hits[i].Highlight[col.ColName] = highligher.HighlightValue(valueAsString)
+				case *string:
+					if valueAsString != nil {
+						hits[i].Highlight[col.ColName] = highligher.HighlightValue(*valueAsString)
+					}
+				}
+			}
 		}
 	}
 
@@ -181,7 +195,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []mod
 				"2024-01-30T19:38:54.607Z",
 				2944,
 			}
-			hits[i].Highlight = map[string][]string{}
+
 		}
 		id = new(string)
 		*id = "fake-id"
@@ -235,16 +249,16 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchEarliestLatestTimest
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func (cw *ClickhouseQueryTranslator) MakeResponseAsyncSearchQuery(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) MakeResponseAsyncSearchQuery(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, highlighter Highlighter) ([]byte, error) {
 	switch typ {
 	case model.Histogram, model.AggsByField:
 		return cw.makeResponseAsyncSearchAggregated(ResultSet, typ)
 	case model.ListByField, model.ListAllFields:
-		return cw.makeResponseAsyncSearchList(ResultSet, typ)
+		return cw.makeResponseAsyncSearchList(ResultSet, typ, highlighter)
 	case model.EarliestLatestTimestamp:
 		return cw.makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet)
 	case model.CountAsync:
-		return cw.makeResponseAsyncSearchList(ResultSet, typ)
+		return cw.makeResponseAsyncSearchList(ResultSet, typ, highlighter)
 	default:
 		return nil, fmt.Errorf("unknown AsyncSearchQueryType: %v", typ)
 	}

@@ -15,7 +15,7 @@ func TestQueryParserAsyncSearch(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
 	for _, tt := range testdata.TestsAsyncSearch {
 		t.Run(tt.Name, func(t *testing.T) {
-			query, queryInfo := cw.ParseQueryAsyncSearch(tt.QueryJson)
+			query, queryInfo, _ := cw.ParseQueryAsyncSearch(tt.QueryJson)
 			assert.True(t, query.CanParse)
 			assert.Equal(t, tt.WantedParseResult, queryInfo)
 		})

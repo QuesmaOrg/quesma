@@ -264,7 +264,7 @@ func TestNew(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
 	for _, tt := range tests {
 		t.Run("test", func(t *testing.T) {
-			simpleQuery, _ := cw.ParseQueryAsyncSearch(tt)
+			simpleQuery, _, _ := cw.ParseQueryAsyncSearch(tt)
 			assert.True(t, simpleQuery.CanParse)
 		})
 	}
