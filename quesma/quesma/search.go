@@ -14,6 +14,17 @@ import (
 	"time"
 )
 
+func handleCount(ctx context.Context, indexPattern string, lm *clickhouse.LogManager) (int64, error) {
+	id := ctx.Value(tracing.RequestIdCtxKey).(string)
+	resolvedTableName := lm.ResolveTableName(indexPattern)
+	if resolvedTableName == "" {
+		logger.Warn().Str(logger.RID, id).Msgf("could not resolve table name for [%s]", indexPattern)
+		return -1, errors.New("could not resolve table name")
+	}
+
+	return lm.Count(resolvedTableName)
+}
+
 func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
 

@@ -173,6 +173,15 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 	return q[:i+2] + othersStr + timestampStr + attributesStr + q[i+1:]
 }
 
+func (lm *LogManager) Count(table string) (int64, error) {
+	var count int64
+	err := lm.chDb.QueryRow("SELECT count(*) FROM ?", table).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (lm *LogManager) sendCreateTableQuery(query string) error {
 	if _, err := lm.chDb.Exec(query); err != nil {
 		return fmt.Errorf("error in sendCreateTableQuery: query: %s\nerr:%v", query, err)

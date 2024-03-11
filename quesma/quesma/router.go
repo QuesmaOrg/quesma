@@ -40,6 +40,21 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		return nil, nil
 	})
 
+	router.RegisterPathMatcher(routes.IndexCountPath, "GET", matchedAgainstPattern(config, fromClickhouse(lm)), func(ctx context.Context, _ string, _ string, params map[string]string) (*mux.Result, error) {
+		if strings.Contains(params["index"], ",") {
+			errorstats.GlobalErrorStatistics.RecordKnownError("Multi index search is not supported", nil,
+				"Multi index search is not yet supported: "+params["index"])
+			return nil, errors.New("multi index search is not yet supported")
+		} else {
+			cnt, err := handleCount(ctx, params["index"], lm)
+			if err != nil {
+				return nil, err
+			}
+
+			return elasticsearchCountResult(cnt, httpOk), nil
+		}
+	})
+
 	router.RegisterPathMatcher(routes.IndexSearchPath, "POST", matchedAgainstPattern(config, fromClickhouse(lm)), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		if strings.Contains(params["index"], ",") {
 			errorstats.GlobalErrorStatistics.RecordKnownError("Multi index search is not supported", nil,
@@ -146,6 +161,42 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func
 			return false
 		}
 	}
+}
+
+func elasticsearchCountResult(body int64, statusCode int) *mux.Result {
+	var result = countResult{
+		Shards: struct {
+			Failed     int `json:"failed"`
+			Skipped    int `json:"skipped"`
+			Successful int `json:"successful"`
+			Total      int `json:"total"`
+		}{
+			Failed:     0,
+			Skipped:    0,
+			Successful: 1,
+			Total:      1,
+		},
+		Count: body,
+	}
+	serialized, err := json.Marshal(result)
+	if err != nil {
+		panic(err)
+	}
+	return &mux.Result{Body: string(serialized), Meta: map[string]string{
+		"Location":                "/.clickhouse",
+		"Content-Type":            "application/json",
+		"X-Quesma-Headers-Source": "Quesma",
+	}, StatusCode: statusCode}
+}
+
+type countResult struct {
+	Shards struct {
+		Failed     int `json:"failed"`
+		Skipped    int `json:"skipped"`
+		Successful int `json:"successful"`
+		Total      int `json:"total"`
+	} `json:"_shards"`
+	Count int64 `json:"count"`
 }
 
 func elasticsearchQueryResult(body string, statusCode int) *mux.Result {

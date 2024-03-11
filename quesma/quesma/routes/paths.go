@@ -8,6 +8,7 @@ import (
 const (
 	IndexSearchPath      = "/:index/_search"
 	IndexAsyncSearchPath = "/:index/_async_search"
+	IndexCountPath       = "/:index/_count"
 	IndexDocPath         = "/:index/_doc"
 	IndexBulkPath        = "/:index/_bulk"
 	FieldCapsPath        = "/:index/_field_caps"
