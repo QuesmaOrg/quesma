@@ -122,7 +122,7 @@ func TestParseHighLight(t *testing.T) {
 	assert.Equal(t, "@kibana-highlighted-field@", highlighter.PreTags[0])
 	assert.Equal(t, 1, len(highlighter.PostTags))
 	assert.Equal(t, "@/kibana-highlighted-field@", highlighter.PostTags[0])
-	assert.Equal(t, []string{"user", "deleted"}, highlighter.Tokens)
+	assert.Equal(t, []string{"user deleted", "deleted", "user"}, highlighter.Tokens)
 }
 
 func TestHighLightResults(t *testing.T) {
@@ -175,18 +175,59 @@ func TestHighLightResults(t *testing.T) {
 			value:      "User logged",
 			highlights: nil,
 		},
+		{
+			name:       "multiple highlights",
+			tokens:     []string{"password"},
+			field:      "message",
+			highlight:  true,
+			value:      "InvalidPassword: user provided invalid password",
+			highlights: []string{"<b>Password</b>", "<b>password</b>"},
+		},
+		{
+			name:       "multiple highlights security team #1",
+			tokens:     []string{"invalidPassword", "password"},
+			field:      "message",
+			highlight:  true,
+			value:      "InvalidPassword: user provided invalid password",
+			highlights: []string{"<b>InvalidPassword</b>", "<b>password</b>"},
+		},
+		{
+			name:       "multiple highlights security team #2",
+			tokens:     []string{"password", "InvalidPassword"},
+			field:      "message",
+			highlight:  true,
+			value:      "InvalidPassword: user provided invalid password",
+			highlights: []string{"<b>InvalidPassword</b>", "<b>password</b>"},
+		},
+		{
+			name:       "merge highlights",
+			tokens:     []string{"password", "lidPass"},
+			field:      "message",
+			highlight:  true,
+			value:      "InvalidPassword: user provided invalid password",
+			highlights: []string{"<b>lidPassword</b>", "<b>password</b>"},
+		},
+		{
+			name:       "merge highlights",
+			tokens:     []string{"password", "pass"},
+			field:      "message",
+			highlight:  true,
+			value:      "InvalidPassword",
+			highlights: []string{"<b>Password</b>"},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
 			highLighter := queryparser.Highlighter{
-				Tokens:   tt.tokens,
 				PreTags:  []string{"<b>"},
 				PostTags: []string{"</b>"},
 				Fields:   make(map[string]bool),
 			}
 			highLighter.Fields["message"] = true
+
+			highLighter.SetTokens(tt.tokens)
 
 			mustHighlighter := highLighter.ShouldHighlight(tt.field)
 
