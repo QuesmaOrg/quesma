@@ -109,8 +109,8 @@ func parseIdentWithBrackets(q string, i int) (int, string) {
 		} else if q[i] == ')' {
 			bracketsCnt--
 		}
-		if bracketsCnt == 0 && (q[i] == ' ' || q[i] == ',') {
-			return i, q[b:e]
+		if bracketsCnt == 0 && (q[i] == ' ' || q[i] == ',' || q[i] == ')') {
+			return i + 1, q[b:e]
 		}
 		i++
 	}

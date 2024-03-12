@@ -71,6 +71,10 @@ func resolveColumn(colName, colType string) *Column {
 			}
 		} else if isTupleType(arrayType) {
 			tupleColumn := resolveColumn("Tuple", arrayType)
+			if tupleColumn == nil {
+				logger.Warn().Msgf("invalid tuple type for column %s, %s", colName, colType)
+				return nil
+			}
 			tupleTyp, ok := tupleColumn.Type.(MultiValueType)
 			if !ok {
 				logger.Warn().Msgf("invalid tuple type for column %s, %s", colName, colType)

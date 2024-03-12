@@ -237,3 +237,14 @@ func TestParseLongNestedSchema(t *testing.T) {
 	assert.Equal(t, 3, len(table.Cols["elasticsearch_client"].Type.(MultiValueType).Cols))
 	assert.Equal(t, 5, len(table.Cols["process"].Type.(MultiValueType).Cols))
 }
+
+func Test_parseMultiValueType(t *testing.T) {
+	tupleQueryPart := []string{"(d DateTime64(3) )", "(d DateTime64(3))"}
+	for _, tuple := range tupleQueryPart {
+		t.Run(tuple, func(t *testing.T) {
+			indexAfterMatch, columns := parseMultiValueType(tuple, 0)
+			assert.NotEqual(t, -1, indexAfterMatch)
+			assert.Len(t, columns, 1)
+		})
+	}
+}
