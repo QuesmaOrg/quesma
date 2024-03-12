@@ -11,7 +11,6 @@ type LogForwarder struct {
 	ticker    *time.Ticker
 	sigCh     chan os.Signal
 	doneCh    chan struct{}
-	flushCh   chan struct{}
 }
 
 func (l *LogForwarder) Run() {
@@ -23,8 +22,6 @@ func (l *LogForwarder) Run() {
 				if result.Err != nil {
 					logger.Error().Msg(result.Err.Error())
 				}
-			case <-l.flushCh:
-				l.logSender.FlushLogs()
 			case <-l.sigCh:
 				err := l.logSender.FlushLogs()
 				if err != nil {
@@ -39,7 +36,7 @@ func (l *LogForwarder) Run() {
 func (l *LogForwarder) TriggerFlush() {
 	go func() {
 		for range l.ticker.C {
-			l.flushCh <- struct{}{}
+			l.logCh <- []byte{}
 		}
 	}()
 }

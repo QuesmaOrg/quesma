@@ -45,7 +45,7 @@ func startHttpServerF(handler *ForwarderHandler, addr string) {
 func TestLogForwarder(t *testing.T) {
 	const BUFFER_SIZE = 32 * 1024
 	const ITERATIONS = 1000
-	const INTERVAL = time.Minute
+	const INTERVAL = time.Millisecond * 100
 	const URL = "http://localhost:8094"
 	const LOG_MESSAGE = "log message"
 	barrier := &sync.WaitGroup{}
@@ -55,11 +55,10 @@ func TestLogForwarder(t *testing.T) {
 	logSender := makeLogSender(URL, BUFFER_SIZE, INTERVAL)
 
 	logForwarder := &LogForwarder{logSender: logSender,
-		logCh:   make(chan []byte, initialBufferSize),
-		ticker:  time.NewTicker(time.Second),
-		sigCh:   make(chan os.Signal),
-		doneCh:  make(chan struct{}),
-		flushCh: make(chan struct{})}
+		logCh:  make(chan []byte, initialBufferSize),
+		ticker: time.NewTicker(INTERVAL),
+		sigCh:  make(chan os.Signal),
+		doneCh: make(chan struct{})}
 
 	logForwarder.Run()
 	logForwarder.TriggerFlush()

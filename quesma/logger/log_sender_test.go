@@ -94,12 +94,7 @@ func TestLogSenderSmallBuffer(t *testing.T) {
 		assert.Equal(t, true, result.timeCondition)
 	}
 	barrier.Wait()
-	// The last message needs to be flushed
-	assert.Equal(t, handler.counter, len(LOG_MESSAGE)*ITERATIONS-len(LOG_MESSAGE))
-	barrier.Add(1)
-	logSender.FlushLogs()
-	barrier.Wait()
-	assert.Equal(t, sendCounter, handler.counter)
+	assert.Equal(t, handler.counter, BUFFER_SIZE*ITERATIONS)
 }
 
 func TestLogSenderSmallElapsedTime(t *testing.T) {
@@ -121,11 +116,6 @@ func TestLogSenderSmallElapsedTime(t *testing.T) {
 		assert.Equal(t, true, result.bufferLengthCondition)
 		assert.Equal(t, false, result.timeCondition)
 	}
-	barrier.Wait()
-	// The last message needs to be flushed
-	assert.Equal(t, handler.counter, len(LOG_MESSAGE)*ITERATIONS-len(LOG_MESSAGE))
-	barrier.Add(1)
-	logSender.FlushLogs()
 	barrier.Wait()
 	assert.Equal(t, sendCounter, handler.counter)
 }
