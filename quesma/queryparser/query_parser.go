@@ -122,16 +122,21 @@ func (h Highlighter) HighlightValue(value string) []string {
 
 func (h *Highlighter) SetTokens(tokens []string) {
 
-	h.Tokens = []string{}
+	uniqueTokens := make(map[string]bool)
+	for _, token := range tokens {
+		uniqueTokens[strings.ToLower(token)] = true
+	}
+
+	h.Tokens = make([]string, 0, len(uniqueTokens))
+	for token := range uniqueTokens {
+		h.Tokens = append(h.Tokens, token)
+	}
 
 	// longer tokens firsts
-	sort.Slice(tokens, func(i, j int) bool {
-		return len(tokens[i]) > len(tokens[j])
+	sort.Slice(h.Tokens, func(i, j int) bool {
+		return len(h.Tokens[i]) > len(h.Tokens[j])
 	})
 
-	for _, v := range tokens {
-		h.Tokens = append(h.Tokens, strings.ToLower(v))
-	}
 }
 
 func newSimpleQuery(sql Statement, canParse bool) SimpleQuery {
@@ -159,6 +164,8 @@ func NewCompoundStatementWithFieldName(stmt, fieldName string) Statement {
 }
 
 func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery, model.SearchQueryType) {
+
+	cw.ClearTokensToHighlight()
 	queryAsMap := make(QueryMap)
 	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
 	if err != nil {
@@ -209,41 +216,11 @@ func (cw *ClickhouseQueryTranslator) ParseHighlighter(queryMap QueryMap) Highlig
 		}
 	}
 
-	// We're parsing here the "query" field. This field is parsed
-	// also in the parseQueryMap function. We should refactor
-	// parseQueryMap function to return tokens.
-	// Refactor is too risky for this functionality, so we're leaving it as is.
-	var tokens []string
-	if query, ok := queryMap["query"].(QueryMap); ok {
-		// query type : bool
-		for _, queryTypes := range query {
-			// predicate type: must, filter,
-			for _, predicates := range queryTypes.(QueryMap) {
-				// list of predicates
-				for _, params := range predicates.([]interface{}) {
-					// predictates parameters
-					for _, paramValue := range params.(QueryMap) {
-
-						for fieldName, value := range paramValue.(QueryMap) {
-							// and finally
-							if fieldName == "query" {
-								tokens = append(tokens, value.(string))
-								tokens = append(tokens, strings.Split(value.(string), " ")...)
-
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	highlighter.SetTokens(tokens)
-
 	return highlighter
 }
 
 func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (SimpleQuery, model.QueryInfoAsyncSearch, Highlighter) {
+	cw.ClearTokensToHighlight()
 	queryAsMap := make(QueryMap)
 	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
 	if err != nil {
@@ -265,6 +242,9 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 		}
 	}
 	queryInfo := cw.tryProcessMetadataAsyncSearch(queryAsMap)
+
+	highlighter.SetTokens(cw.tokensToHighlight)
+	cw.ClearTokensToHighlight()
 
 	/* leaving as comment, as that's how it'll work after next PR
 	if queryInfo.Typ != model.None {
@@ -312,6 +292,7 @@ func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fi
 		} else {
 			like = "LIKE"
 		}
+		cw.AddTokenToHighlight(*prefix)
 		stmts = append(stmts, NewSimpleStatement(fieldName+" "+like+" '"+*prefix+"%'"))
 	}
 	return newSimpleQuery(and(stmts), canParse)
@@ -415,6 +396,7 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) SimpleQuery {
 func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) SimpleQuery {
 	if len(queryMap) == 1 {
 		for k, v := range queryMap {
+			cw.AddTokenToHighlight(v)
 			return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+"="+sprint(v)), true)
 		}
 	}
@@ -433,6 +415,7 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) SimpleQuery {
 			vAsArray := v.([]interface{})
 			orStmts := make([]Statement, len(vAsArray))
 			for i, v := range vAsArray {
+				cw.AddTokenToHighlight(v)
 				orStmts[i] = NewSimpleStatement(strconv.Quote(k) + "=" + sprint(v))
 			}
 			return newSimpleQuery(or(orStmts), true)
@@ -467,12 +450,17 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap) SimpleQuery {
 			if vAsString, ok := vUnNested.(string); ok {
 				split := strings.Split(vAsString, " ")
 				qStrs := make([]Statement, len(split))
+				cw.AddTokenToHighlight(vAsString)
 				for i, s := range split {
+					cw.AddTokenToHighlight(s)
 					qStrs[i] = NewSimpleStatement(strconv.Quote(k) + " iLIKE " + "'%" + s + "%'")
 
 				}
 				return newSimpleQuery(or(qStrs), true)
 			}
+
+			cw.AddTokenToHighlight(vUnNested)
+
 			// so far we assume that only strings can be ORed here
 			return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+" == "+sprint(vUnNested)), true)
 		}
@@ -488,7 +476,14 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) SimpleQu
 	} else {
 		fields = cw.GetFieldsList() // careful: hardcoded for only "message" for now
 	}
+
 	subQueries := strings.Split(queryMap["query"].(string), " ")
+
+	cw.AddTokenToHighlight(queryMap["query"].(string))
+	for _, subQ := range subQueries {
+		cw.AddTokenToHighlight(subQ)
+	}
+
 	sqls := make([]Statement, len(fields)*len(subQueries))
 	i := 0
 
@@ -507,9 +502,12 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) SimpleQuery 
 		for k, v := range queryMap {
 			switch vCasted := v.(type) {
 			case string:
+				cw.AddTokenToHighlight(vCasted)
 				return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+" iLIKE '"+vCasted+"%'"), true)
 			case QueryMap:
-				return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+" iLIKE '"+vCasted["value"].(string)+"%'"), true)
+				token := vCasted["value"].(string)
+				cw.AddTokenToHighlight(token)
+				return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+" iLIKE '"+token+"%'"), true)
 			}
 		}
 	}
@@ -536,7 +534,10 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) SimpleQ
 	if fields, ok := queryMap["fields"]; ok {
 		fieldsAsStrings := cw.extractFields(fields.([]interface{}))
 		for _, field := range fieldsAsStrings {
-			for _, qStr := range strings.Split(queryMap["query"].(string), " ") {
+			query := queryMap["query"].(string)
+			cw.AddTokenToHighlight(query)
+			for _, qStr := range strings.Split(query, " ") {
+				cw.AddTokenToHighlight(qStr)
 				orStmts = append(orStmts, NewSimpleStatement(strconv.Quote(field)+" iLIKE '%"+strings.ReplaceAll(qStr, "*", "%")+"%'"))
 			}
 		}
@@ -556,7 +557,9 @@ func (cw *ClickhouseQueryTranslator) parseQueryStringField(query string) SimpleQ
 		// to support fieldName>value, <value, etc. We see such request in Kibana
 		return newSimpleQuery(NewSimpleStatement(split[0]+split[1]), true)
 	}
-	return newSimpleQuery(NewSimpleStatement(split[0]+" iLIKE '%"+split[1]+"%'"), true)
+	value := split[1]
+	cw.AddTokenToHighlight(value)
+	return newSimpleQuery(NewSimpleStatement(split[0]+" iLIKE '%"+value+"%'"), true)
 }
 
 func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) SimpleQuery {

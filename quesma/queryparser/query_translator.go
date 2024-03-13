@@ -18,8 +18,32 @@ import (
 type JsonMap = map[string]interface{}
 
 type ClickhouseQueryTranslator struct {
-	ClickhouseLM *clickhouse.LogManager
-	Table        *clickhouse.Table
+	ClickhouseLM      *clickhouse.LogManager
+	Table             *clickhouse.Table
+	tokensToHighlight []string
+}
+
+func (cw *ClickhouseQueryTranslator) AddTokenToHighlight(token any) {
+
+	if token == nil {
+		return
+	}
+
+	// this logic is taken from `sprint` function
+	switch token := token.(type) {
+	case string:
+		cw.tokensToHighlight = append(cw.tokensToHighlight, token)
+	case *string:
+		cw.tokensToHighlight = append(cw.tokensToHighlight, *token)
+	case QueryMap:
+		value := token["value"]
+		cw.AddTokenToHighlight(value)
+	}
+
+}
+
+func (cw *ClickhouseQueryTranslator) ClearTokensToHighlight() {
+	cw.tokensToHighlight = []string{}
 }
 
 func makeResponseSearchQueryNormal[T fmt.Stringer](ResultSet []T) ([]byte, error) {
@@ -488,6 +512,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 	whereClause := ""
 	if len(prefix) > 0 {
 		whereClause = strconv.Quote(fieldName) + " iLIKE '" + prefix + "%'"
+		cw.AddTokenToHighlight(prefix)
 	}
 	suffixClauses := make([]string, 0)
 	if limit > 0 {
