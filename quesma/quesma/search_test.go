@@ -51,8 +51,9 @@ func TestAsyncSearchHandler(t *testing.T) {
 				Type: clickhouse.NewBaseType("DateTime64"),
 			},
 			"message": {
-				Name: "message",
-				Type: clickhouse.NewBaseType("String"),
+				Name:            "message",
+				Type:            clickhouse.NewBaseType("String"),
+				IsFullTextMatch: true,
 			},
 			"host.name": {
 				Name: "host.name",
@@ -64,7 +65,6 @@ func TestAsyncSearchHandler(t *testing.T) {
 
 	for _, tt := range testdata.TestsAsyncSearch {
 		t.Run(tt.Name, func(t *testing.T) {
-			t.Skip("I'll fix after Thursday.")
 			db, mock, err := sqlmock.New()
 			if err != nil {
 				t.Fatal(err)
@@ -74,8 +74,8 @@ func TestAsyncSearchHandler(t *testing.T) {
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
 			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000))
 
-			for _, regex := range tt.WantedRegexes {
-				mock.ExpectQuery(testdata.EscapeBrackets(regex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+			for _, wantedRegex := range tt.WantedRegexes {
+				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 			_, err = handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
 			assert.NoError(t, err)
@@ -114,7 +114,9 @@ func TestSearchHandler(t *testing.T) {
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
 			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000))
-			mock.ExpectQuery(testdata.EscapeBrackets(tt.WantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+			for _, wantedRegex := range tt.WantedRegexes {
+				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+			}
 			_, _ = handleSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
 
 			if err := mock.ExpectationsWereMet(); err != nil {
@@ -125,7 +127,7 @@ func TestSearchHandler(t *testing.T) {
 }
 
 // TODO this test gives wrong results??
-func TestSearcHandlerNoAttrsConfig(t *testing.T) {
+func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
@@ -137,7 +139,9 @@ func TestSearcHandlerNoAttrsConfig(t *testing.T) {
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
 			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000))
-			mock.ExpectQuery(testdata.EscapeBrackets(tt.WantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+			for _, wantedRegex := range tt.WantedRegexes {
+				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+			}
 			_, _ = handleSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
 
 			if err := mock.ExpectationsWereMet(); err != nil {
@@ -150,7 +154,6 @@ func TestSearcHandlerNoAttrsConfig(t *testing.T) {
 func TestAsyncSearchFilter(t *testing.T) {
 	for _, tt := range testdata.TestSearchFilter {
 		t.Run(tt.Name, func(t *testing.T) {
-			t.Skip("I'll fix after Thursday.")
 			db, mock, err := sqlmock.New()
 			if err != nil {
 				t.Fatal(err)
@@ -160,7 +163,9 @@ func TestAsyncSearchFilter(t *testing.T) {
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
 			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000))
-			mock.ExpectQuery(testdata.EscapeBrackets(tt.WantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+			for _, wantedRegex := range tt.WantedRegexes {
+				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+			}
 			_, _ = handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
 
 			if err := mock.ExpectationsWereMet(); err != nil {
@@ -176,7 +181,6 @@ func TestAsyncSearchFilter(t *testing.T) {
 // It can't return uint64, thus creating response code panics because of that.
 func TestHandlingDateTimeFields(t *testing.T) {
 	// I'm testing querying for all 3 types of fields that we support right now.
-	t.Skip("I'll fix after Thursday.")
 	const dateTimeTimestampField = "timestamp"
 	const dateTime64TimestampField = "timestamp64"
 	const dateTime64OurTimestampField = "@timestamp"
@@ -230,6 +234,8 @@ func TestHandlingDateTimeFields(t *testing.T) {
 	managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000))
 
 	for _, fieldName := range []string{dateTimeTimestampField, dateTime64TimestampField, dateTime64OurTimestampField} {
+		mock.ExpectQuery(testdata.EscapeBrackets(`SELECT count() FROM "logs-generic-default" WHERE `)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}))
 		mock.ExpectQuery(testdata.EscapeBrackets(expectedSelectStatementRegex[fieldName])).
 			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))
 		// .AddRow(1000, uint64(10)).AddRow(1001, uint64(20))) // here rows should be added if uint64 were supported

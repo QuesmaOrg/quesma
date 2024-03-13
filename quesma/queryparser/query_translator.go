@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+const facetsSampleSize = "20000"
+
 type JsonMap = map[string]interface{}
 
 type ClickhouseQueryTranslator struct {
@@ -388,20 +390,30 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) model.JsonMap {
 	aggregations := model.JsonMap{}
 	for i, query := range queries[1:] { // first is count, we don't use that for aggregations
-		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i+1], 0, 0)[0] // result of root node is always a single map, thus [0]
-		aggregations = util.MergeMaps(aggregations, aggregation)
+		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i+1], 0, 0)
+		if len(aggregation) != 0 {
+			aggregations = util.MergeMaps(aggregations, aggregation[0]) // result of root node is always a single map, thus [0]
+		}
 	}
 	return aggregations
 }
 
 func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) ([]byte, error) {
+	var totalCount uint64
+	if len(ResultSets) > 0 && len(ResultSets[0]) > 0 && len(ResultSets[0][0].Cols) > 0 {
+		// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
+		totalCount = ResultSets[0][0].Cols[0].Value.(uint64)
+	} else {
+		logger.Warn().Msgf("Failed extracting Count value SQL query result [%v]", ResultSets)
+		totalCount = 0
+	}
 	response := model.AsyncSearchEntireResp{
 		Response: model.SearchResp{
 			Aggregations: cw.MakeAggregationPartOfResponse(queries, ResultSets),
 			Hits: model.SearchHits{
 				Hits: []model.SearchHit{}, // seems redundant, but can't remove this, created JSON won't match
 				Total: &model.Total{
-					Value:    int(ResultSets[0][0].Cols[0].Value.(uint64)), // TODO just change this to uint64? It works now.
+					Value:    int(totalCount), // TODO just change this to uint64? It works now.
 					Relation: "eq",
 				},
 			},
@@ -529,14 +541,13 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 }
 
 func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName, whereClause string, limit int) *model.Query {
-	const sampleSize = "20000"
 	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
 	return &model.Query{
 		Fields:          []string{fieldName},
 		NonSchemaFields: []string{"count()"},
 		WhereClause:     whereClause,
 		SuffixClauses:   suffixClauses,
-		FromClause:      "(SELECT * FROM " + cw.Table.FullTableName() + " LIMIT " + sampleSize + ")",
+		FromClause:      "(SELECT * FROM " + cw.Table.FullTableName() + " LIMIT " + facetsSampleSize + ")",
 		CanParse:        true,
 	}
 }
