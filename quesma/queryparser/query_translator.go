@@ -388,8 +388,15 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 }
 
 func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) model.JsonMap {
+	const aggregation_start_index = 1
 	aggregations := model.JsonMap{}
-	for i, query := range queries[1:] { // first is count, we don't use that for aggregations
+	if len(queries) <= aggregation_start_index {
+		return aggregations
+	}
+	for i, query := range queries[aggregation_start_index:] {
+		if len(ResultSets) < i+1 {
+			continue
+		}
 		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i+1], 0, 0)
 		if len(aggregation) != 0 {
 			aggregations = util.MergeMaps(aggregations, aggregation[0]) // result of root node is always a single map, thus [0]
