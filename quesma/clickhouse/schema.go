@@ -168,7 +168,7 @@ func ResolveType(clickHouseTypeName string) reflect.Type {
 	switch clickHouseTypeName {
 	case "String", "LowCardinality(String)", "UUID":
 		return reflect.TypeOf("")
-	case "DateTime64", "DateTime":
+	case "DateTime64", "DateTime", "Date":
 		return reflect.TypeOf(time.Time{})
 	case "UInt8", "UInt16", "UInt32", "UInt64":
 		return reflect.TypeOf(uint64(0))

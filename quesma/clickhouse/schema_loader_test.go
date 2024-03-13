@@ -58,6 +58,11 @@ func Test_resolveColumn(t *testing.T) {
 			want: &Column{Name: "@timestamp", Type: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{})}},
 		},
 		{
+			name: "Date",
+			args: args{colName: "@timestamp", colType: "Date"},
+			want: &Column{Name: "@timestamp", Type: BaseType{Name: "Date", goType: reflect.TypeOf(time.Time{})}},
+		},
+		{
 			name: "DateTime64(3)",
 			args: args{colName: "@timestamp", colType: "DateTime64"},
 			want: &Column{Name: "@timestamp", Type: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{})}},
