@@ -103,6 +103,16 @@ func resolveColumn(colName, colType string) *Column {
 				Cols: columns,
 			},
 		}
+	} else if isEnumType(colType) {
+		// TODO proper support for enums
+		// For now we use Int32
+		return &Column{
+			Name: colName,
+			Type: BaseType{
+				Name:   "Int32",
+				goType: NewBaseType("Int32").goType,
+			},
+		}
 	}
 
 	_ = isNullable
@@ -132,6 +142,10 @@ func isArrayType(colType string) bool {
 
 func isTupleType(colType string) bool {
 	return strings.HasPrefix(colType, "Tuple(") && strings.HasSuffix(colType, ")")
+}
+
+func isEnumType(colType string) bool {
+	return strings.HasPrefix(colType, "Enum")
 }
 
 func isNullableType(colType string) bool {
