@@ -54,7 +54,7 @@ services:
     image: docker.elastic.co/kibana/kibana:8.11.1
     environment:
       ELASTICSEARCH_HOSTS: '["http://quesma:8080"]'
-      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTION_KEY: 'QUESMA' # Just to get rid of annoying ERROR in logs
+      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: 'QUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMA' # Just to get rid of annoying ERROR in logs
     depends_on:
       quesma:
         condition: service_healthy

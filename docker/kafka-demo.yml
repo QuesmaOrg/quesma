@@ -77,7 +77,7 @@ services:
       - "mitmproxy"
     environment:
       ELASTICSEARCH_HOSTS: '["http://mitmproxy:8080"]'
-      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTION_KEY: 'QUESMA' # Just to get rid of annoying ERROR in logs
+      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: 'QUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMA' # Just to get rid of annoying ERROR in logs
 #      LOGGING_ROOT_LEVEL: 'debug'
     depends_on:
       mitmproxy:
