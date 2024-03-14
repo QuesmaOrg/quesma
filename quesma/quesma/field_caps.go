@@ -130,6 +130,10 @@ func handleFieldCapsIndex(_ context.Context, resolvedIndex string, tables *click
 				continue
 			}
 
+			if col.Name == clickhouse.AttributesKeyColumn || col.Name == clickhouse.AttributesValueColumn {
+				continue // We don't expose internal fields
+			}
+
 			if canBeKeywordField(col) {
 				addNewKeywordFieldCapability(fields, col)
 			} else {
@@ -149,7 +153,7 @@ func handleFieldCapsIndex(_ context.Context, resolvedIndex string, tables *click
 	return json.MarshalIndent(fieldCapsResponse, "", "  ")
 }
 
-func hanndleFieldCaps(ctx context.Context, index string, _ []byte, lm *clickhouse.LogManager) ([]byte, error) {
+func handleFieldCaps(ctx context.Context, index string, _ []byte, lm *clickhouse.LogManager) ([]byte, error) {
 	definitions := lm.GetTableDefinitions()
 	return handleFieldCapsIndex(ctx, lm.ResolveTableName(index), &definitions)
 }

@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	attributesKeyColumn   = "attributes_string_key"
-	attributesValueColumn = "attributes_string_value"
+	AttributesKeyColumn   = "attributes_string_key"
+	AttributesValueColumn = "attributes_string_value"
 	attributesColumnType  = "Array(String)"
 )
 
@@ -272,8 +272,8 @@ func (config *ChTableConfig) CreateTablePostFieldsString() string {
 
 func NewDefaultStringAttribute() Attribute {
 	return Attribute{
-		KeysArrayName:   attributesKeyColumn,
-		ValuesArrayName: attributesValueColumn,
+		KeysArrayName:   AttributesKeyColumn,
+		ValuesArrayName: AttributesValueColumn,
 		Type:            NewBaseType("String"),
 	}
 }

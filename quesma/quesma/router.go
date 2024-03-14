@@ -85,7 +85,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		if strings.Contains(params["index"], ",") {
 			return nil, errors.New("multi index search is not yet supported")
 		} else {
-			responseBody, err := hanndleFieldCaps(ctx, params["index"], []byte(body), lm)
+			responseBody, err := handleFieldCaps(ctx, params["index"], []byte(body), lm)
 			if err != nil {
 				return nil, err
 			}

@@ -11,7 +11,7 @@ func populateTableDefinitions(configuredTables map[string]map[string]string, dat
 		var columnsMap = make(map[string]*Column)
 		partiallyResolved := false
 		for col, colType := range columns {
-			if col != attributesKeyColumn && col != attributesValueColumn {
+			if col != AttributesKeyColumn && col != AttributesValueColumn {
 				column := resolveColumn(col, colType)
 				if column != nil {
 					columnsMap[col] = column
@@ -156,10 +156,10 @@ func (lm *LogManager) containsAttributes(cols map[string]string) bool {
 	hasAttributesKey := false
 	hasAttributesValues := false
 	for col, colType := range cols {
-		if col == attributesKeyColumn && colType == attributesColumnType {
+		if col == AttributesKeyColumn && colType == attributesColumnType {
 			hasAttributesKey = true
 		}
-		if col == attributesValueColumn && colType == attributesColumnType {
+		if col == AttributesValueColumn && colType == attributesColumnType {
 			hasAttributesValues = true
 		}
 	}
