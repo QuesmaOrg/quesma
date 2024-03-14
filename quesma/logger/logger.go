@@ -50,6 +50,15 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 
 	if cfg.QuesmaInternalTelemetryUrl == nil {
 		multi = zerolog.MultiLevelWriter(output, StdLogFile, errorFileLogger{ErrLogFile}, chanWriter)
+
+		// FIXME
+		// LogForwarder has extra jobs either. It forwards information that we're done.
+		// This should be done  via context cancellation.
+		go func() {
+			<-sig
+			doneCh <- struct{}{}
+		}()
+
 	} else {
 		logForwarder := LogForwarder{logSender: LogSender{
 			Url:          cfg.QuesmaInternalTelemetryUrl,
