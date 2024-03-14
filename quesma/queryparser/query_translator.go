@@ -102,7 +102,7 @@ func MakeResponseSearchQuery[T fmt.Stringer](ResultSet []T, typ model.SearchQuer
 	return nil, fmt.Errorf("unknown SearchQueryType: %v", typ)
 }
 
-func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchAggregated(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchAggregated(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, asyncRequestIdStr string) ([]byte, error) {
 	buckets := make([]JsonMap, 0, len(ResultSet))
 	returnedRows := 0
 	for i, row := range ResultSet {
@@ -128,7 +128,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchAggregated(ResultSet
 			"buckets": buckets,
 		}
 		id = new(string)
-		*id = "fake-id"
+		*id = asyncRequestIdStr
 	case model.AggsByField:
 		aggregations["sample"] = JsonMap{
 			"doc_count": int(sampleCount),
@@ -161,7 +161,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchAggregated(ResultSet
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, highligher Highlighter) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, highligher Highlighter, asyncRequestIdStr string) ([]byte, error) {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
 		hits[i].Fields = make(map[string][]interface{})
@@ -224,7 +224,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []mod
 
 		}
 		id = new(string)
-		*id = "fake-id"
+		*id = asyncRequestIdStr
 	default:
 		return nil, fmt.Errorf("unknown AsyncSearchListQueryType: %v", typ)
 	}
@@ -275,16 +275,16 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchEarliestLatestTimest
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func (cw *ClickhouseQueryTranslator) MakeResponseAsyncSearchQuery(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, highlighter Highlighter) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) MakeResponseAsyncSearchQuery(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, highlighter Highlighter, asyncRequestIdStr string) ([]byte, error) {
 	switch typ {
 	case model.Histogram, model.AggsByField:
-		return cw.makeResponseAsyncSearchAggregated(ResultSet, typ)
+		return cw.makeResponseAsyncSearchAggregated(ResultSet, typ, asyncRequestIdStr)
 	case model.ListByField, model.ListAllFields:
-		return cw.makeResponseAsyncSearchList(ResultSet, typ, highlighter)
+		return cw.makeResponseAsyncSearchList(ResultSet, typ, highlighter, asyncRequestIdStr)
 	case model.EarliestLatestTimestamp:
 		return cw.makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet)
 	case model.CountAsync:
-		return cw.makeResponseAsyncSearchList(ResultSet, typ, highlighter)
+		return cw.makeResponseAsyncSearchList(ResultSet, typ, highlighter, asyncRequestIdStr)
 	default:
 		return nil, fmt.Errorf("unknown AsyncSearchQueryType: %v", typ)
 	}

@@ -11,8 +11,12 @@ import (
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
+	"strconv"
+	"sync/atomic"
 	"time"
 )
+
+var asyncRequestId int64 = 0
 
 func handleCount(ctx context.Context, indexPattern string, lm *clickhouse.LogManager) (int64, error) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
@@ -83,13 +87,23 @@ func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *cli
 	return responseBody, nil
 }
 
-func createAsyncSearchResponseHitJson(ctx context.Context, rows []model.QueryResultRow, typ model.AsyncSearchQueryType, queryTranslator *queryparser.ClickhouseQueryTranslator, highlighter queryparser.Highlighter) ([]byte, error) {
-	responseBody, err := queryTranslator.MakeResponseAsyncSearchQuery(rows, typ, highlighter)
+func createAsyncSearchResponseHitJson(ctx context.Context,
+	rows []model.QueryResultRow,
+	typ model.AsyncSearchQueryType,
+	queryTranslator *queryparser.ClickhouseQueryTranslator,
+	highlighter queryparser.Highlighter,
+	asyncRequestIdStr string) ([]byte, error) {
+	responseBody, err := queryTranslator.MakeResponseAsyncSearchQuery(rows, typ, highlighter, asyncRequestIdStr)
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("%v rows: %v", err, rows)
 		return nil, err
 	}
 	return responseBody, nil
+}
+
+func generateAsyncRequestId() string {
+	atomic.AddInt64(&asyncRequestId, 1)
+	return strconv.FormatInt(asyncRequestId, 10)
 }
 
 func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
@@ -107,7 +121,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	var rawResults []byte
 	simpleQuery, queryInfo, highlighter := queryTranslator.ParseQueryAsyncSearch(string(body))
 	var responseBody, translatedQueryBody []byte
-
+	asyncRequestIdStr := generateAsyncRequestId()
 	// Let's try old one only if:
 	// 1) it's a ListFields type without "aggs" part. It doesn't have "aggs" part, so we can't handle it with new logic.
 	// 2) it's AggsByField request. It's facets - better handled here.
@@ -121,7 +135,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		switch queryInfo.Typ {
 		case model.Histogram:
 			var bucket time.Duration
-			fullQuery, bucket = queryTranslator.BuildHistogramQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.Interval)
+			fullQuery, bucket := queryTranslator.BuildHistogramQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.Interval)
 			rows, err = queryTranslator.ClickhouseLM.ProcessHistogramQuery(fullQuery, bucket)
 		case model.CountAsync:
 			fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
@@ -153,7 +167,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rows, err)
 		}
-		responseBody, err = createAsyncSearchResponseHitJson(ctx, rows, queryInfo.Typ, queryTranslator, highlighter)
+		responseBody, err = createAsyncSearchResponseHitJson(ctx, rows, queryInfo.Typ, queryTranslator, highlighter, asyncRequestIdStr)
 		if err != nil {
 			return responseBody, err
 		}

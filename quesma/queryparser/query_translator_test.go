@@ -16,6 +16,8 @@ import (
 type Row struct {
 }
 
+const asyncRequestIdStr = "0"
+
 const searchResponseExpectedString = `
 	{
 			"took": 0,
@@ -102,7 +104,7 @@ func TestSearchResponse(t *testing.T) {
 	{
 		row := []model.QueryResultRow{{}}
 		cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}}
-		searchRespBuf, err := cw.MakeResponseAsyncSearchQuery(row, model.ListAllFields, NewEmptyHighlighter())
+		searchRespBuf, err := cw.MakeResponseAsyncSearchQuery(row, model.ListAllFields, NewEmptyHighlighter(), asyncRequestIdStr)
 		require.NoError(t, err)
 		var searchResponseResult model.SearchResp
 		err = json.Unmarshal([]byte(searchRespBuf), &searchResponseResult)
@@ -562,7 +564,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}}
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
-			ourResponse, err := cw.MakeResponseAsyncSearchQuery(args[i].ourQueryResult, args[i].queryType, NewEmptyHighlighter())
+			ourResponse, err := cw.MakeResponseAsyncSearchQuery(args[i].ourQueryResult, args[i].queryType, NewEmptyHighlighter(), asyncRequestIdStr)
 			assert.NoError(t, err)
 
 			difference1, difference2, err := util.JsonDifference(args[i].elasticResponseJson, string(ourResponse))
@@ -621,7 +623,7 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 			}
 			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field, Value: value})
 		}
-		_, err := cw.MakeResponseAsyncSearchQuery([]model.QueryResultRow{resultRow}, types[i], NewEmptyHighlighter())
+		_, err := cw.MakeResponseAsyncSearchQuery([]model.QueryResultRow{resultRow}, types[i], NewEmptyHighlighter(), asyncRequestIdStr)
 		assert.NoError(t, err)
 	}
 }
