@@ -38,14 +38,18 @@ const (
 )
 
 const (
-	clickhouseUserEnv     = "CLICKHOUSE_USER"
-	clickhousePasswordEnv = "CLICKHOUSE_PASSWORD"
+	clickhouseUserEnv        = "CLICKHOUSE_USER"
+	clickhousePasswordEnv    = "CLICKHOUSE_PASSWORD"
+	elasticsearchUserEnv     = "ELASTICSEARCH_USER"
+	elasticsearchPasswordEnv = "ELASTICSEARCH_PASSWORD"
 )
 
 type (
 	QuesmaConfiguration struct {
 		Mode                       operationMode
 		ElasticsearchUrl           *url.URL
+		ElasticsearchUser          string
+		ElasticsearchPassword      string
 		ClickHouseUrl              *url.URL
 		ClickHouseUser             string
 		ClickHousePassword         string
@@ -154,6 +158,8 @@ func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
 		Mode:                       operationMode(mode),
 		PublicTcpPort:              p.configurePublicTcpPort(),
 		ElasticsearchUrl:           p.configureUrl(elasticsearchUrl),
+		ElasticsearchUser:          configureOptionalEnvVar(elasticsearchUserEnv),
+		ElasticsearchPassword:      configureOptionalEnvVar(elasticsearchPasswordEnv),
 		ClickHouseUrl:              p.configureUrl(clickhouseUrl),
 		IndexConfig:                indexBypass,
 		LogsPath:                   p.configureLogsPath(),
@@ -282,6 +288,13 @@ func (c *QuesmaConfiguration) String() string {
 	if c.ElasticsearchUrl != nil {
 		elasticUrl = c.ElasticsearchUrl.String()
 	}
+	elasticsearchExtra := ""
+	if c.ElasticsearchUser != "" {
+		elasticsearchExtra = fmt.Sprintf("\n        Elasticsearch user: %s", c.ElasticsearchUser)
+	}
+	if c.ElasticsearchPassword != "" {
+		elasticsearchExtra += "\n        Elasticsearch password: ***"
+	}
 
 	clickhouseUrl := "<nil>"
 	if c.ClickHouseUrl != nil {
@@ -305,7 +318,7 @@ func (c *QuesmaConfiguration) String() string {
 	return fmt.Sprintf(`
 Quesma Configuration:
 	Mode: %s
-	Elasticsearch URL: %s
+	Elasticsearch URL: %s%s
 	ClickHouse URL: %s%s
 	Indexes: %s
 	Logs Path: %s
@@ -315,6 +328,7 @@ Quesma Configuration:
 	Quesma Telemetry URL: %s`,
 		c.Mode.String(),
 		elasticUrl,
+		elasticsearchExtra,
 		clickhouseUrl,
 		clickhouseExtra,
 		indexConfigs,

@@ -182,6 +182,9 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 func sendHttpRequestToElastic(ctx context.Context, config config.QuesmaConfiguration, qmc *ui.QuesmaManagementConsole,
 	req *http.Request, reqBody []byte) chan *http.Response {
 	elkResponseChan := make(chan *http.Response)
+	if config.ElasticsearchUser != "" {
+		req.SetBasicAuth(config.ElasticsearchUser, config.ElasticsearchPassword)
+	}
 	go func() {
 		elkResponseChan <- recordRequestToElastic(req.URL.Path, qmc, func() *http.Response {
 			return sendHttpRequest(ctx, config.ElasticsearchUrl.String(), req, reqBody)
