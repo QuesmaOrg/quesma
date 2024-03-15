@@ -13,9 +13,37 @@ variable "user" {
 }
 
 variable "allowed_ip" {
-  description = "External IP address which will be allowed to accesc the VM"
+  description = "External IP address which will be allowed to access the VM"
   type = string
   default = "89.64.94.88"
+}
+
+variable "git_branch" {
+  type = string
+  default = "main"
+}
+
+variable "compose_file_flag" {
+  type = string
+  default = "-f docker/local-dev.yml"
+}
+
+variable "allowed_ports" {
+  type    = list(string)
+  default = ["8080", "5601", "8081", "9999", "8123"]
+}
+
+variable "copy_repo_files" {
+  type = list(string)
+  default = ["docker/.env", "docker/ngrok/ngrok.yml"]
+}
+
+locals {
+  # This is a list of files that will be copied to the VM
+  copy_commands = [
+  for filename in var.copy_repo_files :
+    "sudo -u quesma cat <<EOF >> ${filename} \n ${file(format("%s/../../${filename}", path.root))}\nEOF"
+  ]
 }
 
 resource "google_compute_instance" "vm_instance" {
@@ -77,8 +105,12 @@ github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+V
     sudo -u quesma git clone git@github.com:QuesmaOrg/poc-elk-mitmproxy.git /home/quesma/source
 
     sudo usermod -aG docker quesma
+    cd /home/quesma/source
+    sudo -u quesma git checkout ${var.git_branch}
 
-    sudo docker compose -f /home/quesma/source/docker/local-dev.yml up -d
+    ${join("\n", local.copy_commands)}
+
+    sudo docker compose ${var.compose_file_flag} up -d
   EOF
 
 
@@ -91,7 +123,7 @@ resource "google_compute_firewall" "quesma_aio_allowed_ports" {
 
   allow {
     protocol = "tcp"
-    ports    = ["8080", "5601", "8081", "9999", "8123"]
+    ports    = var.allowed_ports
   }
 
   source_ranges = [

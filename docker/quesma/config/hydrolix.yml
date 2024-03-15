@@ -8,4 +8,5 @@ quesma:
   index:
     211318:
       enabled: true
+      fulltext_fields: ua,city_name
 

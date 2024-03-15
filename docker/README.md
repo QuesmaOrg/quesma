@@ -13,4 +13,5 @@ or our own services like log-generator.
 * `kafka-demo.yml` - created specifically for Device demo, contains all services and data, including Kafka, which writes to Quesma via Elasticsearch Connector.
 * `opensearch.yml` - used for local development with OpenSearch instead of Elasticsearch. Work in progress.
 * `hydrolix.yml` - to be used with Hydrolix, requires `.env` file from 1Password.
+* `ngrok.yml` - used to expose our service to the internet, requires `ngrok/ngrok.yml` file from 1Password
 
