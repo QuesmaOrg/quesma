@@ -59,11 +59,16 @@ type SearchResp struct {
 }
 
 type AsyncSearchEntireResp struct {
-	StartTimeInMillis      uint64     `json:"start_time_in_millis"`
-	CompletionTimeInMillis uint64     `json:"completion_time_in_millis"`
-	ExpirationTimeInMillis uint64     `json:"expiration_time_in_millis"`
-	ID                     *string    `json:"id,omitempty"`
-	IsRunning              bool       `json:"is_running"`
-	IsPartial              bool       `json:"is_partial"`
-	Response               SearchResp `json:"response"`
+	StartTimeInMillis      uint64  `json:"start_time_in_millis"`
+	CompletionTimeInMillis uint64  `json:"completion_time_in_millis"`
+	ExpirationTimeInMillis uint64  `json:"expiration_time_in_millis"`
+	ID                     *string `json:"id,omitempty"`
+	IsRunning              bool    `json:"is_running"`
+	IsPartial              bool    `json:"is_partial"`
+	// CompletionStatus If the async search completed, this field shows the status code of the
+	// search.
+	// For example, 200 indicates that the async search was successfully completed.
+	// 503 indicates that the async search was completed with an error.
+	CompletionStatus *int       `json:"completion_status,omitempty"`
+	Response         SearchResp `json:"response"`
 }
