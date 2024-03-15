@@ -12,6 +12,7 @@ import (
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/ui"
+	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
 	"regexp"
 	"testing"
@@ -73,7 +74,7 @@ func TestHandleTermsEnumRequest(t *testing.T) {
 		Created: true,
 	}
 
-	managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000))
+	managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000), telemetry.NewPhoneHomeDummyAgent())
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(testTableName, table))

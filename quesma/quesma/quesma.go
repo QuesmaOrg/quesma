@@ -28,7 +28,7 @@ type (
 		publicTcpPort           network.Port
 		quesmaManagementConsole *ui.QuesmaManagementConsole
 		config                  config.QuesmaConfiguration
-		telemetryAgent          *telemetry.PhoneHomeAgent
+		telemetryAgent          telemetry.PhoneHomeAgent
 	}
 	requestProcessor interface {
 		Ingest()
@@ -85,8 +85,8 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, elkResponse *http.Respo
 	console.PushPrimaryInfo(&ui.QueryDebugPrimarySource{Id: id, QueryResp: body})
 }
 
-func NewQuesmaTcpProxy(config config.QuesmaConfiguration, logChan <-chan string, inspect bool) *Quesma {
-	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, nil, logChan)
+func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.QuesmaConfiguration, logChan <-chan string, inspect bool) *Quesma {
+	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, nil, logChan, phoneHomeAgent)
 	return &Quesma{
 		processor:               proxy.NewTcpProxy(config.PublicTcpPort, config.ElasticsearchUrl.Host, inspect),
 		publicTcpPort:           config.PublicTcpPort,
@@ -95,9 +95,9 @@ func NewQuesmaTcpProxy(config config.QuesmaConfiguration, logChan <-chan string,
 	}
 }
 
-func NewHttpProxy(phoneHomeAgent *telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
+func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
 
-	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logManager, logChan)
+	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logManager, logChan, phoneHomeAgent)
 	router := configureRouter(config, logManager, quesmaManagementConsole)
 
 	return &Quesma{

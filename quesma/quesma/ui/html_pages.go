@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"encoding/json"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/stats/errorstats"
 	"net/url"
 	"sort"
@@ -42,10 +44,16 @@ func generateTopNavigation(target string) []byte {
 	}
 	buffer.Html(`><a href="/schema">Schema</a></li>`)
 
+	buffer.Html("<li")
+	if target == "phone-home" {
+		buffer.Html(` class="active"`)
+	}
+	buffer.Html(`><a href="/telemetry">Telemetry</a></li>`)
+
 	buffer.Html("\n</ul>\n")
 	buffer.Html("\n</div>\n")
 
-	if target != "schema" {
+	if target != "schema" && target != "telemetry" {
 		buffer.Html(`<div class="autorefresh-box">` + "\n")
 		buffer.Html(`<div class="autorefresh">`)
 		buffer.Html(fmt.Sprintf(
@@ -280,6 +288,37 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
 
 	buffer.Html("\n</div>")
+
+	buffer.Html("\n</body>")
+	buffer.Html("\n</html>")
+	return buffer.Bytes()
+}
+
+func (qmc *QuesmaManagementConsole) generatePhoneHome() []byte {
+
+	buffer := newBufferWithHead()
+	buffer.Write(generateTopNavigation("telemetry"))
+	buffer.Html(`<main id="telemetry">`)
+
+	buffer.Html(`<h2>Telemetry</h2>`)
+	buffer.Html("<pre>")
+
+	stats, available := qmc.phoneHomeAgent.RecentStats()
+	if available {
+		asBytes, err := json.MarshalIndent(stats, "", "  ")
+
+		if err != nil {
+			logger.Error().Err(err).Msg("Error marshalling phone home stats")
+			buffer.Html("Telemetry Stats are unable to be displayed. This is a bug.")
+		} else {
+			buffer.Html(string(asBytes))
+		}
+
+	} else {
+		buffer.Html("Telemetry Stats are not available yet.")
+	}
+
+	buffer.Html("</pre>")
 
 	buffer.Html("\n</body>")
 	buffer.Html("\n</html>")

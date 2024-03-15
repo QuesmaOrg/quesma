@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"mitmproxy/quesma/telemetry"
 	_ "net/http/pprof"
 
 	"embed"
@@ -91,9 +92,10 @@ type QuesmaManagementConsole struct {
 	clickhouseStatusCache     healthCheckStatusCache
 	elasticStatusCache        healthCheckStatusCache
 	logManager                *clickhouse.LogManager
+	phoneHomeAgent            telemetry.PhoneHomeAgent
 }
 
-func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *clickhouse.LogManager, logChan <-chan string) *QuesmaManagementConsole {
+func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *clickhouse.LogManager, logChan <-chan string, phoneHomeAgent telemetry.PhoneHomeAgent) *QuesmaManagementConsole {
 	return &QuesmaManagementConsole{
 		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 5),
 		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 5),
@@ -108,6 +110,7 @@ func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *c
 		clickhouseStatusCache:     newHealthCheckStatusCache(),
 		elasticStatusCache:        newHealthCheckStatusCache(),
 		logManager:                logManager,
+		phoneHomeAgent:            phoneHomeAgent,
 	}
 }
 
@@ -197,6 +200,11 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 
 	router.HandleFunc("/schema", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateSchema()
+		_, _ = writer.Write(buf)
+	})
+
+	router.HandleFunc("/telemetry", func(writer http.ResponseWriter, req *http.Request) {
+		buf := qmc.generatePhoneHome()
 		_, _ = writer.Write(buf)
 	})
 

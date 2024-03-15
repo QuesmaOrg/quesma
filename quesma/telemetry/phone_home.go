@@ -51,7 +51,14 @@ type PhoneHomeStats struct {
 	TakenAt int64 `json:"taken_at"`
 }
 
-type PhoneHomeAgent struct {
+type PhoneHomeAgent interface {
+	Start()
+	Stop()
+
+	RecentStats() (recent PhoneHomeStats, available bool)
+}
+
+type agent struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
@@ -65,7 +72,7 @@ type PhoneHomeAgent struct {
 	recent PhoneHomeStats
 }
 
-func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *sql.DB) *PhoneHomeAgent {
+func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *sql.DB) PhoneHomeAgent {
 
 	// TODO
 	// this is a question, maybe we should inherit context from the caller
@@ -73,7 +80,7 @@ func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *s
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &PhoneHomeAgent{
+	return &agent{
 		ctx:          ctx,
 		cancel:       cancel,
 		hostname:     "localhost", // FIXME
@@ -83,7 +90,11 @@ func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *s
 	}
 }
 
-func (a *PhoneHomeAgent) CollectClickHouse() (stats ClickHouseStats) {
+func (a *agent) RecentStats() (recent PhoneHomeStats, available bool) {
+	return a.recent, a.recent.TakenAt != 0
+}
+
+func (a *agent) CollectClickHouse() (stats ClickHouseStats) {
 
 	// https://gist.github.com/sanchezzzhak/511fd140e8809857f8f1d84ddb937015
 	stats.Status = statusNotOk
@@ -156,7 +167,7 @@ func scanElasticResponse(body []byte, stats *ElasticStats) error {
 	return nil
 }
 
-func (a *PhoneHomeAgent) CollectElastic() (stats ElasticStats) {
+func (a *agent) CollectElastic() (stats ElasticStats) {
 
 	stats.Status = statusNotOk
 	// https://www.datadoghq.com/blog/collect-elasticsearch-metrics/
@@ -208,7 +219,7 @@ func (a *PhoneHomeAgent) CollectElastic() (stats ElasticStats) {
 	return stats
 }
 
-func (a PhoneHomeAgent) Collect() (stats PhoneHomeStats) {
+func (a agent) collect() (stats PhoneHomeStats) {
 
 	stats.Hostname = a.hostname
 	stats.AgentStartedAt = a.statedAt.Unix()
@@ -222,7 +233,7 @@ func (a PhoneHomeAgent) Collect() (stats PhoneHomeStats) {
 	return stats
 }
 
-func (a *PhoneHomeAgent) Report(stats PhoneHomeStats) {
+func (a *agent) report(stats PhoneHomeStats) {
 
 	data, err := json.Marshal(stats)
 	if err != nil {
@@ -232,20 +243,20 @@ func (a *PhoneHomeAgent) Report(stats PhoneHomeStats) {
 	logger.Info().Msgf("Call Home: %v", string(data))
 }
 
-func (a *PhoneHomeAgent) telemetryCollection() {
+func (a *agent) telemetryCollection() {
 
 	// if we fail we would not die
 	defer recovery.LogPanic()
 
-	stats := a.Collect()
+	stats := a.collect()
 
-	a.Report(stats)
+	a.report(stats)
 
 	a.recent = stats
 
 }
 
-func (a *PhoneHomeAgent) loop() {
+func (a *agent) loop() {
 
 	// do not collect stats immediately
 	// wait for a while to let the system settle
@@ -270,7 +281,7 @@ func (a *PhoneHomeAgent) loop() {
 	}
 }
 
-func (a *PhoneHomeAgent) Start() {
+func (a *agent) Start() {
 
 	a.statedAt = time.Now()
 	go a.loop()
@@ -278,7 +289,7 @@ func (a *PhoneHomeAgent) Start() {
 
 }
 
-func (a *PhoneHomeAgent) Stop() {
+func (a *agent) Stop() {
 
 	a.cancel()
 	logger.Info().Msg("PhoneHomeAgent Stopped")

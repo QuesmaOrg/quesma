@@ -56,13 +56,13 @@ func main() {
 
 }
 
-func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, phoneHomeAgent *telemetry.PhoneHomeAgent, logChan <-chan string) *quesma.Quesma {
+func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, phoneHomeAgent telemetry.PhoneHomeAgent, logChan <-chan string) *quesma.Quesma {
 
 	switch cfg.Mode {
 	case config.Proxy:
-		return quesma.NewQuesmaTcpProxy(cfg, logChan, false)
+		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, logChan, false)
 	case config.ProxyInspect:
-		return quesma.NewQuesmaTcpProxy(cfg, logChan, true)
+		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, logChan, true)
 	case config.DualWriteQueryElastic, config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
 		return quesma.NewHttpProxy(phoneHomeAgent, lm, cfg, logChan)
 	}
