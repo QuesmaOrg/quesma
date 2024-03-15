@@ -14,6 +14,7 @@ import (
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/routes"
 	"mitmproxy/quesma/quesma/ui"
+	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
 	"net/http"
 	"strconv"
@@ -27,6 +28,7 @@ type (
 		publicTcpPort           network.Port
 		quesmaManagementConsole *ui.QuesmaManagementConsole
 		config                  config.QuesmaConfiguration
+		telemetryAgent          *telemetry.PhoneHomeAgent
 	}
 	requestProcessor interface {
 		Ingest()
@@ -93,10 +95,13 @@ func NewQuesmaTcpProxy(config config.QuesmaConfiguration, logChan <-chan string,
 	}
 }
 
-func NewHttpProxy(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
+func NewHttpProxy(phoneHomeAgent *telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
+
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logManager, logChan)
 	router := configureRouter(config, logManager, quesmaManagementConsole)
+
 	return &Quesma{
+		telemetryAgent:          phoneHomeAgent,
 		processor:               newDualWriteProxy(logManager, config, router, quesmaManagementConsole),
 		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,

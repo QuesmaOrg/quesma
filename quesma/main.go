@@ -6,6 +6,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/telemetry"
 	"os"
 	"os/signal"
 	"syscall"
@@ -33,14 +34,21 @@ func main() {
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
 
+	phoneHomeAgent := telemetry.NewPhoneHomeAgent(cfg, connectionPool)
+	phoneHomeAgent.Start()
+
 	lm := clickhouse.NewEmptyLogManager(cfg, connectionPool)
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())
 
-	instance := constructQuesma(cfg, lm, qmcLogChannel)
+	instance := constructQuesma(cfg, lm, phoneHomeAgent, qmcLogChannel)
+
 	instance.Start()
 
 	<-doneCh
+	logger.Info().Msgf("Quesma quiting")
+
+	phoneHomeAgent.Stop()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -48,7 +56,7 @@ func main() {
 
 }
 
-func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, logChan <-chan string) *quesma.Quesma {
+func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, phoneHomeAgent *telemetry.PhoneHomeAgent, logChan <-chan string) *quesma.Quesma {
 
 	switch cfg.Mode {
 	case config.Proxy:
@@ -56,7 +64,7 @@ func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	case config.ProxyInspect:
 		return quesma.NewQuesmaTcpProxy(cfg, logChan, true)
 	case config.DualWriteQueryElastic, config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
-		return quesma.NewHttpProxy(lm, cfg, logChan)
+		return quesma.NewHttpProxy(phoneHomeAgent, lm, cfg, logChan)
 	}
 	logger.Panic().Msgf("unknown operation mode: %s", cfg.Mode.String())
 	panic("unreachable")
