@@ -67,5 +67,36 @@ do_silent_http_post "api/data_views/data_view" '{
 
 echo ""
 
+echo -n "Adding alias for Kibana sample data - logs... "
+curl --no-progress-meter -X POST "http://mitmproxy:8080/_aliases" \
+    -H 'Content-Type: application/json' \
+    -d '{
+    "actions": [
+      {
+        "add": {
+          "index": "kibana_sample_data_logs",
+          "alias": "alias_kibana_sample_data_logs"
+        }
+      }
+    ]
+}'
+
+echo ""
+
+echo -n "Adding data view Elasticsearch: Kibana Sample Data - Logs... "
+do_silent_http_post "api/data_views/data_view" '{
+    "data_view": {
+       "name": "Elasticsearch: Kibana Sample Data Logs",
+       "title": "alias_kibana_sample_data_logs",
+       "id": "alias-kibana-sample-data-logs",
+       "timeFieldName": "timestamp",
+       "allowNoIndex": true
+    },
+    "override": true
+}'
+
+echo ""
+
+
 echo -e "\nData views added."
 
