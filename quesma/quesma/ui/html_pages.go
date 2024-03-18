@@ -168,7 +168,7 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 					if !ok {
 						c := tableColumn{}
 						c.name = a.ValuesArrayName
-						c.typeName = a.Type.String()
+						c.typeName = clickhouse.CompoundType{Name: "Array", BaseType: a.Type}.String()
 						c.isAttribute = true
 						columnNames = append(columnNames, c.name)
 						columnMap[c.name] = c
