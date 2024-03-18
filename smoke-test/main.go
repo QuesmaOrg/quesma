@@ -22,7 +22,7 @@ const (
 	kibanaUrl                  = "http://localhost:5601"
 	kibanaHealthCheckUrl       = "http://localhost:5601/api/status"
 	kibanaDataViewsUrl         = "http://localhost:5601/api/data_views"
-	kibanaCsvReportUrl         = "http://localhost:5601/internal/reporting/generate/csv_searchsource"
+	kibanaCsvReportUrl         = "http://localhost:5601/api/reporting/generate/csv_searchsource"
 	elasticsearchSampleDataUrl = "http://localhost:9201/kibana_sample_data_flights/_count"
 	quesmaSampleDataUrl        = "http://localhost:9200/kibana_sample_data_flights/_count"
 	elasticsearchBaseUrl       = "http://localhost:9201"
