@@ -964,28 +964,46 @@ func (cw *ClickhouseQueryTranslator) isItAggsByFieldRequest(queryMap QueryMap) (
 	if !ok {
 		return model.NewQueryInfoAsyncSearchNone(), false
 	}
-	nestedOnePossibility, ok := queryMap["aggs"].(QueryMap)
-	if !ok {
-		return model.NewQueryInfoAsyncSearchNone(), false
-	}
-	nestedOnePossibility, ok = nestedOnePossibility["top_values"].(QueryMap)
-	if !ok {
-		return model.NewQueryInfoAsyncSearchNone(), false
-	}
-	nestedOnePossibility, ok = nestedOnePossibility["terms"].(QueryMap)
+	firstNestingMap, ok := queryMap["aggs"].(QueryMap)
 	if !ok {
 		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 
-	size = int(nestedOnePossibility["size"].(float64))
-	fieldName = strings.TrimSuffix(nestedOnePossibility["field"].(string), ".keyword")
+	// simple "facets" aggregation, which we try to match here, will have here:
+	// a) len = 2
+	// b) "top_values" and "sample_count" keys
+	_, ok = firstNestingMap["sample_count"]
+	if !ok || len(firstNestingMap) != 2 {
+		return model.NewQueryInfoAsyncSearchNone(), false
+	}
+	firstNestingMap, ok = firstNestingMap["top_values"].(QueryMap)
+	if !ok {
+		return model.NewQueryInfoAsyncSearchNone(), false
+	}
+
+	firstNestingMap, ok = firstNestingMap["terms"].(QueryMap)
+	if !ok {
+		return model.NewQueryInfoAsyncSearchNone(), false
+	}
+
+	sizeAsAny, ok := firstNestingMap["size"]
+	if !ok {
+		return model.NewQueryInfoAsyncSearchNone(), false
+	} else {
+		size = int(sizeAsAny.(float64))
+	}
+	fieldNameAsAny, ok := firstNestingMap["field"]
+	if !ok {
+		return model.NewQueryInfoAsyncSearchNone(), false
+	}
+	fieldName = strings.TrimSuffix(fieldNameAsAny.(string), ".keyword")
 	fieldName = cw.Table.ResolveField(fieldName)
 
-	nestedSecondPossibility, ok := queryMap["sampler"].(QueryMap)
+	secondNestingMap, ok := queryMap["sampler"].(QueryMap)
 	if !ok {
 		return model.NewQueryInfoAsyncSearchNone(), false
 	}
-	shardSize, ok := nestedSecondPossibility["shard_size"].(float64)
+	shardSize, ok := secondNestingMap["shard_size"].(float64)
 	if !ok {
 		return model.NewQueryInfoAsyncSearchNone(), false
 	}
