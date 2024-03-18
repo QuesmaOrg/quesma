@@ -163,9 +163,8 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 			}
 		}
 	} else {
-		response := recordRequestToElastic(req.URL.Path, quesmaManagementConsole, func() *http.Response {
-			return sendHttpRequest(ctx, cfg.ElasticsearchUrl.String(), req, reqBody)
-		})
+		elkResponseChan := sendHttpRequestToElastic(ctx, cfg, quesmaManagementConsole, req, reqBody)
+		response := <-elkResponseChan
 		if response != nil {
 			copyHeaders(w, response)
 			w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
@@ -261,6 +260,7 @@ func (q *Quesma) Start() {
 
 func sendHttpRequest(ctx context.Context, address string, originalReq *http.Request, originalReqBody []byte) *http.Response {
 	req, err := http.NewRequestWithContext(ctx, originalReq.Method, address+originalReq.URL.String(), bytes.NewBuffer(originalReqBody))
+
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("Error creating request: %v", err)
 		return nil
