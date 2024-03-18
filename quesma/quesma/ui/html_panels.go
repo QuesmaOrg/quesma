@@ -5,6 +5,7 @@ import (
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
+	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/stats/errorstats"
@@ -270,6 +271,11 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	if h, errH := host.Info(); errH == nil {
 		buffer.Html(fmt.Sprintf(`<div class="status">Host uptime: %s</div>`, secondsToTerseString(h.Uptime)))
 	}
+
+	buffer.Html("<div>Version: ")
+	buffer.Text(buildinfo.Version)
+	buffer.Html("</div>")
+
 	buffer.Html(`</div>`)
 
 	buffer.Html(`<div id="dashboard-errors" class="component">`)

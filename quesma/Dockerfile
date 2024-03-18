@@ -1,5 +1,6 @@
 FROM golang:alpine AS builder
 
+
 WORKDIR app
 
 COPY go.mod go.sum ./
@@ -8,7 +9,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
 ENV GOCACHE=/root/.cache/go-build
-
+ARG QUESMA_VERSION
 
 COPY util/healthcheck util/healthcheck
 
@@ -20,7 +21,7 @@ COPY . .
 
 RUN --mount=type=cache,target="/root/.cache/go-build" \
     --mount=type=cache,target=/go/pkg/mod  \
-    go build -o bin
+    go build -ldflags="-X 'mitmproxy/quesma/buildinfo.Version=$QUESMA_VERSION'" -o bin
 
 FROM scratch
 

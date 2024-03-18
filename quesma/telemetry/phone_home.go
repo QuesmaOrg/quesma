@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"io"
+	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
@@ -247,7 +248,7 @@ func (a agent) collect() (stats PhoneHomeStats) {
 	stats.Hostname = a.hostname
 	stats.AgentStartedAt = a.statedAt.Unix()
 	stats.TakenAt = time.Now().Unix()
-	stats.QuesmaVersion = "dev" // FIXME add real version string here
+	stats.QuesmaVersion = buildinfo.Version
 	stats.InstanceID = a.instanceId
 
 	stats.ClickHouse = a.CollectClickHouse()

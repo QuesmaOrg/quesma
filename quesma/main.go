@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma"
@@ -24,6 +25,8 @@ const banner = `
 
 func main() {
 	println(banner)
+	println("Quesma version: ", buildinfo.Version)
+
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	doneCh := make(chan struct{})

@@ -15,3 +15,7 @@ if [ ! -f "$QUESMA_COMPOSE_FILE" ]; then
   echo "File '$QUESMA_COMPOSE_FILE' does not exist."
   exit 1
 fi
+
+# Get the current git commit hash
+QUESMA_VERSION=$(git rev-parse HEAD)
+DOCKER_COMPOSE_BUILD_ARGS="--build-arg QUESMA_VERSION=$QUESMA_VERSION"
