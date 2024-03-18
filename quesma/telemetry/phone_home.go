@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -194,7 +195,7 @@ func (a *agent) CollectElastic() (stats ElasticStats) {
 	ctx, cancel := context.WithTimeout(a.ctx, elasticTimeout)
 	defer cancel()
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, statsUrl.String(), nil)
+	request, err := a.buildElastisearchRequest(ctx, statsUrl, nil)
 
 	if err != nil {
 		logger.Error().Err(err).Msg("Error getting stats from elasticsearch. ")
@@ -228,6 +229,17 @@ func (a *agent) CollectElastic() (stats ElasticStats) {
 
 	stats.Status = statusOk
 	return stats
+}
+
+func (a *agent) buildElastisearchRequest(ctx context.Context, statsUrl *url.URL, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, statsUrl.String(), body)
+	if err != nil {
+		return nil, err
+	}
+	if a.config.ElasticsearchUser != "" {
+		req.SetBasicAuth(a.config.ElasticsearchUser, a.config.ElasticsearchPassword)
+	}
+	return req, nil
 }
 
 func (a agent) collect() (stats PhoneHomeStats) {
