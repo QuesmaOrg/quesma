@@ -5,6 +5,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/testdata"
 	"net/url"
 	"strconv"
@@ -40,7 +41,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	cfg.IndexConfig = append(cfg.IndexConfig, indexConfig)
 
-	lm := clickhouse.NewEmptyLogManager(cfg, nil)
+	lm := clickhouse.NewEmptyLogManager(cfg, nil, telemetry.NewPhoneHomeEmptyAgent())
 	lm.AddTableIfDoesntExist(table)
 
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}

@@ -37,7 +37,7 @@ func main() {
 	phoneHomeAgent := telemetry.NewPhoneHomeAgent(cfg, connectionPool)
 	phoneHomeAgent.Start()
 
-	lm := clickhouse.NewEmptyLogManager(cfg, connectionPool)
+	lm := clickhouse.NewEmptyLogManager(cfg, connectionPool, phoneHomeAgent)
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())
 

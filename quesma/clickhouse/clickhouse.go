@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/util"
 	"regexp"
 	"strings"
@@ -26,6 +27,7 @@ type (
 		schemaManagement *SchemaManagement
 		tableDefinitions *atomic.Pointer[TableMap]
 		cfg              config.QuesmaConfiguration
+		phoneHomeAgent   telemetry.PhoneHomeAgent
 	}
 	TableMap  = concurrent.Map[string, *Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -400,30 +402,30 @@ func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
 	return wasntCreated
 }
 
-func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB) *LogManager {
+func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent) *LogManager {
 	var schemaManagement = NewSchemaManagement(chDb)
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
-	return &LogManager{chDb: chDb, tableDefinitions: &tableDefinitions, cfg: cfg, schemaManagement: schemaManagement}
+	return &LogManager{chDb: chDb, tableDefinitions: &tableDefinitions, cfg: cfg, schemaManagement: schemaManagement, phoneHomeAgent: phoneHomeAgent}
 }
 
 func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
-	return &LogManager{chDb: nil, tableDefinitions: &tableDefinitions, cfg: cfg}
+	return &LogManager{chDb: nil, tableDefinitions: &tableDefinitions, cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 // right now only for tests purposes
 func NewLogManagerWithConnection(db *sql.DB, tables *TableMap) *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
-	return &LogManager{chDb: db, tableDefinitions: &tableDefinitions, schemaManagement: NewSchemaManagement(db)}
+	return &LogManager{chDb: db, tableDefinitions: &tableDefinitions, schemaManagement: NewSchemaManagement(db), phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 func NewLogManagerEmpty() *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
-	return &LogManager{tableDefinitions: &tableDefinitions}
+	return &LogManager{tableDefinitions: &tableDefinitions, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 func NewOnlySchemaFieldsCHConfig() *ChTableConfig {

@@ -48,6 +48,8 @@ type PhoneHomeStats struct {
 	ClickHouse    ClickHouseStats `json:"clickhouse"`
 	Elasticsearch ElasticStats    `json:"elasticsearch"`
 
+	ClickHouseQueriesDuration DurationStats `json:"clickhouse_queries"`
+
 	TakenAt int64 `json:"taken_at"`
 }
 
@@ -56,6 +58,8 @@ type PhoneHomeAgent interface {
 	Stop()
 
 	RecentStats() (recent PhoneHomeStats, available bool)
+
+	ClickHouseQueryDuration() DurationMeasurement
 }
 
 type agent struct {
@@ -69,6 +73,8 @@ type agent struct {
 	statedAt   time.Time
 	hostname   string
 
+	clickHouseQueryTimes DurationMeasurement
+
 	recent PhoneHomeStats
 }
 
@@ -81,13 +87,18 @@ func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *s
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &agent{
-		ctx:          ctx,
-		cancel:       cancel,
-		hostname:     "localhost", // FIXME
-		instanceId:   "unknown",   // FIXME
-		clickHouseDb: clickHouseDb,
-		config:       configuration,
+		ctx:                  ctx,
+		cancel:               cancel,
+		hostname:             "localhost", // FIXME
+		instanceId:           "unknown",   // FIXME
+		clickHouseDb:         clickHouseDb,
+		config:               configuration,
+		clickHouseQueryTimes: newDurationMeasurement(ctx),
 	}
+}
+
+func (a *agent) ClickHouseQueryDuration() DurationMeasurement {
+	return a.clickHouseQueryTimes
 }
 
 func (a *agent) RecentStats() (recent PhoneHomeStats, available bool) {
@@ -229,6 +240,8 @@ func (a agent) collect() (stats PhoneHomeStats) {
 
 	stats.ClickHouse = a.CollectClickHouse()
 	stats.Elasticsearch = a.CollectElastic()
+
+	stats.ClickHouseQueriesDuration = a.ClickHouseQueryDuration().Aggregate()
 
 	return stats
 }

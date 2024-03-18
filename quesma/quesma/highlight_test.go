@@ -6,6 +6,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/telemetry"
 	"testing"
 )
 
@@ -102,7 +103,7 @@ func TestParseHighLight(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil)
+	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent())
 
 	cw := queryparser.ClickhouseQueryTranslator{
 		ClickhouseLM: lm,

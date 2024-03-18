@@ -16,7 +16,7 @@ func TestHtmlPages(t *testing.T) {
 	xssBytes := []byte(xss)
 	id := "MagicId_123"
 	logChan := make(chan string, 5)
-	qmc := NewQuesmaManagementConsole(config.Load(), nil, logChan, telemetry.NewPhoneHomeDummyAgent())
+	qmc := NewQuesmaManagementConsole(config.Load(), nil, logChan, telemetry.NewPhoneHomeEmptyAgent())
 	qmc.PushPrimaryInfo(&QueryDebugPrimarySource{Id: id, QueryResp: xssBytes})
 	qmc.PushSecondaryInfo(&QueryDebugSecondarySource{Id: id,
 		IncomingQueryBody:      xssBytes,
@@ -100,7 +100,7 @@ func TestHtmlSchemaPage(t *testing.T) {
 
 	logManager := clickhouse.NewLogManager(tables, cfg)
 
-	qmc := NewQuesmaManagementConsole(cfg, logManager, logChan, telemetry.NewPhoneHomeDummyAgent())
+	qmc := NewQuesmaManagementConsole(cfg, logManager, logChan, telemetry.NewPhoneHomeEmptyAgent())
 
 	t.Run("schema got no XSS and no panic", func(t *testing.T) {
 		response := string(qmc.generateSchema())

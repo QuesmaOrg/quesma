@@ -73,7 +73,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 			defer db.Close()
 			assert.NoError(t, err)
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000), telemetry.NewPhoneHomeDummyAgent())
+			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000), telemetry.NewPhoneHomeEmptyAgent())
 
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
@@ -114,7 +114,7 @@ func TestSearchHandler(t *testing.T) {
 			assert.NoError(t, err)
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000), telemetry.NewPhoneHomeDummyAgent())
+			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000), telemetry.NewPhoneHomeEmptyAgent())
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
@@ -139,7 +139,7 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 			assert.NoError(t, err)
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000), telemetry.NewPhoneHomeDummyAgent())
+			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000), telemetry.NewPhoneHomeEmptyAgent())
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
@@ -163,7 +163,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 			assert.NoError(t, err)
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000), telemetry.NewPhoneHomeDummyAgent())
+			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000), telemetry.NewPhoneHomeEmptyAgent())
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
@@ -232,7 +232,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 	}
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
-	managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000), telemetry.NewPhoneHomeDummyAgent())
+	managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000), telemetry.NewPhoneHomeEmptyAgent())
 
 	for _, fieldName := range []string{dateTimeTimestampField, dateTime64TimestampField, dateTime64OurTimestampField} {
 		mock.ExpectQuery(testdata.EscapeBrackets(`SELECT count() FROM "logs-generic-default" WHERE `)).
