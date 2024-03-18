@@ -116,9 +116,13 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method)
 		})
 		elkResponse := <-elkResponseChan
-		// We should send only responses for search queries to Quesma console
-		if elkResponse != nil && routes.IsQueryPath(req.URL.Path) {
-			sendElkResponseToQuesmaConsole(ctx, elkResponse, quesmaManagementConsole)
+		if elkResponse != nil {
+			if routes.IsQueryPath(req.URL.Path) { // We should send only responses for search queries to Quesma console
+				sendElkResponseToQuesmaConsole(ctx, elkResponse, quesmaManagementConsole)
+			}
+			if !(elkResponse.StatusCode >= 200 && elkResponse.StatusCode < 300) {
+				logger.Warn().Msgf("Elastiscsearch returned unexpected status code [%d] when calling [%s %s]", elkResponse.StatusCode, req.Method, req.URL.Path)
+			}
 		}
 
 		zip := strings.Contains(req.Header.Get("Accept-Encoding"), "gzip")
