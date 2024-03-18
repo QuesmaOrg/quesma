@@ -1,7 +1,9 @@
 package quesma
 
 import (
+	"mitmproxy/quesma/logger"
 	"net/http"
+	"slices"
 )
 
 const (
@@ -19,6 +21,12 @@ const (
 	quesmaSourceClickhouse = "Clickhouse"
 )
 
+// Certain Elasticsearch SaaS providers might add custom headers to the response,
+// which should be ignored when comparing Quesma response with Elasticsearch response.
+var ignoredElasticsearchHeaders = []string{
+	"X-Cloud-Request-Id", "X-Found-Handling-Cluster", "X-Found-Handling-Instance", "Www-Authenticate", "Date", // Elastic Cloud
+}
+
 func addProductAndContentHeaders(request http.Header, response http.Header) {
 	if request.Get(osdRequestHeaderKey) == osdRequestHeaderValue {
 		response.Set(contentTypeHeaderKey, "application/json; charset=UTF-8")
@@ -27,4 +35,23 @@ func addProductAndContentHeaders(request http.Header, response http.Header) {
 		response.Set(contentTypeHeaderKey, "application/vnd.elasticsearch+json;compatible-with=8")
 	}
 	response.Set(opaqueIdHeaderKey, "unknownId")
+}
+
+func LogMissingEsHeaders(elasticsearchHeaders, quesmaHeaders http.Header, reqId string) {
+	missingHeaders := findMissingElasticsearchHeaders(elasticsearchHeaders, quesmaHeaders)
+	for _, headerName := range missingHeaders {
+		logger.Warn().Str(logger.RID, reqId).Msgf("Header %s is missing in Quesma's response", headerName)
+	}
+}
+
+func findMissingElasticsearchHeaders(elasticsearchHeaders, quesmaHeaders http.Header) []string {
+	var missingHeaders []string
+	for esHeaderName := range elasticsearchHeaders {
+		if !slices.Contains(ignoredElasticsearchHeaders, esHeaderName) {
+			if _, ok := quesmaHeaders[esHeaderName]; !ok {
+				missingHeaders = append(missingHeaders, esHeaderName)
+			}
+		}
+	}
+	return missingHeaders
 }

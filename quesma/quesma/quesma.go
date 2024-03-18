@@ -62,7 +62,7 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 		_, _ = io.Copy(w, bytes.NewBuffer(unzipped))
 	}
 	if elkResponse != nil {
-		logUnexpected(elkResponse.Header, w.Header(), id)
+		LogMissingEsHeaders(elkResponse.Header, w.Header(), id)
 	}
 }
 
@@ -106,14 +106,6 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,
-	}
-}
-
-func logUnexpected(elasticHeader, quesmaHeader http.Header, id string) {
-	for headerKey := range elasticHeader {
-		if _, ok := quesmaHeader[headerKey]; !ok {
-			logger.Warn().Str(logger.RID, id).Msgf("Header %s is missing in Quesma's response", headerKey)
-		}
 	}
 }
 
