@@ -277,6 +277,7 @@ func (cw *ClickhouseQueryTranslator) parseMetadata(queryMap QueryMap) QueryMap {
 }
 
 func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fieldName string, prefix *string, caseIns bool) SimpleQuery {
+	fieldName = cw.Table.ResolveField(fieldName)
 	canParse := true
 	stmts := make([]Statement, 0)
 	if indexFilter != nil {
@@ -683,6 +684,7 @@ func parseDateMathExpression(expr string) string {
 func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 	// not checking for len == 1 because it's only option in proper query
 	for field, v := range queryMap {
+		field = cw.Table.ResolveField(field)
 		stmts := make([]Statement, 0)
 		if _, ok := v.(QueryMap); !ok {
 			continue
@@ -782,6 +784,7 @@ func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []strin
 		if fieldStr == "*" {
 			return cw.GetFieldsList() // careful: hardcoded for only "message" for now
 		}
+		fieldStr = cw.Table.ResolveField(fieldStr)
 		result = append(result, fieldStr)
 	}
 	return result
@@ -914,7 +917,7 @@ func (cw *ClickhouseQueryTranslator) isItHistogramRequest(queryMap QueryMap) (mo
 		if queryMapNestOnePossility, ok = queryMapNestOnePossility["date_histogram"].(QueryMap); ok {
 			return model.QueryInfoAsyncSearch{
 				Typ:       model.Histogram,
-				FieldName: queryMapNestOnePossility["field"].(string),
+				FieldName: cw.Table.ResolveField(queryMapNestOnePossility["field"].(string)),
 				Interval:  cw.extractInterval(queryMapNestOnePossility),
 				I1:        0,
 				I2:        0,
@@ -938,7 +941,7 @@ func (cw *ClickhouseQueryTranslator) isItHistogramRequest(queryMap QueryMap) (mo
 	if ok {
 		return model.QueryInfoAsyncSearch{
 			Typ:       model.Histogram,
-			FieldName: queryMap["field"].(string),
+			FieldName: cw.Table.ResolveField(queryMap["field"].(string)),
 			Interval:  cw.extractInterval(queryMap),
 			I1:        0,
 			I2:        0,
@@ -976,6 +979,7 @@ func (cw *ClickhouseQueryTranslator) isItAggsByFieldRequest(queryMap QueryMap) (
 
 	size = int(nestedOnePossibility["size"].(float64))
 	fieldName = strings.TrimSuffix(nestedOnePossibility["field"].(string), ".keyword")
+	fieldName = cw.Table.ResolveField(fieldName)
 
 	nestedSecondPossibility, ok := queryMap["sampler"].(QueryMap)
 	if !ok {
@@ -1016,7 +1020,7 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.Q
 		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	// same as above
-	field := queryMap["field"].(string)
+	field := cw.Table.ResolveField(queryMap["field"].(string))
 	if field == "*" {
 		return model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size)}, true
 	}
@@ -1038,7 +1042,7 @@ func (cw *ClickhouseQueryTranslator) isItEarliestLatestTimestampRequest(queryMap
 	if !ok {
 		return model.NewQueryInfoAsyncSearchNone(), false
 	}
-	timestampFieldName1 := minQueryMap["field"].(string)
+	timestampFieldName1 := cw.Table.ResolveField(minQueryMap["field"].(string))
 
 	// max json
 	maxQueryMap, ok := queryMap["latest_timestamp"].(QueryMap)
@@ -1049,7 +1053,7 @@ func (cw *ClickhouseQueryTranslator) isItEarliestLatestTimestampRequest(queryMap
 	if !ok {
 		return model.NewQueryInfoAsyncSearchNone(), false
 	}
-	timestampFieldName2 := maxQueryMap["field"].(string)
+	timestampFieldName2 := cw.Table.ResolveField(maxQueryMap["field"].(string))
 
 	// probably unnecessary check, but just in case
 	if timestampFieldName1 == timestampFieldName2 {
@@ -1089,11 +1093,12 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps []any) []string {
 				// we're skipping ELK internal fields, like "_doc", "_id", etc.
 				continue
 			}
+			fieldName := cw.Table.ResolveField(k)
 			if vAsMap, ok := v.(QueryMap); ok {
 				if order, ok := vAsMap["order"]; ok {
-					sortFields = append(sortFields, strconv.Quote(k)+" "+order.(string))
+					sortFields = append(sortFields, strconv.Quote(fieldName)+" "+order.(string))
 				} else {
-					sortFields = append(sortFields, strconv.Quote(k))
+					sortFields = append(sortFields, strconv.Quote(fieldName))
 				}
 			} else {
 				logger.Warn().Msgf("parseSortFields: unexpected type of value for key %s: %T", k, v)

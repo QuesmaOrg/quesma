@@ -390,7 +390,7 @@ func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
 	if t == nil {
 		table.Created = true
 
-		table.applyFullTextSearchConfig(lm.cfg)
+		table.applyIndexConfig(lm.cfg)
 
 		lm.tableDefinitions.Load().Store(table.Name, table)
 		return true

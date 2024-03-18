@@ -182,6 +182,13 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []mod
 				}
 			}
 		}
+
+		// TODO: highlight and field checks
+		for _, alias := range cw.Table.AliasList() {
+			if v, ok := hits[i].Fields[alias.TargetFieldName]; ok {
+				hits[i].Fields[alias.SourceFieldName] = v
+			}
+		}
 	}
 
 	var total *model.Total
@@ -579,7 +586,7 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName, whe
 }
 
 func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMap) string {
-	fieldName := queryMap["field"].(string)
+	fieldName := cw.Table.ResolveField(queryMap["field"].(string))
 	interval, err := kibana.ParseInterval(cw.extractInterval(queryMap))
 	if err != nil {
 		logger.Error().Msg(err.Error())

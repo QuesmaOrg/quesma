@@ -16,6 +16,7 @@ quesma:
   index:
     kibana_sample_data*:
       enabled: true
+      alias_fields: timestamp<-@timestamp
     kafka-example-topi*:
       enabled: true
     logs-generic-*:

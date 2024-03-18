@@ -140,6 +140,18 @@ func handleFieldCapsIndex(_ context.Context, resolvedIndex string, tables *click
 				addNewDefaultFieldCapability(fields, col)
 			}
 		}
+
+		for _, alias := range table.AliasFields() {
+			if alias == nil {
+				continue
+			}
+
+			if canBeKeywordField(alias) {
+				addNewKeywordFieldCapability(fields, alias)
+			} else {
+				addNewDefaultFieldCapability(fields, alias)
+			}
+		}
 	}
 
 	// Adding artificial quesma field

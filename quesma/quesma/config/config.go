@@ -27,6 +27,7 @@ const (
 	indexConfig                = "index"
 	enabledConfig              = "enabled"
 	fullTextFields             = "fulltext_fields"
+	aliasFields                = "alias_fields"
 	logsPathConfig             = "logs_path"
 	logLevelConfig             = "log_level"
 	publicTcpPort              = "port"
@@ -62,10 +63,16 @@ type (
 		QuesmaInternalTelemetryUrl *url.URL
 	}
 
+	FieldAlias struct {
+		TargetFieldName string
+		SourceFieldName string
+	}
+
 	IndexConfiguration struct {
 		NamePattern    string
 		Enabled        bool
 		FullTextFields []string
+		Aliases        []FieldAlias
 	}
 )
 
@@ -81,15 +88,41 @@ func (c IndexConfiguration) FullTextField(indexName, fieldName string) bool {
 	return slices.Contains(c.FullTextFields, fieldName)
 }
 
-func (cfg QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string) bool {
+func (c IndexConfiguration) String() string {
+	var aliasString string
+	if len(c.Aliases) > 0 {
+		aliasString = ", aliases: "
+		for i, alias := range c.Aliases {
+			if i > 0 {
+				aliasString += ", "
+			}
+			aliasString += fmt.Sprintf("%s <- %s", alias.SourceFieldName, alias.TargetFieldName)
+		}
+	}
+	return fmt.Sprintf("\n\t\t%s, enabled: %t, fullTextFields: %s%s",
+		c.NamePattern,
+		c.Enabled,
+		strings.Join(c.FullTextFields, ", "),
+		aliasString,
+	)
+}
 
+func (cfg *QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string) bool {
 	for _, indexConfig := range cfg.IndexConfig {
 		if indexConfig.FullTextField(indexName, fieldName) {
 			return true
 		}
 	}
 	return false
+}
 
+func (cfg *QuesmaConfiguration) AliasFields(indexName string) []FieldAlias {
+	for _, indexConfig := range cfg.IndexConfig {
+		if indexConfig.Matches(indexName) {
+			return indexConfig.Aliases
+		}
+	}
+	return []FieldAlias{}
 }
 
 func MatchName(pattern, name string) bool {
@@ -133,20 +166,38 @@ func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
 	var indexBypass = make([]IndexConfiguration, 0)
 
 	for indexNamePattern, config := range p.parsedViper.Get(fullyQualifiedConfig(indexConfig)).(map[string]interface{}) {
-		var fields []string
-		v, ok := config.(map[string]interface{})[fullTextFields]
+		fields := []string{"message"}
+		aliases := make([]FieldAlias, 0)
 
-		if ok {
+		if v, ok := config.(map[string]interface{})[fullTextFields]; ok {
 			if v == nil {
 				fields = []string{}
 			} else {
 				fields = strings.Split(v.(string), ",")
 			}
-		} else {
-			fields = []string{"message"}
 		}
 
-		indexBypass = append(indexBypass, IndexConfiguration{NamePattern: indexNamePattern, Enabled: config.(map[string]interface{})[enabledConfig].(bool), FullTextFields: fields})
+		if v, ok := config.(map[string]interface{})[aliasFields]; ok && v != nil {
+			for _, part := range strings.Split(v.(string), ",") {
+				parts := strings.Split(part, "<-")
+				if len(parts) == 2 {
+					aliases = append(aliases, FieldAlias{
+						SourceFieldName: strings.TrimSpace(parts[0]),
+						TargetFieldName: strings.TrimSpace(parts[1])})
+				} else {
+					fmt.Printf("Invalid alias field: %s\n", part)
+				}
+			}
+		}
+
+		indexConfig := IndexConfiguration{
+			NamePattern:    indexNamePattern,
+			Enabled:        config.(map[string]interface{})[enabledConfig].(bool),
+			FullTextFields: fields,
+			Aliases:        aliases,
+		}
+
+		indexBypass = append(indexBypass, indexConfig)
 	}
 
 	ingestStatistics, ok := p.parsedViper.Get(fullyQualifiedConfig(ingestStatistics)).(bool)
@@ -281,7 +332,7 @@ func (c *QuesmaConfiguration) WritesToElasticsearch() bool {
 func (c *QuesmaConfiguration) String() string {
 	var indexConfigs string
 	for _, index := range c.IndexConfig {
-		indexConfigs += fmt.Sprintf("\n\t\t%s, enabled: %t, fullTextFields: %s", index.NamePattern, index.Enabled, strings.Join(index.FullTextFields, ", "))
+		indexConfigs += index.String()
 	}
 
 	elasticUrl := "<nil>"

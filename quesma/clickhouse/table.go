@@ -2,6 +2,7 @@ package clickhouse
 
 import (
 	"fmt"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/util"
@@ -17,6 +18,7 @@ type Table struct {
 	Config       *ChTableConfig
 	Created      bool // do we need to create it during first insert
 	indexes      []IndexStatement
+	aliases      map[string]string
 }
 
 func (t *Table) createTableOurFieldsString() []string {
@@ -132,11 +134,70 @@ func (t *Table) GetDateTimeType(fieldName string) DateTimeType {
 	return Invalid
 }
 
-// applyFullTextSearchConfig applies full text search configuration to the table
-func (t *Table) applyFullTextSearchConfig(configuration config.QuesmaConfiguration) {
+// applyIndexConfig applies full text search and alias configuration to the table
+func (t *Table) applyIndexConfig(configuration config.QuesmaConfiguration) {
 	for _, c := range t.Cols {
 		c.IsFullTextMatch = configuration.IsFullTextMatchField(t.Name, c.Name)
 	}
+
+	aliasFields := configuration.AliasFields(t.Name)
+	if len(aliasFields) > 0 {
+		t.aliases = make(map[string]string)
+		for _, alias := range aliasFields {
+			if _, ok := t.Cols[alias.TargetFieldName]; !ok {
+				logger.Warn().Msgf("target field '%s' for field '%s' not found in table '%s'",
+					alias.TargetFieldName, alias.SourceFieldName, t.Name)
+				continue
+			}
+			t.aliases[alias.SourceFieldName] = alias.TargetFieldName
+		}
+	}
+}
+
+func (t *Table) ResolveField(fieldName string) (field string) {
+	field = fieldName
+	if t.aliases != nil {
+		if alias, ok := t.aliases[fieldName]; ok {
+			field = alias
+		}
+	}
+
+	if field != "*" && field != "_all" {
+		if _, ok := t.Cols[field]; !ok {
+			logger.Warn().Msgf("field '%s' referenced, but not found in table '%s'", fieldName, t.Name)
+		}
+	}
+
+	return
+}
+
+func (t *Table) AliasFields() []*Column {
+	aliasFields := make([]*Column, 0)
+	for key, val := range t.aliases {
+		col := t.Cols[val]
+		if col == nil {
+			logger.Error().Msgf("alias '%s' for field '%s' not found in table '%s'", val, key, t.Name)
+			continue
+		}
+		aliasFields = append(aliasFields, &Column{
+			Name:            key,
+			Type:            col.Type,
+			Modifiers:       col.Modifiers,
+			IsFullTextMatch: col.IsFullTextMatch,
+		})
+	}
+	return aliasFields
+}
+
+func (t *Table) AliasList() []config.FieldAlias {
+	result := make([]config.FieldAlias, 0)
+	for key, val := range t.aliases {
+		result = append(result, config.FieldAlias{
+			SourceFieldName: key,
+			TargetFieldName: val,
+		})
+	}
+	return result
 }
 
 func (t *Table) GetAttributesList() []Attribute {

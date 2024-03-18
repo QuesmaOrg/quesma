@@ -1,13 +1,13 @@
 package queryparser
 
-func ParseTopMetricsAggregation(queryMap QueryMap) metricsAggregation {
+func (cw *ClickhouseQueryTranslator) ParseTopMetricsAggregation(queryMap QueryMap) metricsAggregation {
 	var fieldList []interface{}
 	if fields, ok := queryMap["metrics"].([]interface{}); ok {
 		fieldList = fields
 	} else {
 		fieldList = append(fieldList, queryMap["metrics"])
 	}
-	fieldNames := getFieldNames(fieldList)
+	fieldNames := cw.getFieldNames(fieldList)
 	sortBy, order := getFirstKeyValue(queryMap["sort"].(QueryMap))
 
 	var size int
@@ -32,11 +32,11 @@ func getFirstKeyValue(queryMap QueryMap) (string, string) {
 	return "", ""
 }
 
-func getFieldNames(fields []interface{}) []string {
+func (cw *ClickhouseQueryTranslator) getFieldNames(fields []interface{}) []string {
 	var fieldNames []string
 	for _, field := range fields {
 		if fName, ok := field.(QueryMap)["field"]; ok {
-			fieldNames = append(fieldNames, fName.(string))
+			fieldNames = append(fieldNames, cw.Table.ResolveField(fName.(string)))
 		}
 	}
 	return fieldNames

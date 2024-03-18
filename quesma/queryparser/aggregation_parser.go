@@ -188,7 +188,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	queryTypeBeforeNesting := currentAggr.Type
 
 	// 1. Metrics aggregation => always leaf
-	metricsAggrResult, ok := tryMetricsAggregation(queryMap)
+	metricsAggrResult, ok := cw.tryMetricsAggregation(queryMap)
 	if ok {
 		*resultAccumulator = append(*resultAccumulator, currentAggr.buildMetricsAggregation(metricsAggrResult))
 		return
@@ -253,7 +253,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 }
 
 // Tries to parse metrics aggregation from queryMap. If it's not a metrics aggregation, returns false.
-func tryMetricsAggregation(queryMap QueryMap) (metricsAggregation, bool) {
+func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (metricsAggregation, bool) {
 	if len(queryMap) != 1 {
 		return metricsAggregation{}, false
 	}
@@ -266,13 +266,13 @@ func tryMetricsAggregation(queryMap QueryMap) (metricsAggregation, bool) {
 		if slices.Contains(metricsAggregations, k) {
 			return metricsAggregation{
 				AggrType:   k,
-				FieldNames: []string{v.(QueryMap)["field"].(string)},
+				FieldNames: []string{cw.Table.ResolveField(v.(QueryMap)["field"].(string))},
 			}, true
 		}
 	}
 
 	if percentile, ok := queryMap["percentiles"]; ok {
-		fieldName, percentiles := parsePercentilesAggregation(percentile.(QueryMap))
+		fieldName, percentiles := cw.parsePercentilesAggregation(percentile.(QueryMap))
 		return metricsAggregation{
 			AggrType:    "quantile",
 			FieldNames:  []string{fieldName},
@@ -281,7 +281,7 @@ func tryMetricsAggregation(queryMap QueryMap) (metricsAggregation, bool) {
 	}
 
 	if topMetrics, ok := queryMap["top_metrics"]; ok {
-		topMetricsAggrParams := ParseTopMetricsAggregation(topMetrics.(QueryMap))
+		topMetricsAggrParams := cw.ParseTopMetricsAggregation(topMetrics.(QueryMap))
 		return topMetricsAggrParams, true
 	}
 	if topHits, ok := queryMap["top_hits"]; ok {
@@ -299,7 +299,7 @@ func tryMetricsAggregation(queryMap QueryMap) (metricsAggregation, bool) {
 	// Shortcut here. Percentile_ranks has "field" and a list of "values"
 	// I'm keeping all of them in `fieldNames' array for "simplicity".
 	if percentileRanks, ok := queryMap["percentile_ranks"]; ok {
-		fieldNames := []string{percentileRanks.(QueryMap)["field"].(string)}
+		fieldNames := []string{cw.Table.ResolveField(percentileRanks.(QueryMap)["field"].(string))}
 		cutValues := percentileRanks.(QueryMap)["values"].([]interface{})
 		for _, cutValue := range cutValues {
 			switch cutValueTyped := cutValue.(type) {
@@ -327,7 +327,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	success, nonSchemaFieldAdded = true, true // returned in most cases
 	if histogram, ok := queryMap["histogram"]; ok {
 		currentAggr.Type = bucket_aggregations.Histogram{}
-		fieldName := strconv.Quote(histogram.(QueryMap)["field"].(string))
+		fieldName := strconv.Quote(cw.Table.ResolveField(histogram.(QueryMap)["field"].(string)))
 		currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
 		delete(queryMap, "histogram")
@@ -343,7 +343,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	}
 	if terms, ok := queryMap["terms"]; ok {
 		currentAggr.Type = bucket_aggregations.Terms{}
-		fieldName := strconv.Quote(terms.(QueryMap)["field"].(string))
+		fieldName := strconv.Quote(cw.Table.ResolveField(terms.(QueryMap)["field"].(string)))
 		currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
 		delete(queryMap, "terms")

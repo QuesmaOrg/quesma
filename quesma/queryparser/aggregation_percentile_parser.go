@@ -14,10 +14,10 @@ var DefaultPercentiles = map[string]float64{
 	"99.0": 0.99,
 }
 
-func parsePercentilesAggregation(queryMap QueryMap) (string, map[string]float64) {
+func (cw *ClickhouseQueryTranslator) parsePercentilesAggregation(queryMap QueryMap) (string, map[string]float64) {
 	var fieldName string
 	if field, ok := queryMap["field"]; ok {
-		fieldName = field.(string)
+		fieldName = cw.Table.ResolveField(field.(string))
 	}
 
 	if percents, ok := queryMap["percents"]; ok {
