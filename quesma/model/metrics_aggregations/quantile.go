@@ -25,6 +25,13 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 		if strings.HasPrefix(res.ColName, "quantile") {
 			percentile := res.Value.([]float64)
 			percentileName, _ := strings.CutPrefix(res.ColName, "quantile_")
+
+			// percentileName can't be an integer (doesn't work in Kibana that way), so we need to add .0 if it's missing
+			dotIndex := strings.Index(percentileName, ".")
+			if dotIndex == -1 {
+				percentileName += ".0"
+			}
+
 			valueMap[percentileName] = percentile[0]
 		}
 	}
