@@ -3,7 +3,7 @@ module mitmproxy/quesma
 go 1.22.0
 
 require (
-	github.com/ClickHouse/clickhouse-go/v2 v2.22.0
+	github.com/ClickHouse/clickhouse-go/v2 v2.22.2
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/cockroachdb/cockroachdb-parser v0.0.0-20221207165326-ea0ac1a4778b
 	github.com/gogo/protobuf v1.3.2
