@@ -4,11 +4,18 @@ import (
 	"errors"
 	"mitmproxy/quesma/logger"
 	"runtime/debug"
+	"sync/atomic"
 )
+
+// This counter is used by Phone Home Agent.
+// We don't call the agent directly from here to
+// make the recovery simple as possible.
+var PanicCounter atomic.Int64
 
 func LogPanic() {
 	r := recover()
 	if r != nil {
+		PanicCounter.Add(1)
 		var err error
 		switch t := r.(type) {
 		case string:

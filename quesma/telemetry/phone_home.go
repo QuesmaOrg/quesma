@@ -54,7 +54,8 @@ type PhoneHomeStats struct {
 	ClickHouseInsertsDuration DurationStats `json:"clickhouse_inserts"`
 	ElasticQueriesDuration    DurationStats `json:"elastic_queries"`
 
-	TakenAt int64 `json:"taken_at"`
+	NumberOfPanics int64 `json:"number_of_panics"`
+	TakenAt        int64 `json:"taken_at"`
 }
 
 type PhoneHomeAgent interface {
@@ -265,6 +266,7 @@ func (a agent) collect() (stats PhoneHomeStats) {
 	stats.AgentStartedAt = a.statedAt.Unix()
 	stats.TakenAt = time.Now().Unix()
 	stats.QuesmaVersion = buildinfo.Version
+	stats.NumberOfPanics = recovery.PanicCounter.Load()
 	stats.InstanceID = a.instanceId
 
 	stats.ClickHouse = a.CollectClickHouse()
