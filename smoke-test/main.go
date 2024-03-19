@@ -279,7 +279,7 @@ func compareKibanaSampleDataInClickHouseWithElasticsearch() {
 
 // just returns the path to the Kibana report for later download
 func scheduleReportGeneration() (string, error) {
-	body := `{"jobParams":"(browserTimezone:Europe/Warsaw,columns:!(),objectType:search,searchSource:(fields:!((field:'*',include_unmapped:true)),filter:!((meta:(field:'@timestamp',index:logs-generic,params:()),query:(range:('@timestamp':(format:strict_date_optional_time,gte:now-1d,lte:now)))),(meta:(field:'@timestamp',index:logs-generic,params:()),query:(range:('@timestamp':(format:strict_date_optional_time,gte:now-1d,lte:now)))),(meta:(field:'@timestamp',index:logs-generic,params:()),query:(range:('@timestamp':(format:strict_date_optional_time,gte:now-1d,lte:now))))),index:logs-generic,query:(language:kuery,query:''),sort:!(('@timestamp':(format:strict_date_optional_time,order:desc)))),title:'Untitled discover search')"}`
+	body := `{"jobParams": "(objectType:search,searchSource:(index:'logs-generic',query:(language:kuery,query:'')))"}`
 	req, _ := http.NewRequest("POST", kibanaCsvReportUrl, bytes.NewBuffer([]byte(body)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("kbn-xsrf", "custom-value")

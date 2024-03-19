@@ -1,0 +1,7 @@
+POST http://localhost:5601/api/reporting/generate/csv_searchsource
+kbn-xsrf: custom-value
+Content-Type: application/json
+
+{
+  "jobParams": "(objectType:search,searchSource:(index:'logs-generic',query:(language:kuery,query:'')))"
+}
