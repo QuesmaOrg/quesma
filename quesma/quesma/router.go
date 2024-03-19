@@ -152,14 +152,15 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func
 			}
 		}
 
-		if len(candidates) > 0 {
-			// TODO multi-index support
-			indexConfig, exists := configuration.GetIndexConfig(candidates[0])
-			return exists && indexConfig.Enabled
-		} else {
-			logger.Debug().Msgf("no index found for pattern %s", m["index"])
-			return false
+		for _, candidate := range candidates {
+			indexConfig, exists := configuration.GetIndexConfig(candidate)
+			if exists && indexConfig.Enabled {
+				return true
+			}
 		}
+
+		logger.Debug().Msgf("no index found for pattern %s", m["index"])
+		return false
 	}
 }
 
