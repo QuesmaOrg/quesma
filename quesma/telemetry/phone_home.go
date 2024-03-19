@@ -51,6 +51,8 @@ type PhoneHomeStats struct {
 	Elasticsearch ElasticStats    `json:"elasticsearch"`
 
 	ClickHouseQueriesDuration DurationStats `json:"clickhouse_queries"`
+	ClickHouseInsertsDuration DurationStats `json:"clickhouse_inserts"`
+	ElasticQueriesDuration    DurationStats `json:"elastic_queries"`
 
 	TakenAt int64 `json:"taken_at"`
 }
@@ -62,6 +64,8 @@ type PhoneHomeAgent interface {
 	RecentStats() (recent PhoneHomeStats, available bool)
 
 	ClickHouseQueryDuration() DurationMeasurement
+	ClickHouseInsertDuration() DurationMeasurement
+	ElkasticQueryDuration() DurationMeasurement
 }
 
 type agent struct {
@@ -75,7 +79,9 @@ type agent struct {
 	statedAt   time.Time
 	hostname   string
 
-	clickHouseQueryTimes DurationMeasurement
+	clickHouseQueryTimes   DurationMeasurement
+	clickHouseInsertsTimes DurationMeasurement
+	elasticQueryTimes      DurationMeasurement
 
 	recent PhoneHomeStats
 }
@@ -89,18 +95,28 @@ func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *s
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &agent{
-		ctx:                  ctx,
-		cancel:               cancel,
-		hostname:             "localhost", // FIXME
-		instanceId:           "unknown",   // FIXME
-		clickHouseDb:         clickHouseDb,
-		config:               configuration,
-		clickHouseQueryTimes: newDurationMeasurement(ctx),
+		ctx:                    ctx,
+		cancel:                 cancel,
+		hostname:               "localhost", // FIXME
+		instanceId:             "unknown",   // FIXME
+		clickHouseDb:           clickHouseDb,
+		config:                 configuration,
+		clickHouseQueryTimes:   newDurationMeasurement(ctx),
+		clickHouseInsertsTimes: newDurationMeasurement(ctx),
+		elasticQueryTimes:      newDurationMeasurement(ctx),
 	}
 }
 
 func (a *agent) ClickHouseQueryDuration() DurationMeasurement {
 	return a.clickHouseQueryTimes
+}
+
+func (a *agent) ClickHouseInsertDuration() DurationMeasurement {
+	return a.clickHouseInsertsTimes
+}
+
+func (a *agent) ElkasticQueryDuration() DurationMeasurement {
+	return a.elasticQueryTimes
 }
 
 func (a *agent) RecentStats() (recent PhoneHomeStats, available bool) {
@@ -255,6 +271,8 @@ func (a agent) collect() (stats PhoneHomeStats) {
 	stats.Elasticsearch = a.CollectElastic()
 
 	stats.ClickHouseQueriesDuration = a.ClickHouseQueryDuration().Aggregate()
+	stats.ClickHouseInsertsDuration = a.ClickHouseInsertDuration().Aggregate()
+	stats.ElasticQueriesDuration = a.ElkasticQueryDuration().Aggregate()
 
 	return stats
 }

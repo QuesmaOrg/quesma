@@ -102,16 +102,16 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 
 	return &Quesma{
 		telemetryAgent:          phoneHomeAgent,
-		processor:               newDualWriteProxy(logManager, config, router, quesmaManagementConsole),
+		processor:               newDualWriteProxy(logManager, config, router, quesmaManagementConsole, phoneHomeAgent),
 		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,
 	}
 }
 
-func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, cfg config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole) {
+func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, cfg config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent) {
 	if router.Matches(req.URL.Path, req.Method, string(reqBody)) {
-		elkResponseChan := sendHttpRequestToElastic(ctx, cfg, quesmaManagementConsole, req, reqBody)
+		elkResponseChan := sendHttpRequestToElastic(ctx, cfg, quesmaManagementConsole, req, reqBody, phoneHomeAgent)
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, quesmaManagementConsole, func() (*mux.Result, error) {
 			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method)
 		})
@@ -163,7 +163,7 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 			}
 		}
 	} else {
-		elkResponseChan := sendHttpRequestToElastic(ctx, cfg, quesmaManagementConsole, req, reqBody)
+		elkResponseChan := sendHttpRequestToElastic(ctx, cfg, quesmaManagementConsole, req, reqBody, phoneHomeAgent)
 		response := <-elkResponseChan
 		if response != nil {
 			copyHeaders(w, response)
@@ -175,14 +175,17 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 }
 
 func sendHttpRequestToElastic(ctx context.Context, config config.QuesmaConfiguration, qmc *ui.QuesmaManagementConsole,
-	req *http.Request, reqBody []byte) chan *http.Response {
+	req *http.Request, reqBody []byte, phoneHomeAgent telemetry.PhoneHomeAgent) chan *http.Response {
 	elkResponseChan := make(chan *http.Response)
 	if config.ElasticsearchUser != "" {
 		req.SetBasicAuth(config.ElasticsearchUser, config.ElasticsearchPassword)
 	}
 	go func() {
 		elkResponseChan <- recordRequestToElastic(req.URL.Path, qmc, func() *http.Response {
-			return sendHttpRequest(ctx, config.ElasticsearchUrl.String(), req, reqBody)
+			span := phoneHomeAgent.ElkasticQueryDuration().Begin()
+			resp, err := sendHttpRequest(ctx, config.ElasticsearchUrl.String(), req, reqBody)
+			span.End(err)
+			return resp
 		})
 	}()
 	return elkResponseChan
@@ -258,12 +261,12 @@ func (q *Quesma) Start() {
 	go q.quesmaManagementConsole.Run()
 }
 
-func sendHttpRequest(ctx context.Context, address string, originalReq *http.Request, originalReqBody []byte) *http.Response {
+func sendHttpRequest(ctx context.Context, address string, originalReq *http.Request, originalReqBody []byte) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, originalReq.Method, address+originalReq.URL.String(), bytes.NewBuffer(originalReqBody))
 
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("Error creating request: %v", err)
-		return nil
+		return nil, err
 	}
 
 	req.Header = originalReq.Header
@@ -272,8 +275,8 @@ func sendHttpRequest(ctx context.Context, address string, originalReq *http.Requ
 	if err != nil {
 		logger.ErrorWithCtxAndReason(ctx, "No network connection").
 			Msgf("Error sending request: %v", err)
-		return nil
+		return nil, err
 	}
 
-	return resp
+	return resp, nil
 }

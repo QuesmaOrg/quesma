@@ -360,7 +360,9 @@ func (lm *LogManager) Insert(tableName string, jsons []string, config *ChTableCo
 
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertValues)
 
+	span := lm.phoneHomeAgent.ClickHouseInsertDuration().Begin()
 	_, err := lm.chDb.Exec(insert)
+	span.End(err)
 	if err != nil {
 		return fmt.Errorf("error on Insert, tablename: [%s]\nerror: [%v]", tableName, err)
 	} else {

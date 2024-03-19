@@ -10,6 +10,7 @@ import (
 	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/ui"
+	"mitmproxy/quesma/telemetry"
 	"net/http"
 	"strconv"
 )
@@ -25,7 +26,7 @@ func (q *dualWriteHttpProxy) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
-func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, router *mux.PathRouter, quesmaManagementConsole *ui.QuesmaManagementConsole) *dualWriteHttpProxy {
+func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, router *mux.PathRouter, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent) *dualWriteHttpProxy {
 	return &dualWriteHttpProxy{
 		elasticRouter: router,
 		routingHttpServer: &http.Server{
@@ -38,7 +39,7 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaCo
 					return
 				}
 
-				reroute(withTracing(req), w, req, reqBody, router, config, quesmaManagementConsole)
+				reroute(withTracing(req), w, req, reqBody, router, config, quesmaManagementConsole, agent)
 			}),
 		},
 		logManager: logManager,

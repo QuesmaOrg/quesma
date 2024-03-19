@@ -36,6 +36,14 @@ func (d emptyAgent) ClickHouseQueryDuration() DurationMeasurement {
 	return &emptyTimer{}
 }
 
+func (d emptyAgent) ClickHouseInsertDuration() DurationMeasurement {
+	return &emptyTimer{}
+}
+
+func (d emptyAgent) ElkasticQueryDuration() DurationMeasurement {
+	return &emptyTimer{}
+}
+
 func NewPhoneHomeEmptyAgent() PhoneHomeAgent {
 	return &emptyAgent{}
 }
