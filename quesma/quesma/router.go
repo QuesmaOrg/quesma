@@ -14,6 +14,7 @@ import (
 	"mitmproxy/quesma/stats/errorstats"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 const httpOk = 200
@@ -74,13 +75,33 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 				"Multi index search is not yet supported: "+params["index"])
 			return nil, errors.New("multi index search is not yet supported")
 		} else {
-			responseBody, err := handleAsyncSearch(ctx, params["index"], []byte(body), lm, console)
+			// TODO this wait group param
+			// is used for now only to synchronize tests properly
+			var wg sync.WaitGroup
+			wg.Add(1)
+			responseBody, err := handleAsyncSearch(ctx, params["index"], []byte(body), lm, console, &wg)
 			if err != nil {
 				return nil, err
 			}
 			return elasticsearchQueryResult(string(responseBody), httpOk), nil
 		}
 	})
+	router.RegisterPath(routes.AsyncSearchIdPath, "GET", func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+		responseBody, err := handlePartialAsyncSearch(params["id"], console)
+		if err != nil {
+			return nil, err
+		}
+		return elasticsearchQueryResult(string(responseBody), httpOk), nil
+	})
+
+	router.RegisterPath(routes.AsyncSearchIdPath, "POST", func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+		responseBody, err := handlePartialAsyncSearch(params["id"], console)
+		if err != nil {
+			return nil, err
+		}
+		return elasticsearchQueryResult(string(responseBody), httpOk), nil
+	})
+
 	router.RegisterPathMatcher(routes.FieldCapsPath, "POST", matchedAgainstPattern(config, fromClickhouse(lm)), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		if strings.Contains(params["index"], ",") {
 			return nil, errors.New("multi index search is not yet supported")

@@ -104,7 +104,7 @@ func TestSearchResponse(t *testing.T) {
 	{
 		row := []model.QueryResultRow{{}}
 		cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}}
-		searchRespBuf, err := cw.MakeResponseAsyncSearchQuery(row, model.ListAllFields, NewEmptyHighlighter(), asyncRequestIdStr)
+		searchRespBuf, err := cw.MakeResponseAsyncSearchQuery(row, model.ListAllFields, NewEmptyHighlighter(), asyncRequestIdStr, false)
 		require.NoError(t, err)
 		var searchResponseResult model.SearchResp
 		err = json.Unmarshal([]byte(searchRespBuf), &searchResponseResult)
@@ -234,6 +234,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 		{
 			`
 	{
+		"completion_status": 200,
 		"completion_time_in_millis": 1706639337527,
 		"expiration_time_in_millis": 1706639397521,
 		"id": "FnhMY09KX3ZLUmFDeGtjLU1YM1RMMGccTTF2dnY2R0dSNEtZYVQ3cjR5ZnBuQTo3NjM0MQ==",
@@ -296,6 +297,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 		{
 			`
 	{
+		"completion_status": 200,
 		"completion_time_in_millis": 1706642705532,
 		"expiration_time_in_millis": 1706642765524,
 		"is_partial": false,
@@ -363,6 +365,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 	{
 		"is_partial": false,
 		"is_running": false,
+		"completion_status": 200,
 		"start_time_in_millis": 1706643496415,
 		"expiration_time_in_millis": 1706643556415,
 		"completion_time_in_millis": 1706643496422,
@@ -441,6 +444,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 	{
 		"completion_time_in_millis": 1706643613508,
 		"expiration_time_in_millis": 1706643673499,
+		"completion_status": 200,
 		"id": "FlpqVDhsdkZJVFBTVDFJV2Q5T2l6Q0EdTTF2dnY2R0dSNEtZYVQ3cjR5ZnBuQToxMzM1NDA=",
 		"is_partial": false,
 		"is_running": false,
@@ -564,7 +568,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}}
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
-			ourResponse, err := cw.MakeResponseAsyncSearchQuery(args[i].ourQueryResult, args[i].queryType, NewEmptyHighlighter(), asyncRequestIdStr)
+			ourResponse, err := cw.MakeResponseAsyncSearchQuery(args[i].ourQueryResult, args[i].queryType, NewEmptyHighlighter(), asyncRequestIdStr, false)
 			assert.NoError(t, err)
 
 			difference1, difference2, err := util.JsonDifference(args[i].elasticResponseJson, string(ourResponse))
@@ -623,7 +627,7 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 			}
 			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field, Value: value})
 		}
-		_, err := cw.MakeResponseAsyncSearchQuery([]model.QueryResultRow{resultRow}, types[i], NewEmptyHighlighter(), asyncRequestIdStr)
+		_, err := cw.MakeResponseAsyncSearchQuery([]model.QueryResultRow{resultRow}, types[i], NewEmptyHighlighter(), asyncRequestIdStr, false)
 		assert.NoError(t, err)
 	}
 }

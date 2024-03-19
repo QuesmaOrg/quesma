@@ -25,6 +25,8 @@ type ClickhouseQueryTranslator struct {
 	tokensToHighlight []string
 }
 
+var completionStatusOK = func() *int { value := 200; return &value }()
+
 func (cw *ClickhouseQueryTranslator) AddTokenToHighlight(token any) {
 
 	if token == nil {
@@ -102,7 +104,7 @@ func MakeResponseSearchQuery[T fmt.Stringer](ResultSet []T, typ model.SearchQuer
 	return nil, fmt.Errorf("unknown SearchQueryType: %v", typ)
 }
 
-func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchAggregated(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, asyncRequestIdStr string) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchAggregated(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
 	buckets := make([]JsonMap, 0, len(ResultSet))
 	returnedRows := 0
 	for i, row := range ResultSet {
@@ -156,12 +158,17 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchAggregated(ResultSet
 				},
 			},
 		},
-		ID: id,
+		ID:        id,
+		IsPartial: isPartial,
+		IsRunning: isPartial,
+	}
+	if !isPartial {
+		response.CompletionStatus = completionStatusOK
 	}
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, highligher Highlighter, asyncRequestIdStr string) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, highligher Highlighter, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
 		hits[i].Fields = make(map[string][]interface{})
@@ -243,12 +250,17 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []mod
 				Hits:  hits,
 			},
 		},
-		ID: id,
+		ID:        id,
+		IsPartial: isPartial,
+		IsRunning: isPartial,
+	}
+	if !isPartial {
+		response.CompletionStatus = completionStatusOK
 	}
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet []model.QueryResultRow) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet []model.QueryResultRow, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
 	var earliest, latest *time.Time = nil, nil
 	if len(ResultSet) >= 1 {
 		if date, ok := ResultSet[0].Cols[0].Value.(time.Time); ok {
@@ -279,19 +291,27 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchEarliestLatestTimest
 			},
 		},
 	}
+	response.ID = new(string)
+	*response.ID = asyncRequestIdStr
+	response.IsPartial = isPartial
+	if isPartial {
+		response.IsRunning = true
+	} else {
+		response.CompletionStatus = completionStatusOK
+	}
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func (cw *ClickhouseQueryTranslator) MakeResponseAsyncSearchQuery(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, highlighter Highlighter, asyncRequestIdStr string) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) MakeResponseAsyncSearchQuery(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, highlighter Highlighter, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
 	switch typ {
 	case model.Histogram, model.AggsByField:
-		return cw.makeResponseAsyncSearchAggregated(ResultSet, typ, asyncRequestIdStr)
+		return cw.makeResponseAsyncSearchAggregated(ResultSet, typ, asyncRequestIdStr, isPartial)
 	case model.ListByField, model.ListAllFields:
-		return cw.makeResponseAsyncSearchList(ResultSet, typ, highlighter, asyncRequestIdStr)
+		return cw.makeResponseAsyncSearchList(ResultSet, typ, highlighter, asyncRequestIdStr, isPartial)
 	case model.EarliestLatestTimestamp:
-		return cw.makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet)
+		return cw.makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet, asyncRequestIdStr, isPartial)
 	case model.CountAsync:
-		return cw.makeResponseAsyncSearchList(ResultSet, typ, highlighter, asyncRequestIdStr)
+		return cw.makeResponseAsyncSearchList(ResultSet, typ, highlighter, asyncRequestIdStr, isPartial)
 	default:
 		return nil, fmt.Errorf("unknown AsyncSearchQueryType: %v", typ)
 	}
@@ -401,7 +421,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []mod
 		return aggregations
 	}
 	for i, query := range queries[aggregation_start_index:] {
-		if len(ResultSets) < i+1 {
+		if len(ResultSets) <= i+1 {
 			continue
 		}
 		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i+1], 0, 0)
@@ -412,7 +432,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []mod
 	return aggregations
 }
 
-func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
 	var totalCount uint64
 	if len(ResultSets) > 0 && len(ResultSets[0]) > 0 && len(ResultSets[0][0].Cols) > 0 {
 		// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
@@ -432,6 +452,14 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 				},
 			},
 		},
+	}
+	response.ID = new(string)
+	*response.ID = asyncRequestIdStr
+	response.IsPartial = isPartial
+	if isPartial {
+		response.IsRunning = true
+	} else {
+		response.CompletionStatus = completionStatusOK
 	}
 	return json.MarshalIndent(response, "", "  ")
 }

@@ -16,6 +16,7 @@ import (
 	"mitmproxy/quesma/testdata"
 	"mitmproxy/quesma/tracing"
 	"strconv"
+	"sync"
 	"testing"
 )
 
@@ -43,6 +44,7 @@ var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, "test")
 const tableName = `logs-generic-default`
 
 func TestAsyncSearchHandler(t *testing.T) {
+	AsyncRequestStorage = concurrent.NewMap[string, AsyncRequestResult]()
 	table := concurrent.NewMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
@@ -78,7 +80,10 @@ func TestAsyncSearchHandler(t *testing.T) {
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			_, err = handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
+			var wg sync.WaitGroup
+			wg.Add(1)
+			_, err = handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole, &wg)
+			wg.Wait()
 			assert.NoError(t, err)
 
 			if err := mock.ExpectationsWereMet(); err != nil {
@@ -167,8 +172,10 @@ func TestAsyncSearchFilter(t *testing.T) {
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			_, _ = handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
-
+			var wg sync.WaitGroup
+			wg.Add(1)
+			_, _ = handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole, &wg)
+			wg.Wait()
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
 			}
@@ -240,7 +247,10 @@ func TestHandlingDateTimeFields(t *testing.T) {
 		mock.ExpectQuery(testdata.EscapeBrackets(expectedSelectStatementRegex[fieldName])).
 			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))
 		// .AddRow(1000, uint64(10)).AddRow(1001, uint64(20))) // here rows should be added if uint64 were supported
-		response, err := handleAsyncSearch(ctx, tableName, []byte(query(fieldName)), lm, managementConsole)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		response, err := handleAsyncSearch(ctx, tableName, []byte(query(fieldName)), lm, managementConsole, &wg)
+		wg.Wait()
 		assert.NoError(t, err)
 
 		var responseMap model.JsonMap

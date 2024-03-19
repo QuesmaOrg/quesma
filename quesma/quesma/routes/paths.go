@@ -15,6 +15,7 @@ const (
 	TermsEnumPath        = "/:index/_terms_enum"
 	ClusterHealthPath    = "/_cluster/health"
 	BulkPath             = "/_bulk"
+	AsyncSearchIdPath    = "/_async_search/:id"
 )
 
 var NotQueryPaths = []string{

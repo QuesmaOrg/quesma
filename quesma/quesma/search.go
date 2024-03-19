@@ -3,20 +3,40 @@ package quesma
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
 	"strconv"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
 
 var asyncRequestId int64 = 0
+
+type AsyncRequestResult struct {
+	isAggregation        bool
+	queryTranslator      *queryparser.ClickhouseQueryTranslator
+	highlighter          queryparser.Highlighter
+	asyncSearchQueryType model.AsyncSearchQueryType
+	aggregations         []model.QueryWithAggregation
+	rows                 []model.QueryResultRow
+	aggregationRows      [][]model.QueryResultRow
+	id                   string
+	body                 []byte
+	translatedQueryBody  []byte
+	err                  error
+}
+
+var AsyncRequestStorage *concurrent.Map[string, AsyncRequestResult]
 
 func handleCount(ctx context.Context, indexPattern string, lm *clickhouse.LogManager) (int64, error) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
@@ -92,8 +112,9 @@ func createAsyncSearchResponseHitJson(ctx context.Context,
 	typ model.AsyncSearchQueryType,
 	queryTranslator *queryparser.ClickhouseQueryTranslator,
 	highlighter queryparser.Highlighter,
-	asyncRequestIdStr string) ([]byte, error) {
-	responseBody, err := queryTranslator.MakeResponseAsyncSearchQuery(rows, typ, highlighter, asyncRequestIdStr)
+	asyncRequestIdStr string,
+	isPartial bool) ([]byte, error) {
+	responseBody, err := queryTranslator.MakeResponseAsyncSearchQuery(rows, typ, highlighter, asyncRequestIdStr, isPartial)
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("%v rows: %v", err, rows)
 		return nil, err
@@ -103,12 +124,74 @@ func createAsyncSearchResponseHitJson(ctx context.Context,
 
 func generateAsyncRequestId() string {
 	atomic.AddInt64(&asyncRequestId, 1)
-	return strconv.FormatInt(asyncRequestId, 10)
+	return "quesma_async_search_id_" + strconv.FormatInt(asyncRequestId, 10)
+}
+
+func createEmptyAsyncSearchResponse(id string, isPartial bool, status int) ([]byte, error) {
+	hits := make([]model.SearchHit, 0) // need to remove count result from hits
+	total := &model.Total{
+		Value: 0,
+	}
+	response := model.AsyncSearchEntireResp{
+		Response: model.SearchResp{
+			Hits: model.SearchHits{
+				Total: total,
+				Hits:  hits,
+			},
+		},
+	}
+	response.ID = &id
+	response.IsPartial = isPartial
+	response.IsRunning = isPartial
+	response.CompletionStatus = &status
+	return json.MarshalIndent(response, "", "  ")
+}
+
+func handlePartialAsyncSearch(id string, quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
+	if !strings.Contains(id, "quesma_async_search_id_") {
+		return createEmptyAsyncSearchResponse(id, false, 503)
+	}
+	if result, ok := AsyncRequestStorage.Load(id); ok {
+		const isPartial = false
+		var responseBody []byte
+		var err error
+		if !result.isAggregation {
+			responseBody, err = createAsyncSearchResponseHitJson(context.Background(),
+				result.rows, result.asyncSearchQueryType,
+				result.queryTranslator,
+				result.highlighter, id, isPartial)
+			AsyncRequestStorage.Delete(id)
+		} else {
+			responseBody, err = result.queryTranslator.MakeResponseAggregation(result.aggregations,
+				result.aggregationRows, id, isPartial)
+			AsyncRequestStorage.Delete(id)
+		}
+		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+			Id:                     result.id,
+			IncomingQueryBody:      result.body,
+			QueryBodyTranslated:    result.translatedQueryBody,
+			QueryRawResults:        []byte{},
+			QueryTranslatedResults: responseBody,
+		})
+		return responseBody, err
+	} else {
+		const isPartial = true
+		if !result.isAggregation {
+			responseBody, err := createAsyncSearchResponseHitJson(context.Background(),
+				result.rows, result.asyncSearchQueryType,
+				result.queryTranslator,
+				result.highlighter, id, isPartial)
+			return responseBody, err
+		} else {
+			responseBody, err := result.queryTranslator.MakeResponseAggregation(result.aggregations,
+				result.aggregationRows, id, isPartial)
+			return responseBody, err
+		}
+	}
 }
 
 func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
-	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
-
+	quesmaManagementConsole *ui.QuesmaManagementConsole, wg *sync.WaitGroup) ([]byte, error) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	resolvedTableName := lm.ResolveTableName(index)
 	if resolvedTableName == "" {
@@ -129,54 +212,65 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	//    Maybe there are requests with similar structure, so we label them as AggsByField, but they would be better handled with the new logic.
 	if simpleQuery.CanParse && (((queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields) && !bytes.Contains(body, []byte("aggs"))) || queryInfo.Typ == model.AggsByField) {
 		logger.Info().Str(logger.RID, id).Ctx(ctx).Msgf("Received _async_search request, type: %v", queryInfo.Typ)
-		var fullQuery *model.Query
-		var err error
-		var rows []model.QueryResultRow
-		switch queryInfo.Typ {
-		case model.Histogram:
-			var bucket time.Duration
-			fullQuery, bucket := queryTranslator.BuildHistogramQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.Interval)
-			rows, err = queryTranslator.ClickhouseLM.ProcessHistogramQuery(fullQuery, bucket)
-		case model.CountAsync:
-			fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-			rows, err = queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(table, fullQuery)
-		case model.AggsByField:
-			// queryInfo = (AggsByField, fieldName, Limit results, Limit last rows to look into)
-			fmt.Println("AggsByField")
-			fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.I2)
-			rows, err = queryTranslator.ClickhouseLM.ProcessFacetsQuery(table, fullQuery)
-		case model.ListByField:
-			// queryInfo = (ListByField, fieldName, 0, LIMIT)
-			fullQuery = queryTranslator.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-			rows, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(table, fullQuery)
-		case model.ListAllFields:
-			// queryInfo = (ListAllFields, "*", 0, LIMIT)
-			fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
-			rows, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(table, fullQuery)
-		case model.EarliestLatestTimestamp:
-			var rowsEarliest, rowsLatest []model.QueryResultRow
-			fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, true)
-			rowsEarliest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
-			if err != nil {
-				logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rowsEarliest, err)
+		go func() {
+			var err error
+			var fullQuery *model.Query
+			var rows []model.QueryResultRow
+			switch queryInfo.Typ {
+			case model.Histogram:
+				var bucket time.Duration
+				fullQuery, bucket := queryTranslator.BuildHistogramQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.Interval)
+				rows, err = queryTranslator.ClickhouseLM.ProcessHistogramQuery(fullQuery, bucket)
+
+			case model.CountAsync:
+
+				fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
+				rows, err = queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(table, fullQuery)
+
+			case model.AggsByField:
+				// queryInfo = (AggsByField, fieldName, Limit results, Limit last rows to look into)
+				fmt.Println("AggsByField")
+
+				fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.I2)
+				rows, err = queryTranslator.ClickhouseLM.ProcessFacetsQuery(table, fullQuery)
+
+			case model.ListByField:
+				// queryInfo = (ListByField, fieldName, 0, LIMIT)
+				fullQuery = queryTranslator.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
+				rows, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(table, fullQuery)
+
+			case model.ListAllFields:
+				// queryInfo = (ListAllFields, "*", 0, LIMIT)
+
+				fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
+				rows, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(table, fullQuery)
+
+			case model.EarliestLatestTimestamp:
+
+				var rowsEarliest, rowsLatest []model.QueryResultRow
+				fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, true)
+				rowsEarliest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
+				if err != nil {
+					logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rowsEarliest, err)
+				}
+				fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, false)
+				rowsLatest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
+				rows = append(rowsEarliest, rowsLatest...)
 			}
-			fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, false)
-			rowsLatest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
-			rows = append(rowsEarliest, rowsLatest...)
-		}
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rows, err)
-		}
-		responseBody, err = createAsyncSearchResponseHitJson(ctx, rows, queryInfo.Typ, queryTranslator, highlighter, asyncRequestIdStr)
-		if err != nil {
-			return responseBody, err
-		}
-		if fullQuery != nil {
-			translatedQueryBody = []byte(fullQuery.String())
-		} else {
-			logger.ErrorWithCtx(ctx).Msgf("fullQuery is nil")
-			return responseBody, errors.New("fullQuery is nil")
-		}
+			if fullQuery != nil {
+				translatedQueryBody = []byte(fullQuery.String())
+			}
+			if err != nil {
+				logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rows, err)
+			}
+			AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: false,
+				queryTranslator: queryTranslator, highlighter: highlighter, asyncSearchQueryType: queryInfo.Typ,
+				rows: rows, translatedQueryBody: translatedQueryBody, body: body, id: id, err: err})
+			wg.Done()
+		}()
+
+		return createEmptyAsyncSearchResponse(asyncRequestIdStr, true, 200)
+
 	} else if aggregations, err := queryTranslator.ParseAggregationJson(string(body)); err == nil {
 		logger.Info().Str(logger.RID, id).Ctx(ctx).Msg("We're using new Aggregation handling.")
 		for _, agg := range aggregations {
@@ -184,28 +278,24 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		}
 		var results [][]model.QueryResultRow
 		sqls := ""
-		for _, agg := range aggregations {
-			// logger.Info().Msg("Processing query.")
-			rows, err := queryTranslator.ClickhouseLM.ProcessGeneralAggregationQuery(table, &agg.Query)
-			if err != nil {
-				logger.ErrorWithCtx(ctx).Msg(err.Error())
-				continue
+		go func() {
+			for _, agg := range aggregations {
+				rows, err := queryTranslator.ClickhouseLM.ProcessGeneralAggregationQuery(table, &agg.Query)
+				if err != nil {
+					logger.ErrorWithCtx(ctx).Msg(err.Error())
+					continue
+				}
+				results = append(results, rows)
+				sqls += agg.Query.String() + "\n"
 			}
-			// logger.Info().Msgf("Error: %v, first 2 rows:", err)
-			// howMany := 2 // this variable and generally a lot in this code: just debug to be removed
-			// if len(rows) < howMany {
-			// 	howMany = len(rows)
-			// }
-			// for _, row := range rows[:howMany] {
-			// logger.Info().Msgf("Row: %+v", row)
-			// }
-			// logger.Error().Msgf("len: %v", len(rows))
-			results = append(results, rows)
-			sqls += agg.Query.String() + "\n"
-		}
-		translatedQueryBody = []byte(sqls)
-		responseBody, _ = queryTranslator.MakeResponseAggregation(aggregations, results)
-		// fmt.Println("HOHOH\n", err, string(responseBody))
+			translatedQueryBody = []byte(sqls)
+			AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: true,
+				queryTranslator: queryTranslator, aggregations: aggregations, aggregationRows: results,
+				translatedQueryBody: translatedQueryBody, body: body, id: id,
+				err: err})
+			wg.Done()
+		}()
+		responseBody, _ = createEmptyAsyncSearchResponse(asyncRequestIdStr, true, 200)
 	} else {
 		responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
 		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
@@ -217,13 +307,5 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		})
 		return responseBody, errors.New(string(responseBody))
 	}
-
-	quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-		Id:                     id,
-		IncomingQueryBody:      body,
-		QueryBodyTranslated:    translatedQueryBody,
-		QueryRawResults:        rawResults,
-		QueryTranslatedResults: responseBody,
-	})
 	return responseBody, nil
 }
