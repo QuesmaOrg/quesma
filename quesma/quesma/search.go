@@ -256,6 +256,8 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 				fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, false)
 				rowsLatest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
 				rows = append(rowsEarliest, rowsLatest...)
+			default:
+				panic(fmt.Sprintf("Unknown query type: %v", queryInfo.Typ))
 			}
 			if fullQuery != nil {
 				translatedQueryBody = []byte(fullQuery.String())
