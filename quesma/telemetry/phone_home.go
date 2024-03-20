@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"github.com/shirou/gopsutil/v3/mem"
 	"io"
 	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/logger"
@@ -11,6 +12,7 @@ import (
 	"mitmproxy/quesma/quesma/recovery"
 	"net/http"
 	"net/url"
+	"runtime"
 	"time"
 )
 
@@ -39,6 +41,11 @@ type ElasticStats struct {
 	Size         int64  `json:"size"`
 }
 
+type RuntimeStats struct {
+	MemoryUsed      uint64 `json:"memory_used"`
+	MemoryAvailable uint64 `json:"memory_available"`
+}
+
 type PhoneHomeStats struct {
 	AgentStartedAt int64  `json:"started_at"`
 	Hostname       string `json:"hostname"`
@@ -53,9 +60,9 @@ type PhoneHomeStats struct {
 	ClickHouseQueriesDuration DurationStats `json:"clickhouse_queries"`
 	ClickHouseInsertsDuration DurationStats `json:"clickhouse_inserts"`
 	ElasticQueriesDuration    DurationStats `json:"elastic_queries"`
-
-	NumberOfPanics int64 `json:"number_of_panics"`
-	TakenAt        int64 `json:"taken_at"`
+	RuntimeStats              RuntimeStats  `json:"runtime"`
+	NumberOfPanics            int64         `json:"number_of_panics"`
+	TakenAt                   int64         `json:"taken_at"`
 }
 
 type PhoneHomeAgent interface {
@@ -260,6 +267,18 @@ func (a *agent) buildElastisearchRequest(ctx context.Context, statsUrl *url.URL,
 	return req, nil
 }
 
+func (a *agent) runtimeStats() (stats RuntimeStats) {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	stats.MemoryUsed = m.Alloc
+	if v, errV := mem.VirtualMemory(); errV == nil {
+		stats.MemoryAvailable = v.Total
+	}
+
+	return stats
+}
+
 func (a agent) collect() (stats PhoneHomeStats) {
 
 	stats.Hostname = a.hostname
@@ -275,6 +294,8 @@ func (a agent) collect() (stats PhoneHomeStats) {
 	stats.ClickHouseQueriesDuration = a.ClickHouseQueryDuration().Aggregate()
 	stats.ClickHouseInsertsDuration = a.ClickHouseInsertDuration().Aggregate()
 	stats.ElasticQueriesDuration = a.ElkasticQueryDuration().Aggregate()
+
+	stats.RuntimeStats = a.runtimeStats()
 
 	return stats
 }
