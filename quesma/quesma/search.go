@@ -205,9 +205,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	table := lm.GetTable(resolvedTableName)
 
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
-	var rawResults []byte
 	simpleQuery, queryInfo, highlighter := queryTranslator.ParseQueryAsyncSearch(string(body))
-	var responseBody, translatedQueryBody []byte
 	asyncRequestIdStr := generateAsyncRequestId()
 	// Let's try old one only if:
 	// 1) it's a ListFields type without "aggs" part. It doesn't have "aggs" part, so we can't handle it with new logic.
@@ -220,6 +218,7 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 			var err error
 			var fullQuery *model.Query
 			var rows []model.QueryResultRow
+			var translatedQueryBody []byte
 			switch queryInfo.Typ {
 			case model.Histogram:
 				var bucket time.Duration
@@ -282,9 +281,10 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		for _, agg := range aggregations {
 			logger.Info().Msg(agg.String()) // I'd keep for now until aggregations work fully
 		}
-		var results [][]model.QueryResultRow
-		sqls := ""
 		go func() {
+			var results [][]model.QueryResultRow
+			sqls := ""
+			var translatedQueryBody []byte
 			for _, agg := range aggregations {
 				rows, err := queryTranslator.ClickhouseLM.ProcessGeneralAggregationQuery(table, &agg.Query)
 				if err != nil {
@@ -301,17 +301,16 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 				err: err})
 			wg.Done()
 		}()
-		responseBody, _ = createEmptyAsyncSearchResponse(asyncRequestIdStr, true, 200)
+		return createEmptyAsyncSearchResponse(asyncRequestIdStr, true, 200)
 	} else {
-		responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
+		responseBody := []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
 		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 			Id:                     id,
 			IncomingQueryBody:      body,
-			QueryBodyTranslated:    translatedQueryBody,
-			QueryRawResults:        rawResults,
+			QueryBodyTranslated:    []byte{},
+			QueryRawResults:        []byte{},
 			QueryTranslatedResults: responseBody,
 		})
 		return responseBody, errors.New(string(responseBody))
 	}
-	return responseBody, nil
 }
