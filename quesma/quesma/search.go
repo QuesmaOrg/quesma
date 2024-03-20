@@ -277,15 +277,13 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		return createEmptyAsyncSearchResponse(asyncRequestIdStr, true, 200)
 
 	} else if aggregations, err := queryTranslator.ParseAggregationJson(string(body)); err == nil {
-		logger.Info().Str(logger.RID, id).Ctx(ctx).Msg("We're using new Aggregation handling.")
-		for _, agg := range aggregations {
-			logger.Info().Msg(agg.String()) // I'd keep for now until aggregations work fully
-		}
 		go func() {
 			var results [][]model.QueryResultRow
 			sqls := ""
 			var translatedQueryBody []byte
+			logger.Info().Str(logger.RID, id).Ctx(ctx).Msg("We're using new Aggregation handling.")
 			for _, agg := range aggregations {
+				logger.Info().Msg(agg.String()) // I'd keep for now until aggregations work fully
 				rows, err := queryTranslator.ClickhouseLM.ProcessGeneralAggregationQuery(table, &agg.Query)
 				if err != nil {
 					logger.ErrorWithCtx(ctx).Msg(err.Error())
