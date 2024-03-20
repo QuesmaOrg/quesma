@@ -40,13 +40,17 @@ var AsyncRequestStorage *concurrent.Map[string, AsyncRequestResult]
 
 func handleCount(ctx context.Context, indexPattern string, lm *clickhouse.LogManager) (int64, error) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
-	resolvedTableName := lm.ResolveTableName(indexPattern)
-	if resolvedTableName == "" {
+	indexes := lm.ResolveIndexes(indexPattern)
+	if len(indexes) == 0 {
 		logger.Warn().Str(logger.RID, id).Msgf("could not resolve table name for [%s]", indexPattern)
 		return -1, errors.New("could not resolve table name")
 	}
 
-	return lm.Count(resolvedTableName)
+	if len(indexes) == 1 {
+		return lm.Count(indexes[0])
+	} else {
+		return lm.CountMultiple(indexes...)
+	}
 }
 
 func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,

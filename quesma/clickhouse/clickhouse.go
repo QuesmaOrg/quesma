@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mitmproxy/quesma/concurrent"
+	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/index"
 	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
@@ -130,15 +131,21 @@ func (lm *LogManager) ResolveTableName(index string) (result string) {
 }
 
 // Indexes can be in a form of wildcard, e.g. "index-*", this method returns all matching indexes
+// empty pattern means all indexes
+// "_all" index name means all indexes
 func (lm *LogManager) ResolveIndexes(pattern string) (results []string) {
-	lm.tableDefinitions.Load().
-		Range(func(tableName string, v *Table) bool {
-			if lm.matchIndex(pattern, tableName) {
-				results = append(results, tableName)
-			}
-			return true
-		})
-	return results
+	if pattern == elasticsearch.AllIndexesAliasIndexName || len(pattern) == 0 {
+		return lm.tableDefinitions.Load().Keys()
+	} else {
+		lm.tableDefinitions.Load().
+			Range(func(tableName string, v *Table) bool {
+				if lm.matchIndex(pattern, tableName) {
+					results = append(results, tableName)
+				}
+				return true
+			})
+		return results
+	}
 }
 
 // updates also Table TODO stop updating table here, find a better solution
@@ -186,6 +193,28 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 
 	i := strings.Index(q, "(")
 	return q[:i+2] + othersStr + timestampStr + attributesStr + q[i+1:]
+}
+
+func (lm *LogManager) CountMultiple(tables ...string) (int64, error) {
+	if len(tables) == 0 {
+		return 0, nil
+	}
+	const subcountStatement = "(SELECT count(*) FROM ?)"
+	var subCountStatements []string
+	for range len(tables) {
+		subCountStatements = append(subCountStatements, subcountStatement)
+	}
+
+	var count int64
+	var anyTables []any
+	for _, t := range tables {
+		anyTables = append(anyTables, t)
+	}
+	err := lm.chDb.QueryRow(fmt.Sprintf("SELECT sum(*) as count FROM (%s)", strings.Join(subCountStatements, " UNION ALL ")), anyTables...).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 func (lm *LogManager) Count(table string) (int64, error) {
