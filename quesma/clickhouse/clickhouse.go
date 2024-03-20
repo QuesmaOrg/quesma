@@ -114,6 +114,7 @@ func (lm *LogManager) matchIndex(indexNamePattern, indexName string) bool {
 	return r.MatchString(indexName)
 }
 
+// Deprecated: use ResolveIndexes instead, this method will be removed once we switch to the new one
 // Indexes can be in a form of wildcard, e.g. "index-*"
 // If we have such index, we need to resolve it to a real table name.
 func (lm *LogManager) ResolveTableName(index string) (result string) {
@@ -126,6 +127,18 @@ func (lm *LogManager) ResolveTableName(index string) (result string) {
 			return true
 		})
 	return result
+}
+
+// Indexes can be in a form of wildcard, e.g. "index-*", this method returns all matching indexes
+func (lm *LogManager) ResolveIndexes(pattern string) (results []string) {
+	lm.tableDefinitions.Load().
+		Range(func(tableName string, v *Table) bool {
+			if lm.matchIndex(pattern, tableName) {
+				results = append(results, tableName)
+			}
+			return true
+		})
+	return results
 }
 
 // updates also Table TODO stop updating table here, find a better solution
