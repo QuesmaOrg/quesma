@@ -218,7 +218,7 @@ func asyncSearchWorker(ctx context.Context, asyncRequestIdStr string, queryTrans
 		// queryInfo = (AggsByField, fieldName, Limit results, Limit last rows to look into)
 		fmt.Println("AggsByField")
 
-		fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.I2)
+		fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
 		rows, err = queryTranslator.ClickhouseLM.ProcessFacetsQuery(table, fullQuery)
 
 	case model.ListByField:
@@ -307,7 +307,6 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		logger.Info().Str(logger.RID, id).Ctx(ctx).Msgf("Received _async_search request, type: %v", queryInfo.Typ)
 		go asyncSearchWorker(ctx, asyncRequestIdStr, queryTranslator, table, body, wg)
 		return createEmptyAsyncSearchResponse(asyncRequestIdStr, true, 200)
-
 	} else if aggregations, err := queryTranslator.ParseAggregationJson(string(body)); err == nil {
 		go asyncSearchAggregationWorker(ctx, asyncRequestIdStr, aggregations, queryTranslator, table, body, wg)
 		return createEmptyAsyncSearchResponse(asyncRequestIdStr, true, 200)

@@ -352,12 +352,12 @@ func TestFilterNonEmpty(t *testing.T) {
 			[]Statement{},
 		},
 		{
-			[]Statement{NewSimpleStatement(""), NewSimpleStatement("a"), NewCompoundStatement("")},
+			[]Statement{NewSimpleStatement(""), NewSimpleStatement("a"), NewCompoundStatementNoFieldName("")},
 			[]Statement{NewSimpleStatement("a")},
 		},
 		{
-			[]Statement{NewCompoundStatement("a"), NewSimpleStatement("b"), NewCompoundStatement("c")},
-			[]Statement{NewCompoundStatement("a"), NewSimpleStatement("b"), NewCompoundStatement("c")},
+			[]Statement{NewCompoundStatementNoFieldName("a"), NewSimpleStatement("b"), NewCompoundStatement("c", "d")},
+			[]Statement{NewCompoundStatementNoFieldName("a"), NewSimpleStatement("b"), NewCompoundStatement("c", "d")},
 		},
 	}
 	for i, tt := range tests {
@@ -374,14 +374,14 @@ func TestOrAndAnd(t *testing.T) {
 	}{
 		{
 			[]Statement{NewSimpleStatement("a"), NewSimpleStatement("b"), NewSimpleStatement("c")},
-			NewCompoundStatement("a AND b AND c"),
+			NewCompoundStatementNoFieldName("a AND b AND c"),
 		},
 		{
-			[]Statement{NewSimpleStatement("a"), NewSimpleStatement(""), NewCompoundStatement(""), NewCompoundStatement("b")},
-			NewCompoundStatement("a AND (b)"),
+			[]Statement{NewSimpleStatement("a"), NewSimpleStatement(""), NewCompoundStatementNoFieldName(""), NewCompoundStatementNoFieldName("b")},
+			NewCompoundStatementNoFieldName("a AND (b)"),
 		},
 		{
-			[]Statement{NewSimpleStatement(""), NewSimpleStatement(""), NewSimpleStatement("a"), NewCompoundStatement(""), NewSimpleStatement(""), NewCompoundStatement("")},
+			[]Statement{NewSimpleStatement(""), NewSimpleStatement(""), NewSimpleStatement("a"), NewCompoundStatementNoFieldName(""), NewSimpleStatement(""), NewCompoundStatementNoFieldName("")},
 			NewSimpleStatement("a"),
 		},
 		{
@@ -389,8 +389,8 @@ func TestOrAndAnd(t *testing.T) {
 			NewSimpleStatement(""),
 		},
 		{
-			[]Statement{NewCompoundStatement("a AND b"), NewCompoundStatement("c AND d"), NewCompoundStatement("e AND f")},
-			NewCompoundStatement("(a AND b) AND (c AND d) AND (e AND f)"),
+			[]Statement{NewCompoundStatementNoFieldName("a AND b"), NewCompoundStatementNoFieldName("c AND d"), NewCompoundStatement("e AND f", "field")},
+			NewCompoundStatement("(a AND b) AND (c AND d) AND (e AND f)", "field"),
 		},
 	}
 	// copy, because and() and or() modify the slice

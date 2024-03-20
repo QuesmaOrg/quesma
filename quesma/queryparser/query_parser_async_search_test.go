@@ -10,9 +10,20 @@ import (
 )
 
 func TestQueryParserAsyncSearch(t *testing.T) {
-	table := clickhouse.NewEmptyTable("tablename")
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith("tablename", table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+	table := clickhouse.Table{
+		Name:   tableName,
+		Config: clickhouse.NewChTableConfigTimestampStringAttr(),
+		Cols: map[string]*clickhouse.Column{
+			"message": {
+				Name:            "message",
+				Type:            clickhouse.NewBaseType("String"),
+				IsFullTextMatch: true,
+			},
+		},
+		Created: true,
+	}
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table}
 	for _, tt := range testdata.TestsAsyncSearch {
 		t.Run(tt.Name, func(t *testing.T) {
 			query, queryInfo, _ := cw.ParseQueryAsyncSearch(tt.QueryJson)

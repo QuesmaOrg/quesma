@@ -151,16 +151,12 @@ func NewSimpleStatement(stmt string) Statement {
 	return Statement{Stmt: stmt, isCompound: false}
 }
 
-func NewSimpleStatementWithFieldName(stmt, fieldName string) Statement {
-	return Statement{Stmt: stmt, isCompound: false, FieldName: fieldName}
-}
-
-func NewCompoundStatement(stmt string) Statement {
-	return Statement{Stmt: stmt, isCompound: true}
-}
-
-func NewCompoundStatementWithFieldName(stmt, fieldName string) Statement {
+func NewCompoundStatement(stmt, fieldName string) Statement {
 	return Statement{Stmt: stmt, isCompound: true, FieldName: fieldName}
+}
+
+func NewCompoundStatementNoFieldName(stmt string) Statement {
+	return Statement{Stmt: stmt, isCompound: true}
 }
 
 func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery, model.SearchQueryType) {
@@ -168,6 +164,9 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery
 	cw.ClearTokensToHighlight()
 	queryAsMap := make(QueryMap)
 	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
+	if err != nil {
+		return newSimpleQuery(NewSimpleStatement("invalid JSON (ParseQuery)"), false), model.Normal
+	}
 	if err != nil {
 		return newSimpleQuery(NewSimpleStatement("invalid JSON (ParseQuery)"), false), model.Normal
 	}
@@ -225,7 +224,6 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
 	if err != nil {
 		return newSimpleQuery(NewSimpleStatement("invalid JSON (parseQueryAsyncSearch)"), false), model.NewQueryInfoAsyncSearchNone(), NewEmptyHighlighter()
-
 	}
 
 	if _, ok := queryAsMap["query"]; !ok {
@@ -455,7 +453,6 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap) SimpleQuery {
 				for i, s := range split {
 					cw.AddTokenToHighlight(s)
 					qStrs[i] = NewSimpleStatement(strconv.Quote(k) + " iLIKE " + "'%" + s + "%'")
-
 				}
 				return newSimpleQuery(or(qStrs), true)
 			}
@@ -475,7 +472,7 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) SimpleQu
 	if ok {
 		fields = cw.extractFields(fieldsAsInterface.([]interface{}))
 	} else {
-		fields = cw.GetFieldsList() // careful: hardcoded for only "message" for now
+		fields = cw.GetFieldsList()
 	}
 
 	subQueries := strings.Split(queryMap["query"].(string), " ")
@@ -767,9 +764,12 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) SimpleQuery 
 			attrs := cw.Table.GetAttributesList()
 			stmts := make([]Statement, len(attrs))
 			for i, a := range attrs {
-				stmts[i] = NewCompoundStatement(fmt.Sprintf("has(%s,%s) AND %s[indexOf(%s,%s)] IS NOT NULL",
-					strconv.Quote(a.KeysArrayName), strconv.Quote(v.(string)), strconv.Quote(a.ValuesArrayName),
-					strconv.Quote(a.KeysArrayName), strconv.Quote(v.(string))))
+				stmts[i] = NewCompoundStatementNoFieldName(
+					fmt.Sprintf("has(%s,%s) AND %s[indexOf(%s,%s)] IS NOT NULL",
+						strconv.Quote(a.KeysArrayName), strconv.Quote(v.(string)), strconv.Quote(a.ValuesArrayName),
+						strconv.Quote(a.KeysArrayName), strconv.Quote(v.(string)),
+					),
+				)
 			}
 			sql = or(stmts)
 		}
@@ -806,7 +806,7 @@ func combineStatements(stmts []Statement, sep string) Statement {
 				fieldName = stmt.FieldName
 			}
 		}
-		return NewCompoundStatementWithFieldName(sql, fieldName)
+		return NewCompoundStatement(sql, fieldName)
 	}
 	if len(stmts) == 1 {
 		return stmts[0]

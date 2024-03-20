@@ -614,7 +614,7 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 	queries := []*model.Query{
 		query,
 		cw.BuildAutocompleteSuggestionsQuery("@", "", 0),
-		cw.BuildFacetsQuery("@", "", 0),
+		cw.BuildFacetsQuery("@", newSimpleQuery(NewSimpleStatement(""), true), 0),
 		// queryTranslator.BuildTimestampQuery("@", "@", "", true), TODO uncomment when add unification for this query type
 	}
 	types := []model.AsyncSearchQueryType{model.Histogram, model.ListAllFields, model.ListByField} //, model.EarliestLatestTimestamp}
