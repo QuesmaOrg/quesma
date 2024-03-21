@@ -19,6 +19,8 @@ import (
 	"time"
 )
 
+const AsyncQueriesLimit = 1000
+
 var asyncRequestId int64 = 0
 
 type AsyncRequestResult struct {
@@ -161,6 +163,10 @@ func handlePartialAsyncSearch(id string, quesmaManagementConsole *ui.QuesmaManag
 		const isPartial = false
 		var responseBody []byte
 		var err error
+		if result.err != nil {
+			AsyncRequestStorage.Delete(id)
+			return createEmptyAsyncSearchResponse(id, false, 503)
+		}
 		if !result.isAggregation {
 			responseBody, err = createAsyncSearchResponseHitJson(context.Background(),
 				result.rows, result.asyncSearchQueryType,
@@ -197,8 +203,21 @@ func handlePartialAsyncSearch(id string, quesmaManagementConsole *ui.QuesmaManag
 	}
 }
 
+func reachedQueriesLimit(asyncRequestIdStr string, doneCh chan struct{}) bool {
+	if AsyncRequestStorage.Size() < AsyncQueriesLimit {
+		return false
+	}
+	AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: errors.New("too many async queries")})
+	logger.Error().Msgf("Cannot handle %s, too many async queries", asyncRequestIdStr)
+	doneCh <- struct{}{}
+	return true
+}
+
 func asyncSearchWorker(ctx context.Context, asyncRequestIdStr string, queryTranslator *queryparser.ClickhouseQueryTranslator,
 	table *clickhouse.Table, body []byte, doneCh chan struct{}) {
+	if reachedQueriesLimit(asyncRequestIdStr, doneCh) {
+		return
+	}
 	var err error
 	var fullQuery *model.Query
 	var rows []model.QueryResultRow
@@ -266,6 +285,9 @@ func asyncSearchWorker(ctx context.Context, asyncRequestIdStr string, queryTrans
 func asyncSearchAggregationWorker(ctx context.Context, asyncRequestIdStr string, aggregations []model.QueryWithAggregation,
 	queryTranslator *queryparser.ClickhouseQueryTranslator, table *clickhouse.Table, body []byte,
 	doneCh chan struct{}) {
+	if reachedQueriesLimit(asyncRequestIdStr, doneCh) {
+		return
+	}
 	var results [][]model.QueryResultRow
 	sqls := ""
 	var translatedQueryBody []byte
