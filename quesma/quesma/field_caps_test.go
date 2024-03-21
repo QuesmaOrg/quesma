@@ -84,9 +84,70 @@ func TestFieldCaps(t *testing.T) {
 }
 `)
 	tableMap := concurrent.NewMapWith(testTableName, table)
-	resp, err := handleFieldCapsIndex(ctx, testTableName, tableMap)
+	resp, err := handleFieldCapsIndex(ctx, []string{testTableName}, *tableMap)
 	assert.NoError(t, err)
 	expectedResp, err := json.MarshalIndent(expected, "", "  ")
+	assert.NoError(t, err)
+	err = json.Unmarshal(expectedResp, &expectedResp)
+	assert.NoError(t, err)
+
+	difference1, difference2, err := util.JsonDifference(
+		string(resp),
+		string(expectedResp),
+	)
+
+	assert.NoError(t, err)
+	assert.Empty(t, difference1)
+	assert.Empty(t, difference2)
+}
+
+func TestFieldCapsMultipleIndexes(t *testing.T) {
+	tableMap := clickhouse.NewTableMap()
+	tableMap.Store("logs-1", &clickhouse.Table{
+		Name: tableName,
+		Cols: map[string]*clickhouse.Column{
+			"foo.bar1": {Name: "foo.bar1", Type: clickhouse.BaseType{Name: "String"}},
+		},
+	})
+	tableMap.Store("logs-2", &clickhouse.Table{
+		Name: tableName,
+		Cols: map[string]*clickhouse.Column{
+			"foo.bar2": {Name: "foo.bar2", Type: clickhouse.BaseType{Name: "String"}},
+		},
+	})
+	resp, err := handleFieldCapsIndex(ctx, []string{"logs-1", "logs-2"}, *tableMap)
+	assert.NoError(t, err)
+	expectedResp, err := json.MarshalIndent([]byte(`{
+  "fields": {
+    "QUESMA_CLICKHOUSE_RESPONSE": {
+      "text": {
+        "aggregatable": false,
+        "metadata_field": false,
+        "searchable": true,
+        "type": "text"
+      }
+    },
+    "foo.bar1": {
+      "keyword": {
+        "aggregatable": true,
+        "searchable": true,
+        "type": "keyword"
+      }
+    },
+    "foo.bar2": {
+      "keyword": {
+        "aggregatable": true,
+        "searchable": true,
+        "type": "keyword"
+      }
+    }
+  },
+  "Indices": [
+    "logs-1",
+	"logs-2"
+  ]
+}
+`), "", "  ")
 	assert.NoError(t, err)
 	err = json.Unmarshal(expectedResp, &expectedResp)
 	assert.NoError(t, err)

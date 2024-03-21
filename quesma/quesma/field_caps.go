@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 )
 
@@ -93,7 +94,10 @@ func addNewDefaultFieldCapability(fields map[string]map[string]model.FieldCapabi
 
 	fieldCapabilitiesMap := make(map[string]model.FieldCapability)
 	fieldCapabilitiesMap[typeName] = fieldCapability
-
+	_, exists := fields[col.Name]
+	if exists {
+		logger.Debug().Msgf("Field %s already exists in the field capabilities map", col.Name)
+	}
 	fields[col.Name] = fieldCapabilitiesMap
 }
 
@@ -110,62 +114,68 @@ func addNewKeywordFieldCapability(fields map[string]map[string]model.FieldCapabi
 		Searchable:   true,
 		Type:         "keyword",
 	}
+	_, exists := fields[col.Name]
+	if exists {
+		logger.Debug().Msgf("Field %s already exists in the field capabilities map", col.Name)
+	}
 	fields[col.Name] = keywordFieldCap
 }
 
-func handleFieldCapsIndex(_ context.Context, resolvedIndex string, tables *clickhouse.TableMap) ([]byte, error) {
-	if len(resolvedIndex) == 0 {
-		return nil, errors.New("unknown index : " + resolvedIndex)
-	}
-
+func handleFieldCapsIndex(_ context.Context, indexes []string, tables clickhouse.TableMap) ([]byte, error) {
 	fields := make(map[string]map[string]model.FieldCapability)
-	if table, ok := tables.Load(resolvedIndex); ok {
-		if table == nil {
-			return nil, errors.New("could not find table for index : " + resolvedIndex)
+	for _, resolvedIndex := range indexes {
+		if len(resolvedIndex) == 0 {
+			continue
 		}
 
-		for _, col := range table.Cols {
-
-			if col == nil {
-				continue
+		if table, ok := tables.Load(resolvedIndex); ok {
+			if table == nil {
+				return nil, errors.New("could not find table for index : " + resolvedIndex)
 			}
 
-			if col.Name == clickhouse.AttributesKeyColumn || col.Name == clickhouse.AttributesValueColumn {
-				continue // We don't expose internal fields
+			for _, col := range table.Cols {
+
+				if col == nil {
+					continue
+				}
+
+				if isInternalColumn(col) {
+					continue
+				}
+
+				if canBeKeywordField(col) {
+					addNewKeywordFieldCapability(fields, col)
+				} else {
+					addNewDefaultFieldCapability(fields, col)
+				}
 			}
 
-			if canBeKeywordField(col) {
-				addNewKeywordFieldCapability(fields, col)
-			} else {
-				addNewDefaultFieldCapability(fields, col)
-			}
-		}
+			for _, alias := range table.AliasFields() {
+				if alias == nil {
+					continue
+				}
 
-		for _, alias := range table.AliasFields() {
-			if alias == nil {
-				continue
-			}
-
-			if canBeKeywordField(alias) {
-				addNewKeywordFieldCapability(fields, alias)
-			} else {
-				addNewDefaultFieldCapability(fields, alias)
+				if canBeKeywordField(alias) {
+					addNewKeywordFieldCapability(fields, alias)
+				} else {
+					addNewDefaultFieldCapability(fields, alias)
+				}
 			}
 		}
 	}
 
-	// Adding artificial quesma field
 	quesmaCol := &clickhouse.Column{Name: quesmaDebuggingFieldName, Type: clickhouse.BaseType{Name: "String"}}
 	addNewDefaultFieldCapability(fields, quesmaCol)
 
 	fieldCapsResponse := model.FieldCapsResponse{Fields: fields}
-
-	fieldCapsResponse.Indices = append(fieldCapsResponse.Indices, resolvedIndex)
-
+	fieldCapsResponse.Indices = append(fieldCapsResponse.Indices, indexes...)
 	return json.MarshalIndent(fieldCapsResponse, "", "  ")
 }
 
+func isInternalColumn(col *clickhouse.Column) bool {
+	return col.Name == clickhouse.AttributesKeyColumn || col.Name == clickhouse.AttributesValueColumn
+}
+
 func handleFieldCaps(ctx context.Context, index string, _ []byte, lm *clickhouse.LogManager) ([]byte, error) {
-	definitions := lm.GetTableDefinitions()
-	return handleFieldCapsIndex(ctx, lm.ResolveTableName(index), &definitions)
+	return handleFieldCapsIndex(ctx, lm.ResolveIndexes(index), lm.GetTableDefinitions())
 }
