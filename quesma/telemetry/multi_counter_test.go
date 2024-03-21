@@ -9,15 +9,25 @@ import (
 
 func TestMultiCounter_Add(t *testing.T) {
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	mc := NewMultiCounter(ctx, nil)
+	mc.(*multiCounter).ingestDoneCh = make(chan interface{}, 20)
+
 	mc.Add("key1", 1)
 	mc.Add("key2", 2)
 	mc.Add("key1", 3)
 
-	time.Sleep(1 * time.Second)
+	// wait for all the ingests to complete
+	for range 3 {
+		select {
+		case <-mc.(*multiCounter).ingestDoneCh:
+			// do nothing
+		case <-ctx.Done():
+			t.Errorf("ingest did not complete in time")
+		}
+	}
 
 	stats := mc.Aggregate()
 

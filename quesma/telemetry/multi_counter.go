@@ -25,8 +25,10 @@ type multiCounter struct {
 	m          sync.Mutex
 	ctx        context.Context
 	counters   map[string]int64
-	processKey func(string) string
 	ingest     chan sampleMultiCounter
+	processKey func(string) string
+	// this channel is used in tests only
+	ingestDoneCh chan interface{}
 }
 
 func NewMultiCounter(ctx context.Context, processKeyFn func(string) string) MultiCounter {
@@ -47,6 +49,9 @@ func (mc *multiCounter) ingress(key string, value int64) {
 		key = mc.processKey(key)
 	}
 	mc.counters[key] += value
+	if mc.ingestDoneCh != nil {
+		mc.ingestDoneCh <- struct{}{}
+	}
 }
 
 func (mc *multiCounter) ingressLoop() {

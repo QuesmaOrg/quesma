@@ -51,6 +51,9 @@ type durationMeasurement struct {
 	samplePoolSize        [percentileSamplePoolSize]float32
 
 	ingest chan durationSample
+
+	// for tests only
+	ingestDoneCh chan interface{}
 }
 
 func newDurationMeasurement(ctx context.Context) *durationMeasurement {
@@ -88,6 +91,9 @@ func (a *durationMeasurement) ingestSample(sample durationSample) {
 		a.failed++
 	}
 
+	if a.ingestDoneCh != nil {
+		a.ingestDoneCh <- struct{}{}
+	}
 }
 
 func (a *durationMeasurement) ingestLoop() {

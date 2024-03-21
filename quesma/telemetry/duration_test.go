@@ -4,21 +4,36 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func TestDurationMeasurement_Aggregate(t *testing.T) {
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	measurement := newDurationMeasurement(ctx)
+	measurement.ingestDoneCh = make(chan interface{}, 1000)
 
+	var numberOfIngests int
 	for i := 0; i < 100; i++ {
+		numberOfIngests++
 		measurement.ingestSample(durationSample{ok: true, elapsed: float64(i) / 2})
 	}
 
 	for i := 0; i < 10; i++ {
+		numberOfIngests++
 		measurement.ingestSample(durationSample{ok: false, elapsed: 100})
+	}
+
+	// wait for all the ingests to complete
+	for range numberOfIngests {
+		select {
+		case <-measurement.ingestDoneCh:
+		// do nothing
+		case <-ctx.Done():
+			t.Errorf("ingest did not complete in time")
+		}
 	}
 
 	stats := measurement.Aggregate()
@@ -39,13 +54,26 @@ func TestDurationMeasurement_Aggregate(t *testing.T) {
 
 func TestDurationMeasurement_Percentiles(t *testing.T) {
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	measurement := newDurationMeasurement(ctx)
+	measurement.ingestDoneCh = make(chan interface{}, percentileSamplePoolSize*3)
 
+	var numberOfIngests int
 	for i := 0; i < percentileSamplePoolSize*2; i++ {
+		numberOfIngests++
 		measurement.ingestSample(durationSample{ok: true, elapsed: float64(i % 100)})
+	}
+
+	// wait for all the ingests to complete
+	for range numberOfIngests {
+		select {
+		case <-measurement.ingestDoneCh:
+		// do nothing
+		case <-ctx.Done():
+			t.Errorf("ingest did not complete in time")
+		}
 	}
 
 	stats := measurement.Aggregate()
@@ -56,7 +84,7 @@ func TestDurationMeasurement_Percentiles(t *testing.T) {
 
 func TestDurationMeasurement_Percentiles_no_samples(t *testing.T) {
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	measurement := newDurationMeasurement(ctx)
@@ -68,12 +96,22 @@ func TestDurationMeasurement_Percentiles_no_samples(t *testing.T) {
 
 func TestDurationMeasurement_Percentiles_single_sample(t *testing.T) {
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
 	defer cancel()
 
 	measurement := newDurationMeasurement(ctx)
+	measurement.ingestDoneCh = make(chan interface{}, 1)
 
 	measurement.ingestSample(durationSample{ok: true, elapsed: float64(1)})
+
+	// wait for all the ingests to complete
+	select {
+	case <-measurement.ingestDoneCh:
+	// do nothing
+	case <-ctx.Done():
+		t.Errorf("ingest did not complete in time")
+	}
 
 	stats := measurement.Aggregate()
 
