@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/util"
+	"slices"
 )
 
 const quesmaDebuggingFieldName = "QUESMA_CLICKHOUSE_RESPONSE"
@@ -81,26 +82,27 @@ func IsAggregatable(typeName string) bool {
 }
 
 func addNewDefaultFieldCapability(fields map[string]map[string]model.FieldCapability, col *clickhouse.Column, index string) {
-
 	typeName := mapClickhouseToElasticType(col)
-	fieldCapability := model.FieldCapability{
-		Indices: []string{index},
-	}
+	fieldCapability := model.FieldCapability{Indices: []string{index}}
 	fieldCapability.Aggregatable = IsAggregatable(typeName)
 	// For now all fields are searchable
 	fieldCapability.Searchable = true
-	fieldCapability.MetadataField = new(bool)
 	// We treat all fields as non-metadata ones
-	*fieldCapability.MetadataField = false
+	fieldCapability.MetadataField = util.Pointer(false)
 	fieldCapability.Type = typeName
 
-	fieldCapabilitiesMap := make(map[string]model.FieldCapability)
-	fieldCapabilitiesMap[typeName] = fieldCapability
-	_, exists := fields[col.Name]
-	if exists {
-		logger.Debug().Msgf("Field %s already exists in the field capabilities map", col.Name)
+	if _, exists := fields[col.Name]; !exists {
+		fields[col.Name] = make(map[string]model.FieldCapability)
 	}
-	fields[col.Name] = fieldCapabilitiesMap
+
+	if existing, exists := fields[col.Name][typeName]; exists {
+		merged, ok := merge(existing, fieldCapability)
+		if ok {
+			fields[col.Name][typeName] = merged
+		}
+	} else {
+		fields[col.Name][typeName] = fieldCapability
+	}
 }
 
 func canBeKeywordField(col *clickhouse.Column) bool {
@@ -109,19 +111,23 @@ func canBeKeywordField(col *clickhouse.Column) bool {
 }
 
 func addNewKeywordFieldCapability(fields map[string]map[string]model.FieldCapability, col *clickhouse.Column, index string) {
-
-	keywordFieldCap := make(map[string]model.FieldCapability)
-	keywordFieldCap["keyword"] = model.FieldCapability{
+	var keyword = model.FieldCapability{
 		Aggregatable: true,
 		Searchable:   true,
 		Type:         "keyword",
 		Indices:      []string{index},
 	}
-	_, exists := fields[col.Name]
-	if exists {
-		logger.Debug().Msgf("Field %s already exists in the field capabilities map", col.Name)
+	if _, exists := fields[col.Name]; !exists {
+		fields[col.Name] = make(map[string]model.FieldCapability)
 	}
-	fields[col.Name] = keywordFieldCap
+	if existing, exists := fields[col.Name]["keyword"]; exists {
+		merged, ok := merge(existing, keyword)
+		if ok {
+			fields[col.Name]["keyword"] = merged
+		}
+	} else {
+		fields[col.Name]["keyword"] = keyword
+	}
 }
 
 func handleFieldCapsIndex(_ context.Context, indexes []string, tables clickhouse.TableMap) ([]byte, error) {
@@ -181,4 +187,29 @@ func isInternalColumn(col *clickhouse.Column) bool {
 
 func handleFieldCaps(ctx context.Context, index string, _ []byte, lm *clickhouse.LogManager) ([]byte, error) {
 	return handleFieldCapsIndex(ctx, lm.ResolveIndexes(index), lm.GetTableDefinitions())
+}
+
+func merge(cap1, cap2 model.FieldCapability) (model.FieldCapability, bool) {
+	if cap1.Type != cap2.Type {
+		return model.FieldCapability{}, false
+	}
+	var indices []string
+	indices = append(indices, cap1.Indices...)
+	indices = append(indices, cap2.Indices...)
+	indices = slices.Compact(indices)
+
+	return model.FieldCapability{
+		Type:          cap1.Type,
+		Aggregatable:  cap1.Aggregatable && cap2.Aggregatable,
+		Searchable:    cap1.Searchable && cap2.Searchable,
+		MetadataField: util.Pointer(orFalse(cap1.MetadataField) && orFalse(cap2.MetadataField)),
+		Indices:       indices,
+	}, true
+}
+
+func orFalse(b *bool) bool {
+	if b == nil {
+		return false
+	}
+	return *b
 }
