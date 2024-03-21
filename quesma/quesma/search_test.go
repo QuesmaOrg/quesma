@@ -16,9 +16,10 @@ import (
 	"mitmproxy/quesma/testdata"
 	"mitmproxy/quesma/tracing"
 	"strconv"
-	"sync"
 	"testing"
 )
+
+const defaultAsyncSearchTimeout = 1000
 
 func TestNoAsciiTableName(t *testing.T) {
 	requestBody := ([]byte)(`{
@@ -80,10 +81,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			var wg sync.WaitGroup
-			wg.Add(1)
-			_, err = handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole, &wg)
-			wg.Wait()
+			_, err = handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole, defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
 			if err := mock.ExpectationsWereMet(); err != nil {
@@ -172,10 +170,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			var wg sync.WaitGroup
-			wg.Add(1)
-			_, _ = handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole, &wg)
-			wg.Wait()
+			_, _ = handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole, defaultAsyncSearchTimeout, true)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
 			}
@@ -247,10 +242,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 		mock.ExpectQuery(testdata.EscapeBrackets(expectedSelectStatementRegex[fieldName])).
 			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))
 		// .AddRow(1000, uint64(10)).AddRow(1001, uint64(20))) // here rows should be added if uint64 were supported
-		var wg sync.WaitGroup
-		wg.Add(1)
-		response, err := handleAsyncSearch(ctx, tableName, []byte(query(fieldName)), lm, managementConsole, &wg)
-		wg.Wait()
+		response, err := handleAsyncSearch(ctx, tableName, []byte(query(fieldName)), lm, managementConsole, defaultAsyncSearchTimeout, true)
 		assert.NoError(t, err)
 
 		var responseMap model.JsonMap

@@ -15,7 +15,7 @@ import (
 	"mitmproxy/quesma/telemetry"
 	"regexp"
 	"strings"
-	"sync"
+	"time"
 )
 
 const httpOk = 200
@@ -76,11 +76,21 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 				"Multi index search is not yet supported: "+params["index"])
 			return nil, errors.New("multi index search is not yet supported")
 		} else {
-			// TODO this wait group param
-			// is used for now only to synchronize tests properly
-			var wg sync.WaitGroup
-			wg.Add(1)
-			responseBody, err := handleAsyncSearch(ctx, params["index"], []byte(body), lm, console, &wg)
+			waitForResultsMs := 1000 // Defaults to 1 second as in docs
+			if v, ok := params["wait_for_completion_timeout"]; ok {
+				if w, err := time.ParseDuration(v); err == nil {
+					waitForResultsMs = int(w.Milliseconds())
+				} else {
+					logger.Warn().Msgf("Can't parse wait_for_completion_timeout value: %s", v)
+				}
+			}
+			keepOnCompletion := false
+			if v, ok := params["keep_on_completion"]; ok {
+				if v == "true" {
+					keepOnCompletion = true
+				}
+			}
+			responseBody, err := handleAsyncSearch(ctx, params["index"], []byte(body), lm, console, waitForResultsMs, keepOnCompletion)
 			if err != nil {
 				return nil, err
 			}

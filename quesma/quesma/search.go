@@ -15,7 +15,6 @@ import (
 	"mitmproxy/quesma/tracing"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -199,7 +198,7 @@ func handlePartialAsyncSearch(id string, quesmaManagementConsole *ui.QuesmaManag
 }
 
 func asyncSearchWorker(ctx context.Context, asyncRequestIdStr string, queryTranslator *queryparser.ClickhouseQueryTranslator,
-	table *clickhouse.Table, body []byte, wg *sync.WaitGroup) {
+	table *clickhouse.Table, body []byte, doneCh chan struct{}) {
 	var err error
 	var fullQuery *model.Query
 	var rows []model.QueryResultRow
@@ -261,11 +260,12 @@ func asyncSearchWorker(ctx context.Context, asyncRequestIdStr string, queryTrans
 		queryTranslator: queryTranslator, highlighter: highlighter, asyncSearchQueryType: queryInfo.Typ,
 		rows: rows, translatedQueryBody: translatedQueryBody, body: body, id: id,
 		took: time.Since(startTime), err: err})
-	wg.Done()
+	doneCh <- struct{}{}
 }
 
 func asyncSearchAggregationWorker(ctx context.Context, asyncRequestIdStr string, aggregations []model.QueryWithAggregation,
-	queryTranslator *queryparser.ClickhouseQueryTranslator, table *clickhouse.Table, body []byte, wg *sync.WaitGroup) {
+	queryTranslator *queryparser.ClickhouseQueryTranslator, table *clickhouse.Table, body []byte,
+	doneCh chan struct{}) {
 	var results [][]model.QueryResultRow
 	sqls := ""
 	var translatedQueryBody []byte
@@ -289,11 +289,11 @@ func asyncSearchAggregationWorker(ctx context.Context, asyncRequestIdStr string,
 		translatedQueryBody: translatedQueryBody, body: body, id: id,
 		took: time.Since(startTime),
 		err:  err})
-	wg.Done()
+	doneCh <- struct{}{}
 }
 
 func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
-	quesmaManagementConsole *ui.QuesmaManagementConsole, wg *sync.WaitGroup) ([]byte, error) {
+	quesmaManagementConsole *ui.QuesmaManagementConsole, waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	resolvedTableName := lm.ResolveTableName(index)
 	if resolvedTableName == "" {
@@ -306,6 +306,8 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	simpleQuery, queryInfo, _ := queryTranslator.ParseQueryAsyncSearch(string(body))
 	asyncRequestIdStr := generateAsyncRequestId()
 
+	doneCh := make(chan struct{}, 1)
+
 	// Let's try old one only if:
 	// 1) it's a ListFields type without "aggs" part. It doesn't have "aggs" part, so we can't handle it with new logic.
 	// 2) it's AggsByField request. It's facets - better handled here.
@@ -313,11 +315,9 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	//    Maybe there are requests with similar structure, so we label them as AggsByField, but they would be better handled with the new logic.
 	if simpleQuery.CanParse && (((queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields) && !bytes.Contains(body, []byte("aggs"))) || queryInfo.Typ == model.AggsByField) {
 		logger.Info().Str(logger.RID, id).Ctx(ctx).Msgf("Received _async_search request, type: %v", queryInfo.Typ)
-		go asyncSearchWorker(ctx, asyncRequestIdStr, queryTranslator, table, body, wg)
-		return createEmptyAsyncSearchResponse(asyncRequestIdStr, true, 200)
+		go asyncSearchWorker(ctx, asyncRequestIdStr, queryTranslator, table, body, doneCh)
 	} else if aggregations, err := queryTranslator.ParseAggregationJson(string(body)); err == nil {
-		go asyncSearchAggregationWorker(ctx, asyncRequestIdStr, aggregations, queryTranslator, table, body, wg)
-		return createEmptyAsyncSearchResponse(asyncRequestIdStr, true, 200)
+		go asyncSearchAggregationWorker(ctx, asyncRequestIdStr, aggregations, queryTranslator, table, body, doneCh)
 	} else {
 		responseBody := []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
 		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
@@ -328,5 +328,19 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 			QueryTranslatedResults: responseBody,
 		})
 		return responseBody, errors.New(string(responseBody))
+	}
+
+	if waitForResultsMs == 0 {
+		return createEmptyAsyncSearchResponse(asyncRequestIdStr, true, 200)
+	}
+	select {
+	case <-time.After(time.Duration(waitForResultsMs) * time.Millisecond):
+		return handlePartialAsyncSearch(asyncRequestIdStr, quesmaManagementConsole)
+	case <-doneCh:
+		res, err := handlePartialAsyncSearch(asyncRequestIdStr, quesmaManagementConsole)
+		if !keepOnCompletion {
+			AsyncRequestStorage.Delete(asyncRequestIdStr)
+		}
+		return res, err
 	}
 }
