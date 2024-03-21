@@ -36,6 +36,7 @@ const (
 	clickhouseDatabase         = "clickhouse_database"
 	ingestStatistics           = "ingest_statistics"
 	quesmaInternalTelemetryUrl = "quesma_internal_telemetry_url"
+	licenseKeyConfig           = "license_key"
 )
 
 const (
@@ -48,6 +49,7 @@ const (
 type (
 	QuesmaConfiguration struct {
 		Mode                       operationMode
+		LicenseKey                 string
 		ElasticsearchUrl           *url.URL
 		ElasticsearchUser          string
 		ElasticsearchPassword      string
@@ -162,6 +164,7 @@ func NewQuesmaConfigurationParser(v *viper.Viper) *QuesmaConfigurationParser {
 
 func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
 
+	var licenseKey = p.parsedViper.Get(fullyQualifiedConfig(licenseKeyConfig)).(string)
 	var mode = p.parsedViper.Get(fullyQualifiedConfig(modeConfigName)).(string)
 	var indexBypass = make([]IndexConfiguration, 0)
 
@@ -207,6 +210,7 @@ func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
 
 	return QuesmaConfiguration{
 		Mode:                       operationMode(mode),
+		LicenseKey:                 licenseKey,
 		PublicTcpPort:              p.configurePublicTcpPort(),
 		ElasticsearchUrl:           p.configureUrl(elasticsearchUrl),
 		ElasticsearchUser:          configureOptionalEnvVar(elasticsearchUserEnv),

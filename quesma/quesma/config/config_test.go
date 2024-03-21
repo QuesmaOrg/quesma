@@ -93,6 +93,7 @@ func TestQuesmaConfigurationParser_Parse(t *testing.T) {
 	given := `
 quesma:
   mode: "dual-write-query-clickhouse"
+  license_key: "1234567890"
   port: 8080  # public tcp port to listen for incoming traffic
   elasticsearch_url: "http://localhost:9200"
   clickhouse_url: "clickhouse://localhost:9000"
@@ -126,6 +127,7 @@ quesma:
 
 	// when
 
+	assert.Equal(t, "1234567890", cfg.LicenseKey)
 	assert.Equal(t, DualWriteQueryClickhouse, cfg.Mode)
 	assert.Equal(t, int(8080), int(cfg.PublicTcpPort))
 	assert.Equal(t, "http://localhost:9200", cfg.ElasticsearchUrl.String())
