@@ -45,16 +45,17 @@ func main() {
 	logger.Info().Msgf("loaded config: %s", cfg.String())
 
 	instance := constructQuesma(cfg, lm, phoneHomeAgent, qmcLogChannel)
-
 	instance.Start()
 
 	<-doneCh
-	logger.Info().Msgf("Quesma quiting")
 
-	phoneHomeAgent.Stop()
+	logger.Info().Msgf("Quesma quiting")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
+
+	phoneHomeAgent.Stop(ctx)
+
 	instance.Close(ctx)
 
 }

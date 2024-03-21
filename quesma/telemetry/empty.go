@@ -1,5 +1,7 @@
 package telemetry
 
+import "context"
+
 type emptyTimer struct {
 }
 
@@ -24,7 +26,7 @@ func (d emptyAgent) Start() {
 	// do nothing
 }
 
-func (d emptyAgent) Stop() {
+func (d emptyAgent) Stop(ctx context.Context) {
 	// do nothing
 }
 

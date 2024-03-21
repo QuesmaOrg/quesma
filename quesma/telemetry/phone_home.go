@@ -25,6 +25,9 @@ const (
 
 	statusOk    = "ok"
 	statusNotOk = "not-ok"
+
+	reportTypeOnSchedule = "on-schedule"
+	reportTypeOnShutdown = "on-shutdown"
 )
 
 type ClickHouseStats struct {
@@ -60,14 +63,17 @@ type PhoneHomeStats struct {
 	ClickHouseQueriesDuration DurationStats `json:"clickhouse_queries"`
 	ClickHouseInsertsDuration DurationStats `json:"clickhouse_inserts"`
 	ElasticQueriesDuration    DurationStats `json:"elastic_queries"`
-	RuntimeStats              RuntimeStats  `json:"runtime"`
-	NumberOfPanics            int64         `json:"number_of_panics"`
-	TakenAt                   int64         `json:"taken_at"`
+
+	RuntimeStats   RuntimeStats `json:"runtime"`
+	NumberOfPanics int64        `json:"number_of_panics"`
+
+	ReportType string `json:"report_type"`
+	TakenAt    int64  `json:"taken_at"`
 }
 
 type PhoneHomeAgent interface {
 	Start()
-	Stop()
+	Stop(ctx context.Context)
 
 	RecentStats() (recent PhoneHomeStats, available bool)
 
@@ -131,7 +137,7 @@ func (a *agent) RecentStats() (recent PhoneHomeStats, available bool) {
 	return a.recent, a.recent.TakenAt != 0
 }
 
-func (a *agent) CollectClickHouse() (stats ClickHouseStats) {
+func (a *agent) CollectClickHouse(ctx context.Context) (stats ClickHouseStats) {
 
 	// https://gist.github.com/sanchezzzhak/511fd140e8809857f8f1d84ddb937015
 	stats.Status = statusNotOk
@@ -150,7 +156,7 @@ from system.parts
 where active
 
 `
-	ctx, cancel := context.WithTimeout(a.ctx, clickhouseTimeout)
+	ctx, cancel := context.WithTimeout(ctx, clickhouseTimeout)
 	defer cancel()
 
 	rows, err := a.clickHouseDb.QueryContext(ctx, totalSummaryQuery)
@@ -204,7 +210,7 @@ func scanElasticResponse(body []byte, stats *ElasticStats) error {
 	return nil
 }
 
-func (a *agent) CollectElastic() (stats ElasticStats) {
+func (a *agent) CollectElastic(ctx context.Context) (stats ElasticStats) {
 
 	stats.Status = statusNotOk
 	// https://www.datadoghq.com/blog/collect-elasticsearch-metrics/
@@ -217,7 +223,7 @@ func (a *agent) CollectElastic() (stats ElasticStats) {
 
 	statsUrl := elasticUrl.JoinPath("/_all/_stats")
 
-	ctx, cancel := context.WithTimeout(a.ctx, elasticTimeout)
+	ctx, cancel := context.WithTimeout(ctx, elasticTimeout)
 	defer cancel()
 
 	request, err := a.buildElastisearchRequest(ctx, statsUrl, nil)
@@ -279,8 +285,9 @@ func (a *agent) runtimeStats() (stats RuntimeStats) {
 	return stats
 }
 
-func (a agent) collect() (stats PhoneHomeStats) {
+func (a agent) collect(ctx context.Context, reportType string) (stats PhoneHomeStats) {
 
+	stats.ReportType = reportType
 	stats.Hostname = a.hostname
 	stats.AgentStartedAt = a.statedAt.Unix()
 	stats.TakenAt = time.Now().Unix()
@@ -288,8 +295,8 @@ func (a agent) collect() (stats PhoneHomeStats) {
 	stats.NumberOfPanics = recovery.PanicCounter.Load()
 	stats.InstanceID = a.instanceId
 
-	stats.ClickHouse = a.CollectClickHouse()
-	stats.Elasticsearch = a.CollectElastic()
+	stats.ClickHouse = a.CollectClickHouse(ctx)
+	stats.Elasticsearch = a.CollectElastic(ctx)
 
 	stats.ClickHouseQueriesDuration = a.ClickHouseQueryDuration().Aggregate()
 	stats.ClickHouseInsertsDuration = a.ClickHouseInsertDuration().Aggregate()
@@ -310,12 +317,12 @@ func (a *agent) report(stats PhoneHomeStats) {
 	logger.Info().Msgf("Call Home: %v", string(data))
 }
 
-func (a *agent) telemetryCollection() {
+func (a *agent) telemetryCollection(ctx context.Context, reportType string) {
 
 	// if we fail we would not die
 	defer recovery.LogPanic()
 
-	stats := a.collect()
+	stats := a.collect(ctx, reportType)
 
 	a.report(stats)
 
@@ -337,7 +344,7 @@ func (a *agent) loop() {
 	for {
 		logger.Debug().Msg("agent cycle")
 
-		a.telemetryCollection()
+		a.telemetryCollection(a.ctx, reportTypeOnSchedule)
 
 		select {
 		case <-a.ctx.Done():
@@ -346,6 +353,7 @@ func (a *agent) loop() {
 		case <-time.After(phoneHomeInterval):
 		}
 	}
+
 }
 
 func (a *agent) Start() {
@@ -356,8 +364,15 @@ func (a *agent) Start() {
 
 }
 
-func (a *agent) Stop() {
-
+func (a *agent) Stop(ctx context.Context) {
+	// stop the loop and all goroutines
 	a.cancel()
+
+	// collect the last stats using given context
+	a.telemetryCollection(ctx, reportTypeOnShutdown)
+
+	// stop all
+
 	logger.Info().Msg("PhoneHomeAgent Stopped")
+
 }
