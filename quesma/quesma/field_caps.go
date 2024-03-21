@@ -80,10 +80,12 @@ func IsAggregatable(typeName string) bool {
 	return false
 }
 
-func addNewDefaultFieldCapability(fields map[string]map[string]model.FieldCapability, col *clickhouse.Column) {
+func addNewDefaultFieldCapability(fields map[string]map[string]model.FieldCapability, col *clickhouse.Column, index string) {
 
 	typeName := mapClickhouseToElasticType(col)
-	fieldCapability := model.FieldCapability{}
+	fieldCapability := model.FieldCapability{
+		Indices: []string{index},
+	}
 	fieldCapability.Aggregatable = IsAggregatable(typeName)
 	// For now all fields are searchable
 	fieldCapability.Searchable = true
@@ -106,13 +108,14 @@ func canBeKeywordField(col *clickhouse.Column) bool {
 	return typeName == "text" || typeName == "LowCardinality(String)"
 }
 
-func addNewKeywordFieldCapability(fields map[string]map[string]model.FieldCapability, col *clickhouse.Column) {
+func addNewKeywordFieldCapability(fields map[string]map[string]model.FieldCapability, col *clickhouse.Column, index string) {
 
 	keywordFieldCap := make(map[string]model.FieldCapability)
 	keywordFieldCap["keyword"] = model.FieldCapability{
 		Aggregatable: true,
 		Searchable:   true,
 		Type:         "keyword",
+		Indices:      []string{index},
 	}
 	_, exists := fields[col.Name]
 	if exists {
@@ -144,9 +147,9 @@ func handleFieldCapsIndex(_ context.Context, indexes []string, tables clickhouse
 				}
 
 				if canBeKeywordField(col) {
-					addNewKeywordFieldCapability(fields, col)
+					addNewKeywordFieldCapability(fields, col, resolvedIndex)
 				} else {
-					addNewDefaultFieldCapability(fields, col)
+					addNewDefaultFieldCapability(fields, col, resolvedIndex)
 				}
 			}
 
@@ -156,16 +159,16 @@ func handleFieldCapsIndex(_ context.Context, indexes []string, tables clickhouse
 				}
 
 				if canBeKeywordField(alias) {
-					addNewKeywordFieldCapability(fields, alias)
+					addNewKeywordFieldCapability(fields, alias, resolvedIndex)
 				} else {
-					addNewDefaultFieldCapability(fields, alias)
+					addNewDefaultFieldCapability(fields, alias, resolvedIndex)
 				}
 			}
 		}
-	}
 
-	quesmaCol := &clickhouse.Column{Name: quesmaDebuggingFieldName, Type: clickhouse.BaseType{Name: "String"}}
-	addNewDefaultFieldCapability(fields, quesmaCol)
+		quesmaCol := &clickhouse.Column{Name: quesmaDebuggingFieldName, Type: clickhouse.BaseType{Name: "String"}}
+		addNewDefaultFieldCapability(fields, quesmaCol, resolvedIndex)
+	}
 
 	fieldCapsResponse := model.FieldCapsResponse{Fields: fields}
 	fieldCapsResponse.Indices = append(fieldCapsResponse.Indices, indexes...)

@@ -44,14 +44,16 @@ func TestFieldCaps(t *testing.T) {
         "aggregatable": false,
         "metadata_field": false,
         "searchable": true,
-        "type": "text"
+        "type": "text",
+		"indices": ["logs-generic-default"]
       }
     },
     "arrayOfArraysOfStrings": {
       "keyword": {
         "aggregatable": true,
         "searchable": true,
-        "type": "keyword"
+        "type": "keyword",
+		"indices": ["logs-generic-default"]
       }
     },
     "arrayOfTuples": {
@@ -59,7 +61,8 @@ func TestFieldCaps(t *testing.T) {
         "aggregatable": false,
         "metadata_field": false,
         "searchable": true,
-        "type": "object"
+        "type": "object",
+		"indices": ["logs-generic-default"]
       }
     },
     "host.name": {
@@ -67,14 +70,16 @@ func TestFieldCaps(t *testing.T) {
         "aggregatable": false,
         "metadata_field": false,
         "searchable": true,
-        "type": "object"
+        "type": "object",
+		"indices": ["logs-generic-default"]
       }
     },
     "service.name": {
       "keyword": {
         "aggregatable": true,
         "searchable": true,
-        "type": "keyword"
+        "type": "keyword",
+		"indices": ["logs-generic-default"]
       }
     }
   },
@@ -117,6 +122,7 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
 	})
 	resp, err := handleFieldCapsIndex(ctx, []string{"logs-1", "logs-2"}, *tableMap)
 	assert.NoError(t, err)
+	// TODO 'text" should eventually have "indices ["logs-1", "logs-2"]"
 	expectedResp, err := json.MarshalIndent([]byte(`{
   "fields": {
     "QUESMA_CLICKHOUSE_RESPONSE": {
@@ -124,21 +130,24 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
         "aggregatable": false,
         "metadata_field": false,
         "searchable": true,
-        "type": "text"
+        "type": "text",
+		"indices": ["logs-2"]
       }
     },
     "foo.bar1": {
       "keyword": {
         "aggregatable": true,
         "searchable": true,
-        "type": "keyword"
+        "type": "keyword",
+		"indices": ["logs-1"]
       }
     },
     "foo.bar2": {
       "keyword": {
         "aggregatable": true,
         "searchable": true,
-        "type": "keyword"
+        "type": "keyword",
+		"indices": ["logs-2"]
       }
     }
   },
@@ -182,7 +191,7 @@ func TestAddNewFieldCapability(t *testing.T) {
 
 	fields := make(map[string]map[string]model.FieldCapability)
 	for _, col := range Cols {
-		addNewDefaultFieldCapability(fields, col)
+		addNewDefaultFieldCapability(fields, col, "foo")
 	}
 
 	// Check aggregatable property
