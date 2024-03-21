@@ -10,6 +10,7 @@ import (
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
+	"time"
 )
 
 func HandleTermsEnum(ctx context.Context, index string, reqBody []byte, lm *clickhouse.LogManager,
@@ -25,6 +26,7 @@ func HandleTermsEnum(ctx context.Context, index string, reqBody []byte, lm *clic
 
 func handleTermsEnumRequest(ctx context.Context, reqBody []byte, qt *queryparser.ClickhouseQueryTranslator, qmc *ui.QuesmaManagementConsole) (result []byte, err error) {
 	request := NewRequest()
+	startTime := time.Now()
 	if err := request.UnmarshalJSON(reqBody); err != nil {
 		logger.Error().Msgf("error unmarshalling terms enum API request: %s", err)
 		return json.Marshal(emptyTermsEnumResponse())
@@ -46,6 +48,7 @@ func handleTermsEnumRequest(ctx context.Context, reqBody []byte, qt *queryparser
 		QueryBodyTranslated:    []byte(selectQuery.String()),
 		QueryRawResults:        nil,
 		QueryTranslatedResults: result,
+		SecondaryTook:          time.Since(startTime),
 	})
 	return
 }

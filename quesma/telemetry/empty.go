@@ -1,5 +1,6 @@
 package telemetry
 
+import "time"
 import "context"
 
 type emptyTimer struct {
@@ -8,7 +9,8 @@ type emptyTimer struct {
 type emptySpan struct {
 }
 
-func (d emptySpan) End(err error) {
+func (d emptySpan) End(err error) time.Duration {
+	return 0
 }
 
 func (d emptyTimer) Begin() Span {

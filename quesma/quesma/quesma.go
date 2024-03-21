@@ -67,23 +67,23 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 	}
 }
 
-func sendElkResponseToQuesmaConsole(ctx context.Context, elkResponse *http.Response, console *ui.QuesmaManagementConsole) {
-	reader := elkResponse.Body
+func sendElkResponseToQuesmaConsole(ctx context.Context, elkResponse elasticResult, console *ui.QuesmaManagementConsole) {
+	reader := elkResponse.response.Body
 	body, err := io.ReadAll(reader)
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("Error reading response body: %v", err)
 		return
 	}
-	elkResponse.Body = io.NopCloser(bytes.NewBuffer(body))
+	elkResponse.response.Body = io.NopCloser(bytes.NewBuffer(body))
 
-	if gzip.IsGzipped(elkResponse) {
+	if gzip.IsGzipped(elkResponse.response) {
 		body, err = gzip.UnZip(body)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("Error unzipping: %v", err)
 		}
 	}
-	console.PushPrimaryInfo(&ui.QueryDebugPrimarySource{Id: id, QueryResp: body})
+	console.PushPrimaryInfo(&ui.QueryDebugPrimarySource{Id: id, QueryResp: body, PrimaryTook: elkResponse.took})
 }
 
 func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.QuesmaConfiguration, logChan <-chan string, inspect bool) *Quesma {
@@ -116,10 +116,11 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, quesmaManagementConsole, func() (*mux.Result, error) {
 			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method)
 		})
-		elkResponse := <-elkResponseChan
+		elkRawResponse := <-elkResponseChan
+		elkResponse := elkRawResponse.response
 		if elkResponse != nil {
 			if routes.IsQueryPath(req.URL.Path) { // We should send only responses for search queries to Quesma console
-				sendElkResponseToQuesmaConsole(ctx, elkResponse, quesmaManagementConsole)
+				sendElkResponseToQuesmaConsole(ctx, elkRawResponse, quesmaManagementConsole)
 			}
 			if !(elkResponse.StatusCode >= 200 && elkResponse.StatusCode < 300) {
 				logger.Warn().Msgf("Elastiscsearch returned unexpected status code [%d] when calling [%s %s]", elkResponse.StatusCode, req.Method, req.URL.Path)
@@ -165,7 +166,8 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 		}
 	} else {
 		elkResponseChan := sendHttpRequestToElastic(ctx, cfg, quesmaManagementConsole, req, reqBody, phoneHomeAgent)
-		response := <-elkResponseChan
+		rawResponse := <-elkResponseChan
+		response := rawResponse.response
 		if response != nil {
 			copyHeaders(w, response)
 			w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
@@ -175,18 +177,23 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 	}
 }
 
+type elasticResult struct {
+	response *http.Response
+	took     time.Duration
+}
+
 func sendHttpRequestToElastic(ctx context.Context, config config.QuesmaConfiguration, qmc *ui.QuesmaManagementConsole,
-	req *http.Request, reqBody []byte, phoneHomeAgent telemetry.PhoneHomeAgent) chan *http.Response {
-	elkResponseChan := make(chan *http.Response)
+	req *http.Request, reqBody []byte, phoneHomeAgent telemetry.PhoneHomeAgent) chan elasticResult {
+	elkResponseChan := make(chan elasticResult)
 	if config.ElasticsearchUser != "" {
 		req.SetBasicAuth(config.ElasticsearchUser, config.ElasticsearchPassword)
 	}
 	go func() {
-		elkResponseChan <- recordRequestToElastic(req.URL.Path, qmc, func() *http.Response {
+		elkResponseChan <- recordRequestToElastic(req.URL.Path, qmc, func() elasticResult {
 			span := phoneHomeAgent.ElasticQueryDuration().Begin()
 			resp, err := sendHttpRequest(ctx, config.ElasticsearchUrl.String(), req, reqBody)
-			span.End(err)
-			return resp
+			took := span.End(err)
+			return elasticResult{resp, took}
 		})
 	}()
 	return elkResponseChan
@@ -211,14 +218,14 @@ func recordRequestToClickhouse(path string, qmc *ui.QuesmaManagementConsole, req
 	return response, err
 }
 
-func recordRequestToElastic(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() *http.Response) *http.Response {
+func recordRequestToElastic(path string, qmc *ui.QuesmaManagementConsole, requestFunc func() elasticResult) elasticResult {
 	statName := ui.RequestStatisticKibana2Elasticsearch
 	if isIngest(path) {
 		statName = ui.RequestStatisticIngest2Elasticsearch
 	}
 	now := time.Now()
 	response := requestFunc()
-	qmc.RecordRequest(statName, time.Since(now), !isResponseOk(response))
+	qmc.RecordRequest(statName, time.Since(now), !isResponseOk(response.response))
 	return response
 }
 

@@ -50,8 +50,9 @@ var requestIdRegex, _ = regexp.Compile(`request_id":"(\d+)"`)
 var uiFs embed.FS
 
 type QueryDebugPrimarySource struct {
-	Id        string
-	QueryResp []byte
+	Id          string
+	QueryResp   []byte
+	PrimaryTook time.Duration
 }
 
 type QueryDebugSecondarySource struct {
@@ -62,6 +63,7 @@ type QueryDebugSecondarySource struct {
 	QueryBodyTranslated    []byte
 	QueryRawResults        []byte
 	QueryTranslatedResults []byte
+	SecondaryTook          time.Duration
 }
 
 type QueryDebugInfo struct {
@@ -368,7 +370,7 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 	select {
 	case msg := <-qmc.queryDebugPrimarySource:
 		logger.Debug().Msg("Received debug info from primary source: " + msg.Id)
-		debugPrimaryInfo := QueryDebugPrimarySource{msg.Id, msg.QueryResp}
+		debugPrimaryInfo := QueryDebugPrimarySource{msg.Id, msg.QueryResp, msg.PrimaryTook}
 		qmc.mutex.Lock()
 		if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {
 			qmc.debugInfoMessages[msg.Id] = QueryDebugInfo{
@@ -393,6 +395,7 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 			msg.QueryBodyTranslated,
 			msg.QueryRawResults,
 			msg.QueryTranslatedResults,
+			msg.SecondaryTook,
 		}
 		qmc.mutex.Lock()
 		if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {

@@ -17,7 +17,7 @@ var percentiles = []int{5, 25, 50, 75, 95}
 // public API
 
 type Span interface {
-	End(err error)
+	End(err error) time.Duration
 }
 
 type DurationMeasurement interface {
@@ -173,9 +173,9 @@ func (a *durationMeasurement) Begin() Span {
 	return &span{measurement: a, startedAt: time.Now()}
 }
 
-func (s *span) End(err error) {
-
-	sample := durationSample{elapsed: time.Since(s.startedAt).Seconds(), ok: err == nil}
+func (s *span) End(err error) time.Duration {
+	duration := time.Since(s.startedAt)
+	sample := durationSample{elapsed: duration.Seconds(), ok: err == nil}
 	s.measurement.ingest <- sample
-
+	return duration
 }

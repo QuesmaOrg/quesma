@@ -45,7 +45,8 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 		if withLinks {
 			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
 		}
-		buffer.Html("<p>ResponseID:").Text(v.Key).Html("</p>\n")
+		tookStr := fmt.Sprintf(" took %d ms", v.Value.PrimaryTook.Milliseconds())
+		buffer.Html("<p>ResponseID:").Text(v.Key).Text(tookStr).Html("</p>\n")
 		buffer.Html(`<pre Id="response`).Text(v.Key).Html(`">`)
 		buffer.Text(util.JsonPrettify(string(v.Value.QueryResp), true))
 		buffer.Html("\n</pre>")
@@ -63,7 +64,8 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 		if withLinks {
 			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
 		}
-		buffer.Html("<p>RequestID:").Text(v.Key).Html("</p>\n")
+		tookStr := fmt.Sprintf(" took %d ms", v.Value.SecondaryTook.Milliseconds())
+		buffer.Html("<p>RequestID:").Text(v.Key).Text(tookStr).Html("</p>\n")
 		buffer.Html(`<pre Id="second_query`).Text(v.Key).Html(`">`)
 		buffer.Text(sqlPrettyPrint(v.Value.QueryBodyTranslated))
 		buffer.Html("\n</pre>")

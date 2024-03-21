@@ -34,6 +34,7 @@ type AsyncRequestResult struct {
 	body                 []byte
 	translatedQueryBody  []byte
 	err                  error
+	took                 time.Duration
 }
 
 var AsyncRequestStorage *concurrent.Map[string, AsyncRequestResult]
@@ -65,6 +66,7 @@ func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *cli
 	table := lm.GetTable(resolvedTableName)
 
 	var rawResults, responseBody, translatedQueryBody []byte
+	startTime := time.Now()
 	pushSecondaryInfoToManagementConsole := func() {
 		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 			Id:                     id,
@@ -72,6 +74,7 @@ func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *cli
 			QueryBodyTranslated:    translatedQueryBody,
 			QueryRawResults:        rawResults,
 			QueryTranslatedResults: responseBody,
+			SecondaryTook:          time.Since(startTime),
 		})
 	}
 
@@ -176,6 +179,7 @@ func handlePartialAsyncSearch(id string, quesmaManagementConsole *ui.QuesmaManag
 			QueryBodyTranslated:    result.translatedQueryBody,
 			QueryRawResults:        []byte{},
 			QueryTranslatedResults: responseBody,
+			SecondaryTook:          result.took,
 		})
 		return responseBody, err
 	} else {
@@ -201,6 +205,7 @@ func asyncSearchWorker(ctx context.Context, asyncRequestIdStr string, queryTrans
 	var rows []model.QueryResultRow
 	var translatedQueryBody []byte
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
+	startTime := time.Now()
 	simpleQuery, queryInfo, highlighter := queryTranslator.ParseQueryAsyncSearch(string(body))
 
 	switch queryInfo.Typ {
@@ -254,7 +259,8 @@ func asyncSearchWorker(ctx context.Context, asyncRequestIdStr string, queryTrans
 	}
 	AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: false,
 		queryTranslator: queryTranslator, highlighter: highlighter, asyncSearchQueryType: queryInfo.Typ,
-		rows: rows, translatedQueryBody: translatedQueryBody, body: body, id: id, err: err})
+		rows: rows, translatedQueryBody: translatedQueryBody, body: body, id: id,
+		took: time.Since(startTime), err: err})
 	wg.Done()
 }
 
@@ -265,6 +271,7 @@ func asyncSearchAggregationWorker(ctx context.Context, asyncRequestIdStr string,
 	var translatedQueryBody []byte
 	var err error
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
+	startTime := time.Now()
 	logger.Info().Str(logger.RID, id).Ctx(ctx).Msg("We're using new Aggregation handling.")
 	for _, agg := range aggregations {
 		logger.Info().Msg(agg.String()) // I'd keep for now until aggregations work fully
@@ -280,7 +287,8 @@ func asyncSearchAggregationWorker(ctx context.Context, asyncRequestIdStr string,
 	AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: true,
 		queryTranslator: queryTranslator, aggregations: aggregations, aggregationRows: results,
 		translatedQueryBody: translatedQueryBody, body: body, id: id,
-		err: err})
+		took: time.Since(startTime),
+		err:  err})
 	wg.Done()
 }
 
