@@ -10,6 +10,7 @@ import (
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/stats/errorstats"
+	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/util"
 	"regexp"
 	"strings"
@@ -27,7 +28,7 @@ type (
 	}
 )
 
-func dualWriteBulk(ctx context.Context, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) (results []WriteResult) {
+func dualWriteBulk(ctx context.Context, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []WriteResult) {
 	if config.TrafficAnalysis.Load() {
 		logger.Info().Msg("analysing traffic, not writing to Clickhouse")
 		return
@@ -85,6 +86,8 @@ func dualWriteBulk(ctx context.Context, body string, lm *clickhouse.LogManager, 
 		}
 	}
 	for indexName, documents := range indicesWithDocumentsToInsert {
+		phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
+
 		withConfiguration(ctx, cfg, indexName, "{ BULK_PAYLOAD }", func() error {
 			for _, document := range documents {
 				stats.GlobalStatistics.Process(cfg, indexName, document, clickhouse.NestedSeparator)

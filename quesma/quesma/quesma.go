@@ -99,7 +99,7 @@ func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.Qu
 func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
 
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logManager, logChan, phoneHomeAgent)
-	router := configureRouter(config, logManager, quesmaManagementConsole)
+	router := configureRouter(config, logManager, quesmaManagementConsole, phoneHomeAgent)
 	AsyncRequestStorage = concurrent.NewMap[string, AsyncRequestResult]()
 	return &Quesma{
 		telemetryAgent:          phoneHomeAgent,
@@ -183,7 +183,7 @@ func sendHttpRequestToElastic(ctx context.Context, config config.QuesmaConfigura
 	}
 	go func() {
 		elkResponseChan <- recordRequestToElastic(req.URL.Path, qmc, func() *http.Response {
-			span := phoneHomeAgent.ElkasticQueryDuration().Begin()
+			span := phoneHomeAgent.ElasticQueryDuration().Begin()
 			resp, err := sendHttpRequest(ctx, config.ElasticsearchUrl.String(), req, reqBody)
 			span.End(err)
 			return resp

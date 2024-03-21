@@ -19,6 +19,16 @@ func (d emptyTimer) Aggregate() DurationStats {
 	return DurationStats{}
 }
 
+type emptyMultiCounter struct{}
+
+func (d emptyMultiCounter) Add(key string, value int64) {
+	// do nothing
+}
+
+func (d emptyMultiCounter) Aggregate() MultiCounterStats {
+	return MultiCounterStats{}
+}
+
 type emptyAgent struct {
 }
 
@@ -42,8 +52,12 @@ func (d emptyAgent) ClickHouseInsertDuration() DurationMeasurement {
 	return &emptyTimer{}
 }
 
-func (d emptyAgent) ElkasticQueryDuration() DurationMeasurement {
+func (d emptyAgent) ElasticQueryDuration() DurationMeasurement {
 	return &emptyTimer{}
+}
+
+func (d emptyAgent) IngestCounters() MultiCounter {
+	return &emptyMultiCounter{}
 }
 
 func NewPhoneHomeEmptyAgent() PhoneHomeAgent {

@@ -12,6 +12,7 @@ import (
 	"mitmproxy/quesma/quesma/termsenum"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/stats/errorstats"
+	"mitmproxy/quesma/telemetry"
 	"regexp"
 	"strings"
 	"sync"
@@ -20,14 +21,14 @@ import (
 const httpOk = 200
 const elasticIndexPrefix = "."
 
-func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole) *mux.PathRouter {
+func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent) *mux.PathRouter {
 	router := mux.NewPathRouter()
 	router.RegisterPath(routes.ClusterHealthPath, "GET", func(_ context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, httpOk), nil
 	})
 
 	router.RegisterPathMatcher(routes.BulkPath, "POST", matchedAgainstBulkBody(config), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
-		results := dualWriteBulk(ctx, body, lm, config)
+		results := dualWriteBulk(ctx, body, lm, config, phoneHomeAgent)
 		return bulkInsertResult(results), nil
 	})
 
@@ -37,7 +38,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 	})
 
 	router.RegisterPathMatcher(routes.IndexBulkPath, "POST", matchedAgainstConfig(config), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
-		dualWriteBulk(ctx, body, lm, config)
+		dualWriteBulk(ctx, body, lm, config, phoneHomeAgent)
 		return nil, nil
 	})
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"github.com/google/uuid"
 	"github.com/shirou/gopsutil/v3/mem"
 	"io"
 	"mitmproxy/quesma/buildinfo"
@@ -12,6 +13,7 @@ import (
 	"mitmproxy/quesma/quesma/recovery"
 	"net/http"
 	"net/url"
+	"os"
 	"runtime"
 	"time"
 )
@@ -64,11 +66,12 @@ type PhoneHomeStats struct {
 	ClickHouseInsertsDuration DurationStats `json:"clickhouse_inserts"`
 	ElasticQueriesDuration    DurationStats `json:"elastic_queries"`
 
+	IngestCounters MultiCounterStats `json:"ingests"`
+
 	RuntimeStats   RuntimeStats `json:"runtime"`
 	NumberOfPanics int64        `json:"number_of_panics"`
-
-	ReportType string `json:"report_type"`
-	TakenAt    int64  `json:"taken_at"`
+	ReportType     string       `json:"report_type"`
+	TakenAt        int64        `json:"taken_at"`
 }
 
 type PhoneHomeAgent interface {
@@ -79,7 +82,8 @@ type PhoneHomeAgent interface {
 
 	ClickHouseQueryDuration() DurationMeasurement
 	ClickHouseInsertDuration() DurationMeasurement
-	ElkasticQueryDuration() DurationMeasurement
+	ElasticQueryDuration() DurationMeasurement
+	IngestCounters() MultiCounter
 }
 
 type agent struct {
@@ -97,7 +101,28 @@ type agent struct {
 	clickHouseInsertsTimes DurationMeasurement
 	elasticQueryTimes      DurationMeasurement
 
+	ingestCounters MultiCounter
+
 	recent PhoneHomeStats
+}
+
+func generateInstanceID() string {
+	instanceId, err := uuid.NewUUID()
+	if err != nil {
+		logger.Error().Err(err).Msg("Error generating instance id")
+		return "unknown"
+	}
+	return instanceId.String()
+
+}
+
+func hostname() string {
+	name, err := os.Hostname()
+	if err != nil {
+		logger.Error().Err(err).Msg("Error getting hostname")
+		return "unknown"
+	}
+	return name
 }
 
 func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *sql.DB) PhoneHomeAgent {
@@ -111,13 +136,14 @@ func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *s
 	return &agent{
 		ctx:                    ctx,
 		cancel:                 cancel,
-		hostname:               "localhost", // FIXME
-		instanceId:             "unknown",   // FIXME
+		hostname:               hostname(),
+		instanceId:             generateInstanceID(),
 		clickHouseDb:           clickHouseDb,
 		config:                 configuration,
 		clickHouseQueryTimes:   newDurationMeasurement(ctx),
 		clickHouseInsertsTimes: newDurationMeasurement(ctx),
 		elasticQueryTimes:      newDurationMeasurement(ctx),
+		ingestCounters:         NewMultiCounter(ctx),
 	}
 }
 
@@ -129,8 +155,12 @@ func (a *agent) ClickHouseInsertDuration() DurationMeasurement {
 	return a.clickHouseInsertsTimes
 }
 
-func (a *agent) ElkasticQueryDuration() DurationMeasurement {
+func (a *agent) ElasticQueryDuration() DurationMeasurement {
 	return a.elasticQueryTimes
+}
+
+func (a *agent) IngestCounters() MultiCounter {
+	return a.ingestCounters
 }
 
 func (a *agent) RecentStats() (recent PhoneHomeStats, available bool) {
@@ -300,7 +330,9 @@ func (a agent) collect(ctx context.Context, reportType string) (stats PhoneHomeS
 
 	stats.ClickHouseQueriesDuration = a.ClickHouseQueryDuration().Aggregate()
 	stats.ClickHouseInsertsDuration = a.ClickHouseInsertDuration().Aggregate()
-	stats.ElasticQueriesDuration = a.ElkasticQueryDuration().Aggregate()
+	stats.ElasticQueriesDuration = a.ElasticQueryDuration().Aggregate()
+
+	stats.IngestCounters = a.ingestCounters.Aggregate()
 
 	stats.RuntimeStats = a.runtimeStats()
 
