@@ -31,6 +31,10 @@ func (d emptyMultiCounter) Aggregate() MultiCounterStats {
 	return MultiCounterStats{}
 }
 
+func (d emptyMultiCounter) AggregateTopValues() MultiCounterTopValuesStats {
+	return MultiCounterTopValuesStats{}
+}
+
 type emptyAgent struct {
 }
 
@@ -59,6 +63,10 @@ func (d emptyAgent) ElasticQueryDuration() DurationMeasurement {
 }
 
 func (d emptyAgent) IngestCounters() MultiCounter {
+	return &emptyMultiCounter{}
+}
+
+func (d emptyAgent) UserAgentCounters() MultiCounter {
 	return &emptyMultiCounter{}
 }
 

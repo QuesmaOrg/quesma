@@ -12,7 +12,7 @@ func TestMultiCounter_Add(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	mc := NewMultiCounter(ctx)
+	mc := NewMultiCounter(ctx, nil)
 	mc.Add("key1", 1)
 	mc.Add("key2", 2)
 	mc.Add("key1", 3)

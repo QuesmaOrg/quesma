@@ -99,6 +99,7 @@ func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.Qu
 func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, config config.QuesmaConfiguration, logChan <-chan string) *Quesma {
 
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logManager, logChan, phoneHomeAgent)
+
 	router := configureRouter(config, logManager, quesmaManagementConsole, phoneHomeAgent)
 	AsyncRequestStorage = concurrent.NewMap[string, AsyncRequestResult]()
 	return &Quesma{

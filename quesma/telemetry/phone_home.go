@@ -66,7 +66,8 @@ type PhoneHomeStats struct {
 	ClickHouseInsertsDuration DurationStats `json:"clickhouse_inserts"`
 	ElasticQueriesDuration    DurationStats `json:"elastic_queries"`
 
-	IngestCounters MultiCounterStats `json:"ingests"`
+	IngestCounters    MultiCounterStats          `json:"ingests"`
+	UserAgentCounters MultiCounterTopValuesStats `json:"top_user_agents"`
 
 	RuntimeStats   RuntimeStats `json:"runtime"`
 	NumberOfPanics int64        `json:"number_of_panics"`
@@ -83,7 +84,9 @@ type PhoneHomeAgent interface {
 	ClickHouseQueryDuration() DurationMeasurement
 	ClickHouseInsertDuration() DurationMeasurement
 	ElasticQueryDuration() DurationMeasurement
+
 	IngestCounters() MultiCounter
+	UserAgentCounters() MultiCounter
 }
 
 type agent struct {
@@ -101,7 +104,8 @@ type agent struct {
 	clickHouseInsertsTimes DurationMeasurement
 	elasticQueryTimes      DurationMeasurement
 
-	ingestCounters MultiCounter
+	ingestCounters    MultiCounter
+	userAgentCounters MultiCounter
 
 	recent PhoneHomeStats
 }
@@ -143,7 +147,8 @@ func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *s
 		clickHouseQueryTimes:   newDurationMeasurement(ctx),
 		clickHouseInsertsTimes: newDurationMeasurement(ctx),
 		elasticQueryTimes:      newDurationMeasurement(ctx),
-		ingestCounters:         NewMultiCounter(ctx),
+		ingestCounters:         NewMultiCounter(ctx, nil),
+		userAgentCounters:      NewMultiCounter(ctx, processUserAgent),
 	}
 }
 
@@ -161,6 +166,10 @@ func (a *agent) ElasticQueryDuration() DurationMeasurement {
 
 func (a *agent) IngestCounters() MultiCounter {
 	return a.ingestCounters
+}
+
+func (a *agent) UserAgentCounters() MultiCounter {
+	return a.userAgentCounters
 }
 
 func (a *agent) RecentStats() (recent PhoneHomeStats, available bool) {
@@ -331,6 +340,7 @@ func (a agent) collect(ctx context.Context, reportType string) (stats PhoneHomeS
 	stats.ClickHouseQueriesDuration = a.ClickHouseQueryDuration().Aggregate()
 	stats.ClickHouseInsertsDuration = a.ClickHouseInsertDuration().Aggregate()
 	stats.ElasticQueriesDuration = a.ElasticQueryDuration().Aggregate()
+	stats.UserAgentCounters = a.userAgentCounters.AggregateTopValues()
 
 	stats.IngestCounters = a.ingestCounters.Aggregate()
 
