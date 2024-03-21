@@ -1,13 +1,14 @@
 package telemetry
 
 import (
+	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestPhoneHome_ParseElastic(t *testing.T) {
 
-	json := `
+	responseAsJson := `
 {
   "_shards" : {
     "total" : 12,
@@ -306,12 +307,46 @@ func TestPhoneHome_ParseElastic(t *testing.T) {
 
 
 `
-	stats := ElasticStats{}
-	err := scanElasticResponse([]byte(json), &stats)
+
+	response := &elasticStatsResponse{}
+	err := json.Unmarshal([]byte(responseAsJson), response)
 
 	assert.Nil(t, err)
 
-	assert.Equal(t, int64(74874), stats.NumberOfDocs)
-	assert.Equal(t, int64(28346964), stats.Size)
+	assert.Equal(t, int64(74874), response.All.Total.Docs.Count)
+	assert.Equal(t, int64(28346964), response.All.Total.Store.SizeInBytes)
+
+}
+
+func TestAgent_CollectElastic_Version(t *testing.T) {
+
+	// $ curl localhost:9200
+	responseAsJson := `
+
+{
+  "name" : "a64526973c4d",
+  "cluster_name" : "docker-cluster",
+  "cluster_uuid" : "3tIKdAuNRS2OAb4LQPREmw",
+  "version" : {
+    "number" : "8.11.1",
+    "build_flavor" : "default",
+    "build_type" : "docker",
+    "build_hash" : "6f9ff581fbcde658e6f69d6ce03050f060d1fd0c",
+    "build_date" : "2023-11-11T10:05:59.421038163Z",
+    "build_snapshot" : false,
+    "lucene_version" : "9.8.0",
+    "minimum_wire_compatibility_version" : "7.17.0",
+    "minimum_index_compatibility_version" : "7.0.0"
+  },
+  "tagline" : "You Know, for Search"
+}
+`
+
+	response := &elasticVersionResponse{}
+	err := json.Unmarshal([]byte(responseAsJson), response)
+
+	assert.Nil(t, err)
+
+	assert.Equal(t, "8.11.1", response.Version.Number)
 
 }

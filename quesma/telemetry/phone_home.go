@@ -38,12 +38,14 @@ type ClickHouseStats struct {
 	DiskSpace         int64  `json:"disk_space"`
 	OpenConnection    int    `json:"open_connection"`
 	MaxOpenConnection int    `json:"max_open_connection"`
+	ServerVersion     string `json:"server_version"`
 }
 
 type ElasticStats struct {
-	Status       string `json:"status"`
-	NumberOfDocs int64  `json:"number_of_docs"`
-	Size         int64  `json:"size"`
+	Status        string `json:"status"`
+	NumberOfDocs  int64  `json:"number_of_docs"`
+	Size          int64  `json:"size"`
+	ServerVersion string `json:"server_version"`
 }
 
 type RuntimeStats struct {
@@ -176,16 +178,7 @@ func (a *agent) RecentStats() (recent PhoneHomeStats, available bool) {
 	return a.recent, a.recent.TakenAt != 0
 }
 
-func (a *agent) CollectClickHouse(ctx context.Context) (stats ClickHouseStats) {
-
-	// https://gist.github.com/sanchezzzhak/511fd140e8809857f8f1d84ddb937015
-	stats.Status = statusNotOk
-
-	dbStats := a.clickHouseDb.Stats()
-
-	stats.MaxOpenConnection = dbStats.MaxOpenConnections
-	stats.OpenConnection = dbStats.OpenConnections
-
+func (a *agent) collectClickHouseUsage(ctx context.Context, stats *ClickHouseStats) {
 	// it counts whole clickhouse database, including system tables
 	totalSummaryQuery := `
 select 
@@ -202,7 +195,7 @@ where active
 
 	if err != nil {
 		logger.Error().Err(err).Msg("Error getting stats from clickhouse.")
-		return stats
+		return
 	}
 
 	defer rows.Close()
@@ -211,9 +204,49 @@ where active
 		err := rows.Scan(&stats.NumberOfRows, &stats.DiskSpace)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error getting stats from clickhouse.")
-			return stats
+			return
 		}
 	}
+}
+
+func (a *agent) collectClickHouseVersion(ctx context.Context, stats *ClickHouseStats) {
+
+	// https://clickhouse.com/docs/en/sql-reference/functions/other-functions#version
+	totalSummaryQuery := `select version()`
+
+	ctx, cancel := context.WithTimeout(ctx, clickhouseTimeout)
+	defer cancel()
+
+	rows, err := a.clickHouseDb.QueryContext(ctx, totalSummaryQuery)
+
+	if err != nil {
+		logger.Error().Err(err).Msg("Error getting version from clickhouse.")
+		return
+	}
+
+	defer rows.Close()
+
+	if rows.Next() {
+		err := rows.Scan(&stats.ServerVersion)
+		if err != nil {
+			logger.Error().Err(err).Msg("Error getting version from clickhouse.")
+			return
+		}
+	}
+}
+
+func (a *agent) CollectClickHouse(ctx context.Context) (stats ClickHouseStats) {
+
+	// https://gist.github.com/sanchezzzhak/511fd140e8809857f8f1d84ddb937015
+	stats.Status = statusNotOk
+
+	dbStats := a.clickHouseDb.Stats()
+
+	stats.MaxOpenConnection = dbStats.MaxOpenConnections
+	stats.OpenConnection = dbStats.OpenConnections
+
+	a.collectClickHouseUsage(ctx, &stats)
+	a.collectClickHouseVersion(ctx, &stats)
 
 	stats.Status = statusOk
 
@@ -233,13 +266,65 @@ type elasticStatsResponse struct {
 	} `json:"_all"`
 }
 
-func scanElasticResponse(body []byte, stats *ElasticStats) error {
+type elasticVersionResponse struct {
+	Version struct {
+		Number string `json:"number"`
+	}
+}
 
-	response := elasticStatsResponse{}
+func (a *agent) callElastic(ctx context.Context, url *url.URL, response interface{}) (err error) {
 
-	err := json.Unmarshal(body, &response)
+	ctx, cancel := context.WithTimeout(ctx, elasticTimeout)
+	defer cancel()
+
+	request, err := a.buildElastisearchRequest(ctx, url, nil)
+
 	if err != nil {
-		logger.Error().Err(err).Msg("Error getting stats from elasticsearch. JSON parsing failed.")
+		logger.Error().Err(err).Msg("Error getting stats from elasticsearch. ")
+		return err
+	}
+
+	resp, err := http.DefaultClient.Do(request)
+	if err != nil {
+		logger.Error().Err(err).Msg("Error getting info from elasticsearch. ")
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		logger.Error().Msgf("Error getting info from elasticsearch. URL %s got status code: %v", url.String(), resp.StatusCode)
+		return err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		logger.Error().Err(err).Msg("Error getting info from elasticsearch. Reading the body failed")
+		return err
+	}
+
+	err = json.Unmarshal(body, response)
+	if err != nil {
+		logger.Error().Err(err).Msg("Error getting info from elasticsearch. JSON parsing failed.")
+		return err
+	}
+
+	return nil
+}
+
+func (a *agent) collectElasticUsage(ctx context.Context, stats *ElasticStats) (err error) {
+	// queries
+	//curl  -s 'http://localhost:9200/_all/_stats?pretty=true' | jq ._all.total.docs
+	//curl  -s 'http://localhost:9200/_all/_stats?pretty=true' | jq ._all.total.store
+
+	elasticUrl := a.config.ElasticsearchUrl
+
+	statsUrl := elasticUrl.JoinPath("/_all/_stats")
+	response := elasticStatsResponse{}
+	err = a.callElastic(ctx, statsUrl, &response)
+
+	if err != nil {
 		return err
 	}
 
@@ -249,51 +334,34 @@ func scanElasticResponse(body []byte, stats *ElasticStats) error {
 	return nil
 }
 
-func (a *agent) CollectElastic(ctx context.Context) (stats ElasticStats) {
-
-	stats.Status = statusNotOk
-	// https://www.datadoghq.com/blog/collect-elasticsearch-metrics/
-
-	// queries
-	//curl  -s 'http://localhost:9200/_all/_stats?pretty=true' | jq ._all.total.docs
-	//curl  -s 'http://localhost:9200/_all/_stats?pretty=true' | jq ._all.total.store
+func (a *agent) collectElasticVersion(ctx context.Context, stats *ElasticStats) (err error) {
 
 	elasticUrl := a.config.ElasticsearchUrl
 
-	statsUrl := elasticUrl.JoinPath("/_all/_stats")
-
-	ctx, cancel := context.WithTimeout(ctx, elasticTimeout)
-	defer cancel()
-
-	request, err := a.buildElastisearchRequest(ctx, statsUrl, nil)
+	statsUrl := elasticUrl.JoinPath("/")
+	response := &elasticVersionResponse{}
+	err = a.callElastic(ctx, statsUrl, &response)
 
 	if err != nil {
-		logger.Error().Err(err).Msg("Error getting stats from elasticsearch. ")
-		return stats
+		return err
 	}
 
-	resp, err := http.DefaultClient.Do(request)
+	stats.ServerVersion = response.Version.Number
+
+	return nil
+}
+
+func (a *agent) CollectElastic(ctx context.Context) (stats ElasticStats) {
+
+	stats.Status = statusNotOk
+
+	err := a.collectElasticVersion(ctx, &stats)
 	if err != nil {
-		logger.Error().Err(err).Msg("Error getting stats from elasticsearch. ")
 		return stats
 	}
 
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		logger.Error().Msgf("Error getting stats from elasticsearch. URL %s got status code: %v", statsUrl.String(), resp.StatusCode)
-		return stats
-	}
-
-	body, err := io.ReadAll(resp.Body)
-
+	err = a.collectElasticUsage(ctx, &stats)
 	if err != nil {
-		logger.Error().Err(err).Msg("Error getting stats from elasticsearch. Reading the body failed")
-		return stats
-	}
-
-	if err = scanElasticResponse(body, &stats); err != nil {
-		logger.Error().Err(err).Msg("Error getting stats from elasticsearch. JSON parsing failed.")
 		return stats
 	}
 
@@ -324,7 +392,7 @@ func (a *agent) runtimeStats() (stats RuntimeStats) {
 	return stats
 }
 
-func (a agent) collect(ctx context.Context, reportType string) (stats PhoneHomeStats) {
+func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHomeStats) {
 
 	stats.ReportType = reportType
 	stats.Hostname = a.hostname
