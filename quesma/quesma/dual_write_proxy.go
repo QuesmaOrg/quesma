@@ -16,10 +16,11 @@ import (
 )
 
 type dualWriteHttpProxy struct {
-	routingHttpServer *http.Server
-	elasticRouter     *mux.PathRouter
-	logManager        *clickhouse.LogManager
-	publicPort        network.Port
+	routingHttpServer   *http.Server
+	elasticRouter       *mux.PathRouter
+	logManager          *clickhouse.LogManager
+	publicPort          network.Port
+	asyncQueriesEvictor *AsyncQueriesEvictor
 }
 
 func (q *dualWriteHttpProxy) Stop(ctx context.Context) {
@@ -45,14 +46,18 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaCo
 				reroute(withTracing(req), w, req, reqBody, router, config, quesmaManagementConsole, agent)
 			}),
 		},
-		logManager: logManager,
-		publicPort: config.PublicTcpPort,
+		logManager:          logManager,
+		publicPort:          config.PublicTcpPort,
+		asyncQueriesEvictor: NewAsyncQueriesEvictor(),
 	}
 }
 
 func (q *dualWriteHttpProxy) Close(ctx context.Context) {
 	if q.logManager != nil {
 		defer q.logManager.Close()
+	}
+	if q.asyncQueriesEvictor != nil {
+		q.asyncQueriesEvictor.Close()
 	}
 	if err := q.routingHttpServer.Shutdown(ctx); err != nil {
 		logger.Fatal().Msgf("Error during server shutdown: %v", err)
@@ -61,6 +66,7 @@ func (q *dualWriteHttpProxy) Close(ctx context.Context) {
 
 func (q *dualWriteHttpProxy) Ingest() {
 	q.logManager.Start()
+	go q.asyncQueriesEvictor.asyncQueriesGC()
 	go func() {
 		if err := q.routingHttpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Fatal().Msgf("Error starting http server: %v", err)

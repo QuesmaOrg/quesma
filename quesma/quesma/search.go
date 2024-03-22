@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
@@ -36,9 +35,8 @@ type AsyncRequestResult struct {
 	translatedQueryBody  []byte
 	err                  error
 	took                 time.Duration
+	added                time.Time
 }
-
-var AsyncRequestStorage *concurrent.Map[string, AsyncRequestResult]
 
 func handleCount(ctx context.Context, indexPattern string, lm *clickhouse.LogManager) (int64, error) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
@@ -207,7 +205,7 @@ func reachedQueriesLimit(asyncRequestIdStr string, doneCh chan struct{}) bool {
 	if AsyncRequestStorage.Size() < AsyncQueriesLimit {
 		return false
 	}
-	AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: errors.New("too many async queries")})
+	AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: errors.New("too many async queries"), added: time.Now()})
 	logger.Error().Msgf("Cannot handle %s, too many async queries", asyncRequestIdStr)
 	doneCh <- struct{}{}
 	return true
@@ -278,7 +276,7 @@ func asyncSearchWorker(ctx context.Context, asyncRequestIdStr string, queryTrans
 	AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: false,
 		queryTranslator: queryTranslator, highlighter: highlighter, asyncSearchQueryType: queryInfo.Typ,
 		rows: rows, translatedQueryBody: translatedQueryBody, body: body, id: id,
-		took: time.Since(startTime), err: err})
+		took: time.Since(startTime), err: err, added: time.Now()})
 	doneCh <- struct{}{}
 }
 
@@ -309,8 +307,9 @@ func asyncSearchAggregationWorker(ctx context.Context, asyncRequestIdStr string,
 	AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: true,
 		queryTranslator: queryTranslator, aggregations: aggregations, aggregationRows: results,
 		translatedQueryBody: translatedQueryBody, body: body, id: id,
-		took: time.Since(startTime),
-		err:  err})
+		took:  time.Since(startTime),
+		err:   err,
+		added: time.Now()})
 	doneCh <- struct{}{}
 }
 
