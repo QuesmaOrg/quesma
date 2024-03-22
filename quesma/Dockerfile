@@ -25,6 +25,7 @@ RUN --mount=type=cache,target="/root/.cache/go-build" \
 
 FROM scratch
 
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /go/app/bin /go/app/healthcheck /go/app/config.yaml ./
 
 ENTRYPOINT [ "/bin" ]
