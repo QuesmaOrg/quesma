@@ -841,3 +841,89 @@ func TestLogManager_GetTable(t *testing.T) {
 		})
 	}
 }
+
+func TestLogManager_ResolveIndexes(t *testing.T) {
+	tests := []struct {
+		name     string
+		tables   *TableMap
+		patterns string
+		resolved []string
+	}{
+		{
+			name:     "empty table map, non-empty pattern",
+			tables:   NewTableMap(),
+			patterns: "table",
+			resolved: []string{},
+		},
+		{
+			name:     "empty table map, empty pattern",
+			tables:   NewTableMap(),
+			patterns: "table",
+			resolved: []string{},
+		},
+		{
+			name:     "non-empty table map, empty pattern",
+			tables:   newTableMap("table1", "table2"),
+			patterns: "",
+			resolved: []string{"table1", "table2"},
+		},
+		{
+			name:     "non-empty table map, _all pattern",
+			tables:   newTableMap("table1", "table2"),
+			patterns: "_all",
+			resolved: []string{"table1", "table2"},
+		},
+		{
+			name:     "non-empty table map, * pattern",
+			tables:   newTableMap("table1", "table2"),
+			patterns: "*",
+			resolved: []string{"table1", "table2"},
+		},
+		{
+			name:     "non-empty table map, *,* pattern",
+			tables:   newTableMap("table1", "table2"),
+			patterns: "*,*",
+			resolved: []string{"table1", "table2"},
+		},
+		{
+			name:     "non-empty table map, table* pattern",
+			tables:   newTableMap("table1", "table2"),
+			patterns: "table*",
+			resolved: []string{"table1", "table2"},
+		},
+		{
+			name:     "non-empty table map, table1,table2 pattern",
+			tables:   newTableMap("table1", "table2"),
+			patterns: "table1,table2",
+			resolved: []string{"table1", "table2"},
+		},
+		{
+			name:     "non-empty table map, table1 pattern",
+			tables:   newTableMap("table1", "table2"),
+			patterns: "table1",
+			resolved: []string{"table1"},
+		},
+		{
+			name:     "non-empty table map, table2 pattern",
+			tables:   newTableMap("table1", "table2"),
+			patterns: "table2",
+			resolved: []string{"table2"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var tableDefinitions = atomic.Pointer[TableMap]{}
+			tableDefinitions.Store(tt.tables)
+			lm := &LogManager{tableDefinitions: &tableDefinitions}
+			assert.Equalf(t, tt.resolved, lm.ResolveIndexes(tt.patterns), "ResolveIndexes(%v)", tt.patterns)
+		})
+	}
+}
+
+func newTableMap(tables ...string) *TableMap {
+	newMap := concurrent.NewMap[string, *Table]()
+	for _, table := range tables {
+		newMap.Store(table, &Table{Name: table})
+	}
+	return newMap
+}

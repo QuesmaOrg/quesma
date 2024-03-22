@@ -13,6 +13,7 @@ import (
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/util"
 	"regexp"
+	"slices"
 	"strings"
 	"sync/atomic"
 )
@@ -130,22 +131,40 @@ func (lm *LogManager) ResolveTableName(index string) (result string) {
 	return result
 }
 
-// Indexes can be in a form of wildcard, e.g. "index-*", this method returns all matching indexes
+// Indexes can be in a form of wildcard, e.g. "index-*" or even contain multiple patterns like "index-*,logs-*",
+// this method returns all matching indexes
 // empty pattern means all indexes
 // "_all" index name means all indexes
-func (lm *LogManager) ResolveIndexes(pattern string) (results []string) {
-	if pattern == elasticsearch.AllIndexesAliasIndexName || len(pattern) == 0 {
-		return lm.tableDefinitions.Load().Keys()
+func (lm *LogManager) ResolveIndexes(patterns string) (results []string) {
+	results = make([]string, 0)
+	if strings.Contains(patterns, ",") {
+		for _, pattern := range strings.Split(patterns, ",") {
+			if pattern == elasticsearch.AllIndexesAliasIndexName || pattern == "" {
+				results = lm.tableDefinitions.Load().Keys()
+				slices.Sort(results)
+				return results
+			} else {
+				results = append(results, lm.ResolveIndexes(pattern)...)
+			}
+		}
 	} else {
-		lm.tableDefinitions.Load().
-			Range(func(tableName string, v *Table) bool {
-				if lm.matchIndex(pattern, tableName) {
-					results = append(results, tableName)
-				}
-				return true
-			})
-		return results
+		if patterns == elasticsearch.AllIndexesAliasIndexName || len(patterns) == 0 {
+			results = lm.tableDefinitions.Load().Keys()
+			slices.Sort(results)
+			return results
+		} else {
+			lm.tableDefinitions.Load().
+				Range(func(tableName string, v *Table) bool {
+					if lm.matchIndex(patterns, tableName) {
+						results = append(results, tableName)
+					}
+					return true
+				})
+		}
 	}
+
+	slices.Sort(results)
+	return slices.Compact(results)
 }
 
 // updates also Table TODO stop updating table here, find a better solution
