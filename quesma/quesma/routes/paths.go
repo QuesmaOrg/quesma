@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"github.com/ucarion/urlpath"
 	"strings"
 )
 
@@ -23,21 +22,6 @@ var NotQueryPaths = []string{
 	"_doc",
 	"_field_caps",
 	"_health",
-}
-
-var (
-	indexSearchPathMatcher  = urlpath.New(IndexSearchPath)
-	indexAsyncSearchMatcher = urlpath.New(IndexAsyncSearchPath)
-)
-
-func IsIndexSearchPath(path string) bool {
-	_, match := indexSearchPathMatcher.Match(path)
-	return match
-}
-
-func IsIndexAsyncSearchPath(path string) bool {
-	_, match := indexAsyncSearchMatcher.Match(path)
-	return match
 }
 
 func IsNotQueryPath(path string) bool {
