@@ -41,15 +41,20 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 	if os.Getenv("GO_ENV") == "production" { // ConsoleWriter is slow, disable it in production
 		output = os.Stderr
 	}
-	openLogFiles(cfg.LogsPath)
-
 	logChannel := make(chan string, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
 	chanWriter := channelWriter{ch: logChannel}
 
 	var multi zerolog.LevelWriter
 
+	var logWriters []io.Writer
+	if cfg.DisableFileLogging {
+		logWriters = []io.Writer{output, chanWriter}
+	} else {
+		openLogFiles(cfg.LogsPath)
+		logWriters = []io.Writer{output, StdLogFile, errorFileLogger{ErrLogFile}, chanWriter}
+	}
 	if cfg.QuesmaInternalTelemetryUrl == nil {
-		multi = zerolog.MultiLevelWriter(output, StdLogFile, errorFileLogger{ErrLogFile}, chanWriter)
+		multi = zerolog.MultiLevelWriter(logWriters...)
 
 		// FIXME
 		// LogForwarder has extra jobs either. It forwards information that we're done.
@@ -73,7 +78,8 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 
 		logForwarder.Run()
 		logForwarder.TriggerFlush()
-		multi = zerolog.MultiLevelWriter(output, StdLogFile, errorFileLogger{ErrLogFile}, chanWriter, &logForwarder)
+		logWriters = append(logWriters, &logForwarder)
+		multi = zerolog.MultiLevelWriter(logWriters...)
 	}
 
 	logger = zerolog.New(multi).

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"github.com/rs/zerolog"
+	"github.com/spf13/cast"
 	"github.com/spf13/viper"
 	"mitmproxy/quesma/index"
 	"mitmproxy/quesma/network"
@@ -30,6 +31,7 @@ const (
 	aliasFields                = "alias_fields"
 	logsPathConfig             = "logs_path"
 	logLevelConfig             = "log_level"
+	disableFileLoggingConfig   = "disable_file_logging"
 	publicTcpPort              = "port"
 	elasticsearchUrl           = "elasticsearch_url"
 	clickhouseUrl              = "clickhouse_url"
@@ -44,6 +46,7 @@ const (
 	clickhousePasswordEnv    = "CLICKHOUSE_PASSWORD"
 	elasticsearchUserEnv     = "ELASTICSEARCH_USER"
 	elasticsearchPasswordEnv = "ELASTICSEARCH_PASSWORD"
+	disableFileLoggingEnv    = "DISABLE_FILE_LOGGING"
 )
 
 type (
@@ -63,6 +66,7 @@ type (
 		PublicTcpPort              network.Port
 		IngestStatistics           bool
 		QuesmaInternalTelemetryUrl *url.URL
+		DisableFileLogging         bool
 	}
 
 	FieldAlias struct {
@@ -224,6 +228,7 @@ func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
 		ClickHouseDatabase:         p.configureOptionalConfig(clickhouseDatabase),
 		IngestStatistics:           ingestStatistics,
 		QuesmaInternalTelemetryUrl: p.configureUrl(quesmaInternalTelemetryUrl),
+		DisableFileLogging:         p.configureFileLoggingDisabled(disableFileLoggingEnv),
 	}
 }
 
@@ -247,7 +252,7 @@ func (p *QuesmaConfigurationParser) configureUrl(configParamName string) *url.UR
 func (p *QuesmaConfigurationParser) configurePublicTcpPort() network.Port {
 	var portNumberStr string
 	var isSet bool
-	if portNumberStr, isSet = os.LookupEnv("TCP_PORT"); !isSet {
+	if portNumberStr, isSet = os.LookupEnv("PORT"); !isSet {
 		portNumberStr = p.parsedViper.GetString(fullyQualifiedConfig(publicTcpPort))
 	}
 	port, err := network.ParsePort(portNumberStr)
@@ -284,6 +289,14 @@ func (p *QuesmaConfigurationParser) configureLogsPath() string {
 		return logsPathEnv
 	} else {
 		return p.parsedViper.GetString(fullyQualifiedConfig(logsPathConfig))
+	}
+}
+
+func (p *QuesmaConfigurationParser) configureFileLoggingDisabled(envVar string) bool {
+	if val, isSet := os.LookupEnv(envVar); isSet {
+		return cast.ToBool(val)
+	} else {
+		return p.parsedViper.GetBool(fullyQualifiedConfig(disableFileLoggingConfig))
 	}
 }
 

@@ -5,7 +5,7 @@ services:
     image: quesma:latest
     environment:
       - ELASTICSEARCH_URL=http://opensearch:9200
-      - TCP_PORT=8080
+      - PORT=8080
       - LOGS_PATH=/var/quesma/logs
       - CLICKHOUSE_URL=clickhouse://clickhouse:9000
     depends_on:
