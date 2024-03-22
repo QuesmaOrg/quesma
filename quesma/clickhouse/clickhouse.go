@@ -89,10 +89,8 @@ func (lm *LogManager) ReloadTables() {
 			if indexConfig, found := lm.cfg.GetIndexConfig(table); found {
 				if indexConfig.Enabled {
 					for colName := range columns {
-						for _, alias := range indexConfig.Aliases {
-							if alias.SourceFieldName == colName {
-								logger.Error().Msgf("alias [%s] clashes with an existing column, table [%s]", alias.SourceFieldName, table)
-							}
+						if _, exists := indexConfig.Aliases[colName]; exists {
+							logger.Error().Msgf("column [%s] clashes with an existing alias, table [%s]", colName, table)
 						}
 					}
 					configuredTables[table] = columns

@@ -78,7 +78,7 @@ type (
 		NamePattern    string
 		Enabled        bool
 		FullTextFields []string
-		Aliases        []FieldAlias
+		Aliases        map[string]FieldAlias
 	}
 )
 
@@ -98,12 +98,11 @@ func (c IndexConfiguration) String() string {
 	var aliasString string
 	if len(c.Aliases) > 0 {
 		aliasString = ", aliases: "
-		for i, alias := range c.Aliases {
-			if i > 0 {
-				aliasString += ", "
-			}
-			aliasString += fmt.Sprintf("%s <- %s", alias.SourceFieldName, alias.TargetFieldName)
+		var aliases []string
+		for _, alias := range c.Aliases {
+			aliases = append(aliases, fmt.Sprintf("%s <- %s", alias.SourceFieldName, alias.TargetFieldName))
 		}
+		aliasString += strings.Join(aliases, ", ")
 	}
 	return fmt.Sprintf("\n\t\t%s, enabled: %t, fullTextFields: %s%s",
 		c.NamePattern,
@@ -122,13 +121,13 @@ func (cfg *QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string
 	return false
 }
 
-func (cfg *QuesmaConfiguration) AliasFields(indexName string) []FieldAlias {
+func (cfg *QuesmaConfiguration) AliasFields(indexName string) map[string]FieldAlias {
 	for _, indexConfig := range cfg.IndexConfig {
 		if indexConfig.Matches(indexName) {
 			return indexConfig.Aliases
 		}
 	}
-	return []FieldAlias{}
+	return map[string]FieldAlias{}
 }
 
 func MatchName(pattern, name string) bool {
@@ -174,7 +173,7 @@ func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
 
 	for indexNamePattern, config := range p.parsedViper.Get(fullyQualifiedConfig(indexConfig)).(map[string]interface{}) {
 		fields := []string{"message"}
-		aliases := make([]FieldAlias, 0)
+		aliases := make(map[string]FieldAlias)
 
 		if v, ok := config.(map[string]interface{})[fullTextFields]; ok {
 			if v == nil {
@@ -188,9 +187,9 @@ func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
 			for _, part := range strings.Split(v.(string), ",") {
 				parts := strings.Split(part, "<-")
 				if len(parts) == 2 {
-					aliases = append(aliases, FieldAlias{
-						SourceFieldName: strings.TrimSpace(parts[0]),
-						TargetFieldName: strings.TrimSpace(parts[1])})
+					sourceFieldName := strings.TrimSpace(parts[0])
+					targetFieldName := strings.TrimSpace(parts[1])
+					aliases[sourceFieldName] = FieldAlias{SourceFieldName: sourceFieldName, TargetFieldName: targetFieldName}
 				} else {
 					fmt.Printf("Invalid alias field: %s\n", part)
 				}
@@ -348,8 +347,8 @@ func (c *QuesmaConfiguration) WritesToElasticsearch() bool {
 
 func (c *QuesmaConfiguration) String() string {
 	var indexConfigs string
-	for _, index := range c.IndexConfig {
-		indexConfigs += index.String()
+	for _, idx := range c.IndexConfig {
+		indexConfigs += idx.String()
 	}
 
 	elasticUrl := "<nil>"
