@@ -88,6 +88,13 @@ func (lm *LogManager) ReloadTables() {
 		for table, columns := range tables {
 			if indexConfig, found := lm.cfg.GetIndexConfig(table); found {
 				if indexConfig.Enabled {
+					for colName := range columns {
+						for _, alias := range indexConfig.Aliases {
+							if alias.SourceFieldName == colName {
+								logger.Error().Msgf("alias [%s] clashes with an existing column, table [%s]", alias.SourceFieldName, table)
+							}
+						}
+					}
 					configuredTables[table] = columns
 				} else {
 					logger.Debug().Msgf("table '%s' is disabled\n", table)
