@@ -3,6 +3,7 @@ package quesma
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"io"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
@@ -279,7 +280,11 @@ func sendHttpRequest(ctx context.Context, address string, originalReq *http.Requ
 	}
 
 	req.Header = originalReq.Header
-	client := &http.Client{}
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
 	resp, err := client.Do(req)
 	if err != nil {
 		logger.ErrorWithCtxAndReason(ctx, "No network connection").

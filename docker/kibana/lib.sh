@@ -9,6 +9,11 @@ if [ -z "$XSRF_HEADER" ]; then
   XSRF_HEADER="kbn-xsrf: true"
 fi
 
+if [ -n "$ELASTICSEARCH_USER" ]; then
+  echo "Using Basic Authentication"
+  MAYBE_AUTH="-u $ELASTICSEARCH_USER:$ELASTICSEARCH_PASSWORD"
+fi
+
 wait_until_available() {
   local http_code
 
@@ -30,7 +35,7 @@ do_http_post() {
   local url=$1
   local body=$2
 
-  curl --no-progress-meter -X POST "$DASHBOARD_URL/$url" \
+  curl --no-progress-meter -k ${MAYBE_AUTH} -X POST "$DASHBOARD_URL/$url" \
     -H "$XSRF_HEADER" \
     -H 'Content-Type: application/json' \
     -d "$body"
@@ -40,7 +45,7 @@ do_silent_http_post() {
   local url=$1
   local body=$2
 
-  curl -w "HTTP %{http_code}" -o /dev/null --no-progress-meter -X POST "$DASHBOARD_URL/$url" \
+  curl -w "HTTP %{http_code}" -k -o /dev/null --no-progress-meter ${MAYBE_AUTH} -X POST "$DASHBOARD_URL/$url" \
     -H "$XSRF_HEADER" \
     -H 'Content-Type: application/json' \
     -d "$body"
