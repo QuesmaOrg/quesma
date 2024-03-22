@@ -196,6 +196,7 @@ func merge(cap1, cap2 model.FieldCapability) (model.FieldCapability, bool) {
 	var indices []string
 	indices = append(indices, cap1.Indices...)
 	indices = append(indices, cap2.Indices...)
+	slices.Sort(indices)
 	indices = slices.Compact(indices)
 
 	return model.FieldCapability{

@@ -293,7 +293,7 @@ func Test_merge(t *testing.T) {
 		{
 			name: "same types, different indices",
 			args: args{
-				cap1: model.FieldCapability{Type: "keyword", Aggregatable: true, MetadataField: util.Pointer(false), Indices: []string{"a"}},
+				cap1: model.FieldCapability{Type: "keyword", Aggregatable: true, MetadataField: util.Pointer(false), Indices: []string{"b", "a"}},
 				cap2: model.FieldCapability{Type: "keyword", Aggregatable: true, MetadataField: util.Pointer(false), Indices: []string{"b"}},
 			},
 			want:   model.FieldCapability{Type: "keyword", Aggregatable: true, MetadataField: util.Pointer(false), Indices: []string{"a", "b"}},
