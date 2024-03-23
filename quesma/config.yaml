@@ -15,7 +15,11 @@ quesma:
   logs_path: "logs"
   log_level: "info"
   index:
-    kibana_sample_data*:
+    kibana_sample_data_ecommerce:
+      enabled: true
+    kibana_sample_data_flights:
+      enabled: true
+    kibana_sample_data_logs:
       enabled: true
       alias_fields: timestamp<-@timestamp
     kafka-example-topi*:

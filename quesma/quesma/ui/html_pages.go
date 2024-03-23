@@ -6,6 +6,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/stats/errorstats"
+	"mitmproxy/quesma/util"
 	"net/url"
 	"sort"
 	"strings"
@@ -81,6 +82,7 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 		typeName         string
 		isAttribute      bool
 		isFullTextSearch bool
+		warning          *string
 	}
 
 	buffer := newBufferWithHead()
@@ -149,6 +151,31 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 				columnMap[k] = c
 			}
 
+			for _, a := range qmc.config.AliasFields(table.Name) {
+
+				// check for collisions
+				if field, collide := columnMap[a.SourceFieldName]; collide {
+					field.warning = util.Pointer("alias declared with the same name")
+					columnMap[a.SourceFieldName] = field
+					continue
+				}
+
+				// check if target exists
+				c := tableColumn{}
+				c.name = a.SourceFieldName
+				if aliasedField, ok := columnMap[a.TargetFieldName]; ok {
+					c.typeName = fmt.Sprintf("alias of '%s', %s", a.TargetFieldName, aliasedField.typeName)
+					c.isFullTextSearch = aliasedField.isFullTextSearch
+					c.isAttribute = aliasedField.isAttribute
+				} else {
+					c.warning = util.Pointer("alias points to non-existing field '" + a.TargetFieldName + "'")
+					c.typeName = "dangling alias"
+				}
+
+				columnNames = append(columnNames, a.SourceFieldName)
+				columnMap[a.SourceFieldName] = c
+			}
+
 			// columns added by Quesma, not visible for the user
 			//
 			// this part is based on addOurFieldsToCreateTableQuery in log_manager.go
@@ -189,6 +216,9 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 				if column.isAttribute {
 					buffer.Html(`columnAttribute `)
 				}
+				if column.warning != nil {
+					buffer.Html(`columnWarning `)
+				}
 				buffer.Html(`column`)
 
 				buffer.Html(`">`)
@@ -201,6 +231,12 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 				buffer.Text(column.typeName)
 				if column.isFullTextSearch {
 					buffer.Html(` <i>(Full text match)</i>`)
+				}
+
+				if column.warning != nil {
+					buffer.Html(` <span class="columnWarningText">WARNING: `)
+					buffer.Text(*column.warning)
+					buffer.Html(`</span>`)
 				}
 
 				buffer.Html(`</td>`)
