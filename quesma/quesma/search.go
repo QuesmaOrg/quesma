@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
@@ -39,13 +40,14 @@ type AsyncRequestResult struct {
 }
 
 type QueryRunner struct {
-	executionCtx context.Context
-	cancel       context.CancelFunc
+	executionCtx        context.Context
+	cancel              context.CancelFunc
+	AsyncRequestStorage *concurrent.Map[string, AsyncRequestResult]
 }
 
 func NewQueryRunner() *QueryRunner {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &QueryRunner{executionCtx: ctx, cancel: cancel}
+	return &QueryRunner{executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult]()}
 }
 
 func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string, lm *clickhouse.LogManager) (int64, error) {
@@ -165,16 +167,16 @@ func createEmptyAsyncSearchResponse(id string, isPartial bool, status int) ([]by
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func handlePartialAsyncSearch(id string, quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
+func (q *QueryRunner) handlePartialAsyncSearch(id string, quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
 	if !strings.Contains(id, "quesma_async_search_id_") {
 		return createEmptyAsyncSearchResponse(id, false, 503)
 	}
-	if result, ok := AsyncRequestStorage.Load(id); ok {
+	if result, ok := q.AsyncRequestStorage.Load(id); ok {
 		const isPartial = false
 		var responseBody []byte
 		var err error
 		if result.err != nil {
-			AsyncRequestStorage.Delete(id)
+			q.AsyncRequestStorage.Delete(id)
 			return createEmptyAsyncSearchResponse(id, false, 503)
 		}
 		if !result.isAggregation {
@@ -182,11 +184,11 @@ func handlePartialAsyncSearch(id string, quesmaManagementConsole *ui.QuesmaManag
 				result.rows, result.asyncSearchQueryType,
 				result.queryTranslator,
 				result.highlighter, id, isPartial)
-			AsyncRequestStorage.Delete(id)
+			q.AsyncRequestStorage.Delete(id)
 		} else {
 			responseBody, err = result.queryTranslator.MakeResponseAggregation(result.aggregations,
 				result.aggregationRows, id, isPartial)
-			AsyncRequestStorage.Delete(id)
+			q.AsyncRequestStorage.Delete(id)
 		}
 		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 			Id:                     result.id,
@@ -213,11 +215,11 @@ func handlePartialAsyncSearch(id string, quesmaManagementConsole *ui.QuesmaManag
 	}
 }
 
-func reachedQueriesLimit(asyncRequestIdStr string, doneCh chan struct{}) bool {
-	if AsyncRequestStorage.Size() < AsyncQueriesLimit {
+func (q *QueryRunner) reachedQueriesLimit(asyncRequestIdStr string, doneCh chan struct{}) bool {
+	if q.AsyncRequestStorage.Size() < AsyncQueriesLimit {
 		return false
 	}
-	AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: errors.New("too many async queries"), added: time.Now()})
+	q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: errors.New("too many async queries"), added: time.Now()})
 	logger.Error().Msgf("Cannot handle %s, too many async queries", asyncRequestIdStr)
 	doneCh <- struct{}{}
 	return true
@@ -229,7 +231,7 @@ func (q *QueryRunner) asyncSearchWorker(ctx context.Context, asyncRequestIdStr s
 	case <-q.executionCtx.Done():
 		return
 	default:
-		if reachedQueriesLimit(asyncRequestIdStr, doneCh) {
+		if q.reachedQueriesLimit(asyncRequestIdStr, doneCh) {
 			return
 		}
 		var err error
@@ -291,7 +293,7 @@ func (q *QueryRunner) asyncSearchWorker(ctx context.Context, asyncRequestIdStr s
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rows, err)
 		}
-		AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: false,
+		q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: false,
 			queryTranslator: queryTranslator, highlighter: highlighter, asyncSearchQueryType: queryInfo.Typ,
 			rows: rows, translatedQueryBody: translatedQueryBody, body: body, id: id,
 			took: time.Since(startTime), err: err})
@@ -306,7 +308,7 @@ func (q *QueryRunner) asyncSearchAggregationWorker(ctx context.Context, asyncReq
 	case <-q.executionCtx.Done():
 		return
 	default:
-		if reachedQueriesLimit(asyncRequestIdStr, doneCh) {
+		if q.reachedQueriesLimit(asyncRequestIdStr, doneCh) {
 			return
 		}
 		var results [][]model.QueryResultRow
@@ -330,7 +332,7 @@ func (q *QueryRunner) asyncSearchAggregationWorker(ctx context.Context, asyncReq
 			sqls += agg.Query.String() + "\n"
 		}
 		translatedQueryBody = []byte(sqls)
-		AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: true,
+		q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: true,
 			queryTranslator: queryTranslator, aggregations: aggregations, aggregationRows: results,
 			translatedQueryBody: translatedQueryBody, body: body, id: id,
 			took: time.Since(startTime),
@@ -383,11 +385,11 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, index string, body 
 	}
 	select {
 	case <-time.After(time.Duration(waitForResultsMs) * time.Millisecond):
-		return handlePartialAsyncSearch(asyncRequestIdStr, quesmaManagementConsole)
+		return q.handlePartialAsyncSearch(asyncRequestIdStr, quesmaManagementConsole)
 	case <-doneCh:
-		res, err := handlePartialAsyncSearch(asyncRequestIdStr, quesmaManagementConsole)
+		res, err := q.handlePartialAsyncSearch(asyncRequestIdStr, quesmaManagementConsole)
 		if !keepOnCompletion {
-			AsyncRequestStorage.Delete(asyncRequestIdStr)
+			q.AsyncRequestStorage.Delete(asyncRequestIdStr)
 		}
 		return res, err
 	}

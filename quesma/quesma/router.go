@@ -92,7 +92,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		}
 	})
 	router.RegisterPath(routes.AsyncSearchIdPath, "GET", func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
-		responseBody, err := handlePartialAsyncSearch(params["id"], console)
+		responseBody, err := queryRunner.handlePartialAsyncSearch(params["id"], console)
 		if err != nil {
 			return nil, err
 		}
@@ -100,7 +100,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 	})
 
 	router.RegisterPath(routes.AsyncSearchIdPath, "POST", func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
-		responseBody, err := handlePartialAsyncSearch(params["id"], console)
+		responseBody, err := queryRunner.handlePartialAsyncSearch(params["id"], console)
 		if err != nil {
 			return nil, err
 		}

@@ -45,7 +45,6 @@ var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, "test")
 const tableName = `logs-generic-default`
 
 func TestAsyncSearchHandler(t *testing.T) {
-	AsyncRequestStorage = concurrent.NewMap[string, AsyncRequestResult]()
 	table := concurrent.NewMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),

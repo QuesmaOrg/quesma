@@ -11,8 +11,6 @@ import (
 const EvictionInterval = 15 * time.Minute
 const GCInterval = 1 * time.Minute
 
-var AsyncRequestStorage *concurrent.Map[string, AsyncRequestResult]
-
 func elapsedTime(t time.Time) time.Duration {
 	return time.Since(t)
 }
@@ -22,27 +20,28 @@ type AsyncQueryIdWithTime struct {
 	time time.Time
 }
 
-func tryEvictAsyncRequests(timeFun func(time.Time) time.Duration) {
+func (e *AsyncQueriesEvictor) tryEvictAsyncRequests(timeFun func(time.Time) time.Duration) {
 	var ids []AsyncQueryIdWithTime
-	AsyncRequestStorage.Range(func(key string, value AsyncRequestResult) bool {
+	e.AsyncRequestStorage.Range(func(key string, value AsyncRequestResult) bool {
 		if timeFun(value.added) > EvictionInterval {
 			ids = append(ids, AsyncQueryIdWithTime{id: key, time: value.added})
 		}
 		return true
 	})
 	for _, id := range ids {
-		AsyncRequestStorage.Delete(id.id)
+		e.AsyncRequestStorage.Delete(id.id)
 	}
 }
 
 type AsyncQueriesEvictor struct {
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	AsyncRequestStorage *concurrent.Map[string, AsyncRequestResult]
 }
 
-func NewAsyncQueriesEvictor() *AsyncQueriesEvictor {
+func NewAsyncQueriesEvictor(AsyncRequestStorage *concurrent.Map[string, AsyncRequestResult]) *AsyncQueriesEvictor {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &AsyncQueriesEvictor{ctx: ctx, cancel: cancel}
+	return &AsyncQueriesEvictor{ctx: ctx, cancel: cancel, AsyncRequestStorage: AsyncRequestStorage}
 }
 
 func (e *AsyncQueriesEvictor) asyncQueriesGC() {
@@ -53,7 +52,7 @@ func (e *AsyncQueriesEvictor) asyncQueriesGC() {
 			logger.Debug().Msg("evictor stopped")
 			return
 		case <-time.After(GCInterval):
-			tryEvictAsyncRequests(elapsedTime)
+			e.tryEvictAsyncRequests(elapsedTime)
 		}
 	}
 }

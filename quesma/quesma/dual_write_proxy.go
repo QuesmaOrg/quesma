@@ -27,7 +27,7 @@ func (q *dualWriteHttpProxy) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
-func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, router *mux.PathRouter, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent) *dualWriteHttpProxy {
+func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, router *mux.PathRouter, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *dualWriteHttpProxy {
 	return &dualWriteHttpProxy{
 		elasticRouter: router,
 		routingHttpServer: &http.Server{
@@ -48,7 +48,7 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaCo
 		},
 		logManager:          logManager,
 		publicPort:          config.PublicTcpPort,
-		asyncQueriesEvictor: NewAsyncQueriesEvictor(),
+		asyncQueriesEvictor: NewAsyncQueriesEvictor(queryRunner.AsyncRequestStorage),
 	}
 }
 

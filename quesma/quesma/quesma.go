@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"io"
 	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/network"
 	"mitmproxy/quesma/proxy"
@@ -103,10 +102,9 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logManager, logChan, phoneHomeAgent)
 	queryRunner := NewQueryRunner()
 	router := configureRouter(config, logManager, quesmaManagementConsole, phoneHomeAgent, queryRunner)
-	AsyncRequestStorage = concurrent.NewMap[string, AsyncRequestResult]()
 	return &Quesma{
 		telemetryAgent:          phoneHomeAgent,
-		processor:               newDualWriteProxy(logManager, config, router, quesmaManagementConsole, phoneHomeAgent),
+		processor:               newDualWriteProxy(logManager, config, router, quesmaManagementConsole, phoneHomeAgent, queryRunner),
 		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,
