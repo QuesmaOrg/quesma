@@ -21,7 +21,7 @@ import (
 const httpOk = 200
 const elasticIndexPrefix = "."
 
-func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent) *mux.PathRouter {
+func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *mux.PathRouter {
 	router := mux.NewPathRouter()
 	router.RegisterPath(routes.ClusterHealthPath, "GET", func(_ context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, httpOk), nil
@@ -43,7 +43,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 	})
 
 	router.RegisterPathMatcher(routes.IndexCountPath, "GET", matchedAgainstPattern(config, fromClickhouse(lm)), func(ctx context.Context, _ string, _ string, params map[string]string) (*mux.Result, error) {
-		cnt, err := handleCount(ctx, params["index"], lm)
+		cnt, err := queryRunner.handleCount(ctx, params["index"], lm)
 		if err != nil {
 			return nil, err
 		}
@@ -57,7 +57,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 				"Multi index search is not yet supported: "+params["index"])
 			return nil, errors.New("multi index search is not yet supported")
 		} else {
-			responseBody, err := handleSearch(ctx, params["index"], []byte(body), lm, console)
+			responseBody, err := queryRunner.handleSearch(ctx, params["index"], []byte(body), lm, console)
 			if err != nil {
 				return nil, err
 			}
@@ -84,7 +84,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 					keepOnCompletion = true
 				}
 			}
-			responseBody, err := handleAsyncSearch(ctx, params["index"], []byte(body), lm, console, waitForResultsMs, keepOnCompletion)
+			responseBody, err := queryRunner.handleAsyncSearch(ctx, params["index"], []byte(body), lm, console, waitForResultsMs, keepOnCompletion)
 			if err != nil {
 				return nil, err
 			}

@@ -38,7 +38,17 @@ type AsyncRequestResult struct {
 	added                time.Time
 }
 
-func handleCount(ctx context.Context, indexPattern string, lm *clickhouse.LogManager) (int64, error) {
+type QueryRunner struct {
+	executionCtx context.Context
+	cancel       context.CancelFunc
+}
+
+func NewQueryRunner() *QueryRunner {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &QueryRunner{executionCtx: ctx, cancel: cancel}
+}
+
+func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string, lm *clickhouse.LogManager) (int64, error) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	indexes := lm.ResolveIndexes(indexPattern)
 	if len(indexes) == 0 {
@@ -53,7 +63,7 @@ func handleCount(ctx context.Context, indexPattern string, lm *clickhouse.LogMan
 	}
 }
 
-func handleSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
+func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
 
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
@@ -211,109 +221,138 @@ func reachedQueriesLimit(asyncRequestIdStr string, doneCh chan struct{}) bool {
 	return true
 }
 
-func asyncSearchWorker(ctx context.Context, asyncRequestIdStr string, queryTranslator *queryparser.ClickhouseQueryTranslator,
+func (q *QueryRunner) asyncSearchWorker(ctx context.Context, asyncRequestIdStr string, queryTranslator *queryparser.ClickhouseQueryTranslator,
 	table *clickhouse.Table, body []byte, doneCh chan struct{}) {
-	if reachedQueriesLimit(asyncRequestIdStr, doneCh) {
+	select {
+	case <-q.executionCtx.Done():
 		return
-	}
-	var err error
-	var fullQuery *model.Query
-	var rows []model.QueryResultRow
-	var translatedQueryBody []byte
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
-	startTime := time.Now()
-	simpleQuery, queryInfo, highlighter := queryTranslator.ParseQueryAsyncSearch(string(body))
-
-	switch queryInfo.Typ {
-	case model.Histogram:
-		var bucket time.Duration
-		fullQuery, bucket := queryTranslator.BuildHistogramQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.Interval)
-		rows, err = queryTranslator.ClickhouseLM.ProcessHistogramQuery(fullQuery, bucket)
-
-	case model.CountAsync:
-
-		fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-		rows, err = queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(table, fullQuery)
-
-	case model.AggsByField:
-		// queryInfo = (AggsByField, fieldName, Limit results, Limit last rows to look into)
-		fmt.Println("AggsByField")
-
-		fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		rows, err = queryTranslator.ClickhouseLM.ProcessFacetsQuery(table, fullQuery)
-
-	case model.ListByField:
-		// queryInfo = (ListByField, fieldName, 0, LIMIT)
-		fullQuery = queryTranslator.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		rows, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(table, fullQuery)
-
-	case model.ListAllFields:
-		// queryInfo = (ListAllFields, "*", 0, LIMIT)
-
-		fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
-		rows, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(table, fullQuery)
-
-	case model.EarliestLatestTimestamp:
-
-		var rowsEarliest, rowsLatest []model.QueryResultRow
-		fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, true)
-		rowsEarliest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rowsEarliest, err)
-		}
-		fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, false)
-		rowsLatest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
-		rows = append(rowsEarliest, rowsLatest...)
 	default:
-		panic(fmt.Sprintf("Unknown query type: %v", queryInfo.Typ))
+		if reachedQueriesLimit(asyncRequestIdStr, doneCh) {
+			return
+		}
+		var err error
+		var fullQuery *model.Query
+		var rows []model.QueryResultRow
+		var translatedQueryBody []byte
+		id := ctx.Value(tracing.RequestIdCtxKey).(string)
+		startTime := time.Now()
+		simpleQuery, queryInfo, highlighter := queryTranslator.ParseQueryAsyncSearch(string(body))
+
+		switch queryInfo.Typ {
+		case model.Histogram:
+			var bucket time.Duration
+			fullQuery, bucket := queryTranslator.BuildHistogramQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.Interval)
+			rows, err = queryTranslator.ClickhouseLM.ProcessHistogramQuery(fullQuery, bucket)
+
+		case model.CountAsync:
+
+			fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
+			rows, err = queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(table, fullQuery)
+
+		case model.AggsByField:
+			// queryInfo = (AggsByField, fieldName, Limit results, Limit last rows to look into)
+			fmt.Println("AggsByField")
+
+			fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
+			rows, err = queryTranslator.ClickhouseLM.ProcessFacetsQuery(table, fullQuery)
+
+		case model.ListByField:
+			// queryInfo = (ListByField, fieldName, 0, LIMIT)
+			fullQuery = queryTranslator.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
+			rows, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(table, fullQuery)
+
+		case model.ListAllFields:
+			// queryInfo = (ListAllFields, "*", 0, LIMIT)
+
+			fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
+			rows, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(table, fullQuery)
+
+		case model.EarliestLatestTimestamp:
+
+			var rowsEarliest, rowsLatest []model.QueryResultRow
+			fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, true)
+			rowsEarliest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
+			if err != nil {
+				logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rowsEarliest, err)
+			}
+			fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, false)
+			rowsLatest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
+			rows = append(rowsEarliest, rowsLatest...)
+		default:
+			panic(fmt.Sprintf("Unknown query type: %v", queryInfo.Typ))
+		}
+		if fullQuery != nil {
+			translatedQueryBody = []byte(fullQuery.String())
+		}
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rows, err)
+		}
+		AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: false,
+			queryTranslator: queryTranslator, highlighter: highlighter, asyncSearchQueryType: queryInfo.Typ,
+			rows: rows, translatedQueryBody: translatedQueryBody, body: body, id: id,
+			took: time.Since(startTime), err: err})
+		doneCh <- struct{}{}
+		if fullQuery != nil {
+			translatedQueryBody = []byte(fullQuery.String())
+		}
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rows, err)
+		}
+		AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: false,
+			queryTranslator: queryTranslator, highlighter: highlighter, asyncSearchQueryType: queryInfo.Typ,
+			rows: rows, translatedQueryBody: translatedQueryBody, body: body, id: id,
+			took: time.Since(startTime), err: err, added: time.Now()})
+		doneCh <- struct{}{}
 	}
-	if fullQuery != nil {
-		translatedQueryBody = []byte(fullQuery.String())
-	}
-	if err != nil {
-		logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rows, err)
-	}
-	AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: false,
-		queryTranslator: queryTranslator, highlighter: highlighter, asyncSearchQueryType: queryInfo.Typ,
-		rows: rows, translatedQueryBody: translatedQueryBody, body: body, id: id,
-		took: time.Since(startTime), err: err, added: time.Now()})
-	doneCh <- struct{}{}
 }
 
-func asyncSearchAggregationWorker(ctx context.Context, asyncRequestIdStr string, aggregations []model.QueryWithAggregation,
+func (q *QueryRunner) asyncSearchAggregationWorker(ctx context.Context, asyncRequestIdStr string, aggregations []model.QueryWithAggregation,
 	queryTranslator *queryparser.ClickhouseQueryTranslator, table *clickhouse.Table, body []byte,
 	doneCh chan struct{}) {
-	if reachedQueriesLimit(asyncRequestIdStr, doneCh) {
+	select {
+	case <-q.executionCtx.Done():
 		return
-	}
-	var results [][]model.QueryResultRow
-	sqls := ""
-	var translatedQueryBody []byte
-	var err error
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
-	startTime := time.Now()
-	logger.Info().Str(logger.RID, id).Ctx(ctx).Msg("We're using new Aggregation handling.")
-	for _, agg := range aggregations {
-		logger.Info().Msg(agg.String()) // I'd keep for now until aggregations work fully
-		rows, err := queryTranslator.ClickhouseLM.ProcessGeneralAggregationQuery(table, &agg.Query)
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msg(err.Error())
-			continue
+	default:
+		if reachedQueriesLimit(asyncRequestIdStr, doneCh) {
+			return
 		}
-		results = append(results, rows)
-		sqls += agg.Query.String() + "\n"
+		var results [][]model.QueryResultRow
+		sqls := ""
+		var translatedQueryBody []byte
+		var err error
+		id := ctx.Value(tracing.RequestIdCtxKey).(string)
+		startTime := time.Now()
+		logger.Info().Str(logger.RID, id).Ctx(ctx).Msg("We're using new Aggregation handling.")
+		for _, agg := range aggregations {
+			logger.Info().Msg(agg.String()) // I'd keep for now until aggregations work fully
+			rows, err := queryTranslator.ClickhouseLM.ProcessGeneralAggregationQuery(table, &agg.Query)
+			if err != nil {
+				logger.ErrorWithCtx(ctx).Msg(err.Error())
+				continue
+			}
+			results = append(results, rows)
+			sqls += agg.Query.String() + "\n"
+		}
+		translatedQueryBody = []byte(sqls)
+		AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: true,
+			queryTranslator: queryTranslator, aggregations: aggregations, aggregationRows: results,
+			translatedQueryBody: translatedQueryBody, body: body, id: id,
+			took: time.Since(startTime),
+			err:  err})
+		doneCh <- struct{}{}
+
+		translatedQueryBody = []byte(sqls)
+		AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: true,
+			queryTranslator: queryTranslator, aggregations: aggregations, aggregationRows: results,
+			translatedQueryBody: translatedQueryBody, body: body, id: id,
+			took:  time.Since(startTime),
+			err:   err,
+			added: time.Now()})
+		doneCh <- struct{}{}
 	}
-	translatedQueryBody = []byte(sqls)
-	AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: true,
-		queryTranslator: queryTranslator, aggregations: aggregations, aggregationRows: results,
-		translatedQueryBody: translatedQueryBody, body: body, id: id,
-		took:  time.Since(startTime),
-		err:   err,
-		added: time.Now()})
-	doneCh <- struct{}{}
 }
 
-func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
+func (q *QueryRunner) handleAsyncSearch(ctx context.Context, index string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole, waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	resolvedTableName := lm.ResolveTableName(index)
@@ -336,9 +375,9 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 	//    Maybe there are requests with similar structure, so we label them as AggsByField, but they would be better handled with the new logic.
 	if simpleQuery.CanParse && (((queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields) && !bytes.Contains(body, []byte("aggs"))) || queryInfo.Typ == model.AggsByField) {
 		logger.Info().Str(logger.RID, id).Ctx(ctx).Msgf("Received _async_search request, type: %v", queryInfo.Typ)
-		go asyncSearchWorker(ctx, asyncRequestIdStr, queryTranslator, table, body, doneCh)
+		go q.asyncSearchWorker(ctx, asyncRequestIdStr, queryTranslator, table, body, doneCh)
 	} else if aggregations, err := queryTranslator.ParseAggregationJson(string(body)); err == nil {
-		go asyncSearchAggregationWorker(ctx, asyncRequestIdStr, aggregations, queryTranslator, table, body, doneCh)
+		go q.asyncSearchAggregationWorker(ctx, asyncRequestIdStr, aggregations, queryTranslator, table, body, doneCh)
 	} else {
 		responseBody := []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
 		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
@@ -364,4 +403,9 @@ func handleAsyncSearch(ctx context.Context, index string, body []byte, lm *click
 		}
 		return res, err
 	}
+}
+
+func (q *QueryRunner) Close() {
+	q.cancel()
+	logger.Info().Msg("QueryRunner Stopped")
 }
