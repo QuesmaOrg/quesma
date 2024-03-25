@@ -380,7 +380,7 @@ func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfi
 	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), nil
 }
 
-func (lm *LogManager) GetTableConfig(tableName, jsonData string) (*ChTableConfig, error) {
+func (lm *LogManager) GetOrCreateTableConfig(tableName, jsonData string) (*ChTableConfig, error) {
 	table := lm.GetTable(tableName)
 	var config *ChTableConfig
 	if table == nil {
@@ -404,7 +404,7 @@ func (lm *LogManager) GetTableConfig(tableName, jsonData string) (*ChTableConfig
 }
 
 func (lm *LogManager) ProcessInsertQuery(tableName string, jsonData []string) error {
-	if config, err := lm.GetTableConfig(tableName, jsonData[0]); err != nil {
+	if config, err := lm.GetOrCreateTableConfig(tableName, jsonData[0]); err != nil {
 		return err
 	} else {
 		return lm.Insert(tableName, jsonData, config)
