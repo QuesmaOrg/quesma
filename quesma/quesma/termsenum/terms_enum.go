@@ -34,8 +34,10 @@ func handleTermsEnumRequest(ctx context.Context, reqBody []byte, qt *queryparser
 
 	where := qt.ParseAutocomplete(request.IndexFilter, request.Field, request.String, request.CaseInsensitive)
 	selectQuery := qt.BuildAutocompleteQuery(request.Field, where.Sql.Stmt, request.Size)
-
-	if rows, err2 := qt.ClickhouseLM.ProcessAutocompleteSuggestionsQuery(selectQuery); err2 != nil {
+	dbQueryCtx, cancel := context.WithCancel(ctx)
+	// TODO this will be used to cancel goroutine that is executing the query
+	_ = cancel
+	if rows, err2 := qt.ClickhouseLM.ProcessAutocompleteSuggestionsQuery(dbQueryCtx, selectQuery); err2 != nil {
 		logger.Error().Msgf("terms enum failed - error processing SQL query [%s]", err2)
 		result, err = json.Marshal(emptyTermsEnumResponse())
 	} else {

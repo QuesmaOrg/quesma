@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"context"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/model"
@@ -30,8 +31,10 @@ func TestProcessHistogramQuery(t *testing.T) {
 			AddRow(timestampDividedBy30sec, 0).
 			AddRow(timestampDividedBy30sec, 10).
 			AddRow(timestampDividedBy30sec, 20))
-
-	rows, err := lm.ProcessHistogramQuery(&query, 30*time.Second)
+	dbQueryCtx, cancel := context.WithCancel(context.Background())
+	// TODO this will be used to cancel goroutine that is executing the query
+	_ = cancel
+	rows, err := lm.ProcessHistogramQuery(dbQueryCtx, &query, 30*time.Second)
 	assert.NoError(t, err)
 	for i, row := range rows {
 		assert.Equal(t, int64(timestampMsec), row.Cols[model.ResultColKeyIndex].Value)

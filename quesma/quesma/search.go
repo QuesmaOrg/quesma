@@ -98,7 +98,10 @@ func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, bod
 			fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
 		}
 		translatedQueryBody = []byte(fullQuery.String())
-		rows, err := queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(table, fullQuery)
+		dbQueryCtx, cancel := context.WithCancel(ctx)
+		// TODO this will be used during go-routine cancellation
+		_ = cancel
+		rows, err := queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(dbQueryCtx, table, fullQuery)
 		if err != nil {
 			errorMsg := fmt.Sprintf("Error processing query: %s, err: %s", fullQuery.String(), err.Error())
 			logger.ErrorWithCtx(ctx).Msg(errorMsg)
@@ -237,46 +240,48 @@ func (q *QueryRunner) asyncSearchWorker(ctx context.Context, asyncRequestIdStr s
 		id := ctx.Value(tracing.RequestIdCtxKey).(string)
 		startTime := time.Now()
 		simpleQuery, queryInfo, highlighter := queryTranslator.ParseQueryAsyncSearch(string(body))
-
+		dbQueryCtx, cancel := context.WithCancel(ctx)
+		// TODO this will be used during go-routine cancellation
+		_ = cancel
 		switch queryInfo.Typ {
 		case model.Histogram:
 			var bucket time.Duration
 			fullQuery, bucket := queryTranslator.BuildHistogramQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, queryInfo.Interval)
-			rows, err = queryTranslator.ClickhouseLM.ProcessHistogramQuery(fullQuery, bucket)
+			rows, err = queryTranslator.ClickhouseLM.ProcessHistogramQuery(dbQueryCtx, fullQuery, bucket)
 
 		case model.CountAsync:
 
 			fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-			rows, err = queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(table, fullQuery)
+			rows, err = queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(dbQueryCtx, table, fullQuery)
 
 		case model.AggsByField:
 			// queryInfo = (AggsByField, fieldName, Limit results, Limit last rows to look into)
 			fmt.Println("AggsByField")
 
 			fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-			rows, err = queryTranslator.ClickhouseLM.ProcessFacetsQuery(table, fullQuery)
+			rows, err = queryTranslator.ClickhouseLM.ProcessFacetsQuery(dbQueryCtx, table, fullQuery)
 
 		case model.ListByField:
 			// queryInfo = (ListByField, fieldName, 0, LIMIT)
 			fullQuery = queryTranslator.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-			rows, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(table, fullQuery)
+			rows, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(dbQueryCtx, table, fullQuery)
 
 		case model.ListAllFields:
 			// queryInfo = (ListAllFields, "*", 0, LIMIT)
 
 			fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
-			rows, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(table, fullQuery)
+			rows, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(dbQueryCtx, table, fullQuery)
 
 		case model.EarliestLatestTimestamp:
 
 			var rowsEarliest, rowsLatest []model.QueryResultRow
 			fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, true)
-			rowsEarliest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
+			rowsEarliest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(dbQueryCtx, fullQuery)
 			if err != nil {
 				logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rowsEarliest, err)
 			}
 			fullQuery = queryTranslator.BuildTimestampQuery(queryInfo.FieldName, simpleQuery.Sql.Stmt, false)
-			rowsLatest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(fullQuery)
+			rowsLatest, err = queryTranslator.ClickhouseLM.ProcessTimestampQuery(dbQueryCtx, fullQuery)
 			rows = append(rowsEarliest, rowsLatest...)
 		default:
 			panic(fmt.Sprintf("Unknown query type: %v", queryInfo.Typ))
@@ -311,10 +316,13 @@ func (q *QueryRunner) asyncSearchAggregationWorker(ctx context.Context, asyncReq
 		var err error
 		id := ctx.Value(tracing.RequestIdCtxKey).(string)
 		startTime := time.Now()
+		dbQueryCtx, cancel := context.WithCancel(ctx)
+		// TODO this will be used during go-routine cancellation
+		_ = cancel
 		logger.Info().Str(logger.RID, id).Ctx(ctx).Msg("We're using new Aggregation handling.")
 		for _, agg := range aggregations {
 			logger.Info().Msg(agg.String()) // I'd keep for now until aggregations work fully
-			rows, err := queryTranslator.ClickhouseLM.ProcessGeneralAggregationQuery(table, &agg.Query)
+			rows, err := queryTranslator.ClickhouseLM.ProcessGeneralAggregationQuery(dbQueryCtx, table, &agg.Query)
 			if err != nil {
 				logger.ErrorWithCtx(ctx).Msg(err.Error())
 				continue

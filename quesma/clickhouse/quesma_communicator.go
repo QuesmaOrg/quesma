@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"mitmproxy/quesma/model"
@@ -18,9 +19,9 @@ const (
 	ExistsAndIsArray
 )
 
-func (lm *LogManager) Query(query string) (*sql.Rows, error) {
+func (lm *LogManager) Query(ctx context.Context, query string) (*sql.Rows, error) {
 	span := lm.phoneHomeAgent.ClickHouseQueryDuration().Begin()
-	rows, err := lm.chDb.Query(query)
+	rows, err := lm.chDb.QueryContext(ctx, query)
 	span.End(err)
 	return rows, err
 }
@@ -29,14 +30,14 @@ func (lm *LogManager) Query(query string) (*sql.Rows, error) {
 // TODO query param should be type safe Query representing all parts of
 // sql statement that were already parsed and not string from which
 // we have to extract again different parts like where clause and columns to build a proper result
-func (lm *LogManager) ProcessSimpleSelectQuery(table *Table, query *model.Query) ([]model.QueryResultRow, error) {
+func (lm *LogManager) ProcessSimpleSelectQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
 
 	colNames, err := table.extractColumns(query, false)
 	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
 		return nil, err
 	}
-	rowsDB, err := lm.Query(query.StringFromColumns(colNames))
+	rowsDB, err := lm.Query(ctx, query.StringFromColumns(colNames))
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
@@ -45,12 +46,12 @@ func (lm *LogManager) ProcessSimpleSelectQuery(table *Table, query *model.Query)
 }
 
 // fieldName = "*" -> we query all, otherwise only this 1 field
-func (lm *LogManager) ProcessNRowsQuery(table *Table, query *model.Query) ([]model.QueryResultRow, error) {
+func (lm *LogManager) ProcessNRowsQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
 	colNames, err := table.extractColumns(query, false)
 	if err != nil {
 		return nil, err
 	}
-	rowsDB, err := lm.Query(query.StringFromColumns(colNames))
+	rowsDB, err := lm.Query(ctx, query.StringFromColumns(colNames))
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
@@ -58,8 +59,8 @@ func (lm *LogManager) ProcessNRowsQuery(table *Table, query *model.Query) ([]mod
 	return read(rowsDB, append(colNames, query.NonSchemaFields...), rowToScan)
 }
 
-func (lm *LogManager) ProcessHistogramQuery(query *model.Query, bucket time.Duration) ([]model.QueryResultRow, error) {
-	rows, err := lm.Query(query.String())
+func (lm *LogManager) ProcessHistogramQuery(ctx context.Context, query *model.Query, bucket time.Duration) ([]model.QueryResultRow, error) {
+	rows, err := lm.Query(ctx, query.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
@@ -82,13 +83,13 @@ func (lm *LogManager) ProcessHistogramQuery(query *model.Query, bucket time.Dura
 }
 
 // TODO add support for autocomplete for attributes, if we'll find it needed
-func (lm *LogManager) ProcessFacetsQuery(table *Table, query *model.Query) ([]model.QueryResultRow, error) {
+func (lm *LogManager) ProcessFacetsQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
 	colNames, err := table.extractColumns(query, false)
 	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
 		return nil, err
 	}
-	rows, err := lm.Query(query.StringFromColumns(colNames))
+	rows, err := lm.Query(ctx, query.StringFromColumns(colNames))
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
@@ -99,8 +100,8 @@ func (lm *LogManager) ProcessFacetsQuery(table *Table, query *model.Query) ([]mo
 	return resultRows, nil
 }
 
-func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(query *model.Query) ([]model.QueryResultRow, error) {
-	rowsDB, err := lm.Query(query.String())
+func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(ctx context.Context, query *model.Query) ([]model.QueryResultRow, error) {
+	rowsDB, err := lm.Query(ctx, query.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
@@ -108,16 +109,16 @@ func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(query *model.Query) ([
 	return read(rowsDB, query.Fields, rowToScan)
 }
 
-func (lm *LogManager) ProcessTimestampQuery(query *model.Query) ([]model.QueryResultRow, error) {
-	rows, err := lm.Query(query.String())
+func (lm *LogManager) ProcessTimestampQuery(ctx context.Context, query *model.Query) ([]model.QueryResultRow, error) {
+	rows, err := lm.Query(ctx, query.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
 	return read(rows, query.Fields, []interface{}{time.Time{}})
 }
 
-func (lm *LogManager) ProcessGeneralAggregationQuery(table *Table, query *model.Query) ([]model.QueryResultRow, error) {
-	rows, err := lm.Query(query.String())
+func (lm *LogManager) ProcessGeneralAggregationQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
+	rows, err := lm.Query(ctx, query.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
