@@ -328,7 +328,26 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	if histogram, ok := queryMap["histogram"]; ok {
 		currentAggr.Type = bucket_aggregations.Histogram{}
 		fieldName := strconv.Quote(cw.Table.ResolveField(histogram.(QueryMap)["field"].(string)))
-		currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
+		var interval int
+		intervalQueryMap := histogram.(QueryMap)["interval"]
+		switch intervalRaw := intervalQueryMap.(type) {
+		case string:
+			v, err := strconv.Atoi(intervalRaw)
+			if err != nil {
+				interval = v
+			}
+		case int:
+			interval = intervalRaw
+		case float64:
+			interval = int(intervalRaw)
+		default:
+			panic("unexpected type of interval")
+		}
+		groupByStr := fieldName
+		if interval != 1 {
+			groupByStr = fmt.Sprintf("floor(%s / %d) * %d AS %s", fieldName, interval, interval, fieldName)
+		}
+		currentAggr.GroupByFields = append(currentAggr.GroupByFields, groupByStr)
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
 		delete(queryMap, "histogram")
 		return

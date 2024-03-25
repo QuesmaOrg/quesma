@@ -468,6 +468,30 @@ var aggregationTests = []struct {
 			`SELECT COUNT(DISTINCT "OriginCityName") FROM ` + tableNameQuoted + " ",
 		},
 	},
+	{ // [13]
+		`{
+				 "aggs": {
+					"sample": {
+					  "aggs": {
+						"histo": {
+						  "histogram": {
+							"field": "bytes",
+							"interval": 1782
+						  }
+						}
+					  },
+					  "sampler": {
+						"shard_size": 5000
+					  }
+					}
+				  }
+			}`,
+		[]string{
+			`SELECT count() FROM ` + tableNameQuoted + ` `,
+			`SELECT "bytes", count() FROM ` + tableNameQuoted + `  GROUP BY (floor("bytes" / 1782) * 1782 AS "bytes") ORDER BY (floor("bytes" / 1782) * 1782 AS "bytes")`,
+			`SELECT count() FROM ` + tableNameQuoted + ` `,
+		},
+	},
 }
 
 // Simple unit test, testing only "aggs" part of the request json query
@@ -485,7 +509,10 @@ func TestAggregationParser(t *testing.T) {
 
 	for testIdx, test := range aggregationTests {
 		t.Run(strconv.Itoa(testIdx), func(t *testing.T) {
-			t.Skip("We can't handle one hardest request properly yet") // Let's skip in this PR. Next one already fixes some of issues here.
+			if testIdx == 1 || testIdx == 2 || testIdx == 4 || testIdx == 5 || testIdx == 6 || testIdx == 7 ||
+				testIdx == 9 || testIdx == 11 || testIdx == 12 {
+				t.Skip("We can't handle one hardest request properly yet") // Let's skip in this PR. Next one already fixes some of issues here.
+			}
 			aggregations, err := cw.ParseAggregationJson(test.aggregationJson)
 			assert.NoError(t, err)
 			assert.Equal(t, len(test.translatedSqls), len(aggregations))
