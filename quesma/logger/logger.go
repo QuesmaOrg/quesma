@@ -96,6 +96,21 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 	return logChannel
 }
 
+// InitSimpleLoggerForTests initializes our global logger to the console output.
+// Useful e.g. in debugging failing tests: you can call this function at the beginning
+// of the test, and calls to the global logger will start appearing in the console.
+// Without it, they don't.
+func InitSimpleLoggerForTests() {
+	logger = zerolog.New(
+		zerolog.ConsoleWriter{
+			Out:        os.Stderr,
+			TimeFormat: time.StampMilli,
+		}).
+		With().
+		Timestamp().
+		Logger()
+}
+
 func openLogFiles(logsPath string) {
 	var err error
 	StdLogFile, err = os.OpenFile(
