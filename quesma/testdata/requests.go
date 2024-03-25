@@ -852,6 +852,21 @@ var TestsAsyncSearch = []struct {
 		},
 		true,
 	},
+	{ // [6]
+		"VERY simple ListAllFields",
+		`{
+			"fields": [
+				"*"
+			],
+			"size": 50,
+			"track_total_hits": true
+		}`,
+		``,
+		"no comment yet",
+		model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: 50},
+		[]string{`SELECT "@timestamp", "message", "host.name" FROM "logs-generic-default" LIMIT 50`},
+		false,
+	},
 }
 
 var TestsSearch = []SearchTestCase{

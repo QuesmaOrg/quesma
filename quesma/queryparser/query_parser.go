@@ -226,12 +226,12 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 		return newSimpleQuery(NewSimpleStatement("invalid JSON (parseQueryAsyncSearch)"), false), model.NewQueryInfoAsyncSearchNone(), NewEmptyHighlighter()
 	}
 
-	if _, ok := queryAsMap["query"]; !ok {
-		return newSimpleQuery(NewSimpleStatement("no query in async search"), false), model.NewQueryInfoAsyncSearchNone(), NewEmptyHighlighter()
-	}
-
 	// we must parse "highlights" here, because it is stripped from the queryAsMap later
 	highlighter := cw.ParseHighlighter(queryAsMap)
+
+	if _, ok := queryAsMap["query"]; !ok {
+		return newSimpleQuery(NewSimpleStatement(""), true), cw.tryProcessMetadataAsyncSearch(queryAsMap), highlighter
+	}
 
 	parsedQuery := cw.parseQueryMap(queryAsMap["query"].(QueryMap))
 	if sort, ok := queryAsMap["sort"]; ok {
@@ -244,19 +244,6 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 	highlighter.SetTokens(cw.tokensToHighlight)
 	cw.ClearTokensToHighlight()
 
-	/* leaving as comment, as that's how it'll work after next PR
-	if queryInfo.Typ != model.None {
-		// if we parsed it via old, non-general way, let's just use it for now, because it's known to be working
-		return parsed, queryInfo
-	}
-
-	if aggs, ok := queryAsMap["aggs"].(QueryMap); ok {
-		aggregations := make([]model.QueryWithAggregation, 0)
-		currentAggr := aggrQueryBuilder{}
-		cw.parseAggregation(&currentAggr, aggs, &aggregations)
-		pp.Println(aggregations)
-	}
-	*/
 	return parsedQuery, queryInfo, highlighter
 }
 
@@ -1033,16 +1020,20 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.Q
 		}
 		return model.NewQueryInfoAsyncSearchNone(), false
 	}
-	queryMap, ok = fields[0].(QueryMap)
+	field, ok := fields[0].(string)
 	if !ok {
-		return model.NewQueryInfoAsyncSearchNone(), false
+		queryMap, ok = fields[0].(QueryMap)
+		if !ok {
+			return model.NewQueryInfoAsyncSearchNone(), false
+		}
+		// same as above
+		field = queryMap["field"].(string)
 	}
-	// same as above
-	field := cw.Table.ResolveField(queryMap["field"].(string))
-	if field == "*" {
+	resolvedField := cw.Table.ResolveField(field)
+	if resolvedField == "*" {
 		return model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size)}, true
 	}
-	return model.QueryInfoAsyncSearch{Typ: model.ListByField, FieldName: field, I1: 0, I2: int(size)}, true
+	return model.QueryInfoAsyncSearch{Typ: model.ListByField, FieldName: resolvedField, I1: 0, I2: int(size)}, true
 }
 
 func (cw *ClickhouseQueryTranslator) isItEarliestLatestTimestampRequest(queryMap QueryMap) (model.QueryInfoAsyncSearch, bool) {
