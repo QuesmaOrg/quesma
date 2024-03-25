@@ -98,7 +98,7 @@ func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, bod
 			fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
 		}
 		translatedQueryBody = []byte(fullQuery.String())
-		dbQueryCtx, cancel := context.WithCancel(ctx)
+		dbQueryCtx, cancel := context.WithCancel(context.Background())
 		// TODO this will be used during go-routine cancellation
 		_ = cancel
 		rows, err := queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(dbQueryCtx, table, fullQuery)
@@ -240,7 +240,7 @@ func (q *QueryRunner) asyncSearchWorker(ctx context.Context, asyncRequestIdStr s
 		id := ctx.Value(tracing.RequestIdCtxKey).(string)
 		startTime := time.Now()
 		simpleQuery, queryInfo, highlighter := queryTranslator.ParseQueryAsyncSearch(string(body))
-		dbQueryCtx, cancel := context.WithCancel(ctx)
+		dbQueryCtx, cancel := context.WithCancel(context.Background())
 		// TODO this will be used during go-routine cancellation
 		_ = cancel
 		switch queryInfo.Typ {
@@ -316,7 +316,7 @@ func (q *QueryRunner) asyncSearchAggregationWorker(ctx context.Context, asyncReq
 		var err error
 		id := ctx.Value(tracing.RequestIdCtxKey).(string)
 		startTime := time.Now()
-		dbQueryCtx, cancel := context.WithCancel(ctx)
+		dbQueryCtx, cancel := context.WithCancel(context.Background())
 		// TODO this will be used during go-routine cancellation
 		_ = cancel
 		logger.Info().Str(logger.RID, id).Ctx(ctx).Msg("We're using new Aggregation handling.")
