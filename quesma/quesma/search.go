@@ -49,10 +49,9 @@ func NewQueryRunner() *QueryRunner {
 }
 
 func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string, lm *clickhouse.LogManager) (int64, error) {
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	indexes := lm.ResolveIndexes(indexPattern)
 	if len(indexes) == 0 {
-		logger.Warn().Str(logger.RID, id).Msgf("could not resolve table name for [%s]", indexPattern)
+		logger.WarnWithCtx(ctx).Msgf("could not resolve table name for [%s]", indexPattern)
 		return -1, errors.New("could not resolve table name")
 	}
 
@@ -69,7 +68,7 @@ func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, bod
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	resolvedTableName := lm.ResolveTableName(indexPattern)
 	if resolvedTableName == "" {
-		logger.Warn().Str(logger.RID, id).Msgf("could not resolve table name for [%s]", indexPattern)
+		logger.WarnWithCtx(ctx).Msgf("could not resolve table name for [%s]", indexPattern)
 		return nil, errors.New("could not resolve table name")
 	}
 	table := lm.GetTable(resolvedTableName)
@@ -87,7 +86,7 @@ func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, bod
 		})
 	}
 
-	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: ctx}
 	simpleQuery, queryInfo := queryTranslator.ParseQuery(string(body))
 	if simpleQuery.CanParse {
 		var fullQuery *model.Query
@@ -319,9 +318,9 @@ func (q *QueryRunner) asyncSearchAggregationWorker(ctx context.Context, asyncReq
 		dbQueryCtx, cancel := context.WithCancel(context.Background())
 		// TODO this will be used during go-routine cancellation
 		_ = cancel
-		logger.Info().Str(logger.RID, id).Ctx(ctx).Msg("We're using new Aggregation handling.")
+		logger.InfoWithCtx(ctx).Msg("We're using new Aggregation handling.")
 		for _, agg := range aggregations {
-			logger.Info().Msg(agg.String()) // I'd keep for now until aggregations work fully
+			logger.InfoWithCtx(ctx).Msg(agg.String()) // I'd keep for now until aggregations work fully
 			rows, err := queryTranslator.ClickhouseLM.ProcessGeneralAggregationQuery(dbQueryCtx, table, &agg.Query)
 			if err != nil {
 				logger.ErrorWithCtx(ctx).Msg(err.Error())
@@ -345,12 +344,12 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, index string, body 
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	resolvedTableName := lm.ResolveTableName(index)
 	if resolvedTableName == "" {
-		logger.Warn().Str(logger.RID, id).Msgf("could not resolve table name for [%s]", index)
+		logger.WarnWithCtx(ctx).Msgf("could not resolve table name for [%s]", index)
 		return nil, errors.New("could not resolve table name")
 	}
 	table := lm.GetTable(resolvedTableName)
 
-	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: ctx}
 	simpleQuery, queryInfo, _ := queryTranslator.ParseQueryAsyncSearch(string(body))
 	asyncRequestIdStr := generateAsyncRequestId()
 
@@ -362,8 +361,9 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, index string, body 
 	//    ==== CARE ====
 	//    Maybe there are requests with similar structure, so we label them as AggsByField, but they would be better handled with the new logic.
 	if simpleQuery.CanParse && (((queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields) && !bytes.Contains(body, []byte("aggs"))) || queryInfo.Typ == model.AggsByField) {
-		logger.Info().Str(logger.RID, id).Ctx(ctx).Msgf("Received _async_search request, type: %v", queryInfo.Typ)
+		logger.InfoWithCtx(ctx).Msgf("Received _async_search request, type: %v", queryInfo.Typ)
 		go q.asyncSearchWorker(ctx, asyncRequestIdStr, queryTranslator, table, body, doneCh)
+
 	} else if aggregations, err := queryTranslator.ParseAggregationJson(string(body)); err == nil {
 		go q.asyncSearchAggregationWorker(ctx, asyncRequestIdStr, aggregations, queryTranslator, table, body, doneCh)
 	} else {

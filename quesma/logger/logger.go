@@ -25,6 +25,7 @@ var (
 const (
 	RID    = "request_id" // request id key for the logger
 	Reason = "reason"     // Known error reason key for the logger
+	Path   = "path"
 )
 
 const (
@@ -131,16 +132,48 @@ func openLogFiles(logsPath string) {
 	}
 }
 
+func addKnownContextValues(event *zerolog.Event, ctx context.Context) *zerolog.Event {
+
+	if requestId, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
+		event = event.Str(RID, requestId)
+	}
+	if path, ok := ctx.Value(tracing.RequestPath).(string); ok {
+		event = event.Str(Path, path)
+	}
+	if reason, ok := ctx.Value(tracing.ReasonCtxKey).(string); ok {
+		event = event.Str(Reason, reason)
+	}
+	return event
+}
+
 func Debug() *zerolog.Event {
 	return logger.Debug()
+}
+
+func DebugWithCtx(ctx context.Context) *zerolog.Event {
+	event := logger.Debug().Ctx(ctx)
+	event = addKnownContextValues(event, ctx)
+	return event
 }
 
 func Info() *zerolog.Event {
 	return logger.Info()
 }
 
+func InfoWithCtx(ctx context.Context) *zerolog.Event {
+	event := logger.Info().Ctx(ctx)
+	event = addKnownContextValues(event, ctx)
+	return event
+}
+
 func Warn() *zerolog.Event {
 	return logger.Warn()
+}
+
+func WarnWithCtx(ctx context.Context) *zerolog.Event {
+	event := logger.Warn().Ctx(ctx)
+	event = addKnownContextValues(event, ctx)
+	return event
 }
 
 func Error() *zerolog.Event {
@@ -149,12 +182,7 @@ func Error() *zerolog.Event {
 
 func ErrorWithCtx(ctx context.Context) *zerolog.Event {
 	event := logger.Error().Ctx(ctx)
-	if requestId, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
-		event = event.Str(RID, requestId)
-	}
-	if reason, ok := ctx.Value(tracing.ReasonCtxKey).(string); ok {
-		event = event.Str(Reason, reason)
-	}
+	event = addKnownContextValues(event, ctx)
 	return event
 }
 

@@ -1,6 +1,7 @@
 package queryparser
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"mitmproxy/quesma/logger"
@@ -15,6 +16,7 @@ import (
 type aggrQueryBuilder struct {
 	model.QueryWithAggregation
 	whereBuilder SimpleQuery // during building this is used for where clause, not `aggr.Where`
+	ctx          context.Context
 }
 
 type metricsAggregation struct {
@@ -111,7 +113,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			query.NonSchemaFields = append(query.NonSchemaFields, Select)
 		}
 	default:
-		logger.Warn().Msgf("unknown metrics aggregation: %s", metricsAggr.AggrType)
+		logger.WarnWithCtx(b.ctx).Msgf("unknown metrics aggregation: %s", metricsAggr.AggrType)
 		query.CanParse = false
 	}
 	switch metricsAggr.AggrType {
@@ -149,6 +151,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 	}
 	currentAggr := aggrQueryBuilder{}
 	currentAggr.FromClause = cw.Table.FullTableName()
+	currentAggr.ctx = cw.Ctx
 	if queryPart, ok := queryAsMap["query"]; ok {
 		currentAggr.whereBuilder = cw.parseQueryMap(queryPart.(QueryMap))
 	}
@@ -234,10 +237,10 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	// 5. At the end, we process subaggregations, introduced via (k, v), meaning 'subaggregation_name': { dict }
 	for k, v := range queryMap {
 		// I assume it's new aggregator name
-		logger.Debug().Str(logger.RID, "TODO fill this out").Msgf("Names += %s", k)
+		logger.DebugWithCtx(cw.Ctx).Msgf("Names += %s", k)
 		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(k))
 		cw.parseAggregation(currentAggr, v.(QueryMap), resultAccumulator)
-		logger.Debug().Str(logger.RID, "TODO fill this out").Msgf("Names -= %s", k)
+		logger.DebugWithCtx(cw.Ctx).Msgf("Names -= %s", k)
 		currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
 	}
 
@@ -408,7 +411,7 @@ func (cw *ClickhouseQueryTranslator) combineWheres(where1, where2 SimpleQuery) S
 		CanParse: where1.CanParse && where2.CanParse,
 	}
 	if len(where1.FieldName) > 0 && len(where2.FieldName) > 0 {
-		logger.Warn().Msgf("combining 2 where clauses with non-empty field names: %s, %s, where queries: %v %v", where1.FieldName, where2.FieldName, where1, where2)
+		logger.WarnWithCtx(cw.Ctx).Msgf("combining 2 where clauses with non-empty field names: %s, %s, where queries: %v %v", where1.FieldName, where2.FieldName, where1, where2)
 	}
 	if len(where1.FieldName) > 0 {
 		combined.FieldName = where1.FieldName

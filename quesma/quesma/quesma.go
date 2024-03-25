@@ -259,7 +259,11 @@ func copyHeaders(w http.ResponseWriter, elkResponse *http.Response) {
 func withTracing(r *http.Request) context.Context {
 	rid := tracing.GetRequestId()
 	r.Header.Add("RequestId", rid)
-	return context.WithValue(r.Context(), tracing.RequestIdCtxKey, rid)
+	ctx := r.Context()
+	ctx = context.WithValue(ctx, tracing.RequestIdCtxKey, rid)
+	ctx = context.WithValue(ctx, tracing.RequestPath, r.URL.Path)
+
+	return ctx
 }
 
 func (q *Quesma) Close(ctx context.Context) {

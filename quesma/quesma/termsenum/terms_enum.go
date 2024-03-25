@@ -20,7 +20,7 @@ func HandleTermsEnum(ctx context.Context, index string, reqBody []byte, lm *clic
 		logger.Error().Msg(errorMsg)
 		return nil, fmt.Errorf(errorMsg)
 	} else {
-		return handleTermsEnumRequest(ctx, reqBody, &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: lm.GetTable(resolvedTableName)}, qmc)
+		return handleTermsEnumRequest(ctx, reqBody, &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: lm.GetTable(resolvedTableName), Ctx: context.Background()}, qmc)
 	}
 }
 

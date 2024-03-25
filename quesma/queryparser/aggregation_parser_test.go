@@ -2,6 +2,7 @@ package queryparser
 
 import (
 	"cmp"
+	"context"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
@@ -505,7 +506,7 @@ func TestAggregationParser(t *testing.T) {
 		t.Fatal(err)
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 
 	for testIdx, test := range aggregationTests {
 		t.Run(strconv.Itoa(testIdx), func(t *testing.T) {
@@ -547,7 +548,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 		Name: "logs-generic-default",
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
 	for i, test := range testdata.AggregationTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if i == 7 {

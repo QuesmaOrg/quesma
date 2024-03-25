@@ -1,6 +1,7 @@
 package queryparser
 
 import (
+	"context"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
@@ -23,7 +24,7 @@ func TestQueryParserAsyncSearch(t *testing.T) {
 		Created: true,
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
 	for _, tt := range testdata.TestsAsyncSearch {
 		t.Run(tt.Name, func(t *testing.T) {
 			query, queryInfo, _ := cw.ParseQueryAsyncSearch(tt.QueryJson)
@@ -37,7 +38,7 @@ func TestQueryParserAsyncSearch(t *testing.T) {
 func TestQueryParserAggregation(t *testing.T) {
 	table := clickhouse.NewEmptyTable("tablename")
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith("tablename", table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	for _, tt := range testdata.AggregationTests {
 		t.Run(tt.TestName, func(t *testing.T) {
 			cw.ParseQueryAsyncSearch(tt.QueryRequestJson)

@@ -1,6 +1,7 @@
 package quesma
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
@@ -108,6 +109,7 @@ func TestParseHighLight(t *testing.T) {
 	cw := queryparser.ClickhouseQueryTranslator{
 		ClickhouseLM: lm,
 		Table:        &table,
+		Ctx:          context.Background(),
 	}
 
 	queryAsMap := make(queryparser.QueryMap)

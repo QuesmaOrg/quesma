@@ -1,6 +1,7 @@
 package queryparser
 
 import (
+	"context"
 	"github.com/stretchr/testify/require"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
@@ -44,7 +45,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	lm := clickhouse.NewEmptyLogManager(cfg, nil, telemetry.NewPhoneHomeEmptyAgent())
 	lm.AddTableIfDoesntExist(table)
 
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	for _, tt := range testdata.TestsSearch {
 		t.Run(tt.Name, func(t *testing.T) {
 			simpleQuery, queryType := cw.ParseQuery(tt.QueryJson)
@@ -70,7 +71,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
 			simpleQuery, queryType := cw.ParseQuery(tt.QueryJson)
@@ -262,7 +263,7 @@ func TestNew(t *testing.T) {
 		t.Fatal(err)
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	for _, tt := range tests {
 		t.Run("test", func(t *testing.T) {
 			simpleQuery, _, _ := cw.ParseQueryAsyncSearch(tt)
@@ -289,7 +290,7 @@ func Test_parseRange_DateTime64(t *testing.T) {
 		t.Fatal(err)
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 
 	whereClause := cw.parseRange(rangePartOfQuery).Sql.Stmt
 	split := strings.Split(whereClause, "parseDateTime64BestEffort")
@@ -314,7 +315,7 @@ func Test_parseRange_DateTime(t *testing.T) {
 		t.Fatal(err)
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 
 	whereClause := cw.parseRange(rangePartOfQuery).Sql.Stmt
 	split := strings.Split(whereClause, "parseDateTimeBestEffort")
@@ -336,7 +337,7 @@ func Test_parseRange_numeric(t *testing.T) {
 		t.Fatal(err)
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 
 	whereClause := cw.parseRange(rangePartOfQuery).Sql.Stmt
 	assert.Equal(t, "\"time_taken\">100", whereClause)
@@ -488,7 +489,7 @@ func Test_parseSortFields(t *testing.T) {
 		clickhouse.NewChTableConfigNoAttrs(),
 	)
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	for _, tt := range tests {
 		assert.Equal(t, tt.sortFields, cw.parseSortFields(tt.sortMap))
 	}

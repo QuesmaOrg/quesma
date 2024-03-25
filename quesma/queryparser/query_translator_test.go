@@ -1,6 +1,7 @@
 package queryparser
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -103,7 +104,7 @@ func TestSearchResponse(t *testing.T) {
 	}
 	{
 		row := []model.QueryResultRow{{}}
-		cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}}
+		cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
 		searchRespBuf, err := cw.MakeResponseAsyncSearchQuery(row, model.ListAllFields, NewEmptyHighlighter(), asyncRequestIdStr, false)
 		require.NoError(t, err)
 		var searchResponseResult model.SearchResp
@@ -565,7 +566,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 			model.ListAllFields,
 		},
 	}
-	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}}
+	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
 			ourResponse, err := cw.MakeResponseAsyncSearchQuery(args[i].ourQueryResult, args[i].queryType, NewEmptyHighlighter(), asyncRequestIdStr, false)
@@ -582,7 +583,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 // tests MakeResponseSearchQuery, in particular if JSON we return is a proper JSON.
 // used to fail before we fixed field quoting.
 func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
-	cw := ClickhouseQueryTranslator{ClickhouseLM: nil, Table: clickhouse.NewEmptyTable("@")}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: nil, Table: clickhouse.NewEmptyTable("@"), Ctx: context.Background()}
 	queries := []*model.Query{
 		cw.BuildSimpleSelectQuery(""),
 		cw.BuildSimpleCountQuery(""),
@@ -608,7 +609,7 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
 	)
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	where := `"@timestamp">=parseDateTime64BestEffort('2024-02-13T10:04:40.703Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-13T10:19:40.703Z')"`
 	query, _ := cw.BuildHistogramQuery("@", where, "30s")
 	queries := []*model.Query{

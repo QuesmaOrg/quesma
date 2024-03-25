@@ -1,6 +1,7 @@
 package queryparser
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
@@ -23,6 +24,7 @@ type ClickhouseQueryTranslator struct {
 	ClickhouseLM      *clickhouse.LogManager
 	Table             *clickhouse.Table
 	tokensToHighlight []string
+	Ctx               context.Context
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()
@@ -207,7 +209,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []mod
 			if val, ok := ResultSet[0].Cols[0].Value.(uint64); ok {
 				countValue = val
 			} else {
-				logger.Error().Msgf("Failed extracting Count value SQL query result [%v]", ResultSet)
+				logger.ErrorWithCtx(cw.Ctx).Msgf("Failed extracting Count value SQL query result [%v]", ResultSet)
 				countValue = 0
 			}
 		}
@@ -438,7 +440,7 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 		// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
 		totalCount = ResultSets[0][0].Cols[0].Value.(uint64)
 	} else {
-		logger.Warn().Msgf("Failed extracting Count value SQL query result [%v]", ResultSets)
+		logger.WarnWithCtx(cw.Ctx).Msgf("Failed extracting Count value SQL query result [%v]", ResultSets)
 		totalCount = 0
 	}
 	response := model.AsyncSearchEntireResp{
@@ -623,11 +625,11 @@ func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMa
 	fieldName := cw.Table.ResolveField(queryMap["field"].(string))
 	interval, err := kibana.ParseInterval(cw.extractInterval(queryMap))
 	if err != nil {
-		logger.Error().Msg(err.Error())
+		logger.ErrorWithCtx(cw.Ctx).Msg(err.Error())
 	}
 	dateTimeType := cw.Table.GetDateTimeType(fieldName)
 	if dateTimeType == clickhouse.Invalid {
-		logger.Error().Msgf("Invalid date type for field %v", fieldName)
+		logger.ErrorWithCtx(cw.Ctx).Msgf("Invalid date type for field %v", fieldName)
 		dateTimeType = clickhouse.DateTime64
 	}
 	return clickhouse.TimestampGroupBy(fieldName, dateTimeType, interval)
