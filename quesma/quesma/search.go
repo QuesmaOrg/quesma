@@ -292,17 +292,6 @@ func (q *QueryRunner) asyncSearchWorker(ctx context.Context, asyncRequestIdStr s
 			rows: rows, translatedQueryBody: translatedQueryBody, body: body, id: id,
 			took: time.Since(startTime), err: err})
 		doneCh <- struct{}{}
-		if fullQuery != nil {
-			translatedQueryBody = []byte(fullQuery.String())
-		}
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", rows, err)
-		}
-		AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: false,
-			queryTranslator: queryTranslator, highlighter: highlighter, asyncSearchQueryType: queryInfo.Typ,
-			rows: rows, translatedQueryBody: translatedQueryBody, body: body, id: id,
-			took: time.Since(startTime), err: err, added: time.Now()})
-		doneCh <- struct{}{}
 	}
 }
 
@@ -339,15 +328,6 @@ func (q *QueryRunner) asyncSearchAggregationWorker(ctx context.Context, asyncReq
 			translatedQueryBody: translatedQueryBody, body: body, id: id,
 			took: time.Since(startTime),
 			err:  err})
-		doneCh <- struct{}{}
-
-		translatedQueryBody = []byte(sqls)
-		AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{isAggregation: true,
-			queryTranslator: queryTranslator, aggregations: aggregations, aggregationRows: results,
-			translatedQueryBody: translatedQueryBody, body: body, id: id,
-			took:  time.Since(startTime),
-			err:   err,
-			added: time.Now()})
 		doneCh <- struct{}{}
 	}
 }
