@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
+	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
@@ -65,8 +66,12 @@ func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id str
 func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string, lm *clickhouse.LogManager) (int64, error) {
 	indexes := lm.ResolveIndexes(indexPattern)
 	if len(indexes) == 0 {
-		logger.WarnWithCtx(ctx).Msgf("could not resolve table name for [%s]", indexPattern)
-		return -1, errors.New("could not resolve table name")
+		if elasticsearch.IsIndexPattern(indexPattern) {
+			return 0, nil
+		} else {
+			logger.WarnWithCtx(ctx).Msgf("could not resolve table name for [%s]", indexPattern)
+			return -1, errors.New("could not resolve table name")
+		}
 	}
 
 	if len(indexes) == 1 {
