@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"mitmproxy/quesma/logger"
 	"strings"
 	"unicode"
 )
@@ -87,6 +88,13 @@ func parseNullable(q string, i int) (int, Type) {
 			i = parseExact(q, i, ")")
 			if i == -1 {
 				return -1, nil
+			}
+			typeAsBaseType, ok := ident.(BaseType)
+			if ok {
+				typeAsBaseType.Nullable = true
+				return i, typeAsBaseType
+			} else {
+				logger.Warn().Msgf("Only BaseTypes can be Nullable! Here type is not BaseType, but %T", ident)
 			}
 			return i, ident
 		}

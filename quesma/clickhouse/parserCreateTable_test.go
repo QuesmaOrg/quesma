@@ -248,3 +248,42 @@ func Test_parseMultiValueType(t *testing.T) {
 		})
 	}
 }
+
+func TestParseCreateTableWithNullable(t *testing.T) {
+	const columnNr = 9
+	q := `CREATE TABLE IF NOT EXISTS "logs-generic-default"
+		(
+			"nullable-string" Nullable(String),
+			"nullable-date-time-1" Nullable(DateTime64(6, 'UTC') ),
+    		"nullable-date-time-2" Nullable(DateTime64),
+    		"nullable-date-time-3" Nullable(DateTime('UTC') ),
+			"non-nullable-string" String,
+			"nullable-array" Array(Nullable(String)),
+    		"non-nullable-array" Array(Int64),
+    		"tuple" Tuple(a String, b Nullable(String), c Tuple(c String, d Nullable(UInt128))),
+    		"array-tuple" Array(Tuple(nullable Nullable(String), "non-nullable" String))
+		)
+		ENGINE = Log`
+	table, err := NewTable(q, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, columnNr, len(table.Cols))
+	for _, colName := range []string{"nullable-string", "nullable-date-time-1", "nullable-date-time-2", "nullable-date-time-3"} {
+		assert.True(t, table.Cols[colName].Type.isNullable(), colName)
+	}
+	for _, colName := range []string{"non-nullable-string", "nullable-array", "non-nullable-array", "tuple", "array-tuple"} {
+		assert.False(t, table.Cols[colName].Type.isNullable(), colName)
+	}
+	// base types
+	assert.True(t, table.Cols["nullable-array"].Type.(CompoundType).BaseType.isNullable())
+	assert.False(t, table.Cols["non-nullable-array"].Type.(CompoundType).BaseType.isNullable())
+
+	// tuple
+	assert.False(t, table.Cols["tuple"].Type.(MultiValueType).Cols[0].Type.isNullable())
+	assert.True(t, table.Cols["tuple"].Type.(MultiValueType).Cols[1].Type.isNullable())
+	assert.False(t, table.Cols["tuple"].Type.(MultiValueType).Cols[2].Type.(MultiValueType).Cols[0].Type.isNullable())
+	assert.True(t, table.Cols["tuple"].Type.(MultiValueType).Cols[2].Type.(MultiValueType).Cols[1].Type.isNullable())
+
+	// array(tuple)
+	assert.True(t, table.Cols["array-tuple"].Type.(CompoundType).BaseType.(MultiValueType).Cols[0].Type.isNullable())
+	assert.False(t, table.Cols["array-tuple"].Type.(CompoundType).BaseType.(MultiValueType).Cols[1].Type.isNullable())
+}

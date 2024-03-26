@@ -18,18 +18,21 @@ const (
 type (
 	Type interface {
 		String() string
+		StringWithNullable() string // just like String but displays also 'Nullable' if it's nullable
 		canConvert(interface{}) bool
 		createTableString(indentLvl int) string // prints type for CREATE TABLE command
 		isArray() bool
 		isBool() bool // we need to differentiate between bool and other types. Special method to make it fast
 		isString() bool
+		isNullable() bool
 	}
 	Codec struct {
 		Name string // change to enum
 	}
 	BaseType struct {
-		Name   string       // ClickHouse name
-		goType reflect.Type // can be nil, e.g. for LowCardinality
+		Name     string       // ClickHouse name
+		goType   reflect.Type // can be nil, e.g. for LowCardinality
+		Nullable bool         // if it's Nullable
 	}
 	CompoundType struct { // only Array for now I think
 		Name     string
@@ -63,6 +66,13 @@ func (t BaseType) String() string {
 	return t.Name
 }
 
+func (t BaseType) StringWithNullable() string {
+	if t.Nullable {
+		return "Nullable(" + t.Name + ")"
+	}
+	return t.Name
+}
+
 func (t BaseType) createTableString(indentLvl int) string {
 	return t.String()
 }
@@ -77,9 +87,14 @@ func (t BaseType) isString() bool {
 	return t.Name == "String"
 }
 
+func (t BaseType) isNullable() bool { return t.Nullable }
+
 func (t CompoundType) String() string {
 	return fmt.Sprintf("%s(%s)", t.Name, t.BaseType.String())
 }
+
+// StringWithNullable is the same as String(), as compound types can't be nullable in Clickhouse
+func (t CompoundType) StringWithNullable() string { return t.String() }
 
 func (t CompoundType) createTableString(indentLvl int) string {
 	return t.String()
@@ -92,6 +107,8 @@ func (t CompoundType) isBool() bool { return false }
 func (t CompoundType) isString() bool {
 	return false
 }
+
+func (t CompoundType) isNullable() bool { return false }
 
 func (t MultiValueType) String() string {
 	var sb strings.Builder
@@ -112,6 +129,11 @@ func (t MultiValueType) String() string {
 	sb.WriteString(strings.Join(tupleParams, ", "))
 	sb.WriteString(")")
 	return sb.String()
+}
+
+// StringWithNullable is the same as String(), as not-base types can't be nullable in Clickhouse
+func (t MultiValueType) StringWithNullable() string {
+	return t.String()
 }
 
 func (t MultiValueType) createTableString(indentLvl int) string {
@@ -135,6 +157,10 @@ func (t MultiValueType) isArray() bool { return false }
 func (t MultiValueType) isBool() bool { return false }
 
 func (t MultiValueType) isString() bool {
+	return false
+}
+
+func (t MultiValueType) isNullable() bool {
 	return false
 }
 

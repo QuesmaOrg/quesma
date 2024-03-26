@@ -139,7 +139,7 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 
 				c.name = k
 				if table.Cols[k].Type != nil {
-					c.typeName = table.Cols[k].Type.String()
+					c.typeName = table.Cols[k].Type.StringWithNullable()
 				} else {
 					c.typeName = "n/a"
 				}
@@ -186,7 +186,7 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 					if !ok {
 						c := tableColumn{}
 						c.name = a.KeysArrayName
-						c.typeName = clickhouse.CompoundType{Name: "Array", BaseType: clickhouse.NewBaseType("String")}.String()
+						c.typeName = clickhouse.CompoundType{Name: "Array", BaseType: clickhouse.NewBaseType("String")}.StringWithNullable()
 						c.isAttribute = true
 						columnNames = append(columnNames, c.name)
 						columnMap[c.name] = c
@@ -195,7 +195,7 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 					if !ok {
 						c := tableColumn{}
 						c.name = a.ValuesArrayName
-						c.typeName = clickhouse.CompoundType{Name: "Array", BaseType: a.Type}.String()
+						c.typeName = clickhouse.CompoundType{Name: "Array", BaseType: a.Type}.StringWithNullable()
 						c.isAttribute = true
 						columnNames = append(columnNames, c.name)
 						columnMap[c.name] = c

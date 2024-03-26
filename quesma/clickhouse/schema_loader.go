@@ -60,13 +60,17 @@ func resolveColumn(colName, colType string) *Column {
 
 	if isArrayType(colType) {
 		arrayType := strings.TrimSuffix(strings.TrimPrefix(colType, "Array("), ")")
+		if isNullableType(arrayType) {
+			isNullable = true
+			arrayType = strings.TrimSuffix(strings.TrimPrefix(arrayType, "Nullable("), ")")
+		}
 		goType := ResolveType(arrayType)
 		if goType != nil {
 			return &Column{
 				Name: colName,
 				Type: CompoundType{
 					Name:     "Array",
-					BaseType: BaseType{Name: arrayType, goType: goType},
+					BaseType: BaseType{Name: arrayType, goType: goType, Nullable: isNullable},
 				},
 			}
 		} else if isTupleType(arrayType) {
@@ -115,10 +119,7 @@ func resolveColumn(colName, colType string) *Column {
 		}
 	}
 
-	_ = isNullable
-
-	// TODO nullable
-
+	// It's not array or tuple -> it's base type
 	if strings.HasPrefix(colType, "DateTime") {
 		colType = removePrecision(colType)
 	}
@@ -126,8 +127,9 @@ func resolveColumn(colName, colType string) *Column {
 		return &Column{
 			Name: colName,
 			Type: BaseType{
-				Name:   colType,
-				goType: NewBaseType(colType).goType,
+				Name:     colType,
+				goType:   NewBaseType(colType).goType,
+				Nullable: isNullable,
 			},
 		}
 	} else {
