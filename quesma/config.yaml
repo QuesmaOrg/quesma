@@ -30,5 +30,8 @@ quesma:
     device*:
       enabled: true
       fulltext_fields: message
+    phone_home_logs:
+      enabled: true
+      fulltext_fields: message
 
 

@@ -1,9 +1,11 @@
 package telemetry
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/shirou/gopsutil/v3/mem"
 	"io"
@@ -24,12 +26,16 @@ const (
 
 	clickhouseTimeout = 10 * time.Second
 	elasticTimeout    = 10 * time.Second
+	phoneHomeTimeout  = 10 * time.Second
 
 	statusOk    = "ok"
 	statusNotOk = "not-ok"
 
 	reportTypeOnSchedule = "on-schedule"
 	reportTypeOnShutdown = "on-shutdown"
+
+	// for local debugging purposes
+	phoneHomeLocalEnabled = true
 )
 
 type ClickHouseStats struct {
@@ -417,14 +423,95 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 	return stats
 }
 
-func (a *agent) report(stats PhoneHomeStats) {
+func (a *agent) phoneHomeGCloud(ctx context.Context, body []byte) (err error) {
+
+	ctx, cancel := context.WithTimeout(ctx, phoneHomeTimeout)
+	defer cancel()
+
+	// FIXME add the real one here
+	phoneHomeUrl := "http://host.docker.internal:6666/phone-home"
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, phoneHomeUrl, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("User-Agent", "quesma/"+buildinfo.Version)
+	request.Header.Set("X-License-Key", a.config.LicenseKey)
+
+	resp, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("phone home failed, invalid status code: %v", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func (a *agent) phoneHomeLocalQuesma(ctx context.Context, body []byte) (err error) {
+
+	ctx, cancel := context.WithTimeout(ctx, phoneHomeTimeout)
+	defer cancel()
+
+	phoneHomeUrl := "http://localhost:8080/_bulk"
+
+	bulkJson := `{"create":{"_index":"phone_home_logs"}}`
+	var elasticPayload []byte
+
+	elasticPayload = append(elasticPayload, []byte(bulkJson)...)
+	elasticPayload = append(elasticPayload, []byte("\n")...)
+	elasticPayload = append(elasticPayload, body...)
+	elasticPayload = append(elasticPayload, []byte("\n")...)
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, phoneHomeUrl, bytes.NewReader(elasticPayload))
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("User-Agent", "quesma/"+buildinfo.Version)
+	request.Header.Set("X-License-Key", a.config.LicenseKey)
+
+	resp, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("phone home failed, invalid status code: %v", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func (a *agent) report(ctx context.Context, stats PhoneHomeStats) {
 
 	data, err := json.Marshal(stats)
 	if err != nil {
 		logger.Error().Err(err).Msgf("Error marshalling stats")
 		return
 	}
-	logger.Info().Msgf("Call Home: %v", string(data))
+
+	err = a.phoneHomeGCloud(ctx, data)
+	if err != nil {
+		logger.Error().Msgf("Phone Home failed with error %v", err)
+		logger.Info().Msgf("Phone Home: %v", string(data))
+	} else {
+		logger.Info().Msgf("Phone Home succeded.")
+	}
+
+	if phoneHomeLocalEnabled {
+		err = a.phoneHomeLocalQuesma(ctx, data)
+		if err != nil {
+			logger.Error().Msgf("Phone Home to itself failed with error %v", err)
+			logger.Info().Msgf("Phone Home: %v", string(data))
+		} else {
+			logger.Info().Msgf("Phone Home to itself succeded.")
+		}
+	}
+
 }
 
 func (a *agent) telemetryCollection(ctx context.Context, reportType string) {
@@ -434,7 +521,7 @@ func (a *agent) telemetryCollection(ctx context.Context, reportType string) {
 
 	stats := a.collect(ctx, reportType)
 
-	a.report(stats)
+	a.report(ctx, stats)
 
 	a.recent = stats
 
