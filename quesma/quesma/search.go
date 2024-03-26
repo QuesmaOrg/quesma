@@ -121,7 +121,7 @@ func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, bod
 			pushSecondaryInfoToManagementConsole()
 			return responseBody, err
 		}
-		responseBody, err = queryparser.MakeResponseSearchQuery(rows, queryInfo)
+		responseBody, err = queryparser.MakeResponseSearchQuery(resolvedTableName, rows, queryInfo)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("Error making response: %v rows: %v", err, rows)
 			pushSecondaryInfoToManagementConsole()

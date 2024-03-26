@@ -52,10 +52,11 @@ func (cw *ClickhouseQueryTranslator) ClearTokensToHighlight() {
 	cw.tokensToHighlight = []string{}
 }
 
-func makeResponseSearchQueryNormal[T fmt.Stringer](ResultSet []T) ([]byte, error) {
+func makeResponseSearchQueryNormal[T fmt.Stringer](index string, ResultSet []T) ([]byte, error) {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i, row := range ResultSet {
 		hits[i] = model.SearchHit{
+			Index:  index,
 			Source: []byte(row.String()),
 		}
 	}
@@ -96,10 +97,10 @@ func makeResponseSearchQueryCount[T fmt.Stringer](ResultSet []T) ([]byte, error)
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func MakeResponseSearchQuery[T fmt.Stringer](ResultSet []T, typ model.SearchQueryType) ([]byte, error) {
+func MakeResponseSearchQuery[T fmt.Stringer](index string, ResultSet []T, typ model.SearchQueryType) ([]byte, error) {
 	switch typ {
 	case model.Normal:
-		return makeResponseSearchQueryNormal(ResultSet)
+		return makeResponseSearchQueryNormal(index, ResultSet)
 	case model.Count:
 		return makeResponseSearchQueryCount(ResultSet)
 	}

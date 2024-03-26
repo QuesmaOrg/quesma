@@ -90,10 +90,10 @@ func TestSearchResponse(t *testing.T) {
 	{
 		row := []Row{{}}
 
-		searchRespBuf, err := MakeResponseSearchQuery(row, model.Normal)
+		searchRespBuf, err := MakeResponseSearchQuery("", row, model.Normal)
 		require.NoError(t, err)
 		var searchResponseResult model.SearchResp
-		err = json.Unmarshal([]byte(searchRespBuf), &searchResponseResult)
+		err = json.Unmarshal(searchRespBuf, &searchResponseResult)
 		require.NoError(t, err)
 		var searchResponseExpected model.SearchResp
 		err = json.Unmarshal([]byte(searchResponseExpectedString), &searchResponseExpected)
@@ -213,7 +213,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
-			ourResponse, err := MakeResponseSearchQuery([]model.QueryResultRow{args[i].ourQueryResult}, args[i].queryType)
+			ourResponse, err := MakeResponseSearchQuery("", []model.QueryResultRow{args[i].ourQueryResult}, args[i].queryType)
 			assert.NoError(t, err)
 
 			difference1, difference2, err := util.JsonDifference(args[i].elasticResponseJson, string(ourResponse))
@@ -595,7 +595,7 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 		for _, field := range query.NonSchemaFields {
 			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field, Value: "not-important"})
 		}
-		_, err := MakeResponseSearchQuery([]model.QueryResultRow{resultRow}, types[i])
+		_, err := MakeResponseSearchQuery("", []model.QueryResultRow{resultRow}, types[i])
 		assert.NoError(t, err)
 	}
 }
