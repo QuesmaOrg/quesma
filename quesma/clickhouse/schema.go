@@ -197,6 +197,10 @@ func NewType(value any) Type {
 		if err == nil {
 			return BaseType{Name: "DateTime64", goType: reflect.TypeOf(t)}
 		}
+		t, err = time.Parse("2006-01-02T15:04:05", valueCasted)
+		if err == nil {
+			return BaseType{Name: "DateTime64", goType: reflect.TypeOf(t)}
+		}
 		return BaseType{Name: "String", goType: reflect.TypeOf("")}
 	case float64:
 		if isFloatInt(valueCasted) {
