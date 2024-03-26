@@ -14,6 +14,7 @@ import (
 	"mitmproxy/quesma/stats/errorstats"
 	"mitmproxy/quesma/telemetry"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
@@ -32,12 +33,12 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		return bulkInsertResult(results), nil
 	})
 
-	router.RegisterPathMatcher(routes.IndexDocPath, "POST", matchedAgainstConfig(config), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.IndexDocPath, "POST", matchedExact(config), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		dualWrite(ctx, params["index"], body, lm, config)
 		return indexDocResult(params["index"], httpOk), nil
 	})
 
-	router.RegisterPathMatcher(routes.IndexBulkPath, "POST", matchedAgainstConfig(config), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.IndexBulkPath, "POST", matchedExact(config), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		dualWriteBulk(ctx, body, lm, config, phoneHomeAgent)
 		return nil, nil
 	})
@@ -149,7 +150,8 @@ func fromClickhouse(lm *clickhouse.LogManager) func() []string {
 	}
 }
 
-func matchedAgainstConfig(config config.QuesmaConfiguration) mux.MatchPredicate {
+// check whether exact index name is enabled
+func matchedExact(config config.QuesmaConfiguration) mux.MatchPredicate {
 	return func(m map[string]string, _ string) bool {
 		if strings.HasPrefix(m["index"], elasticIndexPrefix) {
 			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", m["index"])
@@ -168,21 +170,42 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func
 		}
 
 		var candidates []string
-		for _, tableName := range tables() {
-			if config.MatchName(m["index"], tableName) {
-				candidates = append(candidates, tableName)
-			}
-		}
 
-		for _, candidate := range candidates {
-			indexConfig, exists := configuration.GetIndexConfig(candidate)
-			if exists && indexConfig.Enabled {
-				return true
+		if strings.ContainsAny(m["index"], "*,") {
+			for _, pattern := range strings.Split(m["index"], ",") {
+				for _, tableName := range tables() {
+					if config.MatchName(pattern, tableName) {
+						candidates = append(candidates, tableName)
+					}
+				}
 			}
-		}
 
-		logger.Debug().Msgf("no index found for pattern %s", m["index"])
-		return false
+			slices.Sort(candidates)
+			candidates = slices.Compact(candidates)
+
+			for _, candidate := range candidates {
+				indexConfig, exists := configuration.GetIndexConfig(candidate)
+				if !exists || !indexConfig.Enabled {
+					return false
+				}
+			}
+			return true
+		} else {
+			for _, tableName := range tables() {
+				if config.MatchName(m["index"], tableName) {
+					candidates = append(candidates, tableName)
+				}
+			}
+
+			for _, candidate := range candidates {
+				indexConfig, exists := configuration.GetIndexConfig(candidate)
+				if exists && indexConfig.Enabled {
+					return true
+				}
+			}
+			logger.Debug().Msgf("no index found for pattern %s", m["index"])
+			return false
+		}
 	}
 }
 
