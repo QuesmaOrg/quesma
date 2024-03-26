@@ -19,7 +19,7 @@ import (
 func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte {
 	var buffer HtmlBuffer
 
-	buffer.Html("\n" + `<div class="left" Id="left">` + "\n")
+	buffer.Html("\n" + `<div class="left" id="query-left">` + "\n")
 	buffer.Html(`<div class="title-bar">Query`)
 	buffer.Html("\n</div>\n")
 	buffer.Html(`<div class="debug-body">`)
@@ -38,7 +38,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 	buffer.Html("\n</div>")
 	buffer.Html("\n</div>\n")
 
-	buffer.Html(`<div class="right" Id="right">` + "\n")
+	buffer.Html(`<div class="right" id="query-right">` + "\n")
 	buffer.Html(`<div class="title-bar">Elasticsearch response` + "\n" + `</div>`)
 	buffer.Html(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
@@ -57,7 +57,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 	buffer.Html("\n</div>")
 	buffer.Html("\n</div>\n")
 
-	buffer.Html(`<div class="bottom_left" Id="bottom_left">` + "\n")
+	buffer.Html(`<div class="bottom_left" id="query-bottom-left">` + "\n")
 	buffer.Html(`<div class="title-bar">Clickhouse translated query` + "\n" + `</div>`)
 	buffer.Html(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
@@ -76,7 +76,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 	buffer.Html("\n</div>")
 	buffer.Html("\n</div>\n")
 
-	buffer.Html(`<div class="bottom_right" Id="bottom_right">` + "\n")
+	buffer.Html(`<div class="bottom_right" id="query-bottom-right">` + "\n")
 	buffer.Html(`<div class="title-bar">Clickhouse response` + "\n" + `</div>`)
 	buffer.Html(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {

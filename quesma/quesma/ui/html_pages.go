@@ -405,6 +405,39 @@ func (qmc *QuesmaManagementConsole) generateLiveTail() []byte {
 	buffer := newBufferWithHead()
 	buffer.Write(generateTopNavigation("queries"))
 
+	// This preserves scrolling, but does not work if new queries appear.
+	buffer.Html(`<script>
+let containerNames = ["query-left", "query-right", "query-bottom-left", "query-bottom-right"];
+let scrollPosition = [false, false, false, false];
+
+document.body.addEventListener('htmx:beforeSwap', function(event) {
+	if (event.target.id == 'queries') {
+		for (let i = 0; i < containerNames.length; i++) {
+			let container = document.getElementById(containerNames[i]);
+			if (container.matches(":hover")) {
+				scrollPosition[i] = {
+					top: container.scrollTop,
+					left: container.scrollLeft,
+					behavior: 'instant'
+				};
+			} else {
+				scrollPosition[i] = false;
+			}
+		}
+	}
+});
+document.body.addEventListener('htmx:afterSwap', function(event) {
+	if (event.target.id == 'queries') {
+		for (let i = 0; i < containerNames.length; i++) {
+			if (scrollPosition[i]) {
+				let container = document.getElementById(containerNames[i]);
+				container.scrollTo(scrollPosition[i]);
+			}
+		}
+	}
+});
+</script>`)
+
 	buffer.Html(`<main id="queries">`)
 	buffer.Write(qmc.generateQueries())
 	buffer.Html("\n</main>\n\n")
