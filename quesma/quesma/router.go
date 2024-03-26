@@ -108,6 +108,14 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
 
+	router.RegisterPath(routes.AsyncSearchIdPath, "DELETE", func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+		responseBody, err := queryRunner.deleteAsyncSeach(params["id"])
+		if err != nil {
+			return nil, err
+		}
+		return elasticsearchQueryResult(string(responseBody), httpOk), nil
+	})
+
 	router.RegisterPathMatcher(routes.FieldCapsPath, "POST", matchedAgainstPattern(config, fromClickhouse(lm)), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		responseBody, err := handleFieldCaps(ctx, params["index"], []byte(body), lm)
 		if err != nil {

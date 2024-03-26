@@ -231,6 +231,14 @@ func (q *QueryRunner) handlePartialAsyncSearch(id string, quesmaManagementConsol
 	}
 }
 
+func (q *QueryRunner) deleteAsyncSeach(id string) ([]byte, error) {
+	if !strings.Contains(id, "quesma_async_search_id_") {
+		return nil, errors.New("invalid quesma async search id : " + id)
+	}
+	q.AsyncRequestStorage.Delete(id)
+	return []byte{}, nil
+}
+
 func (q *QueryRunner) reachedQueriesLimit(asyncRequestIdStr string, doneCh chan struct{}) bool {
 	if q.AsyncRequestStorage.Size() < AsyncQueriesLimit {
 		return false
