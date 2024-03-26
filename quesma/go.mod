@@ -3,16 +3,18 @@ module mitmproxy/quesma
 go 1.22.0
 
 require (
-	github.com/ClickHouse/clickhouse-go/v2 v2.22.2
+	github.com/ClickHouse/clickhouse-go/v2 v2.22.4
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/cockroachdb/cockroachdb-parser v0.0.0-20221207165326-ea0ac1a4778b
 	github.com/gogo/protobuf v1.3.2
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/k0kubun/pp v3.0.1+incompatible
 	github.com/mjibson/sqlfmt v0.5.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.32.0
 	github.com/shirou/gopsutil/v3 v3.24.2
+	github.com/spf13/cast v1.6.0
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.9.0
 	github.com/ucarion/urlpath v0.0.0-20200424170820-7ccc79b76bbb
@@ -36,7 +38,6 @@ require (
 	github.com/golang/geo v0.0.0-20210211234256-740aa86cb551 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/klauspost/compress v1.17.7 // indirect
@@ -64,7 +65,6 @@ require (
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
-	github.com/spf13/cast v1.6.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
