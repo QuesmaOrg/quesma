@@ -34,7 +34,7 @@ func TestProcessHistogramQuery(t *testing.T) {
 	dbQueryCtx, cancel := context.WithCancel(context.Background())
 	// TODO this will be used to cancel goroutine that is executing the query
 	_ = cancel
-	rows, err := lm.ProcessHistogramQuery(dbQueryCtx, &query, 30*time.Second)
+	rows, err := lm.ProcessHistogramQuery(dbQueryCtx, &Table{Name: "foo"}, &query, 30*time.Second)
 	assert.NoError(t, err)
 	for i, row := range rows {
 		assert.Equal(t, int64(timestampMsec), row.Cols[model.ResultColKeyIndex].Value)

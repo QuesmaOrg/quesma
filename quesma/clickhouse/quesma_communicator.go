@@ -42,7 +42,13 @@ func (lm *LogManager) ProcessSimpleSelectQuery(ctx context.Context, table *Table
 		return nil, fmt.Errorf("query >> %v", err)
 	}
 
-	return read(rowsDB, append(colNames, query.NonSchemaFields...), rowToScan)
+	rows, err := read(table.Name, rowsDB, append(colNames, query.NonSchemaFields...), rowToScan)
+	if err == nil {
+		for _, row := range rows {
+			row.Index = table.Name
+		}
+	}
+	return rows, err
 }
 
 // fieldName = "*" -> we query all, otherwise only this 1 field
@@ -56,15 +62,15 @@ func (lm *LogManager) ProcessNRowsQuery(ctx context.Context, table *Table, query
 		return nil, fmt.Errorf("query >> %v", err)
 	}
 	rowToScan := make([]interface{}, len(colNames))
-	return read(rowsDB, append(colNames, query.NonSchemaFields...), rowToScan)
+	return read(table.Name, rowsDB, append(colNames, query.NonSchemaFields...), rowToScan)
 }
 
-func (lm *LogManager) ProcessHistogramQuery(ctx context.Context, query *model.Query, bucket time.Duration) ([]model.QueryResultRow, error) {
+func (lm *LogManager) ProcessHistogramQuery(ctx context.Context, table *Table, query *model.Query, bucket time.Duration) ([]model.QueryResultRow, error) {
 	rows, err := lm.Query(ctx, query.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
-	result, err := read(rows, []string{"key", "doc_count"}, []interface{}{int64(0), uint64(0)})
+	result, err := read(table.Name, rows, []string{"key", "doc_count"}, []interface{}{int64(0), uint64(0)})
 	if err != nil {
 		return nil, err
 	}
@@ -93,28 +99,28 @@ func (lm *LogManager) ProcessFacetsQuery(ctx context.Context, table *Table, quer
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
-	resultRows, err := read(rows, []string{"key", "doc_count"}, rowToScan)
+	resultRows, err := read(table.Name, rows, []string{"key", "doc_count"}, rowToScan)
 	if err != nil {
 		return nil, err
 	}
 	return resultRows, nil
 }
 
-func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(ctx context.Context, query *model.Query) ([]model.QueryResultRow, error) {
+func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(ctx context.Context, table string, query *model.Query) ([]model.QueryResultRow, error) {
 	rowsDB, err := lm.Query(ctx, query.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
 	rowToScan := []interface{}{""}
-	return read(rowsDB, query.Fields, rowToScan)
+	return read(table, rowsDB, query.Fields, rowToScan)
 }
 
-func (lm *LogManager) ProcessTimestampQuery(ctx context.Context, query *model.Query) ([]model.QueryResultRow, error) {
+func (lm *LogManager) ProcessTimestampQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
 	rows, err := lm.Query(ctx, query.String())
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
-	return read(rows, query.Fields, []interface{}{time.Time{}})
+	return read(table.Name, rows, query.Fields, []interface{}{time.Time{}})
 }
 
 func (lm *LogManager) ProcessGeneralAggregationQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
@@ -127,13 +133,13 @@ func (lm *LogManager) ProcessGeneralAggregationQuery(ctx context.Context, table 
 		return nil, err
 	}
 	rowToScan := make([]interface{}, len(colNames))
-	result, err := read(rows, colNames, rowToScan)
+	result, err := read(table.Name, rows, colNames, rowToScan)
 	return result, err
 }
 
 // 'selectFields' are all values that we return from the query, both columns and non-schema fields,
 // like e.g. count(), or toInt8(boolField)
-func read(rows *sql.Rows, selectFields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
+func read(tableName string, rows *sql.Rows, selectFields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
 	rowDb := make([]interface{}, 0, len(rowToScan))
 	for i := range rowToScan {
 		rowDb = append(rowDb, &rowToScan[i])
@@ -144,7 +150,7 @@ func read(rows *sql.Rows, selectFields []string, rowToScan []interface{}) ([]mod
 		if err != nil {
 			return nil, fmt.Errorf("scan >> %v", err)
 		}
-		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, len(selectFields))}
+		resultRow := model.QueryResultRow{Index: tableName, Cols: make([]model.QueryResultCol, len(selectFields))}
 		for i, field := range selectFields {
 			resultRow.Cols[i] = model.QueryResultCol{ColName: field, Value: rowToScan[i]}
 		}

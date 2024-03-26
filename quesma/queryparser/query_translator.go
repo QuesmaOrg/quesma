@@ -52,14 +52,15 @@ func (cw *ClickhouseQueryTranslator) ClearTokensToHighlight() {
 	cw.tokensToHighlight = []string{}
 }
 
-func makeResponseSearchQueryNormal[T fmt.Stringer](index string, ResultSet []T) ([]byte, error) {
+func makeResponseSearchQueryNormal(ResultSet []model.QueryResultRow) ([]byte, error) {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i, row := range ResultSet {
 		hits[i] = model.SearchHit{
-			Index:  index,
+			Index:  row.Index,
 			Source: []byte(row.String()),
 		}
 	}
+
 	response := model.SearchResp{
 		Hits: model.SearchHits{
 			Hits: hits,
@@ -72,7 +73,7 @@ func makeResponseSearchQueryNormal[T fmt.Stringer](index string, ResultSet []T) 
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func makeResponseSearchQueryCount[T fmt.Stringer](ResultSet []T) ([]byte, error) {
+func makeResponseSearchQueryCount(ResultSet []model.QueryResultRow) ([]byte, error) {
 	aggregations := JsonMap{
 		"suggestions": JsonMap{
 			"doc_count_error_upper_bound": 0,
@@ -97,10 +98,10 @@ func makeResponseSearchQueryCount[T fmt.Stringer](ResultSet []T) ([]byte, error)
 	return json.MarshalIndent(response, "", "  ")
 }
 
-func MakeResponseSearchQuery[T fmt.Stringer](index string, ResultSet []T, typ model.SearchQueryType) ([]byte, error) {
+func MakeResponseSearchQuery(ResultSet []model.QueryResultRow, typ model.SearchQueryType) ([]byte, error) {
 	switch typ {
 	case model.Normal:
-		return makeResponseSearchQueryNormal(index, ResultSet)
+		return makeResponseSearchQueryNormal(ResultSet)
 	case model.Count:
 		return makeResponseSearchQueryCount(ResultSet)
 	}

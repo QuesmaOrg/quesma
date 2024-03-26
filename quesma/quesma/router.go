@@ -53,17 +53,11 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 	})
 
 	router.RegisterPathMatcher(routes.IndexSearchPath, "POST", matchedAgainstPattern(config, fromClickhouse(lm)), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
-		if strings.Contains(params["index"], ",") {
-			errorstats.GlobalErrorStatistics.RecordKnownError("Multi index search is not supported", nil,
-				"Multi index search is not yet supported: "+params["index"])
-			return nil, errors.New("multi index search is not yet supported")
-		} else {
-			responseBody, err := queryRunner.handleSearch(ctx, params["index"], []byte(body), lm, console)
-			if err != nil {
-				return nil, err
-			}
-			return elasticsearchQueryResult(string(responseBody), httpOk), nil
+		responseBody, err := queryRunner.handleSearch(ctx, params["index"], []byte(body), lm, console)
+		if err != nil {
+			return nil, err
 		}
+		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
 	router.RegisterPathMatcher(routes.IndexAsyncSearchPath, "POST", matchedAgainstPattern(config, fromClickhouse(lm)), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		if strings.Contains(params["index"], ",") {

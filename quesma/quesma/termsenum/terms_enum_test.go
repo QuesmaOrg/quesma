@@ -88,7 +88,7 @@ func TestHandleTermsEnumRequest(t *testing.T) {
 	mock.ExpectQuery(fmt.Sprintf("%s|%s", regexp.QuoteMeta(expectedQuery1), regexp.QuoteMeta(expectedQuery2))).
 		WillReturnRows(sqlmock.NewRows([]string{"client_name"}).AddRow("client_a").AddRow("client_b"))
 
-	resp, err := handleTermsEnumRequest(ctx, rawRequestBody, qt, managementConsole)
+	resp, err := handleTermsEnumRequest(ctx, table.Name, rawRequestBody, qt, managementConsole)
 	assert.NoError(t, err)
 
 	var responseModel model.TermsEnumResponse

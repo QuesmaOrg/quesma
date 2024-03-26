@@ -14,38 +14,9 @@ import (
 	"time"
 )
 
-type Row struct {
-}
-
-const asyncRequestIdStr = "0"
-
-const searchResponseExpectedString = `
-	{
-			"took": 0,
-			"timed_out": false,
-			"_shards": {
-				"total": 0,
-				"successful": 0,
-				"failed": 0,
-				"skipped": 0
-			},
-			"hits": {
-				"total": {
-					"value": 1,
-					"relation": "eq"
-			},
-			"max_score": 0,
-			"hits": [{
-					"_index": "",
-					"_id": "",
-					"_score": 0,
-					"_source": {` + "\n" + `          "@timestamp": "2024-01-01"` + "\n" + `        }
-			}]
-		  }
-	}
-`
-
-const asyncSearchResponseExpectedString = `
+const (
+	asyncRequestIdStr                 = "0"
+	asyncSearchResponseExpectedString = `
 	{
 		"completion_time_in_millis": 0,
 		"expiration_time_in_millis": 0,
@@ -81,41 +52,21 @@ const asyncSearchResponseExpectedString = `
 		}
 	}
 `
-
-func (row Row) String() string {
-	return `{"@timestamp":  "2024-01-01"}`
-}
+)
 
 func TestSearchResponse(t *testing.T) {
-	{
-		row := []Row{{}}
-
-		searchRespBuf, err := MakeResponseSearchQuery("", row, model.Normal)
-		require.NoError(t, err)
-		var searchResponseResult model.SearchResp
-		err = json.Unmarshal(searchRespBuf, &searchResponseResult)
-		require.NoError(t, err)
-		var searchResponseExpected model.SearchResp
-		err = json.Unmarshal([]byte(searchResponseExpectedString), &searchResponseExpected)
-		require.NoError(t, err)
-
-		assert.Equal(t, searchResponseExpected, searchResponseResult)
-		require.NoError(t, err)
-	}
-	{
-		row := []model.QueryResultRow{{}}
-		cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
-		searchRespBuf, err := cw.MakeResponseAsyncSearchQuery(row, model.ListAllFields, NewEmptyHighlighter(), asyncRequestIdStr, false)
-		require.NoError(t, err)
-		var searchResponseResult model.SearchResp
-		err = json.Unmarshal([]byte(searchRespBuf), &searchResponseResult)
-		require.NoError(t, err)
-		var searchResponseExpected model.SearchResp
-		err = json.Unmarshal([]byte(asyncSearchResponseExpectedString), &searchResponseExpected)
-		require.NoError(t, err)
-		assert.Equal(t, searchResponseExpected, searchResponseResult)
-		require.NoError(t, err)
-	}
+	row := []model.QueryResultRow{{}}
+	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
+	searchRespBuf, err := cw.MakeResponseAsyncSearchQuery(row, model.ListAllFields, NewEmptyHighlighter(), asyncRequestIdStr, false)
+	require.NoError(t, err)
+	var searchResponseResult model.SearchResp
+	err = json.Unmarshal(searchRespBuf, &searchResponseResult)
+	require.NoError(t, err)
+	var searchResponseExpected model.SearchResp
+	err = json.Unmarshal([]byte(asyncSearchResponseExpectedString), &searchResponseExpected)
+	require.NoError(t, err)
+	assert.Equal(t, searchResponseExpected, searchResponseResult)
+	require.NoError(t, err)
 }
 
 func TestMakeResponseSearchQuery(t *testing.T) {
@@ -213,7 +164,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
-			ourResponse, err := MakeResponseSearchQuery("", []model.QueryResultRow{args[i].ourQueryResult}, args[i].queryType)
+			ourResponse, err := MakeResponseSearchQuery([]model.QueryResultRow{args[i].ourQueryResult}, args[i].queryType)
 			assert.NoError(t, err)
 
 			difference1, difference2, err := util.JsonDifference(args[i].elasticResponseJson, string(ourResponse))
@@ -595,7 +546,7 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 		for _, field := range query.NonSchemaFields {
 			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field, Value: "not-important"})
 		}
-		_, err := MakeResponseSearchQuery("", []model.QueryResultRow{resultRow}, types[i])
+		_, err := MakeResponseSearchQuery([]model.QueryResultRow{resultRow}, types[i])
 		assert.NoError(t, err)
 	}
 }

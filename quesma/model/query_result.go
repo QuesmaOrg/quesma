@@ -15,7 +15,8 @@ type QueryResultCol struct {
 }
 
 type QueryResultRow struct {
-	Cols []QueryResultCol
+	Index string
+	Cols  []QueryResultCol
 }
 
 const (
