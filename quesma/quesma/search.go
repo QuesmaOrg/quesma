@@ -39,15 +39,27 @@ type AsyncRequestResult struct {
 	added                time.Time
 }
 
+type AsyncQueryContext struct {
+	id     string
+	ctx    context.Context
+	cancel context.CancelFunc
+	added  time.Time
+}
+
 type QueryRunner struct {
-	executionCtx        context.Context
-	cancel              context.CancelFunc
-	AsyncRequestStorage *concurrent.Map[string, AsyncRequestResult]
+	executionCtx         context.Context
+	cancel               context.CancelFunc
+	AsyncRequestStorage  *concurrent.Map[string, AsyncRequestResult]
+	AsyncQueriesContexts *concurrent.Map[string, *AsyncQueryContext]
 }
 
 func NewQueryRunner() *QueryRunner {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &QueryRunner{executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult]()}
+	return &QueryRunner{executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult](), AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext]()}
+}
+
+func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id string) *AsyncQueryContext {
+	return &AsyncQueryContext{ctx: ctx, cancel: cancel, added: time.Now(), id: id}
 }
 
 func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string, lm *clickhouse.LogManager) (int64, error) {
@@ -100,8 +112,7 @@ func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, bod
 		}
 		translatedQueryBody = []byte(fullQuery.String())
 		dbQueryCtx, cancel := context.WithCancel(context.Background())
-		// TODO this will be used during go-routine cancellation
-		_ = cancel
+		defer cancel()
 		rows, err := queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(dbQueryCtx, table, fullQuery)
 		if err != nil {
 			errorMsg := fmt.Sprintf("Error processing query: %s, err: %s", fullQuery.String(), err.Error())
@@ -225,6 +236,10 @@ func (q *QueryRunner) reachedQueriesLimit(asyncRequestIdStr string, doneCh chan 
 	return true
 }
 
+func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, asyncRequestIdStr string) {
+	q.AsyncQueriesContexts.Store(asyncRequestIdStr, NewAsyncQueryContext(ctx, cancel, asyncRequestIdStr))
+}
+
 func (q *QueryRunner) asyncSearchWorker(ctx context.Context, asyncRequestIdStr string, queryTranslator *queryparser.ClickhouseQueryTranslator,
 	table *clickhouse.Table, body []byte, doneCh chan struct{}) {
 	select {
@@ -234,6 +249,7 @@ func (q *QueryRunner) asyncSearchWorker(ctx context.Context, asyncRequestIdStr s
 		if q.reachedQueriesLimit(asyncRequestIdStr, doneCh) {
 			return
 		}
+
 		var err error
 		var fullQuery *model.Query
 		var rows []model.QueryResultRow
@@ -241,9 +257,9 @@ func (q *QueryRunner) asyncSearchWorker(ctx context.Context, asyncRequestIdStr s
 		id := ctx.Value(tracing.RequestIdCtxKey).(string)
 		startTime := time.Now()
 		simpleQuery, queryInfo, highlighter := queryTranslator.ParseQueryAsyncSearch(string(body))
-		dbQueryCtx, cancel := context.WithCancel(context.Background())
-		// TODO this will be used during go-routine cancellation
-		_ = cancel
+		dbQueryCtx, dbCancel := context.WithCancel(context.Background())
+		q.addAsyncQueryContext(dbQueryCtx, dbCancel, asyncRequestIdStr)
+
 		switch queryInfo.Typ {
 		case model.Histogram:
 			var bucket time.Duration
@@ -317,9 +333,8 @@ func (q *QueryRunner) asyncSearchAggregationWorker(ctx context.Context, asyncReq
 		var err error
 		id := ctx.Value(tracing.RequestIdCtxKey).(string)
 		startTime := time.Now()
-		dbQueryCtx, cancel := context.WithCancel(context.Background())
-		// TODO this will be used during go-routine cancellation
-		_ = cancel
+		dbQueryCtx, dbCancel := context.WithCancel(context.Background())
+		q.addAsyncQueryContext(dbQueryCtx, dbCancel, asyncRequestIdStr)
 		logger.InfoWithCtx(ctx).Msg("We're using new Aggregation handling.")
 		for _, agg := range aggregations {
 			logger.InfoWithCtx(ctx).Msg(agg.String()) // I'd keep for now until aggregations work fully

@@ -31,17 +31,34 @@ func (e *AsyncQueriesEvictor) tryEvictAsyncRequests(timeFun func(time.Time) time
 	for _, id := range ids {
 		e.AsyncRequestStorage.Delete(id.id)
 	}
+	var asyncQueriesContexts []*AsyncQueryContext
+	e.AsyncQueriesContexts.Range(func(key string, value *AsyncQueryContext) bool {
+		if timeFun(value.added) > EvictionInterval {
+			if value != nil {
+				asyncQueriesContexts = append(asyncQueriesContexts, value)
+			}
+		}
+		return true
+	})
+	for _, asyncQueryContext := range asyncQueriesContexts {
+		e.AsyncQueriesContexts.Delete(asyncQueryContext.id)
+		if asyncQueryContext.cancel != nil {
+			logger.Info().Msgf("Evicting async query : %s", asyncQueryContext.id)
+			asyncQueryContext.cancel()
+		}
+	}
 }
 
 type AsyncQueriesEvictor struct {
-	ctx                 context.Context
-	cancel              context.CancelFunc
-	AsyncRequestStorage *concurrent.Map[string, AsyncRequestResult]
+	ctx                  context.Context
+	cancel               context.CancelFunc
+	AsyncRequestStorage  *concurrent.Map[string, AsyncRequestResult]
+	AsyncQueriesContexts *concurrent.Map[string, *AsyncQueryContext]
 }
 
-func NewAsyncQueriesEvictor(AsyncRequestStorage *concurrent.Map[string, AsyncRequestResult]) *AsyncQueriesEvictor {
+func NewAsyncQueriesEvictor(AsyncRequestStorage *concurrent.Map[string, AsyncRequestResult], AsyncQueriesContexts *concurrent.Map[string, *AsyncQueryContext]) *AsyncQueriesEvictor {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &AsyncQueriesEvictor{ctx: ctx, cancel: cancel, AsyncRequestStorage: AsyncRequestStorage}
+	return &AsyncQueriesEvictor{ctx: ctx, cancel: cancel, AsyncRequestStorage: AsyncRequestStorage, AsyncQueriesContexts: AsyncQueriesContexts}
 }
 
 func (e *AsyncQueriesEvictor) asyncQueriesGC() {

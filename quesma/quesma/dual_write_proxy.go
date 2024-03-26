@@ -48,7 +48,7 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaCo
 		},
 		logManager:          logManager,
 		publicPort:          config.PublicTcpPort,
-		asyncQueriesEvictor: NewAsyncQueriesEvictor(queryRunner.AsyncRequestStorage),
+		asyncQueriesEvictor: NewAsyncQueriesEvictor(queryRunner.AsyncRequestStorage, queryRunner.AsyncQueriesContexts),
 	}
 }
 

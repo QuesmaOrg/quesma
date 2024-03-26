@@ -8,7 +8,7 @@ import (
 )
 
 func TestAsyncQueriesEvictorTimePassed(t *testing.T) {
-	evictor := NewAsyncQueriesEvictor(concurrent.NewMap[string, AsyncRequestResult]())
+	evictor := NewAsyncQueriesEvictor(concurrent.NewMap[string, AsyncRequestResult](), concurrent.NewMapWith("1", &AsyncQueryContext{}))
 	evictor.AsyncRequestStorage.Store("1", AsyncRequestResult{added: time.Now()})
 	evictor.AsyncRequestStorage.Store("2", AsyncRequestResult{added: time.Now()})
 	evictor.AsyncRequestStorage.Store("3", AsyncRequestResult{added: time.Now()})
@@ -20,7 +20,7 @@ func TestAsyncQueriesEvictorTimePassed(t *testing.T) {
 }
 
 func TestAsyncQueriesEvictorStillAlive(t *testing.T) {
-	evictor := NewAsyncQueriesEvictor(concurrent.NewMap[string, AsyncRequestResult]())
+	evictor := NewAsyncQueriesEvictor(concurrent.NewMap[string, AsyncRequestResult](), concurrent.NewMapWith("1", &AsyncQueryContext{}))
 	evictor.AsyncRequestStorage = concurrent.NewMap[string, AsyncRequestResult]()
 	evictor.AsyncRequestStorage.Store("1", AsyncRequestResult{added: time.Now()})
 	evictor.AsyncRequestStorage.Store("2", AsyncRequestResult{added: time.Now()})
