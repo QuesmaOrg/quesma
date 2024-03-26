@@ -62,6 +62,10 @@ func TestAsyncSearchHandler(t *testing.T) {
 				Name: "host.name",
 				Type: clickhouse.NewBaseType("LowCardinality(String)"),
 			},
+			"properties::isreg": {
+				Name: "properties::isreg",
+				Type: clickhouse.NewBaseType("UInt8"),
+			},
 		},
 		Created: true,
 	})

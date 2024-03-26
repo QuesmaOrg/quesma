@@ -204,7 +204,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		currentAggr.Type = metrics_aggregations.Count{}
 		currentAggr.whereBuilder = cw.combineWheres(
 			currentAggr.whereBuilder,
-			cw.parseBool(filter.(QueryMap)["bool"].(QueryMap)),
+			cw.parseQueryMap(filter.(QueryMap)),
 		)
 		*resultAccumulator = append(*resultAccumulator, currentAggr.buildCountAggregation())
 		delete(queryMap, "filter")

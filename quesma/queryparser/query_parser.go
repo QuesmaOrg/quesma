@@ -673,46 +673,56 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 		if _, ok := v.(QueryMap); !ok {
 			continue
 		}
+		isDatetimeInDefaultFormat := true // in 99% requests, format is "strict_date_optional_time", which we can parse with time.Parse(time.RFC3339Nano, ..)
+		if format, ok := v.(QueryMap)["format"]; ok && format == "epoch_millis" {
+			isDatetimeInDefaultFormat = false
+		}
+
 		for op, v := range v.(QueryMap) {
 			fieldType := cw.Table.GetDateTimeType(field)
 			vToPrint := sprint(v)
-
-			switch fieldType {
-			case clickhouse.DateTime64, clickhouse.DateTime:
-				if dateTime, ok := v.(string); ok {
-					// if it's a date, we need to parse it to Clickhouse's DateTime format
-					// how to check if it does not contain date math expression?
-					if _, err := time.Parse(time.RFC3339Nano, dateTime); err == nil {
-						vToPrint = cw.parseDateTimeString(cw.Table, field, dateTime)
-					} else if op == "gte" || op == "lte" || op == "gt" || op == "lt" {
-						vToPrint = parseDateMathExpression(vToPrint)
-					}
-				}
-			case clickhouse.Invalid: // assumes it is number that does not need formatting
-				if len(vToPrint) > 2 && vToPrint[0] == '\'' && vToPrint[len(vToPrint)-1] == '\'' {
-					isNumber := true
-					for _, c := range vToPrint[1 : len(vToPrint)-1] {
-						if !unicode.IsDigit(c) && c != '.' {
-							isNumber = false
+			var fieldToPrint string
+			if !isDatetimeInDefaultFormat {
+				fieldToPrint = "toUnixTimestamp64Milli(" + strconv.Quote(field) + ")"
+			} else {
+				fieldToPrint = strconv.Quote(field)
+				switch fieldType {
+				case clickhouse.DateTime64, clickhouse.DateTime:
+					if dateTime, ok := v.(string); ok {
+						// if it's a date, we need to parse it to Clickhouse's DateTime format
+						// how to check if it does not contain date math expression?
+						if _, err := time.Parse(time.RFC3339Nano, dateTime); err == nil {
+							vToPrint = cw.parseDateTimeString(cw.Table, field, dateTime)
+						} else if op == "gte" || op == "lte" || op == "gt" || op == "lt" {
+							vToPrint = parseDateMathExpression(vToPrint)
 						}
 					}
-					if isNumber {
-						vToPrint = vToPrint[1 : len(vToPrint)-1]
-					} else {
-						logger.Warn().Msgf("We use range with unknown literal %s, field %s", vToPrint, field)
+				case clickhouse.Invalid: // assumes it is number that does not need formatting
+					if len(vToPrint) > 2 && vToPrint[0] == '\'' && vToPrint[len(vToPrint)-1] == '\'' {
+						isNumber := true
+						for _, c := range vToPrint[1 : len(vToPrint)-1] {
+							if !unicode.IsDigit(c) && c != '.' {
+								isNumber = false
+							}
+						}
+						if isNumber {
+							vToPrint = vToPrint[1 : len(vToPrint)-1]
+						} else {
+							logger.Warn().Msgf("We use range with unknown literal %s, field %s", vToPrint, field)
+						}
 					}
 				}
 			}
 
 			switch op {
 			case "gte":
-				stmts = append(stmts, NewSimpleStatement(strconv.Quote(field)+">="+vToPrint))
+				stmts = append(stmts, NewSimpleStatement(fieldToPrint+">="+vToPrint))
 			case "lte":
-				stmts = append(stmts, NewSimpleStatement(strconv.Quote(field)+"<="+vToPrint))
+				stmts = append(stmts, NewSimpleStatement(fieldToPrint+"<="+vToPrint))
 			case "gt":
-				stmts = append(stmts, NewSimpleStatement(strconv.Quote(field)+">"+vToPrint))
+				stmts = append(stmts, NewSimpleStatement(fieldToPrint+">"+vToPrint))
 			case "lt":
-				stmts = append(stmts, NewSimpleStatement(strconv.Quote(field)+"<"+vToPrint))
+				stmts = append(stmts, NewSimpleStatement(fieldToPrint+"<"+vToPrint))
 			}
 		}
 		return newSimpleQueryWithFieldName(and(stmts), true, field)
@@ -742,19 +752,21 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) SimpleQuery 
 	// only parameter is 'field', must be string, so cast is safe
 	sql := NewSimpleStatement("")
 	for _, v := range queryMap {
-		switch cw.Table.GetFieldInfo(v.(string)) {
+		fieldName := v.(string)
+		fieldNameQuoted := strconv.Quote(fieldName)
+		switch cw.Table.GetFieldInfo(fieldName) {
 		case clickhouse.ExistsAndIsBaseType:
-			sql = NewSimpleStatement(v.(string) + " IS NOT NULL")
+			sql = NewSimpleStatement(fieldNameQuoted + " IS NOT NULL")
 		case clickhouse.ExistsAndIsArray:
-			sql = NewSimpleStatement(v.(string) + ".size0 = 0")
+			sql = NewSimpleStatement(fieldNameQuoted + ".size0 = 0")
 		case clickhouse.NotExists:
 			attrs := cw.Table.GetAttributesList()
 			stmts := make([]Statement, len(attrs))
 			for i, a := range attrs {
 				stmts[i] = NewCompoundStatementNoFieldName(
 					fmt.Sprintf("has(%s,%s) AND %s[indexOf(%s,%s)] IS NOT NULL",
-						strconv.Quote(a.KeysArrayName), strconv.Quote(v.(string)), strconv.Quote(a.ValuesArrayName),
-						strconv.Quote(a.KeysArrayName), strconv.Quote(v.(string)),
+						strconv.Quote(a.KeysArrayName), fieldNameQuoted, strconv.Quote(a.ValuesArrayName),
+						strconv.Quote(a.KeysArrayName), fieldNameQuoted,
 					),
 				)
 			}
@@ -1001,39 +1013,47 @@ func (cw *ClickhouseQueryTranslator) isItAggsByFieldRequest(queryMap QueryMap) (
 // returns (info, true) if metadata shows it's ListAllFields or ListByField request (used e.g. for listing all rows in Kibana)
 // returns (model.NewQueryInfoAsyncSearchNone, false) if it's not ListAllFields/ListByField request
 func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.QueryInfoAsyncSearch, bool) {
-	fields, ok := queryMap["fields"].([]interface{})
-	if !ok {
-		return model.NewQueryInfoAsyncSearchNone(), false
+	// 1) case: very simple SELECT * kind of request
+	size, okSize := queryMap["size"]
+	_, okTrackTotalHits := queryMap["track_total_hits"]
+	if okSize && okTrackTotalHits && len(queryMap) == 2 {
+		// only ["size"] and ["track_total_hits"] are present
+		return model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size.(float64))}, true
 	}
-	size, ok := queryMap["size"].(float64)
-	if !ok {
+
+	// 2) more general case:
+	fields, ok := queryMap["fields"].([]interface{})
+	if !ok || !okSize {
 		return model.NewQueryInfoAsyncSearchNone(), false
 	}
 	if len(fields) > 1 {
 		// so far everywhere I've seen, > 1 field ==> "*" is one of them
-		return model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size)}, true
-	}
-	if len(fields) == 0 {
+		return model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size.(float64))}, true
+	} else if len(fields) == 0 {
 		isCount, ok := queryMap["track_total_hits"].(bool)
 		if ok && isCount {
 			return model.QueryInfoAsyncSearch{Typ: model.CountAsync, FieldName: "", I1: 0, I2: 0}, true
 		}
 		return model.NewQueryInfoAsyncSearchNone(), false
-	}
-	field, ok := fields[0].(string)
-	if !ok {
-		queryMap, ok = fields[0].(QueryMap)
+	} else {
+		// 2 cases are possible:
+		// a) just a string
+		fieldName, ok := fields[0].(string)
 		if !ok {
-			return model.NewQueryInfoAsyncSearchNone(), false
+			queryMap, ok = fields[0].(QueryMap)
+			if !ok {
+				return model.NewQueryInfoAsyncSearchNone(), false
+			}
+			// b) {"field": fieldName}
+			fieldName = queryMap["field"].(string)
 		}
-		// same as above
-		field = queryMap["field"].(string)
+
+		resolvedField := cw.Table.ResolveField(fieldName)
+		if resolvedField == "*" {
+			return model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size.(float64))}, true
+		}
+		return model.QueryInfoAsyncSearch{Typ: model.ListByField, FieldName: resolvedField, I1: 0, I2: int(size.(float64))}, true
 	}
-	resolvedField := cw.Table.ResolveField(field)
-	if resolvedField == "*" {
-		return model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size)}, true
-	}
-	return model.QueryInfoAsyncSearch{Typ: model.ListByField, FieldName: resolvedField, I1: 0, I2: int(size)}, true
 }
 
 func (cw *ClickhouseQueryTranslator) isItEarliestLatestTimestampRequest(queryMap QueryMap) (model.QueryInfoAsyncSearch, bool) {

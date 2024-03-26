@@ -345,7 +345,7 @@ var TestsAsyncSearch = []struct {
 }
 `, "there should be 97 results, I truncated most of them",
 		model.QueryInfoAsyncSearch{Typ: model.ListByField, FieldName: "message", I1: 0, I2: 100},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) AND "message" iLIKE '%user%' AND message IS NOT NULL ORDER BY "@timestamp" desc LIMIT 100`},
+		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) AND "message" iLIKE '%user%' AND "message" IS NOT NULL ORDER BY "@timestamp" desc LIMIT 100`},
 		false,
 	},
 	{ // [2]
@@ -864,7 +864,69 @@ var TestsAsyncSearch = []struct {
 		``,
 		"no comment yet",
 		model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: 50},
-		[]string{`SELECT "@timestamp", "message", "host.name" FROM "logs-generic-default" LIMIT 50`},
+		[]string{`SELECT "@timestamp", "message", "host.name", "properties::isreg" FROM "logs-generic-default" LIMIT 50`},
+		false,
+	},
+	{ // [7]
+		"Timestamp in epoch_millis + select one field",
+		`{
+			"_source": false,
+			"fields": [
+				"properties::isreg"
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"epoch_time": {
+									"format": "epoch_millis",
+									"gte": 1710171234276,
+									"lte": 1710172134276
+								}
+							}
+						},
+						{
+							"bool": {
+								"filter": [
+									{
+										"range": {
+											"epoch_time": {
+												"format": "epoch_millis",
+												"gte": 1710171234276,
+												"lte": 1710172134276
+											}
+										}
+									},
+									{
+										"bool": {
+											"filter": [],
+											"must": [
+												{
+													"match_all": {}
+												}
+											],
+											"must_not": []
+										}
+									}
+								]
+							}
+						},
+						{
+							"exists": {
+								"field": "properties::isreg"
+							}
+						}
+					]
+				}
+			},
+			"size": 100,
+			"track_total_hits": true
+		}`,
+		``,
+		"happens e.g. in Explorer > Field Statistics view",
+		model.QueryInfoAsyncSearch{Typ: model.ListByField, FieldName: "properties::isreg", I1: 0, I2: 100},
+		[]string{`SELECT "properties::isreg" FROM "logs-generic-default" WHERE (toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12 AND toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12) AND (toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12 AND toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12) AND "properties::isreg" IS NOT NULL LIMIT 100`},
 		false,
 	},
 }

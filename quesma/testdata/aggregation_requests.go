@@ -3103,9 +3103,9 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", uint64(15))}}},
 		},
 		[]string{
-			`SELECT count() FROM "` + TableName + `" WHERE "@timestamp">=1.709815794995e+12 AND "@timestamp"<=1.709816694995e+12 `,
-			`SELECT ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + `, count() FROM "` + TableName + `" WHERE "@timestamp">=1.709815794995e+12 AND "@timestamp"<=1.709816694995e+12  GROUP BY (` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + `) ORDER BY (` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + ")",
-			`SELECT count() FROM "` + TableName + `" WHERE "@timestamp">=1.709815794995e+12 AND "@timestamp"<=1.709816694995e+12 `,
+			`SELECT count() FROM "` + TableName + `" WHERE toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12 `,
+			`SELECT ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + `, count() FROM "` + TableName + `" WHERE toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12  GROUP BY (` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + `) ORDER BY (` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + ")",
+			`SELECT count() FROM "` + TableName + `" WHERE toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12 `,
 		},
 	},
 }
