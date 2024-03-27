@@ -177,7 +177,7 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func
 		if strings.ContainsAny(m["index"], "*,") {
 			for _, pattern := range strings.Split(m["index"], ",") {
 				for _, tableName := range tables() {
-					if config.MatchName(pattern, tableName) {
+					if config.MatchName(preprocessPattern(pattern), tableName) {
 						candidates = append(candidates, tableName)
 					}
 				}
@@ -195,7 +195,8 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func
 			return true
 		} else {
 			for _, tableName := range tables() {
-				if config.MatchName(m["index"], tableName) {
+				pattern := preprocessPattern(m["index"])
+				if config.MatchName(pattern, tableName) {
 					candidates = append(candidates, tableName)
 				}
 			}
@@ -220,6 +221,13 @@ func matchedAgainstAsyncId() mux.MatchPredicate {
 		}
 		return true
 	}
+}
+
+func preprocessPattern(p string) string {
+	if p == "_all" {
+		return "*"
+	}
+	return p
 }
 
 func elasticsearchCountResult(body int64, statusCode int) *mux.Result {

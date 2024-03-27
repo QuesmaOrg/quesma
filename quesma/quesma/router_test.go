@@ -103,6 +103,20 @@ func Test_matchedAgainstPattern(t *testing.T) {
 			want:          true,
 		},
 		{
+			name:          "index enabled, * pattern, table present",
+			index:         "*",
+			tables:        []string{"logs-generic-default"},
+			configuration: indexConfig("logs-generic-*", true),
+			want:          true,
+		},
+		{
+			name:          "index enabled, _all pattern, table present",
+			index:         "_all",
+			tables:        []string{"logs-generic-default"},
+			configuration: indexConfig("logs-generic-*", true),
+			want:          true,
+		},
+		{
 			name:          "index enabled, multiple patterns, table present",
 			index:         "logs-*-*, logs-*",
 			tables:        []string{"logs-generic-default"},
