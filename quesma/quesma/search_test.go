@@ -16,6 +16,7 @@ import (
 	"mitmproxy/quesma/testdata"
 	"mitmproxy/quesma/tracing"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -82,7 +83,18 @@ func TestAsyncSearchHandler(t *testing.T) {
 			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000), telemetry.NewPhoneHomeEmptyAgent())
 
 			for _, wantedRegex := range tt.WantedRegexes {
-				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+				if tt.WantedParseResult.Typ == model.ListAllFields {
+					// Normally we always want to escape, but in ListAllFields (SELECT *) we have (permutation1|permutation2|...)
+					// and we don't want to escape those ( and ) characters. So we don't escape [:WHERE], and escape [WHERE:]
+					// Hackish, but fastest way to get it done.
+					splitIndex := strings.Index(wantedRegex, "WHERE")
+					if splitIndex != -1 {
+						wantedRegex = wantedRegex[:splitIndex] + testdata.EscapeBrackets(wantedRegex[splitIndex:])
+					}
+				} else {
+					wantedRegex = testdata.EscapeBrackets(wantedRegex)
+				}
+				mock.ExpectQuery(wantedRegex).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 			queryRunner := NewQueryRunner()
 			_, err = queryRunner.handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole, defaultAsyncSearchTimeout, true)

@@ -585,7 +585,7 @@ var TestsAsyncSearch = []struct {
 	}`,
 		"Truncated most results. TODO Check what's at the end of response, probably count?",
 		model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: 500},
-		[]string{`SELECT .*"@timestamp".* FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) ORDER BY "@timestamp" desc LIMIT 500`},
+		[]string{`SELECT ` + selectFieldsInAnyOrderAsRegex([]string{"@timestamp", "message", "host.name", "properties::isreg"}) + ` FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) ORDER BY "@timestamp" desc LIMIT 500`},
 		false,
 	},
 	{ // [3]
@@ -864,7 +864,7 @@ var TestsAsyncSearch = []struct {
 		``,
 		"no comment yet",
 		model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: 50},
-		[]string{`SELECT "@timestamp", "message", "host.name", "properties::isreg" FROM "logs-generic-default" LIMIT 50`},
+		[]string{`SELECT ` + selectFieldsInAnyOrderAsRegex([]string{"@timestamp", "message", "host.name", "properties::isreg"}) + ` FROM "logs-generic-default" LIMIT 50`},
 		false,
 	},
 	{ // [7]
