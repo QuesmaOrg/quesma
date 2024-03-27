@@ -36,6 +36,7 @@ const (
 
 	// for local debugging purposes
 	phoneHomeLocalEnabled = true
+	phoneHomeUrl          = "https://api.quesma.com/phone-home"
 )
 
 type ClickHouseStats struct {
@@ -427,9 +428,6 @@ func (a *agent) phoneHomeGCloud(ctx context.Context, body []byte) (err error) {
 
 	ctx, cancel := context.WithTimeout(ctx, phoneHomeTimeout)
 	defer cancel()
-
-	// FIXME add the real one here
-	phoneHomeUrl := "http://host.docker.internal:6666/phone-home"
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, phoneHomeUrl, bytes.NewReader(body))
 	if err != nil {
