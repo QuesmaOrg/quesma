@@ -21,6 +21,7 @@ import (
 
 const httpOk = 200
 const elasticIndexPrefix = "."
+const quesmaAsyncIdPrefix = "quesma_async_search_id_"
 
 func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *mux.PathRouter {
 	router := mux.NewPathRouter()
@@ -86,7 +87,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 			return elasticsearchQueryResult(string(responseBody), httpOk), nil
 		}
 	})
-	router.RegisterPath(routes.AsyncSearchIdPath, "GET", func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.AsyncSearchIdPath, "GET", matchedAgainstAsyncId(), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		responseBody, err := queryRunner.handlePartialAsyncSearch(params["id"], console)
 		if err != nil {
 			return nil, err
@@ -94,7 +95,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
 
-	router.RegisterPath(routes.AsyncSearchIdPath, "POST", func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.AsyncSearchIdPath, "POST", matchedAgainstAsyncId(), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		responseBody, err := queryRunner.handlePartialAsyncSearch(params["id"], console)
 		if err != nil {
 			return nil, err
@@ -102,7 +103,7 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
 
-	router.RegisterPath(routes.AsyncSearchIdPath, "DELETE", func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.AsyncSearchIdPath, "DELETE", matchedAgainstAsyncId(), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		responseBody, err := queryRunner.deleteAsyncSeach(params["id"])
 		if err != nil {
 			return nil, err
@@ -208,6 +209,16 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func
 			logger.Debug().Msgf("no index found for pattern %s", m["index"])
 			return false
 		}
+	}
+}
+
+func matchedAgainstAsyncId() mux.MatchPredicate {
+	return func(m map[string]string, _ string) bool {
+		if !strings.HasPrefix(m["id"], quesmaAsyncIdPrefix) {
+			logger.Debug().Msgf("async query id %s is forwarded to Elasticsearch", m["id"])
+			return false
+		}
+		return true
 	}
 }
 
