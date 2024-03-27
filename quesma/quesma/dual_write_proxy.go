@@ -21,6 +21,7 @@ type dualWriteHttpProxy struct {
 	logManager          *clickhouse.LogManager
 	publicPort          network.Port
 	asyncQueriesEvictor *AsyncQueriesEvictor
+	queryRunner         *QueryRunner
 }
 
 func (q *dualWriteHttpProxy) Stop(ctx context.Context) {
@@ -49,12 +50,16 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaCo
 		logManager:          logManager,
 		publicPort:          config.PublicTcpPort,
 		asyncQueriesEvictor: NewAsyncQueriesEvictor(queryRunner.AsyncRequestStorage, queryRunner.AsyncQueriesContexts),
+		queryRunner:         queryRunner,
 	}
 }
 
 func (q *dualWriteHttpProxy) Close(ctx context.Context) {
 	if q.logManager != nil {
 		defer q.logManager.Close()
+	}
+	if q.queryRunner != nil {
+		q.queryRunner.Close()
 	}
 	if q.asyncQueriesEvictor != nil {
 		q.asyncQueriesEvictor.Close()

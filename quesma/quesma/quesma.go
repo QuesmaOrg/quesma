@@ -30,7 +30,6 @@ type (
 		quesmaManagementConsole *ui.QuesmaManagementConsole
 		config                  config.QuesmaConfiguration
 		telemetryAgent          telemetry.PhoneHomeAgent
-		queryRunner             *QueryRunner
 	}
 	requestProcessor interface {
 		Ingest()
@@ -94,7 +93,6 @@ func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.Qu
 		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,
-		queryRunner:             NewQueryRunner(),
 	}
 }
 
@@ -108,7 +106,6 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,
-		queryRunner:             queryRunner,
 	}
 }
 
@@ -266,7 +263,6 @@ func withTracing(r *http.Request) context.Context {
 
 func (q *Quesma) Close(ctx context.Context) {
 	q.processor.Stop(ctx)
-	q.queryRunner.Close()
 }
 
 func (q *Quesma) Start() {
