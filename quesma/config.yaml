@@ -35,5 +35,11 @@ quesma:
       fulltext_fields: message
     heartbeat-*:
       enabled: false
+    traces-apm*:
+      enabled: false
+    apm-*:
+      enabled: false
+    logs-elastic_agent-*:
+      enabled: false
 
 
