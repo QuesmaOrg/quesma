@@ -118,6 +118,7 @@ func (t *Table) FullTableName() string {
 // GetDateTimeType returns type of a field (currently DateTime/DateTime64), if it's a DateTime type. Invalid otherwise.
 // Timestamp from config defaults to DateTime64.
 func (t *Table) GetDateTimeType(fieldName string) DateTimeType {
+	fieldName = t.ResolveField(fieldName)
 	if col, ok := t.Cols[fieldName]; ok {
 		typeName := col.Type.String()
 		// hasPrefix, not equal, because we can have DateTime64(3) and we want to catch it
@@ -207,7 +208,8 @@ func (t *Table) GetAttributesList() []Attribute {
 // TODO Won't work with tuples, e.g. trying to access via tupleName.tupleField will return NotExists,
 // instead of some other response. Fix this when needed (we seem to not need tuples right now)
 func (t *Table) GetFieldInfo(fieldName string) FieldInfo {
-	col, ok := t.Cols[fieldName]
+	resolvedFieldName := t.ResolveField(fieldName)
+	col, ok := t.Cols[resolvedFieldName]
 	if !ok {
 		return NotExists
 	}

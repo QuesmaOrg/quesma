@@ -426,8 +426,9 @@ func (cw *ClickhouseQueryTranslator) parseMatchAll(_ QueryMap) SimpleQuery {
 // - match_phrase also goes here. Maybe some different parsing is needed?
 func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap) SimpleQuery {
 	if len(queryMap) == 1 {
-		for k, v := range queryMap {
-			// (k, v) = either e.g. ("message", "this is a test")
+		for fieldName, v := range queryMap {
+			fieldName = cw.Table.ResolveField(fieldName)
+			// (fieldName, v) = either e.g. ("message", "this is a test")
 			//                  or  ("message", map["query": "this is a test", ...]). Here we only care about "query" until we find a case where we need more.
 			vUnNested := v
 			if vAsQueryMap, ok := v.(QueryMap); ok {
@@ -439,7 +440,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap) SimpleQuery {
 				cw.AddTokenToHighlight(vAsString)
 				for i, s := range split {
 					cw.AddTokenToHighlight(s)
-					qStrs[i] = NewSimpleStatement(strconv.Quote(k) + " iLIKE " + "'%" + s + "%'")
+					qStrs[i] = NewSimpleStatement(strconv.Quote(fieldName) + " iLIKE " + "'%" + s + "%'")
 				}
 				return newSimpleQuery(or(qStrs), true)
 			}
@@ -447,7 +448,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap) SimpleQuery {
 			cw.AddTokenToHighlight(vUnNested)
 
 			// so far we assume that only strings can be ORed here
-			return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+" == "+sprint(vUnNested)), true)
+			return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" == "+sprint(vUnNested)), true)
 		}
 	}
 	return newSimpleQuery(NewSimpleStatement("unsupported match len != 1"), false)
@@ -484,15 +485,16 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) SimpleQu
 // prefix works only on strings
 func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) SimpleQuery {
 	if len(queryMap) == 1 {
-		for k, v := range queryMap {
+		for fieldName, v := range queryMap {
+			fieldName = cw.Table.ResolveField(fieldName)
 			switch vCasted := v.(type) {
 			case string:
 				cw.AddTokenToHighlight(vCasted)
-				return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+" iLIKE '"+vCasted+"%'"), true)
+				return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE '"+vCasted+"%'"), true)
 			case QueryMap:
 				token := vCasted["value"].(string)
 				cw.AddTokenToHighlight(token)
-				return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+" iLIKE '"+token+"%'"), true)
+				return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE '"+token+"%'"), true)
 			}
 		}
 	}
@@ -504,8 +506,9 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) SimpleQuery 
 // it's not provided.
 func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) SimpleQuery {
 	// not checking for len == 1 because it's only option in proper SimpleQuery
-	for k, v := range queryMap {
-		return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+" iLIKE '"+strings.ReplaceAll(v.(QueryMap)["value"].(string),
+	for fieldName, v := range queryMap {
+		fieldName = cw.Table.ResolveField(fieldName)
+		return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE '"+strings.ReplaceAll(v.(QueryMap)["value"].(string),
 			"*", "%")+"'"), true)
 	}
 	return newSimpleQuery(NewSimpleStatement("empty wildcard"), false)
@@ -538,13 +541,14 @@ func (cw *ClickhouseQueryTranslator) parseQueryStringField(query string) SimpleQ
 	if len(split) != 2 {
 		return newSimpleQuery(NewSimpleStatement("invalid query string"), false)
 	}
-	if split[1][0] == '>' || split[1][0] == '<' {
+	fieldName, value := split[0], split[1]
+	fieldName = cw.Table.ResolveField(fieldName)
+	if len(value) > 0 && (value[0] == '>' || value[0] == '<') {
 		// to support fieldName>value, <value, etc. We see such request in Kibana
-		return newSimpleQuery(NewSimpleStatement(split[0]+split[1]), true)
+		return newSimpleQuery(NewSimpleStatement(fieldName+value), true)
 	}
-	value := split[1]
 	cw.AddTokenToHighlight(value)
-	return newSimpleQuery(NewSimpleStatement(split[0]+" iLIKE '%"+value+"%'"), true)
+	return newSimpleQuery(NewSimpleStatement(fieldName+" iLIKE '%"+value+"%'"), true)
 }
 
 func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) SimpleQuery {
@@ -753,7 +757,9 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) SimpleQuery 
 	sql := NewSimpleStatement("")
 	for _, v := range queryMap {
 		fieldName := v.(string)
+		fieldName = cw.Table.ResolveField(fieldName)
 		fieldNameQuoted := strconv.Quote(fieldName)
+
 		switch cw.Table.GetFieldInfo(fieldName) {
 		case clickhouse.ExistsAndIsBaseType:
 			sql = NewSimpleStatement(fieldNameQuoted + " IS NOT NULL")
