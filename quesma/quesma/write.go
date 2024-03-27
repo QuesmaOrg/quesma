@@ -92,7 +92,7 @@ func dualWriteBulk(ctx context.Context, body string, lm *clickhouse.LogManager, 
 			for _, document := range documents {
 				stats.GlobalStatistics.Process(cfg, indexName, document, clickhouse.NestedSeparator)
 			}
-			return lm.ProcessInsertQuery(indexName, documents)
+			return lm.ProcessInsertQuery(ctx, indexName, documents)
 		})
 	}
 	return results
@@ -120,7 +120,7 @@ func dualWrite(ctx context.Context, tableName string, body string, lm *clickhous
 	}
 
 	withConfiguration(ctx, cfg, tableName, body, func() error {
-		return lm.ProcessInsertQuery(tableName, []string{body})
+		return lm.ProcessInsertQuery(ctx, tableName, []string{body})
 	})
 }
 
@@ -128,28 +128,28 @@ var insertCounter = atomic.Int32{}
 
 func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, indexName string, body string, action func() error) {
 	if len(cfg.IndexConfig) == 0 {
-		logger.Info().Msgf("%s  --> clickhouse, body(shortened): %s", indexName, util.Truncate(body))
+		logger.InfoWithCtx(ctx).Msgf("%s  --> clickhouse, body(shortened): %s", indexName, util.Truncate(body))
 		err := action()
 		if err != nil {
-			logger.Fatal().Msg("Can't write to index: " + err.Error())
+			logger.ErrorWithCtx(ctx).Msg("Can't write to index: " + err.Error())
 		}
 	} else {
 		matchingConfig, ok := findMatchingConfig(ctx, indexName, cfg)
 		if !ok {
-			logger.Info().Msgf("index '%s' is not configured, skipping", indexName)
+			logger.InfoWithCtx(ctx).Msgf("index '%s' is not configured, skipping", indexName)
 			return
 		}
 		if matchingConfig.Enabled {
 			insertCounter.Add(1)
 			if insertCounter.Load()%50 == 1 {
-				logger.Debug().Msgf("%s  --> clickhouse, body(shortened): %s, ctr: %d", indexName, util.Truncate(body), insertCounter.Load())
+				logger.DebugWithCtx(ctx).Msgf("%s  --> clickhouse, body(shortened): %s, ctr: %d", indexName, util.Truncate(body), insertCounter.Load())
 			}
 			err := action()
 			if err != nil {
 				logger.ErrorWithCtx(ctx).Msg("Can't write to Clickhouse: " + err.Error())
 			}
 		} else {
-			logger.Info().Msgf("index '%s' is disabled, ignoring", indexName)
+			logger.InfoWithCtx(ctx).Msgf("index '%s' is disabled, ignoring", indexName)
 		}
 	}
 }

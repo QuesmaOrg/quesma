@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -219,7 +220,7 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 	return q[:i+2] + othersStr + timestampStr + attributesStr + q[i+1:]
 }
 
-func (lm *LogManager) CountMultiple(tables ...string) (int64, error) {
+func (lm *LogManager) CountMultiple(ctx context.Context, tables ...string) (int64, error) {
 	if len(tables) == 0 {
 		return 0, nil
 	}
@@ -234,30 +235,30 @@ func (lm *LogManager) CountMultiple(tables ...string) (int64, error) {
 	for _, t := range tables {
 		anyTables = append(anyTables, t)
 	}
-	err := lm.chDb.QueryRow(fmt.Sprintf("SELECT sum(*) as count FROM (%s)", strings.Join(subCountStatements, " UNION ALL ")), anyTables...).Scan(&count)
+	err := lm.chDb.QueryRowContext(ctx, fmt.Sprintf("SELECT sum(*) as count FROM (%s)", strings.Join(subCountStatements, " UNION ALL ")), anyTables...).Scan(&count)
 	if err != nil {
 		return 0, err
 	}
 	return count, nil
 }
 
-func (lm *LogManager) Count(table string) (int64, error) {
+func (lm *LogManager) Count(ctx context.Context, table string) (int64, error) {
 	var count int64
-	err := lm.chDb.QueryRow("SELECT count(*) FROM ?", table).Scan(&count)
+	err := lm.chDb.QueryRowContext(ctx, "SELECT count(*) FROM ?", table).Scan(&count)
 	if err != nil {
 		return 0, err
 	}
 	return count, nil
 }
 
-func (lm *LogManager) sendCreateTableQuery(query string) error {
-	if _, err := lm.chDb.Exec(query); err != nil {
+func (lm *LogManager) sendCreateTableQuery(ctx context.Context, query string) error {
+	if _, err := lm.chDb.ExecContext(ctx, query); err != nil {
 		return fmt.Errorf("error in sendCreateTableQuery: query: %s\nerr:%v", query, err)
 	}
 	return nil
 }
 
-func (lm *LogManager) ProcessCreateTableQuery(query string, config *ChTableConfig) error {
+func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string, config *ChTableConfig) error {
 	table, err := NewTable(query, config)
 	if err != nil {
 		return err
@@ -269,7 +270,7 @@ func (lm *LogManager) ProcessCreateTableQuery(query string, config *ChTableConfi
 		return fmt.Errorf("table %s already exists", table.Name)
 	}
 
-	return lm.sendCreateTableQuery(addOurFieldsToCreateTableQuery(query, config, table))
+	return lm.sendCreateTableQuery(ctx, addOurFieldsToCreateTableQuery(query, config, table))
 }
 
 func buildCreateTableQueryNoOurFields(tableName, jsonData string, config *ChTableConfig) (string, error) {
@@ -303,7 +304,7 @@ func Indexes(m SchemaMap) string {
 	return result.String()
 }
 
-func (lm *LogManager) CreateTableFromInsertQuery(name, jsonData string, config *ChTableConfig) error {
+func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name, jsonData string, config *ChTableConfig) error {
 	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
 
 	query, err := buildCreateTableQueryNoOurFields(name, jsonData, config)
@@ -311,7 +312,7 @@ func (lm *LogManager) CreateTableFromInsertQuery(name, jsonData string, config *
 		return err
 	}
 
-	err = lm.ProcessCreateTableQuery(query, config)
+	err = lm.ProcessCreateTableQuery(ctx, query, config)
 	if err != nil {
 		return err
 	}
@@ -380,19 +381,19 @@ func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfi
 	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), nil
 }
 
-func (lm *LogManager) GetOrCreateTableConfig(tableName, jsonData string) (*ChTableConfig, error) {
+func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName, jsonData string) (*ChTableConfig, error) {
 	table := lm.GetTable(tableName)
 	var config *ChTableConfig
 	if table == nil {
 		config = NewOnlySchemaFieldsCHConfig()
-		err := lm.CreateTableFromInsertQuery(tableName, jsonData, config)
+		err := lm.CreateTableFromInsertQuery(ctx, tableName, jsonData, config)
 		if err != nil {
-			logger.Error().Msgf("error ProcessInsertQuery, can't create table: %v", err)
+			logger.ErrorWithCtx(ctx).Msgf("error ProcessInsertQuery, can't create table: %v", err)
 			return nil, err
 		}
 		return config, nil
 	} else if !table.Created {
-		err := lm.sendCreateTableQuery(table.createTableString())
+		err := lm.sendCreateTableQuery(ctx, table.createTableString())
 		if err != nil {
 			return nil, err
 		}
@@ -403,21 +404,21 @@ func (lm *LogManager) GetOrCreateTableConfig(tableName, jsonData string) (*ChTab
 	return config, nil
 }
 
-func (lm *LogManager) ProcessInsertQuery(tableName string, jsonData []string) error {
-	if config, err := lm.GetOrCreateTableConfig(tableName, jsonData[0]); err != nil {
+func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []string) error {
+	if config, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0]); err != nil {
 		return err
 	} else {
-		return lm.Insert(tableName, jsonData, config)
+		return lm.Insert(ctx, tableName, jsonData, config)
 	}
 }
 
-func (lm *LogManager) Insert(tableName string, jsons []string, config *ChTableConfig) error {
+func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []string, config *ChTableConfig) error {
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
 		preprocessedJson := preprocess(jsonValue, NestedSeparator)
 		insertJson, err := lm.BuildInsertJson(tableName, preprocessedJson, config)
 		if err != nil {
-			logger.Error().Msgf("error BuildInsertJson, tablename: %s\nerror: %v\njson:%s", tableName, err, PrettyJson(insertJson))
+			logger.ErrorWithCtx(ctx).Msgf("error BuildInsertJson, tablename: %s\nerror: %v\njson:%s", tableName, err, PrettyJson(insertJson))
 		}
 		jsonsReadyForInsertion = append(jsonsReadyForInsertion, insertJson)
 	}
@@ -427,7 +428,7 @@ func (lm *LogManager) Insert(tableName string, jsons []string, config *ChTableCo
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertValues)
 
 	span := lm.phoneHomeAgent.ClickHouseInsertDuration().Begin()
-	_, err := lm.chDb.Exec(insert)
+	_, err := lm.chDb.ExecContext(ctx, insert)
 	span.End(err)
 	if err != nil {
 		return fmt.Errorf("error on Insert, tablename: [%s]\nerror: [%v]", tableName, err)

@@ -75,9 +75,9 @@ func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string, lm *
 	}
 
 	if len(indexes) == 1 {
-		return lm.Count(indexes[0])
+		return lm.Count(ctx, indexes[0])
 	} else {
-		return lm.CountMultiple(indexes...)
+		return lm.CountMultiple(ctx, indexes...)
 	}
 }
 

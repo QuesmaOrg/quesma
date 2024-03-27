@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"context"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
@@ -197,6 +198,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 }
 
 func TestProcessInsertQuery(t *testing.T) {
+	ctx := context.Background()
 	for index1, tt := range insertTests {
 		for index2, config := range configs {
 			for index3, lm := range logManagers(config) {
@@ -221,7 +223,7 @@ func TestProcessInsertQuery(t *testing.T) {
 						mock.ExpectExec(expectedInserts[2*index1+1]).WillReturnResult(sqlmock.NewResult(1, 1))
 					}
 
-					err = lm.lm.ProcessInsertQuery(tableName, []string{tt.insertJson})
+					err = lm.lm.ProcessInsertQuery(ctx, tableName, []string{tt.insertJson})
 					assert.NoError(t, err)
 					if err := mock.ExpectationsWereMet(); err != nil {
 						t.Fatal("there were unfulfilled expections:", err)
@@ -253,7 +255,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 			mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))
 			mock.ExpectExec(expectedInsertJsons[i]).WillReturnResult(sqlmock.NewResult(0, 0))
 
-			err = lm.ProcessInsertQuery(tableName, []string{fmt.Sprintf(`{"severity":"sev","int": %s}`, bigInt)})
+			err = lm.ProcessInsertQuery(context.Background(), tableName, []string{fmt.Sprintf(`{"severity":"sev","int": %s}`, bigInt)})
 			assert.NoError(t, err)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -285,7 +287,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 
 			bigIntAsInt, _ := strconv.ParseInt(bigInt, 10, 64)
 			fmt.Printf(`{"severity":"sev","int": %d}\n`, bigIntAsInt)
-			err = lm.ProcessInsertQuery(tableName, []string{fmt.Sprintf(`{"severity":"sev","int": %d}`, bigIntAsInt)})
+			err = lm.ProcessInsertQuery(context.Background(), tableName, []string{fmt.Sprintf(`{"severity":"sev","int": %d}`, bigIntAsInt)})
 			assert.NoError(t, err)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
