@@ -1,8 +1,10 @@
 package testdata
 
 import (
+	"mitmproxy/quesma/model"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // selectFieldsInAnyOrderAsRegex returns a regex that matches all permutations of the fields in any order.
@@ -32,4 +34,40 @@ func selectFieldsInAnyOrderAsRegex(fields []string) string {
 
 	permutate(0)
 	return resultRegex[:len(resultRegex)-1] // remove the last "|"
+}
+
+const TableName = "logs-generic-default"
+const quotedTableName = `"` + TableName + `"`
+const queryparserFacetsSampleSize = "20000" // should be same value as queryparser.facetsSampleSize
+
+const oneMinute = 60 * time.Second
+
+func newSimplestQuery() model.Query {
+	return model.Query{
+		Fields:     []string{"*"},
+		FromClause: strconv.Quote(TableName),
+		CanParse:   true,
+	}
+}
+
+// qToStr is a simple helper function to help fill out test cases
+func qToStr(query model.Query) string {
+	return strings.Replace(query.String(), "*", `"message"`, 1)
+}
+
+// justWhere is a simple helper function to help fill out test cases
+func justWhere(whereClause string) model.Query {
+	query := newSimplestQuery()
+	query.WhereClause = whereClause
+	return query
+}
+
+// EscapeBrackets is a simple helper function used in sqlmock's tests.
+// Example usage: sqlmock.ExpectQuery(EscapeBrackets(`SELECT count() FROM "logs-generic-default" WHERE `))
+func EscapeBrackets(s string) string {
+	s = strings.ReplaceAll(s, `(`, `\(`)
+	s = strings.ReplaceAll(s, `)`, `\)`)
+	s = strings.ReplaceAll(s, `[`, `\[`)
+	s = strings.ReplaceAll(s, `]`, `\]`)
+	return s
 }

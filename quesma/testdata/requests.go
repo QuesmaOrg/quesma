@@ -4,67 +4,10 @@ import (
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/model"
-	"strconv"
-	"strings"
 	"time"
 )
 
-// Used in at least 2 different packages/test files for now, so it's moved to a separate package.
-
-const TableName = "logs-generic-default"
-const quotedTableName = `"` + TableName + `"`
-const queryparserFacetsSampleSize = "20000" // should be same value as queryparser.facetsSampleSize
-
-const oneMinute = 60 * time.Second
-
-func newSimplestQuery() model.Query {
-	return model.Query{
-		Fields:     []string{"*"},
-		FromClause: strconv.Quote(TableName),
-		CanParse:   true,
-	}
-}
-
-// simple helper function to help fill out test cases
-func qToStr(query model.Query) string {
-	return strings.Replace(query.String(), "*", `"message"`, 1)
-}
-
-// simple helper function to help fill out test cases
-func justWhere(whereClause string) model.Query {
-	q := newSimplestQuery()
-	q.WhereClause = whereClause
-	return q
-}
-
-// EscapeBrackets is a simple helper function used in sqlmock's tests.
-// Example usage: sqlmock.ExpectQuery(EscapeBrackets(`SELECT count() FROM "logs-generic-default" WHERE `))
-func EscapeBrackets(s string) string {
-	s = strings.ReplaceAll(s, `(`, `\(`)
-	s = strings.ReplaceAll(s, `)`, `\)`)
-	s = strings.ReplaceAll(s, `[`, `\[`)
-	s = strings.ReplaceAll(s, `]`, `\]`)
-	return s
-}
-
-type SearchTestCase struct {
-	Name            string
-	QueryJson       string
-	WantedSql       []string // array because of non-determinism
-	WantedQueryType model.SearchQueryType
-	WantedQuery     []model.Query // array because of non-determinism
-	WantedRegexes   []string      // regexes saying what SELECT queries to CH should look like (in order). A lot of '.' here because of non-determinism.
-}
-
-var TestsAsyncSearch = []struct {
-	Name              string
-	QueryJson         string
-	ResultJson        string // from ELK
-	Comment           string
-	WantedParseResult model.QueryInfoAsyncSearch
-	WantedRegexes     []string // queries might be a bit weird at times, because of non-determinism of our parser (need to use a lot of "." in regexes) (they also need to happen as ordered in this slice)
-	IsAggregation     bool     // is it an aggregation query?
-}{
+var TestsAsyncSearch = []AsyncSearchTestCase{
 	{ // [0]
 		"AggsByField (Facet): aggregate by field + additionally match user (filter)",
 		`{

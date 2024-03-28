@@ -88,15 +88,15 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			var topSelectFields []string
 			innerFields := append(metricsAggr.FieldNames, metricsAggr.SortBy)
 			for _, field := range innerFields {
-				topSelectFields = append(topSelectFields, fmt.Sprintf(`%s("%s") AS windowed_%s`, ordFunc, field, field))
+				topSelectFields = append(topSelectFields, fmt.Sprintf(`%s("%s") AS "windowed_%s"`, ordFunc, field, field))
 			}
 			query.NonSchemaFields = append(query.NonSchemaFields, topSelectFields...)
 			partitionBy := strings.Join(b.QueryWithAggregation.Query.GroupByFields, "")
-			fieldsAsString := strings.Join(innerFields, ", ") // need those fields in the inner clause
+			fieldsAsString := strings.Join(quoteArray(innerFields), ", ") // need those fields in the inner clause
 			query.FromClause = fmt.Sprintf(
 				"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s %s) AS %s FROM %s WHERE %s)",
 				fieldsAsString, partitionBy,
-				metricsAggr.SortBy, metricsAggr.Order,
+				strconv.Quote(metricsAggr.SortBy), metricsAggr.Order,
 				model.RowNumberColumnName, query.FromClause, b.whereBuilder.Sql.Stmt,
 			)
 			query.WhereClause = query.WhereClause + fmt.Sprintf(" AND %s <= %d", model.RowNumberColumnName, metricsAggr.Size)
@@ -419,4 +419,13 @@ func (cw *ClickhouseQueryTranslator) combineWheres(where1, where2 SimpleQuery) S
 		combined.FieldName = where2.FieldName
 	}
 	return combined
+}
+
+// quoteArray returns a new array with the same elements, but quoted
+func quoteArray(array []string) []string {
+	quotedArray := make([]string, 0, len(array))
+	for _, el := range array {
+		quotedArray = append(quotedArray, strconv.Quote(el))
+	}
+	return quotedArray
 }

@@ -107,6 +107,44 @@ func TestAsyncSearchHandler(t *testing.T) {
 	}
 }
 
+func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
+	table := clickhouse.Table{
+		Name:   tableName,
+		Config: clickhouse.NewDefaultCHConfig(),
+		Cols: map[string]*clickhouse.Column{
+			"-@timestamp":  {Name: "-@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"message$*%:;": {Name: "message$*%:;", Type: clickhouse.NewBaseType("String"), IsFullTextMatch: true},
+			"-@bytes":      {Name: "-@bytes", Type: clickhouse.NewBaseType("Int64")},
+		},
+		Created: true,
+	}
+
+	for i, tt := range testdata.AggregationTestsWithSpecialCharactersInFieldNames {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			assert.NoError(t, err)
+			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
+			managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan string, 50000), telemetry.NewPhoneHomeEmptyAgent())
+
+			for _, expectedSql := range tt.ExpectedSQLs {
+				mock.ExpectQuery(testdata.EscapeBrackets(expectedSql)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+			}
+
+			queryRunner := NewQueryRunner()
+			_, err = queryRunner.handleAsyncSearch(ctx, tableName, []byte(tt.QueryRequestJson), lm, managementConsole, defaultAsyncSearchTimeout, true)
+			assert.NoError(t, err)
+
+			if err = mock.ExpectationsWereMet(); err != nil {
+				t.Fatal("there were unfulfilled expections:", err)
+			}
+		})
+	}
+}
+
 var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
 	Name:   tableName,
 	Config: clickhouse.NewChTableConfigTimestampStringAttr(),

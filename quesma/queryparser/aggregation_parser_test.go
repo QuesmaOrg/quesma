@@ -598,3 +598,20 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 		})
 	}
 }
+
+func Test_quoteArray(t *testing.T) {
+	inputs := [][]string{{"a", "b", "c"}, {"a"}, {}, {`"a"`, "b"}}
+	tests := []struct {
+		input    []string
+		expected []string
+	}{
+		{inputs[0], []string{`"a"`, `"b"`, `"c"`}},
+		{inputs[1], []string{`"a"`}},
+		{inputs[2], []string{}},
+		{inputs[3], []string{`"\"a\""`, `"b"`}},
+	}
+	for i, test := range tests {
+		assert.Equal(t, test.expected, quoteArray(test.input))
+		assert.Equal(t, inputs[i], test.input) // check that original array isn't changed
+	}
+}

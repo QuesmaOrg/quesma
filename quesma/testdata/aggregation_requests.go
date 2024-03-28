@@ -8,14 +8,6 @@ import (
 
 var timestampGroupByClause = clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second)
 
-type AggregationTestCase struct {
-	TestName         string
-	QueryRequestJson string                   // JSON query request, just like received from Kibana
-	ExpectedResponse string                   // JSON response, just like Elastic would respond to the query request
-	ExpectedResults  [][]model.QueryResultRow // [0] = result for first aggregation, [1] = result for second aggregation, etc.
-	ExpectedSQLs     []string                 // [0] = translated SQLs for first aggregation, [1] = translated SQL for second aggregation, etc.
-}
-
 var AggregationTests = []AggregationTestCase{
 	{ // [0]
 		"simple max/min aggregation as 2 siblings",
