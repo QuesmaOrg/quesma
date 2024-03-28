@@ -48,6 +48,14 @@ func TestQueryResultCol_String(t *testing.T) {
 		{intPtrNil, `"name": null`},
 		{boolPtr, `"name": true`},
 		{boolPtrNil, `"name": null`},
+		{[]string{"a", "b"}, `"name": ["a","b"]`},
+		{[]int{1, 2}, `"name": [1,2]`},
+		{[]int64{1, 2}, `"name": [1,2]`},
+		{[]float64{1, 2}, `"name": [1,2]`},
+		{[]bool{true, false}, `"name": [true,false]`},
+		{map[string]string{"a": "b"}, `"name": {"a":"b"}`},
+		{map[string]any{"a": 1}, `"name": {"a":1}`},
+		{map[string]any{"a": map[string]any{"int": 1}}, `"name": {"a":{"int":1}}`},
 	}
 
 	for _, tt := range testcases {

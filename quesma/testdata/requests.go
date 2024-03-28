@@ -1721,6 +1721,44 @@ var TestsSearch = []SearchTestCase{
 		},
 		[]string{`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z'))`},
 	},
+	{ // [25]
+		"_search, only one so far with fields, we're not sure if SELECT * is correct, or should be SELECT @timestamp",
+		`{
+			"_source": {
+				"excludes": []
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				}
+			],
+			"pit": {
+				"id": "gcSHBAEqLmRzLWxvZ3MtZ2VuZXJpYy1kZWZhdWx0LTIwMjQuMDMuMjYtMDAwMDAxFndZdXQ5SG5wU0RTZExnV0lkXzRWT1EAFkRwRTBHbm5uVDlpLTR0MnZONXY0dFEAAAAAAAAALAUWTTBidDdzcWJTWGlZamxpTGE3WW5IUQABFndZdXQ5SG5wU0RTZExnV0lkXzRWT1EAAA==",
+				"keep_alive": "30s"
+			},
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 500,
+			"stored_fields": [
+				"*"
+			],
+			"timeout": "30000ms",
+			"track_total_hits": true
+		}`,
+		[]string{""},
+		model.Normal,
+		[]model.Query{newSimplestQuery()},
+		[]string{qToStr(newSimplestQuery())},
+	},
 }
 
 var TestsSearchNoAttrs = []SearchTestCase{

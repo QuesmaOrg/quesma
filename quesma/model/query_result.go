@@ -1,7 +1,9 @@
 package model
 
 import (
+	"encoding/json"
 	"fmt"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/util"
 	"strings"
 	"time"
@@ -35,11 +37,19 @@ func (c QueryResultCol) String() string {
 	if valueExtracted == nil {
 		return fmt.Sprintf(`"%s": null`, c.ColName)
 	}
-	switch valueTyped := valueExtracted.(type) {
+	switch valueExtracted.(type) {
 	case string, time.Time:
-		return fmt.Sprintf(`"%s": "%v"`, c.ColName, valueTyped)
+		return fmt.Sprintf(`"%s": "%v"`, c.ColName, valueExtracted)
+	case int, int64, float64, uint64, bool:
+		return fmt.Sprintf(`"%s": %v`, c.ColName, valueExtracted)
 	default:
-		return fmt.Sprintf(`"%s": %v`, c.ColName, valueTyped)
+		// Probably good to only use marshaller when necessary, so for arrays/maps,
+		// and try to handle simple cases without it
+		marshalled, err := json.Marshal(valueExtracted)
+		if err != nil {
+			logger.Error().Err(err).Msgf("Failed to marshal value %v", valueExtracted)
+		}
+		return fmt.Sprintf(`"%s": %v`, c.ColName, string(marshalled))
 	}
 }
 
