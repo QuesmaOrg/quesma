@@ -2276,9 +2276,9 @@ var AggregationTests = []AggregationTestCase{
 			{}, // on purpose, simulates no rows returned
 		},
 		[]string{
-			`SELECT count() FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' `,
-			`SELECT min("@timestamp") FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' `,
-			`SELECT max("@timestamp") FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' `,
+			`SELECT count() FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
+			`SELECT min("@timestamp") FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
+			`SELECT max("@timestamp") FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
 		},
 	},
 	{ // [15]

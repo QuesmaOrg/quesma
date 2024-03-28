@@ -291,7 +291,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 	}
 	parseMap := map[string]func(QueryMap) SimpleQuery{
 		"match_all":           cw.parseMatchAll,
-		"match":               cw.parseMatch,
+		"match":               func(qm QueryMap) SimpleQuery { return cw.parseMatch(qm, false) },
 		"multi_match":         cw.parseMultiMatch,
 		"bool":                cw.parseBool,
 		"term":                cw.parseTerm,
@@ -299,7 +299,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 		"query":               cw.parseQueryMap,
 		"prefix":              cw.parsePrefix,
 		"nested":              cw.parseNested,
-		"match_phrase":        cw.parseMatch,
+		"match_phrase":        func(qm QueryMap) SimpleQuery { return cw.parseMatch(qm, true) },
 		"range":               cw.parseRange,
 		"exists":              cw.parseExists,
 		"wildcard":            cw.parseWildcard,
@@ -414,6 +414,8 @@ func (cw *ClickhouseQueryTranslator) parseMatchAll(_ QueryMap) SimpleQuery {
 	return newSimpleQuery(NewSimpleStatement(""), true)
 }
 
+// Supports 'match' and 'match_phrase' queries.
+// 'match_phrase' == true -> match_phrase query, else match query
 // TODO
 // * support optional parameters
 // - auto_generate_synonyms_phrase_query
@@ -422,9 +424,7 @@ func (cw *ClickhouseQueryTranslator) parseMatchAll(_ QueryMap) SimpleQuery {
 // (Optional, integer) Maximum number of terms to which the query will expand. Defaults to 50.
 // - fuzzy_transpositions
 // (Optional, Boolean) If true, edits for fuzzy matching include transpositions of two adjacent characters (ab → ba). Defaults to true.
-// TOTHINK:
-// - match_phrase also goes here. Maybe some different parsing is needed?
-func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap) SimpleQuery {
+func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase bool) SimpleQuery {
 	if len(queryMap) == 1 {
 		for fieldName, v := range queryMap {
 			fieldName = cw.Table.ResolveField(fieldName)
@@ -435,14 +435,19 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap) SimpleQuery {
 				vUnNested = vAsQueryMap["query"]
 			}
 			if vAsString, ok := vUnNested.(string); ok {
-				split := strings.Split(vAsString, " ")
-				qStrs := make([]Statement, len(split))
-				cw.AddTokenToHighlight(vAsString)
-				for i, s := range split {
-					cw.AddTokenToHighlight(s)
-					qStrs[i] = NewSimpleStatement(strconv.Quote(fieldName) + " iLIKE " + "'%" + s + "%'")
+				var subQueries []string
+				if matchPhrase {
+					subQueries = []string{vAsString}
+				} else {
+					subQueries = strings.Split(vAsString, " ")
 				}
-				return newSimpleQuery(or(qStrs), true)
+				statements := make([]Statement, 0, len(subQueries))
+				cw.AddTokenToHighlight(vAsString)
+				for _, subQuery := range subQueries {
+					cw.AddTokenToHighlight(subQuery)
+					statements = append(statements, NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE "+"'%"+subQuery+"%'"))
+				}
+				return newSimpleQuery(or(statements), true)
 			}
 
 			cw.AddTokenToHighlight(vUnNested)
@@ -463,7 +468,15 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) SimpleQu
 		fields = cw.GetFieldsList()
 	}
 
-	subQueries := strings.Split(queryMap["query"].(string), " ")
+	var subQueries []string
+	// 2 cases:
+	if matchType, ok := queryMap["type"]; ok && matchType.(string) == "phrase" {
+		// a) "type" == "phrase" -> we need to match full string
+		subQueries = []string{queryMap["query"].(string)}
+	} else {
+		// b) "type" == "best_fields" (or other - we treat it as default) -> we need to match any of the words
+		subQueries = strings.Split(queryMap["query"].(string), " ")
+	}
 
 	cw.AddTokenToHighlight(queryMap["query"].(string))
 	for _, subQ := range subQueries {

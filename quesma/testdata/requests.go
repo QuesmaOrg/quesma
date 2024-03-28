@@ -789,9 +789,9 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.QueryInfoAsyncSearch{Typ: model.EarliestLatestTimestamp, FieldName: "@timestamp"},
 		[]string{
-			`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' `,
-			`SELECT m..("@timestamp") FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' `,
-			`SELECT m..("@timestamp") FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' `,
+			`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
+			`SELECT m..("@timestamp") FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
+			`SELECT m..("@timestamp") FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
 		},
 		true,
 	},
@@ -1258,10 +1258,10 @@ var TestsSearch = []SearchTestCase{
 				}
 			}
 		}`,
-		[]string{`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`},
+		[]string{`"message" iLIKE '%this is a test%'`},
 		model.Normal,
-		[]model.Query{justWhere(`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`)},
-		[]string{qToStr(justWhere(`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`))},
+		[]model.Query{justWhere(`"message" iLIKE '%this is a test%'`)},
+		[]string{qToStr(justWhere(`"message" iLIKE '%this is a test%'`))},
 	},
 	{ // [17]
 		"More nested 'match_phrase'",
@@ -1275,10 +1275,10 @@ var TestsSearch = []SearchTestCase{
 				}
 			}
 		}`,
-		[]string{`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`},
+		[]string{`"message" iLIKE '%this is a test%'`},
 		model.Normal,
-		[]model.Query{justWhere(`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`)},
-		[]string{qToStr(justWhere(`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`))},
+		[]model.Query{justWhere(`"message" iLIKE '%this is a test%'`)},
+		[]string{qToStr(justWhere(`"message" iLIKE '%this is a test%'`))},
 	},
 	{ // [18]
 		"Simple nested",
@@ -1514,14 +1514,14 @@ var TestsSearch = []SearchTestCase{
 		"terminate_after": 100000,
 		"timeout": "1000ms"
 	}`,
-		[]string{`("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))`,
-			`("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z'))`},
+		[]string{`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))`,
+			`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z'))`},
 		model.Count,
 		[]model.Query{
-			justWhere(`("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))`),
-			justWhere(`("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z'))`),
+			justWhere(`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))`),
+			justWhere(`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z'))`),
 		},
-		[]string{`SELECT count() FROM "logs-generic-default" WHERE ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z'))`},
+		[]string{`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z'))`},
 	},
 	{ // [22]
 		"Count() as /_search or /logs-*-*/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count()
@@ -1647,14 +1647,14 @@ var TestsSearch = []SearchTestCase{
 		"terminate_after": 100000,
 		"timeout": "1000ms"
 	}`,
-		[]string{`("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))`,
-			`("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z'))`},
+		[]string{`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))`,
+			`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z'))`},
 		model.Count,
 		[]model.Query{
-			justWhere(`("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))`),
-			justWhere(`("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z'))`),
+			justWhere(`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))`),
+			justWhere(`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z'))`),
 		},
-		[]string{`SELECT count() FROM "logs-generic-default" WHERE ("message" iLIKE '%User%' OR "message" iLIKE '%logged%' OR "message" iLIKE '%out%') AND "host.name" iLIKE '%poseidon%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z'))`},
+		[]string{`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z'))`},
 	},
 	{ // [24]
 		"Count() as /_search or /logs-*-*/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count()
