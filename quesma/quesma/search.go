@@ -397,6 +397,7 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, index string, body 
 	// 2) it's AggsByField request. It's facets - better handled here.
 	//    ==== CARE ====
 	//    Maybe there are requests with similar structure, so we label them as AggsByField, but they would be better handled with the new logic.
+	logger.ErrorWithCtx(ctx).Msgf("simpleQuery.CanParse: %v, queryInfo.Typ: %v, bytes.Contains(body, []byte(\"aggs\")): %v", simpleQuery.CanParse, queryInfo.Typ, bytes.Contains(body, []byte("aggs")))
 	if simpleQuery.CanParse && (((queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields) && !bytes.Contains(body, []byte("aggs"))) || queryInfo.Typ == model.AggsByField) {
 		logger.InfoWithCtx(ctx).Msgf("Received _async_search request, type: %v", queryInfo.Typ)
 		go q.asyncSearchWorker(ctx, asyncRequestIdStr, queryTranslator, table, body, doneCh)
@@ -412,7 +413,7 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, index string, body 
 			QueryRawResults:        []byte{},
 			QueryTranslatedResults: responseBody,
 		})
-		return responseBody, errors.New(string(responseBody))
+		return responseBody, err
 	}
 
 	if waitForResultsMs == 0 {

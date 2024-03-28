@@ -67,6 +67,15 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		query.NonSchemaFields = append(query.NonSchemaFields, `COUNT(DISTINCT "`+metricsAggr.FieldNames[0]+`")`)
 	case "value_count":
 		query.NonSchemaFields = append(query.NonSchemaFields, "count()")
+	case "stats":
+		query.NonSchemaFields = append(
+			query.NonSchemaFields,
+			"count(`"+metricsAggr.FieldNames[0]+"`)",
+			"min(`"+metricsAggr.FieldNames[0]+"`)",
+			"max(`"+metricsAggr.FieldNames[0]+"`)",
+			"avg(`"+metricsAggr.FieldNames[0]+"`)",
+			"sum(`"+metricsAggr.FieldNames[0]+"`)",
+		)
 	case "top_hits":
 		query.Fields = append(query.Fields, metricsAggr.FieldNames...)
 		fieldsAsString := strings.Join(metricsAggr.FieldNames, ", ")
@@ -125,6 +134,8 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		query.Type = metrics_aggregations.Max{}
 	case "avg":
 		query.Type = metrics_aggregations.Avg{}
+	case "stats":
+		query.Type = metrics_aggregations.Stats{}
 	case "cardinality":
 		query.Type = metrics_aggregations.Cardinality{}
 	case "quantile":
@@ -264,7 +275,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 	// full list: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-Aggregations-metrics.html
 	// shouldn't be hard to handle others, if necessary
 
-	metricsAggregations := []string{"sum", "avg", "min", "max", "cardinality", "value_count"}
+	metricsAggregations := []string{"sum", "avg", "min", "max", "cardinality", "value_count", "stats"}
 	for k, v := range queryMap {
 		if slices.Contains(metricsAggregations, k) {
 			return metricsAggregation{

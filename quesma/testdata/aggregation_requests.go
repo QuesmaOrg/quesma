@@ -3100,4 +3100,272 @@ var AggregationTests = []AggregationTestCase{
 			`SELECT count() FROM "` + TableName + `" WHERE toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12 `,
 		},
 	},
+	{ // [20]
+		"Field statistics > summary for numeric fields",
+		`{
+			"aggs": {
+				"sample": {
+					"aggs": {
+						"bytes_gauge_field_stats": {
+							"aggs": {
+								"actual_stats": {
+									"stats": {
+										"field": "bytes_gauge"
+									}
+								}
+							},
+							"filter": {
+								"exists": {
+									"field": "bytes_gauge"
+								}
+							}
+						},
+						"bytes_gauge_percentiles": {
+							"percentiles": {
+								"field": "bytes_gauge",
+								"keyed": false,
+								"percents": [
+									5, 10, 15, 20, 25, 30, 35, 40, 45, 50,
+									55, 60, 65, 70, 75, 80, 85, 90, 95, 100
+								]
+							}
+						},
+						"bytes_gauge_percentiles_keyed_true": {
+							"percentiles": {
+								"field": "bytes_gauge",
+								"percents": [
+									5, 10, 15, 20, 25, 30, 35, 40, 45, 50,
+									55, 60, 65, 70, 75, 80, 85, 90, 95, 100
+								]
+							}
+						},
+						"bytes_gauge_top": {
+							"terms": {
+								"field": "bytes_gauge",
+								"order": {
+									"_count": "desc"
+								},
+								"size": 10
+							}
+						}
+					},
+					"sampler": {
+						"shard_size": 5000
+					}
+				}
+			},
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "epoch_millis",
+									"gte": 1709932426749,
+									"lte": 1711228426749
+								}
+							}
+						},
+						{
+							"bool": {
+								"filter": [],
+								"must": [
+									{
+										"match_all": {}
+									}
+								],
+								"must_not": []
+							}
+						}
+					]
+				}
+			},
+			"runtime_mappings": {
+				"hour_of_day": {
+					"script": {
+						"source": "emit(doc['timestamp'].value.getHour());"
+					},
+					"type": "long"
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		`{
+			"is_partial": false,
+			"is_running": false,
+			"start_time_in_millis": 1711263722921,
+			"expiration_time_in_millis": 1711695722921,
+			"completion_time_in_millis": 1711263722955,
+			"response": {
+				"took": 34,
+				"timed_out": false,
+				"_shards": {
+					"total": 1,
+					"successful": 1,
+					"skipped": 0,
+					"failed": 0
+				},
+				"hits": {
+					"total": {
+						"value": 1634,
+						"relation": "eq"
+					},
+					"max_score": null,
+					"hits": []
+				},
+				"aggregations": {
+					"sample": {
+						"doc_count": 1634,
+						"bytes_gauge_top": {
+							"doc_count_error_upper_bound": 0,
+							"sum_other_doc_count": 1549,
+							"buckets": [
+								{
+									"key": 0,
+									"doc_count": 53
+								},
+								{
+									"key": 15035,
+									"doc_count": 7
+								},
+								{
+									"key": 3350,
+									"doc_count": 4
+								}
+							]
+						},
+						"bytes_gauge_percentiles": {
+							"values": [
+								{"key": 5, "value": 349.95000000000005},
+								{"key": 10, "value": 1600.2},
+								{"key": 15, "value": 2104.85},
+								{"key": 20, "value": 2653.6000000000004},
+								{"key": 25, "value": 3118.75},
+								{"key": 30, "value": 3599.7},
+								{"key": 35, "value": 4142.75},
+								{"key": 40, "value": 4605.4},
+								{"key": 45, "value": 5090.650000000001},
+								{"key": 50, "value": 5574.5},
+								{"key": 55, "value": 6127.450000000001},
+								{"key": 60, "value": 6562.799999999999},
+								{"key": 65, "value": 7006.25},
+								{"key": 70, "value": 7493.5},
+								{"key": 75, "value": 8078.75},
+								{"key": 80, "value": 8537.800000000001},
+								{"key": 85, "value": 9021.3},
+								{"key": 90, "value": 9609.4},
+								{"key": 95, "value": 10931.049999999983},
+								{"key": 100, "value": 19742}
+							]
+						},
+						"bytes_gauge_percentiles_keyed_true": {
+							"values": {
+								"5.0": 349.95000000000005,
+								"10.0": 1600.2,
+								"15.0": 2104.85,
+								"20.0": 2653.6000000000004,
+								"25.0": 3118.75,
+								"30.0": 3599.7,
+								"35.0": 4142.75,
+								"40.0": 4605.4,
+								"45.0": 5090.650000000001,
+								"50.0": 5574.5,
+								"55.0": 6127.450000000001,
+								"60.0": 6562.799999999999,
+								"65.0": 7006.25,
+								"70.0": 7493.5,
+								"75.0": 8078.75,
+								"80.0": 8537.800000000001,
+								"85.0": 9021.3,
+								"90.0": 9609.4,
+								"95.0": 10931.049999999983,
+								"100.0": 19742
+							}
+						},
+						"bytes_gauge_field_stats": {
+							"doc_count": 1634,
+							"actual_stats": {
+								"count": 1634,
+								"min": 0,
+								"max": 19742,
+								"avg": 5750.900856793146,
+								"sum": 9396972
+							}
+						}
+					}
+				}
+			}
+		}`,
+		[][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1634))}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("count(bytes_gauge)", 1634),
+				model.NewQueryResultCol("min(bytes_gauge)", 0),
+				model.NewQueryResultCol("max(bytes_gauge)", 19742),
+				model.NewQueryResultCol("avg(bytes_gauge)", 5750.900856793146),
+				model.NewQueryResultCol("sum(bytes_gauge)", 9396972),
+			}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1634))}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("quantile_5", []float64{349.95000000000005}),
+				model.NewQueryResultCol("quantile_10", []float64{1600.2}),
+				model.NewQueryResultCol("quantile_15", []float64{2104.85}),
+				model.NewQueryResultCol("quantile_20", []float64{2653.6000000000004}),
+				model.NewQueryResultCol("quantile_25", []float64{3118.75}),
+				model.NewQueryResultCol("quantile_30", []float64{3599.7}),
+				model.NewQueryResultCol("quantile_35", []float64{4142.75}),
+				model.NewQueryResultCol("quantile_40", []float64{4605.4}),
+				model.NewQueryResultCol("quantile_45", []float64{5090.650000000001}),
+				model.NewQueryResultCol("quantile_50", []float64{5574.5}),
+				model.NewQueryResultCol("quantile_55", []float64{6127.450000000001}),
+				model.NewQueryResultCol("quantile_60", []float64{6562.799999999999}),
+				model.NewQueryResultCol("quantile_65", []float64{7006.25}),
+				model.NewQueryResultCol("quantile_70", []float64{7493.5}),
+				model.NewQueryResultCol("quantile_75", []float64{8078.75}),
+				model.NewQueryResultCol("quantile_80", []float64{8537.800000000001}),
+				model.NewQueryResultCol("quantile_85", []float64{9021.3}),
+				model.NewQueryResultCol("quantile_90", []float64{9609.4}),
+				model.NewQueryResultCol("quantile_95", []float64{10931.049999999983}),
+				model.NewQueryResultCol("quantile_100", []float64{19742}),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("quantile_5", []float64{349.95000000000005}),
+				model.NewQueryResultCol("quantile_10", []float64{1600.2}),
+				model.NewQueryResultCol("quantile_15", []float64{2104.85}),
+				model.NewQueryResultCol("quantile_20", []float64{2653.6000000000004}),
+				model.NewQueryResultCol("quantile_25", []float64{3118.75}),
+				model.NewQueryResultCol("quantile_30", []float64{3599.7}),
+				model.NewQueryResultCol("quantile_35", []float64{4142.75}),
+				model.NewQueryResultCol("quantile_40", []float64{4605.4}),
+				model.NewQueryResultCol("quantile_45", []float64{5090.650000000001}),
+				model.NewQueryResultCol("quantile_50", []float64{5574.5}),
+				model.NewQueryResultCol("quantile_55", []float64{6127.450000000001}),
+				model.NewQueryResultCol("quantile_60", []float64{6562.799999999999}),
+				model.NewQueryResultCol("quantile_65", []float64{7006.25}),
+				model.NewQueryResultCol("quantile_70", []float64{7493.5}),
+				model.NewQueryResultCol("quantile_75", []float64{8078.75}),
+				model.NewQueryResultCol("quantile_80", []float64{8537.800000000001}),
+				model.NewQueryResultCol("quantile_85", []float64{9021.3}),
+				model.NewQueryResultCol("quantile_90", []float64{9609.4}),
+				model.NewQueryResultCol("quantile_95", []float64{10931.049999999983}),
+				model.NewQueryResultCol("quantile_100", []float64{19742}),
+			}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(0)), model.NewQueryResultCol("doc_count", uint64(53))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(15035)), model.NewQueryResultCol("doc_count", uint64(7))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(3350)), model.NewQueryResultCol("doc_count", uint64(4))}},
+			},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1634))}}},
+		},
+		[]string{
+			`SELECT count() FROM ` + quotedTableName + ` WHERE toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12 AND toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 `,
+			"SELECT count(`bytes_gauge`), min(`bytes_gauge`), max(`bytes_gauge`), avg(`bytes_gauge`), sum(`bytes_gauge`) FROM " + quotedTableName + ` WHERE (toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 AND toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12) AND "bytes_gauge" IS NOT NULL `,
+			`SELECT count() FROM ` + quotedTableName + ` WHERE (toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 AND toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12) AND "bytes_gauge" IS NOT NULL `,
+			"TODO", // too tiresome to implement the check, so for now this SQL for quantiles isn't tested
+			"TODO", // too tiresome to implement the check, so for now this SQL for quantiles isn't tested
+			`SELECT "bytes_gauge", count() FROM ` + quotedTableName + ` WHERE toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12 AND toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12  GROUP BY ("bytes_gauge") ORDER BY ("bytes_gauge")`,
+			`SELECT count() FROM ` + quotedTableName + ` WHERE toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 AND toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12 `,
+		},
+	},
 }
