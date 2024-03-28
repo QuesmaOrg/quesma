@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"io"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/feature"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/network"
 	"mitmproxy/quesma/proxy"
@@ -109,7 +110,7 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 	}
 }
 
-func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, cfg config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent) {
+func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, cfg config.QuesmaConfiguration, quesmaManagementConsole *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager) {
 	if router.Matches(req.URL.Path, req.Method, string(reqBody)) {
 		elkResponseChan := sendHttpRequestToElastic(ctx, cfg, quesmaManagementConsole, req, reqBody, phoneHomeAgent)
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, quesmaManagementConsole, func() (*mux.Result, error) {
@@ -164,6 +165,9 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 			}
 		}
 	} else {
+
+		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, logManager.ResolveIndexes)
+
 		elkResponseChan := sendHttpRequestToElastic(ctx, cfg, quesmaManagementConsole, req, reqBody, phoneHomeAgent)
 		rawResponse := <-elkResponseChan
 		response := rawResponse.response

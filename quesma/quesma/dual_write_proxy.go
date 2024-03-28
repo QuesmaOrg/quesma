@@ -44,7 +44,7 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaCo
 				ua := req.Header.Get("User-Agent")
 				agent.UserAgentCounters().Add(ua, 1)
 
-				reroute(withTracing(req), w, req, reqBody, router, config, quesmaManagementConsole, agent)
+				reroute(withTracing(req), w, req, reqBody, router, config, quesmaManagementConsole, agent, logManager)
 			}),
 		},
 		logManager:          logManager,

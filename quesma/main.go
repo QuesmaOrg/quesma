@@ -4,6 +4,7 @@ import (
 	"context"
 	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/feature"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma"
 	"mitmproxy/quesma/quesma/config"
@@ -53,7 +54,7 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-
+	feature.NotSupportedLogger.Stop()
 	phoneHomeAgent.Stop(ctx)
 
 	instance.Close(ctx)
