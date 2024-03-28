@@ -60,21 +60,11 @@ jobs:
           cache-dependency-path: ${{ matrix.module }}/go.sum
           go-version: '1.22'
 
-      - name: Login to GCR (only for build running on `main` branch)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: docker/login-action@v3
-        with:
-          registry: europe-docker.pkg.dev
-          username: _json_key
-          password: ${{ secrets.GCR_SERVICE_ACCOUNT_PRIVATE_KEY }}
-
       - name: Build and export
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.module }}/.
-          tags: europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.sha }} , quesma:latest
-          # Pushes to GCR only for `main` branch builds
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ${{ matrix.module }}:latest
           outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max
