@@ -54,7 +54,7 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 		openLogFiles(cfg.LogsPath)
 		logWriters = []io.Writer{output, StdLogFile, errorFileLogger{ErrLogFile}, chanWriter}
 	}
-	if cfg.QuesmaInternalTelemetryUrl == nil {
+	if cfg.RemoteLogDrainUrl == nil {
 		multi = zerolog.MultiLevelWriter(logWriters...)
 
 		// FIXME
@@ -67,7 +67,8 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 
 	} else {
 		logForwarder := LogForwarder{logSender: LogSender{
-			Url:          cfg.QuesmaInternalTelemetryUrl,
+			Url:          cfg.RemoteLogDrainUrl,
+			LicenseKey:   cfg.LicenseKey,
 			LogBuffer:    make([]byte, 0, initialBufferSize),
 			LastSendTime: time.Now(),
 			Interval:     time.Minute,

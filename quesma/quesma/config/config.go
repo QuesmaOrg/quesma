@@ -14,6 +14,9 @@ import (
 )
 
 const (
+	LicenseHeader = "X-License-Key"
+)
+const (
 	defaultConfigFileName = "config"
 	defaultConfigType     = "yaml"
 	configEnvVar          = "QUESMA_CONFIG"
@@ -66,6 +69,7 @@ type (
 		PublicTcpPort              network.Port
 		IngestStatistics           bool
 		QuesmaInternalTelemetryUrl *url.URL
+		RemoteLogDrainUrl          *url.URL
 		DisableFileLogging         bool
 	}
 

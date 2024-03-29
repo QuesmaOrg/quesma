@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"mitmproxy/quesma/quesma/config"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 
 type LogSender struct {
 	Url          *url.URL
+	LicenseKey   string
 	LogBuffer    []byte
 	LastSendTime time.Time
 	Interval     time.Duration
@@ -73,7 +75,14 @@ func (logSender *LogSender) sendLogs() error {
 	if len(logSender.LogBuffer) == 0 {
 		return nil
 	}
-	resp, err := http.Post(logSender.Url.String(), "text/plain", bytes.NewReader(logSender.LogBuffer))
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", logSender.Url.String(), bytes.NewReader(logSender.LogBuffer))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set(config.LicenseHeader, logSender.LicenseKey)
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
