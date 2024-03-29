@@ -188,9 +188,12 @@ type elasticResult struct {
 func sendHttpRequestToElastic(ctx context.Context, config config.QuesmaConfiguration, qmc *ui.QuesmaManagementConsole,
 	req *http.Request, reqBody []byte, phoneHomeAgent telemetry.PhoneHomeAgent) chan elasticResult {
 	elkResponseChan := make(chan elasticResult)
-	if config.ElasticsearchUser != "" {
+
+	// If the request is authenticated, we should not override it with the configured user
+	if req.Header.Get("Authorization") == "" && config.ElasticsearchUser != "" {
 		req.SetBasicAuth(config.ElasticsearchUser, config.ElasticsearchPassword)
 	}
+
 	go func() {
 		elkResponseChan <- recordRequestToElastic(req.URL.Path, qmc, func() elasticResult {
 			span := phoneHomeAgent.ElasticQueryDuration().Begin()
