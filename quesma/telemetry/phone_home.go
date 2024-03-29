@@ -35,8 +35,7 @@ const (
 	reportTypeOnShutdown = "on-shutdown"
 
 	// for local debugging purposes
-	phoneHomeLocalEnabled = true
-	phoneHomeUrl          = "https://api.quesma.com/phone-home"
+	phoneHomeLocalEnabled = false // used initially for testing
 )
 
 type ClickHouseStats struct {
@@ -116,7 +115,8 @@ type agent struct {
 	ingestCounters    MultiCounter
 	userAgentCounters MultiCounter
 
-	recent PhoneHomeStats
+	recent            PhoneHomeStats
+	telemetryEndpoint *url.URL
 }
 
 func generateInstanceID() string {
@@ -158,6 +158,7 @@ func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *s
 		elasticQueryTimes:      newDurationMeasurement(ctx),
 		ingestCounters:         NewMultiCounter(ctx, nil),
 		userAgentCounters:      NewMultiCounter(ctx, processUserAgent),
+		telemetryEndpoint:      configuration.QuesmaInternalTelemetryUrl,
 	}
 }
 
@@ -424,12 +425,12 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 	return stats
 }
 
-func (a *agent) phoneHomeGCloud(ctx context.Context, body []byte) (err error) {
+func (a *agent) phoneHomeRemoteEndpoint(ctx context.Context, body []byte) (err error) {
 
 	ctx, cancel := context.WithTimeout(ctx, phoneHomeTimeout)
 	defer cancel()
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, phoneHomeUrl, bytes.NewReader(body))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, a.telemetryEndpoint.String(), bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -492,12 +493,16 @@ func (a *agent) report(ctx context.Context, stats PhoneHomeStats) {
 		return
 	}
 
-	err = a.phoneHomeGCloud(ctx, data)
-	if err != nil {
-		logger.Error().Msgf("Phone Home failed with error %v", err)
-		logger.Info().Msgf("Phone Home: %v", string(data))
+	if a.telemetryEndpoint != nil {
+		err = a.phoneHomeRemoteEndpoint(ctx, data)
+		if err != nil {
+			logger.Error().Msgf("Phone Home failed with error %v", err)
+			logger.Info().Msgf("Phone Home: %v", string(data))
+		} else {
+			logger.Info().Msgf("Phone Home succeded.")
+		}
 	} else {
-		logger.Info().Msgf("Phone Home succeded.")
+		logger.Warn().Msg("Remote telemetry endpoint is not set.")
 	}
 
 	if phoneHomeLocalEnabled {
