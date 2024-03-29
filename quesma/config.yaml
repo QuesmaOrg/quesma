@@ -16,6 +16,8 @@ quesma:
   logs_path: "logs"
   log_level: "info"
   index:
+    example*:
+      enabled: true
     kibana_sample_data_ecommerce:
       enabled: true
     kibana_sample_data_flights:

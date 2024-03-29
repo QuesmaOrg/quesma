@@ -29,6 +29,8 @@ type ClickhouseQueryTranslator struct {
 
 var completionStatusOK = func() *int { value := 200; return &value }()
 
+var EmptySearchResponse, _ = makeResponseSearchQueryNormal([]model.QueryResultRow{})
+
 func (cw *ClickhouseQueryTranslator) AddTokenToHighlight(token any) {
 
 	if token == nil {

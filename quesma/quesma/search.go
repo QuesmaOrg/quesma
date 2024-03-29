@@ -87,8 +87,12 @@ func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, bod
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	resolved := lm.ResolveIndexes(indexPattern)
 	if len(resolved) == 0 {
-		logger.WarnWithCtx(ctx).Str(logger.RID, id).Msgf("could not resolve any table name for [%s]", indexPattern)
-		return nil, errors.New("could not resolve table name")
+		if elasticsearch.IsIndexPattern(indexPattern) {
+			return queryparser.EmptySearchResponse, nil
+		} else {
+			logger.WarnWithCtx(ctx).Str(logger.RID, id).Msgf("could not resolve any table name for [%s]", indexPattern)
+			return nil, errors.New("could not resolve table name")
+		}
 	}
 
 	var rawResults, responseBody, translatedQueryBody []byte
