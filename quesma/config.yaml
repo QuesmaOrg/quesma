@@ -36,13 +36,4 @@ quesma:
     phone_home_logs:
       enabled: true
       fulltext_fields: message
-    heartbeat-*:
-      enabled: false
-    traces-apm*:
-      enabled: false
-    apm-*:
-      enabled: false
-    logs-elastic_agent-*:
-      enabled: false
-
 

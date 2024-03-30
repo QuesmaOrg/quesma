@@ -172,6 +172,20 @@ func Test_matchedAgainstPattern(t *testing.T) {
 			configuration: indexConfig("logs-*", false),
 			want:          false,
 		},
+		{
+			name:          "logs-elastic_agent-*, excluded via config",
+			index:         "logs-elastic_agent-*",
+			tables:        []string{},
+			configuration: indexConfig("*", false),
+			want:          false,
+		},
+		{
+			name:          "traces-apm*, not configured",
+			index:         "traces-apm*",
+			tables:        []string{},
+			configuration: indexConfig("logs-*", true),
+			want:          false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

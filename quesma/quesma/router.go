@@ -191,8 +191,12 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func
 				if !exists || !indexConfig.Enabled {
 					return false
 				}
+
+				if exists && indexConfig.Enabled {
+					return true
+				}
 			}
-			return true
+			return false
 		} else {
 			for _, tableName := range tables() {
 				pattern := preprocessPattern(m["index"])
