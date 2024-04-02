@@ -128,11 +128,16 @@ func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, bod
 			translatedQueryBody = []byte(fullQuery.String())
 			rows, err := queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(ctx, table, fullQuery)
 			if err != nil {
-				errorMsg := fmt.Sprintf("Error processing query: %s, err: %s", fullQuery.String(), err.Error())
-				logger.ErrorWithCtx(ctx).Msg(errorMsg)
-				responseBody = []byte(errorMsg)
-				pushSecondaryInfoToManagementConsole()
-				return responseBody, err
+				if elasticsearch.IsIndexPattern(indexPattern) {
+					logger.WarnWithCtx(ctx).Msgf("Unprocessable: %s, err: %s, resolving to empty (desired behaviour)", fullQuery.String(), err.Error())
+					continue
+				} else {
+					errorMsg := fmt.Sprintf("Error processing query: %s, err: %s", fullQuery.String(), err.Error())
+					logger.ErrorWithCtx(ctx).Msg(errorMsg)
+					responseBody = []byte(errorMsg)
+					pushSecondaryInfoToManagementConsole()
+					return responseBody, err
+				}
 			}
 			allRows = append(allRows, rows...)
 		} else {
