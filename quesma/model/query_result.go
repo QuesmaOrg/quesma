@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/util"
 	"strings"
@@ -38,7 +39,9 @@ func (c QueryResultCol) String() string {
 		return fmt.Sprintf(`"%s": null`, c.ColName)
 	}
 	switch valueExtracted.(type) {
-	case string, time.Time:
+	case string:
+		return fmt.Sprintf(`"%s": "%v"`, c.ColName, jsonprocessor.EscapeQuotes(valueExtracted))
+	case time.Time:
 		return fmt.Sprintf(`"%s": "%v"`, c.ColName, valueExtracted)
 	case int, int64, float64, uint64, bool:
 		return fmt.Sprintf(`"%s": %v`, c.ColName, valueExtracted)

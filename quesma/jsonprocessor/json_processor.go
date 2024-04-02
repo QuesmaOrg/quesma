@@ -2,6 +2,7 @@ package jsonprocessor
 
 import (
 	"fmt"
+	"strings"
 )
 
 func FlattenMap(data map[string]interface{}, nestedSeparator string) map[string]interface{} {
@@ -20,4 +21,8 @@ func FlattenMap(data map[string]interface{}, nestedSeparator string) map[string]
 	}
 
 	return flattened
+}
+
+func EscapeQuotes(valueExtracted any) string {
+	return strings.ReplaceAll(valueExtracted.(string), `"`, `\"`)
 }

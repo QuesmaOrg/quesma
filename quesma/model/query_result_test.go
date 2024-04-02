@@ -30,6 +30,7 @@ func TestQueryResultCol_String(t *testing.T) {
 		expected string
 	}{
 		{"test", `"name": "test"`},
+		{`test "GET"`, `"name": "test \"GET\""`},
 		{1, `"name": 1`},
 		{1.0, `"name": 1`},
 		{int64(1), `"name": 1`},
