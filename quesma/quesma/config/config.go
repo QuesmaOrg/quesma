@@ -32,6 +32,7 @@ const (
 	enabledConfig              = "enabled"
 	fullTextFields             = "fulltext_fields"
 	aliasFields                = "alias_fields"
+	ignoredFields              = "ignored_fields"
 	logsPathConfig             = "logs_path"
 	logLevelConfig             = "log_level"
 	disableFileLoggingConfig   = "disable_file_logging"
@@ -83,6 +84,7 @@ type (
 		Enabled        bool
 		FullTextFields []string
 		Aliases        map[string]FieldAlias
+		IgnoredFields  map[string]bool
 	}
 )
 
@@ -99,20 +101,29 @@ func (c IndexConfiguration) FullTextField(indexName, fieldName string) bool {
 }
 
 func (c IndexConfiguration) String() string {
-	var aliasString string
+	var extraString string
+	extraString = ""
 	if len(c.Aliases) > 0 {
-		aliasString = ", aliases: "
+		extraString += "; aliases: "
 		var aliases []string
 		for _, alias := range c.Aliases {
 			aliases = append(aliases, fmt.Sprintf("%s <- %s", alias.SourceFieldName, alias.TargetFieldName))
 		}
-		aliasString += strings.Join(aliases, ", ")
+		extraString += strings.Join(aliases, ", ")
+	}
+	if len(c.IgnoredFields) > 0 {
+		extraString += "; ignored fields: "
+		var fields []string
+		for field := range c.IgnoredFields {
+			fields = append(fields, field)
+		}
+		extraString += strings.Join(fields, ", ")
 	}
 	return fmt.Sprintf("\n\t\t%s, enabled: %t, fullTextFields: %s%s",
 		c.NamePattern,
 		c.Enabled,
 		strings.Join(c.FullTextFields, ", "),
-		aliasString,
+		extraString,
 	)
 }
 
@@ -171,13 +182,14 @@ func NewQuesmaConfigurationParser(v *viper.Viper) *QuesmaConfigurationParser {
 
 func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
 
-	var licenseKey = p.parsedViper.Get(fullyQualifiedConfig(licenseKeyConfig)).(string)
-	var mode = p.parsedViper.Get(fullyQualifiedConfig(modeConfigName)).(string)
+	var licenseKey = p.getMandatoryConfig(licenseKeyConfig).(string)
+	var mode = p.getMandatoryConfig(modeConfigName).(string)
 	var indexBypass = make([]IndexConfiguration, 0)
 
 	for indexNamePattern, config := range p.parsedViper.Get(fullyQualifiedConfig(indexConfig)).(map[string]interface{}) {
 		fields := []string{"message"}
 		aliases := make(map[string]FieldAlias)
+		ignored := make(map[string]bool)
 
 		if v, ok := config.(map[string]interface{})[fullTextFields]; ok {
 			if v == nil {
@@ -200,11 +212,18 @@ func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
 			}
 		}
 
+		if v, ok := config.(map[string]interface{})[ignoredFields]; ok && v != nil {
+			for _, field := range strings.Split(v.(string), ",") {
+				ignored[field] = true
+			}
+		}
+
 		indexConfig := IndexConfiguration{
 			NamePattern:    indexNamePattern,
 			Enabled:        config.(map[string]interface{})[enabledConfig].(bool),
 			FullTextFields: fields,
 			Aliases:        aliases,
+			IgnoredFields:  ignored,
 		}
 
 		indexBypass = append(indexBypass, indexConfig)
@@ -233,6 +252,14 @@ func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
 		QuesmaInternalTelemetryUrl: p.configureUrl(quesmaInternalTelemetryUrl),
 		DisableFileLogging:         p.configureFileLoggingDisabled(disableFileLoggingEnv),
 	}
+}
+
+func (p *QuesmaConfigurationParser) getMandatoryConfig(configName string) any {
+	fullName := fullyQualifiedConfig(configName)
+	if !p.parsedViper.IsSet(fullName) {
+		panic(fmt.Errorf("missing mandatory config: %s", fullName))
+	}
+	return p.parsedViper.Get(fullName)
 }
 
 func (p *QuesmaConfigurationParser) configureUrl(configParamName string) *url.URL {

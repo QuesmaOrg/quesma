@@ -5,6 +5,7 @@ mitmproxy/requests/*.txt
 mitmproxy/requests/*.mitm
 mitmproxy/query/*.txt
 .env
+.env*
 .DS_Store
 docker/quesma/logs/err.log
 docker/quesma/logs/quesma.log

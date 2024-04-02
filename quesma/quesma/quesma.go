@@ -123,7 +123,7 @@ func reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqB
 				sendElkResponseToQuesmaConsole(ctx, elkRawResponse, quesmaManagementConsole)
 			}
 			if !(elkResponse.StatusCode >= 200 && elkResponse.StatusCode < 300) {
-				logger.Warn().Msgf("Elastiscsearch returned unexpected status code [%d] when calling [%s %s]", elkResponse.StatusCode, req.Method, req.URL.Path)
+				logger.Warn().Msgf("Elasticsearch returned unexpected status code [%d] when calling [%s %s]", elkResponse.StatusCode, req.Method, req.URL.Path)
 			}
 		}
 

@@ -11,7 +11,7 @@ services:
       - CLICKHOUSE_USER=${HYDROLIX_USER}
       - CLICKHOUSE_PASSWORD=${HYDROLIX_PASSWORD}
       - CLICKHOUSE_DATABASE=${HYDROLIX_DATABASE}
-      - QUESMA_CONFIG=/var/quesma/config/hydrolix.yml
+      - QUESMA_CONFIG=${HYDROLIX_FILE}
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -74,7 +74,7 @@ services:
         condition: service_healthy
     volumes:
       - ./kibana/:/local_mount
-    command: [ "/bin/bash", "-c", "/local_mount/add_wunder_view.sh" ]
+    command: [ "/bin/bash", "-c", $HYDROLIX_SCRIPT ]
   mitmproxy:
     image: mitmproxy/mitmproxy:10.1.5
     tty: true

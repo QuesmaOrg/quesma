@@ -5,12 +5,17 @@ import (
 	"strings"
 )
 
-func populateTableDefinitions(configuredTables map[string]map[string]string, databaseName string, lm *LogManager) {
+func populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, lm *LogManager) {
 	tableMap := withPredefinedTables()
-	for tableName, columns := range configuredTables {
+	for tableName, resTable := range configuredTables {
 		var columnsMap = make(map[string]*Column)
 		partiallyResolved := false
-		for col, colType := range columns {
+		for col, colType := range resTable.columnTypes {
+
+			if _, isIgnored := resTable.config.IgnoredFields[col]; isIgnored {
+				logger.Debug().Msgf("table %s, column %s is ignored", tableName, col)
+				continue
+			}
 			if col != AttributesKeyColumn && col != AttributesValueColumn {
 				column := resolveColumn(col, colType)
 				if column != nil {
@@ -34,7 +39,7 @@ func populateTableDefinitions(configuredTables map[string]map[string]string, dat
 					preferCastingToOthers:                 true,
 				},
 			}
-			if lm.containsAttributes(columns) {
+			if lm.containsAttributes(resTable.columnTypes) {
 				table.Config.attributes = []Attribute{NewDefaultStringAttribute()}
 			}
 
@@ -133,7 +138,7 @@ func resolveColumn(colName, colType string) *Column {
 			},
 		}
 	} else {
-		logger.Error().Msgf("unknown type: %s, resolving to nil", colType)
+		logger.Error().Msgf("unknown type: %s, in column: %s, resolving to nil", colType, colName)
 		return nil
 	}
 }

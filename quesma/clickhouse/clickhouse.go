@@ -75,9 +75,14 @@ func (lm *LogManager) Start() {
 	lm.ReloadTables()
 }
 
+type discoveredTable struct {
+	columnTypes map[string]string
+	config      config.IndexConfiguration
+}
+
 func (lm *LogManager) ReloadTables() {
 	logger.Info().Msg("reloading tables definitions")
-	configuredTables := make(map[string]map[string]string)
+	configuredTables := make(map[string]discoveredTable)
 	databaseName := "default"
 	if lm.cfg.ClickHouseDatabase != "" {
 		databaseName = lm.cfg.ClickHouseDatabase
@@ -94,7 +99,7 @@ func (lm *LogManager) ReloadTables() {
 							logger.Error().Msgf("column [%s] clashes with an existing alias, table [%s]", colName, table)
 						}
 					}
-					configuredTables[table] = columns
+					configuredTables[table] = discoveredTable{columns, indexConfig}
 				} else {
 					logger.Debug().Msgf("table '%s' is disabled\n", table)
 				}
