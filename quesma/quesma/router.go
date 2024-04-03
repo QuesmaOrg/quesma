@@ -54,6 +54,16 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		return elasticsearchCountResult(cnt, httpOk), nil
 	})
 
+	router.RegisterPathMatcher(routes.GlobalSearchPath, "POST", func(_ map[string]string, _ string) bool {
+		return true // for now, always route to Quesma, in the near future: combine results from both sources
+	}, func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+		responseBody, err := queryRunner.handleSearch(ctx, "*", []byte(body), lm, console)
+		if err != nil {
+			return nil, err
+		}
+		return elasticsearchQueryResult(string(responseBody), httpOk), nil
+	})
+
 	router.RegisterPathMatcher(routes.IndexSearchPath, "POST", matchedAgainstPattern(config, fromClickhouse(lm)), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		responseBody, err := queryRunner.handleSearch(ctx, params["index"], []byte(body), lm, console)
 		if err != nil {

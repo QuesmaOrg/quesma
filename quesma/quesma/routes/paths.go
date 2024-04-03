@@ -5,6 +5,7 @@ import (
 )
 
 const (
+	GlobalSearchPath     = "/_search"
 	IndexSearchPath      = "/:index/_search"
 	IndexAsyncSearchPath = "/:index/_async_search"
 	IndexCountPath       = "/:index/_count"
@@ -17,7 +18,7 @@ const (
 	AsyncSearchIdPath    = "/_async_search/:id"
 )
 
-var NotQueryPaths = []string{
+var notQueryPaths = []string{
 	"_bulk",
 	"_doc",
 	"_field_caps",
@@ -25,7 +26,7 @@ var NotQueryPaths = []string{
 }
 
 func IsNotQueryPath(path string) bool {
-	for _, p := range NotQueryPaths {
+	for _, p := range notQueryPaths {
 		if strings.Contains(path, p) {
 			return true
 		}
