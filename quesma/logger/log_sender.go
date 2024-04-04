@@ -81,6 +81,7 @@ func (logSender *LogSender) sendLogs() error {
 		return err
 	}
 	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set(config.RemoteLogHeader, "true") // value is arbitrary, just have to be non-empty
 	req.Header.Set(config.LicenseHeader, logSender.LicenseKey)
 	resp, err := client.Do(req)
 	if err != nil {

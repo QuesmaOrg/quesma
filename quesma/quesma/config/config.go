@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	LicenseHeader = "X-License-Key"
+	LicenseHeader   = "X-License-Key"          // Used to pass license key by phone home service
+	RemoteLogHeader = "X-Telemetry-Remote-Log" // Used to inform telemetry endpoint that the payload contains logs
 )
 const (
 	defaultConfigFileName = "config"
@@ -42,6 +43,7 @@ const (
 	clickhouseDatabase         = "clickhouse_database"
 	ingestStatistics           = "ingest_statistics"
 	quesmaInternalTelemetryUrl = "quesma_internal_telemetry_url"
+	remoteLogDrainUrl          = "remote_log_drain_url"
 	licenseKeyConfig           = "license_key"
 )
 
@@ -250,6 +252,7 @@ func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
 		ClickHouseDatabase:         p.configureOptionalConfig(clickhouseDatabase),
 		IngestStatistics:           ingestStatistics,
 		QuesmaInternalTelemetryUrl: p.configureUrl(quesmaInternalTelemetryUrl),
+		RemoteLogDrainUrl:          p.configureUrl(remoteLogDrainUrl),
 		DisableFileLogging:         p.configureFileLoggingDisabled(disableFileLoggingEnv),
 	}
 }

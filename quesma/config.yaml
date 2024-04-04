@@ -13,6 +13,7 @@ quesma:
   clickhouse_url: "clickhouse://localhost:9000"
   ingest_statistics: true
   quesma_internal_telemetry_url: "https://api.quesma.com/phone-home"
+  remote_log_drain_url: "https://api.quesma.com/phone-home"
   logs_path: "logs"
   log_level: "info"
   index:
@@ -34,6 +35,9 @@ quesma:
       enabled: true
       fulltext_fields: message
     phone_home_logs:
+      enabled: true
+      fulltext_fields: message
+    phone_home_data:
       enabled: true
       fulltext_fields: message
 
