@@ -1,0 +1,34 @@
+POST http://localhost:8080/_search
+Content-Type: application/json
+
+{
+  "_source": {
+    "excludes": []
+  },
+  "fields": [
+    {
+      "field": "@timestamp",
+      "format": "date_time"
+    }
+  ],
+  "pit": {
+    "id": "gcSHBAEqLmRzLWxvZ3MtZ2VuZXJpYy1kZWZhdWx0LTIwMjQuMDQuMDMtMDAwMDAxFnJJa2tteFIyUjhLX0ZFR2lONkpfblEAFjJaQzFXUWpnU2s2R3BBajNpSFpOc0EAAAAAAAAAK3oWWV93azJNYXNTTHl2V1VUa2VLRzBZdwABFnJJa2tteFIyUjhLX0ZFR2lONkpfblEAAA==",
+    "keep_alive": "30s"
+  },
+  "query": {
+    "bool": {
+      "filter": [],
+      "must": [],
+      "must_not": [],
+      "should": []
+    }
+  },
+  "runtime_mappings": {},
+  "script_fields": {},
+  "size": 500,
+  "stored_fields": [
+    "*"
+  ],
+  "timeout": "30000ms",
+  "track_total_hits": true
+}
