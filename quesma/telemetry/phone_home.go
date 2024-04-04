@@ -74,7 +74,8 @@ type PhoneHomeStats struct {
 	ClickHouseInsertsDuration DurationStats `json:"clickhouse_inserts"`
 	ElasticQueriesDuration    DurationStats `json:"elastic_queries"`
 
-	IngestCounters    MultiCounterStats          `json:"ingests"`
+	// Due to schema issues, we are not using this for now, ref: https://github.com/QuesmaOrg/poc-elk-mitmproxy/pull/648
+	IngestCounters    MultiCounterStats          `json:"-"`
 	UserAgentCounters MultiCounterTopValuesStats `json:"top_user_agents"`
 
 	RuntimeStats   RuntimeStats `json:"runtime"`
