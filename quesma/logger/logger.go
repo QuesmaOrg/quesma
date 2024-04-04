@@ -73,7 +73,9 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 			LogBuffer:    make([]byte, 0, initialBufferSize),
 			LastSendTime: time.Now(),
 			Interval:     time.Minute,
-			httpClient:   &http.Client{},
+			httpClient: &http.Client{
+				Timeout: time.Minute,
+			},
 		}, logCh: make(chan []byte, bufferSizeChannel),
 			ticker: time.NewTicker(time.Second),
 			sigCh:  sig,

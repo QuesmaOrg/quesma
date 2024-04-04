@@ -14,6 +14,7 @@ import (
 	"mitmproxy/quesma/telemetry"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type dualWriteHttpProxy struct {
@@ -33,7 +34,10 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaCo
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-	client := &http.Client{Transport: tr}
+	client := &http.Client{
+		Transport: tr,
+		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
+	}
 	routerInstance := router{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client}
 
 	return &dualWriteHttpProxy{

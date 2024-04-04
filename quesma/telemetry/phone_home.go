@@ -162,7 +162,7 @@ func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *s
 		ingestCounters:         NewMultiCounter(ctx, nil),
 		userAgentCounters:      NewMultiCounter(ctx, processUserAgent),
 		telemetryEndpoint:      configuration.QuesmaInternalTelemetryUrl,
-		httpClient:             &http.Client{},
+		httpClient:             &http.Client{Timeout: time.Minute},
 	}
 }
 
