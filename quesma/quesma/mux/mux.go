@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/ucarion/urlpath"
 	"mitmproxy/quesma/logger"
+	"strings"
 )
 
 type (
@@ -65,6 +66,7 @@ func (p *PathRouter) Matches(path, httpMethod, body string) bool {
 }
 
 func (p *PathRouter) findHandler(path, httpMethod, body string) (handler, urlpath.Match, bool) {
+	path = strings.TrimSuffix(path, "/")
 	for _, m := range p.mappings {
 		meta, match := m.compiledPath.Match(path)
 		if match && m.httpMethod == httpMethod && m.predicate(meta.Params, body) {
