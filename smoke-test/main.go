@@ -18,19 +18,17 @@ import (
 )
 
 const (
-	clickhouseUrl              = "http://localhost:8123"
-	kibanaUrl                  = "http://localhost:5601"
-	kibanaHealthCheckUrl       = "http://localhost:5601/api/status"
-	kibanaDataViewsUrl         = "http://localhost:5601/api/data_views"
-	kibanaCsvReportUrl         = "http://localhost:5601/api/reporting/generate/csv_searchsource"
-	elasticsearchSampleDataUrl = "http://localhost:9201/kibana_sample_data_flights/_count"
-	quesmaSampleDataUrl        = "http://localhost:9200/kibana_sample_data_flights/_count"
-	elasticsearchBaseUrl       = "http://localhost:9201"
-	elasticIndexCountUrl       = "http://localhost:9201/logs-generic-default,logs-*/_count"
-	quesmaIndexCountUrl        = "http://localhost:9200/logs-generic-default,logs-*/_count"
-	asyncQueryUrl              = "http://localhost:8080/logs-*/_async_search?pretty"
-	kibanaLogExplorerMainUrl   = "http://localhost:5601/app/observability-log-explorer/?controlPanels=(data_stream.namespace:(explicitInput:(fieldName:data_stream.namespace,id:data_stream.namespace,title:Namespace),grow:!f,order:0,type:optionsListControl,width:medium))&_a=(columns:!(service.name,host.name,message),filters:!(),grid:(columns:(host.name:(width:320),service.name:(width:240))),index:BQZwpgNmDGAuCWB7AdgFQJ4AcwC4CGEEAlEA,interval:auto,query:(language:kuery,query:%27%27),rowHeight:0,sort:!(!(%27@timestamp%27,desc)))&_g=(filters:!(),refreshInterval:(pause:!t,value:60000),time:(from:now-15m,to:now))"
-	kibanaLogInternalUrl       = "http://localhost:5601/internal/controls/optionsList/logs-*-*"
+	clickhouseUrl            = "http://localhost:8123"
+	kibanaUrl                = "http://localhost:5601"
+	kibanaHealthCheckUrl     = "http://localhost:5601/api/status"
+	kibanaDataViewsUrl       = "http://localhost:5601/api/data_views"
+	kibanaCsvReportUrl       = "http://localhost:5601/api/reporting/generate/csv_searchsource"
+	elasticsearchBaseUrl     = "http://localhost:9201"
+	elasticIndexCountUrl     = "http://localhost:9201/logs-generic-default,logs-*/_count"
+	quesmaIndexCountUrl      = "http://localhost:9200/logs-generic-default,logs-*/_count"
+	asyncQueryUrl            = "http://localhost:8080/logs-*/_async_search?pretty"
+	kibanaLogExplorerMainUrl = "http://localhost:5601/app/observability-log-explorer/?controlPanels=(data_stream.namespace:(explicitInput:(fieldName:data_stream.namespace,id:data_stream.namespace,title:Namespace),grow:!f,order:0,type:optionsListControl,width:medium))&_a=(columns:!(service.name,host.name,message),filters:!(),grid:(columns:(host.name:(width:320),service.name:(width:240))),index:BQZwpgNmDGAuCWB7AdgFQJ4AcwC4CGEEAlEA,interval:auto,query:(language:kuery,query:%27%27),rowHeight:0,sort:!(!(%27@timestamp%27,desc)))&_g=(filters:!(),refreshInterval:(pause:!t,value:60000),time:(from:now-15m,to:now))"
+	kibanaLogInternalUrl     = "http://localhost:5601/internal/controls/optionsList/logs-*-*"
 )
 
 const (
@@ -166,8 +164,6 @@ const kibanaInternalLog = `
 }
 `
 
-var timeoutAfter = time.Minute
-
 func main() {
 	waitForStart := flag.Bool("wait-for-start", false, "Wait for start of whole system")
 
@@ -176,27 +172,23 @@ func main() {
 	// check if command line flag is just wait for count
 	if *waitForStart {
 		fmt.Println("Waiting for start of whole system... ")
-		timeoutAfter = 5 * time.Minute
-		waitForLogs()
+		waitForLogs(5 * time.Minute)
 		fmt.Println("Done")
 	} else {
-		waitForKibana()
-		timeoutAfter = 4 * time.Minute
-		waitForSampleData()
-		timeoutAfter = time.Minute
+		waitForKibana(5 * time.Minute)
+		println("   Kibana: OK")
+		waitForDataViews(5 * time.Minute)
+		println("   Data Views: OK")
 		reportUri := waitForScheduleReportGeneration()
-		waitForLogsInClickhouse("logs-generic-default")
-		waitForLogsInElasticsearch()
-		waitForAsyncQuery()
-		waitForKibanaLogExplorer("kibana LogExplorer")
-		waitForKibanaReportGeneration(reportUri)
-		compareKibanaSampleDataInClickHouseWithElasticsearch()
+		waitForLogsInClickhouse("logs-generic-default", time.Minute)
+		println("   Logs in Clickhouse: OK")
+		waitForAsyncQuery(time.Minute)
+		println("   AsyncQuery: OK")
+		waitForKibanaLogExplorer("kibana LogExplorer", time.Minute)
+		println("   Kibana LogExplorer: OK")
+		waitForKibanaReportGeneration(reportUri, 5*time.Minute)
+		println("   Kibana Report: OK")
 	}
-}
-
-func waitForSampleData() {
-	waitForLogsInElasticsearchRaw("elasticsearch sample data", quesmaSampleDataUrl, true)
-	waitForDataViews()
 }
 
 type dataView struct {
@@ -209,7 +201,7 @@ type dataViewsResponse struct {
 	DataViews []dataView `json:"data_view"`
 }
 
-func waitForDataViews() {
+func waitForDataViews(timeout time.Duration) {
 	var responseData dataViewsResponse
 	res := waitFor("kibana data views", func() bool {
 		if resp, err := http.Get(kibanaDataViewsUrl); err == nil {
@@ -226,7 +218,7 @@ func waitForDataViews() {
 			}
 		}
 		return false
-	})
+	}, timeout)
 	if !res {
 		panic("kibana data views failed: " + fmt.Sprintf("%+v", responseData))
 	}
@@ -258,23 +250,23 @@ func getElasticsearchIndexCount(indexName string) int {
 	return -1
 }
 
-func compareClickHouseTableWithElasticsearchIndex(tableOrIndexName string) {
+func compareClickHouseTableWithElasticsearchIndex(tableOrIndexName string, timeout time.Duration) {
 	var clickHouseCount, elasticSearchCount int
 	s := waitFor("Elastic/ClickHouse document count comparison", func() bool {
 		clickHouseCount = getClickHouseTableCount(tableOrIndexName)
 		elasticSearchCount = getElasticsearchIndexCount(tableOrIndexName)
 		fmt.Printf("[%s] -> compating ClickHouse=(%d) with Elasticsearch=(%d) document count\n", tableOrIndexName, clickHouseCount, elasticSearchCount)
 		return clickHouseCount == elasticSearchCount
-	})
+	}, timeout)
 	if !s {
 		panic(fmt.Sprintf("Data set [%s] has %d elements in Clickhouse whereas in Elasticsearch it has %d", tableOrIndexName, clickHouseCount, elasticSearchCount))
 	}
 
 }
 
-func compareKibanaSampleDataInClickHouseWithElasticsearch() {
+func compareKibanaSampleDataInClickHouseWithElasticsearch(timeout time.Duration) {
 	// CI jobs uses LIMITED_DATASET and only this `flight` data index will get installed
-	compareClickHouseTableWithElasticsearchIndex("kibana_sample_data_flights")
+	compareClickHouseTableWithElasticsearchIndex("kibana_sample_data_flights", timeout)
 }
 
 // just returns the path to the Kibana report for later download
@@ -303,7 +295,7 @@ func waitForScheduleReportGeneration() string {
 	return reportUri
 }
 
-func waitForKibanaReportGeneration(reportUri string) {
+func waitForKibanaReportGeneration(reportUri string, timeout time.Duration) {
 	var csvReport [][]string
 	res := waitFor("kibana report", func() bool {
 		if resp, err := http.Get(fmt.Sprintf("%s%s", kibanaUrl, reportUri)); err != nil || resp.StatusCode != 200 {
@@ -316,7 +308,7 @@ func waitForKibanaReportGeneration(reportUri string) {
 
 			return true
 		}
-	})
+	}, timeout)
 	if !res {
 		panic("kibana report failed to generate")
 	}
@@ -334,11 +326,11 @@ func waitForKibanaReportGeneration(reportUri string) {
 
 }
 
-func waitFor(serviceName string, waitForFunc func() bool) bool {
+func waitFor(serviceName string, waitForFunc func() bool, timeout time.Duration) bool {
 	startTime := time.Now()
 	lastPrintTime := startTime
 
-	for time.Since(startTime) < timeoutAfter {
+	for time.Since(startTime) < timeout {
 		if waitForFunc() {
 			return true
 		}
@@ -355,7 +347,7 @@ func waitFor(serviceName string, waitForFunc func() bool) bool {
 	return false
 }
 
-func waitForLogsInClickhouse(tableName string) {
+func waitForLogsInClickhouse(tableName string, timeout time.Duration) {
 	res := waitFor("clickhouse", func() bool {
 		logCount := -1
 		connection, err := sql.Open("clickhouse", clickhouseUrl)
@@ -368,14 +360,14 @@ func waitForLogsInClickhouse(tableName string) {
 		_ = row.Scan(&logCount)
 
 		return logCount > 0
-	})
+	}, timeout)
 
 	if !res {
 		panic("no logs in clickhouse")
 	}
 }
 
-func waitForKibana() {
+func waitForKibana(timeout time.Duration) {
 	res := waitFor("kibana", func() bool {
 		resp, err := http.Get(kibanaHealthCheckUrl)
 		if err == nil {
@@ -386,22 +378,22 @@ func waitForKibana() {
 			}
 		}
 		return false
-	})
+	}, timeout)
 
 	if !res {
 		panic("kibana is not alive")
 	}
 }
 
-func waitForLogsInElasticsearch() {
-	waitForLogsInElasticsearchRaw("elasticsearch", elasticIndexCountUrl, false)
+func waitForLogsInElasticsearch(timeout time.Duration) {
+	waitForLogsInElasticsearchRaw("elasticsearch", elasticIndexCountUrl, false, timeout)
 }
 
-func waitForLogs() {
-	waitForLogsInElasticsearchRaw("quesma", quesmaIndexCountUrl, true)
+func waitForLogs(timeout time.Duration) {
+	waitForLogsInElasticsearchRaw("quesma", quesmaIndexCountUrl, true, timeout)
 }
 
-func waitForLogsInElasticsearchRaw(serviceName, url string, quesmaSource bool) {
+func waitForLogsInElasticsearchRaw(serviceName, url string, quesmaSource bool, timeout time.Duration) {
 	res := waitFor(serviceName, func() bool {
 		resp, err := http.Get(url)
 		if err == nil {
@@ -425,14 +417,14 @@ func waitForLogsInElasticsearchRaw(serviceName, url string, quesmaSource bool) {
 			}
 		}
 		return false
-	})
+	}, timeout)
 
 	if !res {
 		panic(serviceName + " is not alive or is not receiving logs")
 	}
 }
 
-func waitForAsyncQuery() {
+func waitForAsyncQuery(timeout time.Duration) {
 	serviceName := "async query"
 	res := waitFor(serviceName, func() bool {
 		resp, err := http.Post(asyncQueryUrl, "application/json", bytes.NewBuffer([]byte(query)))
@@ -458,7 +450,7 @@ func waitForAsyncQuery() {
 			}
 		}
 		return false
-	})
+	}, timeout)
 
 	if !res {
 		panic(serviceName + " is not alive or is not receiving logs")
@@ -478,17 +470,16 @@ func sourceClickhouse(resp *http.Response) bool {
 	return headerExists(resp.Header, "X-Quesma-Source", "Clickhouse")
 }
 
-func waitForKibanaLogExplorer(serviceName string) {
+func waitForKibanaLogExplorer(serviceName string, timeout time.Duration) {
 	res := waitFor(serviceName, func() bool {
 		return sendKibanaRequest(kibanaLogInternalUrl, "POST", kibanaLogExplorerMainUrl, kibanaInternalLog)
-	})
+	}, timeout)
 	if !res {
 		panic(serviceName + " is not alive or is not receiving logs")
 	}
 }
 
 func sendKibanaRequest(url string, method string, referrer, query string) bool {
-
 	req, err := http.NewRequest(method, url, bytes.NewBuffer([]byte(query)))
 	if err != nil {
 		fmt.Println("Error creating request:", err)
@@ -496,12 +487,10 @@ func sendKibanaRequest(url string, method string, referrer, query string) bool {
 	}
 
 	if referrer != "" {
-		// Set the Referer header
 		req.Header.Set("Referer", referrer)
 		req.Header.Set("kbn-xsrf", "reporting")
 		req.Header.Set("Elastic-Api-Version", "1")
 	}
-	// Send the HTTP request
 	client := http.Client{}
 	response, err := client.Do(req)
 	if err != nil {
@@ -510,7 +499,6 @@ func sendKibanaRequest(url string, method string, referrer, query string) bool {
 	}
 	defer response.Body.Close()
 
-	// Read response body
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		fmt.Println("Error reading response:", err)

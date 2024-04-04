@@ -36,6 +36,7 @@ const (
 	ignoredFields              = "ignored_fields"
 	logsPathConfig             = "logs_path"
 	logLevelConfig             = "log_level"
+	callElasticsearch          = "call_elasticsearch"
 	disableFileLoggingConfig   = "disable_file_logging"
 	publicTcpPort              = "port"
 	elasticsearchUrl           = "elasticsearch_url"
@@ -70,6 +71,7 @@ type (
 		LogsPath                   string
 		LogLevel                   zerolog.Level
 		PublicTcpPort              network.Port
+		CallElasticsearch          bool
 		IngestStatistics           bool
 		QuesmaInternalTelemetryUrl *url.URL
 		RemoteLogDrainUrl          *url.URL
@@ -240,6 +242,7 @@ func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
 		Mode:                       operationMode(mode),
 		LicenseKey:                 licenseKey,
 		PublicTcpPort:              p.configurePublicTcpPort(),
+		CallElasticsearch:          p.configureElasticsearchCalls(),
 		ElasticsearchUrl:           p.configureUrl(elasticsearchUrl),
 		ElasticsearchUser:          configureOptionalEnvVar(elasticsearchUserEnv),
 		ElasticsearchPassword:      configureOptionalEnvVar(elasticsearchPasswordEnv),
@@ -293,6 +296,17 @@ func (p *QuesmaConfigurationParser) configurePublicTcpPort() network.Port {
 		panic(fmt.Errorf("error configuring public tcp port: %v", err))
 	}
 	return port
+}
+
+func (p *QuesmaConfigurationParser) configureElasticsearchCalls() bool {
+	value := p.parsedViper.GetString(fullyQualifiedConfig(callElasticsearch))
+	switch value {
+	case "always":
+		return true
+	case "when-needed", "":
+		return false
+	}
+	panic(fmt.Errorf("error configuring elasticsearch calls: %v", value))
 }
 
 func fullyQualifiedConfig(config string) string {
@@ -421,6 +435,7 @@ Quesma Configuration:
 	Mode: %s
 	Elasticsearch URL: %s%s
 	ClickHouse URL: %s%s
+	Call Elasticsearch: %v
 	Indexes: %s
 	Logs Path: %s
 	Log Level: %v
@@ -432,6 +447,7 @@ Quesma Configuration:
 		elasticsearchExtra,
 		clickhouseUrl,
 		clickhouseExtra,
+		c.CallElasticsearch,
 		indexConfigs,
 		c.LogsPath,
 		c.LogLevel,

@@ -7,6 +7,7 @@ quesma:
   #	↓ "dual-write-query-clickhouse-verify" (dual write, query both and compare, ignore Clickhouse if not the same)
   #	↓ "dual-write-query-clickhouse-fallback" (dual write, query both, fallback only when Clickhouse fails)
   mode: "dual-write-query-clickhouse"
+  call_elasticsearch: "when-needed"
   license_key: "cdd749a3-e777-11ee-bcf8-0242ac150004"
   port: 8080  # public tcp port to listen for incoming traffic
   elasticsearch_url: "http://localhost:9200"

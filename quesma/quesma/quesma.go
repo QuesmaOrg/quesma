@@ -118,12 +118,23 @@ type router struct {
 
 func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, logManager *clickhouse.LogManager) {
 	if router.Matches(req.URL.Path, req.Method, string(reqBody)) {
-		elkResponseChan := r.sendHttpRequestToElastic(ctx, req, reqBody)
+		var elkResponseChan = make(chan elasticResult)
+
+		if r.config.CallElasticsearch {
+			elkResponseChan = r.sendHttpRequestToElastic(ctx, req, reqBody)
+		}
+
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
 			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method)
 		})
-		elkRawResponse := <-elkResponseChan
-		elkResponse := elkRawResponse.response
+		var elkRawResponse elasticResult
+		var elkResponse *http.Response
+		if r.config.CallElasticsearch {
+			elkRawResponse = <-elkResponseChan
+			elkResponse = elkRawResponse.response
+		} else {
+			elkResponse = nil
+		}
 		if elkResponse != nil {
 			if routes.IsQueryPath(req.URL.Path) { // We should send only responses for search queries to Quesma console
 				sendElkResponseToQuesmaConsole(ctx, elkRawResponse, r.quesmaManagementConsole)
