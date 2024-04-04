@@ -1,4 +1,5 @@
 quesma:
+  license_key: "cdd749a3-e777-11ee-bcf8-0242ac150004"
   mode: "dual-write-query-clickhouse"
   port: 8080  # public tcp port to listen for incoming traffic
   elasticsearch_url: "http://localhost:9200"
