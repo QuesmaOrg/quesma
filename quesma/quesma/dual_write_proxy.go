@@ -2,6 +2,7 @@ package quesma
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
@@ -29,6 +30,18 @@ func (q *dualWriteHttpProxy) Stop(ctx context.Context) {
 }
 
 func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, router *mux.PathRouter, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *dualWriteHttpProxy {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+
+	rerouteObj := rerouteParams{
+		phoneHomeAgent:          agent,
+		config:                  config,
+		quesmaManagementConsole: quesmaManagementConsole,
+		httpClient:              client,
+	}
+
 	return &dualWriteHttpProxy{
 		elasticRouter: router,
 		routingHttpServer: &http.Server{
@@ -44,7 +57,7 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaCo
 				ua := req.Header.Get("User-Agent")
 				agent.UserAgentCounters().Add(ua, 1)
 
-				reroute(withTracing(req), w, req, reqBody, router, config, quesmaManagementConsole, agent, logManager)
+				rerouteObj.reroute(withTracing(req), w, req, reqBody, router, logManager)
 			}),
 		},
 		logManager:          logManager,

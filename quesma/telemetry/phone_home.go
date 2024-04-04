@@ -118,6 +118,8 @@ type agent struct {
 
 	recent            PhoneHomeStats
 	telemetryEndpoint *url.URL
+
+	httpClient *http.Client
 }
 
 func generateInstanceID() string {
@@ -160,6 +162,7 @@ func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *s
 		ingestCounters:         NewMultiCounter(ctx, nil),
 		userAgentCounters:      NewMultiCounter(ctx, processUserAgent),
 		telemetryEndpoint:      configuration.QuesmaInternalTelemetryUrl,
+		httpClient:             &http.Client{},
 	}
 }
 
@@ -293,7 +296,7 @@ func (a *agent) callElastic(ctx context.Context, url *url.URL, response interfac
 		return err
 	}
 
-	resp, err := http.DefaultClient.Do(request)
+	resp, err := a.httpClient.Do(request)
 	if err != nil {
 		logger.Error().Err(err).Msg("Error getting info from elasticsearch. ")
 		return err
@@ -439,7 +442,7 @@ func (a *agent) phoneHomeRemoteEndpoint(ctx context.Context, body []byte) (err e
 	request.Header.Set("User-Agent", "quesma/"+buildinfo.Version)
 	request.Header.Set(config.LicenseHeader, a.config.LicenseKey)
 
-	resp, err := http.DefaultClient.Do(request)
+	resp, err := a.httpClient.Do(request)
 	if err != nil {
 		return err
 	}
@@ -474,7 +477,7 @@ func (a *agent) phoneHomeLocalQuesma(ctx context.Context, body []byte) (err erro
 	request.Header.Set("User-Agent", "quesma/"+buildinfo.Version)
 	request.Header.Set(config.LicenseHeader, a.config.LicenseKey)
 
-	resp, err := http.DefaultClient.Do(request)
+	resp, err := a.httpClient.Do(request)
 	if err != nil {
 		return err
 	}

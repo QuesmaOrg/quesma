@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/stats/errorstats"
 	"mitmproxy/quesma/tracing"
+	"net/http"
 	"os"
 	"time"
 )
@@ -72,6 +73,7 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 			LogBuffer:    make([]byte, 0, initialBufferSize),
 			LastSendTime: time.Now(),
 			Interval:     time.Minute,
+			httpClient:   &http.Client{},
 		}, logCh: make(chan []byte, bufferSizeChannel),
 			ticker: time.NewTicker(time.Second),
 			sigCh:  sig,

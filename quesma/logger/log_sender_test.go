@@ -47,6 +47,7 @@ func makeLogSender(urlStr string, bufferSize int, interval time.Duration) LogSen
 		LogBuffer:    make([]byte, 0, bufferSize),
 		LastSendTime: time.Now(),
 		Interval:     interval,
+		httpClient:   &http.Client{},
 	}
 }
 

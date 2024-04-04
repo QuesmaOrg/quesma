@@ -17,6 +17,7 @@ type LogSender struct {
 	LogBuffer    []byte
 	LastSendTime time.Time
 	Interval     time.Duration
+	httpClient   *http.Client
 }
 
 func (logSender *LogSender) EatLogMessage(msg []byte) struct {
@@ -75,7 +76,6 @@ func (logSender *LogSender) sendLogs() error {
 	if len(logSender.LogBuffer) == 0 {
 		return nil
 	}
-	client := &http.Client{}
 	req, err := http.NewRequest("POST", logSender.Url.String(), bytes.NewReader(logSender.LogBuffer))
 	if err != nil {
 		return err
@@ -83,10 +83,11 @@ func (logSender *LogSender) sendLogs() error {
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set(config.RemoteLogHeader, "true") // value is arbitrary, just have to be non-empty
 	req.Header.Set(config.LicenseHeader, logSender.LicenseKey)
-	resp, err := client.Do(req)
+	resp, err := logSender.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return errors.New("unexpected HTTP status code: " + strconv.Itoa(resp.StatusCode))
 	}
