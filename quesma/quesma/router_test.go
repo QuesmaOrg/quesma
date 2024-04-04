@@ -68,6 +68,13 @@ func Test_matchedAgainstPattern(t *testing.T) {
 		want          bool
 	}{
 		{
+			name:          "multiple indexes, one internal",
+			index:         "index,.kibana",
+			tables:        []string{"index"},
+			configuration: indexConfig("index", true),
+			want:          false,
+		},
+		{
 			name:          "index enabled and table present",
 			index:         "index",
 			tables:        []string{"index"},

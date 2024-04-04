@@ -44,6 +44,10 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func
 
 		if strings.ContainsAny(indexPattern, "*,") {
 			for _, pattern := range strings.Split(indexPattern, ",") {
+				if strings.HasPrefix(pattern, elasticIndexPrefix) {
+					logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", indexPattern)
+					return false
+				}
 				for _, tableName := range tables() {
 					if config.MatchName(preprocessPattern(pattern), tableName) {
 						candidates = append(candidates, tableName)
