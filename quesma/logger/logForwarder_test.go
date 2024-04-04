@@ -7,12 +7,13 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
 type ForwarderHandler struct {
-	counter int
+	counter atomic.Int32
 	barrier *sync.WaitGroup
 }
 
@@ -24,7 +25,7 @@ func (h *ForwarderHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error reading request body", http.StatusInternalServerError)
 		return
 	}
-	h.counter += len(body)
+	h.counter.Add(int32(len(body)))
 	for i := 0; i < len(body); i++ {
 		h.barrier.Done()
 	}
@@ -64,8 +65,8 @@ func TestLogForwarder(t *testing.T) {
 	logForwarder.TriggerFlush()
 
 	for i := 0; i < ITERATIONS; i++ {
-		logForwarder.Write([]byte(LOG_MESSAGE))
+		_, _ = logForwarder.Write([]byte(LOG_MESSAGE))
 	}
 	barrier.Wait()
-	assert.Equal(t, len(LOG_MESSAGE)*ITERATIONS, handler.counter)
+	assert.Equal(t, len(LOG_MESSAGE)*ITERATIONS, int(handler.counter.Load()))
 }

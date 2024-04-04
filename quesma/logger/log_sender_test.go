@@ -7,25 +7,26 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
 type Handler struct {
-	counter int
+	counter atomic.Int32
 	barrier *sync.WaitGroup
 }
 
 // ServeHTTP is the method that serves as the handler
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer h.barrier.Done()
 	reader := io.NopCloser(r.Body)
 	body, err := io.ReadAll(reader)
 	if err != nil {
 		http.Error(w, "Error reading request body", http.StatusInternalServerError)
 		return
 	}
-	h.counter += len(body)
-	h.barrier.Done()
+	h.counter.Add(int32(len(body)))
 }
 
 func startHttpServer(handler *Handler, addr string) {
@@ -69,10 +70,10 @@ func TestLogSenderFlush(t *testing.T) {
 		assert.Equal(t, true, result.bufferLengthCondition)
 		assert.Equal(t, true, result.timeCondition)
 	}
-	assert.Equal(t, 0, handler.counter)
-	logSender.FlushLogs()
+	assert.Equal(t, 0, int(handler.counter.Load()))
+	_ = logSender.FlushLogs()
 	barrier.Wait()
-	assert.Equal(t, sendCounter, handler.counter)
+	assert.Equal(t, sendCounter, int(handler.counter.Load()))
 }
 
 func TestLogSenderSmallBuffer(t *testing.T) {
@@ -95,7 +96,7 @@ func TestLogSenderSmallBuffer(t *testing.T) {
 		assert.Equal(t, true, result.timeCondition)
 	}
 	barrier.Wait()
-	assert.Equal(t, handler.counter, BUFFER_SIZE*ITERATIONS)
+	assert.Equal(t, int(handler.counter.Load()), BUFFER_SIZE*ITERATIONS)
 }
 
 func TestLogSenderSmallElapsedTime(t *testing.T) {
@@ -118,5 +119,5 @@ func TestLogSenderSmallElapsedTime(t *testing.T) {
 		assert.Equal(t, false, result.timeCondition)
 	}
 	barrier.Wait()
-	assert.Equal(t, sendCounter, handler.counter)
+	assert.Equal(t, sendCounter, int(handler.counter.Load()))
 }
