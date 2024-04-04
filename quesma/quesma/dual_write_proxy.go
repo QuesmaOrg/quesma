@@ -29,21 +29,15 @@ func (q *dualWriteHttpProxy) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
-func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, router *mux.PathRouter, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *dualWriteHttpProxy {
+func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, pathRouter *mux.PathRouter, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *dualWriteHttpProxy {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-
-	rerouteObj := rerouteParams{
-		phoneHomeAgent:          agent,
-		config:                  config,
-		quesmaManagementConsole: quesmaManagementConsole,
-		httpClient:              client,
-	}
+	routerInstance := router{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client}
 
 	return &dualWriteHttpProxy{
-		elasticRouter: router,
+		elasticRouter: pathRouter,
 		routingHttpServer: &http.Server{
 			Addr: ":" + strconv.Itoa(int(config.PublicTcpPort)),
 			Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -57,7 +51,7 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaCo
 				ua := req.Header.Get("User-Agent")
 				agent.UserAgentCounters().Add(ua, 1)
 
-				rerouteObj.reroute(withTracing(req), w, req, reqBody, router, logManager)
+				routerInstance.reroute(withTracing(req), w, req, reqBody, pathRouter, logManager)
 			}),
 		},
 		logManager:          logManager,

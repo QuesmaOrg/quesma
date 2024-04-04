@@ -109,24 +109,24 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 	}
 }
 
-type rerouteParams struct {
+type router struct {
 	config                  config.QuesmaConfiguration
 	quesmaManagementConsole *ui.QuesmaManagementConsole
 	phoneHomeAgent          telemetry.PhoneHomeAgent
 	httpClient              *http.Client
 }
 
-func (obj *rerouteParams) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, logManager *clickhouse.LogManager) {
+func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, logManager *clickhouse.LogManager) {
 	if router.Matches(req.URL.Path, req.Method, string(reqBody)) {
-		elkResponseChan := obj.sendHttpRequestToElastic(ctx, req, reqBody)
-		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, obj.quesmaManagementConsole, func() (*mux.Result, error) {
+		elkResponseChan := r.sendHttpRequestToElastic(ctx, req, reqBody)
+		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
 			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method)
 		})
 		elkRawResponse := <-elkResponseChan
 		elkResponse := elkRawResponse.response
 		if elkResponse != nil {
 			if routes.IsQueryPath(req.URL.Path) { // We should send only responses for search queries to Quesma console
-				sendElkResponseToQuesmaConsole(ctx, elkRawResponse, obj.quesmaManagementConsole)
+				sendElkResponseToQuesmaConsole(ctx, elkRawResponse, r.quesmaManagementConsole)
 			}
 			if !(elkResponse.StatusCode >= 200 && elkResponse.StatusCode < 300) {
 				logger.Warn().Msgf("Elasticsearch returned unexpected status code [%d] when calling [%s %s]", elkResponse.StatusCode, req.Method, req.URL.Path)
@@ -156,7 +156,7 @@ func (obj *rerouteParams) reroute(ctx context.Context, w http.ResponseWriter, re
 			responseFromQuesma(ctx, unzipped, w, elkResponse, zip)
 
 		} else {
-			if elkResponse != nil && obj.config.Mode == config.DualWriteQueryClickhouseFallback {
+			if elkResponse != nil && r.config.Mode == config.DualWriteQueryClickhouseFallback {
 				logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from Elastic", err)
 				copyHeaders(w, elkResponse)
 				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
@@ -174,7 +174,7 @@ func (obj *rerouteParams) reroute(ctx context.Context, w http.ResponseWriter, re
 
 		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, logManager.ResolveIndexes)
 
-		elkResponseChan := obj.sendHttpRequestToElastic(ctx, req, reqBody)
+		elkResponseChan := r.sendHttpRequestToElastic(ctx, req, reqBody)
 		rawResponse := <-elkResponseChan
 		response := rawResponse.response
 		if response != nil {
@@ -191,19 +191,19 @@ type elasticResult struct {
 	took     time.Duration
 }
 
-func (obj *rerouteParams) sendHttpRequestToElastic(ctx context.Context, req *http.Request,
+func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request,
 	reqBody []byte) chan elasticResult {
 	elkResponseChan := make(chan elasticResult)
 
 	// If the request is authenticated, we should not override it with the configured user
-	if req.Header.Get("Authorization") == "" && obj.config.ElasticsearchUser != "" {
-		req.SetBasicAuth(obj.config.ElasticsearchUser, obj.config.ElasticsearchPassword)
+	if req.Header.Get("Authorization") == "" && r.config.ElasticsearchUser != "" {
+		req.SetBasicAuth(r.config.ElasticsearchUser, r.config.ElasticsearchPassword)
 	}
 
 	go func() {
-		elkResponseChan <- recordRequestToElastic(req.URL.Path, obj.quesmaManagementConsole, func() elasticResult {
-			span := obj.phoneHomeAgent.ElasticQueryDuration().Begin()
-			resp, err := obj.sendHttpRequest(ctx, obj.config.ElasticsearchUrl.String(), req, reqBody)
+		elkResponseChan <- recordRequestToElastic(req.URL.Path, r.quesmaManagementConsole, func() elasticResult {
+			span := r.phoneHomeAgent.ElasticQueryDuration().Begin()
+			resp, err := r.sendHttpRequest(ctx, r.config.ElasticsearchUrl.String(), req, reqBody)
 			took := span.End(err)
 			return elasticResult{resp, took}
 		})
@@ -285,7 +285,7 @@ func (q *Quesma) Start() {
 	go q.quesmaManagementConsole.Run()
 }
 
-func (obj *rerouteParams) sendHttpRequest(ctx context.Context, address string, originalReq *http.Request, originalReqBody []byte) (*http.Response, error) {
+func (r *router) sendHttpRequest(ctx context.Context, address string, originalReq *http.Request, originalReqBody []byte) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, originalReq.Method, address+originalReq.URL.String(), bytes.NewBuffer(originalReqBody))
 
 	if err != nil {
@@ -295,7 +295,7 @@ func (obj *rerouteParams) sendHttpRequest(ctx context.Context, address string, o
 
 	req.Header = originalReq.Header
 
-	resp, err := obj.httpClient.Do(req)
+	resp, err := r.httpClient.Do(req)
 	if err != nil {
 		logger.ErrorWithCtxAndReason(ctx, "No network connection").
 			Msgf("Error sending request: %v", err)
