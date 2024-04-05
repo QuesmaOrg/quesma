@@ -1,4 +1,4 @@
-name: Build public container
+name: Build Quesma container image for internal uses (nigthly repository)
 
 on:
   push:
