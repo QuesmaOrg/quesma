@@ -183,7 +183,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 
 	router.Use(panicRecovery)
 
-	router.HandleFunc(healthPath, ok)
+	router.HandleFunc(healthPath, qmc.checkHealth)
 
 	router.HandleFunc(bypassPath, bypassSwitch).Methods("POST")
 
@@ -453,10 +453,16 @@ func (qmc *QuesmaManagementConsole) Run() {
 	}
 }
 
-func ok(writer http.ResponseWriter, _ *http.Request) {
-	writer.WriteHeader(200)
-	writer.Header().Set("Content-Type", "application/json")
-	_, _ = writer.Write([]byte(`{"cluster_name": "quesma"}`))
+func (qmc *QuesmaManagementConsole) checkHealth(writer http.ResponseWriter, _ *http.Request) {
+	health := qmc.checkElasticsearch()
+	if health.status != "red" {
+		writer.WriteHeader(200)
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"cluster_name": "quesma"}`))
+	} else {
+		writer.WriteHeader(503)
+		_, _ = writer.Write([]byte(`Elastic search is unavailable: ` + health.message))
+	}
 }
 
 // curl -X POST localhost:9999/_quesma/bypass -d '{"bypass": true}'

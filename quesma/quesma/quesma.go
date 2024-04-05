@@ -188,17 +188,24 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		elkResponseChan := r.sendHttpRequestToElastic(ctx, req, reqBody)
 		rawResponse := <-elkResponseChan
 		response := rawResponse.response
+		w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 		if response != nil {
 			copyHeaders(w, response)
-			w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 			w.WriteHeader(response.StatusCode)
 			responseFromElastic(ctx, response, w)
+		} else {
+			w.WriteHeader(500)
+			if rawResponse.error != nil {
+				w.Write([]byte(rawResponse.error.Error()))
+				response.Body.Close()
+			}
 		}
 	}
 }
 
 type elasticResult struct {
 	response *http.Response
+	error    error
 	took     time.Duration
 }
 
@@ -216,7 +223,7 @@ func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request
 			span := r.phoneHomeAgent.ElasticQueryDuration().Begin()
 			resp, err := r.sendHttpRequest(ctx, r.config.ElasticsearchUrl.String(), req, reqBody)
 			took := span.End(err)
-			return elasticResult{resp, took}
+			return elasticResult{resp, err, took}
 		})
 	}()
 	return elkResponseChan
