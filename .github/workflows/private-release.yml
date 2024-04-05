@@ -11,7 +11,7 @@ on:
         required: true
 
 jobs:
-  build-quesma-docker-image:
+  build-and-publish-quesma-docker-image:
     strategy:
       matrix:
         module: [ "quesma" ]
@@ -24,17 +24,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-# Probably we don't need this step, to be removed when confirmed
-#      - name: Set up Go
-#        uses: actions/setup-go@v5
-#        with:
-#          cache-dependency-path: ${{ matrix.module }}/go.sum
-#          go-version: '1.22'
-
-      - name: Login to GCR (only for build running on `main` branch)
+      - name: Login to GCR
         uses: docker/login-action@v3
         with:
-          registry: europe-docker.pkg.dev
+          registry: europe-central2-docker.pkg.dev
           username: _json_key
           password: ${{ secrets.GCR_SERVICE_ACCOUNT_PRIVATE_KEY }}
 
