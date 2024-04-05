@@ -436,7 +436,9 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []stri
 	_, err := lm.chDb.ExecContext(ctx, insert)
 	span.End(err)
 	if err != nil {
-		return fmt.Errorf("error on Insert, tablename: [%s]\nerror: [%v]", tableName, err)
+		errorMsg := fmt.Sprintf("error [%s] on Insert, tablename: [%s]", err, tableName)
+		logger.ErrorWithCtx(ctx).Msg(errorMsg)
+		return fmt.Errorf(errorMsg)
 	} else {
 		return nil
 	}
