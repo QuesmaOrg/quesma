@@ -10,11 +10,11 @@ import (
 	"net/http"
 )
 
-const URL_QUESMA = "http://localhost:8080/logs-generic*/_async_search"
-const URL_ELASTIC = "http://localhost:9200/logs-generic*/_async_search"
+const URL_QUESMA = "http://localhost:8080/logs-generic*/_search"
+const URL_ELASTIC = "http://localhost:9200/logs-generic*/_search"
 const METHOD = "POST"
 const DURATION = 60 * time.Second
-const FREQUENCY = 100
+const FREQUENCY = 1
 
 func reportHDRHistogram(metrics vegeta.Metrics) {
 	var resultBuffer bytes.Buffer
@@ -41,7 +41,7 @@ func reportJSON(metrics vegeta.Metrics) {
 	log.Println(string(prettyJSON))
 }
 
-func runLoadTests(url string, body []byte, rate vegeta.Rate, duration time.Duration) {
+func runSearchLoadTests(url string, body []byte, rate vegeta.Rate, duration time.Duration) {
 	log.Println(url)
 	targeter := vegeta.NewStaticTargeter(vegeta.Target{
 		Method: METHOD,
@@ -63,61 +63,14 @@ func runLoadTests(url string, body []byte, rate vegeta.Rate, duration time.Durat
 	reportJSON(metrics)
 }
 
-func getAggregateQuery() []byte {
-	now := time.Now()
-
-	body := []byte(`{
-  "_source": {
-    "excludes": []
-  },
-  "aggs": {
-    "0": {
-      "date_histogram": {
-        "field": "@timestamp",
-        "fixed_interval": "30s",
-        "min_doc_count": 1,
-        "time_zone": "Europe/Warsaw"
-      }
-    }
-  },
-  "fields": [
-    {
-      "field": "@timestamp",
-      "format": "date_time"
-    }
-  ],
-  "query": {
-    "bool": {
-      "filter": [
-        {
-          "range": {
-            "@timestamp": {
-              "format": "strict_date_optional_time",
-              "gte": ` + `"` + now.Add(-15*time.Minute).Format("2006-01-02T15:04:05.726Z") + `"` + `,
-              "lte": ` + `"` + now.Format("2006-01-02T15:04:05.726Z") + `"` + `
-            }
-          }
-        }
-      ],
-      "must": [],
-      "must_not": [],
-      "should": []
-    }
-  },
-  "runtime_mappings": {},
-  "script_fields": {},
-  "size": 0,
-  "stored_fields": [
-    "*"
-  ],
-  "track_total_hits": true
-}`)
-	return body
-}
-
 func main() {
-	body := getAggregateQuery()
+	body := getSearchAggregateQuery(-15 * time.Minute)
 	rate := vegeta.Rate{Freq: FREQUENCY, Per: time.Second}
-	runLoadTests(URL_ELASTIC, body, rate, DURATION)
-	runLoadTests(URL_QUESMA, body, rate, DURATION)
+	runSearchLoadTests(URL_ELASTIC, body, rate, DURATION)
+	runSearchLoadTests(URL_QUESMA, body, rate, DURATION)
+	from := time.Date(2011, 2, 12, 15, 3, 12, 963000000, time.UTC)
+	to := time.Date(2011, 3, 13, 15, 17, 59, 803000000, time.UTC)
+	const numberOfConcurrentRequests = 1
+	const numberOfIterations = 1
+	runAsyncSearchLoadTests(numberOfIterations, numberOfConcurrentRequests, from, to)
 }
