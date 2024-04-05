@@ -50,10 +50,15 @@ func (logSender *LogSender) EatLogMessage(msg []byte) struct {
 		}
 		// otherwise send logs and reset buffer
 		err = logSender.sendLogs()
-		if err != nil && !bufferLengthCondition { // if we fail, but got space, we will retry later. Otherwise drop.
-			err = fmt.Errorf("droped buffer, as sending failed and buffer was full: %v", err)
-			logSender.LogBuffer = make([]byte, 0, cap(logSender.LogBuffer))
-			logSender.LastSendTime = time.Now()
+		if err != nil {
+			if !bufferLengthCondition { // if we fail and no space, drop it.
+				err = fmt.Errorf("droped buffer, as sending failed and buffer was full: %v", err)
+				logSender.LogBuffer = make([]byte, 0, cap(logSender.LogBuffer))
+				logSender.LastSendTime = time.Now()
+			} else {
+				// Otherwise, we will try to send again in few seconds (10% of interval
+				logSender.LastSendTime = time.Now().Add(-logSender.Interval / 10)
+			}
 		}
 		if !addedBefore {
 			// write unsent log to buffer

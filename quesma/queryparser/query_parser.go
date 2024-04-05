@@ -606,12 +606,12 @@ func tokenizeDateMathExpr(expr string) []string {
 			}
 			tokens = append(tokens, token)
 		}
-		if expr[index] == OPERATOR_ADD || expr[index] == OPERATOR_SUB {
+		if index < len(expr) && (expr[index] == OPERATOR_ADD || expr[index] == OPERATOR_SUB) {
 			token := expr[index : index+1]
 			tokens = append(tokens, token)
 			index = index + 1
 		} else {
-			logger.Error().Msg("operator expected in date math expression")
+			logger.Error().Msgf("operator expected in date math expression '%s'", expr)
 			return tokens
 		}
 		var number string
@@ -626,7 +626,7 @@ func tokenizeDateMathExpr(expr string) []string {
 		// Check if number has been tokenized
 		// correctly and if not, return tokens
 		if len(number) == 0 {
-			logger.Error().Msg("number expected in date math expression")
+			logger.Error().Msgf("number expected in date math expression '%s'", expr)
 			return tokens
 		}
 		tokens = append(tokens, number)

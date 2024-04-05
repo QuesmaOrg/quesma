@@ -163,7 +163,7 @@ func (t *Table) ResolveField(fieldName string) (field string) {
 		}
 	}
 
-	if field != "*" && field != "_all" {
+	if field != "*" && field != "_all" && field != "_doc" && field != "_id" && field != "_index" {
 		if _, ok := t.Cols[field]; !ok {
 			logger.Warn().Msgf("field '%s' referenced, but not found in table '%s'", fieldName, t.Name)
 		}
