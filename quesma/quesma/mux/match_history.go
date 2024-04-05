@@ -1,6 +1,7 @@
 package mux
 
 import (
+	"mitmproxy/quesma/quesma/routes"
 	"slices"
 	"strings"
 	"sync"
@@ -28,15 +29,22 @@ func MatchStatistics() Statistics {
 	return routerStatistics.snapshot()
 }
 
+func normalizeUrl(url string) string {
+	if strings.HasPrefix(url, routes.AsyncSearchIdPrefix) {
+		return routes.AsyncSearchIdPrefix + "*****"
+	}
+	return url
+}
+
 func (a *routerStatisticsAccumulator) addMatched(url string) {
 	a.withLock(func() {
-		a.matched[url] = true
+		a.matched[normalizeUrl(url)] = true
 	})
 }
 
 func (a *routerStatisticsAccumulator) addUnmatched(url string) {
 	a.withLock(func() {
-		a.unmatched[url] = true
+		a.unmatched[normalizeUrl(url)] = true
 	})
 }
 

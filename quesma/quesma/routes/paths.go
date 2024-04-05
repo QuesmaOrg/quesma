@@ -15,6 +15,7 @@ const (
 	TermsEnumPath        = "/:index/_terms_enum"
 	ClusterHealthPath    = "/_cluster/health"
 	BulkPath             = "/_bulk"
+	AsyncSearchIdPrefix  = "/_async_search/"
 	AsyncSearchIdPath    = "/_async_search/:id"
 )
 

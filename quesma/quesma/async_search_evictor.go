@@ -5,6 +5,7 @@ import (
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/recovery"
+	"strings"
 	"time"
 )
 
@@ -40,12 +41,16 @@ func (e *AsyncQueriesEvictor) tryEvictAsyncRequests(timeFun func(time.Time) time
 		}
 		return true
 	})
+	evictedIds := make([]string, 0)
 	for _, asyncQueryContext := range asyncQueriesContexts {
 		e.AsyncQueriesContexts.Delete(asyncQueryContext.id)
 		if asyncQueryContext.cancel != nil {
-			logger.Info().Msgf("Evicting async query : %s", asyncQueryContext.id)
+			evictedIds = append(evictedIds, asyncQueryContext.id)
 			asyncQueryContext.cancel()
 		}
+	}
+	if len(evictedIds) > 0 {
+		logger.Info().Msgf("Evicted %d async queries : %s", len(evictedIds), strings.Join(evictedIds, ","))
 	}
 }
 
