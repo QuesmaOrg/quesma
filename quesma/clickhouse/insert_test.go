@@ -166,7 +166,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					logManagerEmpty := lm.lm.tableDefinitions.Load().Size() == 0
 
 					// check if we properly create table in our tables table :) (:) suggested by Copilot) if needed
-					tableInMemory := lm.lm.GetTable(tableName)
+					tableInMemory := lm.lm.FindTable(tableName)
 					needCreate := true
 					if tableInMemory != nil && tableInMemory.Created {
 						needCreate = false
@@ -175,7 +175,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					assert.Equal(t, needCreate, noSuchTable)
 
 					// and Created is set to true
-					tableInMemory = lm.lm.GetTable(tableName)
+					tableInMemory = lm.lm.FindTable(tableName)
 					assert.NotNil(t, tableInMemory)
 					assert.True(t, tableInMemory.Created)
 

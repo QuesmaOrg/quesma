@@ -334,7 +334,7 @@ func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfi
 		return "", err
 	}
 
-	t := lm.GetTable(tableName)
+	t := lm.FindTable(tableName)
 	onlySchemaFields := RemoveTypeMismatchSchemaFields(m, t)
 	schemaFieldsJson, err := json.Marshal(onlySchemaFields)
 
@@ -387,7 +387,7 @@ func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfi
 }
 
 func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName, jsonData string) (*ChTableConfig, error) {
-	table := lm.GetTable(tableName)
+	table := lm.FindTable(tableName)
 	var config *ChTableConfig
 	if table == nil {
 		config = NewOnlySchemaFieldsCHConfig()
@@ -444,7 +444,7 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []stri
 	}
 }
 
-func (lm *LogManager) GetTable(tableName string) (result *Table) {
+func (lm *LogManager) FindTable(tableName string) (result *Table) {
 	tableNamePattern := index.TableNamePatternRegexp(tableName)
 	lm.tableDefinitions.Load().
 		Range(func(name string, table *Table) bool {
@@ -464,7 +464,7 @@ func (lm *LogManager) GetTableDefinitions() TableMap {
 
 // Returns if schema wasn't created (so it needs to be, and will be in a moment)
 func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
-	t := lm.GetTable(table.Name)
+	t := lm.FindTable(table.Name)
 	if t == nil {
 		table.Created = true
 

@@ -112,8 +112,10 @@ func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, bod
 	var allRows []model.QueryResultRow
 	var queryType model.SearchQueryType
 
+	tables := lm.GetTableDefinitions()
+
 	for _, resolvedTableName := range resolved {
-		table := lm.GetTable(resolvedTableName)
+		table, _ := tables.Load(resolvedTableName)
 		queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table}
 		simpleQuery, queryInfo := queryTranslator.ParseQuery(string(body))
 		if simpleQuery.CanParse {
@@ -393,7 +395,7 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, index string, body 
 		logger.WarnWithCtx(ctx).Msgf("could not resolve table name for [%s]", index)
 		return nil, errors.New("could not resolve table name")
 	}
-	table := lm.GetTable(resolvedTableName)
+	table := lm.FindTable(resolvedTableName)
 
 	queryTranslator := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: ctx}
 	simpleQuery, queryInfo, _ := queryTranslator.ParseQueryAsyncSearch(string(body))

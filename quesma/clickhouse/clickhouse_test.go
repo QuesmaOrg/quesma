@@ -837,7 +837,7 @@ func TestLogManager_GetTable(t *testing.T) {
 			var tableDefinitions = atomic.Pointer[TableMap]{}
 			tableDefinitions.Store(&tt.predefinedTables)
 			lm := NewLogManager(&tt.predefinedTables, config.QuesmaConfiguration{})
-			assert.Equalf(t, tt.found, lm.GetTable(tt.tableNamePattern) != nil, "GetTable(%v)", tt.tableNamePattern)
+			assert.Equalf(t, tt.found, lm.FindTable(tt.tableNamePattern) != nil, "GetTable(%v)", tt.tableNamePattern)
 		})
 	}
 }

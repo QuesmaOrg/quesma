@@ -172,8 +172,10 @@ func NewAggregatorEmpty(name string) Aggregator {
 	return Aggregator{Name: name, Empty: true}
 }
 
-type AsyncSearchQueryType int
-type SearchQueryType int
+type (
+	AsyncSearchQueryType int
+	SearchQueryType      int
+)
 
 const (
 	Histogram AsyncSearchQueryType = iota
