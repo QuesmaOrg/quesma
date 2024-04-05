@@ -364,7 +364,7 @@ func (q *QueryRunner) asyncSearchAggregationWorker(ctx context.Context, asyncReq
 		startTime := time.Now()
 		dbQueryCtx, dbCancel := context.WithCancel(context.Background())
 		q.addAsyncQueryContext(dbQueryCtx, dbCancel, asyncRequestIdStr)
-		logger.InfoWithCtx(ctx).Msg("We're using new Aggregation handling.")
+		logger.DebugWithCtx(ctx).Msg("We're using new Aggregation handling.")
 		for _, agg := range aggregations {
 			logger.InfoWithCtx(ctx).Msg(agg.String()) // I'd keep for now until aggregations work fully
 			rows, err := queryTranslator.ClickhouseLM.ProcessGeneralAggregationQuery(dbQueryCtx, table, &agg.Query)
