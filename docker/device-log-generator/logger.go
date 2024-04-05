@@ -234,7 +234,7 @@ func generateLogLine(logTime time.Time, client *Client) []byte {
 	return serialized
 }
 
-func main() {
+func deviceLogGenerator() {
 	targetUrl := configureTargetUrl()
 
 	var clients []*Client

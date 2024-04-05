@@ -38,7 +38,10 @@ quesma:
     phone_home_logs:
       enabled: true
       fulltext_fields: message
+    windows_logs:
+      enabled: true
     phone_home_data:
       enabled: true
       fulltext_fields: message
+
 

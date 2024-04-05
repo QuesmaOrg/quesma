@@ -107,6 +107,20 @@ do_silent_http_post "api/data_views/data_view" '{
     "override": true
 }'
 
+
+echo -n "Adding data view Windows Logs... "
+do_silent_http_post "api/data_views/data_view" '{
+    "data_view": {
+       "name": "Windows Security Logs",
+       "title": "windows_logs",
+       "id": "windows_logs",
+       "timeFieldName": "@timestamp",
+       "allowNoIndex": true
+    },
+    "override": true
+}'
+
+
 echo ""
 
 echo ""

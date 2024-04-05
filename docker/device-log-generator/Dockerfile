@@ -1,11 +1,13 @@
 FROM golang:alpine AS builder
 
-ADD logger.go /logger.go
+ADD . /go/
 
-RUN go build -o /service /logger.go
+RUN --mount=type=cache,target="/root/.cache/go-build" \
+    --mount=type=cache,target=/go/pkg/mod  \
+     go build -o /service .
 
 FROM scratch
 
 COPY --from=builder /service .
-
+COPY assets/*.json assets/
 ENTRYPOINT [ "/service" ]
