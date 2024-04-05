@@ -9,7 +9,7 @@ import (
 // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-template.html
 var searchTemplatePathRegexps = compileRegexes([]string{"^/_scripts/(.*)", "^/_render/template$", "^/_render/template$"})
 var searchTemplatePathWithIndexRegexps = compileRegexes([]string{"^/(.*)/_search/template$", "^/(.*)/_msearch/template$"})
-var indexPathRegexp = regexp.MustCompile("^/(.*)/(.*)$")
+var indexPathRegexp = regexp.MustCompile("^/(.*?)/(.*)$")
 
 func compileRegexes(path []string) []*regexp.Regexp {
 	var result []*regexp.Regexp
