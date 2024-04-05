@@ -168,14 +168,14 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 		} else {
 			if elkResponse != nil && r.config.Mode == config.DualWriteQueryClickhouseFallback {
-				logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from Elastic", err)
+				logger.Error().Ctx(ctx).Str("url", req.URL.Path).Msgf("Error processing request: %v, responding from Elastic", err)
 				copyHeaders(w, elkResponse)
 				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 				w.WriteHeader(elkResponse.StatusCode)
 				responseFromElastic(ctx, elkResponse, w)
 
 			} else {
-				logger.Error().Ctx(ctx).Msgf("Error processing request: %v, responding from Quesma", err)
+				logger.Error().Ctx(ctx).Str("url", req.URL.Path).Msgf("Error processing request: %v, responding from Quesma", err)
 				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
 				w.WriteHeader(500)
 				responseFromQuesma(ctx, []byte(err.Error()), w, elkResponse, zip)
