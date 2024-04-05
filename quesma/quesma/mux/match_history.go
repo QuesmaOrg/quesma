@@ -29,9 +29,14 @@ func MatchStatistics() Statistics {
 	return routerStatistics.snapshot()
 }
 
+const maskStars = "*****"
+
 func normalizeUrl(url string) string {
 	if strings.HasPrefix(url, routes.AsyncSearchIdPrefix) {
-		return routes.AsyncSearchIdPrefix + "*****"
+		return routes.AsyncSearchIdPrefix + maskStars
+	}
+	if strings.HasPrefix(url, routes.KibanaInternalPrefix) {
+		return routes.KibanaInternalPrefix + maskStars
 	}
 	return url
 }

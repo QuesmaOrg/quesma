@@ -17,6 +17,7 @@ const (
 	BulkPath             = "/_bulk"
 	AsyncSearchIdPrefix  = "/_async_search/"
 	AsyncSearchIdPath    = "/_async_search/:id"
+	KibanaInternalPrefix = "/.kibana_"
 )
 
 var notQueryPaths = []string{
