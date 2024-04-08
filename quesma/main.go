@@ -28,6 +28,7 @@ const banner = `
 func main() {
 	println(banner)
 	println("Quesma version: ", buildinfo.Version)
+	println("Quesma build hash: ", buildinfo.BuildHash)
 	println("Quesma license: ", buildinfo.LicenseKey)
 
 	sig := make(chan os.Signal, 1)

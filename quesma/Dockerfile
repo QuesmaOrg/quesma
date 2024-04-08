@@ -9,6 +9,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
 ENV GOCACHE=/root/.cache/go-build
+ARG QUESMA_BUILD_SHA
 ARG QUESMA_VERSION
 ARG QUESMA_LICENSE_KEY
 
@@ -23,10 +24,14 @@ COPY . .
 RUN --mount=type=cache,target="/root/.cache/go-build" \
     --mount=type=cache,target=/go/pkg/mod  \
     go build \
-    -ldflags="-X 'mitmproxy/quesma/buildinfo.Version=$QUESMA_VERSION'" \
-    -ldflags="-X 'buildinfo.Version=$QUESMA_VERSION'" \
-    -ldflags="-X 'mitmproxy/quesma/buildinfo.LicenseKey=$QUESMA_LICENSE_KEY'" \
-    -ldflags="-X 'buildinfo.LicenseKey=$QUESMA_LICENSE_KEY'" \
+    -ldflags=" \
+    -X 'mitmproxy/quesma/buildinfo.BuildHash=$QUESMA_BUILD_SHA'  \
+    -X 'buildinfo.BuildHash=$QUESMA_BUILD_SHA'  \
+    -X 'mitmproxy/quesma/buildinfo.Version=$QUESMA_VERSION'  \
+    -X 'buildinfo.Version=$QUESMA_VERSION'  \
+    -X 'mitmproxy/quesma/buildinfo.LicenseKey=$QUESMA_LICENSE_KEY'  \
+    -X 'buildinfo.LicenseKey=$QUESMA_LICENSE_KEY' \
+    " \
     -o bin
 
 FROM scratch

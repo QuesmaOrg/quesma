@@ -44,5 +44,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
+            QUESMA_BUILD_SHA=${{ github.sha }}
             QUESMA_VERSION=${{ github.event.inputs.VERSION_TAG }}
             QUESMA_LICENSE_KEY=${{ github.event.inputs.LICENSE_KEY }}
+          platforms: linux/amd64,linux/arm64
