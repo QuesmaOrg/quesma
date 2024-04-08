@@ -48,7 +48,11 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 		tookStr := fmt.Sprintf(" took %d ms", v.Value.PrimaryTook.Milliseconds())
 		buffer.Html("<p>ResponseID:").Text(v.Key).Text(tookStr).Html("</p>\n")
 		buffer.Html(`<pre Id="response`).Text(v.Key).Html(`">`)
-		buffer.Text(util.JsonPrettify(string(v.Value.QueryResp), true))
+		if len(v.Value.QueryResp) > 0 {
+			buffer.Text(util.JsonPrettify(string(v.Value.QueryResp), true))
+		} else {
+			buffer.Text("(empty, request was not sent to Elasticsearch)")
+		}
 		buffer.Html("\n</pre>")
 		if withLinks {
 			buffer.Html("\n</a>")
@@ -65,7 +69,15 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
 		}
 		tookStr := fmt.Sprintf(" took %d ms", v.Value.SecondaryTook.Milliseconds())
-		buffer.Html("<p>RequestID:").Text(v.Key).Text(tookStr).Html("</p>\n")
+		// FIXME: Put it everywhere:
+		errorBanner := ""
+		if v.Value.errorLogCount > 0 {
+			errorBanner += fmt.Sprintf(` <span class="debug-error-log">%d errors</span>`, v.Value.errorLogCount)
+		}
+		if v.Value.warnLogCount > 0 {
+			errorBanner += fmt.Sprintf(` <span class="debug-warn-log">%d warnings</span>`, v.Value.warnLogCount)
+		}
+		buffer.Html("<p>RequestID:").Text(v.Key).Text(tookStr).Html(errorBanner).Html("</p>\n")
 		buffer.Html(`<pre Id="second_query`).Text(v.Key).Html(`">`)
 		buffer.Text(sqlPrettyPrint(v.Value.QueryBodyTranslated))
 		buffer.Html("\n</pre>")

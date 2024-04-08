@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/quesma"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/telemetry"
+	"mitmproxy/quesma/tracing"
 	"os"
 	"os/signal"
 	"syscall"
@@ -62,7 +63,7 @@ func main() {
 
 }
 
-func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, phoneHomeAgent telemetry.PhoneHomeAgent, logChan <-chan string) *quesma.Quesma {
+func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, phoneHomeAgent telemetry.PhoneHomeAgent, logChan <-chan tracing.LogWithLevel) *quesma.Quesma {
 
 	switch cfg.Mode {
 	case config.Proxy:

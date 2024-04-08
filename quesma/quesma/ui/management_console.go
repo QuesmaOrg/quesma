@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"github.com/rs/zerolog"
 	"mitmproxy/quesma/telemetry"
+	"mitmproxy/quesma/tracing"
 	_ "net/http/pprof"
 
 	"embed"
@@ -69,7 +71,9 @@ type QueryDebugSecondarySource struct {
 type QueryDebugInfo struct {
 	QueryDebugPrimarySource
 	QueryDebugSecondarySource
-	log string
+	log           string
+	errorLogCount int
+	warnLogCount  int
 }
 
 type recordRequests struct {
@@ -81,7 +85,7 @@ type recordRequests struct {
 type QuesmaManagementConsole struct {
 	queryDebugPrimarySource   chan *QueryDebugPrimarySource
 	queryDebugSecondarySource chan *QueryDebugSecondarySource
-	queryDebugLogs            <-chan string
+	queryDebugLogs            <-chan tracing.LogWithLevel
 	ui                        *http.Server
 	mutex                     sync.Mutex
 	debugInfoMessages         map[string]QueryDebugInfo
@@ -97,7 +101,7 @@ type QuesmaManagementConsole struct {
 	phoneHomeAgent            telemetry.PhoneHomeAgent
 }
 
-func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *clickhouse.LogManager, logChan <-chan string, phoneHomeAgent telemetry.PhoneHomeAgent) *QuesmaManagementConsole {
+func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *clickhouse.LogManager, logChan <-chan tracing.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent) *QuesmaManagementConsole {
 	return &QuesmaManagementConsole{
 		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 5),
 		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 5),
@@ -413,25 +417,32 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 			}
 		}
 		qmc.mutex.Unlock()
-	case msg := <-qmc.queryDebugLogs:
-		match := requestIdRegex.FindStringSubmatch(msg)
+	case log := <-qmc.queryDebugLogs:
+		match := requestIdRegex.FindStringSubmatch(log.Msg)
 		if len(match) < 2 {
 			// there's no request_id in the log message
 			return
 		}
 		requestId := match[1]
-		msgPretty := util.JsonPrettify(msg, false) + "\n"
+		msgPretty := util.JsonPrettify(log.Msg, false) + "\n"
 
 		qmc.mutex.Lock()
-		if value, ok := qmc.debugInfoMessages[requestId]; !ok {
-			qmc.debugInfoMessages[requestId] = QueryDebugInfo{
+		var value QueryDebugInfo
+		var ok bool
+		if value, ok = qmc.debugInfoMessages[requestId]; !ok {
+			value = QueryDebugInfo{
 				log: msgPretty,
 			}
 			qmc.addNewMessageId(requestId)
 		} else {
 			value.log += msgPretty
-			qmc.debugInfoMessages[requestId] = value
 		}
+		if log.Level == zerolog.ErrorLevel {
+			value.errorLogCount += 1
+		} else if log.Level == zerolog.WarnLevel {
+			value.warnLogCount += 1
+		}
+		qmc.debugInfoMessages[requestId] = value
 		qmc.mutex.Unlock()
 	case record := <-qmc.requestsSource:
 		qmc.requestsStore.RecordRequest(record.typeName, record.took, record.error)

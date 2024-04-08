@@ -574,6 +574,21 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 	buffer.Html("\n<h2>Menu</h2>")
 
 	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	if requestFound {
+		buffer.Html(`<ul>`)
+		if request.errorLogCount > 0 {
+			buffer.Html(fmt.Sprintf(`<li class="debug-error-log">%d error logs</li>`, request.errorLogCount))
+		} else {
+			buffer.Html(`<li>0 error logs</li>`)
+		}
+		if request.warnLogCount > 0 {
+			buffer.Html(fmt.Sprintf(`<li class="debug-warn-log">%d warn logs</li>`, request.warnLogCount))
+		} else {
+			buffer.Html(`<li>0 warn logs</li>`)
+		}
+
+		buffer.Html(`</ul>`)
+	}
 	buffer.Html(`<form action="/log/`).Text(requestId).Html(`">&nbsp;<input class="btn" type="submit" value="Go to log" /></form>`)
 
 	buffer.Html("\n</div>")
@@ -613,6 +628,7 @@ func (qmc *QuesmaManagementConsole) generateLogForRequestId(requestId string) []
 	buffer.Html("\n<h2>Menu</h2>")
 
 	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<br>`)
 	buffer.Html(`<form action="/request-Id/`).Text(requestId).Html(`">&nbsp;<input class="btn" type="submit" value="Back to request info" /></form>`)
 
 	buffer.Html("\n</div>")

@@ -37,16 +37,14 @@ const (
 var logger zerolog.Logger
 
 // Returns channel where log messages will be sent
-func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan struct{}) <-chan string {
+func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan struct{}) <-chan tracing.LogWithLevel {
 	zerolog.TimeFieldFormat = time.RFC3339Nano // without this we don't have milliseconds timestamp precision
 	var output io.Writer = zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.StampMilli}
 	if os.Getenv("GO_ENV") == "production" { // ConsoleWriter is slow, disable it in production
 		output = os.Stderr
 	}
-	logChannel := make(chan string, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
+	logChannel := make(chan tracing.LogWithLevel, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
 	chanWriter := channelWriter{ch: logChannel}
-
-	var multi zerolog.LevelWriter
 
 	var logWriters []io.Writer
 	if cfg.DisableFileLogging {
@@ -56,8 +54,6 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 		logWriters = []io.Writer{output, StdLogFile, errorFileLogger{ErrLogFile}, chanWriter}
 	}
 	if cfg.RemoteLogDrainUrl == nil {
-		multi = zerolog.MultiLevelWriter(logWriters...)
-
 		// FIXME
 		// LogForwarder has extra jobs either. It forwards information that we're done.
 		// This should be done  via context cancellation.
@@ -65,7 +61,6 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 			<-sig
 			doneCh <- struct{}{}
 		}()
-
 	} else {
 		logForwarder := LogForwarder{logSender: LogSender{
 			Url:          cfg.RemoteLogDrainUrl,
@@ -85,9 +80,9 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 		logForwarder.Run()
 		logForwarder.TriggerFlush()
 		logWriters = append(logWriters, &logForwarder)
-		multi = zerolog.MultiLevelWriter(logWriters...)
 	}
 
+	multi := zerolog.MultiLevelWriter(logWriters...)
 	logger = zerolog.New(multi).
 		Level(cfg.LogLevel).
 		With().

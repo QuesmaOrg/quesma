@@ -2,12 +2,14 @@ package ui
 
 import (
 	"fmt"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/telemetry"
+	"mitmproxy/quesma/tracing"
 	"testing"
 )
 
@@ -15,7 +17,7 @@ func TestHtmlPages(t *testing.T) {
 	xss := "<script>alert('xss')</script>"
 	xssBytes := []byte(xss)
 	id := "MagicId_123"
-	logChan := make(chan string, 5)
+	logChan := make(chan tracing.LogWithLevel, 5)
 	qmc := NewQuesmaManagementConsole(config.Load(), nil, logChan, telemetry.NewPhoneHomeEmptyAgent())
 	qmc.PushPrimaryInfo(&QueryDebugPrimarySource{Id: id, QueryResp: xssBytes})
 	qmc.PushSecondaryInfo(&QueryDebugSecondarySource{Id: id,
@@ -25,7 +27,7 @@ func TestHtmlPages(t *testing.T) {
 		QueryTranslatedResults: xssBytes,
 	})
 	log := fmt.Sprintf(`{"request_id": "%s", "message": "%s"}`, id, xss)
-	logChan <- log
+	logChan <- tracing.LogWithLevel{Level: zerolog.ErrorLevel, Msg: log}
 	// Manually process channel
 	for i := 0; i < 3; i++ {
 		qmc.processChannelMessage()
@@ -68,7 +70,7 @@ func TestHtmlPages(t *testing.T) {
 func TestHtmlSchemaPage(t *testing.T) {
 	xss := "<script>alert('xss')</script>"
 
-	logChan := make(chan string, 5)
+	logChan := make(chan tracing.LogWithLevel, 5)
 
 	var columnsMap = make(map[string]*clickhouse.Column)
 
