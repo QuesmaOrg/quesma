@@ -7,6 +7,7 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/quesma/mux"
+	"mitmproxy/quesma/quesma/ui/sqlfmt"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/stats/errorstats"
 	"mitmproxy/quesma/util"
@@ -79,7 +80,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 		}
 		buffer.Html("<p>RequestID:").Text(v.Key).Text(tookStr).Html(errorBanner).Html("</p>\n")
 		buffer.Html(`<pre Id="second_query`).Text(v.Key).Html(`">`)
-		buffer.Text(sqlPrettyPrint(v.Value.QueryBodyTranslated))
+		buffer.Text(sqlfmt.SqlPrettyPrint(v.Value.QueryBodyTranslated))
 		buffer.Html("\n</pre>")
 		if withLinks {
 			buffer.Html("\n</a>")

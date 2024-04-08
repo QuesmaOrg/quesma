@@ -9,7 +9,6 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
-	"github.com/mjibson/sqlfmt"
 	"io"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
@@ -24,7 +23,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 	"github.com/gorilla/mux"
 )
 
@@ -311,24 +309,6 @@ func (qmc *QuesmaManagementConsole) listenAndServe() {
 type DebugKeyValue struct {
 	Key   string
 	Value QueryDebugInfo
-}
-
-func sqlPrettyPrint(sqlData []byte) string {
-	formattingConfig := tree.PrettyCfg{
-		LineWidth:                120,
-		DoNotNewLineAfterColName: true,
-		Simplify:                 true,
-		TabWidth:                 2,
-		UseTabs:                  false,
-		Align:                    tree.PrettyNoAlign,
-	}
-	stmts := strings.Split(strings.ReplaceAll(string(sqlData), "`", `"`), "\n") // sqlfmt can't deal with backticks
-	sqlFormatted, err := sqlfmt.FmtSQL(formattingConfig, stmts)
-	if err != nil {
-		logger.Error().Msgf("Error while formatting sql: %v, stmts: %v", err, stmts)
-		sqlFormatted = string(sqlData)
-	}
-	return sqlFormatted
 }
 
 func (qmc *QuesmaManagementConsole) generateQueries() []byte {
