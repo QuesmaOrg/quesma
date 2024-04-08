@@ -57,7 +57,7 @@ const (
 func TestSearchResponse(t *testing.T) {
 	row := []model.QueryResultRow{{}}
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
-	searchRespBuf, err := cw.MakeResponseAsyncSearchQuery(row, model.ListAllFields, NewEmptyHighlighter(), asyncRequestIdStr, false)
+	searchRespBuf, err := cw.MakeAsyncSearchResponseMarshalled(row, model.ListAllFields, NewEmptyHighlighter(), asyncRequestIdStr, false)
 	require.NoError(t, err)
 	var searchResponseResult model.SearchResp
 	err = json.Unmarshal(searchRespBuf, &searchResponseResult)
@@ -122,51 +122,13 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 			},
 			model.Normal,
 		},
-		{
-			`
-	{
-		"_shards": {
-			"failed": 0,
-			"skipped": 0,
-			"successful": 2,
-			"total": 2
-		},
-		"aggregations": {
-			"suggestions": {
-				"buckets": [],
-				"doc_count_error_upper_bound": 0,
-				"sum_other_doc_count": 0
-			},
-			"unique_terms": {
-				"value": 0
-			}
-		},
-		"hits": {
-			"hits": [],
-			"max_score": null,
-			"total": {
-				"relation": "eq",
-				"value": 1376
-			}
-		},
-		"terminated_early": false,
-		"timed_out": false,
-		"took": 1
-	}`,
-			model.QueryResultRow{
-				Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("count()", 1376),
-				},
-			},
-			model.Count,
-		},
 	}
 
+	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
-			ourResponse, err := MakeResponseSearchQuery([]model.QueryResultRow{args[i].ourQueryResult}, args[i].queryType)
+			ourResponse, err := cw.MakeSearchResponseMarshalled([]model.QueryResultRow{args[i].ourQueryResult}, args[i].queryType, NewEmptyHighlighter())
 			assert.NoError(t, err)
-
 			difference1, difference2, err := util.JsonDifference(args[i].elasticResponseJson, string(ourResponse))
 			if err != nil {
 				t.Error(err)
@@ -181,71 +143,8 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 	var args = []struct {
 		elasticResponseJson string
 		ourQueryResult      []model.QueryResultRow
-		queryType           model.AsyncSearchQueryType
+		queryType           model.SearchQueryType
 	}{
-		{
-			`
-	{
-		"completion_status": 200,
-		"completion_time_in_millis": 1706639337527,
-		"expiration_time_in_millis": 1706639397521,
-		"id": "FnhMY09KX3ZLUmFDeGtjLU1YM1RMMGccTTF2dnY2R0dSNEtZYVQ3cjR5ZnBuQTo3NjM0MQ==",
-		"is_partial": false,
-		"is_running": false,
-		"response": {
-			"_shards": {
-				"failed": 0,
-				"skipped": 0,
-				"successful": 1,
-				"total": 1
-			},
-			"aggregations": {
-				"0": {
-					"buckets": [
-						{
-							"doc_count": 1,
-							"key": 1706638410000,
-							"key_as_string": "2024-01-30T19:13:30.000+01:00"
-						},
-						{
-							"doc_count": 14,
-							"key": 1706638440000,
-							"key_as_string": "2024-01-30T19:14:00.000+01:00"
-						}
-					]
-				}
-			},
-			"hits": {
-				"hits": [],
-				"max_score": null,
-				"total": {
-					"relation": "eq",
-					"value": 87
-				}
-			},
-			"timed_out": false,
-			"took": 6
-		},
-		"start_time_in_millis": 1706639337521
-	}`,
-			[]model.QueryResultRow{
-				{
-					Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", 1706638410000),
-						model.NewQueryResultCol("doc_count", uint64(1)),
-						model.NewQueryResultCol("key_as_string", "2024-01-30T19:13:30.000+01:00"),
-					},
-				},
-				{
-					Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", 1706638440000),
-						model.NewQueryResultCol("doc_count", uint64(14)),
-						model.NewQueryResultCol("key_as_string", "2024-01-30T19:14:00.000+01:00"),
-					},
-				},
-			},
-			model.Histogram,
-		},
 		{
 			`
 	{
@@ -254,6 +153,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 		"expiration_time_in_millis": 1706642765524,
 		"is_partial": false,
   		"is_running": false,
+		"id": 0,
   		"response": {
 			"_shards": {
 				"failed": 0,
@@ -310,7 +210,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 					},
 				},
 			},
-			model.AggsByField,
+			model.Facets,
 		},
 		{
 			`
@@ -319,6 +219,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 		"is_running": false,
 		"completion_status": 200,
 		"start_time_in_millis": 1706643496415,
+		"id": 0,
 		"expiration_time_in_millis": 1706643556415,
 		"completion_time_in_millis": 1706643496422,
 		"response": {
@@ -520,7 +421,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
-			ourResponse, err := cw.MakeResponseAsyncSearchQuery(args[i].ourQueryResult, args[i].queryType, NewEmptyHighlighter(), asyncRequestIdStr, false)
+			ourResponse, err := cw.MakeAsyncSearchResponseMarshalled(args[i].ourQueryResult, args[i].queryType, NewEmptyHighlighter(), asyncRequestIdStr, false)
 			assert.NoError(t, err)
 
 			difference1, difference2, err := util.JsonDifference(args[i].elasticResponseJson, string(ourResponse))
@@ -531,27 +432,25 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 	}
 }
 
-// tests MakeResponseSearchQuery, in particular if JSON we return is a proper JSON.
+// tests MakeSearchResponse, in particular if JSON we return is a proper JSON.
 // used to fail before we fixed field quoting.
 func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: nil, Table: clickhouse.NewEmptyTable("@"), Ctx: context.Background()}
 	queries := []*model.Query{
 		cw.BuildSimpleSelectQuery(""),
-		cw.BuildSimpleCountQuery(""),
 		cw.BuildNRowsQuery("@", SimpleQuery{}, 0),
 	}
-	types := []model.SearchQueryType{model.Normal, model.Count, model.Normal}
-	for i, query := range queries {
+	for _, query := range queries {
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}
 		for _, field := range query.NonSchemaFields {
 			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field, Value: "not-important"})
 		}
-		_, err := MakeResponseSearchQuery([]model.QueryResultRow{resultRow}, types[i])
+		_, err := cw.MakeSearchResponse([]model.QueryResultRow{resultRow}, model.Normal, NewEmptyHighlighter())
 		assert.NoError(t, err)
 	}
 }
 
-// tests MakeResponseAsyncSearchQuery, in particular if JSON we return is a proper JSON.
+// tests MakeAsyncSearchResponse, in particular if JSON we return is a proper JSON.
 // used to fail before we fixed field quoting.
 func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 	table, _ := clickhouse.NewTable(`CREATE TABLE `+tableName+`
@@ -561,15 +460,12 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 	)
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
-	where := `"@timestamp">=parseDateTime64BestEffort('2024-02-13T10:04:40.703Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-02-13T10:19:40.703Z')"`
-	query, _ := cw.BuildHistogramQuery("@", where, "30s")
 	queries := []*model.Query{
-		query,
 		cw.BuildAutocompleteSuggestionsQuery("@", "", 0),
 		cw.BuildFacetsQuery("@", newSimpleQuery(NewSimpleStatement(""), true), 0),
 		// queryTranslator.BuildTimestampQuery("@", "@", "", true), TODO uncomment when add unification for this query type
 	}
-	types := []model.AsyncSearchQueryType{model.Histogram, model.ListAllFields, model.ListByField} //, model.EarliestLatestTimestamp}
+	types := []model.SearchQueryType{model.ListAllFields, model.ListByField}
 	for i, query := range queries {
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}
 		for j, field := range query.NonSchemaFields {
@@ -579,7 +475,7 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 			}
 			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field, Value: value})
 		}
-		_, err := cw.MakeResponseAsyncSearchQuery([]model.QueryResultRow{resultRow}, types[i], NewEmptyHighlighter(), asyncRequestIdStr, false)
+		_, err := cw.MakeAsyncSearchResponse([]model.QueryResultRow{resultRow}, types[i], NewEmptyHighlighter(), asyncRequestIdStr, false)
 		assert.NoError(t, err)
 	}
 }

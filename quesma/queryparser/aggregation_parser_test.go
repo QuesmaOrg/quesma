@@ -587,7 +587,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			actualAggregationsPart := cw.MakeAggregationPartOfResponse(aggregations, test.ExpectedResults)
 			// pp.Println("ACTUAL", actualAggregationPart)
 
-			fullResponse, err := cw.MakeResponseAggregation(aggregations, test.ExpectedResults, "1", false)
+			fullResponse, err := cw.MakeResponseAggregationMarshalled(aggregations, test.ExpectedResults)
 			assert.NoError(t, err)
 			// fmt.Println(err, string(fullResponse))
 

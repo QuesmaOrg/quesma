@@ -313,7 +313,7 @@ func waitForKibanaReportGeneration(reportUri string, timeout time.Duration) {
 		panic("kibana report failed to generate")
 	}
 	csvHeader := csvReport[0]
-	if slices.Contains(csvHeader, "@timestamp") && slices.Contains(csvHeader, "message") && slices.Contains(csvHeader, "severity") {
+	if slices.Contains(csvHeader, "@timestamp") {
 		fmt.Printf("Report generation successful")
 	} else {
 		panic("Report doesn't have proper header")

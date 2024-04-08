@@ -1,7 +1,6 @@
 package testdata
 
 import (
-	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/model"
 	"time"
@@ -9,7 +8,7 @@ import (
 
 var TestsAsyncSearch = []AsyncSearchTestCase{
 	{ // [0]
-		"AggsByField (Facet): aggregate by field + additionally match user (filter)",
+		"Facets: aggregate by field + additionally match user (filter)",
 		`{
     "aggs": {
         "sample": {
@@ -147,7 +146,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
     "start_time_in_millis": 1706010201964
 }`,
 		"no comment yet",
-		model.QueryInfoAsyncSearch{Typ: model.AggsByField, FieldName: "host.name", I1: 10, I2: 5000},
+		model.SearchQueryInfo{Typ: model.Facets, FieldName: "host.name", I1: 10, I2: 5000},
 		[]string{`SELECT "host.name", count() FROM (SELECT "host.name" FROM "logs-generic-default"  WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-23T11:..:16.820Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T11:..:16.820Z')) AND "message" iLIKE '%user%' LIMIT ` + queryparserFacetsSampleSize + `) GROUP BY "host.name" ORDER BY count() DESC`},
 		true,
 	},
@@ -287,8 +286,8 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
     "start_time_in_millis": 1706021975538
 }
 `, "there should be 97 results, I truncated most of them",
-		model.QueryInfoAsyncSearch{Typ: model.ListByField, FieldName: "message", I1: 0, I2: 100},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) AND "message" iLIKE '%user%' AND "message" IS NOT NULL ORDER BY "@timestamp" desc LIMIT 100`},
+		model.SearchQueryInfo{Typ: model.ListByField, FieldName: "message", I1: 0, I2: 100},
+		[]string{`SELECT "message" FROM ` + quotedTableName + ` WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) AND "message" iLIKE '%user%' AND "message" IS NOT NULL ORDER BY "@timestamp" desc LIMIT 100`},
 		false,
 	},
 	{ // [2]
@@ -527,7 +526,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		}
 	}`,
 		"Truncated most results. TODO Check what's at the end of response, probably count?",
-		model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: 500},
+		model.SearchQueryInfo{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: 500},
 		[]string{`SELECT ` + selectFieldsInAnyOrderAsRegex([]string{"@timestamp", "message", "host.name", "properties::isreg"}) + ` FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) ORDER BY "@timestamp" desc LIMIT 500`},
 		false,
 	},
@@ -660,7 +659,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 }
 `,
 		"no comment yet",
-		model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: "@timestamp", Interval: "30s", I1: 0, I2: 0},
+		model.SearchQueryInfo{Typ: model.ListByField, FieldName: "@timestamp"},
 		[]string{
 			`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) `,
 			`SELECT toInt64(toUnixTimestamp64Milli(` + "`@timestamp`" + `)/30000), count() FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) GROUP BY (toInt64(toUnixTimestamp64Milli(` + "`@timestamp`)/30000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000))",
@@ -701,7 +700,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 }`,
 		`{}`,
 		"no comment yet",
-		model.QueryInfoAsyncSearch{Typ: model.Histogram, FieldName: "@timestamp", Interval: fmt.Sprintf("%ds", int(oneMinute.Seconds())), I1: 0, I2: 0},
+		model.SearchQueryInfo{Typ: model.Normal},
 		[]string{
 			`SELECT count() FROM "logs-generic-default" WHERE "@timestamp".*parseDateTime64BestEffort('2024-01-25T..:..:59.033Z') AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T..:..:59.033Z') `,
 			`SELECT "event.dataset", ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, time.Minute) + `, count() FROM "logs-generic-default" WHERE "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') GROUP BY ("event.dataset", ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, time.Minute) + `) ORDER BY ("event.dataset", ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, time.Minute) + ")",
@@ -787,7 +786,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 			"start_time_in_millis": 1706551812665
 		}`,
 		"no comment yet",
-		model.QueryInfoAsyncSearch{Typ: model.EarliestLatestTimestamp, FieldName: "@timestamp"},
+		model.SearchQueryInfo{Typ: model.Normal},
 		[]string{
 			`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
 			`SELECT m..("@timestamp") FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
@@ -806,7 +805,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		}`,
 		``,
 		"no comment yet",
-		model.QueryInfoAsyncSearch{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: 50},
+		model.SearchQueryInfo{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: 50},
 		[]string{`SELECT ` + selectFieldsInAnyOrderAsRegex([]string{"@timestamp", "message", "host.name", "properties::isreg"}) + ` FROM "logs-generic-default" LIMIT 50`},
 		false,
 	},
@@ -868,7 +867,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		}`,
 		``,
 		"happens e.g. in Explorer > Field Statistics view",
-		model.QueryInfoAsyncSearch{Typ: model.ListByField, FieldName: "properties::isreg", I1: 0, I2: 100},
+		model.SearchQueryInfo{Typ: model.ListByField, FieldName: "properties::isreg", I1: 0, I2: 100},
 		[]string{`SELECT "properties::isreg" FROM "logs-generic-default" WHERE (toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12 AND toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12) AND (toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12 AND toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12) AND "properties::isreg" IS NOT NULL LIMIT 100`},
 		false,
 	},
@@ -892,11 +891,13 @@ var TestsSearch = []SearchTestCase{
 		"Term as dictionary",
 		`
 		{
-			"bool": {
-				"filter":
-				{
-					"term": {
-						"type": "task"
+			"query": {
+				"bool": {
+					"filter":
+					{
+						"term": {
+							"type": "task"
+						}
 					}
 				}
 			}
@@ -910,19 +911,21 @@ var TestsSearch = []SearchTestCase{
 		"Term as array",
 		`
 		{
-			"bool": {
-				"filter": [
-					{
-						"term": {
-							"type": "task"
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"term": {
+								"type": "task"
+							}
+						},
+						{
+							"terms": {
+								"task.enabled": [true, 54]
+							}
 						}
-					},
-				  	{
-						"terms": {
-					  		"task.enabled": [true, 54]
-						}
-				  	}
-				]
+					]
+				}
 			}
 		}`,
 		[]string{`"type"='task' AND ("task.enabled"=true OR "task.enabled"=54)`},
@@ -936,27 +939,29 @@ var TestsSearch = []SearchTestCase{
 		"Sample log query",
 		`
 		{
-			"bool": {
-				"must": [],
-				"filter": [
-				{
-					"multi_match": {
-						"type": "best_fields",
-						"query": "user",
-						"lenient": true
-					}
-				},
-				{
-					"range": {
-						"@timestamp": {
-							"format": "strict_date_optional_time",
-							"gte": "2024-01-17T10:28:18.815Z",
-							"lte": "2024-01-17T10:43:18.815Z"
+			"query": {
+				"bool": {
+					"must": [],
+					"filter": [
+					{
+						"multi_match": {
+							"type": "best_fields",
+							"query": "user",
+							"lenient": true
 						}
-					}
-				}],
-				"should": [],
-				"must_not": []
+					},
+					{
+						"range": {
+							"@timestamp": {
+								"format": "strict_date_optional_time",
+								"gte": "2024-01-17T10:28:18.815Z",
+								"lte": "2024-01-17T10:43:18.815Z"
+							}
+						}
+					}],
+					"should": [],
+					"must_not": []
+				}
 			}
 		}`,
 		[]string{
@@ -1011,23 +1016,25 @@ var TestsSearch = []SearchTestCase{
 		"Match phrase",
 		`
 		{
-			"bool": {
-				"filter": [
-					{
-						"bool": {
-							"must": [],
-							"filter": [
-								{
-									"match_phrase": {
-										"host_name.keyword": "prometheus"
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"bool": {
+								"must": [],
+								"filter": [
+									{
+										"match_phrase": {
+											"host_name.keyword": "prometheus"
+										}
 									}
-								}
-							],
-							"should": [],
-							"must_not": []
+								],
+								"should": [],
+								"must_not": []
+							}
 						}
-					}
-				]
+					]
+				}
 			}
 		}`,
 		[]string{`"host_name.keyword" iLIKE '%prometheus%'`},
@@ -1054,14 +1061,16 @@ var TestsSearch = []SearchTestCase{
 		"Terms",
 		`
 		{
-			"bool": {
-				"must": [
-					{
-						"terms": {
-							"status": ["pending"]
+			"query": {
+				"bool": {
+					"must": [
+						{
+							"terms": {
+								"status": ["pending"]
+							}
 						}
-					}
-				]
+					]
+				}
 			}
 		}`,
 		[]string{`"status"='pending'`},
@@ -1073,39 +1082,41 @@ var TestsSearch = []SearchTestCase{
 		"Exists",
 		`
 		{
-			"bool": {
-				"filter": [
-					{
-						"bool": {
-							"should": [
-								{
-									"bool": {
-										"must": [
-											{
-												"term": {
-													"type": "upgrade-assistant-reindex-operation"
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"bool": {
+								"should": [
+									{
+										"bool": {
+											"must": [
+												{
+													"term": {
+														"type": "upgrade-assistant-reindex-operation"
+													}
 												}
-											}
-										],
-										"must_not": [
-											{
-												"exists": {
-													"field": "namespace"
+											],
+											"must_not": [
+												{
+													"exists": {
+														"field": "namespace"
+													}
+												},
+												{
+													"exists": {
+														"field": "namespaces"
+													}
 												}
-											},
-											{
-												"exists": {
-													"field": "namespaces"
-												}
-											}
-										]
+											]
+										}
 									}
-								}
-							],
-							"minimum_should_match": 1
+								],
+								"minimum_should_match": 1
+							}
 						}
-					}
-				]
+					]
+				}
 			}
 		}`,
 		[]string{`"type"='upgrade-assistant-reindex-operation' AND NOT ((has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL) OR (has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))`},
@@ -1119,18 +1130,20 @@ var TestsSearch = []SearchTestCase{
 		"Simple query string",
 		`
 		{
-			"bool": {
-				"must": [
-					{
-						"simple_query_string": {
-							"query": "endpoint_event_filters",
-							"fields": [
-								"exception-list-agnostic.list_id"
-							],
-							"default_operator": "OR"
+			"query": {
+				"bool": {
+					"must": [
+						{
+							"simple_query_string": {
+								"query": "endpoint_event_filters",
+								"fields": [
+									"exception-list-agnostic.list_id"
+								],
+								"default_operator": "OR"
+							}
 						}
-					}
-				]
+					]
+				}
 			}
 		}`,
 		[]string{`"exception-list-agnostic.list_id" iLIKE '%endpoint_event_filters%'`},
@@ -1142,19 +1155,21 @@ var TestsSearch = []SearchTestCase{
 		"Simple query string wildcard",
 		`
 		{
-			"bool": {
-				"must": [
-					{
-						"simple_query_string": {
-							"query": "ingest-agent-policies",
-							"lenient": true,
-							"fields": [
-								"*"
-							],
-							"default_operator": "OR"
+			"query": {
+				"bool": {
+					"must": [
+						{
+							"simple_query_string": {
+								"query": "ingest-agent-policies",
+								"lenient": true,
+								"fields": [
+									"*"
+								],
+								"default_operator": "OR"
+							}
 						}
-					}
-				]
+					]
+				}
 			}
 		}`,
 		[]string{`"message" iLIKE '%ingest-agent-policies%'`},
@@ -1166,16 +1181,18 @@ var TestsSearch = []SearchTestCase{
 		"Simple wildcard",
 		`
 		{
-			"bool": {
-				"must": [
-					{
-						"wildcard": {
-							"task.taskType": {
-								"value": "alerting:*"
+			"query": {
+				"bool": {
+					"must": [
+						{
+							"wildcard": {
+								"task.taskType": {
+									"value": "alerting:*"
+								}
 							}
 						}
-					}
-				]
+					]
+				}
 			}
 		}`,
 		[]string{`"task.taskType" iLIKE 'alerting:%'`},
@@ -1187,16 +1204,18 @@ var TestsSearch = []SearchTestCase{
 		"Simple prefix ver1",
 		`
 		{
-			"bool": {
-				"must": [
-					{
-						"prefix": {
-							"alert.actions.actionRef": {
-								"value": "preconfigured:"
+			"query": {
+				"bool": {
+					"must": [
+						{
+							"prefix": {
+								"alert.actions.actionRef": {
+									"value": "preconfigured:"
+								}
 							}
 						}
-					}
-				]
+					]
+				}
 			}
 		}`,
 		[]string{`"alert.actions.actionRef" iLIKE 'preconfigured:%'`},
@@ -1221,11 +1240,13 @@ var TestsSearch = []SearchTestCase{
 		"Query string",
 		`
 		{
-			"query_string": {
-				"fields": [
-					"message"
-				],
-				"query": "* logged"
+			"query": {
+				"query_string": {
+					"fields": [
+						"message"
+					],
+					"query": "* logged"
+				}
 			}
 		}`,
 		[]string{`"message" iLIKE '%%%' OR "message" iLIKE '%logged%'`},
@@ -1237,11 +1258,13 @@ var TestsSearch = []SearchTestCase{
 		"Empty bool",
 		`
 		{
-			"bool": {
-				"must": [],
-				"filter": [],
-				"should": [],
-				"must_not": []
+			"query": {
+				"bool": {
+					"must": [],
+					"filter": [],
+					"should": [],
+					"must_not": []
+				}
 			}
 		}`,
 		[]string{""},
@@ -1284,25 +1307,27 @@ var TestsSearch = []SearchTestCase{
 		"Simple nested",
 		`
 		{
-			"bool": {
-				"must": [
-					{
-						"nested": {
-							"path": "references",
-							"query": {
-								"bool": {
-									"must": [
-										{
-											"term": {
-												"references.type": "tag"
+			"query": {
+				"bool": {
+					"must": [
+						{
+							"nested": {
+								"path": "references",
+								"query": {
+									"bool": {
+										"must": [
+											{
+												"term": {
+													"references.type": "tag"
+												}
 											}
-										}
-									]
+										]
+									}
 								}
 							}
 						}
-					}
-				]
+					]
+				}
 			}
 		}`,
 		[]string{`"references.type"='tag'`},
@@ -1372,7 +1397,7 @@ var TestsSearch = []SearchTestCase{
 			`"message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))`,
 			`"message" iLIKE '%user%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z'))`,
 		},
-		model.Count,
+		model.Normal,
 		[]model.Query{
 			justWhere(`"message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))`),
 			justWhere(`"message" iLIKE '%user%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z'))`),
@@ -1448,7 +1473,7 @@ var TestsSearch = []SearchTestCase{
 			`"service.name"='admin' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z'))`,
 			`"service.name"='admin' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z'))`,
 		},
-		model.Count,
+		model.Normal,
 		[]model.Query{
 			justWhere(`"service.name"='admin' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z'))`),
 			justWhere(`"service.name"='admin' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z'))`),
@@ -1516,7 +1541,7 @@ var TestsSearch = []SearchTestCase{
 	}`,
 		[]string{`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))`,
 			`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z'))`},
-		model.Count,
+		model.Normal,
 		[]model.Query{
 			justWhere(`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))`),
 			justWhere(`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z'))`),
@@ -1524,7 +1549,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z'))`},
 	},
 	{ // [22]
-		"Count() as /_search or /logs-*-*/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count()
+		"Count() as /_search or /logs-*-/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count()
 		`{
 			"aggs": {
 				"suggestions": {
@@ -1572,7 +1597,7 @@ var TestsSearch = []SearchTestCase{
 							}
 						}
 					]
-				}	
+				}
 			},
 			"runtime_mappings": {},
 			"size": 0,
@@ -1581,7 +1606,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))`,
 			`"message" iLIKE '%user%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z'))`},
-		model.Count,
+		model.Normal,
 		[]model.Query{
 			justWhere(`"message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))`),
 			justWhere(`"message" iLIKE '%user%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z'))`),
@@ -1649,7 +1674,7 @@ var TestsSearch = []SearchTestCase{
 	}`,
 		[]string{`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))`,
 			`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z'))`},
-		model.Count,
+		model.Normal,
 		[]model.Query{
 			justWhere(`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))`),
 			justWhere(`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z'))`),
@@ -1657,7 +1682,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z'))`},
 	},
 	{ // [24]
-		"Count() as /_search or /logs-*-*/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count()
+		"Count() as /_search or /logs-*-/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count()
 		`{
 			"aggs": {
 				"suggestions": {
@@ -1705,7 +1730,7 @@ var TestsSearch = []SearchTestCase{
 							}
 						}
 					]
-				}	
+				}
 			},
 			"runtime_mappings": {},
 			"size": 0,
@@ -1714,7 +1739,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))`,
 			`"message" iLIKE '%user%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z'))`},
-		model.Count,
+		model.Normal,
 		[]model.Query{
 			justWhere(`"message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))`),
 			justWhere(`"message" iLIKE '%user%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z'))`),
@@ -1729,7 +1754,7 @@ var TestsSearch = []SearchTestCase{
 			},
 			"fields": [
 				{
-					"field": "@timestamp",
+					"field": "message",
 					"format": "date_time"
 				}
 			],
@@ -1755,9 +1780,9 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": true
 		}`,
 		[]string{""},
-		model.Normal,
+		model.ListByField,
 		[]model.Query{newSimplestQuery()},
-		[]string{qToStr(newSimplestQuery())},
+		[]string{`SELECT "message" FROM "logs-generic-default" LIMIT 500`},
 	},
 }
 

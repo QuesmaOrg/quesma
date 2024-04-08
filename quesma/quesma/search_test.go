@@ -34,7 +34,7 @@ func TestNoAsciiTableName(t *testing.T) {
 	simpleQuery, queryInfo, _ := queryTranslator.ParseQueryAsyncSearch(string(requestBody))
 	assert.True(t, simpleQuery.CanParse)
 	assert.Equal(t, "", simpleQuery.Sql.Stmt)
-	assert.Equal(t, model.NewQueryInfoAsyncSearchNone(), queryInfo)
+	assert.Equal(t, model.Normal, queryInfo.Typ)
 
 	query := queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
 	assert.True(t, query.CanParse)
@@ -70,9 +70,8 @@ func TestAsyncSearchHandler(t *testing.T) {
 		},
 		Created: true,
 	})
-
-	for _, tt := range testdata.TestsAsyncSearch {
-		t.Run(tt.Name, func(t *testing.T) {
+	for i, tt := range testdata.TestsAsyncSearch {
+		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			if err != nil {
 				t.Fatal(err)

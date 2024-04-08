@@ -172,42 +172,30 @@ func NewAggregatorEmpty(name string) Aggregator {
 	return Aggregator{Name: name, Empty: true}
 }
 
-type (
-	AsyncSearchQueryType int
-	SearchQueryType      int
-)
+type SearchQueryType int
 
 const (
-	Histogram AsyncSearchQueryType = iota
-	AggsByField
+	Facets SearchQueryType = iota
 	ListByField
 	ListAllFields
-	EarliestLatestTimestamp // query for 2 timestamps: earliest and latest
 	CountAsync
-	None // called None, not Normal, like below, as it basically never happens, I don't even know how to trigger it/reply to this
-)
-
-const (
-	Count SearchQueryType = iota
 	Normal
+	None
 )
-
-func (queryType AsyncSearchQueryType) String() string {
-	return []string{"Histogram", "AggsByField", "ListByField", "ListAllFields", "EarliestLatestTimestamp", "CountAsync", "None"}[queryType]
-}
 
 func (queryType SearchQueryType) String() string {
-	return []string{"Count", "Normal"}[queryType]
+	return []string{"Facets", "ListByField", "ListAllFields", "CountAsync", "Normal", "None"}[queryType]
 }
 
-type QueryInfoAsyncSearch struct {
-	Typ       AsyncSearchQueryType
+type SearchQueryInfo struct {
+	Typ       SearchQueryType
 	FieldName string
 	Interval  string
 	I1        int
 	I2        int
+	Size      int // how many hits to return
 }
 
-func NewQueryInfoAsyncSearchNone() QueryInfoAsyncSearch {
-	return QueryInfoAsyncSearch{Typ: None}
+func NewSearchQueryInfoNone() SearchQueryInfo {
+	return SearchQueryInfo{Typ: None}
 }

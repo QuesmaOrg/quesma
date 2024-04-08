@@ -16,7 +16,7 @@ type AsyncSearchTestCase struct {
 	QueryJson         string
 	ResultJson        string // from ELK
 	Comment           string
-	WantedParseResult model.QueryInfoAsyncSearch
+	WantedParseResult model.SearchQueryInfo
 	WantedRegexes     []string // queries might be a bit weird at times, because of non-determinism of our parser (need to use a lot of "." in regexes) (they also need to happen as ordered in this slice)
 	IsAggregation     bool     // is it an aggregation query?
 }

@@ -2,9 +2,8 @@ package queryparser
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/pkg/errors"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/kibana"
 	"mitmproxy/quesma/logger"
@@ -29,8 +28,6 @@ type ClickhouseQueryTranslator struct {
 
 var completionStatusOK = func() *int { value := 200; return &value }()
 
-var EmptySearchResponse, _ = makeResponseSearchQueryNormal([]model.QueryResultRow{})
-
 func (cw *ClickhouseQueryTranslator) AddTokenToHighlight(token any) {
 
 	if token == nil {
@@ -54,7 +51,7 @@ func (cw *ClickhouseQueryTranslator) ClearTokensToHighlight() {
 	cw.tokensToHighlight = []string{}
 }
 
-func makeResponseSearchQueryNormal(ResultSet []model.QueryResultRow) ([]byte, error) {
+func makeSearchResponseNormal(ResultSet []model.QueryResultRow) *model.SearchResp {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i, row := range ResultSet {
 		hits[i] = model.SearchHit{
@@ -63,7 +60,7 @@ func makeResponseSearchQueryNormal(ResultSet []model.QueryResultRow) ([]byte, er
 		}
 	}
 
-	response := model.SearchResp{
+	return &model.SearchResp{
 		Hits: model.SearchHits{
 			Hits: hits,
 			Total: &model.Total{
@@ -72,125 +69,113 @@ func makeResponseSearchQueryNormal(ResultSet []model.QueryResultRow) ([]byte, er
 			},
 		},
 	}
-	return json.Marshal(response)
 }
 
-func makeResponseSearchQueryCount(ResultSet []model.QueryResultRow) ([]byte, error) {
-	aggregations := JsonMap{
-		"suggestions": JsonMap{
-			"doc_count_error_upper_bound": 0,
-			"sum_other_doc_count":         0,
-			"buckets":                     []interface{}{},
-		},
-		"unique_terms": JsonMap{
-			"value": 0,
-		},
-	}
-	response := model.SearchResp{
-		Aggregations:      aggregations,
-		DidTerminateEarly: new(bool), // a bit hacky with pointer, but seems like the only way https://stackoverflow.com/questions/37756236/json-golang-boolean-omitempty
-		Hits: model.SearchHits{
-			Hits: []model.SearchHit{},
-			Total: &model.Total{
-				Value:    len(ResultSet),
-				Relation: "eq",
-			},
-		},
-	}
-	return json.Marshal(response)
+func EmptySearchResponse() []byte {
+	response := makeSearchResponseNormal([]model.QueryResultRow{})
+	marshalled, _ := response.Marshal() // error will never happen here
+	return marshalled
 }
 
-func MakeResponseSearchQuery(ResultSet []model.QueryResultRow, typ model.SearchQueryType) ([]byte, error) {
+func EmptyAsyncSearchResponse(id string) []byte {
+	searchResp := makeSearchResponseNormal([]model.QueryResultRow{})
+	asyncSearchResp := SearchToAsyncSearchResponse(searchResp, id, false)
+	marshalled, _ := asyncSearchResp.Marshal() // error will never happen here
+	return marshalled
+}
+
+func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter) (*model.SearchResp, error) {
 	switch typ {
 	case model.Normal:
-		return makeResponseSearchQueryNormal(ResultSet)
-	case model.Count:
-		return makeResponseSearchQueryCount(ResultSet)
+		return makeSearchResponseNormal(ResultSet), nil
+	case model.Facets:
+		return cw.makeSearchResponseFacets(ResultSet), nil
+	case model.ListByField, model.ListAllFields:
+		return cw.makeSearchResponseList(ResultSet, typ, highlighter), nil
+	default:
+		return nil, fmt.Errorf("unknown SearchQueryType: %v", typ)
 	}
-	return nil, fmt.Errorf("unknown SearchQueryType: %v", typ)
 }
 
-func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchAggregated(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
-	buckets := make([]JsonMap, 0, len(ResultSet))
-	returnedRows := 0
-	for i, row := range ResultSet {
-		if typ == model.AggsByField && i == 10 { // facets show only 10 top values
-			break
-		}
+func (cw *ClickhouseQueryTranslator) MakeSearchResponseMarshalled(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter) ([]byte, error) {
+	response, err := cw.MakeSearchResponse(ResultSet, typ, highlighter)
+	if err != nil {
+		return nil, err
+	}
+	return response.Marshal()
+}
+
+func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.QueryResultRow) *model.SearchResp {
+	const maxFacets = 10 // facets show only top 10 values
+	bucketsNr := min(len(ResultSet), maxFacets)
+	buckets := make([]JsonMap, 0, bucketsNr)
+	returnedRowsNr := 0
+	for i, row := range ResultSet[:bucketsNr] {
 		buckets = append(buckets, make(JsonMap))
 		for _, col := range row.Cols {
 			buckets[i][col.ColName] = col.Value
 		}
-		returnedRows += int(row.Cols[model.ResultColDocCountIndex].Value.(uint64))
+		returnedRowsNr += int(row.Cols[model.ResultColDocCountIndex].Value.(uint64))
 	}
 	var sampleCount uint64 // uint64 because that's what clickhouse reader returns
 	for _, row := range ResultSet {
 		sampleCount += row.Cols[model.ResultColDocCountIndex].Value.(uint64)
 	}
 
-	var id *string
-	aggregations := JsonMap{}
-	switch typ {
-	case model.Histogram:
-		aggregations["0"] = JsonMap{
-			"buckets": buckets,
-		}
-		id = new(string)
-		*id = asyncRequestIdStr
-	case model.AggsByField:
-		aggregations["sample"] = JsonMap{
+	aggregations := JsonMap{
+		"sample": JsonMap{
 			"doc_count": int(sampleCount),
 			"sample_count": JsonMap{
 				"value": int(sampleCount),
 			},
 			"top_values": JsonMap{
 				"buckets":                     buckets,
-				"sum_other_doc_count":         int(sampleCount) - returnedRows,
+				"sum_other_doc_count":         int(sampleCount) - returnedRowsNr,
 				"doc_count_error_upper_bound": 0,
 			},
-		}
-	default:
-		return nil, fmt.Errorf("unknown AsyncSearchAggregatedQueryType: %v", typ)
+		},
 	}
 
-	response := model.AsyncSearchEntireResp{
-		Response: model.SearchResp{
-			Aggregations: aggregations,
-			Hits: model.SearchHits{
-				Hits: []model.SearchHit{}, // seems redundant, but can't remove this, created JSON won't match
-				Total: &model.Total{
-					Value:    int(sampleCount),
-					Relation: "eq",
-				},
+	return &model.SearchResp{
+		Aggregations: aggregations,
+		Hits: model.SearchHits{
+			Hits: []model.SearchHit{}, // seems redundant, but can't remove this, created JSON won't match
+			Total: &model.Total{
+				Value:    int(sampleCount),
+				Relation: "eq",
 			},
 		},
-		ID:        id,
-		IsPartial: isPartial,
-		IsRunning: isPartial,
 	}
-	if !isPartial {
-		response.CompletionStatus = completionStatusOK
-	}
-	return json.Marshal(response)
 }
 
-func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, highligher Highlighter, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter) *model.SearchResp {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
 		hits[i].Fields = make(map[string][]interface{})
 		hits[i].Highlight = make(map[string][]string)
+		if typ == model.ListAllFields {
+			hits[i].ID = strconv.Itoa(i + 1)
+			hits[i].Index = cw.Table.Name
+			hits[i].Score = 1
+			hits[i].Version = 1
+			hits[i].Sort = []any{
+				"2024-01-30T19:38:54.607Z",
+				2944,
+			}
+		}
+
 		for _, col := range ResultSet[i].Cols {
 
 			hits[i].Fields[col.ColName] = []interface{}{col.Value}
 
-			if highligher.ShouldHighlight(col.ColName) {
+			if highlighter.ShouldHighlight(col.ColName) {
 				// check if we have a string here and if so, highlight it
 				switch valueAsString := col.Value.(type) {
 				case string:
-					hits[i].Highlight[col.ColName] = highligher.HighlightValue(valueAsString)
+					hits[i].Highlight[col.ColName] = highlighter.HighlightValue(valueAsString)
 				case *string:
 					if valueAsString != nil {
-						hits[i].Highlight[col.ColName] = highligher.HighlightValue(*valueAsString)
+						hits[i].Highlight[col.ColName] = highlighter.HighlightValue(*valueAsString)
 					}
 				}
 			}
@@ -204,58 +189,26 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []mod
 		}
 	}
 
-	var total *model.Total
-	var id *string
-	switch typ {
-	case model.CountAsync:
-		var countValue uint64
-		if len(ResultSet) > 0 && len(ResultSet[0].Cols) > 0 {
-			if val, ok := ResultSet[0].Cols[0].Value.(uint64); ok {
-				countValue = val
-			} else {
-				logger.ErrorWithCtx(cw.Ctx).Msgf("Failed extracting Count value SQL query result [%v]", ResultSet)
-				countValue = 0
-			}
-		}
-		hits = make([]model.SearchHit, 0) // need to remove count result from hits
-		total = &model.Total{
-			Value:    int(countValue),
-			Relation: "eq",
-		}
-	case model.ListByField:
-		total = &model.Total{
-			Value:    len(ResultSet),
-			Relation: "eq",
-		}
-	case model.ListAllFields:
-		total = &model.Total{
-			Value:    len(ResultSet),
-			Relation: "eq",
-		}
-		for i := range ResultSet {
-			hits[i].ID = strconv.Itoa(i + 1)
-			hits[i].Index = cw.Table.Name
-			hits[i].Score = 1
-			hits[i].Version = 1
-			hits[i].Sort = []any{
-				"2024-01-30T19:38:54.607Z",
-				2944,
-			}
-
-		}
-		id = new(string)
-		*id = asyncRequestIdStr
-	default:
-		return nil, fmt.Errorf("unknown AsyncSearchListQueryType: %v", typ)
-	}
-
-	response := model.AsyncSearchEntireResp{
-		Response: model.SearchResp{
-			Hits: model.SearchHits{
-				Total: total,
-				Hits:  hits,
+	return &model.SearchResp{
+		Hits: model.SearchHits{
+			Total: &model.Total{
+				Value:    len(ResultSet),
+				Relation: "eq",
 			},
+			Hits: hits,
 		},
+	}
+}
+
+func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter, asyncRequestIdStr string, isPartial bool) (*model.AsyncSearchEntireResp, error) {
+	searchResponse, err := cw.MakeSearchResponse(ResultSet, typ, highlighter)
+	if err != nil {
+		return nil, err
+	}
+	id := new(string)
+	*id = asyncRequestIdStr
+	response := model.AsyncSearchEntireResp{
+		Response:  *searchResponse,
 		ID:        id,
 		IsPartial: isPartial,
 		IsRunning: isPartial,
@@ -263,64 +216,15 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []mod
 	if !isPartial {
 		response.CompletionStatus = completionStatusOK
 	}
-	return json.Marshal(response)
+	return &response, nil
 }
 
-func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet []model.QueryResultRow, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
-	var earliest, latest *time.Time = nil, nil
-	if len(ResultSet) >= 1 {
-		if date, ok := ResultSet[0].Cols[0].Value.(time.Time); ok {
-			earliest = &date
-		}
+func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponseMarshalled(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
+	response, err := cw.MakeAsyncSearchResponse(ResultSet, typ, highlighter, asyncRequestIdStr, isPartial)
+	if err != nil {
+		return nil, err
 	}
-	if len(ResultSet) >= 2 {
-		if date, ok := ResultSet[1].Cols[0].Value.(time.Time); ok {
-			latest = &date
-		}
-	}
-	response := model.AsyncSearchEntireResp{
-		Response: model.SearchResp{
-			Aggregations: JsonMap{
-				"earliest_timestamp": JsonMap{
-					"value": earliest,
-				},
-				"latest_timestamp": JsonMap{
-					"value": latest,
-				},
-			},
-			Hits: model.SearchHits{
-				Hits: []model.SearchHit{}, // seems redundant, but can't remove this, created JSON won't match
-				Total: &model.Total{
-					Value:    len(ResultSet),
-					Relation: "eq",
-				},
-			},
-		},
-	}
-	response.ID = new(string)
-	*response.ID = asyncRequestIdStr
-	response.IsPartial = isPartial
-	if isPartial {
-		response.IsRunning = true
-	} else {
-		response.CompletionStatus = completionStatusOK
-	}
-	return json.Marshal(response)
-}
-
-func (cw *ClickhouseQueryTranslator) MakeResponseAsyncSearchQuery(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, highlighter Highlighter, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
-	switch typ {
-	case model.Histogram, model.AggsByField:
-		return cw.makeResponseAsyncSearchAggregated(ResultSet, typ, asyncRequestIdStr, isPartial)
-	case model.ListByField, model.ListAllFields:
-		return cw.makeResponseAsyncSearchList(ResultSet, typ, highlighter, asyncRequestIdStr, isPartial)
-	case model.EarliestLatestTimestamp:
-		return cw.makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet, asyncRequestIdStr, isPartial)
-	case model.CountAsync:
-		return cw.makeResponseAsyncSearchList(ResultSet, typ, highlighter, asyncRequestIdStr, isPartial)
-	default:
-		return nil, fmt.Errorf("unknown AsyncSearchQueryType: %v", typ)
-	}
+	return response.Marshal()
 }
 
 func (cw *ClickhouseQueryTranslator) finishMakeResponse(query model.QueryWithAggregation, ResultSet []model.QueryResultRow, level int) []model.JsonMap {
@@ -438,7 +342,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []mod
 	return aggregations
 }
 
-func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) *model.SearchResp {
 	var totalCount uint64
 	if len(ResultSets) > 0 && len(ResultSets[0]) > 0 && len(ResultSets[0][0].Cols) > 0 {
 		// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
@@ -447,27 +351,36 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 		logger.WarnWithCtx(cw.Ctx).Msgf("Failed extracting Count value SQL query result [%v]", ResultSets)
 		totalCount = 0
 	}
-	response := model.AsyncSearchEntireResp{
-		Response: model.SearchResp{
-			Aggregations: cw.MakeAggregationPartOfResponse(queries, ResultSets),
-			Hits: model.SearchHits{
-				Hits: []model.SearchHit{}, // seems redundant, but can't remove this, created JSON won't match
-				Total: &model.Total{
-					Value:    int(totalCount), // TODO just change this to uint64? It works now.
-					Relation: "eq",
-				},
+	return &model.SearchResp{
+		Aggregations: cw.MakeAggregationPartOfResponse(queries, ResultSets),
+		Hits: model.SearchHits{
+			Hits: []model.SearchHit{}, // seems redundant, but can't remove this, created JSON won't match
+			Total: &model.Total{
+				Value:    int(totalCount), // TODO just change this to uint64? It works now.
+				Relation: "eq",
 			},
 		},
 	}
-	response.ID = new(string)
-	*response.ID = asyncRequestIdStr
-	response.IsPartial = isPartial
-	if isPartial {
-		response.IsRunning = true
-	} else {
+}
+
+func (cw *ClickhouseQueryTranslator) MakeResponseAggregationMarshalled(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) ([]byte, error) {
+	response := cw.MakeResponseAggregation(queries, ResultSets)
+	return response.Marshal()
+}
+
+func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncRequestIdStr string, isPartial bool) *model.AsyncSearchEntireResp {
+	id := new(string)
+	*id = asyncRequestIdStr
+	response := model.AsyncSearchEntireResp{
+		Response:  *searchResponse,
+		ID:        id,
+		IsPartial: isPartial,
+		IsRunning: isPartial,
+	}
+	if !isPartial {
 		response.CompletionStatus = completionStatusOK
 	}
-	return json.Marshal(response)
+	return &response
 }
 
 // GetFieldsList

@@ -48,10 +48,10 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	for _, tt := range testdata.TestsSearch {
 		t.Run(tt.Name, func(t *testing.T) {
-			simpleQuery, queryType := cw.ParseQuery(tt.QueryJson)
+			simpleQuery, queryInfo, _ := cw.ParseQuery(tt.QueryJson)
 			assert.True(t, simpleQuery.CanParse, "can parse")
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
-			assert.Equal(t, tt.WantedQueryType, queryType, "equals to wanted query type")
+			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
 
 			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
 			assert.Contains(t, tt.WantedQuery, *query)
@@ -74,10 +74,10 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
-			simpleQuery, queryType := cw.ParseQuery(tt.QueryJson)
+			simpleQuery, queryInfo, _ := cw.ParseQuery(tt.QueryJson)
 			assert.True(t, simpleQuery.CanParse)
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt)
-			assert.Equal(t, tt.WantedQueryType, queryType)
+			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ)
 
 			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
 			assert.Contains(t, tt.WantedQuery, *query)

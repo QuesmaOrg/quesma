@@ -58,6 +58,10 @@ type SearchResp struct {
 	ScrollID          *string        `json:"_scroll_id,omitempty"`
 }
 
+func (response *SearchResp) Marshal() ([]byte, error) {
+	return json.Marshal(response)
+}
+
 type AsyncSearchEntireResp struct {
 	StartTimeInMillis      uint64  `json:"start_time_in_millis"`
 	CompletionTimeInMillis uint64  `json:"completion_time_in_millis"`
@@ -71,4 +75,8 @@ type AsyncSearchEntireResp struct {
 	// 503 indicates that the async search was completed with an error.
 	CompletionStatus *int       `json:"completion_status,omitempty"`
 	Response         SearchResp `json:"response"`
+}
+
+func (response *AsyncSearchEntireResp) Marshal() ([]byte, error) {
+	return json.Marshal(response)
 }
