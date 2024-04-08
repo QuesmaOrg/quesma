@@ -42,6 +42,8 @@ func (l *LogForwarder) TriggerFlush() {
 }
 
 func (l *LogForwarder) Write(p []byte) (n int, err error) {
-	l.logCh <- p
-	return len(p), nil
+	cloned := make([]byte, len(p))
+	copy(cloned, p)
+	l.logCh <- cloned
+	return len(cloned), nil
 }
