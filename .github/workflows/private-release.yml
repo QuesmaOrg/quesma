@@ -9,6 +9,10 @@ on:
       VERSION_TAG:
         description: 'Version tag for the released Docker image'
         required: true
+      LICENSE_KEY:
+        description: 'License key - when empty, development key will be used'
+        default: 'cdd749a3-e777-11ee-bcf8-0242ac150004'
+        required: false
 
 jobs:
   build-and-publish-quesma-docker-image:
@@ -39,3 +43,6 @@ jobs:
           push: ${{ github.event_name == 'workflow_dispatch' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args:
+            - QUESMA_VERSION=${{ github.event.inputs.VERSION_TAG }}
+            - QUESMA_LICENSE_KEY=${{ github.event.inputs.LICENSE_KEY }}

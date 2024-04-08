@@ -27,6 +27,7 @@ const banner = `
 func main() {
 	println(banner)
 	println("Quesma version: ", buildinfo.Version)
+	println("Quesma license: ", buildinfo.LicenseKey)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)

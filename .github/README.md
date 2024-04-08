@@ -20,7 +20,8 @@ cat encoded_sa_key.txt | docker login -u _json_key_base64 --password-stdin https
 ```
 And they should be able to pull the image:
 ```
-docker pull <I'll fill this later>
+docker pull \
+     europe-central2-docker.pkg.dev/metal-figure-407109/quesma-private-beta/quesma:first-blood
 ```
 
 

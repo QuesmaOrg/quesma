@@ -5,6 +5,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
+	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/index"
 	"mitmproxy/quesma/network"
 	"net/url"
@@ -168,8 +169,7 @@ func Load() QuesmaConfiguration {
 	}
 
 	if err := v.ReadInConfig(); err != nil {
-
-		return QuesmaConfiguration{}
+		return QuesmaConfiguration{LicenseKey: buildinfo.LicenseKey}
 	}
 
 	parser := NewQuesmaConfigurationParser(v)
@@ -186,7 +186,6 @@ func NewQuesmaConfigurationParser(v *viper.Viper) *QuesmaConfigurationParser {
 
 func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
 
-	var licenseKey = p.getMandatoryConfig(licenseKeyConfig).(string)
 	var mode = p.getMandatoryConfig(modeConfigName).(string)
 	var indexBypass = make([]IndexConfiguration, 0)
 
@@ -240,7 +239,7 @@ func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
 
 	return QuesmaConfiguration{
 		Mode:                       operationMode(mode),
-		LicenseKey:                 licenseKey,
+		LicenseKey:                 p.configureLicenseKey(),
 		PublicTcpPort:              p.configurePublicTcpPort(),
 		CallElasticsearch:          p.configureElasticsearchCalls(),
 		ElasticsearchUrl:           p.configureUrl(elasticsearchUrl),
@@ -283,6 +282,22 @@ func (p *QuesmaConfigurationParser) configureUrl(configParamName string) *url.UR
 		panic(fmt.Errorf("error parsing %s: %s", configParamName, err))
 	}
 	return esUrl
+}
+
+func (p *QuesmaConfigurationParser) configureLicenseKey() string {
+	// `buildinfo.LicenseKey` can be injected at the build time, don't get fooled by the IDE warning below
+	if buildinfo.LicenseKey != buildinfo.DevelopmentLicenseKey {
+		// This means it's customer-specific build, so continue using the license key from the build
+		return buildinfo.LicenseKey
+	}
+	// In case of **any other** setup, we fall back to default config handling
+	if licenseKey, isSet := os.LookupEnv("LICENSE_KEY"); isSet {
+		return licenseKey
+	}
+	if key := p.parsedViper.GetString(fullyQualifiedConfig(licenseKeyConfig)); key != "" {
+		return key
+	}
+	panic("license key missing")
 }
 
 func (p *QuesmaConfigurationParser) configurePublicTcpPort() network.Port {
