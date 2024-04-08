@@ -72,7 +72,7 @@ func makeResponseSearchQueryNormal(ResultSet []model.QueryResultRow) ([]byte, er
 			},
 		},
 	}
-	return json.MarshalIndent(response, "", "  ")
+	return json.Marshal(response)
 }
 
 func makeResponseSearchQueryCount(ResultSet []model.QueryResultRow) ([]byte, error) {
@@ -97,7 +97,7 @@ func makeResponseSearchQueryCount(ResultSet []model.QueryResultRow) ([]byte, err
 			},
 		},
 	}
-	return json.MarshalIndent(response, "", "  ")
+	return json.Marshal(response)
 }
 
 func MakeResponseSearchQuery(ResultSet []model.QueryResultRow, typ model.SearchQueryType) ([]byte, error) {
@@ -171,7 +171,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchAggregated(ResultSet
 	if !isPartial {
 		response.CompletionStatus = completionStatusOK
 	}
-	return json.MarshalIndent(response, "", "  ")
+	return json.Marshal(response)
 }
 
 func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, highligher Highlighter, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
@@ -263,7 +263,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchList(ResultSet []mod
 	if !isPartial {
 		response.CompletionStatus = completionStatusOK
 	}
-	return json.MarshalIndent(response, "", "  ")
+	return json.Marshal(response)
 }
 
 func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchEarliestLatestTimestamp(ResultSet []model.QueryResultRow, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
@@ -305,7 +305,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAsyncSearchEarliestLatestTimest
 	} else {
 		response.CompletionStatus = completionStatusOK
 	}
-	return json.MarshalIndent(response, "", "  ")
+	return json.Marshal(response)
 }
 
 func (cw *ClickhouseQueryTranslator) MakeResponseAsyncSearchQuery(ResultSet []model.QueryResultRow, typ model.AsyncSearchQueryType, highlighter Highlighter, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
@@ -467,7 +467,7 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 	} else {
 		response.CompletionStatus = completionStatusOK
 	}
-	return json.MarshalIndent(response, "", "  ")
+	return json.Marshal(response)
 }
 
 // GetFieldsList

@@ -176,6 +176,10 @@ func WarnWithCtx(ctx context.Context) *zerolog.Event {
 	return event
 }
 
+func WarnWithCtxAndReason(ctx context.Context, reason string) *zerolog.Event {
+	return WarnWithCtx(context.WithValue(ctx, tracing.ReasonCtxKey, reason))
+}
+
 func Error() *zerolog.Event {
 	return logger.Error()
 }

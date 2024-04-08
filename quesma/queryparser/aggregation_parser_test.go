@@ -601,7 +601,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			// pp.Print("EXPECTED", expectedMinusActual)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
-			assert.Contains(t, string(fullResponse), `"value": `+strconv.FormatUint(test.ExpectedResults[0][0].Cols[0].Value.(uint64), 10)) // checks if hits nr is OK
+			assert.Contains(t, string(fullResponse), `"value":`+strconv.FormatUint(test.ExpectedResults[0][0].Cols[0].Value.(uint64), 10)) // checks if hits nr is OK
 		})
 	}
 }

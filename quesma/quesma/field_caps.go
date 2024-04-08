@@ -178,7 +178,7 @@ func handleFieldCapsIndex(_ context.Context, indexes []string, tables clickhouse
 
 	fieldCapsResponse := model.FieldCapsResponse{Fields: fields}
 	fieldCapsResponse.Indices = append(fieldCapsResponse.Indices, indexes...)
-	return json.MarshalIndent(fieldCapsResponse, "", "  ")
+	return json.Marshal(fieldCapsResponse)
 }
 
 func isInternalColumn(col *clickhouse.Column) bool {

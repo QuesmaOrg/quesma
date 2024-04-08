@@ -206,7 +206,7 @@ where active
 	rows, err := a.clickHouseDb.QueryContext(ctx, totalSummaryQuery)
 
 	if err != nil {
-		logger.Error().Err(err).Msg("Error getting stats from clickhouse.")
+		logger.WarnWithCtxAndReason(ctx, "No clickhouse stats").Err(err).Msg("Error getting stats from clickhouse.")
 		return
 	}
 
@@ -215,7 +215,7 @@ where active
 	if rows.Next() {
 		err := rows.Scan(&stats.NumberOfRows, &stats.DiskSpace)
 		if err != nil {
-			logger.Error().Err(err).Msg("Error getting stats from clickhouse.")
+			logger.WarnWithCtxAndReason(ctx, "No clickhouse stats").Err(err).Msg("Error getting stats from clickhouse.")
 			return
 		}
 	}

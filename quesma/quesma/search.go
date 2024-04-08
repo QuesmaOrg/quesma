@@ -198,7 +198,7 @@ func createEmptyAsyncSearchResponse(id string, isPartial bool, status int) ([]by
 	response.IsPartial = isPartial
 	response.IsRunning = isPartial
 	response.CompletionStatus = &status
-	return json.MarshalIndent(response, "", "  ")
+	return json.Marshal(response)
 }
 
 func (q *QueryRunner) handlePartialAsyncSearch(id string, quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
