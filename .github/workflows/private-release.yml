@@ -41,8 +41,6 @@ jobs:
           context: ${{ matrix.module }}/.
           tags: europe-central2-docker.pkg.dev/metal-figure-407109/quesma-private-beta/quesma:${{ github.event.inputs.VERSION_TAG }}
           push: ${{ github.event_name == 'workflow_dispatch' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
           build-args: |
             QUESMA_BUILD_SHA=${{ github.sha }}
             QUESMA_VERSION=${{ github.event.inputs.VERSION_TAG }}
