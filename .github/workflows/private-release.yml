@@ -43,6 +43,6 @@ jobs:
           push: ${{ github.event_name == 'workflow_dispatch' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args:
-            - QUESMA_VERSION=${{ github.event.inputs.VERSION_TAG }}
-            - QUESMA_LICENSE_KEY=${{ github.event.inputs.LICENSE_KEY }}
+          build-args: |
+            QUESMA_VERSION=${{ github.event.inputs.VERSION_TAG }}
+            QUESMA_LICENSE_KEY=${{ github.event.inputs.LICENSE_KEY }}
