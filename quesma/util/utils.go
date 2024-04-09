@@ -474,3 +474,37 @@ func equal(a, b any) bool {
 	}
 	return false
 }
+
+// ExtractInt64 returns int64 value behind `value`:
+// * value,  if it's (u)int64
+// * *value, if it's *(u)int64
+// * -1,     otherwise
+func ExtractInt64(value any) int64 {
+	switch valueTyped := value.(type) {
+	case int64:
+		return valueTyped
+	case uint64:
+		return int64(valueTyped)
+	case *int64:
+		return *valueTyped
+	case *uint64:
+		return int64(*valueTyped)
+	}
+	logger.Error().Msgf("ExtractInt64, value of incorrect type. Expected (*)(u)int64, received: %v", value)
+	return -1
+}
+
+// ExtractFloat64 returns float64 value behind `value`:
+// * value,  if it's float64
+// * *value, if it's *float64
+// * -1,     otherwise
+func ExtractFloat64(value any) float64 {
+	switch valueTyped := value.(type) {
+	case float64:
+		return valueTyped
+	case *float64:
+		return *valueTyped
+	}
+	logger.Error().Msgf("ExtractFloat64, value of incorrect type. Expected (*)float64, received: %v", value)
+	return -1
+}

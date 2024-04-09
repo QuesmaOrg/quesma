@@ -176,6 +176,7 @@ type SearchQueryType int
 
 const (
 	Facets SearchQueryType = iota
+	FacetsNumeric
 	ListByField
 	ListAllFields
 	CountAsync
@@ -184,7 +185,7 @@ const (
 )
 
 func (queryType SearchQueryType) String() string {
-	return []string{"Facets", "ListByField", "ListAllFields", "CountAsync", "Normal", "None"}[queryType]
+	return []string{"Facets", "FacetsNumeric", "ListByField", "ListAllFields", "CountAsync", "Normal", "None"}[queryType]
 }
 
 type SearchQueryInfo struct {

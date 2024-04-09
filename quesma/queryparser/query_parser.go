@@ -945,19 +945,20 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 	if !ok {
 		return model.NewSearchQueryInfoNone(), false
 	}
-	firstNestingMap, ok := queryMap["aggs"].(QueryMap)
+	aggs, ok := queryMap["aggs"].(QueryMap)
 	if !ok {
 		return model.NewSearchQueryInfoNone(), false
 	}
 
+	aggsNr := len(aggs)
 	// simple "facets" aggregation, which we try to match here, will have here:
-	// a) len = 2
-	// b) "top_values" and "sample_count" keys
-	_, ok = firstNestingMap["sample_count"]
-	if !ok || len(firstNestingMap) != 2 {
+	// * "top_values" and "sample_count" keys
+	// * aggsNr = 2 (or 4 and 'max_value', 'min_value', as remaining 2)
+	_, ok = aggs["sample_count"]
+	if !ok {
 		return model.NewSearchQueryInfoNone(), false
 	}
-	firstNestingMap, ok = firstNestingMap["top_values"].(QueryMap)
+	firstNestingMap, ok := aggs["top_values"].(QueryMap)
 	if !ok {
 		return model.NewSearchQueryInfoNone(), false
 	}
@@ -988,7 +989,19 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 	if !ok {
 		return model.NewSearchQueryInfoNone(), false
 	}
-	return model.SearchQueryInfo{Typ: model.Facets, FieldName: fieldName, I1: size, I2: int(shardSize)}, true
+
+	if aggsNr == 2 {
+		// normal facets
+		return model.SearchQueryInfo{Typ: model.Facets, FieldName: fieldName, I1: size, I2: int(shardSize)}, true
+	} else if aggsNr == 4 {
+		// maybe numeric facets
+		_, minExists := aggs["min_value"]
+		_, maxExists := aggs["max_value"]
+		if minExists && maxExists {
+			return model.SearchQueryInfo{Typ: model.FacetsNumeric, FieldName: fieldName, I1: size, I2: int(shardSize)}, true
+		}
+	}
+	return model.NewSearchQueryInfoNone(), false
 }
 
 // 'queryMap' - metadata part of the JSON query

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/kibana"
 	"mitmproxy/quesma/logger"
@@ -88,8 +89,8 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryR
 	switch typ {
 	case model.Normal:
 		return makeSearchResponseNormal(ResultSet), nil
-	case model.Facets:
-		return cw.makeSearchResponseFacets(ResultSet), nil
+	case model.Facets, model.FacetsNumeric:
+		return cw.makeSearchResponseFacets(ResultSet, typ), nil
 	case model.ListByField, model.ListAllFields:
 		return cw.makeSearchResponseList(ResultSet, typ, highlighter), nil
 	default:
@@ -105,21 +106,41 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponseMarshalled(ResultSet []mo
 	return response.Marshal()
 }
 
-func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.QueryResultRow) *model.SearchResp {
+func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.QueryResultRow, typ model.SearchQueryType) *model.SearchResp {
 	const maxFacets = 10 // facets show only top 10 values
 	bucketsNr := min(len(ResultSet), maxFacets)
 	buckets := make([]JsonMap, 0, bucketsNr)
 	returnedRowsNr := 0
-	for i, row := range ResultSet[:bucketsNr] {
-		buckets = append(buckets, make(JsonMap))
-		for _, col := range row.Cols {
-			buckets[i][col.ColName] = col.Value
+	var sampleCount uint64
+
+	// Let's make the following branching only for tests' sake. In production, we always have uint64,
+	// but go-sqlmock can only return int64, so let's keep it like this for now.
+	// Normally, only 'uint64' case would be needed.
+	if bucketsNr > 0 {
+		switch ResultSet[0].Cols[model.ResultColDocCountIndex].Value.(type) {
+		case int64:
+			for i, row := range ResultSet[:bucketsNr] {
+				buckets = append(buckets, make(JsonMap))
+				for _, col := range row.Cols {
+					buckets[i][col.ColName] = col.Value
+				}
+				returnedRowsNr += int(row.Cols[model.ResultColDocCountIndex].Value.(int64))
+			}
+			for _, row := range ResultSet {
+				sampleCount += uint64(row.Cols[model.ResultColDocCountIndex].Value.(int64))
+			}
+		case uint64:
+			for i, row := range ResultSet[:bucketsNr] {
+				buckets = append(buckets, make(JsonMap))
+				for _, col := range row.Cols {
+					buckets[i][col.ColName] = col.Value
+				}
+				returnedRowsNr += int(row.Cols[model.ResultColDocCountIndex].Value.(uint64))
+			}
+			for _, row := range ResultSet {
+				sampleCount += row.Cols[model.ResultColDocCountIndex].Value.(uint64)
+			}
 		}
-		returnedRowsNr += int(row.Cols[model.ResultColDocCountIndex].Value.(uint64))
-	}
-	var sampleCount uint64 // uint64 because that's what clickhouse reader returns
-	for _, row := range ResultSet {
-		sampleCount += row.Cols[model.ResultColDocCountIndex].Value.(uint64)
 	}
 
 	aggregations := JsonMap{
@@ -134,6 +155,34 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.
 				"doc_count_error_upper_bound": 0,
 			},
 		},
+	}
+
+	if typ == model.FacetsNumeric {
+		if len(ResultSet) == 0 {
+			aggregations["sample"].(JsonMap)["min_value"] = nil
+			aggregations["sample"].(JsonMap)["max_value"] = nil
+		} else {
+			switch ResultSet[0].Cols[model.ResultColKeyIndex].Value.(type) {
+			case int64, uint64, *int64, *uint64:
+				var minValue, maxValue = int64(math.MaxInt), int64(math.MinInt)
+				for _, row := range ResultSet {
+					value := util.ExtractInt64(row.Cols[model.ResultColKeyIndex].Value)
+					maxValue = max(maxValue, value)
+					minValue = min(minValue, value)
+				}
+				aggregations["sample"].(JsonMap)["min_value"] = JsonMap{"value": minValue}
+				aggregations["sample"].(JsonMap)["max_value"] = JsonMap{"value": maxValue}
+			case float64, *float64:
+				var minValue, maxValue = math.MaxFloat64, -math.MaxFloat64
+				for _, row := range ResultSet {
+					value := util.ExtractFloat64(row.Cols[model.ResultColKeyIndex].Value)
+					maxValue = max(maxValue, value)
+					minValue = min(minValue, value)
+				}
+				aggregations["sample"].(JsonMap)["min_value"] = JsonMap{"value": minValue}
+				aggregations["sample"].(JsonMap)["max_value"] = JsonMap{"value": maxValue}
+			}
+		}
 	}
 
 	return &model.SearchResp{

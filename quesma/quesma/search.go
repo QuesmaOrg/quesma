@@ -151,7 +151,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		var simpleQuery queryparser.SimpleQuery
 		simpleQuery, queryInfo, highlighter = queryTranslator.ParseQuery(string(body))
 		if simpleQuery.CanParse {
-			if ((queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields || queryInfo.Typ == model.Normal) && !bytes.Contains(body, []byte("aggs"))) || queryInfo.Typ == model.Facets {
+			if ((queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields || queryInfo.Typ == model.Normal) && !bytes.Contains(body, []byte("aggs"))) || queryInfo.Typ == model.Facets || queryInfo.Typ == model.FacetsNumeric {
 				logger.InfoWithCtx(ctx).Msgf("Received search request, type: %v, async: %v", queryInfo.Typ, async)
 				oldHandlingUsed = true
 				if async {
@@ -386,7 +386,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, asyncRequestIdStr 
 		fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
 		hits, err = queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(dbQueryCtx, table, fullQuery)
 
-	case model.Facets:
+	case model.Facets, model.FacetsNumeric:
 		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
 		fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
 		hits, err = queryTranslator.ClickhouseLM.ProcessFacetsQuery(dbQueryCtx, table, fullQuery)
