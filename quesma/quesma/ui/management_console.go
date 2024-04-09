@@ -119,10 +119,13 @@ func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *c
 }
 
 func (qmc *QuesmaManagementConsole) PushPrimaryInfo(qdebugInfo *QueryDebugPrimarySource) {
+	qdebugInfo.QueryResp = []byte(util.JsonPrettify(string(qdebugInfo.QueryResp), true))
 	qmc.queryDebugPrimarySource <- qdebugInfo
 }
 
 func (qmc *QuesmaManagementConsole) PushSecondaryInfo(qdebugInfo *QueryDebugSecondarySource) {
+	qdebugInfo.QueryTranslatedResults = []byte(util.JsonPrettify(string(qdebugInfo.QueryTranslatedResults), true))
+	qdebugInfo.IncomingQueryBody = []byte(util.JsonPrettify(string(qdebugInfo.IncomingQueryBody), true))
 	qmc.queryDebugSecondarySource <- qdebugInfo
 }
 

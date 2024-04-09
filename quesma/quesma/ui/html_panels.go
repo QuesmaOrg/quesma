@@ -10,7 +10,6 @@ import (
 	"mitmproxy/quesma/quesma/ui/sqlfmt"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/stats/errorstats"
-	"mitmproxy/quesma/util"
 	"net/url"
 	"runtime"
 	"strings"
@@ -30,7 +29,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 		}
 		buffer.Html("<p>RequestID:").Text(v.Key).Html("</p>\n")
 		buffer.Html(`<pre Id="query`).Text(v.Key).Html(`">`)
-		buffer.Text(util.JsonPrettify(string(v.Value.IncomingQueryBody), true))
+		buffer.Text(string(v.Value.IncomingQueryBody))
 		buffer.Html("\n</pre>")
 		if withLinks {
 			buffer.Html("\n</a>")
@@ -50,7 +49,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 		buffer.Html("<p>ResponseID:").Text(v.Key).Text(tookStr).Html("</p>\n")
 		buffer.Html(`<pre Id="response`).Text(v.Key).Html(`">`)
 		if len(v.Value.QueryResp) > 0 {
-			buffer.Text(util.JsonPrettify(string(v.Value.QueryResp), true))
+			buffer.Text(string(v.Value.QueryResp))
 		} else {
 			buffer.Text("(empty, request was not sent to Elasticsearch)")
 		}
@@ -98,7 +97,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 		}
 		buffer.Html("<p>ResponseID:").Text(v.Key).Html("</p>\n")
 		buffer.Html(`<pre Id="second_response`).Text(v.Key).Html(`">`)
-		buffer.Text(util.JsonPrettify(string(v.Value.QueryTranslatedResults), true))
+		buffer.Text(string(v.Value.QueryTranslatedResults))
 		buffer.Html("\n\nThere are more results ...")
 		buffer.Html("\n</pre>")
 		if withLinks {
