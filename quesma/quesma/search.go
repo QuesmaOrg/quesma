@@ -20,9 +20,9 @@ import (
 	"time"
 )
 
-const AsyncQueriesLimit = 1000
+const asyncQueriesLimit = 1000
 
-var asyncRequestId int64 = 0
+var asyncRequestId atomic.Int64
 
 type AsyncRequestResult struct {
 	isAggregation       bool
@@ -267,8 +267,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 }
 
 func generateAsyncRequestId() string {
-	atomic.AddInt64(&asyncRequestId, 1)
-	return "quesma_async_search_id_" + strconv.FormatInt(asyncRequestId, 10)
+	return "quesma_async_search_id_" + strconv.FormatInt(asyncRequestId.Add(1), 10)
 }
 
 func createEmptyAsyncSearchResponse(id string, isPartial bool, status int) ([]byte, error) {
@@ -349,7 +348,7 @@ func (q *QueryRunner) deleteAsyncSeach(id string) ([]byte, error) {
 }
 
 func (q *QueryRunner) reachedQueriesLimit(asyncRequestIdStr string, doneCh chan struct{}) bool {
-	if q.AsyncRequestStorage.Size() < AsyncQueriesLimit {
+	if q.AsyncRequestStorage.Size() < asyncQueriesLimit {
 		return false
 	}
 	q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: errors.New("too many async queries"), added: time.Now()})
