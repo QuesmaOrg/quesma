@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/feature"
@@ -27,9 +28,8 @@ const banner = `
 
 func main() {
 	println(banner)
-	println("Quesma version: ", buildinfo.Version)
-	println("Quesma build hash: ", buildinfo.BuildHash)
-	println("Quesma license: ", buildinfo.LicenseKey)
+	fmt.Printf("Quesma build info: version=[%s], build hash=[%s], license key=[%s]\n",
+		buildinfo.Version, buildinfo.BuildHash, config.MaskLicenseKey(buildinfo.LicenseKey))
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
