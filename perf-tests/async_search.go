@@ -221,6 +221,7 @@ func getHistogramAsyncQuery(from time.Time, to time.Time) []byte {
 type queryStats struct {
 	total      atomic.Int64
 	successful atomic.Int64
+	timeOuted  atomic.Int64
 }
 
 func makePartialAsyncQuery(id string) ([]byte, error) {
@@ -231,6 +232,9 @@ func makePartialAsyncQuery(id string) ([]byte, error) {
 }
 
 func runPartialAsyncQuery(id string, stats *queryStats) {
+	const timeout = 15 * time.Minute
+	startTime := time.Now()
+	stats.total.Add(1)
 	for {
 		body, err := makePartialAsyncQuery(id)
 		if err != nil {
@@ -240,11 +244,15 @@ func runPartialAsyncQuery(id string, stats *queryStats) {
 		}
 		isRunning, _ := getIsRunning(body)
 		if isRunning == false {
-			stats.total.Add(1)
 			completionStatus, _ := getCompletionStatus(body)
 			if completionStatus == 200 {
 				stats.successful.Add(1)
 			}
+			break
+		}
+		elapsed := time.Since(startTime)
+		if elapsed > timeout {
+			stats.timeOuted.Add(1)
 			break
 		}
 		time.Sleep(1 * time.Second)
@@ -292,5 +300,6 @@ func runAsyncSearchLoadTests(numberOfIterations int, numberOfConcurrentRequests 
 		fmt.Println("Stats:")
 		fmt.Println("\tTotal:", stats.total.Load())
 		fmt.Println("\tSuccessful:", stats.successful.Load())
+		fmt.Println("\tTimeOuted:", stats.timeOuted.Load())
 	}
 }
