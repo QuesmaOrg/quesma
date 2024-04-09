@@ -284,17 +284,28 @@ func (p *QuesmaConfigurationParser) configureUrl(configParamName string) *url.UR
 	return esUrl
 }
 
+func maskLicenseKey(licenseKey string) string {
+	if len(licenseKey) > 4 {
+		return "****" + licenseKey[len(licenseKey)-4:]
+	} else {
+		return "****"
+	}
+}
+
 func (p *QuesmaConfigurationParser) configureLicenseKey() string {
 	// `buildinfo.LicenseKey` can be injected at the build time, don't get fooled by the IDE warning below
-	if buildinfo.LicenseKey != buildinfo.DevelopmentLicenseKey {
+	if buildinfo.LicenseKey != buildinfo.DevelopmentLicenseKey && buildinfo.LicenseKey != "" {
 		// This means it's customer-specific build, so continue using the license key from the build
+		fmt.Printf("Using license key from build: %s\n", maskLicenseKey(buildinfo.LicenseKey))
 		return buildinfo.LicenseKey
 	}
 	// In case of **any other** setup, we fall back to default config handling
 	if licenseKey, isSet := os.LookupEnv("LICENSE_KEY"); isSet {
+		fmt.Printf("Using license key from env: %s\n", maskLicenseKey(licenseKey))
 		return licenseKey
 	}
 	if key := p.parsedViper.GetString(fullyQualifiedConfig(licenseKeyConfig)); key != "" {
+		fmt.Printf("Using license key from config: %s\n", maskLicenseKey(key))
 		return key
 	}
 	panic("license key missing")
