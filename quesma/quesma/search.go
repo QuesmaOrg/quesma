@@ -376,8 +376,10 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementCo
 	if async {
 		searchResponse, err := queryTranslator.MakeSearchResponse(hits, queryInfo.Typ, highlighter)
 		if err != nil {
-			// TODO revisit, we probably should not continue here
 			logger.Error().Msgf("Error making response: %v rows: %v", err, hits)
+			q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{responseBody: []byte{}, added: time.Now(), err: err})
+			doneCh <- struct{}{}
+			return
 		}
 		const isPartial = false
 		asyncSearchResponse := queryparser.SearchToAsyncSearchResponse(searchResponse, id, isPartial)
