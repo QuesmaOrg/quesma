@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
 	"io"
 	"log"
 	"mitmproxy/quesma/clickhouse"
@@ -54,23 +53,33 @@ func resolveHttpServer(inspect bool) *http.Server {
 	return nil
 }
 
-func configureRouting() *mux.Router {
-	router := mux.NewRouter()
-	cfg := config.QuesmaConfiguration{}
-	router.Path("/").Methods("GET").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
-		writer.WriteHeader(http.StatusOK)
-	})
-	router.PathPrefix("/{index}/_doc").Methods("POST").HandlerFunc(util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		stats.GlobalStatistics.Process(cfg, mux.Vars(r)["index"], string(body), clickhouse.NestedSeparator)
+func configureRouting() *http.ServeMux {
+	router := http.NewServeMux()
+	configuration := config.QuesmaConfiguration{IndexConfig: []config.IndexConfiguration{{NamePattern: "*", Enabled: true}}}
+	router.HandleFunc("POST /{index}/_doc", util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
+		index := r.PathValue("index")
+		if !strings.HasPrefix(index, ".") {
+			stats.GlobalStatistics.Process(configuration, index, string(body), clickhouse.NestedSeparator)
+		}
 	}))
-	router.PathPrefix("/{index}/_bulk").Methods("POST").HandlerFunc(util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		stats.GlobalStatistics.Process(cfg, mux.Vars(r)["index"], string(body), clickhouse.NestedSeparator)
+
+	router.HandleFunc("POST /{index}/_bulk", util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
+		index := r.PathValue("index")
+		if !strings.HasPrefix(index, ".") {
+			stats.GlobalStatistics.Process(configuration, index, string(body), clickhouse.NestedSeparator)
+		}
 	}))
-	router.PathPrefix("/_bulk").Methods("POST").HandlerFunc(util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
+
+	router.HandleFunc("POST /_bulk", util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		forEachInBulk(string(body), func(index string, document string) {
-			stats.GlobalStatistics.Process(cfg, index, document, clickhouse.NestedSeparator)
+			if !strings.HasPrefix(index, ".") {
+				stats.GlobalStatistics.Process(configuration, index, document, clickhouse.NestedSeparator)
+			}
 		})
 	}))
+	router.HandleFunc("GET /", func(writer http.ResponseWriter, r *http.Request) {
+		writer.WriteHeader(http.StatusOK)
+	})
 	return router
 }
 
@@ -215,10 +224,7 @@ func forEachInBulk(body string, f func(index string, document string)) {
 
 			f(indexName, document)
 		} else {
-			logger.Error().Msg("Unsupported actions in _bulk:")
-			for action := range jsonData {
-				logger.Error().Msg(action)
-			}
+			logger.Debug().Msgf("Unsupported actions in _bulk: %s", action)
 		}
 	}
 }
