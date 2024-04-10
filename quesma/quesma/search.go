@@ -12,6 +12,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
+	"mitmproxy/quesma/quesma/gzip"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
 	"strconv"
@@ -27,6 +28,7 @@ var asyncRequestId atomic.Int64
 type AsyncRequestResult struct {
 	responseBody []byte
 	added        time.Time
+	zipped       bool
 	err          error
 }
 
@@ -284,14 +286,18 @@ func (q *QueryRunner) handlePartialAsyncSearch(id string, quesmaManagementConsol
 	if !strings.Contains(id, "quesma_async_search_id_") {
 		return createEmptyAsyncSearchResponse(id, false, 503)
 	}
-	var err error
 	if result, ok := q.AsyncRequestStorage.Load(id); ok {
 		if result.err != nil {
 			q.AsyncRequestStorage.Delete(id)
 			return createEmptyAsyncSearchResponse(id, false, 503)
 		}
 		q.AsyncRequestStorage.Delete(id)
-		return result.responseBody, err
+		// TODO: workaround, for now, quesma expects unzipped responses
+		// returned from router
+		if result.zipped {
+			return gzip.UnZip(result.responseBody)
+		}
+		return result.responseBody, nil
 	} else {
 		const isPartial = true
 		return createEmptyAsyncSearchResponse(id, isPartial, 200)
@@ -310,7 +316,7 @@ func (q *QueryRunner) reachedQueriesLimit(asyncRequestIdStr string, doneCh chan 
 	if q.AsyncRequestStorage.Size() < asyncQueriesLimit {
 		return false
 	}
-	q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: errors.New("too many async queries"), added: time.Now()})
+	q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: errors.New("too many async queries"), added: time.Now(), zipped: false})
 	logger.Error().Msgf("Cannot handle %s, too many async queries", asyncRequestIdStr)
 	doneCh <- struct{}{}
 	return true
@@ -377,7 +383,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementCo
 		searchResponse, err := queryTranslator.MakeSearchResponse(hits, queryInfo.Typ, highlighter)
 		if err != nil {
 			logger.Error().Msgf("Error making response: %v rows: %v", err, hits)
-			q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{responseBody: []byte{}, added: time.Now(), err: err})
+			q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{responseBody: []byte{}, added: time.Now(), err: err, zipped: false})
 			doneCh <- struct{}{}
 			return
 		}
@@ -392,7 +398,14 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementCo
 			QueryTranslatedResults: responseBody,
 			SecondaryTook:          time.Since(startTime),
 		})
-		q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{responseBody: responseBody, added: time.Now(), err: err})
+		zipped := false
+		if err == nil {
+			responseBody, err = gzip.Zip(responseBody)
+			if err == nil {
+				zipped = true
+			}
+		}
+		q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{responseBody: responseBody, added: time.Now(), err: err, zipped: zipped})
 		doneCh <- struct{}{}
 	}
 	return
@@ -457,9 +470,15 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, quesmaM
 			QueryTranslatedResults: responseBody,
 			SecondaryTook:          time.Since(startTime),
 		})
-
+		zipped := false
+		if err == nil {
+			responseBody, err = gzip.Zip(responseBody)
+			if err == nil {
+				zipped = true
+			}
+		}
 		q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{responseBody: responseBody, added: time.Now(),
-			err: err})
+			zipped: zipped, err: err})
 		doneCh <- struct{}{}
 	}
 	return
