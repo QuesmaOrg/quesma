@@ -52,13 +52,40 @@ func (cw *ClickhouseQueryTranslator) ClearTokensToHighlight() {
 	cw.tokensToHighlight = []string{}
 }
 
-func makeSearchResponseNormal(ResultSet []model.QueryResultRow) *model.SearchResp {
+func (cw *ClickhouseQueryTranslator) highlightHit(hit *model.SearchHit, highlighter Highlighter, resultRow model.QueryResultRow) {
+	for _, col := range resultRow.Cols {
+		hit.Fields[col.ColName] = []interface{}{col.Value}
+		if highlighter.ShouldHighlight(col.ColName) {
+			// check if we have a string here and if so, highlight it
+			switch valueAsString := col.Value.(type) {
+			case string:
+				hit.Highlight[col.ColName] = highlighter.HighlightValue(valueAsString)
+			case *string:
+				if valueAsString != nil {
+					hit.Highlight[col.ColName] = highlighter.HighlightValue(*valueAsString)
+				}
+			}
+		}
+	}
+
+	// TODO: highlight and field checks
+	for _, alias := range cw.Table.AliasList() {
+		if v, ok := hit.Fields[alias.TargetFieldName]; ok {
+			hit.Fields[alias.SourceFieldName] = v
+		}
+	}
+}
+
+func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.QueryResultRow, highlighter Highlighter) *model.SearchResp {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i, row := range ResultSet {
 		hits[i] = model.SearchHit{
-			Index:  row.Index,
-			Source: []byte(row.String()),
+			Index:     row.Index,
+			Source:    []byte(row.String()),
+			Fields:    make(map[string][]interface{}),
+			Highlight: make(map[string][]string),
 		}
+		cw.highlightHit(&hits[i], highlighter, ResultSet[i])
 	}
 
 	return &model.SearchResp{
@@ -72,15 +99,28 @@ func makeSearchResponseNormal(ResultSet []model.QueryResultRow) *model.SearchRes
 	}
 }
 
+func emptySearchResponse() model.SearchResp {
+	return model.SearchResp{
+		Hits: model.SearchHits{
+			Hits: []model.SearchHit{},
+			Total: &model.Total{
+				Value:    0,
+				Relation: "eq",
+			},
+		},
+	}
+
+}
+
 func EmptySearchResponse() []byte {
-	response := makeSearchResponseNormal([]model.QueryResultRow{})
-	marshalled, _ := response.Marshal() // error will never happen here
+	response := emptySearchResponse()
+	marshalled, _ := response.Marshal() // error value discarded, will never happen here
 	return marshalled
 }
 
 func EmptyAsyncSearchResponse(id string) []byte {
-	searchResp := makeSearchResponseNormal([]model.QueryResultRow{})
-	asyncSearchResp := SearchToAsyncSearchResponse(searchResp, id, false)
+	searchResp := emptySearchResponse()
+	asyncSearchResp := SearchToAsyncSearchResponse(&searchResp, id, false)
 	marshalled, _ := asyncSearchResp.Marshal() // error will never happen here
 	return marshalled
 }
@@ -88,7 +128,7 @@ func EmptyAsyncSearchResponse(id string) []byte {
 func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter) (*model.SearchResp, error) {
 	switch typ {
 	case model.Normal:
-		return makeSearchResponseNormal(ResultSet), nil
+		return cw.makeSearchResponseNormal(ResultSet, highlighter), nil
 	case model.Facets, model.FacetsNumeric:
 		return cw.makeSearchResponseFacets(ResultSet, typ), nil
 	case model.ListByField, model.ListAllFields:
@@ -212,30 +252,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 				2944,
 			}
 		}
-
-		for _, col := range ResultSet[i].Cols {
-
-			hits[i].Fields[col.ColName] = []interface{}{col.Value}
-
-			if highlighter.ShouldHighlight(col.ColName) {
-				// check if we have a string here and if so, highlight it
-				switch valueAsString := col.Value.(type) {
-				case string:
-					hits[i].Highlight[col.ColName] = highlighter.HighlightValue(valueAsString)
-				case *string:
-					if valueAsString != nil {
-						hits[i].Highlight[col.ColName] = highlighter.HighlightValue(*valueAsString)
-					}
-				}
-			}
-		}
-
-		// TODO: highlight and field checks
-		for _, alias := range cw.Table.AliasList() {
-			if v, ok := hits[i].Fields[alias.TargetFieldName]; ok {
-				hits[i].Fields[alias.SourceFieldName] = v
-			}
-		}
+		cw.highlightHit(&hits[i], highlighter, ResultSet[i])
 	}
 
 	return &model.SearchResp{
