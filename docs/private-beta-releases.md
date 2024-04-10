@@ -1,4 +1,4 @@
-## Adding access for customer to download Quesma docker image
+## Adding access for customer to download Quesma docker image a.k.a private beta release
 
 1. Create Service Account [here](https://console.cloud.google.com/iam-admin/serviceaccounts?authuser=1&project=metal-figure-407109). \
    Make sure `Name` and `Description` are human-readable and meaningful. 
