@@ -325,18 +325,7 @@ func (q *QueryRunner) handlePartialAsyncSearch(id string, quesmaManagementConsol
 		return responseBody, err
 	} else {
 		const isPartial = true
-		queryTranslator := &queryparser.ClickhouseQueryTranslator{}
-		if !result.isAggregation {
-			searchResponse, err = queryTranslator.MakeSearchResponse([]model.QueryResultRow{}, model.Normal, queryparser.Highlighter{})
-			if err != nil {
-				logger.Error().Msgf("Error making response: %v rows: %v", err, result.rows)
-			}
-		} else {
-			searchResponse = queryTranslator.MakeResponseAggregation([]model.QueryWithAggregation{}, [][]model.QueryResultRow{})
-		}
-		asyncSearchResponse := queryparser.SearchToAsyncSearchResponse(searchResponse, id, isPartial)
-		responseBody, err = asyncSearchResponse.Marshal()
-		return responseBody, err
+		return createEmptyAsyncSearchResponse(id, isPartial, 200)
 	}
 }
 
