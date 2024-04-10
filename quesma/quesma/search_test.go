@@ -311,3 +311,81 @@ func TestHandlingDateTimeFields(t *testing.T) {
 		}
 	}
 }
+
+// TestAsyncSearchFacets tests if results for facets are correctly returned
+// (top 10 values, "other" value, min/max).
+// Both `_search`, and `_async_search` handlers are tested.
+func TestNumericFacetsQueries(t *testing.T) {
+	table := concurrent.NewMapWith(tableName, &clickhouse.Table{
+		Name:   tableName,
+		Config: clickhouse.NewDefaultCHConfig(),
+		Cols: map[string]*clickhouse.Column{
+			"int64-field": {
+				Name: "int64-field",
+				Type: clickhouse.NewBaseType("Int64"),
+			},
+			"float64-field": {
+				Name: "float64-field",
+				Type: clickhouse.NewBaseType("Float64"),
+			},
+		},
+		Created: true,
+	})
+	handlers := []string{"handleSearch", "handleAsyncSearch"}
+	for i, tt := range testdata.TestsNumericFacets {
+		for _, handlerName := range handlers {
+			t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
+				db, mock, err := sqlmock.New()
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer db.Close()
+				assert.NoError(t, err)
+				lm := clickhouse.NewLogManagerWithConnection(db, table)
+				managementConsole := ui.NewQuesmaManagementConsole(config.Load(), nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())
+
+				returnedBuckets := sqlmock.NewRows([]string{"", ""})
+				for _, row := range tt.ResultRows {
+					returnedBuckets.AddRow(row[0], row[1])
+				}
+
+				// Don't care about the query's SQL in this test, it's thoroughly tested in different tests, thus ""
+				mock.ExpectQuery("").WillReturnRows(returnedBuckets)
+
+				queryRunner := NewQueryRunner()
+				var response []byte
+				if handlerName == "handleSearch" {
+					response, err = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
+				} else if handlerName == "handleAsyncSearch" {
+					response, err = queryRunner.handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole, defaultAsyncSearchTimeout, true)
+				}
+				assert.NoError(t, err)
+
+				if err := mock.ExpectationsWereMet(); err != nil {
+					t.Fatal("there were unfulfilled expections:", err)
+				}
+
+				var responseMap model.JsonMap
+				err = json.Unmarshal(response, &responseMap)
+				assert.NoError(t, err, "error unmarshalling search API response:")
+
+				var responsePart model.JsonMap
+				if handlerName == "handleSearch" {
+					responsePart = responseMap
+				} else {
+					responsePart = responseMap["response"].(model.JsonMap)
+				}
+				// check max
+				assert.Equal(t, tt.MaxExpected, responsePart["aggregations"].(model.JsonMap)["sample"].(model.JsonMap)["max_value"].(model.JsonMap)["value"].(float64))
+				// check min
+				assert.Equal(t, tt.MinExpected, responsePart["aggregations"].(model.JsonMap)["sample"].(model.JsonMap)["min_value"].(model.JsonMap)["value"].(float64))
+				// check hits count (in 3 different places)
+				assert.Equal(t, tt.CountExpected, responsePart["aggregations"].(model.JsonMap)["sample"].(model.JsonMap)["sample_count"].(model.JsonMap)["value"].(float64))
+				assert.Equal(t, tt.CountExpected, responsePart["aggregations"].(model.JsonMap)["sample"].(model.JsonMap)["doc_count"].(float64))
+				assert.Equal(t, tt.CountExpected, responsePart["hits"].(model.JsonMap)["total"].(model.JsonMap)["value"].(float64))
+				// check sum_other_doc_count (sum of all doc_counts that are not in top 10 facets)
+				assert.Equal(t, tt.SumOtherDocCountExpected, responsePart["aggregations"].(model.JsonMap)["sample"].(model.JsonMap)["top_values"].(model.JsonMap)["sum_other_doc_count"].(float64))
+			})
+		}
+	}
+}
