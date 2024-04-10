@@ -69,15 +69,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
 		}
 		tookStr := fmt.Sprintf(" took %d ms", v.Value.SecondaryTook.Milliseconds())
-		// FIXME: Put it everywhere:
-		errorBanner := ""
-		if v.Value.errorLogCount > 0 {
-			errorBanner += fmt.Sprintf(` <span class="debug-error-log">%d errors</span>`, v.Value.errorLogCount)
-		}
-		if v.Value.warnLogCount > 0 {
-			errorBanner += fmt.Sprintf(` <span class="debug-warn-log">%d warnings</span>`, v.Value.warnLogCount)
-		}
-		buffer.Html("<p>RequestID:").Text(v.Key).Text(tookStr).Html(errorBanner).Html("</p>\n")
+		buffer.Html("<p>RequestID:").Text(v.Key).Text(tookStr).Html(errorBanner(v.Value)).Html("</p>\n")
 		buffer.Html(`<pre Id="second_query`).Text(v.Key).Html(`">`)
 		buffer.Text(sqlfmt.SqlPrettyPrint(v.Value.QueryBodyTranslated))
 		buffer.Html("\n</pre>")
@@ -95,9 +87,13 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 		if withLinks {
 			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
 		}
-		buffer.Html("<p>ResponseID:").Text(v.Key).Html("</p>\n")
+		buffer.Html("<p>ResponseID:").Text(v.Key).Html(errorBanner(v.Value)).Html("</p>\n")
 		buffer.Html(`<pre Id="second_response`).Text(v.Key).Html(`">`)
-		buffer.Text(string(v.Value.QueryTranslatedResults))
+		if len(v.Value.QueryTranslatedResults) > 0 {
+			buffer.Text(string(v.Value.QueryTranslatedResults))
+		} else {
+			buffer.Text("(empty, request was not sent to Clickhouse)")
+		}
 		buffer.Html("\n\nThere are more results ...")
 		buffer.Html("\n</pre>")
 		if withLinks {
@@ -219,6 +215,17 @@ func (qmc *QuesmaManagementConsole) generateStatistics() []byte {
 	}
 
 	return buffer.Bytes()
+}
+
+func errorBanner(debugInfo QueryDebugInfo) string {
+	result := ""
+	if debugInfo.errorLogCount > 0 {
+		result += fmt.Sprintf(` <span class="debug-error-log">%d errors</span>`, debugInfo.errorLogCount)
+	}
+	if debugInfo.warnLogCount > 0 {
+		result += fmt.Sprintf(` <span class="debug-warn-log">%d warnings</span>`, debugInfo.warnLogCount)
+	}
+	return result
 }
 
 func secondsToTerseString(second uint64) string {

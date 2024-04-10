@@ -34,6 +34,7 @@ WHERE (("order_date">=parseDateTime64BestEffort('2024-02-19T12:59:40.626Z') AND
   "order_date">=parseDateTime64BestEffort('2024-02-12T12:59:40.626Z'))) AND (
   "order_date">=parseDateTime64BestEffort('2024-02-19T12:59:40.626Z') AND
   "order_date"<=parseDateTime64BestEffort('2024-02-26T12:59:40.626Z'))
+
 SELECT '', '', count()
 FROM "kibana_sample_data_ecommerce"
 WHERE (("order_date">=parseDateTime64BestEffort('2024-02-19T12:59:40.626Z') AND
@@ -42,6 +43,7 @@ WHERE (("order_date">=parseDateTime64BestEffort('2024-02-19T12:59:40.626Z') AND
   "order_date">=parseDateTime64BestEffort('2024-02-12T12:59:40.626Z'))) AND (
   "order_date">=parseDateTime64BestEffort('2024-02-12T12:59:40.626Z') AND
   "order_date"<=parseDateTime64BestEffort('2024-02-19T12:59:40.626Z'))
+
 SELECT '', '', '', sum("taxful_total_price")
 FROM "kibana_sample_data_ecommerce"
 WHERE ("order_date">=parseDateTime64BestEffort('2024-02-19T12:59:40.626Z') AND
@@ -75,5 +77,31 @@ func TestGroupBySql(t *testing.T) {
 		"GROUP BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000))\n" +
 		"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000))"
 	sqlFormatted := SqlPrettyPrint([]byte(sql))
+	assert.Equal(t, expect, sqlFormatted)
+}
+
+func TestPrettySubQuery(t *testing.T) {
+	sql := `SELECT "clientip", count() FROM ( SELECT "clientip" FROM "kibana_sample_data_logs" WHERE "@timestamp">=parseDateTime64BestEffort('2024-04-08T08:38:14.246Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-04-09T09:38:14.246Z') LIMIT 20000) GROUP BY "clientip" ORDER BY count() DESC`
+	expect := `SELECT "clientip", count()
+FROM (
+  SELECT "clientip"
+  FROM "kibana_sample_data_logs"
+  WHERE "@timestamp">=parseDateTime64BestEffort('2024-04-08T08:38:14.246Z') AND
+    "@timestamp"<=parseDateTime64BestEffort('2024-04-09T09:38:14.246Z')
+  LIMIT 20000)
+GROUP BY "clientip"
+ORDER BY count() DESC`
+	sqlFormatted := SqlPrettyPrint([]byte(sql))
+	assert.Equal(t, expect, sqlFormatted)
+}
+
+func TestDontExpand(t *testing.T) {
+	expect := `SELECT "clientip", count()
+FROM "kibana_sample_data_logs"
+WHERE "@timestamp">=parseDateTime64BestEffort('2024-04-08T08:38:14.246Z') AND
+  "@timestamp"<=parseDateTime64BestEffort('2024-04-09T09:38:14.246Z')
+GROUP BY "clientip"
+ORDER BY count() DESC`
+	sqlFormatted := SqlPrettyPrint([]byte(expect))
 	assert.Equal(t, expect, sqlFormatted)
 }
