@@ -148,9 +148,11 @@ func Load() QuesmaConfiguration {
 		log.Fatalf("error loading config: %v", err)
 	}
 	if err := k.Load(env.Provider("QUESMA_", ".", func(s string) string {
-		// This enables overriding config values with environment variables, e.g.
-		// `QUESMA_LOGGING_LEVEL=debug` overrides `quesma.logging.level` in the config file
-		return strings.Replace(strings.ToLower(strings.TrimPrefix(s, "QUESMA_")), "_", ".", -1)
+		// This enables overriding config values with environment variables. It's case-sensitive, just like the YAML.
+		// Examples:
+		// `QUESMA_logging_level=debug` overrides `logging.level` in the config file
+		// `QUESMA_licenseKey=arbitrary-license-key` overrides `licenseKey` in the config file
+		return strings.Replace(strings.TrimPrefix(s, "QUESMA_"), "_", ".", -1)
 	}), nil); err != nil {
 		log.Fatalf("error loading config form supplied env vars: %v", err)
 	}

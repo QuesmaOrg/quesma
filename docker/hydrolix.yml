@@ -4,14 +4,14 @@ services:
     build: ../quesma
     image: quesma:latest
     environment:
-      - ELASTICSEARCH_URL=http://elasticsearch:9200
-      - PORT=8080
-      - LOGS_PATH=/var/quesma/logs
-      - CLICKHOUSE_URL=${HYDROLIX_URL}
-      - CLICKHOUSE_USER=${HYDROLIX_USER}
-      - CLICKHOUSE_PASSWORD=${HYDROLIX_PASSWORD}
-      - CLICKHOUSE_DATABASE=${HYDROLIX_DATABASE}
-      - QUESMA_CONFIG_FILE=${HYDROLIX_FILE}
+      - QUESMA_elasticsearch_url=http://elasticsearch:9200
+      - QUESMA_port=8080
+      - QUESMA_logging_path=/var/quesma/logs
+      - QUESMA_clickhouse_url=${HYDROLIX_URL}
+      - QUESMA_clickhouse_user=${HYDROLIX_USER}
+      - QUESMA_clickhouse_password=${HYDROLIX_PASSWORD}
+      - QUESMA_clickhouse_database=${HYDROLIX_DATABASE}
+      #- QUESMA_CONFIG_FILE=${HYDROLIX_FILE}  ## looks like for now there's no need for separate config file
     depends_on:
       elasticsearch:
         condition: service_healthy

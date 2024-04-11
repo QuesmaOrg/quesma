@@ -87,15 +87,17 @@ func TestIndexConfiguration_FullTextField(t *testing.T) {
 
 }
 
-func TestQuesmaConfigurationParser_Parse(t *testing.T) {
+func TestQuesmaConfigurationLoading(t *testing.T) {
 
 	os.Setenv(configFileLocationEnvVar, "./test_config.yaml")
 
 	logLevelPassedAsEnvVar := "debug"
-	os.Setenv("QUESMA_LOGGING_LEVEL", logLevelPassedAsEnvVar) // overrides what's in the config file
+	licenseKeyPassedAsEnvVar := "arbitraty-license-key"
+	os.Setenv("QUESMA_logging_level", logLevelPassedAsEnvVar) // overrides what's in the config file
+	os.Setenv("QUESMA_licenseKey", licenseKeyPassedAsEnvVar)  // overrides what's in the config file
 	cfg := Load()
 
-	assert.Equal(t, "cdd749a3-e777-11ee-bcf8-0242ac150004", cfg.LicenseKey)
+	assert.Equal(t, licenseKeyPassedAsEnvVar, cfg.LicenseKey)
 	assert.Equal(t, DualWriteQueryClickhouse, cfg.Mode)
 	assert.Equal(t, 8080, int(cfg.PublicTcpPort))
 	assert.Equal(t, "http://localhost:9200", cfg.Elasticsearch.Url.String())
