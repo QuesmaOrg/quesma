@@ -11,9 +11,4 @@ logging:
 indexes:
   - name: "211318"
     enabled: true
-    fulltext_fields: [ "ua","city_name" ]
-index:
-  211318:
-    enabled: true
-
-
+    fulltextFields: [ "ua","city_name" ]

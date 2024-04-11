@@ -11,11 +11,8 @@ logging:
 indexes:
   - name: "logs"
     enabled: true
-    ignored_fields: [ "unknown" ]
-    logs:
-      enabled: true
-      ignored_fields: unknown
+    ignoredFields: [ "unknown" ]
   - name: "siem"
     enabled: true
-    ignored_fields: [ "responseHeaders","requestHeaders","botData","userRiskData","clientData" ]
+    ignoredFields: [ "responseHeaders","requestHeaders","botData","userRiskData","clientData" ]
 
