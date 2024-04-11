@@ -7,13 +7,16 @@ import (
 
 type Port uint16
 
-func ParsePort(port string) (Port, error) {
-	tcpPortInt, err := strconv.Atoi(port)
-	if err != nil {
-		return 0, fmt.Errorf("error parsing tcp port %s: %v", port, err)
+func (p *Port) UnmarshalText(text []byte) error {
+	var portValue uint64
+	if val, err := strconv.ParseUint(string(text), 10, 16); err != nil {
+		return err
+	} else {
+		portValue = val
 	}
-	if tcpPortInt < 0 || tcpPortInt > 65535 {
-		return 0, fmt.Errorf("invalid port number: %s", port)
+	if portValue > 65535 { // no value of type uint64 is less than 0 (SA4003)
+		return fmt.Errorf("invalid port number: %s", text)
 	}
-	return Port(tcpPortInt), nil
+	*p = Port(portValue)
+	return nil
 }

@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/quesma/config"
-	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -24,8 +23,6 @@ import (
 // 3) that predefined schema trumps (is more important) schema from insert's JSON
 
 const tableName = "test_table"
-
-var chUrl, _ = url.Parse("")
 
 var insertTests = []struct {
 	name                  string
@@ -130,7 +127,7 @@ func logManagersNonEmpty(cfg *ChTableConfig) []logManagerHelper {
 			},
 			Created: created,
 		})
-		lms = append(lms, logManagerHelper{NewLogManager(full, config.QuesmaConfiguration{ClickHouseUrl: chUrl}), created})
+		lms = append(lms, logManagerHelper{NewLogManager(full, config.QuesmaConfiguration{}), created})
 	}
 	return lms
 }

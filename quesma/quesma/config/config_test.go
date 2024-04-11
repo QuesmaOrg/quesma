@@ -1,9 +1,8 @@
 package config
 
 import (
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-	"strings"
+	"os"
 	"testing"
 )
 
@@ -90,52 +89,22 @@ func TestIndexConfiguration_FullTextField(t *testing.T) {
 
 func TestQuesmaConfigurationParser_Parse(t *testing.T) {
 
-	given := `
-quesma:
-  mode: "dual-write-query-clickhouse"
-  license_key: "1234567890"
-  port: 8080  # public tcp port to listen for incoming traffic
-  elasticsearch_url: "http://localhost:9200"
-  clickhouse_url: "clickhouse://localhost:9000"
-  ingest_statistics: true
-  logs_path: "logs"
-  log_level: "info"
-  index:
-    kibana_sample_data*:
-      enabled: true
-    kafka-example-topi*:
-      enabled: true
-    logs-generic-*:
-      enabled: true
-      fulltext_fields: message,host.name
-    device*:
-      enabled: true
-      fulltext_fields: 
-`
+	os.Setenv(configFileLocationEnvVar, "./test_config.yaml")
 
-	// then
-	v := viper.New()
-	v.SetConfigType(defaultConfigType)
-	v.ReadConfig(strings.NewReader(given))
+	logLevelPassedAsEnvVar := "debug"
+	os.Setenv("QUESMA_LOGGING_LEVEL", logLevelPassedAsEnvVar) // overrides what's in the config file
+	cfg := Load()
 
-	if err := v.ReadConfig(strings.NewReader(given)); err != nil {
-		t.Errorf("Error reading config: %v", err)
-	}
-
-	p := NewQuesmaConfigurationParser(v)
-	cfg := p.Parse()
-
-	// when
-
-	assert.Equal(t, "1234567890", cfg.LicenseKey)
+	assert.Equal(t, "cdd749a3-e777-11ee-bcf8-0242ac150004", cfg.LicenseKey)
 	assert.Equal(t, DualWriteQueryClickhouse, cfg.Mode)
-	assert.Equal(t, int(8080), int(cfg.PublicTcpPort))
-	assert.Equal(t, "http://localhost:9200", cfg.ElasticsearchUrl.String())
-	assert.Equal(t, "clickhouse://localhost:9000", cfg.ClickHouseUrl.String())
+	assert.Equal(t, 8080, int(cfg.PublicTcpPort))
+	assert.Equal(t, "http://localhost:9200", cfg.Elasticsearch.Url.String())
+	assert.Equal(t, false, cfg.Elasticsearch.Call)
+	assert.Equal(t, "clickhouse://localhost:9000", cfg.ClickHouse.Url.String())
 	assert.Equal(t, true, cfg.IngestStatistics)
-	assert.Equal(t, "logs", cfg.LogsPath)
-	assert.Equal(t, "info", cfg.LogLevel.String())
-	assert.Equal(t, 4, len(cfg.IndexConfig))
+	assert.Equal(t, "logs", cfg.Logging.Path)
+	assert.Equal(t, logLevelPassedAsEnvVar, cfg.Logging.Level.String())
+	assert.Equal(t, 10, len(cfg.IndexConfig))
 
 	findIndexConfig := func(name string) *IndexConfiguration {
 		for _, ic := range cfg.IndexConfig {
@@ -151,10 +120,8 @@ quesma:
 		enabled        bool
 		fullTextFields []string
 	}{
-		{"kibana_sample_data*", true, []string{"message"}},
-		{"kafka-example-topi*", true, []string{"message"}},
 		{"logs-generic-*", true, []string{"message", "host.name"}},
-		{"device*", true, []string{}},
+		{"device*", true, []string{"message"}},
 	}
 
 	for _, tt := range tests {

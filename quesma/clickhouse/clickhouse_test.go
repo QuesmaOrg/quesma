@@ -43,7 +43,7 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	})
 
 	f := func(t1, t2 TableMap) {
-		lm := NewLogManager(fieldsMap, config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+		lm := NewLogManager(fieldsMap, config.QuesmaConfiguration{})
 		j, err := lm.BuildInsertJson("tableName", rowToInsert, hasOthersConfig)
 		assert.NoError(t, err)
 		m := make(SchemaMap)

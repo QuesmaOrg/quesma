@@ -23,7 +23,7 @@ func TestQueryParserAsyncSearch(t *testing.T) {
 		},
 		Created: true,
 	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
 	for _, tt := range testdata.TestsAsyncSearch {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -37,7 +37,7 @@ func TestQueryParserAsyncSearch(t *testing.T) {
 // TODO this test doesn't work for now, as it's left for next (last) PR
 func TestQueryParserAggregation(t *testing.T) {
 	table := clickhouse.NewEmptyTable("tablename")
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith("tablename", table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith("tablename", table), config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	for _, tt := range testdata.AggregationTests {
 		t.Run(tt.TestName, func(t *testing.T) {

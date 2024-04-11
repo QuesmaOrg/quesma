@@ -11,7 +11,7 @@ services:
       - CLICKHOUSE_USER=${HYDROLIX_USER}
       - CLICKHOUSE_PASSWORD=${HYDROLIX_PASSWORD}
       - CLICKHOUSE_DATABASE=${HYDROLIX_DATABASE}
-      - QUESMA_CONFIG=${HYDROLIX_FILE}
+      - QUESMA_CONFIG_FILE=${HYDROLIX_FILE}
     depends_on:
       elasticsearch:
         condition: service_healthy

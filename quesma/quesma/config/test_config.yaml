@@ -1,12 +1,4 @@
-#     DEFAULT QUESMA CONFIG FILE
-#
-# https://www.notion.so/Quesma-modes-8435eebbb42542dabe6eeb5084299ac6
-# ↓ "proxy" (tcp proxy)
-#	↓ "proxy-inspect" (tcp proxy with traffic inspection)
-#	↓ "dual-write-query-elastic" (dual write with elastics response) (DEFAULT)
-#	↓ "dual-write-query-clickhouse" (dual write, query both and compare)
-#	↓ "dual-write-query-clickhouse-verify" (dual write, query both and compare, ignore Clickhouse if not the same)
-#	↓ "dual-write-query-clickhouse-fallback" (dual write, query both, fallback only when Clickhouse fails)
+# TEST CONFIGURATION
 mode: "dual-write-query-clickhouse"
 licenseKey: "cdd749a3-e777-11ee-bcf8-0242ac150004"
 port: 8080  # public tcp port to listen for incoming traffic
@@ -18,10 +10,9 @@ clickhouse:
 ingestStatistics: true
 internalTelemetryUrl: "https://api.quesma.com/phone-home"
 logging:
+  remoteUrl: "https://api.quesma.com/phone-home"
   path: "logs"
   level: "info"
-  remoteUrl: "https://api.quesma.com/phone-home"
-  disableFileLogging: false
 indexes:
   - pattern: "example*"
     enabled: true
@@ -33,8 +24,8 @@ indexes:
     enabled: true
     aliases:
       timestamp:
-        target: "timestamp"
-        source: "@timestamp"
+        targetfieldname: "timestamp"
+        sourcefieldname: "@timestamp"
   - pattern: "kafka-example-topi*"
     enabled: true
   - pattern: "logs-generic-*"

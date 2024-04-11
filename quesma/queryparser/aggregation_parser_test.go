@@ -505,7 +505,7 @@ func TestAggregationParser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 
 	for testIdx, test := range aggregationTests {
@@ -548,7 +548,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 		},
 		Name: "logs-generic-default",
 	}
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
 	for i, test := range testdata.AggregationTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {

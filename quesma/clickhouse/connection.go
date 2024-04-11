@@ -8,16 +8,16 @@ import (
 )
 
 func InitDBConnectionPool(c config.QuesmaConfiguration) *sql.DB {
-	options := clickhouse.Options{Addr: []string{c.ClickHouseUrl.Host}}
-	if c.ClickHouseUser != "" || c.ClickHousePassword != "" || c.ClickHouseDatabase != "" {
+	options := clickhouse.Options{Addr: []string{c.ClickHouse.Url.Host}}
+	if c.ClickHouse.User != "" || c.ClickHouse.Password != "" || c.ClickHouse.Database != "" {
 		options.TLS = &tls.Config{
 			InsecureSkipVerify: true, // TODO: fix it
 		}
 
 		options.Auth = clickhouse.Auth{
-			Username: c.ClickHouseUser,
-			Password: c.ClickHousePassword,
-			Database: c.ClickHouseDatabase,
+			Username: c.ClickHouse.User,
+			Password: c.ClickHouse.Password,
+			Database: c.ClickHouse.Database,
 		}
 	}
 

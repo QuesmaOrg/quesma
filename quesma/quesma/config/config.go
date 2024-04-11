@@ -2,13 +2,16 @@ package config
 
 import (
 	"fmt"
+	"github.com/hashicorp/go-multierror"
+	"github.com/knadh/koanf/parsers/yaml"
+	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/v2"
 	"github.com/rs/zerolog"
-	"github.com/spf13/cast"
-	"github.com/spf13/viper"
+	"log"
 	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/index"
 	"mitmproxy/quesma/network"
-	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -19,79 +22,55 @@ const (
 	RemoteLogHeader = "X-Telemetry-Remote-Log" // Used to inform telemetry endpoint that the payload contains logs
 )
 const (
-	defaultConfigFileName = "config"
-	defaultConfigType     = "yaml"
-	configEnvVar          = "QUESMA_CONFIG"
+	defaultConfigFileName    = "config.yaml"
+	configFileLocationEnvVar = "QUESMA_CONFIG_FILE"
 )
 
-const (
-	modeConfigName = "mode"
-)
+type QuesmaConfiguration struct {
+	Mode                       operationMode              `koanf:"mode"`
+	LicenseKey                 string                     `koanf:"licenseKey"`
+	ClickHouse                 ClickHouseConfiguration    `koanf:"clickhouse"`
+	Elasticsearch              ElasticsearchConfiguration `koanf:"elasticsearch"`
+	IndexConfig                []IndexConfiguration       `koanf:"indexes"`
+	Logging                    LoggingConfiguration       `koanf:"logging"`
+	PublicTcpPort              network.Port               `koanf:"port"`
+	IngestStatistics           bool                       `koanf:"ingestStatistics"`
+	QuesmaInternalTelemetryUrl *Url                       `koanf:"internalTelemetryUrl"`
+}
 
-const (
-	prefix                     = "quesma"
-	indexConfig                = "index"
-	enabledConfig              = "enabled"
-	fullTextFields             = "fulltext_fields"
-	aliasFields                = "alias_fields"
-	ignoredFields              = "ignored_fields"
-	logsPathConfig             = "logs_path"
-	logLevelConfig             = "log_level"
-	callElasticsearch          = "call_elasticsearch"
-	disableFileLoggingConfig   = "disable_file_logging"
-	publicTcpPort              = "port"
-	elasticsearchUrl           = "elasticsearch_url"
-	clickhouseUrl              = "clickhouse_url"
-	clickhouseDatabase         = "clickhouse_database"
-	ingestStatistics           = "ingest_statistics"
-	quesmaInternalTelemetryUrl = "quesma_internal_telemetry_url"
-	remoteLogDrainUrl          = "remote_log_drain_url"
-	licenseKeyConfig           = "license_key"
-)
+type LoggingConfiguration struct {
+	Path              string        `koanf:"path"`
+	Level             zerolog.Level `koanf:"level"`
+	RemoteLogDrainUrl *Url          `koanf:"remoteUrl"`
+	FileLogging       bool          `koanf:"fileLogging"`
+}
 
-const (
-	clickhouseUserEnv        = "CLICKHOUSE_USER"
-	clickhousePasswordEnv    = "CLICKHOUSE_PASSWORD"
-	elasticsearchUserEnv     = "ELASTICSEARCH_USER"
-	elasticsearchPasswordEnv = "ELASTICSEARCH_PASSWORD"
-	disableFileLoggingEnv    = "DISABLE_FILE_LOGGING"
-)
+type ElasticsearchConfiguration struct {
+	Url      *Url   `koanf:"url"`
+	User     string `koanf:"user"`
+	Password string `koanf:"password"`
+	Call     bool   `koanf:"call"`
+}
 
-type (
-	QuesmaConfiguration struct {
-		Mode                       operationMode
-		LicenseKey                 string
-		ElasticsearchUrl           *url.URL
-		ElasticsearchUser          string
-		ElasticsearchPassword      string
-		ClickHouseUrl              *url.URL
-		ClickHouseUser             string
-		ClickHousePassword         string
-		ClickHouseDatabase         string
-		IndexConfig                []IndexConfiguration
-		LogsPath                   string
-		LogLevel                   zerolog.Level
-		PublicTcpPort              network.Port
-		CallElasticsearch          bool
-		IngestStatistics           bool
-		QuesmaInternalTelemetryUrl *url.URL
-		RemoteLogDrainUrl          *url.URL
-		DisableFileLogging         bool
-	}
+type ClickHouseConfiguration struct {
+	Url      *Url   `koanf:"url"`
+	User     string `koanf:"user"`
+	Password string `koanf:"password"`
+	Database string `koanf:"database"`
+}
 
-	FieldAlias struct {
-		TargetFieldName string
-		SourceFieldName string
-	}
+type FieldAlias struct {
+	TargetFieldName string `koanf:"target"`
+	SourceFieldName string `koanf:"source"`
+}
 
-	IndexConfiguration struct {
-		NamePattern    string
-		Enabled        bool
-		FullTextFields []string
-		Aliases        map[string]FieldAlias
-		IgnoredFields  map[string]bool
-	}
-)
+type IndexConfiguration struct {
+	NamePattern    string                `koanf:"pattern"`
+	Enabled        bool                  `koanf:"enabled"`
+	FullTextFields []string              `koanf:"fullTextFields"`
+	Aliases        map[string]FieldAlias `koanf:"aliases"`
+	IgnoredFields  map[string]bool       `koanf:"ignoredFields"`
+}
 
 func (c IndexConfiguration) Matches(indexName string) bool {
 	return MatchName(c.NamePattern, indexName)
@@ -132,8 +111,8 @@ func (c IndexConfiguration) String() string {
 	)
 }
 
-func (cfg *QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string) bool {
-	for _, indexConfig := range cfg.IndexConfig {
+func (c *QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string) bool {
+	for _, indexConfig := range c.IndexConfig {
 		if indexConfig.FullTextField(indexName, fieldName) {
 			return true
 		}
@@ -141,8 +120,8 @@ func (cfg *QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string
 	return false
 }
 
-func (cfg *QuesmaConfiguration) AliasFields(indexName string) map[string]FieldAlias {
-	for _, indexConfig := range cfg.IndexConfig {
+func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]FieldAlias {
+	for _, indexConfig := range c.IndexConfig {
 		if indexConfig.Matches(indexName) {
 			return indexConfig.Aliases
 		}
@@ -154,134 +133,48 @@ func MatchName(pattern, name string) bool {
 	return index.TableNamePatternRegexp(pattern).MatchString(name)
 }
 
+var k = koanf.New(".")
+
 func Load() QuesmaConfiguration {
-	// TODO Add wiser config parsing which fails for good and accumulates errors using https://github.com/hashicorp/go-multierror
-
-	v := viper.New()
-
-	if configFileName, isSet := os.LookupEnv(configEnvVar); isSet {
+	var config QuesmaConfiguration
+	var configPath string
+	if configFileName, isSet := os.LookupEnv(configFileLocationEnvVar); isSet {
 		fmt.Printf("Using config file: %s\n", configFileName)
-		v.SetConfigFile(configFileName)
+		configPath = configFileName
 	} else {
-		v.SetConfigName(defaultConfigFileName)
-		v.SetConfigType(defaultConfigType)
-		v.AddConfigPath(".")
+		configPath = fmt.Sprintf("./%s", defaultConfigFileName)
 	}
-
-	if err := v.ReadInConfig(); err != nil {
-		return QuesmaConfiguration{LicenseKey: buildinfo.LicenseKey}
+	if err := k.Load(file.Provider(configPath), yaml.Parser()); err != nil {
+		log.Fatalf("error loading config: %v", err)
 	}
-
-	parser := NewQuesmaConfigurationParser(v)
-	return parser.Parse()
+	if err := k.Load(env.Provider("QUESMA_", ".", func(s string) string {
+		// This enables overriding config values with environment variables, e.g.
+		// `QUESMA_LOGGING_LEVEL=debug` overrides `quesma.logging.level` in the config file
+		return strings.Replace(strings.ToLower(strings.TrimPrefix(s, "QUESMA_")), "_", ".", -1)
+	}), nil); err != nil {
+		log.Fatalf("error loading config form supplied env vars: %v", err)
+	}
+	if err := k.Unmarshal("", &config); err != nil {
+		log.Fatalf("error unmarshalling config: %v", err)
+	}
+	config.configureLicenseKey()
+	return config
 }
 
-type QuesmaConfigurationParser struct {
-	parsedViper *viper.Viper
-}
-
-func NewQuesmaConfigurationParser(v *viper.Viper) *QuesmaConfigurationParser {
-	return &QuesmaConfigurationParser{parsedViper: v}
-}
-
-func (p *QuesmaConfigurationParser) Parse() QuesmaConfiguration {
-
-	var mode = p.getMandatoryConfig(modeConfigName).(string)
-	var indexBypass = make([]IndexConfiguration, 0)
-
-	for indexNamePattern, config := range p.parsedViper.Get(fullyQualifiedConfig(indexConfig)).(map[string]interface{}) {
-		fields := []string{"message"}
-		aliases := make(map[string]FieldAlias)
-		ignored := make(map[string]bool)
-
-		if v, ok := config.(map[string]interface{})[fullTextFields]; ok {
-			if v == nil {
-				fields = []string{}
-			} else {
-				fields = strings.Split(v.(string), ",")
-			}
-		}
-
-		if v, ok := config.(map[string]interface{})[aliasFields]; ok && v != nil {
-			for _, part := range strings.Split(v.(string), ",") {
-				parts := strings.Split(part, "<-")
-				if len(parts) == 2 {
-					sourceFieldName := strings.TrimSpace(parts[0])
-					targetFieldName := strings.TrimSpace(parts[1])
-					aliases[sourceFieldName] = FieldAlias{SourceFieldName: sourceFieldName, TargetFieldName: targetFieldName}
-				} else {
-					fmt.Printf("Invalid alias field: %s\n", part)
-				}
-			}
-		}
-
-		if v, ok := config.(map[string]interface{})[ignoredFields]; ok && v != nil {
-			for _, field := range strings.Split(v.(string), ",") {
-				ignored[field] = true
-			}
-		}
-
-		indexConfig := IndexConfiguration{
-			NamePattern:    indexNamePattern,
-			Enabled:        config.(map[string]interface{})[enabledConfig].(bool),
-			FullTextFields: fields,
-			Aliases:        aliases,
-			IgnoredFields:  ignored,
-		}
-
-		indexBypass = append(indexBypass, indexConfig)
+func (c *QuesmaConfiguration) Validate() error {
+	var result error
+	// at some point we might move to dedicated validation per each nested object,
+	// e.g. c.Elasticsearch.Validate()
+	if c.ClickHouse.Url == nil {
+		result = multierror.Append(result, fmt.Errorf("clickHouse URL is required"))
 	}
-
-	ingestStatistics, ok := p.parsedViper.Get(fullyQualifiedConfig(ingestStatistics)).(bool)
-	if !ok {
-		ingestStatistics = true
+	if c.Elasticsearch.Url == nil {
+		result = multierror.Append(result, fmt.Errorf("elasticsearch URL is required"))
 	}
-
-	return QuesmaConfiguration{
-		Mode:                       operationMode(mode),
-		LicenseKey:                 p.configureLicenseKey(),
-		PublicTcpPort:              p.configurePublicTcpPort(),
-		CallElasticsearch:          p.configureElasticsearchCalls(),
-		ElasticsearchUrl:           p.configureUrl(elasticsearchUrl),
-		ElasticsearchUser:          configureOptionalEnvVar(elasticsearchUserEnv),
-		ElasticsearchPassword:      configureOptionalEnvVar(elasticsearchPasswordEnv),
-		ClickHouseUrl:              p.configureUrl(clickhouseUrl),
-		IndexConfig:                indexBypass,
-		LogsPath:                   p.configureLogsPath(),
-		LogLevel:                   p.configureLogLevel(),
-		ClickHouseUser:             configureOptionalEnvVar(clickhouseUserEnv),
-		ClickHousePassword:         configureOptionalEnvVar(clickhousePasswordEnv),
-		ClickHouseDatabase:         p.configureOptionalConfig(clickhouseDatabase),
-		IngestStatistics:           ingestStatistics,
-		QuesmaInternalTelemetryUrl: p.configureUrl(quesmaInternalTelemetryUrl),
-		RemoteLogDrainUrl:          p.configureUrl(remoteLogDrainUrl),
-		DisableFileLogging:         p.configureFileLoggingDisabled(disableFileLoggingEnv),
+	if c.Mode == "" {
+		result = multierror.Append(result, fmt.Errorf("quesma operating mode is required"))
 	}
-}
-
-func (p *QuesmaConfigurationParser) getMandatoryConfig(configName string) any {
-	fullName := fullyQualifiedConfig(configName)
-	if !p.parsedViper.IsSet(fullName) {
-		panic(fmt.Errorf("missing mandatory config: %s", fullName))
-	}
-	return p.parsedViper.Get(fullName)
-}
-
-func (p *QuesmaConfigurationParser) configureUrl(configParamName string) *url.URL {
-	var urlString string
-	var isSet bool
-	if urlString, isSet = os.LookupEnv(strings.ToUpper(configParamName)); !isSet {
-		if p.parsedViper.IsSet(fullyQualifiedConfig(configParamName)) {
-			urlString = p.parsedViper.GetString(fullyQualifiedConfig(configParamName))
-		} else {
-			return nil
-		}
-	}
-	esUrl, err := url.Parse(urlString)
-	if err != nil {
-		panic(fmt.Errorf("error parsing %s: %s", configParamName, err))
-	}
-	return esUrl
+	return result
 }
 
 func MaskLicenseKey(licenseKey string) string {
@@ -292,103 +185,20 @@ func MaskLicenseKey(licenseKey string) string {
 	}
 }
 
-func (p *QuesmaConfigurationParser) configureLicenseKey() string {
-	// `buildinfo.LicenseKey` can be injected at the build time, don't get fooled by the IDE warning below
+func (c *QuesmaConfiguration) configureLicenseKey() {
+	// This condition implies that we're dealing with customer-specific build,
+	// which has license key injected at the build time via ldflags, see `docs/private-beta-releases.md`
 	if buildinfo.LicenseKey != buildinfo.DevelopmentLicenseKey && buildinfo.LicenseKey != "" {
-		// This means it's customer-specific build, so continue using the license key from the build
+		// `buildinfo.LicenseKey` can be injected at the build time, don't get fooled by the IDE warning above
 		fmt.Printf("Using license key from build: %s\n", MaskLicenseKey(buildinfo.LicenseKey))
-		return buildinfo.LicenseKey
-	}
-	// In case of **any other** setup, we fall back to default config handling
-	if licenseKey, isSet := os.LookupEnv("LICENSE_KEY"); isSet {
-		fmt.Printf("Using license key from env: %s\n", MaskLicenseKey(licenseKey))
-		return licenseKey
-	}
-	if key := p.parsedViper.GetString(fullyQualifiedConfig(licenseKeyConfig)); key != "" {
-		fmt.Printf("Using license key from config: %s\n", MaskLicenseKey(key))
-		return key
-	}
-	panic("license key missing")
-}
-
-func (p *QuesmaConfigurationParser) configurePublicTcpPort() network.Port {
-	var portNumberStr string
-	var isSet bool
-	if portNumberStr, isSet = os.LookupEnv("PORT"); !isSet {
-		portNumberStr = p.parsedViper.GetString(fullyQualifiedConfig(publicTcpPort))
-	}
-	port, err := network.ParsePort(portNumberStr)
-	if err != nil {
-		panic(fmt.Errorf("error configuring public tcp port: %v", err))
-	}
-	return port
-}
-
-func (p *QuesmaConfigurationParser) configureElasticsearchCalls() bool {
-	value := p.parsedViper.GetString(fullyQualifiedConfig(callElasticsearch))
-	switch value {
-	case "always":
-		return true
-	case "when-needed", "":
-		return false
-	}
-	panic(fmt.Errorf("error configuring elasticsearch calls: %v", value))
-}
-
-func fullyQualifiedConfig(config string) string {
-	return fmt.Sprintf("%s.%s", prefix, config)
-}
-
-func configureOptionalEnvVar(envVarName string) string {
-	if value, isSet := os.LookupEnv(envVarName); isSet {
-		return value
-	}
-	return ""
-}
-
-func (p *QuesmaConfigurationParser) configureOptionalConfig(configName string) string {
-	if envVar := configureOptionalEnvVar(strings.ToUpper(configName)); envVar != "" {
-		return envVar
-	}
-	if p.parsedViper.IsSet(fullyQualifiedConfig(configName)) {
-		value := p.parsedViper.GetString(fullyQualifiedConfig(configName))
-		return value
-	}
-	return ""
-}
-
-func (p *QuesmaConfigurationParser) configureLogsPath() string {
-	if logsPathEnv, isSet := os.LookupEnv("LOGS_PATH"); isSet {
-		return logsPathEnv
+		c.LicenseKey = buildinfo.LicenseKey
+		return
+	} else if c.LicenseKey != "" { // In case of **any other** setup, we fall back to what's been configured by user (==config or env vars)
+		fmt.Printf("Using license key from configuration: %s\n", MaskLicenseKey(c.LicenseKey))
+		return
 	} else {
-		return p.parsedViper.GetString(fullyQualifiedConfig(logsPathConfig))
+		log.Fatalf("missing license key. Quiting...")
 	}
-}
-
-func (p *QuesmaConfigurationParser) configureFileLoggingDisabled(envVar string) bool {
-	if val, isSet := os.LookupEnv(envVar); isSet {
-		return cast.ToBool(val)
-	} else {
-		return p.parsedViper.GetBool(fullyQualifiedConfig(disableFileLoggingConfig))
-	}
-}
-
-func (p *QuesmaConfigurationParser) configureLogLevel() zerolog.Level {
-	var logLevelStr string
-	var isSet bool
-	if logLevelStr, isSet = os.LookupEnv("LOG_LEVEL"); !isSet {
-		if p.parsedViper.IsSet(fullyQualifiedConfig(logLevelConfig)) {
-			isSet = true
-			logLevelStr = p.parsedViper.GetString(fullyQualifiedConfig(logLevelConfig))
-		} else {
-			logLevelStr = zerolog.LevelDebugValue
-		}
-	}
-	level, err := zerolog.ParseLevel(logLevelStr)
-	if err != nil {
-		panic(fmt.Errorf("error configuring log level: %parsedViper, string: %s, isSet: %t", err, logLevelStr, isSet))
-	}
-	return level
 }
 
 func (c *QuesmaConfiguration) GetIndexConfig(indexName string) (IndexConfiguration, bool) {
@@ -426,31 +236,31 @@ func (c *QuesmaConfiguration) String() string {
 	}
 
 	elasticUrl := "<nil>"
-	if c.ElasticsearchUrl != nil {
-		elasticUrl = c.ElasticsearchUrl.String()
+	if c.Elasticsearch.Url != nil {
+		elasticUrl = c.Elasticsearch.Url.String()
 	}
 	elasticsearchExtra := ""
-	if c.ElasticsearchUser != "" {
-		elasticsearchExtra = fmt.Sprintf("\n        Elasticsearch user: %s", c.ElasticsearchUser)
+	if c.Elasticsearch.User != "" {
+		elasticsearchExtra = fmt.Sprintf("\n        Elasticsearch user: %s", c.Elasticsearch.User)
 	}
-	if c.ElasticsearchPassword != "" {
+	if c.Elasticsearch.Password != "" {
 		elasticsearchExtra += "\n        Elasticsearch password: ***"
 	}
 
 	clickhouseUrl := "<nil>"
-	if c.ClickHouseUrl != nil {
-		clickhouseUrl = c.ClickHouseUrl.String()
+	if c.ClickHouse.Url != nil {
+		clickhouseUrl = c.ClickHouse.Url.String()
 	}
 
 	clickhouseExtra := ""
-	if c.ClickHouseUser != "" {
-		clickhouseExtra = fmt.Sprintf("\n      ClickHouse user: %s", c.ClickHouseUser)
+	if c.ClickHouse.User != "" {
+		clickhouseExtra = fmt.Sprintf("\n      ClickHouse user: %s", c.ClickHouse.User)
 	}
-	if c.ClickHousePassword != "" {
+	if c.ClickHouse.Password != "" {
 		clickhouseExtra += "\n      ClickHouse password: ***"
 	}
-	if c.ClickHouseDatabase != "" {
-		clickhouseExtra += fmt.Sprintf("\n      ClickHouse database: %s", c.ClickHouseDatabase)
+	if c.ClickHouse.Database != "" {
+		clickhouseExtra += fmt.Sprintf("\n      ClickHouse database: %s", c.ClickHouse.Database)
 	}
 	quesmaInternalTelemetryUrl := "disabled"
 	if c.QuesmaInternalTelemetryUrl != nil {
@@ -473,10 +283,10 @@ Quesma Configuration:
 		elasticsearchExtra,
 		clickhouseUrl,
 		clickhouseExtra,
-		c.CallElasticsearch,
+		c.Elasticsearch.Call,
 		indexConfigs,
-		c.LogsPath,
-		c.LogLevel,
+		c.Logging.Path,
+		c.Logging.Level,
 		c.PublicTcpPort,
 		c.IngestStatistics,
 		quesmaInternalTelemetryUrl,

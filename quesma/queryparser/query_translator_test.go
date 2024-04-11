@@ -458,7 +458,7 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 		ENGINE = Memory`,
 		clickhouse.NewNoTimestampOnlyStringAttrCHConfig(),
 	)
-	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{ClickHouseUrl: chUrl})
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	queries := []*model.Query{
 		cw.BuildAutocompleteSuggestionsQuery("@", "", 0),

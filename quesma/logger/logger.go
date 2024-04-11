@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/stats/errorstats"
 	"mitmproxy/quesma/tracing"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 )
@@ -47,13 +48,13 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 	chanWriter := channelWriter{ch: logChannel}
 
 	var logWriters []io.Writer
-	if cfg.DisableFileLogging {
-		logWriters = []io.Writer{output, chanWriter}
-	} else {
-		openLogFiles(cfg.LogsPath)
+	if cfg.Logging.FileLogging {
+		openLogFiles(cfg.Logging.Path)
 		logWriters = []io.Writer{output, StdLogFile, errorFileLogger{ErrLogFile}, chanWriter}
+	} else {
+		logWriters = []io.Writer{output, chanWriter}
 	}
-	if cfg.RemoteLogDrainUrl == nil {
+	if cfg.Logging.RemoteLogDrainUrl == nil {
 		// FIXME
 		// LogForwarder has extra jobs either. It forwards information that we're done.
 		// This should be done  via context cancellation.
@@ -62,8 +63,9 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 			doneCh <- struct{}{}
 		}()
 	} else {
+		logDrainUrl := url.URL(*cfg.Logging.RemoteLogDrainUrl)
 		logForwarder := LogForwarder{logSender: LogSender{
-			Url:          cfg.RemoteLogDrainUrl,
+			Url:          &logDrainUrl,
 			LicenseKey:   cfg.LicenseKey,
 			LogBuffer:    make([]byte, 0, initialBufferSize),
 			LastSendTime: time.Now(),
@@ -84,7 +86,7 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 
 	multi := zerolog.MultiLevelWriter(logWriters...)
 	logger = zerolog.New(multi).
-		Level(cfg.LogLevel).
+		Level(cfg.Logging.Level).
 		With().
 		Timestamp().
 		Caller().

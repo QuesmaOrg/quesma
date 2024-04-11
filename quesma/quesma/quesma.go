@@ -89,7 +89,7 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, elkResponse elasticResu
 func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.QuesmaConfiguration, logChan <-chan tracing.LogWithLevel, inspect bool) *Quesma {
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, nil, logChan, phoneHomeAgent)
 	return &Quesma{
-		processor:               proxy.NewTcpProxy(config.PublicTcpPort, config.ElasticsearchUrl.Host, inspect),
+		processor:               proxy.NewTcpProxy(config.PublicTcpPort, config.Elasticsearch.Url.Host, inspect),
 		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,
@@ -120,7 +120,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 	if router.Matches(req.URL.Path, req.Method, string(reqBody)) {
 		var elkResponseChan = make(chan elasticResult)
 
-		if r.config.CallElasticsearch {
+		if r.config.Elasticsearch.Call {
 			elkResponseChan = r.sendHttpRequestToElastic(ctx, req, reqBody)
 		}
 
@@ -129,7 +129,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		})
 		var elkRawResponse elasticResult
 		var elkResponse *http.Response
-		if r.config.CallElasticsearch {
+		if r.config.Elasticsearch.Call {
 			elkRawResponse = <-elkResponseChan
 			elkResponse = elkRawResponse.response
 		} else {
@@ -214,14 +214,14 @@ func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request
 	elkResponseChan := make(chan elasticResult)
 
 	// If the request is authenticated, we should not override it with the configured user
-	if req.Header.Get("Authorization") == "" && r.config.ElasticsearchUser != "" {
-		req.SetBasicAuth(r.config.ElasticsearchUser, r.config.ElasticsearchPassword)
+	if req.Header.Get("Authorization") == "" && r.config.Elasticsearch.User != "" {
+		req.SetBasicAuth(r.config.Elasticsearch.User, r.config.Elasticsearch.Password)
 	}
 
 	go func() {
 		elkResponseChan <- recordRequestToElastic(req.URL.Path, r.quesmaManagementConsole, func() elasticResult {
 			span := r.phoneHomeAgent.ElasticQueryDuration().Begin()
-			resp, err := r.sendHttpRequest(ctx, r.config.ElasticsearchUrl.String(), req, reqBody)
+			resp, err := r.sendHttpRequest(ctx, r.config.Elasticsearch.Url.String(), req, reqBody)
 			took := span.End(err)
 			return elasticResult{resp, err, took}
 		})

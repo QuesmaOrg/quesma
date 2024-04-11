@@ -117,7 +117,7 @@ type agent struct {
 	userAgentCounters MultiCounter
 
 	recent            PhoneHomeStats
-	telemetryEndpoint *url.URL
+	telemetryEndpoint *config.Url
 
 	httpClient *http.Client
 }
@@ -330,7 +330,7 @@ func (a *agent) collectElasticUsage(ctx context.Context, stats *ElasticStats) (e
 	//curl  -s 'http://localhost:9200/_all/_stats?pretty=true' | jq ._all.total.docs
 	//curl  -s 'http://localhost:9200/_all/_stats?pretty=true' | jq ._all.total.store
 
-	elasticUrl := a.config.ElasticsearchUrl
+	elasticUrl := a.config.Elasticsearch.Url
 
 	statsUrl := elasticUrl.JoinPath("/_all/_stats")
 	response := elasticStatsResponse{}
@@ -348,7 +348,7 @@ func (a *agent) collectElasticUsage(ctx context.Context, stats *ElasticStats) (e
 
 func (a *agent) collectElasticVersion(ctx context.Context, stats *ElasticStats) (err error) {
 
-	elasticUrl := a.config.ElasticsearchUrl
+	elasticUrl := a.config.Elasticsearch.Url
 
 	statsUrl := elasticUrl.JoinPath("/")
 	response := &elasticVersionResponse{}
@@ -386,8 +386,8 @@ func (a *agent) buildElastisearchRequest(ctx context.Context, statsUrl *url.URL,
 	if err != nil {
 		return nil, err
 	}
-	if a.config.ElasticsearchUser != "" {
-		req.SetBasicAuth(a.config.ElasticsearchUser, a.config.ElasticsearchPassword)
+	if a.config.Elasticsearch.User != "" {
+		req.SetBasicAuth(a.config.Elasticsearch.User, a.config.Elasticsearch.Password)
 	}
 	return req, nil
 }

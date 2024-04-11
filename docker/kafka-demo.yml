@@ -4,10 +4,10 @@ services:
     build: ../quesma
     image: quesma:latest
     environment:
-      - ELASTICSEARCH_URL=http://elasticsearch:9200
-      - PORT=8080
-      - LOGS_PATH=/var/quesma/logs
-      - CLICKHOUSE_URL=clickhouse://clickhouse:9000
+      - QUESMA_ELASTICSEARCH_URL=http://elasticsearch:9200
+      - QUESMA_PORT=8080
+      - QUESMA_LOGGING_PATH=/var/quesma/logs
+      - QUESMA_CLICKHOUSE_URL=clickhouse://clickhouse:9000
     depends_on:
       clean-clickhouse:
         condition: service_completed_successfully

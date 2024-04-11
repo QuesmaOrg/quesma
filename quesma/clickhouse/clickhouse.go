@@ -84,8 +84,8 @@ func (lm *LogManager) ReloadTables() {
 	logger.Info().Msg("reloading tables definitions")
 	configuredTables := make(map[string]discoveredTable)
 	databaseName := "default"
-	if lm.cfg.ClickHouseDatabase != "" {
-		databaseName = lm.cfg.ClickHouseDatabase
+	if lm.cfg.ClickHouse.Database != "" {
+		databaseName = lm.cfg.ClickHouse.Database
 	}
 	if tables, err := lm.schemaManagement.readTables(databaseName); err != nil {
 		logger.Error().Msgf("could not describe tables: %v", err)

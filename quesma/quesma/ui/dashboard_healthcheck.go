@@ -55,7 +55,7 @@ func (qmc *QuesmaManagementConsole) checkClickhouseHealth() healthCheckStatus {
 	}
 
 	return qmc.clickhouseStatusCache.check(func() healthCheckStatus {
-		chDb := clickhouse.OpenDB(&clickhouse.Options{Addr: []string{qmc.config.ClickHouseUrl.Host}})
+		chDb := clickhouse.OpenDB(&clickhouse.Options{Addr: []string{qmc.config.ClickHouse.Url.Host}})
 		defer chDb.Close()
 		err := chDb.Ping()
 		if err != nil {
@@ -72,7 +72,7 @@ func (qmc *QuesmaManagementConsole) checkElasticsearch() healthCheckStatus {
 	}
 
 	return qmc.elasticStatusCache.check(func() healthCheckStatus {
-		resp, err := http.Get(qmc.config.ElasticsearchUrl.String())
+		resp, err := http.Get(qmc.config.Elasticsearch.Url.String())
 		if err != nil {
 			return healthCheckStatus{"red", "Ping failed", err.Error()}
 		}
