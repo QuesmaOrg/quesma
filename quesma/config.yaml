@@ -31,8 +31,8 @@ indexes:
     enabled: true
     aliases:
       timestamp:
-        target: "timestamp"
-        source: "@timestamp"
+        source: "timestamp"
+        target: "@timestamp"
   - pattern: "kafka-example-topic"
     enabled: true
   - pattern: "logs-generic-default"
