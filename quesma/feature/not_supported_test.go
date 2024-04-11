@@ -24,8 +24,8 @@ func TestNewUnsupportedFeature_index(t *testing.T) {
 	cfg := config.QuesmaConfiguration{}
 	cfg.IndexConfig = []config.IndexConfiguration{
 		{
-			NamePattern: "foo",
-			Enabled:     true,
+			Name:    "foo",
+			Enabled: true,
 		},
 	}
 

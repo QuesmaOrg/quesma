@@ -1,7 +1,7 @@
 #     DEFAULT QUESMA CONFIG FILE
 #
 # https://www.notion.so/Quesma-modes-8435eebbb42542dabe6eeb5084299ac6
-# ↓ "proxy" (tcp proxy)
+#   ↓ "proxy" (tcp proxy)
 #	↓ "proxy-inspect" (tcp proxy with traffic inspection)
 #	↓ "dual-write-query-elastic" (dual write with elastics response) (DEFAULT)
 #	↓ "dual-write-query-clickhouse" (dual write, query both and compare)
@@ -23,30 +23,30 @@ logging:
   remoteUrl: "https://api.quesma.com/phone-home"
   disableFileLogging: false
 indexes:
-  - pattern: "kibana_sample_data_ecommerce"
+  - name: "kibana_sample_data_ecommerce"
     enabled: true
-  - pattern: "kibana_sample_data_flights"
+  - name: "kibana_sample_data_flights"
     enabled: true
-  - pattern: "kibana_sample_data_logs"
+  - name: "kibana_sample_data_logs"
     enabled: true
     aliases:
       timestamp:
         source: "timestamp"
         target: "@timestamp"
-  - pattern: "kafka-example-topic"
+  - name: "kafka-example-topic"
     enabled: true
-  - pattern: "logs-generic-default"
+  - name: "logs-generic-default"
     enabled: true
     fullTextFields: [ "message", "host.name" ]
-  - pattern: "device_logs"
+  - name: "device_logs"
     enabled: true
     fullTextFields: [ "message" ]
-  - pattern: "phone_home_logs"
+  - name: "phone_home_logs"
     enabled: true
     fullTextFields: [ "message" ]
-  - pattern: "windows_logs"
+  - name: "windows_logs"
     enabled: true
-  - pattern: "phone_home_data"
+  - name: "phone_home_data"
     enabled: true
     fullTextFields: [ "message" ]
 

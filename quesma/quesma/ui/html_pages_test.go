@@ -93,8 +93,8 @@ func TestHtmlSchemaPage(t *testing.T) {
 	cfg := config.QuesmaConfiguration{}
 
 	cfg.IndexConfig = append(cfg.IndexConfig, config.IndexConfiguration{
-		NamePattern: xss,
-		Enabled:     true,
+		Name:    xss,
+		Enabled: true,
 	})
 
 	tables := concurrent.NewMap[string, *clickhouse.Table]()

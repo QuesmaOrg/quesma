@@ -153,7 +153,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 				unzipped = []byte(quesmaResponse.Body)
 			}
 			if len(unzipped) == 0 {
-				logger.Warn().Ctx(ctx).Str("url", req.URL.Path).Msg("Empty response from Clickhouse")
+				logger.Warn().Ctx(ctx).Str("url", req.URL.Path).Msg("empty response from Clickhouse")
 			}
 			addProductAndContentHeaders(req.Header, w.Header())
 			for key, value := range quesmaResponse.Meta {

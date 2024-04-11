@@ -1,13 +1,19 @@
-quesma:
-  license_key: "cdd749a3-e777-11ee-bcf8-0242ac150004"
-  mode: "dual-write-query-clickhouse"
-  port: 8080  # public tcp port to listen for incoming traffic
-  elasticsearch_url: "http://localhost:9200"
-  clickhouse_url: "clickhouse://localhost:9000"
-  logs_path: "logs"
-  log_level: "info"
-  index:
-    211318:
-      enabled: true
-      fulltext_fields: ua,city_name
+mode: "dual-write-query-clickhouse"
+port: 8080  # public tcp port to listen for incoming traffic
+licenseKey: "cdd749a3-e777-11ee-bcf8-0242ac150004"
+elasticsearch:
+  url: "http://localhost:9200"
+clickhouse:
+  url: "clickhouse://localhost:9000"
+logging:
+  path: "logs"
+  level: "info"
+indexes:
+  - name: "211318"
+    enabled: true
+    fulltext_fields: [ "ua","city_name" ]
+index:
+  211318:
+    enabled: true
+
 

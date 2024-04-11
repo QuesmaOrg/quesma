@@ -32,7 +32,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	cfg := config.QuesmaConfiguration{}
 
 	indexConfig := config.IndexConfiguration{
-		NamePattern:    "logs-generic-default",
+		Name:           "logs-generic-default",
 		Enabled:        true,
 		FullTextFields: []string{"message"},
 	}

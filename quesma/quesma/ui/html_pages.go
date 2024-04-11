@@ -274,7 +274,7 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 	for _, cfg := range qmc.config.IndexConfig {
 		buffer.Html(`<tr>`)
 		buffer.Html(`<td>`)
-		buffer.Text(cfg.NamePattern)
+		buffer.Text(cfg.Name)
 		buffer.Html(`</td>`)
 		buffer.Html(`<td>`)
 		if cfg.Enabled {

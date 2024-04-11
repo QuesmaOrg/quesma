@@ -171,16 +171,16 @@ func findMatchingConfig(ctx context.Context, indexName string, cfg config.Quesma
 	matchCounter.Add(1)
 	for _, indexConfig := range cfg.IndexConfig {
 		if matchCounter.Load()%100 == 1 {
-			logger.Debug().Msgf("matching index %s with config: %+v, ctr: %d", indexName, indexConfig.NamePattern, matchCounter.Load())
+			logger.Debug().Msgf("matching index %s with config: %+v, ctr: %d", indexName, indexConfig.Name, matchCounter.Load())
 		}
-		if matches(ctx, indexName, indexConfig.NamePattern) {
+		if matches(ctx, indexName, indexConfig.Name) {
 			if matchCounter.Load()%100 == 1 {
-				logger.Debug().Msgf("  ╚═ matched index %s with config: %+v, ctr: %d", indexName, indexConfig.NamePattern, matchCounter.Load())
+				logger.Debug().Msgf("  ╚═ matched index %s with config: %+v, ctr: %d", indexName, indexConfig.Name, matchCounter.Load())
 			}
 			return indexConfig, true
 		} else {
 			if matchCounter.Load()%100 == 1 {
-				logger.Debug().Msgf("  ╚═ not matched index %s with config: %+v, ctr: %d", indexName, indexConfig.NamePattern, matchCounter.Load())
+				logger.Debug().Msgf("  ╚═ not matched index %s with config: %+v, ctr: %d", indexName, indexConfig.Name, matchCounter.Load())
 			}
 		}
 	}

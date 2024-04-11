@@ -66,7 +66,7 @@ type FieldAlias struct {
 }
 
 type IndexConfiguration struct {
-	NamePattern    string                `koanf:"pattern"`
+	Name           string                `koanf:"name"`
 	Enabled        bool                  `koanf:"enabled"`
 	FullTextFields []string              `koanf:"fullTextFields"`
 	Aliases        map[string]FieldAlias `koanf:"aliases"`
@@ -74,7 +74,7 @@ type IndexConfiguration struct {
 }
 
 func (c IndexConfiguration) Matches(indexName string) bool {
-	return MatchName(c.NamePattern, indexName)
+	return MatchName(c.Name, indexName)
 }
 
 func (c IndexConfiguration) FullTextField(indexName, fieldName string) bool {
@@ -105,7 +105,7 @@ func (c IndexConfiguration) String() string {
 		extraString += strings.Join(fields, ", ")
 	}
 	return fmt.Sprintf("\n\t\t%s, enabled: %t, fullTextFields: %s%s",
-		c.NamePattern,
+		c.Name,
 		c.Enabled,
 		strings.Join(c.FullTextFields, ", "),
 		extraString,
@@ -178,8 +178,8 @@ func (c *QuesmaConfiguration) Validate() error {
 		result = multierror.Append(result, fmt.Errorf("quesma operating mode is required"))
 	}
 	for _, idxConfig := range c.IndexConfig {
-		if strings.Contains(idxConfig.NamePattern, "*") || idxConfig.NamePattern == elasticsearch.AllIndexesAliasIndexName {
-			result = multierror.Append(result, fmt.Errorf("wildcard patterns are not allowed in index configuration: %s", idxConfig.NamePattern))
+		if strings.Contains(idxConfig.Name, "*") || idxConfig.Name == elasticsearch.AllIndexesAliasIndexName {
+			result = multierror.Append(result, fmt.Errorf("wildcard patterns are not allowed in index configuration: %s", idxConfig.Name))
 		}
 	}
 	return result

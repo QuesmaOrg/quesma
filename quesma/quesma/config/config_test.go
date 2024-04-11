@@ -30,8 +30,8 @@ func TestIndexConfiguration_Matches(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := IndexConfiguration{
-				NamePattern: tt.fields.NamePattern,
-				Enabled:     tt.fields.Enabled,
+				Name:    tt.fields.NamePattern,
+				Enabled: tt.fields.Enabled,
 			}
 			assert.Equalf(t, tt.want, c.Matches(tt.indexName), "Matches(%v)", tt.indexName)
 		})
@@ -42,22 +42,22 @@ func TestIndexConfiguration_FullTextField(t *testing.T) {
 
 	indexConfig := []IndexConfiguration{
 		{
-			NamePattern:    "none",
+			Name:           "none",
 			Enabled:        true,
 			FullTextFields: []string{},
 		},
 		{
-			NamePattern:    "foo-*",
+			Name:           "foo-*",
 			Enabled:        true,
 			FullTextFields: []string{"sometext"},
 		},
 		{
-			NamePattern:    "bar-*",
+			Name:           "bar-*",
 			Enabled:        true,
 			FullTextFields: []string{},
 		},
 		{
-			NamePattern:    "logs-*",
+			Name:           "logs-*",
 			Enabled:        true,
 			FullTextFields: []string{"message", "content"},
 		},
@@ -110,7 +110,7 @@ func TestQuesmaConfigurationLoading(t *testing.T) {
 
 	findIndexConfig := func(name string) *IndexConfiguration {
 		for _, ic := range cfg.IndexConfig {
-			if ic.NamePattern == name {
+			if ic.Name == name {
 				return &ic
 			}
 		}

@@ -14,32 +14,32 @@ logging:
   path: "logs"
   level: "info"
 indexes:
-  - pattern: "example*"
+  - name: "example*"
     enabled: true
-  - pattern: "kibana_sample_data_ecommerce"
+  - name: "kibana_sample_data_ecommerce"
     enabled: true
-  - pattern: "kibana_sample_data_flights"
+  - name: "kibana_sample_data_flights"
     enabled: true
-  - pattern: "kibana_sample_data_logs"
+  - name: "kibana_sample_data_logs"
     enabled: true
     aliases:
       timestamp:
         targetfieldname: "timestamp"
         sourcefieldname: "@timestamp"
-  - pattern: "kafka-example-topi*"
+  - name: "kafka-example-topi*"
     enabled: true
-  - pattern: "logs-generic-*"
+  - name: "logs-generic-*"
     enabled: true
     fullTextFields: ["message", "host.name"]
-  - pattern: "device*"
+  - name: "device*"
     enabled: true
     fullTextFields: ["message"]
-  - pattern: "phone_home_logs"
+  - name: "phone_home_logs"
     enabled: true
     fullTextFields: ["message"]
-  - pattern: "windows_logs"
+  - name: "windows_logs"
     enabled: true
-  - pattern: "phone_home_data"
+  - name: "phone_home_data"
     enabled: true
     fullTextFields: ["message"]
 

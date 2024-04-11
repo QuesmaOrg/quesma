@@ -55,7 +55,7 @@ func resolveHttpServer(inspect bool) *http.Server {
 
 func configureRouting() *http.ServeMux {
 	router := http.NewServeMux()
-	configuration := config.QuesmaConfiguration{IndexConfig: []config.IndexConfiguration{{NamePattern: "*", Enabled: true}}}
+	configuration := config.QuesmaConfiguration{IndexConfig: []config.IndexConfiguration{{Name: "_all", Enabled: true}}}
 	router.HandleFunc("POST /{index}/_doc", util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		index := r.PathValue("index")
 		if !strings.HasPrefix(index, ".") {
