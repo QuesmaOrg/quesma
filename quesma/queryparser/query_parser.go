@@ -38,6 +38,9 @@ type Highlighter struct {
 	PostTags []string
 }
 
+// Added to the generated SQL where the query is fine, but we're sure no rows will match it
+var alwaysFalseStatement = NewSimpleStatement("false")
+
 // NewEmptyHighlighter returns no-op for error branches and tests
 func NewEmptyHighlighter() Highlighter {
 	return Highlighter{
@@ -485,6 +488,9 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) SimpleQu
 	} else {
 		fields = cw.GetFieldsList()
 	}
+	if len(fields) == 0 {
+		return newSimpleQuery(alwaysFalseStatement, true)
+	}
 
 	var subQueries []string
 	// 2 cases:
@@ -503,7 +509,6 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) SimpleQu
 
 	sqls := make([]Statement, len(fields)*len(subQueries))
 	i := 0
-
 	for _, field := range fields {
 		for _, subQ := range subQueries {
 			sqls[i] = NewSimpleStatement(strconv.Quote(field) + " iLIKE '%" + subQ + "%'")

@@ -56,6 +56,34 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	}
 }
 
+func TestQueryParserNoFullTextFields(t *testing.T) {
+	table := clickhouse.Table{
+		Name:   tableName,
+		Config: clickhouse.NewDefaultCHConfig(),
+		Cols: map[string]*clickhouse.Column{
+			"-@timestamp":  {Name: "-@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"message$*%:;": {Name: "message$*%:;", Type: clickhouse.NewBaseType("String")},
+			"-@bytes":      {Name: "-@bytes", Type: clickhouse.NewBaseType("Int64")},
+		},
+		Created: true,
+	}
+	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent())
+	lm.AddTableIfDoesntExist(&table)
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
+
+	for i, tt := range testdata.TestsSearchNoFullTextFields {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			simpleQuery, queryInfo, _ := cw.ParseQuery(tt.QueryJson)
+			assert.True(t, simpleQuery.CanParse, "can parse")
+			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
+			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
+
+			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
+			assert.Contains(t, tt.WantedQuery, *query)
+		})
+	}
+}
+
 // TODO this test gives wrong results??
 func TestQueryParserNoAttrsConfig(t *testing.T) {
 	tableName := "logs-generic-default"

@@ -126,7 +126,7 @@ func (lm *LogManager) ProcessTimestampQuery(ctx context.Context, table *Table, q
 func (lm *LogManager) ProcessGeneralAggregationQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
 	rows, err := lm.Query(ctx, query.String())
 	if err != nil {
-		return nil, fmt.Errorf("query >> %v", err)
+		return nil, fmt.Errorf("query >> %v, query: %s", err, query.String())
 	}
 	colNames, err := table.extractColumns(query, true)
 	if err != nil {
