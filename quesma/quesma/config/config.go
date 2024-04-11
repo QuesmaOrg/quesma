@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog"
 	"log"
 	"mitmproxy/quesma/buildinfo"
+	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/index"
 	"mitmproxy/quesma/network"
 	"os"
@@ -175,6 +176,11 @@ func (c *QuesmaConfiguration) Validate() error {
 	}
 	if c.Mode == "" {
 		result = multierror.Append(result, fmt.Errorf("quesma operating mode is required"))
+	}
+	for _, idxConfig := range c.IndexConfig {
+		if strings.Contains(idxConfig.NamePattern, "*") || idxConfig.NamePattern == elasticsearch.AllIndexesAliasIndexName {
+			result = multierror.Append(result, fmt.Errorf("wildcard patterns are not allowed in index configuration: %s", idxConfig.NamePattern))
+		}
 	}
 	return result
 }
