@@ -8,8 +8,8 @@ import (
 
 func TestIndexConfiguration_Matches(t *testing.T) {
 	type fields struct {
-		NamePattern string
-		Enabled     bool
+		Name    string
+		Enabled bool
 	}
 	tests := []struct {
 		name      string
@@ -19,18 +19,11 @@ func TestIndexConfiguration_Matches(t *testing.T) {
 	}{
 		{"logs-generic-default", fields{"logs-generic-default", true}, "logs-generic-default", true},
 		{"logs-generic-default", fields{"logs-generic-default", true}, "logs-generic-default2", false},
-		{"logs-generic-*", fields{"logs-generic-*", true}, "logs-generic-default", true},
-		{"logs-generic-*", fields{"logs-generic-*", true}, "logs2-generic-default", false},
-		{"logs-*-*", fields{"logs-*-*", true}, "logs-generic-default", true},
-		{"logs-*-*", fields{"logs-*-*", true}, "generic-default", false},
-		{"logs-*", fields{"logs-*", true}, "logs-generic-default", true},
-		{"logs-*", fields{"logs-*", true}, "blogs-generic-default", false},
-		{"*", fields{"*", true}, "logs-generic-default", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := IndexConfiguration{
-				Name:    tt.fields.NamePattern,
+				Name:    tt.fields.Name,
 				Enabled: tt.fields.Enabled,
 			}
 			assert.Equalf(t, tt.want, c.Matches(tt.indexName), "Matches(%v)", tt.indexName)
@@ -47,17 +40,17 @@ func TestIndexConfiguration_FullTextField(t *testing.T) {
 			FullTextFields: []string{},
 		},
 		{
-			Name:           "foo-*",
+			Name:           "foo-bar",
 			Enabled:        true,
 			FullTextFields: []string{"sometext"},
 		},
 		{
-			Name:           "bar-*",
+			Name:           "bar-logs",
 			Enabled:        true,
 			FullTextFields: []string{},
 		},
 		{
-			Name:           "logs-*",
+			Name:           "logs-generic-default",
 			Enabled:        true,
 			FullTextFields: []string{"message", "content"},
 		},

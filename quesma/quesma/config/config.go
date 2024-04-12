@@ -74,7 +74,7 @@ type IndexConfiguration struct {
 }
 
 func (c IndexConfiguration) Matches(indexName string) bool {
-	return MatchName(c.Name, indexName)
+	return c.Name == indexName
 }
 
 func (c IndexConfiguration) FullTextField(indexName, fieldName string) bool {

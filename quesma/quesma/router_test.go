@@ -21,24 +21,6 @@ func Test_matchedAgainstConfig(t *testing.T) {
 			want:   true,
 		},
 		{
-			name:   "index enabled via pattern",
-			index:  "index",
-			config: indexConfig("ind*", true),
-			want:   true,
-		},
-		{
-			name:   "index enabled via complex pattern",
-			index:  "index",
-			config: indexConfig("i*d*x", true),
-			want:   true,
-		},
-		{
-			name:   "index disabled via complex pattern",
-			index:  "index",
-			config: indexConfig("i*d*x", false),
-			want:   false,
-		},
-		{
 			name:   "index disabled",
 			index:  "index",
 			config: indexConfig("index", false),
@@ -47,7 +29,7 @@ func Test_matchedAgainstConfig(t *testing.T) {
 		{
 			name:   "index not configured",
 			index:  "index",
-			config: indexConfig("logs-*", false),
+			config: indexConfig("logs", false),
 			want:   false,
 		},
 	}
@@ -103,59 +85,52 @@ func Test_matchedAgainstPattern(t *testing.T) {
 			want:          false,
 		},
 		{
-			name:          "index enabled, wide pattern, table present",
-			index:         "logs-*-*",
-			tables:        []string{"logs-generic-default"},
-			configuration: indexConfig("logs-generic-*", true),
-			want:          true,
-		},
-		{
 			name:          "index enabled, * pattern, table present",
 			index:         "*",
 			tables:        []string{"logs-generic-default"},
-			configuration: indexConfig("logs-generic-*", true),
+			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
 			name:          "index enabled, _all pattern, table present",
 			index:         "_all",
 			tables:        []string{"logs-generic-default"},
-			configuration: indexConfig("logs-generic-*", true),
+			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
 			name:          "index enabled, multiple patterns, table present",
 			index:         "logs-*-*, logs-*",
 			tables:        []string{"logs-generic-default"},
-			configuration: indexConfig("logs-generic-*", true),
+			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
 			name:          "index enabled, multiple patterns, table present",
 			index:         "logs-*-*, logs-generic-default",
 			tables:        []string{"logs-generic-default"},
-			configuration: indexConfig("logs-generic-*", true),
+			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
 			name:          "index disabled, wide pattern, table present",
 			index:         "logs-*-*",
 			tables:        []string{"logs-generic-default"},
-			configuration: indexConfig("logs-generic-*", false),
+			configuration: indexConfig("logs-generic-default", false),
 			want:          false,
 		},
 		{
 			name:          "index enabled, same pattern, table present",
 			index:         "logs-*-*",
 			tables:        []string{"logs-generic-default"},
-			configuration: indexConfig("logs-*-*", true),
+			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
 			name:          "index disabled, same pattern, table present",
 			index:         "logs-*-*",
 			tables:        []string{"logs-generic-default"},
-			configuration: indexConfig("logs-*-*", false),
+			configuration: indexConfig("logs-generic-default", false),
 			want:          false,
 		},
 		{
@@ -169,7 +144,7 @@ func Test_matchedAgainstPattern(t *testing.T) {
 			name:          "index enabled, narrow pattern, table present",
 			index:         "logs-generic-*",
 			tables:        []string{"logs-generic-default"},
-			configuration: indexConfig("logs-*", true),
+			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
@@ -217,7 +192,7 @@ func Test_matchedAgainstBulkBody(t *testing.T) {
 		{
 			name:   "single index, config present",
 			body:   `{"create":{"_index":"logs-generic-default"}}`,
-			config: indexConfig("logs-*", true),
+			config: indexConfig("logs-generic-default", true),
 			want:   true,
 		},
 		{
@@ -229,13 +204,13 @@ func Test_matchedAgainstBulkBody(t *testing.T) {
 		{
 			name:   "multiple indexes, table present",
 			body:   `{"create":{"_index":"logs-generic-default"}}` + "\n{}\n" + `{"create":{"_index":"logs-generic-default"}}`,
-			config: indexConfig("logs-*", true),
+			config: indexConfig("logs-generic-default", true),
 			want:   true,
 		},
 		{
 			name:   "multiple indexes, some tables not present",
 			body:   `{"create":{"_index":"logs-generic-default"}}` + "\n{}\n" + `{"create":{"_index":"non-existent"}}`,
-			config: indexConfig("logs-*", true),
+			config: indexConfig("logs-generic-default", true),
 			want:   false,
 		},
 	}
