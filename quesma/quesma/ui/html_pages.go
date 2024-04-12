@@ -457,6 +457,9 @@ document.body.addEventListener('htmx:afterSwap', function(event) {
 	buffer.Html(`&nbsp;<input type="text" Id="find_query_by_str_input" class="input" name="find_query_by_str_input" value="" required size="32"><br><br>`)
 	buffer.Html("</form>")
 
+	buffer.Html(`<h3>Queries with problems</h3>`)
+	buffer.Write(qmc.generateQueriesStatsPanel())
+
 	buffer.Html(`<h3>Useful links</h3>`)
 	buffer.Html(`<ul>`)
 	buffer.Html(`<li><a href="http://localhost:5601/app/observability-log-explorer/">Kibana Log Explorer</a></li>`)
@@ -637,30 +640,65 @@ func (qmc *QuesmaManagementConsole) generateLogForRequestId(requestId string) []
 	return buffer.Bytes()
 }
 
-func (qmc *QuesmaManagementConsole) generateReportForRequests(requestStr string) []byte {
-	qmc.mutex.Lock()
-	localQueryDebugInfo := copyMap(qmc.debugInfoMessages)
-	lastMessages := qmc.debugLastMessages
-	qmc.mutex.Unlock()
-
+func (qmc *QuesmaManagementConsole) generateReportForRequestsWithStr(requestStr string) []byte {
 	var debugKeyValueSlice []DebugKeyValue
-	for i := len(lastMessages) - 1; i >= 0; i-- {
-		debugInfo := localQueryDebugInfo[lastMessages[i]]
-		if debugInfo.requestContains(requestStr) {
-			debugKeyValueSlice = append(debugKeyValueSlice, DebugKeyValue{lastMessages[i], localQueryDebugInfo[lastMessages[i]]})
+
+	qmc.mutex.Lock()
+	for i := len(qmc.debugLastMessages) - 1; i >= 0; i-- {
+		debugInfo := qmc.debugInfoMessages[qmc.debugLastMessages[i]]
+		if debugInfo.requestContains(requestStr) && len(debugKeyValueSlice) < maxLastMessages {
+			debugKeyValueSlice = append(debugKeyValueSlice,
+				DebugKeyValue{qmc.debugLastMessages[i], qmc.debugInfoMessages[qmc.debugLastMessages[i]]})
 		}
 	}
+	qmc.mutex.Unlock()
 
+	title := fmt.Sprintf("Quesma Report for str '%s' with %d results", requestStr, len(debugKeyValueSlice))
+	return qmc.generateReportForRequests(title, debugKeyValueSlice)
+}
+
+func (qmc *QuesmaManagementConsole) generateReportForRequestsWithError() []byte {
+	var debugKeyValueSlice []DebugKeyValue
+
+	qmc.mutex.Lock()
+	for i := len(qmc.debugLastMessages) - 1; i >= 0; i-- {
+		debugInfo := qmc.debugInfoMessages[qmc.debugLastMessages[i]]
+		if debugInfo.errorLogCount > 0 && len(debugKeyValueSlice) < maxLastMessages {
+			debugKeyValueSlice = append(debugKeyValueSlice,
+				DebugKeyValue{qmc.debugLastMessages[i], qmc.debugInfoMessages[qmc.debugLastMessages[i]]})
+		}
+	}
+	qmc.mutex.Unlock()
+
+	return qmc.generateReportForRequests("Quesma Report for requests with errors", debugKeyValueSlice)
+}
+
+func (qmc *QuesmaManagementConsole) generateReportForRequestsWithWarning() []byte {
+	var debugKeyValueSlice []DebugKeyValue
+
+	qmc.mutex.Lock()
+	for i := len(qmc.debugLastMessages) - 1; i >= 0; i-- {
+		debugInfo := qmc.debugInfoMessages[qmc.debugLastMessages[i]]
+		if debugInfo.warnLogCount > 0 && len(debugKeyValueSlice) < maxLastMessages {
+			debugKeyValueSlice = append(debugKeyValueSlice,
+				DebugKeyValue{qmc.debugLastMessages[i], qmc.debugInfoMessages[qmc.debugLastMessages[i]]})
+		}
+	}
+	qmc.mutex.Unlock()
+
+	return qmc.generateReportForRequests("Quesma Report for requests with warnings", debugKeyValueSlice)
+}
+
+func (qmc *QuesmaManagementConsole) generateReportForRequests(title string, requests []DebugKeyValue) []byte {
 	buffer := newBufferWithHead()
 	buffer.Html(`<div class="topnav">`)
-	title := fmt.Sprintf("Quesma Report for str '%s' with %d results", requestStr, len(debugKeyValueSlice))
-	buffer.Html("\n<h3>" + title + "</h3>")
+	buffer.Html("\n<h3>").Text(title).Html("</h3>")
 
 	buffer.Html("\n</div>\n\n")
 
 	buffer.Html(`<main id="queries">`)
 
-	buffer.Write(generateQueries(debugKeyValueSlice, true))
+	buffer.Write(generateQueries(requests, true))
 
 	buffer.Html("\n</main>\n\n")
 

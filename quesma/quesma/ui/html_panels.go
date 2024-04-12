@@ -359,3 +359,37 @@ func (qmc *QuesmaManagementConsole) generateDashboardTrafficPanel() []byte {
 
 	return buffer.Bytes()
 }
+
+func (qmc *QuesmaManagementConsole) generateQueriesStatsPanel() []byte {
+	qmc.mutex.Lock()
+	errorCount := 0
+	warnCount := 0
+	for _, msg := range qmc.debugInfoMessages {
+		if msg.errorLogCount > 0 {
+			errorCount++
+		}
+		if msg.warnLogCount > 0 {
+			warnCount++
+		}
+	}
+	qmc.mutex.Unlock()
+
+	var buffer HtmlBuffer
+
+	buffer.Html(`<ul id="queries-stats" hx-swap-oob="true">`)
+	buffer.Html(`<li><a href="/requests-with-error/"`)
+	if errorCount > 0 {
+		buffer.Html(fmt.Sprintf(` class="debug-error-log"">%d with errors</a></li>`, errorCount))
+	} else {
+		buffer.Html(`>0 with errors</a></li>`)
+	}
+	buffer.Html(`<li><a href="/requests-with-warning/"`)
+	if warnCount > 0 {
+		buffer.Html(fmt.Sprintf(` class="debug-warn-log"">%d with warnings</a></li>`, warnCount))
+	} else {
+		buffer.Html(`>0 with warnings</a></li>`)
+	}
+	buffer.Html(`</ul>`)
+
+	return buffer.Bytes()
+}
