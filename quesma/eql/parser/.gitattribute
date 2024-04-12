@@ -1,0 +1,7 @@
+
+
+# Mark *.go files as generated
+# https://github.com/github-linguist/linguist/blob/master/docs/overrides.md
+
+*.go linguist-generated
+
