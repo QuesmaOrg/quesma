@@ -412,7 +412,9 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 	var totalCount uint64
 	if len(ResultSets) > 0 && len(ResultSets[0]) > 0 && len(ResultSets[0][0].Cols) > 0 {
 		// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
-		totalCount = ResultSets[0][0].Cols[0].Value.(uint64)
+		if val, ok := ResultSets[0][0].Cols[0].Value.(uint64); ok {
+			totalCount = val
+		}
 	} else {
 		logger.WarnWithCtx(cw.Ctx).Msgf("Failed extracting Count value SQL query result [%v]", ResultSets)
 		totalCount = 0
