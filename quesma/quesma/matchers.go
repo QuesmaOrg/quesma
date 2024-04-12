@@ -1,6 +1,7 @@
 package quesma
 
 import (
+	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/mux"
@@ -35,16 +36,16 @@ func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) func(m map
 func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func() []string) mux.MatchPredicate {
 	return func(m map[string]string, _ string) bool {
 		indexPattern := m["index"]
-		if strings.HasPrefix(indexPattern, elasticIndexPrefix) {
+		if elasticsearch.IsInternalIndex(indexPattern) {
 			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", indexPattern)
 			return false
 		}
 
 		var candidates []string
 
-		if strings.ContainsAny(indexPattern, "*,") {
+		if elasticsearch.IsIndexPattern(indexPattern) {
 			for _, pattern := range strings.Split(indexPattern, ",") {
-				if strings.HasPrefix(pattern, elasticIndexPrefix) {
+				if elasticsearch.IsInternalIndex(pattern) {
 					logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", indexPattern)
 					return false
 				}

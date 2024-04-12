@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/network"
 	"mitmproxy/quesma/quesma/config"
@@ -58,21 +59,21 @@ func configureRouting() *http.ServeMux {
 	configuration := config.QuesmaConfiguration{IndexConfig: []config.IndexConfiguration{{Name: "_all", Enabled: true}}}
 	router.HandleFunc("POST /{index}/_doc", util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		index := r.PathValue("index")
-		if !strings.HasPrefix(index, ".") {
+		if !elasticsearch.IsInternalIndex(index) {
 			stats.GlobalStatistics.Process(configuration, index, string(body), clickhouse.NestedSeparator)
 		}
 	}))
 
 	router.HandleFunc("POST /{index}/_bulk", util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		index := r.PathValue("index")
-		if !strings.HasPrefix(index, ".") {
+		if !elasticsearch.IsInternalIndex(index) {
 			stats.GlobalStatistics.Process(configuration, index, string(body), clickhouse.NestedSeparator)
 		}
 	}))
 
 	router.HandleFunc("POST /_bulk", util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		forEachInBulk(string(body), func(index string, document string) {
-			if !strings.HasPrefix(index, ".") {
+			if !elasticsearch.IsInternalIndex(index) {
 				stats.GlobalStatistics.Process(configuration, index, document, clickhouse.NestedSeparator)
 			}
 		})

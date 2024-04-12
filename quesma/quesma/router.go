@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/mux"
@@ -20,7 +21,6 @@ import (
 
 const (
 	httpOk              = 200
-	elasticIndexPrefix  = "."
 	quesmaAsyncIdPrefix = "quesma_async_search_id_"
 )
 
@@ -153,7 +153,7 @@ func fromClickhouse(lm *clickhouse.LogManager) func() []string {
 // check whether exact index name is enabled
 func matchedExact(config config.QuesmaConfiguration) mux.MatchPredicate {
 	return func(m map[string]string, _ string) bool {
-		if strings.HasPrefix(m["index"], elasticIndexPrefix) {
+		if elasticsearch.IsInternalIndex(m["index"]) {
 			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", m["index"])
 			return false
 		}
