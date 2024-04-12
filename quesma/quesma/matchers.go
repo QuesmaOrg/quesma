@@ -33,7 +33,7 @@ func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) func(m map
 	}
 }
 
-func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func() []string) mux.MatchPredicate {
+func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.MatchPredicate {
 	return func(m map[string]string, _ string) bool {
 		indexPattern := m["index"]
 		if elasticsearch.IsInternalIndex(indexPattern) {
@@ -49,9 +49,10 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func
 					logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", indexPattern)
 					return false
 				}
-				for _, tableName := range tables() {
-					if config.MatchName(preprocessPattern(pattern), tableName) {
-						candidates = append(candidates, tableName)
+
+				for _, indexName := range configuration.IndexConfig {
+					if config.MatchName(preprocessPattern(pattern), indexName.Name) {
+						candidates = append(candidates, indexName.Name)
 					}
 				}
 			}
@@ -71,10 +72,10 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration, tables func
 			}
 			return false
 		} else {
-			for _, tableName := range tables() {
+			for _, index := range configuration.IndexConfig {
 				pattern := preprocessPattern(indexPattern)
-				if config.MatchName(pattern, tableName) {
-					candidates = append(candidates, tableName)
+				if config.MatchName(pattern, index.Name) {
+					candidates = append(candidates, index.Name)
 				}
 			}
 

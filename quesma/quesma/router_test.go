@@ -45,135 +45,109 @@ func Test_matchedAgainstPattern(t *testing.T) {
 		name          string
 		index         string
 		body          string
-		tables        []string
 		configuration config.QuesmaConfiguration
 		want          bool
 	}{
 		{
 			name:          "multiple indexes, one internal",
 			index:         "index,.kibana",
-			tables:        []string{"index"},
 			configuration: indexConfig("index", true),
 			want:          false,
 		},
 		{
 			name:          "index enabled and table present",
 			index:         "index",
-			tables:        []string{"index"},
 			configuration: indexConfig("index", true),
 			want:          true,
 		},
 		{
 			name:          "index disabled and table present",
 			index:         "index",
-			tables:        []string{"index"},
 			configuration: indexConfig("index", false),
-			want:          false,
-		},
-		{
-			name:          "index enabled and table not present",
-			index:         "index",
-			tables:        []string{},
-			configuration: indexConfig("index", true),
 			want:          false,
 		},
 		{
 			name:          "index disabled and table not present",
 			index:         "index",
-			tables:        []string{},
 			configuration: indexConfig("index", false),
 			want:          false,
 		},
 		{
 			name:          "index enabled, * pattern, table present",
 			index:         "*",
-			tables:        []string{"logs-generic-default"},
 			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
 			name:          "index enabled, _all pattern, table present",
 			index:         "_all",
-			tables:        []string{"logs-generic-default"},
 			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
 			name:          "index enabled, multiple patterns, table present",
 			index:         "logs-*-*, logs-*",
-			tables:        []string{"logs-generic-default"},
 			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
 			name:          "index enabled, multiple patterns, table present",
 			index:         "logs-*-*, logs-generic-default",
-			tables:        []string{"logs-generic-default"},
 			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
 			name:          "index disabled, wide pattern, table present",
 			index:         "logs-*-*",
-			tables:        []string{"logs-generic-default"},
 			configuration: indexConfig("logs-generic-default", false),
 			want:          false,
 		},
 		{
 			name:          "index enabled, same pattern, table present",
 			index:         "logs-*-*",
-			tables:        []string{"logs-generic-default"},
 			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
 			name:          "index disabled, same pattern, table present",
 			index:         "logs-*-*",
-			tables:        []string{"logs-generic-default"},
 			configuration: indexConfig("logs-generic-default", false),
 			want:          false,
 		},
 		{
 			name:          "index disabled, multiple patterns, table present",
 			index:         "logs-*-*,*",
-			tables:        []string{"logs-generic-default"},
 			configuration: indexConfig("logs-*-*", false),
 			want:          false,
 		},
 		{
 			name:          "index enabled, narrow pattern, table present",
 			index:         "logs-generic-*",
-			tables:        []string{"logs-generic-default"},
 			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
 			name:          "index disabled, narrow pattern, table present",
 			index:         "logs-generic-*",
-			tables:        []string{"logs-generic-default"},
 			configuration: indexConfig("logs-*", false),
 			want:          false,
 		},
 		{
 			name:          "logs-elastic_agent-*, excluded via config",
 			index:         "logs-elastic_agent-*",
-			tables:        []string{},
 			configuration: indexConfig("*", false),
 			want:          false,
 		},
 		{
 			name:          "traces-apm*, not configured",
 			index:         "traces-apm*",
-			tables:        []string{},
 			configuration: indexConfig("logs-*", true),
 			want:          false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, matchedAgainstPattern(tt.configuration, func() []string {
-				return tt.tables
-			})(map[string]string{"index": tt.index}, tt.body), "matchedAgainstPattern(%v)", tt.configuration)
+			assert.Equalf(t, tt.want, matchedAgainstPattern(tt.configuration)(map[string]string{"index": tt.index}, tt.body), "matchedAgainstPattern(%v)", tt.configuration)
 		})
 	}
 }
