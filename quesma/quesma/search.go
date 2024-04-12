@@ -367,7 +367,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementCo
 
 	case model.Normal:
 		fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
-		hits, err = queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(ctx, table, fullQuery)
+		hits, err = queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(dbQueryCtx, table, fullQuery)
 
 	default:
 		panic(fmt.Sprintf("Unknown query type: %v", queryInfo.Typ))
