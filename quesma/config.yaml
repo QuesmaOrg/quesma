@@ -13,8 +13,8 @@ port: 8080  # public tcp port to listen for incoming traffic
 elasticsearch:
   url: "http://localhost:9200"
   call: false
-clickhouse:
-  url: "clickhouse://localhost:9000"
+#clickhouse:   # this config is going to be removed, but for now let's just comment out
+#  url: "clickhouse://localhost:9000"
 ingestStatistics: true
 internalTelemetryUrl: "https://api.quesma.com/phone-home"
 logging:

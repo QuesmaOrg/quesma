@@ -30,7 +30,8 @@ const (
 type QuesmaConfiguration struct {
 	Mode                       operationMode                 `koanf:"mode"`
 	LicenseKey                 string                        `koanf:"licenseKey"`
-	ClickHouse                 ClickHouseConfiguration       `koanf:"clickhouse"`
+	ClickHouse                 RelationalDbConfiguration     `koanf:"clickhouse"`
+	Hydrolix                   RelationalDbConfiguration     `koanf:"hydrolix"`
 	Elasticsearch              ElasticsearchConfiguration    `koanf:"elasticsearch"`
 	IndexConfig                map[string]IndexConfiguration `koanf:"indexes"`
 	Logging                    LoggingConfiguration          `koanf:"logging"`
@@ -53,11 +54,19 @@ type ElasticsearchConfiguration struct {
 	Call     bool   `koanf:"call"`
 }
 
-type ClickHouseConfiguration struct {
+type RelationalDbConfiguration struct {
 	Url      *Url   `koanf:"url"`
 	User     string `koanf:"user"`
 	Password string `koanf:"password"`
 	Database string `koanf:"database"`
+}
+
+func (c *RelationalDbConfiguration) IsEmpty() bool {
+	return c != nil && c.Url == nil && c.User == "" && c.Password == "" && c.Database == ""
+}
+
+func (c *RelationalDbConfiguration) IsNonEmpty() bool {
+	return !c.IsEmpty()
 }
 
 type FieldAlias struct {
@@ -165,8 +174,11 @@ func (c *QuesmaConfiguration) Validate() error {
 	var result error
 	// at some point we might move to dedicated validation per each nested object,
 	// e.g. c.Elasticsearch.Validate()
-	if c.ClickHouse.Url == nil {
-		result = multierror.Append(result, fmt.Errorf("clickHouse URL is required"))
+	if c.ClickHouse.Url == nil && c.Hydrolix.Url == nil {
+		result = multierror.Append(result, fmt.Errorf("clickHouse or hydrolix URL is required"))
+	}
+	if c.ClickHouse.IsNonEmpty() && c.Hydrolix.IsNonEmpty() {
+		result = multierror.Append(result, fmt.Errorf("only one of ClickHouse and Hydrolix can be configured"))
 	}
 	if c.Elasticsearch.Url == nil {
 		result = multierror.Append(result, fmt.Errorf("elasticsearch URL is required"))
@@ -178,6 +190,11 @@ func (c *QuesmaConfiguration) Validate() error {
 		if strings.Contains(indexName, "*") || indexName == elasticsearch.AllIndexesAliasIndexName {
 			result = multierror.Append(result, fmt.Errorf("wildcard patterns are not allowed in index configuration: %s", indexName))
 		}
+	}
+	if c.Hydrolix.IsNonEmpty() {
+		// At this moment we share the code between ClickHouse and Hydrolix which use only different names
+		// for the same configuration object.
+		c.ClickHouse = c.Hydrolix
 	}
 	return result
 }

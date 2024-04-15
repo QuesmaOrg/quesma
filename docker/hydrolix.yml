@@ -7,10 +7,10 @@ services:
       - QUESMA_elasticsearch_url=http://elasticsearch:9200
       - QUESMA_port=8080
       - QUESMA_logging_path=/var/quesma/logs
-      - QUESMA_clickhouse_url=${HYDROLIX_URL}
-      - QUESMA_clickhouse_user=${HYDROLIX_USER}
-      - QUESMA_clickhouse_password=${HYDROLIX_PASSWORD}
-      - QUESMA_clickhouse_database=${HYDROLIX_DATABASE}
+      - QUESMA_hydrolix_url=${HYDROLIX_URL}
+      - QUESMA_hydrolix_user=${HYDROLIX_USER}
+      - QUESMA_hydrolix_password=${HYDROLIX_PASSWORD}
+      - QUESMA_hydrolix_database=${HYDROLIX_DATABASE}
       #- QUESMA_CONFIG_FILE=${HYDROLIX_FILE}  ## looks like for now there's no need for separate config file
     depends_on:
       elasticsearch:
