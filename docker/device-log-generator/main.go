@@ -12,7 +12,8 @@ func main() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
 	go deviceLogGenerator()
-	go windowsLogGenerator()
+	go windowsLogGeneratorAssetBased()
+	go windowsLogGeneratorRandom()
 
 	<-sig
 }
