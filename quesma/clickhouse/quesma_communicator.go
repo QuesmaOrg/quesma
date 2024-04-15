@@ -156,6 +156,9 @@ func read(tableName string, rows *sql.Rows, selectFields []string, rowToScan []i
 		}
 		resultRows = append(resultRows, resultRow)
 	}
+	if rows.Err() != nil {
+		return nil, fmt.Errorf("rows >> %v", rows.Err())
+	}
 	err := rows.Close()
 	if err != nil {
 		return nil, fmt.Errorf("close >> %v", err)
