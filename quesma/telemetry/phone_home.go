@@ -219,6 +219,10 @@ where active
 			return
 		}
 	}
+
+	if rows.Err() != nil {
+		logger.WarnWithCtxAndReason(ctx, "No clickhouse stats").Err(rows.Err()).Msg("Error getting stats from clickhouse.")
+	}
 }
 
 func (a *agent) collectClickHouseVersion(ctx context.Context, stats *ClickHouseStats) {
@@ -244,6 +248,10 @@ func (a *agent) collectClickHouseVersion(ctx context.Context, stats *ClickHouseS
 			logger.Error().Err(err).Msg("Error getting version from clickhouse.")
 			return
 		}
+	}
+
+	if rows.Err() != nil {
+		logger.Error().Err(rows.Err()).Msg("Error getting version from clickhouse.")
 	}
 }
 
