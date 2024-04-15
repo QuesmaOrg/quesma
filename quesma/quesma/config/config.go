@@ -206,14 +206,6 @@ func (c *QuesmaConfiguration) configureLicenseKey() {
 	}
 }
 
-func (c *QuesmaConfiguration) GetIndexConfig(indexName string) (IndexConfiguration, bool) {
-	if cfg, found := c.IndexConfig[indexName]; found {
-		return cfg, true
-	} else {
-		return IndexConfiguration{}, false
-	}
-}
-
 func (c *QuesmaConfiguration) ReadsFromClickhouse() bool {
 	return c.Mode == DualWriteQueryClickhouse || c.Mode == DualWriteQueryClickhouseFallback ||
 		c.Mode == DualWriteQueryClickhouseVerify || c.Mode == ClickHouse

@@ -23,7 +23,7 @@ func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) func(m map
 	return func(m map[string]string, body string) bool {
 		for idx, s := range strings.Split(body, "\n") {
 			if idx%2 == 0 && len(s) > 0 {
-				indexConfig, found := configuration.GetIndexConfig(extractIndexName(s))
+				indexConfig, found := configuration.IndexConfig[extractIndexName(s)]
 				if !found || !indexConfig.Enabled {
 					return false
 				}
@@ -61,7 +61,7 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.MatchPr
 			candidates = slices.Compact(candidates)
 
 			for _, candidate := range candidates {
-				indexConfig, exists := configuration.GetIndexConfig(candidate)
+				indexConfig, exists := configuration.IndexConfig[candidate]
 				if !exists || !indexConfig.Enabled {
 					return false
 				}
@@ -80,7 +80,7 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.MatchPr
 			}
 
 			for _, candidate := range candidates {
-				indexConfig, exists := configuration.GetIndexConfig(candidate)
+				indexConfig, exists := configuration.IndexConfig[candidate]
 				if exists && indexConfig.Enabled {
 					return true
 				}

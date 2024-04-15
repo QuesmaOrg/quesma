@@ -92,7 +92,7 @@ func (lm *LogManager) ReloadTables() {
 		return
 	} else {
 		for table, columns := range tables {
-			if indexConfig, found := lm.cfg.GetIndexConfig(table); found {
+			if indexConfig, found := lm.cfg.IndexConfig[table]; found {
 				if indexConfig.Enabled {
 					for colName := range columns {
 						if _, exists := indexConfig.Aliases[colName]; exists {

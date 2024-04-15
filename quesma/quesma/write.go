@@ -55,7 +55,7 @@ func dualWriteBulk(ctx context.Context, body string, lm *clickhouse.LogManager, 
 			continue
 		}
 
-		indexConfig, found := cfg.GetIndexConfig(index)
+		indexConfig, found := cfg.IndexConfig[index]
 		if !found {
 			logger.Debug().Msgf("index '%s' is not configured, skipping", index)
 			continue
