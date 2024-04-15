@@ -111,7 +111,6 @@ func (h Highlighter) HighlightValue(value string) []string {
 		} else {
 			mergedMatches = append(mergedMatches, matches[i])
 		}
-
 	}
 
 	// populate highlights

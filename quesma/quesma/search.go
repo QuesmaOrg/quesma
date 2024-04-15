@@ -145,6 +145,24 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		if simpleQuery.CanParse {
 			if ((queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields || queryInfo.Typ == model.Normal) && !bytes.Contains(body, []byte("aggs"))) || queryInfo.Typ == model.Facets || queryInfo.Typ == model.FacetsNumeric {
 				logger.InfoWithCtx(ctx).Msgf("Received search request, type: %v, async: %v", queryInfo.Typ, async)
+
+				var allReferencedFields = make([]string, 0)
+				allReferencedFields = append(allReferencedFields, queryInfo.RequestedFields...)
+				for _, field := range simpleQuery.SortFields {
+					allReferencedFields = append(allReferencedFields, strings.ReplaceAll(strings.Fields(field)[0], `"`, ""))
+				}
+
+				for _, property := range allReferencedFields {
+					if property != "*" && !table.HasColumn(property) {
+						logger.DebugWithCtx(ctx).Msgf("Property %s not found in table %s", property, table.Name)
+						if elasticsearch.IsIndexPattern(indexPattern) {
+							return queryparser.EmptySearchResponse(), nil
+						} else {
+							return nil, fmt.Errorf("property %s not found in table %s", property, table.Name)
+						}
+					}
+				}
+
 				oldHandlingUsed = true
 				if async {
 					go q.searchWorker(ctx, quesmaManagementConsole, asyncRequestIdStr, queryTranslator, table, body, doneCh, async)

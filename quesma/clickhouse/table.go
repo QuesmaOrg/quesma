@@ -165,11 +165,16 @@ func (t *Table) ResolveField(fieldName string) (field string) {
 
 	if field != "*" && field != "_all" && field != "_doc" && field != "_id" && field != "_index" {
 		if _, ok := t.Cols[field]; !ok {
-			logger.Warn().Msgf("field '%s' referenced, but not found in table '%s'", fieldName, t.Name)
+			logger.Debug().Msgf("field '%s' referenced, but not found in table '%s'", fieldName, t.Name)
 		}
 	}
 
 	return
+}
+
+func (t *Table) HasColumn(fieldName string) bool {
+	fieldName = t.ResolveField(fieldName)
+	return t.Cols[fieldName] != nil
 }
 
 func (t *Table) AliasFields() []*Column {
