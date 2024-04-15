@@ -189,7 +189,10 @@ func (queryType SearchQueryType) String() string {
 }
 
 type SearchQueryInfo struct {
-	Typ       SearchQueryType
+	Typ SearchQueryType
+	// to be used as replacement for FieldName
+	RequestedFields []string
+	// deprecated
 	FieldName string
 	Interval  string
 	I1        int

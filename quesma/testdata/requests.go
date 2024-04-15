@@ -286,7 +286,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
     "start_time_in_millis": 1706021975538
 }
 `, "there should be 97 results, I truncated most of them",
-		model.SearchQueryInfo{Typ: model.ListByField, FieldName: "message", I1: 0, I2: 100},
+		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"message"}, FieldName: "message", I1: 0, I2: 100},
 		[]string{`SELECT "message" FROM ` + quotedTableName + ` WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) AND "message" iLIKE '%user%' AND "message" IS NOT NULL ORDER BY "@timestamp" desc LIMIT 100`},
 		false,
 	},
@@ -526,7 +526,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		}
 	}`,
 		"Truncated most results. TODO Check what's at the end of response, probably count?",
-		model.SearchQueryInfo{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: 500},
+		model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: 500},
 		[]string{`SELECT ` + selectFieldsInAnyOrderAsRegex([]string{"@timestamp", "message", "host.name", "properties::isreg"}) + ` FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) ORDER BY "@timestamp" desc LIMIT 500`},
 		false,
 	},
@@ -659,7 +659,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 }
 `,
 		"no comment yet",
-		model.SearchQueryInfo{Typ: model.ListByField, FieldName: "@timestamp"},
+		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"@timestamp"}, FieldName: "@timestamp"},
 		[]string{
 			`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) `,
 			`SELECT toInt64(toUnixTimestamp64Milli(` + "`@timestamp`" + `)/30000), count() FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) GROUP BY (toInt64(toUnixTimestamp64Milli(` + "`@timestamp`)/30000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000))",
@@ -805,7 +805,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		}`,
 		``,
 		"no comment yet",
-		model.SearchQueryInfo{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: 50},
+		model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: 50},
 		[]string{`SELECT ` + selectFieldsInAnyOrderAsRegex([]string{"@timestamp", "message", "host.name", "properties::isreg"}) + ` FROM "logs-generic-default" LIMIT 50`},
 		false,
 	},
@@ -867,7 +867,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		}`,
 		``,
 		"happens e.g. in Explorer > Field Statistics view",
-		model.SearchQueryInfo{Typ: model.ListByField, FieldName: "properties::isreg", I1: 0, I2: 100},
+		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"properties::isreg"}, FieldName: "properties::isreg", I1: 0, I2: 100},
 		[]string{`SELECT "properties::isreg" FROM "logs-generic-default" WHERE (toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12 AND toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12) AND (toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12 AND toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12) AND "properties::isreg" IS NOT NULL LIMIT 100`},
 		false,
 	},

@@ -1018,7 +1018,7 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.S
 	_, okTrackTotalHits := queryMap["track_total_hits"]
 	if okSize && okTrackTotalHits && len(queryMap) == 2 {
 		// only ["size"] and ["track_total_hits"] are present
-		return model.SearchQueryInfo{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size.(float64))}, true
+		return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: int(size.(float64))}, true
 	}
 
 	// 2) more general case:
@@ -1027,12 +1027,19 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.S
 		return model.NewSearchQueryInfoNone(), false
 	}
 	if len(fields) > 1 {
+		fieldNames := make([]string, 0)
+		for _, field := range fields {
+			if fieldMap, ok := field.(map[string]interface{}); ok {
+				fieldNames = append(fieldNames, fieldMap["field"].(string))
+			}
+		}
+		logger.Debug().Msgf("requested more than one field %s, falling back to '*'", fieldNames)
 		// so far everywhere I've seen, > 1 field ==> "*" is one of them
-		return model.SearchQueryInfo{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size.(float64))}, true
+		return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: int(size.(float64))}, true
 	} else if len(fields) == 0 {
 		isCount, ok := queryMap["track_total_hits"].(bool)
 		if ok && isCount {
-			return model.SearchQueryInfo{Typ: model.CountAsync, FieldName: "", I1: 0, I2: 0}, true
+			return model.SearchQueryInfo{Typ: model.CountAsync, RequestedFields: make([]string, 0), FieldName: "", I1: 0, I2: 0}, true
 		}
 		return model.NewSearchQueryInfoNone(), false
 	} else {
@@ -1050,9 +1057,9 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.S
 
 		resolvedField := cw.Table.ResolveField(fieldName)
 		if resolvedField == "*" {
-			return model.SearchQueryInfo{Typ: model.ListAllFields, FieldName: "*", I1: 0, I2: int(size.(float64))}, true
+			return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: int(size.(float64))}, true
 		}
-		return model.SearchQueryInfo{Typ: model.ListByField, FieldName: resolvedField, I1: 0, I2: int(size.(float64))}, true
+		return model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{resolvedField}, FieldName: resolvedField, I1: 0, I2: int(size.(float64))}, true
 	}
 }
 
