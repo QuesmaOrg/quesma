@@ -77,11 +77,7 @@ func (c IndexConfiguration) Matches(indexName string) bool {
 	return c.Name == indexName
 }
 
-func (c IndexConfiguration) FullTextField(indexName, fieldName string) bool {
-	if !c.Matches(indexName) {
-		return false
-	}
-
+func (c IndexConfiguration) HasFullTextField(fieldName string) bool {
 	return slices.Contains(c.FullTextFields, fieldName)
 }
 
@@ -113,19 +109,15 @@ func (c IndexConfiguration) String() string {
 }
 
 func (c *QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string) bool {
-	for _, indexConfig := range c.IndexConfig {
-		if indexConfig.FullTextField(indexName, fieldName) {
-			return true
-		}
+	if indexConfig, found := c.IndexConfig[indexName]; found {
+		return indexConfig.HasFullTextField(fieldName)
 	}
 	return false
 }
 
 func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]FieldAlias {
-	for _, indexConfig := range c.IndexConfig {
-		if indexConfig.Matches(indexName) {
-			return indexConfig.Aliases
-		}
+	if indexConfig, found := c.IndexConfig[indexName]; found {
+		return indexConfig.Aliases
 	}
 	return map[string]FieldAlias{}
 }
@@ -182,9 +174,9 @@ func (c *QuesmaConfiguration) Validate() error {
 	if c.Mode == "" {
 		result = multierror.Append(result, fmt.Errorf("quesma operating mode is required"))
 	}
-	for _, idxConfig := range c.IndexConfig {
-		if strings.Contains(idxConfig.Name, "*") || idxConfig.Name == elasticsearch.AllIndexesAliasIndexName {
-			result = multierror.Append(result, fmt.Errorf("wildcard patterns are not allowed in index configuration: %s", idxConfig.Name))
+	for indexName := range c.IndexConfig {
+		if strings.Contains(indexName, "*") || indexName == elasticsearch.AllIndexesAliasIndexName {
+			result = multierror.Append(result, fmt.Errorf("wildcard patterns are not allowed in index configuration: %s", indexName))
 		}
 	}
 	return result

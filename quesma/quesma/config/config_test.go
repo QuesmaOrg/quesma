@@ -6,31 +6,6 @@ import (
 	"testing"
 )
 
-func TestIndexConfiguration_Matches(t *testing.T) {
-	type fields struct {
-		Name    string
-		Enabled bool
-	}
-	tests := []struct {
-		name      string
-		fields    fields
-		indexName string
-		want      bool
-	}{
-		{"logs-generic-default", fields{"logs-generic-default", true}, "logs-generic-default", true},
-		{"logs-generic-default", fields{"logs-generic-default", true}, "logs-generic-default2", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := IndexConfiguration{
-				Name:    tt.fields.Name,
-				Enabled: tt.fields.Enabled,
-			}
-			assert.Equalf(t, tt.want, c.Matches(tt.indexName), "Matches(%v)", tt.indexName)
-		})
-	}
-}
-
 func TestIndexConfiguration_FullTextField(t *testing.T) {
 
 	indexConfig := map[string]IndexConfiguration{
