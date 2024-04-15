@@ -18,8 +18,7 @@ func (c *CustomSyntaxError) Error() string {
 }
 
 type CustomErrorListener struct {
-	*antlr.DefaultErrorListener // Embed default which ensures we fit the interface
-	Errors                      []error
+	Errors []error
 }
 
 func (c *CustomErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol interface{}, line, column int, msg string, e antlr.RecognitionException) {
@@ -28,6 +27,16 @@ func (c *CustomErrorListener) SyntaxError(recognizer antlr.Recognizer, offending
 		column: column,
 		msg:    msg,
 	})
+}
+
+func (c *CustomErrorListener) ReportAmbiguity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex int, exact bool, ambigAlts *antlr.BitSet, configs *antlr.ATNConfigSet) {
+	c.Errors = append(c.Errors, fmt.Errorf("ReportAmbiguity NOT implemented"))
+}
+func (c *CustomErrorListener) ReportAttemptingFullContext(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex int, conflictingAlts *antlr.BitSet, configs *antlr.ATNConfigSet) {
+	c.Errors = append(c.Errors, fmt.Errorf("ReportAttemptingFullContext NOT implemented"))
+}
+func (c *CustomErrorListener) ReportContextSensitivity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex, prediction int, configs *antlr.ATNConfigSet) {
+	c.Errors = append(c.Errors, fmt.Errorf("ReportContextSensitivity NOT implemented"))
 }
 
 type EQL struct {
@@ -40,19 +49,26 @@ func NewEQL() *EQL {
 
 func (s *EQL) Parse(query string) (parser.IQueryContext, error) {
 
-	input := antlr.NewInputStream(query)
-	lexer := parser.NewEQLLexer(input)
-	stream := antlr.NewCommonTokenStream(lexer, 0)
-	eqlParser := parser.NewEQLParser(stream)
 	errorListener := &CustomErrorListener{}
 
+	input := antlr.NewInputStream(query)
+
+	lexer := parser.NewEQLLexer(input)
+	lexer.RemoveErrorListeners()
+	lexer.AddErrorListener(errorListener)
+
+	stream := antlr.NewCommonTokenStream(lexer, 0)
+
+	eqlParser := parser.NewEQLParser(stream)
+	eqlParser.RemoveErrorListeners()
 	eqlParser.AddErrorListener(errorListener)
+
 	ast := eqlParser.Query()
 
 	s.Errors = errorListener.Errors
 
-	if len(errorListener.Errors) > 0 {
-		return nil, fmt.Errorf("parse error: count=%d", len(s.Errors))
+	if len(s.Errors) > 0 {
+		return nil, fmt.Errorf("parse error: count=%d: %v", len(s.Errors), s.Errors) // FIXME multierror here
 	}
 
 	return ast, nil

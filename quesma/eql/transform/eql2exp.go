@@ -12,7 +12,7 @@ type EQLParseTreeToExpTransformer struct {
 
 	// category field name can be customized
 	// it's provided as a parameter in the query
-	// default is "category.name"
+	// default is "event.category"
 	CategoryFieldName string
 
 	Errors []string
@@ -20,7 +20,7 @@ type EQLParseTreeToExpTransformer struct {
 
 func NewEQLParseTreeToExpTransformer() *EQLParseTreeToExpTransformer {
 	return &EQLParseTreeToExpTransformer{
-		CategoryFieldName: "category.name",
+		CategoryFieldName: "event.category", // this is the default
 	}
 }
 
@@ -208,7 +208,7 @@ func (v *EQLParseTreeToExpTransformer) VisitFuncall(ctx *parser.FuncallContext) 
 		args = append(args, a.Accept(v).(Exp))
 	}
 
-	return NewFunction(name, args)
+	return NewFunction(name, args...)
 
 }
 

@@ -6,10 +6,16 @@ import (
 )
 
 type Transformer struct {
+	FieldNameTranslator func(*transform.Symbol) (*transform.Symbol, error)
 }
 
 func NewTransformer() *Transformer {
-	return &Transformer{}
+	return &Transformer{
+		// by default it's AS IS translation
+		FieldNameTranslator: func(s *transform.Symbol) (*transform.Symbol, error) {
+			return s, nil
+		},
+	}
 }
 
 // It transforms EQL query to Clickhouse query (where clause).
@@ -49,16 +55,20 @@ func (t *Transformer) TransformQuery(query string) (string, error) {
 	}
 
 	// 3. Replace operators with clickhouse operators
-	transOp := &transform.InfixOpTransformer{}
+	transOp := &transform.ClickhouseTransformer{}
 	exp = exp.Accept(transOp).(transform.Exp)
 
 	if len(transOp.Errors) > 0 {
 		return "", fmt.Errorf("transforming opertators failed: errors: count=%d message: %v", len(transOp.Errors), transOp.Errors)
 	}
 
-	// 4. TODO Add "functions" transformer
-
-	// 5. TODO Add "field names" transformer
+	transFieldName := &transform.FieldNameTransformer{
+		Translate: t.FieldNameTranslator,
+	}
+	exp = exp.Accept(transFieldName).(transform.Exp)
+	if len(transFieldName.Errors) > 0 {
+		return "", fmt.Errorf("transforming field names failed: errors: count=%d message: %v", len(transFieldName.Errors), transFieldName.Errors)
+	}
 
 	// 6. Render the expression as WHERE clause
 	// TODO errors while rendering ?

@@ -1,8 +1,8 @@
 package transform
 
-func mapExp(fn func(Exp) Exp, array *Array) []Exp {
+func mapExp(fn func(Exp) Exp, list []Exp) []Exp {
 	var values []Exp
-	for _, value := range array.Values {
+	for _, value := range list {
 		values = append(values, fn(value))
 	}
 	return values
@@ -18,14 +18,14 @@ func reduceExp(fn func(Exp, Exp) Exp, exps []Exp) Exp {
 
 // this used to convert
 // "foo like (1,2)"  -> "((foo like 1) or (foo like 2))
-func mapReduceToORExpressions(fn func(Exp) Exp, array *Array) Exp {
+func mapReduceToORExpressions(fn func(Exp) Exp, list []Exp) Exp {
 	return reduceExp(func(left, right Exp) Exp {
 		return &InfixOp{
 			Op:    "OR",
 			Left:  left,
 			Right: right,
 		}
-	}, mapExp(fn, array))
+	}, mapExp(fn, list))
 }
 
 func IsNULL(e Exp) bool {

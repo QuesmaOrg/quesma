@@ -6,6 +6,7 @@ query: ( simpleQuery
     ;
 
 simpleQuery: category 'where' condition
+// TODO add support for pipe opertor  '|'
 ;
 
 sequenceQuery: 'sequence' ( 'by' fieldList )? ( 'with' 'maxspan' '=' interval )?
@@ -36,8 +37,12 @@ category
        ;
 
 field: ID;
+// TODO add optional field names: `?field_name`
+// TODO add backtick escape for field names
+
 fieldList : field (',' field)*;
 
+// TODO add floats
 literal: STRING | NUMBER | BOOLEAN;
 literalList: '(' literal (',' literal)* ')';
 

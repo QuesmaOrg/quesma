@@ -109,7 +109,7 @@ type Function struct {
 	Args []Exp
 }
 
-func NewFunction(name string, args []Exp) *Function {
+func NewFunction(name string, args ...Exp) *Function {
 	return &Function{
 		Name: Symbol{Name: name},
 		Args: args,

@@ -11,7 +11,7 @@ func TestExpMap(t *testing.T) {
 
 	actual := mapExp(func(e Exp) Exp {
 		return &Const{Value: e.(*Const).Value.(int) * 2}
-	}, &Array{Values: in})
+	}, in)
 
 	expected := []Exp{&Const{Value: 2}, &Const{Value: 4}}
 
@@ -68,7 +68,7 @@ func TestExpToORs(t *testing.T) {
 
 	actual := mapReduceToORExpressions(func(e Exp) Exp {
 		return &Function{Name: Symbol{Name: "test"}, Args: []Exp{e}}
-	}, &Array{Values: in})
+	}, in)
 
 	expected := &InfixOp{
 		Op:   "OR",
