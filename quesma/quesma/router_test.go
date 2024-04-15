@@ -122,8 +122,8 @@ func Test_matchedAgainstPattern(t *testing.T) {
 	}
 }
 
-func indexConfig(pattern string, enabled bool) config.QuesmaConfiguration {
-	return config.QuesmaConfiguration{IndexConfig: []config.IndexConfiguration{{Name: pattern, Enabled: enabled}}}
+func indexConfig(name string, enabled bool) config.QuesmaConfiguration {
+	return config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{name: {Name: name, Enabled: enabled}}}
 }
 
 func Test_matchedAgainstBulkBody(t *testing.T) {

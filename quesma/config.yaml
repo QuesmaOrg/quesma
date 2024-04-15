@@ -23,31 +23,29 @@ logging:
   remoteUrl: "https://api.quesma.com/phone-home"
   disableFileLogging: false
 indexes:
-  - name: "kibana_sample_data_ecommerce"
+  kibana_sample_data_ecommerce:
     enabled: true
-  - name: "kibana_sample_data_flights"
+  kibana_sample_data_flights:
     enabled: true
-  - name: "kibana_sample_data_logs"
+  kibana_sample_data_logs:
     enabled: true
     aliases:
       timestamp:
         source: "timestamp"
         target: "@timestamp"
-  - name: "kafka-example-topic"
+  kafka-example-topic:
     enabled: true
-  - name: "logs-generic-default"
+  logs-generic-default:
     enabled: true
     fullTextFields: [ "message", "host.name" ]
-  - name: "device_logs"
+  device_logs:
     enabled: true
     fullTextFields: [ "message" ]
-  - name: "phone_home_logs"
+  phone_home_logs:
     enabled: true
     fullTextFields: [ "message" ]
-  - name: "windows_logs"
+  windows_logs:
     enabled: true
-  - name: "phone_home_data"
+  phone_home_data:
     enabled: true
     fullTextFields: [ "message" ]
-
-

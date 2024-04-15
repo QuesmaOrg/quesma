@@ -33,32 +33,30 @@ func TestIndexConfiguration_Matches(t *testing.T) {
 
 func TestIndexConfiguration_FullTextField(t *testing.T) {
 
-	indexConfig := []IndexConfiguration{
-		{
+	indexConfig := map[string]IndexConfiguration{
+		"none": {
 			Name:           "none",
 			Enabled:        true,
 			FullTextFields: []string{},
 		},
-		{
+		"foo-bar": {
 			Name:           "foo-bar",
 			Enabled:        true,
 			FullTextFields: []string{"sometext"},
 		},
-		{
+		"bar-logs": {
 			Name:           "bar-logs",
 			Enabled:        true,
 			FullTextFields: []string{},
 		},
-		{
+		"logs-generic-default": {
 			Name:           "logs-generic-default",
 			Enabled:        true,
 			FullTextFields: []string{"message", "content"},
 		},
 	}
 
-	cfg := QuesmaConfiguration{
-		IndexConfig: indexConfig,
-	}
+	cfg := QuesmaConfiguration{IndexConfig: indexConfig}
 
 	tests := []struct {
 		name      string
@@ -102,12 +100,11 @@ func TestQuesmaConfigurationLoading(t *testing.T) {
 	assert.Equal(t, 10, len(cfg.IndexConfig))
 
 	findIndexConfig := func(name string) *IndexConfiguration {
-		for _, ic := range cfg.IndexConfig {
-			if ic.Name == name {
-				return &ic
-			}
+		if configuration, found := cfg.IndexConfig[name]; found {
+			return &configuration
+		} else {
+			return nil
 		}
-		return nil
 	}
 
 	tests := []struct {
@@ -115,8 +112,8 @@ func TestQuesmaConfigurationLoading(t *testing.T) {
 		enabled        bool
 		fullTextFields []string
 	}{
-		{"logs-generic-*", true, []string{"message", "host.name"}},
-		{"device*", true, []string{"message"}},
+		{"logs-generic-default", true, []string{"message", "host.name"}},
+		{"device-logs", true, []string{"message"}},
 	}
 
 	for _, tt := range tests {

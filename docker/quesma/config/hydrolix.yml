@@ -9,6 +9,6 @@ logging:
   path: "logs"
   level: "info"
 indexes:
-  - name: "211318"
+  211318:
     enabled: true
     fulltextFields: [ "ua","city_name" ]

@@ -29,7 +29,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := config.QuesmaConfiguration{}
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
 	indexConfig := config.IndexConfiguration{
 		Name:           "logs-generic-default",
@@ -37,7 +37,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 		FullTextFields: []string{"message"},
 	}
 
-	cfg.IndexConfig = append(cfg.IndexConfig, indexConfig)
+	cfg.IndexConfig[indexConfig.Name] = indexConfig
 
 	lm := clickhouse.NewEmptyLogManager(cfg, nil, telemetry.NewPhoneHomeEmptyAgent())
 	lm.AddTableIfDoesntExist(table)

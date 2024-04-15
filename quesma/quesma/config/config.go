@@ -28,15 +28,15 @@ const (
 )
 
 type QuesmaConfiguration struct {
-	Mode                       operationMode              `koanf:"mode"`
-	LicenseKey                 string                     `koanf:"licenseKey"`
-	ClickHouse                 ClickHouseConfiguration    `koanf:"clickhouse"`
-	Elasticsearch              ElasticsearchConfiguration `koanf:"elasticsearch"`
-	IndexConfig                []IndexConfiguration       `koanf:"indexes"`
-	Logging                    LoggingConfiguration       `koanf:"logging"`
-	PublicTcpPort              network.Port               `koanf:"port"`
-	IngestStatistics           bool                       `koanf:"ingestStatistics"`
-	QuesmaInternalTelemetryUrl *Url                       `koanf:"internalTelemetryUrl"`
+	Mode                       operationMode                 `koanf:"mode"`
+	LicenseKey                 string                        `koanf:"licenseKey"`
+	ClickHouse                 ClickHouseConfiguration       `koanf:"clickhouse"`
+	Elasticsearch              ElasticsearchConfiguration    `koanf:"elasticsearch"`
+	IndexConfig                map[string]IndexConfiguration `koanf:"indexes"`
+	Logging                    LoggingConfiguration          `koanf:"logging"`
+	PublicTcpPort              network.Port                  `koanf:"port"`
+	IngestStatistics           bool                          `koanf:"ingestStatistics"`
+	QuesmaInternalTelemetryUrl *Url                          `koanf:"internalTelemetryUrl"`
 }
 
 type LoggingConfiguration struct {
@@ -160,6 +160,11 @@ func Load() QuesmaConfiguration {
 	if err := k.Unmarshal("", &config); err != nil {
 		log.Fatalf("error unmarshalling config: %v", err)
 	}
+	// TODO remove once when code does not depend on Name property
+	for name, idxConfig := range config.IndexConfig {
+		idxConfig.Name = name
+		config.IndexConfig[name] = idxConfig
+	}
 	config.configureLicenseKey()
 	return config
 }
@@ -210,12 +215,11 @@ func (c *QuesmaConfiguration) configureLicenseKey() {
 }
 
 func (c *QuesmaConfiguration) GetIndexConfig(indexName string) (IndexConfiguration, bool) {
-	for _, indexConfig := range c.IndexConfig {
-		if indexConfig.Matches(indexName) {
-			return indexConfig, true
-		}
+	if cfg, found := c.IndexConfig[indexName]; found {
+		return cfg, true
+	} else {
+		return IndexConfiguration{}, false
 	}
-	return IndexConfiguration{}, false
 }
 
 func (c *QuesmaConfiguration) ReadsFromClickhouse() bool {

@@ -9,10 +9,10 @@ logging:
   path: "logs"
   level: "info"
 indexes:
-  - name: "logs"
+  logs:
     enabled: true
     ignoredFields: [ "unknown" ]
-  - name: "siem"
+  siem:
     enabled: true
     ignoredFields: [ "responseHeaders","requestHeaders","botData","userRiskData","clientData" ]
 

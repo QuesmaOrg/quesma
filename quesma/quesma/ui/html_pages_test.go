@@ -92,10 +92,7 @@ func TestHtmlSchemaPage(t *testing.T) {
 
 	cfg := config.QuesmaConfiguration{}
 
-	cfg.IndexConfig = append(cfg.IndexConfig, config.IndexConfiguration{
-		Name:    xss,
-		Enabled: true,
-	})
+	cfg.IndexConfig = map[string]config.IndexConfiguration{xss: {Name: xss, Enabled: true}}
 
 	tables := concurrent.NewMap[string, *clickhouse.Table]()
 	tables.Store(table.Name, table)
@@ -108,5 +105,4 @@ func TestHtmlSchemaPage(t *testing.T) {
 		response := string(qmc.generateSchema())
 		assert.NotContains(t, response, xss)
 	})
-
 }
