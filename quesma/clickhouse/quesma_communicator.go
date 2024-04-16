@@ -36,12 +36,7 @@ func (lm *LogManager) ProcessSelectQuery(ctx context.Context, table *Table, quer
 	if err != nil {
 		return nil, err
 	}
-	rowsDB, err := lm.Query(ctx, query.StringFromColumns(colNames))
-	if err != nil {
-		return nil, fmt.Errorf("query >> %v", err)
-	}
-
-	rows, err := read(table.Name, rowsDB, append(colNames, query.NonSchemaFields...), rowToScan)
+	rows, err := executeQuery(ctx, lm, table.Name, query.StringFromColumns(colNames), append(colNames, query.NonSchemaFields...), rowToScan)
 	if err == nil {
 		for _, row := range rows {
 			row.Index = table.Name
@@ -51,11 +46,7 @@ func (lm *LogManager) ProcessSelectQuery(ctx context.Context, table *Table, quer
 }
 
 func (lm *LogManager) ProcessHistogramQuery(ctx context.Context, table *Table, query *model.Query, bucket time.Duration) ([]model.QueryResultRow, error) {
-	rows, err := lm.Query(ctx, query.String())
-	if err != nil {
-		return nil, fmt.Errorf("query >> %v", err)
-	}
-	result, err := read(table.Name, rows, []string{"key", "doc_count"}, []interface{}{int64(0), uint64(0)})
+	result, err := executeQuery(ctx, lm, table.Name, query.String(), []string{"key", "doc_count"}, []interface{}{int64(0), uint64(0)})
 	if err != nil {
 		return nil, err
 	}
@@ -76,45 +67,36 @@ func (lm *LogManager) ProcessHistogramQuery(ctx context.Context, table *Table, q
 // TODO add support for autocomplete for attributes, if we'll find it needed
 func (lm *LogManager) ProcessFacetsQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
 	colNames, err := table.extractColumns(query, false)
-	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
 		return nil, err
 	}
-	rows, err := lm.Query(ctx, query.StringFromColumns(colNames))
+	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
+	return executeQuery(ctx, lm, table.Name, query.StringFromColumns(colNames), []string{"key", "doc_count"}, rowToScan)
+}
+
+func executeQuery(ctx context.Context, lm *LogManager, tableName string, queryAsString string, fields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
+	rows, err := lm.Query(ctx, queryAsString)
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
-	return read(table.Name, rows, []string{"key", "doc_count"}, rowToScan)
+	return read(tableName, rows, fields, rowToScan)
 }
 
 func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(ctx context.Context, table string, query *model.Query) ([]model.QueryResultRow, error) {
-	rowsDB, err := lm.Query(ctx, query.String())
-	if err != nil {
-		return nil, fmt.Errorf("query >> %v", err)
-	}
-	rowToScan := []interface{}{""}
-	return read(table, rowsDB, query.Fields, rowToScan)
+	return executeQuery(ctx, lm, table, query.String(), query.Fields, []interface{}{""})
 }
 
 func (lm *LogManager) ProcessTimestampQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
-	rows, err := lm.Query(ctx, query.String())
-	if err != nil {
-		return nil, fmt.Errorf("query >> %v", err)
-	}
-	return read(table.Name, rows, query.Fields, []interface{}{time.Time{}})
+	return executeQuery(ctx, lm, table.Name, query.String(), query.Fields, []interface{}{time.Time{}})
 }
 
 func (lm *LogManager) ProcessGeneralAggregationQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
-	rows, err := lm.Query(ctx, query.String())
-	if err != nil {
-		return nil, fmt.Errorf("query >> %v, query: %s", err, query.String())
-	}
 	colNames, err := table.extractColumns(query, true)
 	if err != nil {
 		return nil, err
 	}
 	rowToScan := make([]interface{}, len(colNames))
-	return read(table.Name, rows, colNames, rowToScan)
+	return executeQuery(ctx, lm, table.Name, query.String(), colNames, rowToScan)
 }
 
 // 'selectFields' are all values that we return from the query, both columns and non-schema fields,
