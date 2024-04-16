@@ -43,11 +43,7 @@ func (lm *LogManager) ProcessSelectQuery(ctx context.Context, table *Table, quer
 	return rows, err
 }
 
-func (lm *LogManager) ProcessHistogramQuery(ctx context.Context, table *Table, query *model.Query, bucket time.Duration) ([]model.QueryResultRow, error) {
-	result, err := executeQuery(ctx, lm, table.Name, query.String(), []string{"key", "doc_count"}, []interface{}{int64(0), uint64(0)})
-	if err != nil {
-		return nil, err
-	}
+func makeBuckets(result []model.QueryResultRow, bucket time.Duration) []model.QueryResultRow {
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Cols[model.ResultColKeyIndex].Value.(int64) < result[j].Cols[model.ResultColKeyIndex].Value.(int64)
 	})
@@ -59,7 +55,15 @@ func (lm *LogManager) ProcessHistogramQuery(ctx context.Context, table *Table, q
 			Value:   time.UnixMilli(timestamp).UTC().Format("2006-01-02T15:04:05.000"),
 		})
 	}
-	return result, nil
+	return result
+}
+
+func (lm *LogManager) ProcessHistogramQuery(ctx context.Context, table *Table, query *model.Query, bucket time.Duration) ([]model.QueryResultRow, error) {
+	result, err := executeQuery(ctx, lm, table.Name, query.String(), []string{"key", "doc_count"}, []interface{}{int64(0), uint64(0)})
+	if err != nil {
+		return nil, err
+	}
+	return makeBuckets(result, bucket), nil
 }
 
 // TODO add support for autocomplete for attributes, if we'll find it needed
