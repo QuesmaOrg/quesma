@@ -187,14 +187,14 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					fieldName = "*"
 				}
 				listQuery := queryTranslator.BuildNRowsQuery(fieldName, simpleQuery, queryInfo.Size)
-				hitsFallback, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(ctx, table, listQuery)
+				hitsFallback, err = queryTranslator.ClickhouseLM.ProcessSelectQuery(ctx, table, listQuery)
 				if err != nil {
 					logger.ErrorWithCtx(ctx).Msgf("Error processing fallback query: %v", err)
 					pushSecondaryInfoToManagementConsole()
 					return responseBody, err
 				}
 				countQuery := queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-				countResult, err := queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(ctx, table, countQuery)
+				countResult, err := queryTranslator.ClickhouseLM.ProcessSelectQuery(ctx, table, countQuery)
 				if err != nil {
 					logger.ErrorWithCtx(ctx).Msgf("Error processing count query: %v", err)
 					pushSecondaryInfoToManagementConsole()
@@ -366,7 +366,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementCo
 	switch queryInfo.Typ {
 	case model.CountAsync:
 		fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-		hits, err = queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(dbQueryCtx, table, fullQuery)
+		hits, err = queryTranslator.ClickhouseLM.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
 
 	case model.Facets, model.FacetsNumeric:
 		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
@@ -376,16 +376,16 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementCo
 	case model.ListByField:
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)
 		fullQuery = queryTranslator.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		hits, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(dbQueryCtx, table, fullQuery)
+		hits, err = queryTranslator.ClickhouseLM.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
 
 	case model.ListAllFields:
 		// queryInfo = (ListAllFields, "*", 0, LIMIT)
 		fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
-		hits, err = queryTranslator.ClickhouseLM.ProcessNRowsQuery(dbQueryCtx, table, fullQuery)
+		hits, err = queryTranslator.ClickhouseLM.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
 
 	case model.Normal:
 		fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
-		hits, err = queryTranslator.ClickhouseLM.ProcessSimpleSelectQuery(dbQueryCtx, table, fullQuery)
+		hits, err = queryTranslator.ClickhouseLM.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
 
 	default:
 		panic(fmt.Sprintf("Unknown query type: %v", queryInfo.Typ))

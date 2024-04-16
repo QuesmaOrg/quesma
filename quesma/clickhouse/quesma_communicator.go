@@ -30,7 +30,7 @@ func (lm *LogManager) Query(ctx context.Context, query string) (*sql.Rows, error
 // TODO query param should be type safe Query representing all parts of
 // sql statement that were already parsed and not string from which
 // we have to extract again different parts like where clause and columns to build a proper result
-func (lm *LogManager) ProcessSimpleSelectQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
+func (lm *LogManager) ProcessSelectQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
 	colNames, err := table.extractColumns(query, false)
 	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
@@ -48,11 +48,6 @@ func (lm *LogManager) ProcessSimpleSelectQuery(ctx context.Context, table *Table
 		}
 	}
 	return rows, err
-}
-
-// fieldName = "*" -> we query all, otherwise only this 1 field
-func (lm *LogManager) ProcessNRowsQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
-	return lm.ProcessSimpleSelectQuery(ctx, table, query)
 }
 
 func (lm *LogManager) ProcessHistogramQuery(ctx context.Context, table *Table, query *model.Query, bucket time.Duration) ([]model.QueryResultRow, error) {
