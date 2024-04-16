@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/quesma/config"
 )
 
@@ -20,6 +21,15 @@ func InitDBConnectionPool(c config.QuesmaConfiguration) *sql.DB {
 			Database: c.ClickHouse.Database,
 		}
 	}
+
+	info := struct {
+		Name    string
+		Version string
+	}{
+		Name:    "quesma",
+		Version: buildinfo.Version,
+	}
+	options.ClientInfo.Products = append(options.ClientInfo.Products, info)
 
 	return clickhouse.OpenDB(&options)
 }
