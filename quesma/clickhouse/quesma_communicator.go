@@ -84,11 +84,7 @@ func (lm *LogManager) ProcessFacetsQuery(ctx context.Context, table *Table, quer
 	if err != nil {
 		return nil, fmt.Errorf("query >> %v", err)
 	}
-	resultRows, err := read(table.Name, rows, []string{"key", "doc_count"}, rowToScan)
-	if err != nil {
-		return nil, err
-	}
-	return resultRows, nil
+	return read(table.Name, rows, []string{"key", "doc_count"}, rowToScan)
 }
 
 func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(ctx context.Context, table string, query *model.Query) ([]model.QueryResultRow, error) {
@@ -118,8 +114,7 @@ func (lm *LogManager) ProcessGeneralAggregationQuery(ctx context.Context, table 
 		return nil, err
 	}
 	rowToScan := make([]interface{}, len(colNames))
-	result, err := read(table.Name, rows, colNames, rowToScan)
-	return result, err
+	return read(table.Name, rows, colNames, rowToScan)
 }
 
 // 'selectFields' are all values that we return from the query, both columns and non-schema fields,
