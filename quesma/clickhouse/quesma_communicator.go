@@ -20,9 +20,7 @@ const (
 )
 
 func (lm *LogManager) Query(ctx context.Context, query string) (*sql.Rows, error) {
-	span := lm.phoneHomeAgent.ClickHouseQueryDuration().Begin()
 	rows, err := lm.chDb.QueryContext(ctx, query)
-	span.End(err)
 	return rows, err
 }
 
@@ -75,11 +73,18 @@ func (lm *LogManager) ProcessFacetsQuery(ctx context.Context, table *Table, quer
 }
 
 func executeQuery(ctx context.Context, lm *LogManager, tableName string, queryAsString string, fields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
+	span := lm.phoneHomeAgent.ClickHouseQueryDuration().Begin()
+
 	rows, err := lm.Query(ctx, queryAsString)
 	if err != nil {
+		span.End(err)
 		return nil, fmt.Errorf("query >> %v", err)
 	}
-	return read(tableName, rows, fields, rowToScan)
+
+	res, err := read(tableName, rows, fields, rowToScan)
+	span.End(err)
+
+	return res, err
 }
 
 func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(ctx context.Context, table string, query *model.Query) ([]model.QueryResultRow, error) {
