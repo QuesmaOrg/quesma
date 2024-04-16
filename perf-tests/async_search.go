@@ -222,44 +222,49 @@ type queryStats struct {
 	total      atomic.Int64
 	successful atomic.Int64
 	timeOuted  atomic.Int64
+	failed     atomic.Int64
 }
 
 func makePartialAsyncQuery(id string) ([]byte, error) {
 	url := partialAsyncQueryURL + id + partialAsyncQueryURLParams
-	fmt.Println(url)
 	body, err := sendRequest(url, []byte{})
 	return body, err
 }
 
-func runPartialAsyncQuery(id string, stats *queryStats) {
+func runPartialAsyncQuery(id string, stats *queryStats, iteration int, isFilter bool) {
 	const timeout = 15 * time.Minute
 	startTime := time.Now()
 	stats.total.Add(1)
 	for {
 		body, err := makePartialAsyncQuery(id)
 		if err != nil {
-			fmt.Println("Error:", err)
+			stats.failed.Add(1)
+			break
 		} else {
-			fmt.Printf("Received: %d bytes for async query id : %s\n", len(body), id)
+			fmt.Print(".")
 		}
 		isRunning, _ := getIsRunning(body)
 		if isRunning == false {
 			completionStatus, _ := getCompletionStatus(body)
 			if completionStatus == 200 {
+				fmt.Printf("\nIteration %d, Received: %d bytes for async query id : %s isFilterQuery : %t\n", iteration, len(body), id, isFilter)
 				stats.successful.Add(1)
+			} else {
+				stats.failed.Add(1)
 			}
 			break
 		}
 		elapsed := time.Since(startTime)
 		if elapsed > timeout {
 			stats.timeOuted.Add(1)
+			fmt.Println("Timeout")
 			break
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(3 * time.Second)
 	}
 }
 
-func runAsyncSearchLoadTestInstance(from time.Time, to time.Time, stats *queryStats) {
+func runAsyncSearchLoadTestInstance(from time.Time, to time.Time, stats *queryStats, iteration int) {
 	id1 := ""
 	id2 := ""
 	body, err := sendRequest(url, getFilterAsyncQuery(from, to))
@@ -275,11 +280,11 @@ func runAsyncSearchLoadTestInstance(from time.Time, to time.Time, stats *querySt
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		runPartialAsyncQuery(id1, stats)
+		runPartialAsyncQuery(id1, stats, iteration, true)
 		wg.Done()
 	}()
 	go func() {
-		runPartialAsyncQuery(id2, stats)
+		runPartialAsyncQuery(id2, stats, iteration, false)
 		wg.Done()
 	}()
 	wg.Wait()
@@ -287,19 +292,21 @@ func runAsyncSearchLoadTestInstance(from time.Time, to time.Time, stats *querySt
 
 func runAsyncSearchLoadTests(numberOfIterations int, numberOfConcurrentRequests int, from time.Time, to time.Time) {
 	stats := queryStats{}
-	for i := 0; i < numberOfIterations; i++ {
+	for iteration := 0; iteration < numberOfIterations; iteration++ {
 		var concurrentRequests sync.WaitGroup
 		concurrentRequests.Add(numberOfConcurrentRequests)
 		for i := 0; i < numberOfConcurrentRequests; i++ {
 			go func() {
-				runAsyncSearchLoadTestInstance(from, to, &stats)
+				runAsyncSearchLoadTestInstance(from, to, &stats, iteration)
 				concurrentRequests.Done()
 			}()
 		}
 		concurrentRequests.Wait()
 		fmt.Println("Stats:")
+		fmt.Println("\tIteration:", iteration)
 		fmt.Println("\tTotal:", stats.total.Load())
 		fmt.Println("\tSuccessful:", stats.successful.Load())
 		fmt.Println("\tTimeOuted:", stats.timeOuted.Load())
+		fmt.Println("\tFailed:", stats.failed.Load())
 	}
 }
