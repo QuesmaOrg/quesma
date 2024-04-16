@@ -411,27 +411,8 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementCo
 			doneCh <- struct{}{}
 			return
 		}
-		const isPartial = false
-		asyncSearchResponse := queryparser.SearchToAsyncSearchResponse(searchResponse, id, isPartial)
-		responseBody, err := asyncSearchResponse.Marshal()
-		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-			Id:                     id,
-			IncomingQueryBody:      body,
-			QueryBodyTranslated:    translatedQueryBody,
-			QueryRawResults:        []byte{},
-			QueryTranslatedResults: responseBody,
-			SecondaryTook:          time.Since(startTime),
-		})
-		isCompressed := false
-
-		if err == nil {
-			if compressed, compErr := util.Compress(responseBody); compErr == nil {
-				responseBody = compressed
-				isCompressed = true
-			}
-		}
-		q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{responseBody: responseBody, added: time.Now(), err: err, isCompressed: isCompressed})
-		doneCh <- struct{}{}
+		q.storeAsyncResponse(quesmaManagementConsole, asyncRequestIdStr,
+			searchResponse, id, body, translatedQueryBody, startTime, doneCh)
 	}
 	return
 }
@@ -449,6 +430,34 @@ func (q *QueryRunner) searchWorker(ctx context.Context, quesmaManagementConsole 
 			return
 		}
 	}
+}
+
+func (q *QueryRunner) storeAsyncResponse(quesmaManagementConsole *ui.QuesmaManagementConsole,
+	asyncRequestIdStr string, searchResponse *model.SearchResp,
+	id string, body []byte, translatedQueryBody []byte,
+	startTime time.Time, doneCh chan struct{}) {
+	const isPartial = false
+	asyncSearchResponse := queryparser.SearchToAsyncSearchResponse(searchResponse, id, isPartial)
+	responseBody, err := asyncSearchResponse.Marshal()
+	quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+		Id:                     id,
+		IncomingQueryBody:      body,
+		QueryBodyTranslated:    translatedQueryBody,
+		QueryRawResults:        []byte{},
+		QueryTranslatedResults: responseBody,
+		SecondaryTook:          time.Since(startTime),
+	})
+	isCompressed := false
+	if err == nil {
+		if compressed, compErr := util.Compress(responseBody); compErr == nil {
+			responseBody = compressed
+			isCompressed = true
+		}
+	}
+	q.AsyncRequestStorage.Store(asyncRequestIdStr,
+		AsyncRequestResult{
+			responseBody: responseBody, added: time.Now(), err: err, isCompressed: isCompressed})
+	doneCh <- struct{}{}
 }
 
 func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, quesmaManagementConsole *ui.QuesmaManagementConsole, asyncRequestIdStr string, aggregations []model.QueryWithAggregation,
@@ -483,28 +492,9 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, quesmaM
 	}
 	translatedQueryBody = []byte(sqls)
 	if async {
-		const isPartial = false
 		searchResponse := queryTranslator.MakeResponseAggregation(aggregations, resultRows)
-		asyncSearchResponse := queryparser.SearchToAsyncSearchResponse(searchResponse, id, isPartial)
-		responseBody, err := asyncSearchResponse.Marshal()
-		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-			Id:                     id,
-			IncomingQueryBody:      body,
-			QueryBodyTranslated:    translatedQueryBody,
-			QueryRawResults:        []byte{},
-			QueryTranslatedResults: responseBody,
-			SecondaryTook:          time.Since(startTime),
-		})
-		isCompressed := false
-		if err == nil {
-			if compressed, compErr := util.Compress(responseBody); compErr == nil {
-				responseBody = compressed
-				isCompressed = true
-			}
-		}
-		q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{responseBody: responseBody, added: time.Now(),
-			isCompressed: isCompressed, err: err})
-		doneCh <- struct{}{}
+		q.storeAsyncResponse(quesmaManagementConsole, asyncRequestIdStr,
+			searchResponse, id, body, translatedQueryBody, startTime, doneCh)
 	}
 	return
 }
