@@ -4,8 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math/rand"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -76,6 +79,45 @@ func (lm *LogManager) ProcessFacetsQuery(ctx context.Context, table *Table, quer
 	return executeQuery(ctx, lm, table.Name, query.StringFromColumns(colNames), []string{"key", "doc_count"}, rowToScan)
 }
 
+var random = rand.New(rand.NewSource(time.Now().UnixNano()))
+
+const slowQueryThreshold = 30 * time.Second
+const slowQuerySampleRate = 0.1
+
+func (lm *LogManager) shouldExplainQuery(elapsed time.Duration) bool {
+	return elapsed > slowQueryThreshold && random.Float64() < slowQuerySampleRate
+}
+
+func (lm *LogManager) explainQuery(ctx context.Context, query string, elapsed time.Duration) {
+
+	explainQuery := "EXPLAIN json=1, indexes=1 " + query
+
+	rows, err := lm.chDb.QueryContext(ctx, explainQuery)
+	if err != nil {
+		logger.Error().Msgf("failed to explain slow query: %v", err)
+	}
+
+	defer rows.Close()
+	if rows.Next() {
+		var explain string
+		err := rows.Scan(&explain)
+		if err != nil {
+			logger.Error().Msgf("failed to scan slow query explain: %v", err)
+			return
+		}
+
+		// reformat the explain output to make it one line and more readable
+		explain = strings.ReplaceAll(explain, "\n", "")
+		explain = strings.ReplaceAll(explain, "  ", "")
+
+		logger.Warn().Msgf("slow query (time: '%s')  query: '%s' -> explain: '%s'", elapsed, query, explain)
+	}
+
+	if rows.Err() != nil {
+		logger.Error().Msgf("failed to read slow query explain: %v", rows.Err())
+	}
+}
+
 func executeQuery(ctx context.Context, lm *LogManager, tableName string, queryAsString string, fields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
 	span := lm.phoneHomeAgent.ClickHouseQueryDuration().Begin()
 
@@ -86,7 +128,12 @@ func executeQuery(ctx context.Context, lm *LogManager, tableName string, queryAs
 	}
 
 	res, err := read(tableName, rows, fields, rowToScan)
-	span.End(err)
+	elapsed := span.End(nil)
+	if err == nil {
+		if lm.shouldExplainQuery(elapsed) {
+			lm.explainQuery(ctx, queryAsString, elapsed)
+		}
+	}
 
 	return res, err
 }
