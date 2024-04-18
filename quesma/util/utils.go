@@ -476,9 +476,10 @@ func equal(a, b any) bool {
 }
 
 // ExtractInt64 returns int64 value behind `value`:
-// * value,  if it's (u)int64
-// * *value, if it's *(u)int64
+// * value,  if it's  (u)int[8|16|32|64]
+// * *value, if it's *(u)int[8|16|32|64]
 // * -1,     otherwise
+// Cases in order from probably most likely to happen to least.
 func ExtractInt64(value any) int64 {
 	switch valueTyped := value.(type) {
 	case int64:
@@ -488,6 +489,30 @@ func ExtractInt64(value any) int64 {
 	case *int64:
 		return *valueTyped
 	case *uint64:
+		return int64(*valueTyped)
+	case int8:
+		return int64(valueTyped)
+	case uint8:
+		return int64(valueTyped)
+	case *int8:
+		return int64(*valueTyped)
+	case *uint8:
+		return int64(*valueTyped)
+	case int16:
+		return int64(valueTyped)
+	case uint16:
+		return int64(valueTyped)
+	case *int16:
+		return int64(*valueTyped)
+	case *uint16:
+		return int64(*valueTyped)
+	case int32:
+		return int64(valueTyped)
+	case uint32:
+		return int64(valueTyped)
+	case *int32:
+		return int64(*valueTyped)
+	case *uint32:
 		return int64(*valueTyped)
 	}
 	logger.Error().Msgf("ExtractInt64, value of incorrect type. Expected (*)(u)int64, received: %v", value)

@@ -203,7 +203,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.
 			aggregations["sample"].(JsonMap)["max_value"] = nil
 		} else {
 			switch ResultSet[0].Cols[model.ResultColKeyIndex].Value.(type) {
-			case int64, uint64, *int64, *uint64:
+			case int64, uint64, *int64, *uint64, int8, uint8, *int8, *uint8, int16, uint16, *int16, *uint16, int32, uint32, *int32, *uint32:
 				var minValue, maxValue = int64(math.MaxInt), int64(math.MinInt)
 				for _, row := range ResultSet {
 					value := util.ExtractInt64(row.Cols[model.ResultColKeyIndex].Value)
@@ -221,6 +221,9 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.
 				}
 				aggregations["sample"].(JsonMap)["min_value"] = JsonMap{"value": minValue}
 				aggregations["sample"].(JsonMap)["max_value"] = JsonMap{"value": maxValue}
+			default:
+				logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type for numeric facet: %T, value: %v",
+					ResultSet[0].Cols[model.ResultColKeyIndex].Value, ResultSet[0].Cols[model.ResultColKeyIndex].Value)
 			}
 		}
 	}

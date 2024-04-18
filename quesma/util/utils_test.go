@@ -711,3 +711,43 @@ func Test_equal(t *testing.T) {
 		assert.Equal(t, tt.want, got)
 	}
 }
+
+func TestExtractInt64(t *testing.T) {
+	i8 := int8(1)
+	i16 := int16(1)
+	i32 := int32(1)
+	i64 := int64(1)
+	ui8 := uint8(1)
+	ui16 := uint16(1)
+	ui32 := uint32(1)
+	ui64 := uint64(1)
+	tests := []struct {
+		v    any
+		want int64
+	}{
+		{int8(1), int64(1)},
+		{int16(1), int64(1)},
+		{int32(1), int64(1)},
+		{int64(1), int64(1)},
+		{uint8(1), int64(1)},
+		{uint16(1), int64(1)},
+		{uint32(1), int64(1)},
+		{uint64(1), int64(1)},
+		{&i8, int64(1)},
+		{&i16, int64(1)},
+		{&i32, int64(1)},
+		{&i64, int64(1)},
+		{&ui8, int64(1)},
+		{&ui16, int64(1)},
+		{&ui32, int64(1)},
+		{&ui64, int64(1)},
+		{nil, int64(-1)},
+		{"1", int64(-1)},
+		{1.0, int64(-1)},
+	}
+	for _, tt := range tests {
+		got := ExtractInt64(tt.v)
+		assert.Equal(t, tt.want, got)
+	}
+
+}
