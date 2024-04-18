@@ -515,13 +515,13 @@ func ExtractInt64(value any) int64 {
 	case *uint32:
 		return int64(*valueTyped)
 	}
-	logger.Error().Msgf("ExtractInt64, value of incorrect type. Expected (*)(u)int64, received: %v", value)
+	logger.Error().Msgf("ExtractInt64, value of incorrect type. Expected (*)(u)int64, received: %v; type: %T", value, value)
 	return -1
 }
 
 // ExtractFloat64 returns float64 value behind `value`:
-// * value,  if it's float64
-// * *value, if it's *float64
+// * value,  if it's float64/32
+// * *value, if it's *float64/32
 // * -1,     otherwise
 func ExtractFloat64(value any) float64 {
 	switch valueTyped := value.(type) {
@@ -529,7 +529,11 @@ func ExtractFloat64(value any) float64 {
 		return valueTyped
 	case *float64:
 		return *valueTyped
+	case float32:
+		return float64(valueTyped)
+	case *float32:
+		return float64(*valueTyped)
 	}
-	logger.Error().Msgf("ExtractFloat64, value of incorrect type. Expected (*)float64, received: %v", value)
+	logger.Error().Msgf("ExtractFloat64, value of incorrect type. Expected (*)float64, received: %v; type: %T", value, value)
 	return -1
 }

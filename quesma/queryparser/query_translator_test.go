@@ -10,6 +10,8 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/util"
+	"reflect"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -477,6 +479,220 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 		}
 		_, err := cw.MakeAsyncSearchResponse([]model.QueryResultRow{resultRow}, types[i], NewEmptyHighlighter(), asyncRequestIdStr, false)
 		assert.NoError(t, err)
+	}
+}
+
+func Test_makeSearchResponseFacetsNumericInts(t *testing.T) {
+	oneUint8 := uint8(1)
+	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
+	var testcases = []struct {
+		name                 string
+		rows                 []model.QueryResultRow
+		wantedAggregationMap JsonMap
+	}{
+		{
+			name: "2 buckets, all present",
+			rows: []model.QueryResultRow{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1)), model.NewQueryResultCol("doc_count", uint64(2))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int8(3)), model.NewQueryResultCol("doc_count", uint64(4))}}, // maybe in future we'd like to use that all rows have same types (here we have mixed int8 and int64), but now let's use different to test more cases
+			},
+			wantedAggregationMap: JsonMap{
+				"sample": JsonMap{
+					"min_value":    JsonMap{"value": int64(1)},
+					"max_value":    JsonMap{"value": int64(3)},
+					"doc_count":    6,
+					"sample_count": JsonMap{"value": 6},
+					"top_values": JsonMap{
+						"buckets": []JsonMap{
+							{"key": int64(1), "doc_count": uint64(2)},
+							{"key": int8(3), "doc_count": uint64(4)},
+						},
+						"sum_other_doc_count":         0,
+						"doc_count_error_upper_bound": 0,
+					},
+				},
+			},
+		},
+		{
+			name: "1 bucket, all nulls",
+			rows: []model.QueryResultRow{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", nil), model.NewQueryResultCol("doc_count", uint64(2))}},
+			},
+			wantedAggregationMap: JsonMap{
+				"sample": JsonMap{
+					"min_value":    JsonMap{"value": nil},
+					"max_value":    JsonMap{"value": nil},
+					"doc_count":    2,
+					"sample_count": JsonMap{"value": 2},
+					"top_values": JsonMap{
+						"buckets": []JsonMap{
+							{"key": nil, "doc_count": uint64(2)},
+						},
+						"sum_other_doc_count":         0,
+						"doc_count_error_upper_bound": 0,
+					},
+				},
+			},
+		},
+		{
+			name: "2 buckets, first &value, second null",
+			rows: []model.QueryResultRow{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", &oneUint8), model.NewQueryResultCol("doc_count", uint64(2))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", nil), model.NewQueryResultCol("doc_count", uint64(2))}},
+			},
+			wantedAggregationMap: JsonMap{
+				"sample": JsonMap{
+					"min_value":    JsonMap{"value": int64(1)},
+					"max_value":    JsonMap{"value": int64(1)},
+					"doc_count":    4,
+					"sample_count": JsonMap{"value": 4},
+					"top_values": JsonMap{
+						"buckets": []JsonMap{
+							{"key": &oneUint8, "doc_count": uint64(2)},
+							{"key": nil, "doc_count": uint64(2)},
+						},
+						"sum_other_doc_count":         0,
+						"doc_count_error_upper_bound": 0,
+					},
+				},
+			},
+		},
+		{
+			name: "2 buckets, first null second int32",
+			rows: []model.QueryResultRow{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", nil), model.NewQueryResultCol("doc_count", uint64(5))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int32(5)), model.NewQueryResultCol("doc_count", uint64(2))}},
+			},
+			wantedAggregationMap: JsonMap{
+				"sample": JsonMap{
+					"min_value":    JsonMap{"value": int64(5)},
+					"max_value":    JsonMap{"value": int64(5)},
+					"doc_count":    7,
+					"sample_count": JsonMap{"value": 7},
+					"top_values": JsonMap{
+						"buckets": []JsonMap{
+							{"key": nil, "doc_count": uint64(5)},
+							{"key": int32(5), "doc_count": uint64(2)},
+						},
+						"sum_other_doc_count":         0,
+						"doc_count_error_upper_bound": 0,
+					},
+				},
+			},
+		},
+	}
+	for i, tt := range testcases {
+		t.Run(strconv.Itoa(i)+tt.name, func(t *testing.T) {
+			searchResp := cw.makeSearchResponseFacets(tt.rows, model.FacetsNumeric)
+			assert.True(t, reflect.DeepEqual(searchResp.Aggregations, tt.wantedAggregationMap))
+		})
+	}
+}
+
+func Test_makeSearchResponseFacetsNumericFloats(t *testing.T) {
+	oneFloat32 := float32(1)
+	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
+	var testcases = []struct {
+		name                 string
+		rows                 []model.QueryResultRow
+		wantedAggregationMap JsonMap
+	}{
+		{
+			name: "2 buckets, all present",
+			rows: []model.QueryResultRow{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", float64(1.2)), model.NewQueryResultCol("doc_count", uint64(2))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", float64(3.2)), model.NewQueryResultCol("doc_count", uint64(4))}},
+			},
+			wantedAggregationMap: JsonMap{
+				"sample": JsonMap{
+					"min_value":    JsonMap{"value": float64(1.2)},
+					"max_value":    JsonMap{"value": float64(3.2)},
+					"doc_count":    6,
+					"sample_count": JsonMap{"value": 6},
+					"top_values": JsonMap{
+						"buckets": []JsonMap{
+							{"key": float64(1.2), "doc_count": uint64(2)},
+							{"key": float64(3.2), "doc_count": uint64(4)},
+						},
+						"sum_other_doc_count":         0,
+						"doc_count_error_upper_bound": 0,
+					},
+				},
+			},
+		},
+		{
+			name: "1 bucket, all nulls",
+			rows: []model.QueryResultRow{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", nil), model.NewQueryResultCol("doc_count", uint64(2))}},
+			},
+			wantedAggregationMap: JsonMap{
+				"sample": JsonMap{
+					"min_value":    JsonMap{"value": nil},
+					"max_value":    JsonMap{"value": nil},
+					"doc_count":    2,
+					"sample_count": JsonMap{"value": 2},
+					"top_values": JsonMap{
+						"buckets": []JsonMap{
+							{"key": nil, "doc_count": uint64(2)},
+						},
+						"sum_other_doc_count":         0,
+						"doc_count_error_upper_bound": 0,
+					},
+				},
+			},
+		},
+		{
+			name: "2 buckets, first &value, second null",
+			rows: []model.QueryResultRow{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", &oneFloat32), model.NewQueryResultCol("doc_count", uint64(2))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", nil), model.NewQueryResultCol("doc_count", uint64(2))}},
+			},
+			wantedAggregationMap: JsonMap{
+				"sample": JsonMap{
+					"min_value":    JsonMap{"value": float64(1)},
+					"max_value":    JsonMap{"value": float64(1)},
+					"doc_count":    4,
+					"sample_count": JsonMap{"value": 4},
+					"top_values": JsonMap{
+						"buckets": []JsonMap{
+							{"key": &oneFloat32, "doc_count": uint64(2)},
+							{"key": nil, "doc_count": uint64(2)},
+						},
+						"sum_other_doc_count":         0,
+						"doc_count_error_upper_bound": 0,
+					},
+				},
+			},
+		},
+		{
+			name: "2 buckets, first null second float32",
+			rows: []model.QueryResultRow{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", nil), model.NewQueryResultCol("doc_count", uint64(5))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", float32(5.5)), model.NewQueryResultCol("doc_count", uint64(2))}},
+			},
+			wantedAggregationMap: JsonMap{
+				"sample": JsonMap{
+					"min_value":    JsonMap{"value": 5.5},
+					"max_value":    JsonMap{"value": 5.5},
+					"doc_count":    7,
+					"sample_count": JsonMap{"value": 7},
+					"top_values": JsonMap{
+						"buckets": []JsonMap{
+							{"key": nil, "doc_count": uint64(5)},
+							{"key": float32(5.5), "doc_count": uint64(2)},
+						},
+						"sum_other_doc_count":         0,
+						"doc_count_error_upper_bound": 0,
+					},
+				},
+			},
+		},
+	}
+	for i, tt := range testcases {
+		t.Run(strconv.Itoa(i)+tt.name, func(t *testing.T) {
+			searchResp := cw.makeSearchResponseFacets(tt.rows, model.FacetsNumeric)
+			assert.True(t, reflect.DeepEqual(searchResp.Aggregations, tt.wantedAggregationMap))
+		})
 	}
 }
 

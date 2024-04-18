@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/kibana"
 	"mitmproxy/quesma/logger"
@@ -198,32 +197,49 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.
 	}
 
 	if typ == model.FacetsNumeric {
-		if len(ResultSet) == 0 {
+		firstNotNullValueIndex := 0
+		for i, row := range ResultSet {
+			if row.Cols[model.ResultColKeyIndex].Value != nil {
+				firstNotNullValueIndex = i
+				break
+			}
+		}
+		if firstNotNullValueIndex == len(ResultSet) {
 			aggregations["sample"].(JsonMap)["min_value"] = nil
 			aggregations["sample"].(JsonMap)["max_value"] = nil
 		} else {
-			switch ResultSet[0].Cols[model.ResultColKeyIndex].Value.(type) {
+			// Loops below might be a bit slow, as we check types in every iteration.
+			// If we see performance issues, we might do separate loop for each type, but it'll be a lot of copy-paste.
+			switch ResultSet[firstNotNullValueIndex].Cols[model.ResultColKeyIndex].Value.(type) {
 			case int64, uint64, *int64, *uint64, int8, uint8, *int8, *uint8, int16, uint16, *int16, *uint16, int32, uint32, *int32, *uint32:
-				var minValue, maxValue = int64(math.MaxInt), int64(math.MinInt)
-				for _, row := range ResultSet {
-					value := util.ExtractInt64(row.Cols[model.ResultColKeyIndex].Value)
-					maxValue = max(maxValue, value)
-					minValue = min(minValue, value)
+				firstNotNullValue := util.ExtractInt64(ResultSet[firstNotNullValueIndex].Cols[model.ResultColKeyIndex].Value)
+				minValue, maxValue := firstNotNullValue, firstNotNullValue
+				for _, row := range ResultSet[firstNotNullValueIndex+1:] {
+					if row.Cols[model.ResultColKeyIndex].Value != nil {
+						value := util.ExtractInt64(row.Cols[model.ResultColKeyIndex].Value)
+						maxValue = max(maxValue, value)
+						minValue = min(minValue, value)
+					}
 				}
 				aggregations["sample"].(JsonMap)["min_value"] = JsonMap{"value": minValue}
 				aggregations["sample"].(JsonMap)["max_value"] = JsonMap{"value": maxValue}
-			case float64, *float64:
-				var minValue, maxValue = math.MaxFloat64, -math.MaxFloat64
-				for _, row := range ResultSet {
-					value := util.ExtractFloat64(row.Cols[model.ResultColKeyIndex].Value)
-					maxValue = max(maxValue, value)
-					minValue = min(minValue, value)
+			case float64, *float64, float32, *float32:
+				firstNotNullValue := util.ExtractFloat64(ResultSet[firstNotNullValueIndex].Cols[model.ResultColKeyIndex].Value)
+				minValue, maxValue := firstNotNullValue, firstNotNullValue
+				for _, row := range ResultSet[firstNotNullValueIndex+1:] {
+					if row.Cols[model.ResultColKeyIndex].Value != nil {
+						value := util.ExtractFloat64(row.Cols[model.ResultColKeyIndex].Value)
+						maxValue = max(maxValue, value)
+						minValue = min(minValue, value)
+					}
 				}
 				aggregations["sample"].(JsonMap)["min_value"] = JsonMap{"value": minValue}
 				aggregations["sample"].(JsonMap)["max_value"] = JsonMap{"value": maxValue}
 			default:
 				logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type for numeric facet: %T, value: %v",
 					ResultSet[0].Cols[model.ResultColKeyIndex].Value, ResultSet[0].Cols[model.ResultColKeyIndex].Value)
+				aggregations["sample"].(JsonMap)["min_value"] = JsonMap{"value": nil}
+				aggregations["sample"].(JsonMap)["max_value"] = JsonMap{"value": nil}
 			}
 		}
 	}
