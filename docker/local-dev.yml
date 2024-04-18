@@ -8,6 +8,8 @@ services:
       - QUESMA_port=8080
       - QUESMA_logging_path=/var/quesma/logs
       - QUESMA_clickhouse_url=clickhouse://clickhouse:9000
+      - QUESMA_licenseKey=cdd749a3-e777-11ee-bcf8-0242ac150004
+      - QUESMA_mode=dual-write-query-clickhouse
     depends_on:
       clean-clickhouse:
         condition: service_completed_successfully
@@ -20,6 +22,7 @@ services:
       - "8080:8080"
     volumes:
       - ./quesma/logs/:/var/quesma/logs
+      - ../quesma/config.yaml:/config.yaml # mount local config for indices
     restart: unless-stopped
   device-log-generator:
     build: device-log-generator

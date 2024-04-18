@@ -1,0 +1,11 @@
+mode: "dual-write-query-clickhouse"
+licenseKey: "empty-license-key-that-is-just-ci"
+indexes:
+  kibana_sample_data_ecommerce:
+    enabled: true
+  kibana_sample_data_flights:
+    enabled: true
+  kibana_sample_data_logs:
+    enabled: true
+  logs-generic-default:
+    enabled: true

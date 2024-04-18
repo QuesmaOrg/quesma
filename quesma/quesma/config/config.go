@@ -139,16 +139,8 @@ var k = koanf.New(".")
 
 func Load() QuesmaConfiguration {
 	var config QuesmaConfiguration
-	var configPath string
-	if configFileName, isSet := os.LookupEnv(configFileLocationEnvVar); isSet {
-		fmt.Printf("Using config file: %s\n", configFileName)
-		configPath = configFileName
-	} else {
-		configPath = fmt.Sprintf("./%s", defaultConfigFileName)
-	}
-	if err := k.Load(file.Provider(configPath), yaml.Parser()); err != nil {
-		log.Fatalf("error loading config: %v", err)
-	}
+
+	loadConfigFile()
 	if err := k.Load(env.Provider("QUESMA_", ".", func(s string) string {
 		// This enables overriding config values with environment variables. It's case-sensitive, just like the YAML.
 		// Examples:
@@ -168,6 +160,23 @@ func Load() QuesmaConfiguration {
 	}
 	config.configureLicenseKey()
 	return config
+}
+
+func loadConfigFile() {
+	var configPath string
+	if configFileName, isSet := os.LookupEnv(configFileLocationEnvVar); isSet {
+		configPath = configFileName
+	} else {
+		configPath = defaultConfigFileName
+	}
+	fmt.Printf("Using config file: [%s]\n", configPath)
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		fmt.Printf("Error loading config file [%v], proceeding without it...\n", err)
+		return
+	}
+	if err := k.Load(file.Provider(configPath), yaml.Parser()); err != nil {
+		log.Fatalf("error loading config: %v", err)
+	}
 }
 
 func (c *QuesmaConfiguration) Validate() error {

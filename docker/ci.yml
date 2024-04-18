@@ -4,6 +4,7 @@ services:
     build: ../quesma
     image: quesma:latest
     environment:
+      - QUESMA_CONFIG_FILE=/mnt/ci-config.yaml
       - QUESMA_elasticsearch_url=http://elasticsearch:9200
       - QUESMA_port=8080
       - QUESMA_logging_path=/var/quesma/logs
@@ -21,6 +22,7 @@ services:
       - "9200:8080"
     volumes:
       - ./quesma/logs/:/var/quesma/logs
+      - ./quesma/config/ci-config.yaml:/mnt/ci-config.yaml
     restart: unless-stopped
   log-generator:
     build: log-generator
