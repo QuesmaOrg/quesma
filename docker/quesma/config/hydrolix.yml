@@ -3,8 +3,6 @@ port: 8080  # public tcp port to listen for incoming traffic
 licenseKey: "cdd749a3-e777-11ee-bcf8-0242ac150004"
 elasticsearch:
   url: "http://localhost:9200"
-clickhouse:
-  url: "clickhouse://localhost:9000"
 logging:
   path: "logs"
   level: "info"

@@ -11,7 +11,8 @@ services:
       - QUESMA_hydrolix_user=${HYDROLIX_USER}
       - QUESMA_hydrolix_password=${HYDROLIX_PASSWORD}
       - QUESMA_hydrolix_database=${HYDROLIX_DATABASE}
-      #- QUESMA_CONFIG_FILE=${HYDROLIX_FILE}  ## looks like for now there's no need for separate config file
+      #- QUESMA_licenseKey=cdd749a3-e777-11ee-bcf8-0242ac150004
+      - QUESMA_CONFIG_FILE=${HYDROLIX_FILE}  ## looks like for now there's no need for separate config file
     depends_on:
       elasticsearch:
         condition: service_healthy

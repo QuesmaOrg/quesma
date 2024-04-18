@@ -8,6 +8,7 @@ services:
       - QUESMA_port=8080
       - QUESMA_logging_path=/var/quesma/logs
       - QUESMA_clickhouse_url=clickhouse://clickhouse:9000
+      - QUESMA_CONFIG_FILE=/config/local-dev.yaml
     depends_on:
       clickhouse:
         condition: service_healthy
@@ -20,6 +21,7 @@ services:
       - "8080:8080"
     volumes:
       - ./quesma/logs/:/var/quesma/logs
+      - ./quesma/config:/config # mount local config for indices
     restart: unless-stopped
   device-log-generator:
     build: device-log-generator
