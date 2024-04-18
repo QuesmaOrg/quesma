@@ -1,8 +1,8 @@
 package lucene
 
 import (
+	"fmt"
 	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/queryparser"
 	"strconv"
 )
 
@@ -76,7 +76,7 @@ func (v rangeValue) toSQL(fieldName string) string {
 		} else {
 			operator = ">"
 		}
-		left = strconv.Quote(fieldName) + " " + operator + " " + queryparser.Sprint(v.lowerBound)
+		left = fmt.Sprintf("%s %s '%v'", strconv.Quote(fieldName), operator, v.lowerBound)
 	}
 	if v.upperBound != unbounded {
 		if v.upperBoundInclusive {
@@ -84,7 +84,7 @@ func (v rangeValue) toSQL(fieldName string) string {
 		} else {
 			operator = "<"
 		}
-		right = strconv.Quote(fieldName) + " " + operator + " " + queryparser.Sprint(v.upperBound)
+		right = fmt.Sprintf("%s %s '%v'", strconv.Quote(fieldName), operator, v.upperBound)
 	}
 	if left != "" && right != "" {
 		return "(" + left + " AND " + right + ")"

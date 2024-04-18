@@ -172,7 +172,8 @@ func TestSearchHandler(t *testing.T) {
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
 			managementConsole := ui.NewQuesmaManagementConsole(config.QuesmaConfiguration{}, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())
 			for _, wantedRegex := range tt.WantedRegexes {
-				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
+				mock.ExpectQuery(testdata.EscapeWildcard(testdata.EscapeBrackets(wantedRegex))).
+					WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 			queryRunner := NewQueryRunner()
 			_, _ = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)

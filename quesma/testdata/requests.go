@@ -1146,10 +1146,10 @@ var TestsSearch = []SearchTestCase{
 				}
 			}
 		}`,
-		[]string{`"exception-list-agnostic.list_id" iLIKE '%endpoint_event_filters%'`},
+		[]string{`"exception-list-agnostic.list_id" = 'endpoint_event_filters'`},
 		model.Normal,
-		[]model.Query{justWhere(`"exception-list-agnostic.list_id" iLIKE '%endpoint_event_filters%'`)},
-		[]string{qToStr(justWhere(`"exception-list-agnostic.list_id" iLIKE '%endpoint_event_filters%'`))},
+		[]model.Query{justWhere(`"exception-list-agnostic.list_id" = 'endpoint_event_filters'`)},
+		[]string{qToStr(justWhere(`"exception-list-agnostic.list_id" = 'endpoint_event_filters'`))},
 	},
 	{ // [10]
 		"Simple query string wildcard",
@@ -1172,10 +1172,10 @@ var TestsSearch = []SearchTestCase{
 				}
 			}
 		}`,
-		[]string{`"message" iLIKE '%ingest-agent-policies%'`},
+		[]string{`"message" = 'ingest-agent-policies'`},
 		model.Normal,
-		[]model.Query{justWhere(`"message" iLIKE '%ingest-agent-policies%'`)},
-		[]string{qToStr(justWhere(`"message" iLIKE '%ingest-agent-policies%'`))},
+		[]model.Query{justWhere(`"message" = 'ingest-agent-policies'`)},
+		[]string{qToStr(justWhere(`"message" = 'ingest-agent-policies'`))},
 	},
 	{ // [11]
 		"Simple wildcard",
@@ -1237,7 +1237,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{qToStr(justWhere(`"user" iLIKE 'ki%'`))},
 	},
 	{ // [14]
-		"Query string",
+		"Query string, wildcards don't work properly",
 		`
 		{
 			"query": {
@@ -1249,10 +1249,10 @@ var TestsSearch = []SearchTestCase{
 				}
 			}
 		}`,
-		[]string{`"message" iLIKE '%%%' OR "message" iLIKE '%logged%'`},
+		[]string{`("message" = '*' OR "message" = 'logged')`},
 		model.Normal,
-		[]model.Query{justWhere(`"message" iLIKE '%%%' OR "message" iLIKE '%logged%'`)},
-		[]string{qToStr(justWhere(`"message" iLIKE '%%%' OR "message" iLIKE '%logged%'`))},
+		[]model.Query{justWhere(`("message" = '*' OR "message" = 'logged')`)},
+		[]string{qToStr(justWhere(`("message" = '*' OR "message" = 'logged')`))},
 	},
 	{ // [15]
 		"Empty bool",

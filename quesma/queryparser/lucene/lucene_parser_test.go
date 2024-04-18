@@ -21,17 +21,17 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`"jakarta apache"~10`, `("title" = 'jakarta apache' OR "text" = 'jakarta apache')`},
 		{`mod_date:[2002-01-01 TO 2003-02-15]`, `("mod_date" >= '2002-01-01' AND "mod_date" <= '2003-02-15')`}, // 7
 		{`mod_date:[2002-01-01 TO 2003-02-15}`, `("mod_date" >= '2002-01-01' AND "mod_date" < '2003-02-15')`},
-		{`age:>10`, `"age" > 10`},
-		{`age:>=10`, `"age" >= 10`},
-		{`age:<10`, `"age" < 10`},
-		{`age:<=10.2`, `"age" <= 10.2`},
+		{`age:>10`, `"age" > '10'`},
+		{`age:>=10`, `"age" >= '10'`},
+		{`age:<10`, `"age" < '10'`},
+		{`age:<=10.2`, `"age" <= '10.2'`},
 		{`age:10.2`, `"age" = '10.2'`},
-		{`age:10.2 age2:[12 TO 15] age3:{11 TO *}`, `(("age" = '10.2' OR ("age2" >= 12 AND "age2" <= 15)) OR "age3" > 11)`},
+		{`age:10.2 age2:[12 TO 15] age3:{11 TO *}`, `(("age" = '10.2' OR ("age2" >= '12' AND "age2" <= '15')) OR "age3" > '11')`},
 		{`date:{* TO 2012-01-01} another`, `("date" < '2012-01-01' OR ("title" = 'another' OR "text" = 'another'))`},
 		{`date:{2012-01-15 TO *} another`, `("date" > '2012-01-15' OR ("title" = 'another' OR "text" = 'another'))`},
 		{`date:{* TO *}`, `"date" IS NOT NULL`},
 		{`title:{Aida TO Carmen]`, `("title" > 'Aida' AND "title" <= 'Carmen')`},
-		{`count:[1 TO 5]`, `("count" >= 1 AND "count" <= 5)`}, // 17
+		{`count:[1 TO 5]`, `("count" >= '1' AND "count" <= '5')`}, // 17
 		{`"jakarta apache" AND "Apache Lucene"`, `(("title" = 'jakarta apache' OR "text" = 'jakarta apache') AND ("title" = 'Apache Lucene' OR "text" = 'Apache Lucene'))`},
 		{`NOT status:"jakarta apache"`, `NOT ("status" = 'jakarta apache')`},
 		{`"jakarta apache" NOT "Apache Lucene"`, `(("title" = 'jakarta apache' OR "text" = 'jakarta apache') AND NOT (("title" = 'Apache Lucene' OR "text" = 'Apache Lucene')))`},
@@ -58,7 +58,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`dajhd (%&RY#WFDG`, `(false OR false)`}, // answer seems rather fine for an incorrect query: it'll log an error + return 0 rows
 		{`title[]`, `("title" = 'title[]' OR "text" = 'title[]')`},
 		{`title[ TO ]`, `((("title" = 'title[' OR "text" = 'title[') OR ("title" = 'TO' OR "text" = 'TO')) OR ("title" = ']' OR "text" = ']'))`},
-		{`title:[ TO 2]`, `("title" >= '' AND "title" <= 2)`},
+		{`title:[ TO 2]`, `("title" >= '' AND "title" <= '2')`},
 		{`  title       `, `("title" = 'title' OR "text" = 'title')`},
 		{`  title : (+a -b c)`, `(("title" = '+a' OR "title" = '-b') OR "title" = 'c')`}, // we don't support '+', '-' operators, but in that case the answer seems good enough + nothing crashes
 		{`title:()`, `false`},

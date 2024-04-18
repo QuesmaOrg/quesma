@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/queryparser/lucene"
 	"sort"
 	"strconv"
 	"strings"
@@ -403,7 +404,7 @@ func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) SimpleQuery {
 	if len(queryMap) == 1 {
 		for k, v := range queryMap {
 			cw.AddTokenToHighlight(v)
-			return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+"="+Sprint(v)), true)
+			return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+"="+sprint(v)), true)
 		}
 	}
 	return newSimpleQuery(NewSimpleStatement("invalid term len, != 1"), false)
@@ -422,7 +423,7 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) SimpleQuery {
 			orStmts := make([]Statement, len(vAsArray))
 			for i, v := range vAsArray {
 				cw.AddTokenToHighlight(v)
-				orStmts[i] = NewSimpleStatement(strconv.Quote(k) + "=" + Sprint(v))
+				orStmts[i] = NewSimpleStatement(strconv.Quote(k) + "=" + sprint(v))
 			}
 			return newSimpleQuery(or(orStmts), true)
 		}
@@ -473,7 +474,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 			cw.AddTokenToHighlight(vUnNested)
 
 			// so far we assume that only strings can be ORed here
-			return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" == "+Sprint(vUnNested)), true)
+			return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" == "+sprint(vUnNested)), true)
 		}
 	}
 	return newSimpleQuery(NewSimpleStatement("unsupported match len != 1"), false)
@@ -549,41 +550,27 @@ func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) SimpleQuer
 	return newSimpleQuery(NewSimpleStatement("empty wildcard"), false)
 }
 
-// This one is REALLY complicated (https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html)
-// Supporting 'fields' and 'query' (also, * in 'fields' doesn't support other types than string...)
-// + only '*' in query, no '?' or other regex
+// This one is really complicated (https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html)
+// `query` uses Lucene language, we don't support 100% of it, but most.
 func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) SimpleQuery {
-	orStmts := make([]Statement, 0)
-	if fields, ok := queryMap["fields"]; ok {
-		fieldsAsStrings := cw.extractFields(fields.([]interface{}))
-		for _, field := range fieldsAsStrings {
-			query := queryMap["query"].(string)
-			cw.AddTokenToHighlight(query)
-			for _, qStr := range strings.Split(query, " ") {
-				cw.AddTokenToHighlight(qStr)
-				orStmts = append(orStmts, NewSimpleStatement(strconv.Quote(field)+" iLIKE '%"+strings.ReplaceAll(qStr, "*", "%")+"%'"))
-			}
-		}
+	var fields []string
+	if fieldsRaw, ok := queryMap["fields"]; ok {
+		fields = cw.extractFields(fieldsRaw.([]interface{}))
 	} else {
-		return cw.parseQueryStringField(queryMap["query"].(string))
+		fields = cw.GetFieldsList()
 	}
-	return newSimpleQuery(or(orStmts), true)
-}
 
-// TODO it's a very simple implementation. Implement better if needed.
-func (cw *ClickhouseQueryTranslator) parseQueryStringField(query string) SimpleQuery {
-	split := strings.Split(query, ":")
-	if len(split) != 2 {
-		return newSimpleQuery(NewSimpleStatement("invalid query string"), false)
+	query := queryMap["query"].(string) // query: (Required, string)
+
+	// TODO This highlighting seems not that bad for the first version,
+	// but we probably should improve it, at least a bit
+	cw.AddTokenToHighlight(query)
+	for _, querySubstring := range strings.Split(query, " ") {
+		cw.AddTokenToHighlight(querySubstring)
 	}
-	fieldName, value := split[0], split[1]
-	fieldName = cw.Table.ResolveField(fieldName)
-	if len(value) > 0 && (value[0] == '>' || value[0] == '<') {
-		// to support fieldName>value, <value, etc. We see such request in Kibana
-		return newSimpleQuery(NewSimpleStatement(fieldName+value), true)
-	}
-	cw.AddTokenToHighlight(value)
-	return newSimpleQuery(NewSimpleStatement(fieldName+" iLIKE '%"+value+"%'"), true)
+
+	// we always can parse, with invalid query we return "false"
+	return newSimpleQuery(NewSimpleStatement(lucene.TranslateToSQL(query, fields)), true)
 }
 
 func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) SimpleQuery {
@@ -719,7 +706,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 
 		for op, v := range v.(QueryMap) {
 			fieldType := cw.Table.GetDateTimeType(field)
-			vToPrint := Sprint(v)
+			vToPrint := sprint(v)
 			var fieldToPrint string
 			if !isDatetimeInDefaultFormat {
 				fieldToPrint = "toUnixTimestamp64Milli(" + strconv.Quote(field) + ")"
@@ -884,8 +871,8 @@ func quoteWithBracketsIfCompound(slice []Statement) []Statement {
 	return slice
 }
 
-// Sprint is a helper function to convert interface{} to string in a way that Clickhouse can understand it
-func Sprint(i interface{}) string {
+// sprint is a helper function to convert interface{} to string in a way that Clickhouse can understand it
+func sprint(i interface{}) string {
 	switch i.(type) {
 	case string:
 		return fmt.Sprintf("'%v'", i)
@@ -893,7 +880,7 @@ func Sprint(i interface{}) string {
 		iface := i
 		mapType := iface.(QueryMap)
 		value := mapType["value"]
-		return Sprint(value)
+		return sprint(value)
 	default:
 		return fmt.Sprintf("%v", i)
 	}

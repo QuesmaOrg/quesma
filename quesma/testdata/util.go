@@ -71,3 +71,8 @@ func EscapeBrackets(s string) string {
 	s = strings.ReplaceAll(s, `]`, `\]`)
 	return s
 }
+
+// EscapeWildcard is a simple helper function used in sqlmock's tests. It escapes the wildcard character '*'.
+func EscapeWildcard(s string) string {
+	return strings.ReplaceAll(s, "*", `\*`)
+}

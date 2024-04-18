@@ -15,6 +15,7 @@ import (
 // We don't support:
 // - Fuzzy search (e.g. roam~0.8, ~0.8 is simply removed)
 // - Wildcards ? and * - they are treated as regular characters
+//   (I think I'll add at least some basic support for them quite soon, it's needed for sample dashboards)
 // - escaped " inside quoted fieldnames, so e.g.
 //     * "a\"b" - not supported
 //     * abc"def - supported
@@ -57,6 +58,11 @@ var specialOperators = map[string]token{
 	"NOT ":                   notToken{},
 	string(leftParenthesis):  leftParenthesisToken{},
 	string(rightParenthesis): rightParenthesisToken{},
+}
+
+func TranslateToSQL(query string, fields []string) string {
+	parser := newLuceneParser(fields)
+	return parser.translateToSQL(query)
 }
 
 func (p *luceneParser) translateToSQL(query string) string {

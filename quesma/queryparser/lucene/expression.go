@@ -5,13 +5,13 @@ import (
 	"strings"
 )
 
-// expression is an interface representing a fully parsed (part of) a Lucene query.
+// expression is an interface representing a fully parsed (part of) Lucene query.
 // leafExpression is a smallest part of a query that can be translated into SQL,
 // e.g. "title:abc", or "abc", or "title:(abc OR def)".
 // Expression can be only a part of the query, as e.g. for a query: "title:abc AND text:def",
 // there are two leftExpressions: "title:abc" and "text:def".
 //
-// During parsing, we only keep one expression, because we're combining leafExpression into
+// During parsing, we only keep one expression, because we're combining leafExpressions into
 // a tree of expressions. We keep the lastExpression to combine it with the next one.
 // E.g. "title:abc AND text:def" is parsed into andExpression(title:abc, text:def)".
 
