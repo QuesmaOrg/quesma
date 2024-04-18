@@ -403,7 +403,7 @@ func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) SimpleQuery {
 	if len(queryMap) == 1 {
 		for k, v := range queryMap {
 			cw.AddTokenToHighlight(v)
-			return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+"="+sprint(v)), true)
+			return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+"="+Sprint(v)), true)
 		}
 	}
 	return newSimpleQuery(NewSimpleStatement("invalid term len, != 1"), false)
@@ -422,7 +422,7 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) SimpleQuery {
 			orStmts := make([]Statement, len(vAsArray))
 			for i, v := range vAsArray {
 				cw.AddTokenToHighlight(v)
-				orStmts[i] = NewSimpleStatement(strconv.Quote(k) + "=" + sprint(v))
+				orStmts[i] = NewSimpleStatement(strconv.Quote(k) + "=" + Sprint(v))
 			}
 			return newSimpleQuery(or(orStmts), true)
 		}
@@ -473,7 +473,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 			cw.AddTokenToHighlight(vUnNested)
 
 			// so far we assume that only strings can be ORed here
-			return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" == "+sprint(vUnNested)), true)
+			return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" == "+Sprint(vUnNested)), true)
 		}
 	}
 	return newSimpleQuery(NewSimpleStatement("unsupported match len != 1"), false)
@@ -719,7 +719,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 
 		for op, v := range v.(QueryMap) {
 			fieldType := cw.Table.GetDateTimeType(field)
-			vToPrint := sprint(v)
+			vToPrint := Sprint(v)
 			var fieldToPrint string
 			if !isDatetimeInDefaultFormat {
 				fieldToPrint = "toUnixTimestamp64Milli(" + strconv.Quote(field) + ")"
@@ -884,7 +884,8 @@ func quoteWithBracketsIfCompound(slice []Statement) []Statement {
 	return slice
 }
 
-func sprint(i interface{}) string {
+// Sprint is a helper function to convert interface{} to string in a way that Clickhouse can understand it
+func Sprint(i interface{}) string {
 	switch i.(type) {
 	case string:
 		return fmt.Sprintf("'%v'", i)
@@ -892,7 +893,7 @@ func sprint(i interface{}) string {
 		iface := i
 		mapType := iface.(QueryMap)
 		value := mapType["value"]
-		return sprint(value)
+		return Sprint(value)
 	default:
 		return fmt.Sprintf("%v", i)
 	}
