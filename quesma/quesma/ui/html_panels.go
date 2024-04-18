@@ -277,10 +277,10 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	memStr := fmt.Sprintf("Memory - used: %1.f MB", float64(m.Alloc)/1024.0/1024.0)
+	memStr := fmt.Sprintf("Memory used: %1.f MB", float64(m.Alloc)/1024.0/1024.0)
 	if v, errV := mem.VirtualMemory(); errV == nil {
 		total := float64(v.Total) / 1024.0 / 1024.0 / 1024.0
-		memStr += fmt.Sprintf(", available: %.1f GB", total)
+		memStr += fmt.Sprintf(", avail: %.1f GB", total)
 	}
 	buffer.Html(fmt.Sprintf(`<div class="status">%s</div>`, memStr))
 

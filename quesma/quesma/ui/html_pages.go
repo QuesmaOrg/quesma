@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/stats/errorstats"
@@ -298,7 +299,7 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.Html(`<h3>Admin</h3>`)
+	buffer.Html(`<h3>Admin actions</h3>`)
 	buffer.Html(`<ul>`)
 
 	buffer.Html(`<li><button hx-post="/schema/reload" hx-target="body">Reload Schemas</button></li>`)
@@ -319,9 +320,7 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 
 	buffer.Html("</ol>")
 
-	buffer.Html(`<a href="#quesma-config">Quesma Config</a>`)
-
-	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<h3><a href="#quesma-config">Jump to Quesma Config</a></h3>`)
 
 	buffer.Html("\n</div>")
 
@@ -460,12 +459,15 @@ document.body.addEventListener('htmx:afterSwap', function(event) {
 	buffer.Html(`<h3>Queries with problems</h3>`)
 	buffer.Write(qmc.generateQueriesStatsPanel())
 
-	buffer.Html(`<h3>Useful links</h3>`)
-	buffer.Html(`<ul>`)
-	buffer.Html(`<li><a href="http://localhost:5601/app/observability-log-explorer/">Kibana Log Explorer</a></li>`)
-	buffer.Html(`<li><a href="http://localhost:8081">mitmproxy</a></li>`)
-	buffer.Html(`<li><a href="http://localhost:8123/play">Clickhouse</a></li>`)
-	buffer.Html(`</ul>`)
+	// Don't get foiled by warning, this detects whether it's our development Quesma
+	if buildinfo.LicenseKey == buildinfo.DevelopmentLicenseKey || buildinfo.LicenseKey == "" {
+		buffer.Html(`<h3>Useful links</h3>`)
+		buffer.Html(`<ul>`)
+		buffer.Html(`<li><a href="http://localhost:5601/app/observability-log-explorer/">Kibana Log Explorer</a></li>`)
+		buffer.Html(`<li><a href="http://localhost:8081">mitmproxy</a></li>`)
+		buffer.Html(`<li><a href="http://localhost:8123/play">Clickhouse</a></li>`)
+		buffer.Html(`</ul>`)
+	}
 
 	buffer.Html(`<h3>Details</h3>`)
 	buffer.Html(`<ul>`)

@@ -17,5 +17,5 @@ if [ ! -f "$QUESMA_COMPOSE_FILE" ]; then
 fi
 
 # Get the current git commit hash
-QUESMA_VERSION=$(git rev-parse HEAD)
+QUESMA_VERSION=$(git rev-parse --short HEAD)
 DOCKER_COMPOSE_BUILD_ARGS="--build-arg QUESMA_VERSION=$QUESMA_VERSION"
