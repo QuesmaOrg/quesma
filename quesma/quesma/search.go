@@ -437,7 +437,7 @@ func (q *QueryRunner) storeAsyncResponse(quesmaManagementConsole *ui.QuesmaManag
 	id string, body []byte, translatedQueryBody []byte,
 	startTime time.Time, doneCh chan struct{}) {
 	const isPartial = false
-	asyncSearchResponse := queryparser.SearchToAsyncSearchResponse(searchResponse, id, isPartial)
+	asyncSearchResponse := queryparser.SearchToAsyncSearchResponse(searchResponse, asyncRequestIdStr, isPartial)
 	responseBody, err := asyncSearchResponse.Marshal()
 	quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     id,
