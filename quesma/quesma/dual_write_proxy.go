@@ -14,8 +14,38 @@ import (
 	"mitmproxy/quesma/telemetry"
 	"net/http"
 	"strconv"
+	"sync/atomic"
 	"time"
 )
+
+type simultaneousClientsLimiter struct {
+	counter atomic.Int64
+	handler http.Handler
+	limit   int64
+}
+
+func newSimultaneousClientsLimiter(handler http.Handler, limit int64) *simultaneousClientsLimiter {
+	return &simultaneousClientsLimiter{
+		handler: handler,
+		limit:   limit,
+	}
+}
+
+func (c *simultaneousClientsLimiter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	current := c.counter.Load()
+	// this is hard limit, we should not allow to go over it
+	if current >= c.limit {
+		logger.ErrorWithCtx(r.Context()).Msgf("Too many requests. current: %d, limit: %d", current, c.limit)
+		http.Error(w, "Too many requests", http.StatusServiceUnavailable)
+		return
+	}
+
+	c.counter.Add(1)
+	defer c.counter.Add(-1)
+
+	c.handler.ServeHTTP(w, r)
+}
 
 type dualWriteHttpProxy struct {
 	routingHttpServer   *http.Server
@@ -40,23 +70,27 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaCo
 	}
 	routerInstance := router{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client}
 
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		defer recovery.LogPanic()
+		reqBody, err := peekBody(req)
+		if err != nil {
+			http.Error(w, "Error reading request body", http.StatusInternalServerError)
+			return
+		}
+
+		ua := req.Header.Get("User-Agent")
+		agent.UserAgentCounters().Add(ua, 1)
+
+		routerInstance.reroute(withTracing(req), w, req, reqBody, pathRouter, logManager)
+	})
+
+	limitedHandler := newSimultaneousClientsLimiter(handler, 50) // FIXME this should be configurable
+
 	return &dualWriteHttpProxy{
 		elasticRouter: pathRouter,
 		routingHttpServer: &http.Server{
-			Addr: ":" + strconv.Itoa(int(config.PublicTcpPort)),
-			Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				defer recovery.LogPanic()
-				reqBody, err := peekBody(req)
-				if err != nil {
-					http.Error(w, "Error reading request body", http.StatusInternalServerError)
-					return
-				}
-
-				ua := req.Header.Get("User-Agent")
-				agent.UserAgentCounters().Add(ua, 1)
-
-				routerInstance.reroute(withTracing(req), w, req, reqBody, pathRouter, logManager)
-			}),
+			Addr:    ":" + strconv.Itoa(int(config.PublicTcpPort)),
+			Handler: limitedHandler,
 		},
 		logManager:          logManager,
 		publicPort:          config.PublicTcpPort,
