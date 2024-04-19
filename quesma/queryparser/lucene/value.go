@@ -3,12 +3,21 @@ package lucene
 import (
 	"fmt"
 	"mitmproxy/quesma/logger"
+	"slices"
 	"strconv"
+	"strings"
 )
 
 // value is a part of an expression, representing what we query for (expression without fields for which we query).
 // e.g. for expression "abc", value is "abc", for expression "title:abc", value is also "abc",
 // and for expression "title:(abc OR (def AND ghi))", value is "(abc OR (def AND ghi))".
+
+var wildcards = map[rune]rune{
+	'*': '%',
+	'?': '_',
+}
+
+var specialCharacters = []rune{'+', '-', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\'} // they can be escaped in query string
 
 type value interface {
 	toSQL(fieldName string) string
@@ -23,10 +32,47 @@ func newTermValue(term string) termValue {
 }
 
 func (v termValue) toSQL(fieldName string) string {
+	termAsStringToClickhouse, wildcardsExist := v.transformSpecialCharacters()
+
 	if alreadyQuoted(v.term) {
-		return strconv.Quote(fieldName) + " = '" + v.term[1:len(v.term)-1] + "'"
+		termAsStringToClickhouse = termAsStringToClickhouse[1 : len(termAsStringToClickhouse)-1]
 	}
-	return strconv.Quote(fieldName) + " = '" + v.term + "'"
+	if wildcardsExist {
+		return strconv.Quote(fieldName) + " ILIKE '" + termAsStringToClickhouse + "'"
+	} else {
+		return strconv.Quote(fieldName) + " = '" + termAsStringToClickhouse + "'"
+	}
+}
+
+// transformSpecialCharacters transforms special characters in term to their SQL equivalents.
+// - Removes escaping, so \[special character] -> [special character]
+// - * and ? are transformed to % and _
+func (v termValue) transformSpecialCharacters() (termFinal string, wildcardsExist bool) {
+	strAsRunes := []rune(v.term)
+	var returnTerm strings.Builder
+	for i := 0; i < len(strAsRunes); i++ {
+		curRune := strAsRunes[i]
+		replacement, isWildcard := wildcards[curRune]
+		if isWildcard {
+			wildcardsExist = true
+			returnTerm.WriteRune(replacement)
+			continue
+		}
+
+		if i == len(strAsRunes)-1 {
+			returnTerm.WriteRune(curRune)
+			continue
+		}
+
+		nextRune := strAsRunes[i+1]
+		if curRune == escapeCharacter && slices.Contains(specialCharacters, nextRune) {
+			returnTerm.WriteRune(nextRune)
+			i++
+		} else {
+			returnTerm.WriteRune(curRune)
+		}
+	}
+	return returnTerm.String(), wildcardsExist
 }
 
 type rangeValue struct {

@@ -43,6 +43,17 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`status:(active OR (pending AND in-progress)) title:(full text search)^2`, `(("status" = 'active' OR ("status" = 'pending' AND "status" = 'in-progress')) OR (("title" = 'full' OR "title" = 'text') OR "title" = 'search'))`},
 		{`status:((a OR (b AND c)) AND d)`, `(("status" = 'a' OR ("status" = 'b' AND "status" = 'c')) AND "status" = 'd')`},
 		{`title:(return [Aida TO Carmen])`, `("title" = 'return' OR ("title" >= 'Aida' AND "title" <= 'Carmen'))`},
+		{`host.name:(NOT active OR NOT (pending OR in-progress)) (full text search)^2`, `((NOT ("host.name" = 'active') OR NOT (("host.name" = 'pending' OR "host.name" = 'in-progress'))) OR ((("title" = 'full' OR "title" = 'text') OR "title" = 'search') OR (("text" = 'full' OR "text" = 'text') OR "text" = 'search')))`},
+		{`host.name:(active AND NOT (pending OR in-progress)) hermes nemesis^2`, `((("host.name" = 'active' AND NOT (("host.name" = 'pending' OR "host.name" = 'in-progress'))) OR ("title" = 'hermes' OR "text" = 'hermes')) OR ("title" = 'nemesis' OR "text" = 'nemesis'))`},
+		{`dajhd \(%&RY#WFDG`, `(("title" = 'dajhd' OR "text" = 'dajhd') OR ("title" = '(%&RY#WFDG' OR "text" = '(%&RY#WFDG'))`},
+		// tests for wildcards
+		{`*`, `("title" ILIKE '%' OR "text" ILIKE '%')`},
+		{`*neme*`, `("title" ILIKE '%neme%' OR "text" ILIKE '%neme%')`},
+		{`*nem?* abc:ne*`, `(("title" ILIKE '%nem_%' OR "text" ILIKE '%nem_%') OR "abc" ILIKE 'ne%')`},
+		{`title:(NOT a* AND NOT (b* OR *))`, `(NOT ("title" ILIKE 'a%') AND NOT (("title" ILIKE 'b%' OR "title" ILIKE '%')))`},
+		{`title:abc\*`, `"title" = 'abc*'`},
+		{`title:abc*\*`, `"title" ILIKE 'abc%*'`},
+		{`ab\+c`, `("title" = 'ab+c' OR "text" = 'ab+c')`},
 	}
 	var randomQueriesWithPossiblyIncorrectInput = []struct {
 		query string
@@ -55,7 +66,6 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 		{`title:`, `false`},
 		{`title: abc`, `"title" = 'abc'`},
 		{`title[`, `("title" = 'title[' OR "text" = 'title[')`},
-		{`dajhd (%&RY#WFDG`, `(false OR false)`}, // answer seems rather fine for an incorrect query: it'll log an error + return 0 rows
 		{`title[]`, `("title" = 'title[]' OR "text" = 'title[]')`},
 		{`title[ TO ]`, `((("title" = 'title[' OR "text" = 'title[') OR ("title" = 'TO' OR "text" = 'TO')) OR ("title" = ']' OR "text" = ']'))`},
 		{`title:[ TO 2]`, `("title" >= '' AND "title" <= '2')`},

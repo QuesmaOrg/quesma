@@ -134,7 +134,7 @@ func (p *luceneParser) buildExpression(addDefaultOperator bool) expression {
 	case notToken:
 		currentExpression = newNotExpression(p.buildExpression(false))
 	case leftParenthesisToken:
-		return newLeafExpression(
+		currentExpression = newLeafExpression(
 			p.defaultFieldNames,
 			p.buildValue([]value{}, 1),
 		)

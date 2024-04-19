@@ -1245,14 +1245,14 @@ var TestsSearch = []SearchTestCase{
 					"fields": [
 						"message"
 					],
-					"query": "* logged"
+					"query": "\"* logged\""
 				}
 			}
 		}`,
-		[]string{`("message" = '*' OR "message" = 'logged')`},
+		[]string{`"message" ILIKE '% logged'`},
 		model.Normal,
-		[]model.Query{justWhere(`("message" = '*' OR "message" = 'logged')`)},
-		[]string{qToStr(justWhere(`("message" = '*' OR "message" = 'logged')`))},
+		[]model.Query{justWhere(`"message" ILIKE '% logged'`)},
+		[]string{qToStr(justWhere(`"message" ILIKE '% logged'`))},
 	},
 	{ // [15]
 		"Empty bool",
