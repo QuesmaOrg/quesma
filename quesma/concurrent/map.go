@@ -83,3 +83,8 @@ func (m *Map[K, V]) Keys() []K {
 	})
 	return keys
 }
+
+func (m *Map[K, V]) Has(key K) bool {
+	_, ok := m.Load(key)
+	return ok
+}

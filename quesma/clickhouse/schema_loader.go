@@ -95,6 +95,19 @@ func (sl *schemaLoader) populateTableDefinitions(configuredTables map[string]dis
 		}
 	}
 
+	existing := sl.tableDefinitions.Load()
+	existing.Range(func(key string, _ *Table) bool {
+		if !tableMap.Has(key) {
+			logger.Info().Msgf("table %s is no longer found in the database, ignoring", key)
+		}
+		return true
+	})
+	tableMap.Range(func(key string, _ *Table) bool {
+		if !existing.Has(key) {
+			logger.Info().Msgf("discovered new table: %s", key)
+		}
+		return true
+	})
 	sl.tableDefinitions.Store(&tableMap)
 }
 

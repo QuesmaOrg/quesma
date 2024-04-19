@@ -84,7 +84,7 @@ func (lm *LogManager) Start() {
 			case <-lm.ctx.Done():
 				logger.Debug().Msg("closing log manager")
 				return
-			case <-time.After(1 * time.Second):
+			case <-time.After(1 * time.Minute): // TODO make it configurable
 				lm.schemaLoader.ReloadTables()
 			}
 		}
