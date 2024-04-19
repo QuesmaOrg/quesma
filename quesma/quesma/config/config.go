@@ -183,6 +183,9 @@ func (c *QuesmaConfiguration) Validate() error {
 	var result error
 	// at some point we might move to dedicated validation per each nested object,
 	// e.g. c.Elasticsearch.Validate()
+	if c.PublicTcpPort == 0 { // unmarshalling defaults to 0 if not present
+		result = multierror.Append(result, fmt.Errorf("specifying Quesma TCP port for incoming traffic is required"))
+	}
 	if c.ClickHouse.Url == nil && c.Hydrolix.Url == nil {
 		result = multierror.Append(result, fmt.Errorf("clickHouse or hydrolix URL is required"))
 	}
