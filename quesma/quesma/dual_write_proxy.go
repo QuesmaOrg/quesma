@@ -37,7 +37,7 @@ func (c *simultaneousClientsLimiter) ServeHTTP(w http.ResponseWriter, r *http.Re
 	// this is hard limit, we should not allow to go over it
 	if current >= c.limit {
 		logger.ErrorWithCtx(r.Context()).Msgf("Too many requests. current: %d, limit: %d", current, c.limit)
-		http.Error(w, "Too many requests", http.StatusServiceUnavailable)
+		http.Error(w, "Too many requests", http.StatusTooManyRequests)
 		return
 	}
 
