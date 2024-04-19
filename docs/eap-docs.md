@@ -156,8 +156,9 @@ Some of the notable limitations or unsupported functionalities in this version:
     * For Kibana user, this means that Data View cannot contain multiple indices backed up by different data sources.
     * For Elasticsearch API user, this means that you cannot perform queries like `GET /data_a,data_b/_search`, where `data_a` is in Elasticsearch and `data_b` is ClickHouse table.
 * Specific types of aggregation queries are not supported, 
-e.g. [pipeline aggregations](https://www.elastic.co/guide/en/elasticsearch/reference/8.11/search-aggregations-pipeline.html) or geo-type aggregations. 
-
+e.g. [pipeline aggregations](https://www.elastic.co/guide/en/elasticsearch/reference/8.11/search-aggregations-pipeline.html) or geo-type aggregations.
+* A single Quesma container can process 50 concurrent HTTP requests. More requests would receive an HTTP 429 status code.
+ 
 ## List of supported endpoints
 
 Quesma supports a subset of Elasticsearch API endpoints. 
