@@ -45,9 +45,9 @@ func InitDBConnectionPool(c config.QuesmaConfiguration) *sql.DB {
 	// The default is pretty low. We need to increase it.
 
 	// FIXME this should set in the configuration
-	db.SetMaxIdleConns(10)  // default is 5
-	db.SetMaxOpenConns(100) // default is 10
-	// clean up connections after 5 minutes, before that they may be killed by the firewallś
+	db.SetMaxIdleConns(20) // default is 5
+	db.SetMaxOpenConns(30) // default is 10
+	// clean up connections after 5 minutes, before that they may be killed by the firewall
 	db.SetConnMaxLifetime(time.Duration(5) * time.Minute) // default is 1h
 
 	return db
