@@ -3,7 +3,6 @@ package quesma
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
@@ -91,7 +90,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	if len(resolved) == 0 {
 		if elasticsearch.IsIndexPattern(indexPattern) {
 			if async {
-				return queryparser.EmptyAsyncSearchResponse(id), nil
+				return queryparser.EmptyAsyncSearchResponse(id, false, 200)
 			} else {
 				return queryparser.EmptySearchResponse(), nil
 			}
@@ -253,7 +252,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		return responseBody, err
 	} else {
 		if waitForResultsMs == 0 {
-			return createEmptyAsyncSearchResponse(asyncRequestIdStr, true, 200)
+			return queryparser.EmptyAsyncSearchResponse(asyncRequestIdStr, true, 200)
 		}
 		select {
 		case <-time.After(time.Duration(waitForResultsMs) * time.Millisecond):
@@ -272,34 +271,14 @@ func generateAsyncRequestId() string {
 	return "quesma_async_search_id_" + strconv.FormatInt(asyncRequestId.Add(1), 10)
 }
 
-func createEmptyAsyncSearchResponse(id string, isPartial bool, status int) ([]byte, error) {
-	hits := make([]model.SearchHit, 0) // need to remove count result from hits
-	total := &model.Total{
-		Value: 0,
-	}
-	response := model.AsyncSearchEntireResp{
-		Response: model.SearchResp{
-			Hits: model.SearchHits{
-				Total: total,
-				Hits:  hits,
-			},
-		},
-	}
-	response.ID = &id
-	response.IsPartial = isPartial
-	response.IsRunning = isPartial
-	response.CompletionStatus = &status
-	return json.Marshal(response)
-}
-
 func (q *QueryRunner) handlePartialAsyncSearch(id string, quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
 	if !strings.Contains(id, "quesma_async_search_id_") {
-		return createEmptyAsyncSearchResponse(id, false, 503)
+		return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 	}
 	if result, ok := q.AsyncRequestStorage.Load(id); ok {
 		if result.err != nil {
 			q.AsyncRequestStorage.Delete(id)
-			return createEmptyAsyncSearchResponse(id, false, 503)
+			return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 		}
 		q.AsyncRequestStorage.Delete(id)
 		// We use zstd to conserve memory, as we have a lot of async queries
@@ -309,7 +288,7 @@ func (q *QueryRunner) handlePartialAsyncSearch(id string, quesmaManagementConsol
 		return result.responseBody, nil
 	} else {
 		const isPartial = true
-		return createEmptyAsyncSearchResponse(id, isPartial, 200)
+		return queryparser.EmptyAsyncSearchResponse(id, isPartial, 200)
 	}
 }
 
@@ -427,7 +406,7 @@ func (q *QueryRunner) storeAsyncResponse(quesmaManagementConsole *ui.QuesmaManag
 	id string, body []byte, translatedQueryBody []byte,
 	startTime time.Time, doneCh chan struct{}) {
 	const isPartial = false
-	asyncSearchResponse := queryparser.SearchToAsyncSearchResponse(searchResponse, asyncRequestIdStr, isPartial)
+	asyncSearchResponse := queryparser.SearchToAsyncSearchResponse(searchResponse, asyncRequestIdStr, isPartial, 200)
 	responseBody, err := asyncSearchResponse.Marshal()
 	quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     id,

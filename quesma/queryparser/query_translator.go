@@ -117,11 +117,10 @@ func EmptySearchResponse() []byte {
 	return marshalled
 }
 
-func EmptyAsyncSearchResponse(id string) []byte {
+func EmptyAsyncSearchResponse(id string, isPartial bool, completionStatus int) ([]byte, error) {
 	searchResp := emptySearchResponse()
-	asyncSearchResp := SearchToAsyncSearchResponse(&searchResp, id, false)
-	marshalled, _ := asyncSearchResp.Marshal() // error will never happen here
-	return marshalled
+	asyncSearchResp := SearchToAsyncSearchResponse(&searchResp, id, isPartial, completionStatus)
+	return asyncSearchResp.Marshal() // error will never happen here
 }
 
 func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter) (*model.SearchResp, error) {
@@ -455,7 +454,7 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregationMarshalled(queries [
 	return response.Marshal()
 }
 
-func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncRequestIdStr string, isPartial bool) *model.AsyncSearchEntireResp {
+func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncRequestIdStr string, isPartial bool, completionStatus int) *model.AsyncSearchEntireResp {
 	id := new(string)
 	*id = asyncRequestIdStr
 	response := model.AsyncSearchEntireResp{
@@ -464,9 +463,8 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncRequestI
 		IsPartial: isPartial,
 		IsRunning: isPartial,
 	}
-	if !isPartial {
-		response.CompletionStatus = completionStatusOK
-	}
+
+	response.CompletionStatus = &completionStatus
 	return &response
 }
 
