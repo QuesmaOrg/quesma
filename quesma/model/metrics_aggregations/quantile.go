@@ -2,17 +2,24 @@ package metrics_aggregations
 
 import (
 	"mitmproxy/quesma/model"
+	"strconv"
 	"strings"
 )
 
-type Quantile struct{}
+type Quantile struct {
+	keyed bool // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-aggregation.html#_keyed_response_6
+}
+
+func NewQuantile(keyed bool) Quantile {
+	return Quantile{keyed}
+}
 
 func (query Quantile) IsBucketAggregation() bool {
 	return false
 }
 
 func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
-	valueMap := make(map[string]float64)
+	valueMap := make(model.JsonMap)
 
 	if len(rows) == 0 {
 		return emptyPercentilesResult
@@ -36,9 +43,23 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 		}
 	}
 
-	return []model.JsonMap{{
-		"values": valueMap,
-	}}
+	if query.keyed {
+		return []model.JsonMap{{
+			"values": valueMap,
+		}}
+	} else {
+		var values []model.JsonMap
+		for key, value := range valueMap {
+			keyAsFloat, _ := strconv.ParseFloat(key, 64)
+			values = append(values, model.JsonMap{
+				"key":   keyAsFloat,
+				"value": value,
+			})
+		}
+		return []model.JsonMap{{
+			"values": values,
+		}}
+	}
 }
 
 func (query Quantile) String() string {

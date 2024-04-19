@@ -1,10 +1,13 @@
 package queryparser
 
-import "fmt"
+import (
+	"fmt"
+	"mitmproxy/quesma/model"
+)
 
 const maxPrecision = 0.999999
 
-var DefaultPercentiles = map[string]float64{
+var defaultPercentiles = model.JsonMap{
 	"1.0":  0.01,
 	"5.0":  0.05,
 	"25.0": 0.25,
@@ -14,15 +17,21 @@ var DefaultPercentiles = map[string]float64{
 	"99.0": 0.99,
 }
 
-func (cw *ClickhouseQueryTranslator) parsePercentilesAggregation(queryMap QueryMap) (string, map[string]float64) {
-	var fieldName string
+const keyedDefaultValue = true
+
+func (cw *ClickhouseQueryTranslator) parsePercentilesAggregation(queryMap QueryMap) (fieldName string, keyed bool, percentiles model.JsonMap) {
 	if field, ok := queryMap["field"]; ok {
 		fieldName = cw.Table.ResolveField(field.(string))
+	}
+	if keyedQueryMap, ok := queryMap["keyed"]; ok {
+		keyed = keyedQueryMap.(bool)
+	} else {
+		keyed = keyedDefaultValue
 	}
 
 	if percents, ok := queryMap["percents"]; ok {
 		userInput := percents.([]interface{})
-		userSpecifiedPercents := make(map[string]float64, len(userInput))
+		userSpecifiedPercents := make(model.JsonMap, len(userInput))
 		for _, p := range userInput {
 			asFloat := p.(float64)
 			asString := fmt.Sprintf("%v", asFloat)
@@ -32,8 +41,8 @@ func (cw *ClickhouseQueryTranslator) parsePercentilesAggregation(queryMap QueryM
 			}
 			userSpecifiedPercents[asString] = asFloat
 		}
-		return fieldName, userSpecifiedPercents
+		return fieldName, keyed, userSpecifiedPercents
 	} else {
-		return fieldName, DefaultPercentiles
+		return fieldName, keyed, defaultPercentiles
 	}
 }

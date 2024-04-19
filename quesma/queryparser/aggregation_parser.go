@@ -21,11 +21,12 @@ type aggrQueryBuilder struct {
 
 type metricsAggregation struct {
 	AggrType    string
-	FieldNames  []string           // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
-	Percentiles map[string]float64 // Only for percentiles aggregation
-	SortBy      string             // Only for top_metrics
-	Size        int                // Only for top_metrics
-	Order       string             // Only for top_metrics
+	FieldNames  []string      // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
+	Percentiles model.JsonMap // Only for percentiles aggregation
+	Keyed       bool          // Only for percentiles aggregation
+	SortBy      string        // Only for top_metrics
+	Size        int           // Only for top_metrics
+	Order       string        // Only for top_metrics
 }
 
 func (b *aggrQueryBuilder) buildAggregationCommon() model.QueryWithAggregation {
@@ -139,7 +140,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "cardinality":
 		query.Type = metrics_aggregations.Cardinality{}
 	case "quantile":
-		query.Type = metrics_aggregations.Quantile{}
+		query.Type = metrics_aggregations.NewQuantile(metricsAggr.Keyed)
 	case "top_hits":
 		query.Type = metrics_aggregations.TopHits{}
 	case "top_metrics":
@@ -286,11 +287,12 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 	}
 
 	if percentile, ok := queryMap["percentiles"]; ok {
-		fieldName, percentiles := cw.parsePercentilesAggregation(percentile.(QueryMap))
+		fieldName, keyed, percentiles := cw.parsePercentilesAggregation(percentile.(QueryMap))
 		return metricsAggregation{
 			AggrType:    "quantile",
 			FieldNames:  []string{fieldName},
 			Percentiles: percentiles,
+			Keyed:       keyed,
 		}, true
 	}
 
