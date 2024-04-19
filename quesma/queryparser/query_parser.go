@@ -76,6 +76,11 @@ func (h Highlighter) HighlightValue(value string) []string {
 
 	// find all matches
 	for _, token := range h.Tokens {
+
+		if token == "" {
+			continue
+		}
+
 		pos := 0
 		for pos < length {
 			// token are lower cased already

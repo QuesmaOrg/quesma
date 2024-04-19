@@ -219,6 +219,14 @@ func TestHighLightResults(t *testing.T) {
 			value:      "InvalidPassword",
 			highlights: []string{"<b>Password</b>"},
 		},
+		{
+			name:       "no highlights",
+			tokens:     []string{""},
+			field:      "message",
+			highlight:  true,
+			value:      "InvalidPassword",
+			highlights: []string{},
+		},
 	}
 
 	for _, tt := range tests {
