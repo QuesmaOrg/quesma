@@ -124,7 +124,7 @@ func executeQuery(ctx context.Context, lm *LogManager, tableName string, queryAs
 	rows, err := lm.Query(ctx, queryAsString)
 	if err != nil {
 		span.End(err)
-		return nil, fmt.Errorf("query >> %v", err)
+		return nil, fmt.Errorf("clickhouse: query failed: %v", err)
 	}
 
 	res, err := read(tableName, rows, fields, rowToScan)
@@ -166,7 +166,7 @@ func read(tableName string, rows *sql.Rows, selectFields []string, rowToScan []i
 	for rows.Next() {
 		err := rows.Scan(rowDb...)
 		if err != nil {
-			return nil, fmt.Errorf("scan >> %v", err)
+			return nil, fmt.Errorf("clickhouse: scan failed: %v", err)
 		}
 		resultRow := model.QueryResultRow{Index: tableName, Cols: make([]model.QueryResultCol, len(selectFields))}
 		for i, field := range selectFields {
@@ -175,11 +175,11 @@ func read(tableName string, rows *sql.Rows, selectFields []string, rowToScan []i
 		resultRows = append(resultRows, resultRow)
 	}
 	if rows.Err() != nil {
-		return nil, fmt.Errorf("rows >> %v", rows.Err())
+		return nil, fmt.Errorf("clickhouse: iterating over rows failed:  %v", rows.Err())
 	}
 	err := rows.Close()
 	if err != nil {
-		return nil, fmt.Errorf("close >> %v", err)
+		return nil, fmt.Errorf("clickhouse: closing rows failed: %v", err)
 	}
 	return resultRows, nil
 }

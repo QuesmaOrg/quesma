@@ -3,6 +3,7 @@ package quesma
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/feature"
@@ -140,7 +141,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 				sendElkResponseToQuesmaConsole(ctx, elkRawResponse, r.quesmaManagementConsole)
 			}
 			if !(elkResponse.StatusCode >= 200 && elkResponse.StatusCode < 300) {
-				logger.Warn().Msgf("Elasticsearch returned unexpected status code [%d] when calling [%s %s]", elkResponse.StatusCode, req.Method, req.URL.Path)
+				logger.WarnWithCtx(ctx).Msgf("Elasticsearch returned unexpected status code [%d] when calling [%s %s]", elkResponse.StatusCode, req.Method, req.URL.Path)
 			}
 		}
 
@@ -153,7 +154,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 				unzipped = []byte(quesmaResponse.Body)
 			}
 			if len(unzipped) == 0 {
-				logger.Warn().Ctx(ctx).Str("url", req.URL.Path).Msg("empty response from Clickhouse")
+				logger.WarnWithCtx(ctx).Msg("empty response from Clickhouse")
 			}
 			addProductAndContentHeaders(req.Header, w.Header())
 			for key, value := range quesmaResponse.Meta {
@@ -168,17 +169,25 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 		} else {
 			if elkResponse != nil && r.config.Mode == config.DualWriteQueryClickhouseFallback {
-				logger.Error().Ctx(ctx).Str("url", req.URL.Path).Msgf("Error processing request: %v, responding from Elastic", err)
+				logger.ErrorWithCtx(ctx).Msgf("Error processing request while responding from Elastic: %v", err)
 				copyHeaders(w, elkResponse)
 				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 				w.WriteHeader(elkResponse.StatusCode)
 				responseFromElastic(ctx, elkResponse, w)
 
 			} else {
-				logger.Error().Ctx(ctx).Str("url", req.URL.Path).Msgf("Error processing request: %v, responding from Quesma", err)
+				logger.ErrorWithCtx(ctx).Msgf("Error processing request while responding from Quesma: %v", err)
 				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
 				w.WriteHeader(500)
-				responseFromQuesma(ctx, []byte(err.Error()), w, elkResponse, zip)
+
+				requestId := "n/a"
+				if contextRid, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
+					requestId = contextRid
+				}
+
+				// We should not send our error message to the client. There can be sensitive information in it.
+				// We will send ID of failed request instead
+				responseFromQuesma(ctx, []byte(fmt.Sprintf("Internal server error. Request ID: %s\n", requestId)), w, elkResponse, zip)
 			}
 		}
 	} else {
