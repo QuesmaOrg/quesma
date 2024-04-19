@@ -232,8 +232,8 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	}
 
 	// 3. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
-	bucketAggrPresent, addedNonSchemaField := cw.tryBucketAggregation(currentAggr, queryMap)
-	if addedNonSchemaField {
+	bucketAggrPresent, nonSchemaFieldsAddedCount, groupByFieldsAddecCount := cw.tryBucketAggregation(currentAggr, queryMap)
+	if nonSchemaFieldsAddedCount > 0 {
 		currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Empty = false
 	}
 
@@ -260,9 +260,11 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	if filterOnThisLevel {
 		currentAggr.whereBuilder = whereBeforeNesting
 	}
-	if addedNonSchemaField && len(currentAggr.GroupByFields) > 0 {
-		currentAggr.GroupByFields = currentAggr.GroupByFields[:len(currentAggr.GroupByFields)-1]
-		currentAggr.NonSchemaFields = currentAggr.NonSchemaFields[:len(currentAggr.NonSchemaFields)-1]
+	if nonSchemaFieldsAddedCount > 0 {
+		currentAggr.NonSchemaFields = currentAggr.NonSchemaFields[:len(currentAggr.NonSchemaFields)-nonSchemaFieldsAddedCount]
+	}
+	if groupByFieldsAddecCount > 0 {
+		currentAggr.GroupByFields = currentAggr.GroupByFields[:len(currentAggr.GroupByFields)-groupByFieldsAddecCount]
 	}
 	currentAggr.Type = queryTypeBeforeNesting
 }
@@ -339,8 +341,8 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 // * 'success': was it bucket aggreggation?
 // * 'nonSchemaFieldAdded': did we add a non-schema field to 'currentAggr', if it turned out to be bucket aggregation? If we did, we need to know, to remove it later.
 func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQueryBuilder, queryMap QueryMap) (
-	success bool, nonSchemaFieldAdded bool) {
-	success, nonSchemaFieldAdded = true, true // returned in most cases
+	success bool, nonSchemaFieldsAddedCount, groupByFieldsAddedCount int) {
+	success = true // returned in most cases
 	if histogram, ok := queryMap["histogram"]; ok {
 		currentAggr.Type = bucket_aggregations.Histogram{}
 		fieldName := strconv.Quote(cw.Table.ResolveField(histogram.(QueryMap)["field"].(string)))
@@ -366,7 +368,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.GroupByFields = append(currentAggr.GroupByFields, groupByStr)
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
 		delete(queryMap, "histogram")
-		return
+		return success, 1, 1
 	}
 	if dateHistogram, ok := queryMap["date_histogram"]; ok {
 		currentAggr.Type = bucket_aggregations.DateHistogram{Interval: cw.extractInterval(dateHistogram.(QueryMap))}
@@ -374,7 +376,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.GroupByFields = append(currentAggr.GroupByFields, histogramPartOfQuery)
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, histogramPartOfQuery)
 		delete(queryMap, "date_histogram")
-		return
+		return success, 1, 1
 	}
 	if terms, ok := queryMap["terms"]; ok {
 		currentAggr.Type = bucket_aggregations.Terms{}
@@ -382,9 +384,23 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
 		delete(queryMap, "terms")
-		return
+		return success, 1, 1
 	}
-	nonSchemaFieldAdded = false
+	if Range, ok := queryMap["range"]; ok {
+		rangeParsed := cw.parseRangeAggregation(Range.(QueryMap))
+		currentAggr.Type = rangeParsed
+		if rangeParsed.Keyed {
+			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Keyed = true
+		}
+		for _, interval := range rangeParsed.Intervals {
+			currentAggr.NonSchemaFields = append(
+				currentAggr.NonSchemaFields,
+				interval.ToSQLSelectQuery(rangeParsed.QuotedFieldName),
+			)
+		}
+		delete(queryMap, "range")
+		return success, len(rangeParsed.Intervals), 0
+	}
 	if _, ok := queryMap["sampler"]; ok {
 		currentAggr.Type = metrics_aggregations.Count{}
 		delete(queryMap, "sampler")
@@ -398,14 +414,6 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		delete(queryMap, "random_sampler")
 		return
 	}
-	if Range, ok := queryMap["range"]; ok {
-		currentAggr.whereBuilder = cw.combineWheres(
-			currentAggr.whereBuilder,
-			cw.parseRange(Range.(QueryMap)),
-		)
-		delete(queryMap, "range")
-		return
-	}
 	if Bool, ok := queryMap["bool"]; ok {
 		currentAggr.whereBuilder = cw.combineWheres(
 			currentAggr.whereBuilder,
@@ -416,6 +424,32 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	}
 	success = false
 	return
+}
+
+func (cw *ClickhouseQueryTranslator) parseRangeAggregation(rangePart QueryMap) bucket_aggregations.Range {
+	fieldName := cw.Table.ResolveField(rangePart["field"].(string))
+	ranges := rangePart["ranges"].([]interface{})
+	intervals := make([]bucket_aggregations.Interval, 0, len(ranges))
+	for _, Range := range ranges {
+		rangePartMap := Range.(QueryMap)
+		var from, to float64
+		if fromRaw, ok := rangePartMap["from"]; ok {
+			from = fromRaw.(float64)
+		} else {
+			from = bucket_aggregations.IntervalInfiniteRange
+		}
+		if toRaw, ok := rangePartMap["to"]; ok {
+			to = toRaw.(float64)
+		} else {
+			to = bucket_aggregations.IntervalInfiniteRange
+		}
+		intervals = append(intervals, bucket_aggregations.NewInterval(from, to))
+	}
+	if keyed, exists := rangePart["keyed"]; exists {
+		return bucket_aggregations.NewRange(strconv.Quote(fieldName), intervals, keyed.(bool))
+	} else {
+		return bucket_aggregations.NewRangeWithDefaultKeyed(strconv.Quote(fieldName), intervals)
+	}
 }
 
 func (cw *ClickhouseQueryTranslator) combineWheres(where1, where2 SimpleQuery) SimpleQuery {

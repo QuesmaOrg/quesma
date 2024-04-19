@@ -400,6 +400,8 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 	// so I don't need buckets). It'd enable some custom handling for another weird types of requests.
 	if query.Aggregators[aggregatorsLevel].Empty {
 		subResult = bucketsReturnMap[0]
+	} else if query.Aggregators[aggregatorsLevel].Keyed {
+		subResult["buckets"] = bucketsReturnMap[0]
 	} else {
 		subResult["buckets"] = bucketsReturnMap
 	}

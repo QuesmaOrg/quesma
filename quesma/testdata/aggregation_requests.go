@@ -3368,4 +3368,211 @@ var AggregationTests = []AggregationTestCase{
 			`SELECT count() FROM ` + quotedTableName + ` WHERE toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 AND toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12 `,
 		},
 	},
+	{ // [21]
+		TestName: `range bucket aggregation, both keyed and not`,
+		QueryRequestJson: `{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"range": {
+						"field": "bytes_gauge",
+						"keyed": true,
+						"ranges": [
+							{
+								"from": 0,
+								"to": 1000
+							},
+							{
+								"from": 1000,
+								"to": 2000
+							},
+							{
+								"from": -5.5
+							},
+							{
+								"to": 6.555
+							},
+							{
+							}
+						]
+					}
+				},
+				"3": {
+					"range": {
+						"field": "bytes_gauge",
+						"ranges": [
+							{
+								"from": 0,
+								"to": 1000
+							},
+							{
+								"from": 1000,
+								"to": 2000
+							},
+							{
+								"from": -5.5
+							},
+							{
+								"to": 6.555
+							},
+							{
+							}
+						]
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "epoch_time",
+					"format": "date_time"
+				},
+				{
+					"field": "ts_time_druid",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"match_all": {}
+						},
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-04-16T12:15:11.790Z",
+									"lte": "2024-04-16T12:30:11.790Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `{
+			"is_partial": false,
+			"is_running": false,
+			"start_time_in_millis": 1711263722921,
+			"expiration_time_in_millis": 1711695722921,
+			"completion_time_in_millis": 1711263722955,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"2": {
+						"buckets": {
+							"0.0-1000.0": {
+								"doc_count": 1,
+								"from": 0.0,
+								"to": 1000.0
+							},
+							"1000.0-2000.0": {
+								"doc_count": 0,
+								"from": 1000.0,
+								"to": 2000.0
+							},
+							"-5.5-*": {
+								"doc_count": 5,
+								"from": -5.5
+							},
+							"*-6.555": {
+								"doc_count": 6,
+								"to": 6.555
+							},
+							"*-*": {
+								"doc_count": 10
+							}
+						}
+					},
+					"3": {
+						"buckets": [
+							{
+								"doc_count": 1,
+								"from": 0.0,
+								"to": 1000.0,
+								"key": "0.0-1000.0" 
+							},
+							{
+								"doc_count": 0,
+								"from": 1000.0,
+								"to": 2000.0,
+								"key": "1000.0-2000.0"
+							},
+							{
+								"doc_count": 5,
+								"from": -5.5,
+								"key": "-5.5-*"
+							},
+							{
+								"doc_count": 6,
+								"to": 6.555,
+								"key": "*-6.555"
+							},
+							{
+								"doc_count": 10,
+								"key": "*-*"
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 1
+					}
+				},
+				"timed_out": false,
+				"took": 123
+			}
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1634))}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("value", 1),
+				model.NewQueryResultCol("value", 0),
+				model.NewQueryResultCol("value", 5),
+				model.NewQueryResultCol("value", 6),
+				model.NewQueryResultCol("value", 10),
+				model.NewQueryResultCol("value", 1),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("value", 1),
+				model.NewQueryResultCol("value", 0),
+				model.NewQueryResultCol("value", 5),
+				model.NewQueryResultCol("value", 6),
+				model.NewQueryResultCol("value", 10),
+				model.NewQueryResultCol("value", 1),
+			}}},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + quotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z') `,
+			`SELECT count(if("bytes_gauge">=0 AND "bytes_gauge"<1000, 1, NULL)), ` +
+				`count(if("bytes_gauge">=1000 AND "bytes_gauge"<2000, 1, NULL)), ` +
+				`count(if("bytes_gauge">=-5.5, 1, NULL)), ` +
+				`count(if("bytes_gauge"<6.555, 1, NULL)), ` +
+				`count(), count() FROM ` + quotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z') `,
+			`SELECT count(if("bytes_gauge">=0 AND "bytes_gauge"<1000, 1, NULL)), ` +
+				`count(if("bytes_gauge">=1000 AND "bytes_gauge"<2000, 1, NULL)), ` +
+				`count(if("bytes_gauge">=-5.5, 1, NULL)), ` +
+				`count(if("bytes_gauge"<6.555, 1, NULL)), ` +
+				`count(), count() FROM ` + quotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z') `,
+		},
+	},
 }
