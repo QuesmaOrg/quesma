@@ -2,10 +2,53 @@ package clickhouse
 
 import (
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/util"
 	"strings"
+	"sync/atomic"
 )
 
-func populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, lm *LogManager) {
+type schemaLoader struct {
+	cfg              config.QuesmaConfiguration
+	SchemaManagement *SchemaManagement
+	tableDefinitions *atomic.Pointer[TableMap]
+}
+
+func (sl *schemaLoader) ReloadTables() {
+	logger.Debug().Msg("reloading tables definitions")
+	configuredTables := make(map[string]discoveredTable)
+	databaseName := "default"
+	if sl.cfg.ClickHouse.Database != "" {
+		databaseName = sl.cfg.ClickHouse.Database
+	}
+	if tables, err := sl.SchemaManagement.readTables(databaseName); err != nil {
+		logger.Error().Msgf("could not describe tables: %v", err)
+		return
+	} else {
+		for table, columns := range tables {
+			if indexConfig, found := sl.cfg.IndexConfig[table]; found {
+				if indexConfig.Enabled {
+					for colName := range columns {
+						if _, exists := indexConfig.Aliases[colName]; exists {
+							logger.Error().Msgf("column [%s] clashes with an existing alias, table [%s]", colName, table)
+						}
+					}
+					configuredTables[table] = discoveredTable{columns, indexConfig}
+				} else {
+					logger.Debug().Msgf("table '%s' is disabled\n", table)
+				}
+			} else {
+				logger.Info().Msgf("table '%s' not configured explicitly\n", table)
+			}
+		}
+	}
+
+	logger.Debug().Msgf("discovered tables: [%s]", strings.Join(util.MapKeys(configuredTables), ","))
+
+	sl.populateTableDefinitions(configuredTables, databaseName, sl.cfg)
+}
+
+func (sl *schemaLoader) populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, cfg config.QuesmaConfiguration) {
 	tableMap := withPredefinedTables()
 	for tableName, resTable := range configuredTables {
 		var columnsMap = make(map[string]*Column)
@@ -39,21 +82,24 @@ func populateTableDefinitions(configuredTables map[string]discoveredTable, datab
 					preferCastingToOthers:                 true,
 				},
 			}
-			if lm.containsAttributes(resTable.columnTypes) {
+			if containsAttributes(resTable.columnTypes) {
 				table.Config.attributes = []Attribute{NewDefaultStringAttribute()}
 			}
 
-			table.applyIndexConfig(lm.cfg)
-
+			table.applyIndexConfig(cfg)
 			tableMap.Store(tableName, &table)
 
-			logger.Info().Msgf("schema for table [%s] loaded", tableName)
+			logger.Debug().Msgf("schema for table [%s] loaded", tableName)
 		} else {
 			logger.Warn().Msgf("table %s not fully resolved, skipping", tableName)
 		}
 	}
 
-	lm.tableDefinitions.Store(&tableMap)
+	sl.tableDefinitions.Store(&tableMap)
+}
+
+func (sl *schemaLoader) TableDefinitions() *TableMap {
+	return sl.tableDefinitions.Load()
 }
 
 func resolveColumn(colName, colType string) *Column {
@@ -159,7 +205,7 @@ func isNullableType(colType string) bool {
 	return strings.HasPrefix(colType, "Nullable(")
 }
 
-func (lm *LogManager) containsAttributes(cols map[string]string) bool {
+func containsAttributes(cols map[string]string) bool {
 	hasAttributesKey := false
 	hasAttributesValues := false
 	for col, colType := range cols {

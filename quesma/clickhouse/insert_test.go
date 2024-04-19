@@ -160,7 +160,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 							assert.Contains(t, tt.createTableLines, line)
 						}
 					}
-					logManagerEmpty := lm.lm.tableDefinitions.Load().Size() == 0
+					logManagerEmpty := lm.lm.schemaLoader.TableDefinitions().Size() == 0
 
 					// check if we properly create table in our tables table :) (:) suggested by Copilot) if needed
 					tableInMemory := lm.lm.FindTable(tableName)
@@ -177,13 +177,13 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					assert.True(t, tableInMemory.Created)
 
 					// and we have a schema in memory in every case
-					assert.Equal(t, 1, lm.lm.tableDefinitions.Load().Size())
+					assert.Equal(t, 1, lm.lm.schemaLoader.TableDefinitions().Size())
 
 					// and that schema in memory is what it should be (predefined, if it was predefined, new if it was new)
-					resolvedTable, _ := lm.lm.tableDefinitions.Load().Load(tableName)
+					resolvedTable, _ := lm.lm.schemaLoader.TableDefinitions().Load(tableName)
 					if logManagerEmpty {
 						assert.Equal(t, 6+2*len(config.attributes), len(resolvedTable.Cols))
-					} else if lm.lm.tableDefinitions.Load().Size() > 0 {
+					} else if lm.lm.schemaLoader.TableDefinitions().Size() > 0 {
 						assert.Equal(t, 4, len(resolvedTable.Cols))
 					} else {
 						assert.Equal(t, 4, len(resolvedTable.Cols))
@@ -208,13 +208,13 @@ func TestProcessInsertQuery(t *testing.T) {
 					// info: result values aren't important, this '.WillReturnResult[...]' just needs to be there
 					if !lm.tableAlreadyCreated {
 						// we check here if we try to create table from predefined schema, not from insert's JSON
-						if lm.lm.tableDefinitions.Load().Size() > 0 {
+						if lm.lm.schemaLoader.TableDefinitions().Size() > 0 {
 							mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName + `.*non-insert-field`).WillReturnResult(sqlmock.NewResult(0, 0))
 						} else {
 							mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))
 						}
 					}
-					if len(config.attributes) == 0 || (lm.lm.tableDefinitions.Load().Size() == 0) {
+					if len(config.attributes) == 0 || (lm.lm.schemaLoader.TableDefinitions().Size() == 0) {
 						mock.ExpectExec(expectedInserts[2*index1]).WillReturnResult(sqlmock.NewResult(545, 54))
 					} else {
 						mock.ExpectExec(expectedInserts[2*index1+1]).WillReturnResult(sqlmock.NewResult(1, 1))
@@ -276,7 +276,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 			lm.chDb = db
 			var ptr = atomic.Pointer[TableMap]{}
 			ptr.Store(tableMapNoSchemaFields)
-			lm.tableDefinitions = &ptr
+			lm.schemaLoader.tableDefinitions = &ptr
 			defer db.Close()
 
 			mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))

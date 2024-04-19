@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strings"
 	"sync/atomic"
+	"time"
 )
 
 const (
@@ -26,11 +27,12 @@ const (
 
 type (
 	LogManager struct {
-		chDb             *sql.DB
-		schemaManagement *SchemaManagement
-		tableDefinitions *atomic.Pointer[TableMap]
-		cfg              config.QuesmaConfiguration
-		phoneHomeAgent   telemetry.PhoneHomeAgent
+		ctx            context.Context
+		cancel         context.CancelFunc
+		chDb           *sql.DB
+		schemaLoader   *schemaLoader
+		cfg            config.QuesmaConfiguration
+		phoneHomeAgent telemetry.PhoneHomeAgent
 	}
 	TableMap  = concurrent.Map[string, *Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -72,7 +74,25 @@ func (lm *LogManager) Start() {
 		logger.Error().Msgf("could not connect to clickhouse. error: %v", err)
 	}
 
-	lm.ReloadTables()
+	lm.schemaLoader.ReloadTables()
+
+	logger.Info().Msgf("schemas loaded: %s", lm.schemaLoader.TableDefinitions().Keys())
+
+	go func() {
+		for {
+			select {
+			case <-lm.ctx.Done():
+				logger.Debug().Msg("closing log manager")
+				return
+			case <-time.After(1 * time.Second):
+				lm.schemaLoader.ReloadTables()
+			}
+		}
+	}()
+}
+
+func (lm *LogManager) Stop() {
+	lm.cancel()
 }
 
 type discoveredTable struct {
@@ -82,36 +102,7 @@ type discoveredTable struct {
 
 func (lm *LogManager) ReloadTables() {
 	logger.Info().Msg("reloading tables definitions")
-	configuredTables := make(map[string]discoveredTable)
-	databaseName := "default"
-	if lm.cfg.ClickHouse.Database != "" {
-		databaseName = lm.cfg.ClickHouse.Database
-	}
-	if tables, err := lm.schemaManagement.readTables(databaseName); err != nil {
-		logger.Error().Msgf("could not describe tables: %v", err)
-		return
-	} else {
-		for table, columns := range tables {
-			if indexConfig, found := lm.cfg.IndexConfig[table]; found {
-				if indexConfig.Enabled {
-					for colName := range columns {
-						if _, exists := indexConfig.Aliases[colName]; exists {
-							logger.Error().Msgf("column [%s] clashes with an existing alias, table [%s]", colName, table)
-						}
-					}
-					configuredTables[table] = discoveredTable{columns, indexConfig}
-				} else {
-					logger.Debug().Msgf("table '%s' is disabled\n", table)
-				}
-			} else {
-				logger.Info().Msgf("table '%s' not configured explicitly\n", table)
-			}
-		}
-	}
-
-	logger.Info().Msgf("discovered tables: [%s]", strings.Join(util.MapKeys(configuredTables), ","))
-
-	populateTableDefinitions(configuredTables, databaseName, lm)
+	lm.schemaLoader.ReloadTables()
 }
 
 func (lm *LogManager) Close() {
@@ -131,7 +122,7 @@ func (lm *LogManager) matchIndex(indexNamePattern, indexName string) bool {
 // Indexes can be in a form of wildcard, e.g. "index-*"
 // If we have such index, we need to resolve it to a real table name.
 func (lm *LogManager) ResolveTableName(index string) (result string) {
-	lm.tableDefinitions.Load().
+	lm.schemaLoader.TableDefinitions().
 		Range(func(k string, v *Table) bool {
 			if lm.matchIndex(index, k) {
 				result = k
@@ -151,7 +142,7 @@ func (lm *LogManager) ResolveIndexes(patterns string) (results []string) {
 	if strings.Contains(patterns, ",") {
 		for _, pattern := range strings.Split(patterns, ",") {
 			if pattern == elasticsearch.AllIndexesAliasIndexName || pattern == "" {
-				results = lm.tableDefinitions.Load().Keys()
+				results = lm.schemaLoader.TableDefinitions().Keys()
 				slices.Sort(results)
 				return results
 			} else {
@@ -160,11 +151,11 @@ func (lm *LogManager) ResolveIndexes(patterns string) (results []string) {
 		}
 	} else {
 		if patterns == elasticsearch.AllIndexesAliasIndexName || len(patterns) == 0 {
-			results = lm.tableDefinitions.Load().Keys()
+			results = lm.schemaLoader.TableDefinitions().Keys()
 			slices.Sort(results)
 			return results
 		} else {
-			lm.tableDefinitions.Load().
+			lm.schemaLoader.TableDefinitions().
 				Range(func(tableName string, v *Table) bool {
 					if lm.matchIndex(patterns, tableName) {
 						results = append(results, tableName)
@@ -446,7 +437,7 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []stri
 
 func (lm *LogManager) FindTable(tableName string) (result *Table) {
 	tableNamePattern := index.TableNamePatternRegexp(tableName)
-	lm.tableDefinitions.Load().
+	lm.schemaLoader.TableDefinitions().
 		Range(func(name string, table *Table) bool {
 			if tableNamePattern.MatchString(name) {
 				result = table
@@ -459,7 +450,7 @@ func (lm *LogManager) FindTable(tableName string) (result *Table) {
 }
 
 func (lm *LogManager) GetTableDefinitions() TableMap {
-	return *lm.tableDefinitions.Load()
+	return *lm.schemaLoader.TableDefinitions()
 }
 
 // Returns if schema wasn't created (so it needs to be, and will be in a moment)
@@ -470,7 +461,7 @@ func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
 
 		table.applyIndexConfig(lm.cfg)
 
-		lm.tableDefinitions.Load().Store(table.Name, table)
+		lm.schemaLoader.TableDefinitions().Store(table.Name, table)
 		return true
 	}
 	wasntCreated := !t.Created
@@ -479,29 +470,30 @@ func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
 }
 
 func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent) *LogManager {
+	ctx, cancel := context.WithCancel(context.Background())
 	var schemaManagement = NewSchemaManagement(chDb)
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
-	return &LogManager{chDb: chDb, tableDefinitions: &tableDefinitions, cfg: cfg, schemaManagement: schemaManagement, phoneHomeAgent: phoneHomeAgent}
+	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, schemaLoader: &schemaLoader{SchemaManagement: schemaManagement, tableDefinitions: &tableDefinitions, cfg: cfg}, cfg: cfg, phoneHomeAgent: phoneHomeAgent}
 }
 
 func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
-	return &LogManager{chDb: nil, tableDefinitions: &tableDefinitions, cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{chDb: nil, schemaLoader: &schemaLoader{tableDefinitions: &tableDefinitions}, cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 // right now only for tests purposes
 func NewLogManagerWithConnection(db *sql.DB, tables *TableMap) *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
-	return &LogManager{chDb: db, tableDefinitions: &tableDefinitions, schemaManagement: NewSchemaManagement(db), phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{chDb: db, schemaLoader: &schemaLoader{tableDefinitions: &tableDefinitions, SchemaManagement: NewSchemaManagement(db)}, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 func NewLogManagerEmpty() *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
-	return &LogManager{tableDefinitions: &tableDefinitions, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{schemaLoader: &schemaLoader{tableDefinitions: &tableDefinitions}, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 func NewOnlySchemaFieldsCHConfig() *ChTableConfig {

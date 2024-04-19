@@ -109,12 +109,16 @@ func (c IndexConfiguration) String() string {
 		}
 		extraString += strings.Join(fields, ", ")
 	}
-	return fmt.Sprintf("\n\t\t%s, enabled: %t, fullTextFields: %s%s",
+	var str = fmt.Sprintf("\n\t\t%s, enabled: %t",
 		c.Name,
 		c.Enabled,
-		strings.Join(c.FullTextFields, ", "),
-		extraString,
 	)
+
+	if len(c.FullTextFields) > 0 {
+		return fmt.Sprintf("%s, fullTextFields: %s", str, strings.Join(c.FullTextFields, ", "))
+	} else {
+		return str
+	}
 }
 
 func (c *QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string) bool {

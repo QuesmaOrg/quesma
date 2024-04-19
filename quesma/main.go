@@ -64,6 +64,7 @@ func main() {
 	defer cancel()
 	feature.NotSupportedLogger.Stop()
 	phoneHomeAgent.Stop(ctx)
+	lm.Stop()
 
 	instance.Close(ctx)
 
