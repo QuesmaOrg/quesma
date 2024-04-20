@@ -251,7 +251,11 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		// I assume it's new aggregator name
 		logger.DebugWithCtx(cw.Ctx).Msgf("Names += %s", k)
 		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(k))
-		cw.parseAggregation(currentAggr, v.(QueryMap), resultAccumulator)
+		if subAggregation, ok := v.(QueryMap); ok {
+			cw.parseAggregation(currentAggr, subAggregation, resultAccumulator)
+		} else {
+			logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of subaggregation: %T %v", v, v)
+		}
 		logger.DebugWithCtx(cw.Ctx).Msgf("Names -= %s", k)
 		currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
 	}
