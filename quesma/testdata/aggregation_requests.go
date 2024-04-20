@@ -3575,4 +3575,148 @@ var AggregationTests = []AggregationTestCase{
 				`count(), count() FROM ` + quotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z') `,
 		},
 	},
+	{ // [22]
+		TestName: "date_range aggregation",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"date_range": {
+						"field": "timestamp",
+						"ranges": [
+							{
+								"to": "now"
+							},
+							{
+								"from": "now-3w/d",
+								"to": "now"
+							},
+							{
+								"from": "2024-04-14"
+							}
+						],
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "customer_birth_date",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				},
+				{
+					"field": "products.created_on",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"match_all": {}
+						},
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-04-06T07:28:50.059Z",
+									"lte": "2024-04-16T17:28:50.059Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"is_partial": false,
+			"is_running": false,
+			"start_time_in_millis": 1711263722921,
+			"expiration_time_in_millis": 1711695722921,
+			"completion_time_in_millis": 1711263722955,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"2": {
+						"buckets": [
+							{
+								"doc_count": 1541,
+								"key": "*-2024-04-16T17:28:50.000",
+								"to": 1713288530000.0,
+								"to_as_string": "2024-04-16T17:28:50.000"
+							},
+							{
+								"doc_count": 1541,
+								"from": 1711407600000.0,
+								"from_as_string": "2024-03-25T23:00:00.000",
+								"key": "2024-03-25T23:00:00.000-2024-04-16T17:28:50.000",
+								"to": 1713288530000.0,
+								"to_as_string": "2024-04-16T17:28:50.000"
+							},
+							{
+								"doc_count": 414,
+								"from": 1713045600000.0,
+								"from_as_string": "2024-04-13T22:00:00.000",
+								"key": "2024-04-13T22:00:00.000-*"
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 1541
+					}
+				},
+				"timed_out": false,
+				"took": 13
+			}
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1541))}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("doc_count", 1541),
+				model.NewQueryResultCol("to", int64(1713288530)),
+				model.NewQueryResultCol("doc_count", 1541),
+				model.NewQueryResultCol("from", int64(1711407600)),
+				model.NewQueryResultCol("to", int64(1713288530)),
+				model.NewQueryResultCol("doc_count", 414),
+				model.NewQueryResultCol("from", int64(1713045600)),
+				model.NewQueryResultCol("value", 1541),
+			}}},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + quotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z') `,
+			`SELECT count(if("timestamp" < now(), 1, NULL)), toInt64(toUnixTimestamp(now())), ` +
+				`count(if("timestamp" >= toStartOfDay(subDate(now(), INTERVAL 3 week)) AND "timestamp" < now(), 1, NULL)), ` +
+				`toInt64(toUnixTimestamp(toStartOfDay(subDate(now(), INTERVAL 3 week)))), ` +
+				`toInt64(toUnixTimestamp(now())), count(if("timestamp" >= '2024-04-14', 1, NULL)), toInt64(toUnixTimestamp('2024-04-14')), ` +
+				`count() FROM "logs-generic-default" WHERE "timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z') `,
+		},
+	},
 }

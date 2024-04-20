@@ -401,6 +401,21 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		delete(queryMap, "range")
 		return success, len(rangeParsed.Intervals), 0
 	}
+	if dateRange, ok := queryMap["date_range"]; ok {
+		dateRangeParsed := cw.parseDateRangeAggregation(dateRange.(QueryMap))
+		currentAggr.Type = dateRangeParsed
+		for _, interval := range dateRangeParsed.Intervals {
+			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, interval.ToSQLSelectQuery(dateRangeParsed.FieldName))
+			if sqlSelect, selectNeeded := interval.BeginTimestampToSQL(); selectNeeded {
+				currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, sqlSelect)
+			}
+			if sqlSelect, selectNeeded := interval.EndTimestampToSQL(); selectNeeded {
+				currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, sqlSelect)
+			}
+		}
+		delete(queryMap, "date_range")
+		return success, dateRangeParsed.SelectColumnsNr, 0
+	}
 	if _, ok := queryMap["sampler"]; ok {
 		currentAggr.Type = metrics_aggregations.Count{}
 		delete(queryMap, "sampler")
