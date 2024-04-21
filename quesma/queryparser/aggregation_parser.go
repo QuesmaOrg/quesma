@@ -254,7 +254,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		if subAggregation, ok := v.(QueryMap); ok {
 			cw.parseAggregation(currentAggr, subAggregation, resultAccumulator)
 		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of subaggregation: %T %v", v, v)
+			logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of subaggregation: (%v: %v), value type: %T", k, v, v)
 		}
 		logger.DebugWithCtx(cw.Ctx).Msgf("Names -= %s", k)
 		currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
@@ -382,13 +382,15 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		delete(queryMap, "date_histogram")
 		return success, 1, 1
 	}
-	if terms, ok := queryMap["terms"]; ok {
-		currentAggr.Type = bucket_aggregations.Terms{}
-		fieldName := strconv.Quote(cw.Table.ResolveField(terms.(QueryMap)["field"].(string)))
-		currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
-		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
-		delete(queryMap, "terms")
-		return success, 1, 1
+	for _, termsType := range []string{"terms", "significant_terms"} {
+		if terms, ok := queryMap[termsType]; ok {
+			currentAggr.Type = bucket_aggregations.NewTerms(termsType == "significant_terms")
+			fieldName := strconv.Quote(cw.Table.ResolveField(terms.(QueryMap)["field"].(string)))
+			currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
+			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
+			delete(queryMap, termsType)
+			return success, 1, 1
+		}
 	}
 	if Range, ok := queryMap["range"]; ok {
 		rangeParsed := cw.parseRangeAggregation(Range.(QueryMap))

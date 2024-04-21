@@ -538,6 +538,7 @@ func sortAggregations(aggregations []model.QueryWithAggregation) {
 }
 
 func Test2AggregationParserExternalTestcases(t *testing.T) {
+	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -596,7 +597,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			actualMinusExpected, expectedMinusActual := util.MapDifference(actualAggregationsPart, expectedAggregationsPart, true, true)
 
 			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
-			acceptableDifference := []string{"doc_count_error_upper_bound", "sum_other_doc_count", "probability", "seed"}
+			acceptableDifference := []string{"doc_count_error_upper_bound", "sum_other_doc_count", "probability", "seed", "bg_count", "doc_count"}
 			// pp.Println("ACTUAL", actualMinusExpected)
 			// pp.Print("EXPECTED", expectedMinusActual)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))

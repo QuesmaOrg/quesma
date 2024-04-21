@@ -3719,4 +3719,105 @@ var AggregationTests = []AggregationTestCase{
 				`AND "timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z') `,
 		},
 	},
+	{ // [23]
+		TestName: "significant terms aggregation: same as terms for now",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"significant_terms": {
+						"field": "message",
+						"size": 4
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "epoch_time",
+					"format": "date_time"
+				},
+				{
+					"field": "ts_time_druid",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"is_partial": false,
+			"is_running": false,
+			"start_time_in_millis": 1711263722921,
+			"expiration_time_in_millis": 1711695722921,
+			"completion_time_in_millis": 1711263722955,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"2": {
+						"bg_count": 14074,
+						"buckets": [
+							{
+								"bg_count": 619,
+								"doc_count": 619,
+								"key": "",
+								"score": 619
+							},
+							{
+								"bg_count": 206,
+								"doc_count": 206,
+								"key": "zip",
+								"score": 206
+							}
+						],
+						"doc_count": 1608
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 1608
+					}
+				},
+				"timed_out": false,
+				"took": 14
+			}
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1608))}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", ""), model.NewQueryResultCol("doc_count", uint64(619))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "zip"), model.NewQueryResultCol("doc_count", uint64(206))}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + quotedTableName + ` `,
+			`SELECT "message", count() FROM ` + quotedTableName + `  GROUP BY ("message") ORDER BY ("message")`,
+		},
+	},
 }
