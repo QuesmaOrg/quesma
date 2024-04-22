@@ -2,14 +2,12 @@ package queryparser
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/kibana"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/util"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -640,29 +638,4 @@ func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMa
 		dateTimeType = clickhouse.DateTime64
 	}
 	return clickhouse.TimestampGroupBy(fieldName, dateTimeType, interval)
-}
-
-var fromRegexp = regexp.MustCompile(`>=?parseDateTime64BestEffort\('([^']+)'\)`)
-var toRegexp = regexp.MustCompile(`<=?parseDateTime64BestEffort\('([^']+)'\)`)
-
-func durationFromWhere(input string) (time.Duration, error) {
-	fromMatch := fromRegexp.FindAllStringSubmatch(input, -1)
-	toMatch := toRegexp.FindAllStringSubmatch(input, -1)
-	if len(fromMatch) < 1 || len(toMatch) < 1 {
-		return 0, errors.New("date match failed")
-	}
-	from := fromMatch[0]
-	to := toMatch[0]
-
-	startTime, err := time.Parse(time.RFC3339, from[1])
-	if err != nil {
-		return 0, err
-	}
-
-	endTime, err := time.Parse(time.RFC3339, to[1])
-	if err != nil {
-		return 0, err
-	}
-
-	return endTime.Sub(startTime), nil
 }
