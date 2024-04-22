@@ -27,6 +27,10 @@ const (
 	configFileLocationEnvVar = "QUESMA_CONFIG_FILE"
 )
 
+var (
+	telemetryUrl = &Url{Scheme: "https", Host: "api.quesma.com", Path: "/phone-home"}
+)
+
 type QuesmaConfiguration struct {
 	Mode                       operationMode                 `koanf:"mode"`
 	LicenseKey                 string                        `koanf:"licenseKey"`
@@ -143,6 +147,8 @@ var k = koanf.New(".")
 
 func Load() QuesmaConfiguration {
 	var config QuesmaConfiguration
+	config.QuesmaInternalTelemetryUrl = telemetryUrl
+	config.Logging.RemoteLogDrainUrl = telemetryUrl
 
 	loadConfigFile()
 	if err := k.Load(env.Provider("QUESMA_", ".", func(s string) string {
