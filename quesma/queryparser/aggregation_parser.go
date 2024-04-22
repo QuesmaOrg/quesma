@@ -29,7 +29,7 @@ type metricsAggregation struct {
 	Order       string        // Only for top_metrics
 }
 
-func (b *aggrQueryBuilder) buildAggregationCommon() model.QueryWithAggregation {
+func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.QueryWithAggregation {
 	query := b.QueryWithAggregation
 	query.WhereClause = b.whereBuilder.Sql.Stmt
 
@@ -40,23 +40,24 @@ func (b *aggrQueryBuilder) buildAggregationCommon() model.QueryWithAggregation {
 	}
 	query.RemoveEmptyGroupBy()
 	query.TrimKeywordFromFields()
+	query.Metadata = metadata
 	return query
 }
 
-func (b *aggrQueryBuilder) buildCountAggregation() model.QueryWithAggregation {
-	query := b.buildAggregationCommon()
+func (b *aggrQueryBuilder) buildCountAggregation(metadata model.JsonMap) model.QueryWithAggregation {
+	query := b.buildAggregationCommon(metadata)
 	query.Type = metrics_aggregations.Count{}
 	query.NonSchemaFields = append(query.NonSchemaFields, "count()")
 	return query
 }
 
-func (b *aggrQueryBuilder) buildBucketAggregation() model.QueryWithAggregation {
-	query := b.buildAggregationCommon()
+func (b *aggrQueryBuilder) buildBucketAggregation(metadata model.JsonMap) model.QueryWithAggregation {
+	query := b.buildAggregationCommon(metadata)
 	query.NonSchemaFields = append(query.NonSchemaFields, "count()")
 	return query
 }
-func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregation) model.QueryWithAggregation {
-	query := b.buildAggregationCommon()
+func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregation, metadata model.JsonMap) model.QueryWithAggregation {
+	query := b.buildAggregationCommon(metadata)
 	switch metricsAggr.AggrType {
 	case "sum", "min", "max", "avg":
 		query.NonSchemaFields = append(query.NonSchemaFields, metricsAggr.AggrType+`("`+metricsAggr.FieldNames[0]+`")`)
@@ -170,7 +171,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 
 	// COUNT(*) is needed for every request. We should change it and don't duplicate it, as some
 	// requests also ask for that themselves, but let's leave it for later.
-	aggregations := []model.QueryWithAggregation{currentAggr.buildCountAggregation()}
+	aggregations := []model.QueryWithAggregation{currentAggr.buildCountAggregation(model.NoMetadataField)}
 
 	if aggs, ok := queryAsMap["aggs"]; ok {
 		// The 'for' below duplicates the logic of parseAggregation a little bit, but let's refactor that later.
@@ -202,10 +203,19 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	whereBeforeNesting := currentAggr.whereBuilder // to restore it after processing this level
 	queryTypeBeforeNesting := currentAggr.Type
 
+	// check if metadata's present
+	var metadata model.JsonMap
+	if metaRaw, exists := queryMap["meta"]; exists {
+		metadata = metaRaw.(model.JsonMap)
+		delete(queryMap, "meta")
+	} else {
+		metadata = model.NoMetadataField
+	}
+
 	// 1. Metrics aggregation => always leaf
 	metricsAggrResult, ok := cw.tryMetricsAggregation(queryMap)
 	if ok {
-		*resultAccumulator = append(*resultAccumulator, currentAggr.buildMetricsAggregation(metricsAggrResult))
+		*resultAccumulator = append(*resultAccumulator, currentAggr.buildMetricsAggregation(metricsAggrResult, metadata))
 		return
 	}
 
@@ -218,7 +228,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 			currentAggr.whereBuilder,
 			cw.parseQueryMap(filter.(QueryMap)),
 		)
-		*resultAccumulator = append(*resultAccumulator, currentAggr.buildCountAggregation())
+		*resultAccumulator = append(*resultAccumulator, currentAggr.buildCountAggregation(metadata))
 		delete(queryMap, "filter")
 	}
 
@@ -243,7 +253,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	}
 
 	if bucketAggrPresent {
-		*resultAccumulator = append(*resultAccumulator, currentAggr.buildBucketAggregation())
+		*resultAccumulator = append(*resultAccumulator, currentAggr.buildBucketAggregation(metadata))
 	}
 
 	// 5. At the end, we process subaggregations, introduced via (k, v), meaning 'subaggregation_name': { dict }

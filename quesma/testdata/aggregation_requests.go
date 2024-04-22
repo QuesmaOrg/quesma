@@ -3820,4 +3820,99 @@ var AggregationTests = []AggregationTestCase{
 			`SELECT "message", count() FROM ` + quotedTableName + `  GROUP BY ("message") ORDER BY ("message")`,
 		},
 	},
+	{ // [24]
+		TestName: "meta field in aggregation",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"timeseries": {
+					"aggs": {
+						"61ca57f2-469d-11e7-af02-69e470af7417": {
+							"cardinality": {
+								"field": "host.name"
+							}
+						}
+					},
+					"date_histogram": {
+						"calendar_interval": "22h",
+						"field": "@timestamp"
+					},
+					"meta": {
+						"bucketSize": 3600,
+						"intervalString": "3600s",
+						"seriesId": "61ca57f1-469d-11e7-af02-69e470af7417",
+						"timeField": "timestamp"
+					}
+				}
+			},
+			"query": {
+				"bool": {
+					"filter": []
+				}
+			},
+			"size": 0,
+			"timeout": "30000ms"
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 0,
+			"timed_out": false,
+			"_shards": {
+				"total": 0,
+				"successful": 0,
+				"failed": 0,
+				"skipped": 0
+			},
+			"hits": {
+				"total": {
+					"value": 1180,
+					"relation": "eq"
+				},
+				"max_score": 0,
+				"hits": []
+			},
+			"aggregations": {
+				"timeseries": {
+					"buckets": [
+						{
+							"61ca57f2-469d-11e7-af02-69e470af7417": {
+								"value": 21
+							},
+							"doc_count": 1180,
+							"key": 1713571200000,
+							"key_as_string": "2024-04-20T00:00:00.000"
+						}
+					],
+					"meta": {
+						"bucketSize": 3600,
+						"intervalString": "3600s",
+						"seriesId": "61ca57f1-469d-11e7-af02-69e470af7417",
+						"timeField": "timestamp"
+					}
+				}
+			}
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1180))}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("key", int64(1713571200000/79200000)),
+				model.NewQueryResultCol("doc_count", 21),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("key", int64(1713571200000/79200000)),
+				model.NewQueryResultCol("doc_count", uint64(1180)),
+			}}},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + quotedTableName + " ",
+			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/79200000), " + `COUNT(DISTINCT "host.name") ` +
+				`FROM ` + quotedTableName + "  " +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/79200000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/79200000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/79200000), count() " +
+				`FROM ` + quotedTableName + "  " +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/79200000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/79200000))",
+		},
+	},
 }

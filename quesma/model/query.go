@@ -21,11 +21,18 @@ type Query struct {
 	CanParse        bool     // true <=> query is valid
 }
 
+var NoMetadataField JsonMap = nil
+
 // implements String() (now) and MakeResponse() interface (in the future (?))
 type QueryWithAggregation struct {
 	Query
 	Aggregators []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
 	Type        QueryType
+	// dictionary to add as 'meta' field in the response.
+	// WARNING: it's probably not passed everywhere where it's needed, just in one place.
+	// But it works for the test + our dashboards, so let's fix it later if necessary.
+	// NoMetadataField (nil) is a valid option and means no meta field in the response.
+	Metadata JsonMap
 }
 
 // returns string with * in SELECT

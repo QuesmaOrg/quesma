@@ -403,6 +403,9 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 	} else if query.Aggregators[aggregatorsLevel].Keyed {
 		subResult["buckets"] = bucketsReturnMap[0]
 	} else {
+		if aggregatorsLevel == len(query.Aggregators)-1 && query.Metadata != nil {
+			subResult["meta"] = query.Metadata
+		}
 		subResult["buckets"] = bucketsReturnMap
 	}
 

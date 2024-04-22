@@ -593,7 +593,12 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			// fmt.Println(err, string(fullResponse))
 
 			expectedResponseMap, _ := util.JsonToMap(test.ExpectedResponse)
-			expectedAggregationsPart := expectedResponseMap["response"].(JsonMap)["aggregations"].(JsonMap)
+			var expectedAggregationsPart JsonMap
+			if responseSubMap, hasResponse := expectedResponseMap["response"]; hasResponse {
+				expectedAggregationsPart = responseSubMap.(JsonMap)["aggregations"].(JsonMap)
+			} else {
+				expectedAggregationsPart = expectedResponseMap["aggregations"].(JsonMap)
+			}
 			actualMinusExpected, expectedMinusActual := util.MapDifference(actualAggregationsPart, expectedAggregationsPart, true, true)
 
 			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
