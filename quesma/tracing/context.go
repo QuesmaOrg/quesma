@@ -11,6 +11,7 @@ const (
 	RequestIdCtxKey ContextKey = "RequestId"
 	ReasonCtxKey    ContextKey = "Reason"
 	RequestPath     ContextKey = "RequestPath"
+	AsyncIdCtxKey   ContextKey = "AsyncId"
 )
 
 var lastRequestId atomic.Int64

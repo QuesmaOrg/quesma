@@ -74,16 +74,19 @@ func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string, lm *
 
 func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
-	return q.handleSearchCommon(ctx, indexPattern, body, lm, quesmaManagementConsole, false, 0, false)
+	const asyncRequestIdStr = ""
+	return q.handleSearchCommon(ctx, indexPattern, body, lm, quesmaManagementConsole, false, 0, false, asyncRequestIdStr)
 }
 
 func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole, waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
-	return q.handleSearchCommon(ctx, indexPattern, body, lm, quesmaManagementConsole, true, waitForResultsMs, keepOnCompletion)
+	asyncRequestIdStr := generateAsyncRequestId()
+	ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, asyncRequestIdStr)
+	return q.handleSearchCommon(ctx, indexPattern, body, lm, quesmaManagementConsole, true, waitForResultsMs, keepOnCompletion, asyncRequestIdStr)
 }
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
-	quesmaManagementConsole *ui.QuesmaManagementConsole, async bool, waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
+	quesmaManagementConsole *ui.QuesmaManagementConsole, async bool, waitForResultsMs int, keepOnCompletion bool, asyncRequestIdStr string) ([]byte, error) {
 
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	resolved := lm.ResolveIndexes(indexPattern)
@@ -117,7 +120,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		})
 	}
 
-	asyncRequestIdStr := generateAsyncRequestId()
 	doneCh := make(chan struct{}, 1)
 
 	var hits, hitsFallback []model.QueryResultRow
@@ -256,9 +258,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 		select {
 		case <-time.After(time.Duration(waitForResultsMs) * time.Millisecond):
-			return q.handlePartialAsyncSearch(asyncRequestIdStr)
+			return q.handlePartialAsyncSearch(ctx, asyncRequestIdStr)
 		case <-doneCh:
-			res, err := q.handlePartialAsyncSearch(asyncRequestIdStr)
+			res, err := q.handlePartialAsyncSearch(ctx, asyncRequestIdStr)
 			if !keepOnCompletion {
 				q.AsyncRequestStorage.Delete(asyncRequestIdStr)
 			}
@@ -271,13 +273,15 @@ func generateAsyncRequestId() string {
 	return "quesma_async_search_id_" + strconv.FormatInt(asyncRequestId.Add(1), 10)
 }
 
-func (q *QueryRunner) handlePartialAsyncSearch(id string) ([]byte, error) {
+func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {
 	if !strings.Contains(id, "quesma_async_search_id_") {
+		logger.ErrorWithCtx(ctx).Msgf("Non quesma async id: %v", id)
 		return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 	}
 	if result, ok := q.AsyncRequestStorage.Load(id); ok {
 		if result.err != nil {
 			q.AsyncRequestStorage.Delete(id)
+			logger.ErrorWithCtx(ctx).Msgf("Error processing async query: %v", result.err)
 			return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 		}
 		q.AsyncRequestStorage.Delete(id)

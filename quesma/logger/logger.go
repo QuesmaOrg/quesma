@@ -25,9 +25,10 @@ var (
 )
 
 const (
-	RID    = "request_id" // request id key for the logger
-	Reason = "reason"     // Known error reason key for the logger
-	Path   = "path"
+	RID     = "request_id" // request id key for the logger
+	Reason  = "reason"     // Known error reason key for the logger
+	Path    = "path"
+	AsyncId = "async_id"
 )
 
 const (
@@ -144,6 +145,11 @@ func addKnownContextValues(event *zerolog.Event, ctx context.Context) *zerolog.E
 	}
 	if reason, ok := ctx.Value(tracing.ReasonCtxKey).(string); ok {
 		event = event.Str(Reason, reason)
+	}
+	if asyncId, ok := ctx.Value(tracing.AsyncIdCtxKey).(string); ok {
+		if asyncId != "" {
+			event = event.Str(AsyncId, asyncId)
+		}
 	}
 	return event
 }
