@@ -206,7 +206,6 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			w.WriteHeader(500)
 			if rawResponse.error != nil {
 				w.Write([]byte(rawResponse.error.Error()))
-				response.Body.Close()
 			}
 		}
 	}
