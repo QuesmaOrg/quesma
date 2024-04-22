@@ -13,6 +13,7 @@ const (
 	IndexBulkPath        = "/:index/_bulk"
 	FieldCapsPath        = "/:index/_field_caps"
 	TermsEnumPath        = "/:index/_terms_enum"
+	ResolveIndexPath     = "/_resolve/index/:index"
 	ClusterHealthPath    = "/_cluster/health"
 	BulkPath             = "/_bulk"
 	AsyncSearchIdPrefix  = "/_async_search/"

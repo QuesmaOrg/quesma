@@ -45,6 +45,19 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 		return nil, nil
 	})
 
+	router.RegisterPathMatcher(routes.ResolveIndexPath, "GET", always(), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+		pattern := params["index"]
+		// todo avoid creating new instances all the time
+		sources, found, err := elasticsearch.NewIndexResolver(config.Elasticsearch.Url.String()).Resolve(pattern)
+		if err != nil {
+			return nil, err
+		}
+		if !found {
+			return &mux.Result{StatusCode: 404}, nil
+		}
+		return resolveIndexResult(sources), nil
+	})
+
 	router.RegisterPathMatcher(routes.IndexCountPath, "GET", matchedAgainstPattern(config), func(ctx context.Context, _ string, _ string, params map[string]string) (*mux.Result, error) {
 		cnt, err := queryRunner.handleCount(ctx, params["index"], lm)
 		if err != nil {
@@ -143,6 +156,12 @@ func configureRouter(config config.QuesmaConfiguration, lm *clickhouse.LogManage
 	return router
 }
 
+func always() func(params map[string]string, body string) bool {
+	return func(params map[string]string, body string) bool {
+		return true
+	}
+}
+
 // check whether exact index name is enabled
 func matchedExact(config config.QuesmaConfiguration) mux.MatchPredicate {
 	return func(m map[string]string, _ string) bool {
@@ -219,6 +238,18 @@ func elasticsearchInsertResult(body string, statusCode int) *mux.Result {
 		"Location":                "/.clickhouse",
 		"X-Quesma-Headers-Source": "Quesma",
 	}, StatusCode: statusCode}
+}
+
+func resolveIndexResult(sources elasticsearch.Sources) *mux.Result {
+	body, err := json.Marshal(sources)
+	if err != nil {
+		panic(err)
+	}
+
+	return &mux.Result{
+		Body:       string(body),
+		Meta:       map[string]string{},
+		StatusCode: httpOk}
 }
 
 func indexDocResult(index string, statusCode int) *mux.Result {
