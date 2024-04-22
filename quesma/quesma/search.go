@@ -256,9 +256,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 		select {
 		case <-time.After(time.Duration(waitForResultsMs) * time.Millisecond):
-			return q.handlePartialAsyncSearch(asyncRequestIdStr, quesmaManagementConsole)
+			return q.handlePartialAsyncSearch(asyncRequestIdStr)
 		case <-doneCh:
-			res, err := q.handlePartialAsyncSearch(asyncRequestIdStr, quesmaManagementConsole)
+			res, err := q.handlePartialAsyncSearch(asyncRequestIdStr)
 			if !keepOnCompletion {
 				q.AsyncRequestStorage.Delete(asyncRequestIdStr)
 			}
@@ -271,7 +271,7 @@ func generateAsyncRequestId() string {
 	return "quesma_async_search_id_" + strconv.FormatInt(asyncRequestId.Add(1), 10)
 }
 
-func (q *QueryRunner) handlePartialAsyncSearch(id string, quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
+func (q *QueryRunner) handlePartialAsyncSearch(id string) ([]byte, error) {
 	if !strings.Contains(id, "quesma_async_search_id_") {
 		return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 	}
