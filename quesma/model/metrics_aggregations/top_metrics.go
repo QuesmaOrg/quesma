@@ -12,19 +12,19 @@ func (query TopMetrics) IsBucketAggregation() bool {
 }
 
 func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
-	var topElems []TopElement
+	var topElems []any
 	for _, row := range rows {
 		lastIndex := len(row.Cols) - 1 // per convention, we know that value we sorted by is in the last column
-		metrics := make(map[string]interface{})
+		metrics := make(model.JsonMap)
 		valuesForMetrics := row.Cols[:lastIndex]
 		sortVal := row.Cols[lastIndex].Value
 		for _, col := range valuesForMetrics[level:] {
 			colName, _ := strings.CutPrefix(col.ColName, "windowed_")
 			metrics[colName] = col.ExtractValue()
 		}
-		elem := TopElement{
-			Sort:    []interface{}{sortVal},
-			Metrics: metrics,
+		elem := model.JsonMap{
+			"sort":    []interface{}{sortVal},
+			"metrics": metrics,
 		}
 		topElems = append(topElems, elem)
 	}
@@ -35,9 +35,4 @@ func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 
 func (query TopMetrics) String() string {
 	return "top_metrics"
-}
-
-type TopElement struct {
-	Sort    []interface{}          `json:"sort"`
-	Metrics map[string]interface{} `json:"metrics"`
 }

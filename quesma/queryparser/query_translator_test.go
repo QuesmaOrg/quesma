@@ -73,7 +73,7 @@ func TestSearchResponse(t *testing.T) {
 func TestMakeResponseSearchQuery(t *testing.T) {
 	var args = []struct {
 		elasticResponseJson string
-		ourQueryResult      model.QueryResultRow
+		ourQueryResult      []model.QueryResultRow
 		queryType           model.SearchQueryType
 	}{
 		{
@@ -94,6 +94,10 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 					"_source": {
 						"@timestamp": "2024-01-30T14:48:20.962Z",
 						"source": "ubuntu"
+					},
+					"fields": {
+						"source": ["ubuntu"],
+						"@timestamp": ["2024-01-30T14:48:20.962Z"]
 					}
 				},
 				{
@@ -103,6 +107,10 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 					"_source": {
 						"@timestamp": "2024-01-30T14:48:19.761Z",
 						"source": "suse"
+					},
+					"fields": {
+						"source": ["suse"],
+						"@timestamp": ["2024-01-30T14:48:19.761Z"]
 					}
 				}
 			],
@@ -115,11 +123,15 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 		"timed_out": false,
 		"took": 1
 	}`,
-			model.QueryResultRow{
-				Cols: []model.QueryResultCol{
+			[]model.QueryResultRow{
+				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("source", "ubuntu"),
 					model.NewQueryResultCol("@timestamp", "2024-01-30T14:48:20.962Z"),
-				},
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("source", "suse"),
+					model.NewQueryResultCol("@timestamp", "2024-01-30T14:48:19.761Z"),
+				}},
 			},
 			model.Normal,
 		},
@@ -128,14 +140,14 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
-			ourResponse, err := cw.MakeSearchResponseMarshalled([]model.QueryResultRow{args[i].ourQueryResult}, args[i].queryType, NewEmptyHighlighter())
+			ourResponse, err := cw.MakeSearchResponseMarshalled(args[i].ourQueryResult, args[i].queryType, NewEmptyHighlighter())
 			assert.NoError(t, err)
-			difference1, difference2, err := util.JsonDifference(args[i].elasticResponseJson, string(ourResponse))
+			actualMinusExpected, expectedMinusActual, err := util.JsonDifference(string(ourResponse), args[i].elasticResponseJson)
 			if err != nil {
 				t.Error(err)
 			}
-			assert.Empty(t, difference1)
-			assert.Empty(t, difference2)
+			assert.Empty(t, actualMinusExpected)
+			assert.Empty(t, expectedMinusActual)
 		})
 	}
 }
@@ -415,6 +427,19 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 						model.NewQueryResultCol("data_stream.type", "logs"),
 					},
 				},
+				{
+					Cols: []model.QueryResultCol{
+						model.NewQueryResultCol("message", "User password changed"),
+						model.NewQueryResultCol("host.name", "apollo"),
+						model.NewQueryResultCol("host.name.text", "apollo"),
+						model.NewQueryResultCol("@timestamp", "2024-01-30T19:39:35.767Z"),
+						model.NewQueryResultCol("service.name", "proxy"),
+						model.NewQueryResultCol("service.name.text", "proxy"),
+						model.NewQueryResultCol("severity", "info"),
+						model.NewQueryResultCol("source", "alpine"),
+						model.NewQueryResultCol("data_stream.type", "logs"),
+					},
+				},
 			},
 			model.ListAllFields,
 		},
@@ -425,10 +450,10 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 			ourResponse, err := cw.MakeAsyncSearchResponseMarshalled(args[i].ourQueryResult, args[i].queryType, NewEmptyHighlighter(), asyncRequestIdStr, false)
 			assert.NoError(t, err)
 
-			difference1, difference2, err := util.JsonDifference(args[i].elasticResponseJson, string(ourResponse))
+			actualMinusExpected, expectedMinusActual, err := util.JsonDifference(string(ourResponse), args[i].elasticResponseJson)
 			assert.NoError(t, err)
-			assert.Empty(t, difference1)
-			assert.Empty(t, difference2)
+			assert.Empty(t, actualMinusExpected)
+			assert.Empty(t, expectedMinusActual)
 		})
 	}
 }

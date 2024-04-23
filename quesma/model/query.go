@@ -171,9 +171,10 @@ func (q *QueryWithAggregation) TrimKeywordFromFields() {
 }
 
 type Aggregator struct {
-	Name  string
-	Empty bool // is this aggregator empty, so no buckets
-	Keyed bool // determines how results are returned in response's JSON
+	Name    string
+	Empty   bool // is this aggregator empty, so no buckets
+	Keyed   bool // determines how results are returned in response's JSON
+	Filters bool // if true, this aggregator is a filters aggregator
 }
 
 func NewAggregatorEmpty(name string) Aggregator {

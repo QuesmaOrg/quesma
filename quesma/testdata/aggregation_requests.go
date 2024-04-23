@@ -985,11 +985,11 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE "FlightDelay" == true AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z'))) `,
-			`SELECT '', count() FROM "` + TableName + `" WHERE ("FlightDelay" == true ` +
+			`SELECT count() FROM "` + TableName + `" WHERE ("FlightDelay" == true ` +
 				`AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
 				`OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) ` +
 				`AND ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) `,
-			`SELECT '', count() FROM "` + TableName + `" WHERE (("FlightDelay" == true ` +
+			`SELECT count() FROM "` + TableName + `" WHERE ("FlightDelay" == true ` +
 				`AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
 				`OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) ` +
 				`AND ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')) `,
@@ -1815,8 +1815,8 @@ var AggregationTests = []AggregationTestCase{
 												]
 											},
 											"doc_count": 2,
-											"key": 1707476400000,
-											"key_as_string": "2024-02-09T12:00:00.000+01:00"
+											"key": 1707480000000,
+											"key_as_string": "2024-02-09T12:00:00.000"
 										},
 										{
 											"4": {
@@ -1844,8 +1844,8 @@ var AggregationTests = []AggregationTestCase{
 												]
 											},
 											"doc_count": 1,
-											"key": 1707735600000,
-											"key_as_string": "2024-02-12T12:00:00.000+01:00"
+											"key": 1707739200000,
+											"key_as_string": "2024-02-12T12:00:00.000"
 										},
 										{
 											"4": {
@@ -1873,8 +1873,8 @@ var AggregationTests = []AggregationTestCase{
 												]
 											},
 											"doc_count": 1,
-											"key": 1707778800000,
-											"key_as_string": "2024-02-13T00:00:00.000+01:00"
+											"key": 1707782400000,
+											"key_as_string": "2024-02-13T00:00:00.000"
 										}
 									]
 								},
@@ -1897,10 +1897,55 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1707818398408
 		}`,
 		[][]model.QueryResultRow{
-			{},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1043))}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1707480000000/1000/60/60/12)), model.NewQueryResultCol("order_date", "2024-02-09T17:16:48.000Z"), model.NewQueryResultCol("order_date", "2024-02-09T17:16:48.000Z")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1707480000000/1000/60/60/12)), model.NewQueryResultCol("order_date", "2024-02-09T21:34:34.000Z"), model.NewQueryResultCol("order_date", "2024-02-09T21:34:34.000Z")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1707739200000/1000/60/60/12)), model.NewQueryResultCol("order_date", "2024-02-12T11:38:24.000Z"), model.NewQueryResultCol("order_date", "2024-02-12T11:38:24.000Z")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1707782400000/1000/60/60/12)), model.NewQueryResultCol("order_date", "2024-02-13T03:50:24.000Z"), model.NewQueryResultCol("order_date", "2024-02-13T03:50:24.000Z")}},
+			},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1707480000000/1000/60/60/12)), model.NewQueryResultCol("taxful_total_price", 310.0), model.NewQueryResultCol("order_date", "2024-02-09T17:16:48.000Z")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1707480000000/1000/60/60/12)), model.NewQueryResultCol("taxful_total_price", 393.0), model.NewQueryResultCol("order_date", "2024-02-09T21:34:34.000Z")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1707739200000/1000/60/60/12)), model.NewQueryResultCol("taxful_total_price", 283.0), model.NewQueryResultCol("order_date", "2024-02-12T11:38:24.000Z")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1707782400000/1000/60/60/12)), model.NewQueryResultCol("taxful_total_price", 301.0), model.NewQueryResultCol("order_date", "2024-02-13T03:50:24.000Z")}},
+			},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1707480000000/1000/60/60/12)), model.NewQueryResultCol("doc_count", 2)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1707739200000/1000/60/60/12)), model.NewQueryResultCol("doc_count", 1)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1707782400000/1000/60/60/12)), model.NewQueryResultCol("doc_count", 1)}},
+			},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4))}}},
 		},
 		[]string{
-			``,
+			`SELECT count() FROM ` + quotedTableName + ` WHERE "order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z') `,
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), " + `MAX("order_date") AS "windowed_order_date", ` +
+				`MAX("order_date") AS "windowed_order_date" FROM ` +
+				`(SELECT "order_date", "order_date", ROW_NUMBER() OVER ` +
+				"(PARTITION BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
+				`ORDER BY "order_date" asc) AS row_number FROM ` + quotedTableName + " " +
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
+				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250') ` +
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
+				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250' AND row_number <= 10  ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/43200000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), " + `MAX("taxful_total_price") AS "windowed_taxful_total_price", ` +
+				`MAX("order_date") AS "windowed_order_date" FROM ` +
+				`(SELECT "taxful_total_price", "order_date", ROW_NUMBER() OVER ` +
+				"(PARTITION BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
+				`ORDER BY "order_date" asc) AS row_number FROM ` + quotedTableName + " " +
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
+				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250') ` +
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
+				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250' AND row_number <= 10  ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/43200000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), count() FROM " + quotedTableName + " " +
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
+				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250'  ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/43200000))",
+			`SELECT count() FROM ` + quotedTableName + ` WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250' `,
 		},
 	},
 	{ // [11], "old" test, also can be found in testdata/requests.go TestAsyncSearch[0]
@@ -2790,88 +2835,22 @@ var AggregationTests = []AggregationTestCase{
 												"value": 840.921875
 											},
 											"2": {
-												"value": 840.921875
+												"value": 841.921875
 											},
 											"doc_count": 10,
-											"key": 1708556400000,
-											"key_as_string": "2024-02-22T00:00:00.000+01:00"
+											"key": 1708560000000,
+											"key_as_string": "2024-02-22T00:00:00.000"
 										},
 										{
 											"1": {
 												"value": 13902.15625
 											},
 											"2": {
-												"value": 13902.15625
+												"value": 13903.15625
 											},
 											"doc_count": 166,
-											"key": 1708642800000,
-											"key_as_string": "2024-02-23T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 9844.875
-											},
-											"2": {
-												"value": 9844.875
-											},
-											"doc_count": 139,
-											"key": 1708729200000,
-											"key_as_string": "2024-02-24T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 10807.5625
-											},
-											"2": {
-												"value": 10807.5625
-											},
-											"doc_count": 149,
-											"key": 1708815600000,
-											"key_as_string": "2024-02-25T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 10270.8828125
-											},
-											"2": {
-												"value": 10270.8828125
-											},
-											"doc_count": 143,
-											"key": 1708902000000,
-											"key_as_string": "2024-02-26T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 10514.515625
-											},
-											"2": {
-												"value": 10514.515625
-											},
-											"doc_count": 144,
-											"key": 1708988400000,
-											"key_as_string": "2024-02-27T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 11515.84375
-											},
-											"2": {
-												"value": 11515.84375
-											},
-											"doc_count": 142,
-											"key": 1709074800000,
-											"key_as_string": "2024-02-28T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 12531.7421875
-											},
-											"2": {
-												"value": 12531.7421875
-											},
-											"doc_count": 158,
-											"key": 1709161200000,
-											"key_as_string": "2024-02-29T00:00:00.000+01:00"
+											"key": 1708646400000,
+											"key_as_string": "2024-02-23T00:00:00.000"
 										}
 									]
 								},
@@ -2882,91 +2861,14 @@ var AggregationTests = []AggregationTestCase{
 									"buckets": [
 										{
 											"1": {
-												"value": 460.84375
+												"value": 465.84375
 											},
 											"2": {
-												"value": 460.84375
+												"value": 466.84375
 											},
 											"doc_count": 7,
-											"key": 1707951600000,
-											"key_as_string": "2024-02-15T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 10181.015625
-											},
-											"2": {
-												"value": 10181.015625
-											},
-											"doc_count": 152,
-											"key": 1708038000000,
-											"key_as_string": "2024-02-16T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 10141.484375
-											},
-											"2": {
-												"value": 10141.484375
-											},
-											"doc_count": 141,
-											"key": 1708124400000,
-											"key_as_string": "2024-02-17T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 10248.6015625
-											},
-											"2": {
-												"value": 10248.6015625
-											},
-											"doc_count": 140,
-											"key": 1708210800000,
-											"key_as_string": "2024-02-18T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 12272.59375
-											},
-											"2": {
-												"value": 12272.59375
-											},
-											"doc_count": 141,
-											"key": 1708297200000,
-											"key_as_string": "2024-02-19T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 11116.45703125
-											},
-											"2": {
-												"value": 11116.45703125
-											},
-											"doc_count": 158,
-											"key": 1708383600000,
-											"key_as_string": "2024-02-20T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 10555.515625
-											},
-											"2": {
-												"value": 10555.515625
-											},
-											"doc_count": 146,
-											"key": 1708470000000,
-											"key_as_string": "2024-02-21T00:00:00.000+01:00"
-										},
-										{
-											"1": {
-												"value": 10291.4453125
-											},
-											"2": {
-												"value": 10291.4453125
-											},
-											"doc_count": 141,
-											"key": 1708556400000,
-											"key_as_string": "2024-02-22T00:00:00.000+01:00"
+											"key": 1707955200000,
+											"key_as_string": "2024-02-15T00:00:00.000"
 										}
 									]
 								},
@@ -2988,8 +2890,37 @@ var AggregationTests = []AggregationTestCase{
 			},
 			"start_time_in_millis": 1709243857582
 		}`,
-		[][]model.QueryResultRow{{}},
-		[]string{},
+		[][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2077))}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19775)), model.NewQueryResultCol("value", 840.921875)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19776)), model.NewQueryResultCol("value", 13902.15625)}},
+			},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19775)), model.NewQueryResultCol("value", 841.921875)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19776)), model.NewQueryResultCol("value", 13903.15625)}},
+			},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19775)), model.NewQueryResultCol("doc_count", 10)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19776)), model.NewQueryResultCol("doc_count", 166)}},
+			},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1051))}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19768)), model.NewQueryResultCol("value", 465.84375)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19768)), model.NewQueryResultCol("value", 466.84375)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19768)), model.NewQueryResultCol("doc_count", 7)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1026))}}},
+		},
+		[]string{
+			`SELECT count() FROM ` + quotedTableName + ` WHERE ("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')) `,
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), " + `sum("taxful_total_price") FROM ` + quotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z'))  GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), " + `sum("taxful_total_price") FROM ` + quotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z'))  GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), count() FROM " + quotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z'))  GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
+			`SELECT count() FROM ` + quotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z') AND "order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')) `,
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), " + `sum("taxful_total_price") FROM ` + quotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))  GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), " + `sum("taxful_total_price") FROM ` + quotedTableName + ` WHERE (("order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z') AND "order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))  GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), count() FROM " + quotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))  GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
+			`SELECT count() FROM ` + quotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')) `,
+		},
 	},
 	{ // [19]
 		"random sampler, from Explorer > Field statistics",
@@ -3370,7 +3301,8 @@ var AggregationTests = []AggregationTestCase{
 	},
 	{ // [21]
 		TestName: `range bucket aggregation, both keyed and not`,
-		QueryRequestJson: `{
+		QueryRequestJson: `
+		{
 			"_source": {
 				"excludes": []
 			},
@@ -3460,7 +3392,8 @@ var AggregationTests = []AggregationTestCase{
 				"*"
 			]
 		}`,
-		ExpectedResponse: `{
+		ExpectedResponse: `
+		{
 			"is_partial": false,
 			"is_running": false,
 			"start_time_in_millis": 1711263722921,

@@ -547,7 +547,8 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			"message":     {Name: "message", Type: clickhouse.NewBaseType("String"), IsFullTextMatch: true},
 			"bytes_gauge": {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
 		},
-		Name: "logs-generic-default",
+		Name:   "logs-generic-default",
+		Config: clickhouse.NewDefaultCHConfig(),
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
@@ -559,12 +560,9 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			if i == 7 {
 				t.Skip("Let's implement top_hits in next PR. Easily doable, just a bit of code.")
 			}
-			if i == 6 || i == 10 || i == 18 {
-				t.Skip("Filters aggregation doesn't work yet. Should be 100% and quite easily doable with improved algorithm.")
-			}
 
 			aggregations, err := cw.ParseAggregationJson(test.QueryRequestJson)
-			// fmt.Println("Aggregations len", len(aggregations))
+			// fmt.Println("Aggregations len", len(aggregations), err)
 			// pp.Println(aggregations)
 			assert.NoError(t, err)
 			assert.Len(t, test.ExpectedResults, len(aggregations))
@@ -590,7 +588,6 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 
 			fullResponse, err := cw.MakeResponseAggregationMarshalled(aggregations, test.ExpectedResults)
 			assert.NoError(t, err)
-			// fmt.Println(err, string(fullResponse))
 
 			expectedResponseMap, _ := util.JsonToMap(test.ExpectedResponse)
 			var expectedAggregationsPart JsonMap

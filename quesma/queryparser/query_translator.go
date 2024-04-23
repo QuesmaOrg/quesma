@@ -411,7 +411,9 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 	// I'd like to keep an actual tree after the refactor, not a list of paths from root to leaf, as it is now.
 	// Then in the tree (in each node) I'd remember where I am at the moment (e.g. here I'm in "sampler",
 	// so I don't need buckets). It'd enable some custom handling for another weird types of requests.
-	if query.Aggregators[aggregatorsLevel].Empty {
+	if query.Aggregators[aggregatorsLevel].Filters {
+		subResult["buckets"] = bucketsReturnMap[0]
+	} else if query.Aggregators[aggregatorsLevel].Empty {
 		subResult = bucketsReturnMap[0]
 	} else if query.Aggregators[aggregatorsLevel].Keyed {
 		subResult["buckets"] = bucketsReturnMap[0]

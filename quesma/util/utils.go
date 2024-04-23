@@ -181,6 +181,39 @@ func MapDifference(mActual, mExpected JsonMap, compareBaseTypes, compareFullArra
 				for i := min(lenActual, lenExpected); i < lenExpected; i++ {
 					addToResult(vExpectedArr[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffOther)
 				}
+			case []any:
+				vExpectedArr, ok := vExpected.([]any)
+				if !ok {
+					addToResult(vActualTyped, name, keysNested, resultDiffThis)
+					addToResult(vExpected, name, keysNested, resultDiffOther)
+					continue
+				}
+				lenActual, lenExpected := len(vActualTyped), len(vExpectedArr)
+				for i := 0; i < min(lenActual, lenExpected); i++ {
+					// Code below doesn't cover the case, when elements of arrays are subarrays.
+					// But it should return that they are different, so it should be fine - we should notice that.
+					actualArrElementAsMap, okActualAsMap := vActualTyped[i].(JsonMap)
+					expectedArrElementAsMap, okExpectedAsMap := vExpectedArr[i].(JsonMap)
+					if okActualAsMap && okExpectedAsMap {
+						keysNested = append(keysNested, name+"["+strconv.Itoa(i)+"]")
+						descendRec(actualArrElementAsMap, expectedArrElementAsMap, resultDiffThis, resultDiffOther, keysNested)
+						keysNested = keysNested[:len(keysNested)-1]
+					} else if !okActualAsMap && !okExpectedAsMap {
+						if compareBaseTypes && !equal(vActualTyped[i], vExpectedArr[i]) {
+							addToResult(vActualTyped[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffThis)
+							addToResult(vExpectedArr[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffOther)
+						}
+					} else {
+						addToResult(vActualTyped[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffThis)
+						addToResult(vExpectedArr[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffOther)
+					}
+				}
+				for i := min(lenActual, lenExpected); i < lenActual; i++ {
+					addToResult(vActualTyped[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffThis)
+				}
+				for i := min(lenActual, lenExpected); i < lenExpected; i++ {
+					addToResult(vExpectedArr[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffOther)
+				}
 			default:
 				if compareBaseTypes && !equal(vActual, vExpected) {
 					addToResult(vActual, name, keysNested, resultDiffThis)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/barkimedes/go-deepcopy"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
@@ -12,6 +13,15 @@ import (
 	"strconv"
 	"strings"
 )
+
+type filter struct {
+	name string
+	sql  SimpleQuery
+}
+
+func newFilter(name string, sql SimpleQuery) filter {
+	return filter{name: name, sql: sql}
+}
 
 type aggrQueryBuilder struct {
 	model.QueryWithAggregation
@@ -232,22 +242,34 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		delete(queryMap, "filter")
 	}
 
-	// Filters is pretty wild, wildest from any aggregations we handle so far.
-	if filters, ok := queryMap["filters"]; ok {
-		// TODO add filters!!!
-		filterOnThisLevel = true
-		_ = filters
-		// cw.parseAggregation(currentAggr, filters.(QueryMap)["filters"].(QueryMap), resultAccumulator)
-		delete(queryMap, "filters")
-	}
-
 	// 3. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
 	bucketAggrPresent, nonSchemaFieldsAddedCount, groupByFieldsAddecCount := cw.tryBucketAggregation(currentAggr, queryMap)
 	if nonSchemaFieldsAddedCount > 0 {
 		currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Empty = false
 	}
 
-	if aggs, ok := queryMap["aggs"]; ok {
+	if filtersRaw, ok := queryMap["filters"]; ok {
+		currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Filters = true
+		filters := cw.parseFilters(filtersRaw.(QueryMap))
+		for _, filter := range filters {
+			currentAggr.Type = bucket_aggregations.Filters{}
+			currentAggr.whereBuilder = cw.combineWheres(currentAggr.whereBuilder, filter.sql)
+			currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(filter.name))
+			*resultAccumulator = append(*resultAccumulator, currentAggr.buildBucketAggregation(metadata))
+			if aggs, ok := queryMap["aggs"].(QueryMap); ok {
+				aggsCopy, err := deepcopy.Anything(aggs)
+				if err == nil {
+					cw.parseAggregation(currentAggr, aggsCopy.(QueryMap), resultAccumulator)
+				} else {
+					logger.ErrorWithCtx(cw.Ctx).Msgf("deepcopy 'aggs' map error: %v. Skipping current filter: %v, aggs: %v", err, filter, aggs)
+				}
+			}
+			currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
+			currentAggr.whereBuilder = whereBeforeNesting
+		}
+		delete(queryMap, "filters")
+		delete(queryMap, "aggs") // no-op if no "aggs"
+	} else if aggs, ok := queryMap["aggs"]; ok {
 		cw.parseAggregation(currentAggr, aggs.(QueryMap), resultAccumulator)
 		delete(queryMap, "aggs")
 	}
@@ -264,7 +286,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		if subAggregation, ok := v.(QueryMap); ok {
 			cw.parseAggregation(currentAggr, subAggregation, resultAccumulator)
 		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of subaggregation: (%v: %v), value type: %T", k, v, v)
+			logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of subaggregation: %T %v", v, v)
 		}
 		logger.DebugWithCtx(cw.Ctx).Msgf("Names -= %s", k)
 		currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
@@ -483,13 +505,22 @@ func (cw *ClickhouseQueryTranslator) parseRangeAggregation(rangePart QueryMap) b
 	}
 }
 
+func (cw *ClickhouseQueryTranslator) parseFilters(filtersMap QueryMap) []filter {
+	var filters []filter
+	filtersMap = filtersMap["filters"].(QueryMap)
+	for name, filter := range filtersMap {
+		filters = append(filters, newFilter(name, cw.parseQueryMap(filter.(QueryMap))))
+	}
+	return filters
+}
+
 func (cw *ClickhouseQueryTranslator) combineWheres(where1, where2 SimpleQuery) SimpleQuery {
 	combined := SimpleQuery{
 		Sql:      and([]Statement{where1.Sql, where2.Sql}),
 		CanParse: where1.CanParse && where2.CanParse,
 	}
-	if len(where1.FieldName) > 0 && len(where2.FieldName) > 0 {
-		logger.WarnWithCtx(cw.Ctx).Msgf("combining 2 where clauses with non-empty field names: %s, %s, where queries: %v %v", where1.FieldName, where2.FieldName, where1, where2)
+	if len(where1.FieldName) > 0 && len(where2.FieldName) > 0 && where1.FieldName != where2.FieldName {
+		logger.WarnWithCtx(cw.Ctx).Msgf("combining 2 where clauses with different field names: %s, %s, where queries: %v %v", where1.FieldName, where2.FieldName, where1, where2)
 	}
 	if len(where1.FieldName) > 0 {
 		combined.FieldName = where1.FieldName
