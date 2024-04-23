@@ -168,7 +168,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				oldHandlingUsed = true
 				if async {
 					go func() {
-						defer recovery.LogPanic()
+						defer recovery.LogPanicWithCtx(ctx)
 						q.searchWorker(ctx, quesmaManagementConsole, asyncRequestIdStr, queryTranslator, table, body, doneCh, async)
 					}()
 				} else {
@@ -178,7 +178,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				newAggregationHandlingUsed = true
 				if async {
 					go func() {
-						defer recovery.LogPanic()
+						defer recovery.LogPanicWithCtx(ctx)
 						q.searchAggregationWorker(ctx, quesmaManagementConsole, asyncRequestIdStr, aggregations, queryTranslator, table, body, doneCh, async)
 					}()
 				} else {
@@ -418,7 +418,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementCo
 	if async {
 		searchResponse, err := queryTranslator.MakeSearchResponse(hits, queryInfo.Typ, highlighter)
 		if err != nil {
-			logger.Error().Msgf("Error making response: %v rows: %v", err, hits)
+			logger.ErrorWithCtx(ctx).Msgf("Error making response: %v rows: %v", err, hits)
 			q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{responseBody: []byte{}, added: time.Now(), err: err, isCompressed: false})
 			doneCh <- AsyncSearchWithError{nil, err}
 			return
@@ -494,13 +494,13 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, quesmaM
 	logger.InfoWithCtx(ctx).Msg("We're using new Aggregation handling.")
 	for _, agg := range aggregations {
 		logger.InfoWithCtx(ctx).Msg(agg.String()) // I'd keep for now until aggregations work fully
+		sqls += agg.Query.String() + "\n"
 		rows, err := queryTranslator.ClickhouseLM.ProcessGeneralAggregationQuery(dbQueryCtx, table, &agg.Query)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			continue
 		}
 		resultRows = append(resultRows, rows)
-		sqls += agg.Query.String() + "\n"
 	}
 	translatedQueryBody = []byte(sqls)
 	if async {
