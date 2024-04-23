@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/util"
 	"slices"
@@ -186,7 +187,13 @@ func isInternalColumn(col *clickhouse.Column) bool {
 }
 
 func handleFieldCaps(ctx context.Context, index string, _ []byte, lm *clickhouse.LogManager) ([]byte, error) {
-	return handleFieldCapsIndex(ctx, lm.ResolveIndexes(index), lm.GetTableDefinitions())
+	indexes := lm.ResolveIndexes(index)
+	if len(indexes) == 0 {
+		if !elasticsearch.IsIndexPattern(index) {
+			return nil, errIndexNotExists
+		}
+	}
+	return handleFieldCapsIndex(ctx, indexes, lm.GetTableDefinitions())
 }
 
 func merge(cap1, cap2 model.FieldCapability) (model.FieldCapability, bool) {

@@ -23,6 +23,7 @@ import (
 const asyncQueriesLimit = 10000
 const asyncQueriesLimitBytes = 1024 * 1024 * 500 // 500MB
 
+var errIndexNotExists = errors.New("table does not exist")
 var asyncRequestId atomic.Int64
 
 type AsyncRequestResult struct {
@@ -63,7 +64,7 @@ func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string, lm *
 			return 0, nil
 		} else {
 			logger.WarnWithCtx(ctx).Msgf("could not resolve table name for [%s]", indexPattern)
-			return -1, errors.New("could not resolve table name")
+			return -1, errIndexNotExists
 		}
 	}
 
@@ -76,8 +77,7 @@ func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string, lm *
 
 func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
-	const asyncRequestIdStr = ""
-	return q.handleSearchCommon(ctx, indexPattern, body, lm, quesmaManagementConsole, false, 0, false, asyncRequestIdStr)
+	return q.handleSearchCommon(ctx, indexPattern, body, lm, quesmaManagementConsole, false, 0, false, "")
 }
 
 func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
@@ -102,7 +102,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			}
 		} else {
 			logger.WarnWithCtx(ctx).Str(logger.RID, id).Msgf("could not resolve any table name for [%s]", indexPattern)
-			return nil, errors.New("could not resolve table name")
+			return nil, errIndexNotExists
 		}
 	} else if len(resolved) > 1 { // async search never worked for multiple indexes, TODO fix
 		logger.WarnWithCtx(ctx).Str(logger.RID, id).Msgf("could not resolve multiple table names for [%s]", indexPattern)

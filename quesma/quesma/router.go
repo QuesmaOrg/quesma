@@ -118,7 +118,11 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	router.RegisterPathMatcher(routes.IndexCountPath, "GET", matchedAgainstPattern(cfg), func(ctx context.Context, _ string, _ string, params map[string]string) (*mux.Result, error) {
 		cnt, err := queryRunner.handleCount(ctx, params["index"], lm)
 		if err != nil {
-			return nil, err
+			if errors.Is(errIndexNotExists, err) {
+				return &mux.Result{StatusCode: 404}, nil
+			} else {
+				return nil, err
+			}
 		}
 
 		if cnt == -1 {
@@ -133,7 +137,11 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	}, func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		responseBody, err := queryRunner.handleSearch(ctx, "*", []byte(body), lm, console)
 		if err != nil {
-			return nil, err
+			if errors.Is(errIndexNotExists, err) {
+				return &mux.Result{StatusCode: 404}, nil
+			} else {
+				return nil, err
+			}
 		}
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
@@ -141,7 +149,11 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	router.RegisterPathMatcher(routes.IndexSearchPath, "POST", matchedAgainstPattern(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		responseBody, err := queryRunner.handleSearch(ctx, params["index"], []byte(body), lm, console)
 		if err != nil {
-			return nil, err
+			if errors.Is(errIndexNotExists, err) {
+				return &mux.Result{StatusCode: 404}, nil
+			} else {
+				return nil, err
+			}
 		}
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
@@ -167,7 +179,11 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 			}
 			responseBody, err := queryRunner.handleAsyncSearch(ctx, params["index"], []byte(body), lm, console, waitForResultsMs, keepOnCompletion)
 			if err != nil {
-				return nil, err
+				if errors.Is(errIndexNotExists, err) {
+					return &mux.Result{StatusCode: 404}, nil
+				} else {
+					return nil, err
+				}
 			}
 			return elasticsearchQueryResult(string(responseBody), httpOk), nil
 		}
@@ -199,7 +215,11 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	router.RegisterPathMatcher(routes.FieldCapsPath, "POST", matchedAgainstPattern(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		responseBody, err := handleFieldCaps(ctx, params["index"], []byte(body), lm)
 		if err != nil {
-			return nil, err
+			if errors.Is(errIndexNotExists, err) {
+				return &mux.Result{StatusCode: 404}, nil
+			} else {
+				return nil, err
+			}
 		}
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
