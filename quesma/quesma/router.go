@@ -36,6 +36,10 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		return bulkInsertResult(results), nil
 	})
 
+	router.RegisterPathMatcher(routes.IndexRefreshPath, "POST", matchedExact(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+		return elasticsearchInsertResult(`{"_shards":{"total":1,"successful":1,"failed":0}}`, httpOk), nil
+	})
+
 	router.RegisterPathMatcher(routes.IndexDocPath, "POST", matchedExact(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		dualWrite(ctx, params["index"], body, lm, cfg)
 		return indexDocResult(params["index"], httpOk), nil

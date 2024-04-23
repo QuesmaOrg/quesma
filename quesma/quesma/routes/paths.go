@@ -10,6 +10,7 @@ const (
 	IndexAsyncSearchPath = "/:index/_async_search"
 	IndexCountPath       = "/:index/_count"
 	IndexDocPath         = "/:index/_doc"
+	IndexRefreshPath     = "/:index/_refresh"
 	IndexBulkPath        = "/:index/_bulk"
 	FieldCapsPath        = "/:index/_field_caps"
 	TermsEnumPath        = "/:index/_terms_enum"
