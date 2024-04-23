@@ -20,7 +20,8 @@ import (
 	"time"
 )
 
-const asyncQueriesLimit = 1000
+const asyncQueriesLimit = 10000
+const asyncQueriesLimitBytes = 1024 * 1024 * 500 // 500MB
 
 var asyncRequestId atomic.Int64
 
@@ -83,6 +84,7 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string
 	quesmaManagementConsole *ui.QuesmaManagementConsole, waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
 	asyncRequestIdStr := generateAsyncRequestId()
 	ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, asyncRequestIdStr)
+	logger.InfoWithCtx(ctx).Msgf("Async search request id: %s started", asyncRequestIdStr)
 	return q.handleSearchCommon(ctx, indexPattern, body, lm, quesmaManagementConsole, true, waitForResultsMs, keepOnCompletion, asyncRequestIdStr)
 }
 
@@ -270,6 +272,15 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 }
 
+func (q *QueryRunner) asyncQueriesCumulatedBodySize() int {
+	size := 0
+	q.AsyncRequestStorage.Range(func(key string, value AsyncRequestResult) bool {
+		size += len(value.responseBody)
+		return true
+	})
+	return size
+}
+
 func generateAsyncRequestId() string {
 	return "quesma_async_search_id_" + strconv.FormatInt(asyncRequestId.Add(1), 10)
 }
@@ -287,12 +298,14 @@ func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) (
 		}
 		q.AsyncRequestStorage.Delete(id)
 		// We use zstd to conserve memory, as we have a lot of async queries
+		logger.InfoWithCtx(ctx).Msgf("Async query id : %s ended successfully", id)
 		if result.isCompressed {
 			return util.Decompress(result.responseBody)
 		}
 		return result.responseBody, nil
 	} else {
 		const isPartial = true
+		logger.InfoWithCtx(ctx).Msgf("Async query id : %s partial result", id)
 		return queryparser.EmptyAsyncSearchResponse(id, isPartial, 200)
 	}
 }
@@ -306,7 +319,7 @@ func (q *QueryRunner) deleteAsyncSeach(id string) ([]byte, error) {
 }
 
 func (q *QueryRunner) reachedQueriesLimit(asyncRequestIdStr string, doneCh chan struct{}) bool {
-	if q.AsyncRequestStorage.Size() < asyncQueriesLimit {
+	if q.AsyncRequestStorage.Size() < asyncQueriesLimit && q.asyncQueriesCumulatedBodySize() < asyncQueriesLimitBytes {
 		return false
 	}
 	q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: errors.New("too many async queries"), added: time.Now(), isCompressed: false})
