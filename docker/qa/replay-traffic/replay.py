@@ -6,6 +6,11 @@ import os
 
 URL_BASE = "http://mitmproxy:8080"
 
+IGNORED_HTTP_HEADERS = [
+    "x-quesma-headers-source", "x-quesma-source", "content-length", "transfer-encoding",
+    "date", "x-opaque-id" # We maybe want to support them one day
+]
+
 def prepare_headers(headers):
     if 'Accept-Encoding' not in headers:
         headers['Accept-Encoding'] = None
@@ -13,6 +18,9 @@ def prepare_headers(headers):
 
 def normalize_headers(headers) -> dict:
     headers = {k.lower(): v for k, v in headers.items()}
+    for ignored_key in IGNORED_HTTP_HEADERS:
+        if ignored_key in headers:
+            del headers[ignored_key]
     return headers
 
 def normalize_response_body(body_str):
@@ -20,6 +28,7 @@ def normalize_response_body(body_str):
         body = json.loads(body_str)
     except json.JSONDecodeError as e:
         print(f"Error parsing body: {e} for body: {body_str[:100]}")
+        return {}
 
     for ignored_key in ["id", "start_time_in_millis", "expiration_time_in_millis", "completion_time_in_millis"]:
         if ignored_key in body:
@@ -61,18 +70,18 @@ def replay_request(raw_str: str) -> bool:
         response_body = normalize_response_body(response_body)
 
         # Compare the headers
-        headers_diff = jsondiff.diff(original_response_headers, response_headers)
-        body_diff = jsondiff.diff(original_response_body, response_body)
+        headers_diff = jsondiff.diff(original_response_headers, response_headers, syntax='explicit')
+        body_diff = jsondiff.diff(original_response_body, response_body, syntax='explicit')
         if headers_diff or body_diff:
             print("FAIL: Mismatch in responses")
             if headers_diff:
                 print("  Headers diff: ", headers_diff)
-                # print("  Original headers: ", json.dumps(original_response_headers))
-                # print("  Response headers: ", json.dumps(response_headers))
+                # print("  Original headers: ", json.dumps(original_response_headers)[:100])
+                # print("  Response headers: ", json.dumps(response_headers)[:100])
             if body_diff:
                 print("  Body diff: ", body_diff)
                 print("  Original body chunk: ", json.dumps(original_response_body)[:100])
-                print("  Response body: ", json.dumps(response_body))
+                print("  Response body: ", json.dumps(response_body)[:100])
             return False
         else:
             print("PASS: Responses matched")

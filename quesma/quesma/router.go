@@ -32,7 +32,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	})
 
 	router.RegisterPathMatcher(routes.BulkPath, "POST", matchedAgainstBulkBody(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
-		results := dualWriteBulk(ctx, body, lm, cfg, phoneHomeAgent)
+		results := dualWriteBulk(ctx, nil, body, lm, cfg, phoneHomeAgent)
 		return bulkInsertResult(results), nil
 	})
 
@@ -46,8 +46,15 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	})
 
 	router.RegisterPathMatcher(routes.IndexBulkPath, "POST", matchedExact(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
-		dualWriteBulk(ctx, body, lm, cfg, phoneHomeAgent)
-		return nil, nil
+		index := params["index"]
+		results := dualWriteBulk(ctx, &index, body, lm, cfg, phoneHomeAgent)
+		return bulkInsertResult(results), nil
+	})
+
+	router.RegisterPathMatcher(routes.IndexBulkPath, "PUT", matchedExact(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+		index := params["index"]
+		results := dualWriteBulk(ctx, &index, body, lm, cfg, phoneHomeAgent)
+		return bulkInsertResult(results), nil
 	})
 
 	router.RegisterPathMatcher(routes.ResolveIndexPath, "GET", always(), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
@@ -275,7 +282,6 @@ func elasticsearchCountResult(body int64, statusCode int) *mux.Result {
 		panic(err)
 	}
 	return &mux.Result{Body: string(serialized), Meta: map[string]string{
-		"Location":                "/.clickhouse",
 		"Content-Type":            "application/json",
 		"X-Quesma-Headers-Source": "Quesma",
 	}, StatusCode: statusCode}
@@ -294,7 +300,6 @@ type countResult struct {
 func elasticsearchQueryResult(body string, statusCode int) *mux.Result {
 	return &mux.Result{Body: body, Meta: map[string]string{
 		// TODO copy paste from the original request
-		"Location":                "/.clickhouse",
 		"X-Quesma-Headers-Source": "Quesma",
 	}, StatusCode: statusCode}
 }
@@ -316,7 +321,6 @@ func elasticsearchInsertResult(body string, statusCode int) *mux.Result {
 	return &mux.Result{Body: body, Meta: map[string]string{
 		// TODO copy paste from the original request
 		contentTypeHeaderKey:      "application/json",
-		"Location":                "/.clickhouse",
 		"X-Quesma-Headers-Source": "Quesma",
 	}, StatusCode: statusCode}
 }

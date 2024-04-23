@@ -9,11 +9,20 @@ From top folder:
 ```bash
 bin/up.sh qa/replay-elastic
 ```
+Or
+```bash
+bin/up.sh qa/replay-quesma
+```
+
 Check logs of the `qa_replay-traffic` container for the results.
 
 Shutdown it with:
 ```bash
 bin/down.sh qa/replay-elastic
+```
+Or
+```bash
+bin/down.sh qa/replay-quesma
 ```
 
 ### Recording new tests

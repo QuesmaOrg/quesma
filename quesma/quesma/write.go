@@ -28,7 +28,8 @@ type (
 	}
 )
 
-func dualWriteBulk(ctx context.Context, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []WriteResult) {
+func dualWriteBulk(ctx context.Context, defaultIndex *string, body string, lm *clickhouse.LogManager,
+	cfg config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []WriteResult) {
 	if config.TrafficAnalysis.Load() {
 		logger.Info().Msg("analysing traffic, not writing to Clickhouse")
 		return
@@ -48,7 +49,7 @@ func dualWriteBulk(ctx context.Context, body string, lm *clickhouse.LogManager, 
 			logger.Info().Msgf("Invalid action JSON in _bulk: %v %+v", err, operation)
 			continue
 		}
-		index := getTargetIndex(operation)
+		index := getTargetIndex(operation, defaultIndex)
 		if index == "" {
 			logger.ErrorWithCtxAndReason(ctx, "no index name in _bulk").
 				Msgf("Invalid index name in _bulk: %s", operationDef)
@@ -98,11 +99,14 @@ func dualWriteBulk(ctx context.Context, body string, lm *clickhouse.LogManager, 
 	return results
 }
 
-func getTargetIndex(operation map[string]DocumentTarget) string {
+func getTargetIndex(operation map[string]DocumentTarget, defaultIndex *string) string {
 	for _, target := range operation { // this map contains only 1 element though
 		if target.Index != nil {
 			return *target.Index
 		}
+	}
+	if defaultIndex != nil {
+		return *defaultIndex
 	}
 	return ""
 }

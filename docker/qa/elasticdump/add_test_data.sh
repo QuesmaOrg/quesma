@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eu
 
 dataset=("kibana_sample_data_ecommerce" "kibana_sample_data_flights" "kibana_sample_data_logs")
 
@@ -12,11 +12,11 @@ for name in "${dataset[@]}"; do
 done
 
 
-echo "Loading it to Elasticsearch..."
+echo "Loading it to $ELASTICSEARCH_URL..."
 
 for name in "${dataset[@]}"; do
   echo "  Loading $name..."
-  elasticdump --input="$name.json" --output="http://elasticsearch:9200/$name" --type=data --limit=1000
+  elasticdump --input="$name.json" --output="$ELASTICSEARCH_URL/$name" --type=data --limit=1000
 done
 
 echo "All done"
