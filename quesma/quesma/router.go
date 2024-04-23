@@ -121,7 +121,11 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 			return nil, err
 		}
 
-		return elasticsearchCountResult(cnt, httpOk), nil
+		if cnt == -1 {
+			return &mux.Result{StatusCode: 404}, nil
+		} else {
+			return elasticsearchCountResult(cnt, httpOk), nil
+		}
 	})
 
 	router.RegisterPathMatcher(routes.GlobalSearchPath, "POST", func(_ map[string]string, _ string) bool {

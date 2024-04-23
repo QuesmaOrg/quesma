@@ -54,6 +54,7 @@ func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id str
 	return &AsyncQueryContext{ctx: ctx, cancel: cancel, added: time.Now(), id: id}
 }
 
+// returns -1 when table name could not be resolved
 func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string, lm *clickhouse.LogManager) (int64, error) {
 	indexes := lm.ResolveIndexes(indexPattern)
 	if len(indexes) == 0 {
