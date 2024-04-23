@@ -510,6 +510,16 @@ func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause string) *
 	}
 }
 
+func (cw *ClickhouseQueryTranslator) applySizeLimit(size int) int {
+	// FIXME hard limit here to prevent OOM
+	const quesmaMaxSize = 10000
+	if size > quesmaMaxSize {
+		logger.WarnWithCtx(cw.Ctx).Msgf("Setting hits size to=%d, got=%d", quesmaMaxSize, size)
+		size = quesmaMaxSize
+	}
+	return size
+}
+
 // GetNMostRecentRows fieldName == "*" ==> we query all
 // otherwise ==> only this 1 field
 func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query SimpleQuery, limit int) *model.Query {
@@ -518,7 +528,7 @@ func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query Sim
 		suffixClauses = append(suffixClauses, "ORDER BY "+strings.Join(query.SortFields, ", "))
 	}
 	if limit > 0 {
-		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(limit))
+		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(cw.applySizeLimit(limit)))
 	}
 	return &model.Query{
 		Fields:          []string{fieldName},
