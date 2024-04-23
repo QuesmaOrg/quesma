@@ -82,7 +82,7 @@ func TestFieldCaps(t *testing.T) {
       }
     }
   },
-  "Indices": [
+  "indices": [
     "logs-generic-default"
   ]
 }
@@ -149,7 +149,7 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
       }
     }
   },
-  "Indices": [
+  "indices": [
     "logs-1",
 	"logs-2"
   ]
@@ -219,7 +219,7 @@ func TestFieldCapsMultipleIndexesConflictingEntries(t *testing.T) {
       }
     }
   },
-  "Indices": [
+  "indices": [
     "logs-1",
 	"logs-2",
 	"logs-3"

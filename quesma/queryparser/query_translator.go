@@ -93,6 +93,11 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.
 				Relation: "eq",
 			},
 		},
+		Shards: model.ResponseShards{
+			Total:      1,
+			Successful: 1,
+			Failed:     0,
+		},
 	}
 }
 
@@ -250,6 +255,11 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.
 				Relation: "eq",
 			},
 		},
+		Shards: model.ResponseShards{
+			Total:      1,
+			Successful: 1,
+			Failed:     0,
+		},
 	}
 }
 
@@ -278,6 +288,11 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 				Relation: "eq",
 			},
 			Hits: hits,
+		},
+		Shards: model.ResponseShards{
+			Total:      1,
+			Successful: 1,
+			Failed:     0,
 		},
 	}
 }
@@ -448,6 +463,11 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 				Value:    int(totalCount), // TODO just change this to uint64? It works now.
 				Relation: "eq",
 			},
+		},
+		Shards: model.ResponseShards{
+			Total:      1,
+			Successful: 1,
+			Failed:     0,
 		},
 	}
 }
