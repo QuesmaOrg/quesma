@@ -607,25 +607,26 @@ func (qmc *QuesmaManagementConsole) generateLogForRequestId(requestId string) []
 	request, requestFound := qmc.debugInfoMessages[requestId]
 	qmc.mutex.Unlock()
 
+	logMessages, optAsyncId := generateLogMessages(request.logMessages)
+
 	buffer := newBufferWithHead()
 	buffer.Html(`<div class="topnav">`)
 	if requestFound {
-		buffer.Html("\n<h3>Quesma Log for request id ").Text(requestId).Html("</h3>")
+		buffer.Html("\n<h3>Quesma Log for request id ").Text(requestId)
+		if optAsyncId != nil {
+			buffer.Text(" and async id '").Text(*optAsyncId).Html("'")
+		}
+		buffer.Html("</h3>")
 	} else {
 		buffer.Html("\n<h3>Quesma Log not found for ").Text(requestId).Html("</h3>")
 	}
 	buffer.Html("\n</div>\n")
 
-	buffer.Html(`<main class="center" id="center">`)
+	buffer.Html(`<main class="center" id="request-log-messages">`)
 	buffer.Html("\n\n")
-	buffer.Html(`<div class="title-bar">Query`)
-	buffer.Html("\n</div>\n")
 	buffer.Html(`<div class="debug-body">`)
 
-	buffer.Html("<p>RequestID:").Text(requestId).Html("</p>\n")
-	buffer.Html(`<pre id="query`).Text(requestId).Html(`">`)
-	buffer.Text(request.log)
-	buffer.Html("\n</pre>")
+	buffer.Write(logMessages)
 
 	buffer.Html("\n</div>\n")
 	buffer.Html("\n</main>\n")
@@ -640,6 +641,91 @@ func (qmc *QuesmaManagementConsole) generateLogForRequestId(requestId string) []
 	buffer.Html("\n</body>")
 	buffer.Html("\n</html>")
 	return buffer.Bytes()
+}
+
+func generateLogMessages(logMessages []string) ([]byte, *string) {
+	var buffer HtmlBuffer
+	buffer.Html("<table>\n")
+	buffer.Html("<thead>\n")
+	buffer.Html("<tr>\n")
+	buffer.Html(`<th class="time">Time</th>`)
+	buffer.Html(`<th class="level">Level</th>`)
+	buffer.Html(`<th class="message">Message</th>`)
+	buffer.Html(`<th class="fields">Fields</th>`)
+	buffer.Html("</tr>\n")
+
+	buffer.Html("</thead>\n")
+	buffer.Html("<tbody>\n")
+
+	var asyncId *string
+
+	for _, logMessage := range logMessages {
+		buffer.Html("<tr>\n")
+
+		var fields map[string]interface{}
+
+		if err := json.Unmarshal([]byte(logMessage), &fields); err != nil {
+			// error print
+			buffer.Html("<td></td><td>error</td><td></td>").Text(err.Error()).Html("<td>")
+			continue
+		}
+		// time
+		buffer.Html(`<td class="time">`)
+		if _, ok := fields["time"]; ok {
+			time := fields["time"].(string)
+			time = strings.Replace(time, "T", " ", 1)
+			time = strings.Replace(time, ".", " ", 1)
+			buffer.Text(time).Html("</td>")
+			delete(fields, "time")
+		} else {
+			buffer.Html("missing time</td>")
+		}
+
+		// get rid of request_id and async_id
+		delete(fields, "request_id")
+		if id, ok := fields["async_id"].(string); ok {
+			asyncId = &id
+			delete(fields, "async_id")
+		}
+
+		// level
+		buffer.Html(`<td class="level">`)
+		if level, ok := fields["level"].(string); ok {
+			buffer.Text(level).Html("</td>")
+			delete(fields, "level")
+		} else {
+			buffer.Html("missing level</td>")
+		}
+
+		// message
+		buffer.Html(`<td class="message">`)
+		if message, ok := fields["message"].(string); ok {
+			buffer.Text(message).Html("</td>")
+			delete(fields, "message")
+		} else {
+			buffer.Html("</td>")
+		}
+
+		// simplify caller
+		if caller, ok := fields["caller"].(string); ok {
+			if strings.HasPrefix(caller, "/go/app/") {
+				fields["caller"] = caller[len("/go/app/"):]
+			}
+		}
+
+		// fields
+		buffer.Html(`<td class="fields">`)
+		if rest, err := json.MarshalIndent(fields, "", " "); err == nil {
+			buffer.Text(string(rest)).Html("</td>")
+		} else {
+			buffer.Html("</td>")
+		}
+		buffer.Html("</tr>\n")
+	}
+
+	buffer.Html("</tbody>\n")
+	buffer.Html("</table>\n")
+	return buffer.Bytes(), asyncId
 }
 
 func (qmc *QuesmaManagementConsole) generateReportForRequestsWithStr(requestStr string) []byte {

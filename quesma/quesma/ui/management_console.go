@@ -56,7 +56,7 @@ type QueryDebugSecondarySource struct {
 type QueryDebugInfo struct {
 	QueryDebugPrimarySource
 	QueryDebugSecondarySource
-	log           string
+	logMessages   []string
 	errorLogCount int
 	warnLogCount  int
 }
@@ -265,18 +265,17 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 			return
 		}
 		requestId := match[1]
-		msgPretty := util.JsonPrettify(log.Msg, false) + "\n"
 
 		qmc.mutex.Lock()
 		var value QueryDebugInfo
 		var ok bool
 		if value, ok = qmc.debugInfoMessages[requestId]; !ok {
 			value = QueryDebugInfo{
-				log: msgPretty,
+				logMessages: []string{log.Msg},
 			}
 			qmc.addNewMessageId(requestId)
 		} else {
-			value.log += msgPretty
+			value.logMessages = append(value.logMessages, log.Msg)
 		}
 		if log.Level == zerolog.ErrorLevel {
 			value.errorLogCount += 1
