@@ -148,20 +148,46 @@ Examples:
 
 # Known limitations or unsupported functionalities
 
-Some of the notable limitations or unsupported functionalities in this version:
-* Only querying data is supported, no ingest operations are allowed.
-* Quesma does not support all Elasticsearch API endpoints and Query DSL features. Please 
-  refer to the `List of supported endpoints` section for more details.
-* Quesma does not allow mixed-data source queriese.g. calling `GET /data_a,data_b/_search` where `data_a` is in Elasticsearch and `data_b` is ClickHouse table.
+Quesma is designed for analytical text queries such as in observability or security.
+It does literal case insensitive matches. 
+It does not do tokenization, natural language processing or scoring.
+* Unsupported example: You need top 10 results for query car and expect to find article with word automobile.
+* Good fit: Searching for logs such as `InvalidPassword` should also match `InvalidPasswordError` without `*` as required in Elastic.
+
+## Preview functional limitations
+Currently supported:
+- front-end support for Kibana and Open Search Dashboards, limited to Discover(LogExplorer) interface and Dashboard panels
+- read-only back-end support for Elastic/OpenSearch as origin source and ClickHouse or Hydrolix as destination source
+Which as a result allows you to run Kibana/OSD queries and dashboards on data residing in ClickHouse/Hydrolix.
+Will be relaxed, but not considered as best practice:
+* Quesma does not allow mixed-data source queries.g. calling `GET /data_a,data_b/_search` where `data_a` is in Elasticsearch and `data_b` is ClickHouse table.
     * For Kibana user, this means that Data View cannot contain multiple indices backed up by different data sources.
     * For Elasticsearch API user, this means that you cannot perform queries like `GET /data_a,data_b/_search`, where `data_a` is in Elasticsearch and `data_b` is ClickHouse table.
-* Specific types of aggregation queries are not supported, 
-e.g. [pipeline aggregations](https://www.elastic.co/guide/en/elasticsearch/reference/8.11/search-aggregations-pipeline.html) or geo-type aggregations.
+* Management API is not supported.
+
+Currently not supported future roadmap items:
+* Only querying data is supported, no ingest operations are allowed.
+* Specific types of aggregation queries are not supported, e.g. [pipeline aggregations](https://www.elastic.co/guide/en/elasticsearch/reference/8.11/search-aggregations-pipeline.html) or geo-type aggregations.
+* Quesma does not support all Elasticsearch API endpoints and Query DSL features. Please
+  refer to the `List of supported endpoints` section for more details.
+* JSON are not pretty printed in the response.
+* The schema support is limited.
+  * Elasticsearch types: date, text, keyword, boolean, byte, short, integer, long, unsigned_long, float, double
+  * Clickhouse types: DateTime, DateTime64, String, Boolean, UInt8, UInt16, UInt32, UInt64, Int8, Int16, Int32, Int64, Float32, Float64
+* Some advanced query parameters are ignored.
+* No support for SQL, EQL (Event Query Language), PPL, or ES/QL.
+
+## Preview performance limitations
 * A single Quesma container can process 50 concurrent HTTP requests. More requests would receive an HTTP 429 status code.
- 
+* Async results are stored for 15 minutes. Only 10k or 500MB of async results are supported. They are not persisted across restarts.
+* No more than 10,000 result hits.
+* No partial results for long-running queries. All results are returned in one response once full query is finished
+* No efficient support for metrics.
+
+
 ## List of supported endpoints
 
-Quesma supports a subset of Elasticsearch API endpoints. 
+Quesma supports a subset of OpenSearch/Elasticsearch API endpoints. 
 Upon a query, Quesma will forward the request to the appropriate data source (Elasticsearch or ClickHouse).
 The following endpoints are supported:
 
@@ -177,7 +203,7 @@ The following endpoints are supported:
 
 ## List of supported Kibana features
 
-Quesma allows querying data from Kibana, but not all features are supported.
+Quesma allows querying data from Kibana or OpenSearch Dashboard, but not all features are supported.
 
 For querying data, users can use:
 * Discover, ref: [Kibana docs](https://www.elastic.co/guide/en/kibana/8.11/discover.html)
@@ -192,9 +218,14 @@ Additional features:
 ## Feedback and support
 In case of any issues, questions or feedback, please reach out to us at `eap-support@quesma.com`.
 
+## Debugging interface
+Quesma exposes a debugging interface on port `9999`. It can be accessed by web browser `http://localhost:9999`.
+
 ## Telemetry collection
 
-Quesma collects telemetry data about the usage of the service. This data is used to improve the product and is not shared with any third parties.
+Quesma collects telemetry data about the usage of the service. It is subset of data visible in debugging interface.
+
+This data is used to improve the product and is not shared with any third parties.
 
 Telemetry data consists of:
 * Quesma environment information like components versions and runtime stats. Example entry:
