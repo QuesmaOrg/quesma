@@ -29,13 +29,15 @@ func commonRecovery(r any, panicLogger func() *zerolog.Event) {
 }
 
 func LogPanic() {
-	r := recover()
-	commonRecovery(r, logger.Error)
+	if r := recover(); r != nil {
+		commonRecovery(r, logger.Error)
+	}
 }
 
 func LogPanicWithCtx(ctx context.Context) {
-	r := recover()
-	commonRecovery(r, func() *zerolog.Event {
-		return logger.ErrorWithCtx(ctx)
-	})
+	if r := recover(); r != nil {
+		commonRecovery(r, func() *zerolog.Event {
+			return logger.ErrorWithCtx(ctx)
+		})
+	}
 }
