@@ -58,7 +58,19 @@ func (d emptyAgent) ClickHouseInsertDuration() DurationMeasurement {
 	return &emptyTimer{}
 }
 
-func (d emptyAgent) ElasticQueryDuration() DurationMeasurement {
+func (d emptyAgent) ElasticReadRequestsDuration() DurationMeasurement {
+	return &emptyTimer{}
+}
+
+func (d emptyAgent) ElasticWriteRequestsDuration() DurationMeasurement {
+	return &emptyTimer{}
+}
+
+func (d emptyAgent) ElasticBypassedReadRequestsDuration() DurationMeasurement {
+	return &emptyTimer{}
+}
+
+func (d emptyAgent) ElasticBypassedWriteRequestsDuration() DurationMeasurement {
 	return &emptyTimer{}
 }
 

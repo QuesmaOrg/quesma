@@ -72,7 +72,11 @@ type PhoneHomeStats struct {
 
 	ClickHouseQueriesDuration DurationStats `json:"clickhouse_queries"`
 	ClickHouseInsertsDuration DurationStats `json:"clickhouse_inserts"`
-	ElasticQueriesDuration    DurationStats `json:"elastic_queries"`
+	ElasticReadsDuration      DurationStats `json:"elastic_read_requests"`
+	ElasticWritesDuration     DurationStats `json:"elastic_write_requests"`
+
+	ElasticBypassedReadsDuration  DurationStats `json:"elastic_bypassed_read_requests"`
+	ElasticBypassedWritesDuration DurationStats `json:"elastic_bypassed_write_requests"`
 
 	// Due to schema issues, we are not using this for now, ref: https://github.com/QuesmaOrg/poc-elk-mitmproxy/pull/648
 	IngestCounters    MultiCounterStats          `json:"-"`
@@ -92,7 +96,11 @@ type PhoneHomeAgent interface {
 
 	ClickHouseQueryDuration() DurationMeasurement
 	ClickHouseInsertDuration() DurationMeasurement
-	ElasticQueryDuration() DurationMeasurement
+	ElasticReadRequestsDuration() DurationMeasurement
+	ElasticWriteRequestsDuration() DurationMeasurement
+
+	ElasticBypassedReadRequestsDuration() DurationMeasurement
+	ElasticBypassedWriteRequestsDuration() DurationMeasurement
 
 	IngestCounters() MultiCounter
 	UserAgentCounters() MultiCounter
@@ -111,7 +119,11 @@ type agent struct {
 
 	clickHouseQueryTimes   DurationMeasurement
 	clickHouseInsertsTimes DurationMeasurement
-	elasticQueryTimes      DurationMeasurement
+	elasticReadTimes       DurationMeasurement
+	elasticWriteTimes      DurationMeasurement
+
+	elasticBypassedReadTimes  DurationMeasurement
+	elasticBypassedWriteTimes DurationMeasurement
 
 	ingestCounters    MultiCounter
 	userAgentCounters MultiCounter
@@ -150,19 +162,23 @@ func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *s
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &agent{
-		ctx:                    ctx,
-		cancel:                 cancel,
-		hostname:               hostname(),
-		instanceId:             generateInstanceID(),
-		clickHouseDb:           clickHouseDb,
-		config:                 configuration,
-		clickHouseQueryTimes:   newDurationMeasurement(ctx),
-		clickHouseInsertsTimes: newDurationMeasurement(ctx),
-		elasticQueryTimes:      newDurationMeasurement(ctx),
-		ingestCounters:         NewMultiCounter(ctx, nil),
-		userAgentCounters:      NewMultiCounter(ctx, processUserAgent),
-		telemetryEndpoint:      configuration.QuesmaInternalTelemetryUrl,
-		httpClient:             &http.Client{Timeout: time.Minute},
+		ctx:                       ctx,
+		cancel:                    cancel,
+		hostname:                  hostname(),
+		instanceId:                generateInstanceID(),
+		clickHouseDb:              clickHouseDb,
+		config:                    configuration,
+		clickHouseQueryTimes:      newDurationMeasurement(ctx),
+		clickHouseInsertsTimes:    newDurationMeasurement(ctx),
+		elasticReadTimes:          newDurationMeasurement(ctx),
+		elasticWriteTimes:         newDurationMeasurement(ctx),
+		elasticBypassedReadTimes:  newDurationMeasurement(ctx),
+		elasticBypassedWriteTimes: newDurationMeasurement(ctx),
+
+		ingestCounters:    NewMultiCounter(ctx, nil),
+		userAgentCounters: NewMultiCounter(ctx, processUserAgent),
+		telemetryEndpoint: configuration.QuesmaInternalTelemetryUrl,
+		httpClient:        &http.Client{Timeout: time.Minute},
 	}
 }
 
@@ -174,8 +190,20 @@ func (a *agent) ClickHouseInsertDuration() DurationMeasurement {
 	return a.clickHouseInsertsTimes
 }
 
-func (a *agent) ElasticQueryDuration() DurationMeasurement {
-	return a.elasticQueryTimes
+func (a *agent) ElasticReadRequestsDuration() DurationMeasurement {
+	return a.elasticReadTimes
+}
+
+func (a *agent) ElasticWriteRequestsDuration() DurationMeasurement {
+	return a.elasticWriteTimes
+}
+
+func (a *agent) ElasticBypassedReadRequestsDuration() DurationMeasurement {
+	return a.elasticBypassedReadTimes
+}
+
+func (a *agent) ElasticBypassedWriteRequestsDuration() DurationMeasurement {
+	return a.elasticBypassedWriteTimes
 }
 
 func (a *agent) IngestCounters() MultiCounter {
@@ -427,7 +455,10 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 
 	stats.ClickHouseQueriesDuration = a.ClickHouseQueryDuration().Aggregate()
 	stats.ClickHouseInsertsDuration = a.ClickHouseInsertDuration().Aggregate()
-	stats.ElasticQueriesDuration = a.ElasticQueryDuration().Aggregate()
+	stats.ElasticReadsDuration = a.ElasticReadRequestsDuration().Aggregate()
+	stats.ElasticWritesDuration = a.ElasticWriteRequestsDuration().Aggregate()
+	stats.ElasticBypassedReadsDuration = a.ElasticBypassedReadRequestsDuration().Aggregate()
+	stats.ElasticBypassedWritesDuration = a.ElasticBypassedWriteRequestsDuration().Aggregate()
 	stats.UserAgentCounters = a.userAgentCounters.AggregateTopValues()
 
 	stats.IngestCounters = a.ingestCounters.Aggregate()

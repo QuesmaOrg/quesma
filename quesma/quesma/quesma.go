@@ -123,7 +123,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		var elkResponseChan = make(chan elasticResult)
 
 		if r.config.Elasticsearch.Call {
-			elkResponseChan = r.sendHttpRequestToElastic(ctx, req, reqBody)
+			elkResponseChan = r.sendHttpRequestToElastic(ctx, req, reqBody, false)
 		}
 
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
@@ -195,7 +195,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, logManager.ResolveIndexes)
 
-		elkResponseChan := r.sendHttpRequestToElastic(ctx, req, reqBody)
+		elkResponseChan := r.sendHttpRequestToElastic(ctx, req, reqBody, true)
 		rawResponse := <-elkResponseChan
 		response := rawResponse.response
 		w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
@@ -219,7 +219,7 @@ type elasticResult struct {
 }
 
 func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request,
-	reqBody []byte) chan elasticResult {
+	reqBody []byte, isManagement bool) chan elasticResult {
 	elkResponseChan := make(chan elasticResult)
 
 	// If the request is authenticated, we should not override it with the configured user
@@ -229,7 +229,42 @@ func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request
 
 	go func() {
 		elkResponseChan <- recordRequestToElastic(req.URL.Path, r.quesmaManagementConsole, func() elasticResult {
-			span := r.phoneHomeAgent.ElasticQueryDuration().Begin()
+
+			isWrite := false
+
+			// Elastic API is not regular, and it is hard to determine if the request is read or write.
+			// We would like to keep this separate from the router configuration.
+			switch req.Method {
+			case http.MethodPost:
+				if strings.Contains(req.URL.Path, "/_bulk") ||
+					strings.Contains(req.URL.Path, "/_doc") ||
+					strings.Contains(req.URL.Path, "/_create") {
+					isWrite = true
+				}
+				// other are read
+			case http.MethodPut:
+				isWrite = true
+			case http.MethodDelete:
+				isWrite = true
+			default:
+				isWrite = false
+			}
+
+			var span telemetry.Span
+			if isManagement {
+				if isWrite {
+					span = r.phoneHomeAgent.ElasticBypassedWriteRequestsDuration().Begin()
+				} else {
+					span = r.phoneHomeAgent.ElasticBypassedReadRequestsDuration().Begin()
+				}
+			} else {
+				if isWrite {
+					span = r.phoneHomeAgent.ElasticWriteRequestsDuration().Begin()
+				} else {
+					span = r.phoneHomeAgent.ElasticReadRequestsDuration().Begin()
+				}
+			}
+
 			resp, err := r.sendHttpRequest(ctx, r.config.Elasticsearch.Url.String(), req, reqBody)
 			took := span.End(err)
 			return elasticResult{resp, err, took}
