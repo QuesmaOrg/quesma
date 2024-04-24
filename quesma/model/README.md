@@ -43,3 +43,30 @@ More info: https://www.elastic.co/guide/en/elasticsearch/reference/current/searc
 |                          |                    | Terms                        | :white_check_mark: |
 |                          |                    | Time series                  |        :x:         |
 |                          |                    | Variable width histogram     |        :x:         |
+
+# Query DSL support list
+
+Query DSL language is the main one used in Kibana queries. AFAIK it's only responsible for filtering documents.<br>
+More info: https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
+
+ Compound queries |      Support       | Geo queries      | Support | Joining queries |      Support       | Other          |      Support       |
+|-----------------|:------------------:|------------------|:-------:|-----------------|:------------------:|----------------|:------------------:|
+| Boolean         | :white_check_mark: | Geo-bounding box |   :x:   | Nested          | :white_check_mark: | Match all      | :white_check_mark: |
+| Boosting        |        :x:         | Geo-distance     |   :x:   | Has child       |        :x:         | Match none     |        :x:         | 
+| Constant score  |        :x:         | Geo-grid         |   :x:   | Has parent      |        :x:         | Text expansion |        :x:         |
+| Disjunction max |        :x:         | Geo-polygon      |   :x:   | Parent ID       |        :x:         | Shape          |        :x:         |
+| Function score  |        :x:         | Geoshape         |   :x:   |
+
+ Full text queries     |      Support       | Span queries       | Support | Specialized queries  | Support | Term-level queries |       Support       |
+|----------------------|:------------------:|--------------------|:-------:|----------------------|:-------:|--------------------|:-------------------:|
+| Intervals            |        :x:         | Span containing    |   :x:   | Distance feature     |   :x:   | Exists             | :white_check_mark:  |
+| Match                | :white_check_mark: | Span field masking |   :x:   | More like this       |   :x:   | Fuzzy              |         :x:         |
+| Match boolean prefix |        :x:         | Span first         |   :x:   | Percolate            |   :x:   | IDs                |         :x:         |
+| Match phrase         | :white_check_mark: | Span multi-term    |   :x:   | Knn                  |   :x:   | Prefix             | :white_check_mark:  |
+| Match phrase prefix  |        :x:         | Span near          |   :x:   | Rank feature         |   :x:   | Range              | :white_check_mark:  |
+| Combined fields      |        :x:         | Span not           |   :x:   | Script               |   :x:   | Regexp             |         :x:         |
+| Multi-match          | :white_check_mark: | Span or            |   :x:   | Script score         |   :x:   | Term               | :white_check_mark:  |
+| Query string         | :white_check_mark: | Span term          |   :x:   | Wrapper              |   :x:   | Terms              | :white_check_mark:  |
+| Simple query string  |    :wavy_dash:     | Span within        |   :x:   | Pinned Query         |   :x:   | Terms set          |         :x:         |
+|                      |                    |                    |         | Rule                 |   :x:   | Wildcard           | :white_check_mark:  |
+|                      |                    |                    |         | Weighted tokens      |   :x:   |
