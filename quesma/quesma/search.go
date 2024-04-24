@@ -97,21 +97,20 @@ type AsyncSearchWithError struct {
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole, async bool, waitForResultsMs int, keepOnCompletion bool, asyncRequestIdStr string) ([]byte, error) {
 
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	resolved := lm.ResolveIndexes(indexPattern)
 	if len(resolved) == 0 {
 		if elasticsearch.IsIndexPattern(indexPattern) {
 			if async {
-				return queryparser.EmptyAsyncSearchResponse(id, false, 200)
+				return queryparser.EmptyAsyncSearchResponse(asyncRequestIdStr, false, 200)
 			} else {
 				return queryparser.EmptySearchResponse(), nil
 			}
 		} else {
-			logger.WarnWithCtx(ctx).Str(logger.RID, id).Msgf("could not resolve any table name for [%s]", indexPattern)
+			logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
 			return nil, errIndexNotExists
 		}
 	} else if len(resolved) > 1 { // async search never worked for multiple indexes, TODO fix
-		logger.WarnWithCtx(ctx).Str(logger.RID, id).Msgf("could not resolve multiple table names for [%s]", indexPattern)
+		logger.WarnWithCtx(ctx).Msgf("could not resolve multiple table names for [%s]", indexPattern)
 		resolved = resolved[1:2]
 	}
 
@@ -120,10 +119,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	startTime := time.Now()
 	pushSecondaryInfoToManagementConsole := func() {
 		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-			Id:                     id,
+			Id:                     ctx.Value(tracing.RequestIdCtxKey).(string),
 			IncomingQueryBody:      body,
 			QueryBodyTranslated:    translatedQueryBody,
-			QueryRawResults:        []byte{},
 			QueryTranslatedResults: responseBody,
 			SecondaryTook:          time.Since(startTime),
 		})
@@ -455,7 +453,6 @@ func (q *QueryRunner) storeAsyncResponse(quesmaManagementConsole *ui.QuesmaManag
 		Id:                     id,
 		IncomingQueryBody:      body,
 		QueryBodyTranslated:    translatedQueryBody,
-		QueryRawResults:        []byte{},
 		QueryTranslatedResults: responseBody,
 		SecondaryTook:          time.Since(startTime),
 	})

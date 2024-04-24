@@ -49,7 +49,6 @@ type QueryDebugSecondarySource struct {
 	IncomingQueryBody []byte
 
 	QueryBodyTranslated    []byte
-	QueryRawResults        []byte
 	QueryTranslatedResults []byte
 	SecondaryTook          time.Duration
 }
@@ -240,7 +239,6 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 			msg.Id,
 			msg.IncomingQueryBody,
 			msg.QueryBodyTranslated,
-			msg.QueryRawResults,
 			msg.QueryTranslatedResults,
 			msg.SecondaryTook,
 		}

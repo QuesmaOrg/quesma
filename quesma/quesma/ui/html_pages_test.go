@@ -23,7 +23,6 @@ func TestHtmlPages(t *testing.T) {
 	qmc.PushSecondaryInfo(&QueryDebugSecondarySource{Id: id,
 		IncomingQueryBody:      xssBytes,
 		QueryBodyTranslated:    xssBytes,
-		QueryRawResults:        xssBytes,
 		QueryTranslatedResults: xssBytes,
 	})
 	log := fmt.Sprintf(`{"request_id": "%s", "message": "%s"}`, id, xss)
