@@ -11,6 +11,10 @@ indexes:
     enabled: true
     ignoredFields:
       unknown: true
+    aliases:
+      timestamp:
+        source: "@timestamp"
+        target: "reqTimeSec"
   siem:
     enabled: true
     ignoredFields:
