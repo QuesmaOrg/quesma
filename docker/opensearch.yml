@@ -3,6 +3,10 @@ services:
   quesma:
     build: ../quesma
     image: quesma:latest
+    env_file:
+      # We require .env file to be present
+      # and contain QUESMA_licenseKey with your personal license key
+      - .env
     environment:
       - QUESMA_elasticsearch_url=http://opensearch:9200
       - QUESMA_port=8080

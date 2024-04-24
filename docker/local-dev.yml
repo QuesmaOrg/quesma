@@ -3,12 +3,15 @@ services:
   quesma:
     build: ../quesma
     image: quesma:latest
+    env_file:
+      # We require .env file to be present
+      # and contain QUESMA_licenseKey with your personal license key
+      - .env
     environment:
       - QUESMA_elasticsearch_url=http://elasticsearch:9200
       - QUESMA_port=8080
       - QUESMA_logging_path=/var/quesma/logs
       - QUESMA_clickhouse_url=clickhouse://clickhouse:9000
-      - QUESMA_licenseKey=cdd749a3-e777-11ee-bcf8-0242ac150004
       - QUESMA_mode=dual-write-query-clickhouse
       - QUESMA_CONFIG_FILE=/config/local-dev.yaml
     depends_on:
