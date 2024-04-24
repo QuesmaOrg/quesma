@@ -49,7 +49,7 @@ func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.
 		query.Fields = query.Fields[:len(query.Fields)-1]
 	}
 	query.RemoveEmptyGroupBy()
-	query.TrimKeywordFromFields()
+	query.TrimKeywordFromFields(b.ctx)
 	query.Metadata = metadata
 	return query
 }
@@ -619,7 +619,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldField(shouldBeMap any, aggregatio
 	}
 	if fieldRaw, ok := Map["field"]; ok {
 		if field, ok := fieldRaw.(string); ok {
-			return cw.Table.ResolveField(field)
+			return cw.Table.ResolveField(cw.Ctx, field)
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
 		}

@@ -46,7 +46,18 @@ func (lm *LogManager) ProcessSelectQuery(ctx context.Context, table *Table, quer
 	return rows, err
 }
 
-func makeBuckets(result []model.QueryResultRow, bucket time.Duration) []model.QueryResultRow {
+func makeBuckets(ctx context.Context, result []model.QueryResultRow, bucket time.Duration) []model.QueryResultRow {
+	if len(result) == 0 {
+		return result
+	}
+
+	// type check only for 1st row, as all rows probably have the same type, and there can be a lot of them
+	firstKey := result[0].Cols[model.ResultColKeyIndex].Value
+	if _, ok := firstKey.(int64); !ok {
+		logger.ErrorWithCtx(ctx).Msgf("expected key to be int64, got %T, key: %v. Returning unchanged.", firstKey, firstKey)
+		return result
+	}
+
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Cols[model.ResultColKeyIndex].Value.(int64) < result[j].Cols[model.ResultColKeyIndex].Value.(int64)
 	})
@@ -66,7 +77,7 @@ func (lm *LogManager) ProcessHistogramQuery(ctx context.Context, table *Table, q
 	if err != nil {
 		return nil, err
 	}
-	return makeBuckets(result, bucket), nil
+	return makeBuckets(ctx, result, bucket), nil
 }
 
 // TODO add support for autocomplete for attributes, if we'll find it needed
@@ -94,7 +105,7 @@ func (lm *LogManager) explainQuery(ctx context.Context, query string, elapsed ti
 
 	rows, err := lm.chDb.QueryContext(ctx, explainQuery)
 	if err != nil {
-		logger.Error().Msgf("failed to explain slow query: %v", err)
+		logger.ErrorWithCtx(ctx).Msgf("failed to explain slow query: %v", err)
 	}
 
 	defer rows.Close()
@@ -102,7 +113,7 @@ func (lm *LogManager) explainQuery(ctx context.Context, query string, elapsed ti
 		var explain string
 		err := rows.Scan(&explain)
 		if err != nil {
-			logger.Error().Msgf("failed to scan slow query explain: %v", err)
+			logger.ErrorWithCtx(ctx).Msgf("failed to scan slow query explain: %v", err)
 			return
 		}
 
@@ -110,11 +121,11 @@ func (lm *LogManager) explainQuery(ctx context.Context, query string, elapsed ti
 		explain = strings.ReplaceAll(explain, "\n", "")
 		explain = strings.ReplaceAll(explain, "  ", "")
 
-		logger.Warn().Msgf("slow query (time: '%s')  query: '%s' -> explain: '%s'", elapsed, query, explain)
+		logger.WarnWithCtx(ctx).Msgf("slow query (time: '%s')  query: '%s' -> explain: '%s'", elapsed, query, explain)
 	}
 
 	if rows.Err() != nil {
-		logger.Error().Msgf("failed to read slow query explain: %v", rows.Err())
+		logger.ErrorWithCtx(ctx).Msgf("failed to read slow query explain: %v", rows.Err())
 	}
 }
 
@@ -124,7 +135,7 @@ func executeQuery(ctx context.Context, lm *LogManager, tableName string, queryAs
 	rows, err := lm.Query(ctx, queryAsString)
 	if err != nil {
 		span.End(err)
-		return nil, fmt.Errorf("clickhouse: query failed: %v", err)
+		return nil, fmt.Errorf("clickhouse: query failed. err: %v, query: %v", err, queryAsString)
 	}
 
 	res, err := read(tableName, rows, fields, rowToScan)

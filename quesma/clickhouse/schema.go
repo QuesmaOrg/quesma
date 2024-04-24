@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"fmt"
 	"math"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/util"
 	"reflect"
 	"strings"
@@ -249,6 +250,7 @@ func NewType(value any) Type {
 		}
 		return CompoundType{Name: "Array", BaseType: NewType(valueCasted[0])}
 	}
+	logger.Error().Msgf("unknown type for value: %v. Supposedly, should be unreachable.", value)
 	return nil // should be unreachable
 }
 

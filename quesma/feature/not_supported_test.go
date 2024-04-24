@@ -31,7 +31,7 @@ func TestNewUnsupportedFeature_index(t *testing.T) {
 
 	ctx := context.Background()
 
-	indexNameResolver := func(pattern string) []string {
+	indexNameResolver := func(_ context.Context, pattern string) []string {
 		if pattern == "foo" {
 			return []string{"foo"}
 		}

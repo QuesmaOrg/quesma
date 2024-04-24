@@ -141,7 +141,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 		for index2, config := range configs {
 			for index3, lm := range logManagers(config) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], logManager["+strconv.Itoa(index3)+"]", func(t *testing.T) {
-					query, err := buildCreateTableQueryNoOurFields(tableName, tt.insertJson, config)
+					query, err := buildCreateTableQueryNoOurFields(context.Background(), tableName, tt.insertJson, config)
 					assert.NoError(t, err)
 					table, err := NewTable(query, config)
 					assert.NoError(t, err)

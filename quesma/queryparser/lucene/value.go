@@ -253,6 +253,7 @@ func (p *luceneParser) buildValue(stack []value, parenthesisLevel int) value {
 		case rangeToken:
 			stack = append(stack, currentToken.rangeValue)
 		default:
+			logger.Error().Msgf("invalid expression, unexpected token %v, tokens: %v", currentToken, p.tokens)
 			return newInvalidValue()
 		}
 

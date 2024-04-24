@@ -312,7 +312,7 @@ func (cw *ClickhouseQueryTranslator) parseMetadata(queryMap QueryMap) QueryMap {
 }
 
 func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fieldName string, prefix *string, caseIns bool) SimpleQuery {
-	fieldName = cw.Table.ResolveField(fieldName)
+	fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
 	canParse := true
 	stmts := make([]Statement, 0)
 	if indexFilter != nil {
@@ -507,7 +507,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 	}
 
 	for fieldName, v := range queryMap {
-		fieldName = cw.Table.ResolveField(fieldName)
+		fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
 		// (fieldName, v) = either e.g. ("message", "this is a test")
 		//                  or  ("message", map["query": "this is a test", ...]). Here we only care about "query" until we find a case where we need more.
 		vUnNested := v
@@ -607,7 +607,7 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) SimpleQuery 
 	}
 
 	for fieldName, v := range queryMap {
-		fieldName = cw.Table.ResolveField(fieldName)
+		fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
 		switch vCasted := v.(type) {
 		case string:
 			cw.AddTokenToHighlight(vCasted)
@@ -637,7 +637,7 @@ func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) SimpleQuer
 	}
 
 	for fieldName, v := range queryMap {
-		fieldName = cw.Table.ResolveField(fieldName)
+		fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
 		if vAsMap, ok := v.(QueryMap); ok {
 			if value, ok := vAsMap["value"]; ok {
 				if valueAsString, ok := value.(string); ok {
@@ -683,7 +683,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) SimpleQ
 	}
 
 	// we always can parse, with invalid query we return "false"
-	return newSimpleQuery(NewSimpleStatement(lucene.TranslateToSQL(query, fields)), true)
+	return newSimpleQuery(NewSimpleStatement(lucene.TranslateToSQL(cw.Ctx, query, fields)), true)
 }
 
 func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) SimpleQuery {
@@ -821,7 +821,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 	}
 
 	for field, v := range queryMap {
-		field = cw.Table.ResolveField(field)
+		field = cw.Table.ResolveField(cw.Ctx, field)
 		stmts := make([]Statement, 0)
 		if _, ok := v.(QueryMap); !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid range type: %T, value: %v", v, v)
@@ -833,7 +833,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 		}
 
 		for op, v := range v.(QueryMap) {
-			fieldType := cw.Table.GetDateTimeType(field)
+			fieldType := cw.Table.GetDateTimeType(cw.Ctx, field)
 			vToPrint := sprint(v)
 			var fieldToPrint string
 			if !isDatetimeInDefaultFormat {
@@ -893,7 +893,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 
 // parseDateTimeString returns string used to parse DateTime in Clickhouse (depends on column type)
 func (cw *ClickhouseQueryTranslator) parseDateTimeString(table *clickhouse.Table, field, dateTime string) string {
-	typ := table.GetDateTimeType(field)
+	typ := table.GetDateTimeType(cw.Ctx, field)
 	switch typ {
 	case clickhouse.DateTime64:
 		return "parseDateTime64BestEffort('" + dateTime + "')"
@@ -917,10 +917,10 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) SimpleQuery 
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid exists type: %T, value: %v", v, v)
 			return newSimpleQuery(NewSimpleStatement("invalid exists type"), false)
 		}
-		fieldName = cw.Table.ResolveField(fieldName)
+		fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
 		fieldNameQuoted := strconv.Quote(fieldName)
 
-		switch cw.Table.GetFieldInfo(fieldName) {
+		switch cw.Table.GetFieldInfo(cw.Ctx, fieldName) {
 		case clickhouse.ExistsAndIsBaseType:
 			sql = NewSimpleStatement(fieldNameQuoted + " IS NOT NULL")
 		case clickhouse.ExistsAndIsArray:
@@ -938,7 +938,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) SimpleQuery 
 			}
 			sql = or(stmts)
 		default:
-			logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T for exists: %s", cw.Table.GetFieldInfo(fieldName), fieldName)
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T for exists: %s", cw.Table.GetFieldInfo(cw.Ctx, fieldName), fieldName)
 		}
 	}
 	return newSimpleQuery(sql, true)
@@ -955,7 +955,7 @@ func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []strin
 		if fieldStr == "*" {
 			return cw.GetFieldsList()
 		}
-		fieldStr = cw.Table.ResolveField(fieldStr)
+		fieldStr = cw.Table.ResolveField(cw.Ctx, fieldStr)
 		result = append(result, fieldStr)
 	}
 	return result
@@ -1122,7 +1122,7 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 		return model.NewSearchQueryInfoNone(), false
 	}
 	fieldName = strings.TrimSuffix(fieldName, ".keyword")
-	fieldName = cw.Table.ResolveField(fieldName)
+	fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
 
 	secondNestingMap, ok := queryMap["sampler"].(QueryMap)
 	if !ok {
@@ -1222,7 +1222,7 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.S
 			}
 		}
 
-		resolvedField := cw.Table.ResolveField(fieldName)
+		resolvedField := cw.Table.ResolveField(cw.Ctx, fieldName)
 		if resolvedField == "*" {
 			return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: size}, true
 		}
@@ -1266,11 +1266,11 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps []any) []string {
 
 		// sortMap has only 1 key, so we can just iterate over it
 		for k, v := range sortMap {
-			if strings.HasPrefix(k, "_") && cw.Table.GetFieldInfo(k) == clickhouse.NotExists {
+			if strings.HasPrefix(k, "_") && cw.Table.GetFieldInfo(cw.Ctx, k) == clickhouse.NotExists {
 				// we're skipping ELK internal fields, like "_doc", "_id", etc.
 				continue
 			}
-			fieldName := cw.Table.ResolveField(k)
+			fieldName := cw.Table.ResolveField(cw.Ctx, k)
 			if vAsMap, ok := v.(QueryMap); ok {
 				if order, ok := vAsMap["order"]; ok {
 					if orderAsString, ok := order.(string); ok {

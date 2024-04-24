@@ -354,7 +354,7 @@ func (cw *ClickhouseQueryTranslator) finishMakeResponse(query model.QueryWithAgg
 // Returns if row1 and row2 have the same values for the first level + 1 fields
 func (cw *ClickhouseQueryTranslator) sameGroupByFields(row1, row2 model.QueryResultRow, level int) bool {
 	for i := 0; i <= level; i++ {
-		if row1.Cols[i].ExtractValue() != row2.Cols[i].ExtractValue() {
+		if row1.Cols[i].ExtractValue(cw.Ctx) != row2.Cols[i].ExtractValue(cw.Ctx) {
 			return false
 		}
 	}
@@ -600,7 +600,7 @@ func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(timestampFieldName, whe
 		logger.ErrorWithCtx(cw.Ctx).Msg(err.Error())
 		histogramOneBar = defaultInterval
 	}
-	groupByClause := clickhouse.TimestampGroupBy(timestampFieldName, cw.Table.GetDateTimeType(timestampFieldName), histogramOneBar)
+	groupByClause := clickhouse.TimestampGroupBy(timestampFieldName, cw.Table.GetDateTimeType(cw.Ctx, timestampFieldName), histogramOneBar)
 	// [WARNING] This is a little oversimplified, but it seems to be good enough for now (==satisfies Kibana's histogram)
 	//
 	// In Elasticsearch's `date_histogram` aggregation implementation, the timestamps for the intervals are generated independently of the document data.
@@ -677,12 +677,12 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName, whe
 
 func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMap) string {
 	const defaultDateTimeType = clickhouse.DateTime64
-	fieldName := cw.Table.ResolveField(queryMap["field"].(string))
+	fieldName := cw.parseFieldField(queryMap, "histogram")
 	interval, err := kibana.ParseInterval(cw.extractInterval(queryMap))
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Msg(err.Error())
 	}
-	dateTimeType := cw.Table.GetDateTimeType(fieldName)
+	dateTimeType := cw.Table.GetDateTimeType(cw.Ctx, fieldName)
 	if dateTimeType == clickhouse.Invalid {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("invalid date type for field %v. Using DateTime64 as default.", fieldName)
 		dateTimeType = defaultDateTimeType

@@ -59,7 +59,7 @@ func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id str
 
 // returns -1 when table name could not be resolved
 func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string, lm *clickhouse.LogManager) (int64, error) {
-	indexes := lm.ResolveIndexes(indexPattern)
+	indexes := lm.ResolveIndexes(ctx, indexPattern)
 	if len(indexes) == 0 {
 		if elasticsearch.IsIndexPattern(indexPattern) {
 			return 0, nil
@@ -85,7 +85,7 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string
 	quesmaManagementConsole *ui.QuesmaManagementConsole, waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
 	asyncRequestIdStr := generateAsyncRequestId()
 	ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, asyncRequestIdStr)
-	logger.InfoWithCtx(ctx).Msgf("Async search request id: %s started", asyncRequestIdStr)
+	logger.InfoWithCtx(ctx).Msgf("async search request id: %s started", asyncRequestIdStr)
 	return q.handleSearchCommon(ctx, indexPattern, body, lm, quesmaManagementConsole, true, waitForResultsMs, keepOnCompletion, asyncRequestIdStr)
 }
 
@@ -97,7 +97,7 @@ type AsyncSearchWithError struct {
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole, async bool, waitForResultsMs int, keepOnCompletion bool, asyncRequestIdStr string) ([]byte, error) {
 
-	resolved := lm.ResolveIndexes(indexPattern)
+	resolved := lm.ResolveIndexes(ctx, indexPattern)
 	if len(resolved) == 0 {
 		if elasticsearch.IsIndexPattern(indexPattern) {
 			if async {
@@ -152,10 +152,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		simpleQuery, queryInfo, highlighter = queryTranslator.ParseQuery(string(body))
 		if simpleQuery.CanParse {
 			if ((queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields || queryInfo.Typ == model.Normal) && !bytes.Contains(body, []byte("aggs"))) || queryInfo.Typ == model.Facets || queryInfo.Typ == model.FacetsNumeric {
-				logger.InfoWithCtx(ctx).Msgf("Received search request, type: %v, async: %v", queryInfo.Typ, async)
+				logger.InfoWithCtx(ctx).Msgf("received search request, type: %v, async: %v", queryInfo.Typ, async)
 
 				if properties := q.findNonexistingProperties(queryInfo, simpleQuery, table); len(properties) > 0 {
-					logger.DebugWithCtx(ctx).Msgf("Properties %s not found in table %s", properties, table.Name)
+					logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
 					if elasticsearch.IsIndexPattern(indexPattern) {
 						return queryparser.EmptySearchResponse(ctx), nil
 					} else {
@@ -195,21 +195,27 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				listQuery := queryTranslator.BuildNRowsQuery(fieldName, simpleQuery, queryInfo.Size)
 				hitsFallback, err = queryTranslator.ClickhouseLM.ProcessSelectQuery(ctx, table, listQuery)
 				if err != nil {
-					logger.ErrorWithCtx(ctx).Msgf("Error processing fallback query: %v", err)
+					logger.ErrorWithCtx(ctx).Msgf("error processing fallback query. Err: %v, query: %+v", err, listQuery)
 					pushSecondaryInfoToManagementConsole()
 					return responseBody, err
 				}
 				countQuery := queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
 				countResult, err := queryTranslator.ClickhouseLM.ProcessSelectQuery(ctx, table, countQuery)
 				if err != nil {
-					logger.ErrorWithCtx(ctx).Msgf("Error processing count query: %v", err)
+					logger.ErrorWithCtx(ctx).Msgf("error processing count query. Err: %v, query: %+v", err, countQuery)
 					pushSecondaryInfoToManagementConsole()
 					return responseBody, err
 				}
 				if len(countResult) > 0 {
 					// This if only for tests... On production it'll never be 0.
 					// When e.g. sqlmock starts supporting uint64, we can remove it.
-					count = int(countResult[0].Cols[0].Value.(uint64))
+					countRaw := countResult[0].Cols[0].Value
+					if countExpectedType, ok := countRaw.(uint64); ok {
+						count = int(countExpectedType)
+					} else {
+						logger.ErrorWithCtx(ctx).Msgf("unexpected count type: %T, count: %v. Defaulting to 0.", countRaw, countRaw)
+						count = 0
+					}
 				}
 			}
 		} else {
@@ -244,7 +250,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			response = queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
 		}
 		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("Error making response: %v rows: %v", err, hits)
+			logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queryInfo, hits)
 			pushSecondaryInfoToManagementConsole()
 			return responseBody, err
 		}
@@ -259,7 +265,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			response.Hits.Total.Value = count
 		}
 		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("Error making response: %v rows: %v", err, hitsFallback)
+			logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %v, rows: %v", err, queryInfo, hitsFallback)
 		}
 		responseBody, err = response.Marshal()
 
@@ -280,7 +286,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			err = res.err
 
 			var errMarshall error
-			var responseBody []byte
 			// Unwind errors
 			if res.response != nil {
 				res.response.CompletionStatus = nil
@@ -309,25 +314,25 @@ func generateAsyncRequestId() string {
 
 func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {
 	if !strings.Contains(id, "quesma_async_search_id_") {
-		logger.ErrorWithCtx(ctx).Msgf("Non quesma async id: %v", id)
+		logger.ErrorWithCtx(ctx).Msgf("non quesma async id: %v", id)
 		return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 	}
 	if result, ok := q.AsyncRequestStorage.Load(id); ok {
 		if result.err != nil {
 			q.AsyncRequestStorage.Delete(id)
-			logger.ErrorWithCtx(ctx).Msgf("Error processing async query: %v", result.err)
+			logger.ErrorWithCtx(ctx).Msgf("error processing async query: %v", result.err)
 			return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 		}
 		q.AsyncRequestStorage.Delete(id)
 		// We use zstd to conserve memory, as we have a lot of async queries
-		logger.InfoWithCtx(ctx).Msgf("Async query id : %s ended successfully", id)
+		logger.InfoWithCtx(ctx).Msgf("async query id : %s ended successfully", id)
 		if result.isCompressed {
 			return util.Decompress(result.responseBody)
 		}
 		return result.responseBody, nil
 	} else {
 		const isPartial = true
-		logger.InfoWithCtx(ctx).Msgf("Async query id : %s partial result", id)
+		logger.InfoWithCtx(ctx).Msgf("async query id : %s partial result", id)
 		return queryparser.EmptyAsyncSearchResponse(id, isPartial, 200)
 	}
 }
@@ -340,13 +345,13 @@ func (q *QueryRunner) deleteAsyncSeach(id string) ([]byte, error) {
 	return []byte{}, nil
 }
 
-func (q *QueryRunner) reachedQueriesLimit(asyncRequestIdStr string, doneCh chan<- AsyncSearchWithError) bool {
+func (q *QueryRunner) reachedQueriesLimit(ctx context.Context, asyncRequestIdStr string, doneCh chan<- AsyncSearchWithError) bool {
 	if q.AsyncRequestStorage.Size() < asyncQueriesLimit && q.asyncQueriesCumulatedBodySize() < asyncQueriesLimitBytes {
 		return false
 	}
 	err := errors.New("too many async queries")
 	q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: err, added: time.Now(), isCompressed: false})
-	logger.Error().Msgf("Cannot handle %s, too many async queries", asyncRequestIdStr)
+	logger.ErrorWithCtx(ctx).Msgf("cannot handle %s, too many async queries", asyncRequestIdStr)
 	doneCh <- AsyncSearchWithError{response: nil, err: err}
 	return true
 }
@@ -357,7 +362,7 @@ func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.C
 
 func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementConsole *ui.QuesmaManagementConsole, asyncRequestIdStr string, queryTranslator *queryparser.ClickhouseQueryTranslator,
 	table *clickhouse.Table, body []byte, doneCh chan<- AsyncSearchWithError, async bool) (translatedQueryBody []byte, hits []model.QueryResultRow) {
-	if async && q.reachedQueriesLimit(asyncRequestIdStr, doneCh) {
+	if async && q.reachedQueriesLimit(ctx, asyncRequestIdStr, doneCh) {
 		return
 	}
 
@@ -400,7 +405,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementCo
 		hits, err = queryTranslator.ClickhouseLM.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
 
 	default:
-		panic(fmt.Sprintf("Unknown query type: %v", queryInfo.Typ))
+		logger.ErrorWithCtx(ctx).Msgf("unknown query type: %v, query body: %v", queryInfo.Typ, body)
 	}
 	if fullQuery != nil {
 		translatedQueryBody = []byte(fullQuery.String())
@@ -416,7 +421,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementCo
 	if async {
 		searchResponse, err := queryTranslator.MakeSearchResponse(hits, queryInfo.Typ, highlighter)
 		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("Error making response: %v rows: %v", err, hits)
+			logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queryInfo, hits)
 			q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{responseBody: []byte{}, added: time.Now(), err: err, isCompressed: false})
 			doneCh <- AsyncSearchWithError{nil, err}
 			return
@@ -473,7 +478,7 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, quesmaM
 	queryTranslator *queryparser.ClickhouseQueryTranslator, table *clickhouse.Table, body []byte,
 	doneCh chan<- AsyncSearchWithError, async bool) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
 
-	if async && q.reachedQueriesLimit(asyncRequestIdStr, doneCh) {
+	if async && q.reachedQueriesLimit(ctx, asyncRequestIdStr, doneCh) {
 		return
 	}
 
@@ -488,7 +493,7 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, quesmaM
 	} else {
 		dbQueryCtx = ctx
 	}
-	logger.InfoWithCtx(ctx).Msg("We're using new Aggregation handling.")
+	logger.InfoWithCtx(ctx).Msg("we're using new Aggregation handling.")
 	for _, agg := range aggregations {
 		logger.InfoWithCtx(ctx).Msg(agg.String()) // I'd keep for now until aggregations work fully
 		sqls += agg.Query.String() + "\n"
@@ -526,7 +531,7 @@ func (q *QueryRunner) searchAggregationWorker(ctx context.Context, quesmaManagem
 
 func (q *QueryRunner) Close() {
 	q.cancel()
-	logger.Info().Msg("QueryRunner Stopped")
+	logger.Info().Msg("queryRunner Stopped")
 }
 
 func (q *QueryRunner) findNonexistingProperties(queryInfo model.SearchQueryInfo, simpleQuery queryparser.SimpleQuery, table *clickhouse.Table) []string {
@@ -538,7 +543,7 @@ func (q *QueryRunner) findNonexistingProperties(queryInfo model.SearchQueryInfo,
 	}
 
 	for _, property := range allReferencedFields {
-		if property != "*" && !table.HasColumn(property) {
+		if property != "*" && !table.HasColumn(q.executionCtx, property) {
 			results = append(results, property)
 		}
 	}

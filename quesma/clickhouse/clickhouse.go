@@ -109,10 +109,10 @@ func (lm *LogManager) Close() {
 	_ = lm.chDb.Close()
 }
 
-func (lm *LogManager) matchIndex(indexNamePattern, indexName string) bool {
+func (lm *LogManager) matchIndex(ctx context.Context, indexNamePattern, indexName string) bool {
 	r, err := regexp.Compile("^" + strings.Replace(indexNamePattern, "*", ".*", -1) + "$")
 	if err != nil {
-		logger.Error().Msgf("invalid index name pattern [%s]: %s", indexNamePattern, err)
+		logger.ErrorWithCtx(ctx).Msgf("invalid index name pattern [%s]: %s", indexNamePattern, err)
 		return false
 	}
 	return r.MatchString(indexName)
@@ -121,10 +121,10 @@ func (lm *LogManager) matchIndex(indexNamePattern, indexName string) bool {
 // Deprecated: use ResolveIndexes instead, this method will be removed once we switch to the new one
 // Indexes can be in a form of wildcard, e.g. "index-*"
 // If we have such index, we need to resolve it to a real table name.
-func (lm *LogManager) ResolveTableName(index string) (result string) {
+func (lm *LogManager) ResolveTableName(ctx context.Context, index string) (result string) {
 	lm.schemaLoader.TableDefinitions().
 		Range(func(k string, v *Table) bool {
-			if lm.matchIndex(index, k) {
+			if lm.matchIndex(ctx, index, k) {
 				result = k
 				return false
 			}
@@ -137,7 +137,7 @@ func (lm *LogManager) ResolveTableName(index string) (result string) {
 // this method returns all matching indexes
 // empty pattern means all indexes
 // "_all" index name means all indexes
-func (lm *LogManager) ResolveIndexes(patterns string) (results []string) {
+func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (results []string) {
 	results = make([]string, 0)
 	if strings.Contains(patterns, ",") {
 		for _, pattern := range strings.Split(patterns, ",") {
@@ -146,7 +146,7 @@ func (lm *LogManager) ResolveIndexes(patterns string) (results []string) {
 				slices.Sort(results)
 				return results
 			} else {
-				results = append(results, lm.ResolveIndexes(pattern)...)
+				results = append(results, lm.ResolveIndexes(ctx, pattern)...)
 			}
 		}
 	} else {
@@ -157,7 +157,7 @@ func (lm *LogManager) ResolveIndexes(patterns string) (results []string) {
 		} else {
 			lm.schemaLoader.TableDefinitions().
 				Range(func(tableName string, v *Table) bool {
-					if lm.matchIndex(patterns, tableName) {
+					if lm.matchIndex(ctx, patterns, tableName) {
 						results = append(results, tableName)
 					}
 					return true
@@ -269,11 +269,11 @@ func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string,
 	return lm.sendCreateTableQuery(ctx, addOurFieldsToCreateTableQuery(query, config, table))
 }
 
-func buildCreateTableQueryNoOurFields(tableName, jsonData string, config *ChTableConfig) (string, error) {
+func buildCreateTableQueryNoOurFields(ctx context.Context, tableName, jsonData string, config *ChTableConfig) (string, error) {
 	m := make(SchemaMap)
 	err := json.Unmarshal([]byte(jsonData), &m)
 	if err != nil {
-		logger.Error().Msgf("Can't unmarshall, json: %s\nerr:%v", jsonData, err)
+		logger.ErrorWithCtx(ctx).Msgf("can't unmarshall, json: %s\nerr:%v", jsonData, err)
 		return "", err
 	}
 	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
@@ -303,7 +303,7 @@ func Indexes(m SchemaMap) string {
 func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name, jsonData string, config *ChTableConfig) error {
 	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
 
-	query, err := buildCreateTableQueryNoOurFields(name, jsonData, config)
+	query, err := buildCreateTableQueryNoOurFields(ctx, name, jsonData, config)
 	if err != nil {
 		return err
 	}

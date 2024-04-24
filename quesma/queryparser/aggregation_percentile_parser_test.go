@@ -66,7 +66,7 @@ func Test_parsePercentilesAggregationWithUserSpecifiedPercents(t *testing.T) {
 }
 
 func Test_parsePercentilesAggregationKeyed(t *testing.T) {
-	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}}
+	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}, Ctx: context.Background()}
 	payload := QueryMap{
 		"field": "custom_name",
 		"keyed": true,

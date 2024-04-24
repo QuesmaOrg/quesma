@@ -10,7 +10,7 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(dateRange QueryMa
 	var fieldName string
 	if field, exists := dateRange["field"]; exists {
 		if fieldNameRaw, ok := field.(string); ok {
-			fieldName = cw.Table.ResolveField(fieldNameRaw)
+			fieldName = cw.Table.ResolveField(cw.Ctx, fieldNameRaw)
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("field specified for date range aggregation is not a string. Using empty. Querymap: %v", dateRange)
 		}
@@ -113,7 +113,7 @@ func (cw *ClickhouseQueryTranslator) addRoundingToClickhouseDateTime(dateTime st
 	case 'd', 'w', 'M', 'Y':
 		return roundingFunction[rune(dateTime[len(dateTime)-1])] + "(" + parsedWithoutRounding + ")"
 	default:
-		logger.Error().Msgf("Unknown rounding character %c in dateTime %s. Defaulting to /%s", dateTime[len(dateTime)-1], dateTime, string(defaultRounding))
+		logger.Error().Msgf("unknown rounding character %c in dateTime %s. Defaulting to /%s", dateTime[len(dateTime)-1], dateTime, string(defaultRounding))
 		return roundingFunction[defaultRounding] + "(" + parsedWithoutRounding + ")"
 	}
 }

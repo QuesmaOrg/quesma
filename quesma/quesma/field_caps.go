@@ -131,7 +131,7 @@ func addNewKeywordFieldCapability(fields map[string]map[string]model.FieldCapabi
 	}
 }
 
-func handleFieldCapsIndex(_ context.Context, indexes []string, tables clickhouse.TableMap) ([]byte, error) {
+func handleFieldCapsIndex(ctx context.Context, indexes []string, tables clickhouse.TableMap) ([]byte, error) {
 	fields := make(map[string]map[string]model.FieldCapability)
 	for _, resolvedIndex := range indexes {
 		if len(resolvedIndex) == 0 {
@@ -160,7 +160,7 @@ func handleFieldCapsIndex(_ context.Context, indexes []string, tables clickhouse
 				}
 			}
 
-			for _, alias := range table.AliasFields() {
+			for _, alias := range table.AliasFields(ctx) {
 				if alias == nil {
 					continue
 				}
@@ -187,7 +187,7 @@ func isInternalColumn(col *clickhouse.Column) bool {
 }
 
 func handleFieldCaps(ctx context.Context, index string, _ []byte, lm *clickhouse.LogManager) ([]byte, error) {
-	indexes := lm.ResolveIndexes(index)
+	indexes := lm.ResolveIndexes(ctx, index)
 	if len(indexes) == 0 {
 		if !elasticsearch.IsIndexPattern(index) {
 			return nil, errIndexNotExists

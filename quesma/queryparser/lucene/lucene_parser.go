@@ -1,6 +1,7 @@
 package lucene
 
 import (
+	"context"
 	"math"
 	"mitmproxy/quesma/logger"
 	"slices"
@@ -28,13 +29,14 @@ import (
 // After parsing, the result expression is in lastExpression.
 // If you have multiple queries to parse, create a new luceneParser for each query.
 type luceneParser struct {
+	ctx               context.Context
 	tokens            []token
 	defaultFieldNames []string
 	lastExpression    expression
 }
 
-func newLuceneParser(defaultFieldNames []string) luceneParser {
-	return luceneParser{defaultFieldNames: defaultFieldNames, lastExpression: nil, tokens: make([]token, 0)}
+func newLuceneParser(ctx context.Context, defaultFieldNames []string) luceneParser {
+	return luceneParser{ctx: ctx, defaultFieldNames: defaultFieldNames, lastExpression: nil, tokens: make([]token, 0)}
 }
 
 const fuzzyOperator = '~'
@@ -60,8 +62,8 @@ var specialOperators = map[string]token{
 	string(rightParenthesis): rightParenthesisToken{},
 }
 
-func TranslateToSQL(query string, fields []string) string {
-	parser := newLuceneParser(fields)
+func TranslateToSQL(ctx context.Context, query string, fields []string) string {
+	parser := newLuceneParser(ctx, fields)
 	return parser.translateToSQL(query)
 }
 
@@ -69,6 +71,11 @@ func (p *luceneParser) translateToSQL(query string) string {
 	query = p.removeFuzzySearchOperator(query)
 	query = p.removeBoostingOperator(query)
 	p.tokenizeQuery(query)
+	if len(p.tokens) == 1 {
+		if _, isInvalidToken := p.tokens[0].(invalidToken); isInvalidToken {
+			logger.WarnWithCtx(p.ctx).Msgf("Invalid query, can't tokenize: %s", query)
+		}
+	}
 	for len(p.tokens) > 0 {
 		p.lastExpression = p.buildExpression(true)
 	}
@@ -78,10 +85,18 @@ func (p *luceneParser) translateToSQL(query string) string {
 	return p.lastExpression.toSQL()
 }
 
+// tokenizeQuery splits the query into tokens, which are stored in p.tokens.
+// If query is invalid, p.tokens contains only one invalidToken.
 func (p *luceneParser) tokenizeQuery(query string) {
 	query = strings.TrimSpace(query)
 	for len(query) > 0 {
 		nextTokens, remainingQuery := p.nextToken(query)
+		for _, tok := range nextTokens {
+			if _, isInvalidToken := tok.(invalidToken); isInvalidToken {
+				p.tokens = []token{newInvalidToken()}
+				return
+			}
+		}
 		p.tokens = append(p.tokens, nextTokens...)
 		query = strings.TrimSpace(remainingQuery)
 	}

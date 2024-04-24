@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"strconv"
 	"testing"
 	"time"
@@ -58,11 +59,11 @@ func TestQueryResultCol_String(t *testing.T) {
 		{map[string]any{"a": 1}, `"name": {"a":1}`},
 		{map[string]any{"a": map[string]any{"int": 1}}, `"name": {"a":{"int":1}}`},
 	}
-
+	ctx := context.Background()
 	for _, tt := range testcases {
 		t.Run(tt.expected, func(t *testing.T) {
 			col := QueryResultCol{ColName: "name", Value: tt.value}
-			got := col.String()
+			got := col.String(ctx)
 			if got != tt.expected {
 				t.Errorf("Expected %v, got %v", tt.expected, got)
 			}
@@ -117,8 +118,8 @@ func TestQueryResultCol_ExtractValue(t *testing.T) {
 	for i, tt := range testcases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			col := QueryResultCol{ColName: "name", Value: tt.value}
-			if col.ExtractValue() != tt.expected {
-				t.Errorf("Expected %v, got %v", tt.expected, col.ExtractValue())
+			if col.ExtractValue(context.Background()) != tt.expected {
+				t.Errorf("Expected %v, got %v", tt.expected, col.ExtractValue(context.Background()))
 			}
 		})
 	}

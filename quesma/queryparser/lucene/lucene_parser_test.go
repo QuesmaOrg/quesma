@@ -1,6 +1,7 @@
 package lucene
 
 import (
+	"context"
 	"strconv"
 	"testing"
 )
@@ -76,7 +77,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 	}
 	for i, tt := range append(properQueries, randomQueriesWithPossiblyIncorrectInput...) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			parser := newLuceneParser(defaultFieldNames)
+			parser := newLuceneParser(context.Background(), defaultFieldNames)
 			got := parser.translateToSQL(tt.query)
 			if got != tt.want {
 				t.Errorf("got %q, want %q", got, tt.want)

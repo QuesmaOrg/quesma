@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"mitmproxy/quesma/logger"
 	"strconv"
 	"strings"
@@ -146,24 +147,24 @@ func (q *QueryWithAggregation) RemoveEmptyGroupBy() {
 
 // TrimKeywordFromFields trims .keyword from fields and group by fields
 // In future probably handle it in a better way
-func (q *QueryWithAggregation) TrimKeywordFromFields() {
+func (q *QueryWithAggregation) TrimKeywordFromFields(ctx context.Context) {
 	for i := range q.Fields {
 		if strings.HasSuffix(q.Fields[i], `.keyword"`) {
-			logger.Warn().Msgf("Trimming .keyword from field %s", q.Fields[i])
+			logger.WarnWithCtx(ctx).Msgf("trimming .keyword from field %s", q.Fields[i])
 			q.Fields[i] = strings.TrimSuffix(q.Fields[i], `.keyword"`)
 			q.Fields[i] += `"`
 		}
 	}
 	for i := range q.GroupByFields {
 		if strings.HasSuffix(q.GroupByFields[i], `.keyword"`) {
-			logger.Warn().Msgf("Trimming .keyword from group by field %s", q.GroupByFields[i])
+			logger.WarnWithCtx(ctx).Msgf("trimming .keyword from group by field %s", q.GroupByFields[i])
 			q.GroupByFields[i] = strings.TrimSuffix(q.GroupByFields[i], `.keyword"`)
 			q.GroupByFields[i] += `"`
 		}
 	}
 	for i := range q.NonSchemaFields {
 		if strings.HasSuffix(q.NonSchemaFields[i], `.keyword"`) {
-			logger.Warn().Msgf("Trimming .keyword from group by field %s", q.GroupByFields[i])
+			logger.WarnWithCtx(ctx).Msgf("trimming .keyword from group by field %s", q.GroupByFields[i])
 			q.NonSchemaFields[i] = strings.TrimSuffix(q.NonSchemaFields[i], `.keyword"`)
 			q.NonSchemaFields[i] += `"`
 		}

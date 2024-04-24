@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"mitmproxy/quesma/logger"
@@ -17,6 +18,7 @@ type QueryResultCol struct {
 }
 
 type QueryResultRow struct {
+	ctx   context.Context
 	Index string
 	Cols  []QueryResultCol
 }
@@ -32,8 +34,8 @@ func NewQueryResultCol(colName string, value interface{}) QueryResultCol {
 }
 
 // String returns the string representation of the column in format `"<colName>": <value>`, properly quoted.
-func (c QueryResultCol) String() string {
-	valueExtracted := c.ExtractValue()
+func (c QueryResultCol) String(ctx context.Context) string {
+	valueExtracted := c.ExtractValue(ctx)
 	if valueExtracted == nil {
 		return fmt.Sprintf(`"%s": null`, c.ColName)
 	}
@@ -41,7 +43,7 @@ func (c QueryResultCol) String() string {
 	case string:
 		processed, err := json.Marshal(valueExtracted)
 		if err != nil {
-			logger.Error().Err(err).Msgf("Failed to marshal value %v", valueExtracted)
+			logger.ErrorWithCtx(ctx).Err(err).Msgf("failed to marshal value %v", valueExtracted)
 		}
 		return fmt.Sprintf(`"%s": %s`, c.ColName, string(processed))
 	case time.Time:
@@ -53,7 +55,7 @@ func (c QueryResultCol) String() string {
 		// and try to handle simple cases without it
 		marshalled, err := json.Marshal(valueExtracted)
 		if err != nil {
-			logger.Error().Err(err).Msgf("Failed to marshal value %v", valueExtracted)
+			logger.ErrorWithCtx(ctx).Err(err).Msgf("failed to marshal value %v", valueExtracted)
 		}
 		return fmt.Sprintf(`"%s": %v`, c.ColName, string(marshalled))
 	}
@@ -61,7 +63,7 @@ func (c QueryResultCol) String() string {
 
 // ExtractValue returns the value of the column. If it is a pointer, it returns the value of the pointer.
 // Care: it's untested how it works with '[]type' or '[]*type'.
-func (c QueryResultCol) ExtractValue() any {
+func (c QueryResultCol) ExtractValue(ctx context.Context) any {
 	switch valueTyped := c.Value.(type) {
 	case string, time.Time, int, int64, float64, uint64, bool:
 		return valueTyped
@@ -104,7 +106,7 @@ func (c QueryResultCol) ExtractValue() any {
 	}
 
 	// TODO Add arrays
-
+	logger.WarnWithCtx(ctx).Msgf("extractValue: unseed type %T, value: %v", c.Value, c.Value)
 	return c.Value
 }
 
@@ -114,7 +116,7 @@ func (r QueryResultRow) String() string {
 	numCols := len(r.Cols)
 	i := 0
 	for _, col := range r.Cols {
-		str.WriteString(util.Indent(2) + col.String())
+		str.WriteString(util.Indent(2) + col.String(r.ctx))
 		if i < numCols-1 {
 			str.WriteString(",")
 		}

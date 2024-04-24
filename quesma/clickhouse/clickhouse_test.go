@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"context"
 	"encoding/json"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/quesma/config"
@@ -116,7 +117,7 @@ func TestAddTimestamp(t *testing.T) {
 		castUnsupportedAttrValueTypesToString: false,
 		preferCastingToOthers:                 false,
 	}
-	query, err := buildCreateTableQueryNoOurFields("tableName", `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`, config)
+	query, err := buildCreateTableQueryNoOurFields(context.Background(), "tableName", `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`, config)
 	assert.NoError(t, err)
 	assert.True(t, strings.Contains(query, timestampFieldName))
 }
@@ -915,7 +916,7 @@ func TestLogManager_ResolveIndexes(t *testing.T) {
 			var tableDefinitions = atomic.Pointer[TableMap]{}
 			tableDefinitions.Store(tt.tables)
 			lm := &LogManager{schemaLoader: &schemaLoader{tableDefinitions: &tableDefinitions}}
-			assert.Equalf(t, tt.resolved, lm.ResolveIndexes(tt.patterns), "ResolveIndexes(%v)", tt.patterns)
+			assert.Equalf(t, tt.resolved, lm.ResolveIndexes(context.Background(), tt.patterns), "ResolveIndexes(%v)", tt.patterns)
 		})
 	}
 }

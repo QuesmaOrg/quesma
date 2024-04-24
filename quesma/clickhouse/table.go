@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"context"
 	"fmt"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
@@ -117,8 +118,8 @@ func (t *Table) FullTableName() string {
 
 // GetDateTimeType returns type of a field (currently DateTime/DateTime64), if it's a DateTime type. Invalid otherwise.
 // Timestamp from config defaults to DateTime64.
-func (t *Table) GetDateTimeType(fieldName string) DateTimeType {
-	fieldName = t.ResolveField(fieldName)
+func (t *Table) GetDateTimeType(ctx context.Context, fieldName string) DateTimeType {
+	fieldName = t.ResolveField(ctx, fieldName)
 	if col, ok := t.Cols[fieldName]; ok {
 		typeName := col.Type.String()
 		// hasPrefix, not equal, because we can have DateTime64(3) and we want to catch it
@@ -155,7 +156,7 @@ func (t *Table) applyIndexConfig(configuration config.QuesmaConfiguration) {
 	}
 }
 
-func (t *Table) ResolveField(fieldName string) (field string) {
+func (t *Table) ResolveField(ctx context.Context, fieldName string) (field string) {
 	field = fieldName
 	if t.aliases != nil {
 		if alias, ok := t.aliases[fieldName]; ok {
@@ -165,24 +166,24 @@ func (t *Table) ResolveField(fieldName string) (field string) {
 
 	if field != "*" && field != "_all" && field != "_doc" && field != "_id" && field != "_index" {
 		if _, ok := t.Cols[field]; !ok {
-			logger.Debug().Msgf("field '%s' referenced, but not found in table '%s'", fieldName, t.Name)
+			logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in table '%s'", fieldName, t.Name)
 		}
 	}
 
 	return
 }
 
-func (t *Table) HasColumn(fieldName string) bool {
-	fieldName = t.ResolveField(fieldName)
+func (t *Table) HasColumn(ctx context.Context, fieldName string) bool {
+	fieldName = t.ResolveField(ctx, fieldName)
 	return t.Cols[fieldName] != nil
 }
 
-func (t *Table) AliasFields() []*Column {
+func (t *Table) AliasFields(ctx context.Context) []*Column {
 	aliasFields := make([]*Column, 0)
 	for key, val := range t.aliases {
 		col := t.Cols[val]
 		if col == nil {
-			logger.Error().Msgf("alias '%s' for field '%s' not found in table '%s'", val, key, t.Name)
+			logger.ErrorWithCtx(ctx).Msgf("alias '%s' for field '%s' not found in table '%s'", val, key, t.Name)
 			continue
 		}
 		aliasFields = append(aliasFields, &Column{
@@ -212,8 +213,8 @@ func (t *Table) GetAttributesList() []Attribute {
 
 // TODO Won't work with tuples, e.g. trying to access via tupleName.tupleField will return NotExists,
 // instead of some other response. Fix this when needed (we seem to not need tuples right now)
-func (t *Table) GetFieldInfo(fieldName string) FieldInfo {
-	resolvedFieldName := t.ResolveField(fieldName)
+func (t *Table) GetFieldInfo(ctx context.Context, fieldName string) FieldInfo {
+	resolvedFieldName := t.ResolveField(ctx, fieldName)
 	col, ok := t.Cols[resolvedFieldName]
 	if !ok {
 		return NotExists

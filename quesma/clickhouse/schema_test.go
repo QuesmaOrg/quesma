@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"context"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/model"
 	"slices"
@@ -143,16 +144,17 @@ func Test_extractColumns(t *testing.T) {
 }
 
 func TestGetDateTimeType(t *testing.T) {
+	ctx := context.Background()
 	table, err := NewTable(`CREATE TABLE table (
 		"timestamp1" DateTime,
 		"timestamp2" DateTime('UTC'),
 		"timestamp64_1" DateTime64,
 		"timestamp64_2" DateTime64(3, 'UTC') ) ENGINE = Memory`, NewChTableConfigTimestampStringAttr())
 	assert.NoError(t, err)
-	assert.Equal(t, DateTime, table.GetDateTimeType("timestamp1"))
-	assert.Equal(t, DateTime, table.GetDateTimeType("timestamp2"))
-	assert.Equal(t, DateTime64, table.GetDateTimeType("timestamp64_1"))
-	assert.Equal(t, DateTime64, table.GetDateTimeType("timestamp64_2"))
-	assert.Equal(t, DateTime64, table.GetDateTimeType(timestampFieldName)) // default, created by us
-	assert.Equal(t, Invalid, table.GetDateTimeType("non-existent"))
+	assert.Equal(t, DateTime, table.GetDateTimeType(ctx, "timestamp1"))
+	assert.Equal(t, DateTime, table.GetDateTimeType(ctx, "timestamp2"))
+	assert.Equal(t, DateTime64, table.GetDateTimeType(ctx, "timestamp64_1"))
+	assert.Equal(t, DateTime64, table.GetDateTimeType(ctx, "timestamp64_2"))
+	assert.Equal(t, DateTime64, table.GetDateTimeType(ctx, timestampFieldName)) // default, created by us
+	assert.Equal(t, Invalid, table.GetDateTimeType(ctx, "non-existent"))
 }
