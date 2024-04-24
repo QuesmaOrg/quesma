@@ -172,7 +172,9 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery
 	queryAsMap := make(QueryMap)
 	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
 	if err != nil {
-		return newSimpleQuery(NewSimpleStatement("invalid JSON (ParseQuery)"), false), model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
+		logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
+		return newSimpleQuery(NewSimpleStatement("invalid JSON (ParseQuery)"), false),
+			model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
 	}
 
 	// we must parse "highlights" here, because it is stripped from the queryAsMap later
@@ -188,15 +190,19 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery
 	if sortPart, ok := queryAsMap["sort"]; ok {
 		if sortAsArray, ok := sortPart.([]any); ok {
 			parsedQuery.SortFields = cw.parseSortFields(sortAsArray)
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("unknown sort format, sort value: %v type: %T", sortPart, sortPart)
 		}
 	}
 
 	const defaultSize = 0
-	var size int
+	size := defaultSize
 	if sizeRaw, ok := queryAsMap["size"]; ok {
-		size = int(sizeRaw.(float64))
-	} else {
-		size = defaultSize
+		if sizeFloat, ok := sizeRaw.(float64); ok {
+			size = int(sizeFloat)
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("unknown size format, size value: %v type: %T. Using default (%d)", sizeRaw, sizeRaw, defaultSize)
+		}
 	}
 
 	queryInfo := cw.tryProcessSearchMetadata(queryAsMap)
@@ -221,12 +227,20 @@ func (cw *ClickhouseQueryTranslator) ParseHighlighter(queryMap QueryMap) Highlig
 
 	if pre, ok := highlight["pre_tags"]; ok {
 		for _, x := range pre.([]interface{}) {
-			highlighter.PreTags = append(highlighter.PreTags, x.(string))
+			if xAsString, ok := x.(string); ok {
+				highlighter.PreTags = append(highlighter.PreTags, xAsString)
+			} else {
+				logger.WarnWithCtx(cw.Ctx).Msgf("unknown pre tag format, pre tag value: %v type: %T. Skipping", x, x)
+			}
 		}
 	}
 	if post, ok := highlight["post_tags"]; ok {
 		for _, x := range post.([]interface{}) {
-			highlighter.PostTags = append(highlighter.PostTags, x.(string))
+			if xAsString, ok := x.(string); ok {
+				highlighter.PostTags = append(highlighter.PostTags, xAsString)
+			} else {
+				logger.WarnWithCtx(cw.Ctx).Msgf("unknown post tag format, post tag value: %v type: %T. Skipping", x, x)
+			}
 		}
 	}
 
@@ -249,20 +263,30 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 	queryAsMap := make(QueryMap)
 	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
 	if err != nil {
-		return newSimpleQuery(NewSimpleStatement("invalid JSON (parseQueryAsyncSearch)"), false), model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
+		logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
+		return newSimpleQuery(NewSimpleStatement("invalid JSON (ParseQueryAsyncSearch)"), false), model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
 	}
 
 	// we must parse "highlights" here, because it is stripped from the queryAsMap later
 	highlighter := cw.ParseHighlighter(queryAsMap)
 
-	if _, ok := queryAsMap["query"]; !ok {
+	var parsedQuery SimpleQuery
+	if query, ok := queryAsMap["query"]; ok {
+		queryMap, ok := query.(QueryMap)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid query type: %T, value: %v", query, query)
+			return newSimpleQuery(NewSimpleStatement("invalid query type"), false), model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
+		}
+		parsedQuery = cw.parseQueryMap(queryMap)
+	} else {
 		return newSimpleQuery(NewSimpleStatement(""), true), cw.tryProcessSearchMetadata(queryAsMap), highlighter
 	}
 
-	parsedQuery := cw.parseQueryMap(queryAsMap["query"].(QueryMap))
 	if sort, ok := queryAsMap["sort"]; ok {
 		if sortAsArray, ok := sort.([]any); ok {
 			parsedQuery.SortFields = cw.parseSortFields(sortAsArray)
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("unknown sort format, sort value: %v type: %T", sort, sort)
 		}
 	}
 	queryInfo := cw.tryProcessSearchMetadata(queryAsMap)
@@ -334,7 +358,13 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 	}
 	for k, v := range queryMap {
 		if f, ok := parseMap[k]; ok {
-			return f(v.(QueryMap))
+			if vAsQueryMap, ok := v.(QueryMap); ok {
+				return f(vAsQueryMap)
+			} else {
+				logger.WarnWithCtx(cw.Ctx).Msgf("query is not a dict. key: %s, value: %v", k, v)
+			}
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("unsupported query type: %s, value: %v", k, v)
 		}
 	}
 	return newSimpleQuery(NewSimpleStatement("can't parse query: "+pp.Sprint(queryMap)), false)
@@ -358,7 +388,8 @@ func (cw *ClickhouseQueryTranslator) iterateListOrDictAndParse(queryMaps interfa
 	case QueryMap:
 		return []Statement{cw.parseQueryMap(queryMapsTyped).Sql}
 	default:
-		return []Statement{NewSimpleStatement("Invalid iteration")}
+		logger.WarnWithCtx(cw.Ctx).Msgf("Invalid query type: %T, value: %v", queryMapsTyped, queryMapsTyped)
+		return []Statement{NewSimpleStatement("invalid iteration")}
 	}
 }
 
@@ -374,9 +405,17 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) SimpleQuery {
 
 	minimumShouldMatch := 0
 	if v, ok := queryMap["minimum_should_match"]; ok {
-		minimumShouldMatch = int(v.(float64))
+		if vAsFloat, ok := v.(float64); ok {
+			minimumShouldMatch = int(vAsFloat)
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid minimum_should_match type: %T, value: %v", v, v)
+		}
 	}
-	if len(andStmts) == 0 || minimumShouldMatch > 1 {
+	if len(andStmts) == 0 {
+		minimumShouldMatch = 1
+	}
+	if minimumShouldMatch > 1 {
+		logger.WarnWithCtx(cw.Ctx).Msgf("minimum_should_match > 1 not supported, changed to 1")
 		minimumShouldMatch = 1
 	}
 	if queries, ok := queryMap["should"]; ok && minimumShouldMatch == 1 {
@@ -412,28 +451,39 @@ func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) SimpleQuery {
 			return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+"="+sprint(v)), true)
 		}
 	}
+	logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 term, got: %d. value: %v", len(queryMap), queryMap)
 	return newSimpleQuery(NewSimpleStatement("invalid term len, != 1"), false)
 }
 
 // TODO remove optional parameters like boost
 func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) SimpleQuery {
-	if len(queryMap) == 1 {
-		for k, v := range queryMap {
-			if strings.HasPrefix(k, "_") {
-				// terms enum API uses _tier terms ( data_hot, data_warm, etc.)
-				// we don't want these internal fields to percolate to the SQL query
-				return newSimpleQuery(NewSimpleStatement(""), true)
-			}
-			vAsArray := v.([]interface{})
-			orStmts := make([]Statement, len(vAsArray))
-			for i, v := range vAsArray {
-				cw.AddTokenToHighlight(v)
-				orStmts[i] = NewSimpleStatement(strconv.Quote(k) + "=" + sprint(v))
-			}
-			return newSimpleQuery(or(orStmts), true)
-		}
+	if len(queryMap) != 1 {
+		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 term, got: %d. value: %v", len(queryMap), queryMap)
+		return newSimpleQuery(NewSimpleStatement("invalid terms len, != 1"), false)
 	}
-	return newSimpleQuery(NewSimpleStatement("invalid terms len, != 1"), false)
+
+	for k, v := range queryMap {
+		if strings.HasPrefix(k, "_") {
+			// terms enum API uses _tier terms ( data_hot, data_warm, etc.)
+			// we don't want these internal fields to percolate to the SQL query
+			return newSimpleQuery(NewSimpleStatement(""), true)
+		}
+		vAsArray, ok := v.([]interface{})
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid terms type: %T, value: %v", v, v)
+			return newSimpleQuery(NewSimpleStatement("invalid terms type"), false)
+		}
+		orStmts := make([]Statement, len(vAsArray))
+		for i, v := range vAsArray {
+			cw.AddTokenToHighlight(v)
+			orStmts[i] = NewSimpleStatement(strconv.Quote(k) + "=" + sprint(v))
+		}
+		return newSimpleQuery(or(orStmts), true)
+	}
+
+	// unreachable unless something really weird happens
+	logger.ErrorWithCtx(cw.Ctx).Msg("theoretically unreachable code")
+	return newSimpleQuery(NewSimpleStatement("error, should be unreachable"), false)
 }
 
 func (cw *ClickhouseQueryTranslator) parseMatchAll(_ QueryMap) SimpleQuery {
@@ -451,45 +501,56 @@ func (cw *ClickhouseQueryTranslator) parseMatchAll(_ QueryMap) SimpleQuery {
 // - fuzzy_transpositions
 // (Optional, Boolean) If true, edits for fuzzy matching include transpositions of two adjacent characters (ab → ba). Defaults to true.
 func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase bool) SimpleQuery {
-	if len(queryMap) == 1 {
-		for fieldName, v := range queryMap {
-			fieldName = cw.Table.ResolveField(fieldName)
-			// (fieldName, v) = either e.g. ("message", "this is a test")
-			//                  or  ("message", map["query": "this is a test", ...]). Here we only care about "query" until we find a case where we need more.
-			vUnNested := v
-			if vAsQueryMap, ok := v.(QueryMap); ok {
-				vUnNested = vAsQueryMap["query"]
-			}
-			if vAsString, ok := vUnNested.(string); ok {
-				var subQueries []string
-				if matchPhrase {
-					subQueries = []string{vAsString}
-				} else {
-					subQueries = strings.Split(vAsString, " ")
-				}
-				statements := make([]Statement, 0, len(subQueries))
-				cw.AddTokenToHighlight(vAsString)
-				for _, subQuery := range subQueries {
-					cw.AddTokenToHighlight(subQuery)
-					statements = append(statements, NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE "+"'%"+subQuery+"%'"))
-				}
-				return newSimpleQuery(or(statements), true)
-			}
-
-			cw.AddTokenToHighlight(vUnNested)
-
-			// so far we assume that only strings can be ORed here
-			return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" == "+sprint(vUnNested)), true)
-		}
+	if len(queryMap) != 1 {
+		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 match, got: %d. value: %v", len(queryMap), queryMap)
+		return newSimpleQuery(NewSimpleStatement("unsupported match len != 1"), false)
 	}
-	return newSimpleQuery(NewSimpleStatement("unsupported match len != 1"), false)
+
+	for fieldName, v := range queryMap {
+		fieldName = cw.Table.ResolveField(fieldName)
+		// (fieldName, v) = either e.g. ("message", "this is a test")
+		//                  or  ("message", map["query": "this is a test", ...]). Here we only care about "query" until we find a case where we need more.
+		vUnNested := v
+		if vAsQueryMap, ok := v.(QueryMap); ok {
+			vUnNested = vAsQueryMap["query"]
+		}
+		if vAsString, ok := vUnNested.(string); ok {
+			var subQueries []string
+			if matchPhrase {
+				subQueries = []string{vAsString}
+			} else {
+				subQueries = strings.Split(vAsString, " ")
+			}
+			statements := make([]Statement, 0, len(subQueries))
+			cw.AddTokenToHighlight(vAsString)
+			for _, subQuery := range subQueries {
+				cw.AddTokenToHighlight(subQuery)
+				statements = append(statements, NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE "+"'%"+subQuery+"%'"))
+			}
+			return newSimpleQuery(or(statements), true)
+		}
+
+		cw.AddTokenToHighlight(vUnNested)
+
+		// so far we assume that only strings can be ORed here
+		return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" == "+sprint(vUnNested)), true)
+	}
+
+	// unreachable unless something really weird happens
+	logger.ErrorWithCtx(cw.Ctx).Msg("theoretically unreachable code")
+	return newSimpleQuery(NewSimpleStatement("error, should be unreachable"), false)
 }
 
 func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) SimpleQuery {
 	var fields []string
 	fieldsAsInterface, ok := queryMap["fields"]
 	if ok {
-		fields = cw.extractFields(fieldsAsInterface.([]interface{}))
+		if fieldsAsArray, ok := fieldsAsInterface.([]interface{}); ok {
+			fields = cw.extractFields(fieldsAsArray)
+		} else {
+			logger.ErrorWithCtx(cw.Ctx).Msgf("invalid fields type: %T, value: %v", fieldsAsInterface, fieldsAsInterface)
+			return newSimpleQuery(NewSimpleStatement("invalid fields type"), false)
+		}
 	} else {
 		fields = cw.GetFieldsList()
 	}
@@ -497,17 +558,32 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) SimpleQu
 		return newSimpleQuery(alwaysFalseStatement, true)
 	}
 
+	query, ok := queryMap["query"]
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("no query in multi_match query: %v", queryMap)
+		return newSimpleQuery(alwaysFalseStatement, false)
+	}
+	queryAsString, ok := query.(string)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("invalid query type: %T, value: %v", query, query)
+		return newSimpleQuery(alwaysFalseStatement, false)
+	}
 	var subQueries []string
+	wereDone := false
 	// 2 cases:
-	if matchType, ok := queryMap["type"]; ok && matchType.(string) == "phrase" {
-		// a) "type" == "phrase" -> we need to match full string
-		subQueries = []string{queryMap["query"].(string)}
-	} else {
-		// b) "type" == "best_fields" (or other - we treat it as default) -> we need to match any of the words
-		subQueries = strings.Split(queryMap["query"].(string), " ")
+	// a) "type" == "phrase" -> we need to match full string
+	if matchType, ok := queryMap["type"]; ok {
+		if matchTypeAsString, ok := matchType.(string); ok && matchTypeAsString == "phrase" {
+			wereDone = true
+			subQueries = []string{queryAsString}
+		}
+	}
+	// b) "type" == "best_fields" (or other - we treat it as default) -> we need to match any of the words
+	if !wereDone {
+		subQueries = strings.Split(queryAsString, " ")
 	}
 
-	cw.AddTokenToHighlight(queryMap["query"].(string))
+	cw.AddTokenToHighlight(queryAsString)
 	for _, subQ := range subQueries {
 		cw.AddTokenToHighlight(subQ)
 	}
@@ -525,34 +601,66 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) SimpleQu
 
 // prefix works only on strings
 func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) SimpleQuery {
-	if len(queryMap) == 1 {
-		for fieldName, v := range queryMap {
-			fieldName = cw.Table.ResolveField(fieldName)
-			switch vCasted := v.(type) {
-			case string:
-				cw.AddTokenToHighlight(vCasted)
-				return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE '"+vCasted+"%'"), true)
-			case QueryMap:
-				token := vCasted["value"].(string)
-				cw.AddTokenToHighlight(token)
-				return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE '"+token+"%'"), true)
-			}
+	if len(queryMap) != 1 {
+		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 prefix, got: %d. value: %v", len(queryMap), queryMap)
+		return newSimpleQuery(NewSimpleStatement("invalid prefix len != 1"), false)
+	}
+
+	for fieldName, v := range queryMap {
+		fieldName = cw.Table.ResolveField(fieldName)
+		switch vCasted := v.(type) {
+		case string:
+			cw.AddTokenToHighlight(vCasted)
+			return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE '"+vCasted+"%'"), true)
+		case QueryMap:
+			token := vCasted["value"].(string)
+			cw.AddTokenToHighlight(token)
+			return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE '"+token+"%'"), true)
+		default:
+			logger.WarnWithCtx(cw.Ctx).Msgf("unsupported prefix type: %T, value: %v", v, v)
+			return newSimpleQuery(NewSimpleStatement("unsupported prefix type"), false)
 		}
 	}
-	return newSimpleQuery(NewSimpleStatement("invalid prefix len != 1"), false)
+
+	// unreachable unless something really weird happens
+	logger.ErrorWithCtx(cw.Ctx).Msg("theoretically unreachable code")
+	return newSimpleQuery(NewSimpleStatement("error, should be unreachable"), false)
 }
 
 // Not supporting 'case_insensitive' (optional)
 // Also not supporting wildcard (Required, string) (??) In both our example, and their in docs,
 // it's not provided.
 func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) SimpleQuery {
-	// not checking for len == 1 because it's only option in proper SimpleQuery
+	if len(queryMap) != 1 {
+		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 wildcard, got: %d. value: %v", len(queryMap), queryMap)
+		return newSimpleQuery(NewSimpleStatement("invalid wildcard len != 1"), false)
+	}
+
 	for fieldName, v := range queryMap {
 		fieldName = cw.Table.ResolveField(fieldName)
-		return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE '"+strings.ReplaceAll(v.(QueryMap)["value"].(string),
-			"*", "%")+"'"), true)
+		if vAsMap, ok := v.(QueryMap); ok {
+			if value, ok := vAsMap["value"]; ok {
+				if valueAsString, ok := value.(string); ok {
+					cw.AddTokenToHighlight(valueAsString)
+					return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE '"+
+						strings.ReplaceAll(valueAsString, "*", "%")+"'"), true)
+				} else {
+					logger.WarnWithCtx(cw.Ctx).Msgf("invalid value type: %T, value: %v", value, value)
+					return newSimpleQuery(NewSimpleStatement("invalid value type"), false)
+				}
+			} else {
+				logger.WarnWithCtx(cw.Ctx).Msgf("no value in wildcard query: %v", queryMap)
+				return newSimpleQuery(NewSimpleStatement("no value in wildcard query"), false)
+			}
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid wildcard type: %T, value: %v", v, v)
+			return newSimpleQuery(NewSimpleStatement("invalid wildcard type"), false)
+		}
 	}
-	return newSimpleQuery(NewSimpleStatement("empty wildcard"), false)
+
+	// unreachable unless something really weird happens
+	logger.ErrorWithCtx(cw.Ctx).Msg("theoretically unreachable code")
+	return newSimpleQuery(NewSimpleStatement("error, should be unreachable"), false)
 }
 
 // This one is really complicated (https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html)
@@ -579,7 +687,17 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) SimpleQ
 }
 
 func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) SimpleQuery {
-	return cw.parseQueryMap(queryMap["query"].(QueryMap))
+	if query, ok := queryMap["query"]; ok {
+		if queryAsMap, ok := query.(QueryMap); ok {
+			return cw.parseQueryMap(queryAsMap)
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid nested query type: %T, value: %v", query, query)
+			return newSimpleQuery(NewSimpleStatement("invalid nested query type"), false)
+		}
+	}
+
+	logger.WarnWithCtx(cw.Ctx).Msgf("no query in nested query: %v", queryMap)
+	return newSimpleQuery(NewSimpleStatement("no query in nested query"), false)
 }
 
 func parseTimeUnit(timeUnit string) (string, error) {
@@ -697,11 +815,16 @@ func parseDateMathExpression(expr string) string {
 //   - check if parseDateTime64BestEffort really works for our case (it should)
 //   - implement "needed" date functions like now, now-1d etc.
 func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
-	// not checking for len == 1 because it's only option in proper query
+	if len(queryMap) != 1 {
+		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 range, got: %d. value: %v", len(queryMap), queryMap)
+		return newSimpleQuery(NewSimpleStatement("invalid range len != 1"), false)
+	}
+
 	for field, v := range queryMap {
 		field = cw.Table.ResolveField(field)
 		stmts := make([]Statement, 0)
 		if _, ok := v.(QueryMap); !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid range type: %T, value: %v", v, v)
 			continue
 		}
 		isDatetimeInDefaultFormat := true // in 99% requests, format is "strict_date_optional_time", which we can parse with time.Parse(time.RFC3339Nano, ..)
@@ -739,9 +862,11 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 						if isNumber {
 							vToPrint = vToPrint[1 : len(vToPrint)-1]
 						} else {
-							logger.Warn().Msgf("We use range with unknown literal %s, field %s", vToPrint, field)
+							logger.WarnWithCtx(cw.Ctx).Msgf("we use range with unknown literal %s, field %s", vToPrint, field)
 						}
 					}
+				default:
+					logger.WarnWithCtx(cw.Ctx).Msgf("invalid DateTime type for field: %s, parsed dateTime value: %s", field, vToPrint)
 				}
 			}
 
@@ -754,11 +879,16 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 				stmts = append(stmts, NewSimpleStatement(fieldToPrint+">"+vToPrint))
 			case "lt":
 				stmts = append(stmts, NewSimpleStatement(fieldToPrint+"<"+vToPrint))
+			default:
+				logger.WarnWithCtx(cw.Ctx).Msgf("invalid range operator: %s", op)
 			}
 		}
 		return newSimpleQueryWithFieldName(and(stmts), true, field)
 	}
-	return newSimpleQuery(NewSimpleStatement("empty range"), false)
+
+	// unreachable unless something really weird happens
+	logger.ErrorWithCtx(cw.Ctx).Msg("theoretically unreachable code")
+	return newSimpleQuery(NewSimpleStatement("error, should be unreachable"), false)
 }
 
 // parseDateTimeString returns string used to parse DateTime in Clickhouse (depends on column type)
@@ -769,10 +899,10 @@ func (cw *ClickhouseQueryTranslator) parseDateTimeString(table *clickhouse.Table
 		return "parseDateTime64BestEffort('" + dateTime + "')"
 	case clickhouse.DateTime:
 		return "parseDateTimeBestEffort('" + dateTime + "')"
-	case clickhouse.Invalid:
-		logger.Error().Msgf("Invalid DateTime type for field: %s, parsed dateTime value: %s", field, dateTime)
+	default:
+		logger.Error().Msgf("invalid DateTime type: %T for field: %s, parsed dateTime value: %s", typ, field, dateTime)
+		return ""
 	}
-	return ""
 }
 
 // TODO: not supported:
@@ -780,10 +910,13 @@ func (cw *ClickhouseQueryTranslator) parseDateTimeString(table *clickhouse.Table
 // - The length of the field value exceeded an ignore_above setting in the mapping
 // - The field value was malformed and ignore_malformed was defined in the mapping
 func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) SimpleQuery {
-	// only parameter is 'field', must be string, so cast is safe
 	sql := NewSimpleStatement("")
 	for _, v := range queryMap {
-		fieldName := v.(string)
+		fieldName, ok := v.(string)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid exists type: %T, value: %v", v, v)
+			return newSimpleQuery(NewSimpleStatement("invalid exists type"), false)
+		}
 		fieldName = cw.Table.ResolveField(fieldName)
 		fieldNameQuoted := strconv.Quote(fieldName)
 
@@ -804,6 +937,8 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) SimpleQuery 
 				)
 			}
 			sql = or(stmts)
+		default:
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T for exists: %s", cw.Table.GetFieldInfo(fieldName), fieldName)
 		}
 	}
 	return newSimpleQuery(sql, true)
@@ -812,9 +947,13 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) SimpleQuery 
 func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []string {
 	result := make([]string, 0)
 	for _, field := range fields {
-		fieldStr := field.(string)
+		fieldStr, ok := field.(string)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T, value: %v", field, field)
+			continue
+		}
 		if fieldStr == "*" {
-			return cw.GetFieldsList() // careful: hardcoded for only "message" for now
+			return cw.GetFieldsList()
 		}
 		fieldStr = cw.Table.ResolveField(fieldStr)
 		result = append(result, fieldStr)
@@ -936,8 +1075,6 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 	if !ok {
 		return model.NewSearchQueryInfoNone(), false
 	}
-	fieldName := ""
-	size := 0
 	queryMap, ok = queryMap["sample"].(QueryMap)
 	if !ok {
 		return model.NewSearchQueryInfoNone(), false
@@ -965,17 +1102,26 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 		return model.NewSearchQueryInfoNone(), false
 	}
 
-	sizeAsAny, ok := firstNestingMap["size"]
+	var size int
+	sizeRaw, ok := firstNestingMap["size"]
 	if !ok {
 		return model.NewSearchQueryInfoNone(), false
+	} else if sizeAsFloat, ok := sizeRaw.(float64); ok {
+		size = int(sizeAsFloat)
 	} else {
-		size = int(sizeAsAny.(float64))
+		logger.WarnWithCtx(cw.Ctx).Msgf("invalid size type: %T, value: %v. Expected float64", sizeRaw, sizeRaw)
+		return model.NewSearchQueryInfoNone(), false
 	}
-	fieldNameAsAny, ok := firstNestingMap["field"]
+	fieldNameRaw, ok := firstNestingMap["field"]
 	if !ok {
 		return model.NewSearchQueryInfoNone(), false
 	}
-	fieldName = strings.TrimSuffix(fieldNameAsAny.(string), ".keyword")
+	fieldName, ok := fieldNameRaw.(string)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T, value: %v. Expected string", fieldNameRaw, fieldNameRaw)
+		return model.NewSearchQueryInfoNone(), false
+	}
+	fieldName = strings.TrimSuffix(fieldName, ".keyword")
 	fieldName = cw.Table.ResolveField(fieldName)
 
 	secondNestingMap, ok := queryMap["sampler"].(QueryMap)
@@ -1006,28 +1152,50 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 // returns (model.NewSearchQueryInfoNone, false) if it's not ListAllFields/ListByField request
 func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.SearchQueryInfo, bool) {
 	// 1) case: very simple SELECT * kind of request
-	size, okSize := queryMap["size"]
+	var size int
+	sizeRaw, okSize := queryMap["size"]
+	if !okSize {
+		return model.NewSearchQueryInfoNone(), false
+	} else if sizeAsFloat, ok := sizeRaw.(float64); ok {
+		size = int(sizeAsFloat)
+	} else {
+		logger.WarnWithCtx(cw.Ctx).Msgf("invalid size type: %T, value: %v. Expected float64", sizeRaw, sizeRaw)
+		return model.NewSearchQueryInfoNone(), false
+	}
+
 	_, okTrackTotalHits := queryMap["track_total_hits"]
-	if okSize && okTrackTotalHits && len(queryMap) == 2 {
+	if okTrackTotalHits && len(queryMap) == 2 {
 		// only ["size"] and ["track_total_hits"] are present
-		return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: int(size.(float64))}, true
+		return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: size}, true
 	}
 
 	// 2) more general case:
-	fields, ok := queryMap["fields"].([]interface{})
-	if !ok || !okSize {
+	fields, ok := queryMap["fields"].([]any)
+	if !ok {
 		return model.NewSearchQueryInfoNone(), false
 	}
 	if len(fields) > 1 {
 		fieldNames := make([]string, 0)
 		for _, field := range fields {
-			if fieldMap, ok := field.(map[string]interface{}); ok {
-				fieldNames = append(fieldNames, fieldMap["field"].(string))
+			if fieldMap, ok := field.(QueryMap); ok {
+				fieldNameAsAny, ok := fieldMap["field"]
+				if !ok {
+					logger.WarnWithCtx(cw.Ctx).Msgf("no field in field map: %v. Skipping", fieldMap)
+					continue
+				}
+				if fieldName, ok := fieldNameAsAny.(string); ok {
+					fieldNames = append(fieldNames, fieldName)
+				} else {
+					logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T, value: %v. Expected string. Skipping", fieldName, fieldName)
+				}
+			} else {
+				logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T, value: %v. Expected QueryMap", field, field)
+				return model.NewSearchQueryInfoNone(), false
 			}
 		}
 		logger.Debug().Msgf("requested more than one field %s, falling back to '*'", fieldNames)
 		// so far everywhere I've seen, > 1 field ==> "*" is one of them
-		return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: int(size.(float64))}, true
+		return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: size}, true
 	} else if len(fields) == 0 {
 		isCount, ok := queryMap["track_total_hits"].(bool)
 		if ok && isCount {
@@ -1044,28 +1212,44 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.S
 				return model.NewSearchQueryInfoNone(), false
 			}
 			// b) {"field": fieldName}
-			fieldName = queryMap["field"].(string)
+			if field, ok := queryMap["field"]; ok {
+				if fieldName, ok = field.(string); !ok {
+					logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T, value: %v. Expected string", field, field)
+					return model.NewSearchQueryInfoNone(), false
+				}
+			} else {
+				return model.NewSearchQueryInfoNone(), false
+			}
 		}
 
 		resolvedField := cw.Table.ResolveField(fieldName)
 		if resolvedField == "*" {
-			return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: int(size.(float64))}, true
+			return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: size}, true
 		}
-		return model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{resolvedField}, FieldName: resolvedField, I1: 0, I2: int(size.(float64))}, true
+		return model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{resolvedField}, FieldName: resolvedField, I1: 0, I2: size}, true
 	}
 }
 
 func (cw *ClickhouseQueryTranslator) extractInterval(queryMap QueryMap) string {
+	const defaultInterval = "30s"
 	if fixedInterval, exists := queryMap["fixed_interval"]; exists {
-		return fixedInterval.(string)
+		if asString, ok := fixedInterval.(string); ok {
+			return asString
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v. Returning default", fixedInterval, fixedInterval)
+			return defaultInterval
+		}
 	}
-
 	if calendarInterval, exists := queryMap["calendar_interval"]; exists {
-		return calendarInterval.(string)
+		if asString, ok := calendarInterval.(string); ok {
+			return asString
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v. Returning default", calendarInterval, calendarInterval)
+			return defaultInterval
+		}
 	}
 
-	defaultInterval := "30s"
-	logger.Warn().Msgf("histogram query, extractInterval: no interval found, returning default: %s", defaultInterval)
+	logger.WarnWithCtx(cw.Ctx).Msgf("extractInterval: no interval found, returning default: %s", defaultInterval)
 	return defaultInterval
 }
 
@@ -1076,7 +1260,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps []any) []string {
 	for _, sortMapAsAny := range sortMaps {
 		sortMap, ok := sortMapAsAny.(QueryMap)
 		if !ok {
-			logger.Warn().Msgf("parseSortFields: unexpected type of value: %T", sortMapAsAny)
+			logger.WarnWithCtx(cw.Ctx).Msgf("parseSortFields: unexpected type of value: %T, value: %v", sortMapAsAny, sortMapAsAny)
 			continue
 		}
 
@@ -1089,12 +1273,16 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps []any) []string {
 			fieldName := cw.Table.ResolveField(k)
 			if vAsMap, ok := v.(QueryMap); ok {
 				if order, ok := vAsMap["order"]; ok {
-					sortFields = append(sortFields, strconv.Quote(fieldName)+" "+order.(string))
+					if orderAsString, ok := order.(string); ok {
+						sortFields = append(sortFields, strconv.Quote(fieldName)+" "+orderAsString)
+					} else {
+						logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order type: %T, value: %v. Skipping", order, order)
+					}
 				} else {
 					sortFields = append(sortFields, strconv.Quote(fieldName))
 				}
 			} else {
-				logger.Warn().Msgf("parseSortFields: unexpected type of value for key %s: %T", k, v)
+				logger.WarnWithCtx(cw.Ctx).Msgf("unexpected value's type: %T (key, value): (%s, %v). Skipping", v, k, v)
 			}
 		}
 	}
