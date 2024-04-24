@@ -500,7 +500,7 @@ func (a *agent) phoneHomeLocalQuesma(ctx context.Context, body []byte) (err erro
 
 	phoneHomeUrl := "http://localhost:8080/_bulk"
 
-	bulkJson := `{"create":{"_index":"phone_home_logs"}}`
+	bulkJson := `{"create":{"_index":"phone_home_data"}}`
 	var elasticPayload []byte
 
 	elasticPayload = append(elasticPayload, []byte(bulkJson)...)
