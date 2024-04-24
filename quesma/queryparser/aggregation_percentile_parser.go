@@ -2,6 +2,7 @@ package queryparser
 
 import (
 	"fmt"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 )
 
@@ -20,29 +21,38 @@ var defaultPercentiles = model.JsonMap{
 const keyedDefaultValue = true
 
 func (cw *ClickhouseQueryTranslator) parsePercentilesAggregation(queryMap QueryMap) (fieldName string, keyed bool, percentiles model.JsonMap) {
-	if field, ok := queryMap["field"]; ok {
-		fieldName = cw.Table.ResolveField(field.(string))
-	}
+	fieldName = cw.parseFieldField(queryMap, "percentile")
 	if keyedQueryMap, ok := queryMap["keyed"]; ok {
-		keyed = keyedQueryMap.(bool)
+		if keyed, ok = keyedQueryMap.(bool); !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("keyed specified for percentiles aggregation is not a boolean. Querymap: %v", queryMap)
+			keyed = keyedDefaultValue
+		}
 	} else {
 		keyed = keyedDefaultValue
 	}
 
-	if percents, ok := queryMap["percents"]; ok {
-		userInput := percents.([]interface{})
-		userSpecifiedPercents := make(model.JsonMap, len(userInput))
-		for _, p := range userInput {
-			asFloat := p.(float64)
-			asString := fmt.Sprintf("%v", asFloat)
-			asFloat = asFloat / 100
-			if asFloat > maxPrecision {
-				asFloat = maxPrecision // that's max precision used by Kibana UI and also the max we want to handle
-			}
-			userSpecifiedPercents[asString] = asFloat
-		}
-		return fieldName, keyed, userSpecifiedPercents
-	} else {
+	percents, ok := queryMap["percents"]
+	if !ok {
 		return fieldName, keyed, defaultPercentiles
 	}
+	userInput, ok := percents.([]interface{})
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("percents specified for percentiles aggregation is not an array. Querymap: %v", queryMap)
+		return fieldName, keyed, defaultPercentiles
+	}
+	userSpecifiedPercents := make(model.JsonMap, len(userInput))
+	for _, p := range userInput {
+		asFloat, ok := p.(float64)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("percent specified for percentiles aggregation is not a float. Skipping. Querymap: %v", queryMap)
+			continue
+		}
+		asString := fmt.Sprintf("%v", asFloat)
+		asFloat = asFloat / 100
+		if asFloat > maxPrecision {
+			asFloat = maxPrecision // that's max precision used by Kibana UI and also the max we want to handle
+		}
+		userSpecifiedPercents[asString] = asFloat
+	}
+	return fieldName, keyed, userSpecifiedPercents
 }

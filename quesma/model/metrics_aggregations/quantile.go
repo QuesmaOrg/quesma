@@ -1,17 +1,20 @@
 package metrics_aggregations
 
 import (
+	"context"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"strconv"
 	"strings"
 )
 
 type Quantile struct {
+	ctx   context.Context
 	keyed bool // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-aggregation.html#_keyed_response_6
 }
 
-func NewQuantile(keyed bool) Quantile {
-	return Quantile{keyed}
+func NewQuantile(ctx context.Context, keyed bool) Quantile {
+	return Quantile{ctx, keyed}
 }
 
 func (query Quantile) IsBucketAggregation() bool {
@@ -30,7 +33,12 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 
 	for _, res := range rows[0].Cols {
 		if strings.HasPrefix(res.ColName, "quantile") {
-			percentile := res.Value.([]float64)
+			percentile, ok := res.Value.([]float64)
+			if !ok {
+				logger.WarnWithCtx(query.ctx).Msgf(
+					"failed to convert percentile values to []float64, type: %T, value: %v. Skipping", res.Value, res.Value)
+				continue
+			}
 			percentileName, _ := strings.CutPrefix(res.ColName, "quantile_")
 
 			// percentileName can't be an integer (doesn't work in Kibana that way), so we need to add .0 if it's missing

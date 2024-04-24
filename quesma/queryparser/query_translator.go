@@ -41,6 +41,8 @@ func (cw *ClickhouseQueryTranslator) AddTokenToHighlight(token any) {
 	case QueryMap:
 		value := token["value"]
 		cw.AddTokenToHighlight(value)
+	default:
+		logger.WarnWithCtx(cw.Ctx).Msgf("unknown type for highlight token: %T, value: %v", token, token)
 	}
 
 }
@@ -61,6 +63,8 @@ func (cw *ClickhouseQueryTranslator) highlightHit(hit *model.SearchHit, highligh
 				if valueAsString != nil {
 					hit.Highlight[col.ColName] = highlighter.HighlightValue(*valueAsString)
 				}
+			default:
+				logger.WarnWithCtx(cw.Ctx).Msgf("unknown type for hit highlighting: %T, value: %v", col.Value, col.Value)
 			}
 		}
 	}
@@ -114,16 +118,19 @@ func emptySearchResponse() model.SearchResp {
 
 }
 
-func EmptySearchResponse() []byte {
+func EmptySearchResponse(ctx context.Context) []byte {
 	response := emptySearchResponse()
-	marshalled, _ := response.Marshal() // error value discarded, will never happen here
+	marshalled, err := response.Marshal()
+	if err != nil { // should never ever happen, just in case
+		logger.ErrorWithCtx(ctx).Err(err).Msg("failed to marshal empty search response")
+	}
 	return marshalled
 }
 
 func EmptyAsyncSearchResponse(id string, isPartial bool, completionStatus int) ([]byte, error) {
 	searchResp := emptySearchResponse()
 	asyncSearchResp := SearchToAsyncSearchResponse(&searchResp, id, isPartial, completionStatus)
-	return asyncSearchResp.Marshal() // error will never happen here
+	return asyncSearchResp.Marshal() // error should never ever happen here
 }
 
 func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter) (*model.SearchResp, error) {
@@ -157,6 +164,9 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.
 	// Let's make the following branching only for tests' sake. In production, we always have uint64,
 	// but go-sqlmock can only return int64, so let's keep it like this for now.
 	// Normally, only 'uint64' case would be needed.
+
+	// Not checking for cast errors here, they may be a lot of them, and error should never happen.
+	// One of the better place to allow panic, I think.
 	if bucketsNr > 0 {
 		switch ResultSet[0].Cols[model.ResultColDocCountIndex].Value.(type) {
 		case int64:
@@ -181,6 +191,9 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.
 			for _, row := range ResultSet {
 				sampleCount += row.Cols[model.ResultColDocCountIndex].Value.(uint64)
 			}
+		default:
+			logger.WarnWithCtx(cw.Ctx).Msgf("unknown type for facets doc_count: %T, value: %v",
+				ResultSet[0].Cols[model.ResultColDocCountIndex].Value, ResultSet[0].Cols[model.ResultColDocCountIndex].Value)
 		}
 	}
 
@@ -238,7 +251,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.
 				aggregations["sample"].(JsonMap)["min_value"] = JsonMap{"value": minValue}
 				aggregations["sample"].(JsonMap)["max_value"] = JsonMap{"value": maxValue}
 			default:
-				logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type for numeric facet: %T, value: %v",
+				logger.WarnWithCtx(cw.Ctx).Msgf("unknown type for numeric facet: %T, value: %v",
 					ResultSet[0].Cols[model.ResultColKeyIndex].Value, ResultSet[0].Cols[model.ResultColKeyIndex].Value)
 				aggregations["sample"].(JsonMap)["min_value"] = JsonMap{"value": nil}
 				aggregations["sample"].(JsonMap)["max_value"] = JsonMap{"value": nil}
@@ -452,9 +465,11 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 		// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
 		if val, ok := ResultSets[0][0].Cols[0].Value.(uint64); ok {
 			totalCount = val
+		} else {
+			logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets[0])
 		}
 	} else {
-		logger.WarnWithCtx(cw.Ctx).Msgf("Failed extracting Count value SQL query result [%v]", ResultSets)
+		logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets)
 		totalCount = 0
 	}
 	return &model.SearchResp{
@@ -536,7 +551,7 @@ func (cw *ClickhouseQueryTranslator) applySizeLimit(size int) int {
 	// FIXME hard limit here to prevent OOM
 	const quesmaMaxSize = 10000
 	if size > quesmaMaxSize {
-		logger.WarnWithCtx(cw.Ctx).Msgf("Setting hits size to=%d, got=%d", quesmaMaxSize, size)
+		logger.WarnWithCtx(cw.Ctx).Msgf("setting hits size to=%d, got=%d", quesmaMaxSize, size)
 		size = quesmaMaxSize
 	}
 	return size
@@ -579,9 +594,11 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, whereClau
 }
 
 func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(timestampFieldName, whereClauseOriginal, fixedInterval string) (*model.Query, time.Duration) {
+	var defaultInterval = 30 * time.Second
 	histogramOneBar, err := kibana.ParseInterval(fixedInterval)
 	if err != nil {
-		panic(err)
+		logger.ErrorWithCtx(cw.Ctx).Msg(err.Error())
+		histogramOneBar = defaultInterval
 	}
 	groupByClause := clickhouse.TimestampGroupBy(timestampFieldName, cw.Table.GetDateTimeType(timestampFieldName), histogramOneBar)
 	// [WARNING] This is a little oversimplified, but it seems to be good enough for now (==satisfies Kibana's histogram)
@@ -659,6 +676,7 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName, whe
 }
 
 func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMap) string {
+	const defaultDateTimeType = clickhouse.DateTime64
 	fieldName := cw.Table.ResolveField(queryMap["field"].(string))
 	interval, err := kibana.ParseInterval(cw.extractInterval(queryMap))
 	if err != nil {
@@ -666,8 +684,8 @@ func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMa
 	}
 	dateTimeType := cw.Table.GetDateTimeType(fieldName)
 	if dateTimeType == clickhouse.Invalid {
-		logger.ErrorWithCtx(cw.Ctx).Msgf("Invalid date type for field %v", fieldName)
-		dateTimeType = clickhouse.DateTime64
+		logger.ErrorWithCtx(cw.Ctx).Msgf("invalid date type for field %v. Using DateTime64 as default.", fieldName)
+		dateTimeType = defaultDateTimeType
 	}
 	return clickhouse.TimestampGroupBy(fieldName, dateTimeType, interval)
 }

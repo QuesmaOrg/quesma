@@ -103,7 +103,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			if async {
 				return queryparser.EmptyAsyncSearchResponse(asyncRequestIdStr, false, 200)
 			} else {
-				return queryparser.EmptySearchResponse(), nil
+				return queryparser.EmptySearchResponse(ctx), nil
 			}
 		} else {
 			logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
@@ -157,7 +157,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				if properties := q.findNonexistingProperties(queryInfo, simpleQuery, table); len(properties) > 0 {
 					logger.DebugWithCtx(ctx).Msgf("Properties %s not found in table %s", properties, table.Name)
 					if elasticsearch.IsIndexPattern(indexPattern) {
-						return queryparser.EmptySearchResponse(), nil
+						return queryparser.EmptySearchResponse(ctx), nil
 					} else {
 						return nil, fmt.Errorf("properties %s not found in table %s", properties, table.Name)
 					}

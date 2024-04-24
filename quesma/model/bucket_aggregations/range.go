@@ -1,8 +1,10 @@
 package bucket_aggregations
 
 import (
+	"context"
 	"fmt"
 	"math"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"strconv"
 	"strings"
@@ -77,6 +79,7 @@ func (interval Interval) floatToString(number float64) string {
 }
 
 type Range struct {
+	ctx             context.Context
 	QuotedFieldName string
 	Intervals       []Interval
 	// defines what response should look like
@@ -84,12 +87,12 @@ type Range struct {
 	Keyed bool
 }
 
-func NewRange(quotedFieldName string, intervals []Interval, keyed bool) Range {
-	return Range{quotedFieldName, intervals, keyed}
+func NewRange(ctx context.Context, quotedFieldName string, intervals []Interval, keyed bool) Range {
+	return Range{ctx, quotedFieldName, intervals, keyed}
 }
 
-func NewRangeWithDefaultKeyed(quotedFieldName string, intervals []Interval) Range {
-	return Range{quotedFieldName, intervals, keyedDefaultValue}
+func NewRangeWithDefaultKeyed(ctx context.Context, quotedFieldName string, intervals []Interval) Range {
+	return Range{ctx, quotedFieldName, intervals, keyedDefaultValue}
 }
 
 func (query Range) IsBucketAggregation() bool {
@@ -97,9 +100,17 @@ func (query Range) IsBucketAggregation() bool {
 }
 
 func (query Range) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
-	// fmt.Println("AI is awesome", query, rows[0].Cols)
+	if len(rows) != 1 {
+		logger.ErrorWithCtx(query.ctx).Msgf("unexpected %d of rows in range aggregation response. Expected 1.", len(rows))
+		return nil
+	}
 	startIteration := len(rows[0].Cols) - 1 - len(query.Intervals)
 	endIteration := len(rows[0].Cols) - 1
+	if startIteration >= endIteration || startIteration < 0 {
+		logger.ErrorWithCtx(query.ctx).Msgf(
+			"unexpected column nr in aggregation response, startIteration: %d, endIteration: %d", startIteration, endIteration)
+		return nil
+	}
 	if query.Keyed {
 		var response = make(model.JsonMap)
 		for i, col := range rows[0].Cols[startIteration:endIteration] {

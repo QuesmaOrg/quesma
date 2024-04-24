@@ -1,7 +1,9 @@
 package bucket_aggregations
 
 import (
+	"context"
 	"fmt"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"strconv"
 	"time"
@@ -59,17 +61,14 @@ func (interval DateTimeInterval) EndTimestampToSQL() (sqlSelect string, selectNe
 }
 
 type DateRange struct {
+	ctx             context.Context
 	FieldName       string
 	Intervals       []DateTimeInterval
 	SelectColumnsNr int // how many columns we add to the query because of date_range aggregation, e.g. SELECT x,y,z -> 3
 }
 
-func NewDateRange(fieldName string, intervals []DateTimeInterval, selectColumnsNr int) DateRange {
-	return DateRange{
-		FieldName:       fieldName,
-		Intervals:       intervals,
-		SelectColumnsNr: selectColumnsNr,
-	}
+func NewDateRange(ctx context.Context, fieldName string, intervals []DateTimeInterval, selectColumnsNr int) DateRange {
+	return DateRange{ctx, fieldName, intervals, selectColumnsNr}
 }
 
 func (query DateRange) IsBucketAggregation() bool {
@@ -77,8 +76,20 @@ func (query DateRange) IsBucketAggregation() bool {
 }
 
 func (query DateRange) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+	if len(rows) != 1 {
+		logger.ErrorWithCtx(query.ctx).Msgf("unexpected number of rows in date_range aggregation response, len: %d", len(rows))
+		return nil
+	}
+
 	response := make([]model.JsonMap, 0)
 	startIteration := len(rows[0].Cols) - 1 - query.SelectColumnsNr
+	if startIteration < 0 || startIteration >= len(rows[0].Cols) {
+		logger.ErrorWithCtx(query.ctx).Msgf(
+			"unexpected column nr in aggregation response, startIteration: %d, len(rows[0].Cols): %d",
+			startIteration, len(rows[0].Cols),
+		)
+		return nil
+	}
 	for intervalIdx, columnIdx := 0, startIteration; intervalIdx < len(query.Intervals); intervalIdx++ {
 		responseForInterval, nextColumnIdx := query.responseForInterval(&rows[0], intervalIdx, columnIdx)
 		response = append(response, responseForInterval)
@@ -103,6 +114,10 @@ func (query DateRange) responseForInterval(row *model.QueryResultRow, intervalId
 	if query.Intervals[intervalIdx].Begin == UnboundedInterval {
 		fromString = UnboundedInterval
 	} else {
+		if columnIdx >= len(row.Cols) {
+			logger.ErrorWithCtx(query.ctx).Msgf("trying to read column after columns length, query: %v, row: %v", query, row)
+			return nil, columnIdx
+		}
 		from = query.parseTimestamp(row.Cols[columnIdx].Value)
 		fromString = timestampToString(from)
 		response["from"] = from * 1000
@@ -113,6 +128,10 @@ func (query DateRange) responseForInterval(row *model.QueryResultRow, intervalId
 	if query.Intervals[intervalIdx].End == UnboundedInterval {
 		toString = UnboundedInterval
 	} else {
+		if columnIdx >= len(row.Cols) {
+			logger.ErrorWithCtx(query.ctx).Msgf("trying to read column after columns length, query: %v, row: %v", query, row)
+			return nil, columnIdx
+		}
 		to = query.parseTimestamp(row.Cols[columnIdx].Value)
 		toString = timestampToString(to)
 		response["to"] = to * 1000

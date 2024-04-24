@@ -1,6 +1,7 @@
 package bucket_aggregations
 
 import (
+	"context"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"strconv"
@@ -9,7 +10,12 @@ import (
 )
 
 type DateHistogram struct {
+	ctx      context.Context
 	Interval string
+}
+
+func NewDateHistogram(ctx context.Context, interval string) DateHistogram {
+	return DateHistogram{ctx, interval}
 }
 
 func (query DateHistogram) IsBucketAggregation() bool {
@@ -17,6 +23,12 @@ func (query DateHistogram) IsBucketAggregation() bool {
 }
 
 func (query DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+	if len(rows) > 0 && len(rows[0].Cols) < 2 {
+		logger.ErrorWithCtx(query.ctx).Msgf(
+			"unexpected number of columns in date_histogram aggregation response, len(rows[0].Cols): "+
+				"%d, level: %d", len(rows[0].Cols), level,
+		)
+	}
 	var response []model.JsonMap
 	for _, row := range rows {
 		intervalInMilliseconds := query.IntervalAsDuration().Milliseconds()
@@ -41,7 +53,7 @@ func (query DateHistogram) IntervalAsDuration() time.Duration {
 	if strings.HasSuffix(query.Interval, "d") {
 		daysNr, err := strconv.Atoi(strings.TrimSuffix(query.Interval, "d"))
 		if err != nil {
-			logger.Error().Msgf("Error parsing interval %s: [%v]", query.Interval, err)
+			logger.ErrorWithCtx(query.ctx).Msgf("error parsing interval %s: [%v]. Returning 0", query.Interval, err)
 			return time.Duration(0)
 		}
 		intervalInHours := strconv.Itoa(daysNr*24) + "h"

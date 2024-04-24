@@ -1,12 +1,19 @@
 package metrics_aggregations
 
 import (
+	"context"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"strings"
 )
 
-type Stats struct{}
+type Stats struct {
+	ctx context.Context
+}
+
+func NewStats(ctx context.Context) Stats {
+	return Stats{ctx: ctx}
+}
 
 func (query Stats) IsBucketAggregation() bool {
 	return false
@@ -20,7 +27,7 @@ func (query Stats) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 			// v.ColName = e.g. avg(...). We need to extract only 'avg'.
 			firstLeftBracketIndex := strings.Index(v.ColName, "(")
 			if firstLeftBracketIndex == -1 {
-				logger.Error().Msgf("Invalid column name in stats aggregation: %s", v.ColName)
+				logger.Error().Msgf("invalid column name in stats aggregation: %s. Skipping", v.ColName)
 				continue
 			}
 			resultMap[v.ColName[:firstLeftBracketIndex]] = v.Value
