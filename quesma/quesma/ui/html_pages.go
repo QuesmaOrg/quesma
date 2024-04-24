@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
@@ -706,16 +707,9 @@ func generateLogMessages(logMessages []string) ([]byte, *string) {
 			buffer.Html("</td>")
 		}
 
-		// simplify caller
-		if caller, ok := fields["caller"].(string); ok {
-			if strings.HasPrefix(caller, "/go/app/") {
-				fields["caller"] = caller[len("/go/app/"):]
-			}
-		}
-
 		// fields
 		buffer.Html(`<td class="fields">`)
-		if rest, err := json.MarshalIndent(fields, "", " "); err == nil {
+		if rest, err := yaml.Marshal(&fields); err == nil {
 			buffer.Text(string(rest)).Html("</td>")
 		} else {
 			buffer.Html("</td>")

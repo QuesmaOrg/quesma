@@ -1,7 +1,7 @@
 FROM golang:alpine AS builder
 
 
-WORKDIR app
+WORKDIR /quesma
 
 COPY go.mod go.sum ./
 
@@ -37,7 +37,7 @@ RUN --mount=type=cache,target="/root/.cache/go-build" \
 FROM scratch
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /go/app/bin /go/app/healthcheck ./
+COPY --from=builder /quesma/bin /quesma/healthcheck ./
 
 ENTRYPOINT [ "/bin" ]
 HEALTHCHECK --interval=1s --timeout=1s --start-period=2s --retries=3 CMD [ "/healthcheck" ]
