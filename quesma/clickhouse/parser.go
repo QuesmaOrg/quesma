@@ -115,35 +115,6 @@ func FieldsMapToCreateTableString(namespace string, m SchemaMap, indentLvl int, 
 func DifferenceMap(sm SchemaMap, t *Table) SchemaMap {
 	mDiff := make(SchemaMap)
 	var keysNested []string
-	/*
-		m := SchemaMap{
-			"host_name": SchemaMap{
-				"a": SchemaMap{
-					"b": nil,
-				},
-				"b": nil,
-			},
-			"message":      nil,
-			"service_name": nil,
-			"severity":     nil,
-			"source":       nil,
-			"timestamp":    nil,
-			"non-schema":   nil,
-		}
-		table := &Table{
-			Cols: map[string]*Column{
-				"host_name": {Name: "host_name", Codec: Codec{Name: ""}, Type: MultiValueType{
-					Name: "Tuple", Cols: []*Column{
-						{Name: "b", Type: NewBaseType("String")},
-					},
-				}},
-				"message":      nil,
-				"service_name": nil,
-				"severity":     nil,
-				"timestamp":    nil,
-				"source":       nil,
-			},
-		}*/
 
 	add := func(mapToAdd interface{}, name string) {
 		mDiffCur := mDiff
