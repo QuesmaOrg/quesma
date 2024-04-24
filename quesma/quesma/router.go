@@ -14,6 +14,7 @@ import (
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/stats/errorstats"
 	"mitmproxy/quesma/telemetry"
+	"mitmproxy/quesma/tracing"
 	"regexp"
 	"slices"
 	"strings"
@@ -196,6 +197,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		}
 	})
 	router.RegisterPathMatcher(routes.AsyncSearchIdPath, "GET", matchedAgainstAsyncId(), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+		ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, params["id"])
 		responseBody, err := queryRunner.handlePartialAsyncSearch(ctx, params["id"])
 		if err != nil {
 			return nil, err
@@ -204,6 +206,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	})
 
 	router.RegisterPathMatcher(routes.AsyncSearchIdPath, "POST", matchedAgainstAsyncId(), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+		ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, params["id"])
 		responseBody, err := queryRunner.handlePartialAsyncSearch(ctx, params["id"])
 		if err != nil {
 			return nil, err
