@@ -143,8 +143,6 @@ services:
     ports:
       - "8123:8123"
       - "9000:9000"
-    volumes:
-      - ./clickhouse/additional_config.xml:/etc/clickhouse-server/users.d/additional_config.xml
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
       interval: 1s

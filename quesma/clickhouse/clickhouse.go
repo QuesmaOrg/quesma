@@ -400,6 +400,19 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName, jso
 	return config, nil
 }
 
+func (lm *LogManager) SetDateTimeFormat(ctx context.Context, tableName string) error {
+	span := lm.phoneHomeAgent.ClickHouseInsertDuration().Begin()
+	set_date := "set date_time_input_format='best_effort'"
+	_, err := lm.chDb.ExecContext(ctx, set_date)
+	if err != nil {
+		errorMsg := fmt.Sprintf("error [%s] on set date_time, tablename: [%s]", err, tableName)
+		logger.ErrorWithCtx(ctx).Msg(errorMsg)
+		return fmt.Errorf(errorMsg)
+	}
+	span.End(err)
+	return nil
+}
+
 func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []string) error {
 	if config, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0]); err != nil {
 		return err
