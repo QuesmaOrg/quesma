@@ -49,7 +49,7 @@ func (sl *schemaLoader) ReloadTables() {
 }
 
 func (sl *schemaLoader) populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, cfg config.QuesmaConfiguration) {
-	tableMap := withPredefinedTables()
+	tableMap := NewTableMap()
 	for tableName, resTable := range configuredTables {
 		var columnsMap = make(map[string]*Column)
 		partiallyResolved := false
@@ -108,7 +108,7 @@ func (sl *schemaLoader) populateTableDefinitions(configuredTables map[string]dis
 		}
 		return true
 	})
-	sl.tableDefinitions.Store(&tableMap)
+	sl.tableDefinitions.Store(tableMap)
 }
 
 func (sl *schemaLoader) TableDefinitions() *TableMap {

@@ -7,6 +7,7 @@ PLACEHOLDER=".placeholder"
 CLICKHOUSE_URL="http://clickhouse:8123/"
 
 def delete_clickhouse_tables():
+
     if os.getenv("DROP_TABLES") == "false":
         print("DROP_TABLES is set to false. Skipping deleting Clickhouse tables.")
         return
@@ -24,6 +25,13 @@ def delete_clickhouse_tables():
     # loop through all tables and delete them
     deleted_tables = []
     for table_name in table_names:
+
+        # HACK this is our table created on database initialization
+        # see docker/clickhouse/docker-entrypoint-initdb.d/device_logs.sql
+        #
+        if table_name == "device_logs":
+            continue
+
         drop_statement = f"DROP TABLE \"{table_name}\";"
         print(f"Deleting table {table_name}..., {drop_statement}")
         response = requests.post(CLICKHOUSE_URL, data=drop_statement.encode("utf-8"))
