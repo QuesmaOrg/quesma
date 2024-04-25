@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/index"
@@ -400,19 +401,6 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName, jso
 	return config, nil
 }
 
-func (lm *LogManager) SetDateTimeFormat(ctx context.Context, tableName string) error {
-	span := lm.phoneHomeAgent.ClickHouseInsertDuration().Begin()
-	set_date := "set date_time_input_format='best_effort'"
-	_, err := lm.chDb.ExecContext(ctx, set_date)
-	if err != nil {
-		errorMsg := fmt.Sprintf("error [%s] on set date_time, tablename: [%s]", err, tableName)
-		logger.ErrorWithCtx(ctx).Msg(errorMsg)
-		return fmt.Errorf(errorMsg)
-	}
-	span.End(err)
-	return nil
-}
-
 func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []string) error {
 	if config, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0]); err != nil {
 		return err
@@ -433,7 +421,10 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []stri
 	}
 
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
-
+	// We expect to have date format set to `best_effort`
+	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{
+		"date_time_input_format": "best_effort",
+	}))
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertValues)
 
 	span := lm.phoneHomeAgent.ClickHouseInsertDuration().Begin()

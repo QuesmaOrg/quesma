@@ -89,12 +89,6 @@ func dualWriteBulk(ctx context.Context, defaultIndex *string, body string, lm *c
 	for indexName, documents := range indicesWithDocumentsToInsert {
 		phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
 
-		// We expect to have date format set to `best_effort`
-		err := lm.SetDateTimeFormat(ctx, indexName)
-		if err != nil {
-			logger.Error().Msgf("Can't set date time format for index %s: %v", indexName, err)
-		}
-
 		withConfiguration(ctx, cfg, indexName, "{ BULK_PAYLOAD }", func() error {
 			for _, document := range documents {
 				stats.GlobalStatistics.Process(cfg, indexName, document, clickhouse.NestedSeparator)
@@ -127,12 +121,6 @@ func dualWrite(ctx context.Context, tableName string, body string, lm *clickhous
 	defer recovery.LogPanic()
 	if len(body) == 0 {
 		return
-	}
-
-	// We expect to have date format set to `best_effort`
-	err := lm.SetDateTimeFormat(ctx, tableName)
-	if err != nil {
-		logger.Error().Msgf("Can't set date time format for index %s: %v", tableName, err)
 	}
 
 	withConfiguration(ctx, cfg, tableName, body, func() error {
