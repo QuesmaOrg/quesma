@@ -120,6 +120,17 @@ do_silent_http_post "api/data_views/data_view" '{
     "override": true
 }'
 
+echo -n "Adding data view Github Events Logs... "
+do_silent_http_post "api/data_views/data_view" '{
+    "data_view": {
+       "name": "GitHub Events",
+       "title": "github_events",
+       "id": "github_events",
+       "timeFieldName": "@timestamp",
+       "allowNoIndex": true
+    },
+    "override": true
+}'
 
 echo ""
 

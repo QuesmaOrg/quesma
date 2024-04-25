@@ -40,3 +40,10 @@ indexes:
   phone_home_data:
     enabled: true
     fullTextFields: [ "message" ]
+  github_events:
+    enabled: true
+    aliases:
+      timestamp:
+        source: "@timestamp"
+        target: "created_at"
+    fullTextFields: [ "body", "title" ]
