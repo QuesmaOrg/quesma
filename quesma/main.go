@@ -6,6 +6,7 @@ import (
 	"log"
 	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/feature"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma"
@@ -42,9 +43,14 @@ func main() {
 
 	var connectionPool = clickhouse.InitDBConnectionPool(cfg)
 
-	qmcLogChannel := logger.InitLogger(cfg, sig, doneCh)
+	asyncQueryTraceLogger := &tracing.AsyncTraceLogger{AsyncQueryTrace: concurrent.NewMap[string, tracing.TraceCtx]()}
+
+	qmcLogChannel := logger.InitLogger(cfg, sig, doneCh, asyncQueryTraceLogger)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
+
+	asyncQueryTraceEvictor := quesma.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
+	asyncQueryTraceEvictor.Start()
 
 	phoneHomeAgent := telemetry.NewPhoneHomeAgent(cfg, connectionPool)
 	phoneHomeAgent.Start()
@@ -65,7 +71,7 @@ func main() {
 	feature.NotSupportedLogger.Stop()
 	phoneHomeAgent.Stop(ctx)
 	lm.Stop()
-
+	asyncQueryTraceEvictor.Stop()
 	instance.Close(ctx)
 
 }

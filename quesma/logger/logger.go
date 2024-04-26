@@ -39,7 +39,7 @@ const (
 var logger zerolog.Logger
 
 // Returns channel where log messages will be sent
-func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan struct{}) <-chan tracing.LogWithLevel {
+func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan struct{}, asyncQueryTraceLogger *tracing.AsyncTraceLogger) <-chan tracing.LogWithLevel {
 	zerolog.TimeFieldFormat = time.RFC3339Nano // without this we don't have milliseconds timestamp precision
 	var output io.Writer = zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.StampMilli}
 	if os.Getenv("GO_ENV") == "production" { // ConsoleWriter is slow, disable it in production
@@ -95,6 +95,7 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 
 	globalError := errorstats.GlobalErrorHook{}
 	logger = logger.Hook(&globalError)
+	logger = logger.Hook(asyncQueryTraceLogger)
 
 	logger.Info().Msg("Logger initialized")
 	return logChannel
@@ -171,6 +172,16 @@ func Info() *zerolog.Event {
 func InfoWithCtx(ctx context.Context) *zerolog.Event {
 	event := logger.Info().Ctx(ctx)
 	event = addKnownContextValues(event, ctx)
+	return event
+}
+
+// MarkTraceEndWithCtx marks the end of a trace with the given context.
+// Calling this functions at end of a trace is crucial from the transactional logging perspective.
+func MarkTraceEndWithCtx(ctx context.Context) *zerolog.Event {
+	event := logger.Info().Ctx(ctx)
+	event = addKnownContextValues(event, ctx)
+	ctx = context.WithValue(ctx, tracing.TraceEndCtxKey, true)
+	event = event.Ctx(ctx)
 	return event
 }
 
