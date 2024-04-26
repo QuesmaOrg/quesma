@@ -75,8 +75,6 @@ services:
         condition: service_completed_successfully
       elasticsearch:
         condition: service_healthy
-    links:
-      - elasticsearch
     ports:
       - "9999:9999"
       - "8080:8080"

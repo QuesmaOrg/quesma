@@ -16,8 +16,6 @@ services:
     depends_on:
       elasticsearch:
         condition: service_healthy
-    links:
-      - elasticsearch
     ports:
       - "9999:9999"
       - "8080:8080"
@@ -46,8 +44,6 @@ services:
           memory: 4G
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.1
-    links:
-      - "mitmproxy"
     environment:
       ELASTICSEARCH_HOSTS: '["http://mitmproxy:8080"]'
       XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: 'QUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMA' # Just to get rid of annoying ERROR in logs
@@ -68,8 +64,6 @@ services:
   kibana-sidecar:
     image: docker.elastic.co/kibana/kibana:8.11.1
     restart: "no"
-    links:
-      - "kibana"
     depends_on:
       kibana:
         condition: service_healthy

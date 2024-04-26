@@ -19,8 +19,6 @@ services:
         condition: service_completed_successfully
       elasticsearch:
         condition: service_healthy
-    links:
-      - elasticsearch
     ports:
       - "9999:9999"
       - "8080:8080"
@@ -36,24 +34,18 @@ services:
     build: device-log-generator
     image: device-log-generator:latest
     depends_on:
-      clean-mitmproxy:
-        condition: service_completed_successfully
-    links:
-      - "mitmproxy"
+      mitmproxy:
+        condition: service_healthy
     restart: unless-stopped
   log-generator:
     build: log-generator
     image: log-generator:latest
     depends_on:
-      clean-mitmproxy:
-        condition: service_completed_successfully
-    links:
-      - "mitmproxy"
+      mitmproxy:
+        condition: service_healthy
     restart: unless-stopped
   filebeat:  # Ingests quesma logs to Elasticsearch to be visualized in Kibana
     image: docker.elastic.co/beats/filebeat:8.11.1
-    links:
-      - "elasticsearch"
     volumes:
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
       - ./quesma/logs/:/quesma-ingest/
@@ -84,8 +76,6 @@ services:
           memory: 4G
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.1
-    links:
-      - "mitmproxy"
     environment:
       ELASTICSEARCH_HOSTS: '["http://mitmproxy:8080"]'
       XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: 'QUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMA' # Just to get rid of annoying ERROR in logs
@@ -108,8 +98,6 @@ services:
   kibana-sidecar:
     image: docker.elastic.co/kibana/kibana:8.11.1
     restart: "no"
-    links:
-      - "kibana"
     depends_on:
       kibana:
         condition: service_healthy

@@ -18,8 +18,6 @@ services:
         condition: service_healthy
       opensearch:
         condition: service_healthy
-    links:
-      - opensearch
     ports:
       - "9999:9999"
       - "8080:8080"
@@ -33,8 +31,6 @@ services:
     depends_on:
       mitmproxy:
         condition: service_healthy
-    links:
-      - "mitmproxy"
     restart: unless-stopped
   log-generator:
     build: log-generator
@@ -42,8 +38,6 @@ services:
     depends_on:
       mitmproxy:
         condition: service_healthy
-    links:
-      - "mitmproxy"
     restart: unless-stopped
   opensearch:
     image: opensearchproject/opensearch:2.12.0
@@ -74,8 +68,6 @@ services:
           memory: 4G
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:2.12.0
-    links:
-      - "mitmproxy"
     environment:
       - 'OPENSEARCH_HOSTS=["http://mitmproxy:8080"]'
       - "DISABLE_SECURITY_DASHBOARDS_PLUGIN=true"
@@ -97,8 +89,6 @@ services:
   opensearch-dashboards-sidecar:
     image: opensearchproject/opensearch-dashboards:2.12.0
     restart: "no"
-    links:
-      - "opensearch-dashboards"
     depends_on:
       opensearch-dashboards:
         condition: service_healthy

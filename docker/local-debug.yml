@@ -36,8 +36,6 @@ services:
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.1
     container_name: kibana
-    links:
-      - "mitmproxy"
     network_mode: "bridge"
     environment:
       ELASTICSEARCH_HOSTS: '["http://mitmproxy:6666"]'
@@ -58,8 +56,6 @@ services:
     container_name: kiabana-sidecar
     network_mode: "bridge"
     restart: "no"
-    links:
-      - "kibana"
     depends_on:
       kibana:
         condition: service_healthy

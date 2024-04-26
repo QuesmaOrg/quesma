@@ -16,9 +16,8 @@ services:
     depends_on:
       elasticsearch:
         condition: service_healthy
-    links:
-      - elasticsearch
-      - clickhouse
+      clickhouse:
+        condition: service_healthy
     ports:
       - "9999:9999"
       - "8080:8080"
@@ -84,8 +83,6 @@ services:
     container_name: setup-kibana-password
     network_mode: "bridge"
     restart: "no"
-    links:
-      - "elasticsearch"
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -94,9 +91,6 @@ services:
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.1
     container_name: kibana
-    links:
-      - "elasticsearch"
-      - "mitmproxy"
     network_mode: "bridge"
     environment:
       ELASTICSEARCH_SSL_VERIFICATIONMODE: none  # This keeps certificate verification off, think `curl -k`
@@ -110,6 +104,8 @@ services:
       - ./security:/sec
     depends_on:
       elasticsearch:
+        condition: service_healthy
+      mitmproxy:
         condition: service_healthy
     ports:
       - "5601:5601"
@@ -127,11 +123,10 @@ services:
     environment:
       - ELASTICSEARCH_USER=elastic
       - ELASTICSEARCH_PASSWORD=quesmaquesma
-    links:
-      - "kibana"
-      - "mitmproxy"
     depends_on:
       kibana:
+        condition: service_healthy
+      mitmproxy:
         condition: service_healthy
     volumes:
       - ./kibana/:/local_mount

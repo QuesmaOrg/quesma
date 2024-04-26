@@ -22,8 +22,6 @@ services:
   elasticsearch-dataloader: # Load data
     image: elasticdump/elasticsearch-dump:v6.110.0
     restart: "no"
-    links:
-      - "elasticsearch"
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -32,8 +30,6 @@ services:
     command: ["/bin/bash", "-c", "/local_mount/add_test_data.sh"]
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.1
-    links:
-      - "mitmproxy"
     environment:
       ELASTICSEARCH_HOSTS: '["http://mitmproxy:8080"]'
       XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: 'QUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMA' # Just to get rid of annoying ERROR in logs
@@ -56,8 +52,6 @@ services:
   kibana-sidecar: # Modify
     image: docker.elastic.co/kibana/kibana:8.11.1
     restart: "no"
-    links:
-      - "kibana"
     depends_on:
       kibana:
         condition: service_healthy

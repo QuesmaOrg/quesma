@@ -14,8 +14,6 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
-    links:
-      - elasticsearch
     ports:
       - "9999:9999"
       - "8080:8080"
@@ -75,8 +73,6 @@ services:
     restart: "no"
     environment:
       - LIMITED_DATASET=true
-    links:
-      - "kibana"
     depends_on:
       kibana:
         condition: service_healthy
