@@ -30,6 +30,16 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	router.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
 
 	router.HandleFunc("/", func(writer http.ResponseWriter, req *http.Request) {
+		buf := qmc.generateDashboard()
+		_, _ = writer.Write(buf)
+	})
+
+	// /dashboard is referenced in docs and should redirect to /
+	router.HandleFunc("/dashboard", func(writer http.ResponseWriter, req *http.Request) {
+		http.Redirect(writer, req, "/", http.StatusSeeOther)
+	})
+
+	router.HandleFunc("/live", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateLiveTail()
 		_, _ = writer.Write(buf)
 	})
@@ -57,11 +67,6 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 
 	router.HandleFunc("/ingest-statistics", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateStatisticsLiveTail()
-		_, _ = writer.Write(buf)
-	})
-
-	router.HandleFunc("/dashboard", func(writer http.ResponseWriter, req *http.Request) {
-		buf := qmc.generateDashboard()
 		_, _ = writer.Write(buf)
 	})
 

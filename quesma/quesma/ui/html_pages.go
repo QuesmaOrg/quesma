@@ -21,16 +21,18 @@ func generateTopNavigation(target string) []byte {
 	buffer.Html("<h3>Quesma</h3>\n")
 	buffer.Html("<ul>\n")
 	buffer.Html("<li")
-	if target == "queries" {
-		buffer.Html(` class="active"`)
-	}
-	buffer.Html(`><a href="/">Live tail</a></li>`)
-	buffer.Html("<li")
 	if target == "dashboard" {
 		buffer.Html(` class="active"`)
 	}
-	buffer.Html(`><a href="/dashboard">Dashboard</a></li>`)
+	buffer.Html(`><a href="/">Dashboard</a></li>`)
 	buffer.Html("<li")
+
+	if target == "queries" {
+		buffer.Html(` class="active"`)
+	}
+	buffer.Html(`><a href="/live">Live tail</a></li>`)
+	buffer.Html("<li")
+
 	if target == "statistics" {
 		buffer.Html(` class="active"`)
 	}
