@@ -1,2 +1,3 @@
 mitmproxy/requests/*.json
 replay-traffic/data/*.json
+results/

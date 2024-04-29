@@ -23,7 +23,6 @@ services:
     image: elasticdump/elasticsearch-dump:v6.110.0
     restart: "no"
     environment:
-      #- ELASTICSEARCH_URL=http://quesma:8080
       - ELASTICSEARCH_URL=http://mitmproxy:8080
     depends_on:
       elasticsearch:
@@ -38,6 +37,8 @@ services:
         condition: service_healthy
       elasticsearch-dataloader:
         condition: service_completed_successfully
+    volumes:
+      - ./results/:/docker/qa/results/
     restart: "no"
   mitmproxy:
     image: mitmproxy/mitmproxy:10.1.5

@@ -3,6 +3,8 @@ import json
 import jsondiff
 import sys
 import os
+from datetime import datetime
+import pathlib
 
 URL_BASE = "http://mitmproxy:8080"
 
@@ -10,6 +12,21 @@ IGNORED_HTTP_HEADERS = [
     "x-quesma-headers-source", "x-quesma-source", "content-length", "transfer-encoding",
     "date", "x-opaque-id" # We maybe want to support them one day
 ]
+
+# directory matches the repo structure
+LOG_FILE_QUERY_PREFIX = "/docker/qa/results/"
+
+logFile = None
+
+def logger(*args):
+    print(*args, file=logFile)
+
+def store_evidence(request_id, suffix,  data):
+    global logDir
+    fname = f"{request_id}-{suffix}"
+    with open(f"{logDir}/{fname}", "w") as f:
+        f.write(data)
+    return fname
 
 def prepare_headers(headers):
     if 'Accept-Encoding' not in headers:
@@ -40,8 +57,11 @@ def normalize_response_body(body_str):
 
     return body
 
-def replay_request(raw_str: str) -> bool:
+
+
+def replay_request(request_id: str, raw_str: str) -> bool:
     try:
+        logger("START: replaying request: ", request_id)
         data = json.loads(raw_str)
 
         method = data["request"]["method"]
@@ -50,7 +70,7 @@ def replay_request(raw_str: str) -> bool:
         headers = data["request"]["headers"]
         body = data["request"]["body"]
 
-        print("Replaying request: ", method, url)
+        logger("Replaying request: ", method, url)
 
         headers = prepare_headers(headers)
 
@@ -73,23 +93,23 @@ def replay_request(raw_str: str) -> bool:
         headers_diff = jsondiff.diff(original_response_headers, response_headers, syntax='explicit')
         body_diff = jsondiff.diff(original_response_body, response_body, syntax='explicit')
         if headers_diff or body_diff:
-            print("FAIL: Mismatch in responses")
+            logger("FAIL:", request_id)
             if headers_diff:
-                print("  Headers diff: ", headers_diff)
-                # print("  Original headers: ", json.dumps(original_response_headers)[:100])
-                # print("  Response headers: ", json.dumps(response_headers)[:100])
+                logger("Headers diff: ", store_evidence(request_id, "diff-headers.json", json.dumps(headers_diff)))
+                logger("Original headers: ", store_evidence(request_id, "original-headers.json", json.dumps(original_response_headers)))
+                logger("Response headers: ", store_evidence(request_id, "response-headers.json", json.dumps(response_headers)))
             if body_diff:
-                print("  Body diff: ", body_diff)
-                print("  Original body chunk: ", json.dumps(original_response_body)[:100])
-                print("  Response body: ", json.dumps(response_body)[:100])
+                logger("Body diff: ", store_evidence(request_id, "diff-body.json", json.dumps(original_response_body)))
+                logger("Original body chunk: ", store_evidence(request_id, "original-body.json", json.dumps(original_response_body)))
+                logger("Response body: ", store_evidence(request_id, "response-body.json", json.dumps(response_body)))
             return False
         else:
-            print("PASS: Responses matched")
+            logger("PASS: Responses matched", request_id)
             return True
 
     except json.JSONDecodeError as e:
-        print(f"Error: {e}")
-        print("Failed to decode JSON: ", raw_str)
+        logger(f"Error: {e}")
+        logger("Failed to decode JSON: ", raw_str, "request_id: ", request_id)
 
 def replay_traffic(file_path):
     with open(file_path, "r") as f:
@@ -102,16 +122,21 @@ def replay_traffic(file_path):
             j += 1
         data = "".join(lines[i:j+1])
         request_count += 1
-        res = replay_request(data.strip())
+        request_id = f"{file_path}:{request_count}"
+        request_id = request_id.replace("/", "_")
+        request_id = request_id.replace(".", "_")
+        request_id = request_id.replace(":", "_")
+        res = replay_request(request_id, data.strip())
         if not res:
             failed_count += 1
         i = j + 1
 
     if failed_count > 0:
-        print(f"Failed to match {failed_count} responses our of {request_count}.")
-        sys.exit(1)
+        logger(f"Failed to match {failed_count} responses our of {request_count}.")
+        return False
     else:
-        print(f"All {request_count} responses matched.")
+        logger(f"All {request_count} responses matched.")
+        return True
 
 def find_json_files():
     directory = "data"
@@ -121,16 +146,35 @@ def find_json_files():
         # Print the list of JSON files
 
     except FileNotFoundError:
-        print(f"The directory {directory} does not exist.")
+        logger(f"The directory {directory} does not exist.")
     except PermissionError:
-        print(f"Permission denied for accessing the directory {directory}.")
+        logger(f"Permission denied for accessing the directory {directory}.")
 
     return []
 
+def main():
+    global logFile
+    global logDir
+    print("Started replaying traffic.")
 
-# Specify the path to your recorded file
-files = find_json_files()
-print(f"Replaying traffic from files {', '.join(files)}")
+    logDir = os.path.join(LOG_FILE_QUERY_PREFIX, datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
+    pathlib.Path(logDir).mkdir(parents=True, exist_ok=True)
+    replay_log = logDir + "/replay.log"
+    print("Logging to file", replay_log)
 
-for file in files:
-    replay_traffic(file)
+    with open(replay_log, "w") as logFile:
+
+        # Specify the path to your recorded file
+        files = find_json_files()
+        logger(f"Replaying traffic from files {', '.join(files)}")
+
+        for file in files:
+            res = replay_traffic(file)
+
+            if not res:
+                print("Aborting replay. Errors found.")
+                sys.exit(1)
+
+    print("Finished replaying traffic.")
+
+main()

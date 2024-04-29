@@ -14,7 +14,11 @@ Or
 bin/up.sh qa/replay-quesma
 ```
 
-Check logs of the `qa_replay-traffic` container for the results.
+Each replay session will create a new directory in `docker/qa/results/`
+Check logs for name of the latest directory with results:
+```bash
+docker logs -f qa-replay-traffic-1
+```
 
 Shutdown it with:
 ```bash
