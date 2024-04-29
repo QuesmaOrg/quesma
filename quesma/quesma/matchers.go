@@ -5,7 +5,6 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/mux"
-	"slices"
 	"strings"
 )
 
@@ -41,33 +40,23 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.MatchPr
 			return false
 		}
 
-		var candidates []string
+		indexPatterns := strings.Split(indexPattern, ",")
 
 		if elasticsearch.IsIndexPattern(indexPattern) {
-			for _, pattern := range strings.Split(indexPattern, ",") {
+			for _, pattern := range indexPatterns {
 				if elasticsearch.IsInternalIndex(pattern) {
 					logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", indexPattern)
 					return false
 				}
-
-				for _, indexName := range configuration.IndexConfig {
-					if config.MatchName(preprocessPattern(pattern), indexName.Name) {
-						candidates = append(candidates, indexName.Name)
-					}
-				}
 			}
 
-			slices.Sort(candidates)
-			candidates = slices.Compact(candidates)
-
-			for _, candidate := range candidates {
-				indexConfig, exists := configuration.IndexConfig[candidate]
-				if !exists || !indexConfig.Enabled {
-					return false
-				}
-
-				if exists && indexConfig.Enabled {
-					return true
+			for _, pattern := range indexPatterns {
+				for _, indexName := range configuration.IndexConfig {
+					if config.MatchName(preprocessPattern(pattern), indexName.Name) {
+						if configuration.IndexConfig[indexName.Name].Enabled {
+							return true
+						}
+					}
 				}
 			}
 			return false
@@ -75,14 +64,9 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.MatchPr
 			for _, index := range configuration.IndexConfig {
 				pattern := preprocessPattern(indexPattern)
 				if config.MatchName(pattern, index.Name) {
-					candidates = append(candidates, index.Name)
-				}
-			}
-
-			for _, candidate := range candidates {
-				indexConfig, exists := configuration.IndexConfig[candidate]
-				if exists && indexConfig.Enabled {
-					return true
+					if indexConfig, exists := configuration.IndexConfig[index.Name]; exists {
+						return indexConfig.Enabled
+					}
 				}
 			}
 			logger.Debug().Msgf("no index found for pattern %s", indexPattern)

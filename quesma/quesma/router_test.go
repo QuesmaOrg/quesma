@@ -43,81 +43,87 @@ func Test_matchedAgainstConfig(t *testing.T) {
 func Test_matchedAgainstPattern(t *testing.T) {
 	tests := []struct {
 		name          string
-		index         string
+		pattern       string
 		body          string
 		configuration config.QuesmaConfiguration
 		want          bool
 	}{
 		{
+			name:          "multiple indexes, one matches configuration",
+			pattern:       "logs-1,logs-2,foo-*,index",
+			configuration: indexConfig("index", true),
+			want:          true,
+		},
+		{
 			name:          "multiple indexes, one internal",
-			index:         "index,.kibana",
+			pattern:       "index,.kibana",
 			configuration: indexConfig("index", true),
 			want:          false,
 		},
 		{
 			name:          "index explicitly enabled",
-			index:         "index",
+			pattern:       "index",
 			configuration: indexConfig("index", true),
 			want:          true,
 		},
 		{
 			name:          "index explicitly disabled",
-			index:         "index",
+			pattern:       "index",
 			configuration: indexConfig("index", false),
 			want:          false,
 		},
 		{
 			name:          "index enabled, * pattern",
-			index:         "*",
+			pattern:       "*",
 			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
 			name:          "index enabled, _all pattern",
-			index:         "_all",
+			pattern:       "_all",
 			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
 			name:          "index enabled, multiple patterns",
-			index:         "logs-*-*, logs-*",
+			pattern:       "logs-*-*, logs-*",
 			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
 			name:          "index enabled, multiple patterns",
-			index:         "logs-*-*, logs-generic-default",
+			pattern:       "logs-*-*, logs-generic-default",
 			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
 			name:          "index disabled, wide pattern",
-			index:         "logs-*-*",
+			pattern:       "logs-*-*",
 			configuration: indexConfig("logs-generic-default", false),
 			want:          false,
 		},
 		{
 			name:          "index enabled, narrow pattern",
-			index:         "logs-generic-*",
+			pattern:       "logs-generic-*",
 			configuration: indexConfig("logs-generic-default", true),
 			want:          true,
 		},
 		{
 			name:          "logs-elastic_agent-*",
-			index:         "logs-elastic_agent-*",
+			pattern:       "logs-elastic_agent-*",
 			configuration: indexConfig("logs-generic-default", false),
 			want:          false,
 		},
 		{
 			name:          "traces-apm*, not configured",
-			index:         "traces-apm*",
+			pattern:       "traces-apm*",
 			configuration: indexConfig("logs-generic-default", true),
 			want:          false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, matchedAgainstPattern(tt.configuration)(map[string]string{"index": tt.index}, tt.body), "matchedAgainstPattern(%v)", tt.configuration)
+			assert.Equalf(t, tt.want, matchedAgainstPattern(tt.configuration)(map[string]string{"index": tt.pattern}, tt.body), "matchedAgainstPattern(%v)", tt.configuration)
 		})
 	}
 }
