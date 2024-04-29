@@ -9,9 +9,13 @@ import (
 func metricsTranslateSqlResponseToJson(ctx context.Context, rows []model.QueryResultRow, level int) []model.JsonMap {
 	var value any = nil
 	if len(rows) > 0 {
-		value = rows[0].Cols[level].Value
+		if len(rows[0].Cols) > 0 {
+			value = rows[0].Cols[len(rows[0].Cols)-1].Value
+		} else {
+			logger.WarnWithCtx(ctx).Msg("no columns returned for metrics aggregation")
+		}
 	} else {
-		logger.WarnWithCtx(ctx).Msg("no value returned for metrics aggregation")
+		logger.WarnWithCtx(ctx).Msg("no rows returned for metrics aggregation")
 	}
 	return []model.JsonMap{{
 		"value": value,

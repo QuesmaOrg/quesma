@@ -1,5 +1,7 @@
 package model
 
+import "context"
+
 type QueryType interface {
 	// TranslateSqlResponseToJson 'level' - we want to translate [level:] (metrics aggr) or [level-1:] (bucket aggr) columns to JSON
 	// Previous columns are used for bucketing.
@@ -10,4 +12,26 @@ type QueryType interface {
 	// if false, it's a metrics aggregation and result from 'MakeResponse' will be a single bucket
 	IsBucketAggregation() bool
 	String() string
+}
+
+// UnknownAggregationType is a placeholder for an aggregation type that'll be determined in the future,
+// after descending further into the aggregation tree
+type UnknownAggregationType struct {
+	ctx context.Context
+}
+
+func NewUnknownAggregationType(ctx context.Context) UnknownAggregationType {
+	return UnknownAggregationType{ctx: ctx}
+}
+
+func (query UnknownAggregationType) IsBucketAggregation() bool {
+	return false
+}
+
+func (query UnknownAggregationType) TranslateSqlResponseToJson(rows []QueryResultRow, level int) []JsonMap {
+	return make([]JsonMap, 0)
+}
+
+func (query UnknownAggregationType) String() string {
+	return "unknown aggregation type"
 }

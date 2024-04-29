@@ -252,7 +252,6 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	}
 
 	// 2. Now process filter(s) first, because they apply to everything else on the same level or below.
-	// Also filter introduces count to current level.
 	if filterRaw, ok := queryMap["filter"]; ok {
 		if filter, ok := filterRaw.(QueryMap); ok {
 			filterOnThisLevel = true
@@ -278,7 +277,19 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		}
 	}
 
-	if filtersRaw, ok := queryMap["filters"]; ok {
+	// process "range" with subaggregations
+	Range, isRange := currentAggr.Type.(bucket_aggregations.Range)
+	if isRange {
+		cw.processRangeAggregation(currentAggr, Range, queryMap, resultAccumulator, metadata)
+	}
+
+	// TODO what happens if there's all: filters, range, and subaggregations at current level?
+	// We probably need to do |ranges| * |filters| * |subaggregations| queries, but we don't do that yet.
+	// Or probably a bit less, if optimized correctly.
+	// Let's wait until we see such a query, maybe range and filters are mutually exclusive.
+
+	filtersRaw, isFilters := queryMap["filters"]
+	if isFilters {
 		currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Filters = true
 		var filters []filter
 		if filtersAsMap, ok := filtersRaw.(QueryMap); ok {
@@ -303,12 +314,16 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 			currentAggr.whereBuilder = whereBeforeNesting
 		}
 		delete(queryMap, "filters")
-	} else if aggs, ok := queryMap["aggs"]; ok {
+	}
+
+	aggsHandledSeparately := isRange || isFilters
+	if aggs, ok := queryMap["aggs"]; ok && !aggsHandledSeparately {
 		cw.parseAggregation(currentAggr, aggs.(QueryMap), resultAccumulator)
 	}
 	delete(queryMap, "aggs") // no-op if no "aggs"
 
-	if bucketAggrPresent {
+	if bucketAggrPresent && !isRange {
+		// range aggregation has separate, optimized handling
 		*resultAccumulator = append(*resultAccumulator, currentAggr.buildBucketAggregation(metadata))
 	}
 
@@ -502,23 +517,17 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		}
 	}
 	if rangeRaw, ok := queryMap["range"]; ok {
-		Range, ok := rangeRaw.(QueryMap)
+		rangeMap, ok := rangeRaw.(QueryMap)
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("range is not a map, but %T, value: %v. Using empty map", rangeRaw, rangeRaw)
 		}
-		rangeParsed := cw.parseRangeAggregation(Range)
-		currentAggr.Type = rangeParsed
-		if rangeParsed.Keyed {
+		Range := cw.parseRangeAggregation(rangeMap)
+		currentAggr.Type = Range
+		if Range.Keyed {
 			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Keyed = true
 		}
-		for _, interval := range rangeParsed.Intervals {
-			currentAggr.NonSchemaFields = append(
-				currentAggr.NonSchemaFields,
-				interval.ToSQLSelectQuery(rangeParsed.QuotedFieldName),
-			)
-		}
 		delete(queryMap, "range")
-		return success, len(rangeParsed.Intervals), 0
+		return success, 0, 0
 	}
 	if dateRangeRaw, ok := queryMap["date_range"]; ok {
 		dateRange, ok := dateRangeRaw.(QueryMap)
@@ -563,51 +572,6 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	}
 	success = false
 	return
-}
-
-func (cw *ClickhouseQueryTranslator) parseRangeAggregation(rangePart QueryMap) bucket_aggregations.Range {
-	fieldName := cw.parseFieldField(rangePart, "range")
-	var ranges []any
-	if rangesRaw, ok := rangePart["ranges"]; ok {
-		ranges, ok = rangesRaw.([]any)
-		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("ranges is not an array, but %T, value: %v. Using empty array", rangesRaw, rangesRaw)
-		}
-	} else {
-		logger.WarnWithCtx(cw.Ctx).Msg("no ranges in range aggregation. Using empty array.")
-	}
-	intervals := make([]bucket_aggregations.Interval, 0, len(ranges))
-	for _, Range := range ranges {
-		rangePartMap := Range.(QueryMap)
-		var from, to float64
-		if fromRaw, ok := rangePartMap["from"]; ok {
-			from, ok = fromRaw.(float64)
-			if !ok {
-				logger.WarnWithCtx(cw.Ctx).Msgf("from is not a float64: %v, type: %T", fromRaw, fromRaw)
-				from = bucket_aggregations.IntervalInfiniteRange
-			}
-		} else {
-			from = bucket_aggregations.IntervalInfiniteRange
-		}
-		if toRaw, ok := rangePartMap["to"]; ok {
-			to, ok = toRaw.(float64)
-			if !ok {
-				logger.WarnWithCtx(cw.Ctx).Msgf("to is not a float64: %v, type: %T", toRaw, toRaw)
-				to = bucket_aggregations.IntervalInfiniteRange
-			}
-		} else {
-			to = bucket_aggregations.IntervalInfiniteRange
-		}
-		intervals = append(intervals, bucket_aggregations.NewInterval(from, to))
-	}
-	if keyedRaw, exists := rangePart["keyed"]; exists {
-		if keyed, ok := keyedRaw.(bool); ok {
-			return bucket_aggregations.NewRange(cw.Ctx, strconv.Quote(fieldName), intervals, keyed)
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("keyed is not a bool, but %T, value: %v", keyedRaw, keyedRaw)
-		}
-	}
-	return bucket_aggregations.NewRangeWithDefaultKeyed(cw.Ctx, strconv.Quote(fieldName), intervals)
 }
 
 // parseFieldField returns field 'field' from shouldBeMap, which should be a string. Logs some warnings in case of errors, and returns "" then

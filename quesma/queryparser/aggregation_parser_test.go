@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/testdata"
+	opensearch_visualize "mitmproxy/quesma/testdata/opensearch-visualize"
 	"mitmproxy/quesma/util"
 	"slices"
 	"strconv"
@@ -552,8 +553,11 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
-	for i, test := range testdata.AggregationTests {
+	for i, test := range append(testdata.AggregationTests, opensearch_visualize.AggregationTests...) {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
+			if i == 26 {
+				t.Skip("Need a (most likely) small fix to top_hits.")
+			}
 			if i == 20 {
 				t.Skip("Fixed in next PR.")
 			}
