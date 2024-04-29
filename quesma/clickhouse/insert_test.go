@@ -49,6 +49,7 @@ var insertTests = []struct {
 			`)`,
 			`ENGINE = MergeTree`,
 			`ORDER BY ("@timestamp")`,
+			`COMMENT 'created by Quesma'`,
 		},
 		[]string{
 			`"attributes_float64_value" Array(Float64),`,
@@ -81,6 +82,7 @@ var insertTests = []struct {
 			`)`,
 			`ENGINE = MergeTree`,
 			`ORDER BY ("@timestamp")`,
+			`COMMENT 'created by Quesma'`,
 		},
 		[]string{
 			`"attributes_float64_value" Array(Float64),`,

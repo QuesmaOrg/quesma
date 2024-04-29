@@ -122,6 +122,13 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 			buffer.Html(`<th colspan=2><h2>`)
 			buffer.Html(`Table: `)
 			buffer.Text(table.Name)
+
+			if table.Comment != "" {
+				buffer.Text(" (")
+				buffer.Text(table.Comment)
+				buffer.Text(")")
+			}
+
 			buffer.Html(`</h2></th>`)
 			buffer.Html(`</tr>`)
 

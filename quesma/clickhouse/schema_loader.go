@@ -33,7 +33,8 @@ func (sl *schemaLoader) ReloadTables() {
 							logger.Error().Msgf("column [%s] clashes with an existing alias, table [%s]", colName, table)
 						}
 					}
-					configuredTables[table] = discoveredTable{columns, indexConfig}
+					comment := sl.SchemaManagement.tableComment(databaseName, table)
+					configuredTables[table] = discoveredTable{columns, indexConfig, comment}
 				} else {
 					logger.Debug().Msgf("table '%s' is disabled\n", table)
 				}
@@ -74,6 +75,7 @@ func (sl *schemaLoader) populateTableDefinitions(configuredTables map[string]dis
 			table := Table{
 				Created:      true,
 				Name:         tableName,
+				Comment:      resTable.comment,
 				DatabaseName: databaseName,
 				Cols:         columnsMap,
 				Config: &ChTableConfig{

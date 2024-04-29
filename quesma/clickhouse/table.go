@@ -20,6 +20,7 @@ type Table struct {
 	Created      bool // do we need to create it during first insert
 	indexes      []IndexStatement
 	aliases      map[string]string
+	Comment      string // this human-readable comment
 }
 
 func (t *Table) createTableOurFieldsString() []string {

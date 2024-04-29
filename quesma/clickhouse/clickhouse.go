@@ -99,6 +99,7 @@ func (lm *LogManager) Stop() {
 type discoveredTable struct {
 	columnTypes map[string]string
 	config      config.IndexConfiguration
+	comment     string
 }
 
 func (lm *LogManager) ReloadTables() {
@@ -281,7 +282,8 @@ func buildCreateTableQueryNoOurFields(ctx context.Context, tableName, jsonData s
 (
 	%s
 )
-%s`,
+%s
+COMMENT 'created by Quesma'`,
 		tableName, FieldsMapToCreateTableString("", m, 1, config)+Indexes(m),
 		config.CreateTablePostFieldsString())
 	return createTableCmd, nil

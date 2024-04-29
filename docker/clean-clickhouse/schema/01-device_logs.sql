@@ -51,3 +51,4 @@ ORDER BY epoch_time
 PARTITION BY toYYYYMM(epoch_time)
 TTL toDateTime(epoch_time) + INTERVAL 20 MINUTE
 SETTINGS index_granularity = 8192
+COMMENT 'Device logs. Created by clean-clickhouse.'

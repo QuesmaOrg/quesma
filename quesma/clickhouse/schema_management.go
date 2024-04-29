@@ -35,3 +35,13 @@ func (s *SchemaManagement) readTables(database string) (map[string]map[string]st
 
 	return columnsPerTable, nil
 }
+
+func (s *SchemaManagement) tableComment(database, table string) (comment string) {
+
+	err := s.chDb.QueryRow("SELECT comment FROM system.tables WHERE database = ? and table = ? ", database, table).Scan(&comment)
+
+	if err != nil {
+		logger.Error().Msgf("could not get table comment: %v", err)
+	}
+	return comment
+}
