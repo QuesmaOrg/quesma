@@ -22,6 +22,8 @@ services:
   elasticsearch-dataloader: # Load data
     image: elasticdump/elasticsearch-dump:v6.110.0
     restart: "no"
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
     depends_on:
       elasticsearch:
         condition: service_healthy
