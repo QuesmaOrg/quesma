@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/network"
 	"mitmproxy/quesma/quesma/config"
@@ -50,6 +51,7 @@ func (c *simultaneousClientsLimiter) ServeHTTP(w http.ResponseWriter, r *http.Re
 type dualWriteHttpProxy struct {
 	routingHttpServer   *http.Server
 	elasticRouter       *mux.PathRouter
+	indexManagement     elasticsearch.IndexManagement
 	logManager          *clickhouse.LogManager
 	publicPort          network.Port
 	asyncQueriesEvictor *AsyncQueriesEvictor
@@ -85,6 +87,7 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaCo
 	})
 
 	limitedHandler := newSimultaneousClientsLimiter(handler, 50) // FIXME this should be configurable
+	indexManagement := elasticsearch.NewIndexManagement(config.Elasticsearch.Url.String())
 
 	return &dualWriteHttpProxy{
 		elasticRouter: pathRouter,
@@ -92,6 +95,7 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaCo
 			Addr:    ":" + strconv.Itoa(int(config.PublicTcpPort)),
 			Handler: limitedHandler,
 		},
+		indexManagement:     indexManagement,
 		logManager:          logManager,
 		publicPort:          config.PublicTcpPort,
 		asyncQueriesEvictor: NewAsyncQueriesEvictor(queryRunner.AsyncRequestStorage, queryRunner.AsyncQueriesContexts),
@@ -116,6 +120,7 @@ func (q *dualWriteHttpProxy) Close(ctx context.Context) {
 
 func (q *dualWriteHttpProxy) Ingest() {
 	q.logManager.Start()
+	q.indexManagement.Start()
 	go q.asyncQueriesEvictor.asyncQueriesGC()
 	go func() {
 		if err := q.routingHttpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
