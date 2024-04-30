@@ -12,6 +12,7 @@ import (
 	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/util"
 	"regexp"
@@ -80,6 +81,7 @@ func (lm *LogManager) Start() {
 	logger.Info().Msgf("schemas loaded: %s", lm.schemaLoader.TableDefinitions().Keys())
 
 	go func() {
+		recovery.LogPanic()
 		for {
 			select {
 			case <-lm.ctx.Done():

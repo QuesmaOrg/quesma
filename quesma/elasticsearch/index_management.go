@@ -3,6 +3,7 @@ package elasticsearch
 import (
 	"context"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/quesma/recovery"
 	"sync/atomic"
 	"time"
 )
@@ -51,6 +52,7 @@ func (im *indexManagement) Start() {
 	im.ctx, im.cancel = context.WithCancel(context.Background())
 
 	go func() {
+		recovery.LogPanic()
 		for {
 			select {
 			case <-im.ctx.Done():
