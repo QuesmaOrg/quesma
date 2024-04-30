@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"github.com/rs/zerolog"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/telemetry"
@@ -76,6 +77,7 @@ type QuesmaManagementConsole struct {
 	mutex                     sync.Mutex
 	debugInfoMessages         map[string]QueryDebugInfo
 	debugLastMessages         []string
+	unsupportedSearchQueries  *UnsupportedSearchQueries
 	responseMatcherChannel    chan QueryDebugInfo
 	config                    config.QuesmaConfiguration
 	requestsStore             *stats.RequestStatisticStore
@@ -95,6 +97,7 @@ func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *c
 		queryDebugLogs:            logChan,
 		debugInfoMessages:         make(map[string]QueryDebugInfo),
 		debugLastMessages:         make([]string, 0),
+		unsupportedSearchQueries:  newUnsupportedSearchQueries(),
 		responseMatcherChannel:    make(chan QueryDebugInfo, 5),
 		config:                    config,
 		requestsStore:             stats.NewRequestStatisticStore(),
@@ -191,7 +194,8 @@ func (qmc *QuesmaManagementConsole) generateQueries() []byte {
 
 	queriesBytes := generateQueries(debugKeyValueSlice, true)
 	queriesStats := qmc.generateQueriesStatsPanel()
-	return append(queriesBytes, queriesStats...)
+	unsupportedQueriesStats := qmc.unsupportedSearchQueries.generateSidePanelHtml()
+	return append(queriesBytes, append(queriesStats, unsupportedQueriesStats...)...)
 }
 
 func newBufferWithHead() HtmlBuffer {
@@ -238,6 +242,8 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 		qmc.mutex.Unlock()
 	case msg := <-qmc.queryDebugSecondarySource:
 		logger.Debug().Msg("Received debug info from secondary source: " + msg.Id)
+		fmt.Println(msg.IncomingQueryBody)
+		qmc.unsupportedSearchQueries.saveRequestBodyIfNeeded(msg.Id, string(msg.IncomingQueryBody))
 		secondaryDebugInfo := QueryDebugSecondarySource{
 			msg.Id,
 			msg.IncomingQueryBody,
@@ -285,6 +291,10 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 		} else if log.Level == zerolog.WarnLevel {
 			value.warnLogCount += 1
 		}
+		if log.Level == zerolog.ErrorLevel || log.Level == zerolog.WarnLevel {
+			// it might, but doesn't need to be, an unsupported search query
+			qmc.unsupportedSearchQueries.processLogMessage(requestId, log)
+		}
 		qmc.debugInfoMessages[requestId] = value
 		qmc.mutex.Unlock()
 	case record := <-qmc.requestsSource:
@@ -302,6 +312,14 @@ func (qmc *QuesmaManagementConsole) Run() {
 		qmc.ui = qmc.newHTTPServer()
 		qmc.listenAndServe()
 	}()
+	for {
+		qmc.processChannelMessage()
+	}
+}
+
+// RunOnlyChannelProcessor is a copy of Run() method, but runs the management console in a mode where it only processes channel messages
+// Used only in tests, to keep the important part of the logic, but make them run faster.
+func (qmc *QuesmaManagementConsole) RunOnlyChannelProcessor() {
 	for {
 		qmc.processChannelMessage()
 	}
@@ -374,4 +392,8 @@ func (qmc *QuesmaManagementConsole) comparePipelines() {
 			}
 		}
 	}
+}
+
+func (qmc *QuesmaManagementConsole) GetUnsupportedSearchQueries() *UnsupportedSearchQueries {
+	return qmc.unsupportedSearchQueries
 }

@@ -89,7 +89,7 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 		aggsCopy, err := deepcopy.Anything(aggs)
 		if err == nil {
 			currentAggr.Type = model.NewUnknownAggregationType(cw.Ctx)
-			cw.parseAggregation(currentAggr, aggsCopy.(QueryMap), aggregationsAccumulator)
+			cw.parseAggregationNames(currentAggr, aggsCopy.(QueryMap), aggregationsAccumulator)
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("deepcopy 'aggs' map error: %v. Skipping current range's interval: %v, aggs: %v", err, interval, aggs)
 		}

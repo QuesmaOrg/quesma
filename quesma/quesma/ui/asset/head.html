@@ -177,6 +177,16 @@
             color: white;
         }
 
+        .request-body {
+            background-color: rgb(221, 226, 235);
+            color: black;
+        }
+
+        #request-body {
+            width: 100%;
+            background-color: rgb(221, 226, 235);
+        }
+
         .debug-body a {
             text-decoration: none;
         }
@@ -211,8 +221,46 @@
             color: yellow;
         }
 
-        .debug-error-log, #queries-stats .debug-error-log  {
+        .debug-error-log, #queries-stats .debug-error-log {
             color: red;
+        }
+
+        #unsupported-queries-stats .debug-error-log  {
+            color: orange;
+        }
+
+        .unsupported-requests a {
+            color: #5165ff;
+        }
+
+        .unsupported-requests table {
+            height: 100%; /* important so that links occupy full height */
+            border-collapse: collapse;
+        }
+
+        .unsupported-requests td {
+            border: 2px solid #ccd2ff;
+            position: relative;
+        }
+
+        .unsupported-requests tr:hover,
+        .unsupported-requests tr:focus-within {
+            background: rgb(40, 40, 40);
+            outline: none;
+        }
+
+        .unsupported-requests td > a:first-child {
+            height: 100%; /* important so that links occupy full height */
+            align-items: center; /* important with links occupying full height, for text to stay centered */
+            display: flex;
+            padding: 5px;
+            text-decoration: none;
+            color: inherit;
+            z-index: 0;
+
+            &:focus {
+                outline: 0;
+            }
         }
 
         .title-bar {

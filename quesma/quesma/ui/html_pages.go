@@ -548,6 +548,8 @@ document.body.addEventListener('htmx:afterSwap', function(event) {
 
 	buffer.Html(`<h3>Queries with problems</h3>`)
 	buffer.Write(qmc.generateQueriesStatsPanel())
+	buffer.Html(`<h3>Unsupported queries</h3>`)
+	buffer.Write(qmc.unsupportedSearchQueries.generateSidePanelHtml())
 
 	// Don't get foiled by warning, this detects whether it's our development Quesma
 	if buildinfo.LicenseKey == buildinfo.DevelopmentLicenseKey || buildinfo.LicenseKey == "" {
@@ -697,7 +699,7 @@ func (qmc *QuesmaManagementConsole) generateLogForRequestId(requestId string) []
 	request, requestFound := qmc.debugInfoMessages[requestId]
 	qmc.mutex.Unlock()
 
-	logMessages, optAsyncId := generateLogMessages(request.logMessages)
+	logMessages, optAsyncId := generateLogMessages(request.logMessages, []string{})
 
 	buffer := newBufferWithHead()
 	buffer.Html(`<div class="topnav">`)
@@ -733,7 +735,27 @@ func (qmc *QuesmaManagementConsole) generateLogForRequestId(requestId string) []
 	return buffer.Bytes()
 }
 
-func generateLogMessages(logMessages []string) ([]byte, *string) {
+// links might be empty, then table won't have any links within.
+// if i < len(logMessages) && i < len(links) then logMessages[i] will have link links[i]
+func generateLogMessages(logMessages []string, links []string) ([]byte, *string) {
+	// adds a link to the table row if there is a link for it
+	addOpeningLink := func(row, column int) string {
+		if row < len(links) {
+			link := `<a href="` + links[row] + `" class="row-link"`
+			if column != 0 {
+				link += ` tabindex="-1"` // some way to make links in table prettier, see https://robertcooper.me/post/table-row-links
+			}
+			return link + ">"
+		}
+		return ""
+	}
+	addClosingLink := func(i int) string {
+		if i < len(links) {
+			return "</a>"
+		}
+		return ""
+	}
+
 	var buffer HtmlBuffer
 	buffer.Html("<table>\n")
 	buffer.Html("<thead>\n")
@@ -749,7 +771,7 @@ func generateLogMessages(logMessages []string) ([]byte, *string) {
 
 	var asyncId *string
 
-	for _, logMessage := range logMessages {
+	for i, logMessage := range logMessages {
 		buffer.Html("<tr>\n")
 
 		var fields map[string]interface{}
@@ -760,16 +782,17 @@ func generateLogMessages(logMessages []string) ([]byte, *string) {
 			continue
 		}
 		// time
-		buffer.Html(`<td class="time">`)
+		buffer.Html(`<td class="time">` + addOpeningLink(i, 0))
 		if _, ok := fields["time"]; ok {
 			time := fields["time"].(string)
 			time = strings.Replace(time, "T", " ", 1)
 			time = strings.Replace(time, ".", " ", 1)
-			buffer.Text(time).Html("</td>")
+			buffer.Text(time)
 			delete(fields, "time")
 		} else {
-			buffer.Html("missing time</td>")
+			buffer.Html("missing time")
 		}
+		buffer.Html(addClosingLink(i) + "</td>")
 
 		// get rid of request_id and async_id
 		delete(fields, "request_id")
@@ -779,31 +802,29 @@ func generateLogMessages(logMessages []string) ([]byte, *string) {
 		}
 
 		// level
-		buffer.Html(`<td class="level">`)
+		buffer.Html(`<td class="level">` + addOpeningLink(i, 1))
 		if level, ok := fields["level"].(string); ok {
-			buffer.Text(level).Html("</td>")
+			buffer.Text(level)
 			delete(fields, "level")
 		} else {
-			buffer.Html("missing level</td>")
+			buffer.Html("missing level")
 		}
+		buffer.Html(addClosingLink(i) + "</td>")
 
 		// message
-		buffer.Html(`<td class="message">`)
+		buffer.Html(`<td class="message">` + addOpeningLink(i, 2))
 		if message, ok := fields["message"].(string); ok {
-			buffer.Text(message).Html("</td>")
+			buffer.Text(message)
 			delete(fields, "message")
-		} else {
-			buffer.Html("</td>")
 		}
+		buffer.Html(addClosingLink(i) + "</td>")
 
 		// fields
-		buffer.Html(`<td class="fields">`)
+		buffer.Html(`<td class="fields">` + addOpeningLink(i, 3))
 		if rest, err := yaml.Marshal(&fields); err == nil {
-			buffer.Text(string(rest)).Html("</td>")
-		} else {
-			buffer.Html("</td>")
+			buffer.Text(string(rest))
 		}
-		buffer.Html("</tr>\n")
+		buffer.Html(addClosingLink(i) + "</td></tr>\n")
 	}
 
 	buffer.Html("</tbody>\n")

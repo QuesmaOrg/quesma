@@ -393,3 +393,7 @@ func (qmc *QuesmaManagementConsole) generateQueriesStatsPanel() []byte {
 
 	return buffer.Bytes()
 }
+
+func (qmc *QuesmaManagementConsole) generateUnsupportedQueriesStatsPanel() []byte {
+	return qmc.unsupportedSearchQueries.generateSidePanelHtml()
+}

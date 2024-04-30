@@ -231,9 +231,56 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 }
 
 // 'resultAccumulator' - array when we store results
+// 'queryMap' always looks like this:
+//
+//	"aggs": {
+//	  "arbitrary_aggregation_name": {
+//	     ["some aggregation":
+//	        { "arbitrary_aggregation_name_2": { ... },]
+//	     ["some other aggregation": { ... },]
+//	     ["aggs": { ... }]
+//	  }
+//	}
+//
+// Notice that on 0, 2, ..., level of nesting we have "aggs" key or aggregation type.
+// On 1, 3, ... level of nesting we have names of aggregations, which can be any arbitrary strings.
+// This function is called on those 1, 3, ... levels, and parses and saves those aggregation names.
+func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQueryBuilder, queryMap QueryMap, resultAccumulator *[]model.QueryWithAggregation) {
+	// We process subaggregations, introduced via (k, v), meaning 'aggregation_name': { dict }
+	for k, v := range queryMap {
+		// I assume it's new aggregator name
+		logger.DebugWithCtx(cw.Ctx).Msgf("names += %s", k)
+		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(k))
+		if subAggregation, ok := v.(QueryMap); ok {
+			cw.parseAggregation(currentAggr, subAggregation, resultAccumulator)
+		} else {
+			logger.ErrorWithCtxAndReason(cw.Ctx, logger.UnsupportedQueryType+"unexpected_type").
+				Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", k, v, v)
+		}
+		logger.DebugWithCtx(cw.Ctx).Msgf("names -= %s", k)
+		currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
+	}
+}
+
 // Builds aggregations recursively. Seems to be working on all examples so far,
 // even though it's a pretty simple algorithm.
 // When making changes, look at the order in which we parse fields, it is very important for correctness.
+//
+// 'resultAccumulator' - array when we store results
+// 'queryMap' always looks like this:
+//
+//	"aggs": {
+//	  "arbitrary_aggregation_name": {
+//	     ["some aggregation":
+//	        { "arbitrary_aggregation_name_2": { ... },]
+//	     ["some other aggregation": { ... },]
+//	     ["aggs": { ... }]
+//	  }
+//	}
+//
+// Notice that on 0, 2, ..., level of nesting we have "aggs" key or aggregation type.
+// On 1, 3, ... level of nesting we have names of aggregations, which can be any arbitrary strings.
+// This function is called on those 0, 2, ... levels, and parses the actual aggregations.
 func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuilder, queryMap QueryMap, resultAccumulator *[]model.QueryWithAggregation) {
 	if len(queryMap) == 0 {
 		return
@@ -319,7 +366,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 			if aggs, ok := queryMap["aggs"].(QueryMap); ok {
 				aggsCopy, err := deepcopy.Anything(aggs)
 				if err == nil {
-					cw.parseAggregation(currentAggr, aggsCopy.(QueryMap), resultAccumulator)
+					cw.parseAggregationNames(currentAggr, aggsCopy.(QueryMap), resultAccumulator)
 				} else {
 					logger.ErrorWithCtx(cw.Ctx).Msgf("deepcopy 'aggs' map error: %v. Skipping current filter: %v, aggs: %v", err, filter, aggs)
 				}
@@ -332,7 +379,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 
 	aggsHandledSeparately := isRange || isFilters
 	if aggs, ok := queryMap["aggs"]; ok && !aggsHandledSeparately {
-		cw.parseAggregation(currentAggr, aggs.(QueryMap), resultAccumulator)
+		cw.parseAggregationNames(currentAggr, aggs.(QueryMap), resultAccumulator)
 	}
 	delete(queryMap, "aggs") // no-op if no "aggs"
 
@@ -341,18 +388,10 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		*resultAccumulator = append(*resultAccumulator, currentAggr.buildBucketAggregation(metadata))
 	}
 
-	// 5. At the end, we process subaggregations, introduced via (k, v), meaning 'subaggregation_name': { dict }
 	for k, v := range queryMap {
-		// I assume it's new aggregator name
-		logger.DebugWithCtx(cw.Ctx).Msgf("names += %s", k)
-		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(k))
-		if subAggregation, ok := v.(QueryMap); ok {
-			cw.parseAggregation(currentAggr, subAggregation, resultAccumulator)
-		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", k, v, v)
-		}
-		logger.DebugWithCtx(cw.Ctx).Msgf("names -= %s", k)
-		currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
+		// should be empty by now. If it's not, it's an unsupported/unrecognized type of aggregation.
+		logger.ErrorWithCtxAndReason(cw.Ctx, logger.UnsupportedQueryType+k).
+			Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", k, v, v)
 	}
 
 	// restore current state, removing subaggregation state
