@@ -78,30 +78,45 @@ func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string, lm *
 
 func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
-	return q.handleSearchCommon(ctx, indexPattern, body, lm, quesmaManagementConsole, false, 0, false, "")
+	return q.handleSearchCommon(ctx, indexPattern, body, lm, quesmaManagementConsole, nil)
 }
 
 func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
 	quesmaManagementConsole *ui.QuesmaManagementConsole, waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
-	asyncRequestIdStr := generateAsyncRequestId()
-	ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, asyncRequestIdStr)
-	logger.InfoWithCtx(ctx).Msgf("async search request id: %s started", asyncRequestIdStr)
-	return q.handleSearchCommon(ctx, indexPattern, body, lm, quesmaManagementConsole, true, waitForResultsMs, keepOnCompletion, asyncRequestIdStr)
+	async := AsyncQuery{
+		asyncRequestIdStr: generateAsyncRequestId(),
+		doneCh:            make(chan AsyncSearchWithError, 1),
+		waitForResultsMs:  waitForResultsMs,
+		keepOnCompletion:  keepOnCompletion,
+		startTime:         time.Now(),
+	}
+	ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, async.asyncRequestIdStr)
+	logger.InfoWithCtx(ctx).Msgf("async search request id: %s started", async.asyncRequestIdStr)
+	return q.handleSearchCommon(ctx, indexPattern, body, lm, quesmaManagementConsole, &async)
 }
 
 type AsyncSearchWithError struct {
-	response *model.AsyncSearchEntireResp
-	err      error
+	response            *model.SearchResp
+	translatedQueryBody []byte
+	err                 error
+}
+
+type AsyncQuery struct {
+	asyncRequestIdStr string
+	doneCh            chan AsyncSearchWithError
+	waitForResultsMs  int
+	keepOnCompletion  bool
+	startTime         time.Time
 }
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
-	quesmaManagementConsole *ui.QuesmaManagementConsole, async bool, waitForResultsMs int, keepOnCompletion bool, asyncRequestIdStr string) ([]byte, error) {
+	qmc *ui.QuesmaManagementConsole, optAsync *AsyncQuery) ([]byte, error) {
 
 	resolved := lm.ResolveIndexes(ctx, indexPattern)
 	if len(resolved) == 0 {
 		if elasticsearch.IsIndexPattern(indexPattern) {
-			if async {
-				return queryparser.EmptyAsyncSearchResponse(asyncRequestIdStr, false, 200)
+			if optAsync != nil {
+				return queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 200)
 			} else {
 				return queryparser.EmptySearchResponse(ctx), nil
 			}
@@ -117,17 +132,16 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	var responseBody, translatedQueryBody []byte
 
 	startTime := time.Now()
+	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	pushSecondaryInfoToManagementConsole := func() {
-		quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-			Id:                     ctx.Value(tracing.RequestIdCtxKey).(string),
+		qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+			Id:                     id,
 			IncomingQueryBody:      body,
 			QueryBodyTranslated:    translatedQueryBody,
 			QueryTranslatedResults: responseBody,
 			SecondaryTook:          time.Since(startTime),
 		})
 	}
-
-	doneCh := make(chan AsyncSearchWithError, 1)
 
 	var hits, hitsFallback []model.QueryResultRow
 	var aggregationResults [][]model.QueryResultRow
@@ -152,7 +166,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		simpleQuery, queryInfo, highlighter = queryTranslator.ParseQuery(string(body))
 		if simpleQuery.CanParse {
 			if ((queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields || queryInfo.Typ == model.Normal) && !bytes.Contains(body, []byte("aggs"))) || queryInfo.Typ == model.Facets || queryInfo.Typ == model.FacetsNumeric {
-				logger.InfoWithCtx(ctx).Msgf("received search request, type: %v, async: %v", queryInfo.Typ, async)
+				logger.InfoWithCtx(ctx).Msgf("received search request, type: %v, async: %v", queryInfo.Typ, optAsync != nil)
 
 				if properties := q.findNonexistingProperties(queryInfo, simpleQuery, table); len(properties) > 0 {
 					logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
@@ -164,27 +178,27 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				}
 
 				oldHandlingUsed = true
-				if async {
+				if optAsync != nil {
 					go func() {
 						defer recovery.LogPanicWithCtx(ctx)
-						q.searchWorker(ctx, quesmaManagementConsole, asyncRequestIdStr, queryTranslator, table, body, doneCh, async)
+						q.searchWorker(ctx, qmc, queryTranslator, table, body, optAsync)
 					}()
 				} else {
-					translatedQueryBody, hits = q.searchWorker(ctx, quesmaManagementConsole, asyncRequestIdStr, queryTranslator, table, body, doneCh, async)
+					translatedQueryBody, hits = q.searchWorker(ctx, qmc, queryTranslator, table, body, nil)
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
 				newAggregationHandlingUsed = true
-				if async {
+				if optAsync != nil {
 					go func() {
 						defer recovery.LogPanicWithCtx(ctx)
-						q.searchAggregationWorker(ctx, quesmaManagementConsole, asyncRequestIdStr, aggregations, queryTranslator, table, body, doneCh, async)
+						q.searchAggregationWorker(ctx, qmc, aggregations, queryTranslator, table, body, optAsync)
 					}()
 				} else {
-					translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, quesmaManagementConsole, asyncRequestIdStr, aggregations, queryTranslator, table, body, doneCh, async)
+					translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, qmc, aggregations, queryTranslator, table, body, nil)
 				}
 			}
 
-			if !async && queryInfo.Size > 0 {
+			if optAsync == nil && queryInfo.Size > 0 {
 				hitsPresent = true
 				var fieldName string
 				if queryInfo.Typ == model.ListByField {
@@ -241,7 +255,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 	*/
 
-	if !async {
+	if optAsync == nil {
 		var response, responseHits *model.SearchResp = nil, nil
 		err = nil
 		if oldHandlingUsed {
@@ -272,31 +286,57 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		pushSecondaryInfoToManagementConsole()
 		return responseBody, err
 	} else {
-		if waitForResultsMs == 0 {
-			return queryparser.EmptyAsyncSearchResponse(asyncRequestIdStr, true, 200)
-		}
 		select {
-		case <-time.After(time.Duration(waitForResultsMs) * time.Millisecond):
-			return q.handlePartialAsyncSearch(ctx, asyncRequestIdStr)
-		case res := <-doneCh:
-			if !keepOnCompletion {
-				q.AsyncRequestStorage.Delete(asyncRequestIdStr)
-			}
+		case <-time.After(time.Duration(optAsync.waitForResultsMs) * time.Millisecond):
+			go func() { // Async search takes longer. Return partial results and wait for
+				recovery.LogPanicWithCtx(ctx)
+				res := <-optAsync.doneCh
+				q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, body, res, true)
+			}()
+			return q.handlePartialAsyncSearch(ctx, optAsync.asyncRequestIdStr)
+		case res := <-optAsync.doneCh:
+			responseBody, err = q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, body, res,
+				optAsync.keepOnCompletion)
 
-			err = res.err
-
-			var errMarshall error
-			// Unwind errors
-			if res.response != nil {
-				res.response.CompletionStatus = nil
-				responseBody, errMarshall = res.response.Marshal()
-			}
-			if err == nil {
-				err = errMarshall
-			}
 			return responseBody, err
 		}
 	}
+}
+
+func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncRequestIdStr string,
+	startTime time.Time, body []byte, result AsyncSearchWithError, keep bool) (responseBody []byte, err error) {
+	took := time.Since(startTime)
+	defer qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+		Id:                     id,
+		IncomingQueryBody:      body,
+		QueryBodyTranslated:    result.translatedQueryBody,
+		QueryTranslatedResults: responseBody,
+		SecondaryTook:          took,
+	})
+	if result.err != nil {
+		if keep {
+			q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: result.err, added: time.Now(),
+				isCompressed: false})
+		}
+		responseBody, _ = queryparser.EmptyAsyncSearchResponse(asyncRequestIdStr, false, 503)
+		err = result.err
+		return
+	}
+	asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, asyncRequestIdStr, false, 200)
+	responseBody, err = asyncResponse.Marshal()
+	if keep {
+		compressedBody := responseBody
+		isCompressed := false
+		if err == nil {
+			if compressed, compErr := util.Compress(responseBody); compErr == nil {
+				compressedBody = compressed
+				isCompressed = true
+			}
+		}
+		q.AsyncRequestStorage.Store(asyncRequestIdStr,
+			AsyncRequestResult{responseBody: compressedBody, added: time.Now(), err: err, isCompressed: isCompressed})
+	}
+	return
 }
 
 func (q *QueryRunner) asyncQueriesCumulatedBodySize() int {
@@ -360,9 +400,8 @@ func (q *QueryRunner) reachedQueriesLimit(ctx context.Context, asyncRequestIdStr
 		return false
 	}
 	err := errors.New("too many async queries")
-	q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: err, added: time.Now(), isCompressed: false})
 	logger.ErrorWithCtx(ctx).Msgf("cannot handle %s, too many async queries", asyncRequestIdStr)
-	doneCh <- AsyncSearchWithError{response: nil, err: err}
+	doneCh <- AsyncSearchWithError{err: err}
 	return true
 }
 
@@ -370,22 +409,20 @@ func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.C
 	q.AsyncQueriesContexts.Store(asyncRequestIdStr, NewAsyncQueryContext(ctx, cancel, asyncRequestIdStr))
 }
 
-func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementConsole *ui.QuesmaManagementConsole, asyncRequestIdStr string, queryTranslator *queryparser.ClickhouseQueryTranslator,
-	table *clickhouse.Table, body []byte, doneCh chan<- AsyncSearchWithError, async bool) (translatedQueryBody []byte, hits []model.QueryResultRow) {
-	if async && q.reachedQueriesLimit(ctx, asyncRequestIdStr, doneCh) {
+func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementConsole *ui.QuesmaManagementConsole, queryTranslator *queryparser.ClickhouseQueryTranslator,
+	table *clickhouse.Table, body []byte, optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
+	if optAsync != nil && q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, optAsync.doneCh) {
 		return
 	}
 
 	var err error
 	var fullQuery *model.Query
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
-	startTime := time.Now()
 	simpleQuery, queryInfo, highlighter := queryTranslator.ParseQuery(string(body))
 	var dbQueryCtx context.Context
-	if async {
+	if optAsync != nil {
 		var dbCancel context.CancelFunc
 		dbQueryCtx, dbCancel = context.WithCancel(context.Background())
-		q.addAsyncQueryContext(dbQueryCtx, dbCancel, asyncRequestIdStr)
+		q.addAsyncQueryContext(dbQueryCtx, dbCancel, optAsync.asyncRequestIdStr)
 	} else {
 		dbQueryCtx = ctx
 	}
@@ -422,84 +459,52 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementCo
 	}
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", hits, err)
-		if async {
-			q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{responseBody: []byte{}, added: time.Now(), err: err, isCompressed: false})
-			doneCh <- AsyncSearchWithError{nil, err}
+		if optAsync != nil {
+			optAsync.doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 			return
 		}
 	}
-	if async {
+	if optAsync != nil {
 		searchResponse, err := queryTranslator.MakeSearchResponse(hits, queryInfo.Typ, highlighter)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queryInfo, hits)
-			q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{responseBody: []byte{}, added: time.Now(), err: err, isCompressed: false})
-			doneCh <- AsyncSearchWithError{nil, err}
+			optAsync.doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 			return
 		}
-		q.storeAsyncResponse(quesmaManagementConsole, asyncRequestIdStr,
-			searchResponse, id, body, translatedQueryBody, startTime, doneCh)
+		optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: nil}
 	}
 	return
 }
 
-func (q *QueryRunner) searchWorker(ctx context.Context, quesmaManagementConsole *ui.QuesmaManagementConsole, asyncRequestIdStr string, queryTranslator *queryparser.ClickhouseQueryTranslator,
-	table *clickhouse.Table, body []byte, doneCh chan<- AsyncSearchWithError, async bool) (translatedQueryBody []byte, hits []model.QueryResultRow) {
-	if !async {
-		return q.searchWorkerCommon(ctx, quesmaManagementConsole, asyncRequestIdStr, queryTranslator, table, body, doneCh, async)
+func (q *QueryRunner) searchWorker(ctx context.Context, quesmaManagementConsole *ui.QuesmaManagementConsole, queryTranslator *queryparser.ClickhouseQueryTranslator,
+	table *clickhouse.Table, body []byte, optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
+	if optAsync == nil {
+		return q.searchWorkerCommon(ctx, quesmaManagementConsole, queryTranslator, table, body, nil)
 	} else {
 		select {
 		case <-q.executionCtx.Done():
 			return
 		default:
-			_, _ = q.searchWorkerCommon(ctx, quesmaManagementConsole, asyncRequestIdStr, queryTranslator, table, body, doneCh, async)
+			_, _ = q.searchWorkerCommon(ctx, quesmaManagementConsole, queryTranslator, table, body, optAsync)
 			return
 		}
 	}
 }
 
-func (q *QueryRunner) storeAsyncResponse(quesmaManagementConsole *ui.QuesmaManagementConsole,
-	asyncRequestIdStr string, searchResponse *model.SearchResp,
-	id string, body []byte, translatedQueryBody []byte,
-	startTime time.Time, doneCh chan<- AsyncSearchWithError) {
-	const isPartial = false
-	asyncSearchResponse := queryparser.SearchToAsyncSearchResponse(searchResponse, asyncRequestIdStr, isPartial, 200)
-	responseBody, err := asyncSearchResponse.Marshal()
-	quesmaManagementConsole.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-		Id:                     id,
-		IncomingQueryBody:      body,
-		QueryBodyTranslated:    translatedQueryBody,
-		QueryTranslatedResults: responseBody,
-		SecondaryTook:          time.Since(startTime),
-	})
-	isCompressed := false
-	if err == nil {
-		if compressed, compErr := util.Compress(responseBody); compErr == nil {
-			responseBody = compressed
-			isCompressed = true
-		}
-	}
-	q.AsyncRequestStorage.Store(asyncRequestIdStr,
-		AsyncRequestResult{
-			responseBody: responseBody, added: time.Now(), err: err, isCompressed: isCompressed})
-	doneCh <- AsyncSearchWithError{response: asyncSearchResponse, err: err}
-}
-
-func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, quesmaManagementConsole *ui.QuesmaManagementConsole, asyncRequestIdStr string, aggregations []model.QueryWithAggregation,
+func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, quesmaManagementConsole *ui.QuesmaManagementConsole, aggregations []model.QueryWithAggregation,
 	queryTranslator *queryparser.ClickhouseQueryTranslator, table *clickhouse.Table, body []byte,
-	doneCh chan<- AsyncSearchWithError, async bool) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
+	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
 
-	if async && q.reachedQueriesLimit(ctx, asyncRequestIdStr, doneCh) {
+	if optAsync != nil && q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, optAsync.doneCh) {
 		return
 	}
 
 	sqls := ""
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
-	startTime := time.Now()
 	var dbQueryCtx context.Context
-	if async {
+	if optAsync != nil {
 		var dbCancel context.CancelFunc
 		dbQueryCtx, dbCancel = context.WithCancel(context.Background())
-		q.addAsyncQueryContext(dbQueryCtx, dbCancel, asyncRequestIdStr)
+		q.addAsyncQueryContext(dbQueryCtx, dbCancel, optAsync.asyncRequestIdStr)
 	} else {
 		dbQueryCtx = ctx
 	}
@@ -515,25 +520,24 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, quesmaM
 		resultRows = append(resultRows, rows)
 	}
 	translatedQueryBody = []byte(sqls)
-	if async {
+	if optAsync != nil {
 		searchResponse := queryTranslator.MakeResponseAggregation(aggregations, resultRows)
-		q.storeAsyncResponse(quesmaManagementConsole, asyncRequestIdStr,
-			searchResponse, id, body, translatedQueryBody, startTime, doneCh)
+		optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: nil}
 	}
 	return
 }
 
-func (q *QueryRunner) searchAggregationWorker(ctx context.Context, quesmaManagementConsole *ui.QuesmaManagementConsole, asyncRequestIdStr string, aggregations []model.QueryWithAggregation,
+func (q *QueryRunner) searchAggregationWorker(ctx context.Context, quesmaManagementConsole *ui.QuesmaManagementConsole, aggregations []model.QueryWithAggregation,
 	queryTranslator *queryparser.ClickhouseQueryTranslator, table *clickhouse.Table, body []byte,
-	doneCh chan<- AsyncSearchWithError, async bool) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
-	if !async {
-		return q.searchAggregationWorkerCommon(ctx, quesmaManagementConsole, asyncRequestIdStr, aggregations, queryTranslator, table, body, doneCh, async)
+	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
+	if optAsync == nil {
+		return q.searchAggregationWorkerCommon(ctx, quesmaManagementConsole, aggregations, queryTranslator, table, body, nil)
 	} else {
 		select {
 		case <-q.executionCtx.Done():
 			return
 		default:
-			_, _ = q.searchAggregationWorkerCommon(ctx, quesmaManagementConsole, asyncRequestIdStr, aggregations, queryTranslator, table, body, doneCh, async)
+			_, _ = q.searchAggregationWorkerCommon(ctx, quesmaManagementConsole, aggregations, queryTranslator, table, body, optAsync)
 			return
 		}
 	}
