@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/feature"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/network"
@@ -97,13 +98,13 @@ func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.Qu
 	}
 }
 
-func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, config config.QuesmaConfiguration, logChan <-chan tracing.LogWithLevel) *Quesma {
+func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, config config.QuesmaConfiguration, logChan <-chan tracing.LogWithLevel) *Quesma {
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logManager, logChan, phoneHomeAgent)
 	queryRunner := NewQueryRunner()
 	router := configureRouter(config, logManager, quesmaManagementConsole, phoneHomeAgent, queryRunner)
 	return &Quesma{
 		telemetryAgent:          phoneHomeAgent,
-		processor:               newDualWriteProxy(logManager, config, router, quesmaManagementConsole, phoneHomeAgent, queryRunner),
+		processor:               newDualWriteProxy(logManager, indexManager, config, router, quesmaManagementConsole, phoneHomeAgent, queryRunner),
 		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,

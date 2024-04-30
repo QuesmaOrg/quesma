@@ -62,7 +62,7 @@ func (q *dualWriteHttpProxy) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
-func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaConfiguration, pathRouter *mux.PathRouter, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *dualWriteHttpProxy {
+func newDualWriteProxy(logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, config config.QuesmaConfiguration, pathRouter *mux.PathRouter, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *dualWriteHttpProxy {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -87,7 +87,6 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaCo
 	})
 
 	limitedHandler := newSimultaneousClientsLimiter(handler, 50) // FIXME this should be configurable
-	indexManagement := elasticsearch.NewIndexManagement(config.Elasticsearch.Url.String())
 
 	return &dualWriteHttpProxy{
 		elasticRouter: pathRouter,
@@ -95,7 +94,7 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, config config.QuesmaCo
 			Addr:    ":" + strconv.Itoa(int(config.PublicTcpPort)),
 			Handler: limitedHandler,
 		},
-		indexManagement:     indexManagement,
+		indexManagement:     indexManager,
 		logManager:          logManager,
 		publicPort:          config.PublicTcpPort,
 		asyncQueriesEvictor: NewAsyncQueriesEvictor(queryRunner.AsyncRequestStorage, queryRunner.AsyncQueriesContexts),

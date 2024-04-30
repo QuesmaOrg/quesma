@@ -7,6 +7,7 @@ import (
 	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
+	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/feature"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma"
@@ -56,10 +57,11 @@ func main() {
 	phoneHomeAgent.Start()
 
 	lm := clickhouse.NewEmptyLogManager(cfg, connectionPool, phoneHomeAgent)
+	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())
 
-	instance := constructQuesma(cfg, lm, phoneHomeAgent, qmcLogChannel)
+	instance := constructQuesma(cfg, lm, im, phoneHomeAgent, qmcLogChannel)
 	instance.Start()
 
 	<-doneCh
@@ -76,7 +78,7 @@ func main() {
 
 }
 
-func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, phoneHomeAgent telemetry.PhoneHomeAgent, logChan <-chan tracing.LogWithLevel) *quesma.Quesma {
+func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, im elasticsearch.IndexManagement, phoneHomeAgent telemetry.PhoneHomeAgent, logChan <-chan tracing.LogWithLevel) *quesma.Quesma {
 
 	switch cfg.Mode {
 	case config.Proxy:
@@ -84,7 +86,7 @@ func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	case config.ProxyInspect:
 		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, logChan, true)
 	case config.DualWriteQueryElastic, config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
-		return quesma.NewHttpProxy(phoneHomeAgent, lm, cfg, logChan)
+		return quesma.NewHttpProxy(phoneHomeAgent, lm, im, cfg, logChan)
 	}
 	logger.Panic().Msgf("unknown operation mode: %s", cfg.Mode.String())
 	panic("unreachable")
