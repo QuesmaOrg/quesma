@@ -38,6 +38,7 @@ services:
       elasticsearch-dataloader:
         condition: service_completed_successfully
     volumes:
+      - ./requests/:/data/requests/
       - ./results/:/docker/qa/results/
     restart: "no"
   mitmproxy:

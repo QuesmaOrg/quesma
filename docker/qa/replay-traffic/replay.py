@@ -111,7 +111,14 @@ def replay_request(request_id: str, raw_str: str) -> bool:
         logger(f"Error: {e}")
         logger("Failed to decode JSON: ", raw_str, "request_id: ", request_id)
 
+def normalize_request_id(request_id):
+    request_id = request_id.replace("/", "_")
+    request_id = request_id.replace(".", "_")
+    request_id = request_id.replace(":", "_")
+    return request_id
+
 def replay_traffic(file_path):
+    logger(f"Replaying traffic from file: {file_path}")
     with open(file_path, "r") as f:
         lines = f.readlines()
 
@@ -122,10 +129,8 @@ def replay_traffic(file_path):
             j += 1
         data = "".join(lines[i:j+1])
         request_count += 1
-        request_id = f"{file_path}:{request_count}"
-        request_id = request_id.replace("/", "_")
-        request_id = request_id.replace(".", "_")
-        request_id = request_id.replace(":", "_")
+        request_id = normalize_request_id(f"{file_path}:{request_count}")
+
         res = replay_request(request_id, data.strip())
         if not res:
             failed_count += 1
@@ -138,19 +143,22 @@ def replay_traffic(file_path):
         logger(f"All {request_count} responses matched.")
         return True
 
-def find_json_files():
-    directory = "data"
-    try:
-        # List all files in the specified directory
-        return [os.path.join(directory, file) for file in os.listdir(directory) if file.endswith('.json')]
-        # Print the list of JSON files
 
-    except FileNotFoundError:
-        logger(f"The directory {directory} does not exist.")
-    except PermissionError:
-        logger(f"Permission denied for accessing the directory {directory}.")
+def replay_directory(directory):
+    logger(f"Replaying traffic from directory: {directory}")
 
-    return []
+    for el in os.listdir(directory):
+        fullname = os.path.join(directory, el)
+        if fullname.endswith(".json"):
+            res = replay_traffic(fullname)
+            if not res:
+                return False
+        elif os.path.isdir(fullname):
+            res = replay_directory(fullname)
+            if not res:
+                return False
+        logger("skipping file: ", fullname)
+    return True
 
 def main():
     global logFile
@@ -163,17 +171,11 @@ def main():
     print("Logging to file", replay_log)
 
     with open(replay_log, "w") as logFile:
-
         # Specify the path to your recorded file
-        files = find_json_files()
-        logger(f"Replaying traffic from files {', '.join(files)}")
-
-        for file in files:
-            res = replay_traffic(file)
-
-            if not res:
-                print("Aborting replay. Errors found.")
-                sys.exit(1)
+        res = replay_directory("data")
+        if not res:
+           print("Aborting replay. Errors found.")
+           sys.exit(1)
 
     print("Finished replaying traffic.")
 

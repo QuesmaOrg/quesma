@@ -2,6 +2,8 @@ from mitmproxy import http, ctx
 from urllib.parse import urlparse
 import json
 import os
+import itertools
+from datetime import datetime
 
 def remove_host_from_url(url: str) -> str:
     parsed_url = urlparse(url)
@@ -14,16 +16,33 @@ def is_matching_path(url: str) -> bool:
     return False
 
 LOG_FILE_QUERY_PREFIX = "/var/mitmproxy/requests/"
-FILE_NAME = "recorded_traffic.json"
 
-file_name = os.path.join(LOG_FILE_QUERY_PREFIX, FILE_NAME)
+requestDir = os.path.join(LOG_FILE_QUERY_PREFIX, datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
+os.makedirs(requestDir, exist_ok=True)
+
+print("Logging requests to directory", requestDir)
+
+# this is a global counter
+cont = itertools.count()
+
+
+
+def next_file_name():
+    global requestDir
+    global cont
+    value = next(cont)
+    return f"{requestDir}/req-{value:05d}.json"
+
 
 def response(flow: http.HTTPFlow) -> None:
-    with open(file_name, "a") as f:
-        request, response = flow.request, flow.response
-        request_path = remove_host_from_url(request.url)
-        if not is_matching_path(request_path):
-            return
+    request, response = flow.request, flow.response
+    request_path = remove_host_from_url(request.url)
+    if not is_matching_path(request_path):
+        return
+
+    fname = next_file_name()
+    print("Writing request to file", fname)
+    with open(fname, "w") as f:
         data = {
             "request": {
                 "method": request.method,
