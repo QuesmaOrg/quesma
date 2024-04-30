@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/rs/zerolog"
+	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
 	_ "net/http/pprof"
@@ -83,10 +84,11 @@ type QuesmaManagementConsole struct {
 	clickhouseStatusCache     healthCheckStatusCache
 	elasticStatusCache        healthCheckStatusCache
 	logManager                *clickhouse.LogManager
+	indexManagement           elasticsearch.IndexManagement
 	phoneHomeAgent            telemetry.PhoneHomeAgent
 }
 
-func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *clickhouse.LogManager, logChan <-chan tracing.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent) *QuesmaManagementConsole {
+func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, logChan <-chan tracing.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent) *QuesmaManagementConsole {
 	return &QuesmaManagementConsole{
 		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 5),
 		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 5),
@@ -101,6 +103,7 @@ func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *c
 		clickhouseStatusCache:     newHealthCheckStatusCache(),
 		elasticStatusCache:        newHealthCheckStatusCache(),
 		logManager:                logManager,
+		indexManagement:           indexManager,
 		phoneHomeAgent:            phoneHomeAgent,
 	}
 }

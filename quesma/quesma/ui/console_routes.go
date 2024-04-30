@@ -60,6 +60,11 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		_, _ = writer.Write(buf)
 	})
 
+	router.HandleFunc("/data-sources", func(writer http.ResponseWriter, req *http.Request) {
+		buf := qmc.generateDatasources()
+		_, _ = writer.Write(buf)
+	})
+
 	router.HandleFunc("/routing-statistics", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateRouterStatisticsLiveTail()
 		_, _ = writer.Write(buf)
