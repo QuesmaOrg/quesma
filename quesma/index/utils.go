@@ -7,5 +7,19 @@ import (
 )
 
 func TableNamePatternRegexp(indexPattern string) *regexp.Regexp {
-	return regexp.MustCompile(fmt.Sprintf("^%s$", strings.Replace(indexPattern, "*", ".*", -1)))
+	var builder strings.Builder
+
+	for _, char := range indexPattern {
+		switch char {
+		case '*':
+			builder.WriteString(".*")
+		case '[', ']', '\\', '^', '$', '.', '|', '?', '+', '(', ')':
+			builder.WriteRune('\\')
+			builder.WriteRune(char)
+		default:
+			builder.WriteRune(char)
+		}
+	}
+
+	return regexp.MustCompile(fmt.Sprintf("^%s$", builder.String()))
 }
