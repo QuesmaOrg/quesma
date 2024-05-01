@@ -287,7 +287,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 }
 `, "there should be 97 results, I truncated most of them",
 		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"message"}, FieldName: "message", I1: 0, I2: 100},
-		[]string{`SELECT "message" FROM ` + quotedTableName + ` WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) AND "message" iLIKE '%user%' AND "message" IS NOT NULL ORDER BY "@timestamp" desc LIMIT 100`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) AND "message" iLIKE '%user%' AND "message" IS NOT NULL ORDER BY "@timestamp" desc LIMIT 100`},
 		false,
 	},
 	{ // [2]
@@ -1883,8 +1883,8 @@ var TestSearchFilter = []SearchTestCase{
 			justWhere(``),
 		},
 		[]string{
-			"SELECT count() FROM " + quotedTableName,
-			"SELECT " + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + ", count() FROM " + quotedTableName + "  GROUP BY (" + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + ") ORDER BY (" + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + ")",
+			"SELECT count() FROM " + QuotedTableName,
+			"SELECT " + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + ", count() FROM " + QuotedTableName + "  GROUP BY (" + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + ") ORDER BY (" + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + ")",
 		},
 	},
 	{
@@ -1943,8 +1943,8 @@ var TestSearchFilter = []SearchTestCase{
 			justWhere(``),
 		},
 		[]string{
-			"SELECT count() FROM " + quotedTableName + ` WHERE "@timestamp">subDate(now(), INTERVAL 15 minute)`,
-			"SELECT " + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + `, count() FROM ` + quotedTableName + ` WHERE "@timestamp">subDate(now(), INTERVAL 15 minute)  GROUP BY (` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + `) ORDER BY (` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + `)`,
+			"SELECT count() FROM " + QuotedTableName + ` WHERE "@timestamp">subDate(now(), INTERVAL 15 minute)`,
+			"SELECT " + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + `, count() FROM ` + QuotedTableName + ` WHERE "@timestamp">subDate(now(), INTERVAL 15 minute)  GROUP BY (` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + `) ORDER BY (` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + `)`,
 		},
 	},
 }

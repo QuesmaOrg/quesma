@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/testdata"
+	dashboard_1 "mitmproxy/quesma/testdata/dashboard-1"
 	opensearch_visualize "mitmproxy/quesma/testdata/opensearch-visualize"
 	"mitmproxy/quesma/util"
 	"slices"
@@ -490,7 +491,7 @@ var aggregationTests = []struct {
 			}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted + ` `,
-			`SELECT "bytes", count() FROM ` + tableNameQuoted + `  GROUP BY (floor("bytes" / 1782) * 1782 AS "bytes") ORDER BY (floor("bytes" / 1782) * 1782 AS "bytes")`,
+			`SELECT floor("bytes" / 1782.000000) * 1782.000000, count() FROM ` + tableNameQuoted + `  GROUP BY (floor("bytes" / 1782.000000) * 1782.000000) ORDER BY (floor("bytes" / 1782.000000) * 1782.000000)`,
 			`SELECT count() FROM ` + tableNameQuoted + ` `,
 		},
 	},
@@ -553,7 +554,11 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
-	for i, test := range append(testdata.AggregationTests, append(opensearch_visualize.AggregationTests, testdata.PipelineAggregationTests...)...) {
+	allTests := testdata.AggregationTests
+	allTests = append(allTests, opensearch_visualize.AggregationTests...)
+	allTests = append(allTests, dashboard_1.AggregationTests...)
+	allTests = append(allTests, testdata.PipelineAggregationTests...)
+	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if i == 26 {
 				t.Skip("Need a (most likely) small fix to top_hits.")
@@ -574,7 +579,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 
 			// Let's leave those commented debugs for now, they'll be useful in next PRs
 			for j, aggregation := range aggregations {
-				// pp.Println("--- Aggregation "+strconv.Itoa(j)+":", aggregation)
+				// fmt.Println("--- Aggregation "+strconv.Itoa(j)+":", aggregation)
 				// fmt.Println("--- SQL string ", aggregation.String())
 				// fmt.Println("--- Group by: ", aggregation.GroupByFields)
 				if test.ExpectedSQLs[j] != "TODO" {

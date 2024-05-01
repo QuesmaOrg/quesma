@@ -480,7 +480,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	if histogram, ok := queryMap["histogram"]; ok {
 		currentAggr.Type = bucket_aggregations.NewHistogram(cw.Ctx)
 		fieldName := strconv.Quote(cw.parseFieldField(histogram, "histogram"))
-		var interval int
+		var interval float64
 		intervalQueryMap, ok := histogram.(QueryMap)["interval"]
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("interval not found in histogram: %v", histogram)
@@ -488,23 +488,23 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		switch intervalRaw := intervalQueryMap.(type) {
 		case string:
 			var err error
-			interval, err = strconv.Atoi(intervalRaw)
+			interval, err = strconv.ParseFloat(intervalRaw, 64)
 			if err != nil {
 				logger.ErrorWithCtx(cw.Ctx).Err(err).Msgf("failed to parse interval: %v", intervalRaw)
 			}
 		case int:
-			interval = intervalRaw
+			interval = float64(intervalRaw)
 		case float64:
-			interval = int(intervalRaw)
+			interval = intervalRaw
 		default:
 			logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v", intervalRaw, intervalRaw)
 		}
 		groupByStr := fieldName
 		if interval != 1 {
-			groupByStr = fmt.Sprintf("floor(%s / %d) * %d AS %s", fieldName, interval, interval, fieldName)
+			groupByStr = fmt.Sprintf("floor(%s / %f) * %f", fieldName, interval, interval)
 		}
 		currentAggr.GroupByFields = append(currentAggr.GroupByFields, groupByStr)
-		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
+		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, groupByStr)
 		delete(queryMap, "histogram")
 		return success, 1, 1
 	}

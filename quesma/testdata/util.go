@@ -37,7 +37,7 @@ func selectFieldsInAnyOrderAsRegex(fields []string) string {
 }
 
 const TableName = "logs-generic-default"
-const quotedTableName = `"` + TableName + `"`
+const QuotedTableName = `"` + TableName + `"`
 const queryparserFacetsSampleSize = "20000" // should be same value as queryparser.facetsSampleSize
 
 const oneMinute = 60 * time.Second

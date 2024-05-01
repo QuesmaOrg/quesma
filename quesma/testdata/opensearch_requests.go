@@ -83,10 +83,10 @@ var OpensearchSearchTests = []SearchTestCase{
 		WantedQueryType: model.Normal,
 		WantedQuery:     []model.Query{}, // not needed
 		WantedRegexes: []string{
-			"SELECT count() FROM " + quotedTableName + ` WHERE "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z')`,
-			"SELECT toInt64(toUnixTimestamp64Milli(`-@timestamp`)/30000), count() FROM " + quotedTableName + ` WHERE "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') GROUP BY (toInt64(toUnixTimestamp64Milli(` + "`-@timestamp`)/30000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`-@timestamp`)/30000))",
-			`SELECT.*"-@bytes".*FROM ` + quotedTableName + ` WHERE "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ORDER BY "-@timestamp" desc LIMIT 500`,
-			`SELECT count() FROM ` + quotedTableName + ` WHERE "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') `,
+			"SELECT count() FROM " + QuotedTableName + ` WHERE "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z')`,
+			"SELECT toInt64(toUnixTimestamp64Milli(`-@timestamp`)/30000), count() FROM " + QuotedTableName + ` WHERE "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') GROUP BY (toInt64(toUnixTimestamp64Milli(` + "`-@timestamp`)/30000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`-@timestamp`)/30000))",
+			`SELECT.*"-@bytes".*FROM ` + QuotedTableName + ` WHERE "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ORDER BY "-@timestamp" desc LIMIT 500`,
+			`SELECT count() FROM ` + QuotedTableName + ` WHERE "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') `,
 		},
 	},
 	{
@@ -167,8 +167,8 @@ var OpensearchSearchTests = []SearchTestCase{
 		WantedQueryType: model.Normal,
 		WantedQuery:     []model.Query{}, // not needed
 		WantedRegexes: []string{
-			"SELECT count() FROM " + quotedTableName + ` WHERE "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z')`,
-			"SELECT toInt64(toUnixTimestamp64Milli(`-@timestamp`)/30000), count() FROM " + quotedTableName + ` WHERE "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') GROUP BY (toInt64(toUnixTimestamp64Milli(` + "`-@timestamp`)/30000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`-@timestamp`)/30000))",
+			"SELECT count() FROM " + QuotedTableName + ` WHERE "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z')`,
+			"SELECT toInt64(toUnixTimestamp64Milli(`-@timestamp`)/30000), count() FROM " + QuotedTableName + ` WHERE "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') GROUP BY (toInt64(toUnixTimestamp64Milli(` + "`-@timestamp`)/30000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`-@timestamp`)/30000))",
 		},
 	},
 }

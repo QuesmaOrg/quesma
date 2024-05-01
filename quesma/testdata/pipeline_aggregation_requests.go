@@ -155,16 +155,16 @@ var PipelineAggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1000))}}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + quotedTableName + ` `,
+			`SELECT count() FROM ` + QuotedTableName + ` `,
 			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/3600000), count() " +
-				"FROM " + quotedTableName + ` WHERE "message" ILIKE '%'  ` +
+				"FROM " + QuotedTableName + ` WHERE "message" ILIKE '%'  ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/3600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/3600000))",
 			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/3600000), count() " +
-				"FROM " + quotedTableName + ` WHERE "message" ILIKE '%'  ` +
+				"FROM " + QuotedTableName + ` WHERE "message" ILIKE '%'  ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/3600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/3600000))",
-			`SELECT count() FROM ` + quotedTableName + ` WHERE "message" ILIKE '%' `,
+			`SELECT count() FROM ` + QuotedTableName + ` WHERE "message" ILIKE '%' `,
 		},
 	},
 	/*
