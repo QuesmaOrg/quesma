@@ -553,7 +553,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
-	for i, test := range append(testdata.AggregationTests, opensearch_visualize.AggregationTests...) {
+	for i, test := range append(testdata.AggregationTests, append(opensearch_visualize.AggregationTests, testdata.PipelineAggregationTests...)...) {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if i == 26 {
 				t.Skip("Need a (most likely) small fix to top_hits.")
@@ -574,7 +574,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 
 			// Let's leave those commented debugs for now, they'll be useful in next PRs
 			for j, aggregation := range aggregations {
-				// fmt.Println("--- Aggregation "+strconv.Itoa(j)+":", aggregation)
+				// pp.Println("--- Aggregation "+strconv.Itoa(j)+":", aggregation)
 				// fmt.Println("--- SQL string ", aggregation.String())
 				// fmt.Println("--- Group by: ", aggregation.GroupByFields)
 				if test.ExpectedSQLs[j] != "TODO" {

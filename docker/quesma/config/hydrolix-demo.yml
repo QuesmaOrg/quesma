@@ -23,4 +23,9 @@ indexes:
       "botData": true
       "userRiskData": true
       "clientData": true
+    fullTextFields: [ "country" ]
+    aliases:
+      timestamp:
+        source: "@timestamp"
+        target: "timestamp"
 

@@ -9,4 +9,4 @@ logging:
 indexes:
   211318:
     enabled: true
-    fulltextFields: [ "ua","city_name" ]
+    fullTextFields: [ "ua","city_name" ]

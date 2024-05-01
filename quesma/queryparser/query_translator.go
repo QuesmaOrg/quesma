@@ -7,6 +7,7 @@ import (
 	"mitmproxy/quesma/kibana"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/model/bucket_aggregations"
 	"mitmproxy/quesma/util"
 	"strconv"
 	"strings"
@@ -424,6 +425,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 	// I'd like to keep an actual tree after the refactor, not a list of paths from root to leaf, as it is now.
 	// Then in the tree (in each node) I'd remember where I am at the moment (e.g. here I'm in "sampler",
 	// so I don't need buckets). It'd enable some custom handling for another weird types of requests.
+
 	if query.Aggregators[aggregatorsLevel].Filters {
 		subResult["buckets"] = bucketsReturnMap[0]
 	} else if query.Aggregators[aggregatorsLevel].Keyed {
@@ -431,10 +433,15 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 	} else if query.Aggregators[aggregatorsLevel].Empty {
 		subResult = bucketsReturnMap[0]
 	} else {
-		if aggregatorsLevel == len(query.Aggregators)-1 && query.Metadata != nil {
-			subResult["meta"] = query.Metadata
-		}
 		subResult["buckets"] = bucketsReturnMap
+	}
+
+	desiredLevel := len(query.Aggregators) - 1
+	if _, ok := query.Type.(bucket_aggregations.Filters); ok {
+		desiredLevel = len(query.Aggregators) - 2
+	}
+	if aggregatorsLevel == desiredLevel && query.Metadata != nil {
+		subResult["meta"] = query.Metadata
 	}
 
 	result[query.Aggregators[aggregatorsLevel].Name] = subResult
