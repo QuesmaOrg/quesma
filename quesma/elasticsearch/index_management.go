@@ -3,9 +3,8 @@ package elasticsearch
 import (
 	"context"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
-	"regexp"
-	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -74,7 +73,7 @@ func (im *indexManagement) GetSourceNamesMatching(indexPattern string) map[strin
 		return all
 	} else {
 		for key := range all {
-			if matches(indexPattern, key) {
+			if config.MatchName(indexPattern, key) {
 				filtered[key] = struct{}{}
 			}
 		}
@@ -103,14 +102,4 @@ func (im *indexManagement) Start() {
 func (im *indexManagement) Stop() {
 
 	im.cancel()
-}
-
-func matches(indexName string, indexNamePattern string) bool {
-	r, err := regexp.Compile(strings.Replace(indexNamePattern, "*", ".*", -1))
-	if err != nil {
-		logger.Error().Msgf("invalid index name pattern [%s]: %s", indexNamePattern, err)
-		return false
-	}
-
-	return r.MatchString(indexName)
 }

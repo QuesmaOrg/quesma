@@ -3,7 +3,6 @@ package quesma
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
@@ -12,7 +11,6 @@ import (
 	"mitmproxy/quesma/stats/errorstats"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/util"
-	"regexp"
 	"strings"
 	"sync/atomic"
 )
@@ -138,7 +136,7 @@ func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, inde
 			logger.ErrorWithCtx(ctx).Msg("Can't write to index: " + err.Error())
 		}
 	} else {
-		matchingConfig, ok := findMatchingConfig(ctx, indexName, cfg)
+		matchingConfig, ok := findMatchingConfig(indexName, cfg)
 		if !ok {
 			logger.InfoWithCtx(ctx).Msgf("index '%s' is not configured, skipping", indexName)
 			return
@@ -158,33 +156,22 @@ func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, inde
 	}
 }
 
-func matches(ctx context.Context, indexName string, indexNamePattern string) bool {
-	r, err := regexp.Compile(strings.Replace(indexNamePattern, "*", ".*", -1))
-	if err != nil {
-		msg := fmt.Sprintf("invalid index name pattern [%s]: %s", indexNamePattern, err)
-		logger.ErrorWithCtxAndReason(ctx, "invalid index name pattern").Msg(msg)
-		return false
-	}
-
-	return r.MatchString(indexName)
-}
-
 var matchCounter = atomic.Int32{}
 
-func findMatchingConfig(ctx context.Context, indexName string, cfg config.QuesmaConfiguration) (config.IndexConfiguration, bool) {
+func findMatchingConfig(indexPattern string, cfg config.QuesmaConfiguration) (config.IndexConfiguration, bool) {
 	matchCounter.Add(1)
 	for _, indexConfig := range cfg.IndexConfig {
 		if matchCounter.Load()%100 == 1 {
-			logger.Debug().Msgf("matching index %s with config: %+v, ctr: %d", indexName, indexConfig.Name, matchCounter.Load())
+			logger.Debug().Msgf("matching index %s with config: %+v, ctr: %d", indexPattern, indexConfig.Name, matchCounter.Load())
 		}
-		if matches(ctx, indexName, indexConfig.Name) {
+		if config.MatchName(indexPattern, indexConfig.Name) {
 			if matchCounter.Load()%100 == 1 {
-				logger.Debug().Msgf("  ╚═ matched index %s with config: %+v, ctr: %d", indexName, indexConfig.Name, matchCounter.Load())
+				logger.Debug().Msgf("  ╚═ matched index %s with config: %+v, ctr: %d", indexPattern, indexConfig.Name, matchCounter.Load())
 			}
 			return indexConfig, true
 		} else {
 			if matchCounter.Load()%100 == 1 {
-				logger.Debug().Msgf("  ╚═ not matched index %s with config: %+v, ctr: %d", indexName, indexConfig.Name, matchCounter.Load())
+				logger.Debug().Msgf("  ╚═ not matched index %s with config: %+v, ctr: %d", indexPattern, indexConfig.Name, matchCounter.Load())
 			}
 		}
 	}
