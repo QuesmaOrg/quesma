@@ -7,7 +7,7 @@ import (
 )
 
 func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(dateRange QueryMap) bucket_aggregations.DateRange {
-	var fieldName string
+	var fieldName, format string
 	if field, exists := dateRange["field"]; exists {
 		if fieldNameRaw, ok := field.(string); ok {
 			fieldName = cw.Table.ResolveField(cw.Ctx, fieldNameRaw)
@@ -19,6 +19,13 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(dateRange QueryMa
 	}
 	var ranges []any
 	var ok bool
+	if formatRaw, exists := dateRange["format"]; exists {
+		if formatParsed, ok := formatRaw.(string); ok {
+			format = formatParsed
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("format specified for date range aggregation is not a string. Using empty. Querymap: %v", dateRange)
+		}
+	}
 	if rangesRaw, exists := dateRange["ranges"]; exists {
 		if ranges, ok = rangesRaw.([]any); !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("ranges specified for date range aggregation is not an array. Using empty. Querymap: %v", dateRange)
@@ -59,7 +66,7 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(dateRange QueryMa
 		}
 		intervals = append(intervals, bucket_aggregations.NewDateTimeInterval(intervalBegin, intervalEnd))
 	}
-	return bucket_aggregations.NewDateRange(cw.Ctx, fieldName, intervals, selectColumnsNr)
+	return bucket_aggregations.NewDateRange(cw.Ctx, fieldName, format, intervals, selectColumnsNr)
 }
 
 // parseDateTimeInClickhouseMathLanguage parses dateTime from Clickhouse's format
