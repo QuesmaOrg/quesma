@@ -417,7 +417,6 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, strconv.Itoa(id))
 			_, _ = queryRunner.handleSearch(newCtx, tableName, []byte(tt.QueryRequestJson), cfg, lm, nil, managementConsole)
 
-			unsupportedSearchQueries := managementConsole.GetUnsupportedSearchQueries()
 			for _, queryType := range model.AggregationQueryTypes {
 				if queryType != tt.AggregationName {
 					assert.Len(t, managementConsole.QueriesWithUnsupportedType(queryType), 0)
@@ -429,9 +428,9 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			assert.Eventually(t, func() bool {
 				return len(managementConsole.QueriesWithUnsupportedType(tt.AggregationName)) == 1
 			}, 50*time.Millisecond, 1*time.Millisecond)
-			assert.Equal(t, 1, unsupportedSearchQueries.GetTotalUnsupportedQueries())
+			assert.Equal(t, 1, managementConsole.GetTotalUnsupportedQueries())
 			assert.Equal(t, 1, managementConsole.GetSavedUnsupportedQueries())
-			assert.Equal(t, 1, managementConsole.GetUnsupportedTypesSeenCount())
+			assert.Equal(t, 1, len(managementConsole.GetUnsupportedTypesWithCount()))
 			return
 		})
 	}

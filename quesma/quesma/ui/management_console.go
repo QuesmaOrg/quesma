@@ -78,7 +78,6 @@ type QuesmaManagementConsole struct {
 	mutex                     sync.Mutex
 	debugInfoMessages         map[string]QueryDebugInfo
 	debugLastMessages         []string
-	unsupportedSearchQueries  *UnsupportedSearchQueries
 	responseMatcherChannel    chan QueryDebugInfo
 	config                    config.QuesmaConfiguration
 	requestsStore             *stats.RequestStatisticStore
@@ -89,6 +88,7 @@ type QuesmaManagementConsole struct {
 	logManager                *clickhouse.LogManager
 	indexManagement           elasticsearch.IndexManagement
 	phoneHomeAgent            telemetry.PhoneHomeAgent
+	totalUnsupportedQueries   int
 }
 
 func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, logChan <-chan tracing.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent) *QuesmaManagementConsole {
@@ -98,7 +98,6 @@ func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *c
 		queryDebugLogs:            logChan,
 		debugInfoMessages:         make(map[string]QueryDebugInfo),
 		debugLastMessages:         make([]string, 0),
-		unsupportedSearchQueries:  newUnsupportedSearchQueries(),
 		responseMatcherChannel:    make(chan QueryDebugInfo, 5),
 		config:                    config,
 		requestsStore:             stats.NewRequestStatisticStore(),
@@ -192,7 +191,7 @@ func (qmc *QuesmaManagementConsole) generateQueries() []byte {
 
 	queriesBytes := generateQueries(debugKeyValueSlice, true)
 	queriesStats := qmc.generateQueriesStatsPanel()
-	unsupportedQueriesStats := qmc.generateSidePanelHtml(qmc.unsupportedSearchQueries)
+	unsupportedQueriesStats := qmc.generateSidePanelHtml()
 	return append(queriesBytes, append(queriesStats, unsupportedQueriesStats...)...)
 }
 
@@ -290,8 +289,9 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 		} else if log.Level == zerolog.WarnLevel {
 			value.warnLogCount += 1
 		}
-		if unsupported := qmc.unsupportedSearchQueries.processLogMessage(log); unsupported != nil {
+		if unsupported := processUnsupportedLogMessage(log); unsupported != nil {
 			value.unsupported = unsupported
+			qmc.totalUnsupportedQueries += 1
 		}
 
 		qmc.debugInfoMessages[requestId] = value
@@ -391,8 +391,4 @@ func (qmc *QuesmaManagementConsole) comparePipelines() {
 			}
 		}
 	}
-}
-
-func (qmc *QuesmaManagementConsole) GetUnsupportedSearchQueries() *UnsupportedSearchQueries {
-	return qmc.unsupportedSearchQueries
 }

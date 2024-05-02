@@ -14,21 +14,12 @@ const UnrecognizedQueryType = "unrecognized"
 
 var unsupportedSearchQueryRegex, _ = regexp.Compile(logger.Reason + `":"` + logger.ReasonPrefixUnsupportedQueryType + `([[:word:]]+)"`)
 
-type errorMessageWithRequestId struct {
-	requestId    string
-	errorMessage string
-}
-
 type UnsupportedSearchQueries struct {
 	mutex                   sync.Mutex // it's a rare situation to not support some query, let's do everything here under this mutex for simplicity 	// how many we saved (max 10 per type)
 	totalUnsupportedQueries int        // we many we've seen total
 }
 
-func newUnsupportedSearchQueries() *UnsupportedSearchQueries {
-	return &UnsupportedSearchQueries{}
-}
-
-func (u *UnsupportedSearchQueries) processLogMessage(log tracing.LogWithLevel) *string {
+func processUnsupportedLogMessage(log tracing.LogWithLevel) *string {
 	if log.Level != zerolog.ErrorLevel && log.Level != zerolog.WarnLevel { // only error and log
 		return nil
 	}
@@ -52,10 +43,6 @@ func (u *UnsupportedSearchQueries) processLogMessage(log tracing.LogWithLevel) *
 	}
 	//fmt.Println("JM searchQueryType:", searchQueryType, "log.Msg", log.Msg)
 
-	u.mutex.Lock()
-	u.totalUnsupportedQueries++
-	u.mutex.Unlock()
-
 	return &searchQueryType
 }
 
@@ -75,10 +62,10 @@ func (qmc *QuesmaManagementConsole) generateReportForUnsupportedRequests() []byt
 	return qmc.generateReportForRequests("Report for unsupported requests", debugKeyValueSlice)
 }
 
-func (qmc *QuesmaManagementConsole) generateSidePanelHtml(u *UnsupportedSearchQueries) []byte {
-	u.mutex.Lock()
-	totalErrorsCount := u.totalUnsupportedQueries
-	u.mutex.Unlock()
+func (qmc *QuesmaManagementConsole) generateSidePanelHtml() []byte {
+	qmc.mutex.Lock()
+	totalErrorsCount := qmc.totalUnsupportedQueries
+	qmc.mutex.Unlock()
 
 	typesCount := qmc.GetUnsupportedTypesWithCount()
 	savedErrorsCount := 0
@@ -105,10 +92,10 @@ func (qmc *QuesmaManagementConsole) generateSidePanelHtml(u *UnsupportedSearchQu
 	return buffer.Bytes()
 }
 
-func (u *UnsupportedSearchQueries) GetTotalUnsupportedQueries() int {
-	u.mutex.Lock()
-	defer u.mutex.Unlock()
-	return u.totalUnsupportedQueries
+func (qmc *QuesmaManagementConsole) GetTotalUnsupportedQueries() int {
+	qmc.mutex.Lock()
+	defer qmc.mutex.Unlock()
+	return qmc.totalUnsupportedQueries
 }
 
 func (qmc *QuesmaManagementConsole) GetSavedUnsupportedQueries() int {
@@ -145,10 +132,6 @@ func (qmc *QuesmaManagementConsole) GetUnsupportedTypesWithCount() map[string]in
 	return types
 }
 
-func (qmc *QuesmaManagementConsole) GetUnsupportedTypesSeenCount() int {
-	return len(qmc.GetUnsupportedTypesWithCount())
-}
-
 func (qmc *QuesmaManagementConsole) QueriesWithUnsupportedType(typeName string) []DebugKeyValue {
 	var debugKeyValueSlice []DebugKeyValue
 
@@ -156,7 +139,6 @@ func (qmc *QuesmaManagementConsole) QueriesWithUnsupportedType(typeName string) 
 	for i := len(qmc.debugLastMessages) - 1; i >= 0; i-- {
 		debugInfo := qmc.debugInfoMessages[qmc.debugLastMessages[i]]
 		if debugInfo.unsupported != nil && len(debugKeyValueSlice) < maxLastMessages {
-			// fmt.Println("JM", *debugInfo.unsupported, " ", typeName, " ", *debugInfo.unsupported == typeName)
 			if *debugInfo.unsupported == typeName {
 				debugKeyValueSlice = append(debugKeyValueSlice,
 					DebugKeyValue{qmc.debugLastMessages[i], qmc.debugInfoMessages[qmc.debugLastMessages[i]]})
