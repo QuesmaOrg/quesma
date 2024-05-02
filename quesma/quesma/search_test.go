@@ -398,7 +398,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 // It runs |testdata.UnsupportedAggregationsTests| tests, each of them sends one query of unsupported type.
 // It ensures that this query type is recorded in the management console, and that all other query types are not.
 func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
-	for _, tt := range testdata.UnsupportedAggregationsTests {
+	for id, tt := range testdata.UnsupportedAggregationsTests {
 		t.Run(tt.TestName, func(t *testing.T) {
 			db, _, err := sqlmock.New()
 			if err != nil {
@@ -414,70 +414,25 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			go managementConsole.RunOnlyChannelProcessor()
 
 			queryRunner := NewQueryRunner()
-			_, _ = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryRequestJson), lm, managementConsole)
+			newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, strconv.Itoa(id))
+			_, _ = queryRunner.handleSearch(newCtx, tableName, []byte(tt.QueryRequestJson), cfg, lm, nil, managementConsole)
 
 			unsupportedSearchQueries := managementConsole.GetUnsupportedSearchQueries()
 			for _, queryType := range model.AggregationQueryTypes {
 				if queryType != tt.AggregationName {
-					assert.Len(t, unsupportedSearchQueries.GetErrorMessages(queryType), 0)
+					assert.Len(t, managementConsole.QueriesWithUnsupportedType(queryType), 0)
 				}
 			}
 
 			// Update of the count below is done asynchronously in another goroutine
 			// (go managementConsole.RunOnlyChannelProcessor() above), so we might need to wait a bit
 			assert.Eventually(t, func() bool {
-				return len(unsupportedSearchQueries.GetErrorMessages(tt.AggregationName)) == 1
+				return len(managementConsole.QueriesWithUnsupportedType(tt.AggregationName)) == 1
 			}, 50*time.Millisecond, 1*time.Millisecond)
 			assert.Equal(t, 1, unsupportedSearchQueries.GetTotalUnsupportedQueries())
-			assert.Equal(t, 1, unsupportedSearchQueries.GetSavedUnsupportedQueries())
-			assert.Equal(t, 1, unsupportedSearchQueries.GetUnsupportedTypesSeenCount())
-		})
-	}
-}
-
-// TestLimitForSavedUnsupportedQueriesWorks tests if the limit for saved unsupported queries works.
-// We only save a few queries of each type to not waste memory.
-// We check here if the limit is properly enforced, and queries above limit aren't saved.
-// I randomly select a few tests from |testdata.UnsupportedAggregationsTests| to not run all of them,
-// as the logic is the same for all of them, and because of that the test runs for ~0.1sec instead of a few seconds.
-func TestLimitForSavedUnsupportedQueriesWorks(t *testing.T) {
-	const maxSavedQueriesPerQueryType = 10
-	const queriesSentNr = 15
-	const testsCheckedNr = 3
-	randomlySelectedTestNrs := rand.Perm(testsCheckedNr)
-	for _, testNr := range randomlySelectedTestNrs {
-		tt := testdata.UnsupportedAggregationsTests[testNr]
-		t.Run(tt.TestName, func(t *testing.T) {
-			db, _, err := sqlmock.New()
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer db.Close()
-			assert.NoError(t, err)
-
-			lm := clickhouse.NewLogManagerWithConnection(db, table)
-			cfg := config.QuesmaConfiguration{}
-			logChan := logger.InitOnlyChannelLoggerForTests(cfg, &tracing.AsyncTraceLogger{AsyncQueryTrace: concurrent.NewMap[string, tracing.TraceCtx]()})
-			managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent())
-			go managementConsole.RunOnlyChannelProcessor()
-
-			queryRunner := NewQueryRunner()
-			for range queriesSentNr {
-				_, _ = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryRequestJson), lm, managementConsole)
-			}
-
-			unsupportedSearchQueries := managementConsole.GetUnsupportedSearchQueries()
-			for _, queryType := range model.AggregationQueryTypes {
-				if queryType != tt.AggregationName {
-					assert.Len(t, unsupportedSearchQueries.GetErrorMessages(queryType), 0)
-				}
-			}
-
-			// Update of the count below is done asynchronously in another goroutine
-			// (go managementConsole.RunOnlyChannelProcessor() above), so we might need to wait a bit
-			assert.Eventually(t, func() bool {
-				return len(unsupportedSearchQueries.GetErrorMessages(tt.AggregationName)) == maxSavedQueriesPerQueryType
-			}, 250*time.Millisecond, 1*time.Millisecond)
+			assert.Equal(t, 1, managementConsole.GetSavedUnsupportedQueries())
+			assert.Equal(t, 1, managementConsole.GetUnsupportedTypesSeenCount())
+			return
 		})
 	}
 }
@@ -512,19 +467,20 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 	go managementConsole.RunOnlyChannelProcessor()
 
 	queryRunner := NewQueryRunner()
-	for _, testNr := range testNrs {
-		_, _ = queryRunner.handleSearch(ctx, tableName, []byte(testdata.UnsupportedAggregationsTests[testNr].QueryRequestJson), lm, managementConsole)
+	for id, testNr := range testNrs {
+		newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, strconv.Itoa(id))
+		_, _ = queryRunner.handleSearch(newCtx, tableName, []byte(testdata.UnsupportedAggregationsTests[testNr].QueryRequestJson), cfg, lm, nil, managementConsole)
+
 	}
 
-	unsupportedSearchQueries := managementConsole.GetUnsupportedSearchQueries()
 	for i, tt := range testdata.UnsupportedAggregationsTests {
 		// Update of the count below is done asynchronously in another goroutine
 		// (go managementConsole.RunOnlyChannelProcessor() above), so we might need to wait a bit
 		assert.Eventually(t, func() bool {
-			return len(unsupportedSearchQueries.GetErrorMessages(tt.AggregationName)) == min(testCounts[i], maxSavedQueriesPerQueryType)
+			return len(managementConsole.QueriesWithUnsupportedType(tt.AggregationName)) == min(testCounts[i], maxSavedQueriesPerQueryType)
 		}, 500*time.Millisecond, 1*time.Millisecond,
 			tt.TestName+": wanted: %d, got: %d", min(testCounts[i], maxSavedQueriesPerQueryType),
-			len(unsupportedSearchQueries.GetErrorMessages(tt.AggregationName)),
+			len(managementConsole.QueriesWithUnsupportedType(tt.AggregationName)),
 		)
 	}
 }

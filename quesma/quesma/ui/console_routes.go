@@ -116,11 +116,6 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		buf := qmc.generateReportForRequestId(vars["requestId"])
 		_, _ = writer.Write(buf)
 	})
-	router.PathPrefix("/request-body/{requestId}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		buf := qmc.unsupportedSearchQueries.generateQueryBodyHtml(vars["requestId"])
-		_, _ = writer.Write(buf)
-	})
 	router.PathPrefix("/log/{requestId}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		buf := qmc.generateLogForRequestId(vars["requestId"])
@@ -132,7 +127,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		_, _ = writer.Write(buf)
 	})
 	router.PathPrefix("/unsupported-requests").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
-		buf := qmc.unsupportedSearchQueries.generateMainPageHtml()
+		buf := qmc.generateReportForUnsupportedRequests()
 		_, _ = writer.Write(buf)
 	})
 	router.PathPrefix("/requests-by-str/{queryString}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {

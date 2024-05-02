@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"github.com/rs/zerolog"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/telemetry"
@@ -62,6 +61,7 @@ type QueryDebugInfo struct {
 	logMessages   []string
 	errorLogCount int
 	warnLogCount  int
+	unsupported   *string
 }
 
 type recordRequests struct {
@@ -192,7 +192,7 @@ func (qmc *QuesmaManagementConsole) generateQueries() []byte {
 
 	queriesBytes := generateQueries(debugKeyValueSlice, true)
 	queriesStats := qmc.generateQueriesStatsPanel()
-	unsupportedQueriesStats := qmc.unsupportedSearchQueries.generateSidePanelHtml()
+	unsupportedQueriesStats := qmc.generateSidePanelHtml(qmc.unsupportedSearchQueries)
 	return append(queriesBytes, append(queriesStats, unsupportedQueriesStats...)...)
 }
 
@@ -241,8 +241,7 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 		qmc.mutex.Unlock()
 	case msg := <-qmc.queryDebugSecondarySource:
 		logger.Debug().Msg("Received debug info from secondary source: " + msg.Id)
-		fmt.Println(msg.IncomingQueryBody)
-		qmc.unsupportedSearchQueries.saveRequestBodyIfNeeded(msg.Id, string(msg.IncomingQueryBody))
+		// fmt.Println(msg.IncomingQueryBody)
 		secondaryDebugInfo := QueryDebugSecondarySource{
 			msg.Id,
 			msg.Path,
@@ -291,10 +290,10 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 		} else if log.Level == zerolog.WarnLevel {
 			value.warnLogCount += 1
 		}
-		if log.Level == zerolog.ErrorLevel || log.Level == zerolog.WarnLevel {
-			// it might, but doesn't need to be, an unsupported search query
-			qmc.unsupportedSearchQueries.processLogMessage(requestId, log)
+		if unsupported := qmc.unsupportedSearchQueries.processLogMessage(log); unsupported != nil {
+			value.unsupported = unsupported
 		}
+
 		qmc.debugInfoMessages[requestId] = value
 		qmc.mutex.Unlock()
 	case record := <-qmc.requestsSource:
