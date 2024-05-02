@@ -118,10 +118,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 	im elasticsearch.IndexManagement,
 	qmc *ui.QuesmaManagementConsole, optAsync *AsyncQuery) ([]byte, error) {
 
-	logger.Debug().Msgf("resolved sources for index pattern %s -> %s", indexPattern, ResolveSources(indexPattern, cfg, im, lm))
+	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, cfg, im, lm)
 
-	resolved := lm.ResolveIndexes(ctx, indexPattern)
-	if len(resolved) == 0 {
+	switch sources {
+	case sourceBoth:
+		logger.Error().Msgf("index pattern [%s] resolved to both elasticsearch indices: [%s] and clickhouse tables: [%s]", indexPattern, sourcesElastic, sourcesClickhouse)
+		return nil, errors.New("querying data in elasticsearch and clickhouse is not supported at the moment")
+	case sourceNone:
 		if elasticsearch.IsIndexPattern(indexPattern) {
 			if optAsync != nil {
 				return queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 200)
@@ -132,9 +135,28 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 			logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
 			return nil, errIndexNotExists
 		}
-	} else if len(resolved) > 1 { // async search never worked for multiple indexes, TODO fix
-		logger.WarnWithCtx(ctx).Msgf("could not resolve multiple table names for [%s]", indexPattern)
-		resolved = resolved[1:2]
+	case sourceClickhouse:
+		logger.Info().Msgf("index pattern [%s] resolved to clickhouse tables: [%s]", indexPattern, sourcesClickhouse)
+	case sourceElasticsearch:
+		logger.Error().Msgf("index pattern [%s] resolved to elasticsearch indices: [%s]", indexPattern, sourcesElastic)
+		panic("elasticsearch-only indexes should not be routed here at all")
+	}
+	logger.Debug().Msgf("resolved sources for index pattern %s -> %s", indexPattern, sources)
+
+	if len(sourcesClickhouse) == 0 {
+		if elasticsearch.IsIndexPattern(indexPattern) {
+			if optAsync != nil {
+				return queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 200)
+			} else {
+				return queryparser.EmptySearchResponse(ctx), nil
+			}
+		} else {
+			logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
+			return nil, errIndexNotExists
+		}
+	} else if len(sourcesClickhouse) > 1 { // async search never worked for multiple indexes, TODO fix
+		logger.WarnWithCtx(ctx).Msgf("could not resolve multiple table names for [%s], truncating", indexPattern)
+		sourcesClickhouse = sourcesClickhouse[1:2]
 	}
 
 	var responseBody, translatedQueryBody []byte
@@ -174,7 +196,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 	var queryInfo model.SearchQueryInfo
 	var count int
 
-	for _, resolvedTableName := range resolved {
+	for _, resolvedTableName := range sourcesClickhouse {
 		table, _ := tables.Load(resolvedTableName)
 		queryTranslator = &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: ctx}
 		var simpleQuery queryparser.SimpleQuery
