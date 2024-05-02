@@ -63,12 +63,13 @@ func (interval DateTimeInterval) EndTimestampToSQL() (sqlSelect string, selectNe
 type DateRange struct {
 	ctx             context.Context
 	FieldName       string
+	Format          string
 	Intervals       []DateTimeInterval
 	SelectColumnsNr int // how many columns we add to the query because of date_range aggregation, e.g. SELECT x,y,z -> 3
 }
 
-func NewDateRange(ctx context.Context, fieldName string, intervals []DateTimeInterval, selectColumnsNr int) DateRange {
-	return DateRange{ctx, fieldName, intervals, selectColumnsNr}
+func NewDateRange(ctx context.Context, fieldName string, format string, intervals []DateTimeInterval, selectColumnsNr int) DateRange {
+	return DateRange{ctx: ctx, FieldName: fieldName, Format: format, Intervals: intervals, SelectColumnsNr: selectColumnsNr}
 }
 
 func (query DateRange) IsBucketAggregation() bool {
