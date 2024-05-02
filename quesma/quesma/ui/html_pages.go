@@ -451,7 +451,7 @@ func (qmc *QuesmaManagementConsole) generateDatasources() []byte {
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/live">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
 
 	buffer.Html("\n</div>")
 
@@ -471,7 +471,7 @@ func (qmc *QuesmaManagementConsole) generateRouterStatisticsLiveTail() []byte {
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to dashboard" /></form>`)
 
 	buffer.Html("\n</div>")
 
@@ -491,7 +491,7 @@ func (qmc *QuesmaManagementConsole) generateStatisticsLiveTail() []byte {
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to dashboard" /></form>`)
 
 	buffer.Html("\n</div>")
 
@@ -642,7 +642,6 @@ func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 	buffer.Html(`<li><a href="http://localhost:5601/app/observability-log-explorer/">Kibana Log Explorer</a></li>`)
 	buffer.Html(`<li><a href="http://localhost:8081">mitmproxy</a></li>`)
 	buffer.Html(`<li><a href="http://localhost:8123/play">Clickhouse</a></li>`)
-	buffer.Html(`<li><a href="/ingest-statistics">Ingest statistics</a></li>`)
 	buffer.Html(`</ul>`)
 
 	buffer.Html("\n</div>")
@@ -676,7 +675,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/live">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
 	if requestFound {
 		buffer.Html(`<ul>`)
 		if request.errorLogCount > 0 {
@@ -729,9 +728,9 @@ func (qmc *QuesmaManagementConsole) generateLogForRequestId(requestId string) []
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/live">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
 	buffer.Html(`<br>`)
-	buffer.Html(`<form action="/request-Id/`).Text(requestId).Html(`">&nbsp;<input class="btn" type="submit" value="Back to request info" /></form>`)
+	buffer.Html(`<form action="/request-id/`).Text(requestId).Html(`">&nbsp;<input class="btn" type="submit" value="Back to request info" /></form>`)
 
 	buffer.Html("\n</div>")
 	buffer.Html("\n</body>")
@@ -787,7 +786,14 @@ func generateLogMessages(logMessages []string) ([]byte, *string) {
 		// level
 		buffer.Html(`<td class="level">`)
 		if level, ok := fields["level"].(string); ok {
-			buffer.Text(level).Html("</td>")
+			if level == "error" {
+				buffer.Html(`<span class="debug-error-log">`)
+			} else if level == "warn" {
+				buffer.Html(`<span class="debug-warn-log">`)
+			} else {
+				buffer.Html(`<span>`)
+			}
+			buffer.Text(level).Html("</span></td>")
 			delete(fields, "level")
 		} else {
 			buffer.Html("missing level</td>")
@@ -881,7 +887,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequests(title string, requ
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/live">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
 
 	buffer.Html("\n</div>")
 	buffer.Html("\n</body>")
@@ -905,7 +911,7 @@ func (qmc *QuesmaManagementConsole) generateErrorForReason(reason string) []byte
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.Html(`<form action="/dashboard">&nbsp;<input class="btn" type="submit" value="Back to dashboard" /></form>`)
+	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to dashboard" /></form>`)
 	// TODO: implement
 	// buffer.Html(`<form action="/dashboard">&nbsp;<input class="btn" type="submit" value="See requests with errors" /></form>`)
 	buffer.Html("\n</div>")
