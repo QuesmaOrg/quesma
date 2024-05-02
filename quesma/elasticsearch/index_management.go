@@ -5,6 +5,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -61,6 +62,11 @@ func (im *indexManagement) GetSourceNames() map[string]interface{} {
 	}
 	for _, alias := range sources.Aliases {
 		names[alias.Name] = struct{}{}
+	}
+	for key := range names {
+		if strings.TrimSpace(key) == "" {
+			delete(names, key)
+		}
 	}
 	return names
 }
