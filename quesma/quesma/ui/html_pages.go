@@ -858,7 +858,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestsWithStr(requestStr 
 	qmc.mutex.Unlock()
 
 	title := fmt.Sprintf("Report for str '%s' with %d results", requestStr, len(debugKeyValueSlice))
-	return qmc.generateReportForRequests(title, debugKeyValueSlice)
+	return qmc.generateReportForRequests(title, debugKeyValueSlice, []byte{})
 }
 
 func (qmc *QuesmaManagementConsole) generateReportForRequestsWithError() []byte {
@@ -874,7 +874,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestsWithError() []byte 
 	}
 	qmc.mutex.Unlock()
 
-	return qmc.generateReportForRequests("Report for requests with errors", debugKeyValueSlice)
+	return qmc.generateReportForRequests("Report for requests with errors", debugKeyValueSlice, []byte{})
 }
 
 func (qmc *QuesmaManagementConsole) generateReportForRequestsWithWarning() []byte {
@@ -890,10 +890,10 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestsWithWarning() []byt
 	}
 	qmc.mutex.Unlock()
 
-	return qmc.generateReportForRequests("Report for requests with warnings", debugKeyValueSlice)
+	return qmc.generateReportForRequests("Report for requests with warnings", debugKeyValueSlice, []byte{})
 }
 
-func (qmc *QuesmaManagementConsole) generateReportForRequests(title string, requests []DebugKeyValue) []byte {
+func (qmc *QuesmaManagementConsole) generateReportForRequests(title string, requests []DebugKeyValue, sidebar []byte) []byte {
 	buffer := newBufferWithHead()
 	buffer.Write(generateSimpleTop(title))
 
@@ -909,6 +909,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequests(title string, requ
 	buffer.Html("\n<h2>Menu</h2>")
 
 	buffer.Html(`<form action="/live">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Write(sidebar)
 
 	buffer.Html("\n</div>")
 	buffer.Html("\n</body>")

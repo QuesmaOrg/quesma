@@ -59,7 +59,7 @@ func (qmc *QuesmaManagementConsole) generateReportForUnsupportedRequests() []byt
 	}
 	qmc.mutex.Unlock()
 
-	return qmc.generateReportForRequests("Report for unsupported requests", debugKeyValueSlice)
+	return qmc.generateReportForRequests("Unsupported requests", debugKeyValueSlice, []byte{})
 }
 
 func (qmc *QuesmaManagementConsole) generateUnsupportedQuerySidePanel() []byte {
@@ -73,9 +73,9 @@ func (qmc *QuesmaManagementConsole) generateUnsupportedQuerySidePanel() []byte {
 		savedErrorsCount += count
 	}
 	typesSeenCount := len(typesCount)
-	unkownTypeCount := 0
+	unknownTypeCount := 0
 	if value, ok := typesCount[UnrecognizedQueryType]; ok {
-		unkownTypeCount = value
+		unknownTypeCount = value
 	}
 
 	var buffer HtmlBuffer
@@ -88,8 +88,9 @@ func (qmc *QuesmaManagementConsole) generateUnsupportedQuerySidePanel() []byte {
 			plural = ""
 		}
 		buffer.Html(fmt.Sprintf(`%s class="debug-warn-log"">%d different type%s</a></li>`, linkToMainView, typesSeenCount, plural))
-		if unkownTypeCount > 0 {
-			buffer.Html(fmt.Sprintf(`%s class="debug-error-log"">%d of unrecognized type</a></li>`, linkToMainView, unkownTypeCount))
+		if unknownTypeCount > 0 {
+			buffer.Html(fmt.Sprintf(`<li><a href="/unsupported-requests/%s"" class="debug-error-log">`, UnrecognizedQueryType))
+			buffer.Html(fmt.Sprintf(`%d of unrecognized type</a></li>`, unknownTypeCount))
 		}
 	} else {
 		buffer.Html(`<li>None!</a></li>`)
@@ -158,6 +159,6 @@ func (qmc *QuesmaManagementConsole) QueriesWithUnsupportedType(typeName string) 
 }
 
 func (qmc *QuesmaManagementConsole) generateReportForUnsupportedType(typeName string) []byte {
-	debugKeyValueSlice := qmc.QueriesWithUnsupportedType(typeName)
-	return qmc.generateReportForRequests("Report for unsupported request '"+typeName+"'", debugKeyValueSlice)
+	requests := qmc.QueriesWithUnsupportedType(typeName)
+	return qmc.generateReportForRequests("Report for unsupported request '"+typeName+"'", requests, []byte{})
 }
