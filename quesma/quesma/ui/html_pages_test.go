@@ -21,6 +21,7 @@ func TestHtmlPages(t *testing.T) {
 	qmc := NewQuesmaManagementConsole(config.QuesmaConfiguration{}, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent())
 	qmc.PushPrimaryInfo(&QueryDebugPrimarySource{Id: id, QueryResp: xssBytes})
 	qmc.PushSecondaryInfo(&QueryDebugSecondarySource{Id: id,
+		Uri:                    xss,
 		IncomingQueryBody:      xssBytes,
 		QueryBodyTranslated:    xssBytes,
 		QueryTranslatedResults: xssBytes,

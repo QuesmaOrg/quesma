@@ -27,7 +27,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 		if withLinks {
 			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
 		}
-		buffer.Html("<p>RequestID:").Text(v.Key).Html("</p>\n")
+		buffer.Html("<p>RequestID:").Text(v.Key).Html(" URI: ").Text(v.Value.Uri).Html("</p>\n")
 		buffer.Html(`<pre Id="query`).Text(v.Key).Html(`">`)
 		buffer.Text(string(v.Value.IncomingQueryBody))
 		buffer.Html("\n</pre>")

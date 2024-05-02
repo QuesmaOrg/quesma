@@ -141,9 +141,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 
 	startTime := time.Now()
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
+	uri := ctx.Value(tracing.RequestPath).(string)
 	pushSecondaryInfoToManagementConsole := func() {
 		qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 			Id:                     id,
+			Uri:                    ctx.Value(tracing.RequestPath).(string),
 			IncomingQueryBody:      body,
 			QueryBodyTranslated:    translatedQueryBody,
 			QueryTranslatedResults: responseBody,
@@ -299,11 +301,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 			go func() { // Async search takes longer. Return partial results and wait for
 				recovery.LogPanicWithCtx(ctx)
 				res := <-optAsync.doneCh
-				q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, body, res, true)
+				q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, uri, body, res, true)
 			}()
 			return q.handlePartialAsyncSearch(ctx, optAsync.asyncRequestIdStr)
 		case res := <-optAsync.doneCh:
-			responseBody, err = q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, body, res,
+			responseBody, err = q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, uri, body, res,
 				optAsync.keepOnCompletion)
 
 			return responseBody, err
@@ -312,7 +314,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 }
 
 func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncRequestIdStr string,
-	startTime time.Time, body []byte, result AsyncSearchWithError, keep bool) (responseBody []byte, err error) {
+	startTime time.Time, uri string, body []byte, result AsyncSearchWithError, keep bool) (responseBody []byte, err error) {
 	took := time.Since(startTime)
 	if result.err != nil {
 		if keep {
@@ -323,6 +325,7 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 		err = result.err
 		qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 			Id:                     id,
+			Uri:                    uri,
 			IncomingQueryBody:      body,
 			QueryBodyTranslated:    result.translatedQueryBody,
 			QueryTranslatedResults: responseBody,
@@ -334,6 +337,7 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 	responseBody, err = asyncResponse.Marshal()
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     id,
+		Uri:                    uri,
 		IncomingQueryBody:      body,
 		QueryBodyTranslated:    result.translatedQueryBody,
 		QueryTranslatedResults: responseBody,

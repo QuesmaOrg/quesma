@@ -46,6 +46,7 @@ func handleTermsEnumRequest(ctx context.Context, table string, reqBody []byte, q
 
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     ctx.Value(tracing.RequestIdCtxKey).(string),
+		Uri:                    ctx.Value(tracing.RequestPath).(string),
 		IncomingQueryBody:      reqBody,
 		QueryBodyTranslated:    []byte(selectQuery.String()),
 		QueryTranslatedResults: result,
