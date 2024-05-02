@@ -7,6 +7,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/tracing"
 	"regexp"
+	"sort"
 	"sync"
 )
 
@@ -59,7 +60,32 @@ func (qmc *QuesmaManagementConsole) generateReportForUnsupportedRequests() []byt
 	}
 	qmc.mutex.Unlock()
 
-	return qmc.generateReportForRequests("Unsupported requests", debugKeyValueSlice, []byte{})
+	types := qmc.GetUnsupportedTypesWithCount()
+
+	type typeCount struct {
+		name  string
+		count int
+	}
+	var slice []typeCount
+	for name, count := range types {
+		slice = append(slice, typeCount{name, count})
+	}
+	sort.Slice(slice, func(i, j int) bool {
+		return slice[i].count > slice[j].count
+	})
+
+	var buffer HtmlBuffer
+	buffer.Html("<br />")
+	buffer.Html(`<h3>Unsupported queries by type</h3>`)
+	buffer.Html(`<ul id="unsupported-queries-stats">`)
+	for _, t := range slice {
+		buffer.Html(fmt.Sprintf(`<li><a class="debug-warn-log" href="/unsupported-requests/%s">`, t.name))
+		buffer.Text(fmt.Sprintf(`%s: %d`, t.name, t.count))
+		buffer.Html("</a></li>\n")
+	}
+	buffer.Html("</ul>")
+
+	return qmc.generateReportForRequests("Unsupported requests", debugKeyValueSlice, buffer.Bytes())
 }
 
 func (qmc *QuesmaManagementConsole) generateUnsupportedQuerySidePanel() []byte {
@@ -79,7 +105,7 @@ func (qmc *QuesmaManagementConsole) generateUnsupportedQuerySidePanel() []byte {
 	}
 
 	var buffer HtmlBuffer
-	linkToMainView := `<li><a href="/unsupported-requests/"`
+	linkToMainView := `<li><a href="/unsupported-requests"`
 	buffer.Html(`<ul id="unsupported-queries-stats" hx-swap-oob="true">`)
 	if totalErrorsCount > 0 {
 		buffer.Html(fmt.Sprintf(`%s class="debug-warn-log"">%d total (%d recent)</a></li>`, linkToMainView, totalErrorsCount, savedErrorsCount))
