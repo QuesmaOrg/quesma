@@ -47,6 +47,7 @@ type QueryDebugPrimarySource struct {
 type QueryDebugSecondarySource struct {
 	Id string
 
+	Path              string
 	IncomingQueryBody []byte
 
 	QueryBodyTranslated    []byte
@@ -90,8 +91,8 @@ type QuesmaManagementConsole struct {
 
 func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, logChan <-chan tracing.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent) *QuesmaManagementConsole {
 	return &QuesmaManagementConsole{
-		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 5),
-		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 5),
+		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 10),
+		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 10),
 		queryDebugLogs:            logChan,
 		debugInfoMessages:         make(map[string]QueryDebugInfo),
 		debugLastMessages:         make([]string, 0),
@@ -109,13 +110,10 @@ func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *c
 }
 
 func (qmc *QuesmaManagementConsole) PushPrimaryInfo(qdebugInfo *QueryDebugPrimarySource) {
-	qdebugInfo.QueryResp = []byte(util.JsonPrettify(string(qdebugInfo.QueryResp), true))
 	qmc.queryDebugPrimarySource <- qdebugInfo
 }
 
 func (qmc *QuesmaManagementConsole) PushSecondaryInfo(qdebugInfo *QueryDebugSecondarySource) {
-	qdebugInfo.QueryTranslatedResults = []byte(util.JsonPrettify(string(qdebugInfo.QueryTranslatedResults), true))
-	qdebugInfo.IncomingQueryBody = []byte(util.JsonPrettify(string(qdebugInfo.IncomingQueryBody), true))
 	qmc.queryDebugSecondarySource <- qdebugInfo
 }
 
@@ -219,7 +217,8 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 	select {
 	case msg := <-qmc.queryDebugPrimarySource:
 		logger.Debug().Msg("Received debug info from primary source: " + msg.Id)
-		debugPrimaryInfo := QueryDebugPrimarySource{msg.Id, msg.QueryResp, msg.PrimaryTook}
+		debugPrimaryInfo := QueryDebugPrimarySource{msg.Id,
+			[]byte(util.JsonPrettify(string(msg.QueryResp), true)), msg.PrimaryTook}
 		qmc.mutex.Lock()
 		if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {
 			qmc.debugInfoMessages[msg.Id] = QueryDebugInfo{
@@ -240,9 +239,10 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 		logger.Debug().Msg("Received debug info from secondary source: " + msg.Id)
 		secondaryDebugInfo := QueryDebugSecondarySource{
 			msg.Id,
-			msg.IncomingQueryBody,
+			msg.Path,
+			[]byte(util.JsonPrettify(string(msg.IncomingQueryBody), true)),
 			msg.QueryBodyTranslated,
-			msg.QueryTranslatedResults,
+			[]byte(util.JsonPrettify(string(msg.QueryTranslatedResults), true)),
 			msg.SecondaryTook,
 		}
 		qmc.mutex.Lock()

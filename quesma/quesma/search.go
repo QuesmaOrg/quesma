@@ -141,9 +141,16 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 
 	startTime := time.Now()
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
+	path := ""
+	if value := ctx.Value(tracing.RequestPath); value != nil {
+		if str, ok := value.(string); ok {
+			path = str
+		}
+	}
 	pushSecondaryInfoToManagementConsole := func() {
 		qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 			Id:                     id,
+			Path:                   path,
 			IncomingQueryBody:      body,
 			QueryBodyTranslated:    translatedQueryBody,
 			QueryTranslatedResults: responseBody,
@@ -299,11 +306,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 			go func() { // Async search takes longer. Return partial results and wait for
 				recovery.LogPanicWithCtx(ctx)
 				res := <-optAsync.doneCh
-				q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, body, res, true)
+				q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res, true)
 			}()
 			return q.handlePartialAsyncSearch(ctx, optAsync.asyncRequestIdStr)
 		case res := <-optAsync.doneCh:
-			responseBody, err = q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, body, res,
+			responseBody, err = q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res,
 				optAsync.keepOnCompletion)
 
 			return responseBody, err
@@ -312,15 +319,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 }
 
 func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncRequestIdStr string,
-	startTime time.Time, body []byte, result AsyncSearchWithError, keep bool) (responseBody []byte, err error) {
+	startTime time.Time, path string, body []byte, result AsyncSearchWithError, keep bool) (responseBody []byte, err error) {
 	took := time.Since(startTime)
-	defer qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-		Id:                     id,
-		IncomingQueryBody:      body,
-		QueryBodyTranslated:    result.translatedQueryBody,
-		QueryTranslatedResults: responseBody,
-		SecondaryTook:          took,
-	})
 	if result.err != nil {
 		if keep {
 			q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: result.err, added: time.Now(),
@@ -328,10 +328,26 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 		}
 		responseBody, _ = queryparser.EmptyAsyncSearchResponse(asyncRequestIdStr, false, 503)
 		err = result.err
+		qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+			Id:                     id,
+			Path:                   path,
+			IncomingQueryBody:      body,
+			QueryBodyTranslated:    result.translatedQueryBody,
+			QueryTranslatedResults: responseBody,
+			SecondaryTook:          took,
+		})
 		return
 	}
 	asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, asyncRequestIdStr, false, 200)
 	responseBody, err = asyncResponse.Marshal()
+	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+		Id:                     id,
+		Path:                   path,
+		IncomingQueryBody:      body,
+		QueryBodyTranslated:    result.translatedQueryBody,
+		QueryTranslatedResults: responseBody,
+		SecondaryTook:          took,
+	})
 	if keep {
 		compressedBody := responseBody
 		isCompressed := false
