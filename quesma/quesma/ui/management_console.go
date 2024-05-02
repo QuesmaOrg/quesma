@@ -47,7 +47,7 @@ type QueryDebugPrimarySource struct {
 type QueryDebugSecondarySource struct {
 	Id string
 
-	Uri               string
+	Path              string
 	IncomingQueryBody []byte
 
 	QueryBodyTranslated    []byte
@@ -239,7 +239,7 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 		logger.Debug().Msg("Received debug info from secondary source: " + msg.Id)
 		secondaryDebugInfo := QueryDebugSecondarySource{
 			msg.Id,
-			msg.Uri,
+			msg.Path,
 			[]byte(util.JsonPrettify(string(msg.IncomingQueryBody), true)),
 			msg.QueryBodyTranslated,
 			[]byte(util.JsonPrettify(string(msg.QueryTranslatedResults), true)),

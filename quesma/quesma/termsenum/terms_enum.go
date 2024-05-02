@@ -43,10 +43,15 @@ func handleTermsEnumRequest(ctx context.Context, table string, reqBody []byte, q
 	} else {
 		result, err = json.Marshal(makeTermsEnumResponse(rows))
 	}
-
+	path := ""
+	if value := ctx.Value(tracing.RequestPath); value != nil {
+		if str, ok := value.(string); ok {
+			path = str
+		}
+	}
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     ctx.Value(tracing.RequestIdCtxKey).(string),
-		Uri:                    ctx.Value(tracing.RequestPath).(string),
+		Path:                   path,
 		IncomingQueryBody:      reqBody,
 		QueryBodyTranslated:    []byte(selectQuery.String()),
 		QueryTranslatedResults: result,
