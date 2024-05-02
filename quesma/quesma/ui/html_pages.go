@@ -559,7 +559,7 @@ document.body.addEventListener('htmx:afterSwap', function(event) {
 	buffer.Html(`<h3>Queries with problems</h3>`)
 	buffer.Write(qmc.generateQueriesStatsPanel())
 	buffer.Html(`<h3>Unsupported queries</h3>`)
-	buffer.Write(qmc.generateSidePanelHtml())
+	buffer.Write(qmc.generateUnsupportedQuerySidePanel())
 
 	// Don't get foiled by warning, this detects whether it's our development Quesma
 	if buildinfo.LicenseKey == buildinfo.DevelopmentLicenseKey || buildinfo.LicenseKey == "" {

@@ -191,7 +191,7 @@ func (qmc *QuesmaManagementConsole) generateQueries() []byte {
 
 	queriesBytes := generateQueries(debugKeyValueSlice, true)
 	queriesStats := qmc.generateQueriesStatsPanel()
-	unsupportedQueriesStats := qmc.generateSidePanelHtml()
+	unsupportedQueriesStats := qmc.generateUnsupportedQuerySidePanel()
 	return append(queriesBytes, append(queriesStats, unsupportedQueriesStats...)...)
 }
 
