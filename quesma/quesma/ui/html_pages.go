@@ -780,7 +780,14 @@ func generateLogMessages(logMessages []string) ([]byte, *string) {
 		// level
 		buffer.Html(`<td class="level">`)
 		if level, ok := fields["level"].(string); ok {
-			buffer.Text(level).Html("</td>")
+			if level == "error" {
+				buffer.Html(`<span class="debug-error-log">`)
+			} else if level == "warn" {
+				buffer.Html(`<span class="debug-warn-log">`)
+			} else {
+				buffer.Html(`<span>`)
+			}
+			buffer.Text(level).Html("</span></td>")
 			delete(fields, "level")
 		} else {
 			buffer.Html("missing level</td>")
