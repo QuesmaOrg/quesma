@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
+	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
@@ -76,13 +77,16 @@ func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string, lm *
 	}
 }
 
-func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
+func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, body []byte,
+	cfg config.QuesmaConfiguration,
+	lm *clickhouse.LogManager,
+	im elasticsearch.IndexManagement,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
-	return q.handleSearchCommon(ctx, indexPattern, body, lm, quesmaManagementConsole, nil)
+	return q.handleSearchCommon(ctx, cfg, indexPattern, body, lm, im, quesmaManagementConsole, nil)
 }
 
-func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
-	quesmaManagementConsole *ui.QuesmaManagementConsole, waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
+func (q *QueryRunner) handleAsyncSearch(ctx context.Context, cfg config.QuesmaConfiguration, indexPattern string, body []byte, lm *clickhouse.LogManager,
+	im elasticsearch.IndexManagement, quesmaManagementConsole *ui.QuesmaManagementConsole, waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
 	async := AsyncQuery{
 		asyncRequestIdStr: generateAsyncRequestId(),
 		doneCh:            make(chan AsyncSearchWithError, 1),
@@ -92,7 +96,7 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string
 	}
 	ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, async.asyncRequestIdStr)
 	logger.InfoWithCtx(ctx).Msgf("async search request id: %s started", async.asyncRequestIdStr)
-	return q.handleSearchCommon(ctx, indexPattern, body, lm, quesmaManagementConsole, &async)
+	return q.handleSearchCommon(ctx, cfg, indexPattern, body, lm, im, quesmaManagementConsole, &async)
 }
 
 type AsyncSearchWithError struct {
@@ -109,8 +113,12 @@ type AsyncQuery struct {
 	startTime         time.Time
 }
 
-func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
+func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaConfiguration, indexPattern string, body []byte,
+	lm *clickhouse.LogManager,
+	im elasticsearch.IndexManagement,
 	qmc *ui.QuesmaManagementConsole, optAsync *AsyncQuery) ([]byte, error) {
+
+	logger.Debug().Msgf("resolved sources for index pattern %s -> %s", indexPattern, ResolveSources(indexPattern, cfg, im, lm))
 
 	resolved := lm.ResolveIndexes(ctx, indexPattern)
 	if len(resolved) == 0 {
@@ -133,9 +141,16 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	startTime := time.Now()
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
+	path := ""
+	if value := ctx.Value(tracing.RequestPath); value != nil {
+		if str, ok := value.(string); ok {
+			path = str
+		}
+	}
 	pushSecondaryInfoToManagementConsole := func() {
 		qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 			Id:                     id,
+			Path:                   path,
 			IncomingQueryBody:      body,
 			QueryBodyTranslated:    translatedQueryBody,
 			QueryTranslatedResults: responseBody,
@@ -291,11 +306,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			go func() { // Async search takes longer. Return partial results and wait for
 				recovery.LogPanicWithCtx(ctx)
 				res := <-optAsync.doneCh
-				q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, body, res, true)
+				q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res, true)
 			}()
 			return q.handlePartialAsyncSearch(ctx, optAsync.asyncRequestIdStr)
 		case res := <-optAsync.doneCh:
-			responseBody, err = q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, body, res,
+			responseBody, err = q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res,
 				optAsync.keepOnCompletion)
 
 			return responseBody, err
@@ -304,15 +319,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 }
 
 func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncRequestIdStr string,
-	startTime time.Time, body []byte, result AsyncSearchWithError, keep bool) (responseBody []byte, err error) {
+	startTime time.Time, path string, body []byte, result AsyncSearchWithError, keep bool) (responseBody []byte, err error) {
 	took := time.Since(startTime)
-	defer qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-		Id:                     id,
-		IncomingQueryBody:      body,
-		QueryBodyTranslated:    result.translatedQueryBody,
-		QueryTranslatedResults: responseBody,
-		SecondaryTook:          took,
-	})
 	if result.err != nil {
 		if keep {
 			q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: result.err, added: time.Now(),
@@ -320,10 +328,26 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 		}
 		responseBody, _ = queryparser.EmptyAsyncSearchResponse(asyncRequestIdStr, false, 503)
 		err = result.err
+		qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+			Id:                     id,
+			Path:                   path,
+			IncomingQueryBody:      body,
+			QueryBodyTranslated:    result.translatedQueryBody,
+			QueryTranslatedResults: responseBody,
+			SecondaryTook:          took,
+		})
 		return
 	}
 	asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, asyncRequestIdStr, false, 200)
 	responseBody, err = asyncResponse.Marshal()
+	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+		Id:                     id,
+		Path:                   path,
+		IncomingQueryBody:      body,
+		QueryBodyTranslated:    result.translatedQueryBody,
+		QueryTranslatedResults: responseBody,
+		SecondaryTook:          took,
+	})
 	if keep {
 		compressedBody := responseBody
 		isCompressed := false

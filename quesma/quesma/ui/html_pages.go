@@ -15,11 +15,21 @@ import (
 	"strings"
 )
 
+func generateSimpleTop(title string) []byte {
+	var buffer HtmlBuffer
+	buffer.Html(`<div class="topnav">` + "\n")
+	buffer.Html(`<div class="topnav-menu">` + "\n")
+	buffer.Html(`<img src="/static/asset/quesma-logo-white-full.svg" alt="Quesma logo" class="quesma-logo" />` + "\n")
+	buffer.Html(`<h3>`).Text(title).Html(`</h3>`)
+	buffer.Html("\n</div>\n</div>\n\n")
+	return buffer.Bytes()
+}
+
 func generateTopNavigation(target string) []byte {
 	var buffer HtmlBuffer
 	buffer.Html(`<div class="topnav">` + "\n")
 	buffer.Html(`<div class="topnav-menu">` + "\n")
-	buffer.Html("<h3>Quesma</h3>\n")
+	buffer.Html(`<img src="/static/asset/quesma-logo-white-full.svg" alt="Quesma logo" class="quesma-logo" />` + "\n")
 	buffer.Html("<ul>\n")
 	buffer.Html("<li")
 	if target == "dashboard" {
@@ -441,7 +451,7 @@ func (qmc *QuesmaManagementConsole) generateDatasources() []byte {
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/live">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
 
 	buffer.Html("\n</div>")
 
@@ -461,7 +471,7 @@ func (qmc *QuesmaManagementConsole) generateRouterStatisticsLiveTail() []byte {
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to dashboard" /></form>`)
 
 	buffer.Html("\n</div>")
 
@@ -481,7 +491,7 @@ func (qmc *QuesmaManagementConsole) generateStatisticsLiveTail() []byte {
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to dashboard" /></form>`)
 
 	buffer.Html("\n</div>")
 
@@ -634,7 +644,6 @@ func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 	buffer.Html(`<li><a href="http://localhost:5601/app/observability-log-explorer/">Kibana Log Explorer</a></li>`)
 	buffer.Html(`<li><a href="http://localhost:8081">mitmproxy</a></li>`)
 	buffer.Html(`<li><a href="http://localhost:8123/play">Clickhouse</a></li>`)
-	buffer.Html(`<li><a href="/ingest-statistics">Ingest statistics</a></li>`)
 	buffer.Html(`</ul>`)
 
 	buffer.Html("\n</div>")
@@ -649,14 +658,12 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 	qmc.mutex.Unlock()
 
 	buffer := newBufferWithHead()
-	buffer.Html(`<div class="topnav">`)
 	if requestFound {
-		buffer.Html("\n<h3>Quesma Report for request Id ").Text(requestId).Html("</h3>")
+		buffer.Write(generateSimpleTop("Report for request Id " + requestId))
 	} else {
-		buffer.Html("\n<h3>Quesma Report not found for ").Text(requestId).Html("</h3>")
+		buffer.Write(generateSimpleTop("Report not found for request Id " + requestId))
 	}
 
-	buffer.Html("\n</div>\n")
 	buffer.Html(`<main id="queries">`)
 
 	debugKeyValueSlice := []DebugKeyValue{}
@@ -670,7 +677,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/live">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
 	if requestFound {
 		buffer.Html(`<ul>`)
 		if request.errorLogCount > 0 {
@@ -702,17 +709,15 @@ func (qmc *QuesmaManagementConsole) generateLogForRequestId(requestId string) []
 	logMessages, optAsyncId := generateLogMessages(request.logMessages, []string{})
 
 	buffer := newBufferWithHead()
-	buffer.Html(`<div class="topnav">`)
 	if requestFound {
-		buffer.Html("\n<h3>Quesma Log for request id ").Text(requestId)
 		if optAsyncId != nil {
-			buffer.Text(" and async id '").Text(*optAsyncId).Html("'")
+			buffer.Write(generateSimpleTop("Log for request id " + requestId + " and async id " + *optAsyncId))
+		} else {
+			buffer.Write(generateSimpleTop("Log for request id " + requestId))
 		}
-		buffer.Html("</h3>")
 	} else {
-		buffer.Html("\n<h3>Quesma Log not found for ").Text(requestId).Html("</h3>")
+		buffer.Write(generateSimpleTop("Log not found for request id " + requestId))
 	}
-	buffer.Html("\n</div>\n")
 
 	buffer.Html(`<main class="center" id="request-log-messages">`)
 	buffer.Html("\n\n")
@@ -725,9 +730,9 @@ func (qmc *QuesmaManagementConsole) generateLogForRequestId(requestId string) []
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/live">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
 	buffer.Html(`<br>`)
-	buffer.Html(`<form action="/request-Id/`).Text(requestId).Html(`">&nbsp;<input class="btn" type="submit" value="Back to request info" /></form>`)
+	buffer.Html(`<form action="/request-id/`).Text(requestId).Html(`">&nbsp;<input class="btn" type="submit" value="Back to request info" /></form>`)
 
 	buffer.Html("\n</div>")
 	buffer.Html("\n</body>")
@@ -804,7 +809,14 @@ func generateLogMessages(logMessages []string, links []string) ([]byte, *string)
 		// level
 		buffer.Html(`<td class="level">` + addOpeningLink(i, 1))
 		if level, ok := fields["level"].(string); ok {
-			buffer.Text(level)
+			if level == "error" {
+				buffer.Html(`<span class="debug-error-log">`)
+			} else if level == "warn" {
+				buffer.Html(`<span class="debug-warn-log">`)
+			} else {
+				buffer.Html(`<span>`)
+			}
+			buffer.Text(level).Html("</span></td>")
 			delete(fields, "level")
 		} else {
 			buffer.Html("missing level")
@@ -845,7 +857,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestsWithStr(requestStr 
 	}
 	qmc.mutex.Unlock()
 
-	title := fmt.Sprintf("Quesma Report for str '%s' with %d results", requestStr, len(debugKeyValueSlice))
+	title := fmt.Sprintf("Report for str '%s' with %d results", requestStr, len(debugKeyValueSlice))
 	return qmc.generateReportForRequests(title, debugKeyValueSlice)
 }
 
@@ -862,7 +874,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestsWithError() []byte 
 	}
 	qmc.mutex.Unlock()
 
-	return qmc.generateReportForRequests("Quesma Report for requests with errors", debugKeyValueSlice)
+	return qmc.generateReportForRequests("Report for requests with errors", debugKeyValueSlice)
 }
 
 func (qmc *QuesmaManagementConsole) generateReportForRequestsWithWarning() []byte {
@@ -878,13 +890,12 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestsWithWarning() []byt
 	}
 	qmc.mutex.Unlock()
 
-	return qmc.generateReportForRequests("Quesma Report for requests with warnings", debugKeyValueSlice)
+	return qmc.generateReportForRequests("Report for requests with warnings", debugKeyValueSlice)
 }
 
 func (qmc *QuesmaManagementConsole) generateReportForRequests(title string, requests []DebugKeyValue) []byte {
 	buffer := newBufferWithHead()
-	buffer.Html(`<div class="topnav">`)
-	buffer.Html("\n<h3>").Text(title).Html("</h3>")
+	buffer.Write(generateSimpleTop(title))
 
 	buffer.Html("\n</div>\n\n")
 
@@ -897,7 +908,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequests(title string, requ
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<form action="/live">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
 
 	buffer.Html("\n</div>")
 	buffer.Html("\n</body>")
@@ -908,10 +919,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequests(title string, requ
 
 func (qmc *QuesmaManagementConsole) generateErrorForReason(reason string) []byte {
 	buffer := newBufferWithHead()
-	buffer.Html(`<div class="topnav">`)
-	title := fmt.Sprintf("Quesma Errors with reason '%s'", reason)
-	buffer.Html("\n<h3>").Text(title).Html("</h3>")
-	buffer.Html("\n</div>\n\n")
+	buffer.Write(generateTopNavigation(fmt.Sprintf("Errors with reason '%s'", reason)))
 
 	buffer.Html(`<main id="errors">`)
 	errors := errorstats.GlobalErrorStatistics.ErrorReportsForReason(reason)
@@ -924,7 +932,7 @@ func (qmc *QuesmaManagementConsole) generateErrorForReason(reason string) []byte
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
-	buffer.Html(`<form action="/dashboard">&nbsp;<input class="btn" type="submit" value="Back to dashboard" /></form>`)
+	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to dashboard" /></form>`)
 	// TODO: implement
 	// buffer.Html(`<form action="/dashboard">&nbsp;<input class="btn" type="submit" value="See requests with errors" /></form>`)
 	buffer.Html("\n</div>")
