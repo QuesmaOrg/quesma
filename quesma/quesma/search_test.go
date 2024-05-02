@@ -96,7 +96,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 				mock.ExpectQuery(wantedRegex).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 			queryRunner := NewQueryRunner()
-			_, err = queryRunner.handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole, defaultAsyncSearchTimeout, true)
+			_, err = queryRunner.handleAsyncSearch(ctx, config.QuesmaConfiguration{}, tableName, []byte(tt.QueryJson), lm, nil, managementConsole, defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
 			if err := mock.ExpectationsWereMet(); err != nil {
@@ -134,7 +134,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 			}
 
 			queryRunner := NewQueryRunner()
-			_, err = queryRunner.handleAsyncSearch(ctx, tableName, []byte(tt.QueryRequestJson), lm, managementConsole, defaultAsyncSearchTimeout, true)
+			_, err = queryRunner.handleAsyncSearch(ctx, config.QuesmaConfiguration{}, tableName, []byte(tt.QueryRequestJson), lm, nil, managementConsole, defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
 			if err = mock.ExpectationsWereMet(); err != nil {
@@ -176,7 +176,7 @@ func TestSearchHandler(t *testing.T) {
 					WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 			queryRunner := NewQueryRunner()
-			_, _ = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
+			_, _ = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson), config.QuesmaConfiguration{}, lm, nil, managementConsole)
 
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -202,7 +202,7 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 			queryRunner := NewQueryRunner()
-			_, _ = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
+			_, _ = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson), config.QuesmaConfiguration{}, lm, nil, managementConsole)
 
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -227,7 +227,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 			queryRunner := NewQueryRunner()
-			_, _ = queryRunner.handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole, defaultAsyncSearchTimeout, true)
+			_, _ = queryRunner.handleAsyncSearch(ctx, config.QuesmaConfiguration{}, tableName, []byte(tt.QueryJson), lm, nil, managementConsole, defaultAsyncSearchTimeout, true)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
 			}
@@ -300,7 +300,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))
 		// .AddRow(1000, uint64(10)).AddRow(1001, uint64(20))) // here rows should be added if uint64 were supported
 		queryRunner := NewQueryRunner()
-		response, err := queryRunner.handleAsyncSearch(ctx, tableName, []byte(query(fieldName)), lm, managementConsole, defaultAsyncSearchTimeout, true)
+		response, err := queryRunner.handleAsyncSearch(ctx, config.QuesmaConfiguration{}, tableName, []byte(query(fieldName)), lm, nil, managementConsole, defaultAsyncSearchTimeout, true)
 		assert.NoError(t, err)
 
 		var responseMap model.JsonMap
@@ -356,9 +356,9 @@ func TestNumericFacetsQueries(t *testing.T) {
 				queryRunner := NewQueryRunner()
 				var response []byte
 				if handlerName == "handleSearch" {
-					response, err = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole)
+					response, err = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson), config.QuesmaConfiguration{}, lm, nil, managementConsole)
 				} else if handlerName == "handleAsyncSearch" {
-					response, err = queryRunner.handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), lm, managementConsole, defaultAsyncSearchTimeout, true)
+					response, err = queryRunner.handleAsyncSearch(ctx, config.QuesmaConfiguration{}, tableName, []byte(tt.QueryJson), lm, nil, managementConsole, defaultAsyncSearchTimeout, true)
 				}
 				assert.NoError(t, err)
 

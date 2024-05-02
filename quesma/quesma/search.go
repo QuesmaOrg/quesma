@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
+	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
@@ -76,13 +77,16 @@ func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string, lm *
 	}
 }
 
-func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
+func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, body []byte,
+	cfg config.QuesmaConfiguration,
+	lm *clickhouse.LogManager,
+	im elasticsearch.IndexManagement,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
-	return q.handleSearchCommon(ctx, indexPattern, body, lm, quesmaManagementConsole, nil)
+	return q.handleSearchCommon(ctx, cfg, indexPattern, body, lm, im, quesmaManagementConsole, nil)
 }
 
-func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
-	quesmaManagementConsole *ui.QuesmaManagementConsole, waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
+func (q *QueryRunner) handleAsyncSearch(ctx context.Context, cfg config.QuesmaConfiguration, indexPattern string, body []byte, lm *clickhouse.LogManager,
+	im elasticsearch.IndexManagement, quesmaManagementConsole *ui.QuesmaManagementConsole, waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
 	async := AsyncQuery{
 		asyncRequestIdStr: generateAsyncRequestId(),
 		doneCh:            make(chan AsyncSearchWithError, 1),
@@ -92,7 +96,7 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string
 	}
 	ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, async.asyncRequestIdStr)
 	logger.InfoWithCtx(ctx).Msgf("async search request id: %s started", async.asyncRequestIdStr)
-	return q.handleSearchCommon(ctx, indexPattern, body, lm, quesmaManagementConsole, &async)
+	return q.handleSearchCommon(ctx, cfg, indexPattern, body, lm, im, quesmaManagementConsole, &async)
 }
 
 type AsyncSearchWithError struct {
@@ -109,8 +113,12 @@ type AsyncQuery struct {
 	startTime         time.Time
 }
 
-func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body []byte, lm *clickhouse.LogManager,
+func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaConfiguration, indexPattern string, body []byte,
+	lm *clickhouse.LogManager,
+	im elasticsearch.IndexManagement,
 	qmc *ui.QuesmaManagementConsole, optAsync *AsyncQuery) ([]byte, error) {
+
+	logger.Debug().Msgf("resolved sources for index pattern %s -> %s", indexPattern, ResolveSources(indexPattern, cfg, im, lm))
 
 	resolved := lm.ResolveIndexes(ctx, indexPattern)
 	if len(resolved) == 0 {
