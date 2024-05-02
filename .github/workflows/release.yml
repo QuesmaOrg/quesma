@@ -3,6 +3,7 @@ name: Build Quesma container image for internal uses (nigthly repository)
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch: # Handy for testing
 
 jobs:
   build-quesma-docker-image:
