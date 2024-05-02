@@ -879,6 +879,8 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 				stmts = append(stmts, NewSimpleStatement(fieldToPrint+">"+vToPrint))
 			case "lt":
 				stmts = append(stmts, NewSimpleStatement(fieldToPrint+"<"+vToPrint))
+			case "format":
+				// ignored
 			default:
 				logger.WarnWithCtx(cw.Ctx).Msgf("invalid range operator: %s", op)
 			}
