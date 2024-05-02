@@ -13,7 +13,7 @@ import (
 const maxSavedQueriesPerQueryType = 10
 const UnrecognizedQueryType = "unrecognized"
 
-var unsupportedSearchQueryRegex, _ = regexp.Compile(logger.Reason + `":"` + logger.UnsupportedQueryType + `([[:word:]]+)"`)
+var unsupportedSearchQueryRegex, _ = regexp.Compile(logger.Reason + `":"` + logger.ReasonPrefixUnsupportedQueryType + `([[:word:]]+)"`)
 
 type errorMessageWithRequestId struct {
 	requestId    string

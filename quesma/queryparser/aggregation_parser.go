@@ -254,7 +254,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQuer
 		if subAggregation, ok := v.(QueryMap); ok {
 			cw.parseAggregation(currentAggr, subAggregation, resultAccumulator)
 		} else {
-			logger.ErrorWithCtxAndReason(cw.Ctx, logger.UnsupportedQueryType+"unexpected_type").
+			logger.ErrorWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery("unexpected_type")).
 				Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", k, v, v)
 		}
 		logger.DebugWithCtx(cw.Ctx).Msgf("names -= %s", k)
@@ -390,7 +390,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 
 	for k, v := range queryMap {
 		// should be empty by now. If it's not, it's an unsupported/unrecognized type of aggregation.
-		logger.ErrorWithCtxAndReason(cw.Ctx, logger.UnsupportedQueryType+k).
+		logger.ErrorWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).
 			Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", k, v, v)
 	}
 

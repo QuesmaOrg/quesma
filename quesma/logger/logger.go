@@ -25,11 +25,11 @@ var (
 )
 
 const (
-	RID                  = "request_id"                 // request id key for the logger
-	Reason               = "reason"                     // Known error reason key for the logger
-	UnsupportedQueryType = "unsupported_search_query: " // Reason for Error messages for unsupported queries will start with this prefix
-	Path                 = "path"
-	AsyncId              = "async_id"
+	RID                              = "request_id" // request id key for the logger
+	Reason                           = "reason"     // Known error reason key for the logger
+	Path                             = "path"
+	AsyncId                          = "async_id"
+	ReasonPrefixUnsupportedQueryType = "unsupported_search_query: " // Reason for Error messages for unsupported queries will start with this prefix
 )
 
 const (
@@ -238,4 +238,8 @@ func Fatal() *zerolog.Event {
 
 func Panic() *zerolog.Event {
 	return logger.Panic()
+}
+
+func ReasonUnsupportedQuery(queryType string) string {
+	return ReasonPrefixUnsupportedQueryType + queryType
 }
