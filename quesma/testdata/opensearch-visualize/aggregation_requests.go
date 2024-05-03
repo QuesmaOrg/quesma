@@ -1,6 +1,7 @@
 package opensearch_visualize
 
 import (
+	"math"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/testdata"
 )
@@ -570,7 +571,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 						"1000.0-2000.0": {
 							"1": {
 								"values": {
-									"50.0": 45.5
+									"50.0": null
 								}
 							},
 							"doc_count": 2,
@@ -594,7 +595,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 		ExpectedResults: [][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4))}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("quantile_50", []float64{46.9921875})}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("quantile_50", []float64{45.5})}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("quantile_50", []float64{math.NaN()})}}},
 			{{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("doc_count", 1),
 				model.NewQueryResultCol("doc_count", 2),

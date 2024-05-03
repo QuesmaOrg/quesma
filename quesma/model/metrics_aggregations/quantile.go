@@ -2,6 +2,7 @@ package metrics_aggregations
 
 import (
 	"context"
+	"math"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"strconv"
@@ -47,7 +48,14 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 				percentileName += ".0"
 			}
 
-			valueMap[percentileName] = percentile[0]
+			if len(percentile) == 0 {
+				logger.WarnWithCtx(query.ctx).Msgf("empty percentile values for %s", percentileName)
+			}
+			if len(percentile) == 0 || math.IsNaN(percentile[0]) {
+				valueMap[percentileName] = nil
+			} else {
+				valueMap[percentileName] = percentile[0]
+			}
 		}
 	}
 
