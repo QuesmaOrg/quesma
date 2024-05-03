@@ -561,8 +561,12 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	allTests = append(allTests, testdata.PipelineAggregationTests...)
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if i != 28 {
+			if i > 28 {
+				// TODO add expected results for 2 remaining tests
 				t.Skip()
+			}
+			if i == 14 {
+				t.Skip("Turned out the result for this test is incorrect. I'll fix it in another PR this week.")
 			}
 			if i == 26 {
 				t.Skip("Need a (most likely) small fix to top_hits.")

@@ -333,3 +333,7 @@ func NewDefaultBoolAttribute() Attribute {
 		Type:            NewBaseType("Bool"),
 	}
 }
+
+func (dt DateTimeType) String() string {
+	return []string{"DateTime64", "DateTime", "Invalid"}[dt]
+}
