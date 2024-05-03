@@ -44,7 +44,7 @@ func TestNoAsciiTableName(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf(`SELECT * FROM "%s" `, tableName), query.String())
 }
 
-var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, "1")
+var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.GetRequestId())
 
 const tableName = `logs-generic-default`
 
@@ -398,7 +398,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 // It runs |testdata.UnsupportedAggregationsTests| tests, each of them sends one query of unsupported type.
 // It ensures that this query type is recorded in the management console, and that all other query types are not.
 func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
-	for id, tt := range testdata.UnsupportedAggregationsTests {
+	for _, tt := range testdata.UnsupportedAggregationsTests {
 		t.Run(tt.TestName, func(t *testing.T) {
 			db, _, err := sqlmock.New()
 			if err != nil {
@@ -414,7 +414,7 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			go managementConsole.RunOnlyChannelProcessor()
 
 			queryRunner := NewQueryRunner()
-			newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, strconv.Itoa(id))
+			newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
 			_, _ = queryRunner.handleSearch(newCtx, tableName, []byte(tt.QueryRequestJson), cfg, lm, nil, managementConsole)
 
 			for _, queryType := range model.AggregationQueryTypes {
@@ -465,8 +465,8 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 	go managementConsole.RunOnlyChannelProcessor()
 
 	queryRunner := NewQueryRunner()
-	for id, testNr := range testNrs {
-		newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, strconv.Itoa(id))
+	for _, testNr := range testNrs {
+		newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
 		_, _ = queryRunner.handleSearch(newCtx, tableName, []byte(testdata.UnsupportedAggregationsTests[testNr].QueryRequestJson), cfg, lm, nil, managementConsole)
 
 	}

@@ -36,7 +36,7 @@ const (
 	RequestStatisticIngest2Elasticsearch = "ingest2elasticsearch"
 )
 
-var requestIdRegex, _ = regexp.Compile(`request_id":"(\d+)"`)
+var requestIdRegex, _ = regexp.Compile(logger.RID + `":"([0-9a-fA-F-]+)"`)
 
 type QueryDebugPrimarySource struct {
 	Id          string
