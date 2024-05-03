@@ -2197,10 +2197,10 @@ var AggregationTests = []AggregationTestCase{
 	},
 	{ // [13], "old" test, also can be found in testdata/requests.go TestAsyncSearch[4]
 		// Copied it also here to be more sure we do not create some regression
-		// TODO let's copy results once we see this test it happens very often but we don't have a response.
-		"histogram: regression test",
-		`{
-			"size":0,
+		TestName: "terms with date_histogram as subaggregation: regression test",
+		QueryRequestJson: `
+		{
+			"size": 0,
 			"query": {
 				"range": {
 					"@timestamp": {
@@ -2227,15 +2227,104 @@ var AggregationTests = []AggregationTestCase{
 					}
 				}
 			},
-			"track_total_hits":true
+			"track_total_hits": true
 		}`,
-		``,
-		[][]model.QueryResultRow{
-			{},
-			{},
-			{},
+		ExpectedResponse: `
+		{
+			"took": 180,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 4675,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"stats": {
+					"doc_count_error_upper_bound": 0,
+					"sum_other_doc_count": 4139,
+					"buckets": [
+						{
+							"key": "27",
+							"doc_count": 348,
+							"series": {
+								"buckets": [
+									{
+										"key_as_string": "2024-04-18T00:00:00.000",
+										"key": 1713398400000,
+										"doc_count": 85
+									},
+									{
+										"key_as_string": "2024-04-25T00:00:00.000",
+										"key": 1714003200000,
+										"doc_count": 79
+									}
+								]
+							}
+						},
+						{
+							"key": "52",
+							"doc_count": 188,
+							"series": {
+								"buckets": [
+									{
+										"key_as_string": "2024-04-18T00:00:00.000",
+										"key": 1713398400000,
+										"doc_count": 35
+									}
+								]
+							}
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4675))}}},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("event.dataset", "27"),
+					model.NewQueryResultCol("timestamp", int64(1713398400000/60000)),
+					model.NewQueryResultCol("doc_count", 85),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("event.dataset", "27"),
+					model.NewQueryResultCol("timestamp", int64(1714003200000/60000)),
+					model.NewQueryResultCol("doc_count", 79),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("event.dataset", "52"),
+					model.NewQueryResultCol("key_as_string", int64(1713398400000/60000)),
+					model.NewQueryResultCol("doc_count", 35),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "27"), model.NewQueryResultCol("doc_count", 348)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "52"), model.NewQueryResultCol("doc_count", 188)}},
+			},
 		},
-		[]string{`TODO`, `TODO`, `TODO`},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + QuotedTableName + ` ` +
+				`WHERE "@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z') `,
+			`SELECT "event.dataset", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/60000), count() " +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z')  ` +
+				`GROUP BY ("event.dataset", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/60000)) " +
+				`ORDER BY ("event.dataset", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/60000))",
+			`SELECT "event.dataset", count() FROM ` + QuotedTableName + ` ` +
+				`WHERE "@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z')  ` +
+				`GROUP BY ("event.dataset") ORDER BY ("event.dataset")`,
+		},
 	},
 	{ // [14], "old" test, also can be found in testdata/requests.go TestAsyncSearch[5]
 		// Copied it also here to be more sure we do not create some regression
@@ -2456,20 +2545,21 @@ var AggregationTests = []AggregationTestCase{
 		},
 	},
 	{ // [16]
-		"simple terms, seen at client's",
-		`{
+		TestName: "simple terms, seen at client's",
+		QueryRequestJson: `
+		{
 			"_source": {
 				"excludes": []
 			},
 			"aggs": {
 				"0": {
 					"terms": {
-						"field": "ip_masked",
+						"field": "message",
 						"order": {
 							"_count": "desc"
 						},
 						"shard_size": 25,
-						"size": 5
+						"size": 3
 					}
 				}
 			},
@@ -2505,17 +2595,59 @@ var AggregationTests = []AggregationTestCase{
 			],
 			"track_total_hits": true
 		}`,
-		``,
-		[][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1049))}}},
+		ExpectedResponse: `
+		{
+			"took": 0,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"failed": 0,
+				"skipped": 0
+			},
+			"hits": {
+				"total": {
+					"value": 15750,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"0": {
+					"buckets": [
+						{
+							"doc_count": 1700,
+							"key": "User created"
+						},
+						{
+							"doc_count": 1781,
+							"key": "User deleted"
+						},
+						{
+							"doc_count": 1757,
+							"key": "User logged in"
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(15750))}}},
 			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19772)), model.NewQueryResultCol("doc_count", uint64(31))}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19773)), model.NewQueryResultCol("doc_count", uint64(158))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "User created"), model.NewQueryResultCol("doc_count", uint64(1700))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "User deleted"), model.NewQueryResultCol("doc_count", uint64(1781))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "User logged in"), model.NewQueryResultCol("doc_count", uint64(1757))}},
 			},
 		},
-		[]string{
-			`TODO`,
-			`TODO`,
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + QuotedTableName + ` ` +
+				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z') `,
+			`SELECT "message", count() FROM ` + QuotedTableName + ` ` +
+				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z')  ` +
+				`GROUP BY ("message") ORDER BY ("message")`,
 		},
 	},
 	{ // [17]
@@ -2691,7 +2823,7 @@ var AggregationTests = []AggregationTestCase{
 		},
 	},
 	{ // [18]
-		"probably shorten the response",
+		"",
 		`{
     "_source": {
         "excludes": []
