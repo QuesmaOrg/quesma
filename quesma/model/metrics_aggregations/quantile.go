@@ -3,6 +3,7 @@ package metrics_aggregations
 import (
 	"context"
 	"math"
+	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"strconv"
@@ -10,12 +11,13 @@ import (
 )
 
 type Quantile struct {
-	ctx   context.Context
-	keyed bool // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-aggregation.html#_keyed_response_6
+	ctx       context.Context
+	keyed     bool // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-aggregation.html#_keyed_response_6
+	fieldType clickhouse.DateTimeType
 }
 
-func NewQuantile(ctx context.Context, keyed bool) Quantile {
-	return Quantile{ctx, keyed}
+func NewQuantile(ctx context.Context, keyed bool, fieldType clickhouse.DateTimeType) Quantile {
+	return Quantile{ctx, keyed, fieldType}
 }
 
 func (query Quantile) IsBucketAggregation() bool {

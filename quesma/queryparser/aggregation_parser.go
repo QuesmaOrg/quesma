@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/barkimedes/go-deepcopy"
+	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
@@ -32,13 +33,16 @@ type aggrQueryBuilder struct {
 
 type metricsAggregation struct {
 	AggrType    string
-	FieldNames  []string      // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
-	Percentiles model.JsonMap // Only for percentiles aggregation
-	Keyed       bool          // Only for percentiles aggregation
-	SortBy      string        // Only for top_metrics
-	Size        int           // Only for top_metrics
-	Order       string        // Only for top_metrics
+	FieldNames  []string                // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
+	FieldType   clickhouse.DateTimeType // field type of FieldNames[0]. If it's a date field, a slightly different response is needed
+	Percentiles model.JsonMap           // Only for percentiles aggregation
+	Keyed       bool                    // Only for percentiles aggregation
+	SortBy      string                  // Only for top_metrics
+	Size        int                     // Only for top_metrics
+	Order       string                  // Only for top_metrics
 }
+
+const metricsAggregationDefaultFieldType = clickhouse.Invalid
 
 func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.QueryWithAggregation {
 	query := b.QueryWithAggregation
@@ -155,19 +159,19 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	}
 	switch metricsAggr.AggrType {
 	case "sum":
-		query.Type = metrics_aggregations.NewSum(b.ctx)
+		query.Type = metrics_aggregations.NewSum(b.ctx, metricsAggr.FieldType)
 	case "min":
-		query.Type = metrics_aggregations.NewMin(b.ctx)
+		query.Type = metrics_aggregations.NewMin(b.ctx, metricsAggr.FieldType)
 	case "max":
-		query.Type = metrics_aggregations.NewMax(b.ctx)
+		query.Type = metrics_aggregations.NewMax(b.ctx, metricsAggr.FieldType)
 	case "avg":
-		query.Type = metrics_aggregations.NewAvg(b.ctx)
+		query.Type = metrics_aggregations.NewAvg(b.ctx, metricsAggr.FieldType)
 	case "stats":
 		query.Type = metrics_aggregations.NewStats(b.ctx)
 	case "cardinality":
 		query.Type = metrics_aggregations.NewCardinality(b.ctx)
 	case "quantile":
-		query.Type = metrics_aggregations.NewQuantile(b.ctx, metricsAggr.Keyed)
+		query.Type = metrics_aggregations.NewQuantile(b.ctx, metricsAggr.Keyed, metricsAggr.FieldType)
 	case "top_hits":
 		query.Type = metrics_aggregations.NewTopHits(b.ctx)
 	case "top_metrics":
@@ -427,9 +431,11 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 	metricsAggregations := []string{"sum", "avg", "min", "max", "cardinality", "value_count", "stats"}
 	for k, v := range queryMap {
 		if slices.Contains(metricsAggregations, k) {
+			fieldName := cw.parseFieldField(v, k)
 			return metricsAggregation{
 				AggrType:   k,
-				FieldNames: []string{cw.parseFieldField(v, k)},
+				FieldNames: []string{fieldName},
+				FieldType:  cw.Table.GetDateTimeType(cw.Ctx, fieldName),
 			}, true
 		}
 	}
@@ -443,6 +449,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		return metricsAggregation{
 			AggrType:    "quantile",
 			FieldNames:  []string{fieldName},
+			FieldType:   cw.Table.GetDateTimeType(cw.Ctx, fieldName),
 			Percentiles: percentiles,
 			Keyed:       keyed,
 		}, true
@@ -473,6 +480,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		return metricsAggregation{
 			AggrType:   "top_hits",
 			FieldNames: fieldsAsStrings,
+			FieldType:  metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
 		}, true
 	}
 
@@ -502,6 +510,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		return metricsAggregation{
 			AggrType:   "percentile_ranks",
 			FieldNames: fieldNames,
+			FieldType:  metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
 		}, true
 	}
 

@@ -2,6 +2,7 @@ package metrics_aggregations
 
 import (
 	"context"
+	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 )
@@ -20,4 +21,13 @@ func metricsTranslateSqlResponseToJson(ctx context.Context, rows []model.QueryRe
 	return []model.JsonMap{{
 		"value": value,
 	}}
+}
+
+func metricsTranslateSqlResponseToJsonWithFieldTypeCheck(
+	ctx context.Context, rows []model.QueryResultRow, level int, fieldType clickhouse.DateTimeType) []model.JsonMap {
+	if fieldType == clickhouse.Invalid {
+		// if it's not a date, we do just a normal response
+		return metricsTranslateSqlResponseToJson(ctx, rows, level)
+	}
+	
 }

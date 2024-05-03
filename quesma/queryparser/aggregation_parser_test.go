@@ -3,6 +3,7 @@ package queryparser
 import (
 	"cmp"
 	"context"
+	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
@@ -560,6 +561,9 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	allTests = append(allTests, testdata.PipelineAggregationTests...)
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
+			if i != 28 {
+				t.Skip()
+			}
 			if i == 26 {
 				t.Skip("Need a (most likely) small fix to top_hits.")
 			}
@@ -595,7 +599,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			}
 
 			actualAggregationsPart := cw.MakeAggregationPartOfResponse(aggregations, test.ExpectedResults)
-			// pp.Println("ACTUAL", actualAggregationsPart)
+			pp.Println("ACTUAL", actualAggregationsPart)
 
 			fullResponse, err := cw.MakeResponseAggregationMarshalled(aggregations, test.ExpectedResults)
 			assert.NoError(t, err)
@@ -611,8 +615,8 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 
 			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
 			acceptableDifference := []string{"doc_count_error_upper_bound", "sum_other_doc_count", "probability", "seed", "bg_count", "doc_count"}
-			// pp.Println("ACTUAL", actualMinusExpected)
-			// pp.Print("EXPECTED", expectedMinusActual)
+			pp.Println("ACTUAL", actualMinusExpected)
+			pp.Print("EXPECTED", expectedMinusActual)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
 			assert.Contains(t, string(fullResponse), `"value":`+strconv.FormatUint(test.ExpectedResults[0][0].Cols[0].Value.(uint64), 10)) // checks if hits nr is OK

@@ -620,4 +620,430 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`WHERE "epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z' `,
 		},
 	},
+	{ // [4]
+		TestName: "Max on DateTime field. Reproduce: Visualize -> Line: Metrics -> Max @timestamp, Buckets: Add X-Asis, Aggregation: Significant Terms",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"max": {
+								"field": "timestamp"
+							}
+						}
+					},
+					"significant_terms": {
+						"field": "response.keyword",
+						"size": 3
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-04-18T00:49:59.517Z",
+									"lte": "2024-05-03T00:49:59.517Z"
+								}
+							}
+						}
+					],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: // erased "2": "bg_count": 14074, "doc_count": 2786 from the real response. It should be there in 'significant_terms' (not in 'terms'), but it seems to work without it.
+		`{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"1": {
+								"value": 1714687096297.0,
+								"value_as_string": "2024-05-02T21:58:16.297Z"
+							},
+							"bg_count": 2570,
+							"doc_count": 2570,
+							"key": "200",
+							"score": 2570
+						},
+						{
+							"1": {
+								"value": 1714665552949.0,
+								"value_as_string": "2024-05-02T15:59:12.949Z"
+							},
+							"bg_count": 94,
+							"doc_count": 94,
+							"key": "503",
+							"score": 94
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 2786
+				}
+			},
+			"timed_out": false,
+			"took": 91
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2786))}}},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("response", "200"),
+					model.NewQueryResultCol(`max("timestamp")`, "2024-05-02T21:58:16.297Z"),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("response", "503"),
+					model.NewQueryResultCol(`max("timestamp")`, "2024-05-02T15:59:12.949Z"),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("response", "200"),
+					model.NewQueryResultCol(`doc_count`, 2570),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("response", "503"),
+					model.NewQueryResultCol(`doc_count`, 94),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z') `,
+			`SELECT "response", max("timestamp") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z')  ` +
+				`GROUP BY ("response") ` +
+				`ORDER BY ("response")`,
+			`SELECT "response", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z')  ` +
+				`GROUP BY ("response") ` +
+				`ORDER BY ("response")`,
+		},
+	},
+	{ // [5]
+		TestName: "Min on DateTime field. Reproduce: Visualize -> Line: Metrics -> Min @timestamp, Buckets: Add X-Asis, Aggregation: Significant Terms",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"min": {
+								"field": "timestamp"
+							}
+						}
+					},
+					"significant_terms": {
+						"field": "response.keyword",
+						"size": 3
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-04-18T00:51:00.471Z",
+									"lte": "2024-05-03T00:51:00.471Z"
+								}
+							}
+						}
+					],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"bg_count": 14074,
+					"buckets": [
+						{
+							"1": {
+								"value": 1713659942912.0,
+								"value_as_string": "2024-04-21T00:39:02.912Z"
+							},
+							"bg_count": 12832,
+							"doc_count": 2570,
+							"key": "200",
+							"score": 0.010843301523130379
+						},
+						{
+							"1": {
+								"value": 1713670225131.0,
+								"value_as_string": "2024-04-21T03:30:25.131Z"
+							},
+							"bg_count": 441,
+							"doc_count": 94,
+							"key": "503",
+							"score": 0.0025904599032482625
+						}
+					],
+					"doc_count": 2786
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 2786
+				}
+			},
+			"timed_out": false,
+			"took": 15
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{},
+		ExpectedSQLs:    []string{},
+	},
+	{ // [6]
+		TestName: "Percentiles on DateTime field. Reproduce: Visualize -> Line: Metrics -> Percentiles (or Median, it's the same aggregation) @timestamp, Buckets: Add X-Asis, Aggregation: Significant Terms",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"percentiles": {
+								"field": "timestamp",
+								"keyed": false,
+								"percents": [1, 5, 25, 50, 75, 95, 99]
+							}
+						}
+					},
+					"significant_terms": {
+						"field": "response.keyword",
+						"size": 3
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-04-18T00:51:15.845Z",
+									"lte": "2024-05-03T00:51:15.845Z"
+								}
+							}
+						}
+					],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"bg_count": 14074,
+					"buckets": [
+						{
+							"1": {
+								"values": [
+									{
+										"key": 1.0,
+										"value": 1713679873619.2,
+										"value_as_string": "2024-04-21T06:11:13.619Z"
+									},
+									{
+										"key": 5.0,
+										"value": 1713702073414.0,
+										"value_as_string": "2024-04-21T12:21:13.414Z"
+									},
+									{
+										"key": 25.0,
+										"value": 1713898065613.0,
+										"value_as_string": "2024-04-23T18:47:45.613Z"
+									},
+									{
+										"key": 50.0,
+										"value": 1714163505522.0,
+										"value_as_string": "2024-04-26T20:31:45.522Z"
+									},
+									{
+										"key": 75.0,
+										"value": 1714419555029.0,
+										"value_as_string": "2024-04-29T19:39:15.029Z"
+									},
+									{
+										"key": 95.0,
+										"value": 1714649082507.6,
+										"value_as_string": "2024-05-02T11:24:42.507Z"
+									},
+									{
+										"key": 99.0,
+										"value": 1714666168003.8,
+										"value_as_string": "2024-05-02T16:09:28.003Z"
+									}
+								]
+							},
+							"bg_count": 12832,
+							"doc_count": 2570,
+							"key": "200",
+							"score": 0.010843301523130379
+						}
+					],
+					"doc_count": 2786
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 2786
+				}
+			},
+			"timed_out": false,
+			"took": 9
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{},
+		ExpectedSQLs:    []string{},
+	},
 }
