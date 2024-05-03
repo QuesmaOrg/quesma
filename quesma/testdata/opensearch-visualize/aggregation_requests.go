@@ -865,20 +865,20 @@ var AggregationTests = []testdata.AggregationTestCase{
 								"value": 1713659942912.0,
 								"value_as_string": "2024-04-21T00:39:02.912Z"
 							},
-							"bg_count": 12832,
+							"bg_count": 2570,
 							"doc_count": 2570,
 							"key": "200",
-							"score": 0.010843301523130379
+							"score": 2570
 						},
 						{
 							"1": {
 								"value": 1713670225131.0,
 								"value_as_string": "2024-04-21T03:30:25.131Z"
 							},
-							"bg_count": 441,
+							"bg_count": 94,
 							"doc_count": 94,
 							"key": "503",
-							"score": 0.0025904599032482625
+							"score": 94
 						}
 					],
 					"doc_count": 2786
@@ -895,8 +895,46 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 15
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{},
-		ExpectedSQLs:    []string{},
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2786))}}},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("response", "200"),
+					model.NewQueryResultCol(`min("timestamp")`, "2024-04-21T00:39:02.912Z"),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("response", "503"),
+					model.NewQueryResultCol(`min("timestamp")`, "2024-04-21T03:30:25.131Z"),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("response", "200"),
+					model.NewQueryResultCol(`doc_count`, 2570),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("response", "503"),
+					model.NewQueryResultCol(`doc_count`, 94),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z') `,
+			`SELECT "response", min("timestamp") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z')  ` +
+				`GROUP BY ("response") ` +
+				`ORDER BY ("response")`,
+			`SELECT "response", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z')  ` +
+				`GROUP BY ("response") ` +
+				`ORDER BY ("response")`,
+		},
 	},
 	{ // [6]
 		TestName: "Percentiles on DateTime field. Reproduce: Visualize -> Line: Metrics -> Percentiles (or Median, it's the same aggregation) @timestamp, Buckets: Add X-Asis, Aggregation: Significant Terms",
@@ -912,7 +950,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"percentiles": {
 								"field": "timestamp",
 								"keyed": false,
-								"percents": [1, 5, 25, 50, 75, 95, 99]
+								"percents": [1, 2, 25, 50, 75, 95, 99]
 							}
 						}
 					},
@@ -981,18 +1019,18 @@ var AggregationTests = []testdata.AggregationTestCase{
 			},
 			"aggregations": {
 				"2": {
-					"bg_count": 14074,
+					"bg_count": 2786,
 					"buckets": [
 						{
 							"1": {
 								"values": [
 									{
 										"key": 1.0,
-										"value": 1713679873619.2,
+										"value": 1713679873619.0,
 										"value_as_string": "2024-04-21T06:11:13.619Z"
 									},
 									{
-										"key": 5.0,
+										"key": 2,
 										"value": 1713702073414.0,
 										"value_as_string": "2024-04-21T12:21:13.414Z"
 									},
@@ -1013,20 +1051,20 @@ var AggregationTests = []testdata.AggregationTestCase{
 									},
 									{
 										"key": 95.0,
-										"value": 1714649082507.6,
+										"value": 1714649082507.0,
 										"value_as_string": "2024-05-02T11:24:42.507Z"
 									},
 									{
 										"key": 99.0,
-										"value": 1714666168003.8,
+										"value": 1714666168003.0,
 										"value_as_string": "2024-05-02T16:09:28.003Z"
 									}
 								]
 							},
-							"bg_count": 12832,
+							"bg_count": 2570,
 							"doc_count": 2570,
 							"key": "200",
-							"score": 0.010843301523130379
+							"score": 2570
 						}
 					],
 					"doc_count": 2786
@@ -1043,7 +1081,45 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 9
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{},
-		ExpectedSQLs:    []string{},
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2786))}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("response", "200"),
+				model.NewQueryResultCol(`quantile_1`, []string{"2024-04-21T06:11:13.619Z"}),
+				model.NewQueryResultCol(`quantile_2`, []string{"2024-04-21T12:21:13.414Z"}),
+				model.NewQueryResultCol(`quantile_25`, []string{"2024-04-23T18:47:45.613Z"}),
+				model.NewQueryResultCol(`quantile_50`, []string{"2024-04-26T20:31:45.522Z"}),
+				model.NewQueryResultCol(`quantile_75`, []string{"2024-04-29T19:39:15.029Z"}),
+				model.NewQueryResultCol(`quantile_95`, []string{"2024-05-02T11:24:42.507Z"}),
+				model.NewQueryResultCol(`quantile_99`, []string{"2024-05-02T16:09:28.003Z"}),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("response", "200"),
+				model.NewQueryResultCol(`doc_count`, 2570),
+			}}},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z') `,
+			`SELECT "response", ` +
+				"quantiles(0.010000)(`timestamp`) AS `quantile_1`, " +
+				"quantiles(0.020000)(`timestamp`) AS `quantile_2`, " +
+				"quantiles(0.250000)(`timestamp`) AS `quantile_25`, " +
+				"quantiles(0.500000)(`timestamp`) AS `quantile_50`, " +
+				"quantiles(0.750000)(`timestamp`) AS `quantile_75`, " +
+				"quantiles(0.950000)(`timestamp`) AS `quantile_95`, " +
+				"quantiles(0.990000)(`timestamp`) AS `quantile_99` " +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')  ` +
+				`GROUP BY ("response") ` +
+				`ORDER BY ("response")`,
+			`SELECT "response", count() FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')  ` +
+				`GROUP BY ("response") ` +
+				`ORDER BY ("response")`,
+		},
 	},
 }

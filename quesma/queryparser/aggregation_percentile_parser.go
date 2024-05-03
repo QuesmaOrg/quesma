@@ -3,12 +3,11 @@ package queryparser
 import (
 	"fmt"
 	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
 )
 
 const maxPrecision = 0.999999
 
-var defaultPercentiles = model.JsonMap{
+var defaultPercentiles = map[string]float64{
 	"1.0":  0.01,
 	"5.0":  0.05,
 	"25.0": 0.25,
@@ -20,7 +19,7 @@ var defaultPercentiles = model.JsonMap{
 
 const keyedDefaultValue = true
 
-func (cw *ClickhouseQueryTranslator) parsePercentilesAggregation(queryMap QueryMap) (fieldName string, keyed bool, percentiles model.JsonMap) {
+func (cw *ClickhouseQueryTranslator) parsePercentilesAggregation(queryMap QueryMap) (fieldName string, keyed bool, percentiles map[string]float64) {
 	fieldName = cw.parseFieldField(queryMap, "percentile")
 	if keyedQueryMap, ok := queryMap["keyed"]; ok {
 		if keyed, ok = keyedQueryMap.(bool); !ok {
@@ -40,7 +39,7 @@ func (cw *ClickhouseQueryTranslator) parsePercentilesAggregation(queryMap QueryM
 		logger.WarnWithCtx(cw.Ctx).Msgf("percents specified for percentiles aggregation is not an array. Querymap: %v", queryMap)
 		return fieldName, keyed, defaultPercentiles
 	}
-	userSpecifiedPercents := make(model.JsonMap, len(userInput))
+	userSpecifiedPercents := make(map[string]float64, len(userInput))
 	for _, p := range userInput {
 		asFloat, ok := p.(float64)
 		if !ok {

@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/model/bucket_aggregations"
 	"mitmproxy/quesma/model/metrics_aggregations"
 	"mitmproxy/quesma/model/pipeline_aggregations"
+	"mitmproxy/quesma/util"
 	"slices"
 	"strconv"
 	"strings"
@@ -35,7 +36,7 @@ type metricsAggregation struct {
 	AggrType    string
 	FieldNames  []string                // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
 	FieldType   clickhouse.DateTimeType // field type of FieldNames[0]. If it's a date field, a slightly different response is needed
-	Percentiles model.JsonMap           // Only for percentiles aggregation
+	Percentiles map[string]float64      // Only for percentiles aggregation
 	Keyed       bool                    // Only for percentiles aggregation
 	SortBy      string                  // Only for top_metrics
 	Size        int                     // Only for top_metrics
@@ -91,7 +92,10 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "sum", "min", "max", "avg":
 		query.NonSchemaFields = append(query.NonSchemaFields, metricsAggr.AggrType+`OrNull("`+getFirstFieldName()+`")`)
 	case "quantile":
-		for usersPercent, percentAsFloat := range metricsAggr.Percentiles {
+		// sorting here useful mostly for determinism in tests. We could safely remove it.
+		usersPercents := util.MapKeysSortedByValue(metricsAggr.Percentiles)
+		for _, usersPercent := range usersPercents {
+			percentAsFloat := metricsAggr.Percentiles[usersPercent]
 			query.NonSchemaFields = append(query.NonSchemaFields, fmt.Sprintf(
 				"quantiles(%6f)(`%s`) AS `quantile_%s`", percentAsFloat, getFirstFieldName(), usersPercent))
 		}

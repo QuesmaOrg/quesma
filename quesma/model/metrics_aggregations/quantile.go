@@ -6,8 +6,10 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/util"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Quantile struct {
@@ -26,6 +28,7 @@ func (query Quantile) IsBucketAggregation() bool {
 
 func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	valueMap := make(model.JsonMap)
+	valueAsStringMap := make(model.JsonMap)
 
 	if len(rows) == 0 {
 		return emptyPercentilesResult
@@ -36,27 +39,22 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 
 	for _, res := range rows[0].Cols {
 		if strings.HasPrefix(res.ColName, "quantile") {
-			percentile, ok := res.Value.([]float64)
-			if !ok {
-				logger.WarnWithCtx(query.ctx).Msgf(
-					"failed to convert percentile values to []float64, type: %T, value: %v. Skipping", res.Value, res.Value)
-				continue
-			}
+			// error handling is moved to processResult
+			percentile, percentileAsString, percentileIsNanOrInvalid := query.processResult(res.ColName, res.Value)
 			percentileName, _ := strings.CutPrefix(res.ColName, "quantile_")
-
 			// percentileName can't be an integer (doesn't work in Kibana that way), so we need to add .0 if it's missing
 			dotIndex := strings.Index(percentileName, ".")
 			if dotIndex == -1 {
 				percentileName += ".0"
 			}
 
-			if len(percentile) == 0 {
-				logger.WarnWithCtx(query.ctx).Msgf("empty percentile values for %s", percentileName)
-			}
-			if len(percentile) == 0 || math.IsNaN(percentile[0]) {
+			if percentileIsNanOrInvalid {
 				valueMap[percentileName] = nil
 			} else {
-				valueMap[percentileName] = percentile[0]
+				valueMap[percentileName] = percentile
+				if percentileAsString != nil {
+					valueAsStringMap[percentileName] = *percentileAsString
+				}
 			}
 		}
 	}
@@ -67,12 +65,18 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 		}}
 	} else {
 		var values []model.JsonMap
-		for key, value := range valueMap {
+		keysSorted := util.MapKeysSorted(valueMap)
+		for _, key := range keysSorted {
+			value := valueMap[key]
 			keyAsFloat, _ := strconv.ParseFloat(key, 64)
-			values = append(values, model.JsonMap{
+			responseValue := model.JsonMap{
 				"key":   keyAsFloat,
 				"value": value,
-			})
+			}
+			if _, exists := valueAsStringMap[key]; exists {
+				responseValue["value_as_string"] = valueAsStringMap[key]
+			}
+			values = append(values, responseValue)
 		}
 		return []model.JsonMap{{
 			"values": values,
@@ -82,6 +86,69 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 
 func (query Quantile) String() string {
 	return "quantile"
+}
+
+// processResult processes the result of a single quantile value from Clickhouse, and handles all errors encountered.
+// Unfortunately valueFromClickhouse is an array, even though we're only interested in [0] index.
+// It makes this function a bit messy.
+// That can be changed by changing the Clickhouse query, from `quantiles` to `quantile`, but it's well tested already + more general,
+// I'd keep as it is for now, unless we find some further problems with it.
+//
+// Returns:
+//   - percentile: float64 value of the percentile (or NaN if it's invalid)
+//   - percentileAsString: string representation of the percentile
+//     (or nil if we don't have it/don't need it - we'll just omit it in the response and that's fine)
+//   - percentileIsNanOrInvalid: true if the percentile is NaN or invalid. We know we'll need to return nil in the response
+func (query Quantile) processResult(colName string, percentileReturnedByClickhouse any) (
+	percentile float64, percentileAsString *string, percentileIsNanOrInvalid bool) {
+	var percentileAsArrayLen int
+	// We never return from this switch preemptively to make code easier,
+	// assumption is following: we know something is wrong if after the switch either
+	// a) percentileAsArrayLen == 0, or b) percentileIsNanOrInvalid == true. Else => we're good.
+	switch percentileTyped := percentileReturnedByClickhouse.(type) {
+	case []float64:
+		percentileAsArrayLen = len(percentileTyped)
+		if len(percentileTyped) > 0 {
+			percentileIsNanOrInvalid = math.IsNaN(percentileTyped[0])
+			percentile = percentileTyped[0]
+		}
+	case []string:
+		percentileAsArrayLen = len(percentileTyped)
+		if len(percentileTyped) > 0 {
+			asTime, err := time.Parse(time.RFC3339Nano, percentileTyped[0])
+			if err == nil {
+				percentile = float64(asTime.UnixMilli())
+				percentileAsString = &percentileTyped[0]
+			} else {
+				logger.ErrorWithCtx(query.ctx).Msgf("failed to parse time: %v", err)
+				percentileIsNanOrInvalid = true
+			}
+		}
+	case []any:
+		percentileAsArrayLen = len(percentileTyped)
+		if len(percentileTyped) > 0 {
+			switch percentileTyped[0].(type) {
+			case float64:
+				return query.processResult(colName, []float64{percentileTyped[0].(float64)})
+			case string:
+				return query.processResult(colName, []string{percentileTyped[0].(string)})
+			default:
+				logger.WarnWithCtx(query.ctx).Msgf("unexpected type in percentile array: %T, array: %v", percentileTyped[0], percentileTyped)
+				percentileIsNanOrInvalid = true
+			}
+		}
+	default:
+		logger.WarnWithCtx(query.ctx).Msgf("unexpected type in percentile array: %T, value: %v", percentileReturnedByClickhouse, percentileReturnedByClickhouse)
+		percentileIsNanOrInvalid = true
+	}
+	if percentileAsArrayLen == 0 {
+		logger.WarnWithCtx(query.ctx).Msgf("empty percentile values for %s", colName)
+		return math.NaN(), nil, true
+	}
+	if percentileIsNanOrInvalid {
+		return math.NaN(), nil, true
+	}
+	return percentile, percentileAsString, percentileIsNanOrInvalid
 }
 
 var emptyPercentilesResult = []model.JsonMap{{
