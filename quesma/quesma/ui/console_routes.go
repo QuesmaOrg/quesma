@@ -107,11 +107,6 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		_, _ = writer.Write(buf)
 	})
 
-	router.HandleFunc("/panel/dashboard-traffic", func(writer http.ResponseWriter, req *http.Request) {
-		buf := qmc.generateDashboardTrafficPanel()
-		_, _ = writer.Write(buf)
-	})
-
 	router.PathPrefix("/request-Id/{requestId}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		buf := qmc.generateReportForRequestId(vars["requestId"])
