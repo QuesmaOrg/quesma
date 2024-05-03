@@ -239,8 +239,15 @@ func statusToDiv(s healthCheckStatus) string {
 func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	var buffer HtmlBuffer
 
+	dashboardName := "<h3>Kibana</h3>"
+	storeName := "<h3>Elasticsearch</h3>"
+	if qmc.config.Elasticsearch.Url != nil && strings.Contains(qmc.config.Elasticsearch.Url.String(), "opensearch") {
+		dashboardName = "<h3>OpenSearch</h3><h3>Dashboards</h3>"
+		storeName = "<h3>OpenSearch</h3>"
+	}
+
 	buffer.Html(`<div id="dashboard-kibana" class="component">`)
-	buffer.Html(`<h3>Kibana</h3>`)
+	buffer.Html(dashboardName)
 	buffer.Html(statusToDiv(qmc.checkKibana()))
 	buffer.Html(`</div>`)
 
@@ -250,7 +257,7 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	buffer.Html(`</div>`)
 
 	buffer.Html(`<div id="dashboard-elasticsearch" class="component">`)
-	buffer.Html(`<h3>Elastic</h3><h3>search</h3>`)
+	buffer.Html(storeName)
 	buffer.Html(statusToDiv(qmc.checkElasticsearch()))
 	buffer.Html(`</div>`)
 
