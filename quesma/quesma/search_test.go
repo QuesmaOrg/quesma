@@ -431,7 +431,6 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			assert.Equal(t, 1, managementConsole.GetTotalUnsupportedQueries())
 			assert.Equal(t, 1, managementConsole.GetSavedUnsupportedQueries())
 			assert.Equal(t, 1, len(managementConsole.GetUnsupportedTypesWithCount()))
-			return
 		})
 	}
 }

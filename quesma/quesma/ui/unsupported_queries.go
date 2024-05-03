@@ -8,17 +8,11 @@ import (
 	"mitmproxy/quesma/tracing"
 	"regexp"
 	"sort"
-	"sync"
 )
 
 const UnrecognizedQueryType = "unrecognized"
 
 var unsupportedSearchQueryRegex, _ = regexp.Compile(logger.Reason + `":"` + logger.ReasonPrefixUnsupportedQueryType + `([[:word:]]+)"`)
-
-type UnsupportedSearchQueries struct {
-	mutex                   sync.Mutex // it's a rare situation to not support some query, let's do everything here under this mutex for simplicity 	// how many we saved (max 10 per type)
-	totalUnsupportedQueries int        // we many we've seen total
-}
 
 func processUnsupportedLogMessage(log tracing.LogWithLevel) *string {
 	if log.Level != zerolog.ErrorLevel && log.Level != zerolog.WarnLevel { // only error and log
