@@ -634,17 +634,6 @@ func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 	buffer.Html("</div>\n")
 	buffer.Html("\n</main>\n\n")
 
-	buffer.Html(`<div class="menu">`)
-	buffer.Html("\n<h2>Menu</h2>")
-
-	buffer.Html(`<h3>Useful links</h3>`)
-	buffer.Html(`<ul>`)
-	buffer.Html(`<li><a href="http://localhost:5601/app/observability-log-explorer/">Kibana Log Explorer</a></li>`)
-	buffer.Html(`<li><a href="http://localhost:8081">mitmproxy</a></li>`)
-	buffer.Html(`<li><a href="http://localhost:8123/play">Clickhouse</a></li>`)
-	buffer.Html(`</ul>`)
-
-	buffer.Html("\n</div>")
 	buffer.Html("\n</body>")
 	buffer.Html("\n</html>")
 	return buffer.Bytes()
