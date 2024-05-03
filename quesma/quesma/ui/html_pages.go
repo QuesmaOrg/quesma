@@ -599,7 +599,7 @@ func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 	buffer.Html(`});`)
 	buffer.Html(`</script>` + "\n")
 
-	buffer.Html(`<svg width="100%" height="100%" viewBox="0 0 1000 1000">` + "\n")
+	buffer.Html(`<svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="none">` + "\n")
 	// One limitation is that, we don't update color of paths after initial draw.
 	// They rarely change, so it's not a big deal for now.
 	// Clickhouse -> Kibana

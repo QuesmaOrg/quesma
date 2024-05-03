@@ -334,7 +334,7 @@ func (qmc *QuesmaManagementConsole) generateDashboardTrafficElement(typeName str
 func (qmc *QuesmaManagementConsole) generateDashboardTrafficPanel() []byte {
 	var buffer HtmlBuffer
 
-	buffer.Html(`<svg width="100%" height="100%" viewBox="0 0 1000 1000">`)
+	buffer.Html(`<svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="none">`)
 
 	// Clickhouse -> Kibana
 	if qmc.config.ReadsFromClickhouse() {
