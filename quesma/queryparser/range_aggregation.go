@@ -63,10 +63,14 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 			interval.ToSQLSelectQuery(Range.QuotedFieldName),
 		)
 	}
-	if len(currentAggr.Aggregators) > 0 {
-		currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Empty = false
-	} else {
-		logger.ErrorWithCtx(cw.Ctx).Msg("no aggregators in currentAggr")
+	if !Range.Keyed {
+		// there's a difference in output structure whether the range is keyed or not
+		// it can be easily modeled in our code via setting last aggregator's .Empty to true/false
+		if len(currentAggr.Aggregators) > 0 {
+			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Empty = false
+		} else {
+			logger.ErrorWithCtx(cw.Ctx).Msg("no aggregators in currentAggr")
+		}
 	}
 	*aggregationsAccumulator = append(*aggregationsAccumulator, currentAggr.buildBucketAggregation(metadata))
 	currentAggr.NonSchemaFields = currentAggr.NonSchemaFields[:len(currentAggr.NonSchemaFields)-len(Range.Intervals)]
