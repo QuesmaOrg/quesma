@@ -27,7 +27,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 		if withLinks {
 			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
 		}
-		buffer.Html("<p>RequestID:").Text(v.Key).Html(" Path: ").Text(v.Value.Path).Html("</p>\n")
+		buffer.Html("<p>UUID:").Text(v.Key).Html(" Path: ").Text(v.Value.Path).Html("</p>\n")
 		buffer.Html(`<pre Id="query`).Text(v.Key).Html(`">`)
 		buffer.Text(string(v.Value.IncomingQueryBody))
 		buffer.Html("\n</pre>")
@@ -46,7 +46,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
 		}
 		tookStr := fmt.Sprintf(" took %d ms", v.Value.PrimaryTook.Milliseconds())
-		buffer.Html("<p>ResponseID:").Text(v.Key).Text(tookStr).Html("</p>\n")
+		buffer.Html("<p>UUID:").Text(v.Key).Text(tookStr).Html("</p>\n")
 		buffer.Html(`<pre Id="response`).Text(v.Key).Html(`">`)
 		if len(v.Value.QueryResp) > 0 {
 			buffer.Text(string(v.Value.QueryResp))
@@ -69,7 +69,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
 		}
 		tookStr := fmt.Sprintf(" took %d ms", v.Value.SecondaryTook.Milliseconds())
-		buffer.Html("<p>RequestID:").Text(v.Key).Text(tookStr).Html(errorBanner(v.Value)).Html("</p>\n")
+		buffer.Html("<p>UUID:").Text(v.Key).Text(tookStr).Html(errorBanner(v.Value)).Html("</p>\n")
 		buffer.Html(`<pre Id="second_query`).Text(v.Key).Html(`">`)
 		buffer.Text(sqlfmt.SqlPrettyPrint(v.Value.QueryBodyTranslated))
 		buffer.Html("\n</pre>")
@@ -87,7 +87,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 		if withLinks {
 			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
 		}
-		buffer.Html("<p>ResponseID:").Text(v.Key).Html(errorBanner(v.Value)).Html("</p>\n")
+		buffer.Html("<p>UUID:").Text(v.Key).Html(errorBanner(v.Value)).Html("</p>\n")
 		buffer.Html(`<pre Id="second_response`).Text(v.Key).Html(`">`)
 		if len(v.Value.QueryTranslatedResults) > 0 {
 			buffer.Text(string(v.Value.QueryTranslatedResults))

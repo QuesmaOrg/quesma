@@ -16,7 +16,7 @@ import (
 func TestHtmlPages(t *testing.T) {
 	xss := "<script>alert('xss')</script>"
 	xssBytes := []byte(xss)
-	id := "MagicId_123"
+	id := "b1c4a89e-4905-5e3c-b57f-dc92627d011e"
 	logChan := make(chan tracing.LogWithLevel, 5)
 	qmc := NewQuesmaManagementConsole(config.QuesmaConfiguration{}, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent())
 	qmc.PushPrimaryInfo(&QueryDebugPrimarySource{Id: id, QueryResp: xssBytes})

@@ -657,9 +657,9 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 
 	buffer := newBufferWithHead()
 	if requestFound {
-		buffer.Write(generateSimpleTop("Report for request Id " + requestId))
+		buffer.Write(generateSimpleTop("Report for request UUID " + requestId))
 	} else {
-		buffer.Write(generateSimpleTop("Report not found for request Id " + requestId))
+		buffer.Write(generateSimpleTop("Report not found for request UUID " + requestId))
 	}
 
 	buffer.Html(`<main id="queries">`)

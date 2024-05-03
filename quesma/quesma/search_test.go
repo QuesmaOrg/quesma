@@ -41,7 +41,7 @@ func TestNoAsciiTableName(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf(`SELECT * FROM "%s" `, tableName), query.String())
 }
 
-var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, "test")
+var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.GetRequestId())
 
 const tableName = `logs-generic-default`
 
