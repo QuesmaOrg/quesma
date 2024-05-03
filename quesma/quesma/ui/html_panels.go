@@ -246,8 +246,19 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 		storeName = "<h3>OpenSearch</h3>"
 	}
 
+	clickhouseName := "<h3>ClickHouse</h3>"
+	if qmc.config.Hydrolix.Url != nil {
+		clickhouseName = "<h3>Hydrolix</h3>"
+	}
+
 	buffer.Html(`<div id="dashboard-kibana" class="component">`)
+	if qmc.config.Elasticsearch.AdminUrl != nil {
+		buffer.Html(fmt.Sprintf(`<a href="%s">`, qmc.config.Elasticsearch.AdminUrl.String()))
+	}
 	buffer.Html(dashboardName)
+	if qmc.config.Elasticsearch.AdminUrl != nil {
+		buffer.Html(`</a>`)
+	}
 	buffer.Html(statusToDiv(qmc.checkKibana()))
 	buffer.Html(`</div>`)
 
@@ -262,7 +273,13 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	buffer.Html(`</div>`)
 
 	buffer.Html(`<div id="dashboard-clickhouse" class="component">`)
-	buffer.Html(`<h3>ClickHouse</h3>`)
+	if qmc.config.ClickHouse.AdminUrl != nil {
+		buffer.Html(fmt.Sprintf(`<a href="%s">`, qmc.config.ClickHouse.AdminUrl.String()))
+	}
+	buffer.Html(clickhouseName)
+	if qmc.config.ClickHouse.AdminUrl != nil {
+		buffer.Html(`</a>`)
+	}
 	buffer.Html(statusToDiv(qmc.checkClickhouseHealth()))
 	buffer.Html(`</div>`)
 
