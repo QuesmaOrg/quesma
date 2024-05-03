@@ -1,6 +1,7 @@
 package opensearch_visualize
 
 import (
+	"math"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/testdata"
 )
@@ -471,6 +472,152 @@ var AggregationTests = []testdata.AggregationTestCase{
 			`SELECT count(if("epoch_time_original">=0 AND "epoch_time_original"<1000, 1, NULL)), ` +
 				`count(if("epoch_time_original">=1000, 1, NULL)), count() FROM "logs-generic-default" ` +
 				`WHERE "epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z' `,
+		},
+	},
+	{ // [3]
+		TestName: `Range with subaggregations. Reproduce: Visualize -> Heat Map -> Metrics: Median, Buckets: X-Asis Range`,
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"percentiles": {
+								"field": "properties::entry_time",
+								"percents": [
+									50
+								]
+							}
+						}
+					},
+					"range": {
+						"field": "properties::exoestimation_connection_speedinkbps",
+						"keyed": true,
+						"ranges": [
+							{
+								"from": 0,
+								"to": 1000
+							},
+							{
+								"from": 1000,
+								"to": 2000
+							}
+						]
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "ts_time_druid",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"epoch_time": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-04-18T04:40:12.252Z",
+									"lte": "2024-05-03T04:40:12.252Z"
+								}
+							}
+						}
+					],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": {
+						"0.0-1000.0": {
+							"1": {
+								"values": {
+									"50.0": 46.9921875
+								}
+							},
+							"doc_count": 1,
+							"from": 0.0,
+							"to": 1000.0
+						},
+						"1000.0-2000.0": {
+							"1": {
+								"values": {
+									"50.0": null
+								}
+							},
+							"doc_count": 2,
+							"from": 1000.0,
+							"to": 2000.0
+						}
+					}
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 4
+				}
+			},
+			"timed_out": false,
+			"took": 95
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4))}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("quantile_50", []float64{46.9921875})}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("quantile_50", []float64{math.NaN()})}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("doc_count", 1),
+				model.NewQueryResultCol("doc_count", 2),
+				model.NewQueryResultCol("doc_count", 4),
+			}}},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z' `,
+			"SELECT quantiles(0.500000)(`properties::entry_time`) AS `quantile_50` " +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
+				`AND "properties::exoestimation_connection_speedinkbps">=0 AND "properties::exoestimation_connection_speedinkbps"<1000 `,
+			"SELECT quantiles(0.500000)(`properties::entry_time`) AS `quantile_50` " +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
+				`AND "properties::exoestimation_connection_speedinkbps">=1000 AND "properties::exoestimation_connection_speedinkbps"<2000 `,
+			`SELECT count(if("properties::exoestimation_connection_speedinkbps">=0 AND "properties::exoestimation_connection_speedinkbps"<1000, 1, NULL)), ` +
+				`count(if("properties::exoestimation_connection_speedinkbps">=1000 AND "properties::exoestimation_connection_speedinkbps"<2000, 1, NULL)), ` +
+				`count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z' `,
 		},
 	},
 }
