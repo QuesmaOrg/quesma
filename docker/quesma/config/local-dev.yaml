@@ -49,3 +49,9 @@ indexes:
         source: "@timestamp"
         target: "created_at"
     fullTextFields: [ "body", "title" ]
+  opensearch_dashboards_sample_data_ecommerce:
+    enabled: true
+  opensearch_dashboards_sample_data_flights:
+    enabled: true
+  opensearch_dashboards_sample_data_logs:
+    enabled: true
