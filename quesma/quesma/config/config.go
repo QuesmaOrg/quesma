@@ -55,6 +55,7 @@ type ElasticsearchConfiguration struct {
 	User     string `koanf:"user"`
 	Password string `koanf:"password"`
 	Call     bool   `koanf:"call"`
+	AdminUrl *Url   `koanf:"adminUrl"`
 }
 
 type RelationalDbConfiguration struct {
@@ -62,6 +63,7 @@ type RelationalDbConfiguration struct {
 	User     string `koanf:"user"`
 	Password string `koanf:"password"`
 	Database string `koanf:"database"`
+	AdminUrl *Url   `koanf:"adminUrl"`
 }
 
 func (c *RelationalDbConfiguration) IsEmpty() bool {

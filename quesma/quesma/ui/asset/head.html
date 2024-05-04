@@ -340,13 +340,17 @@
             position: absolute;
         }
 
-        #dashboard-main svg {
+        #dashboard-main {
+            width: 100%;
+        }
+
+        #dashboard-main #svg-container {
             z-index: -1;
             position: absolute;
             width: 60%;
             left: 20%;
-            height: 100%;
-            top: 0;
+            height: 60%;
+            top: 20%;
         }
 
         #dashboard-main svg path {
@@ -366,9 +370,9 @@
             }
         }
 
-        #dashboard-main svg text {
-            padding: 5px;
-            font-size: 1.5em;
+        #dashboard-main .traffic-element {
+            font-size: 1.3vw;
+            position: absolute;
         }
 
         #dashboard-main .red {

@@ -601,7 +601,8 @@ func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 	buffer.Html(`});`)
 	buffer.Html(`</script>` + "\n")
 
-	buffer.Html(`<svg width="100%" height="100%" viewBox="0 0 1000 1000">` + "\n")
+	buffer.Html(`<div id="svg-container">`)
+	buffer.Html(`<svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="none">` + "\n")
 	// One limitation is that, we don't update color of paths after initial draw.
 	// They rarely change, so it's not a big deal for now.
 	// Clickhouse -> Kibana
@@ -626,27 +627,14 @@ func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 		buffer.Html(fmt.Sprintf(`<path d="M 1000 800 L 0 800" fill="none" stroke="%s" />`, status))
 	}
 	buffer.Html(`</svg>` + "\n")
-
-	buffer.Html(`<div hx-get="/panel/dashboard-traffic" hx-trigger="every 1s [htmx.find('#autorefresh').checked]">`)
 	buffer.Write(qmc.generateDashboardTrafficPanel())
-	buffer.Html(`</div>`)
+	buffer.Html(`</div>` + "\n")
 
 	buffer.Html(`<div id="dashboard">` + "\n")
 	buffer.Write(qmc.generateDashboardPanel())
 	buffer.Html("</div>\n")
 	buffer.Html("\n</main>\n\n")
 
-	buffer.Html(`<div class="menu">`)
-	buffer.Html("\n<h2>Menu</h2>")
-
-	buffer.Html(`<h3>Useful links</h3>`)
-	buffer.Html(`<ul>`)
-	buffer.Html(`<li><a href="http://localhost:5601/app/observability-log-explorer/">Kibana Log Explorer</a></li>`)
-	buffer.Html(`<li><a href="http://localhost:8081">mitmproxy</a></li>`)
-	buffer.Html(`<li><a href="http://localhost:8123/play">Clickhouse</a></li>`)
-	buffer.Html(`</ul>`)
-
-	buffer.Html("\n</div>")
 	buffer.Html("\n</body>")
 	buffer.Html("\n</html>")
 	return buffer.Bytes()

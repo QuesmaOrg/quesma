@@ -103,11 +103,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 
 	router.HandleFunc("/panel/dashboard", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateDashboardPanel()
-		_, _ = writer.Write(buf)
-	})
-
-	router.HandleFunc("/panel/dashboard-traffic", func(writer http.ResponseWriter, req *http.Request) {
-		buf := qmc.generateDashboardTrafficPanel()
+		buf = append(buf, qmc.generateDashboardTrafficPanel()...)
 		_, _ = writer.Write(buf)
 	})
 

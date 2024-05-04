@@ -239,8 +239,26 @@ func statusToDiv(s healthCheckStatus) string {
 func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	var buffer HtmlBuffer
 
+	dashboardName := "<h3>Kibana</h3>"
+	storeName := "<h3>Elasticsearch</h3>"
+	if qmc.config.Elasticsearch.Url != nil && strings.Contains(qmc.config.Elasticsearch.Url.String(), "opensearch") {
+		dashboardName = "<h3>OpenSearch</h3><h3>Dashboards</h3>"
+		storeName = "<h3>OpenSearch</h3>"
+	}
+
+	clickhouseName := "<h3>ClickHouse</h3>"
+	if qmc.config.Hydrolix.Url != nil {
+		clickhouseName = "<h3>Hydrolix</h3>"
+	}
+
 	buffer.Html(`<div id="dashboard-kibana" class="component">`)
-	buffer.Html(`<h3>Kibana</h3>`)
+	if qmc.config.Elasticsearch.AdminUrl != nil {
+		buffer.Html(fmt.Sprintf(`<a href="%s">`, qmc.config.Elasticsearch.AdminUrl.String()))
+	}
+	buffer.Html(dashboardName)
+	if qmc.config.Elasticsearch.AdminUrl != nil {
+		buffer.Html(`</a>`)
+	}
 	buffer.Html(statusToDiv(qmc.checkKibana()))
 	buffer.Html(`</div>`)
 
@@ -250,12 +268,18 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	buffer.Html(`</div>`)
 
 	buffer.Html(`<div id="dashboard-elasticsearch" class="component">`)
-	buffer.Html(`<h3>Elastic</h3><h3>search</h3>`)
+	buffer.Html(storeName)
 	buffer.Html(statusToDiv(qmc.checkElasticsearch()))
 	buffer.Html(`</div>`)
 
 	buffer.Html(`<div id="dashboard-clickhouse" class="component">`)
-	buffer.Html(`<h3>ClickHouse</h3>`)
+	if qmc.config.ClickHouse.AdminUrl != nil {
+		buffer.Html(fmt.Sprintf(`<a href="%s">`, qmc.config.ClickHouse.AdminUrl.String()))
+	}
+	buffer.Html(clickhouseName)
+	if qmc.config.ClickHouse.AdminUrl != nil {
+		buffer.Html(`</a>`)
+	}
 	buffer.Html(statusToDiv(qmc.checkClickhouseHealth()))
 	buffer.Html(`</div>`)
 
@@ -328,34 +352,33 @@ func (qmc *QuesmaManagementConsole) generateDashboardTrafficText(typeName string
 
 func (qmc *QuesmaManagementConsole) generateDashboardTrafficElement(typeName string, y int) string {
 	status, text := qmc.generateDashboardTrafficText(typeName)
-	return fmt.Sprintf(`<text x="400" y="%d" class="%s" xml:space="preserve">%s</text>`, y, status, text)
+	return fmt.Sprintf(
+		`<div style="left: 40%%; top: %d%%" id="traffic-%s" hx-swap-oob="true" class="traffic-element %s">%s</div>`,
+		y, typeName, status, text)
 }
 
 func (qmc *QuesmaManagementConsole) generateDashboardTrafficPanel() []byte {
 	var buffer HtmlBuffer
 
-	buffer.Html(`<svg width="100%" height="100%" viewBox="0 0 1000 1000">`)
-
 	// Clickhouse -> Kibana
 	if qmc.config.ReadsFromClickhouse() {
-		buffer.Html(qmc.generateDashboardTrafficElement(RequestStatisticKibana2Clickhouse, 240))
+		buffer.Html(qmc.generateDashboardTrafficElement(RequestStatisticKibana2Clickhouse, 21))
 	}
 
 	// Elasticsearch -> Kibana
 	if qmc.config.ReadsFromElasticsearch() {
-		buffer.Html(qmc.generateDashboardTrafficElement(RequestStatisticKibana2Elasticsearch, 690))
+		buffer.Html(qmc.generateDashboardTrafficElement(RequestStatisticKibana2Elasticsearch, 66))
 	}
 
 	// Ingest -> Clickhouse
 	if qmc.config.WritesToClickhouse() {
-		buffer.Html(qmc.generateDashboardTrafficElement(RequestStatisticIngest2Clickhouse, 340))
+		buffer.Html(qmc.generateDashboardTrafficElement(RequestStatisticIngest2Clickhouse, 31))
 	}
 
 	// Ingest -> Elasticsearch
 	if qmc.config.WritesToElasticsearch() {
-		buffer.Html(qmc.generateDashboardTrafficElement(RequestStatisticIngest2Elasticsearch, 790))
+		buffer.Html(qmc.generateDashboardTrafficElement(RequestStatisticIngest2Elasticsearch, 76))
 	}
-	buffer.Html(`</svg>`)
 
 	return buffer.Bytes()
 }
