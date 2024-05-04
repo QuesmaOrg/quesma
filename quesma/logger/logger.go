@@ -25,10 +25,11 @@ var (
 )
 
 const (
-	RID     = "request_id" // request id key for the logger
-	Reason  = "reason"     // Known error reason key for the logger
-	Path    = "path"
-	AsyncId = "async_id"
+	RID                              = "request_id" // request id key for the logger
+	Reason                           = "reason"     // Known error reason key for the logger
+	Path                             = "path"
+	AsyncId                          = "async_id"
+	ReasonPrefixUnsupportedQueryType = "unsupported_search_query: " // Reason for Error messages for unsupported queries will start with this prefix
 )
 
 const (
@@ -38,7 +39,7 @@ const (
 
 var logger zerolog.Logger
 
-// Returns channel where log messages will be sent
+// InitLogger returns channel where log messages will be sent
 func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan struct{}, asyncQueryTraceLogger *tracing.AsyncTraceLogger) <-chan tracing.LogWithLevel {
 	zerolog.TimeFieldFormat = time.RFC3339Nano // without this we don't have milliseconds timestamp precision
 	var output io.Writer = zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.StampMilli}
@@ -114,6 +115,24 @@ func InitSimpleLoggerForTests() {
 		With().
 		Timestamp().
 		Logger()
+}
+
+func InitOnlyChannelLoggerForTests(cfg config.QuesmaConfiguration, asyncQueryTraceLogger *tracing.AsyncTraceLogger) <-chan tracing.LogWithLevel {
+	zerolog.TimeFieldFormat = time.RFC3339Nano           // without this we don't have milliseconds timestamp precision
+	logChannel := make(chan tracing.LogWithLevel, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
+	chanWriter := channelWriter{ch: logChannel}
+
+	logger = zerolog.New(chanWriter).
+		Level(cfg.Logging.Level).
+		With().
+		Timestamp().
+		Caller().
+		Logger()
+
+	globalError := errorstats.GlobalErrorHook{}
+	logger = logger.Hook(&globalError)
+	logger = logger.Hook(asyncQueryTraceLogger)
+	return logChannel
 }
 
 func openLogFiles(logsPath string) {
@@ -219,4 +238,8 @@ func Fatal() *zerolog.Event {
 
 func Panic() *zerolog.Event {
 	return logger.Panic()
+}
+
+func ReasonUnsupportedQuery(queryType string) string {
+	return ReasonPrefixUnsupportedQueryType + queryType
 }
