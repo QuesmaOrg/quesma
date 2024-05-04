@@ -83,7 +83,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.
 	for i, row := range ResultSet {
 		hits[i] = model.SearchHit{
 			Index:     row.Index,
-			Source:    []byte(row.String()),
+			Source:    []byte(row.String(cw.Ctx)),
 			Fields:    make(map[string][]interface{}),
 			Highlight: make(map[string][]string),
 		}

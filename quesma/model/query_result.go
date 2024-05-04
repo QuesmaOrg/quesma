@@ -18,7 +18,6 @@ type QueryResultCol struct {
 }
 
 type QueryResultRow struct {
-	ctx   context.Context
 	Index string
 	Cols  []QueryResultCol
 }
@@ -110,13 +109,13 @@ func (c QueryResultCol) ExtractValue(ctx context.Context) any {
 	return c.Value
 }
 
-func (r QueryResultRow) String() string {
+func (r QueryResultRow) String(ctx context.Context) string {
 	str := strings.Builder{}
 	str.WriteString(util.Indent(1) + "{\n")
 	numCols := len(r.Cols)
 	i := 0
 	for _, col := range r.Cols {
-		str.WriteString(util.Indent(2) + col.String(r.ctx))
+		str.WriteString(util.Indent(2) + col.String(ctx))
 		if i < numCols-1 {
 			str.WriteString(",")
 		}

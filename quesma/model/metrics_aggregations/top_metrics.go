@@ -35,7 +35,7 @@ func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 		sortVal := row.Cols[lastIndex].Value
 		for _, col := range valuesForMetrics[level:] {
 			colName, _ := strings.CutPrefix(col.ColName, "windowed_")
-			metrics[colName] = col.ExtractValue(context.TODO()) // CHANGE IT AFTER PART 2 MERGE!! ENTER REAL CONTEXT FROM THE query
+			metrics[colName] = col.ExtractValue(query.ctx) // CHANGE IT AFTER PART 2 MERGE!! ENTER REAL CONTEXT FROM THE query
 		}
 		elem := model.JsonMap{
 			"sort":    []interface{}{sortVal},

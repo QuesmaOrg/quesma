@@ -13,8 +13,8 @@ services:
       - QUESMA_logging_path=/var/quesma/logs
       - QUESMA_CONFIG_FILE=/config/local-dev.yaml
     depends_on:
-      clickhouse:
-        condition: service_healthy
+      clean-clickhouse:
+        condition: service_completed_successfully
       opensearch:
         condition: service_healthy
     ports:
@@ -127,4 +127,11 @@ services:
       interval: 1s
       start_period: 1m
       timeout: 1s
-  # TODO: add clean, skip for now
+  clean-clickhouse:
+    build: clean-clickhouse
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    restart: "no"
+    volumes:
+      - ./mitmproxy:/var/mitmproxy
