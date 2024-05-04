@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/barkimedes/go-deepcopy"
+	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
@@ -47,6 +48,16 @@ type metricsAggregation struct {
 }
 
 const metricsAggregationDefaultFieldType = clickhouse.Invalid
+
+func (b *aggrQueryBuilder) applyTermsSubSelect(terms bucket_aggregations.Terms) {
+	termsField := b.Query.GroupByFields[len(b.Query.GroupByFields)-1]
+	pp.Println(b, terms, termsField, b.Query.String())
+	whereLimitStmt := fmt.Sprintf("%s IN (%s)", termsField, b.String())
+	fmt.Println("WHERE LIMIT STMT:", whereLimitStmt)
+	fmt.Println("where before:", b.whereBuilder.Sql.Stmt)
+	b.whereBuilder = combineWheres(b.whereBuilder, newSimpleQuery(NewSimpleStatement(whereLimitStmt), true))
+	fmt.Println("where after:", b.whereBuilder.Sql.Stmt)
+}
 
 func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.Query {
 	query := b.Query
@@ -348,7 +359,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		if filter, ok := filterRaw.(QueryMap); ok {
 			filterOnThisLevel = true
 			currentAggr.Type = metrics_aggregations.NewCount(cw.Ctx)
-			currentAggr.whereBuilder = cw.combineWheres(
+			currentAggr.whereBuilder = combineWheres(
 				currentAggr.whereBuilder,
 				cw.parseQueryMap(filter),
 			)
@@ -394,7 +405,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		}
 		for _, filter := range filters {
 			currentAggr.Type = bucket_aggregations.NewFilters(cw.Ctx)
-			currentAggr.whereBuilder = cw.combineWheres(currentAggr.whereBuilder, filter.sql)
+			currentAggr.whereBuilder = combineWheres(currentAggr.whereBuilder, filter.sql)
 			currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(filter.name))
 			*resultAccumulator = append(*resultAccumulator, currentAggr.buildBucketAggregation(metadata))
 			if aggs, ok := queryMap["aggs"].(QueryMap); ok {
@@ -416,9 +427,20 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 
 	aggsHandledSeparately := isRange || isFilters
 	if aggs, ok := queryMap["aggs"]; ok && !aggsHandledSeparately {
+		pp.Println(currentAggr.Type)
+		var terms bucket_aggregations.Terms
+		var isTerms bool
+		var oldWhere = currentAggr.whereBuilder
+		if terms, isTerms = currentAggr.Type.(bucket_aggregations.Terms); isTerms {
+			fmt.Println("jestem")
+			currentAggr.applyTermsSubSelect(terms)
+		}
 		err = cw.parseAggregationNames(currentAggr, aggs.(QueryMap), resultAccumulator)
 		if err != nil {
 			return err
+		}
+		if isTerms {
+			currentAggr.whereBuilder = oldWhere
 		}
 	}
 	delete(queryMap, "aggs") // no-op if no "aggs"
@@ -632,25 +654,20 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	}
 	for _, termsType := range []string{"terms", "significant_terms"} {
 		if terms, ok := queryMap[termsType]; ok {
-			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms")
+			var size int
+			if sizeRaw, exists := terms.(QueryMap)["size"]; exists {
+				size = (int)(sizeRaw.(float64))
+			} else {
+				size = bucket_aggregations.DefaultSize
+			}
+			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, size, termsType == "significant_terms")
+
 			fieldName := strconv.Quote(cw.parseFieldField(terms, termsType))
-			isEmptyGroupBy := len(currentAggr.GroupByFields) == 0
 			currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
 			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
-			size := 10
-			if _, ok := queryMap["aggs"]; isEmptyGroupBy && !ok { // we can do limit only it terms are not nested
-				if jsonMap, ok := terms.(QueryMap); ok {
-					if sizeRaw, ok := jsonMap["size"]; ok {
-						if sizeParsed, ok := sizeRaw.(float64); ok {
-							size = int(sizeParsed)
-						} else {
-							logger.WarnWithCtx(cw.Ctx).Msgf("size is not an float64, but %T, value: %v. Using default", sizeRaw, sizeRaw)
-						}
-					}
-				}
-				currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, "ORDER BY count() DESC")
-				currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, fmt.Sprintf("LIMIT %d", size))
-			}
+			currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, fmt.Sprintf("LIMIT %d", size))
+			currentAggr.SubSelect = currentAggr.Query.String()
+			fmt.Println("SUB:", currentAggr.SubSelect)
 			delete(queryMap, termsType)
 			return success, 1, 1, nil
 		}
@@ -706,7 +723,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	}
 	if boolRaw, ok := queryMap["bool"]; ok {
 		if Bool, ok := boolRaw.(QueryMap); ok {
-			currentAggr.whereBuilder = cw.combineWheres(currentAggr.whereBuilder, cw.parseBool(Bool))
+			currentAggr.whereBuilder = combineWheres(currentAggr.whereBuilder, cw.parseBool(Bool))
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("bool is not a map, but %T, value: %v. Skipping", boolRaw, boolRaw)
 		}
@@ -817,13 +834,13 @@ func (cw *ClickhouseQueryTranslator) parseFilters(filtersMap QueryMap) []filter 
 	return filters
 }
 
-func (cw *ClickhouseQueryTranslator) combineWheres(where1, where2 SimpleQuery) SimpleQuery {
+func combineWheres(where1, where2 SimpleQuery) SimpleQuery {
 	combined := SimpleQuery{
 		Sql:      and([]Statement{where1.Sql, where2.Sql}),
 		CanParse: where1.CanParse && where2.CanParse,
 	}
 	if len(where1.FieldName) > 0 && len(where2.FieldName) > 0 && where1.FieldName != where2.FieldName {
-		logger.WarnWithCtx(cw.Ctx).Msgf("combining 2 where clauses with different field names: %s, %s, where queries: %v %v", where1.FieldName, where2.FieldName, where1, where2)
+		logger.Warn().Msgf("combining 2 where clauses with different field names: %s, %s, where queries: %v %v", where1.FieldName, where2.FieldName, where1, where2)
 	}
 	if len(where1.FieldName) > 0 {
 		combined.FieldName = where1.FieldName
