@@ -126,6 +126,15 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		buf := qmc.generateErrorForReason(vars["reason"])
 		_, _ = writer.Write(buf)
 	})
+	router.Path("/unsupported-requests").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
+		buf := qmc.generateReportForUnsupportedRequests()
+		_, _ = writer.Write(buf)
+	})
+	router.PathPrefix("/unsupported-requests/{reason}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		buf := qmc.generateReportForUnsupportedType(vars["reason"])
+		_, _ = writer.Write(buf)
+	})
 	router.PathPrefix("/requests-by-str/{queryString}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		buf := qmc.generateReportForRequestsWithStr(vars["queryString"])
