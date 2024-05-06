@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/elasticsearch"
+	"mitmproxy/quesma/eql"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
@@ -28,6 +29,13 @@ const asyncQueriesLimitBytes = 1024 * 1024 * 500 // 500MB
 var errIndexNotExists = errors.New("table does not exist")
 var asyncRequestId atomic.Int64
 
+type QueryLanguage string
+
+const (
+	QueryLanguageDefault = "default"
+	QueryLanguageEQL     = "eql"
+)
+
 type AsyncRequestResult struct {
 	responseBody []byte
 	added        time.Time
@@ -47,6 +55,27 @@ type QueryRunner struct {
 	cancel               context.CancelFunc
 	AsyncRequestStorage  *concurrent.Map[string, AsyncRequestResult]
 	AsyncQueriesContexts *concurrent.Map[string, *AsyncQueryContext]
+}
+
+// This is an extracted interface for query translation.
+// FIXME it should split into smaller interfaces: parser, builder and response maker
+// FIXME it should have a better name
+//
+// Right now it has two implementation:
+// 1. ClickhouseQueryTranslator (origin implementation)
+// 2. ClickhouseEQLQueryTranslator (implements only a subset of methods)
+
+type IQueryTranslator interface {
+	ParseQuery(queryAsJson string) (queryparser.SimpleQuery, model.SearchQueryInfo, queryparser.Highlighter)
+	ParseAggregationJson(aggregationJson string) ([]model.QueryWithAggregation, error)
+
+	BuildSimpleCountQuery(whereClause string) *model.Query
+	BuildSimpleSelectQuery(whereClause string) *model.Query
+	BuildNRowsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query
+	BuildFacetsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query
+
+	MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter queryparser.Highlighter) (*model.SearchResp, error)
+	MakeResponseAggregation(aggregations []model.QueryWithAggregation, aggregationResults [][]model.QueryResultRow) *model.SearchResp
 }
 
 func NewQueryRunner() *QueryRunner {
@@ -82,7 +111,15 @@ func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, bod
 	lm *clickhouse.LogManager,
 	im elasticsearch.IndexManagement,
 	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
-	return q.handleSearchCommon(ctx, cfg, indexPattern, body, lm, im, quesmaManagementConsole, nil)
+	return q.handleSearchCommon(ctx, cfg, indexPattern, body, lm, im, quesmaManagementConsole, nil, QueryLanguageDefault)
+}
+
+func (q *QueryRunner) handleEQLSearch(ctx context.Context, indexPattern string, body []byte,
+	cfg config.QuesmaConfiguration,
+	lm *clickhouse.LogManager,
+	im elasticsearch.IndexManagement,
+	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
+	return q.handleSearchCommon(ctx, cfg, indexPattern, body, lm, im, quesmaManagementConsole, nil, QueryLanguageEQL)
 }
 
 func (q *QueryRunner) handleAsyncSearch(ctx context.Context, cfg config.QuesmaConfiguration, indexPattern string, body []byte, lm *clickhouse.LogManager,
@@ -96,7 +133,7 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, cfg config.QuesmaCo
 	}
 	ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, async.asyncRequestIdStr)
 	logger.InfoWithCtx(ctx).Msgf("async search request id: %s started", async.asyncRequestIdStr)
-	return q.handleSearchCommon(ctx, cfg, indexPattern, body, lm, im, quesmaManagementConsole, &async)
+	return q.handleSearchCommon(ctx, cfg, indexPattern, body, lm, im, quesmaManagementConsole, &async, QueryLanguageDefault)
 }
 
 type AsyncSearchWithError struct {
@@ -116,7 +153,7 @@ type AsyncQuery struct {
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaConfiguration, indexPattern string, body []byte,
 	lm *clickhouse.LogManager,
 	im elasticsearch.IndexManagement,
-	qmc *ui.QuesmaManagementConsole, optAsync *AsyncQuery) ([]byte, error) {
+	qmc *ui.QuesmaManagementConsole, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
 
 	logger.Debug().Msgf("resolved sources for index pattern %s -> %s", indexPattern, ResolveSources(indexPattern, cfg, im, lm))
 
@@ -167,7 +204,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 	tables := lm.GetTableDefinitions()
 
 	// TODO: variables below should be per table. Now they are not, as we only support one table.
-	var queryTranslator *queryparser.ClickhouseQueryTranslator
+	var queryTranslator IQueryTranslator
 	var highlighter queryparser.Highlighter
 	var aggregations []model.QueryWithAggregation
 	var err error
@@ -176,9 +213,18 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 
 	for _, resolvedTableName := range resolved {
 		table, _ := tables.Load(resolvedTableName)
-		queryTranslator = &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: ctx}
+
 		var simpleQuery queryparser.SimpleQuery
+
+		switch queryLanguage {
+		case QueryLanguageEQL:
+			queryTranslator = &eql.ClickhouseEQLQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: ctx}
+		default:
+			queryTranslator = &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: ctx}
+		}
+
 		simpleQuery, queryInfo, highlighter = queryTranslator.ParseQuery(string(body))
+
 		if simpleQuery.CanParse {
 			if ((queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields || queryInfo.Typ == model.Normal) && !bytes.Contains(body, []byte("aggs"))) || queryInfo.Typ == model.Facets || queryInfo.Typ == model.FacetsNumeric {
 				logger.InfoWithCtx(ctx).Msgf("received search request, type: %v, async: %v", queryInfo.Typ, optAsync != nil)
@@ -196,20 +242,20 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 				if optAsync != nil {
 					go func() {
 						defer recovery.LogPanicWithCtx(ctx)
-						q.searchWorker(ctx, qmc, queryTranslator, table, body, optAsync)
+						q.searchWorker(ctx, qmc, queryTranslator, table, body, optAsync, lm)
 					}()
 				} else {
-					translatedQueryBody, hits = q.searchWorker(ctx, qmc, queryTranslator, table, body, nil)
+					translatedQueryBody, hits = q.searchWorker(ctx, qmc, queryTranslator, table, body, nil, lm)
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
 				newAggregationHandlingUsed = true
 				if optAsync != nil {
 					go func() {
 						defer recovery.LogPanicWithCtx(ctx)
-						q.searchAggregationWorker(ctx, qmc, aggregations, queryTranslator, table, body, optAsync)
+						q.searchAggregationWorker(ctx, qmc, aggregations, queryTranslator, table, body, optAsync, lm)
 					}()
 				} else {
-					translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, qmc, aggregations, queryTranslator, table, body, nil)
+					translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, qmc, aggregations, queryTranslator, table, body, nil, lm)
 				}
 			}
 
@@ -222,14 +268,14 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 					fieldName = "*"
 				}
 				listQuery := queryTranslator.BuildNRowsQuery(fieldName, simpleQuery, queryInfo.Size)
-				hitsFallback, err = queryTranslator.ClickhouseLM.ProcessSelectQuery(ctx, table, listQuery)
+				hitsFallback, err = lm.ProcessSelectQuery(ctx, table, listQuery)
 				if err != nil {
 					logger.ErrorWithCtx(ctx).Msgf("error processing fallback query. Err: %v, query: %+v", err, listQuery)
 					pushSecondaryInfoToManagementConsole()
 					return responseBody, err
 				}
 				countQuery := queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-				countResult, err := queryTranslator.ClickhouseLM.ProcessSelectQuery(ctx, table, countQuery)
+				countResult, err := lm.ProcessSelectQuery(ctx, table, countQuery)
 				if err != nil {
 					logger.ErrorWithCtx(ctx).Msgf("error processing count query. Err: %v, query: %+v", err, countQuery)
 					pushSecondaryInfoToManagementConsole()
@@ -433,8 +479,8 @@ func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.C
 	q.AsyncQueriesContexts.Store(asyncRequestIdStr, NewAsyncQueryContext(ctx, cancel, asyncRequestIdStr))
 }
 
-func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementConsole *ui.QuesmaManagementConsole, queryTranslator *queryparser.ClickhouseQueryTranslator,
-	table *clickhouse.Table, body []byte, optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
+func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementConsole *ui.QuesmaManagementConsole, queryTranslator IQueryTranslator,
+	table *clickhouse.Table, body []byte, optAsync *AsyncQuery, lm *clickhouse.LogManager) (translatedQueryBody []byte, hits []model.QueryResultRow) {
 	if optAsync != nil && q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, optAsync.doneCh) {
 		return
 	}
@@ -454,26 +500,26 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementCo
 	switch queryInfo.Typ {
 	case model.CountAsync:
 		fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-		hits, err = queryTranslator.ClickhouseLM.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
+		hits, err = lm.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
 
 	case model.Facets, model.FacetsNumeric:
 		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
 		fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		hits, err = queryTranslator.ClickhouseLM.ProcessFacetsQuery(dbQueryCtx, table, fullQuery)
+		hits, err = lm.ProcessFacetsQuery(dbQueryCtx, table, fullQuery)
 
 	case model.ListByField:
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)
 		fullQuery = queryTranslator.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		hits, err = queryTranslator.ClickhouseLM.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
+		hits, err = lm.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
 
 	case model.ListAllFields:
 		// queryInfo = (ListAllFields, "*", 0, LIMIT)
 		fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
-		hits, err = queryTranslator.ClickhouseLM.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
+		hits, err = lm.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
 
 	case model.Normal:
 		fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
-		hits, err = queryTranslator.ClickhouseLM.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
+		hits, err = lm.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
 
 	default:
 		logger.ErrorWithCtx(ctx).Msgf("unknown query type: %v, query body: %v", queryInfo.Typ, body)
@@ -500,24 +546,24 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, quesmaManagementCo
 	return
 }
 
-func (q *QueryRunner) searchWorker(ctx context.Context, quesmaManagementConsole *ui.QuesmaManagementConsole, queryTranslator *queryparser.ClickhouseQueryTranslator,
-	table *clickhouse.Table, body []byte, optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
+func (q *QueryRunner) searchWorker(ctx context.Context, quesmaManagementConsole *ui.QuesmaManagementConsole, queryTranslator IQueryTranslator,
+	table *clickhouse.Table, body []byte, optAsync *AsyncQuery, lm *clickhouse.LogManager) (translatedQueryBody []byte, hits []model.QueryResultRow) {
 	if optAsync == nil {
-		return q.searchWorkerCommon(ctx, quesmaManagementConsole, queryTranslator, table, body, nil)
+		return q.searchWorkerCommon(ctx, quesmaManagementConsole, queryTranslator, table, body, nil, lm)
 	} else {
 		select {
 		case <-q.executionCtx.Done():
 			return
 		default:
-			_, _ = q.searchWorkerCommon(ctx, quesmaManagementConsole, queryTranslator, table, body, optAsync)
+			_, _ = q.searchWorkerCommon(ctx, quesmaManagementConsole, queryTranslator, table, body, optAsync, lm)
 			return
 		}
 	}
 }
 
 func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, quesmaManagementConsole *ui.QuesmaManagementConsole, aggregations []model.QueryWithAggregation,
-	queryTranslator *queryparser.ClickhouseQueryTranslator, table *clickhouse.Table, body []byte,
-	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
+	queryTranslator IQueryTranslator, table *clickhouse.Table, body []byte,
+	optAsync *AsyncQuery, lm *clickhouse.LogManager) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
 
 	if optAsync != nil && q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, optAsync.doneCh) {
 		return
@@ -536,7 +582,7 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, quesmaM
 	for _, agg := range aggregations {
 		logger.InfoWithCtx(ctx).Msg(agg.String()) // I'd keep for now until aggregations work fully
 		sqls += agg.Query.String() + "\n"
-		rows, err := queryTranslator.ClickhouseLM.ProcessGeneralAggregationQuery(dbQueryCtx, table, &agg.Query)
+		rows, err := lm.ProcessGeneralAggregationQuery(dbQueryCtx, table, &agg.Query)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			continue
@@ -552,16 +598,16 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, quesmaM
 }
 
 func (q *QueryRunner) searchAggregationWorker(ctx context.Context, quesmaManagementConsole *ui.QuesmaManagementConsole, aggregations []model.QueryWithAggregation,
-	queryTranslator *queryparser.ClickhouseQueryTranslator, table *clickhouse.Table, body []byte,
-	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
+	queryTranslator IQueryTranslator, table *clickhouse.Table, body []byte,
+	optAsync *AsyncQuery, lm *clickhouse.LogManager) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
 	if optAsync == nil {
-		return q.searchAggregationWorkerCommon(ctx, quesmaManagementConsole, aggregations, queryTranslator, table, body, nil)
+		return q.searchAggregationWorkerCommon(ctx, quesmaManagementConsole, aggregations, queryTranslator, table, body, nil, lm)
 	} else {
 		select {
 		case <-q.executionCtx.Done():
 			return
 		default:
-			_, _ = q.searchAggregationWorkerCommon(ctx, quesmaManagementConsole, aggregations, queryTranslator, table, body, optAsync)
+			_, _ = q.searchAggregationWorkerCommon(ctx, quesmaManagementConsole, aggregations, queryTranslator, table, body, optAsync, lm)
 			return
 		}
 	}
