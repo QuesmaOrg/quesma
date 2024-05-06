@@ -17,7 +17,7 @@ const (
 	sourceNone          = "none"
 )
 
-func ResolveSources(indexPattern string, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, lm *clickhouse.LogManager) string {
+func ResolveSources(indexPattern string, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, lm *clickhouse.LogManager) (string, []string, []string) {
 	if elasticsearch.IsIndexPattern(indexPattern) {
 		matchesElastic := []string{}
 		matchesClickhouse := []string{}
@@ -43,23 +43,23 @@ func ResolveSources(indexPattern string, cfg config.QuesmaConfiguration, im elas
 
 		switch {
 		case len(matchesElastic) > 0 && len(matchesClickhouse) > 0:
-			return sourceBoth
+			return sourceBoth, matchesElastic, matchesClickhouse
 		case len(matchesElastic) > 0:
-			return sourceElasticsearch
+			return sourceElasticsearch, matchesElastic, matchesClickhouse
 		case len(matchesClickhouse) > 0:
-			return sourceClickhouse
+			return sourceClickhouse, matchesElastic, matchesClickhouse
 		default:
-			return sourceNone
+			return sourceNone, matchesElastic, matchesClickhouse
 		}
 	} else {
 		if c, exists := cfg.IndexConfig[indexPattern]; exists {
 			if c.Enabled {
-				return sourceClickhouse
+				return sourceClickhouse, []string{}, []string{indexPattern}
 			} else {
-				return sourceElasticsearch
+				return sourceElasticsearch, []string{indexPattern}, []string{}
 			}
 		} else {
-			return sourceElasticsearch
+			return sourceElasticsearch, []string{indexPattern}, []string{}
 		}
 	}
 }

@@ -12,7 +12,6 @@ import (
 	"mitmproxy/quesma/quesma/routes"
 	"mitmproxy/quesma/quesma/termsenum"
 	"mitmproxy/quesma/quesma/ui"
-	"mitmproxy/quesma/stats/errorstats"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
 	"regexp"
@@ -166,36 +165,31 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
 	router.RegisterPathMatcher(routes.IndexAsyncSearchPath, "POST", matchedAgainstPattern(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
-		if strings.Contains(params["index"], ",") {
-			errorstats.GlobalErrorStatistics.RecordKnownError("Multi index search is not supported", nil,
-				"Multi index search is not yet supported: "+params["index"])
-			return nil, errors.New("multi index search is not yet supported")
-		} else {
-			waitForResultsMs := 1000 // Defaults to 1 second as in docs
-			if v, ok := params["wait_for_completion_timeout"]; ok {
-				if w, err := time.ParseDuration(v); err == nil {
-					waitForResultsMs = int(w.Milliseconds())
-				} else {
-					logger.Warn().Msgf("Can't parse wait_for_completion_timeout value: %s", v)
-				}
+		waitForResultsMs := 1000 // Defaults to 1 second as in docs
+		if v, ok := params["wait_for_completion_timeout"]; ok {
+			if w, err := time.ParseDuration(v); err == nil {
+				waitForResultsMs = int(w.Milliseconds())
+			} else {
+				logger.Warn().Msgf("Can't parse wait_for_completion_timeout value: %s", v)
 			}
-			keepOnCompletion := false
-			if v, ok := params["keep_on_completion"]; ok {
-				if v == "true" {
-					keepOnCompletion = true
-				}
-			}
-			responseBody, err := queryRunner.handleAsyncSearch(ctx, cfg, params["index"], []byte(body), lm, im, console, waitForResultsMs, keepOnCompletion)
-			if err != nil {
-				if errors.Is(errIndexNotExists, err) {
-					return &mux.Result{StatusCode: 404}, nil
-				} else {
-					return nil, err
-				}
-			}
-			return elasticsearchQueryResult(string(responseBody), httpOk), nil
 		}
+		keepOnCompletion := false
+		if v, ok := params["keep_on_completion"]; ok {
+			if v == "true" {
+				keepOnCompletion = true
+			}
+		}
+		responseBody, err := queryRunner.handleAsyncSearch(ctx, cfg, params["index"], []byte(body), lm, im, console, waitForResultsMs, keepOnCompletion)
+		if err != nil {
+			if errors.Is(errIndexNotExists, err) {
+				return &mux.Result{StatusCode: 404}, nil
+			} else {
+				return nil, err
+			}
+		}
+		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
+
 	router.RegisterPathMatcher(routes.AsyncSearchIdPath, "GET", matchedAgainstAsyncId(), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, params["id"])
 		responseBody, err := queryRunner.handlePartialAsyncSearch(ctx, params["id"])
