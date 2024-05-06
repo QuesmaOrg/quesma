@@ -6,9 +6,7 @@ import (
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
 	"mitmproxy/quesma/util"
-	_ "net/http/pprof"
 
-	"errors"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
@@ -16,14 +14,12 @@ import (
 	"net/http"
 	"reflect"
 	"regexp"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
 )
 
 const (
-	uiTcpPort       = "9999"
 	maxLastMessages = 10000
 )
 
@@ -135,41 +131,6 @@ func (qdi *queryDebugInfo) requestContains(queryStr string) bool {
 		}
 	}
 	return false
-}
-
-func (qmc *QuesmaManagementConsole) newHTTPServer() *http.Server {
-	return &http.Server{
-		Addr:    ":" + uiTcpPort,
-		Handler: qmc.createRouting(),
-	}
-}
-
-func panicRecovery(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if err := recover(); err != nil {
-				buf := make([]byte, 2048)
-				n := runtime.Stack(buf, false)
-				buf = buf[:n]
-
-				w.WriteHeader(http.StatusInternalServerError)
-				w.Header().Set("Content-Type", "text/plain")
-				w.Write([]byte("Internal Server Error\n\n"))
-
-				w.Write([]byte("Stack:\n"))
-				w.Write(buf)
-				logger.Error().Msgf("recovering from err %v\n %s", err, buf)
-			}
-		}()
-
-		h.ServeHTTP(w, r)
-	})
-}
-
-func (qmc *QuesmaManagementConsole) listenAndServe() {
-	if err := qmc.ui.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Fatal().Msgf("Error starting server: %v", err)
-	}
 }
 
 func (qmc *QuesmaManagementConsole) addNewMessageId(messageId string) {
@@ -285,18 +246,6 @@ func (qmc *QuesmaManagementConsole) Run() {
 func (qmc *QuesmaManagementConsole) RunOnlyChannelProcessor() {
 	for {
 		qmc.processChannelMessage()
-	}
-}
-
-func (qmc *QuesmaManagementConsole) checkHealth(writer http.ResponseWriter, _ *http.Request) {
-	health := qmc.checkElasticsearch()
-	if health.status != "red" {
-		writer.WriteHeader(200)
-		writer.Header().Set("Content-Type", "application/json")
-		_, _ = writer.Write([]byte(`{"cluster_name": "quesma"}`))
-	} else {
-		writer.WriteHeader(503)
-		_, _ = writer.Write([]byte(`Elastic search is unavailable: ` + health.message))
 	}
 }
 

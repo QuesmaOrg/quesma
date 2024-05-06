@@ -3,16 +3,18 @@ package ui
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"github.com/gorilla/mux"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/stats"
 	"net/http"
+	"runtime"
 )
 
 const (
+	uiTcpPort              = "9999"
 	managementInternalPath = "/_quesma"
 	healthPath             = managementInternalPath + "/health"
-	bypassPath             = managementInternalPath + "/bypass"
 )
 
 //go:embed asset/*
@@ -157,4 +159,51 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.FS(uiFs))))
 	return router
+}
+
+func (qmc *QuesmaManagementConsole) newHTTPServer() *http.Server {
+	return &http.Server{
+		Addr:    ":" + uiTcpPort,
+		Handler: qmc.createRouting(),
+	}
+}
+
+func panicRecovery(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				buf := make([]byte, 2048)
+				n := runtime.Stack(buf, false)
+				buf = buf[:n]
+
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Header().Set("Content-Type", "text/plain")
+				w.Write([]byte("Internal Server Error\n\n"))
+
+				w.Write([]byte("Stack:\n"))
+				w.Write(buf)
+				logger.Error().Msgf("recovering from err %v\n %s", err, buf)
+			}
+		}()
+
+		h.ServeHTTP(w, r)
+	})
+}
+
+func (qmc *QuesmaManagementConsole) checkHealth(writer http.ResponseWriter, _ *http.Request) {
+	health := qmc.checkElasticsearch()
+	if health.status != "red" {
+		writer.WriteHeader(200)
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"cluster_name": "quesma"}`))
+	} else {
+		writer.WriteHeader(503)
+		_, _ = writer.Write([]byte(`Elastic search is unavailable: ` + health.message))
+	}
+}
+
+func (qmc *QuesmaManagementConsole) listenAndServe() {
+	if err := qmc.ui.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		logger.Fatal().Msgf("Error starting server: %v", err)
+	}
 }
