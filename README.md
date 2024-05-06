@@ -9,7 +9,7 @@ The main debugging interface is available at [localhost:9999](http://localhost:9
 
 ### Architecture Decision Records
 
-https://github.com/QuesmaOrg/poc-elk-mitmproxy/tree/main/quesma/adr
+https://github.com/QuesmaOrg/poc-elk-mitmproxy/tree/main/adr
 
 ### Quesma
 
