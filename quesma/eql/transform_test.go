@@ -223,9 +223,10 @@ func TestTransform(t *testing.T) {
 
 			transformer := NewTransformer()
 
-			actualWhereClause, err := transformer.TransformQuery(tt.eql)
+			actualWhereClause, parameters, err := transformer.TransformQuery(tt.eql)
 
 			assert.NotNil(t, actualWhereClause)
+			assert.NotNil(t, parameters)
 			assert.NoError(t, err)
 			if err == nil {
 				assert.Equal(t, tt.expectedWhereClause, actualWhereClause)
@@ -265,8 +266,9 @@ func TestTransformWithFieldName(t *testing.T) {
 				return transform.NewSymbol(strings.ReplaceAll(field.Name, ".", "::")), nil
 			}
 
-			actualWhereClause, err := transformer.TransformQuery(tt.eql)
+			actualWhereClause, parameters, err := transformer.TransformQuery(tt.eql)
 
+			assert.NotNil(t, parameters)
 			assert.NotNil(t, actualWhereClause)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedWhereClause, actualWhereClause)
