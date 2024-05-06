@@ -523,12 +523,13 @@ func (cw *ClickhouseQueryTranslator) BuildSelectQuery(fields []string, whereClau
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildSimpleSelectQuery(whereClause string) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildSimpleSelectQuery(whereClause string, limit int) *model.Query {
 	return &model.Query{
-		Fields:      []string{"*"},
-		WhereClause: whereClause,
-		FromClause:  cw.Table.FullTableName(),
-		CanParse:    true,
+		Fields:        []string{"*"},
+		WhereClause:   whereClause,
+		FromClause:    cw.Table.FullTableName(),
+		SuffixClauses: []string{"LIMIT " + strconv.Itoa(cw.applySizeLimit(limit))},
+		CanParse:      true,
 	}
 }
 
