@@ -2,7 +2,7 @@
 
 Quesma has end-to-end tests which rely on recording and replaying HTTP requests.
 
-See [Architectural decision record](../../quesma/adr/2_end_to_end_testing.md) for background.
+See [Architectural decision record](../../adr/2_end_to_end_testing.md) for background.
 
 ### Running end-to-end tests
 From top folder:
