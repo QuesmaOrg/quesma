@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"gopkg.in/yaml.v3"
-	"mitmproxy/quesma/quesma/ui/internal/buffer"
+	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"strings"
 )
 
@@ -117,7 +117,7 @@ func generateLogMessages(logMessages []string, links []string) ([]byte, *string)
 		return ""
 	}
 
-	var buffer buffer.HtmlBuffer
+	var buffer builder.HtmlBuffer
 	buffer.Html("<table>\n")
 	buffer.Html("<thead>\n")
 	buffer.Html("<tr>\n")

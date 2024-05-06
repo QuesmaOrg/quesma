@@ -2,7 +2,7 @@ package ui
 
 import (
 	"fmt"
-	"mitmproxy/quesma/quesma/ui/internal/buffer"
+	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"slices"
 	"strings"
 )
@@ -29,7 +29,7 @@ func (qmc *QuesmaManagementConsole) generateDatasourcesPage() []byte {
 }
 
 func (qmc *QuesmaManagementConsole) generateDatasources() []byte {
-	var buffer buffer.HtmlBuffer
+	var buffer builder.HtmlBuffer
 	buffer.Html(`<h2>Data sources</h2>`)
 
 	buffer.Html(`<h3>Clickhouse</h3>`)

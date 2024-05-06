@@ -2,12 +2,12 @@ package ui
 
 import (
 	"fmt"
-	"mitmproxy/quesma/quesma/ui/internal/buffer"
+	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"net/url"
 )
 
 func generateSimpleTop(title string) []byte {
-	var buffer buffer.HtmlBuffer
+	var buffer builder.HtmlBuffer
 	buffer.Html(`<div class="topnav">` + "\n")
 	buffer.Html(`<div class="topnav-menu">` + "\n")
 	buffer.Html(`<img src="/static/asset/quesma-logo-white-full.svg" alt="Quesma logo" class="quesma-logo" />` + "\n")
@@ -17,7 +17,7 @@ func generateSimpleTop(title string) []byte {
 }
 
 func generateTopNavigation(target string) []byte {
-	var buffer buffer.HtmlBuffer
+	var buffer builder.HtmlBuffer
 	buffer.Html(`<div class="topnav">` + "\n")
 	buffer.Html(`<div class="topnav-menu">` + "\n")
 	buffer.Html(`<img src="/static/asset/quesma-logo-white-full.svg" alt="Quesma logo" class="quesma-logo" />` + "\n")
@@ -81,9 +81,9 @@ func generateTopNavigation(target string) []byte {
 	return buffer.Bytes()
 }
 
-func newBufferWithHead() buffer.HtmlBuffer {
+func newBufferWithHead() builder.HtmlBuffer {
 	const bufferSize = 4 * 1024 // size of ui/head.html
-	var buffer buffer.HtmlBuffer
+	var buffer builder.HtmlBuffer
 	buffer.Grow(bufferSize)
 	head, err := uiFs.ReadFile("asset/head.html")
 	buffer.Write(head)

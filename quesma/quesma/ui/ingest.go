@@ -2,7 +2,7 @@ package ui
 
 import (
 	"fmt"
-	"mitmproxy/quesma/quesma/ui/internal/buffer"
+	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"mitmproxy/quesma/stats"
 	"strings"
 )
@@ -28,7 +28,7 @@ func (qmc *QuesmaManagementConsole) generateIngestStatistics() []byte {
 }
 
 func (qmc *QuesmaManagementConsole) generateStatistics() []byte {
-	var buffer buffer.HtmlBuffer
+	var buffer builder.HtmlBuffer
 	const maxTopValues = 5
 
 	if !qmc.config.IngestStatistics {
