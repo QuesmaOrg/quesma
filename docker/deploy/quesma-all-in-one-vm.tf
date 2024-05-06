@@ -35,7 +35,7 @@ variable "allowed_ports" {
 
 variable "copy_repo_files" {
   type = list(string)
-  default = ["docker/.env", "docker/ngrok/ngrok.yml"]
+  default = ["docker/.env"]
 }
 
 locals {
@@ -48,7 +48,7 @@ locals {
 
 resource "google_compute_instance" "vm_instance" {
 
-  name         = "${var.user}-quesma-aio-vm"
+  name         = "${var.user}-quesma-demo-aio-vm"
   machine_type = "n1-standard-8"
   zone         = "europe-central2-a"
 
@@ -102,7 +102,7 @@ github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+V
     # Start SSH agent and add key
     eval "$(ssh-agent -s)"
     ssh-add /home/quesma/.ssh/id_ed25519
-    sudo -u quesma git clone git@github.com:QuesmaOrg/poc-elk-mitmproxy.git /home/quesma/source
+    sudo -u quesma git clone git@github.com:QuesmaOrg/quesma.git /home/quesma/source
 
     sudo usermod -aG docker quesma
     cd /home/quesma/source
@@ -118,9 +118,8 @@ github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+V
 }
 
 resource "google_compute_firewall" "quesma_aio_allowed_ports" {
-  name    = "${var.user}-quesma-aio-allowed-ports"
+  name    = "${var.user}-quesma-demo-aio-allowed-ports"
   network = "default"
-
   allow {
     protocol = "tcp"
     ports    = var.allowed_ports
