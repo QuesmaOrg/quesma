@@ -140,7 +140,7 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 
 	buffer.Html(`<div id="dashboard-kibana" class="component">`)
 	if qmc.config.Elasticsearch.AdminUrl != nil {
-		buffer.Html(fmt.Sprintf(`<a href="%s">`, qmc.config.Elasticsearch.AdminUrl.String()))
+		buffer.Html(fmt.Sprintf(`<a href="%s">`, url.PathEscape(qmc.config.Elasticsearch.AdminUrl.String())))
 	}
 	buffer.Html(dashboardName)
 	if qmc.config.Elasticsearch.AdminUrl != nil {
@@ -161,7 +161,7 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 
 	buffer.Html(`<div id="dashboard-clickhouse" class="component">`)
 	if qmc.config.ClickHouse.AdminUrl != nil {
-		buffer.Html(fmt.Sprintf(`<a href="%s">`, qmc.config.ClickHouse.AdminUrl.String()))
+		buffer.Html(fmt.Sprintf(`<a href="%s">`, url.PathEscape(qmc.config.ClickHouse.AdminUrl.String())))
 	}
 	buffer.Html(clickhouseName)
 	if qmc.config.ClickHouse.AdminUrl != nil {
@@ -184,7 +184,7 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 		cpuStr = fmt.Sprintf("Host CPU: N/A (error: %s)", err0.Error())
 	}
 
-	buffer.Html(fmt.Sprintf(`<div class="status">%s</div>`, cpuStr))
+	buffer.Html(`<div class="status">`).Text(cpuStr).Html(`</div>`)
 
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
@@ -193,7 +193,7 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 		total := float64(v.Total) / 1024.0 / 1024.0 / 1024.0
 		memStr += fmt.Sprintf(", avail: %.1f GB", total)
 	}
-	buffer.Html(fmt.Sprintf(`<div class="status">%s</div>`, memStr))
+	buffer.Html(`<div class="status">`).Text(memStr).Html(`</div>`)
 
 	duration := uint64(time.Since(qmc.startedAt).Seconds())
 
