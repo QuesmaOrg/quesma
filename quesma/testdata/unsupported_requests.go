@@ -2,11 +2,11 @@ package testdata
 
 import "mitmproxy/quesma/quesma/ui"
 
-var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
+var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 	// bucket:
 	{ // [0]
-		TestName:        "bucket aggregation: adjacency_matrix",
-		AggregationName: "adjacency_matrix",
+		TestName:  "bucket aggregation: adjacency_matrix",
+		QueryType: "adjacency_matrix",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -24,8 +24,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [1]
-		TestName:        "bucket aggregation: auto_date_histogram",
-		AggregationName: "auto_date_histogram",
+		TestName:  "bucket aggregation: auto_date_histogram",
+		QueryType: "auto_date_histogram",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -39,8 +39,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [2]
-		TestName:        "bucket aggregation: categorize_text",
-		AggregationName: "categorize_text",
+		TestName:  "bucket aggregation: categorize_text",
+		QueryType: "categorize_text",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -53,8 +53,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [3]
-		TestName:        "bucket aggregation: children",
-		AggregationName: "children",
+		TestName:  "bucket aggregation: children",
+		QueryType: "children",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -83,8 +83,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [4]
-		TestName:        "bucket aggregation: composite",
-		AggregationName: "composite",
+		TestName:  "bucket aggregation: composite",
+		QueryType: "composite",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -100,8 +100,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [5]
-		TestName:        "bucket aggregation: diversified_sampler",
-		AggregationName: "diversified_sampler",
+		TestName:  "bucket aggregation: diversified_sampler",
+		QueryType: "diversified_sampler",
 		QueryRequestJson: `
 		{
 			"query": {
@@ -128,8 +128,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [6]
-		TestName:        "bucket aggregation: frequent_item_sets",
-		AggregationName: "frequent_item_sets",
+		TestName:  "bucket aggregation: frequent_item_sets",
+		QueryType: "frequent_item_sets",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -153,8 +153,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [7]
-		TestName:        "bucket aggregation: geo_distance",
-		AggregationName: "geo_distance",
+		TestName:  "bucket aggregation: geo_distance",
+		QueryType: "geo_distance",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -174,20 +174,12 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [8]
-		TestName:        "bucket aggregation: geohash_grid",
-		AggregationName: "geohash_grid",
+		TestName:  "bucket aggregation: geohash_grid",
+		QueryType: "geohash_grid",
 		QueryRequestJson: `
 		{
 			"aggs": {
 				"zoomed-in": {
-					"filter": {
-						"geo_bounding_box": {
-							"location": {
-								"top_left": "POINT (4.9 52.4)",
-								"bottom_right": "POINT (5.0 52.3)"
-							}
-						}
-					},
 					"aggs": {
 						"zoom1": {
 							"geohash_grid": {
@@ -201,20 +193,12 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [9]
-		TestName:        "bucket aggregation: geohex_grid",
-		AggregationName: "geohex_grid",
+		TestName:  "bucket aggregation: geohex_grid",
+		QueryType: "geohex_grid",
 		QueryRequestJson: `
 		{
 			"aggs": {
 				"zoomed-in": {
-					"filter": {
-						"geo_bounding_box": {
-							"location": {
-								"top_left": "POINT (4.9 52.4)",
-								"bottom_right": "POINT (5.0 52.3)"
-							}
-						}
-					},
 					"aggs": {
 						"zoom1": {
 							"geohex_grid": {
@@ -228,8 +212,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [10]
-		TestName:        "bucket aggregation: geotile_grid",
-		AggregationName: "geotile_grid",
+		TestName:  "bucket aggregation: geotile_grid",
+		QueryType: "geotile_grid",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -243,8 +227,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [11]
-		TestName:        "bucket aggregation: global",
-		AggregationName: "global",
+		TestName:  "bucket aggregation: global",
+		QueryType: "global",
 		QueryRequestJson: `
 		{
 			"query": {
@@ -262,8 +246,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [12]
-		TestName:        "bucket aggregation: ip_prefix",
-		AggregationName: "ip_prefix",
+		TestName:  "bucket aggregation: ip_prefix",
+		QueryType: "ip_prefix",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -278,8 +262,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [13]
-		TestName:        "bucket aggregation: ip_range",
-		AggregationName: "ip_range",
+		TestName:  "bucket aggregation: ip_range",
+		QueryType: "ip_range",
 		QueryRequestJson: `
 		{
 			"size": 10,
@@ -297,8 +281,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [14]
-		TestName:        "bucket aggregation: missing",
-		AggregationName: "missing",
+		TestName:  "bucket aggregation: missing",
+		QueryType: "missing",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -309,8 +293,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [15]
-		TestName:        "bucket aggregation: multi_terms",
-		AggregationName: "multi_terms",
+		TestName:  "bucket aggregation: multi_terms",
+		QueryType: "multi_terms",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -326,8 +310,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [16]
-		TestName:        "bucket aggregation: nested",
-		AggregationName: "nested",
+		TestName:  "bucket aggregation: nested",
+		QueryType: "nested",
 		QueryRequestJson: `
 		{
 			"query": {
@@ -352,8 +336,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [17]
-		TestName:        "bucket aggregation: parent",
-		AggregationName: "parent",
+		TestName:  "bucket aggregation: parent",
+		QueryType: "parent",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -382,8 +366,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [18]
-		TestName:        "bucket aggregation: rare_terms",
-		AggregationName: "rare_terms",
+		TestName:  "bucket aggregation: rare_terms",
+		QueryType: "rare_terms",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -396,8 +380,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [19]
-		TestName:        "bucket aggregation: reverse_nested",
-		AggregationName: "reverse_nested",
+		TestName:  "bucket aggregation: reverse_nested",
+		QueryType: "reverse_nested",
 		QueryRequestJson: `
 		{
 			"query": {
@@ -429,8 +413,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [20]
-		TestName:        "bucket aggregation: significant_text",
-		AggregationName: "significant_text",
+		TestName:  "bucket aggregation: significant_text",
+		QueryType: "significant_text",
 		QueryRequestJson: `
 		{
 			"query": {
@@ -451,8 +435,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [21]
-		TestName:        "bucket aggregation: time_series",
-		AggregationName: "time_series",
+		TestName:  "bucket aggregation: time_series",
+		QueryType: "time_series",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -463,8 +447,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [22]
-		TestName:        "bucket aggregation: variable_width_histogram",
-		AggregationName: "variable_width_histogram",
+		TestName:  "bucket aggregation: variable_width_histogram",
+		QueryType: "variable_width_histogram",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -479,8 +463,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 	},
 	// metrics:
 	{ // [23]
-		TestName:        "metrics aggregation: boxplot",
-		AggregationName: "boxplot",
+		TestName:  "metrics aggregation: boxplot",
+		QueryType: "boxplot",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -494,8 +478,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [24]
-		TestName:        "metrics aggregation: extended_stats",
-		AggregationName: "extended_stats",
+		TestName:  "metrics aggregation: extended_stats",
+		QueryType: "extended_stats",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -505,8 +489,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [25]
-		TestName:        "metrics aggregation: geo_bounds",
-		AggregationName: "geo_bounds",
+		TestName:  "metrics aggregation: geo_bounds",
+		QueryType: "geo_bounds",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -519,8 +503,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [26]
-		TestName:        "metrics aggregation: geo_centroid",
-		AggregationName: "geo_centroid",
+		TestName:  "metrics aggregation: geo_centroid",
+		QueryType: "geo_centroid",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -536,8 +520,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [27]
-		TestName:        "metrics aggregation: geo_line",
-		AggregationName: "geo_line",
+		TestName:  "metrics aggregation: geo_line",
+		QueryType: "geo_line",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -551,8 +535,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [28]
-		TestName:        "metrics aggregation: cartesian_bounds",
-		AggregationName: "cartesian_bounds",
+		TestName:  "metrics aggregation: cartesian_bounds",
+		QueryType: "cartesian_bounds",
 		QueryRequestJson: `
 		{
 			"query": {
@@ -568,8 +552,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [29]
-		TestName:        "metrics aggregation: cartesian_centroid",
-		AggregationName: "cartesian_centroid",
+		TestName:  "metrics aggregation: cartesian_centroid",
+		QueryType: "cartesian_centroid",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -582,8 +566,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [30]
-		TestName:        "metrics aggregation: matrix_stats",
-		AggregationName: "matrix_stats",
+		TestName:  "metrics aggregation: matrix_stats",
+		QueryType: "matrix_stats",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -596,8 +580,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [31]
-		TestName:        "metrics aggregation: median_absolute_deviation",
-		AggregationName: "median_absolute_deviation",
+		TestName:  "metrics aggregation: median_absolute_deviation",
+		QueryType: "median_absolute_deviation",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -616,8 +600,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [32]
-		TestName:        "metrics aggregation: rate",
-		AggregationName: "rate",
+		TestName:  "metrics aggregation: rate",
+		QueryType: "rate",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -639,8 +623,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [33]
-		TestName:        "metrics aggregation: scripted_metric",
-		AggregationName: "scripted_metric",
+		TestName:  "metrics aggregation: scripted_metric",
+		QueryType: "scripted_metric",
 		QueryRequestJson: `
 		{
 			"query": {
@@ -659,8 +643,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [34]
-		TestName:        "metrics aggregation: string_stats",
-		AggregationName: "string_stats",
+		TestName:  "metrics aggregation: string_stats",
+		QueryType: "string_stats",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -669,8 +653,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [35]
-		TestName:        "metrics aggregation: t_test",
-		AggregationName: "t_test",
+		TestName:  "metrics aggregation: t_test",
+		QueryType: "t_test",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -686,8 +670,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [36]
-		TestName:        "metrics aggregation: weighted_avg",
-		AggregationName: "weighted_avg",
+		TestName:  "metrics aggregation: weighted_avg",
+		QueryType: "weighted_avg",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -708,8 +692,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 
 	// pipeline:
 	{ // [37]
-		TestName:        "pipeline aggregation: avg_bucket",
-		AggregationName: "avg_bucket",
+		TestName:  "pipeline aggregation: avg_bucket",
+		QueryType: "avg_bucket",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -738,8 +722,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [38]
-		TestName:        "pipeline aggregation: bucket_count_ks_test",
-		AggregationName: "bucket_count_ks_test",
+		TestName:  "pipeline aggregation: bucket_count_ks_test",
+		QueryType: "bucket_count_ks_test",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -770,8 +754,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [39]
-		TestName:        "pipeline aggregation: bucket_correlation",
-		AggregationName: "bucket_correlation",
+		TestName:  "pipeline aggregation: bucket_correlation",
+		QueryType: "bucket_correlation",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -811,8 +795,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [40]
-		TestName:        "pipeline aggregation: bucket_selector",
-		AggregationName: "bucket_selector",
+		TestName:  "pipeline aggregation: bucket_selector",
+		QueryType: "bucket_selector",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -842,8 +826,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [41]
-		TestName:        "pipeline aggregation: bucket_sort",
-		AggregationName: "bucket_sort",
+		TestName:  "pipeline aggregation: bucket_sort",
+		QueryType: "bucket_sort",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -873,8 +857,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [42]
-		TestName:        "pipeline aggregation: change_point",
-		AggregationName: "change_point",
+		TestName:  "pipeline aggregation: change_point",
+		QueryType: "change_point",
 		QueryRequestJson: `
 		{
 			"aggs": {
@@ -900,8 +884,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [43]
-		TestName:        "pipeline aggregation: cumulative_cardinality",
-		AggregationName: "cumulative_cardinality",
+		TestName:  "pipeline aggregation: cumulative_cardinality",
+		QueryType: "cumulative_cardinality",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -928,8 +912,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [44]
-		TestName:        "pipeline aggregation: cumulative_sum",
-		AggregationName: "cumulative_sum",
+		TestName:  "pipeline aggregation: cumulative_sum",
+		QueryType: "cumulative_sum",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -956,8 +940,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [45]
-		TestName:        "pipeline aggregation: derivative",
-		AggregationName: "derivative",
+		TestName:  "pipeline aggregation: derivative",
+		QueryType: "derivative",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -984,8 +968,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [46]
-		TestName:        "pipeline aggregation: extended_stats_bucket",
-		AggregationName: "extended_stats_bucket",
+		TestName:  "pipeline aggregation: extended_stats_bucket",
+		QueryType: "extended_stats_bucket",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -1012,8 +996,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [47]
-		TestName:        "pipeline aggregation: inference",
-		AggregationName: "inference",
+		TestName:  "pipeline aggregation: inference",
+		QueryType: "inference",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -1087,8 +1071,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [48]
-		TestName:        "pipeline aggregation: max_bucket",
-		AggregationName: "max_bucket",
+		TestName:  "pipeline aggregation: max_bucket",
+		QueryType: "max_bucket",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -1115,8 +1099,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [49]
-		TestName:        "pipeline aggregation: min_bucket",
-		AggregationName: "min_bucket",
+		TestName:  "pipeline aggregation: min_bucket",
+		QueryType: "min_bucket",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -1143,8 +1127,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [50]
-		TestName:        "pipeline aggregation: moving_fn",
-		AggregationName: "moving_fn",
+		TestName:  "pipeline aggregation: moving_fn",
+		QueryType: "moving_fn",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -1171,8 +1155,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [51]
-		TestName:        "pipeline aggregation: moving_percentiles",
-		AggregationName: "moving_percentiles",
+		TestName:  "pipeline aggregation: moving_percentiles",
+		QueryType: "moving_percentiles",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -1201,8 +1185,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [52]
-		TestName:        "pipeline aggregation: normalize",
-		AggregationName: "normalize",
+		TestName:  "pipeline aggregation: normalize",
+		QueryType: "normalize",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -1231,8 +1215,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [53]
-		TestName:        "pipeline aggregation: percentiles_bucket",
-		AggregationName: "percentiles_bucket",
+		TestName:  "pipeline aggregation: percentiles_bucket",
+		QueryType: "percentiles_bucket",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -1260,8 +1244,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [54]
-		TestName:        "pipeline aggregation: serial_diff",
-		AggregationName: "serial_diff",
+		TestName:  "pipeline aggregation: serial_diff",
+		QueryType: "serial_diff",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -1289,8 +1273,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [55]
-		TestName:        "pipeline aggregation: stats_bucket",
-		AggregationName: "stats_bucket",
+		TestName:  "pipeline aggregation: stats_bucket",
+		QueryType: "stats_bucket",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -1317,8 +1301,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 		}`,
 	},
 	{ // [56]
-		TestName:        "pipeline aggregation: sum_bucket",
-		AggregationName: "sum_bucket",
+		TestName:  "pipeline aggregation: sum_bucket",
+		QueryType: "sum_bucket",
 		QueryRequestJson: `
 		{
 			"size": 0,
@@ -1346,8 +1330,8 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 	},
 	// random non-existing aggregation:
 	{ // [57]
-		TestName:        "non-existing aggregation: Augustus_Caesar",
-		AggregationName: ui.UnrecognizedQueryType,
+		TestName:  "non-existing aggregation: Augustus_Caesar",
+		QueryType: ui.UnrecognizedQueryType,
 		QueryRequestJson: `
 		{
 			"query": {
@@ -1362,6 +1346,771 @@ var UnsupportedAggregationsTests = []UnsupportedAggregationTestCase{
 						"keywords": {
 							"Augustus_Caesar": { "field": "content" }
 						}
+					}
+				}
+			}
+		}`,
+	},
+
+	// Query DSL Tests:
+	{ // [58]
+		TestName:  "Compound query: boosting",
+		QueryType: "boosting",
+		QueryRequestJson: `
+		{
+			"query": {
+				"boosting": {
+					"positive": {
+						"term": {
+							"text": "apple"
+						}
+					},
+					"negative": {
+						"term": {
+							"text": "pie tart fruit crumble tree"
+						}
+					},
+					"negative_boost": 0.5
+				}
+			}
+		}`,
+	},
+	{ // [59]
+		TestName:  "Compound query: constant_score",
+		QueryType: "constant_score",
+		QueryRequestJson: `
+		{
+			"query": {
+				"constant_score": {
+					"filter": {
+						"term": { "user.id": "kimchy" }
+					},
+					"boost": 1.2
+				}
+			}
+		}`,
+	},
+	{ // [60]
+		TestName:  "Compound query: disjunction_max",
+		QueryType: "dis_max",
+		QueryRequestJson: `
+		{
+			"query": {
+				"dis_max": {
+					"queries": [
+						{ "term": { "title": "Quick pets" } },
+						{ "term": { "body": "Quick pets" } }
+					],
+					"tie_breaker": 0.7
+				}
+			}
+		}`,
+	},
+	{ // [61]
+		TestName:  "Compound query: function score",
+		QueryType: "function_score",
+		QueryRequestJson: `
+		{
+			"query": {
+				"function_score": {
+					"query": { "match_all": {} },
+					"boost": "5",
+					"random_score": {}, 
+					"boost_mode": "multiply"
+				}
+			}
+		}`,
+	},
+	{ // [62]
+		TestName:  "Full text queries: intervals",
+		QueryType: "intervals",
+		QueryRequestJson: `
+		{
+			"query": {
+				"intervals" : {
+					"my_text" : {
+						"all_of" : {
+							"ordered" : true,
+							"intervals" : [
+								{
+									"match" : {
+										"query" : "my favorite food",
+										"max_gaps" : 0,
+										"ordered" : true
+									}
+								},
+								{
+									"any_of" : {
+										"intervals" : [
+					  						{ "match" : { "query" : "hot water" } },
+					  						{ "match" : { "query" : "cold porridge" } }
+										]
+									}
+								}
+							]
+						}
+					}
+				}
+			}
+		}`,
+	},
+	{ // [63]
+		TestName:  "Full text queries: match_bool_prefix",
+		QueryType: "match_bool_prefix",
+		QueryRequestJson: `
+		{
+			"query": {
+				"match_bool_prefix" : {
+					"message" : "quick brown f"
+				}
+			}
+		}`,
+	},
+	{ // [64]
+		TestName:  "Full text queries: match_phrase_prefix",
+		QueryType: "match_phrase_prefix",
+		QueryRequestJson: `
+		{
+			"query": {
+				"match_phrase_prefix": {
+					"message": {
+						"query": "quick brown f"
+					}
+				}
+			}
+		}`,
+	},
+	{ // [65]
+		TestName:  "Full text queries: combined fields",
+		QueryType: "combined_fields",
+		QueryRequestJson: `
+		{
+			"query": {
+				"combined_fields" : {
+					"query":      "database systems",
+					"fields":     [ "title", "abstract", "body"],
+					"operator":   "and"
+				}
+			}
+		}`,
+	},
+	{ // [66]
+		TestName:  "Geo queries: geo_bounding_box",
+		QueryType: "geo_bounding_box",
+		QueryRequestJson: `
+		{
+			"query": {
+				"bool": {
+					"must": {
+						"match_all": {}
+					},
+					"filter": {
+						"geo_bounding_box": {
+							"pin.location": {
+								"top_left": {
+									"lat": 40.73,
+									"lon": -74.1
+								},
+								"bottom_right": {
+									"lat": 40.01,
+									"lon": -71.12
+								}
+							}
+						}
+					}
+				}
+			}
+		}`,
+	},
+	{ // [67]
+		TestName:  "Geo queries: Geo-distance",
+		QueryType: "geo_distance",
+		QueryRequestJson: `
+		{
+			"query": {
+				"bool": {
+					"must": {
+						"match_all": {}
+					},
+					"filter": {
+						"geo_distance": {
+							"distance": "200km",
+							"pin.location": {
+								"lat": 40,
+								"lon": -70
+							}
+						}
+					}
+				}
+			}
+		}`,
+	},
+	{ // [68]
+		TestName:  "Geo queries: Geo-grid",
+		QueryType: "geo_grid",
+		QueryRequestJson: `
+		{
+			"query": {
+				"geo_grid" :{
+					"location" : {
+						"geohash" : "u0"
+					}
+				}
+			}
+		}`,
+	},
+	{
+		TestName:  "Geo queries: Geo-polygon",
+		QueryType: "geo_polygon",
+		QueryRequestJson: `
+		{
+			"query": {
+				"bool": {
+					"must": {
+						"match_all": {}
+					},
+					"filter": {
+						"geo_polygon": {
+							"person.location": {
+								"points": [
+									{ "lat": 40, "lon": -70 },
+									{ "lat": 30, "lon": -80 },
+									{ "lat": 20, "lon": -90 }
+								]
+							}
+						}
+					}
+				}
+			}
+		}`,
+	},
+	{ // [70]
+		TestName:  "Geo queries: geoshape",
+		QueryType: "geo_shape",
+		QueryRequestJson: `
+		{
+			"query": {
+				"bool": {
+					"must": {
+						"match_all": {}
+					},
+					"filter": {
+						"geo_shape": {
+							"location": {
+								"shape": {
+									"type": "envelope",
+									"coordinates": [ [ 13.0, 53.0 ], [ 14.0, 52.0 ] ]
+								},
+								"relation": "within"
+							}
+						}
+					}
+				}
+			}
+		}`,
+	},
+	{ // [71]
+		TestName:  "Shape",
+		QueryType: "shape",
+		QueryRequestJson: `
+		{
+			"query": {
+				"shape": {
+					"geometry": {
+						"shape": {
+							"type": "envelope",
+							"coordinates": [ [ 1355.0, 5355.0 ], [ 1400.0, 5200.0 ] ]
+						},
+						"relation": "within"
+					}
+				}
+			}
+		}`,
+	},
+	{ // [72]
+		TestName:  "Joining queries: Has child",
+		QueryType: "has_child",
+		QueryRequestJson: `
+		{
+			"query": {
+				"has_child": {
+					"type": "child",
+					"query": {
+						"match_all": {}
+					},
+					"max_children": 10,
+					"min_children": 2,
+					"score_mode": "min"
+				}
+			}
+		}`,
+	},
+	{ // [73]
+		TestName:  "Joining queries: Has parent",
+		QueryType: "has_parent",
+		QueryRequestJson: `
+		{
+			"query": {
+				"has_parent": {
+					"parent_type": "parent",
+					"query": {
+						"term": {
+							"tag": {
+								"value": "Elasticsearch"
+							}
+						}
+					}
+				}
+			}
+		}`,
+	},
+	{ // [74]
+		TestName:  "Joining queries: Parent id",
+		QueryType: "parent_id",
+		QueryRequestJson: `
+		{
+			"query": {
+				"parent_id": {
+					"type": "my-child",
+					"id": "1"
+				}
+			}
+		}`,
+	},
+	{ // [75]
+		TestName:  "Span queries: Span containing",
+		QueryType: "span_containing",
+		QueryRequestJson: `
+		{
+			"query": {
+				"span_containing": {
+					"little": {
+						"span_term": { "field1": "foo" }
+					},
+					"big": {
+						"span_near": {
+							"clauses": [
+								{ "span_term": { "field1": "bar" } },
+								{ "span_term": { "field1": "baz" } }
+							],
+							"slop": 5,
+							"in_order": true
+						}
+					}
+				}
+			}
+		}`,
+	},
+	{ // [76]
+		TestName:  "Span queries: Span field masking",
+		QueryType: "span_field_masking",
+		QueryRequestJson: `
+		{
+			"query": {
+				"span_field_masking": {
+					"query": {
+						"span_term": {
+							"text.stems": "fox" 
+						}
+					},
+					"field": "text" 
+				}
+			},
+			"highlight": {
+				"require_field_match" : false, 
+				"fields": {
+					"*": {}
+				}
+			}
+		}`,
+	},
+	{ // [77]
+		TestName:  "Span queries: Span first",
+		QueryType: "span_first",
+		QueryRequestJson: `
+		{
+			"query": {
+				"span_first": {
+					"match": {
+						"span_term": { "user.id": "kimchy" }
+					},
+					"end": 3
+				}
+			}
+		}`,
+	},
+	{ // [78]
+		TestName:  "Span queries: Span multi-term",
+		QueryType: "span_multi",
+		QueryRequestJson: `
+		{
+			"query": {
+				"span_multi": {
+					"match": {
+						"prefix": { "user.id": { "value": "ki" } }
+					}
+				}
+			}
+		}`,
+	},
+	{ // [79]
+		TestName:  "Span queries: Span near",
+		QueryType: "span_near",
+		QueryRequestJson: `
+		{
+			"query": {
+				"span_near": {
+					"clauses": [
+						{ "span_term": { "field": "value1" } },
+						{ "span_term": { "field": "value2" } },
+						{ "span_term": { "field": "value3" } }
+					],
+					"slop": 12,
+					"in_order": false
+				}
+			}
+		}`,
+	},
+	{ // [80]
+		TestName:  "Span queries: Span not",
+		QueryType: "span_not",
+		QueryRequestJson: `
+		{
+			"query": {
+				"span_not": {
+					"include": {
+						"span_term": { "field1": "hoya" }
+					},
+					"exclude": {
+						"span_near": {
+							"clauses": [
+								{ "span_term": { "field1": "la" } },
+								{ "span_term": { "field1": "hoya" } }
+							],
+							"slop": 0,
+							"in_order": true
+						}
+					}
+				}
+			}
+		}`,
+	},
+	{ // [81]
+		TestName:  "Span queries: Span or",
+		QueryType: "span_or",
+		QueryRequestJson: `
+		{
+			"query": {
+				"span_or" : {
+					"clauses" : [
+						{ "span_term" : { "field" : "value1" } },
+						{ "span_term" : { "field" : "value2" } },
+						{ "span_term" : { "field" : "value3" } }
+					]
+				}
+			}
+		}`,
+	},
+	{ // [82]
+		TestName:  "Span queries: Span term",
+		QueryType: "span_term",
+		QueryRequestJson: `
+		{
+			"query": {
+				"span_term" : { "user.id" : "kimchy" }
+			}
+		}`,
+	},
+	{ // [83]
+		TestName:  "Span queries: Span within",
+		QueryType: "span_within",
+		QueryRequestJson: `
+		{
+		"query": {
+		"span_within": {
+		"little": {
+		"span_term": { "field1": "foo" }
+		},
+		"big": {
+		"span_near": {
+		"clauses": [
+		{ "span_term": { "field1": "bar" } },
+		{ "span_term": { "field1": "baz" } }
+		],
+		"slop": 5,
+		"in_order": true
+		}
+		}
+		}
+		}
+		}`,
+	},
+	{ // [84]
+		TestName:  "Specialized queries: Distance feature",
+		QueryType: "distance_feature",
+		QueryRequestJson: `
+		{
+			"query": {
+				"bool": {
+					"must": {
+						"match": {
+							"name": "chocolate"
+						}
+					},
+					"should": {
+						"distance_feature": {
+							"field": "production_date",
+							"pivot": "7d",
+							"origin": "now"
+						}
+					},
+					"minimum_should_match": 1
+				}
+			}
+		}`,
+	},
+	{ // [85]
+		TestName:  "Specialized queries: More like this",
+		QueryType: "more_like_this",
+		QueryRequestJson: `
+		{
+			"query": {
+				"more_like_this": {
+					"fields": [ "title", "description" ],
+					"like": [
+						{
+							"_index": "imdb",
+							"_id": "1"
+						},
+						{
+							"_index": "imdb",
+							"_id": "2"
+						},
+						"and potentially some more text here as well"
+					],
+					"min_term_freq": 1,
+					"max_query_terms": 12
+				}
+			}
+		}`,
+	},
+	{ // [86]
+		TestName:  "Specialized queries: Percolate",
+		QueryType: "percolate",
+		QueryRequestJson: `
+		{
+			"query": {
+				"percolate": {
+					"field": "query",
+					"document": {
+						"message": "A new bonsai tree in the office"
+					}
+				}
+			}
+		}`,
+	},
+	{ // [87]
+		TestName:  "Specialized queries: Knn",
+		QueryType: "knn",
+		QueryRequestJson: `
+		{
+			"size" : 3,
+			"query" : {
+				"knn": {
+					"field": "image-vector",
+					"query_vector": [-5, 9, -12],
+					"num_candidates": 10
+				}
+			}
+		}`,
+	},
+	{ // [88]
+		TestName:  "Specialized queries: Rank feature",
+		QueryType: "rank_feature",
+		QueryRequestJson: `
+		{
+			"query": {
+				"bool": {
+					"must": [
+						{
+							"match": {
+								"content": "2016"
+							}
+						}
+					],
+					"should": [
+						{
+							"rank_feature": {
+								"field": "pagerank"
+							}
+						}
+					],
+					"minimum_should_match": 1
+				}
+			}
+		}`,
+	},
+	{ // [89]
+		TestName:  "Specialized queries: Script",
+		QueryType: "script",
+		QueryRequestJson: `
+		{
+			"query": {
+				"bool": {
+					"filter": {
+						"script": {
+							"script": """
+							double amount = doc['amount'].value;
+							if (doc['type'].value == 'expense') {
+							  amount *= -1;
+							}
+							return amount < 10;
+							"""
+						}
+					}
+				}
+			}
+		}`,
+	},
+	{ // [90]
+		TestName:  "Specialized queries: Script score",
+		QueryType: "script_score",
+		QueryRequestJson: `
+		{
+			"query": {
+				"script_score": {
+					"query": {
+						"match": { "message": "elasticsearch" }
+					},
+					"script": {
+						"source": "doc['my-int'].value / 10 "
+					}
+				}
+			}
+		}`,
+	},
+	{ // [91]
+		TestName:  "Specialized queries: Wrapper",
+		QueryType: "wrapper",
+		QueryRequestJson: `
+		{
+			"query": {
+				"wrapper": {
+					"query": "eyJ0ZXJtIiA6IHsgInVzZXIuaWQiIDogImtpbWNoeSIgfX0=" 
+				}
+			}
+		}`,
+	},
+	{ // [92]
+		TestName:  "Specialized queries: Pinned query",
+		QueryType: "pinned",
+		QueryRequestJson: `
+		{
+			"query": {
+				"pinned": {
+					"ids": [ "1", "4", "100" ],
+					"organic": {
+						"match": {
+							"description": "iphone"
+						}
+					}
+				}
+			}
+		}`,
+	},
+	{ // [93]
+		TestName:  "Specialized queries: Rule",
+		QueryType: "rule_query",
+		QueryRequestJson: `
+		{
+			"query": {
+				"rule_query": {
+					"match_criteria": {
+						"user_query": "pugs"
+					},
+					"ruleset_id": "my-ruleset",
+					"organic": {
+						"match": {
+							"description": "puggles"
+						}
+					}
+				}
+			}
+		}`,
+	},
+	{ // [94]
+		TestName:  "Specialized queries: Weighted tokens",
+		QueryType: "weighted_tokens",
+		QueryRequestJson: `
+		{
+			"query": {
+				"weighted_tokens": {
+					"query_expansion_field": {
+						"tokens": {"2161": 0.4679, "2621": 0.307, "2782": 0.1299, "2851": 0.1056, "3088": 0.3041, "3376": 0.1038, "3467": 0.4873, "3684": 0.8958, "4380": 0.334, "4542": 0.4636, "4633": 2.2805, "4785": 1.2628, "4860": 1.0655, "5133": 1.0709, "7139": 1.0016, "7224": 0.2486, "7387": 0.0985, "7394": 0.0542, "8915": 0.369, "9156": 2.8947, "10505": 0.2771, "11464": 0.3996, "13525": 0.0088, "14178": 0.8161, "16893": 0.1376, "17851": 1.5348, "19939": 0.6012},
+						"pruning_config": {
+							"tokens_freq_ratio_threshold": 5,
+							"tokens_weight_threshold": 0.4,
+							"only_score_pruned_tokens": false
+						}
+					}
+				}
+			}
+		}`,
+	},
+	{ // [95]
+		TestName:  "Term-level queries: Fuzzy",
+		QueryType: "fuzzy",
+		QueryRequestJson: `
+		{
+			"query": {
+				"fuzzy": {
+					"user.id": {
+						"value": "ki"
+					}
+				}
+			}
+		}`,
+	},
+	{ // [96]
+		TestName:  "Term-level queries: IDs",
+		QueryType: "ids",
+		QueryRequestJson: `
+		{
+			"query": {
+				"ids" : {
+					"values" : ["1", "4", "100"]
+				}
+			}
+		}`,
+	},
+	{ // [97]
+		TestName:  "Term-level queries: Regexp",
+		QueryType: "regexp",
+		QueryRequestJson: `
+		{
+			"query": {
+				"regexp": {
+					"user.id": {
+						"value": "k.*y",
+						"flags": "ALL",
+						"case_insensitive": true,
+						"max_determinized_states": 10000,
+						"rewrite": "constant_score_blended"
+					}
+				}
+			}
+		}`,
+	},
+	{ // [98]
+		TestName:  "Term-level queries: Terms set",
+		QueryType: "terms_set",
+		QueryRequestJson: `
+		{
+			"query": {
+				"terms_set": {
+					"programming_languages": {
+						"terms": [ "c++", "java", "php" ],
+						"minimum_should_match_field": "required_matches"
 					}
 				}
 			}

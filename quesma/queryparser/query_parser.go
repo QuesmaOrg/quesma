@@ -335,6 +335,7 @@ func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fi
 }
 
 func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuery {
+	fmt.Println(queryMap)
 	if len(queryMap) != 1 {
 		// TODO suppress metadata for now
 		_ = cw.parseMetadata(queryMap)
@@ -357,6 +358,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 		"simple_query_string": cw.parseQueryString,
 	}
 	for k, v := range queryMap {
+		fmt.Println(k, v)
 		if f, ok := parseMap[k]; ok {
 			if vAsQueryMap, ok := v.(QueryMap); ok {
 				return f(vAsQueryMap)
@@ -364,41 +366,49 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 				logger.WarnWithCtx(cw.Ctx).Msgf("query is not a dict. key: %s, value: %v", k, v)
 			}
 		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("unsupported query type: %s, value: %v", k, v)
+			logger.WarnWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).Msgf("unsupported query type: %s, value: %v", k, v)
 		}
 	}
 	return newSimpleQuery(NewSimpleStatement("can't parse query: "+pp.Sprint(queryMap)), false)
 }
 
 // Parses each SimpleQuery separately, returns list of translated SQLs
-func (cw *ClickhouseQueryTranslator) parseQueryMapArray(queryMaps []interface{}) []Statement {
+func (cw *ClickhouseQueryTranslator) parseQueryMapArray(queryMaps []interface{}) (stmts []Statement, canParse bool) {
 	results := make([]Statement, len(queryMaps))
+	canParse = true
 	for i, v := range queryMaps {
 		qmap := cw.parseQueryMap(v.(QueryMap))
 		results[i] = qmap.Sql
 		results[i].FieldName = qmap.FieldName
+		if !qmap.CanParse {
+			canParse = false
+		}
 	}
-	return results
+	return results, canParse
 }
 
-func (cw *ClickhouseQueryTranslator) iterateListOrDictAndParse(queryMaps interface{}) []Statement {
+func (cw *ClickhouseQueryTranslator) iterateListOrDictAndParse(queryMaps interface{}) (stmts []Statement, canParse bool) {
 	switch queryMapsTyped := queryMaps.(type) {
 	case []interface{}:
 		return cw.parseQueryMapArray(queryMapsTyped)
 	case QueryMap:
-		return []Statement{cw.parseQueryMap(queryMapsTyped).Sql}
+		simpleQuery := cw.parseQueryMap(queryMapsTyped)
+		return []Statement{simpleQuery.Sql}, simpleQuery.CanParse
 	default:
 		logger.WarnWithCtx(cw.Ctx).Msgf("Invalid query type: %T, value: %v", queryMapsTyped, queryMapsTyped)
-		return []Statement{NewSimpleStatement("invalid iteration")}
+		return []Statement{NewSimpleStatement("invalid iteration")}, false
 	}
 }
 
 // TODO: minimum_should_match parameter. Now only ints supported and >1 changed into 1
 func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) SimpleQuery {
 	var andStmts []Statement
+	canParse := true // true only if all subqueries can be parsed
 	for _, andPhrase := range []string{"must", "filter"} {
 		if queries, ok := queryMap[andPhrase]; ok {
-			andStmts = append(andStmts, cw.iterateListOrDictAndParse(queries)...)
+			newAndStmts, canParseThis := cw.iterateListOrDictAndParse(queries)
+			andStmts = append(andStmts, newAndStmts...)
+			canParse = canParse && canParseThis
 		}
 	}
 	sql := and(andStmts)
@@ -419,7 +429,9 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) SimpleQuery {
 		minimumShouldMatch = 1
 	}
 	if queries, ok := queryMap["should"]; ok && minimumShouldMatch == 1 {
-		orSql := or(cw.iterateListOrDictAndParse(queries))
+		orSqls, canParseThis := cw.iterateListOrDictAndParse(queries)
+		orSql := or(orSqls)
+		canParse = canParse && canParseThis
 		if len(andStmts) == 0 {
 			sql = orSql
 		} else if len(orSql.Stmt) > 0 {
@@ -428,8 +440,9 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) SimpleQuery {
 	}
 
 	if queries, ok := queryMap["must_not"]; ok {
-		sqlNots := cw.iterateListOrDictAndParse(queries)
+		sqlNots, canParseThis := cw.iterateListOrDictAndParse(queries)
 		sqlNots = filterNonEmpty(sqlNots)
+		canParse = canParse && canParseThis
 		if len(sqlNots) > 0 {
 			orSql := or(sqlNots)
 			if orSql.isCompound {
@@ -441,7 +454,7 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) SimpleQuery {
 			sql = and([]Statement{sql, orSql})
 		}
 	}
-	return newSimpleQueryWithFieldName(sql, true, sql.FieldName)
+	return newSimpleQueryWithFieldName(sql, canParse, sql.FieldName)
 }
 
 func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) SimpleQuery {

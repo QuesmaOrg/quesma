@@ -28,7 +28,7 @@ func processUnsupportedLogMessage(log tracing.LogWithLevel) *string {
 	searchQueryType := match[1]
 
 	knownType := false
-	for _, queryType := range model.AggregationQueryTypes {
+	for _, queryType := range model.AllQueryTypes {
 		if queryType == searchQueryType {
 			knownType = true
 			break
