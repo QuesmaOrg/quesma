@@ -2,7 +2,7 @@ package testdata
 
 import "mitmproxy/quesma/quesma/ui"
 
-var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
+var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 	// bucket:
 	{ // [0]
 		TestName:  "bucket aggregation: adjacency_matrix",
@@ -1523,29 +1523,6 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 		}`,
 	},
 	{ // [67]
-		TestName:  "Geo queries: Geo-distance",
-		QueryType: "geo_distance",
-		QueryRequestJson: `
-		{
-			"query": {
-				"bool": {
-					"must": {
-						"match_all": {}
-					},
-					"filter": {
-						"geo_distance": {
-							"distance": "200km",
-							"pin.location": {
-								"lat": 40,
-								"lon": -70
-							}
-						}
-					}
-				}
-			}
-		}`,
-	},
-	{ // [68]
 		TestName:  "Geo queries: Geo-grid",
 		QueryType: "geo_grid",
 		QueryRequestJson: `
@@ -1559,7 +1536,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{
+	{ // [68]
 		TestName:  "Geo queries: Geo-polygon",
 		QueryType: "geo_polygon",
 		QueryRequestJson: `
@@ -1584,7 +1561,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [70]
+	{ // [69]
 		TestName:  "Geo queries: geoshape",
 		QueryType: "geo_shape",
 		QueryRequestJson: `
@@ -1609,7 +1586,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [71]
+	{ // [70]
 		TestName:  "Shape",
 		QueryType: "shape",
 		QueryRequestJson: `
@@ -1627,7 +1604,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [72]
+	{ // [71]
 		TestName:  "Joining queries: Has child",
 		QueryType: "has_child",
 		QueryRequestJson: `
@@ -1645,7 +1622,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [73]
+	{ // [72]
 		TestName:  "Joining queries: Has parent",
 		QueryType: "has_parent",
 		QueryRequestJson: `
@@ -1664,7 +1641,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [74]
+	{ // [73]
 		TestName:  "Joining queries: Parent id",
 		QueryType: "parent_id",
 		QueryRequestJson: `
@@ -1677,7 +1654,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [75]
+	{ // [74]
 		TestName:  "Span queries: Span containing",
 		QueryType: "span_containing",
 		QueryRequestJson: `
@@ -1701,7 +1678,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [76]
+	{ // [75]
 		TestName:  "Span queries: Span field masking",
 		QueryType: "span_field_masking",
 		QueryRequestJson: `
@@ -1724,7 +1701,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [77]
+	{ // [76]
 		TestName:  "Span queries: Span first",
 		QueryType: "span_first",
 		QueryRequestJson: `
@@ -1739,7 +1716,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [78]
+	{ // [77]
 		TestName:  "Span queries: Span multi-term",
 		QueryType: "span_multi",
 		QueryRequestJson: `
@@ -1753,7 +1730,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [79]
+	{ // [78]
 		TestName:  "Span queries: Span near",
 		QueryType: "span_near",
 		QueryRequestJson: `
@@ -1771,7 +1748,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [80]
+	{ // [79]
 		TestName:  "Span queries: Span not",
 		QueryType: "span_not",
 		QueryRequestJson: `
@@ -1795,7 +1772,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [81]
+	{ // [80]
 		TestName:  "Span queries: Span or",
 		QueryType: "span_or",
 		QueryRequestJson: `
@@ -1811,7 +1788,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [82]
+	{ // [81]
 		TestName:  "Span queries: Span term",
 		QueryType: "span_term",
 		QueryRequestJson: `
@@ -1821,31 +1798,31 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [83]
+	{ // [82]
 		TestName:  "Span queries: Span within",
 		QueryType: "span_within",
 		QueryRequestJson: `
 		{
-		"query": {
-		"span_within": {
-		"little": {
-		"span_term": { "field1": "foo" }
-		},
-		"big": {
-		"span_near": {
-		"clauses": [
-		{ "span_term": { "field1": "bar" } },
-		{ "span_term": { "field1": "baz" } }
-		],
-		"slop": 5,
-		"in_order": true
-		}
-		}
-		}
-		}
+			"query": {
+				"span_within": {
+					"little": {
+						"span_term": { "field1": "foo" }
+					},
+					"big": {
+						"span_near": {
+							"clauses": [
+								{ "span_term": { "field1": "bar" } },
+								{ "span_term": { "field1": "baz" } }
+							],
+							"slop": 5,
+							"in_order": true
+						}
+					}
+				}
+			}
 		}`,
 	},
-	{ // [84]
+	{ // [83]
 		TestName:  "Specialized queries: Distance feature",
 		QueryType: "distance_feature",
 		QueryRequestJson: `
@@ -1869,7 +1846,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [85]
+	{ // [84]
 		TestName:  "Specialized queries: More like this",
 		QueryType: "more_like_this",
 		QueryRequestJson: `
@@ -1894,7 +1871,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [86]
+	{ // [85]
 		TestName:  "Specialized queries: Percolate",
 		QueryType: "percolate",
 		QueryRequestJson: `
@@ -1909,7 +1886,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [87]
+	{ // [86]
 		TestName:  "Specialized queries: Knn",
 		QueryType: "knn",
 		QueryRequestJson: `
@@ -1924,7 +1901,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [88]
+	{ // [87]
 		TestName:  "Specialized queries: Rank feature",
 		QueryType: "rank_feature",
 		QueryRequestJson: `
@@ -1950,7 +1927,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [89]
+	{ // [88]
 		TestName:  "Specialized queries: Script",
 		QueryType: "script",
 		QueryRequestJson: `
@@ -1972,7 +1949,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [90]
+	{ // [89]
 		TestName:  "Specialized queries: Script score",
 		QueryType: "script_score",
 		QueryRequestJson: `
@@ -1989,7 +1966,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [91]
+	{ // [90]
 		TestName:  "Specialized queries: Wrapper",
 		QueryType: "wrapper",
 		QueryRequestJson: `
@@ -2001,7 +1978,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [92]
+	{ // [91]
 		TestName:  "Specialized queries: Pinned query",
 		QueryType: "pinned",
 		QueryRequestJson: `
@@ -2018,7 +1995,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [93]
+	{ // [92]
 		TestName:  "Specialized queries: Rule",
 		QueryType: "rule_query",
 		QueryRequestJson: `
@@ -2038,7 +2015,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [94]
+	{ // [93]
 		TestName:  "Specialized queries: Weighted tokens",
 		QueryType: "weighted_tokens",
 		QueryRequestJson: `
@@ -2057,7 +2034,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [95]
+	{ // [94]
 		TestName:  "Term-level queries: Fuzzy",
 		QueryType: "fuzzy",
 		QueryRequestJson: `
@@ -2071,7 +2048,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [96]
+	{ // [95]
 		TestName:  "Term-level queries: IDs",
 		QueryType: "ids",
 		QueryRequestJson: `
@@ -2083,7 +2060,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [97]
+	{ // [96]
 		TestName:  "Term-level queries: Regexp",
 		QueryType: "regexp",
 		QueryRequestJson: `
@@ -2101,7 +2078,7 @@ var UnsupportedAggregationsTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [98]
+	{ // [97]
 		TestName:  "Term-level queries: Terms set",
 		QueryType: "terms_set",
 		QueryRequestJson: `

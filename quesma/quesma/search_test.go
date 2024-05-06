@@ -405,9 +405,9 @@ func TestNumericFacetsQueries(t *testing.T) {
 // It runs |testdata.UnsupportedAggregationsTests| tests, each of them sends one query of unsupported type.
 // It ensures that this query type is recorded in the management console, and that all other query types are not.
 func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
-	for i, tt := range testdata.UnsupportedAggregationsTests {
+	for _, tt := range testdata.UnsupportedQueriesTests {
 		t.Run(tt.TestName, func(t *testing.T) {
-			if i == 89 {
+			if tt.QueryType == "script" {
 				t.Skip("We can't deal with scripts inside queries yet. It fails very early, during JSON unmarshalling, so we can't even know the type of aggregation.")
 			}
 			db, _, err := sqlmock.New()
@@ -454,17 +454,17 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 
 	// generate random |requestsNr| queries to send
 	testNrs := make([]int, 0, requestsNr)
-	testCounts := make([]int, len(testdata.UnsupportedAggregationsTests))
+	testCounts := make([]int, len(testdata.UnsupportedQueriesTests))
 	for range requestsNr {
-		randInt := rand.Intn(len(testdata.UnsupportedAggregationsTests))
-		if randInt == 89 {
+		randInt := rand.Intn(len(testdata.UnsupportedQueriesTests))
+		if testdata.UnsupportedQueriesTests[randInt].QueryType == "script" {
 			// We can't deal with scripts inside queries yet. It fails very early, during JSON unmarshalling, so we can't even know the type of aggregation.
 			continue
 		}
 		testNrs = append(testNrs, randInt)
 		testCounts[randInt]++
 	}
-	fmt.Println(testCounts)
+
 	db, _, err := sqlmock.New()
 	if err != nil {
 		t.Fatal(err)
@@ -481,11 +481,10 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
 	for _, testNr := range testNrs {
 		newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
-		_, _ = queryRunner.handleSearch(newCtx, tableName, []byte(testdata.UnsupportedAggregationsTests[testNr].QueryRequestJson))
-
+		_, _ = queryRunner.handleSearch(newCtx, tableName, []byte(testdata.UnsupportedQueriesTests[testNr].QueryRequestJson))
 	}
 
-	for i, tt := range testdata.UnsupportedAggregationsTests {
+	for i, tt := range testdata.UnsupportedQueriesTests {
 		// Update of the count below is done asynchronously in another goroutine
 		// (go managementConsole.RunOnlyChannelProcessor() above), so we might need to wait a bit
 		assert.Eventually(t, func() bool {

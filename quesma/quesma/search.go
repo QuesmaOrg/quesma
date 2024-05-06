@@ -207,6 +207,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						return nil, fmt.Errorf("properties %s not found in table %s", properties, table.Name)
 					}
 				}
+
 				oldHandlingUsed = true
 				if optAsync != nil {
 					go func() {

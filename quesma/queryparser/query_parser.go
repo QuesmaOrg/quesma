@@ -335,7 +335,6 @@ func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fi
 }
 
 func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuery {
-	fmt.Println(queryMap)
 	if len(queryMap) != 1 {
 		// TODO suppress metadata for now
 		_ = cw.parseMetadata(queryMap)
@@ -358,7 +357,6 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 		"simple_query_string": cw.parseQueryString,
 	}
 	for k, v := range queryMap {
-		fmt.Println(k, v)
 		if f, ok := parseMap[k]; ok {
 			if vAsQueryMap, ok := v.(QueryMap); ok {
 				return f(vAsQueryMap)
@@ -374,17 +372,22 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 
 // Parses each SimpleQuery separately, returns list of translated SQLs
 func (cw *ClickhouseQueryTranslator) parseQueryMapArray(queryMaps []interface{}) (stmts []Statement, canParse bool) {
-	results := make([]Statement, len(queryMaps))
+	stmts = make([]Statement, len(queryMaps))
 	canParse = true
 	for i, v := range queryMaps {
-		qmap := cw.parseQueryMap(v.(QueryMap))
-		results[i] = qmap.Sql
-		results[i].FieldName = qmap.FieldName
-		if !qmap.CanParse {
+		if vAsMap, ok := v.(QueryMap); ok {
+			query := cw.parseQueryMap(vAsMap)
+			stmts[i] = query.Sql
+			stmts[i].FieldName = query.FieldName
+			if !query.CanParse {
+				canParse = false
+			}
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid query type: %T, value: %v", v, v)
 			canParse = false
 		}
 	}
-	return results, canParse
+	return stmts, canParse
 }
 
 func (cw *ClickhouseQueryTranslator) iterateListOrDictAndParse(queryMaps interface{}) (stmts []Statement, canParse bool) {
@@ -403,7 +406,7 @@ func (cw *ClickhouseQueryTranslator) iterateListOrDictAndParse(queryMaps interfa
 // TODO: minimum_should_match parameter. Now only ints supported and >1 changed into 1
 func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) SimpleQuery {
 	var andStmts []Statement
-	canParse := true // true only if all subqueries can be parsed
+	canParse := true // will stay true only if all subqueries can be parsed
 	for _, andPhrase := range []string{"must", "filter"} {
 		if queries, ok := queryMap[andPhrase]; ok {
 			newAndStmts, canParseThis := cw.iterateListOrDictAndParse(queries)
