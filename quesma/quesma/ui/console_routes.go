@@ -61,7 +61,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	})
 
 	router.HandleFunc("/data-sources", func(writer http.ResponseWriter, req *http.Request) {
-		buf := qmc.generateDatasources()
+		buf := qmc.generateDatasourcesPage()
 		_, _ = writer.Write(buf)
 	})
 
@@ -104,6 +104,11 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	router.HandleFunc("/panel/dashboard", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateDashboardPanel()
 		buf = append(buf, qmc.generateDashboardTrafficPanel()...)
+		_, _ = writer.Write(buf)
+	})
+
+	router.HandleFunc("/panel/data-sources", func(writer http.ResponseWriter, req *http.Request) {
+		buf := qmc.generateDatasources()
 		_, _ = writer.Write(buf)
 	})
 

@@ -58,7 +58,7 @@ func generateTopNavigation(target string) []byte {
 	buffer.Html(`><a href="/telemetry">Telemetry</a></li>`)
 
 	buffer.Html("<li")
-	if target == "datasources" {
+	if target == "data-sources" {
 		buffer.Html(` class="active"`)
 	}
 	buffer.Html(`><a href="/data-sources">Data sources</a></li>`)

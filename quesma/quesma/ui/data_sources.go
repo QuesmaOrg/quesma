@@ -2,15 +2,34 @@ package ui
 
 import (
 	"fmt"
+	"mitmproxy/quesma/quesma/ui/internal/buffer"
 	"slices"
 	"strings"
 )
 
-func (qmc *QuesmaManagementConsole) generateDatasources() []byte {
+func (qmc *QuesmaManagementConsole) generateDatasourcesPage() []byte {
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("datasources"))
+	buffer.Write(generateTopNavigation("data-sources"))
 
-	buffer.Html(`<main id="datasources">`)
+	buffer.Html(`<main id="data-sources">`)
+	buffer.Write(qmc.generateDatasources())
+
+	buffer.Html("\n</main>\n\n")
+
+	buffer.Html(`<div class="menu">`)
+	buffer.Html("\n<h2>Menu</h2>")
+
+	buffer.Html(`<form action="/live">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+
+	buffer.Html("\n</div>")
+
+	buffer.Html("\n</body>")
+	buffer.Html("\n</html>")
+	return buffer.Bytes()
+}
+
+func (qmc *QuesmaManagementConsole) generateDatasources() []byte {
+	var buffer buffer.HtmlBuffer
 	buffer.Html(`<h2>Data sources</h2>`)
 
 	buffer.Html(`<h3>Clickhouse</h3>`)
@@ -64,17 +83,5 @@ func (qmc *QuesmaManagementConsole) generateDatasources() []byte {
 	}
 
 	buffer.Html(`</ul>`)
-
-	buffer.Html("\n</main>\n\n")
-
-	buffer.Html(`<div class="menu">`)
-	buffer.Html("\n<h2>Menu</h2>")
-
-	buffer.Html(`<form action="/live">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
-
-	buffer.Html("\n</div>")
-
-	buffer.Html("\n</body>")
-	buffer.Html("\n</html>")
 	return buffer.Bytes()
 }
