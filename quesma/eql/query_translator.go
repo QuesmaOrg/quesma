@@ -39,8 +39,11 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
+		resultRow := ResultSet[i]
+
 		hits[i].Fields = make(map[string][]interface{})
 		hits[i].Highlight = make(map[string][]string)
+		hits[i].Source = []byte(resultRow.String(cw.Ctx))
 		if typ == model.ListAllFields {
 			hits[i].ID = strconv.Itoa(i + 1)
 			hits[i].Index = cw.Table.Name
@@ -50,13 +53,6 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 				"2024-01-30T19:38:54.607Z",
 				2944,
 			}
-		}
-
-		hit := &hits[i]
-		resultRow := ResultSet[i]
-
-		for _, col := range resultRow.Cols {
-			hit.Fields[col.ColName] = []interface{}{col.Value}
 		}
 	}
 
