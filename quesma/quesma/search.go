@@ -118,10 +118,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 	im elasticsearch.IndexManagement,
 	qmc *ui.QuesmaManagementConsole, optAsync *AsyncQuery) ([]byte, error) {
 
-	logger.Debug().Msgf("resolved sources for index pattern %s -> %s", indexPattern, ResolveSources(indexPattern, cfg, im, lm))
+	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, cfg, im, lm)
 
-	resolved := lm.ResolveIndexes(ctx, indexPattern)
-	if len(resolved) == 0 {
+	switch sources {
+	case sourceBoth:
+		logger.Error().Msgf("index pattern [%s] resolved to both elasticsearch indices: [%s] and clickhouse tables: [%s]", indexPattern, sourcesElastic, sourcesClickhouse)
+		return nil, errors.New("querying data in elasticsearch and clickhouse is not supported at the moment")
+	case sourceNone:
 		if elasticsearch.IsIndexPattern(indexPattern) {
 			if optAsync != nil {
 				return queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 200)
@@ -132,9 +135,28 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 			logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
 			return nil, errIndexNotExists
 		}
-	} else if len(resolved) > 1 { // async search never worked for multiple indexes, TODO fix
-		logger.WarnWithCtx(ctx).Msgf("could not resolve multiple table names for [%s]", indexPattern)
-		resolved = resolved[1:2]
+	case sourceClickhouse:
+		logger.Debug().Msgf("index pattern [%s] resolved to clickhouse tables: [%s]", indexPattern, sourcesClickhouse)
+	case sourceElasticsearch:
+		logger.Error().Msgf("index pattern [%s] resolved to elasticsearch indices: [%s]", indexPattern, sourcesElastic)
+		panic("elasticsearch-only indexes should not be routed here at all")
+	}
+	logger.Debug().Msgf("resolved sources for index pattern %s -> %s", indexPattern, sources)
+
+	if len(sourcesClickhouse) == 0 {
+		if elasticsearch.IsIndexPattern(indexPattern) {
+			if optAsync != nil {
+				return queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 200)
+			} else {
+				return queryparser.EmptySearchResponse(ctx), nil
+			}
+		} else {
+			logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
+			return nil, errIndexNotExists
+		}
+	} else if len(sourcesClickhouse) > 1 { // async search never worked for multiple indexes, TODO fix
+		logger.WarnWithCtx(ctx).Msgf("requires union of multiple tables [%s], not yet supported, picking just one", indexPattern)
+		sourcesClickhouse = sourcesClickhouse[1:2]
 	}
 
 	var responseBody, translatedQueryBody []byte
@@ -166,15 +188,14 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 
 	tables := lm.GetTableDefinitions()
 
-	// TODO: variables below should be per table. Now they are not, as we only support one table.
-	var queryTranslator *queryparser.ClickhouseQueryTranslator
-	var highlighter queryparser.Highlighter
-	var aggregations []model.QueryWithAggregation
-	var err error
-	var queryInfo model.SearchQueryInfo
-	var count int
+	for _, resolvedTableName := range sourcesClickhouse {
+		var queryTranslator *queryparser.ClickhouseQueryTranslator
+		var highlighter queryparser.Highlighter
+		var aggregations []model.QueryWithAggregation
+		var err error
+		var queryInfo model.SearchQueryInfo
+		var count int
 
-	for _, resolvedTableName := range resolved {
 		table, _ := tables.Load(resolvedTableName)
 		queryTranslator = &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: ctx}
 		var simpleQuery queryparser.SimpleQuery
@@ -253,69 +274,56 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 			pushSecondaryInfoToManagementConsole()
 			return responseBody, errors.New(string(responseBody))
 		}
-	}
 
-	/* TODO add this somehow, somewhere
-		if err != nil {
-		if elasticsearch.IsIndexPattern(indexPattern) {
-			logger.WarnWithCtx(ctx).Msgf("Unprocessable: %s, err: %s, resolving to empty (desired behaviour)", fullQuery.String(), err.Error())
-			continue
-		} else {
-			errorMsg := fmt.Sprintf("Error processing query: %s, err: %s", fullQuery.String(), err.Error())
-			logger.ErrorWithCtx(ctx).Msg(errorMsg)
-			responseBody = []byte(errorMsg)
-			pushSecondaryInfoToManagementConsole()
-			return responseBody, err
-		}
-	}
-	*/
-
-	if optAsync == nil {
-		var response, responseHits *model.SearchResp = nil, nil
-		err = nil
-		if oldHandlingUsed {
-			response, err = queryTranslator.MakeSearchResponse(hits, queryInfo.Typ, highlighter)
-		} else if newAggregationHandlingUsed {
-			response = queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
-		}
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queryInfo, hits)
-			pushSecondaryInfoToManagementConsole()
-			return responseBody, err
-		}
-
-		if hitsPresent {
-			if response == nil {
-				response, err = queryTranslator.MakeSearchResponse(hitsFallback, queryInfo.Typ, highlighter)
-			} else {
-				responseHits, err = queryTranslator.MakeSearchResponse(hitsFallback, queryInfo.Typ, highlighter)
-				response.Hits = responseHits.Hits
+		if optAsync == nil {
+			var response, responseHits *model.SearchResp = nil, nil
+			err = nil
+			if oldHandlingUsed {
+				response, err = queryTranslator.MakeSearchResponse(hits, queryInfo.Typ, highlighter)
+			} else if newAggregationHandlingUsed {
+				response = queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
 			}
-			response.Hits.Total.Value = count
-		}
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %v, rows: %v", err, queryInfo, hitsFallback)
-		}
-		responseBody, err = response.Marshal()
+			if err != nil {
+				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queryInfo, hits)
+				pushSecondaryInfoToManagementConsole()
+				return responseBody, err
+			}
 
-		pushSecondaryInfoToManagementConsole()
-		return responseBody, err
-	} else {
-		select {
-		case <-time.After(time.Duration(optAsync.waitForResultsMs) * time.Millisecond):
-			go func() { // Async search takes longer. Return partial results and wait for
-				recovery.LogPanicWithCtx(ctx)
-				res := <-optAsync.doneCh
-				q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res, true)
-			}()
-			return q.handlePartialAsyncSearch(ctx, optAsync.asyncRequestIdStr)
-		case res := <-optAsync.doneCh:
-			responseBody, err = q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res,
-				optAsync.keepOnCompletion)
+			if hitsPresent {
+				if response == nil {
+					response, err = queryTranslator.MakeSearchResponse(hitsFallback, queryInfo.Typ, highlighter)
+				} else {
+					responseHits, err = queryTranslator.MakeSearchResponse(hitsFallback, queryInfo.Typ, highlighter)
+					response.Hits = responseHits.Hits
+				}
+				response.Hits.Total.Value = count
+			}
+			if err != nil {
+				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %v, rows: %v", err, queryInfo, hitsFallback)
+			}
+			responseBody, err = response.Marshal()
 
+			pushSecondaryInfoToManagementConsole()
 			return responseBody, err
+		} else {
+			select {
+			case <-time.After(time.Duration(optAsync.waitForResultsMs) * time.Millisecond):
+				go func() { // Async search takes longer. Return partial results and wait for
+					recovery.LogPanicWithCtx(ctx)
+					res := <-optAsync.doneCh
+					q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res, true)
+				}()
+				return q.handlePartialAsyncSearch(ctx, optAsync.asyncRequestIdStr)
+			case res := <-optAsync.doneCh:
+				responseBody, err = q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res,
+					optAsync.keepOnCompletion)
+
+				return responseBody, err
+			}
 		}
 	}
+
+	return responseBody, nil
 }
 
 func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncRequestIdStr string,

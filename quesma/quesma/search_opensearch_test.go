@@ -19,6 +19,7 @@ import (
 )
 
 func TestSearchOpensearch(t *testing.T) {
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
 	table := clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
@@ -36,7 +37,7 @@ func TestSearchOpensearch(t *testing.T) {
 			assert.NoError(t, err)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
-			managementConsole := ui.NewQuesmaManagementConsole(config.QuesmaConfiguration{}, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())
+			managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())
 			cw := queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
 
 			simpleQuery, queryInfo, _ := cw.ParseQuery(tt.QueryJson)
@@ -49,7 +50,7 @@ func TestSearchOpensearch(t *testing.T) {
 			}
 
 			queryRunner := NewQueryRunner()
-			_, err = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson), config.QuesmaConfiguration{}, lm, nil, managementConsole)
+			_, err = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson), cfg, lm, nil, managementConsole)
 			assert.NoError(t, err)
 
 			if err = mock.ExpectationsWereMet(); err != nil {
@@ -152,6 +153,7 @@ func TestHighlighter(t *testing.T) {
 		],
 		"version": true
 	}`
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
 	table := clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
@@ -167,7 +169,7 @@ func TestHighlighter(t *testing.T) {
 	assert.NoError(t, err)
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
-	managementConsole := ui.NewQuesmaManagementConsole(config.QuesmaConfiguration{}, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())
+	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())
 
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"message$*%:;", "host.name", "@timestamp"}). // careful, it's not always in this order, order is nondeterministic
 															AddRow("abcd", "abcd", "abcd").
@@ -177,7 +179,7 @@ func TestHighlighter(t *testing.T) {
 															AddRow("text", "text", "text"))
 
 	queryRunner := NewQueryRunner()
-	response, err := queryRunner.handleSearch(ctx, tableName, []byte(query), config.QuesmaConfiguration{}, lm, nil, managementConsole)
+	response, err := queryRunner.handleSearch(ctx, tableName, []byte(query), cfg, lm, nil, managementConsole)
 	assert.NoError(t, err)
 	if err = mock.ExpectationsWereMet(); err != nil {
 		t.Fatal("there were unfulfilled expections:", err)
