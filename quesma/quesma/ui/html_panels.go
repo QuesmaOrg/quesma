@@ -7,7 +7,9 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/quesma/mux"
-	"mitmproxy/quesma/quesma/ui/sqlfmt"
+	"mitmproxy/quesma/quesma/ui/internal/buffer"
+	"mitmproxy/quesma/quesma/ui/internal/sqlfmt"
+
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/stats/errorstats"
 	"net/url"
@@ -17,7 +19,7 @@ import (
 )
 
 func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte {
-	var buffer HtmlBuffer
+	var buffer buffer.HtmlBuffer
 
 	buffer.Html("\n" + `<div class="left" id="query-left">` + "\n")
 	buffer.Html(`<div class="title-bar">Query`)
@@ -115,7 +117,7 @@ func dropFirstSegment(path string) string {
 }
 
 func (qmc *QuesmaManagementConsole) generateRouterStatistics() []byte {
-	var buffer HtmlBuffer
+	var buffer buffer.HtmlBuffer
 
 	matchedKeys, matched, unmatchedKeys, unmatched := mux.MatchStatistics().GroupByFirstSegment()
 
@@ -157,7 +159,7 @@ func (qmc *QuesmaManagementConsole) generateRouterStatistics() []byte {
 }
 
 func (qmc *QuesmaManagementConsole) generateStatistics() []byte {
-	var buffer HtmlBuffer
+	var buffer buffer.HtmlBuffer
 	const maxTopValues = 5
 
 	if !qmc.config.IngestStatistics {
@@ -237,7 +239,7 @@ func statusToDiv(s healthCheckStatus) string {
 }
 
 func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
-	var buffer HtmlBuffer
+	var buffer buffer.HtmlBuffer
 
 	dashboardName := "<h3>Kibana</h3>"
 	storeName := "<h3>Elasticsearch</h3>"
@@ -358,7 +360,7 @@ func (qmc *QuesmaManagementConsole) generateDashboardTrafficElement(typeName str
 }
 
 func (qmc *QuesmaManagementConsole) generateDashboardTrafficPanel() []byte {
-	var buffer HtmlBuffer
+	var buffer buffer.HtmlBuffer
 
 	// Clickhouse -> Kibana
 	if qmc.config.ReadsFromClickhouse() {
@@ -397,7 +399,7 @@ func (qmc *QuesmaManagementConsole) generateQueriesStatsPanel() []byte {
 	}
 	qmc.mutex.Unlock()
 
-	var buffer HtmlBuffer
+	var buffer buffer.HtmlBuffer
 
 	buffer.Html(`<ul id="queries-stats" hx-swap-oob="true">`)
 	buffer.Html(`<li><a href="/requests-with-error/"`)

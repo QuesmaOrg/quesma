@@ -7,6 +7,7 @@ import (
 	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/quesma/ui/internal/buffer"
 	"mitmproxy/quesma/stats/errorstats"
 	"mitmproxy/quesma/util"
 	"net/url"
@@ -16,7 +17,7 @@ import (
 )
 
 func generateSimpleTop(title string) []byte {
-	var buffer HtmlBuffer
+	var buffer buffer.HtmlBuffer
 	buffer.Html(`<div class="topnav">` + "\n")
 	buffer.Html(`<div class="topnav-menu">` + "\n")
 	buffer.Html(`<img src="/static/asset/quesma-logo-white-full.svg" alt="Quesma logo" class="quesma-logo" />` + "\n")
@@ -26,7 +27,7 @@ func generateSimpleTop(title string) []byte {
 }
 
 func generateTopNavigation(target string) []byte {
-	var buffer HtmlBuffer
+	var buffer buffer.HtmlBuffer
 	buffer.Html(`<div class="topnav">` + "\n")
 	buffer.Html(`<div class="topnav-menu">` + "\n")
 	buffer.Html(`<img src="/static/asset/quesma-logo-white-full.svg" alt="Quesma logo" class="quesma-logo" />` + "\n")
@@ -749,7 +750,7 @@ func generateLogMessages(logMessages []string, links []string) ([]byte, *string)
 		return ""
 	}
 
-	var buffer HtmlBuffer
+	var buffer buffer.HtmlBuffer
 	buffer.Html("<table>\n")
 	buffer.Html("<thead>\n")
 	buffer.Html("<tr>\n")

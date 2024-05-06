@@ -3,8 +3,10 @@ package ui
 import (
 	"github.com/rs/zerolog"
 	"mitmproxy/quesma/elasticsearch"
+	"mitmproxy/quesma/quesma/ui/internal/buffer"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
+	"mitmproxy/quesma/util"
 	_ "net/http/pprof"
 
 	"encoding/json"
@@ -14,7 +16,6 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/stats"
-	"mitmproxy/quesma/util"
 	"net/http"
 	"reflect"
 	"regexp"
@@ -195,9 +196,9 @@ func (qmc *QuesmaManagementConsole) generateQueries() []byte {
 	return append(queriesBytes, append(queriesStats, unsupportedQueriesStats...)...)
 }
 
-func newBufferWithHead() HtmlBuffer {
+func newBufferWithHead() buffer.HtmlBuffer {
 	const bufferSize = 4 * 1024 // size of ui/head.html
-	var buffer HtmlBuffer
+	var buffer buffer.HtmlBuffer
 	buffer.Grow(bufferSize)
 	head, err := uiFs.ReadFile("asset/head.html")
 	buffer.Write(head)
