@@ -22,9 +22,9 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 
 	buffer.Html(`<main id="queries">`)
 
-	debugKeyValueSlice := []DebugKeyValue{}
+	debugKeyValueSlice := []queryDebugInfoWithId{}
 	if requestFound {
-		debugKeyValueSlice = append(debugKeyValueSlice, DebugKeyValue{requestId, request})
+		debugKeyValueSlice = append(debugKeyValueSlice, queryDebugInfoWithId{requestId, request})
 	}
 
 	buffer.Write(generateQueries(debugKeyValueSlice, false))
@@ -201,14 +201,14 @@ func generateLogMessages(logMessages []string, links []string) ([]byte, *string)
 }
 
 func (qmc *QuesmaManagementConsole) generateReportForRequestsWithStr(requestStr string) []byte {
-	var debugKeyValueSlice []DebugKeyValue
+	var debugKeyValueSlice []queryDebugInfoWithId
 
 	qmc.mutex.Lock()
 	for i := len(qmc.debugLastMessages) - 1; i >= 0; i-- {
 		debugInfo := qmc.debugInfoMessages[qmc.debugLastMessages[i]]
 		if debugInfo.requestContains(requestStr) && len(debugKeyValueSlice) < maxLastMessages {
 			debugKeyValueSlice = append(debugKeyValueSlice,
-				DebugKeyValue{qmc.debugLastMessages[i], qmc.debugInfoMessages[qmc.debugLastMessages[i]]})
+				queryDebugInfoWithId{qmc.debugLastMessages[i], qmc.debugInfoMessages[qmc.debugLastMessages[i]]})
 		}
 	}
 	qmc.mutex.Unlock()
@@ -218,14 +218,14 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestsWithStr(requestStr 
 }
 
 func (qmc *QuesmaManagementConsole) generateReportForRequestsWithError() []byte {
-	var debugKeyValueSlice []DebugKeyValue
+	var debugKeyValueSlice []queryDebugInfoWithId
 
 	qmc.mutex.Lock()
 	for i := len(qmc.debugLastMessages) - 1; i >= 0; i-- {
 		debugInfo := qmc.debugInfoMessages[qmc.debugLastMessages[i]]
 		if debugInfo.errorLogCount > 0 && len(debugKeyValueSlice) < maxLastMessages {
 			debugKeyValueSlice = append(debugKeyValueSlice,
-				DebugKeyValue{qmc.debugLastMessages[i], qmc.debugInfoMessages[qmc.debugLastMessages[i]]})
+				queryDebugInfoWithId{qmc.debugLastMessages[i], qmc.debugInfoMessages[qmc.debugLastMessages[i]]})
 		}
 	}
 	qmc.mutex.Unlock()
@@ -234,14 +234,14 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestsWithError() []byte 
 }
 
 func (qmc *QuesmaManagementConsole) generateReportForRequestsWithWarning() []byte {
-	var debugKeyValueSlice []DebugKeyValue
+	var debugKeyValueSlice []queryDebugInfoWithId
 
 	qmc.mutex.Lock()
 	for i := len(qmc.debugLastMessages) - 1; i >= 0; i-- {
 		debugInfo := qmc.debugInfoMessages[qmc.debugLastMessages[i]]
 		if debugInfo.warnLogCount > 0 && len(debugKeyValueSlice) < maxLastMessages {
 			debugKeyValueSlice = append(debugKeyValueSlice,
-				DebugKeyValue{qmc.debugLastMessages[i], qmc.debugInfoMessages[qmc.debugLastMessages[i]]})
+				queryDebugInfoWithId{qmc.debugLastMessages[i], qmc.debugInfoMessages[qmc.debugLastMessages[i]]})
 		}
 	}
 	qmc.mutex.Unlock()
@@ -249,7 +249,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestsWithWarning() []byt
 	return qmc.generateReportForRequests("Report for requests with warnings", debugKeyValueSlice, []byte{})
 }
 
-func (qmc *QuesmaManagementConsole) generateReportForRequests(title string, requests []DebugKeyValue, sidebar []byte) []byte {
+func (qmc *QuesmaManagementConsole) generateReportForRequests(title string, requests []queryDebugInfoWithId, sidebar []byte) []byte {
 	buffer := newBufferWithHead()
 	buffer.Write(generateSimpleTop(title))
 

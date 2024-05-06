@@ -93,12 +93,12 @@ func (qmc *QuesmaManagementConsole) generateQueries() []byte {
 	// Take last MAX_LAST_MESSAGES to display, e.g. 100 out of potentially 10m000
 	qmc.mutex.Lock()
 	lastMessages := qmc.debugLastMessages
-	debugKeyValueSlice := []DebugKeyValue{}
+	debugKeyValueSlice := []queryDebugInfoWithId{}
 	count := 0
 	for i := len(lastMessages) - 1; i >= 0 && count < maxLastMessages; i-- {
 		debugInfoMessage := qmc.debugInfoMessages[lastMessages[i]]
 		if len(debugInfoMessage.QueryDebugSecondarySource.IncomingQueryBody) > 0 {
-			debugKeyValueSlice = append(debugKeyValueSlice, DebugKeyValue{lastMessages[i], debugInfoMessage})
+			debugKeyValueSlice = append(debugKeyValueSlice, queryDebugInfoWithId{lastMessages[i], debugInfoMessage})
 			count++
 		}
 	}
@@ -182,7 +182,7 @@ func (qmc *QuesmaManagementConsole) generateQueriesStatsPanel() []byte {
 	return buffer.Bytes()
 }
 
-func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte {
+func generateQueries(debugKeyValueSlice []queryDebugInfoWithId, withLinks bool) []byte {
 	var buffer buffer.HtmlBuffer
 
 	buffer.Html("\n" + `<div class="left" id="query-left">` + "\n")
@@ -191,11 +191,11 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 	buffer.Html(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
+			buffer.Html(`<a href="/request-Id/`).Text(v.id).Html(`">`)
 		}
-		buffer.Html("<p>UUID:").Text(v.Key).Html(" Path: ").Text(v.Value.Path).Html("</p>\n")
-		buffer.Html(`<pre Id="query`).Text(v.Key).Html(`">`)
-		buffer.Text(string(v.Value.IncomingQueryBody))
+		buffer.Html("<p>UUID:").Text(v.id).Html(" Path: ").Text(v.query.Path).Html("</p>\n")
+		buffer.Html(`<pre Id="query`).Text(v.id).Html(`">`)
+		buffer.Text(string(v.query.IncomingQueryBody))
 		buffer.Html("\n</pre>")
 		if withLinks {
 			buffer.Html("\n</a>")
@@ -209,13 +209,13 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 	buffer.Html(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
+			buffer.Html(`<a href="/request-Id/`).Text(v.id).Html(`">`)
 		}
-		tookStr := fmt.Sprintf(" took %d ms", v.Value.PrimaryTook.Milliseconds())
-		buffer.Html("<p>UUID:").Text(v.Key).Text(tookStr).Html("</p>\n")
-		buffer.Html(`<pre Id="response`).Text(v.Key).Html(`">`)
-		if len(v.Value.QueryResp) > 0 {
-			buffer.Text(string(v.Value.QueryResp))
+		tookStr := fmt.Sprintf(" took %d ms", v.query.PrimaryTook.Milliseconds())
+		buffer.Html("<p>UUID:").Text(v.id).Text(tookStr).Html("</p>\n")
+		buffer.Html(`<pre Id="response`).Text(v.id).Html(`">`)
+		if len(v.query.QueryResp) > 0 {
+			buffer.Text(string(v.query.QueryResp))
 		} else {
 			buffer.Text("(empty, request was not sent to Elasticsearch)")
 		}
@@ -232,12 +232,12 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 	buffer.Html(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
+			buffer.Html(`<a href="/request-Id/`).Text(v.id).Html(`">`)
 		}
-		tookStr := fmt.Sprintf(" took %d ms", v.Value.SecondaryTook.Milliseconds())
-		buffer.Html("<p>UUID:").Text(v.Key).Text(tookStr).Html(errorBanner(v.Value)).Html("</p>\n")
-		buffer.Html(`<pre Id="second_query`).Text(v.Key).Html(`">`)
-		buffer.Text(sqlfmt.SqlPrettyPrint(v.Value.QueryBodyTranslated))
+		tookStr := fmt.Sprintf(" took %d ms", v.query.SecondaryTook.Milliseconds())
+		buffer.Html("<p>UUID:").Text(v.id).Text(tookStr).Html(errorBanner(v.query)).Html("</p>\n")
+		buffer.Html(`<pre Id="second_query`).Text(v.id).Html(`">`)
+		buffer.Text(sqlfmt.SqlPrettyPrint(v.query.QueryBodyTranslated))
 		buffer.Html("\n</pre>")
 		if withLinks {
 			buffer.Html("\n</a>")
@@ -251,12 +251,12 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 	buffer.Html(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buffer.Html(`<a href="/request-Id/`).Text(v.Key).Html(`">`)
+			buffer.Html(`<a href="/request-Id/`).Text(v.id).Html(`">`)
 		}
-		buffer.Html("<p>UUID:").Text(v.Key).Html(errorBanner(v.Value)).Html("</p>\n")
-		buffer.Html(`<pre Id="second_response`).Text(v.Key).Html(`">`)
-		if len(v.Value.QueryTranslatedResults) > 0 {
-			buffer.Text(string(v.Value.QueryTranslatedResults))
+		buffer.Html("<p>UUID:").Text(v.id).Html(errorBanner(v.query)).Html("</p>\n")
+		buffer.Html(`<pre Id="second_response`).Text(v.id).Html(`">`)
+		if len(v.query.QueryTranslatedResults) > 0 {
+			buffer.Text(string(v.query.QueryTranslatedResults))
 		} else {
 			buffer.Text("(empty, request was not sent to Clickhouse)")
 		}
@@ -272,7 +272,7 @@ func generateQueries(debugKeyValueSlice []DebugKeyValue, withLinks bool) []byte 
 	return buffer.Bytes()
 }
 
-func errorBanner(debugInfo QueryDebugInfo) string {
+func errorBanner(debugInfo queryDebugInfo) string {
 	result := ""
 	if debugInfo.errorLogCount > 0 {
 		result += fmt.Sprintf(` <span class="debug-error-log">%d errors</span>`, debugInfo.errorLogCount)

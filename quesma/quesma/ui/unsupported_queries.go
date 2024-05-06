@@ -43,14 +43,14 @@ func processUnsupportedLogMessage(log tracing.LogWithLevel) *string {
 }
 
 func (qmc *QuesmaManagementConsole) generateReportForUnsupportedRequests() []byte {
-	var debugKeyValueSlice []DebugKeyValue
+	var debugKeyValueSlice []queryDebugInfoWithId
 
 	qmc.mutex.Lock()
 	for i := len(qmc.debugLastMessages) - 1; i >= 0; i-- {
 		debugInfo := qmc.debugInfoMessages[qmc.debugLastMessages[i]]
 		if debugInfo.unsupported != nil && len(debugKeyValueSlice) < maxLastMessages {
 			debugKeyValueSlice = append(debugKeyValueSlice,
-				DebugKeyValue{qmc.debugLastMessages[i], qmc.debugInfoMessages[qmc.debugLastMessages[i]]})
+				queryDebugInfoWithId{qmc.debugLastMessages[i], qmc.debugInfoMessages[qmc.debugLastMessages[i]]})
 		}
 	}
 	qmc.mutex.Unlock()
@@ -123,8 +123,8 @@ func (qmc *QuesmaManagementConsole) GetUnsupportedTypesWithCount() map[string]in
 	return types
 }
 
-func (qmc *QuesmaManagementConsole) QueriesWithUnsupportedType(typeName string) []DebugKeyValue {
-	var debugKeyValueSlice []DebugKeyValue
+func (qmc *QuesmaManagementConsole) QueriesWithUnsupportedType(typeName string) []queryDebugInfoWithId {
+	var debugKeyValueSlice []queryDebugInfoWithId
 
 	qmc.mutex.Lock()
 	for i := len(qmc.debugLastMessages) - 1; i >= 0; i-- {
@@ -132,7 +132,7 @@ func (qmc *QuesmaManagementConsole) QueriesWithUnsupportedType(typeName string) 
 		if debugInfo.unsupported != nil && len(debugKeyValueSlice) < maxLastMessages {
 			if *debugInfo.unsupported == typeName {
 				debugKeyValueSlice = append(debugKeyValueSlice,
-					DebugKeyValue{qmc.debugLastMessages[i], qmc.debugInfoMessages[qmc.debugLastMessages[i]]})
+					queryDebugInfoWithId{qmc.debugLastMessages[i], qmc.debugInfoMessages[qmc.debugLastMessages[i]]})
 			}
 		}
 	}

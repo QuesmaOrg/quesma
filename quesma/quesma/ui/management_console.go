@@ -55,13 +55,18 @@ type QueryDebugSecondarySource struct {
 	SecondaryTook          time.Duration
 }
 
-type QueryDebugInfo struct {
+type queryDebugInfo struct {
 	QueryDebugPrimarySource
 	QueryDebugSecondarySource
 	logMessages   []string
 	errorLogCount int
 	warnLogCount  int
 	unsupported   *string
+}
+
+type queryDebugInfoWithId struct {
+	id    string
+	query queryDebugInfo
 }
 
 type recordRequests struct {
@@ -76,9 +81,9 @@ type QuesmaManagementConsole struct {
 	queryDebugLogs            <-chan tracing.LogWithLevel
 	ui                        *http.Server
 	mutex                     sync.Mutex
-	debugInfoMessages         map[string]QueryDebugInfo
+	debugInfoMessages         map[string]queryDebugInfo
 	debugLastMessages         []string
-	responseMatcherChannel    chan QueryDebugInfo
+	responseMatcherChannel    chan queryDebugInfo
 	config                    config.QuesmaConfiguration
 	requestsStore             *stats.RequestStatisticStore
 	requestsSource            chan *recordRequests
@@ -96,9 +101,9 @@ func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *c
 		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 10),
 		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 10),
 		queryDebugLogs:            logChan,
-		debugInfoMessages:         make(map[string]QueryDebugInfo),
+		debugInfoMessages:         make(map[string]queryDebugInfo),
 		debugLastMessages:         make([]string, 0),
-		responseMatcherChannel:    make(chan QueryDebugInfo, 5),
+		responseMatcherChannel:    make(chan queryDebugInfo, 5),
 		config:                    config,
 		requestsStore:             stats.NewRequestStatisticStore(),
 		requestsSource:            make(chan *recordRequests, 100),
@@ -123,7 +128,7 @@ func (qmc *QuesmaManagementConsole) RecordRequest(typeName string, took time.Dur
 	qmc.requestsSource <- &recordRequests{typeName, took, error}
 }
 
-func (qdi *QueryDebugInfo) requestContains(queryStr string) bool {
+func (qdi *queryDebugInfo) requestContains(queryStr string) bool {
 	potentialPlaces := [][]byte{qdi.QueryDebugSecondarySource.IncomingQueryBody,
 		qdi.QueryDebugSecondarySource.QueryBodyTranslated}
 	for _, potentialPlace := range potentialPlaces {
@@ -169,11 +174,6 @@ func (qmc *QuesmaManagementConsole) listenAndServe() {
 	}
 }
 
-type DebugKeyValue struct {
-	Key   string
-	Value QueryDebugInfo
-}
-
 func (qmc *QuesmaManagementConsole) addNewMessageId(messageId string) {
 	qmc.debugLastMessages = append(qmc.debugLastMessages, messageId)
 	if len(qmc.debugLastMessages) > maxLastMessages {
@@ -190,14 +190,14 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 			[]byte(util.JsonPrettify(string(msg.QueryResp), true)), msg.PrimaryTook}
 		qmc.mutex.Lock()
 		if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {
-			qmc.debugInfoMessages[msg.Id] = QueryDebugInfo{
+			qmc.debugInfoMessages[msg.Id] = queryDebugInfo{
 				QueryDebugPrimarySource: debugPrimaryInfo,
 			}
 			qmc.addNewMessageId(msg.Id)
 		} else {
 			value.QueryDebugPrimarySource = debugPrimaryInfo
 			qmc.debugInfoMessages[msg.Id] = value
-			// That's the point where QueryDebugInfo is
+			// That's the point where queryDebugInfo is
 			// complete and we can compare results
 			if isComplete(value) {
 				qmc.responseMatcherChannel <- value
@@ -217,13 +217,13 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 		}
 		qmc.mutex.Lock()
 		if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {
-			qmc.debugInfoMessages[msg.Id] = QueryDebugInfo{
+			qmc.debugInfoMessages[msg.Id] = queryDebugInfo{
 				QueryDebugSecondarySource: secondaryDebugInfo,
 			}
 			qmc.addNewMessageId(msg.Id)
 		} else {
 			value.QueryDebugSecondarySource = secondaryDebugInfo
-			// That's the point where QueryDebugInfo is
+			// That's the point where queryDebugInfo is
 			// complete and we can compare results
 			qmc.debugInfoMessages[msg.Id] = value
 			if isComplete(value) {
@@ -240,10 +240,10 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 		requestId := match[1]
 
 		qmc.mutex.Lock()
-		var value QueryDebugInfo
+		var value queryDebugInfo
 		var ok bool
 		if value, ok = qmc.debugInfoMessages[requestId]; !ok {
-			value = QueryDebugInfo{
+			value = queryDebugInfo{
 				logMessages: []string{log.Msg},
 			}
 			qmc.addNewMessageId(requestId)
@@ -267,7 +267,7 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 	}
 }
 
-func isComplete(value QueryDebugInfo) bool {
+func isComplete(value queryDebugInfo) bool {
 	return !reflect.DeepEqual(value.QueryDebugPrimarySource, QueryDebugPrimarySource{}) && !reflect.DeepEqual(value.QueryDebugSecondarySource, QueryDebugSecondarySource{})
 }
 
