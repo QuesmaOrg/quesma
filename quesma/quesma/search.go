@@ -136,7 +136,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 			return nil, errIndexNotExists
 		}
 	case sourceClickhouse:
-		logger.Info().Msgf("index pattern [%s] resolved to clickhouse tables: [%s]", indexPattern, sourcesClickhouse)
+		logger.Debug().Msgf("index pattern [%s] resolved to clickhouse tables: [%s]", indexPattern, sourcesClickhouse)
 	case sourceElasticsearch:
 		logger.Error().Msgf("index pattern [%s] resolved to elasticsearch indices: [%s]", indexPattern, sourcesElastic)
 		panic("elasticsearch-only indexes should not be routed here at all")
