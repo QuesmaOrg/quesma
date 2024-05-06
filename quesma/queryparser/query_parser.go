@@ -552,7 +552,7 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) SimpleQu
 			return newSimpleQuery(NewSimpleStatement("invalid fields type"), false)
 		}
 	} else {
-		fields = cw.GetFieldsList()
+		fields = cw.Table.GetFields()
 	}
 	if len(fields) == 0 {
 		return newSimpleQuery(alwaysFalseStatement, true)
@@ -670,7 +670,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) SimpleQ
 	if fieldsRaw, ok := queryMap["fields"]; ok {
 		fields = cw.extractFields(fieldsRaw.([]interface{}))
 	} else {
-		fields = cw.GetFieldsList()
+		fields = cw.Table.GetFields()
 	}
 
 	query := queryMap["query"].(string) // query: (Required, string)
@@ -955,7 +955,7 @@ func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []strin
 			continue
 		}
 		if fieldStr == "*" {
-			return cw.GetFieldsList()
+			return cw.Table.GetFields()
 		}
 		fieldStr = cw.Table.ResolveField(cw.Ctx, fieldStr)
 		result = append(result, fieldStr)

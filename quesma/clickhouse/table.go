@@ -23,6 +23,16 @@ type Table struct {
 	Comment      string // this human-readable comment
 }
 
+func (t *Table) GetFields() []string {
+	var res = make([]string, 0)
+	for _, col := range t.Cols {
+		if col.IsFullTextMatch {
+			res = append(res, col.Name)
+		}
+	}
+	return res
+}
+
 func (t *Table) createTableOurFieldsString() []string {
 	rows := make([]string, 0)
 	if t.Config.hasOthers {
