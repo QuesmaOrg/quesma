@@ -8,9 +8,7 @@ import (
 	"mitmproxy/quesma/util"
 	_ "net/http/pprof"
 
-	"encoding/json"
 	"errors"
-	"io"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
@@ -299,31 +297,6 @@ func (qmc *QuesmaManagementConsole) checkHealth(writer http.ResponseWriter, _ *h
 	} else {
 		writer.WriteHeader(503)
 		_, _ = writer.Write([]byte(`Elastic search is unavailable: ` + health.message))
-	}
-}
-
-// curl -X POST localhost:9999/_quesma/bypass -d '{"bypass": true}'
-func bypassSwitch(writer http.ResponseWriter, r *http.Request) {
-	bodyString, err := io.ReadAll(r.Body)
-	if err != nil {
-		logger.Error().Msgf("Error reading body: %v", err)
-		writer.WriteHeader(400)
-		_, _ = writer.Write([]byte("Error reading body: " + err.Error()))
-		return
-	}
-	body := make(map[string]interface{})
-	err = json.Unmarshal(bodyString, &body)
-	if err != nil {
-		logger.Fatal().Msg(err.Error())
-	}
-
-	if body["bypass"] != nil {
-		val := body["bypass"].(bool)
-		config.SetTrafficAnalysis(val)
-		logger.Info().Msgf("global bypass set to %t\n", val)
-		writer.WriteHeader(200)
-	} else {
-		writer.WriteHeader(400)
 	}
 }
 

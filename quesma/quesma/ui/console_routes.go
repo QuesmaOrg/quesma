@@ -25,8 +25,6 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 
 	router.HandleFunc(healthPath, qmc.checkHealth)
 
-	router.HandleFunc(bypassPath, bypassSwitch).Methods("POST")
-
 	router.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
 
 	router.HandleFunc("/", func(writer http.ResponseWriter, req *http.Request) {
