@@ -1,4 +1,4 @@
-package ui
+package buffer
 
 import (
 	"github.com/stretchr/testify/assert"
