@@ -248,7 +248,15 @@ func toBulk(serialized []byte) (logBytes []byte) {
 }
 
 func sendToWindowsLog(logBytes []byte) {
-	targetUrl := configureTargetUrl()
+
+	// We need the same data in both places for manual testing purposes.
+	// This is temporary and will be removed when we'll have end-to-end tests.
+	//
+	sendToWindowsLogTo("http://elasticsearch:9200/_bulk", logBytes)
+	sendToWindowsLogTo(configureTargetUrl(), logBytes)
+}
+
+func sendToWindowsLogTo(targetUrl string, logBytes []byte) {
 
 	if resp, err := http.Post(targetUrl, "application/json", bytes.NewBuffer(logBytes)); err != nil {
 		log.Printf("Failed to send windows logs: %v", err)
