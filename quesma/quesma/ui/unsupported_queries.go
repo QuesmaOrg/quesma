@@ -83,44 +83,6 @@ func (qmc *QuesmaManagementConsole) generateReportForUnsupportedRequests() []byt
 	return qmc.generateReportForRequests("Unsupported requests", debugKeyValueSlice, buffer.Bytes())
 }
 
-func (qmc *QuesmaManagementConsole) generateUnsupportedQuerySidePanel() []byte {
-	qmc.mutex.Lock()
-	totalErrorsCount := qmc.totalUnsupportedQueries
-	qmc.mutex.Unlock()
-
-	typesCount := qmc.GetUnsupportedTypesWithCount()
-	savedErrorsCount := 0
-	for _, count := range typesCount {
-		savedErrorsCount += count
-	}
-	typesSeenCount := len(typesCount)
-	unknownTypeCount := 0
-	if value, ok := typesCount[UnrecognizedQueryType]; ok {
-		unknownTypeCount = value
-	}
-
-	var buffer buffer.HtmlBuffer
-	linkToMainView := `<li><a href="/unsupported-requests"`
-	buffer.Html(`<ul id="unsupported-queries-stats" hx-swap-oob="true">`)
-	if totalErrorsCount > 0 {
-		buffer.Html(fmt.Sprintf(`%s class="debug-warn-log"">%d total (%d recent)</a></li>`, linkToMainView, totalErrorsCount, savedErrorsCount))
-		plural := "s"
-		if typesSeenCount == 1 {
-			plural = ""
-		}
-		buffer.Html(fmt.Sprintf(`%s class="debug-warn-log"">%d different type%s</a></li>`, linkToMainView, typesSeenCount, plural))
-		if unknownTypeCount > 0 {
-			buffer.Html(fmt.Sprintf(`<li><a href="/unsupported-requests/%s"" class="debug-error-log">`, UnrecognizedQueryType))
-			buffer.Html(fmt.Sprintf(`%d of unrecognized type</a></li>`, unknownTypeCount))
-		}
-	} else {
-		buffer.Html(`<li>None!</a></li>`)
-	}
-	buffer.Html(`</ul>`)
-
-	return buffer.Bytes()
-}
-
 func (qmc *QuesmaManagementConsole) GetTotalUnsupportedQueries() int {
 	qmc.mutex.Lock()
 	defer qmc.mutex.Unlock()

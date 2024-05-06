@@ -56,7 +56,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	})
 
 	router.HandleFunc("/telemetry", func(writer http.ResponseWriter, req *http.Request) {
-		buf := qmc.generatePhoneHome()
+		buf := qmc.generateTelemetry()
 		_, _ = writer.Write(buf)
 	})
 
@@ -71,7 +71,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 	})
 
 	router.HandleFunc("/ingest-statistics", func(writer http.ResponseWriter, req *http.Request) {
-		buf := qmc.generateStatisticsLiveTail()
+		buf := qmc.generateIngestStatistics()
 		_, _ = writer.Write(buf)
 	})
 

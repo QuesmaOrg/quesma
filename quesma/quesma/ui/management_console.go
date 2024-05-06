@@ -3,7 +3,6 @@ package ui
 import (
 	"github.com/rs/zerolog"
 	"mitmproxy/quesma/elasticsearch"
-	"mitmproxy/quesma/quesma/ui/internal/buffer"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
 	"mitmproxy/quesma/util"
@@ -173,40 +172,6 @@ func (qmc *QuesmaManagementConsole) listenAndServe() {
 type DebugKeyValue struct {
 	Key   string
 	Value QueryDebugInfo
-}
-
-func (qmc *QuesmaManagementConsole) generateQueries() []byte {
-	// Take last MAX_LAST_MESSAGES to display, e.g. 100 out of potentially 10m000
-	qmc.mutex.Lock()
-	lastMessages := qmc.debugLastMessages
-	debugKeyValueSlice := []DebugKeyValue{}
-	count := 0
-	for i := len(lastMessages) - 1; i >= 0 && count < maxLastMessages; i-- {
-		debugInfoMessage := qmc.debugInfoMessages[lastMessages[i]]
-		if len(debugInfoMessage.QueryDebugSecondarySource.IncomingQueryBody) > 0 {
-			debugKeyValueSlice = append(debugKeyValueSlice, DebugKeyValue{lastMessages[i], debugInfoMessage})
-			count++
-		}
-	}
-	qmc.mutex.Unlock()
-
-	queriesBytes := generateQueries(debugKeyValueSlice, true)
-	queriesStats := qmc.generateQueriesStatsPanel()
-	unsupportedQueriesStats := qmc.generateUnsupportedQuerySidePanel()
-	return append(queriesBytes, append(queriesStats, unsupportedQueriesStats...)...)
-}
-
-func newBufferWithHead() buffer.HtmlBuffer {
-	const bufferSize = 4 * 1024 // size of ui/head.html
-	var buffer buffer.HtmlBuffer
-	buffer.Grow(bufferSize)
-	head, err := uiFs.ReadFile("asset/head.html")
-	buffer.Write(head)
-	if err != nil {
-		buffer.Text(err.Error())
-	}
-	buffer.Html("\n")
-	return buffer
 }
 
 func (qmc *QuesmaManagementConsole) addNewMessageId(messageId string) {
