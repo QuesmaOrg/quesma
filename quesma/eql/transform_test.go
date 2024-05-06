@@ -222,11 +222,11 @@ func TestTransform(t *testing.T) {
 			}
 
 			transformer := NewTransformer()
-
-			actualWhereClause, parameters, err := transformer.TransformQuery(tt.eql)
+			// paremeter extraction is disabled here for simplicity
+			transformer.ExtractParameters = false
+			actualWhereClause, _, err := transformer.TransformQuery(tt.eql)
 
 			assert.NotNil(t, actualWhereClause)
-			assert.NotNil(t, parameters)
 			assert.NoError(t, err)
 			if err == nil {
 				assert.Equal(t, tt.expectedWhereClause, actualWhereClause)
