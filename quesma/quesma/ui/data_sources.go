@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"slices"
 	"strings"
@@ -44,11 +43,11 @@ func (qmc *QuesmaManagementConsole) generateDatasources() []byte {
 	tables := qmc.logManager.GetTableDefinitions()
 	slices.Sort(tableNames)
 	for _, tableName := range tableNames {
+		buffer.Html(`<li>`).Text(tableName)
 		if _, exist := tables.Load(tableName); exist {
-			buffer.Html(fmt.Sprintf(`<li>%s (table exists)</li>`, tableName))
-		} else {
-			buffer.Html(fmt.Sprintf(`<li>%s</li>`, tableName))
+			buffer.Html(` (table exists)`)
 		}
+		buffer.Html(`</li>`)
 	}
 	buffer.Html(`</ul>`)
 
@@ -70,14 +69,14 @@ func (qmc *QuesmaManagementConsole) generateDatasources() []byte {
 	slices.Sort(indexNames)
 	slices.Sort(internalIndexNames)
 	for _, indexName := range indexNames {
-		buffer.Html(fmt.Sprintf(`<li>%s</li>`, indexName))
+		buffer.Html(`<li>`).Text(indexName).Html(`</li>`)
 	}
 
 	if len(internalIndexNames) > 0 {
 		buffer.Html(`<ul>`)
 
 		for _, indexName := range internalIndexNames {
-			buffer.Html(fmt.Sprintf(`<li><small>%s</small></li>`, indexName))
+			buffer.Html(`<li><small>`).Text(indexName).Html(`</small></li>`)
 		}
 		buffer.Html(`</ul>`)
 	}
