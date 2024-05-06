@@ -155,7 +155,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 			return nil, errIndexNotExists
 		}
 	} else if len(sourcesClickhouse) > 1 { // async search never worked for multiple indexes, TODO fix
-		logger.WarnWithCtx(ctx).Msgf("could not resolve multiple table names for [%s], truncating", indexPattern)
+		logger.WarnWithCtx(ctx).Msgf("requires union of multiple tables [%s], not yet supported, picking just one", indexPattern)
 		sourcesClickhouse = sourcesClickhouse[1:2]
 	}
 
