@@ -4,6 +4,13 @@ import (
 	"fmt"
 )
 
+// ParametersExtractorTransformer is a visitor that extracts constants from an expression as parameters.
+// So we'll be able to use them in a "prepared" statement.
+// Just like described here:
+// https://github.com/ClickHouse/clickhouse-go/blob/main/examples/clickhouse_api/query_parameters.go
+//
+// Keeping the parameters separate from the query text is a good practice. It's anti SQL injection solution.
+
 type ParametersExtractorTransformer struct {
 	counter    int
 	Parameters map[string]interface{}
