@@ -154,12 +154,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 			logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
 			return nil, errIndexNotExists
 		}
-	} else if len(sourcesClickhouse) > 1 { // async search never worked for multiple indexes, TODO fix
-		logger.WarnWithCtx(ctx).Msgf("requires union of multiple tables [%s], not yet supported, picking just one", indexPattern)
-		sourcesClickhouse = sourcesClickhouse[1:2]
 	}
-
-	var responseBody, translatedQueryBody []byte
+	var translatedQueryBody = make([][]byte, 0)
+	var responseBody []byte
 
 	startTime := time.Now()
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
@@ -170,11 +167,15 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 		}
 	}
 	pushSecondaryInfoToManagementConsole := func() {
+		array := make([]string, 0)
+		for _, query := range translatedQueryBody {
+			array = append(array, string(query))
+		}
 		qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 			Id:                     id,
 			Path:                   path,
 			IncomingQueryBody:      body,
-			QueryBodyTranslated:    translatedQueryBody,
+			QueryBodyTranslated:    []byte(strings.Join(array, ",")),
 			QueryTranslatedResults: responseBody,
 			SecondaryTook:          time.Since(startTime),
 		})
@@ -220,7 +221,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 						q.searchWorker(ctx, qmc, queryTranslator, table, body, optAsync)
 					}()
 				} else {
-					translatedQueryBody, hits = q.searchWorker(ctx, qmc, queryTranslator, table, body, nil)
+					queryBody, queryHits := q.searchWorker(ctx, qmc, queryTranslator, table, body, nil)
+					translatedQueryBody = append(translatedQueryBody, queryBody)
+					hits = append(hits, queryHits...)
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
 				newAggregationHandlingUsed = true
@@ -230,7 +233,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 						q.searchAggregationWorker(ctx, qmc, aggregations, queryTranslator, table, body, optAsync)
 					}()
 				} else {
-					translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, qmc, aggregations, queryTranslator, table, body, nil)
+					queryBody, aggResults := q.searchAggregationWorker(ctx, qmc, aggregations, queryTranslator, table, body, nil)
+					translatedQueryBody = append(translatedQueryBody, queryBody)
+					aggregationResults = append(aggregationResults, aggResults...)
 				}
 			}
 
