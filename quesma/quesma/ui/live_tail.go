@@ -3,7 +3,7 @@ package ui
 import (
 	"fmt"
 	"mitmproxy/quesma/buildinfo"
-	"mitmproxy/quesma/quesma/ui/internal/buffer"
+	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"mitmproxy/quesma/quesma/ui/internal/sqlfmt"
 )
 
@@ -126,7 +126,7 @@ func (qmc *QuesmaManagementConsole) generateUnsupportedQuerySidePanel() []byte {
 		unknownTypeCount = value
 	}
 
-	var buffer buffer.HtmlBuffer
+	var buffer builder.HtmlBuffer
 	linkToMainView := `<li><a href="/unsupported-requests"`
 	buffer.Html(`<ul id="unsupported-queries-stats" hx-swap-oob="true">`)
 	if totalErrorsCount > 0 {
@@ -162,7 +162,7 @@ func (qmc *QuesmaManagementConsole) generateQueriesStatsPanel() []byte {
 	}
 	qmc.mutex.Unlock()
 
-	var buffer buffer.HtmlBuffer
+	var buffer builder.HtmlBuffer
 
 	buffer.Html(`<ul id="queries-stats" hx-swap-oob="true">`)
 	buffer.Html(`<li><a href="/requests-with-error/"`)
@@ -183,7 +183,7 @@ func (qmc *QuesmaManagementConsole) generateQueriesStatsPanel() []byte {
 }
 
 func generateQueries(debugKeyValueSlice []queryDebugInfoWithId, withLinks bool) []byte {
-	var buffer buffer.HtmlBuffer
+	var buffer builder.HtmlBuffer
 
 	buffer.Html("\n" + `<div class="left" id="query-left">` + "\n")
 	buffer.Html(`<div class="title-bar">Query`)

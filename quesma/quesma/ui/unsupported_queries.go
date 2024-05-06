@@ -5,7 +5,7 @@ import (
 	"github.com/rs/zerolog"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/quesma/ui/internal/buffer"
+	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"mitmproxy/quesma/tracing"
 	"regexp"
 	"sort"
@@ -69,7 +69,7 @@ func (qmc *QuesmaManagementConsole) generateReportForUnsupportedRequests() []byt
 		return slice[i].count > slice[j].count
 	})
 
-	var buffer buffer.HtmlBuffer
+	var buffer builder.HtmlBuffer
 	buffer.Html("<br />")
 	buffer.Html(`<h3>Unsupported queries by type</h3>`)
 	buffer.Html(`<ul id="unsupported-queries-stats">`)

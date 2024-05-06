@@ -2,7 +2,7 @@ package ui
 
 import (
 	"mitmproxy/quesma/quesma/mux"
-	"mitmproxy/quesma/quesma/ui/internal/buffer"
+	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"strings"
 )
 
@@ -35,7 +35,7 @@ func dropFirstSegment(path string) string {
 }
 
 func (qmc *QuesmaManagementConsole) generateRouterStatistics() []byte {
-	var buffer buffer.HtmlBuffer
+	var buffer builder.HtmlBuffer
 
 	matchedKeys, matched, unmatchedKeys, unmatched := mux.MatchStatistics().GroupByFirstSegment()
 

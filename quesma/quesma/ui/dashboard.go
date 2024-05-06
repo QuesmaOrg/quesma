@@ -6,7 +6,7 @@ import (
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
 	"mitmproxy/quesma/buildinfo"
-	"mitmproxy/quesma/quesma/ui/internal/buffer"
+	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"mitmproxy/quesma/stats/errorstats"
 	"net/url"
 	"runtime"
@@ -90,7 +90,7 @@ func (qmc *QuesmaManagementConsole) generateDashboardTrafficElement(typeName str
 }
 
 func (qmc *QuesmaManagementConsole) generateDashboardTrafficPanel() []byte {
-	var buffer buffer.HtmlBuffer
+	var buffer builder.HtmlBuffer
 
 	// Clickhouse -> Kibana
 	if qmc.config.ReadsFromClickhouse() {
@@ -124,7 +124,7 @@ func statusToDiv(s healthCheckStatus) string {
 }
 
 func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
-	var buffer buffer.HtmlBuffer
+	var buffer builder.HtmlBuffer
 
 	dashboardName := "<h3>Kibana</h3>"
 	storeName := "<h3>Elasticsearch</h3>"
