@@ -40,7 +40,8 @@ type SearchHit struct {
 type SearchHits struct {
 	Total    *Total      `json:"total,omitempty"`
 	MaxScore *float32    `json:"max_score"`
-	Hits     []SearchHit `json:"hits"`
+	Hits     []SearchHit `json:"hits,omitempty"`
+	Events   []SearchHit `json:"events,omitempty"` // this one is used by EQL
 }
 
 type Total struct {

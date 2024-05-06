@@ -62,7 +62,7 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 				Value:    len(ResultSet),
 				Relation: "eq",
 			},
-			Hits: hits,
+			Events: hits,
 		},
 		Shards: model.ResponseShards{
 			Total:      1,
