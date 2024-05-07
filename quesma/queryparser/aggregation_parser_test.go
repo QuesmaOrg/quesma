@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
-	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/testdata"
@@ -543,7 +542,7 @@ func sortAggregations(aggregations []model.QueryWithAggregation) {
 }
 
 func Test2AggregationParserExternalTestcases(t *testing.T) {
-	logger.InitSimpleLoggerForTests()
+	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},

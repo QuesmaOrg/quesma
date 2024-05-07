@@ -112,17 +112,12 @@ func (query Quantile) processResult(colName string, percentileReturnedByClickhou
 			percentileIsNanOrInvalid = math.IsNaN(percentileTyped[0])
 			percentile = percentileTyped[0]
 		}
-	case []string:
+	case []time.Time:
 		percentileAsArrayLen = len(percentileTyped)
 		if len(percentileTyped) > 0 {
-			asTime, err := time.Parse(time.RFC3339Nano, percentileTyped[0])
-			if err == nil {
-				percentile = float64(asTime.UnixMilli())
-				percentileAsString = &percentileTyped[0]
-			} else {
-				logger.ErrorWithCtx(query.ctx).Msgf("failed to parse time: %v", err)
-				percentileIsNanOrInvalid = true
-			}
+			percentile = float64(percentileTyped[0].UnixMilli())
+			asString := percentileTyped[0].Format(time.RFC3339Nano)
+			percentileAsString = &asString
 		}
 	case []any:
 		percentileAsArrayLen = len(percentileTyped)
@@ -130,8 +125,8 @@ func (query Quantile) processResult(colName string, percentileReturnedByClickhou
 			switch percentileTyped[0].(type) {
 			case float64:
 				return query.processResult(colName, []float64{percentileTyped[0].(float64)})
-			case string:
-				return query.processResult(colName, []string{percentileTyped[0].(string)})
+			case time.Time:
+				return query.processResult(colName, []time.Time{percentileTyped[0].(time.Time)})
 			default:
 				logger.WarnWithCtx(query.ctx).Msgf("unexpected type in percentile array: %T, array: %v", percentileTyped[0], percentileTyped)
 				percentileIsNanOrInvalid = true

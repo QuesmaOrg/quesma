@@ -4,6 +4,8 @@ import (
 	"math"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/testdata"
+	"mitmproxy/quesma/util"
+	"time"
 )
 
 var AggregationTests = []testdata.AggregationTestCase{
@@ -741,11 +743,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("response", "200"),
-					model.NewQueryResultCol(`max("timestamp")`, "2024-05-02T21:58:16.297Z"),
+					model.NewQueryResultCol(`max("timestamp")`, util.ParseTime("2024-05-02T21:58:16.297Z")),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("response", "503"),
-					model.NewQueryResultCol(`max("timestamp")`, "2024-05-02T15:59:12.949Z"),
+					model.NewQueryResultCol(`max("timestamp")`, util.ParseTime("2024-05-02T15:59:12.949Z")),
 				}},
 			},
 			{
@@ -900,11 +902,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("response", "200"),
-					model.NewQueryResultCol(`min("timestamp")`, "2024-04-21T00:39:02.912Z"),
+					model.NewQueryResultCol(`min("timestamp")`, util.ParseTime("2024-04-21T00:39:02.912Z")),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("response", "503"),
-					model.NewQueryResultCol(`min("timestamp")`, "2024-04-21T03:30:25.131Z"),
+					model.NewQueryResultCol(`min("timestamp")`, util.ParseTime("2024-04-21T03:30:25.131Z")),
 				}},
 			},
 			{
@@ -1085,13 +1087,13 @@ var AggregationTests = []testdata.AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2786))}}},
 			{{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("response", "200"),
-				model.NewQueryResultCol(`quantile_1`, []string{"2024-04-21T06:11:13.619Z"}),
-				model.NewQueryResultCol(`quantile_2`, []string{"2024-04-21T12:21:13.414Z"}),
-				model.NewQueryResultCol(`quantile_25`, []string{"2024-04-23T18:47:45.613Z"}),
-				model.NewQueryResultCol(`quantile_50`, []string{"2024-04-26T20:31:45.522Z"}),
-				model.NewQueryResultCol(`quantile_75`, []string{"2024-04-29T19:39:15.029Z"}),
-				model.NewQueryResultCol(`quantile_95`, []string{"2024-05-02T11:24:42.507Z"}),
-				model.NewQueryResultCol(`quantile_99`, []string{"2024-05-02T16:09:28.003Z"}),
+				model.NewQueryResultCol(`quantile_1`, []time.Time{util.ParseTime("2024-04-21T06:11:13.619Z")}),
+				model.NewQueryResultCol(`quantile_2`, []time.Time{util.ParseTime("2024-04-21T12:21:13.414Z")}),
+				model.NewQueryResultCol(`quantile_25`, []time.Time{util.ParseTime("2024-04-23T18:47:45.613Z")}),
+				model.NewQueryResultCol(`quantile_50`, []time.Time{util.ParseTime("2024-04-26T20:31:45.522Z")}),
+				model.NewQueryResultCol(`quantile_75`, []time.Time{util.ParseTime("2024-04-29T19:39:15.029Z")}),
+				model.NewQueryResultCol(`quantile_95`, []time.Time{util.ParseTime("2024-05-02T11:24:42.507Z")}),
+				model.NewQueryResultCol(`quantile_99`, []time.Time{util.ParseTime("2024-05-02T16:09:28.003Z")}),
 			}}},
 			{{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("response", "200"),

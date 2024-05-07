@@ -31,14 +31,12 @@ func metricsTranslateSqlResponseToJsonWithFieldTypeCheck(
 
 	var value, valueAsString any = nil, nil
 	if resultRowsAreFine(ctx, rows) {
-		valueAsString = rows[0].Cols[len(rows[0].Cols)-1].Value
-		if dateTimeAsString, isString := valueAsString.(string); isString {
-			asTime, err := time.Parse(time.RFC3339Nano, dateTimeAsString)
-			if err == nil {
-				value = asTime.UnixMilli()
-			} else {
-				logger.ErrorWithCtx(ctx).Msgf("failed to parse time: %v", err)
-			}
+		valueAsAny := rows[0].Cols[len(rows[0].Cols)-1].Value
+		if valueAsTime, isString := valueAsAny.(time.Time); isString {
+			value = valueAsTime.UnixMilli()
+			valueAsString = valueAsTime.Format(time.RFC3339Nano)
+		} else {
+			logger.WarnWithCtx(ctx).Msg("could not parse date")
 		}
 	}
 	response := model.JsonMap{
