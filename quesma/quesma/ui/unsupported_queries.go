@@ -7,6 +7,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"mitmproxy/quesma/tracing"
+	"net/url"
 	"regexp"
 	"sort"
 )
@@ -74,7 +75,7 @@ func (qmc *QuesmaManagementConsole) generateReportForUnsupportedRequests() []byt
 	buffer.Html(`<h3>Unsupported queries by type</h3>`)
 	buffer.Html(`<ul id="unsupported-queries-stats">`)
 	for _, t := range slice {
-		buffer.Html(fmt.Sprintf(`<li><a class="debug-warn-log" href="/unsupported-requests/%s">`, t.name))
+		buffer.Html(fmt.Sprintf(`<li><a class="debug-warn-log" href="/unsupported-requests/%s">`, url.PathEscape(t.name)))
 		buffer.Text(fmt.Sprintf(`%s: %d`, t.name, t.count))
 		buffer.Html("</a></li>\n")
 	}
