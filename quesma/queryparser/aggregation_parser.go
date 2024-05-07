@@ -17,6 +17,8 @@ import (
 	"strings"
 )
 
+const keyedDefaultValuePercentileRanks = true
+
 type filter struct {
 	name string
 	sql  SimpleQuery
@@ -184,7 +186,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "value_count":
 		query.Type = metrics_aggregations.NewValueCount(b.ctx)
 	case "percentile_ranks":
-		query.Type = metrics_aggregations.NewPercentileRanks(b.ctx)
+		query.Type = metrics_aggregations.NewPercentileRanks(b.ctx, metricsAggr.Keyed)
 	}
 	return query
 }
@@ -512,10 +514,21 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 				logger.WarnWithCtx(cw.Ctx).Msgf("cutValue in percentile_ranks is not a number, but %T, value: %v. Skipping.", cutValue, cutValue)
 			}
 		}
+		var keyed bool
+		if keyedRaw, ok := percentileRanks.(QueryMap)["keyed"]; ok {
+			fmt.Println(keyedRaw)
+			if keyed, ok = keyedRaw.(bool); !ok {
+				logger.WarnWithCtx(cw.Ctx).Msgf("keyed specified for percentiles aggregation is not a boolean. Querymap: %v", queryMap)
+				keyed = keyedDefaultValuePercentileRanks
+			}
+		} else {
+			keyed = keyedDefaultValuePercentileRanks
+		}
 		return metricsAggregation{
 			AggrType:   "percentile_ranks",
 			FieldNames: fieldNames,
 			FieldType:  metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
+			Keyed:      keyed,
 		}, true
 	}
 
