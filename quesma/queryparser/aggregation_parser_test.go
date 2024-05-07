@@ -43,8 +43,8 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted + ` `,
-			`SELECT max("AvgTicketPrice") FROM ` + tableNameQuoted + ` `,
-			`SELECT min("AvgTicketPrice") FROM ` + tableNameQuoted + ` `,
+			`SELECT maxOrNull("AvgTicketPrice") FROM ` + tableNameQuoted + ` `,
+			`SELECT minOrNull("AvgTicketPrice") FROM ` + tableNameQuoted + ` `,
 		},
 	},
 	{ // [1]
@@ -340,7 +340,7 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted + ` `,
-			`SELECT sum("taxful_total_price") FROM ` + tableNameQuoted + " ",
+			`SELECT sumOrNull("taxful_total_price") FROM ` + tableNameQuoted + " ",
 		},
 	},
 	{ // [9]
@@ -375,7 +375,7 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted + ` `,
-			`SELECT avg("total_quantity") FROM ` + tableNameQuoted + " ",
+			`SELECT avgOrNull("total_quantity") FROM ` + tableNameQuoted + " ",
 		},
 	},
 	{ // [11]

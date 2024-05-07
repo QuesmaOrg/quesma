@@ -24,13 +24,17 @@ func (query Stats) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 	if len(rows) > 0 {
 		resultMap = make(model.JsonMap)
 		for _, v := range rows[0].Cols[level:] {
-			// v.ColName = e.g. avg(...). We need to extract only 'avg'.
+			// v.ColName = e.g. avgOrNull(...). We need to extract only 'avg'.
+			// first avgOrNull(..) -> avgOrNull
 			firstLeftBracketIndex := strings.Index(v.ColName, "(")
 			if firstLeftBracketIndex == -1 {
 				logger.Error().Msgf("invalid column name in stats aggregation: %s. Skipping", v.ColName)
 				continue
 			}
-			resultMap[v.ColName[:firstLeftBracketIndex]] = v.Value
+			fullName := v.ColName[:firstLeftBracketIndex]
+			// if ends with OrNull => avgOrNull -> avg
+			withoutOrNull, _ := strings.CutSuffix(fullName, "OrNull")
+			resultMap[withoutOrNull] = v.Value
 		}
 	}
 	return []model.JsonMap{resultMap}
