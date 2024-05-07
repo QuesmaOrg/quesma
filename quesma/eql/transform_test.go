@@ -74,7 +74,7 @@ func TestTransform(t *testing.T) {
 			"match(process.name, 'FOO[0-9]')"},
 
 		{"any where process.name regex~ \"foo[0-9]\" ", "" +
-			"match(process.name, 'foo[0-9]')"}, // FIXME
+			"match(process.name, 'foo[0-9]')"},
 
 		{"any where process.parent.name == \"bar\" and process.name == \"foo\"",
 			"((process.parent.name = 'bar') AND (process.name = 'foo'))"},
