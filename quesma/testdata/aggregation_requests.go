@@ -2340,6 +2340,11 @@ var AggregationTests = []AggregationTestCase{
 					"max": {
 						"field": "@timestamp"
 					}
+				},
+				"average_timestamp": {
+					"avg": {
+						"field": "@timestamp"
+					}
 				}
 			},
 			"query": {
@@ -2389,6 +2394,9 @@ var AggregationTests = []AggregationTestCase{
 					},
 					"latest_timestamp": {
 						"value": null
+					},
+					"average_timestamp": {
+						"value": null
 					}
 				},
 				"hits": {
@@ -2406,11 +2414,13 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		[][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(0))}}},
-			{}, // on purpose, simulates no rows returned
-			{}, // on purpose, simulates no rows returned
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`minOrNull("@timestamp")`, nil)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("@timestamp")`, nil)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("@timestamp")`, nil)}}},
 		},
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
+			`SELECT avgOrNull("@timestamp") FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
 			`SELECT minOrNull("@timestamp") FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
 			`SELECT maxOrNull("@timestamp") FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
 		},
