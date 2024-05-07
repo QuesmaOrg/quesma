@@ -92,7 +92,8 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "sum", "min", "max", "avg":
 		query.NonSchemaFields = append(query.NonSchemaFields, metricsAggr.AggrType+`OrNull("`+getFirstFieldName()+`")`)
 	case "quantile":
-		// sorting here useful mostly for determinism in tests. We could safely remove it.
+		// Sorting here useful mostly for determinism in tests.
+		// It wasn't there before, and everything worked fine. We could safely remove it, if needed.
 		usersPercents := util.MapKeysSortedByValue(metricsAggr.Percentiles)
 		for _, usersPercent := range usersPercents {
 			percentAsFloat := metricsAggr.Percentiles[usersPercent]

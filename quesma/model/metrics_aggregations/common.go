@@ -41,10 +41,13 @@ func metricsTranslateSqlResponseToJsonWithFieldTypeCheck(
 			}
 		}
 	}
-	return []model.JsonMap{{
-		"value":           value,
-		"value_as_string": valueAsString,
-	}}
+	response := model.JsonMap{
+		"value": value,
+	}
+	if value != nil {
+		response["value_as_string"] = valueAsString
+	}
+	return []model.JsonMap{response}
 }
 
 func resultRowsAreFine(ctx context.Context, rows []model.QueryResultRow) bool {
