@@ -14,6 +14,7 @@ import (
 	"time"
 )
 
+const elasticSearchBulkUrl = "http://elasticsearch:9200/_bulk"
 const windowsJsonFile = "assets/windows_logs.json"
 
 const windowsBulkJson = `{"create":{"_index":"windows_logs"}}`
@@ -252,7 +253,8 @@ func sendToWindowsLog(logBytes []byte) {
 	// We need the same data in both places for manual testing purposes.
 	// This is temporary and will be removed when we'll have end-to-end tests.
 	//
-	sendToWindowsLogTo("http://elasticsearch:9200/_bulk", logBytes)
+
+	sendToWindowsLogTo(elasticSearchBulkUrl, logBytes)
 	sendToWindowsLogTo(configureTargetUrl(), logBytes)
 }
 
