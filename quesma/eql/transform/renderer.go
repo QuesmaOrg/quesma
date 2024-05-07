@@ -11,6 +11,7 @@ type Renderer struct {
 
 func (v *Renderer) VisitConst(e *Const) interface{} {
 	switch e.Value.(type) {
+	// TODO  proper escaping here
 	case string:
 		// TODO add proper escaping
 		return fmt.Sprintf("'%v'", e.Value.(string))

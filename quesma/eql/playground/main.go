@@ -64,16 +64,16 @@ func main() {
 			break
 		}
 
-		query := translate(cmd)
+		query, parameters := translate(cmd)
 		if query == "" {
 			continue
 		}
 
-		execute(db, query)
+		execute(db, query, parameters)
 	}
 }
 
-func translate(cmd string) string {
+func translate(cmd string) (string, map[string]interface{}) {
 	translateName := func(name *transform.Symbol) (*transform.Symbol, error) {
 		res := strings.ReplaceAll(name.Name, ".", "::")
 		res = "\"" + res + "\"" // TODO proper escaping
@@ -82,19 +82,20 @@ func translate(cmd string) string {
 
 	trans := eql.NewTransformer()
 	trans.FieldNameTranslator = translateName
-	where, err := trans.TransformQuery(cmd)
+	trans.ExtractParameters = true
+	where, parameters, err := trans.TransformQuery(cmd)
 
 	if err != nil {
 		fmt.Println("tranform erors:")
 		fmt.Println(err)
-		return ""
+		return "", nil
 	}
 
 	fmt.Printf("where clause: '%s'\n", where)
 
 	sql := `select "@timestamp", "event::category", "process::name", "process::pid", "process::executable" from windows_logs where ` + where
 	fmt.Println("SQL: \n" + sql)
-	return sql
+	return sql, parameters
 }
 
 func cellValue(a interface{}) string {
@@ -132,9 +133,17 @@ func cellValue(a interface{}) string {
 
 }
 
-func execute(db *sql.DB, sql string) {
+func execute(db *sql.DB, query string, parameters map[string]interface{}) {
 
-	rows, err := db.Query(sql)
+	fmt.Println("executing query:", query, parameters)
+
+	var args []any
+
+	for k, v := range parameters {
+		args = append(args, sql.Named(k, v))
+	}
+
+	rows, err := db.Query(query, args...)
 
 	if err != nil {
 		fmt.Println("query error:")
