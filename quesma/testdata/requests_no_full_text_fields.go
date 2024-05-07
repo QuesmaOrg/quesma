@@ -104,8 +104,8 @@ var TestsSearchNoFullTextFields = []SearchTestCase{
 		},
 		WantedQueryType: model.Normal,
 		WantedQuery: []model.Query{
-			justWhereWithDefaultLimit(`(((false AND false) OR (false AND false) OR false) AND NOT false) AND ("timestamp">='2024-03-26T09:56:02.241Z' AND "timestamp"<='2024-04-10T08:56:02.241Z')`),
-			justWhereWithDefaultLimit(`(((false AND false) OR (false AND false) OR false) AND NOT false) AND ("timestamp"<='2024-04-10T08:56:02.241Z' AND "timestamp">='2024-03-26T09:56:02.241Z')`),
+			justSimplestWhere(`(((false AND false) OR (false AND false) OR false) AND NOT false) AND ("timestamp">='2024-03-26T09:56:02.241Z' AND "timestamp"<='2024-04-10T08:56:02.241Z')`),
+			justSimplestWhere(`(((false AND false) OR (false AND false) OR false) AND NOT false) AND ("timestamp"<='2024-04-10T08:56:02.241Z' AND "timestamp">='2024-03-26T09:56:02.241Z')`),
 		},
 		WantedRegexes: []string{}, // empty, as not important so far. Can be filled later if needed
 	},

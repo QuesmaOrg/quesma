@@ -904,8 +904,8 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"type"='task'`},
 		model.Normal,
-		[]model.Query{justWhereWithDefaultLimit(`"type"='task'`)},
-		[]string{qToStr(justWhereWithDefaultLimit(`"type"='task'`))},
+		[]model.Query{justSimplestWhere(`"type"='task'`)},
+		[]string{qToStr(justSimplestWhere(`"type"='task'`))},
 	},
 	{ // [2]
 		"Term as array",
@@ -931,9 +931,9 @@ var TestsSearch = []SearchTestCase{
 		[]string{`"type"='task' AND ("task.enabled"=true OR "task.enabled"=54)`},
 		model.Normal,
 		[]model.Query{
-			justWhereWithDefaultLimit(`"type"='task' AND ("task.enabled"=true OR "task.enabled"=54)`),
+			justSimplestWhere(`"type"='task' AND ("task.enabled"=true OR "task.enabled"=54)`),
 		},
-		[]string{qToStr(justWhereWithDefaultLimit(`"type"='task' AND ("task.enabled"=true OR "task.enabled"=54)`))},
+		[]string{qToStr(justSimplestWhere(`"type"='task' AND ("task.enabled"=true OR "task.enabled"=54)`))},
 	},
 	{ // [3]
 		"Sample log query",
@@ -970,8 +970,8 @@ var TestsSearch = []SearchTestCase{
 		},
 		model.Normal,
 		[]model.Query{
-			justWhereWithDefaultLimit(`"message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z'))`),
-			justWhereWithDefaultLimit(`"message" iLIKE '%user%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z'))`),
+			justSimplestWhere(`"message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z'))`),
+			justSimplestWhere(`"message" iLIKE '%user%' AND ("@timestamp"<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z'))`),
 		},
 		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-17T10:..:18.815Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-17T10:..:18.815Z'))`},
 	},
@@ -1007,8 +1007,8 @@ var TestsSearch = []SearchTestCase{
 		},
 		model.Normal,
 		[]model.Query{
-			justWhereWithDefaultLimit(`(("user.id"='kimchy' AND "tags"='production') AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age"<=20 AND "age">=10)`),
-			justWhereWithDefaultLimit(`(("user.id"='kimchy' AND "tags"='production') AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age">=10 AND "age"<=20)`),
+			justSimplestWhere(`(("user.id"='kimchy' AND "tags"='production') AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age"<=20 AND "age">=10)`),
+			justSimplestWhere(`(("user.id"='kimchy' AND "tags"='production') AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age">=10 AND "age"<=20)`),
 		},
 		[]string{`SELECT "message" FROM "logs-generic-default" WHERE (("user.id"='kimchy' AND "tags"='production') AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age".=.0 AND "age".=.0)`},
 	},
@@ -1039,8 +1039,8 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"host_name.keyword" iLIKE '%prometheus%'`},
 		model.Normal,
-		[]model.Query{justWhereWithDefaultLimit(`"host_name.keyword" iLIKE '%prometheus%'`)},
-		[]string{qToStr(justWhereWithDefaultLimit(`"host_name.keyword" iLIKE '%prometheus%'`))},
+		[]model.Query{justSimplestWhere(`"host_name.keyword" iLIKE '%prometheus%'`)},
+		[]string{qToStr(justSimplestWhere(`"host_name.keyword" iLIKE '%prometheus%'`))},
 	},
 	{ // [6]
 		"Match",
@@ -1054,8 +1054,8 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`},
 		model.Normal,
-		[]model.Query{justWhereWithDefaultLimit(`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`)},
-		[]string{qToStr(justWhereWithDefaultLimit(`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`))},
+		[]model.Query{justSimplestWhere(`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`)},
+		[]string{qToStr(justSimplestWhere(`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`))},
 	},
 	{ // [7]
 		"Terms",
@@ -1075,8 +1075,8 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"status"='pending'`},
 		model.Normal,
-		[]model.Query{justWhereWithDefaultLimit(`"status"='pending'`)},
-		[]string{qToStr(justWhereWithDefaultLimit(`"status"='pending'`))},
+		[]model.Query{justSimplestWhere(`"status"='pending'`)},
+		[]string{qToStr(justSimplestWhere(`"status"='pending'`))},
 	},
 	{ // [8]
 		"Exists",
@@ -1122,9 +1122,9 @@ var TestsSearch = []SearchTestCase{
 		[]string{`"type"='upgrade-assistant-reindex-operation' AND NOT ((has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL) OR (has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))`},
 		model.Normal,
 		[]model.Query{
-			justWhereWithDefaultLimit(`"type"='upgrade-assistant-reindex-operation' AND NOT ((has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL) OR (has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))`),
+			justSimplestWhere(`"type"='upgrade-assistant-reindex-operation' AND NOT ((has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL) OR (has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))`),
 		},
-		[]string{qToStr(justWhereWithDefaultLimit(`"type"='upgrade-assistant-reindex-operation' AND NOT ((has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL) OR (has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))`))},
+		[]string{qToStr(justSimplestWhere(`"type"='upgrade-assistant-reindex-operation' AND NOT ((has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL) OR (has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))`))},
 	},
 	{ // [9]
 		"Simple query string",
@@ -1148,8 +1148,8 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"exception-list-agnostic.list_id" = 'endpoint_event_filters'`},
 		model.Normal,
-		[]model.Query{justWhereWithDefaultLimit(`"exception-list-agnostic.list_id" = 'endpoint_event_filters'`)},
-		[]string{qToStr(justWhereWithDefaultLimit(`"exception-list-agnostic.list_id" = 'endpoint_event_filters'`))},
+		[]model.Query{justSimplestWhere(`"exception-list-agnostic.list_id" = 'endpoint_event_filters'`)},
+		[]string{qToStr(justSimplestWhere(`"exception-list-agnostic.list_id" = 'endpoint_event_filters'`))},
 	},
 	{ // [10]
 		"Simple query string wildcard",
@@ -1174,8 +1174,8 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"message" = 'ingest-agent-policies'`},
 		model.Normal,
-		[]model.Query{justWhereWithDefaultLimit(`"message" = 'ingest-agent-policies'`)},
-		[]string{qToStr(justWhereWithDefaultLimit(`"message" = 'ingest-agent-policies'`))},
+		[]model.Query{justSimplestWhere(`"message" = 'ingest-agent-policies'`)},
+		[]string{qToStr(justSimplestWhere(`"message" = 'ingest-agent-policies'`))},
 	},
 	{ // [11]
 		"Simple wildcard",
@@ -1197,8 +1197,8 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"task.taskType" iLIKE 'alerting:%'`},
 		model.Normal,
-		[]model.Query{justWhereWithDefaultLimit(`"task.taskType" iLIKE 'alerting:%'`)},
-		[]string{qToStr(justWhereWithDefaultLimit(`"task.taskType" iLIKE 'alerting:%'`))},
+		[]model.Query{justSimplestWhere(`"task.taskType" iLIKE 'alerting:%'`)},
+		[]string{qToStr(justSimplestWhere(`"task.taskType" iLIKE 'alerting:%'`))},
 	},
 	{ // [12]
 		"Simple prefix ver1",
@@ -1220,8 +1220,8 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"alert.actions.actionRef" iLIKE 'preconfigured:%'`},
 		model.Normal,
-		[]model.Query{justWhereWithDefaultLimit(`"alert.actions.actionRef" iLIKE 'preconfigured:%'`)},
-		[]string{qToStr(justWhereWithDefaultLimit(`"alert.actions.actionRef" iLIKE 'preconfigured:%'`))},
+		[]model.Query{justSimplestWhere(`"alert.actions.actionRef" iLIKE 'preconfigured:%'`)},
+		[]string{qToStr(justSimplestWhere(`"alert.actions.actionRef" iLIKE 'preconfigured:%'`))},
 	},
 	{ // [13]
 		"Simple prefix ver2",
@@ -1233,8 +1233,8 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"user" iLIKE 'ki%'`},
 		model.Normal,
-		[]model.Query{justWhereWithDefaultLimit(`"user" iLIKE 'ki%'`)},
-		[]string{qToStr(justWhereWithDefaultLimit(`"user" iLIKE 'ki%'`))},
+		[]model.Query{justSimplestWhere(`"user" iLIKE 'ki%'`)},
+		[]string{qToStr(justSimplestWhere(`"user" iLIKE 'ki%'`))},
 	},
 	{ // [14]
 		"Query string, wildcards don't work properly",
@@ -1251,8 +1251,8 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"message" ILIKE '% logged'`},
 		model.Normal,
-		[]model.Query{justWhereWithDefaultLimit(`"message" ILIKE '% logged'`)},
-		[]string{qToStr(justWhereWithDefaultLimit(`"message" ILIKE '% logged'`))},
+		[]model.Query{justSimplestWhere(`"message" ILIKE '% logged'`)},
+		[]string{qToStr(justSimplestWhere(`"message" ILIKE '% logged'`))},
 	},
 	{ // [15]
 		"Empty bool",
@@ -1283,8 +1283,8 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"message" iLIKE '%this is a test%'`},
 		model.Normal,
-		[]model.Query{justWhereWithDefaultLimit(`"message" iLIKE '%this is a test%'`)},
-		[]string{qToStr(justWhereWithDefaultLimit(`"message" iLIKE '%this is a test%'`))},
+		[]model.Query{justSimplestWhere(`"message" iLIKE '%this is a test%'`)},
+		[]string{qToStr(justSimplestWhere(`"message" iLIKE '%this is a test%'`))},
 	},
 	{ // [17]
 		"More nested 'match_phrase'",
@@ -1300,8 +1300,8 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"message" iLIKE '%this is a test%'`},
 		model.Normal,
-		[]model.Query{justWhereWithDefaultLimit(`"message" iLIKE '%this is a test%'`)},
-		[]string{qToStr(justWhereWithDefaultLimit(`"message" iLIKE '%this is a test%'`))},
+		[]model.Query{justSimplestWhere(`"message" iLIKE '%this is a test%'`)},
+		[]string{qToStr(justSimplestWhere(`"message" iLIKE '%this is a test%'`))},
 	},
 	{ // [18]
 		"Simple nested",
@@ -1332,8 +1332,8 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`"references.type"='tag'`},
 		model.Normal,
-		[]model.Query{justWhereWithDefaultLimit(`"references.type"='tag'`)},
-		[]string{qToStr(justWhereWithDefaultLimit(`"references.type"='tag'`))},
+		[]model.Query{justSimplestWhere(`"references.type"='tag'`)},
+		[]string{qToStr(justSimplestWhere(`"references.type"='tag'`))},
 	},
 	{ // [19]
 		"_search, only one so far with fields, we're not sure if SELECT * is correct, or should be SELECT @timestamp",
@@ -1415,8 +1415,8 @@ var TestsSearchNoAttrs = []SearchTestCase{
 		},
 		model.Normal,
 		[]model.Query{
-			justWhereWithDefaultLimit(`"@timestamp">=parseDateTime64BestEffort('2024-01-25T13:22:45.968Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T13:37:45.968Z')`),
-			justWhereWithDefaultLimit(`"@timestamp"<=parseDateTime64BestEffort('2024-01-25T13:37:45.968Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-25T13:22:45.968Z')`),
+			justSimplestWhere(`"@timestamp">=parseDateTime64BestEffort('2024-01-25T13:22:45.968Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T13:37:45.968Z')`),
+			justSimplestWhere(`"@timestamp"<=parseDateTime64BestEffort('2024-01-25T13:37:45.968Z') AND "@timestamp">=parseDateTime64BestEffort('2024-01-25T13:22:45.968Z')`),
 		},
 		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-25T13:..:45.968Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-25T13:..:45.968Z')) AND (has("attributes_string_key","summary") AND "attributes_string_value"[indexOf("attributes_string_key","summary")] IS NOT NULL) AND NOT (has("attributes_string_key","run_once") AND "attributes_string_value"[indexOf("attributes_string_key","run_once")] IS NOT NULL)`},
 	},
@@ -1468,8 +1468,8 @@ var TestSearchFilter = []SearchTestCase{
 		},
 		model.Normal,
 		[]model.Query{
-			justWhereWithDefaultLimit(``),
-			justWhereWithDefaultLimit(``),
+			justSimplestWhere(``),
+			justSimplestWhere(``),
 		},
 		[]string{
 			"SELECT count() FROM " + QuotedTableName,
@@ -1528,8 +1528,8 @@ var TestSearchFilter = []SearchTestCase{
 		},
 		model.Normal,
 		[]model.Query{
-			justWhereWithDefaultLimit(``),
-			justWhereWithDefaultLimit(``),
+			justSimplestWhere(``),
+			justSimplestWhere(``),
 		},
 		[]string{
 			"SELECT count() FROM " + QuotedTableName + ` WHERE "@timestamp">subDate(now(), INTERVAL 15 minute)`,

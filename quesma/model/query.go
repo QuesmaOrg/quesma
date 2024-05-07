@@ -194,7 +194,7 @@ const (
 	None
 )
 
-const DefaultSizeListQuery = 1000
+const DefaultSizeListQuery = 1000 // we use LIMIT 1000 in some simple list queries (SELECT ...)
 
 func (queryType SearchQueryType) String() string {
 	return []string{"Facets", "FacetsNumeric", "ListByField", "ListAllFields", "CountAsync", "Normal", "None"}[queryType]

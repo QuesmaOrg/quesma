@@ -71,6 +71,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent())
 	lm.AddTableIfDoesntExist(&table)
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
+
 	for i, tt := range testdata.TestsSearchNoFullTextFields {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			simpleQuery, queryInfo, _ := cw.ParseQuery(tt.QueryJson)

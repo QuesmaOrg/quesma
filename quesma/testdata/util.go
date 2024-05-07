@@ -58,7 +58,7 @@ func qToStr(query model.Query) string {
 }
 
 // justWhere is a simple helper function to help fill out test cases
-func justWhereWithDefaultLimit(whereClause string) model.Query {
+func justSimplestWhere(whereClause string) model.Query {
 	query := newSimplestQuery()
 	query.WhereClause = whereClause
 	return query

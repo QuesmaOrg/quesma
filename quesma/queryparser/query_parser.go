@@ -1298,7 +1298,6 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps []any) []string {
 
 func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap) (size int, ok bool) {
 	sizeRaw, exists := queryMap["size"]
-	// fmt.Println("sizeRaw", sizeRaw, exists)
 	if !exists {
 		return model.DefaultSizeListQuery, false
 	} else if sizeAsFloat, ok := sizeRaw.(float64); ok {
