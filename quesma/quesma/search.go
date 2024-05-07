@@ -8,7 +8,6 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/elasticsearch"
-	"mitmproxy/quesma/eql"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
@@ -28,13 +27,6 @@ const asyncQueriesLimitBytes = 1024 * 1024 * 500 // 500MB
 
 var errIndexNotExists = errors.New("table does not exist")
 var asyncRequestId atomic.Int64
-
-type QueryLanguage string
-
-const (
-	QueryLanguageDefault = "default"
-	QueryLanguageEQL     = "eql"
-)
 
 type AsyncRequestResult struct {
 	responseBody []byte
@@ -56,27 +48,6 @@ type QueryRunner struct {
 	AsyncRequestStorage  *concurrent.Map[string, AsyncRequestResult]
 	AsyncQueriesContexts *concurrent.Map[string, *AsyncQueryContext]
 	logManager           *clickhouse.LogManager
-}
-
-// This is an extracted interface for query translation.
-// FIXME it should split into smaller interfaces: parser, builder and response maker
-// FIXME it should have a better name
-//
-// Right now it has two implementation:
-// 1. ClickhouseQueryTranslator (origin implementation)
-// 2. ClickhouseEQLQueryTranslator (implements only a subset of methods)
-
-type IQueryTranslator interface {
-	ParseQuery(queryAsJson string) (queryparser.SimpleQuery, model.SearchQueryInfo, queryparser.Highlighter)
-	ParseAggregationJson(aggregationJson string) ([]model.QueryWithAggregation, error)
-
-	BuildSimpleCountQuery(whereClause string) *model.Query
-	BuildSimpleSelectQuery(whereClause string) *model.Query
-	BuildNRowsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query
-	BuildFacetsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query
-
-	MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter queryparser.Highlighter) (*model.SearchResp, error)
-	MakeResponseAggregation(aggregations []model.QueryWithAggregation, aggregationResults [][]model.QueryResultRow) *model.SearchResp
 }
 
 func NewQueryRunner(lm *clickhouse.LogManager) *QueryRunner {
@@ -228,12 +199,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 
 		var simpleQuery queryparser.SimpleQuery
 
-		switch queryLanguage {
-		case QueryLanguageEQL:
-			queryTranslator = &eql.ClickhouseEQLQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: ctx}
-		default:
-			queryTranslator = &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: ctx}
-		}
+		queryTranslator = NewQueryTranslator(ctx, queryLanguage, table, lm)
 
 		simpleQuery, queryInfo, highlighter = queryTranslator.ParseQuery(string(body))
 
