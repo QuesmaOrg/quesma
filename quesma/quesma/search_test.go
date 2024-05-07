@@ -408,7 +408,7 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 	for _, tt := range testdata.UnsupportedQueriesTests {
 		t.Run(tt.TestName, func(t *testing.T) {
 			if tt.QueryType == "script" {
-				t.Skip("We can't deal with scripts inside queries yet. It fails very early, during JSON unmarshalling, so we can't even know the type of aggregation.")
+				t.Skip("Only 1 test. We can't deal with scripts inside queries yet. It fails very early, during JSON unmarshalling, so we can't even know the type of aggregation.")
 			}
 			db, _, err := sqlmock.New()
 			if err != nil {

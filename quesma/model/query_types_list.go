@@ -1,6 +1,7 @@
 package model
 
 // AggregationQueryTypes is a list of all aggregation types in Elasticsearch.
+// More details: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations.html
 var AggregationQueryTypes = []string{
 	// metrics:
 	"avg",
@@ -90,6 +91,7 @@ var AggregationQueryTypes = []string{
 }
 
 // QueryDSLTypes is a list of all Query DSL types in Elasticsearch.
+// More details: https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
 var QueryDSLTypes = []string{
 	// Compound queries:
 	"bool",
@@ -159,4 +161,6 @@ var QueryDSLTypes = []string{
 	"text_expansion",
 }
 
+// AllQueryTypes is a list of all query types in Elasticsearch.
+// So far used for listing types of queries we received, but don't support.
 var AllQueryTypes = append(AggregationQueryTypes, QueryDSLTypes...)
