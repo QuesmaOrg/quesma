@@ -20,8 +20,24 @@ type ClickhouseEQLQueryTranslator struct {
 	Ctx          context.Context
 }
 
-func (cw *ClickhouseEQLQueryTranslator) BuildNRowsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query {
+func (cw *ClickhouseEQLQueryTranslator) applySizeLimit(size int) int {
+	// FIXME hard limit here to prevent OOM
+	const quesmaMaxSize = 10000
+	if size > quesmaMaxSize {
+		logger.WarnWithCtx(cw.Ctx).Msgf("setting hits size to=%d, got=%d", quesmaMaxSize, size)
+		size = quesmaMaxSize
+	}
+	return size
+}
 
+func (cw *ClickhouseEQLQueryTranslator) BuildNRowsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query {
+	suffixClauses := make([]string, 0)
+	if len(simpleQuery.SortFields) > 0 {
+		suffixClauses = append(suffixClauses, "ORDER BY "+strings.Join(simpleQuery.SortFields, ", "))
+	}
+	if limit > 0 {
+		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(cw.applySizeLimit(limit)))
+	}
 	return &model.Query{
 		Fields:          []string{fieldName},
 		NonSchemaFields: []string{},
@@ -127,6 +143,7 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query qu
 
 	query.Sql.Stmt = where
 	query.CanParse = true
+	query.SortFields = []string{"@timestamp"}
 
 	return query, searchQueryInfo, highlighter
 }
