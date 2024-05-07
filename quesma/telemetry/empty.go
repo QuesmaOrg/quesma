@@ -35,6 +35,10 @@ func (d emptyMultiCounter) AggregateTopValues() MultiCounterTopValuesStats {
 	return MultiCounterTopValuesStats{}
 }
 
+func NoopPhoneHomeAgent() PhoneHomeAgent {
+	return &emptyAgent{}
+}
+
 type emptyAgent struct {
 }
 
