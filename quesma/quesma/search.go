@@ -125,16 +125,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 		logger.Error().Msgf("index pattern [%s] resolved to both elasticsearch indices: [%s] and clickhouse tables: [%s]", indexPattern, sourcesElastic, sourcesClickhouse)
 		return nil, errors.New("querying data in elasticsearch and clickhouse is not supported at the moment")
 	case sourceNone:
-		if elasticsearch.IsIndexPattern(indexPattern) {
-			if optAsync != nil {
-				return queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 200)
-			} else {
-				return queryparser.EmptySearchResponse(ctx), nil
-			}
-		} else {
-			logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
-			return nil, errIndexNotExists
-		}
+		return handleNoMatchingSources(ctx, indexPattern, optAsync)
 	case sourceClickhouse:
 		logger.Debug().Msgf("index pattern [%s] resolved to clickhouse tables: [%s]", indexPattern, sourcesClickhouse)
 	case sourceElasticsearch:
@@ -594,4 +585,17 @@ func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, Path string, Incomin
 		QueryBodyTranslated:    QueryBodyTranslated,
 		QueryTranslatedResults: QueryTranslatedResults,
 		SecondaryTook:          time.Since(startTime)})
+}
+
+func handleNoMatchingSources(ctx context.Context, indexPattern string, optAsync *AsyncQuery) ([]byte, error) {
+	if elasticsearch.IsIndexPattern(indexPattern) {
+		if optAsync != nil {
+			return queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 200)
+		} else {
+			return queryparser.EmptySearchResponse(ctx), nil
+		}
+	} else {
+		logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
+		return nil, errIndexNotExists
+	}
 }
