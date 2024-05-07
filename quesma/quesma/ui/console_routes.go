@@ -8,7 +8,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/stats"
 	"net/http"
-	_ "net/http/pprof" // pprof is used for debugging
+	"net/http/pprof"
 	"runtime"
 )
 
@@ -28,7 +28,7 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 
 	router.HandleFunc(healthPath, qmc.checkHealth)
 
-	router.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
+	qmc.initPprof(router)
 
 	router.HandleFunc("/", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateDashboard()
@@ -165,6 +165,14 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.FS(uiFs))))
 	return router
+}
+
+func (qmc *QuesmaManagementConsole) initPprof(router *mux.Router) {
+	router.HandleFunc("/debug/pprof/", pprof.Index)
+	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	router.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	router.HandleFunc("/debug/pprof/trace", pprof.Trace)
 }
 
 func (qmc *QuesmaManagementConsole) newHTTPServer() *http.Server {
