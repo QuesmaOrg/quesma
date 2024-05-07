@@ -194,7 +194,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		queryTranslator = NewQueryTranslator(ctx, queryLanguage, table, q.logManager)
 
 		simpleQuery, queryInfo, highlighter = queryTranslator.ParseQuery(string(body))
-
 		if simpleQuery.CanParse {
 			if ((queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields || queryInfo.Typ == model.Normal) && !bytes.Contains(body, []byte("aggs"))) || queryInfo.Typ == model.Facets || queryInfo.Typ == model.FacetsNumeric {
 				logger.InfoWithCtx(ctx).Msgf("received search request, type: %v, async: %v", queryInfo.Typ, optAsync != nil)
@@ -479,7 +478,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, queryTranslator IQ
 		hits, err = q.logManager.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
 
 	case model.Normal:
-		fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
+		fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, queryInfo.I2)
 		hits, err = q.logManager.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
 
 	default:

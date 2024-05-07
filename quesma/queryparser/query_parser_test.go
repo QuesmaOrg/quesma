@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
+	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/testdata"
@@ -43,7 +44,6 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	lm.AddTableIfDoesntExist(table)
 
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
-	const limit = 1000
 
 	for _, tt := range testdata.TestsSearch {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -51,7 +51,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			assert.True(t, simpleQuery.CanParse, "can parse")
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
-			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, limit)
+			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, model.DefaultSizeListQuery)
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}
@@ -71,14 +71,13 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent())
 	lm.AddTableIfDoesntExist(&table)
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
-	const limit = 1000
 	for i, tt := range testdata.TestsSearchNoFullTextFields {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			simpleQuery, queryInfo, _ := cw.ParseQuery(tt.QueryJson)
 			assert.True(t, simpleQuery.CanParse, "can parse")
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
-			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, limit)
+			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, model.DefaultSizeListQuery)
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}
@@ -97,7 +96,6 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
-	const limit = 1000
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
 			simpleQuery, queryInfo, _ := cw.ParseQuery(tt.QueryJson)
@@ -105,7 +103,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt)
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ)
 
-			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, limit)
+			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, model.DefaultSizeListQuery)
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}

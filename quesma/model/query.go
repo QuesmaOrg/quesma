@@ -194,6 +194,8 @@ const (
 	None
 )
 
+const DefaultSizeListQuery = 1000
+
 func (queryType SearchQueryType) String() string {
 	return []string{"Facets", "FacetsNumeric", "ListByField", "ListAllFields", "CountAsync", "Normal", "None"}[queryType]
 }

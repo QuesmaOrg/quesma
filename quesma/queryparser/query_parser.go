@@ -1068,17 +1068,18 @@ func (cw *ClickhouseQueryTranslator) tryProcessSearchMetadata(queryMap QueryMap)
 	// case 3: maybe it's a normal request
 	var queryMapNested QueryMap
 	var ok bool
+	size, _ := cw.parseSize(metadata)
 	if queryMapNested, ok = queryMap["aggs"].(QueryMap); !ok {
-		return model.SearchQueryInfo{Typ: model.Normal}
+		return model.SearchQueryInfo{Typ: model.Normal, I2: size}
 	}
 	if queryMapNested, ok = queryMapNested["suggestions"].(QueryMap); !ok {
-		return model.SearchQueryInfo{Typ: model.Normal}
+		return model.SearchQueryInfo{Typ: model.Normal, I2: size}
 	}
 	if queryMapNested, ok = queryMapNested["terms"].(QueryMap); !ok {
-		return model.SearchQueryInfo{Typ: model.Normal}
+		return model.SearchQueryInfo{Typ: model.Normal, I2: size}
 	}
 	if _, ok = queryMapNested["field"]; !ok {
-		return model.SearchQueryInfo{Typ: model.Normal}
+		return model.SearchQueryInfo{Typ: model.Normal, I2: size}
 	}
 
 	// otherwise: None
@@ -1120,14 +1121,8 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 		return model.NewSearchQueryInfoNone(), false
 	}
 
-	var size int
-	sizeRaw, ok := firstNestingMap["size"]
+	size, ok := cw.parseSize(firstNestingMap)
 	if !ok {
-		return model.NewSearchQueryInfoNone(), false
-	} else if sizeAsFloat, ok := sizeRaw.(float64); ok {
-		size = int(sizeAsFloat)
-	} else {
-		logger.WarnWithCtx(cw.Ctx).Msgf("invalid size type: %T, value: %v. Expected float64", sizeRaw, sizeRaw)
 		return model.NewSearchQueryInfoNone(), false
 	}
 	fieldNameRaw, ok := firstNestingMap["field"]
@@ -1170,14 +1165,8 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 // returns (model.NewSearchQueryInfoNone, false) if it's not ListAllFields/ListByField request
 func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.SearchQueryInfo, bool) {
 	// 1) case: very simple SELECT * kind of request
-	var size int
-	sizeRaw, okSize := queryMap["size"]
-	if !okSize {
-		return model.NewSearchQueryInfoNone(), false
-	} else if sizeAsFloat, ok := sizeRaw.(float64); ok {
-		size = int(sizeAsFloat)
-	} else {
-		logger.WarnWithCtx(cw.Ctx).Msgf("invalid size type: %T, value: %v. Expected float64", sizeRaw, sizeRaw)
+	size, ok := cw.parseSize(queryMap)
+	if !ok {
 		return model.NewSearchQueryInfoNone(), false
 	}
 
@@ -1305,4 +1294,17 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps []any) []string {
 		}
 	}
 	return sortFields
+}
+
+func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap) (size int, ok bool) {
+	sizeRaw, exists := queryMap["size"]
+	// fmt.Println("sizeRaw", sizeRaw, exists)
+	if !exists {
+		return model.DefaultSizeListQuery, false
+	} else if sizeAsFloat, ok := sizeRaw.(float64); ok {
+		return int(sizeAsFloat), true
+	} else {
+		logger.WarnWithCtx(cw.Ctx).Msgf("invalid size type: %T, value: %v. Expected float64", sizeRaw, sizeRaw)
+		return model.DefaultSizeListQuery, false
+	}
 }

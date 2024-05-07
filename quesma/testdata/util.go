@@ -39,6 +39,7 @@ func selectFieldsInAnyOrderAsRegex(fields []string) string {
 const TableName = "logs-generic-default"
 const QuotedTableName = `"` + TableName + `"`
 const queryparserFacetsSampleSize = "20000" // should be same value as queryparser.facetsSampleSize
+const defaultLimit = model.DefaultSizeListQuery
 
 const oneMinute = 60 * time.Second
 
@@ -46,8 +47,8 @@ func newSimplestQuery() model.Query {
 	return model.Query{
 		Fields:        []string{"*"},
 		FromClause:    strconv.Quote(TableName),
+		SuffixClauses: []string{"LIMIT " + strconv.Itoa(defaultLimit)},
 		CanParse:      true,
-		SuffixClauses: []string{"LIMIT 1000"},
 	}
 }
 
@@ -57,7 +58,7 @@ func qToStr(query model.Query) string {
 }
 
 // justWhere is a simple helper function to help fill out test cases
-func justWhere(whereClause string) model.Query {
+func justWhereWithDefaultLimit(whereClause string) model.Query {
 	query := newSimplestQuery()
 	query.WhereClause = whereClause
 	return query
