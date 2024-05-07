@@ -50,7 +50,7 @@ func TestSearchOpensearch(t *testing.T) {
 			}
 
 			queryRunner := NewQueryRunner(lm)
-			_, err = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson), cfg, lm, nil, managementConsole)
+			_, err = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson), cfg, nil, managementConsole)
 			assert.NoError(t, err)
 
 			if err = mock.ExpectationsWereMet(); err != nil {
@@ -179,7 +179,7 @@ func TestHighlighter(t *testing.T) {
 															AddRow("text", "text", "text"))
 
 	queryRunner := NewQueryRunner(lm)
-	response, err := queryRunner.handleSearch(ctx, tableName, []byte(query), cfg, lm, nil, managementConsole)
+	response, err := queryRunner.handleSearch(ctx, tableName, []byte(query), cfg, nil, managementConsole)
 	assert.NoError(t, err)
 	if err = mock.ExpectationsWereMet(); err != nil {
 		t.Fatal("there were unfulfilled expections:", err)
