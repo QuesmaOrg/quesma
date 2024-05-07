@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/stats"
 	"net/http"
+	_ "net/http/pprof" // pprof is used for debugging
 	"runtime"
 )
 
