@@ -463,10 +463,10 @@ var AggregationTests = []testdata.AggregationTestCase{
 			// TODO after merge of some PR, change logs-generic-default to testdata.QuotedTableName
 			`SELECT count() FROM "logs-generic-default" ` +
 				`WHERE "epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z' `,
-			`SELECT sum("properties.entry_time") FROM "logs-generic-default" ` +
+			`SELECT sumOrNull("properties.entry_time") FROM "logs-generic-default" ` +
 				`WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z') ` +
 				`AND "epoch_time_original">=0 AND "epoch_time_original"<1000 `,
-			`SELECT sum("properties.entry_time") FROM "logs-generic-default" ` +
+			`SELECT sumOrNull("properties.entry_time") FROM "logs-generic-default" ` +
 				`WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z') ` +
 				`AND "epoch_time_original">=1000 `,
 			`SELECT count(if("epoch_time_original">=0 AND "epoch_time_original"<1000, 1, NULL)), ` +

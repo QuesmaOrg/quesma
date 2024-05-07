@@ -85,7 +85,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	query := b.buildAggregationCommon(metadata)
 	switch metricsAggr.AggrType {
 	case "sum", "min", "max", "avg":
-		query.NonSchemaFields = append(query.NonSchemaFields, metricsAggr.AggrType+`("`+getFirstFieldName()+`")`)
+		query.NonSchemaFields = append(query.NonSchemaFields, metricsAggr.AggrType+`OrNull("`+getFirstFieldName()+`")`)
 	case "quantile":
 		for usersPercent, percentAsFloat := range metricsAggr.Percentiles {
 			query.NonSchemaFields = append(query.NonSchemaFields, fmt.Sprintf(
@@ -100,10 +100,10 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		query.NonSchemaFields = append(
 			query.NonSchemaFields,
 			"count(`"+fieldName+"`)",
-			"min(`"+fieldName+"`)",
-			"max(`"+fieldName+"`)",
-			"avg(`"+fieldName+"`)",
-			"sum(`"+fieldName+"`)",
+			"minOrNull(`"+fieldName+"`)",
+			"maxOrNull(`"+fieldName+"`)",
+			"avgOrNull(`"+fieldName+"`)",
+			"sumOrNull(`"+fieldName+"`)",
 		)
 	case "top_hits":
 		query.Fields = append(query.Fields, metricsAggr.FieldNames...)

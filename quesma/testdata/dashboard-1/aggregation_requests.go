@@ -143,12 +143,12 @@ var AggregationTests = []testdata.AggregationTestCase{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0),
 					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0),
-					model.NewQueryResultCol("avg(rspContentLen)", 42516.52153947081),
+					model.NewQueryResultCol("avgOrNull(rspContentLen)", 42516.52153947081),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 658000000),
 					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 658000000),
-					model.NewQueryResultCol("avg(rspContentLen)", 658654099),
+					model.NewQueryResultCol("avgOrNull(rspContentLen)", 658654099),
 				}},
 			},
 			{
@@ -176,7 +176,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName + ` WHERE "reqTimeSec">='2024-04-24T10:55:23.606Z' AND "reqTimeSec"<='2024-04-24T11:10:23.606Z' `,
-			`SELECT floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000, avg("rspContentLen") ` +
+			`SELECT floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000, avgOrNull("rspContentLen") ` +
 				`FROM ` + testdata.QuotedTableName + ` WHERE "reqTimeSec">='2024-04-24T10:55:23.606Z' AND "reqTimeSec"<='2024-04-24T11:10:23.606Z'  ` +
 				`GROUP BY (floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000) ` +
 				`ORDER BY (floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000)`,
