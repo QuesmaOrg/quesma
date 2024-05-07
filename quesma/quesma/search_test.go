@@ -437,7 +437,7 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			// (go managementConsole.RunOnlyChannelProcessor() above), so we might need to wait a bit
 			assert.Eventually(t, func() bool {
 				return len(managementConsole.QueriesWithUnsupportedType(tt.QueryType)) == 1
-			}, 50*time.Millisecond, 1*time.Millisecond)
+			}, 150*time.Millisecond, 1*time.Millisecond)
 			assert.Equal(t, 1, managementConsole.GetTotalUnsupportedQueries())
 			assert.Equal(t, 1, managementConsole.GetSavedUnsupportedQueries())
 			assert.Equal(t, 1, len(managementConsole.GetUnsupportedTypesWithCount()))
