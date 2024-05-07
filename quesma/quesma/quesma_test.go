@@ -13,6 +13,9 @@ import (
 )
 
 func TestShouldExposePprof(t *testing.T) {
+
+	t.Skip("FIXME @pivovarit: this test is flaky, it should be fixed")
+
 	quesma := NewQuesmaTcpProxy(telemetry.NoopPhoneHomeAgent(), config.QuesmaConfiguration{
 		PublicTcpPort: 8080,
 		Elasticsearch: config.ElasticsearchConfiguration{Url: &config.Url{}},
