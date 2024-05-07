@@ -101,7 +101,7 @@ func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.Qu
 func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, config config.QuesmaConfiguration, logChan <-chan tracing.LogWithLevel) *Quesma {
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logManager, indexManager, logChan, phoneHomeAgent)
 	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole)
-	router := configureRouter(config, logManager, indexManager, quesmaManagementConsole, phoneHomeAgent, queryRunner)
+	router := configureRouter(config, logManager, quesmaManagementConsole, phoneHomeAgent, queryRunner)
 	return &Quesma{
 		telemetryAgent:          phoneHomeAgent,
 		processor:               newDualWriteProxy(logManager, indexManager, config, router, quesmaManagementConsole, phoneHomeAgent, queryRunner),
