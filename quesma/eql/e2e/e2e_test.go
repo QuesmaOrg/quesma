@@ -15,7 +15,10 @@ import (
 	"time"
 )
 
-var runTests = false
+// Tests are disabled by default. To enable them, set the condition to false.
+// Tests requires Quesma and Elastic to be running.
+
+var runTests = true
 
 var eqlQueries = []string{
 	`any where false`,
@@ -306,29 +309,29 @@ func testQuery(t *testing.T, eqlQuery string) {
 
 	quesmaResponse, err := queryEql(quesma, eqlQuery)
 	if err != nil {
-		t.Fatal(fmt.Sprintf("error calling quesma: %v", err))
+		t.Fatalf("error calling quesma: %v", err)
 		return
 	}
 
 	qeusmaEvents, err := toListOfEvents(quesmaResponse)
 	if err != nil {
-		t.Fatal(fmt.Sprintf("error parsing quesma response: %v", err))
+		t.Fatalf("error parsing quesma response: %v", err)
 	}
 
 	elasticResponse, err := queryEql(elastic, eqlQuery)
 	if err != nil {
 		fmt.Println("elastic fail response:", elasticResponse)
-		t.Fatal(fmt.Sprintf("error calling elastic: %v", err))
+		t.Fatalf("error calling elastic: %v", err)
 		return
 	}
 
 	elasticEvents, err := toListOfEvents(elasticResponse)
 	if err != nil {
-		t.Fatal(fmt.Sprintf("error parsing elastic response: %v", err))
+		t.Fatalf("error parsing elastic response: %v", err)
 	}
 
 	if len(qeusmaEvents) != len(elasticEvents) {
-		t.Fatal(fmt.Sprintf("different number of events: quesma retured: %v but elastic returned: %v", len(qeusmaEvents), len(elasticEvents)))
+		t.Fatalf("different number of events: quesma retured: %v but elastic returned: %v", len(qeusmaEvents), len(elasticEvents))
 	}
 
 	fmt.Println("Quesma events:", qeusmaEvents)

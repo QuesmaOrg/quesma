@@ -42,7 +42,7 @@ func (cw *ClickhouseEQLQueryTranslator) BuildNRowsQuery(fieldName string, simple
 		Fields:          []string{fieldName},
 		NonSchemaFields: []string{},
 		WhereClause:     simpleQuery.Sql.Stmt,
-		SuffixClauses:   []string{},
+		SuffixClauses:   suffixClauses,
 		FromClause:      cw.Table.FullTableName(),
 		CanParse:        true,
 	}
