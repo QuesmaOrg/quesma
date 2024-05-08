@@ -19,11 +19,11 @@ type EQLListener interface {
 	// EnterSampleQuery is called when entering the sampleQuery production.
 	EnterSampleQuery(c *SampleQueryContext)
 
-	// EnterConditionOp is called when entering the ConditionOp production.
-	EnterConditionOp(c *ConditionOpContext)
+	// EnterLookupOpList is called when entering the LookupOpList production.
+	EnterLookupOpList(c *LookupOpListContext)
 
-	// EnterConditionOpList is called when entering the ConditionOpList production.
-	EnterConditionOpList(c *ConditionOpListContext)
+	// EnterComparisonOp is called when entering the ComparisonOp production.
+	EnterComparisonOp(c *ComparisonOpContext)
 
 	// EnterConditionNotFuncall is called when entering the ConditionNotFuncall production.
 	EnterConditionNotFuncall(c *ConditionNotFuncallContext)
@@ -34,8 +34,8 @@ type EQLListener interface {
 	// EnterConditionNot is called when entering the ConditionNot production.
 	EnterConditionNot(c *ConditionNotContext)
 
-	// EnterConditionNotIn is called when entering the ConditionNotIn production.
-	EnterConditionNotIn(c *ConditionNotInContext)
+	// EnterLookupNotOpList is called when entering the LookupNotOpList production.
+	EnterLookupNotOpList(c *LookupNotOpListContext)
 
 	// EnterConditionLogicalOp is called when entering the ConditionLogicalOp production.
 	EnterConditionLogicalOp(c *ConditionLogicalOpContext)
@@ -103,11 +103,11 @@ type EQLListener interface {
 	// ExitSampleQuery is called when exiting the sampleQuery production.
 	ExitSampleQuery(c *SampleQueryContext)
 
-	// ExitConditionOp is called when exiting the ConditionOp production.
-	ExitConditionOp(c *ConditionOpContext)
+	// ExitLookupOpList is called when exiting the LookupOpList production.
+	ExitLookupOpList(c *LookupOpListContext)
 
-	// ExitConditionOpList is called when exiting the ConditionOpList production.
-	ExitConditionOpList(c *ConditionOpListContext)
+	// ExitComparisonOp is called when exiting the ComparisonOp production.
+	ExitComparisonOp(c *ComparisonOpContext)
 
 	// ExitConditionNotFuncall is called when exiting the ConditionNotFuncall production.
 	ExitConditionNotFuncall(c *ConditionNotFuncallContext)
@@ -118,8 +118,8 @@ type EQLListener interface {
 	// ExitConditionNot is called when exiting the ConditionNot production.
 	ExitConditionNot(c *ConditionNotContext)
 
-	// ExitConditionNotIn is called when exiting the ConditionNotIn production.
-	ExitConditionNotIn(c *ConditionNotInContext)
+	// ExitLookupNotOpList is called when exiting the LookupNotOpList production.
+	ExitLookupNotOpList(c *LookupNotOpListContext)
 
 	// ExitConditionLogicalOp is called when exiting the ConditionLogicalOp production.
 	ExitConditionLogicalOp(c *ConditionLogicalOpContext)

@@ -205,8 +205,20 @@ func TestTransform(t *testing.T) {
 		{"any where process.name == substring(\"start quesma.exe\", 6)",
 			"(process.name = substring('start quesma.exe', 6))"},
 
-		{"any where foo == subtract(10, 2)", "" +
+		{"any where foo == subtract(10, 2)",
 			"(foo = (10 - 2))"},
+
+		{"any where 1 == 2",
+			"(1 = 2)"},
+
+		{"any where add(1,2) == 2",
+			"((1 + 2) = 2)"},
+
+		{"any where  1  == null",
+			"(1 IS NULL)"},
+
+		{"any where add(1,null) == 1",
+			"((1 + NULL) = 1)"},
 	}
 
 	for _, tt := range tests {

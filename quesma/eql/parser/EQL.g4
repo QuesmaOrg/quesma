@@ -20,10 +20,9 @@ sampleQuery: 'sample' 'by' fieldList
 condition: BOOLEAN #ConditionBoolean
     | 'not' condition #ConditionNot
     | '(' condition ')' #ConditionGroup
-    | field op=('==' | '!=' | '>' | '<'  | '>=' | '<=' | ':'  | 'like' | 'like~' | 'regex' | 'regex~')  value #ConditionOp
-    | field op=( ':' | 'in' | 'in~'  | 'like' | 'like~' | 'regex' | 'regex~') list=literalList #ConditionOpList
-// FIXME This rule should part of the rule above. Not sure how to do it.
-    | field 'not' ('in' | 'in~')   list=literalList #ConditionNotIn
+    | left=value op=('==' | '!=' | '>' | '<'  | '>=' | '<=' | ':' | 'like' | 'like~' | 'regex' | 'regex~' ) right=value #ComparisonOp
+    | field 'not' op=('in' | 'in~')   list=literalList #LookupNotOpList
+    | field op=(':' | 'in' | 'in~'  | 'like' | 'like~' | 'regex' | 'regex~') list=literalList #LookupOpList
     | left=condition op=('and' | 'or') right=condition #ConditionLogicalOp
     | funcall #ConditionFuncall
     | 'not' funcall #ConditionNotFuncall

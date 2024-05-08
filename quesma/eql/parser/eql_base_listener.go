@@ -44,17 +44,17 @@ func (s *BaseEQLListener) EnterSampleQuery(ctx *SampleQueryContext) {}
 // ExitSampleQuery is called when production sampleQuery is exited.
 func (s *BaseEQLListener) ExitSampleQuery(ctx *SampleQueryContext) {}
 
-// EnterConditionOp is called when production ConditionOp is entered.
-func (s *BaseEQLListener) EnterConditionOp(ctx *ConditionOpContext) {}
+// EnterLookupOpList is called when production LookupOpList is entered.
+func (s *BaseEQLListener) EnterLookupOpList(ctx *LookupOpListContext) {}
 
-// ExitConditionOp is called when production ConditionOp is exited.
-func (s *BaseEQLListener) ExitConditionOp(ctx *ConditionOpContext) {}
+// ExitLookupOpList is called when production LookupOpList is exited.
+func (s *BaseEQLListener) ExitLookupOpList(ctx *LookupOpListContext) {}
 
-// EnterConditionOpList is called when production ConditionOpList is entered.
-func (s *BaseEQLListener) EnterConditionOpList(ctx *ConditionOpListContext) {}
+// EnterComparisonOp is called when production ComparisonOp is entered.
+func (s *BaseEQLListener) EnterComparisonOp(ctx *ComparisonOpContext) {}
 
-// ExitConditionOpList is called when production ConditionOpList is exited.
-func (s *BaseEQLListener) ExitConditionOpList(ctx *ConditionOpListContext) {}
+// ExitComparisonOp is called when production ComparisonOp is exited.
+func (s *BaseEQLListener) ExitComparisonOp(ctx *ComparisonOpContext) {}
 
 // EnterConditionNotFuncall is called when production ConditionNotFuncall is entered.
 func (s *BaseEQLListener) EnterConditionNotFuncall(ctx *ConditionNotFuncallContext) {}
@@ -74,11 +74,11 @@ func (s *BaseEQLListener) EnterConditionNot(ctx *ConditionNotContext) {}
 // ExitConditionNot is called when production ConditionNot is exited.
 func (s *BaseEQLListener) ExitConditionNot(ctx *ConditionNotContext) {}
 
-// EnterConditionNotIn is called when production ConditionNotIn is entered.
-func (s *BaseEQLListener) EnterConditionNotIn(ctx *ConditionNotInContext) {}
+// EnterLookupNotOpList is called when production LookupNotOpList is entered.
+func (s *BaseEQLListener) EnterLookupNotOpList(ctx *LookupNotOpListContext) {}
 
-// ExitConditionNotIn is called when production ConditionNotIn is exited.
-func (s *BaseEQLListener) ExitConditionNotIn(ctx *ConditionNotInContext) {}
+// ExitLookupNotOpList is called when production LookupNotOpList is exited.
+func (s *BaseEQLListener) ExitLookupNotOpList(ctx *LookupNotOpListContext) {}
 
 // EnterConditionLogicalOp is called when production ConditionLogicalOp is entered.
 func (s *BaseEQLListener) EnterConditionLogicalOp(ctx *ConditionLogicalOpContext) {}

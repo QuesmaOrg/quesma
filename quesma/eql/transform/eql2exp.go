@@ -84,31 +84,42 @@ func (v *EQLParseTreeToExpTransformer) VisitConditionLogicalOp(ctx *parser.Condi
 	return NewInfixOp(op, left.(Exp), right.(Exp))
 }
 
-func (v *EQLParseTreeToExpTransformer) VisitConditionOp(ctx *parser.ConditionOpContext) interface{} {
+func (v *EQLParseTreeToExpTransformer) VisitComparisonOp(ctx *parser.ComparisonOpContext) interface{} {
+
+	op := ctx.GetOp().GetText()
+	left := ctx.GetLeft().Accept(v)
+	right := ctx.GetRight().Accept(v)
+
+	return NewInfixOp(op, left.(Exp), right.(Exp))
+}
+
+func (v *EQLParseTreeToExpTransformer) VisitLookupOpList(ctx *parser.LookupOpListContext) interface{} {
 
 	field := ctx.Field().Accept(v)
-	value := ctx.Value().Accept(v)
+	list := ctx.GetList().Accept(v)
 	op := ctx.GetOp().GetText()
 
+	op = strings.ToLower(op)
 	// paranoia check, should never happen
 	// if there is no visitor implemented for the right side value is null
 
 	// TODO add more info here to help debugging
-	if value == nil {
+	if list == nil {
 		v.error("value is nil here")
 		return &Const{Value: "error"}
 	}
 
-	return NewInfixOp(op, field.(Exp), value.(Exp))
+	return NewInfixOp(op, field.(Exp), list.(Exp))
 }
 
-func (v *EQLParseTreeToExpTransformer) VisitConditionOpList(ctx *parser.ConditionOpListContext) interface{} {
+func (v *EQLParseTreeToExpTransformer) VisitLookupNotOpList(ctx *parser.LookupNotOpListContext) interface{} {
+
 	field := ctx.Field().Accept(v)
+	list := ctx.GetList().Accept(v)
 	op := ctx.GetOp().GetText()
 	op = strings.ToLower(op)
-	inList := ctx.GetList().Accept(v).(Exp)
 
-	return NewInfixOp(op, field.(Exp), inList)
+	return NewInfixOp("not "+op, field.(Exp), list.(Exp))
 }
 
 func (v *EQLParseTreeToExpTransformer) VisitConditionNot(ctx *parser.ConditionNotContext) interface{} {
@@ -118,13 +129,6 @@ func (v *EQLParseTreeToExpTransformer) VisitConditionNot(ctx *parser.ConditionNo
 
 func (v *EQLParseTreeToExpTransformer) VisitConditionGroup(ctx *parser.ConditionGroupContext) interface{} {
 	return NewGroup(ctx.Condition().Accept(v).(Exp))
-}
-
-func (v *EQLParseTreeToExpTransformer) VisitConditionNotIn(ctx *parser.ConditionNotInContext) interface{} {
-	field := ctx.Field().Accept(v).(Exp)
-	inList := ctx.GetList().Accept(v).(Exp)
-
-	return NewInfixOp("not in", field, inList)
 }
 
 func (v *EQLParseTreeToExpTransformer) VisitConditionFuncall(ctx *parser.ConditionFuncallContext) interface{} {
