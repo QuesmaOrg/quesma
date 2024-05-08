@@ -317,6 +317,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	}
 
 	// 2. Pipeline aggregation => always leaf (for now)
+	cw.tryPipelineAggregation(queryMap)
 	if cw.isItSimplePipeline(queryMap) {
 		*resultAccumulator = append(*resultAccumulator, currentAggr.buildPipelineAggregation(metadata))
 		return
