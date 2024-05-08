@@ -456,7 +456,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []mod
 	}
 	cw.postprocessPipelineAggregations(queries, ResultSets)
 	for i, query := range queries[aggregation_start_index:] {
-		fmt.Println("WTF", i, query, ResultSets[i+1])
+		// fmt.Println("WTF", i, query, ResultSets[i+1])
 		if len(ResultSets) <= i+1 {
 			continue
 		}
@@ -523,9 +523,9 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []m
 	fmt.Println("qwerty", queryIterationOrder)
 	for _, queryIndex := range queryIterationOrder {
 		query := queries[queryIndex]
-		fmt.Println(queryIndex, query, ResultSets[queryIndex])
-		pipelineQueryType, ok := query.Type.(model.PipelineQueryType)
-		if !query.NoDBQuery || !ok {
+		//fmt.Println(queryIndex, query, ResultSets[queryIndex])
+		pipelineQueryType, isPipeline := query.Type.(model.PipelineQueryType)
+		if !isPipeline || !query.HasParentAggregation() {
 			continue
 		}
 		// if we don't send the query, we need process the result ourselves
@@ -543,7 +543,7 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []m
 		}
 		fmt.Println("ResultSets[i]", ResultSets[queryIndex], queryIndex, parentIndex)
 		for _, row := range ResultSets[parentIndex] {
-			ResultSets[queryIndex] = append(ResultSets[queryIndex], pipelineQueryType.CalculateResultIfMissing(row, ResultSets[queryIndex]))
+			ResultSets[queryIndex] = append(ResultSets[queryIndex], pipelineQueryType.CalculateResultWhenMissing(row, ResultSets[queryIndex]))
 		}
 		fmt.Println("ResultSets[i] - post", ResultSets[queryIndex], "i:", queryIndex, "parent:", parentIndex)
 	}

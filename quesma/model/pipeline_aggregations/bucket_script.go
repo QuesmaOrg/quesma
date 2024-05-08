@@ -30,7 +30,7 @@ func (query BucketScript) TranslateSqlResponseToJson(rows []model.QueryResultRow
 	return response
 }
 
-func (query BucketScript) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
+func (query BucketScript) CalculateResultWhenMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
 	return model.QueryResultRow{}
 }
 

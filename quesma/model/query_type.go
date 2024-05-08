@@ -23,7 +23,7 @@ type PipelineQueryType interface {
 	// IsBucketAggregation if true, result from 'MakeResponse' will be a slice of buckets
 	// if false, it's a metrics aggregation and result from 'MakeResponse' will be a single bucket
 	IsBucketAggregation() bool
-	CalculateResultIfMissing(parentRow QueryResultRow, thisAggrPreviousResults []QueryResultRow) QueryResultRow
+	CalculateResultWhenMissing(parentRow QueryResultRow, thisAggrPreviousResults []QueryResultRow) QueryResultRow
 	String() string
 }
 
@@ -43,10 +43,6 @@ func (query UnknownAggregationType) IsBucketAggregation() bool {
 
 func (query UnknownAggregationType) TranslateSqlResponseToJson(rows []QueryResultRow, level int) []JsonMap {
 	return make([]JsonMap, 0)
-}
-
-func (query UnknownAggregationType) CalculateResultIfMissing(QueryResultRow, []QueryResultRow) QueryResultRow {
-	return QueryResultRow{}
 }
 
 func (query UnknownAggregationType) String() string {

@@ -7,6 +7,7 @@ import (
 )
 
 var timestampGroupByClause = clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second)
+var nilVariable any = nil
 
 var AggregationTests = []AggregationTestCase{
 	{ // [0]
@@ -974,14 +975,8 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		[][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(904))}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("", nil), // nil aggregation
-				model.NewQueryResultCol("doc_count", 553),
-			}}},
-			{{Cols: []model.QueryResultCol{
-				model.NewQueryResultCol("", nil), // nil aggregation
-				model.NewQueryResultCol("doc_count", 351),
-			}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 553)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 351)}}},
 		},
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE "FlightDelay" == true AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z'))) `,
@@ -2414,9 +2409,10 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		[][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(0))}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`minOrNull("@timestamp")`, nil)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("@timestamp")`, nil)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("@timestamp")`, nil)}}},
+			// Used to be just "nil", not &nilVariable, but deepcopy panics during ExpectedResults copy. Works as is.
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`minOrNull("@timestamp")`, &nilVariable)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("@timestamp")`, &nilVariable)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("@timestamp")`, &nilVariable)}}},
 		},
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
