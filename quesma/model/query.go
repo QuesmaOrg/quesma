@@ -154,10 +154,6 @@ func (q *Query) IsWildcard() bool {
 	return len(q.Fields) == 1 && q.Fields[0] == "*"
 }
 
-func (q *Query) HasParentAggregation() bool {
-	return q.NoDBQuery && len(q.Parent) > 0 // first condition should be enough, second just in case
-}
-
 // CopyAggregationFields copies all aggregation fields from qwa to q
 func (q *QueryWithAggregation) CopyAggregationFields(qwa QueryWithAggregation) {
 	q.GroupByFields = make([]string, len(qwa.GroupByFields))
@@ -215,6 +211,14 @@ func (q *QueryWithAggregation) Name() string {
 		return ""
 	}
 	return q.Aggregators[len(q.Aggregators)-1].Name
+}
+
+func (q *QueryWithAggregation) HasParentAggregation() bool {
+	return q.NoDBQuery && len(q.Parent) > 0 // first condition should be enough, second just in case
+}
+
+func (q *QueryWithAggregation) IsChild(maybeParent QueryWithAggregation) bool {
+	return q.HasParentAggregation() && q.Parent == maybeParent.Name()
 }
 
 type Aggregator struct {

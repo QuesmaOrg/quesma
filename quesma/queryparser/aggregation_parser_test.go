@@ -565,7 +565,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if i != 35 {
+			if i != 37 {
 				t.Skip()
 			}
 			if i == 26 {

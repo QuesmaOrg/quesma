@@ -241,8 +241,42 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 12
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{},
-		ExpectedSQLs:    []string{},
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1974))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 0.0),
+					model.NewQueryResultCol(`avgOrNull("day_of_week_i")`, 0.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 1.0),
+					model.NewQueryResultCol(`avgOrNull("day_of_week_i")`, 1.0),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 0.0),
+					model.NewQueryResultCol("doc_count", 282),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 1.0),
+					model.NewQueryResultCol("doc_count", 300),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + testdata.QuotedTableName + ` `,
+			`NoDBQuery`,
+			`SELECT "day_of_week_i", avgOrNull("day_of_week_i") ` +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				`GROUP BY ("day_of_week_i") ` +
+				`ORDER BY ("day_of_week_i")`,
+			`SELECT "day_of_week_i", count() ` +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				`GROUP BY ("day_of_week_i") ` +
+				`ORDER BY ("day_of_week_i")`,
+		},
 	},
 	{ // [2]
 		TestName: "Cumulative sum to other cumulative sum. Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Cumulative Sum (Aggregation: Count)), Buckets: Histogram",
@@ -260,8 +294,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							}
 						},
 						"1-metric": {
-							"avg": {
-								"field": "day_of_week_i"
+							"cumulative_sum": {
+								"buckets_path": "_count"
 							}
 						}
 					},
@@ -349,11 +383,33 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 10
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{},
-		ExpectedSQLs:    []string{},
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1974))}}},
+			{}, // NoDBQuery
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 0.0),
+					model.NewQueryResultCol("doc_count", 282),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 1.0),
+					model.NewQueryResultCol("doc_count", 300),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + testdata.QuotedTableName + ` `,
+			`NoDBQuery`,
+			`NoDBQuery`,
+			`SELECT "day_of_week_i", count() ` +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				`GROUP BY ("day_of_week_i") ` +
+				`ORDER BY ("day_of_week_i")`,
+		},
 	},
 	{ // [3]
-		TestName: "Cumulative sum - quite complex, a graph (DAG). Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Cumulative Sum (Aggregation: Max)), Buckets: Histogram",
+		TestName: "Cumulative sum - quite complex, a graph of pipelines. Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Cumulative Sum (Aggregation: Max)), Buckets: Histogram",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -468,7 +524,43 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 76
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{},
-		ExpectedSQLs:    []string{},
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1974))}}},
+			{}, // NoDBQuery
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 0.0),
+					model.NewQueryResultCol(`maxOrNull("products.base_price")`, 1080.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 1.0),
+					model.NewQueryResultCol(`maxOrNull("products.base_price")`, 200.0),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 0.0),
+					model.NewQueryResultCol("doc_count", 282),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 1.0),
+					model.NewQueryResultCol("doc_count", 300),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + testdata.QuotedTableName + ` `,
+			`NoDBQuery`,
+			`NoDBQuery`,
+			`SELECT "day_of_week_i", maxOrNull("products.base_price") ` +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				`GROUP BY ("day_of_week_i") ` +
+				`ORDER BY ("day_of_week_i")`,
+			`SELECT "day_of_week_i", count() ` +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				`GROUP BY ("day_of_week_i") ` +
+				`ORDER BY ("day_of_week_i")`,
+		},
 	},
 }

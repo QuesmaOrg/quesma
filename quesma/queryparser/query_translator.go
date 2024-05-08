@@ -3,6 +3,7 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/kibana"
 	"mitmproxy/quesma/logger"
@@ -455,10 +456,12 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []mod
 	}
 	cw.postprocessPipelineAggregations(queries, ResultSets)
 	for i, query := range queries[aggregation_start_index:] {
+		fmt.Println("WTF", i, query, ResultSets[i+1])
 		if len(ResultSets) <= i+1 {
 			continue
 		}
 		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i+1], 0, 0)
+		pp.Println(aggregation)
 		if len(aggregation) != 0 {
 			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0]) // result of root node is always a single map, thus [0]
 		}
@@ -527,7 +530,7 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []m
 		}
 		// if we don't send the query, we need process the result ourselves
 		parentIndex := -1
-		fmt.Println("queries", queryIndex, query.Parent)
+		fmt.Println("queries", queryIndex, "parent:", query.Parent)
 		for i, parentQuery := range queries {
 			if parentQuery.Name() == query.Parent {
 				parentIndex = i
@@ -542,6 +545,7 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []m
 		for _, row := range ResultSets[parentIndex] {
 			ResultSets[queryIndex] = append(ResultSets[queryIndex], pipelineQueryType.CalculateResultIfMissing(row, ResultSets[queryIndex]))
 		}
+		fmt.Println("ResultSets[i] - post", ResultSets[queryIndex], "i:", queryIndex, "parent:", parentIndex)
 	}
 }
 

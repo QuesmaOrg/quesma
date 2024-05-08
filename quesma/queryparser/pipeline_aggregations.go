@@ -114,6 +114,11 @@ func (b *aggrQueryBuilder) buildPipelineAggregation(aggregationType model.QueryT
 		query.NoDBQuery = true
 		if aggrType.IsCount {
 			query.NonSchemaFields = append(query.NonSchemaFields, "count()")
+			if len(query.Aggregators) < 2 {
+				logger.WarnWithCtx(b.ctx).Msg("cumulative_sum with count as parent, but no parent aggregation found")
+			}
+			query.Parent = query.Aggregators[len(query.Aggregators)-2].Name
+
 		} else {
 			query.Parent = aggrType.Parent
 		}
@@ -123,38 +128,36 @@ func (b *aggrQueryBuilder) buildPipelineAggregation(aggregationType model.QueryT
 
 func (cw *ClickhouseQueryTranslator) sortInTopologicalOrder(queries []model.QueryWithAggregation) []int {
 	nameToIndex := make(map[string]int, len(queries))
-	nameToParentName := make(map[string]string, len(queries))
-	queryInDegree := make(map[string]int, len(queries))
 	for i, query := range queries {
 		nameToIndex[query.Name()] = i
-		queryInDegree[query.Name()] = 0
-		if query.HasParentAggregation() {
-			nameToParentName[query.Name()] = query.Parent
-		}
 	}
 
-	indexesSorted := make([]int, 0, len(queries))
+	canSelect := make([]bool, 0, len(queries))
 	for _, query := range queries {
-		if query.HasParentAggregation() {
-			queryInDegree[query.Parent]++
-		}
+		// at the beginning we can select <=> no parent aggregation
+		canSelect = append(canSelect, !query.HasParentAggregation())
 	}
-	fmt.Println("queryInDegree", queryInDegree)
+	fmt.Println("canSelect", canSelect)
+	alreadySelected := make([]bool, len(queries))
+	indexesSorted := make([]int, 0, len(queries))
 	for len(indexesSorted) < len(queries) {
 		lenStart := len(indexesSorted)
-		for aggrName, inDegree := range queryInDegree {
-			if inDegree == 0 {
-				indexesSorted = append(indexesSorted, nameToIndex[aggrName])
-				if parentName, exists := nameToParentName[aggrName]; exists {
-					queryInDegree[parentName]--
+		for i, query := range queries {
+			if !alreadySelected[i] && canSelect[i] {
+				indexesSorted = append(indexesSorted, i)
+				alreadySelected[i] = true
+				// mark all children as canSelect, as their parent is already resolved (selected)
+				for j, maybeChildQuery := range queries {
+					if maybeChildQuery.IsChild(query) {
+						canSelect[j] = true
+					}
 				}
-				delete(queryInDegree, aggrName)
 			}
 		}
 		lenEnd := len(indexesSorted)
 		if lenEnd == lenStart {
 			// without this check, we'd end up in an infinite loop
-			logger.WarnWithCtx(cw.Ctx).Msgf("could not sort queries in topological order, indexesSorted: %v, queryInDegree: %v", indexesSorted, queryInDegree)
+			logger.WarnWithCtx(cw.Ctx).Msg("could not resolve all parent-child relationships in queries")
 			break
 		}
 	}
