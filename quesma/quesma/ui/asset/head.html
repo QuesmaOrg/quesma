@@ -480,34 +480,61 @@
             background-color: #dddddd;
         }
 
-        #request-log-messages table {
+        #request-info {
+            background-color: rgb(0, 0, 0);
+            color: white;
+        }
+
+        #request-info .title {
+            margin-top: 0;
+            background-color: #333;
+            color: white;
+        }
+
+        #request-info .two-columns {
+            display: flex;
+            height: 48%;
+        }
+
+        #request-info .elastic-response, #request-info .quesma-response, #request-info .query-body, #request-info .query-body-translated {
+            flex: 1;
+            overflow: auto;
+        }
+
+        #request-info .query-body, #request-info .quesma-response {
+            background-color: rgb(221, 226, 235);
+            color: black;
+        }
+
+        #request-info table {
             border-collapse: collapse;
             table-layout: fixed;
             width: 98%;
             word-wrap: break-word;
+            margin-bottom: 1em;
         }
 
-        #request-log-messages th, #request-log-messages td {
+        #request-info th, #request-info td {
             border: 1px solid rgb(221, 226, 235);
             font-family: Courier;
             font-size: small;
             padding: 0 3px;
         }
 
-        #request-log-messages .time {
+        #request-info .time {
             width: 10%;
         }
 
-        #request-log-messages .level {
+        #request-info .level {
             width: 5%;
         }
 
-        #request-log-messages .message {
+        #request-info .message {
             width: 55%;
             white-space: pre-wrap;
         }
 
-        #request-log-messages .fields {
+        #request-info .fields {
             width: 28%;
             white-space: pre-wrap;
         }

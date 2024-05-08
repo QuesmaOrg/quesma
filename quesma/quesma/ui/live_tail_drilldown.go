@@ -31,42 +31,49 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 
 	// Show Request and SQL
 	if requestFound {
+		buffer.Html(`<div class="two-columns">` + "\n")
 		buffer.Html(`<div class="query-body">` + "\n")
-		buffer.Html("<p>Original query:</p>\n")
+		buffer.Html("<p class=\"title\">Original query:</p>\n")
 		buffer.Html(`<pre>`)
 		buffer.Text(string(request.IncomingQueryBody))
 		buffer.Html("\n</pre>")
 		buffer.Html(`</div>` + "\n")
 
 		buffer.Html(`<div class="query-body-translated">` + "\n")
-		buffer.Html("<p>Translated SQL:</p>\n")
+		buffer.Html("<p class=\"title\">Translated SQL:</p>\n")
 		buffer.Html(`<pre>`)
 		buffer.Text(sqlfmt.SqlPrettyPrint(request.QueryBodyTranslated))
 		buffer.Html("\n</pre>")
 		buffer.Html(`</div>` + "\n")
+		buffer.Html(`</div>` + "\n")
 	}
-
-	//buffer.Write(generateQueries(debugKeyValueSlice, false))
 
 	buffer.Html("\n\n")
 	buffer.Html(`<div class="debug-body">`)
 
-	buffer.Write(logMessages)
+	if requestFound && len(request.logMessages) > 0 {
+		buffer.Html("<p class=\"title\">Logs:</p>\n")
+		buffer.Write(logMessages)
+	} else {
+		buffer.Html("<p class=\"title\">No logs for this request</p>\n")
+	}
 
 	//  Show ElasticSearch and Quesma Response
 	if requestFound {
+		buffer.Html(`<div class="two-columns">` + "\n")
 		buffer.Html(`<div class="elastic-response">` + "\n")
-		buffer.Html("<p>Elastic response:</p>\n")
+		buffer.Html("<p class=\"title\">Elastic response:</p>\n")
 		buffer.Html(`<pre>`)
 		buffer.Text(string(request.QueryDebugPrimarySource.QueryResp))
 		buffer.Html("\n</pre>")
 		buffer.Html(`</div>` + "\n")
 
 		buffer.Html(`<div class="quesma-response">` + "\n")
-		buffer.Html("<p>Quesma response:</p>\n")
+		buffer.Html("<p class=\"title\">Quesma response:</p>\n")
 		buffer.Html(`<pre>`)
 		buffer.Text(string(request.QueryDebugSecondarySource.QueryTranslatedResults))
 		buffer.Html("\n</pre>")
+		buffer.Html(`</div>` + "\n")
 		buffer.Html(`</div>` + "\n")
 	}
 
