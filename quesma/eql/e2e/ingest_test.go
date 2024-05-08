@@ -77,7 +77,6 @@ func sendLogEntry(logBytes []byte) {
 	sendLogEntryTo(elasticUrl, logBytes)
 }
 
-
 func setup(categoryName string) {
 	// setup
 
