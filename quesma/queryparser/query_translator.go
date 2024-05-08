@@ -516,18 +516,31 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncRequestI
 }
 
 func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) {
-
-	for i, query := range queries {
-		fmt.Println(i, query, ResultSets[i])
+	queryIterationOrder := cw.sortInTopologicalOrder(queries)
+	fmt.Println("qwerty", queryIterationOrder)
+	for _, queryIndex := range queryIterationOrder {
+		query := queries[queryIndex]
+		fmt.Println(queryIndex, query, ResultSets[queryIndex])
 		pipelineQueryType, ok := query.Type.(model.PipelineQueryType)
 		if !query.NoDBQuery || !ok {
 			continue
 		}
 		// if we don't send the query, we need process the result ourselves
-		j := 2
-		fmt.Println("ResultSets[i]", ResultSets[i], i)
-		for _, row := range ResultSets[j] {
-			ResultSets[i] = append(ResultSets[i], pipelineQueryType.CalculateResultIfMissing(row, ResultSets[i]))
+		parentIndex := -1
+		fmt.Println("queries", queryIndex, query.Parent)
+		for i, parentQuery := range queries {
+			if parentQuery.Name() == query.Parent {
+				parentIndex = i
+				break
+			}
+		}
+		if parentIndex == -1 {
+			logger.WarnWithCtx(cw.Ctx).Msgf("parent index not found for query %v", query)
+			continue
+		}
+		fmt.Println("ResultSets[i]", ResultSets[queryIndex], queryIndex, parentIndex)
+		for _, row := range ResultSets[parentIndex] {
+			ResultSets[queryIndex] = append(ResultSets[queryIndex], pipelineQueryType.CalculateResultIfMissing(row, ResultSets[queryIndex]))
 		}
 	}
 }

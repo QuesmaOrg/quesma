@@ -154,6 +154,10 @@ func (q *Query) IsWildcard() bool {
 	return len(q.Fields) == 1 && q.Fields[0] == "*"
 }
 
+func (q *Query) HasParentAggregation() bool {
+	return q.NoDBQuery && len(q.Parent) > 0 // first condition should be enough, second just in case
+}
+
 // CopyAggregationFields copies all aggregation fields from qwa to q
 func (q *QueryWithAggregation) CopyAggregationFields(qwa QueryWithAggregation) {
 	q.GroupByFields = make([]string, len(qwa.GroupByFields))
@@ -204,6 +208,13 @@ func (q *QueryWithAggregation) TrimKeywordFromFields(ctx context.Context) {
 			q.NonSchemaFields[i] += `"`
 		}
 	}
+}
+
+func (q *QueryWithAggregation) Name() string {
+	if len(q.Aggregators) == 0 {
+		return ""
+	}
+	return q.Aggregators[len(q.Aggregators)-1].Name
 }
 
 type Aggregator struct {

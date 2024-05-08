@@ -1,6 +1,7 @@
 package queryparser
 
 import (
+	"fmt"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/pipeline_aggregations"
@@ -118,4 +119,44 @@ func (b *aggrQueryBuilder) buildPipelineAggregation(aggregationType model.QueryT
 		}
 	}
 	return query
+}
+
+func (cw *ClickhouseQueryTranslator) sortInTopologicalOrder(queries []model.QueryWithAggregation) []int {
+	nameToIndex := make(map[string]int, len(queries))
+	nameToParentName := make(map[string]string, len(queries))
+	queryInDegree := make(map[string]int, len(queries))
+	for i, query := range queries {
+		nameToIndex[query.Name()] = i
+		queryInDegree[query.Name()] = 0
+		if query.HasParentAggregation() {
+			nameToParentName[query.Name()] = query.Parent
+		}
+	}
+
+	indexesSorted := make([]int, 0, len(queries))
+	for _, query := range queries {
+		if query.HasParentAggregation() {
+			queryInDegree[query.Parent]++
+		}
+	}
+	fmt.Println("queryInDegree", queryInDegree)
+	for len(indexesSorted) < len(queries) {
+		lenStart := len(indexesSorted)
+		for aggrName, inDegree := range queryInDegree {
+			if inDegree == 0 {
+				indexesSorted = append(indexesSorted, nameToIndex[aggrName])
+				if parentName, exists := nameToParentName[aggrName]; exists {
+					queryInDegree[parentName]--
+				}
+				delete(queryInDegree, aggrName)
+			}
+		}
+		lenEnd := len(indexesSorted)
+		if lenEnd == lenStart {
+			// without this check, we'd end up in an infinite loop
+			logger.WarnWithCtx(cw.Ctx).Msgf("could not sort queries in topological order, indexesSorted: %v, queryInDegree: %v", indexesSorted, queryInDegree)
+			break
+		}
+	}
+	return indexesSorted
 }
