@@ -462,8 +462,9 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 // used to fail before we fixed field quoting.
 func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: nil, Table: clickhouse.NewEmptyTable("@"), Ctx: context.Background()}
+	const limit = 1000
 	queries := []*model.Query{
-		cw.BuildSimpleSelectQuery(""),
+		cw.BuildSimpleSelectQuery("", limit),
 		cw.BuildNRowsQuery("@", SimpleQuery{}, 0),
 	}
 	for _, query := range queries {
