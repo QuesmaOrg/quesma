@@ -520,6 +520,10 @@ func ExtractInt64(value any) int64 {
 		return valueTyped
 	case uint64:
 		return int64(valueTyped)
+	case int:
+		return int64(valueTyped)
+	case *int:
+		return int64(*valueTyped)
 	case *int64:
 		return *valueTyped
 	case *uint64:
@@ -570,4 +574,18 @@ func ExtractFloat64(value any) float64 {
 	}
 	logger.Error().Msgf("ExtractFloat64, value of incorrect type. Expected (*)float64, received: %v; type: %T", value, value)
 	return -1
+}
+
+func ExtractFloat64Maybe(value any) (asFloat64 float64, success bool) {
+	switch valueTyped := value.(type) {
+	case float64:
+		return valueTyped, true
+	case *float64:
+		return *valueTyped, true
+	case float32:
+		return float64(valueTyped), true
+	case *float32:
+		return float64(*valueTyped), true
+	}
+	return -1, false
 }

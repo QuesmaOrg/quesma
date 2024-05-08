@@ -3,6 +3,7 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/kibana"
 	"mitmproxy/quesma/logger"
@@ -453,6 +454,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []mod
 	if len(queries) <= aggregation_start_index {
 		return aggregations
 	}
+	cw.postprocessPipelineAggregations(queries, ResultSets)
 	for i, query := range queries[aggregation_start_index:] {
 		if len(ResultSets) <= i+1 {
 			continue
@@ -512,6 +514,21 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncRequestI
 
 	response.CompletionStatus = &completionStatus
 	return &response
+}
+
+func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) {
+	for i, query := range queries {
+		pp.Println(query)
+		if !query.NoDBQuery {
+			continue
+		}
+		// if we don't send the query, we need process the result ourselves
+		j := 2
+		fmt.Println("ResultSets[i]", ResultSets[i], i)
+		for _, row := range ResultSets[j] {
+			ResultSets[i] = append(ResultSets[i], query.Type.CalculateResultIfMissing(row, ResultSets[i]))
+		}
+	}
 }
 
 func (cw *ClickhouseQueryTranslator) BuildSelectQuery(fields []string, whereClause string) *model.Query {

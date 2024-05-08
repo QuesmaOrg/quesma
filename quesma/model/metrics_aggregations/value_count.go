@@ -30,6 +30,10 @@ func (query ValueCount) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 	}}
 }
 
+func (query ValueCount) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
+	return model.QueryResultRow{}
+}
+
 func (query ValueCount) String() string {
 	return "value_count"
 }

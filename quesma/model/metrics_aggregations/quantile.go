@@ -84,6 +84,10 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 	}
 }
 
+func (query Quantile) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
+	return model.QueryResultRow{}
+}
+
 func (query Quantile) String() string {
 	return "quantile"
 }

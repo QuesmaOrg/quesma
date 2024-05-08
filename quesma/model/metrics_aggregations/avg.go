@@ -23,6 +23,10 @@ func (query Avg) TranslateSqlResponseToJson(rows []model.QueryResultRow, level i
 	return metricsTranslateSqlResponseToJsonWithFieldTypeCheck(query.ctx, rows, level, query.fieldType)
 }
 
+func (query Avg) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
+	return model.QueryResultRow{}
+}
+
 func (query Avg) String() string {
 	return "avg"
 }

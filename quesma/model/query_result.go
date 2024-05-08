@@ -125,3 +125,9 @@ func (r QueryResultRow) String(ctx context.Context) string {
 	str.WriteString("\n" + util.Indent(1) + "}")
 	return str.String()
 }
+
+func (r *QueryResultRow) Copy() QueryResultRow {
+	newCols := make([]QueryResultCol, len(r.Cols))
+	copy(newCols, r.Cols)
+	return QueryResultRow{Index: r.Index, Cols: newCols}
+}

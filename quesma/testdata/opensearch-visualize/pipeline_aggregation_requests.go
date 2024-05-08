@@ -110,8 +110,31 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"timed_out": false,
 			"took": 8
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{},
-		ExpectedSQLs:    []string{},
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1974))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 0.0),
+					model.NewQueryResultCol("doc_count", 282),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 1.0),
+					model.NewQueryResultCol("doc_count", 300),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z') `,
+			`NoDBQuery`,
+			`SELECT "day_of_week_i", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z')  ` +
+				`GROUP BY ("day_of_week_i") ` +
+				`ORDER BY ("day_of_week_i")`,
+		},
 	},
 	{ // [1]
 		TestName: "Cumulative sum with other aggregation. Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Average), Buckets: Histogram",

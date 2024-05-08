@@ -10,7 +10,6 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
 	"mitmproxy/quesma/model/metrics_aggregations"
-	"mitmproxy/quesma/model/pipeline_aggregations"
 	"mitmproxy/quesma/util"
 	"slices"
 	"strconv"
@@ -65,13 +64,6 @@ func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.
 func (b *aggrQueryBuilder) buildCountAggregation(metadata model.JsonMap) model.QueryWithAggregation {
 	query := b.buildAggregationCommon(metadata)
 	query.Type = metrics_aggregations.NewCount(b.ctx)
-	query.NonSchemaFields = append(query.NonSchemaFields, "count()")
-	return query
-}
-
-func (b *aggrQueryBuilder) buildPipelineAggregation(metadata model.JsonMap) model.QueryWithAggregation {
-	query := b.buildAggregationCommon(metadata)
-	query.Type = pipeline_aggregations.NewBucketScript(b.ctx)
 	query.NonSchemaFields = append(query.NonSchemaFields, "count()")
 	return query
 }
@@ -317,10 +309,9 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	}
 
 	// 2. Pipeline aggregation => always leaf (for now)
-	cw.tryPipelineAggregation(queryMap)
-	if cw.isItSimplePipeline(queryMap) {
-		*resultAccumulator = append(*resultAccumulator, currentAggr.buildPipelineAggregation(metadata))
-		return
+	pipelineAggregationType, isPipelineAggregation := cw.parsePipelineAggregations(queryMap)
+	if isPipelineAggregation {
+		*resultAccumulator = append(*resultAccumulator, currentAggr.buildPipelineAggregation(pipelineAggregationType, metadata))
 	}
 
 	// 3. Now process filter(s) first, because they apply to everything else on the same level or below.

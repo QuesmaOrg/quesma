@@ -23,6 +23,10 @@ func (query Max) TranslateSqlResponseToJson(rows []model.QueryResultRow, level i
 	return metricsTranslateSqlResponseToJsonWithFieldTypeCheck(query.ctx, rows, level, query.fieldType)
 }
 
+func (query Max) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
+	return model.QueryResultRow{}
+}
+
 func (query Max) String() string {
 	return "max"
 }
