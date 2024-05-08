@@ -2,15 +2,17 @@ package metrics_aggregations
 
 import (
 	"context"
+	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/model"
 )
 
 type Max struct {
-	ctx context.Context
+	ctx       context.Context
+	fieldType clickhouse.DateTimeType
 }
 
-func NewMax(ctx context.Context) Max {
-	return Max{ctx: ctx}
+func NewMax(ctx context.Context, fieldType clickhouse.DateTimeType) Max {
+	return Max{ctx: ctx, fieldType: fieldType}
 }
 
 func (query Max) IsBucketAggregation() bool {
@@ -18,7 +20,7 @@ func (query Max) IsBucketAggregation() bool {
 }
 
 func (query Max) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
-	return metricsTranslateSqlResponseToJson(query.ctx, rows, level)
+	return metricsTranslateSqlResponseToJsonWithFieldTypeCheck(query.ctx, rows, level, query.fieldType)
 }
 
 func (query Max) String() string {

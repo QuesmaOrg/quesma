@@ -29,8 +29,8 @@ type AggregationTestCase struct {
 	ExpectedSQLs     []string                 // [0] = translated SQLs for first aggregation, [1] = translated SQL for second aggregation, etc.
 }
 
-type UnsupportedAggregationTestCase struct {
+type UnsupportedQueryTestCase struct {
 	TestName         string
-	AggregationName  string
+	QueryType        string
 	QueryRequestJson string
 }

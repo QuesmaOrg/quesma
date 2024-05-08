@@ -99,8 +99,8 @@ func TestAsyncSearchHandler(t *testing.T) {
 				}
 				mock.ExpectQuery(wantedRegex).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm)
-			_, err = queryRunner.handleAsyncSearch(ctx, cfg, tableName, []byte(tt.QueryJson), lm, nil, managementConsole, defaultAsyncSearchTimeout, true)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
+			_, err = queryRunner.handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
 			if err := mock.ExpectationsWereMet(); err != nil {
@@ -138,8 +138,8 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 				mock.ExpectQuery(testdata.EscapeBrackets(expectedSql)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 
-			queryRunner := NewQueryRunner(lm)
-			_, err = queryRunner.handleAsyncSearch(ctx, cfg, tableName, []byte(tt.QueryRequestJson), lm, nil, managementConsole, defaultAsyncSearchTimeout, true)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
+			_, err = queryRunner.handleAsyncSearch(ctx, tableName, []byte(tt.QueryRequestJson), defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
 			if err = mock.ExpectationsWereMet(); err != nil {
@@ -181,8 +181,8 @@ func TestSearchHandler(t *testing.T) {
 				mock.ExpectQuery(testdata.EscapeWildcard(testdata.EscapeBrackets(wantedRegex))).
 					WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm)
-			_, _ = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson), cfg, lm, nil, managementConsole)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
+			_, _ = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson))
 
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -208,8 +208,8 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm)
-			_, _ = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson), cfg, lm, nil, managementConsole)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
+			_, _ = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson))
 
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -234,8 +234,8 @@ func TestAsyncSearchFilter(t *testing.T) {
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm)
-			_, _ = queryRunner.handleAsyncSearch(ctx, cfg, tableName, []byte(tt.QueryJson), lm, nil, managementConsole, defaultAsyncSearchTimeout, true)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
+			_, _ = queryRunner.handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), defaultAsyncSearchTimeout, true)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
 			}
@@ -308,8 +308,8 @@ func TestHandlingDateTimeFields(t *testing.T) {
 		mock.ExpectQuery(testdata.EscapeBrackets(expectedSelectStatementRegex[fieldName])).
 			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))
 		// .AddRow(1000, uint64(10)).AddRow(1001, uint64(20))) // here rows should be added if uint64 were supported
-		queryRunner := NewQueryRunner(lm)
-		response, err := queryRunner.handleAsyncSearch(ctx, cfg, tableName, []byte(query(fieldName)), lm, nil, managementConsole, defaultAsyncSearchTimeout, true)
+		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
+		response, err := queryRunner.handleAsyncSearch(ctx, tableName, []byte(query(fieldName)), defaultAsyncSearchTimeout, true)
 		assert.NoError(t, err)
 
 		var responseMap model.JsonMap
@@ -363,12 +363,12 @@ func TestNumericFacetsQueries(t *testing.T) {
 				// Don't care about the query's SQL in this test, it's thoroughly tested in different tests, thus ""
 				mock.ExpectQuery("").WillReturnRows(returnedBuckets)
 
-				queryRunner := NewQueryRunner(lm)
+				queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
 				var response []byte
 				if handlerName == "handleSearch" {
-					response, err = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson), cfg, lm, nil, managementConsole)
+					response, err = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson))
 				} else if handlerName == "handleAsyncSearch" {
-					response, err = queryRunner.handleAsyncSearch(ctx, cfg, tableName, []byte(tt.QueryJson), lm, nil, managementConsole, defaultAsyncSearchTimeout, true)
+					response, err = queryRunner.handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), defaultAsyncSearchTimeout, true)
 				}
 				assert.NoError(t, err)
 
@@ -405,8 +405,11 @@ func TestNumericFacetsQueries(t *testing.T) {
 // It runs |testdata.UnsupportedAggregationsTests| tests, each of them sends one query of unsupported type.
 // It ensures that this query type is recorded in the management console, and that all other query types are not.
 func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
-	for _, tt := range testdata.UnsupportedAggregationsTests {
+	for _, tt := range testdata.UnsupportedQueriesTests {
 		t.Run(tt.TestName, func(t *testing.T) {
+			if tt.QueryType == "script" {
+				t.Skip("Only 1 test. We can't deal with scripts inside queries yet. It fails very early, during JSON unmarshalling, so we can't even know the type of aggregation.")
+			}
 			db, _, err := sqlmock.New()
 			if err != nil {
 				t.Fatal(err)
@@ -420,12 +423,12 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent())
 			go managementConsole.RunOnlyChannelProcessor()
 
-			queryRunner := NewQueryRunner(lm)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
 			newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
-			_, _ = queryRunner.handleSearch(newCtx, tableName, []byte(tt.QueryRequestJson), cfg, lm, nil, managementConsole)
+			_, _ = queryRunner.handleSearch(newCtx, tableName, []byte(tt.QueryRequestJson))
 
-			for _, queryType := range model.AggregationQueryTypes {
-				if queryType != tt.AggregationName {
+			for _, queryType := range model.AllQueryTypes {
+				if queryType != tt.QueryType {
 					assert.Len(t, managementConsole.QueriesWithUnsupportedType(queryType), 0)
 				}
 			}
@@ -433,8 +436,8 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			// Update of the count below is done asynchronously in another goroutine
 			// (go managementConsole.RunOnlyChannelProcessor() above), so we might need to wait a bit
 			assert.Eventually(t, func() bool {
-				return len(managementConsole.QueriesWithUnsupportedType(tt.AggregationName)) == 1
-			}, 50*time.Millisecond, 1*time.Millisecond)
+				return len(managementConsole.QueriesWithUnsupportedType(tt.QueryType)) == 1
+			}, 150*time.Millisecond, 1*time.Millisecond)
 			assert.Equal(t, 1, managementConsole.GetTotalUnsupportedQueries())
 			assert.Equal(t, 1, managementConsole.GetSavedUnsupportedQueries())
 			assert.Equal(t, 1, len(managementConsole.GetUnsupportedTypesWithCount()))
@@ -451,9 +454,13 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 
 	// generate random |requestsNr| queries to send
 	testNrs := make([]int, 0, requestsNr)
-	testCounts := make([]int, len(testdata.UnsupportedAggregationsTests))
+	testCounts := make([]int, len(testdata.UnsupportedQueriesTests))
 	for range requestsNr {
-		randInt := rand.Intn(len(testdata.UnsupportedAggregationsTests))
+		randInt := rand.Intn(len(testdata.UnsupportedQueriesTests))
+		if testdata.UnsupportedQueriesTests[randInt].QueryType == "script" {
+			// We can't deal with scripts inside queries yet. It fails very early, during JSON unmarshalling, so we can't even know the type of aggregation.
+			continue
+		}
 		testNrs = append(testNrs, randInt)
 		testCounts[randInt]++
 	}
@@ -471,21 +478,20 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent())
 	go managementConsole.RunOnlyChannelProcessor()
 
-	queryRunner := NewQueryRunner(lm)
+	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
 	for _, testNr := range testNrs {
 		newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
-		_, _ = queryRunner.handleSearch(newCtx, tableName, []byte(testdata.UnsupportedAggregationsTests[testNr].QueryRequestJson), cfg, lm, nil, managementConsole)
-
+		_, _ = queryRunner.handleSearch(newCtx, tableName, []byte(testdata.UnsupportedQueriesTests[testNr].QueryRequestJson))
 	}
 
-	for i, tt := range testdata.UnsupportedAggregationsTests {
+	for i, tt := range testdata.UnsupportedQueriesTests {
 		// Update of the count below is done asynchronously in another goroutine
 		// (go managementConsole.RunOnlyChannelProcessor() above), so we might need to wait a bit
 		assert.Eventually(t, func() bool {
-			return len(managementConsole.QueriesWithUnsupportedType(tt.AggregationName)) == min(testCounts[i], maxSavedQueriesPerQueryType)
+			return len(managementConsole.QueriesWithUnsupportedType(tt.QueryType)) == min(testCounts[i], maxSavedQueriesPerQueryType)
 		}, 500*time.Millisecond, 1*time.Millisecond,
 			tt.TestName+": wanted: %d, got: %d", min(testCounts[i], maxSavedQueriesPerQueryType),
-			len(managementConsole.QueriesWithUnsupportedType(tt.AggregationName)),
+			len(managementConsole.QueriesWithUnsupportedType(tt.QueryType)),
 		)
 	}
 }

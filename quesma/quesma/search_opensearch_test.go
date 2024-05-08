@@ -49,8 +49,8 @@ func TestSearchOpensearch(t *testing.T) {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 
-			queryRunner := NewQueryRunner(lm)
-			_, err = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson), cfg, lm, nil, managementConsole)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
+			_, err = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson))
 			assert.NoError(t, err)
 
 			if err = mock.ExpectationsWereMet(); err != nil {
@@ -178,8 +178,8 @@ func TestHighlighter(t *testing.T) {
 															AddRow("text-to-highlight", "text-to-highlight", "text-to-highlight").
 															AddRow("text", "text", "text"))
 
-	queryRunner := NewQueryRunner(lm)
-	response, err := queryRunner.handleSearch(ctx, tableName, []byte(query), cfg, lm, nil, managementConsole)
+	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
+	response, err := queryRunner.handleSearch(ctx, tableName, []byte(query))
 	assert.NoError(t, err)
 	if err = mock.ExpectationsWereMet(); err != nil {
 		t.Fatal("there were unfulfilled expections:", err)

@@ -20,11 +20,11 @@ func HandleTermsEnum(ctx context.Context, index string, reqBody []byte, lm *clic
 		logger.Error().Msg(errorMsg)
 		return nil, fmt.Errorf(errorMsg)
 	} else {
-		return handleTermsEnumRequest(ctx, resolvedTableName, reqBody, &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: lm.FindTable(resolvedTableName), Ctx: context.Background()}, qmc)
+		return handleTermsEnumRequest(ctx, reqBody, &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: lm.FindTable(resolvedTableName), Ctx: context.Background()}, qmc)
 	}
 }
 
-func handleTermsEnumRequest(ctx context.Context, table string, reqBody []byte, qt *queryparser.ClickhouseQueryTranslator, qmc *ui.QuesmaManagementConsole) (result []byte, err error) {
+func handleTermsEnumRequest(ctx context.Context, reqBody []byte, qt *queryparser.ClickhouseQueryTranslator, qmc *ui.QuesmaManagementConsole) (result []byte, err error) {
 	request := NewRequest()
 	startTime := time.Now()
 	if err := request.UnmarshalJSON(reqBody); err != nil {
@@ -37,7 +37,7 @@ func handleTermsEnumRequest(ctx context.Context, table string, reqBody []byte, q
 	dbQueryCtx, cancel := context.WithCancel(ctx)
 	// TODO this will be used to cancel goroutine that is executing the query
 	_ = cancel
-	if rows, err2 := qt.ClickhouseLM.ProcessAutocompleteSuggestionsQuery(dbQueryCtx, table, selectQuery); err2 != nil {
+	if rows, err2 := qt.ClickhouseLM.ProcessAutocompleteSuggestionsQuery(dbQueryCtx, qt.Table, selectQuery); err2 != nil {
 		logger.Error().Msgf("terms enum failed - error processing SQL query [%s]", err2)
 		result, err = json.Marshal(emptyTermsEnumResponse())
 	} else {

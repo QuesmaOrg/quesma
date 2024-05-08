@@ -789,8 +789,8 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		model.SearchQueryInfo{Typ: model.Normal},
 		[]string{
 			`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
-			`SELECT m..("@timestamp") FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
-			`SELECT m..("@timestamp") FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
+			`SELECT m..OrNull("@timestamp") FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
+			`SELECT m..OrNull("@timestamp") FROM "logs-generic-default" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' `,
 		},
 		true,
 	},

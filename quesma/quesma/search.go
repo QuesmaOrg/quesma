@@ -43,16 +43,19 @@ type AsyncQueryContext struct {
 }
 
 type QueryRunner struct {
-	executionCtx         context.Context
-	cancel               context.CancelFunc
-	AsyncRequestStorage  *concurrent.Map[string, AsyncRequestResult]
-	AsyncQueriesContexts *concurrent.Map[string, *AsyncQueryContext]
-	logManager           *clickhouse.LogManager
+	executionCtx            context.Context
+	cancel                  context.CancelFunc
+	AsyncRequestStorage     *concurrent.Map[string, AsyncRequestResult]
+	AsyncQueriesContexts    *concurrent.Map[string, *AsyncQueryContext]
+	logManager              *clickhouse.LogManager
+	cfg                     config.QuesmaConfiguration
+	im                      elasticsearch.IndexManagement
+	quesmaManagementConsole *ui.QuesmaManagementConsole
 }
 
-func NewQueryRunner(lm *clickhouse.LogManager) *QueryRunner {
+func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole) *QueryRunner {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &QueryRunner{logManager: lm, executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult](), AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext]()}
+	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc, executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult](), AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext]()}
 }
 
 func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id string) *AsyncQueryContext {
@@ -60,8 +63,8 @@ func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id str
 }
 
 // returns -1 when table name could not be resolved
-func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string, lm *clickhouse.LogManager) (int64, error) {
-	indexes := lm.ResolveIndexes(ctx, indexPattern)
+func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int64, error) {
+	indexes := q.logManager.ResolveIndexes(ctx, indexPattern)
 	if len(indexes) == 0 {
 		if elasticsearch.IsIndexPattern(indexPattern) {
 			return 0, nil
@@ -72,30 +75,22 @@ func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string, lm *
 	}
 
 	if len(indexes) == 1 {
-		return lm.Count(ctx, indexes[0])
+		return q.logManager.Count(ctx, indexes[0])
 	} else {
-		return lm.CountMultiple(ctx, indexes...)
+		return q.logManager.CountMultiple(ctx, indexes...)
 	}
 }
 
-func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, body []byte,
-	cfg config.QuesmaConfiguration,
-	lm *clickhouse.LogManager,
-	im elasticsearch.IndexManagement,
-	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
-	return q.handleSearchCommon(ctx, cfg, indexPattern, body, lm, im, quesmaManagementConsole, nil, QueryLanguageDefault)
+func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, body []byte) ([]byte, error) {
+	return q.handleSearchCommon(ctx, indexPattern, body, nil, QueryLanguageDefault)
 }
 
-func (q *QueryRunner) handleEQLSearch(ctx context.Context, indexPattern string, body []byte,
-	cfg config.QuesmaConfiguration,
-	lm *clickhouse.LogManager,
-	im elasticsearch.IndexManagement,
-	quesmaManagementConsole *ui.QuesmaManagementConsole) ([]byte, error) {
-	return q.handleSearchCommon(ctx, cfg, indexPattern, body, lm, im, quesmaManagementConsole, nil, QueryLanguageEQL)
+func (q *QueryRunner) handleEQLSearch(ctx context.Context, indexPattern string, body []byte) ([]byte, error) {
+	return q.handleSearchCommon(ctx, indexPattern, body, nil, QueryLanguageEQL)
 }
 
-func (q *QueryRunner) handleAsyncSearch(ctx context.Context, cfg config.QuesmaConfiguration, indexPattern string, body []byte, lm *clickhouse.LogManager,
-	im elasticsearch.IndexManagement, quesmaManagementConsole *ui.QuesmaManagementConsole, waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
+func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string, body []byte,
+	waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
 	async := AsyncQuery{
 		asyncRequestIdStr: generateAsyncRequestId(),
 		doneCh:            make(chan AsyncSearchWithError, 1),
@@ -105,7 +100,7 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, cfg config.QuesmaCo
 	}
 	ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, async.asyncRequestIdStr)
 	logger.InfoWithCtx(ctx).Msgf("async search request id: %s started", async.asyncRequestIdStr)
-	return q.handleSearchCommon(ctx, cfg, indexPattern, body, lm, im, quesmaManagementConsole, &async, QueryLanguageDefault)
+	return q.handleSearchCommon(ctx, indexPattern, body, &async, QueryLanguageDefault)
 }
 
 type AsyncSearchWithError struct {
@@ -122,12 +117,9 @@ type AsyncQuery struct {
 	startTime         time.Time
 }
 
-func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaConfiguration, indexPattern string, body []byte,
-	lm *clickhouse.LogManager,
-	im elasticsearch.IndexManagement,
-	qmc *ui.QuesmaManagementConsole, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
+func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body []byte, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
 
-	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, cfg, im, lm)
+	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im, q.logManager)
 
 	switch sources {
 	case sourceBoth:
@@ -185,7 +177,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 	newAggregationHandlingUsed := false
 	hitsPresent := false
 
-	tables := lm.GetTableDefinitions()
+	tables := q.logManager.GetTableDefinitions()
 
 	for _, resolvedTableName := range sourcesClickhouse {
 		var queryTranslator IQueryTranslator
@@ -199,7 +191,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 
 		var simpleQuery queryparser.SimpleQuery
 
-		queryTranslator = NewQueryTranslator(ctx, queryLanguage, table, lm)
+		queryTranslator = NewQueryTranslator(ctx, queryLanguage, table, q.logManager)
 
 		simpleQuery, queryInfo, highlighter = queryTranslator.ParseQuery(string(body))
 
@@ -249,17 +241,17 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 					fieldName = "*"
 				}
 				listQuery := queryTranslator.BuildNRowsQuery(fieldName, simpleQuery, queryInfo.Size)
-				hitsFallback, err = lm.ProcessSelectQuery(ctx, table, listQuery)
+				hitsFallback, err = q.logManager.ProcessSelectQuery(ctx, table, listQuery)
 				if err != nil {
 					logger.ErrorWithCtx(ctx).Msgf("error processing fallback query. Err: %v, query: %+v", err, listQuery)
-					pushSecondaryInfo(qmc, id, path, body, translatedQueryBody, responseBody, startTime)
+					pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
 					return responseBody, err
 				}
 				countQuery := queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-				countResult, err := lm.ProcessSelectQuery(ctx, table, countQuery)
+				countResult, err := q.logManager.ProcessSelectQuery(ctx, table, countQuery)
 				if err != nil {
 					logger.ErrorWithCtx(ctx).Msgf("error processing count query. Err: %v, query: %+v", err, countQuery)
-					pushSecondaryInfo(qmc, id, path, body, translatedQueryBody, responseBody, startTime)
+					pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
 					return responseBody, err
 				}
 				if len(countResult) > 0 {
@@ -277,7 +269,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 		} else {
 			responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
 			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(string(responseBody))
-			pushSecondaryInfo(qmc, id, path, body, translatedQueryBody, responseBody, startTime)
+			pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
 			return responseBody, errors.New(string(responseBody))
 		}
 
@@ -291,7 +283,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 			}
 			if err != nil {
 				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queryInfo, hits)
-				pushSecondaryInfo(qmc, id, path, body, translatedQueryBody, responseBody, startTime)
+				pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
 				return responseBody, err
 			}
 
@@ -309,7 +301,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 			}
 			responseBody, err = response.Marshal()
 
-			pushSecondaryInfo(qmc, id, path, body, translatedQueryBody, responseBody, startTime)
+			pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
 			return responseBody, err
 		} else {
 			select {
@@ -317,11 +309,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, cfg config.QuesmaC
 				go func() { // Async search takes longer. Return partial results and wait for
 					recovery.LogPanicWithCtx(ctx)
 					res := <-optAsync.doneCh
-					q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res, true)
+					q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res, true)
 				}()
 				return q.handlePartialAsyncSearch(ctx, optAsync.asyncRequestIdStr)
 			case res := <-optAsync.doneCh:
-				responseBody, err = q.storeAsyncSearch(qmc, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res,
+				responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res,
 					optAsync.keepOnCompletion)
 
 				return responseBody, err

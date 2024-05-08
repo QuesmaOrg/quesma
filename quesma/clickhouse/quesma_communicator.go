@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
-	"sort"
 	"strings"
 	"time"
 )
@@ -44,40 +43,6 @@ func (lm *LogManager) ProcessSelectQuery(ctx context.Context, table *Table, quer
 		}
 	}
 	return rows, err
-}
-
-func makeBuckets(ctx context.Context, result []model.QueryResultRow, bucket time.Duration) []model.QueryResultRow {
-	if len(result) == 0 {
-		return result
-	}
-
-	// type check only for 1st row, as all rows probably have the same type, and there can be a lot of them
-	firstKey := result[0].Cols[model.ResultColKeyIndex].Value
-	if _, ok := firstKey.(int64); !ok {
-		logger.ErrorWithCtx(ctx).Msgf("expected key to be int64, got %T, key: %v. Returning unchanged.", firstKey, firstKey)
-		return result
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Cols[model.ResultColKeyIndex].Value.(int64) < result[j].Cols[model.ResultColKeyIndex].Value.(int64)
-	})
-	for i := range result {
-		timestamp := result[i].Cols[model.ResultColKeyIndex].Value.(int64) * bucket.Milliseconds()
-		result[i].Cols[model.ResultColKeyIndex].Value = timestamp
-		result[i].Cols = append(result[i].Cols, model.QueryResultCol{
-			ColName: "key_as_string",
-			Value:   time.UnixMilli(timestamp).UTC().Format("2006-01-02T15:04:05.000"),
-		})
-	}
-	return result
-}
-
-func (lm *LogManager) ProcessHistogramQuery(ctx context.Context, table *Table, query *model.Query, bucket time.Duration) ([]model.QueryResultRow, error) {
-	result, err := executeQuery(ctx, lm, table.Name, query.String(), []string{"key", "doc_count"}, []interface{}{int64(0), uint64(0)})
-	if err != nil {
-		return nil, err
-	}
-	return makeBuckets(ctx, result, bucket), nil
 }
 
 // TODO add support for autocomplete for attributes, if we'll find it needed
@@ -149,12 +114,13 @@ func executeQuery(ctx context.Context, lm *LogManager, tableName string, queryAs
 	return res, err
 }
 
-func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(ctx context.Context, table string, query *model.Query) ([]model.QueryResultRow, error) {
-	return executeQuery(ctx, lm, table, query.String(), query.Fields, []interface{}{""})
-}
-
-func (lm *LogManager) ProcessTimestampQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
-	return executeQuery(ctx, lm, table.Name, query.String(), query.Fields, []interface{}{time.Time{}})
+func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
+	colNames, err := table.extractColumns(query, false)
+	if err != nil {
+		return nil, err
+	}
+	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
+	return executeQuery(ctx, lm, table.Name, query.String(), query.Fields, rowToScan)
 }
 
 func (lm *LogManager) ProcessGeneralAggregationQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
