@@ -516,7 +516,6 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		}
 		var keyed bool
 		if keyedRaw, ok := percentileRanks.(QueryMap)["keyed"]; ok {
-			fmt.Println(keyedRaw)
 			if keyed, ok = keyedRaw.(bool); !ok {
 				logger.WarnWithCtx(cw.Ctx).Msgf("keyed specified for percentiles aggregation is not a boolean. Querymap: %v", queryMap)
 				keyed = keyedDefaultValuePercentileRanks

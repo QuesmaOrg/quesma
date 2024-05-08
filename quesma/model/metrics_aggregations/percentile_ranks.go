@@ -24,6 +24,13 @@ func (query PercentileRanks) IsBucketAggregation() bool {
 }
 
 func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+	if len(rows) == 0 {
+		logger.WarnWithCtx(query.ctx).Msg("no rows in percentile ranks response")
+		return make([]model.JsonMap, 0)
+	}
+	// I duplicate a lot of code in this if/else below,
+	// but I think it's worth it, as this function might get called a lot of times for a single query.
+	// And because of complete separation in if/else, I guess it might (should) be slightly faster (?)
 	if query.Keyed {
 		valueMap := make(model.JsonMap)
 		for _, percentileRank := range rows[0].Cols[level:] {
@@ -45,7 +52,7 @@ func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResult
 			if value, ok := percentileRank.Value.(float64); ok {
 				valueMap[cutValue] = value
 			} else {
-				logger.WarnWithCtx(query.ctx).Msgf("failed to convert percentile rank value to float64, type: %T, value: %v",
+				logger.WarnWithCtx(query.ctx).Msgf("failed to convert percentile rank value to float64, type: %T, value: %v. Skipping",
 					percentileRank.Value, percentileRank.Value)
 			}
 		}
@@ -77,7 +84,7 @@ func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResult
 					"value": value,
 				})
 			} else {
-				logger.WarnWithCtx(query.ctx).Msgf("failed to convert percentile rank value to float64, type: %T, value: %v",
+				logger.WarnWithCtx(query.ctx).Msgf("failed to convert percentile rank value to float64, type: %T, value: %v. Skipping",
 					percentileRank.Value, percentileRank.Value)
 			}
 		}
