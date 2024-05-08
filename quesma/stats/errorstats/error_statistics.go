@@ -131,9 +131,9 @@ func (s *GlobalErrorHook) Run(e *zerolog.Event, level zerolog.Level, message str
 			}
 		}
 		if reason != nil {
-			GlobalErrorStatistics.RecordKnownError(*reason, requestId, "From hook known: "+message)
+			GlobalErrorStatistics.RecordKnownError(*reason, requestId, message)
 		} else {
-			GlobalErrorStatistics.RecordUnknownError(requestId, "From hook unknown: "+message)
+			GlobalErrorStatistics.RecordUnknownError(requestId, message)
 		}
 	}
 }
