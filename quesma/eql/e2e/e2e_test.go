@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"mitmproxy/quesma/jsonprocessor"
 	"net/http"
 	"sort"
@@ -73,6 +72,20 @@ var eqlQueries = []string{
 	`-- process where process.name : "?est"`, // FIXME support ? wildcard , quesma retured: 0 but elastic returned: 3
 	`-- process where process.name : "Te?t"`,
 	`process where process.name : "Te?"`,
+
+	`process where process.pid == add(0,1)`,
+	`-- process where process.pid == add(-2,3)`, // FIXME this is a bug, we should support negative numbers
+	`-- process where process.pid == add(-2,3)`,
+
+	// FIXME this is an  elastic limitation
+	// elastic fail response: {"error":{"root_cause":[{"type":"ql_illegal_argument_exception","reason":"Line 1:40: Comparisons against fields are not (currently) supported; offender [add(process.pid,0)] in [==]"}],"type":"ql_illegal_argument_exception","reason":"Line 1:40: Comparisons against fields are not (currently) supported; offender [add(process.pid,0)] in [==]"},"status":500}
+	`-- process where process.pid == add(process.pid,0)`,
+
+	`-- process where add(null, 1) == null`, // FIXME elastic supports it but quesma does not
+
+	`process where process.pid == add(process.pid, null)`, // Comparisons against fields are not (currently) supported; offender
+
+	`process where between(process.name, "T", "t") == "es"`,
 }
 
 func TestE2E(t *testing.T) {
@@ -105,8 +118,8 @@ func TestE2E(t *testing.T) {
 	}
 }
 
-const quesma = "http://localhost:8080"
-const elastic = "http://localhost:9201"
+const quesmaUrl = "http://localhost:8080"
+const elasticUrl = "http://localhost:9201"
 
 type processLogEntry struct {
 	Process struct {
@@ -169,8 +182,8 @@ func sendToWindowsLogTo(targetUrl string, logBytes []byte) {
 }
 
 func sendToWindowsLog(logBytes []byte) {
-	sendToWindowsLogTo(quesma, logBytes)
-	sendToWindowsLogTo(elastic, logBytes)
+	sendToWindowsLogTo(quesmaUrl, logBytes)
+	sendToWindowsLogTo(elasticUrl, logBytes)
 }
 
 func parseResponse(response string) (map[string]interface{}, error) {
@@ -222,8 +235,6 @@ func queryEql(target string, eqlQuery string) (string, error) {
 
 	return string(response), nil
 }
-
-var random = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func toListOfEvents(response string) ([]map[string]interface{}, error) {
 
@@ -307,18 +318,8 @@ func testQuery(t *testing.T, eqlQuery string) {
 
 	fmt.Println("Rewritten  query:", eqlQuery)
 
-	quesmaResponse, err := queryEql(quesma, eqlQuery)
-	if err != nil {
-		t.Fatalf("error calling quesma: %v", err)
-		return
-	}
-
-	qeusmaEvents, err := toListOfEvents(quesmaResponse)
-	if err != nil {
-		t.Fatalf("error parsing quesma response: %v", err)
-	}
-
-	elasticResponse, err := queryEql(elastic, eqlQuery)
+	fmt.Println("Calling Elastic...")
+	elasticResponse, err := queryEql(elasticUrl, eqlQuery)
 	if err != nil {
 		fmt.Println("elastic fail response:", elasticResponse)
 		t.Fatalf("error calling elastic: %v", err)
@@ -328,6 +329,18 @@ func testQuery(t *testing.T, eqlQuery string) {
 	elasticEvents, err := toListOfEvents(elasticResponse)
 	if err != nil {
 		t.Fatalf("error parsing elastic response: %v", err)
+	}
+
+	fmt.Println("Calling Quesma...")
+	quesmaResponse, err := queryEql(quesmaUrl, eqlQuery)
+	if err != nil {
+		t.Fatalf("error calling quesma: %v", err)
+		return
+	}
+
+	qeusmaEvents, err := toListOfEvents(quesmaResponse)
+	if err != nil {
+		t.Fatalf("error parsing quesma response: %v", err)
 	}
 
 	if len(qeusmaEvents) != len(elasticEvents) {

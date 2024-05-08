@@ -135,7 +135,7 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query qu
 	where, _, err := trans.TransformQuery(eqlQuery)
 
 	if err != nil {
-		logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error transforming EQL query")
+		logger.ErrorWithCtx(cw.Ctx).Err(err).Msgf("error transforming EQL query: '%s'", eqlQuery)
 		query.CanParse = false
 		query.Sql.Stmt = "Invalid EQL query"
 		return query, model.NewSearchQueryInfoNone(), highlighter
@@ -143,7 +143,7 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query qu
 
 	query.Sql.Stmt = where
 	query.CanParse = true
-	query.SortFields = []string{"@timestamp"}
+	query.SortFields = []string{"\"@timestamp\""}
 
 	return query, searchQueryInfo, highlighter
 }
