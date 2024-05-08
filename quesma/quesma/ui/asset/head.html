@@ -519,7 +519,7 @@
             border-right: white 5px solid;
         }
 
-        #request-info table {
+        #request-info table, #errors table {
             border-collapse: collapse;
             table-layout: fixed;
             width: 98%;
@@ -527,7 +527,7 @@
             margin-bottom: 1em;
         }
 
-        #request-info th, #request-info td {
+        #request-info th, #request-info td, #errors table th, #errors table td {
             border: 1px solid rgb(221, 226, 235);
             font-family: Courier;
             font-size: small;
@@ -550,6 +550,27 @@
         #request-info .fields {
             width: 28%;
             white-space: pre-wrap;
+        }
+
+        #errors {
+            background-color: black;
+            color: white;
+        }
+
+        #errors a {
+            color: white;
+        }
+
+        #errors .time {
+            width: 10%;
+        }
+
+        #errors .request-id {
+            width: 15%;
+        }
+
+        #errors .message {
+            width: 75%;
         }
 
     </style>

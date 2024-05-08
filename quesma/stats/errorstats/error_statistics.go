@@ -60,15 +60,15 @@ func (e *ErrorStatisticsStore) ErrorReportsForReason(reason string) []ErrorRepor
 
 	var reports []ErrorReport
 	if reason == "Unknown" {
-		for _, errorReport := range e.RecentErrors {
-			if errorReport.CommonReason == nil {
-				reports = append(reports, errorReport)
+		for i := len(e.RecentErrors) - 1; i >= 0; i-- {
+			if e.RecentErrors[i].CommonReason == nil {
+				reports = append(reports, e.RecentErrors[i])
 			}
 		}
 	} else {
-		for _, errorReport := range e.RecentErrors {
-			if errorReport.CommonReason != nil && *errorReport.CommonReason == reason {
-				reports = append(reports, errorReport)
+		for i := len(e.RecentErrors) - 1; i >= 0; i-- {
+			if e.RecentErrors[i].CommonReason != nil && *e.RecentErrors[i].CommonReason == reason {
+				reports = append(reports, e.RecentErrors[i])
 			}
 		}
 	}
@@ -131,9 +131,9 @@ func (s *GlobalErrorHook) Run(e *zerolog.Event, level zerolog.Level, message str
 			}
 		}
 		if reason != nil {
-			GlobalErrorStatistics.RecordKnownError(*reason, requestId, "From hook known: "+message)
+			GlobalErrorStatistics.RecordKnownError(*reason, requestId, message)
 		} else {
-			GlobalErrorStatistics.RecordUnknownError(requestId, "From hook unknown: "+message)
+			GlobalErrorStatistics.RecordUnknownError(requestId, message)
 		}
 	}
 }

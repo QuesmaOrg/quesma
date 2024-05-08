@@ -2,15 +2,17 @@ package metrics_aggregations
 
 import (
 	"context"
+	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/model"
 )
 
 type Sum struct {
-	ctx context.Context
+	ctx       context.Context
+	fieldType clickhouse.DateTimeType
 }
 
-func NewSum(ctx context.Context) Sum {
-	return Sum{ctx: ctx}
+func NewSum(ctx context.Context, fieldType clickhouse.DateTimeType) Sum {
+	return Sum{ctx: ctx, fieldType: fieldType}
 }
 
 func (query Sum) IsBucketAggregation() bool {
@@ -18,7 +20,7 @@ func (query Sum) IsBucketAggregation() bool {
 }
 
 func (query Sum) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
-	return metricsTranslateSqlResponseToJson(query.ctx, rows, level)
+	return metricsTranslateSqlResponseToJsonWithFieldTypeCheck(query.ctx, rows, level, query.fieldType)
 }
 
 func (query Sum) String() string {

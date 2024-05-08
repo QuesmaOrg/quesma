@@ -140,7 +140,7 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 
 	buffer.Html(`<div id="dashboard-kibana" class="component">`)
 	if qmc.config.Elasticsearch.AdminUrl != nil {
-		buffer.Html(fmt.Sprintf(`<a href="%s">`, url.PathEscape(qmc.config.Elasticsearch.AdminUrl.String())))
+		buffer.Html(`<a href="`).Text(qmc.config.Elasticsearch.AdminUrl.String()).Html(`">`)
 	}
 	buffer.Html(dashboardName)
 	if qmc.config.Elasticsearch.AdminUrl != nil {
@@ -161,7 +161,7 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 
 	buffer.Html(`<div id="dashboard-clickhouse" class="component">`)
 	if qmc.config.ClickHouse.AdminUrl != nil {
-		buffer.Html(fmt.Sprintf(`<a href="%s">`, url.PathEscape(qmc.config.ClickHouse.AdminUrl.String())))
+		buffer.Html(`<a href="`).Text(qmc.config.ClickHouse.AdminUrl.String()).Html(`">`)
 	}
 	buffer.Html(clickhouseName)
 	if qmc.config.ClickHouse.AdminUrl != nil {
