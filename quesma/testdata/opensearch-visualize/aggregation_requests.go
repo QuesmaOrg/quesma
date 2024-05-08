@@ -1124,4 +1124,156 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY ("response")`,
 		},
 	},
+	{ // [7]
+		TestName: "Percentile_ranks keyed=false. Reproduce: Visualize -> Line -> Metrics: Percentile Ranks, Buckets: X-Asis Date Histogram",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"percentile_ranks": {
+								"field": "AvgTicketPrice",
+								"keyed": false,
+								"values": [
+									0,
+									50000
+								]
+							}
+						}
+					},
+					"date_histogram": {
+						"calendar_interval": "1h",
+						"field": "timestamp",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.hourOfDay"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"1": {
+								"values": [
+									{
+										"key": 0.0,
+										"value": 0.0
+									},
+									{
+										"key": 50000.0,
+										"value": 100.0
+									}
+								]
+							},
+							"doc_count": 9,
+							"key": 1714860000000,
+							"key_as_string": "2024-05-04T22:00:00.000"
+						},
+						{
+							"1": {
+								"values": [
+									{
+										"key": 0.0,
+										"value": 0.0
+									},
+									{
+										"key": 50000.0,
+										"value": 50.0
+									}
+								]
+							},
+							"doc_count": 12,
+							"key": 1714863600000,
+							"key_as_string": "2024-05-04T23:00:00.000"
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 884
+				}
+			},
+			"timed_out": false,
+			"took": 0
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(884))}}},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1714860000000/3600000)),
+					model.NewQueryResultCol("AvgTicketPrice<=0,", 0.0),
+					model.NewQueryResultCol("AvgTicketPrice<=50000,", 100.0)},
+				},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1714863600000/3600000)),
+					model.NewQueryResultCol("AvgTicketPrice<=0,", 0.0),
+					model.NewQueryResultCol("AvgTicketPrice<=50000,", 50.0),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1714860000000/3600000)), model.NewQueryResultCol("doc_count", 9)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1714863600000/3600000)), model.NewQueryResultCol("doc_count", 12)}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + testdata.QuotedTableName + ` `,
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000), " +
+				`count(if("AvgTicketPrice"<=0.000000, 1, NULL))/count(*)*100, ` +
+				`count(if("AvgTicketPrice"<=50000.000000, 1, NULL))/count(*)*100 ` +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000), count() " +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000))",
+		},
+	},
 }
