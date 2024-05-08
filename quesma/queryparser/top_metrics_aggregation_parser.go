@@ -45,6 +45,7 @@ func (cw *ClickhouseQueryTranslator) ParseTopMetricsAggregation(queryMap QueryMa
 	return metricsAggregation{
 		AggrType:   "top_metrics",
 		FieldNames: fieldNames,
+		FieldType:  metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
 		SortBy:     sortBy,
 		Size:       size,
 		Order:      order,
