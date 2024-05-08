@@ -743,11 +743,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("response", "200"),
-					model.NewQueryResultCol(`max("timestamp")`, util.ParseTime("2024-05-02T21:58:16.297Z")),
+					model.NewQueryResultCol(`maxOrNull("timestamp")`, util.ParseTime("2024-05-02T21:58:16.297Z")),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("response", "503"),
-					model.NewQueryResultCol(`max("timestamp")`, util.ParseTime("2024-05-02T15:59:12.949Z")),
+					model.NewQueryResultCol(`maxOrNull("timestamp")`, util.ParseTime("2024-05-02T15:59:12.949Z")),
 				}},
 			},
 			{
@@ -765,7 +765,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z') `,
-			`SELECT "response", max("timestamp") ` +
+			`SELECT "response", maxOrNull("timestamp") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z')  ` +
@@ -902,11 +902,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("response", "200"),
-					model.NewQueryResultCol(`min("timestamp")`, util.ParseTime("2024-04-21T00:39:02.912Z")),
+					model.NewQueryResultCol(`minOrNull("timestamp")`, util.ParseTime("2024-04-21T00:39:02.912Z")),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("response", "503"),
-					model.NewQueryResultCol(`min("timestamp")`, util.ParseTime("2024-04-21T03:30:25.131Z")),
+					model.NewQueryResultCol(`minOrNull("timestamp")`, util.ParseTime("2024-04-21T03:30:25.131Z")),
 				}},
 			},
 			{
@@ -924,7 +924,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z') `,
-			`SELECT "response", min("timestamp") ` +
+			`SELECT "response", minOrNull("timestamp") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z')  ` +
