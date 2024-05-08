@@ -51,7 +51,6 @@ func generateErrorMessage(errorReports []errorstats.ErrorReport) []byte {
 	buffer.Html(`<th class="time">Time</th>`)
 	buffer.Html(`<th class="request-id">Request id</th>`)
 	buffer.Html(`<th class="message">Message</th>`)
-	//buffer.Html(`<th class="fields">Fields</th>`)
 	buffer.Html("</tr>\n")
 
 	buffer.Html("</thead>\n")
