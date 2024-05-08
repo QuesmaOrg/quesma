@@ -154,7 +154,7 @@ func (cw *ClickhouseEQLQueryTranslator) BuildSimpleCountQuery(whereClause string
 	panic("EQL does not support count")
 }
 
-func (cw *ClickhouseEQLQueryTranslator) BuildSimpleSelectQuery(whereClause string) *model.Query {
+func (cw *ClickhouseEQLQueryTranslator) BuildSimpleSelectQuery(whereClause string, size int) *model.Query {
 	panic("EQL does not support this method")
 }
 
