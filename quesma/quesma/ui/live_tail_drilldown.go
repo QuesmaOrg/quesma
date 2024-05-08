@@ -77,7 +77,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 		buffer.Html(`<div class="quesma-response">` + "\n")
 		if len(request.QueryDebugSecondarySource.QueryTranslatedResults) > 0 {
 			tookStr := fmt.Sprintf(" took %d ms:", request.SecondaryTook.Milliseconds())
-			buffer.Html("<p class=\"title\">Quesma response").Text(tookStr).Html(":</p>\n")
+			buffer.Html("<p class=\"title\">Quesma response").Text(tookStr).Html("</p>\n")
 			buffer.Html(`<pre>`)
 			buffer.Text(string(request.QueryDebugSecondarySource.QueryTranslatedResults))
 			buffer.Html("\n</pre>")
