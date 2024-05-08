@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"mitmproxy/quesma/quesma/ui/internal/builder"
+	"mitmproxy/quesma/quesma/ui/internal/sqlfmt"
 	"strings"
 )
 
@@ -13,21 +14,63 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 	request, requestFound := qmc.debugInfoMessages[requestId]
 	qmc.mutex.Unlock()
 
+	logMessages, optAsyncId := generateLogMessages(request.logMessages, []string{})
+
 	buffer := newBufferWithHead()
 	if requestFound {
-		buffer.Write(generateSimpleTop("Report for request UUID " + requestId))
+		if optAsyncId != nil {
+			buffer.Write(generateSimpleTop("Report for request id " + requestId + " and async id " + *optAsyncId))
+		} else {
+			buffer.Write(generateSimpleTop("Report for request id " + requestId))
+		}
 	} else {
 		buffer.Write(generateSimpleTop("Report not found for request UUID " + requestId))
 	}
 
-	buffer.Html(`<main id="queries">`)
+	buffer.Html(`<main id="request-info">` + "\n")
 
-	debugKeyValueSlice := []queryDebugInfoWithId{}
+	// Show Request and SQL
 	if requestFound {
-		debugKeyValueSlice = append(debugKeyValueSlice, queryDebugInfoWithId{requestId, request})
+		buffer.Html(`<div class="query-body">` + "\n")
+		buffer.Html("<p>Original query:</p>\n")
+		buffer.Html(`<pre>`)
+		buffer.Text(string(request.IncomingQueryBody))
+		buffer.Html("\n</pre>")
+		buffer.Html(`</div>` + "\n")
+
+		buffer.Html(`<div class="query-body-translated">` + "\n")
+		buffer.Html("<p>Translated SQL:</p>\n")
+		buffer.Html(`<pre>`)
+		buffer.Text(sqlfmt.SqlPrettyPrint(request.QueryBodyTranslated))
+		buffer.Html("\n</pre>")
+		buffer.Html(`</div>` + "\n")
 	}
 
-	buffer.Write(generateQueries(debugKeyValueSlice, false))
+	//buffer.Write(generateQueries(debugKeyValueSlice, false))
+
+	buffer.Html("\n\n")
+	buffer.Html(`<div class="debug-body">`)
+
+	buffer.Write(logMessages)
+
+	//  Show ElasticSearch and Quesma Response
+	if requestFound {
+		buffer.Html(`<div class="elastic-response">` + "\n")
+		buffer.Html("<p>Elastic response:</p>\n")
+		buffer.Html(`<pre>`)
+		buffer.Text(string(request.QueryDebugPrimarySource.QueryResp))
+		buffer.Html("\n</pre>")
+		buffer.Html(`</div>` + "\n")
+
+		buffer.Html(`<div class="quesma-response">` + "\n")
+		buffer.Html("<p>Quesma response:</p>\n")
+		buffer.Html(`<pre>`)
+		buffer.Text(string(request.QueryDebugSecondarySource.QueryTranslatedResults))
+		buffer.Html("\n</pre>")
+		buffer.Html(`</div>` + "\n")
+	}
+
+	buffer.Html("\n</div>\n")
 
 	buffer.Html("\n</main>\n")
 	buffer.Html(`<div class="menu">`)
