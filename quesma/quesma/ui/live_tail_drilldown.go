@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"mitmproxy/quesma/quesma/ui/internal/builder"
+	"mitmproxy/quesma/quesma/ui/internal/sqlfmt"
 	"strings"
 )
 
@@ -13,27 +14,104 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 	request, requestFound := qmc.debugInfoMessages[requestId]
 	qmc.mutex.Unlock()
 
+	logMessages, optAsyncId := generateLogMessages(request.logMessages, []string{})
+
 	buffer := newBufferWithHead()
 	if requestFound {
-		buffer.Write(generateSimpleTop("Report for request UUID " + requestId))
+		if optAsyncId != nil {
+			buffer.Write(generateSimpleTop("Report for request id " + requestId + " and async id " + *optAsyncId))
+		} else {
+			buffer.Write(generateSimpleTop("Report for request id " + requestId))
+		}
 	} else {
 		buffer.Write(generateSimpleTop("Report not found for request UUID " + requestId))
 	}
 
-	buffer.Html(`<main id="queries">`)
+	buffer.Html(`<main id="request-info">` + "\n")
 
-	debugKeyValueSlice := []queryDebugInfoWithId{}
+	// Show Request and SQL
 	if requestFound {
-		debugKeyValueSlice = append(debugKeyValueSlice, queryDebugInfoWithId{requestId, request})
+		buffer.Html(`<div class="two-columns">` + "\n")
+		buffer.Html(`<div class="query-body">` + "\n")
+		buffer.Html("<p class=\"title\">Original query:</p>\n")
+		buffer.Html(`<pre>`)
+		buffer.Text(string(request.IncomingQueryBody))
+		buffer.Html("\n</pre>")
+		buffer.Html(`</div>` + "\n")
+
+		buffer.Html(`<div class="query-body-translated">` + "\n")
+		buffer.Html("<p class=\"title\">Translated SQL:</p>\n")
+		buffer.Html(`<pre>`)
+		buffer.Text(sqlfmt.SqlPrettyPrint(request.QueryBodyTranslated))
+		buffer.Html("\n</pre>")
+		buffer.Html(`</div>` + "\n")
+		buffer.Html(`</div>` + "\n")
 	}
 
-	buffer.Write(generateQueries(debugKeyValueSlice, false))
+	buffer.Html("\n\n")
+	buffer.Html(`<div class="debug-body">`)
+
+	buffer.Html(`<p class="title title-logs">`)
+	if requestFound && len(request.logMessages) > 0 {
+		buffer.Html("Logs:</p>\n")
+		buffer.Write(logMessages)
+	} else {
+		buffer.Html("No logs for this request</p>\n")
+	}
+
+	//  Show ElasticSearch and Quesma Response
+	if requestFound {
+		buffer.Html(`<div class="two-columns">` + "\n")
+		buffer.Html(`<div class="elastic-response">` + "\n")
+		if len(request.QueryDebugPrimarySource.QueryResp) > 0 {
+			tookStr := fmt.Sprintf(" took %d ms:", request.PrimaryTook.Milliseconds())
+			buffer.Html("<p class=\"title\">Elastic response").Text(tookStr).Html("</p>\n")
+			buffer.Html(`<pre>`)
+			buffer.Text(string(request.QueryDebugPrimarySource.QueryResp))
+			buffer.Html("\n</pre>")
+		} else {
+			buffer.Html("<p class=\"title\">No Elastic response for this request</p>\n")
+		}
+		buffer.Html(`</div>` + "\n")
+
+		buffer.Html(`<div class="quesma-response">` + "\n")
+		if len(request.QueryDebugSecondarySource.QueryTranslatedResults) > 0 {
+			tookStr := fmt.Sprintf(" took %d ms:", request.SecondaryTook.Milliseconds())
+			buffer.Html("<p class=\"title\">Quesma response").Text(tookStr).Html("</p>\n")
+			buffer.Html(`<pre>`)
+			buffer.Text(string(request.QueryDebugSecondarySource.QueryTranslatedResults))
+			buffer.Html("\n</pre>")
+		} else {
+			buffer.Html("<p class=\"title\">No Quesma response for this request</p>\n")
+		}
+		buffer.Html(`</div>` + "\n")
+		buffer.Html(`</div>` + "\n")
+	}
+
+	buffer.Html("\n</div>\n")
 
 	buffer.Html("\n</main>\n")
 	buffer.Html(`<div class="menu">`)
 	buffer.Html("\n<h2>Menu</h2>")
 
 	buffer.Html(`<form action="/live">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
+	buffer.Html(`<br>`)
+
+	if requestFound {
+		buffer.Html("\n<h2>Request info</h2>")
+		buffer.Html("<ul>\n")
+		buffer.Html("<li>").Text("Request id: ").Text(requestId).Html("</li>\n")
+		buffer.Html("<li>").Text("Path: ").Text(request.Path).Html("</li>\n")
+		if optAsyncId != nil {
+			buffer.Html("<li>").Text("Async id: ").Text(*optAsyncId).Html("</li>\n")
+		}
+		if request.unsupported != nil {
+			buffer.Html("<li>").Text("Unsupported: ").Text(*request.unsupported).Html("</li>\n")
+		}
+		buffer.Html("</ul>\n")
+	}
+
+	buffer.Html("\n<h2>Log types</h2>")
 	if requestFound {
 		buffer.Html(`<ul>`)
 		if request.errorLogCount > 0 {
@@ -49,46 +127,6 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 
 		buffer.Html(`</ul>`)
 	}
-	buffer.Html(`<form action="/log/`).Text(requestId).Html(`">&nbsp;<input class="btn" type="submit" value="Go to log" /></form>`)
-
-	buffer.Html("\n</div>")
-	buffer.Html("\n</body>")
-	buffer.Html("\n</html>")
-	return buffer.Bytes()
-}
-
-func (qmc *QuesmaManagementConsole) generateLogForRequestId(requestId string) []byte {
-	qmc.mutex.Lock()
-	request, requestFound := qmc.debugInfoMessages[requestId]
-	qmc.mutex.Unlock()
-
-	logMessages, optAsyncId := generateLogMessages(request.logMessages, []string{})
-
-	buffer := newBufferWithHead()
-	if requestFound {
-		if optAsyncId != nil {
-			buffer.Write(generateSimpleTop("Log for request id " + requestId + " and async id " + *optAsyncId))
-		} else {
-			buffer.Write(generateSimpleTop("Log for request id " + requestId))
-		}
-	} else {
-		buffer.Write(generateSimpleTop("Log not found for request id " + requestId))
-	}
-
-	buffer.Html(`<main class="center" id="request-log-messages">`)
-	buffer.Html("\n\n")
-	buffer.Html(`<div class="debug-body">`)
-
-	buffer.Write(logMessages)
-
-	buffer.Html("\n</div>\n")
-	buffer.Html("\n</main>\n")
-	buffer.Html(`<div class="menu">`)
-	buffer.Html("\n<h2>Menu</h2>")
-
-	buffer.Html(`<form action="/live">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
-	buffer.Html(`<br>`)
-	buffer.Html(`<form action="/request-id/`).Text(requestId).Html(`">&nbsp;<input class="btn" type="submit" value="Back to request info" /></form>`)
 
 	buffer.Html("\n</div>")
 	buffer.Html("\n</body>")

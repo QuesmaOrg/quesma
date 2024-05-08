@@ -118,11 +118,6 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		buf := qmc.generateReportForRequestId(vars["requestId"])
 		_, _ = writer.Write(buf)
 	})
-	router.PathPrefix("/log/{requestId}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		buf := qmc.generateLogForRequestId(vars["requestId"])
-		_, _ = writer.Write(buf)
-	})
 	router.PathPrefix("/error/{reason}").HandlerFunc(func(writer http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		buf := qmc.generateErrorForReason(vars["reason"])
