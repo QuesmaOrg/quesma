@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"github.com/barkimedes/go-deepcopy"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
@@ -600,11 +601,11 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 				// We haven't recorded expected response yet, so we can't compare it
 				return
 			}
-
+			expectedResultsCopy := deepcopy.MustAnything(test.ExpectedResults).([][]model.QueryResultRow)
 			actualAggregationsPart := cw.MakeAggregationPartOfResponse(aggregations, test.ExpectedResults)
 			pp.Println("ACTUAL", actualAggregationsPart)
 
-			fullResponse, err := cw.MakeResponseAggregationMarshalled(aggregations, test.ExpectedResults)
+			fullResponse, err := cw.MakeResponseAggregationMarshalled(aggregations, expectedResultsCopy)
 			assert.NoError(t, err)
 
 			expectedResponseMap, _ := util.JsonToMap(test.ExpectedResponse)

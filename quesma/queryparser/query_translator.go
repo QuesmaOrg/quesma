@@ -3,7 +3,6 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/kibana"
 	"mitmproxy/quesma/logger"
@@ -518,7 +517,7 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncRequestI
 
 func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) {
 	for i, query := range queries {
-		pp.Println(query)
+		fmt.Println(i, query, ResultSets[i])
 		if !query.NoDBQuery {
 			continue
 		}
