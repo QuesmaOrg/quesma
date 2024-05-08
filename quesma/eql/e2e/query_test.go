@@ -93,7 +93,7 @@ func extractListOfEvents(response string) ([]eqlEvent, error) {
 
 	for i, event := range events.([]interface{}) {
 
-		m, ok := event.(map[string]interface{})
+		m := event.(map[string]interface{})
 
 		source, ok := m["_source"]
 		if !ok {
