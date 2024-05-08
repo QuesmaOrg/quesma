@@ -2,19 +2,19 @@ package ui
 
 import (
 	"fmt"
+	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"mitmproxy/quesma/stats/errorstats"
+	"net/url"
 )
 
 func (qmc *QuesmaManagementConsole) generateErrorForReason(reason string) []byte {
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation(fmt.Sprintf("Errors with reason '%s'", reason)))
+	buffer.Write(generateSimpleTop(fmt.Sprintf("Errors with reason '%s'", reason)))
 
 	buffer.Html(`<main id="errors">`)
+
 	errors := errorstats.GlobalErrorStatistics.ErrorReportsForReason(reason)
-	// TODO: Make it nicer
-	for _, errorReport := range errors {
-		buffer.Html("<p>").Text(errorReport.ReportedAt.String() + " " + errorReport.DebugMessage).Html("</p>\n")
-	}
+	buffer.Write(generateErrorMessage(errors))
 	buffer.Html("\n</main>\n\n")
 
 	buffer.Html(`<div class="menu">`)
@@ -28,5 +28,50 @@ func (qmc *QuesmaManagementConsole) generateErrorForReason(reason string) []byte
 	buffer.Html("\n</body>")
 	buffer.Html("\n</html>")
 
+	return buffer.Bytes()
+}
+
+func generateErrorMessage(errorReports []errorstats.ErrorReport) []byte {
+	var buffer builder.HtmlBuffer
+	buffer.Html("<table>\n")
+	buffer.Html("<thead>\n")
+	buffer.Html("<tr>\n")
+	buffer.Html(`<th class="time">Time</th>`)
+	buffer.Html(`<th class="request-id">Request id</th>`)
+	buffer.Html(`<th class="message">Message</th>`)
+	//buffer.Html(`<th class="fields">Fields</th>`)
+	buffer.Html("</tr>\n")
+
+	buffer.Html("</thead>\n")
+	buffer.Html("<tbody>\n")
+
+	for _, errorReport := range errorReports {
+		buffer.Html("<tr>\n")
+
+		// time
+		buffer.Html(`<td class="time">`)
+		time := errorReport.ReportedAt.Format("2006-01-02 15:04:05")
+		buffer.Text(time)
+		buffer.Html("</td>")
+
+		// message
+		buffer.Html(`<td class="request-id">`)
+		if errorReport.RequestId != nil {
+			buffer.Html(`<a href="/request-Id/`).Text(url.PathEscape(*errorReport.RequestId)).Html(`">`)
+			buffer.Text(*errorReport.RequestId)
+			buffer.Html(`"</a>`)
+		} else {
+			buffer.Text("No request id")
+		}
+		buffer.Html("</td>")
+
+		// message
+		buffer.Html(`<td class="message">`)
+		buffer.Text(errorReport.DebugMessage)
+		buffer.Html("</td>")
+	}
+
+	buffer.Html("</tbody>\n")
+	buffer.Html("</table>\n")
 	return buffer.Bytes()
 }
