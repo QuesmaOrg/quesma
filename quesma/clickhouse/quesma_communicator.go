@@ -118,10 +118,6 @@ func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(ctx context.Context, t
 	return executeQuery(ctx, lm, table, query.String(), query.Fields, []interface{}{""})
 }
 
-func (lm *LogManager) ProcessTimestampQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
-	return executeQuery(ctx, lm, table.Name, query.String(), query.Fields, []interface{}{time.Time{}})
-}
-
 func (lm *LogManager) ProcessGeneralAggregationQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
 	colNames, err := table.extractColumns(query, true)
 	if err != nil {
