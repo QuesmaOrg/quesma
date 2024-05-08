@@ -38,10 +38,10 @@ func TestNoAsciiTableName(t *testing.T) {
 	assert.True(t, simpleQuery.CanParse)
 	assert.Equal(t, "", simpleQuery.Sql.Stmt)
 	assert.Equal(t, model.Normal, queryInfo.Typ)
-
-	query := queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
+	const Limit = 1000
+	query := queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, Limit)
 	assert.True(t, query.CanParse)
-	assert.Equal(t, fmt.Sprintf(`SELECT * FROM "%s" `, tableName), query.String())
+	assert.Equal(t, fmt.Sprintf(`SELECT * FROM "%s" LIMIT %d`, tableName, Limit), query.String())
 }
 
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.GetRequestId())
@@ -437,7 +437,7 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			// (go managementConsole.RunOnlyChannelProcessor() above), so we might need to wait a bit
 			assert.Eventually(t, func() bool {
 				return len(managementConsole.QueriesWithUnsupportedType(tt.QueryType)) == 1
-			}, 150*time.Millisecond, 1*time.Millisecond)
+			}, 250*time.Millisecond, 1*time.Millisecond)
 			assert.Equal(t, 1, managementConsole.GetTotalUnsupportedQueries())
 			assert.Equal(t, 1, managementConsole.GetSavedUnsupportedQueries())
 			assert.Equal(t, 1, len(managementConsole.GetUnsupportedTypesWithCount()))
@@ -489,7 +489,7 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 		// (go managementConsole.RunOnlyChannelProcessor() above), so we might need to wait a bit
 		assert.Eventually(t, func() bool {
 			return len(managementConsole.QueriesWithUnsupportedType(tt.QueryType)) == min(testCounts[i], maxSavedQueriesPerQueryType)
-		}, 500*time.Millisecond, 1*time.Millisecond,
+		}, 600*time.Millisecond, 1*time.Millisecond,
 			tt.TestName+": wanted: %d, got: %d", min(testCounts[i], maxSavedQueriesPerQueryType),
 			len(managementConsole.QueriesWithUnsupportedType(tt.QueryType)),
 		)

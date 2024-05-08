@@ -479,7 +479,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, queryTranslator IQ
 		hits, err = q.logManager.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
 
 	case model.Normal:
-		fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
+		fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, queryInfo.I2)
 		hits, err = q.logManager.ProcessSelectQuery(dbQueryCtx, table, fullQuery)
 
 	default:
