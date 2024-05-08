@@ -5,6 +5,7 @@ import (
 	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"mitmproxy/quesma/stats/errorstats"
 	"net/url"
+	"strconv"
 )
 
 func (qmc *QuesmaManagementConsole) generateErrorForReason(reason string) []byte {
@@ -21,8 +22,19 @@ func (qmc *QuesmaManagementConsole) generateErrorForReason(reason string) []byte
 	buffer.Html("\n<h2>Menu</h2>")
 
 	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to dashboard" /></form>`)
-	// TODO: implement
-	// buffer.Html(`<form action="/dashboard">&nbsp;<input class="btn" type="submit" value="See requests with errors" /></form>`)
+	errorTypes := errorstats.GlobalErrorStatistics.ReturnTopErrors(100)
+
+	buffer.Html(`<br>`)
+	buffer.Html(`<h3>Top error types</h3>` + "\n")
+	buffer.Html(`<ul>` + "\n")
+	for _, errorType := range errorTypes {
+		buffer.Html(`<li>`)
+		buffer.Html(`<a href="/error/`).Text(url.PathEscape(errorType.Reason)).Html(`">`)
+		buffer.Text(strconv.Itoa(errorType.Count)).Text(": ").Text(errorType.Reason)
+		buffer.Html(`</a></li>` + "\n")
+	}
+	buffer.Html(`</ul>` + "\n")
+
 	buffer.Html("\n</div>")
 
 	buffer.Html("\n</body>")
