@@ -49,7 +49,7 @@ func TestHtmlPages(t *testing.T) {
 	})
 
 	t.Run("logs got no XSS", func(t *testing.T) {
-		response := string(qmc.generateLogForRequestId(id))
+		response := string(qmc.generateReportForRequestId(id))
 		assert.NotContains(t, response, xss)
 	})
 

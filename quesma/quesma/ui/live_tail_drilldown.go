@@ -92,46 +92,6 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 
 		buffer.Html(`</ul>`)
 	}
-	buffer.Html(`<form action="/log/`).Text(requestId).Html(`">&nbsp;<input class="btn" type="submit" value="Go to log" /></form>`)
-
-	buffer.Html("\n</div>")
-	buffer.Html("\n</body>")
-	buffer.Html("\n</html>")
-	return buffer.Bytes()
-}
-
-func (qmc *QuesmaManagementConsole) generateLogForRequestId(requestId string) []byte {
-	qmc.mutex.Lock()
-	request, requestFound := qmc.debugInfoMessages[requestId]
-	qmc.mutex.Unlock()
-
-	logMessages, optAsyncId := generateLogMessages(request.logMessages, []string{})
-
-	buffer := newBufferWithHead()
-	if requestFound {
-		if optAsyncId != nil {
-			buffer.Write(generateSimpleTop("Log for request id " + requestId + " and async id " + *optAsyncId))
-		} else {
-			buffer.Write(generateSimpleTop("Log for request id " + requestId))
-		}
-	} else {
-		buffer.Write(generateSimpleTop("Log not found for request id " + requestId))
-	}
-
-	buffer.Html(`<main class="center" id="request-log-messages">`)
-	buffer.Html("\n\n")
-	buffer.Html(`<div class="debug-body">`)
-
-	buffer.Write(logMessages)
-
-	buffer.Html("\n</div>\n")
-	buffer.Html("\n</main>\n")
-	buffer.Html(`<div class="menu">`)
-	buffer.Html("\n<h2>Menu</h2>")
-
-	buffer.Html(`<form action="/live">&nbsp;<input class="btn" type="submit" value="Back to live tail" /></form>`)
-	buffer.Html(`<br>`)
-	buffer.Html(`<form action="/request-id/`).Text(requestId).Html(`">&nbsp;<input class="btn" type="submit" value="Back to request info" /></form>`)
 
 	buffer.Html("\n</div>")
 	buffer.Html("\n</body>")
