@@ -11,7 +11,7 @@ import (
 // Tests requires Quesma and Elastic to be running.
 // Queries are run against both Quesma and Elastic and results are compared.
 
-var runTests = true
+var runTests = false
 
 func TestE2E(t *testing.T) {
 
