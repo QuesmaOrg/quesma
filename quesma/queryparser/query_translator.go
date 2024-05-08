@@ -516,16 +516,18 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncRequestI
 }
 
 func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) {
+
 	for i, query := range queries {
 		fmt.Println(i, query, ResultSets[i])
-		if !query.NoDBQuery {
+		pipelineQueryType, ok := query.Type.(model.PipelineQueryType)
+		if !query.NoDBQuery || !ok {
 			continue
 		}
 		// if we don't send the query, we need process the result ourselves
 		j := 2
 		fmt.Println("ResultSets[i]", ResultSets[i], i)
 		for _, row := range ResultSets[j] {
-			ResultSets[i] = append(ResultSets[i], query.Type.CalculateResultIfMissing(row, ResultSets[i]))
+			ResultSets[i] = append(ResultSets[i], pipelineQueryType.CalculateResultIfMissing(row, ResultSets[i]))
 		}
 	}
 }

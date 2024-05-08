@@ -23,10 +23,6 @@ func (query Min) TranslateSqlResponseToJson(rows []model.QueryResultRow, level i
 	return metricsTranslateSqlResponseToJsonWithFieldTypeCheck(query.ctx, rows, level, query.fieldType)
 }
 
-func (query Min) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
-	return model.QueryResultRow{}
-}
-
 func (query Min) String() string {
 	return "min"
 }

@@ -23,10 +23,6 @@ func (query Sum) TranslateSqlResponseToJson(rows []model.QueryResultRow, level i
 	return metricsTranslateSqlResponseToJsonWithFieldTypeCheck(query.ctx, rows, level, query.fieldType)
 }
 
-func (query Sum) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
-	return model.QueryResultRow{}
-}
-
 func (query Sum) String() string {
 	return "sum"
 }

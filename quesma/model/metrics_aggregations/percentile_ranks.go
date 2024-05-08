@@ -94,10 +94,6 @@ func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResult
 	}
 }
 
-func (query PercentileRanks) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
-	return model.QueryResultRow{}
-}
-
 func (query PercentileRanks) String() string {
 	return "percentile_ranks"
 }

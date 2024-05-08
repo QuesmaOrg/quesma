@@ -40,10 +40,6 @@ func (query Stats) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 	return []model.JsonMap{resultMap}
 }
 
-func (query Stats) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
-	return model.QueryResultRow{}
-}
-
 func (query Stats) String() string {
 	return "stats"
 }

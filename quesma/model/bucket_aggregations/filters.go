@@ -32,10 +32,6 @@ func (query Filters) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 	}}
 }
 
-func (query Filters) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
-	return model.QueryResultRow{}
-}
-
 func (query Filters) String() string {
 	return "filters"
 }

@@ -29,10 +29,6 @@ func (query Count) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 	return response
 }
 
-func (query Count) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
-	return model.QueryResultRow{}
-}
-
 func (query Count) String() string {
 	return "count"
 }

@@ -43,10 +43,6 @@ func (query DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRo
 	return response
 }
 
-func (query DateHistogram) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
-	return model.QueryResultRow{}
-}
-
 func (query DateHistogram) String() string {
 	return "date_histogram(interval: " + query.Interval + ")"
 }

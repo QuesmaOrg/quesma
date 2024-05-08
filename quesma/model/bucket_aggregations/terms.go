@@ -40,10 +40,6 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 	return response
 }
 
-func (query Terms) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
-	return model.QueryResultRow{}
-}
-
 func (query Terms) String() string {
 	if !query.significant {
 		return "terms"

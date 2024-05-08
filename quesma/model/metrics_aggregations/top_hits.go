@@ -33,10 +33,6 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 	return response
 }
 
-func (query TopHits) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
-	return model.QueryResultRow{}
-}
-
 func (query TopHits) String() string {
 	return "top_hits"
 }

@@ -99,10 +99,6 @@ func (query DateRange) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 	return response
 }
 
-func (query DateRange) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
-	return model.QueryResultRow{}
-}
-
 func (query DateRange) String() string {
 	return "date_range, intervals: " + fmt.Sprintf("%v", query.Intervals)
 }

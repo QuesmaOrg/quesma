@@ -35,10 +35,6 @@ func (query Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 	return response
 }
 
-func (query Histogram) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
-	return model.QueryResultRow{}
-}
-
 func (query Histogram) String() string {
 	return "histogram"
 }

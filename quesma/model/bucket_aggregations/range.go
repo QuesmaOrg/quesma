@@ -150,10 +150,6 @@ func (query Range) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 	}
 }
 
-func (query Range) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
-	return model.QueryResultRow{}
-}
-
 func (query Range) String() string {
 	return "range, intervals: " + fmt.Sprintf("%v", query.Intervals)
 }

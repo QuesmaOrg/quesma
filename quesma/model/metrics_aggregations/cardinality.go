@@ -21,10 +21,6 @@ func (query Cardinality) TranslateSqlResponseToJson(rows []model.QueryResultRow,
 	return metricsTranslateSqlResponseToJson(query.ctx, rows, level)
 }
 
-func (query Cardinality) CalculateResultIfMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
-	return model.QueryResultRow{}
-}
-
 func (query Cardinality) String() string {
 	return "cardinality"
 }
