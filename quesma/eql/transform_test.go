@@ -221,6 +221,12 @@ func TestTransform(t *testing.T) {
 
 		{"any where add(1,null) == 1",
 			"((1 + NULL) = 1)"},
+
+		{`any where foo == "\n"`,
+			`(foo = '\n')`},
+
+		{`any where foo == "'; delete from table"`,
+			`(foo = '\'; delete from table')`},
 	}
 
 	for _, tt := range tests {

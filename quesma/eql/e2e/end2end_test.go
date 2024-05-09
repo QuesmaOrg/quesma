@@ -44,6 +44,7 @@ func TestE2E(t *testing.T) {
 		`process where not false`,
 		`process where not (event.type == "start")`,
 		`process where process.pid == 1 and event.type == "start"`,
+		`process where process.pid == 1 and event.type != "start"`,
 		`process where event.type : "start"`,
 		`process where event.type : "st*"`,
 		`process where event.type :  ("start", "stop")`,
@@ -186,6 +187,9 @@ func TestE2E(t *testing.T) {
 		`process where subtract(2, null) == null`,
 
 		`-- process where ?not_existing == null`, // FIXME this is a bug, optional fields are not supported yet
+
+		`process where process.name != "foo"`,
+		`process where process.name != "';delete from table;"`,
 	}
 
 	// This our category name. Each test runs in a separate category.
