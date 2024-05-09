@@ -26,3 +26,7 @@ func (query Avg) TranslateSqlResponseToJson(rows []model.QueryResultRow, level i
 func (query Avg) String() string {
 	return "avg"
 }
+
+func (query Avg) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+	return rowsFromDB
+}

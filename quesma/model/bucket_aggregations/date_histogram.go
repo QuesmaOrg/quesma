@@ -63,3 +63,7 @@ func (query DateHistogram) IntervalAsDuration() time.Duration {
 	duration, _ := time.ParseDuration(query.Interval)
 	return duration
 }
+
+func (query DateHistogram) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+	return rowsFromDB
+}

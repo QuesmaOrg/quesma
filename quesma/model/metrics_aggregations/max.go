@@ -26,3 +26,7 @@ func (query Max) TranslateSqlResponseToJson(rows []model.QueryResultRow, level i
 func (query Max) String() string {
 	return "max"
 }
+
+func (query Max) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+	return rowsFromDB
+}

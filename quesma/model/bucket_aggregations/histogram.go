@@ -38,3 +38,7 @@ func (query Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 func (query Histogram) String() string {
 	return "histogram"
 }
+
+func (query Histogram) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+	return rowsFromDB
+}

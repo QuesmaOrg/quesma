@@ -117,6 +117,22 @@ var PipelineAggregationTests = []AggregationTestCase{
 										{
 											"key_as_string": "2024-04-15T01:00:00.000",
 											"key": 1713142800000,
+											"doc_count": 0,
+											"count": {
+												"value": 0
+											}
+										},
+										{
+											"key_as_string": "2024-04-15T02:00:00.000",
+											"key": 1713146400000,
+											"doc_count": 0,
+											"count": {
+												"value": 0
+											}
+										},
+										{
+											"key_as_string": "2024-04-15T03:00:00.000",
+											"key": 1713150000000,
 											"doc_count": 9,
 											"count": {
 												"value": 9
@@ -138,7 +154,7 @@ var PipelineAggregationTests = []AggregationTestCase{
 					model.NewQueryResultCol("doc_count", 10),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1713142800000/1000/60/60)),
+					model.NewQueryResultCol("key", int64(1713150000000/1000/60/60)),
 					model.NewQueryResultCol("doc_count", 9),
 				}},
 			},
@@ -148,7 +164,7 @@ var PipelineAggregationTests = []AggregationTestCase{
 					model.NewQueryResultCol("doc_count", 10),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", int64(1713142800000/1000/60/60)),
+					model.NewQueryResultCol("key", int64(1713150000000/1000/60/60)),
 					model.NewQueryResultCol("doc_count", 9),
 				}},
 			},

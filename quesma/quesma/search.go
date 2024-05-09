@@ -592,6 +592,7 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggrega
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			continue
 		}
+		rows = agg.Type.PostprocessResults(rows)
 		resultRows = append(resultRows, rows)
 	}
 	translatedQueryBody = []byte(sqls)
