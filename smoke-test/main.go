@@ -75,8 +75,8 @@ var queries = []string{`
 					"range": {
 						"@timestamp": {
 							"format": "strict_date_optional_time",
-							"gte": "2024-01-23T14:43:19.481Z",
-							"lte": "2024-01-23T14:58:19.481Z"
+							"gte": "now-1d",
+							"lte": "now-1s"
 						}
 					}
 				}
@@ -110,7 +110,53 @@ var queries = []string{`
 	"track_total_hits": false,
 	"version": true
 }
-`}
+`,
+	`{
+    "_source": {
+        "excludes": []
+    },
+    "aggs": {
+        "0": {
+            "date_histogram": {
+                "field": "@timestamp",
+                "fixed_interval": "30s",
+                "min_doc_count": 1,
+                "time_zone": "Europe/Warsaw"
+            }
+        }
+    },
+    "fields": [
+        {
+            "field": "@timestamp",
+            "format": "date_time"
+        }
+    ],
+    "query": {
+        "bool": {
+            "filter": [
+                {
+                    "range": {
+                        "@timestamp": {
+                            "format": "strict_date_optional_time",
+                            "gte": "now-1d",
+                            "lte": "now-1s"
+                        }
+                    }
+                }
+            ],
+            "must": [],
+            "must_not": [],
+            "should": []
+        }
+    },
+    "runtime_mappings": {},
+    "script_fields": {},
+    "size": 0,
+    "stored_fields": [
+        "*"
+    ],
+    "track_total_hits": true
+}`}
 
 const kibanaInternalLog = `
 {
