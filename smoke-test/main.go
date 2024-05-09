@@ -37,6 +37,12 @@ const (
 	printInterval = 5 * time.Second
 )
 
+const (
+	localLogPath = "../docker/quesma/logs/quesma.log"
+	ciLogPath    = "/home/runner/work/quesma/quesma/docker/quesma/logs/quesma.log"
+	ciEnvVar     = "GITHUB_ACTIONS"
+)
+
 var queries = []string{`
 {
 	"_source": false,
@@ -472,7 +478,12 @@ func waitForLogsInElasticsearchRaw(serviceName, url string, quesmaSource bool, t
 }
 
 func checkLogs() {
-	content, err := os.ReadFile("/home/runner/work/quesma/quesma/docker/quesma/logs/quesma.log")
+	value := os.Getenv(ciEnvVar)
+	logPath := localLogPath
+	if value != "" {
+		logPath = ciLogPath
+	}
+	content, err := os.ReadFile(logPath)
 	if err != nil {
 		panic("Error reading file:" + err.Error())
 		return
