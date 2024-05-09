@@ -24,8 +24,11 @@ func TestE2E(t *testing.T) {
 	// Queries start with a "--" are skipped.
 	var eqlQueries = []string{
 		`any where false`,
+		`any where false and true`,
 		`not_existing where true`,
 		"process where true",
+		"process where false and true",
+		"process where not false and true",
 		"process where process.pid == 1",
 		"process where process.pid > 0",
 		"process where process.pid >= 0",
@@ -35,7 +38,7 @@ func TestE2E(t *testing.T) {
 		`process where process.pid == 2 / 2`,
 		`process where process.pid == 3 % 2`,
 		`process where process.pid == 2 * 3 / 6`,
-		`process where process.pid < 4.0 / 2`, // TODO add floats
+		`process where process.pid < 4.0 / 2`,
 		`process where not false`,
 		`process where not (event.type == "start")`,
 		`process where process.pid == 1 and event.type == "start"`,
