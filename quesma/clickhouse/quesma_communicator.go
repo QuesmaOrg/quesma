@@ -26,17 +26,22 @@ func (lm *LogManager) Query(ctx context.Context, query string) (*sql.Rows, error
 	return rows, err
 }
 
-// ProcessSimpleSelectQuery - only WHERE clause
+// ProcessQuery - only WHERE clause
 // TODO query param should be type safe Query representing all parts of
 // sql statement that were already parsed and not string from which
 // we have to extract again different parts like where clause and columns to build a proper result
-func (lm *LogManager) ProcessSelectQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
+func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
 	colNames, err := table.extractColumns(query, false)
 	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
 		return nil, err
 	}
-	rows, err := executeQuery(ctx, lm, table.Name, query.StringFromColumns(colNames), append(colNames, query.NonSchemaFields...), rowToScan)
+
+	resultColumns, err := table.extractColumns(query, true)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := executeQuery(ctx, lm, table.Name, query.StringFromColumns(colNames), resultColumns, rowToScan)
 	if err == nil {
 		for _, row := range rows {
 			row.Index = table.Name
@@ -112,24 +117,6 @@ func executeQuery(ctx context.Context, lm *LogManager, tableName string, queryAs
 	}
 
 	return res, err
-}
-
-func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
-	colNames, err := table.extractColumns(query, false)
-	if err != nil {
-		return nil, err
-	}
-	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
-	return executeQuery(ctx, lm, table.Name, query.String(), query.Fields, rowToScan)
-}
-
-func (lm *LogManager) ProcessGeneralAggregationQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
-	colNames, err := table.extractColumns(query, true)
-	if err != nil {
-		return nil, err
-	}
-	rowToScan := make([]interface{}, len(colNames))
-	return executeQuery(ctx, lm, table.Name, query.String(), colNames, rowToScan)
 }
 
 // 'selectFields' are all values that we return from the query, both columns and non-schema fields,
