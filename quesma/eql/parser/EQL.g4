@@ -33,7 +33,7 @@ category
        ;
 
 field: ID;
-// TODO add optional field names: `?field_name`
+// TODO add optional field names: '?field_name'
 // TODO add backtick escape for field names
 
 fieldList : field (',' field)*;
@@ -63,7 +63,28 @@ pipe:
 
 
 funcall: funcName '(' value (',' value)* ')';
-funcName: ID | ID '~';
+funcName: 
+          'add'
+        | 'between'
+        | 'cidrMatch'
+        | 'concat'
+        | 'divide'
+        | 'endsWith'
+        | 'endsWith~'
+        | 'indexOf'
+        | 'indexOf~'
+        | 'length'
+        | 'modulo'
+        | 'multiply'
+        | 'number'
+        | 'startsWith'
+        | 'startsWith~'
+        | 'string'
+        | 'stringContains'
+        | 'stringContains~'
+        | 'substring'
+        | 'subtract'
+;
 
 
 interval: INTERVAL;

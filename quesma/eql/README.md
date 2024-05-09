@@ -77,7 +77,7 @@ Supported functions
 | `stringContains`  | :cockroach:        |                                        |
 | `stringContains~` | :cockroach:        |                                        |
 | `substring`       | :cockroach:        |                                        |
-| `substract`       | :heavy_check_mark: |                                        |
+| `subtract`       | :heavy_check_mark: |                                        |
 
 
 
@@ -86,7 +86,7 @@ Known limitations
 ---
 
 1. We support only simple EQL queries. Sequence and sample queries are not supported.
-2. Pipe operators are not supported. (https://www.elastic.co/guide/en/elasticsearch/reference/current/eql-syntax.html#eql-pipes)
+2. Pipe operators are not supported. Syntax is parsed. Error is returned if pipe operator is used in the query. (https://www.elastic.co/guide/en/elasticsearch/reference/current/eql-syntax.html#eql-pipes)
 3. Optional fields are not supported. (https://www.elastic.co/guide/en/elasticsearch/reference/current/eql-syntax.html#eql-syntax-optional-fields)
 4. Backtick escaping is not supported. (https://www.elastic.co/guide/en/elasticsearch/reference/current/eql-syntax.html#eql-syntax-escape-a-field-name)
 5. Error handling is missing. Every error will be returned as a internal server error.

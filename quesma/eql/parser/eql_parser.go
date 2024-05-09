@@ -37,13 +37,19 @@ func eqlParserInit() {
 		"'<'", "'>='", "'<='", "':'", "'like'", "'like~'", "'regex'", "'regex~'",
 		"'in'", "'in~'", "'and'", "'or'", "','", "'null'", "'*'", "'/'", "'%'",
 		"'+'", "'-'", "'head'", "'tail'", "'count'", "'unique'", "'filter'",
-		"'sort'", "'~'", "'any'",
+		"'sort'", "'add'", "'between'", "'cidrMatch'", "'concat'", "'divide'",
+		"'endsWith'", "'endsWith~'", "'indexOf'", "'indexOf~'", "'length'",
+		"'modulo'", "'multiply'", "'number'", "'startsWith'", "'startsWith~'",
+		"'string'", "'stringContains'", "'stringContains~'", "'substring'",
+		"'subtract'", "'any'",
 	}
 	staticData.SymbolicNames = []string{
 		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
 		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-		"", "", "", "", "", "", "", "", "", "ANY", "MULTILINE_COMMENT", "ONELINE_COMMNET",
-		"BOOLEAN", "INTERVAL", "NUMBER", "ESC", "STRING", "WS", "ID",
+		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "", "", "ANY", "MULTILINE_COMMENT",
+		"ONELINE_COMMNET", "BOOLEAN", "INTERVAL", "NUMBER", "ESC", "STRING",
+		"WS", "ID",
 	}
 	staticData.RuleNames = []string{
 		"query", "simpleQuery", "sequenceQuery", "sampleQuery", "condition",
@@ -52,7 +58,7 @@ func eqlParserInit() {
 	}
 	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
-		4, 1, 52, 195, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 1, 71, 192, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
 		4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2, 10, 7,
 		10, 2, 11, 7, 11, 2, 12, 7, 12, 2, 13, 7, 13, 2, 14, 7, 14, 1, 0, 1, 0,
 		1, 0, 3, 0, 34, 8, 0, 1, 0, 1, 0, 5, 0, 38, 8, 0, 10, 0, 12, 0, 41, 9,
@@ -70,50 +76,50 @@ func eqlParserInit() {
 		10, 158, 8, 10, 10, 10, 12, 10, 161, 9, 10, 1, 11, 1, 11, 1, 11, 1, 11,
 		1, 11, 1, 11, 1, 11, 1, 11, 1, 11, 1, 11, 1, 11, 3, 11, 174, 8, 11, 1,
 		12, 1, 12, 1, 12, 1, 12, 1, 12, 5, 12, 181, 8, 12, 10, 12, 12, 12, 184,
-		9, 12, 1, 12, 1, 12, 1, 13, 1, 13, 1, 13, 3, 13, 191, 8, 13, 1, 14, 1,
-		14, 1, 14, 0, 2, 8, 20, 15, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22,
-		24, 26, 28, 0, 8, 1, 0, 14, 24, 1, 0, 25, 26, 1, 0, 20, 26, 1, 0, 27, 28,
-		3, 0, 43, 43, 50, 50, 52, 52, 3, 0, 46, 46, 48, 48, 50, 50, 1, 0, 31, 33,
-		1, 0, 34, 35, 210, 0, 33, 1, 0, 0, 0, 2, 44, 1, 0, 0, 0, 4, 48, 1, 0, 0,
-		0, 6, 70, 1, 0, 0, 0, 8, 105, 1, 0, 0, 0, 10, 115, 1, 0, 0, 0, 12, 117,
-		1, 0, 0, 0, 14, 119, 1, 0, 0, 0, 16, 127, 1, 0, 0, 0, 18, 129, 1, 0, 0,
-		0, 20, 149, 1, 0, 0, 0, 22, 173, 1, 0, 0, 0, 24, 175, 1, 0, 0, 0, 26, 190,
-		1, 0, 0, 0, 28, 192, 1, 0, 0, 0, 30, 34, 3, 2, 1, 0, 31, 34, 3, 4, 2, 0,
-		32, 34, 3, 6, 3, 0, 33, 30, 1, 0, 0, 0, 33, 31, 1, 0, 0, 0, 33, 32, 1,
-		0, 0, 0, 34, 39, 1, 0, 0, 0, 35, 36, 5, 1, 0, 0, 36, 38, 3, 22, 11, 0,
-		37, 35, 1, 0, 0, 0, 38, 41, 1, 0, 0, 0, 39, 37, 1, 0, 0, 0, 39, 40, 1,
-		0, 0, 0, 40, 42, 1, 0, 0, 0, 41, 39, 1, 0, 0, 0, 42, 43, 5, 0, 0, 1, 43,
-		1, 1, 0, 0, 0, 44, 45, 3, 10, 5, 0, 45, 46, 5, 2, 0, 0, 46, 47, 3, 8, 4,
-		0, 47, 3, 1, 0, 0, 0, 48, 51, 5, 3, 0, 0, 49, 50, 5, 4, 0, 0, 50, 52, 3,
-		14, 7, 0, 51, 49, 1, 0, 0, 0, 51, 52, 1, 0, 0, 0, 52, 57, 1, 0, 0, 0, 53,
-		54, 5, 5, 0, 0, 54, 55, 5, 6, 0, 0, 55, 56, 5, 7, 0, 0, 56, 58, 3, 28,
-		14, 0, 57, 53, 1, 0, 0, 0, 57, 58, 1, 0, 0, 0, 58, 66, 1, 0, 0, 0, 59,
-		60, 5, 8, 0, 0, 60, 61, 3, 2, 1, 0, 61, 64, 5, 9, 0, 0, 62, 63, 5, 4, 0,
-		0, 63, 65, 3, 14, 7, 0, 64, 62, 1, 0, 0, 0, 64, 65, 1, 0, 0, 0, 65, 67,
-		1, 0, 0, 0, 66, 59, 1, 0, 0, 0, 67, 68, 1, 0, 0, 0, 68, 66, 1, 0, 0, 0,
-		68, 69, 1, 0, 0, 0, 69, 5, 1, 0, 0, 0, 70, 71, 5, 10, 0, 0, 71, 72, 5,
-		4, 0, 0, 72, 77, 3, 14, 7, 0, 73, 74, 5, 8, 0, 0, 74, 75, 3, 2, 1, 0, 75,
-		76, 5, 9, 0, 0, 76, 78, 1, 0, 0, 0, 77, 73, 1, 0, 0, 0, 78, 79, 1, 0, 0,
-		0, 79, 77, 1, 0, 0, 0, 79, 80, 1, 0, 0, 0, 80, 7, 1, 0, 0, 0, 81, 82, 6,
-		4, -1, 0, 82, 106, 5, 46, 0, 0, 83, 84, 5, 11, 0, 0, 84, 106, 3, 8, 4,
-		8, 85, 86, 5, 12, 0, 0, 86, 87, 3, 8, 4, 0, 87, 88, 5, 13, 0, 0, 88, 106,
-		1, 0, 0, 0, 89, 90, 3, 20, 10, 0, 90, 91, 7, 0, 0, 0, 91, 92, 3, 20, 10,
-		0, 92, 106, 1, 0, 0, 0, 93, 94, 3, 12, 6, 0, 94, 95, 5, 11, 0, 0, 95, 96,
-		7, 1, 0, 0, 96, 97, 3, 18, 9, 0, 97, 106, 1, 0, 0, 0, 98, 99, 3, 12, 6,
-		0, 99, 100, 7, 2, 0, 0, 100, 101, 3, 18, 9, 0, 101, 106, 1, 0, 0, 0, 102,
-		106, 3, 24, 12, 0, 103, 104, 5, 11, 0, 0, 104, 106, 3, 24, 12, 0, 105,
-		81, 1, 0, 0, 0, 105, 83, 1, 0, 0, 0, 105, 85, 1, 0, 0, 0, 105, 89, 1, 0,
-		0, 0, 105, 93, 1, 0, 0, 0, 105, 98, 1, 0, 0, 0, 105, 102, 1, 0, 0, 0, 105,
-		103, 1, 0, 0, 0, 106, 112, 1, 0, 0, 0, 107, 108, 10, 3, 0, 0, 108, 109,
-		7, 3, 0, 0, 109, 111, 3, 8, 4, 4, 110, 107, 1, 0, 0, 0, 111, 114, 1, 0,
-		0, 0, 112, 110, 1, 0, 0, 0, 112, 113, 1, 0, 0, 0, 113, 9, 1, 0, 0, 0, 114,
-		112, 1, 0, 0, 0, 115, 116, 7, 4, 0, 0, 116, 11, 1, 0, 0, 0, 117, 118, 5,
-		52, 0, 0, 118, 13, 1, 0, 0, 0, 119, 124, 3, 12, 6, 0, 120, 121, 5, 29,
-		0, 0, 121, 123, 3, 12, 6, 0, 122, 120, 1, 0, 0, 0, 123, 126, 1, 0, 0, 0,
-		124, 122, 1, 0, 0, 0, 124, 125, 1, 0, 0, 0, 125, 15, 1, 0, 0, 0, 126, 124,
-		1, 0, 0, 0, 127, 128, 7, 5, 0, 0, 128, 17, 1, 0, 0, 0, 129, 130, 5, 12,
-		0, 0, 130, 135, 3, 16, 8, 0, 131, 132, 5, 29, 0, 0, 132, 134, 3, 16, 8,
-		0, 133, 131, 1, 0, 0, 0, 134, 137, 1, 0, 0, 0, 135, 133, 1, 0, 0, 0, 135,
+		9, 12, 1, 12, 1, 12, 1, 13, 1, 13, 1, 14, 1, 14, 1, 14, 0, 2, 8, 20, 15,
+		0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 0, 9, 1, 0, 14,
+		24, 1, 0, 25, 26, 1, 0, 20, 26, 1, 0, 27, 28, 3, 0, 62, 62, 69, 69, 71,
+		71, 3, 0, 65, 65, 67, 67, 69, 69, 1, 0, 31, 33, 1, 0, 34, 35, 1, 0, 42,
+		61, 206, 0, 33, 1, 0, 0, 0, 2, 44, 1, 0, 0, 0, 4, 48, 1, 0, 0, 0, 6, 70,
+		1, 0, 0, 0, 8, 105, 1, 0, 0, 0, 10, 115, 1, 0, 0, 0, 12, 117, 1, 0, 0,
+		0, 14, 119, 1, 0, 0, 0, 16, 127, 1, 0, 0, 0, 18, 129, 1, 0, 0, 0, 20, 149,
+		1, 0, 0, 0, 22, 173, 1, 0, 0, 0, 24, 175, 1, 0, 0, 0, 26, 187, 1, 0, 0,
+		0, 28, 189, 1, 0, 0, 0, 30, 34, 3, 2, 1, 0, 31, 34, 3, 4, 2, 0, 32, 34,
+		3, 6, 3, 0, 33, 30, 1, 0, 0, 0, 33, 31, 1, 0, 0, 0, 33, 32, 1, 0, 0, 0,
+		34, 39, 1, 0, 0, 0, 35, 36, 5, 1, 0, 0, 36, 38, 3, 22, 11, 0, 37, 35, 1,
+		0, 0, 0, 38, 41, 1, 0, 0, 0, 39, 37, 1, 0, 0, 0, 39, 40, 1, 0, 0, 0, 40,
+		42, 1, 0, 0, 0, 41, 39, 1, 0, 0, 0, 42, 43, 5, 0, 0, 1, 43, 1, 1, 0, 0,
+		0, 44, 45, 3, 10, 5, 0, 45, 46, 5, 2, 0, 0, 46, 47, 3, 8, 4, 0, 47, 3,
+		1, 0, 0, 0, 48, 51, 5, 3, 0, 0, 49, 50, 5, 4, 0, 0, 50, 52, 3, 14, 7, 0,
+		51, 49, 1, 0, 0, 0, 51, 52, 1, 0, 0, 0, 52, 57, 1, 0, 0, 0, 53, 54, 5,
+		5, 0, 0, 54, 55, 5, 6, 0, 0, 55, 56, 5, 7, 0, 0, 56, 58, 3, 28, 14, 0,
+		57, 53, 1, 0, 0, 0, 57, 58, 1, 0, 0, 0, 58, 66, 1, 0, 0, 0, 59, 60, 5,
+		8, 0, 0, 60, 61, 3, 2, 1, 0, 61, 64, 5, 9, 0, 0, 62, 63, 5, 4, 0, 0, 63,
+		65, 3, 14, 7, 0, 64, 62, 1, 0, 0, 0, 64, 65, 1, 0, 0, 0, 65, 67, 1, 0,
+		0, 0, 66, 59, 1, 0, 0, 0, 67, 68, 1, 0, 0, 0, 68, 66, 1, 0, 0, 0, 68, 69,
+		1, 0, 0, 0, 69, 5, 1, 0, 0, 0, 70, 71, 5, 10, 0, 0, 71, 72, 5, 4, 0, 0,
+		72, 77, 3, 14, 7, 0, 73, 74, 5, 8, 0, 0, 74, 75, 3, 2, 1, 0, 75, 76, 5,
+		9, 0, 0, 76, 78, 1, 0, 0, 0, 77, 73, 1, 0, 0, 0, 78, 79, 1, 0, 0, 0, 79,
+		77, 1, 0, 0, 0, 79, 80, 1, 0, 0, 0, 80, 7, 1, 0, 0, 0, 81, 82, 6, 4, -1,
+		0, 82, 106, 5, 65, 0, 0, 83, 84, 5, 11, 0, 0, 84, 106, 3, 8, 4, 8, 85,
+		86, 5, 12, 0, 0, 86, 87, 3, 8, 4, 0, 87, 88, 5, 13, 0, 0, 88, 106, 1, 0,
+		0, 0, 89, 90, 3, 20, 10, 0, 90, 91, 7, 0, 0, 0, 91, 92, 3, 20, 10, 0, 92,
+		106, 1, 0, 0, 0, 93, 94, 3, 12, 6, 0, 94, 95, 5, 11, 0, 0, 95, 96, 7, 1,
+		0, 0, 96, 97, 3, 18, 9, 0, 97, 106, 1, 0, 0, 0, 98, 99, 3, 12, 6, 0, 99,
+		100, 7, 2, 0, 0, 100, 101, 3, 18, 9, 0, 101, 106, 1, 0, 0, 0, 102, 106,
+		3, 24, 12, 0, 103, 104, 5, 11, 0, 0, 104, 106, 3, 24, 12, 0, 105, 81, 1,
+		0, 0, 0, 105, 83, 1, 0, 0, 0, 105, 85, 1, 0, 0, 0, 105, 89, 1, 0, 0, 0,
+		105, 93, 1, 0, 0, 0, 105, 98, 1, 0, 0, 0, 105, 102, 1, 0, 0, 0, 105, 103,
+		1, 0, 0, 0, 106, 112, 1, 0, 0, 0, 107, 108, 10, 3, 0, 0, 108, 109, 7, 3,
+		0, 0, 109, 111, 3, 8, 4, 4, 110, 107, 1, 0, 0, 0, 111, 114, 1, 0, 0, 0,
+		112, 110, 1, 0, 0, 0, 112, 113, 1, 0, 0, 0, 113, 9, 1, 0, 0, 0, 114, 112,
+		1, 0, 0, 0, 115, 116, 7, 4, 0, 0, 116, 11, 1, 0, 0, 0, 117, 118, 5, 71,
+		0, 0, 118, 13, 1, 0, 0, 0, 119, 124, 3, 12, 6, 0, 120, 121, 5, 29, 0, 0,
+		121, 123, 3, 12, 6, 0, 122, 120, 1, 0, 0, 0, 123, 126, 1, 0, 0, 0, 124,
+		122, 1, 0, 0, 0, 124, 125, 1, 0, 0, 0, 125, 15, 1, 0, 0, 0, 126, 124, 1,
+		0, 0, 0, 127, 128, 7, 5, 0, 0, 128, 17, 1, 0, 0, 0, 129, 130, 5, 12, 0,
+		0, 130, 135, 3, 16, 8, 0, 131, 132, 5, 29, 0, 0, 132, 134, 3, 16, 8, 0,
+		133, 131, 1, 0, 0, 0, 134, 137, 1, 0, 0, 0, 135, 133, 1, 0, 0, 0, 135,
 		136, 1, 0, 0, 0, 136, 138, 1, 0, 0, 0, 137, 135, 1, 0, 0, 0, 138, 139,
 		5, 13, 0, 0, 139, 19, 1, 0, 0, 0, 140, 141, 6, 10, -1, 0, 141, 150, 5,
 		30, 0, 0, 142, 150, 3, 16, 8, 0, 143, 150, 3, 12, 6, 0, 144, 150, 3, 24,
@@ -124,8 +130,8 @@ func eqlParserInit() {
 		3, 20, 10, 3, 154, 155, 10, 1, 0, 0, 155, 156, 7, 7, 0, 0, 156, 158, 3,
 		20, 10, 2, 157, 151, 1, 0, 0, 0, 157, 154, 1, 0, 0, 0, 158, 161, 1, 0,
 		0, 0, 159, 157, 1, 0, 0, 0, 159, 160, 1, 0, 0, 0, 160, 21, 1, 0, 0, 0,
-		161, 159, 1, 0, 0, 0, 162, 163, 5, 36, 0, 0, 163, 174, 5, 48, 0, 0, 164,
-		165, 5, 37, 0, 0, 165, 174, 5, 48, 0, 0, 166, 174, 5, 38, 0, 0, 167, 168,
+		161, 159, 1, 0, 0, 0, 162, 163, 5, 36, 0, 0, 163, 174, 5, 67, 0, 0, 164,
+		165, 5, 37, 0, 0, 165, 174, 5, 67, 0, 0, 166, 174, 5, 38, 0, 0, 167, 168,
 		5, 39, 0, 0, 168, 174, 3, 14, 7, 0, 169, 170, 5, 40, 0, 0, 170, 174, 3,
 		8, 4, 0, 171, 172, 5, 41, 0, 0, 172, 174, 3, 14, 7, 0, 173, 162, 1, 0,
 		0, 0, 173, 164, 1, 0, 0, 0, 173, 166, 1, 0, 0, 0, 173, 167, 1, 0, 0, 0,
@@ -134,10 +140,9 @@ func eqlParserInit() {
 		5, 29, 0, 0, 179, 181, 3, 20, 10, 0, 180, 178, 1, 0, 0, 0, 181, 184, 1,
 		0, 0, 0, 182, 180, 1, 0, 0, 0, 182, 183, 1, 0, 0, 0, 183, 185, 1, 0, 0,
 		0, 184, 182, 1, 0, 0, 0, 185, 186, 5, 13, 0, 0, 186, 25, 1, 0, 0, 0, 187,
-		191, 5, 52, 0, 0, 188, 189, 5, 52, 0, 0, 189, 191, 5, 42, 0, 0, 190, 187,
-		1, 0, 0, 0, 190, 188, 1, 0, 0, 0, 191, 27, 1, 0, 0, 0, 192, 193, 5, 47,
-		0, 0, 193, 29, 1, 0, 0, 0, 17, 33, 39, 51, 57, 64, 68, 79, 105, 112, 124,
-		135, 149, 157, 159, 173, 182, 190,
+		188, 7, 8, 0, 0, 188, 27, 1, 0, 0, 0, 189, 190, 5, 66, 0, 0, 190, 29, 1,
+		0, 0, 0, 16, 33, 39, 51, 57, 64, 68, 79, 105, 112, 124, 135, 149, 157,
+		159, 173, 182,
 	}
 	deserializer := antlr.NewATNDeserializer(nil)
 	staticData.atn = deserializer.Deserialize(staticData.serializedATN)
@@ -218,16 +223,35 @@ const (
 	EQLParserT__39             = 40
 	EQLParserT__40             = 41
 	EQLParserT__41             = 42
-	EQLParserANY               = 43
-	EQLParserMULTILINE_COMMENT = 44
-	EQLParserONELINE_COMMNET   = 45
-	EQLParserBOOLEAN           = 46
-	EQLParserINTERVAL          = 47
-	EQLParserNUMBER            = 48
-	EQLParserESC               = 49
-	EQLParserSTRING            = 50
-	EQLParserWS                = 51
-	EQLParserID                = 52
+	EQLParserT__42             = 43
+	EQLParserT__43             = 44
+	EQLParserT__44             = 45
+	EQLParserT__45             = 46
+	EQLParserT__46             = 47
+	EQLParserT__47             = 48
+	EQLParserT__48             = 49
+	EQLParserT__49             = 50
+	EQLParserT__50             = 51
+	EQLParserT__51             = 52
+	EQLParserT__52             = 53
+	EQLParserT__53             = 54
+	EQLParserT__54             = 55
+	EQLParserT__55             = 56
+	EQLParserT__56             = 57
+	EQLParserT__57             = 58
+	EQLParserT__58             = 59
+	EQLParserT__59             = 60
+	EQLParserT__60             = 61
+	EQLParserANY               = 62
+	EQLParserMULTILINE_COMMENT = 63
+	EQLParserONELINE_COMMNET   = 64
+	EQLParserBOOLEAN           = 65
+	EQLParserINTERVAL          = 66
+	EQLParserNUMBER            = 67
+	EQLParserESC               = 68
+	EQLParserSTRING            = 69
+	EQLParserWS                = 70
+	EQLParserID                = 71
 )
 
 // EQLParser rules.
@@ -2274,7 +2298,7 @@ func (p *EQLParser) Category() (localctx ICategoryContext) {
 		p.SetState(115)
 		_la = p.GetTokenStream().LA(1)
 
-		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&5638295627235328) != 0) {
+		if !((int64((_la-62)) & ^0x3f) == 0 && ((int64(1)<<(_la-62))&641) != 0) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
@@ -2677,7 +2701,7 @@ func (p *EQLParser) Literal() (localctx ILiteralContext) {
 		p.SetState(127)
 		_la = p.GetTokenStream().LA(1)
 
-		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&1477743627730944) != 0) {
+		if !((int64((_la-65)) & ^0x3f) == 0 && ((int64(1)<<(_la-65))&21) != 0) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
@@ -3422,8 +3446,8 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 		goto errorExit
 	}
 
-	switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 11, p.GetParserRuleContext()) {
-	case 1:
+	switch p.GetTokenStream().LA(1) {
+	case EQLParserT__29:
 		localctx = NewValueNullContext(p, localctx)
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
@@ -3437,7 +3461,7 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 			}
 		}
 
-	case 2:
+	case EQLParserBOOLEAN, EQLParserNUMBER, EQLParserSTRING:
 		localctx = NewValueLiteralContext(p, localctx)
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
@@ -3446,7 +3470,7 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 			p.Literal()
 		}
 
-	case 3:
+	case EQLParserID:
 		localctx = NewValueFieldContext(p, localctx)
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
@@ -3455,7 +3479,7 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 			p.Field()
 		}
 
-	case 4:
+	case EQLParserT__41, EQLParserT__42, EQLParserT__43, EQLParserT__44, EQLParserT__45, EQLParserT__46, EQLParserT__47, EQLParserT__48, EQLParserT__49, EQLParserT__50, EQLParserT__51, EQLParserT__52, EQLParserT__53, EQLParserT__54, EQLParserT__55, EQLParserT__56, EQLParserT__57, EQLParserT__58, EQLParserT__59, EQLParserT__60:
 		localctx = NewValueFuncallContext(p, localctx)
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
@@ -3464,7 +3488,7 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 			p.Funcall()
 		}
 
-	case 5:
+	case EQLParserT__11:
 		localctx = NewValueGroupContext(p, localctx)
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
@@ -3489,7 +3513,8 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 			}
 		}
 
-	case antlr.ATNInvalidAltNumber:
+	default:
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
 		goto errorExit
 	}
 	p.GetParserRuleContext().SetStop(p.GetTokenStream().LT(-1))
@@ -4315,10 +4340,6 @@ type IFuncNameContext interface {
 
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
-
-	// Getter signatures
-	ID() antlr.TerminalNode
-
 	// IsFuncNameContext differentiates from other interfaces.
 	IsFuncNameContext()
 }
@@ -4354,11 +4375,6 @@ func NewFuncNameContext(parser antlr.Parser, parent antlr.ParserRuleContext, inv
 }
 
 func (s *FuncNameContext) GetParser() antlr.Parser { return s.parser }
-
-func (s *FuncNameContext) ID() antlr.TerminalNode {
-	return s.GetToken(EQLParserID, 0)
-}
-
 func (s *FuncNameContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
@@ -4392,45 +4408,19 @@ func (s *FuncNameContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 func (p *EQLParser) FuncName() (localctx IFuncNameContext) {
 	localctx = NewFuncNameContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 26, EQLParserRULE_funcName)
-	p.SetState(190)
-	p.GetErrorHandler().Sync(p)
-	if p.HasError() {
-		goto errorExit
-	}
+	var _la int
 
-	switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 16, p.GetParserRuleContext()) {
-	case 1:
-		p.EnterOuterAlt(localctx, 1)
-		{
-			p.SetState(187)
-			p.Match(EQLParserID)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
-		}
+	p.EnterOuterAlt(localctx, 1)
+	{
+		p.SetState(187)
+		_la = p.GetTokenStream().LA(1)
 
-	case 2:
-		p.EnterOuterAlt(localctx, 2)
-		{
-			p.SetState(188)
-			p.Match(EQLParserID)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
+		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&4611681620380876800) != 0) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
 		}
-		{
-			p.SetState(189)
-			p.Match(EQLParserT__41)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
-		}
-
-	case antlr.ATNInvalidAltNumber:
-		goto errorExit
 	}
 
 errorExit:
@@ -4533,7 +4523,7 @@ func (p *EQLParser) Interval() (localctx IIntervalContext) {
 	p.EnterRule(localctx, 28, EQLParserRULE_interval)
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(192)
+		p.SetState(189)
 		p.Match(EQLParserINTERVAL)
 		if p.HasError() {
 			// Recognition error - abort rule
