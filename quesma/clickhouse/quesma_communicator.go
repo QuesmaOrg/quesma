@@ -26,21 +26,28 @@ func (lm *LogManager) Query(ctx context.Context, query string) (*sql.Rows, error
 	return rows, err
 }
 
-// ProcessSimpleSelectQuery - only WHERE clause
+// ProcessQuery - only WHERE clause
 // TODO query param should be type safe Query representing all parts of
 // sql statement that were already parsed and not string from which
 // we have to extract again different parts like where clause and columns to build a proper result
-func (lm *LogManager) ProcessSelectQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
+func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
 	colNames, err := table.extractColumns(query, false)
 	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
 		return nil, err
 	}
+
 	resultColumns, err := table.extractColumns(query, true)
 	if err != nil {
 		return nil, err
 	}
-	return executeQuery(ctx, lm, table.Name, query.StringFromColumns(colNames), resultColumns, rowToScan)
+	rows, err := executeQuery(ctx, lm, table.Name, query.StringFromColumns(colNames), resultColumns, rowToScan)
+	if err == nil {
+		for _, row := range rows {
+			row.Index = table.Name
+		}
+	}
+	return rows, err
 }
 
 // TODO add support for autocomplete for attributes, if we'll find it needed
@@ -110,16 +117,6 @@ func executeQuery(ctx context.Context, lm *LogManager, tableName string, queryAs
 	}
 
 	return res, err
-}
-
-func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
-	colNames, err := table.extractColumns(query, false)
-	if err != nil {
-		return nil, err
-	}
-	rowToScanLen := len(colNames) + len(query.NonSchemaFields)
-	rowToScan := make([]interface{}, rowToScanLen)
-	return executeQuery(ctx, lm, table.Name, query.StringFromColumns(colNames), colNames, rowToScan)
 }
 
 // 'selectFields' are all values that we return from the query, both columns and non-schema fields,
