@@ -2,5 +2,5 @@ GET http://localhost:8080/windows_logs/_eql/search
 Content-type: application/json
 
 {
-  "query": "process where  true"
+  "query": "process where true"
 }

@@ -60,7 +60,7 @@ Supported functions
 |-------------------|--------------------|----------------------------------------|
 | `add`             | :heavy_check_mark: |                                        |
 | `between`         | :x:                |                                        |
-| `cidrMatch`       | :question:         |                                        |
+| `cidrMatch`       | :cockroach:        |                                        |
 | `concat`          | :heavy_check_mark: |                                        |
 | `divide`          | :cockroach:        | division of integers should be rounded |
 | `endsWith`        | :heavy_check_mark: |                                        |
@@ -77,7 +77,7 @@ Supported functions
 | `stringContains`  | :cockroach:        |                                        |
 | `stringContains~` | :cockroach:        |                                        |
 | `substring`       | :cockroach:        |                                        |
-| `subtract`       | :heavy_check_mark: |                                        |
+| `subtract`        | :heavy_check_mark: |                                        |
 
 
 
@@ -89,5 +89,5 @@ Known limitations
 2. Pipe operators are not supported. Syntax is parsed. Error is returned if pipe operator is used in the query. (https://www.elastic.co/guide/en/elasticsearch/reference/current/eql-syntax.html#eql-pipes)
 3. Optional fields are not supported. Field names are parsed. Error is returned if that field is used in the query. (https://www.elastic.co/guide/en/elasticsearch/reference/current/eql-syntax.html#eql-syntax-optional-fields)
 4. Backtick escaping is not supported. (https://www.elastic.co/guide/en/elasticsearch/reference/current/eql-syntax.html#eql-syntax-escape-a-field-name)
-5. Error handling is missing. Every error will be returned as a internal server error.
+5. Error handling is missing. Every error will be returned as na internal server error.
 
