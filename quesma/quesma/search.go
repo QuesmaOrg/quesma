@@ -543,7 +543,7 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggrega
 	for _, agg := range aggregations {
 		logger.InfoWithCtx(ctx).Msg(agg.String()) // I'd keep for now until aggregations work fully
 		sqls += agg.Query.String() + "\n"
-		rows, err := q.logManager.ProcessGeneralAggregationQuery(dbQueryCtx, table, &agg.Query)
+		rows, err := q.logManager.ProcessQuery(dbQueryCtx, table, &agg.Query)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			continue

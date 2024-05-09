@@ -36,13 +36,11 @@ func (lm *LogManager) ProcessSelectQuery(ctx context.Context, table *Table, quer
 	if err != nil {
 		return nil, err
 	}
-	rows, err := executeQuery(ctx, lm, table.Name, query.StringFromColumns(colNames), append(colNames, query.NonSchemaFields...), rowToScan)
-	if err == nil {
-		for _, row := range rows {
-			row.Index = table.Name
-		}
+	resultColumns, err := table.extractColumns(query, true)
+	if err != nil {
+		return nil, err
 	}
-	return rows, err
+	return executeQuery(ctx, lm, table.Name, query.StringFromColumns(colNames), resultColumns, rowToScan)
 }
 
 // TODO add support for autocomplete for attributes, if we'll find it needed
@@ -114,22 +112,14 @@ func executeQuery(ctx context.Context, lm *LogManager, tableName string, queryAs
 	return res, err
 }
 
-func (lm *LogManager) ProcessAutocompleteSuggestionsQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
+func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
 	colNames, err := table.extractColumns(query, false)
 	if err != nil {
 		return nil, err
 	}
-	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
-	return executeQuery(ctx, lm, table.Name, query.String(), query.Fields, rowToScan)
-}
-
-func (lm *LogManager) ProcessGeneralAggregationQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
-	colNames, err := table.extractColumns(query, true)
-	if err != nil {
-		return nil, err
-	}
-	rowToScan := make([]interface{}, len(colNames))
-	return executeQuery(ctx, lm, table.Name, query.String(), colNames, rowToScan)
+	rowToScanLen := len(colNames) + len(query.NonSchemaFields)
+	rowToScan := make([]interface{}, rowToScanLen)
+	return executeQuery(ctx, lm, table.Name, query.StringFromColumns(colNames), colNames, rowToScan)
 }
 
 // 'selectFields' are all values that we return from the query, both columns and non-schema fields,
