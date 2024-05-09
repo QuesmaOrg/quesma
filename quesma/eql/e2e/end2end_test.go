@@ -52,7 +52,7 @@ func TestE2E(t *testing.T) {
 		`process where event.type in ("start", "stop")`,
 		`process where event.type in~ ("STaRT", "StOP")`,
 		`process where event.type not in ("start", "stop")`,
-		`-- process where event.type not in~ ("STaRT", "StOP")`, // FIXME THIS IS A BUG,  quesma retured: 3 but elastic returned: 1
+		`process where event.type not in~ ("STaRT", "StOP")`, // FIXME THIS IS A BUG,  quesma retured: 3 but elastic returned: 1
 
 		`process where process.name != string(1)`,
 		`process where process.name == null`,

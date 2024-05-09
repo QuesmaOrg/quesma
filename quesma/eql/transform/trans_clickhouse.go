@@ -105,7 +105,12 @@ func (t *ClickhouseTransformer) VisitInfixOp(e *InfixOp) interface{} {
 
 		return NewInfixOp(op, left, right)
 
-	case "in~":
+	case "not in~", "in~":
+
+		targetOp := "IN"
+		if op == "not in~" {
+			targetOp = "NOT IN"
+		}
 
 		if array, ok := right.(*Array); ok {
 
@@ -113,12 +118,12 @@ func (t *ClickhouseTransformer) VisitInfixOp(e *InfixOp) interface{} {
 				return t.clickhouseLower(e)
 			}
 
-			return NewInfixOp("IN",
+			return NewInfixOp(targetOp,
 				t.clickhouseLower(left),
 				NewArray(mapExp(fn, array.Values)...))
 		}
 
-		return NewInfixOp("IN", t.clickhouseLower(left), right)
+		return t.error(op + " operator requires a list of values")
 
 	case "like":
 

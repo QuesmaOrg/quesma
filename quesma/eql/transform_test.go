@@ -94,9 +94,8 @@ func TestTransform(t *testing.T) {
 		{"any where process.name not in (\"foo\", \"BAR\", \"BAZ\")",
 			"(process.name NOT IN ('foo', 'BAR', 'BAZ'))"},
 
-		// FIXME implementation
 		{"any where process.name not in~ (\"foo\", \"bar\", \"baz\")",
-			"TODO (lower(process.name) NOT IN (lower('foo'), lower('bar'), lower('baz')))"},
+			"(lower(process.name) NOT IN (lower('foo'), lower('bar'), lower('baz')))"},
 
 		{"any where process.name : (\"foo\", \"bar\", \"baz\") ",
 			"((process.name ILIKE 'foo') OR ((process.name ILIKE 'bar') OR (process.name ILIKE 'baz')))"},
