@@ -36,7 +36,7 @@ const (
 	printInterval = 5 * time.Second
 )
 
-const query = `
+var queries = []string{`
 {
 	"_source": false,
 	"fields": [
@@ -110,7 +110,7 @@ const query = `
 	"track_total_hits": false,
 	"version": true
 }
-`
+`}
 
 const kibanaInternalLog = `
 {
@@ -182,7 +182,7 @@ func main() {
 		reportUri := waitForScheduleReportGeneration()
 		waitForLogsInClickhouse("logs-generic-default", time.Minute)
 		println("   Logs in Clickhouse: OK")
-		waitForAsyncQuery(time.Minute)
+		waitForAsyncQuery(time.Minute, queries)
 		println("   AsyncQuery: OK")
 		waitForKibanaLogExplorer("kibana LogExplorer", time.Minute)
 		println("   Kibana LogExplorer: OK")
@@ -424,36 +424,38 @@ func waitForLogsInElasticsearchRaw(serviceName, url string, quesmaSource bool, t
 	}
 }
 
-func waitForAsyncQuery(timeout time.Duration) {
+func waitForAsyncQuery(timeout time.Duration, queries []string) {
 	serviceName := "async query"
-	res := waitFor(serviceName, func() bool {
-		resp, err := http.Post(asyncQueryUrl, "application/json", bytes.NewBuffer([]byte(query)))
+	for _, query := range queries {
+		res := waitFor(serviceName, func() bool {
+			resp, err := http.Post(asyncQueryUrl, "application/json", bytes.NewBuffer([]byte(query)))
 
-		if err == nil {
-			defer resp.Body.Close()
-			if resp.StatusCode == 200 {
-				body, err := io.ReadAll(resp.Body)
-				if err == nil {
-					var response map[string]interface{}
-					_ = json.Unmarshal(body, &response)
+			if err == nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == 200 {
+					body, err := io.ReadAll(resp.Body)
+					if err == nil {
+						var response map[string]interface{}
+						_ = json.Unmarshal(body, &response)
 
-					if response["completion_time_in_millis"] != nil {
-						if sourceClickhouse(resp) {
-							return true
-						} else {
-							panic("invalid X-Quesma-Source header value")
+						if response["completion_time_in_millis"] != nil {
+							if sourceClickhouse(resp) {
+								return true
+							} else {
+								panic("invalid X-Quesma-Source header value")
+							}
 						}
+					} else {
+						log.Println(err)
 					}
-				} else {
-					log.Println(err)
 				}
 			}
-		}
-		return false
-	}, timeout)
+			return false
+		}, timeout)
 
-	if !res {
-		panic(serviceName + " is not alive or is not receiving logs")
+		if !res {
+			panic(serviceName + " is not alive or is not receiving logs")
+		}
 	}
 }
 
