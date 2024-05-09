@@ -19,11 +19,11 @@ type EQLVisitor interface {
 	// Visit a parse tree produced by EQLParser#sampleQuery.
 	VisitSampleQuery(ctx *SampleQueryContext) interface{}
 
-	// Visit a parse tree produced by EQLParser#ConditionOp.
-	VisitConditionOp(ctx *ConditionOpContext) interface{}
+	// Visit a parse tree produced by EQLParser#LookupOpList.
+	VisitLookupOpList(ctx *LookupOpListContext) interface{}
 
-	// Visit a parse tree produced by EQLParser#ConditionOpList.
-	VisitConditionOpList(ctx *ConditionOpListContext) interface{}
+	// Visit a parse tree produced by EQLParser#ComparisonOp.
+	VisitComparisonOp(ctx *ComparisonOpContext) interface{}
 
 	// Visit a parse tree produced by EQLParser#ConditionNotFuncall.
 	VisitConditionNotFuncall(ctx *ConditionNotFuncallContext) interface{}
@@ -34,8 +34,8 @@ type EQLVisitor interface {
 	// Visit a parse tree produced by EQLParser#ConditionNot.
 	VisitConditionNot(ctx *ConditionNotContext) interface{}
 
-	// Visit a parse tree produced by EQLParser#ConditionNotIn.
-	VisitConditionNotIn(ctx *ConditionNotInContext) interface{}
+	// Visit a parse tree produced by EQLParser#LookupNotOpList.
+	VisitLookupNotOpList(ctx *LookupNotOpListContext) interface{}
 
 	// Visit a parse tree produced by EQLParser#ConditionLogicalOp.
 	VisitConditionLogicalOp(ctx *ConditionLogicalOpContext) interface{}
