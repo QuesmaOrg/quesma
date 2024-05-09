@@ -16,7 +16,6 @@ heap.out
 **/terraform.tfstate*
 **/.terraform.tfstate*
 **/.terraform
-docker/ngrok/ngrok.yml
 docker/security/ca
 docker/security/es.local
 docker/security/certificate-bundle.zip
