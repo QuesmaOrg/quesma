@@ -474,7 +474,7 @@ func waitForLogsInElasticsearchRaw(serviceName, url string, quesmaSource bool, t
 func checkLogs() {
 	content, err := os.ReadFile("/var/quesma/logs/quesma.log")
 	if err != nil {
-		fmt.Println("Error reading file:", err)
+		panic("Error reading file:" + err.Error())
 		return
 	}
 
