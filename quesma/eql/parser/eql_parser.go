@@ -32,100 +32,112 @@ var EQLParserStaticData struct {
 func eqlParserInit() {
 	staticData := &EQLParserStaticData
 	staticData.LiteralNames = []string{
-		"", "'where'", "'sequence'", "'by'", "'with'", "'maxspan'", "'='", "'['",
-		"']'", "'sample'", "'not'", "'('", "')'", "'=='", "'!='", "'>'", "'<'",
-		"'>='", "'<='", "':'", "'like'", "'like~'", "'regex'", "'regex~'", "'in'",
-		"'in~'", "'and'", "'or'", "','", "'null'", "'*'", "'/'", "'%'", "'+'",
-		"'-'", "'~'", "'any'",
+		"", "'|'", "'where'", "'sequence'", "'by'", "'with'", "'maxspan'", "'='",
+		"'['", "']'", "'sample'", "'not'", "'('", "')'", "'=='", "'!='", "'>'",
+		"'<'", "'>='", "'<='", "':'", "'like'", "'like~'", "'regex'", "'regex~'",
+		"'in'", "'in~'", "'and'", "'or'", "','", "'null'", "'*'", "'/'", "'%'",
+		"'+'", "'-'", "'head'", "'tail'", "'count'", "'unique'", "'filter'",
+		"'sort'", "'~'", "'any'",
 	}
 	staticData.SymbolicNames = []string{
 		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
 		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-		"", "", "ANY", "MULTILINE_COMMENT", "ONELINE_COMMNET", "BOOLEAN", "INTERVAL",
-		"NUMBER", "ESC", "STRING", "WS", "ID",
+		"", "", "", "", "", "", "", "", "", "ANY", "MULTILINE_COMMENT", "ONELINE_COMMNET",
+		"BOOLEAN", "INTERVAL", "NUMBER", "ESC", "STRING", "WS", "ID",
 	}
 	staticData.RuleNames = []string{
 		"query", "simpleQuery", "sequenceQuery", "sampleQuery", "condition",
 		"category", "field", "fieldList", "literal", "literalList", "value",
-		"funcall", "funcName", "interval",
+		"pipe", "funcall", "funcName", "interval",
 	}
 	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
-		4, 1, 45, 173, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 1, 52, 195, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
 		4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2, 10, 7,
-		10, 2, 11, 7, 11, 2, 12, 7, 12, 2, 13, 7, 13, 1, 0, 1, 0, 1, 0, 3, 0, 32,
-		8, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 3, 2, 43, 8,
-		2, 1, 2, 1, 2, 1, 2, 1, 2, 3, 2, 49, 8, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2,
-		3, 2, 56, 8, 2, 4, 2, 58, 8, 2, 11, 2, 12, 2, 59, 1, 3, 1, 3, 1, 3, 1,
-		3, 1, 3, 1, 3, 1, 3, 4, 3, 69, 8, 3, 11, 3, 12, 3, 70, 1, 4, 1, 4, 1, 4,
-		1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4,
-		1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 3, 4, 97, 8, 4, 1,
-		4, 1, 4, 1, 4, 5, 4, 102, 8, 4, 10, 4, 12, 4, 105, 9, 4, 1, 5, 1, 5, 1,
-		6, 1, 6, 1, 7, 1, 7, 1, 7, 5, 7, 114, 8, 7, 10, 7, 12, 7, 117, 9, 7, 1,
-		8, 1, 8, 1, 9, 1, 9, 1, 9, 1, 9, 5, 9, 125, 8, 9, 10, 9, 12, 9, 128, 9,
+		10, 2, 11, 7, 11, 2, 12, 7, 12, 2, 13, 7, 13, 2, 14, 7, 14, 1, 0, 1, 0,
+		1, 0, 3, 0, 34, 8, 0, 1, 0, 1, 0, 5, 0, 38, 8, 0, 10, 0, 12, 0, 41, 9,
+		0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 3, 2, 52, 8, 2,
+		1, 2, 1, 2, 1, 2, 1, 2, 3, 2, 58, 8, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 3,
+		2, 65, 8, 2, 4, 2, 67, 8, 2, 11, 2, 12, 2, 68, 1, 3, 1, 3, 1, 3, 1, 3,
+		1, 3, 1, 3, 1, 3, 4, 3, 78, 8, 3, 11, 3, 12, 3, 79, 1, 4, 1, 4, 1, 4, 1,
+		4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1,
+		4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 3, 4, 106, 8, 4, 1,
+		4, 1, 4, 1, 4, 5, 4, 111, 8, 4, 10, 4, 12, 4, 114, 9, 4, 1, 5, 1, 5, 1,
+		6, 1, 6, 1, 7, 1, 7, 1, 7, 5, 7, 123, 8, 7, 10, 7, 12, 7, 126, 9, 7, 1,
+		8, 1, 8, 1, 9, 1, 9, 1, 9, 1, 9, 5, 9, 134, 8, 9, 10, 9, 12, 9, 137, 9,
 		9, 1, 9, 1, 9, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10,
-		1, 10, 3, 10, 141, 8, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 5,
-		10, 149, 8, 10, 10, 10, 12, 10, 152, 9, 10, 1, 11, 1, 11, 1, 11, 1, 11,
-		1, 11, 5, 11, 159, 8, 11, 10, 11, 12, 11, 162, 9, 11, 1, 11, 1, 11, 1,
-		12, 1, 12, 1, 12, 3, 12, 169, 8, 12, 1, 13, 1, 13, 1, 13, 0, 2, 8, 20,
-		14, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 0, 8, 1, 0, 13,
-		23, 1, 0, 24, 25, 1, 0, 19, 25, 1, 0, 26, 27, 3, 0, 36, 36, 43, 43, 45,
-		45, 3, 0, 39, 39, 41, 41, 43, 43, 1, 0, 30, 32, 1, 0, 33, 34, 183, 0, 31,
-		1, 0, 0, 0, 2, 35, 1, 0, 0, 0, 4, 39, 1, 0, 0, 0, 6, 61, 1, 0, 0, 0, 8,
-		96, 1, 0, 0, 0, 10, 106, 1, 0, 0, 0, 12, 108, 1, 0, 0, 0, 14, 110, 1, 0,
-		0, 0, 16, 118, 1, 0, 0, 0, 18, 120, 1, 0, 0, 0, 20, 140, 1, 0, 0, 0, 22,
-		153, 1, 0, 0, 0, 24, 168, 1, 0, 0, 0, 26, 170, 1, 0, 0, 0, 28, 32, 3, 2,
-		1, 0, 29, 32, 3, 4, 2, 0, 30, 32, 3, 6, 3, 0, 31, 28, 1, 0, 0, 0, 31, 29,
-		1, 0, 0, 0, 31, 30, 1, 0, 0, 0, 32, 33, 1, 0, 0, 0, 33, 34, 5, 0, 0, 1,
-		34, 1, 1, 0, 0, 0, 35, 36, 3, 10, 5, 0, 36, 37, 5, 1, 0, 0, 37, 38, 3,
-		8, 4, 0, 38, 3, 1, 0, 0, 0, 39, 42, 5, 2, 0, 0, 40, 41, 5, 3, 0, 0, 41,
-		43, 3, 14, 7, 0, 42, 40, 1, 0, 0, 0, 42, 43, 1, 0, 0, 0, 43, 48, 1, 0,
-		0, 0, 44, 45, 5, 4, 0, 0, 45, 46, 5, 5, 0, 0, 46, 47, 5, 6, 0, 0, 47, 49,
-		3, 26, 13, 0, 48, 44, 1, 0, 0, 0, 48, 49, 1, 0, 0, 0, 49, 57, 1, 0, 0,
-		0, 50, 51, 5, 7, 0, 0, 51, 52, 3, 2, 1, 0, 52, 55, 5, 8, 0, 0, 53, 54,
-		5, 3, 0, 0, 54, 56, 3, 14, 7, 0, 55, 53, 1, 0, 0, 0, 55, 56, 1, 0, 0, 0,
-		56, 58, 1, 0, 0, 0, 57, 50, 1, 0, 0, 0, 58, 59, 1, 0, 0, 0, 59, 57, 1,
-		0, 0, 0, 59, 60, 1, 0, 0, 0, 60, 5, 1, 0, 0, 0, 61, 62, 5, 9, 0, 0, 62,
-		63, 5, 3, 0, 0, 63, 68, 3, 14, 7, 0, 64, 65, 5, 7, 0, 0, 65, 66, 3, 2,
-		1, 0, 66, 67, 5, 8, 0, 0, 67, 69, 1, 0, 0, 0, 68, 64, 1, 0, 0, 0, 69, 70,
-		1, 0, 0, 0, 70, 68, 1, 0, 0, 0, 70, 71, 1, 0, 0, 0, 71, 7, 1, 0, 0, 0,
-		72, 73, 6, 4, -1, 0, 73, 97, 5, 39, 0, 0, 74, 75, 5, 10, 0, 0, 75, 97,
-		3, 8, 4, 8, 76, 77, 5, 11, 0, 0, 77, 78, 3, 8, 4, 0, 78, 79, 5, 12, 0,
-		0, 79, 97, 1, 0, 0, 0, 80, 81, 3, 20, 10, 0, 81, 82, 7, 0, 0, 0, 82, 83,
-		3, 20, 10, 0, 83, 97, 1, 0, 0, 0, 84, 85, 3, 12, 6, 0, 85, 86, 5, 10, 0,
-		0, 86, 87, 7, 1, 0, 0, 87, 88, 3, 18, 9, 0, 88, 97, 1, 0, 0, 0, 89, 90,
-		3, 12, 6, 0, 90, 91, 7, 2, 0, 0, 91, 92, 3, 18, 9, 0, 92, 97, 1, 0, 0,
-		0, 93, 97, 3, 22, 11, 0, 94, 95, 5, 10, 0, 0, 95, 97, 3, 22, 11, 0, 96,
-		72, 1, 0, 0, 0, 96, 74, 1, 0, 0, 0, 96, 76, 1, 0, 0, 0, 96, 80, 1, 0, 0,
-		0, 96, 84, 1, 0, 0, 0, 96, 89, 1, 0, 0, 0, 96, 93, 1, 0, 0, 0, 96, 94,
-		1, 0, 0, 0, 97, 103, 1, 0, 0, 0, 98, 99, 10, 3, 0, 0, 99, 100, 7, 3, 0,
-		0, 100, 102, 3, 8, 4, 4, 101, 98, 1, 0, 0, 0, 102, 105, 1, 0, 0, 0, 103,
-		101, 1, 0, 0, 0, 103, 104, 1, 0, 0, 0, 104, 9, 1, 0, 0, 0, 105, 103, 1,
-		0, 0, 0, 106, 107, 7, 4, 0, 0, 107, 11, 1, 0, 0, 0, 108, 109, 5, 45, 0,
-		0, 109, 13, 1, 0, 0, 0, 110, 115, 3, 12, 6, 0, 111, 112, 5, 28, 0, 0, 112,
-		114, 3, 12, 6, 0, 113, 111, 1, 0, 0, 0, 114, 117, 1, 0, 0, 0, 115, 113,
-		1, 0, 0, 0, 115, 116, 1, 0, 0, 0, 116, 15, 1, 0, 0, 0, 117, 115, 1, 0,
-		0, 0, 118, 119, 7, 5, 0, 0, 119, 17, 1, 0, 0, 0, 120, 121, 5, 11, 0, 0,
-		121, 126, 3, 16, 8, 0, 122, 123, 5, 28, 0, 0, 123, 125, 3, 16, 8, 0, 124,
-		122, 1, 0, 0, 0, 125, 128, 1, 0, 0, 0, 126, 124, 1, 0, 0, 0, 126, 127,
-		1, 0, 0, 0, 127, 129, 1, 0, 0, 0, 128, 126, 1, 0, 0, 0, 129, 130, 5, 12,
-		0, 0, 130, 19, 1, 0, 0, 0, 131, 132, 6, 10, -1, 0, 132, 141, 5, 29, 0,
-		0, 133, 141, 3, 16, 8, 0, 134, 141, 3, 12, 6, 0, 135, 141, 3, 22, 11, 0,
-		136, 137, 5, 11, 0, 0, 137, 138, 3, 20, 10, 0, 138, 139, 5, 12, 0, 0, 139,
-		141, 1, 0, 0, 0, 140, 131, 1, 0, 0, 0, 140, 133, 1, 0, 0, 0, 140, 134,
-		1, 0, 0, 0, 140, 135, 1, 0, 0, 0, 140, 136, 1, 0, 0, 0, 141, 150, 1, 0,
-		0, 0, 142, 143, 10, 2, 0, 0, 143, 144, 7, 6, 0, 0, 144, 149, 3, 20, 10,
-		3, 145, 146, 10, 1, 0, 0, 146, 147, 7, 7, 0, 0, 147, 149, 3, 20, 10, 2,
-		148, 142, 1, 0, 0, 0, 148, 145, 1, 0, 0, 0, 149, 152, 1, 0, 0, 0, 150,
-		148, 1, 0, 0, 0, 150, 151, 1, 0, 0, 0, 151, 21, 1, 0, 0, 0, 152, 150, 1,
-		0, 0, 0, 153, 154, 3, 24, 12, 0, 154, 155, 5, 11, 0, 0, 155, 160, 3, 20,
-		10, 0, 156, 157, 5, 28, 0, 0, 157, 159, 3, 20, 10, 0, 158, 156, 1, 0, 0,
-		0, 159, 162, 1, 0, 0, 0, 160, 158, 1, 0, 0, 0, 160, 161, 1, 0, 0, 0, 161,
-		163, 1, 0, 0, 0, 162, 160, 1, 0, 0, 0, 163, 164, 5, 12, 0, 0, 164, 23,
-		1, 0, 0, 0, 165, 169, 5, 45, 0, 0, 166, 167, 5, 45, 0, 0, 167, 169, 5,
-		35, 0, 0, 168, 165, 1, 0, 0, 0, 168, 166, 1, 0, 0, 0, 169, 25, 1, 0, 0,
-		0, 170, 171, 5, 40, 0, 0, 171, 27, 1, 0, 0, 0, 15, 31, 42, 48, 55, 59,
-		70, 96, 103, 115, 126, 140, 148, 150, 160, 168,
+		1, 10, 3, 10, 150, 8, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 5,
+		10, 158, 8, 10, 10, 10, 12, 10, 161, 9, 10, 1, 11, 1, 11, 1, 11, 1, 11,
+		1, 11, 1, 11, 1, 11, 1, 11, 1, 11, 1, 11, 1, 11, 3, 11, 174, 8, 11, 1,
+		12, 1, 12, 1, 12, 1, 12, 1, 12, 5, 12, 181, 8, 12, 10, 12, 12, 12, 184,
+		9, 12, 1, 12, 1, 12, 1, 13, 1, 13, 1, 13, 3, 13, 191, 8, 13, 1, 14, 1,
+		14, 1, 14, 0, 2, 8, 20, 15, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22,
+		24, 26, 28, 0, 8, 1, 0, 14, 24, 1, 0, 25, 26, 1, 0, 20, 26, 1, 0, 27, 28,
+		3, 0, 43, 43, 50, 50, 52, 52, 3, 0, 46, 46, 48, 48, 50, 50, 1, 0, 31, 33,
+		1, 0, 34, 35, 210, 0, 33, 1, 0, 0, 0, 2, 44, 1, 0, 0, 0, 4, 48, 1, 0, 0,
+		0, 6, 70, 1, 0, 0, 0, 8, 105, 1, 0, 0, 0, 10, 115, 1, 0, 0, 0, 12, 117,
+		1, 0, 0, 0, 14, 119, 1, 0, 0, 0, 16, 127, 1, 0, 0, 0, 18, 129, 1, 0, 0,
+		0, 20, 149, 1, 0, 0, 0, 22, 173, 1, 0, 0, 0, 24, 175, 1, 0, 0, 0, 26, 190,
+		1, 0, 0, 0, 28, 192, 1, 0, 0, 0, 30, 34, 3, 2, 1, 0, 31, 34, 3, 4, 2, 0,
+		32, 34, 3, 6, 3, 0, 33, 30, 1, 0, 0, 0, 33, 31, 1, 0, 0, 0, 33, 32, 1,
+		0, 0, 0, 34, 39, 1, 0, 0, 0, 35, 36, 5, 1, 0, 0, 36, 38, 3, 22, 11, 0,
+		37, 35, 1, 0, 0, 0, 38, 41, 1, 0, 0, 0, 39, 37, 1, 0, 0, 0, 39, 40, 1,
+		0, 0, 0, 40, 42, 1, 0, 0, 0, 41, 39, 1, 0, 0, 0, 42, 43, 5, 0, 0, 1, 43,
+		1, 1, 0, 0, 0, 44, 45, 3, 10, 5, 0, 45, 46, 5, 2, 0, 0, 46, 47, 3, 8, 4,
+		0, 47, 3, 1, 0, 0, 0, 48, 51, 5, 3, 0, 0, 49, 50, 5, 4, 0, 0, 50, 52, 3,
+		14, 7, 0, 51, 49, 1, 0, 0, 0, 51, 52, 1, 0, 0, 0, 52, 57, 1, 0, 0, 0, 53,
+		54, 5, 5, 0, 0, 54, 55, 5, 6, 0, 0, 55, 56, 5, 7, 0, 0, 56, 58, 3, 28,
+		14, 0, 57, 53, 1, 0, 0, 0, 57, 58, 1, 0, 0, 0, 58, 66, 1, 0, 0, 0, 59,
+		60, 5, 8, 0, 0, 60, 61, 3, 2, 1, 0, 61, 64, 5, 9, 0, 0, 62, 63, 5, 4, 0,
+		0, 63, 65, 3, 14, 7, 0, 64, 62, 1, 0, 0, 0, 64, 65, 1, 0, 0, 0, 65, 67,
+		1, 0, 0, 0, 66, 59, 1, 0, 0, 0, 67, 68, 1, 0, 0, 0, 68, 66, 1, 0, 0, 0,
+		68, 69, 1, 0, 0, 0, 69, 5, 1, 0, 0, 0, 70, 71, 5, 10, 0, 0, 71, 72, 5,
+		4, 0, 0, 72, 77, 3, 14, 7, 0, 73, 74, 5, 8, 0, 0, 74, 75, 3, 2, 1, 0, 75,
+		76, 5, 9, 0, 0, 76, 78, 1, 0, 0, 0, 77, 73, 1, 0, 0, 0, 78, 79, 1, 0, 0,
+		0, 79, 77, 1, 0, 0, 0, 79, 80, 1, 0, 0, 0, 80, 7, 1, 0, 0, 0, 81, 82, 6,
+		4, -1, 0, 82, 106, 5, 46, 0, 0, 83, 84, 5, 11, 0, 0, 84, 106, 3, 8, 4,
+		8, 85, 86, 5, 12, 0, 0, 86, 87, 3, 8, 4, 0, 87, 88, 5, 13, 0, 0, 88, 106,
+		1, 0, 0, 0, 89, 90, 3, 20, 10, 0, 90, 91, 7, 0, 0, 0, 91, 92, 3, 20, 10,
+		0, 92, 106, 1, 0, 0, 0, 93, 94, 3, 12, 6, 0, 94, 95, 5, 11, 0, 0, 95, 96,
+		7, 1, 0, 0, 96, 97, 3, 18, 9, 0, 97, 106, 1, 0, 0, 0, 98, 99, 3, 12, 6,
+		0, 99, 100, 7, 2, 0, 0, 100, 101, 3, 18, 9, 0, 101, 106, 1, 0, 0, 0, 102,
+		106, 3, 24, 12, 0, 103, 104, 5, 11, 0, 0, 104, 106, 3, 24, 12, 0, 105,
+		81, 1, 0, 0, 0, 105, 83, 1, 0, 0, 0, 105, 85, 1, 0, 0, 0, 105, 89, 1, 0,
+		0, 0, 105, 93, 1, 0, 0, 0, 105, 98, 1, 0, 0, 0, 105, 102, 1, 0, 0, 0, 105,
+		103, 1, 0, 0, 0, 106, 112, 1, 0, 0, 0, 107, 108, 10, 3, 0, 0, 108, 109,
+		7, 3, 0, 0, 109, 111, 3, 8, 4, 4, 110, 107, 1, 0, 0, 0, 111, 114, 1, 0,
+		0, 0, 112, 110, 1, 0, 0, 0, 112, 113, 1, 0, 0, 0, 113, 9, 1, 0, 0, 0, 114,
+		112, 1, 0, 0, 0, 115, 116, 7, 4, 0, 0, 116, 11, 1, 0, 0, 0, 117, 118, 5,
+		52, 0, 0, 118, 13, 1, 0, 0, 0, 119, 124, 3, 12, 6, 0, 120, 121, 5, 29,
+		0, 0, 121, 123, 3, 12, 6, 0, 122, 120, 1, 0, 0, 0, 123, 126, 1, 0, 0, 0,
+		124, 122, 1, 0, 0, 0, 124, 125, 1, 0, 0, 0, 125, 15, 1, 0, 0, 0, 126, 124,
+		1, 0, 0, 0, 127, 128, 7, 5, 0, 0, 128, 17, 1, 0, 0, 0, 129, 130, 5, 12,
+		0, 0, 130, 135, 3, 16, 8, 0, 131, 132, 5, 29, 0, 0, 132, 134, 3, 16, 8,
+		0, 133, 131, 1, 0, 0, 0, 134, 137, 1, 0, 0, 0, 135, 133, 1, 0, 0, 0, 135,
+		136, 1, 0, 0, 0, 136, 138, 1, 0, 0, 0, 137, 135, 1, 0, 0, 0, 138, 139,
+		5, 13, 0, 0, 139, 19, 1, 0, 0, 0, 140, 141, 6, 10, -1, 0, 141, 150, 5,
+		30, 0, 0, 142, 150, 3, 16, 8, 0, 143, 150, 3, 12, 6, 0, 144, 150, 3, 24,
+		12, 0, 145, 146, 5, 12, 0, 0, 146, 147, 3, 20, 10, 0, 147, 148, 5, 13,
+		0, 0, 148, 150, 1, 0, 0, 0, 149, 140, 1, 0, 0, 0, 149, 142, 1, 0, 0, 0,
+		149, 143, 1, 0, 0, 0, 149, 144, 1, 0, 0, 0, 149, 145, 1, 0, 0, 0, 150,
+		159, 1, 0, 0, 0, 151, 152, 10, 2, 0, 0, 152, 153, 7, 6, 0, 0, 153, 158,
+		3, 20, 10, 3, 154, 155, 10, 1, 0, 0, 155, 156, 7, 7, 0, 0, 156, 158, 3,
+		20, 10, 2, 157, 151, 1, 0, 0, 0, 157, 154, 1, 0, 0, 0, 158, 161, 1, 0,
+		0, 0, 159, 157, 1, 0, 0, 0, 159, 160, 1, 0, 0, 0, 160, 21, 1, 0, 0, 0,
+		161, 159, 1, 0, 0, 0, 162, 163, 5, 36, 0, 0, 163, 174, 5, 48, 0, 0, 164,
+		165, 5, 37, 0, 0, 165, 174, 5, 48, 0, 0, 166, 174, 5, 38, 0, 0, 167, 168,
+		5, 39, 0, 0, 168, 174, 3, 14, 7, 0, 169, 170, 5, 40, 0, 0, 170, 174, 3,
+		8, 4, 0, 171, 172, 5, 41, 0, 0, 172, 174, 3, 14, 7, 0, 173, 162, 1, 0,
+		0, 0, 173, 164, 1, 0, 0, 0, 173, 166, 1, 0, 0, 0, 173, 167, 1, 0, 0, 0,
+		173, 169, 1, 0, 0, 0, 173, 171, 1, 0, 0, 0, 174, 23, 1, 0, 0, 0, 175, 176,
+		3, 26, 13, 0, 176, 177, 5, 12, 0, 0, 177, 182, 3, 20, 10, 0, 178, 179,
+		5, 29, 0, 0, 179, 181, 3, 20, 10, 0, 180, 178, 1, 0, 0, 0, 181, 184, 1,
+		0, 0, 0, 182, 180, 1, 0, 0, 0, 182, 183, 1, 0, 0, 0, 183, 185, 1, 0, 0,
+		0, 184, 182, 1, 0, 0, 0, 185, 186, 5, 13, 0, 0, 186, 25, 1, 0, 0, 0, 187,
+		191, 5, 52, 0, 0, 188, 189, 5, 52, 0, 0, 189, 191, 5, 42, 0, 0, 190, 187,
+		1, 0, 0, 0, 190, 188, 1, 0, 0, 0, 191, 27, 1, 0, 0, 0, 192, 193, 5, 47,
+		0, 0, 193, 29, 1, 0, 0, 0, 17, 33, 39, 51, 57, 64, 68, 79, 105, 112, 124,
+		135, 149, 157, 159, 173, 182, 190,
 	}
 	deserializer := antlr.NewATNDeserializer(nil)
 	staticData.atn = deserializer.Deserialize(staticData.serializedATN)
@@ -199,16 +211,23 @@ const (
 	EQLParserT__32             = 33
 	EQLParserT__33             = 34
 	EQLParserT__34             = 35
-	EQLParserANY               = 36
-	EQLParserMULTILINE_COMMENT = 37
-	EQLParserONELINE_COMMNET   = 38
-	EQLParserBOOLEAN           = 39
-	EQLParserINTERVAL          = 40
-	EQLParserNUMBER            = 41
-	EQLParserESC               = 42
-	EQLParserSTRING            = 43
-	EQLParserWS                = 44
-	EQLParserID                = 45
+	EQLParserT__35             = 36
+	EQLParserT__36             = 37
+	EQLParserT__37             = 38
+	EQLParserT__38             = 39
+	EQLParserT__39             = 40
+	EQLParserT__40             = 41
+	EQLParserT__41             = 42
+	EQLParserANY               = 43
+	EQLParserMULTILINE_COMMENT = 44
+	EQLParserONELINE_COMMNET   = 45
+	EQLParserBOOLEAN           = 46
+	EQLParserINTERVAL          = 47
+	EQLParserNUMBER            = 48
+	EQLParserESC               = 49
+	EQLParserSTRING            = 50
+	EQLParserWS                = 51
+	EQLParserID                = 52
 )
 
 // EQLParser rules.
@@ -224,9 +243,10 @@ const (
 	EQLParserRULE_literal       = 8
 	EQLParserRULE_literalList   = 9
 	EQLParserRULE_value         = 10
-	EQLParserRULE_funcall       = 11
-	EQLParserRULE_funcName      = 12
-	EQLParserRULE_interval      = 13
+	EQLParserRULE_pipe          = 11
+	EQLParserRULE_funcall       = 12
+	EQLParserRULE_funcName      = 13
+	EQLParserRULE_interval      = 14
 )
 
 // IQueryContext is an interface to support dynamic dispatch.
@@ -241,6 +261,8 @@ type IQueryContext interface {
 	SimpleQuery() ISimpleQueryContext
 	SequenceQuery() ISequenceQueryContext
 	SampleQuery() ISampleQueryContext
+	AllPipe() []IPipeContext
+	Pipe(i int) IPipeContext
 
 	// IsQueryContext differentiates from other interfaces.
 	IsQueryContext()
@@ -330,6 +352,47 @@ func (s *QueryContext) SampleQuery() ISampleQueryContext {
 	return t.(ISampleQueryContext)
 }
 
+func (s *QueryContext) AllPipe() []IPipeContext {
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(IPipeContext); ok {
+			len++
+		}
+	}
+
+	tst := make([]IPipeContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(IPipeContext); ok {
+			tst[i] = t.(IPipeContext)
+			i++
+		}
+	}
+
+	return tst
+}
+
+func (s *QueryContext) Pipe(i int) IPipeContext {
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IPipeContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(IPipeContext)
+}
+
 func (s *QueryContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
@@ -363,8 +426,10 @@ func (s *QueryContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 func (p *EQLParser) Query() (localctx IQueryContext) {
 	localctx = NewQueryContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 0, EQLParserRULE_query)
+	var _la int
+
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(31)
+	p.SetState(33)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -373,19 +438,19 @@ func (p *EQLParser) Query() (localctx IQueryContext) {
 	switch p.GetTokenStream().LA(1) {
 	case EQLParserANY, EQLParserSTRING, EQLParserID:
 		{
-			p.SetState(28)
+			p.SetState(30)
 			p.SimpleQuery()
 		}
 
-	case EQLParserT__1:
+	case EQLParserT__2:
 		{
-			p.SetState(29)
+			p.SetState(31)
 			p.SequenceQuery()
 		}
 
-	case EQLParserT__8:
+	case EQLParserT__9:
 		{
-			p.SetState(30)
+			p.SetState(32)
 			p.SampleQuery()
 		}
 
@@ -393,8 +458,36 @@ func (p *EQLParser) Query() (localctx IQueryContext) {
 		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
 		goto errorExit
 	}
+	p.SetState(39)
+	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
+	_la = p.GetTokenStream().LA(1)
+
+	for _la == EQLParserT__0 {
+		{
+			p.SetState(35)
+			p.Match(EQLParserT__0)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		{
+			p.SetState(36)
+			p.Pipe()
+		}
+
+		p.SetState(41)
+		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
+		_la = p.GetTokenStream().LA(1)
+	}
 	{
-		p.SetState(33)
+		p.SetState(42)
 		p.Match(EQLParserEOF)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -531,19 +624,19 @@ func (p *EQLParser) SimpleQuery() (localctx ISimpleQueryContext) {
 	p.EnterRule(localctx, 2, EQLParserRULE_simpleQuery)
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(35)
+		p.SetState(44)
 		p.Category()
 	}
 	{
-		p.SetState(36)
-		p.Match(EQLParserT__0)
+		p.SetState(45)
+		p.Match(EQLParserT__1)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
 		}
 	}
 	{
-		p.SetState(37)
+		p.SetState(46)
 		p.condition(0)
 	}
 
@@ -747,36 +840,14 @@ func (p *EQLParser) SequenceQuery() (localctx ISequenceQueryContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(39)
-		p.Match(EQLParserT__1)
+		p.SetState(48)
+		p.Match(EQLParserT__2)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
 		}
 	}
-	p.SetState(42)
-	p.GetErrorHandler().Sync(p)
-	if p.HasError() {
-		goto errorExit
-	}
-	_la = p.GetTokenStream().LA(1)
-
-	if _la == EQLParserT__2 {
-		{
-			p.SetState(40)
-			p.Match(EQLParserT__2)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
-		}
-		{
-			p.SetState(41)
-			p.FieldList()
-		}
-
-	}
-	p.SetState(48)
+	p.SetState(51)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
@@ -785,7 +856,7 @@ func (p *EQLParser) SequenceQuery() (localctx ISequenceQueryContext) {
 
 	if _la == EQLParserT__3 {
 		{
-			p.SetState(44)
+			p.SetState(49)
 			p.Match(EQLParserT__3)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -793,24 +864,8 @@ func (p *EQLParser) SequenceQuery() (localctx ISequenceQueryContext) {
 			}
 		}
 		{
-			p.SetState(45)
-			p.Match(EQLParserT__4)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
-		}
-		{
-			p.SetState(46)
-			p.Match(EQLParserT__5)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
-		}
-		{
-			p.SetState(47)
-			p.Interval()
+			p.SetState(50)
+			p.FieldList()
 		}
 
 	}
@@ -821,9 +876,25 @@ func (p *EQLParser) SequenceQuery() (localctx ISequenceQueryContext) {
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	for ok := true; ok; ok = _la == EQLParserT__6 {
+	if _la == EQLParserT__4 {
 		{
-			p.SetState(50)
+			p.SetState(53)
+			p.Match(EQLParserT__4)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		{
+			p.SetState(54)
+			p.Match(EQLParserT__5)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		{
+			p.SetState(55)
 			p.Match(EQLParserT__6)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -831,41 +902,63 @@ func (p *EQLParser) SequenceQuery() (localctx ISequenceQueryContext) {
 			}
 		}
 		{
-			p.SetState(51)
-			p.SimpleQuery()
+			p.SetState(56)
+			p.Interval()
 		}
+
+	}
+	p.SetState(66)
+	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
+	_la = p.GetTokenStream().LA(1)
+
+	for ok := true; ok; ok = _la == EQLParserT__7 {
 		{
-			p.SetState(52)
+			p.SetState(59)
 			p.Match(EQLParserT__7)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
-		p.SetState(55)
+		{
+			p.SetState(60)
+			p.SimpleQuery()
+		}
+		{
+			p.SetState(61)
+			p.Match(EQLParserT__8)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		p.SetState(64)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
 		}
 		_la = p.GetTokenStream().LA(1)
 
-		if _la == EQLParserT__2 {
+		if _la == EQLParserT__3 {
 			{
-				p.SetState(53)
-				p.Match(EQLParserT__2)
+				p.SetState(62)
+				p.Match(EQLParserT__3)
 				if p.HasError() {
 					// Recognition error - abort rule
 					goto errorExit
 				}
 			}
 			{
-				p.SetState(54)
+				p.SetState(63)
 				p.FieldList()
 			}
 
 		}
 
-		p.SetState(59)
+		p.SetState(68)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -1030,55 +1123,55 @@ func (p *EQLParser) SampleQuery() (localctx ISampleQueryContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(61)
-		p.Match(EQLParserT__8)
+		p.SetState(70)
+		p.Match(EQLParserT__9)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
 		}
 	}
 	{
-		p.SetState(62)
-		p.Match(EQLParserT__2)
+		p.SetState(71)
+		p.Match(EQLParserT__3)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
 		}
 	}
 	{
-		p.SetState(63)
+		p.SetState(72)
 		p.FieldList()
 	}
-	p.SetState(68)
+	p.SetState(77)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	for ok := true; ok; ok = _la == EQLParserT__6 {
+	for ok := true; ok; ok = _la == EQLParserT__7 {
 		{
-			p.SetState(64)
-			p.Match(EQLParserT__6)
-			if p.HasError() {
-				// Recognition error - abort rule
-				goto errorExit
-			}
-		}
-		{
-			p.SetState(65)
-			p.SimpleQuery()
-		}
-		{
-			p.SetState(66)
+			p.SetState(73)
 			p.Match(EQLParserT__7)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
+		{
+			p.SetState(74)
+			p.SimpleQuery()
+		}
+		{
+			p.SetState(75)
+			p.Match(EQLParserT__8)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
 
-		p.SetState(70)
+		p.SetState(79)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -1797,20 +1890,20 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 	var _alt int
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(96)
+	p.SetState(105)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
 
-	switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 6, p.GetParserRuleContext()) {
+	switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 7, p.GetParserRuleContext()) {
 	case 1:
 		localctx = NewConditionBooleanContext(p, localctx)
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
 
 		{
-			p.SetState(73)
+			p.SetState(82)
 			p.Match(EQLParserBOOLEAN)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -1823,15 +1916,15 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
 		{
-			p.SetState(74)
-			p.Match(EQLParserT__9)
+			p.SetState(83)
+			p.Match(EQLParserT__10)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
 		{
-			p.SetState(75)
+			p.SetState(84)
 			p.condition(8)
 		}
 
@@ -1840,20 +1933,20 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
 		{
-			p.SetState(76)
-			p.Match(EQLParserT__10)
+			p.SetState(85)
+			p.Match(EQLParserT__11)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
 		{
-			p.SetState(77)
+			p.SetState(86)
 			p.condition(0)
 		}
 		{
-			p.SetState(78)
-			p.Match(EQLParserT__11)
+			p.SetState(87)
+			p.Match(EQLParserT__12)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
@@ -1865,14 +1958,14 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
 		{
-			p.SetState(80)
+			p.SetState(89)
 
 			var _x = p.value(0)
 
 			localctx.(*ComparisonOpContext).left = _x
 		}
 		{
-			p.SetState(81)
+			p.SetState(90)
 
 			var _lt = p.GetTokenStream().LT(1)
 
@@ -1880,7 +1973,7 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 
 			_la = p.GetTokenStream().LA(1)
 
-			if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&16769024) != 0) {
+			if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&33538048) != 0) {
 				var _ri = p.GetErrorHandler().RecoverInline(p)
 
 				localctx.(*ComparisonOpContext).op = _ri
@@ -1890,7 +1983,7 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 			}
 		}
 		{
-			p.SetState(82)
+			p.SetState(91)
 
 			var _x = p.value(0)
 
@@ -1902,19 +1995,19 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
 		{
-			p.SetState(84)
+			p.SetState(93)
 			p.Field()
 		}
 		{
-			p.SetState(85)
-			p.Match(EQLParserT__9)
+			p.SetState(94)
+			p.Match(EQLParserT__10)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
 		{
-			p.SetState(86)
+			p.SetState(95)
 
 			var _lt = p.GetTokenStream().LT(1)
 
@@ -1922,7 +2015,7 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 
 			_la = p.GetTokenStream().LA(1)
 
-			if !(_la == EQLParserT__23 || _la == EQLParserT__24) {
+			if !(_la == EQLParserT__24 || _la == EQLParserT__25) {
 				var _ri = p.GetErrorHandler().RecoverInline(p)
 
 				localctx.(*LookupNotOpListContext).op = _ri
@@ -1932,7 +2025,7 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 			}
 		}
 		{
-			p.SetState(87)
+			p.SetState(96)
 
 			var _x = p.LiteralList()
 
@@ -1944,11 +2037,11 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
 		{
-			p.SetState(89)
+			p.SetState(98)
 			p.Field()
 		}
 		{
-			p.SetState(90)
+			p.SetState(99)
 
 			var _lt = p.GetTokenStream().LT(1)
 
@@ -1956,7 +2049,7 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 
 			_la = p.GetTokenStream().LA(1)
 
-			if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&66584576) != 0) {
+			if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&133169152) != 0) {
 				var _ri = p.GetErrorHandler().RecoverInline(p)
 
 				localctx.(*LookupOpListContext).op = _ri
@@ -1966,7 +2059,7 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 			}
 		}
 		{
-			p.SetState(91)
+			p.SetState(100)
 
 			var _x = p.LiteralList()
 
@@ -1978,7 +2071,7 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
 		{
-			p.SetState(93)
+			p.SetState(102)
 			p.Funcall()
 		}
 
@@ -1987,15 +2080,15 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
 		{
-			p.SetState(94)
-			p.Match(EQLParserT__9)
+			p.SetState(103)
+			p.Match(EQLParserT__10)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
 		{
-			p.SetState(95)
+			p.SetState(104)
 			p.Funcall()
 		}
 
@@ -2003,12 +2096,12 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 		goto errorExit
 	}
 	p.GetParserRuleContext().SetStop(p.GetTokenStream().LT(-1))
-	p.SetState(103)
+	p.SetState(112)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
-	_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 7, p.GetParserRuleContext())
+	_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 8, p.GetParserRuleContext())
 	if p.HasError() {
 		goto errorExit
 	}
@@ -2022,14 +2115,14 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 			localctx.(*ConditionLogicalOpContext).left = _prevctx
 
 			p.PushNewRecursionContext(localctx, _startState, EQLParserRULE_condition)
-			p.SetState(98)
+			p.SetState(107)
 
 			if !(p.Precpred(p.GetParserRuleContext(), 3)) {
 				p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 3)", ""))
 				goto errorExit
 			}
 			{
-				p.SetState(99)
+				p.SetState(108)
 
 				var _lt = p.GetTokenStream().LT(1)
 
@@ -2037,7 +2130,7 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 
 				_la = p.GetTokenStream().LA(1)
 
-				if !(_la == EQLParserT__25 || _la == EQLParserT__26) {
+				if !(_la == EQLParserT__26 || _la == EQLParserT__27) {
 					var _ri = p.GetErrorHandler().RecoverInline(p)
 
 					localctx.(*ConditionLogicalOpContext).op = _ri
@@ -2047,7 +2140,7 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 				}
 			}
 			{
-				p.SetState(100)
+				p.SetState(109)
 
 				var _x = p.condition(4)
 
@@ -2055,12 +2148,12 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 			}
 
 		}
-		p.SetState(105)
+		p.SetState(114)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
 		}
-		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 7, p.GetParserRuleContext())
+		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 8, p.GetParserRuleContext())
 		if p.HasError() {
 			goto errorExit
 		}
@@ -2178,10 +2271,10 @@ func (p *EQLParser) Category() (localctx ICategoryContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(106)
+		p.SetState(115)
 		_la = p.GetTokenStream().LA(1)
 
-		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&44049184587776) != 0) {
+		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&5638295627235328) != 0) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
@@ -2289,7 +2382,7 @@ func (p *EQLParser) Field() (localctx IFieldContext) {
 	p.EnterRule(localctx, 12, EQLParserRULE_field)
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(108)
+		p.SetState(117)
 		p.Match(EQLParserID)
 		if p.HasError() {
 			// Recognition error - abort rule
@@ -2437,31 +2530,31 @@ func (p *EQLParser) FieldList() (localctx IFieldListContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(110)
+		p.SetState(119)
 		p.Field()
 	}
-	p.SetState(115)
+	p.SetState(124)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	for _la == EQLParserT__27 {
+	for _la == EQLParserT__28 {
 		{
-			p.SetState(111)
-			p.Match(EQLParserT__27)
+			p.SetState(120)
+			p.Match(EQLParserT__28)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
 		{
-			p.SetState(112)
+			p.SetState(121)
 			p.Field()
 		}
 
-		p.SetState(117)
+		p.SetState(126)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -2581,10 +2674,10 @@ func (p *EQLParser) Literal() (localctx ILiteralContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(118)
+		p.SetState(127)
 		_la = p.GetTokenStream().LA(1)
 
-		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&11544872091648) != 0) {
+		if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&1477743627730944) != 0) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
@@ -2732,39 +2825,39 @@ func (p *EQLParser) LiteralList() (localctx ILiteralListContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(120)
-		p.Match(EQLParserT__10)
+		p.SetState(129)
+		p.Match(EQLParserT__11)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
 		}
 	}
 	{
-		p.SetState(121)
+		p.SetState(130)
 		p.Literal()
 	}
-	p.SetState(126)
+	p.SetState(135)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	for _la == EQLParserT__27 {
+	for _la == EQLParserT__28 {
 		{
-			p.SetState(122)
-			p.Match(EQLParserT__27)
+			p.SetState(131)
+			p.Match(EQLParserT__28)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
 		{
-			p.SetState(123)
+			p.SetState(132)
 			p.Literal()
 		}
 
-		p.SetState(128)
+		p.SetState(137)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -2772,8 +2865,8 @@ func (p *EQLParser) LiteralList() (localctx ILiteralListContext) {
 		_la = p.GetTokenStream().LA(1)
 	}
 	{
-		p.SetState(129)
-		p.Match(EQLParserT__11)
+		p.SetState(138)
+		p.Match(EQLParserT__12)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
@@ -3323,21 +3416,21 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 	var _alt int
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(140)
+	p.SetState(149)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
 
-	switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 10, p.GetParserRuleContext()) {
+	switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 11, p.GetParserRuleContext()) {
 	case 1:
 		localctx = NewValueNullContext(p, localctx)
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
 
 		{
-			p.SetState(132)
-			p.Match(EQLParserT__28)
+			p.SetState(141)
+			p.Match(EQLParserT__29)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
@@ -3349,7 +3442,7 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
 		{
-			p.SetState(133)
+			p.SetState(142)
 			p.Literal()
 		}
 
@@ -3358,7 +3451,7 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
 		{
-			p.SetState(134)
+			p.SetState(143)
 			p.Field()
 		}
 
@@ -3367,7 +3460,7 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
 		{
-			p.SetState(135)
+			p.SetState(144)
 			p.Funcall()
 		}
 
@@ -3376,20 +3469,20 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
 		{
-			p.SetState(136)
-			p.Match(EQLParserT__10)
+			p.SetState(145)
+			p.Match(EQLParserT__11)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
 		{
-			p.SetState(137)
+			p.SetState(146)
 			p.value(0)
 		}
 		{
-			p.SetState(138)
-			p.Match(EQLParserT__11)
+			p.SetState(147)
+			p.Match(EQLParserT__12)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
@@ -3400,12 +3493,12 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 		goto errorExit
 	}
 	p.GetParserRuleContext().SetStop(p.GetTokenStream().LT(-1))
-	p.SetState(150)
+	p.SetState(159)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
-	_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 12, p.GetParserRuleContext())
+	_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 13, p.GetParserRuleContext())
 	if p.HasError() {
 		goto errorExit
 	}
@@ -3415,26 +3508,26 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 				p.TriggerExitRuleEvent()
 			}
 			_prevctx = localctx
-			p.SetState(148)
+			p.SetState(157)
 			p.GetErrorHandler().Sync(p)
 			if p.HasError() {
 				goto errorExit
 			}
 
-			switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 11, p.GetParserRuleContext()) {
+			switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 12, p.GetParserRuleContext()) {
 			case 1:
 				localctx = NewValueMulDivContext(p, NewValueContext(p, _parentctx, _parentState))
 				localctx.(*ValueMulDivContext).left = _prevctx
 
 				p.PushNewRecursionContext(localctx, _startState, EQLParserRULE_value)
-				p.SetState(142)
+				p.SetState(151)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 2)) {
 					p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 2)", ""))
 					goto errorExit
 				}
 				{
-					p.SetState(143)
+					p.SetState(152)
 
 					var _lt = p.GetTokenStream().LT(1)
 
@@ -3442,7 +3535,7 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 
 					_la = p.GetTokenStream().LA(1)
 
-					if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&7516192768) != 0) {
+					if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&15032385536) != 0) {
 						var _ri = p.GetErrorHandler().RecoverInline(p)
 
 						localctx.(*ValueMulDivContext).op = _ri
@@ -3452,7 +3545,7 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 					}
 				}
 				{
-					p.SetState(144)
+					p.SetState(153)
 
 					var _x = p.value(3)
 
@@ -3464,14 +3557,14 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 				localctx.(*ValueAddSubContext).left = _prevctx
 
 				p.PushNewRecursionContext(localctx, _startState, EQLParserRULE_value)
-				p.SetState(145)
+				p.SetState(154)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 1)) {
 					p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 1)", ""))
 					goto errorExit
 				}
 				{
-					p.SetState(146)
+					p.SetState(155)
 
 					var _lt = p.GetTokenStream().LT(1)
 
@@ -3479,7 +3572,7 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 
 					_la = p.GetTokenStream().LA(1)
 
-					if !(_la == EQLParserT__32 || _la == EQLParserT__33) {
+					if !(_la == EQLParserT__33 || _la == EQLParserT__34) {
 						var _ri = p.GetErrorHandler().RecoverInline(p)
 
 						localctx.(*ValueAddSubContext).op = _ri
@@ -3489,7 +3582,7 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 					}
 				}
 				{
-					p.SetState(147)
+					p.SetState(156)
 
 					var _x = p.value(2)
 
@@ -3501,12 +3594,12 @@ func (p *EQLParser) value(_p int) (localctx IValueContext) {
 			}
 
 		}
-		p.SetState(152)
+		p.SetState(161)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
 		}
-		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 12, p.GetParserRuleContext())
+		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 13, p.GetParserRuleContext())
 		if p.HasError() {
 			goto errorExit
 		}
@@ -3521,6 +3614,486 @@ errorExit:
 		p.SetError(nil)
 	}
 	p.UnrollRecursionContexts(_parentctx)
+	if false {
+		goto errorExit // Trick to prevent compiler error if the label is not used
+	}
+	return localctx
+}
+
+// IPipeContext is an interface to support dynamic dispatch.
+type IPipeContext interface {
+	antlr.ParserRuleContext
+
+	// GetParser returns the parser.
+	GetParser() antlr.Parser
+	// IsPipeContext differentiates from other interfaces.
+	IsPipeContext()
+}
+
+type PipeContext struct {
+	antlr.BaseParserRuleContext
+	parser antlr.Parser
+}
+
+func NewEmptyPipeContext() *PipeContext {
+	var p = new(PipeContext)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = EQLParserRULE_pipe
+	return p
+}
+
+func InitEmptyPipeContext(p *PipeContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = EQLParserRULE_pipe
+}
+
+func (*PipeContext) IsPipeContext() {}
+
+func NewPipeContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *PipeContext {
+	var p = new(PipeContext)
+
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
+
+	p.parser = parser
+	p.RuleIndex = EQLParserRULE_pipe
+
+	return p
+}
+
+func (s *PipeContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *PipeContext) CopyAll(ctx *PipeContext) {
+	s.CopyFrom(&ctx.BaseParserRuleContext)
+}
+
+func (s *PipeContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *PipeContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+type PipeHeadContext struct {
+	PipeContext
+}
+
+func NewPipeHeadContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *PipeHeadContext {
+	var p = new(PipeHeadContext)
+
+	InitEmptyPipeContext(&p.PipeContext)
+	p.parser = parser
+	p.CopyAll(ctx.(*PipeContext))
+
+	return p
+}
+
+func (s *PipeHeadContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *PipeHeadContext) NUMBER() antlr.TerminalNode {
+	return s.GetToken(EQLParserNUMBER, 0)
+}
+
+func (s *PipeHeadContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(EQLListener); ok {
+		listenerT.EnterPipeHead(s)
+	}
+}
+
+func (s *PipeHeadContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(EQLListener); ok {
+		listenerT.ExitPipeHead(s)
+	}
+}
+
+func (s *PipeHeadContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+	switch t := visitor.(type) {
+	case EQLVisitor:
+		return t.VisitPipeHead(s)
+
+	default:
+		return t.VisitChildren(s)
+	}
+}
+
+type PipeCountContext struct {
+	PipeContext
+}
+
+func NewPipeCountContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *PipeCountContext {
+	var p = new(PipeCountContext)
+
+	InitEmptyPipeContext(&p.PipeContext)
+	p.parser = parser
+	p.CopyAll(ctx.(*PipeContext))
+
+	return p
+}
+
+func (s *PipeCountContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *PipeCountContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(EQLListener); ok {
+		listenerT.EnterPipeCount(s)
+	}
+}
+
+func (s *PipeCountContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(EQLListener); ok {
+		listenerT.ExitPipeCount(s)
+	}
+}
+
+func (s *PipeCountContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+	switch t := visitor.(type) {
+	case EQLVisitor:
+		return t.VisitPipeCount(s)
+
+	default:
+		return t.VisitChildren(s)
+	}
+}
+
+type PipeUniqueContext struct {
+	PipeContext
+}
+
+func NewPipeUniqueContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *PipeUniqueContext {
+	var p = new(PipeUniqueContext)
+
+	InitEmptyPipeContext(&p.PipeContext)
+	p.parser = parser
+	p.CopyAll(ctx.(*PipeContext))
+
+	return p
+}
+
+func (s *PipeUniqueContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *PipeUniqueContext) FieldList() IFieldListContext {
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IFieldListContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(IFieldListContext)
+}
+
+func (s *PipeUniqueContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(EQLListener); ok {
+		listenerT.EnterPipeUnique(s)
+	}
+}
+
+func (s *PipeUniqueContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(EQLListener); ok {
+		listenerT.ExitPipeUnique(s)
+	}
+}
+
+func (s *PipeUniqueContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+	switch t := visitor.(type) {
+	case EQLVisitor:
+		return t.VisitPipeUnique(s)
+
+	default:
+		return t.VisitChildren(s)
+	}
+}
+
+type PipeTailContext struct {
+	PipeContext
+}
+
+func NewPipeTailContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *PipeTailContext {
+	var p = new(PipeTailContext)
+
+	InitEmptyPipeContext(&p.PipeContext)
+	p.parser = parser
+	p.CopyAll(ctx.(*PipeContext))
+
+	return p
+}
+
+func (s *PipeTailContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *PipeTailContext) NUMBER() antlr.TerminalNode {
+	return s.GetToken(EQLParserNUMBER, 0)
+}
+
+func (s *PipeTailContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(EQLListener); ok {
+		listenerT.EnterPipeTail(s)
+	}
+}
+
+func (s *PipeTailContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(EQLListener); ok {
+		listenerT.ExitPipeTail(s)
+	}
+}
+
+func (s *PipeTailContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+	switch t := visitor.(type) {
+	case EQLVisitor:
+		return t.VisitPipeTail(s)
+
+	default:
+		return t.VisitChildren(s)
+	}
+}
+
+type PipeFilterContext struct {
+	PipeContext
+}
+
+func NewPipeFilterContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *PipeFilterContext {
+	var p = new(PipeFilterContext)
+
+	InitEmptyPipeContext(&p.PipeContext)
+	p.parser = parser
+	p.CopyAll(ctx.(*PipeContext))
+
+	return p
+}
+
+func (s *PipeFilterContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *PipeFilterContext) Condition() IConditionContext {
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IConditionContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(IConditionContext)
+}
+
+func (s *PipeFilterContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(EQLListener); ok {
+		listenerT.EnterPipeFilter(s)
+	}
+}
+
+func (s *PipeFilterContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(EQLListener); ok {
+		listenerT.ExitPipeFilter(s)
+	}
+}
+
+func (s *PipeFilterContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+	switch t := visitor.(type) {
+	case EQLVisitor:
+		return t.VisitPipeFilter(s)
+
+	default:
+		return t.VisitChildren(s)
+	}
+}
+
+type PipeSortContext struct {
+	PipeContext
+}
+
+func NewPipeSortContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *PipeSortContext {
+	var p = new(PipeSortContext)
+
+	InitEmptyPipeContext(&p.PipeContext)
+	p.parser = parser
+	p.CopyAll(ctx.(*PipeContext))
+
+	return p
+}
+
+func (s *PipeSortContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *PipeSortContext) FieldList() IFieldListContext {
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IFieldListContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(IFieldListContext)
+}
+
+func (s *PipeSortContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(EQLListener); ok {
+		listenerT.EnterPipeSort(s)
+	}
+}
+
+func (s *PipeSortContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(EQLListener); ok {
+		listenerT.ExitPipeSort(s)
+	}
+}
+
+func (s *PipeSortContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+	switch t := visitor.(type) {
+	case EQLVisitor:
+		return t.VisitPipeSort(s)
+
+	default:
+		return t.VisitChildren(s)
+	}
+}
+
+func (p *EQLParser) Pipe() (localctx IPipeContext) {
+	localctx = NewPipeContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 22, EQLParserRULE_pipe)
+	p.SetState(173)
+	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
+
+	switch p.GetTokenStream().LA(1) {
+	case EQLParserT__35:
+		localctx = NewPipeHeadContext(p, localctx)
+		p.EnterOuterAlt(localctx, 1)
+		{
+			p.SetState(162)
+			p.Match(EQLParserT__35)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		{
+			p.SetState(163)
+			p.Match(EQLParserNUMBER)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+
+	case EQLParserT__36:
+		localctx = NewPipeTailContext(p, localctx)
+		p.EnterOuterAlt(localctx, 2)
+		{
+			p.SetState(164)
+			p.Match(EQLParserT__36)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		{
+			p.SetState(165)
+			p.Match(EQLParserNUMBER)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+
+	case EQLParserT__37:
+		localctx = NewPipeCountContext(p, localctx)
+		p.EnterOuterAlt(localctx, 3)
+		{
+			p.SetState(166)
+			p.Match(EQLParserT__37)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+
+	case EQLParserT__38:
+		localctx = NewPipeUniqueContext(p, localctx)
+		p.EnterOuterAlt(localctx, 4)
+		{
+			p.SetState(167)
+			p.Match(EQLParserT__38)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		{
+			p.SetState(168)
+			p.FieldList()
+		}
+
+	case EQLParserT__39:
+		localctx = NewPipeFilterContext(p, localctx)
+		p.EnterOuterAlt(localctx, 5)
+		{
+			p.SetState(169)
+			p.Match(EQLParserT__39)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		{
+			p.SetState(170)
+			p.condition(0)
+		}
+
+	case EQLParserT__40:
+		localctx = NewPipeSortContext(p, localctx)
+		p.EnterOuterAlt(localctx, 6)
+		{
+			p.SetState(171)
+			p.Match(EQLParserT__40)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
+		}
+		{
+			p.SetState(172)
+			p.FieldList()
+		}
+
+	default:
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
+	}
+
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	if false {
 		goto errorExit // Trick to prevent compiler error if the label is not used
 	}
@@ -3664,48 +4237,48 @@ func (s *FuncallContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 
 func (p *EQLParser) Funcall() (localctx IFuncallContext) {
 	localctx = NewFuncallContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 22, EQLParserRULE_funcall)
+	p.EnterRule(localctx, 24, EQLParserRULE_funcall)
 	var _la int
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(153)
+		p.SetState(175)
 		p.FuncName()
 	}
 	{
-		p.SetState(154)
-		p.Match(EQLParserT__10)
+		p.SetState(176)
+		p.Match(EQLParserT__11)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
 		}
 	}
 	{
-		p.SetState(155)
+		p.SetState(177)
 		p.value(0)
 	}
-	p.SetState(160)
+	p.SetState(182)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
 	_la = p.GetTokenStream().LA(1)
 
-	for _la == EQLParserT__27 {
+	for _la == EQLParserT__28 {
 		{
-			p.SetState(156)
-			p.Match(EQLParserT__27)
+			p.SetState(178)
+			p.Match(EQLParserT__28)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
 			}
 		}
 		{
-			p.SetState(157)
+			p.SetState(179)
 			p.value(0)
 		}
 
-		p.SetState(162)
+		p.SetState(184)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
 			goto errorExit
@@ -3713,8 +4286,8 @@ func (p *EQLParser) Funcall() (localctx IFuncallContext) {
 		_la = p.GetTokenStream().LA(1)
 	}
 	{
-		p.SetState(163)
-		p.Match(EQLParserT__11)
+		p.SetState(185)
+		p.Match(EQLParserT__12)
 		if p.HasError() {
 			// Recognition error - abort rule
 			goto errorExit
@@ -3818,18 +4391,18 @@ func (s *FuncNameContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 
 func (p *EQLParser) FuncName() (localctx IFuncNameContext) {
 	localctx = NewFuncNameContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 24, EQLParserRULE_funcName)
-	p.SetState(168)
+	p.EnterRule(localctx, 26, EQLParserRULE_funcName)
+	p.SetState(190)
 	p.GetErrorHandler().Sync(p)
 	if p.HasError() {
 		goto errorExit
 	}
 
-	switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 14, p.GetParserRuleContext()) {
+	switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 16, p.GetParserRuleContext()) {
 	case 1:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(165)
+			p.SetState(187)
 			p.Match(EQLParserID)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3840,7 +4413,7 @@ func (p *EQLParser) FuncName() (localctx IFuncNameContext) {
 	case 2:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(166)
+			p.SetState(188)
 			p.Match(EQLParserID)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -3848,8 +4421,8 @@ func (p *EQLParser) FuncName() (localctx IFuncNameContext) {
 			}
 		}
 		{
-			p.SetState(167)
-			p.Match(EQLParserT__34)
+			p.SetState(189)
+			p.Match(EQLParserT__41)
 			if p.HasError() {
 				// Recognition error - abort rule
 				goto errorExit
@@ -3957,10 +4530,10 @@ func (s *IntervalContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 
 func (p *EQLParser) Interval() (localctx IIntervalContext) {
 	localctx = NewIntervalContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 26, EQLParserRULE_interval)
+	p.EnterRule(localctx, 28, EQLParserRULE_interval)
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(170)
+		p.SetState(192)
 		p.Match(EQLParserINTERVAL)
 		if p.HasError() {
 			// Recognition error - abort rule

@@ -170,6 +170,42 @@ func (s *BaseEQLListener) EnterValueField(ctx *ValueFieldContext) {}
 // ExitValueField is called when production ValueField is exited.
 func (s *BaseEQLListener) ExitValueField(ctx *ValueFieldContext) {}
 
+// EnterPipeHead is called when production PipeHead is entered.
+func (s *BaseEQLListener) EnterPipeHead(ctx *PipeHeadContext) {}
+
+// ExitPipeHead is called when production PipeHead is exited.
+func (s *BaseEQLListener) ExitPipeHead(ctx *PipeHeadContext) {}
+
+// EnterPipeTail is called when production PipeTail is entered.
+func (s *BaseEQLListener) EnterPipeTail(ctx *PipeTailContext) {}
+
+// ExitPipeTail is called when production PipeTail is exited.
+func (s *BaseEQLListener) ExitPipeTail(ctx *PipeTailContext) {}
+
+// EnterPipeCount is called when production PipeCount is entered.
+func (s *BaseEQLListener) EnterPipeCount(ctx *PipeCountContext) {}
+
+// ExitPipeCount is called when production PipeCount is exited.
+func (s *BaseEQLListener) ExitPipeCount(ctx *PipeCountContext) {}
+
+// EnterPipeUnique is called when production PipeUnique is entered.
+func (s *BaseEQLListener) EnterPipeUnique(ctx *PipeUniqueContext) {}
+
+// ExitPipeUnique is called when production PipeUnique is exited.
+func (s *BaseEQLListener) ExitPipeUnique(ctx *PipeUniqueContext) {}
+
+// EnterPipeFilter is called when production PipeFilter is entered.
+func (s *BaseEQLListener) EnterPipeFilter(ctx *PipeFilterContext) {}
+
+// ExitPipeFilter is called when production PipeFilter is exited.
+func (s *BaseEQLListener) ExitPipeFilter(ctx *PipeFilterContext) {}
+
+// EnterPipeSort is called when production PipeSort is entered.
+func (s *BaseEQLListener) EnterPipeSort(ctx *PipeSortContext) {}
+
+// ExitPipeSort is called when production PipeSort is exited.
+func (s *BaseEQLListener) ExitPipeSort(ctx *PipeSortContext) {}
+
 // EnterFuncall is called when production funcall is entered.
 func (s *BaseEQLListener) EnterFuncall(ctx *FuncallContext) {}
 

@@ -133,16 +133,16 @@ func TestTransform(t *testing.T) {
 			"(process.name ILIKE 'foo%')"},
 
 		{"any where process.name : \"foo?\"   ",
-			"(process.name ILIKE 'foo?')"},
+			"(process.name ILIKE 'foo_')"},
 
 		{"any where process.name like \"FOO?\" ",
-			"(process.name LIKE 'FOO?')"},
+			"(process.name LIKE 'FOO_')"},
 
 		{"any where process.name : (\"f*o\", \"ba?\", \"baz\")",
-			"((process.name ILIKE 'f%o') OR ((process.name ILIKE 'ba?') OR (process.name ILIKE 'baz')))"},
+			"((process.name ILIKE 'f%o') OR ((process.name ILIKE 'ba_') OR (process.name ILIKE 'baz')))"},
 
 		{"any where process.name like (\"F*O\", \"BA?\", \"baz\")",
-			"((process.name LIKE 'F%O') OR ((process.name LIKE 'BA?') OR (process.name LIKE 'baz')))"},
+			"((process.name LIKE 'F%O') OR ((process.name LIKE 'BA_') OR (process.name LIKE 'baz')))"},
 
 		{"any where process.pid == add(process.id, 5)", "" +
 			"(process.pid = (process.id + 5))"},

@@ -15,6 +15,7 @@ func TestEQL_ParseNoErrors(t *testing.T) {
 		`process where process_name == "cmd.exe" and process_path == "C:\\Windows\\System32\\cmd.exe" or process_command_line == "cmd.exe"`,
 		`sequence [ process where foo == 1] [ process where bar == 2]`,
 		`sample by foo [ bar where true ]`,
+		"any where true | head 3",
 	}
 
 	for _, eqlQuery := range eqlQueries {
@@ -36,6 +37,7 @@ func TestEQL_IsSupported(t *testing.T) {
 		supported bool
 	}{
 		{"simple where true", true},
+		{"process where true | head 3 ", false},
 		{"sequence [ simple where true] [ simple where true]", false},
 		{"sample by foo [ bar where true ]", false},
 	}
