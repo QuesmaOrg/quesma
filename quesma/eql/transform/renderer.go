@@ -11,7 +11,6 @@ type Renderer struct {
 
 func (v *Renderer) VisitConst(e *Const) interface{} {
 	switch val := e.Value.(type) {
-	// TODO  proper escaping here
 
 	case string:
 
