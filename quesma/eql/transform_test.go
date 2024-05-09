@@ -295,3 +295,35 @@ func TestTransformWithFieldName(t *testing.T) {
 		})
 	}
 }
+
+func TestErrors(t *testing.T) {
+
+	tests := []struct {
+		eql          string
+		errorPattern string
+	}{
+		{`any where ?notexisting == true `,
+			`optional fields are not supported`},
+		{`any where true | head 1`,
+			"unsupported query type"},
+		{`any where between(file.path, "System32\\", ".exe")  == ""`,
+			`between function is not implemented`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.eql, func(t *testing.T) {
+
+			transformer := NewTransformer()
+			_, _, err := transformer.TransformQuery(tt.eql)
+
+			if err == nil {
+				t.Error("expected error: ", tt.errorPattern)
+				return
+			}
+
+			if !strings.Contains(err.Error(), tt.errorPattern) {
+				t.Error("expected error: ", tt.errorPattern, " got: ", err)
+			}
+		})
+	}
+}

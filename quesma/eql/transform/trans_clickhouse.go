@@ -213,7 +213,7 @@ func (t *ClickhouseTransformer) VisitFunction(e *Function) interface{} {
 			return t.funcArityError(name, "3", argsCount)
 		}
 
-		return t.error("between function not implemented")
+		return t.error("between function is not implemented")
 
 	case "cidrMatch":
 		//https://clickhouse.com/docs/en/sql-reference/functions/ip-address-functions#isipaddressinrange

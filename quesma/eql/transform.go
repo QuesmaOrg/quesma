@@ -37,6 +37,8 @@ func (t *Transformer) TransformQuery(query string) (string, map[string]interface
 		return "", nil, err
 	}
 
+
+
 	if !p.IsSupported(ast) {
 		return "", nil, fmt.Errorf("unsupported query type") // TODO proper error message
 	}
