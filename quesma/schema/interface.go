@@ -1,5 +1,7 @@
 package schema
 
+import "context"
+
 type (
 	SearchConnector interface {
 		ResolveIndex(indexName string) (SearchIndex, error)
@@ -9,7 +11,7 @@ type (
 		ResolveField(fieldName string) (SearchField, error)
 		AvailableFields() []SearchField
 
-		NewQueryBuilder() SearchQueryBuilder
+		NewQueryBuilder(context context.Context) SearchQueryBuilder
 
 		DebugName() string
 	}
@@ -53,5 +55,9 @@ type (
 		SetSampleLimit(limit int)
 		SetLimit(limit int)
 		SetDistinct(isDistinct bool)
+
+		IsValid() bool
+		FindNonExistingFields() []SearchField
+		BuildSQL() (string, error)
 	}
 )
