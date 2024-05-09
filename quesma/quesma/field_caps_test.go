@@ -2,7 +2,6 @@ package quesma
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
@@ -190,7 +189,6 @@ func TestFieldCapsMultipleIndexesConflictingEntries(t *testing.T) {
 		},
 	})
 	resp, err := handleFieldCapsIndex(ctx, []string{"logs-1", "logs-2", "logs-3"}, *tableMap)
-	fmt.Printf("string(resp): %+v\n", string(resp))
 	assert.NoError(t, err)
 	expectedResp, err := json.MarshalIndent([]byte(`{
   "fields": {
