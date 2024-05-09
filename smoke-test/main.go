@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -470,6 +471,21 @@ func waitForLogsInElasticsearchRaw(serviceName, url string, quesmaSource bool, t
 	}
 }
 
+func checkLogs() {
+	content, err := os.ReadFile("/var/quesma/logs/quesma.log")
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+		return
+	}
+
+	fileContent := string(content)
+	searchString := "Panic recovered:"
+
+	if bytes.Contains([]byte(fileContent), []byte(searchString)) {
+		panic("Panic recovered in quesma.log")
+	}
+}
+
 func waitForAsyncQuery(timeout time.Duration, queries []string) {
 	serviceName := "async query"
 	for _, query := range queries {
@@ -503,6 +519,7 @@ func waitForAsyncQuery(timeout time.Duration, queries []string) {
 			panic(serviceName + " is not alive or is not receiving logs")
 		}
 	}
+	checkLogs()
 }
 
 func headerExists(headers http.Header, key string, value string) bool {
