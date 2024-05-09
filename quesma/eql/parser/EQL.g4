@@ -32,7 +32,7 @@ category
        | STRING
        ;
 
-field: ID;
+field: ID | ('?' ID);
 // TODO add optional field names: '?field_name'
 // TODO add backtick escape for field names
 

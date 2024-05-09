@@ -144,6 +144,10 @@ func (v *EQLParseTreeToExpTransformer) VisitField(ctx *parser.FieldContext) inte
 
 	name := v.evalString(ctx.GetText())
 
+	if strings.HasPrefix(name, `?`) {
+		v.error("optional fields are not supported")
+	}
+
 	return NewSymbol(name)
 
 }

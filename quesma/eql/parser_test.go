@@ -16,6 +16,7 @@ func TestEQL_ParseNoErrors(t *testing.T) {
 		`sequence [ process where foo == 1] [ process where bar == 2]`,
 		`sample by foo [ bar where true ]`,
 		"any where true | head 3",
+		"process where ?notexistsing == true",
 	}
 
 	for _, eqlQuery := range eqlQueries {
