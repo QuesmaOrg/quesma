@@ -11,7 +11,7 @@ import (
 // Tests requires Quesma and Elastic to be running.
 // Queries are run against both Quesma and Elastic and results are compared.
 
-var runTests = true
+var runTests = false
 
 func TestE2E(t *testing.T) {
 
@@ -29,6 +29,7 @@ func TestE2E(t *testing.T) {
 		"process where true",
 		"process where false and true",
 		"process where not false and true",
+
 		"process where process.pid == 1",
 		"process where process.pid > 0",
 		"process where process.pid >= 0",
@@ -39,6 +40,7 @@ func TestE2E(t *testing.T) {
 		`process where process.pid == 3 % 2`,
 		`process where process.pid == 2 * 3 / 6`,
 		`process where process.pid < 4.0 / 2`,
+
 		`process where not false`,
 		`process where not (event.type == "start")`,
 		`process where process.pid == 1 and event.type == "start"`,
@@ -52,7 +54,7 @@ func TestE2E(t *testing.T) {
 		`process where event.type in ("start", "stop")`,
 		`process where event.type in~ ("STaRT", "StOP")`,
 		`process where event.type not in ("start", "stop")`,
-		`process where event.type not in~ ("STaRT", "StOP")`, // FIXME THIS IS A BUG,  quesma retured: 3 but elastic returned: 1
+		`process where event.type not in~ ("STaRT", "StOP")`,
 
 		`process where process.name != string(1)`,
 		`process where process.name == null`,
