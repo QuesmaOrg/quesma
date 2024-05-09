@@ -69,7 +69,7 @@ func eqlParserInit() {
 		1, 11, 5, 11, 159, 8, 11, 10, 11, 12, 11, 162, 9, 11, 1, 11, 1, 11, 1,
 		12, 1, 12, 1, 12, 3, 12, 169, 8, 12, 1, 13, 1, 13, 1, 13, 0, 2, 8, 20,
 		14, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 0, 8, 1, 0, 13,
-		23, 1, 0, 19, 25, 1, 0, 24, 25, 1, 0, 26, 27, 3, 0, 36, 36, 43, 43, 45,
+		23, 1, 0, 24, 25, 1, 0, 19, 25, 1, 0, 26, 27, 3, 0, 36, 36, 43, 43, 45,
 		45, 3, 0, 39, 39, 41, 41, 43, 43, 1, 0, 30, 32, 1, 0, 33, 34, 183, 0, 31,
 		1, 0, 0, 0, 2, 35, 1, 0, 0, 0, 4, 39, 1, 0, 0, 0, 6, 61, 1, 0, 0, 0, 8,
 		96, 1, 0, 0, 0, 10, 106, 1, 0, 0, 0, 12, 108, 1, 0, 0, 0, 14, 110, 1, 0,
@@ -91,13 +91,13 @@ func eqlParserInit() {
 		1, 0, 0, 0, 70, 68, 1, 0, 0, 0, 70, 71, 1, 0, 0, 0, 71, 7, 1, 0, 0, 0,
 		72, 73, 6, 4, -1, 0, 73, 97, 5, 39, 0, 0, 74, 75, 5, 10, 0, 0, 75, 97,
 		3, 8, 4, 8, 76, 77, 5, 11, 0, 0, 77, 78, 3, 8, 4, 0, 78, 79, 5, 12, 0,
-		0, 79, 97, 1, 0, 0, 0, 80, 81, 3, 12, 6, 0, 81, 82, 7, 0, 0, 0, 82, 83,
-		3, 20, 10, 0, 83, 97, 1, 0, 0, 0, 84, 85, 3, 12, 6, 0, 85, 86, 7, 1, 0,
-		0, 86, 87, 3, 18, 9, 0, 87, 97, 1, 0, 0, 0, 88, 89, 3, 12, 6, 0, 89, 90,
-		5, 10, 0, 0, 90, 91, 7, 2, 0, 0, 91, 92, 3, 18, 9, 0, 92, 97, 1, 0, 0,
+		0, 79, 97, 1, 0, 0, 0, 80, 81, 3, 20, 10, 0, 81, 82, 7, 0, 0, 0, 82, 83,
+		3, 20, 10, 0, 83, 97, 1, 0, 0, 0, 84, 85, 3, 12, 6, 0, 85, 86, 5, 10, 0,
+		0, 86, 87, 7, 1, 0, 0, 87, 88, 3, 18, 9, 0, 88, 97, 1, 0, 0, 0, 89, 90,
+		3, 12, 6, 0, 90, 91, 7, 2, 0, 0, 91, 92, 3, 18, 9, 0, 92, 97, 1, 0, 0,
 		0, 93, 97, 3, 22, 11, 0, 94, 95, 5, 10, 0, 0, 95, 97, 3, 22, 11, 0, 96,
 		72, 1, 0, 0, 0, 96, 74, 1, 0, 0, 0, 96, 76, 1, 0, 0, 0, 96, 80, 1, 0, 0,
-		0, 96, 84, 1, 0, 0, 0, 96, 88, 1, 0, 0, 0, 96, 93, 1, 0, 0, 0, 96, 94,
+		0, 96, 84, 1, 0, 0, 0, 96, 89, 1, 0, 0, 0, 96, 93, 1, 0, 0, 0, 96, 94,
 		1, 0, 0, 0, 97, 103, 1, 0, 0, 0, 98, 99, 10, 3, 0, 0, 99, 100, 7, 3, 0,
 		0, 100, 102, 3, 8, 4, 4, 101, 98, 1, 0, 0, 0, 102, 105, 1, 0, 0, 0, 103,
 		101, 1, 0, 0, 0, 103, 104, 1, 0, 0, 0, 104, 9, 1, 0, 0, 0, 105, 103, 1,
@@ -1155,91 +1155,14 @@ func (s *ConditionContext) ToStringTree(ruleNames []string, recog antlr.Recogniz
 	return antlr.TreesStringTree(s, ruleNames, recog)
 }
 
-type ConditionOpContext struct {
-	ConditionContext
-	op antlr.Token
-}
-
-func NewConditionOpContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *ConditionOpContext {
-	var p = new(ConditionOpContext)
-
-	InitEmptyConditionContext(&p.ConditionContext)
-	p.parser = parser
-	p.CopyAll(ctx.(*ConditionContext))
-
-	return p
-}
-
-func (s *ConditionOpContext) GetOp() antlr.Token { return s.op }
-
-func (s *ConditionOpContext) SetOp(v antlr.Token) { s.op = v }
-
-func (s *ConditionOpContext) GetRuleContext() antlr.RuleContext {
-	return s
-}
-
-func (s *ConditionOpContext) Field() IFieldContext {
-	var t antlr.RuleContext
-	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(IFieldContext); ok {
-			t = ctx.(antlr.RuleContext)
-			break
-		}
-	}
-
-	if t == nil {
-		return nil
-	}
-
-	return t.(IFieldContext)
-}
-
-func (s *ConditionOpContext) Value() IValueContext {
-	var t antlr.RuleContext
-	for _, ctx := range s.GetChildren() {
-		if _, ok := ctx.(IValueContext); ok {
-			t = ctx.(antlr.RuleContext)
-			break
-		}
-	}
-
-	if t == nil {
-		return nil
-	}
-
-	return t.(IValueContext)
-}
-
-func (s *ConditionOpContext) EnterRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(EQLListener); ok {
-		listenerT.EnterConditionOp(s)
-	}
-}
-
-func (s *ConditionOpContext) ExitRule(listener antlr.ParseTreeListener) {
-	if listenerT, ok := listener.(EQLListener); ok {
-		listenerT.ExitConditionOp(s)
-	}
-}
-
-func (s *ConditionOpContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
-	switch t := visitor.(type) {
-	case EQLVisitor:
-		return t.VisitConditionOp(s)
-
-	default:
-		return t.VisitChildren(s)
-	}
-}
-
-type ConditionOpListContext struct {
+type LookupOpListContext struct {
 	ConditionContext
 	op   antlr.Token
 	list ILiteralListContext
 }
 
-func NewConditionOpListContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *ConditionOpListContext {
-	var p = new(ConditionOpListContext)
+func NewLookupOpListContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *LookupOpListContext {
+	var p = new(LookupOpListContext)
 
 	InitEmptyConditionContext(&p.ConditionContext)
 	p.parser = parser
@@ -1248,19 +1171,19 @@ func NewConditionOpListContext(parser antlr.Parser, ctx antlr.ParserRuleContext)
 	return p
 }
 
-func (s *ConditionOpListContext) GetOp() antlr.Token { return s.op }
+func (s *LookupOpListContext) GetOp() antlr.Token { return s.op }
 
-func (s *ConditionOpListContext) SetOp(v antlr.Token) { s.op = v }
+func (s *LookupOpListContext) SetOp(v antlr.Token) { s.op = v }
 
-func (s *ConditionOpListContext) GetList() ILiteralListContext { return s.list }
+func (s *LookupOpListContext) GetList() ILiteralListContext { return s.list }
 
-func (s *ConditionOpListContext) SetList(v ILiteralListContext) { s.list = v }
+func (s *LookupOpListContext) SetList(v ILiteralListContext) { s.list = v }
 
-func (s *ConditionOpListContext) GetRuleContext() antlr.RuleContext {
+func (s *LookupOpListContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
-func (s *ConditionOpListContext) Field() IFieldContext {
+func (s *LookupOpListContext) Field() IFieldContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
 		if _, ok := ctx.(IFieldContext); ok {
@@ -1276,7 +1199,7 @@ func (s *ConditionOpListContext) Field() IFieldContext {
 	return t.(IFieldContext)
 }
 
-func (s *ConditionOpListContext) LiteralList() ILiteralListContext {
+func (s *LookupOpListContext) LiteralList() ILiteralListContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
 		if _, ok := ctx.(ILiteralListContext); ok {
@@ -1292,22 +1215,118 @@ func (s *ConditionOpListContext) LiteralList() ILiteralListContext {
 	return t.(ILiteralListContext)
 }
 
-func (s *ConditionOpListContext) EnterRule(listener antlr.ParseTreeListener) {
+func (s *LookupOpListContext) EnterRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(EQLListener); ok {
-		listenerT.EnterConditionOpList(s)
+		listenerT.EnterLookupOpList(s)
 	}
 }
 
-func (s *ConditionOpListContext) ExitRule(listener antlr.ParseTreeListener) {
+func (s *LookupOpListContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(EQLListener); ok {
-		listenerT.ExitConditionOpList(s)
+		listenerT.ExitLookupOpList(s)
 	}
 }
 
-func (s *ConditionOpListContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *LookupOpListContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case EQLVisitor:
-		return t.VisitConditionOpList(s)
+		return t.VisitLookupOpList(s)
+
+	default:
+		return t.VisitChildren(s)
+	}
+}
+
+type ComparisonOpContext struct {
+	ConditionContext
+	left  IValueContext
+	op    antlr.Token
+	right IValueContext
+}
+
+func NewComparisonOpContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *ComparisonOpContext {
+	var p = new(ComparisonOpContext)
+
+	InitEmptyConditionContext(&p.ConditionContext)
+	p.parser = parser
+	p.CopyAll(ctx.(*ConditionContext))
+
+	return p
+}
+
+func (s *ComparisonOpContext) GetOp() antlr.Token { return s.op }
+
+func (s *ComparisonOpContext) SetOp(v antlr.Token) { s.op = v }
+
+func (s *ComparisonOpContext) GetLeft() IValueContext { return s.left }
+
+func (s *ComparisonOpContext) GetRight() IValueContext { return s.right }
+
+func (s *ComparisonOpContext) SetLeft(v IValueContext) { s.left = v }
+
+func (s *ComparisonOpContext) SetRight(v IValueContext) { s.right = v }
+
+func (s *ComparisonOpContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *ComparisonOpContext) AllValue() []IValueContext {
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(IValueContext); ok {
+			len++
+		}
+	}
+
+	tst := make([]IValueContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(IValueContext); ok {
+			tst[i] = t.(IValueContext)
+			i++
+		}
+	}
+
+	return tst
+}
+
+func (s *ComparisonOpContext) Value(i int) IValueContext {
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IValueContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(IValueContext)
+}
+
+func (s *ComparisonOpContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(EQLListener); ok {
+		listenerT.EnterComparisonOp(s)
+	}
+}
+
+func (s *ComparisonOpContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(EQLListener); ok {
+		listenerT.ExitComparisonOp(s)
+	}
+}
+
+func (s *ComparisonOpContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+	switch t := visitor.(type) {
+	case EQLVisitor:
+		return t.VisitComparisonOp(s)
 
 	default:
 		return t.VisitChildren(s)
@@ -1470,13 +1489,14 @@ func (s *ConditionNotContext) Accept(visitor antlr.ParseTreeVisitor) interface{}
 	}
 }
 
-type ConditionNotInContext struct {
+type LookupNotOpListContext struct {
 	ConditionContext
+	op   antlr.Token
 	list ILiteralListContext
 }
 
-func NewConditionNotInContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *ConditionNotInContext {
-	var p = new(ConditionNotInContext)
+func NewLookupNotOpListContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *LookupNotOpListContext {
+	var p = new(LookupNotOpListContext)
 
 	InitEmptyConditionContext(&p.ConditionContext)
 	p.parser = parser
@@ -1485,15 +1505,19 @@ func NewConditionNotInContext(parser antlr.Parser, ctx antlr.ParserRuleContext) 
 	return p
 }
 
-func (s *ConditionNotInContext) GetList() ILiteralListContext { return s.list }
+func (s *LookupNotOpListContext) GetOp() antlr.Token { return s.op }
 
-func (s *ConditionNotInContext) SetList(v ILiteralListContext) { s.list = v }
+func (s *LookupNotOpListContext) SetOp(v antlr.Token) { s.op = v }
 
-func (s *ConditionNotInContext) GetRuleContext() antlr.RuleContext {
+func (s *LookupNotOpListContext) GetList() ILiteralListContext { return s.list }
+
+func (s *LookupNotOpListContext) SetList(v ILiteralListContext) { s.list = v }
+
+func (s *LookupNotOpListContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
 
-func (s *ConditionNotInContext) Field() IFieldContext {
+func (s *LookupNotOpListContext) Field() IFieldContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
 		if _, ok := ctx.(IFieldContext); ok {
@@ -1509,7 +1533,7 @@ func (s *ConditionNotInContext) Field() IFieldContext {
 	return t.(IFieldContext)
 }
 
-func (s *ConditionNotInContext) LiteralList() ILiteralListContext {
+func (s *LookupNotOpListContext) LiteralList() ILiteralListContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
 		if _, ok := ctx.(ILiteralListContext); ok {
@@ -1525,22 +1549,22 @@ func (s *ConditionNotInContext) LiteralList() ILiteralListContext {
 	return t.(ILiteralListContext)
 }
 
-func (s *ConditionNotInContext) EnterRule(listener antlr.ParseTreeListener) {
+func (s *LookupNotOpListContext) EnterRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(EQLListener); ok {
-		listenerT.EnterConditionNotIn(s)
+		listenerT.EnterLookupNotOpList(s)
 	}
 }
 
-func (s *ConditionNotInContext) ExitRule(listener antlr.ParseTreeListener) {
+func (s *LookupNotOpListContext) ExitRule(listener antlr.ParseTreeListener) {
 	if listenerT, ok := listener.(EQLListener); ok {
-		listenerT.ExitConditionNotIn(s)
+		listenerT.ExitLookupNotOpList(s)
 	}
 }
 
-func (s *ConditionNotInContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+func (s *LookupNotOpListContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case EQLVisitor:
-		return t.VisitConditionNotIn(s)
+		return t.VisitLookupNotOpList(s)
 
 	default:
 		return t.VisitChildren(s)
@@ -1837,26 +1861,29 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 		}
 
 	case 4:
-		localctx = NewConditionOpContext(p, localctx)
+		localctx = NewComparisonOpContext(p, localctx)
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
 		{
 			p.SetState(80)
-			p.Field()
+
+			var _x = p.value(0)
+
+			localctx.(*ComparisonOpContext).left = _x
 		}
 		{
 			p.SetState(81)
 
 			var _lt = p.GetTokenStream().LT(1)
 
-			localctx.(*ConditionOpContext).op = _lt
+			localctx.(*ComparisonOpContext).op = _lt
 
 			_la = p.GetTokenStream().LA(1)
 
 			if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&16769024) != 0) {
 				var _ri = p.GetErrorHandler().RecoverInline(p)
 
-				localctx.(*ConditionOpContext).op = _ri
+				localctx.(*ComparisonOpContext).op = _ri
 			} else {
 				p.GetErrorHandler().ReportMatch(p)
 				p.Consume()
@@ -1864,11 +1891,14 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 		}
 		{
 			p.SetState(82)
-			p.value(0)
+
+			var _x = p.value(0)
+
+			localctx.(*ComparisonOpContext).right = _x
 		}
 
 	case 5:
-		localctx = NewConditionOpListContext(p, localctx)
+		localctx = NewLookupNotOpListContext(p, localctx)
 		p.SetParserRuleContext(localctx)
 		_prevctx = localctx
 		{
@@ -1877,40 +1907,6 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 		}
 		{
 			p.SetState(85)
-
-			var _lt = p.GetTokenStream().LT(1)
-
-			localctx.(*ConditionOpListContext).op = _lt
-
-			_la = p.GetTokenStream().LA(1)
-
-			if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&66584576) != 0) {
-				var _ri = p.GetErrorHandler().RecoverInline(p)
-
-				localctx.(*ConditionOpListContext).op = _ri
-			} else {
-				p.GetErrorHandler().ReportMatch(p)
-				p.Consume()
-			}
-		}
-		{
-			p.SetState(86)
-
-			var _x = p.LiteralList()
-
-			localctx.(*ConditionOpListContext).list = _x
-		}
-
-	case 6:
-		localctx = NewConditionNotInContext(p, localctx)
-		p.SetParserRuleContext(localctx)
-		_prevctx = localctx
-		{
-			p.SetState(88)
-			p.Field()
-		}
-		{
-			p.SetState(89)
 			p.Match(EQLParserT__9)
 			if p.HasError() {
 				// Recognition error - abort rule
@@ -1918,11 +1914,52 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 			}
 		}
 		{
-			p.SetState(90)
+			p.SetState(86)
+
+			var _lt = p.GetTokenStream().LT(1)
+
+			localctx.(*LookupNotOpListContext).op = _lt
+
 			_la = p.GetTokenStream().LA(1)
 
 			if !(_la == EQLParserT__23 || _la == EQLParserT__24) {
-				p.GetErrorHandler().RecoverInline(p)
+				var _ri = p.GetErrorHandler().RecoverInline(p)
+
+				localctx.(*LookupNotOpListContext).op = _ri
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
+		}
+		{
+			p.SetState(87)
+
+			var _x = p.LiteralList()
+
+			localctx.(*LookupNotOpListContext).list = _x
+		}
+
+	case 6:
+		localctx = NewLookupOpListContext(p, localctx)
+		p.SetParserRuleContext(localctx)
+		_prevctx = localctx
+		{
+			p.SetState(89)
+			p.Field()
+		}
+		{
+			p.SetState(90)
+
+			var _lt = p.GetTokenStream().LT(1)
+
+			localctx.(*LookupOpListContext).op = _lt
+
+			_la = p.GetTokenStream().LA(1)
+
+			if !((int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&66584576) != 0) {
+				var _ri = p.GetErrorHandler().RecoverInline(p)
+
+				localctx.(*LookupOpListContext).op = _ri
 			} else {
 				p.GetErrorHandler().ReportMatch(p)
 				p.Consume()
@@ -1933,7 +1970,7 @@ func (p *EQLParser) condition(_p int) (localctx IConditionContext) {
 
 			var _x = p.LiteralList()
 
-			localctx.(*ConditionNotInContext).list = _x
+			localctx.(*LookupOpListContext).list = _x
 		}
 
 	case 7:

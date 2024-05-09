@@ -74,7 +74,7 @@ func TestTransform(t *testing.T) {
 			"match(process.name, 'FOO[0-9]')"},
 
 		{"any where process.name regex~ \"foo[0-9]\" ", "" +
-			"match(process.name, 'foo[0-9]')"}, // FIXME
+			"match(process.name, 'foo[0-9]')"},
 
 		{"any where process.parent.name == \"bar\" and process.name == \"foo\"",
 			"((process.parent.name = 'bar') AND (process.name = 'foo'))"},
@@ -205,8 +205,20 @@ func TestTransform(t *testing.T) {
 		{"any where process.name == substring(\"start quesma.exe\", 6)",
 			"(process.name = substring('start quesma.exe', 6))"},
 
-		{"any where foo == subtract(10, 2)", "" +
+		{"any where foo == subtract(10, 2)",
 			"(foo = (10 - 2))"},
+
+		{"any where 1 == 2",
+			"(1 = 2)"},
+
+		{"any where add(1,2) == 2",
+			"((1 + 2) = 2)"},
+
+		{"any where  1  == null",
+			"(1 IS NULL)"},
+
+		{"any where add(1,null) == 1",
+			"((1 + NULL) = 1)"},
 	}
 
 	for _, tt := range tests {

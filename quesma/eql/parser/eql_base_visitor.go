@@ -23,11 +23,11 @@ func (v *BaseEQLVisitor) VisitSampleQuery(ctx *SampleQueryContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseEQLVisitor) VisitConditionOp(ctx *ConditionOpContext) interface{} {
+func (v *BaseEQLVisitor) VisitLookupOpList(ctx *LookupOpListContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseEQLVisitor) VisitConditionOpList(ctx *ConditionOpListContext) interface{} {
+func (v *BaseEQLVisitor) VisitComparisonOp(ctx *ComparisonOpContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -43,7 +43,7 @@ func (v *BaseEQLVisitor) VisitConditionNot(ctx *ConditionNotContext) interface{}
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseEQLVisitor) VisitConditionNotIn(ctx *ConditionNotInContext) interface{} {
+func (v *BaseEQLVisitor) VisitLookupNotOpList(ctx *LookupNotOpListContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
