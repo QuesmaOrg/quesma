@@ -69,7 +69,7 @@ MULTILINE_COMMENT: '/*' .*? '*/' -> channel(HIDDEN);
 ONELINE_COMMNET: '//' ~[\r\n]* -> channel(HIDDEN);
 BOOLEAN: 'true' | 'false';
 INTERVAL: [0-9]+[a-z];
-NUMBER: [0-9]+;
+NUMBER:  ('-' | ) ([0-9]+ | [0-9]* '.' [0-9]+) ([eE] [+-]? [0-9]+)?;
 
 ESC: '\\' .;
 STRING: '"' ('\\' . | '""' | ~["\\])*  '"' | '"""' .*? '"""';

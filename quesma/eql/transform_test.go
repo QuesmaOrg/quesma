@@ -34,6 +34,12 @@ func TestTransform(t *testing.T) {
 		{`any where not (foo == 1)`,
 			`(NOT ((foo = 1)))`},
 
+		{`any where not (foo == -1)`,
+			`(NOT ((foo = -1)))`},
+
+		{`any where not (foo == 1.2)`,
+			`(NOT ((foo = 1.2)))`},
+
 		{`any where process.name in ("naboo", "corusant")`,
 			`(process.name IN ('naboo', 'corusant'))`},
 
@@ -111,11 +117,8 @@ func TestTransform(t *testing.T) {
 		{"any where process.pid == ( 4 / process.args_count )",
 			"(process.pid = ((4 / process.args_count)))"},
 
-		// FIXME check if this is correct, no float support at the moment
-		{"any where (process.pid == ( 4.0 / process.args_count)) ",
-			"TODO (process.pid = ((4.0 / process.args_count)))"},
-
-		// FIXME add optional field names
+		{"any where process.pid == ( 4.1 / process.args_count) ",
+			"(process.pid = ((4.1 / process.args_count)))"},
 
 		{"any where ?user.id != null",
 			"TODO (user.id IS NOT NULL)"},

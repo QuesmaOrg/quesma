@@ -44,8 +44,12 @@ func (v *EQLParseTreeToExpTransformer) evalString(s string) string {
 	return s
 }
 
-func (v *EQLParseTreeToExpTransformer) evalNumber(s string) (int, error) {
+func (v *EQLParseTreeToExpTransformer) evalInteger(s string) (int, error) {
 	return strconv.Atoi(s)
+}
+
+func (v *EQLParseTreeToExpTransformer) evalFloat(s string) (float64, error) {
+	return strconv.ParseFloat(s, 64)
 }
 
 func (v *EQLParseTreeToExpTransformer) VisitQuery(ctx *parser.QueryContext) interface{} {
@@ -155,9 +159,15 @@ func (v *EQLParseTreeToExpTransformer) VisitLiteral(ctx *parser.LiteralContext) 
 	case ctx.STRING() != nil:
 		return &Const{Value: v.evalString(ctx.GetText())}
 	case ctx.NUMBER() != nil:
-		i, err := v.evalNumber(ctx.GetText())
+
+		i, err := v.evalInteger(ctx.GetText())
 		if err == nil {
 			return &Const{Value: i}
+		}
+
+		f, err := v.evalFloat(ctx.GetText())
+		if err == nil {
+			return &Const{Value: f}
 		}
 
 		v.error(fmt.Sprintf("error parsing number: %v", err))
