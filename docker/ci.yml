@@ -9,6 +9,7 @@ services:
       - QUESMA_port=8080
       - QUESMA_logging_path=/var/quesma/logs
       - QUESMA_clickhouse_url=clickhouse://clickhouse:9000
+      - QUESMA_logging_fileLogging=true
     depends_on:
       clickhouse:
         condition: service_healthy
