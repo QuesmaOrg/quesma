@@ -30,17 +30,17 @@ Comparison operators
 
 Lookup operators
 
-| operator  | supported          | comment                 |
-|-----------|--------------------|-------------------------|
-| `in`      | :heavy_check_mark: |                         |
-| `not in`  | :heavy_check_mark: |                         |
-| `in~`     | :heavy_check_mark: |                         |
-| `not in~` | :heavy_check_mark: |                         |
-| `:`       | :cockroach:        | `_` `%` are not escaped |
-| `like`    | :cockroach:        | see above               |
-| `like~`   | :cockroach:        | see above               |
-| `regex`   | :heavy_check_mark: |                         |
-| `regex~`  | :heavy_check_mark: |                         |
+| operator  | supported          | comment |
+|-----------|--------------------|---------|
+| `in`      | :heavy_check_mark: |         |
+| `not in`  | :heavy_check_mark: |         |
+| `in~`     | :heavy_check_mark: |         |
+| `not in~` | :heavy_check_mark: |         |
+| `:`       | :heavy_check_mark: |         |
+| `like`    | :heavy_check_mark: |         |
+| `like~`   | :heavy_check_mark: |         |
+| `regex`   | :heavy_check_mark: |         |
+| `regex~`  | :heavy_check_mark: |         |
 
 
 Logical operators

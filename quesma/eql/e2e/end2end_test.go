@@ -11,7 +11,7 @@ import (
 // Tests requires Quesma and Elastic to be running.
 // Queries are run against both Quesma and Elastic and results are compared.
 
-var runTests = false
+var runTests = true
 
 func TestE2E(t *testing.T) {
 
@@ -48,7 +48,7 @@ func TestE2E(t *testing.T) {
 		`process where event.type : "st*"`,
 		`process where event.type :  ("start", "stop")`,
 		`process where process.pid == 1 and event.type like "st*"`,
-		`-- process where process.pid == 1 and event.type like "st%"`, // FIXME this is a bug, we should escape % in like
+		`process where process.pid == 1 and event.type like "st%"`,
 		`process where process.name like~ "test"`,
 		`process where process.name like ("test", "test2")`,
 		`process where event.type in ("start", "stop")`,
@@ -73,16 +73,16 @@ func TestE2E(t *testing.T) {
 		`process where process.name like "Te"`,
 		`process where process.name like "T*t"`,
 
-		`-- process where process.name : "_est"`, //FIXME we should escace _ in like,  quesma retured: 3 but elastic returned: 0
-		`-- process where process.name : "Te_t"`, // FIXME quesma retured: 3 but elastic returned: 0
+		`process where process.name : "_est"`,
+		`process where process.name : "Te_t"`,
 		`process where process.name : "Te_"`,
 
-		`-- process where process.name : "?est"`, // FIXME support ? wildcard , quesma retured: 0 but elastic returned: 3
-		`-- process where process.name : "Te?t"`,
+		`process where process.name : "?est"`,
+		`process where process.name : "Te?t"`,
 		`process where process.name : "Te?"`,
 
 		`process where process.pid == add(0,1)`,
-		`process where process.pid == add(-2,3)`, // FIXME this is a bug, we should support negative numbers
+		`process where process.pid == add(-2,3)`,
 		`process where process.pid == add(-2,3)`,
 
 		// FIXME this is an  elastic limitation

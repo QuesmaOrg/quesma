@@ -53,8 +53,16 @@ func (t *ClickhouseTransformer) replaceConstLikePattern(exp Exp) Exp {
 
 	if constant, ok := exp.(*Const); ok {
 		if s, ok := constant.Value.(string); ok {
-			// TODO replace ? to sth else
-			return NewConst(strings.Replace(s, "*", "%", -1))
+
+			// Fist escape % nad _, because it's a special character in LIKE operator
+
+			s = strings.ReplaceAll(s, "%", "\\%")
+			s = strings.ReplaceAll(s, "_", "\\_")
+
+			s = strings.ReplaceAll(s, "*", "%") // replace * with % for LIKE operator
+			s = strings.ReplaceAll(s, "?", "_") // replace ? with _ for LIKE operator
+
+			return NewConst(s)
 
 		}
 	}
