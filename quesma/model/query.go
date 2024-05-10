@@ -91,11 +91,14 @@ func (q *Query) String() string {
 func (q *Query) StringFromColumns(colNames []string) string {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
+	if q.IsDistinct {
+		sb.WriteString("DISTINCT ")
+	}
 	for i, field := range colNames {
-		if field != EmptyFieldSelection {
-			sb.WriteString(strconv.Quote(field))
-		} else {
+		if field == "*" || field == EmptyFieldSelection {
 			sb.WriteString(field)
+		} else {
+			sb.WriteString(strconv.Quote(field))
 		}
 		if i < len(colNames)-1 || len(q.NonSchemaFields) > 0 {
 			sb.WriteString(", ")
@@ -112,6 +115,25 @@ func (q *Query) StringFromColumns(colNames []string) string {
 		where = ""
 	}
 	sb.WriteString(" FROM " + q.FromClause + where + q.WhereClause + " " + strings.Join(q.SuffixClauses, " "))
+	if len(q.GroupByFields) > 0 {
+		sb.WriteString(" GROUP BY (")
+		for i, field := range q.GroupByFields {
+			sb.WriteString(field)
+			if i < len(q.GroupByFields)-1 {
+				sb.WriteString(", ")
+			}
+		}
+		sb.WriteString(")")
+
+		sb.WriteString(" ORDER BY (")
+		for i, field := range q.GroupByFields {
+			sb.WriteString(field)
+			if i < len(q.GroupByFields)-1 {
+				sb.WriteString(", ")
+			}
+		}
+		sb.WriteString(")")
+	}
 	return sb.String()
 }
 
@@ -193,6 +215,8 @@ const (
 	Normal
 	None
 )
+
+const DefaultSizeListQuery = 1000 // we use LIMIT 1000 in some simple list queries (SELECT ...)
 
 func (queryType SearchQueryType) String() string {
 	return []string{"Facets", "FacetsNumeric", "ListByField", "ListAllFields", "CountAsync", "Normal", "None"}[queryType]

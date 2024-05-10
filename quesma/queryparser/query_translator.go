@@ -11,7 +11,6 @@ import (
 	"mitmproxy/quesma/util"
 	"strconv"
 	"strings"
-	"time"
 )
 
 const facetsSampleSize = "20000"
@@ -460,7 +459,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []mod
 		}
 		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i+1], 0, 0)
 		if len(aggregation) != 0 {
-			aggregations = util.MergeMaps(aggregations, aggregation[0]) // result of root node is always a single map, thus [0]
+			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0]) // result of root node is always a single map, thus [0]
 		}
 	}
 	return aggregations
@@ -524,12 +523,13 @@ func (cw *ClickhouseQueryTranslator) BuildSelectQuery(fields []string, whereClau
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildSimpleSelectQuery(whereClause string) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildSimpleSelectQuery(whereClause string, limit int) *model.Query {
 	return &model.Query{
-		Fields:      []string{"*"},
-		WhereClause: whereClause,
-		FromClause:  cw.Table.FullTableName(),
-		CanParse:    true,
+		Fields:        []string{"*"},
+		WhereClause:   whereClause,
+		FromClause:    cw.Table.FullTableName(),
+		SuffixClauses: []string{"LIMIT " + strconv.Itoa(cw.applySizeLimit(limit))},
+		CanParse:      true,
 	}
 }
 
@@ -586,30 +586,6 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, whereClau
 		FromClause:      cw.Table.FullTableName(),
 		CanParse:        true,
 	}
-}
-
-func (cw *ClickhouseQueryTranslator) BuildHistogramQuery(timestampFieldName, whereClauseOriginal, fixedInterval string) (*model.Query, time.Duration) {
-	var defaultInterval = 30 * time.Second
-	histogramOneBar, err := kibana.ParseInterval(fixedInterval)
-	if err != nil {
-		logger.ErrorWithCtx(cw.Ctx).Msg(err.Error())
-		histogramOneBar = defaultInterval
-	}
-	groupByClause := clickhouse.TimestampGroupBy(timestampFieldName, cw.Table.GetDateTimeType(cw.Ctx, timestampFieldName), histogramOneBar)
-	// [WARNING] This is a little oversimplified, but it seems to be good enough for now (==satisfies Kibana's histogram)
-	//
-	// In Elasticsearch's `date_histogram` aggregation implementation, the timestamps for the intervals are generated independently of the document data.
-	// The aggregation divides the specified time range into intervals based on the interval unit (e.g., minute, hour, day) and generates timestamps for each interval,
-	// irrespective of the actual timestamps of the documents.
-	query := model.Query{
-		Fields:          []string{},
-		NonSchemaFields: []string{groupByClause, "count()"},
-		WhereClause:     whereClauseOriginal,
-		SuffixClauses:   []string{"GROUP BY " + groupByClause},
-		FromClause:      cw.Table.FullTableName(),
-		CanParse:        true,
-	}
-	return &query, histogramOneBar
 }
 
 //lint:ignore U1000 Not used yet

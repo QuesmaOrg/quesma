@@ -10,11 +10,17 @@ type Renderer struct {
 }
 
 func (v *Renderer) VisitConst(e *Const) interface{} {
-	switch e.Value.(type) {
-	// TODO  proper escaping here
+	switch val := e.Value.(type) {
+
 	case string:
-		// TODO add proper escaping
-		return fmt.Sprintf("'%v'", e.Value.(string))
+
+		val = strings.ReplaceAll(val, `\`, `\\`)
+		val = strings.ReplaceAll(val, "'", `\'`)
+		val = strings.ReplaceAll(val, "\n", `\n`)
+		val = strings.ReplaceAll(val, "\t", `\t`)
+		val = strings.ReplaceAll(val, "\r", `\r`)
+
+		return fmt.Sprintf("'%v'", val)
 	}
 
 	return fmt.Sprintf("%v", e.Value)

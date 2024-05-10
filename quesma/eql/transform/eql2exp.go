@@ -38,14 +38,25 @@ func (v *EQLParseTreeToExpTransformer) evalString(s string) string {
 	const quote = `"`
 	if strings.HasPrefix(s, quote) && strings.HasSuffix(s, quote) {
 		// TODO handle escape sequences
-		return s[1 : len(s)-1]
+		s = s[1 : len(s)-1]
+
+		s = strings.ReplaceAll(s, `\"`, `"`)
+		s = strings.ReplaceAll(s, `\\`, `\`)
+		s = strings.ReplaceAll(s, `\n`, "\n")
+		s = strings.ReplaceAll(s, `\t`, "\t")
+		s = strings.ReplaceAll(s, `\r`, "\r")
+
 	}
 
 	return s
 }
 
-func (v *EQLParseTreeToExpTransformer) evalNumber(s string) (int, error) {
+func (v *EQLParseTreeToExpTransformer) evalInteger(s string) (int, error) {
 	return strconv.Atoi(s)
+}
+
+func (v *EQLParseTreeToExpTransformer) evalFloat(s string) (float64, error) {
+	return strconv.ParseFloat(s, 64)
 }
 
 func (v *EQLParseTreeToExpTransformer) VisitQuery(ctx *parser.QueryContext) interface{} {
@@ -59,7 +70,7 @@ func (v *EQLParseTreeToExpTransformer) VisitSimpleQuery(ctx *parser.SimpleQueryC
 
 	if condition == nil {
 		if category == nil {
-			return nil // TODO what is an empty query?  -> select * from where true
+			return nil // empty `where` clause
 		} else {
 			return category
 		}
@@ -84,31 +95,42 @@ func (v *EQLParseTreeToExpTransformer) VisitConditionLogicalOp(ctx *parser.Condi
 	return NewInfixOp(op, left.(Exp), right.(Exp))
 }
 
-func (v *EQLParseTreeToExpTransformer) VisitConditionOp(ctx *parser.ConditionOpContext) interface{} {
+func (v *EQLParseTreeToExpTransformer) VisitComparisonOp(ctx *parser.ComparisonOpContext) interface{} {
+
+	op := ctx.GetOp().GetText()
+	left := ctx.GetLeft().Accept(v)
+	right := ctx.GetRight().Accept(v)
+
+	return NewInfixOp(op, left.(Exp), right.(Exp))
+}
+
+func (v *EQLParseTreeToExpTransformer) VisitLookupOpList(ctx *parser.LookupOpListContext) interface{} {
 
 	field := ctx.Field().Accept(v)
-	value := ctx.Value().Accept(v)
+	list := ctx.GetList().Accept(v)
 	op := ctx.GetOp().GetText()
 
+	op = strings.ToLower(op)
 	// paranoia check, should never happen
 	// if there is no visitor implemented for the right side value is null
 
 	// TODO add more info here to help debugging
-	if value == nil {
+	if list == nil {
 		v.error("value is nil here")
 		return &Const{Value: "error"}
 	}
 
-	return NewInfixOp(op, field.(Exp), value.(Exp))
+	return NewInfixOp(op, field.(Exp), list.(Exp))
 }
 
-func (v *EQLParseTreeToExpTransformer) VisitConditionOpList(ctx *parser.ConditionOpListContext) interface{} {
+func (v *EQLParseTreeToExpTransformer) VisitLookupNotOpList(ctx *parser.LookupNotOpListContext) interface{} {
+
 	field := ctx.Field().Accept(v)
+	list := ctx.GetList().Accept(v)
 	op := ctx.GetOp().GetText()
 	op = strings.ToLower(op)
-	inList := ctx.GetList().Accept(v).(Exp)
 
-	return NewInfixOp(op, field.(Exp), inList)
+	return NewInfixOp("not "+op, field.(Exp), list.(Exp))
 }
 
 func (v *EQLParseTreeToExpTransformer) VisitConditionNot(ctx *parser.ConditionNotContext) interface{} {
@@ -120,13 +142,6 @@ func (v *EQLParseTreeToExpTransformer) VisitConditionGroup(ctx *parser.Condition
 	return NewGroup(ctx.Condition().Accept(v).(Exp))
 }
 
-func (v *EQLParseTreeToExpTransformer) VisitConditionNotIn(ctx *parser.ConditionNotInContext) interface{} {
-	field := ctx.Field().Accept(v).(Exp)
-	inList := ctx.GetList().Accept(v).(Exp)
-
-	return NewInfixOp("not in", field, inList)
-}
-
 func (v *EQLParseTreeToExpTransformer) VisitConditionFuncall(ctx *parser.ConditionFuncallContext) interface{} {
 
 	return ctx.Funcall().Accept(v)
@@ -135,6 +150,10 @@ func (v *EQLParseTreeToExpTransformer) VisitConditionFuncall(ctx *parser.Conditi
 func (v *EQLParseTreeToExpTransformer) VisitField(ctx *parser.FieldContext) interface{} {
 
 	name := v.evalString(ctx.GetText())
+
+	if strings.HasPrefix(name, `?`) {
+		v.error("optional fields are not supported")
+	}
 
 	return NewSymbol(name)
 
@@ -151,9 +170,15 @@ func (v *EQLParseTreeToExpTransformer) VisitLiteral(ctx *parser.LiteralContext) 
 	case ctx.STRING() != nil:
 		return &Const{Value: v.evalString(ctx.GetText())}
 	case ctx.NUMBER() != nil:
-		i, err := v.evalNumber(ctx.GetText())
+
+		i, err := v.evalInteger(ctx.GetText())
 		if err == nil {
 			return &Const{Value: i}
+		}
+
+		f, err := v.evalFloat(ctx.GetText())
+		if err == nil {
+			return &Const{Value: f}
 		}
 
 		v.error(fmt.Sprintf("error parsing number: %v", err))

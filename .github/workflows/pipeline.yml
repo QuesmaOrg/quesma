@@ -148,6 +148,8 @@ jobs:
 
       - name: Verify if data is flowing
         working-directory: smoke-test
+        env:
+          GITHUB_ACTIONS: true
         run: go run main.go
 
       - name: Print docker status
