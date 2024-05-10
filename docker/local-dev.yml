@@ -13,6 +13,7 @@ services:
       - QUESMA_logging_path=/var/quesma/logs
       - QUESMA_mode=dual-write-query-clickhouse
       - QUESMA_CONFIG_FILE=/config/local-dev.yaml
+      - QUESMA_logging_fileLogging=true
     depends_on:
       clean-clickhouse:
         condition: service_completed_successfully
