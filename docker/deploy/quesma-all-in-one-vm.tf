@@ -55,6 +55,11 @@ resource "google_compute_instance" "vm_instance" {
   boot_disk {
     initialize_params {
       image = "debian-cloud/debian-10"
+      size  = 200
+      type = "pd-balanced"
+      labels = {
+        name = "quesma-demo-aio-vm"
+      }
     }
   }
 
