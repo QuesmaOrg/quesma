@@ -75,5 +75,5 @@ func (s *EQL) Parse(query string) (parser.IQueryContext, error) {
 }
 
 func (s *EQL) IsSupported(ast parser.IQueryContext) bool {
-	return ast.SimpleQuery() != nil
+	return ast.SimpleQuery() != nil && len(ast.AllPipe()) == 0
 }

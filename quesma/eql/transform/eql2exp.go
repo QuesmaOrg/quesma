@@ -38,14 +38,25 @@ func (v *EQLParseTreeToExpTransformer) evalString(s string) string {
 	const quote = `"`
 	if strings.HasPrefix(s, quote) && strings.HasSuffix(s, quote) {
 		// TODO handle escape sequences
-		return s[1 : len(s)-1]
+		s = s[1 : len(s)-1]
+
+		s = strings.ReplaceAll(s, `\"`, `"`)
+		s = strings.ReplaceAll(s, `\\`, `\`)
+		s = strings.ReplaceAll(s, `\n`, "\n")
+		s = strings.ReplaceAll(s, `\t`, "\t")
+		s = strings.ReplaceAll(s, `\r`, "\r")
+
 	}
 
 	return s
 }
 
-func (v *EQLParseTreeToExpTransformer) evalNumber(s string) (int, error) {
+func (v *EQLParseTreeToExpTransformer) evalInteger(s string) (int, error) {
 	return strconv.Atoi(s)
+}
+
+func (v *EQLParseTreeToExpTransformer) evalFloat(s string) (float64, error) {
+	return strconv.ParseFloat(s, 64)
 }
 
 func (v *EQLParseTreeToExpTransformer) VisitQuery(ctx *parser.QueryContext) interface{} {
@@ -59,7 +70,7 @@ func (v *EQLParseTreeToExpTransformer) VisitSimpleQuery(ctx *parser.SimpleQueryC
 
 	if condition == nil {
 		if category == nil {
-			return nil // TODO what is an empty query?  -> select * from where true
+			return nil // empty `where` clause
 		} else {
 			return category
 		}
@@ -140,6 +151,10 @@ func (v *EQLParseTreeToExpTransformer) VisitField(ctx *parser.FieldContext) inte
 
 	name := v.evalString(ctx.GetText())
 
+	if strings.HasPrefix(name, `?`) {
+		v.error("optional fields are not supported")
+	}
+
 	return NewSymbol(name)
 
 }
@@ -155,9 +170,15 @@ func (v *EQLParseTreeToExpTransformer) VisitLiteral(ctx *parser.LiteralContext) 
 	case ctx.STRING() != nil:
 		return &Const{Value: v.evalString(ctx.GetText())}
 	case ctx.NUMBER() != nil:
-		i, err := v.evalNumber(ctx.GetText())
+
+		i, err := v.evalInteger(ctx.GetText())
 		if err == nil {
 			return &Const{Value: i}
+		}
+
+		f, err := v.evalFloat(ctx.GetText())
+		if err == nil {
+			return &Const{Value: f}
 		}
 
 		v.error(fmt.Sprintf("error parsing number: %v", err))

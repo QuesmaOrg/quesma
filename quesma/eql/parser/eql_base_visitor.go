@@ -107,6 +107,30 @@ func (v *BaseEQLVisitor) VisitValueField(ctx *ValueFieldContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseEQLVisitor) VisitPipeHead(ctx *PipeHeadContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseEQLVisitor) VisitPipeTail(ctx *PipeTailContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseEQLVisitor) VisitPipeCount(ctx *PipeCountContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseEQLVisitor) VisitPipeUnique(ctx *PipeUniqueContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseEQLVisitor) VisitPipeFilter(ctx *PipeFilterContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseEQLVisitor) VisitPipeSort(ctx *PipeSortContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseEQLVisitor) VisitFuncall(ctx *FuncallContext) interface{} {
 	return v.VisitChildren(ctx)
 }

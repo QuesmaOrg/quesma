@@ -82,6 +82,24 @@ type EQLListener interface {
 	// EnterValueField is called when entering the ValueField production.
 	EnterValueField(c *ValueFieldContext)
 
+	// EnterPipeHead is called when entering the PipeHead production.
+	EnterPipeHead(c *PipeHeadContext)
+
+	// EnterPipeTail is called when entering the PipeTail production.
+	EnterPipeTail(c *PipeTailContext)
+
+	// EnterPipeCount is called when entering the PipeCount production.
+	EnterPipeCount(c *PipeCountContext)
+
+	// EnterPipeUnique is called when entering the PipeUnique production.
+	EnterPipeUnique(c *PipeUniqueContext)
+
+	// EnterPipeFilter is called when entering the PipeFilter production.
+	EnterPipeFilter(c *PipeFilterContext)
+
+	// EnterPipeSort is called when entering the PipeSort production.
+	EnterPipeSort(c *PipeSortContext)
+
 	// EnterFuncall is called when entering the funcall production.
 	EnterFuncall(c *FuncallContext)
 
@@ -165,6 +183,24 @@ type EQLListener interface {
 
 	// ExitValueField is called when exiting the ValueField production.
 	ExitValueField(c *ValueFieldContext)
+
+	// ExitPipeHead is called when exiting the PipeHead production.
+	ExitPipeHead(c *PipeHeadContext)
+
+	// ExitPipeTail is called when exiting the PipeTail production.
+	ExitPipeTail(c *PipeTailContext)
+
+	// ExitPipeCount is called when exiting the PipeCount production.
+	ExitPipeCount(c *PipeCountContext)
+
+	// ExitPipeUnique is called when exiting the PipeUnique production.
+	ExitPipeUnique(c *PipeUniqueContext)
+
+	// ExitPipeFilter is called when exiting the PipeFilter production.
+	ExitPipeFilter(c *PipeFilterContext)
+
+	// ExitPipeSort is called when exiting the PipeSort production.
+	ExitPipeSort(c *PipeSortContext)
 
 	// ExitFuncall is called when exiting the funcall production.
 	ExitFuncall(c *FuncallContext)

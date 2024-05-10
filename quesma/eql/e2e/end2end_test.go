@@ -24,8 +24,12 @@ func TestE2E(t *testing.T) {
 	// Queries start with a "--" are skipped.
 	var eqlQueries = []string{
 		`any where false`,
+		`any where false and true`,
 		`not_existing where true`,
 		"process where true",
+		"process where false and true",
+		"process where not false and true",
+
 		"process where process.pid == 1",
 		"process where process.pid > 0",
 		"process where process.pid >= 0",
@@ -35,21 +39,23 @@ func TestE2E(t *testing.T) {
 		`process where process.pid == 2 / 2`,
 		`process where process.pid == 3 % 2`,
 		`process where process.pid == 2 * 3 / 6`,
-		`-- process where process.pid < 4.0 / 2`, // TODO add floats
+		`process where process.pid < 4.0 / 2`,
+
 		`process where not false`,
 		`process where not (event.type == "start")`,
 		`process where process.pid == 1 and event.type == "start"`,
+		`process where process.pid == 1 and event.type != "start"`,
 		`process where event.type : "start"`,
 		`process where event.type : "st*"`,
 		`process where event.type :  ("start", "stop")`,
 		`process where process.pid == 1 and event.type like "st*"`,
-		`-- process where process.pid == 1 and event.type like "st%"`, // FIXME this is a bug, we should escape % in like
+		`process where process.pid == 1 and event.type like "st%"`,
 		`process where process.name like~ "test"`,
 		`process where process.name like ("test", "test2")`,
 		`process where event.type in ("start", "stop")`,
 		`process where event.type in~ ("STaRT", "StOP")`,
 		`process where event.type not in ("start", "stop")`,
-		`-- process where event.type not in~ ("STaRT", "StOP")`, // FIXME THIS IS A BUG,  quesma retured: 3 but elastic returned: 1
+		`process where event.type not in~ ("STaRT", "StOP")`,
 
 		`process where process.name != string(1)`,
 		`process where process.name == null`,
@@ -68,17 +74,17 @@ func TestE2E(t *testing.T) {
 		`process where process.name like "Te"`,
 		`process where process.name like "T*t"`,
 
-		`-- process where process.name : "_est"`, //FIXME we should escace _ in like,  quesma retured: 3 but elastic returned: 0
-		`-- process where process.name : "Te_t"`, // FIXME quesma retured: 3 but elastic returned: 0
+		`process where process.name : "_est"`,
+		`process where process.name : "Te_t"`,
 		`process where process.name : "Te_"`,
 
-		`-- process where process.name : "?est"`, // FIXME support ? wildcard , quesma retured: 0 but elastic returned: 3
-		`-- process where process.name : "Te?t"`,
+		`process where process.name : "?est"`,
+		`process where process.name : "Te?t"`,
 		`process where process.name : "Te?"`,
 
 		`process where process.pid == add(0,1)`,
-		`-- process where process.pid == add(-2,3)`, // FIXME this is a bug, we should support negative numbers
-		`-- process where process.pid == add(-2,3)`,
+		`process where process.pid == add(-2,3)`,
+		`process where process.pid == add(-2,3)`,
 
 		// FIXME this is an  elastic limitation
 		// elastic fail response: {"error":{"root_cause":[{"type":"ql_illegal_argument_exception","reason":"Line 1:40: Comparisons against fields are not (currently) supported; offender [add(process.pid,0)] in [==]"}],"type":"ql_illegal_argument_exception","reason":"Line 1:40: Comparisons against fields are not (currently) supported; offender [add(process.pid,0)] in [==]"},"status":500}
@@ -180,7 +186,10 @@ func TestE2E(t *testing.T) {
 		`process where subtract(null, 2) == null`,
 		`process where subtract(2, null) == null`,
 
-		`process where ?not_existing == null`, // FIXME this is a bug, optional fields are not supported yet
+		`-- process where ?not_existing == null`, // FIXME this is a bug, optional fields are not supported yet
+
+		`process where process.name != "foo"`,
+		`process where process.name != "';delete from table;"`,
 	}
 
 	// This our category name. Each test runs in a separate category.

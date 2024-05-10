@@ -82,6 +82,24 @@ type EQLVisitor interface {
 	// Visit a parse tree produced by EQLParser#ValueField.
 	VisitValueField(ctx *ValueFieldContext) interface{}
 
+	// Visit a parse tree produced by EQLParser#PipeHead.
+	VisitPipeHead(ctx *PipeHeadContext) interface{}
+
+	// Visit a parse tree produced by EQLParser#PipeTail.
+	VisitPipeTail(ctx *PipeTailContext) interface{}
+
+	// Visit a parse tree produced by EQLParser#PipeCount.
+	VisitPipeCount(ctx *PipeCountContext) interface{}
+
+	// Visit a parse tree produced by EQLParser#PipeUnique.
+	VisitPipeUnique(ctx *PipeUniqueContext) interface{}
+
+	// Visit a parse tree produced by EQLParser#PipeFilter.
+	VisitPipeFilter(ctx *PipeFilterContext) interface{}
+
+	// Visit a parse tree produced by EQLParser#PipeSort.
+	VisitPipeSort(ctx *PipeSortContext) interface{}
+
 	// Visit a parse tree produced by EQLParser#funcall.
 	VisitFuncall(ctx *FuncallContext) interface{}
 
