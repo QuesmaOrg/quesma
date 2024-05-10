@@ -117,8 +117,17 @@ type AsyncQuery struct {
 	startTime         time.Time
 }
 
-func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body []byte, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
+func isNonAggregationQuery(queryInfo model.SearchQueryInfo, body []byte) bool {
+	return ((queryInfo.Typ == model.ListByField ||
+		queryInfo.Typ == model.ListAllFields ||
+		queryInfo.Typ == model.Normal) &&
+		!bytes.Contains(body, []byte("aggs"))) ||
+		queryInfo.Typ == model.Facets ||
+		queryInfo.Typ == model.FacetsNumeric ||
+		queryInfo.Typ == model.CountAsync
+}
 
+func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body []byte, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
 	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im, q.logManager)
 
 	switch sources {
@@ -196,7 +205,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		simpleQuery, queryInfo, highlighter = queryTranslator.ParseQuery(string(body))
 
 		if simpleQuery.CanParse {
-			if ((queryInfo.Typ == model.ListByField || queryInfo.Typ == model.ListAllFields || queryInfo.Typ == model.Normal) && !bytes.Contains(body, []byte("aggs"))) || queryInfo.Typ == model.Facets || queryInfo.Typ == model.FacetsNumeric {
+			if isNonAggregationQuery(queryInfo, body) {
 				logger.InfoWithCtx(ctx).Msgf("received search request, type: %v, async: %v", queryInfo.Typ, optAsync != nil)
 
 				if properties := q.findNonexistingProperties(queryInfo, simpleQuery, table); len(properties) > 0 {
@@ -212,7 +221,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				if optAsync != nil {
 					go func() {
 						defer recovery.LogPanicWithCtx(ctx)
-
 						q.searchWorker(ctx, queryTranslator, table, body, optAsync)
 					}()
 				} else {
@@ -228,7 +236,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					}()
 				} else {
 					translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, aggregations, queryTranslator, table, nil)
-
 				}
 			}
 
@@ -439,6 +446,34 @@ func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.C
 	q.AsyncQueriesContexts.Store(asyncRequestIdStr, NewAsyncQueryContext(ctx, cancel, asyncRequestIdStr))
 }
 
+func (q *QueryRunner) makeBasicQuery(ctx context.Context,
+	queryTranslator IQueryTranslator, table *clickhouse.Table,
+	simpleQuery queryparser.SimpleQuery, queryInfo model.SearchQueryInfo) (*model.Query, []string) {
+	var fullQuery *model.Query
+	var columns []string
+	switch queryInfo.Typ {
+	case model.CountAsync:
+		fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
+		columns = q.logManager.GetAllColumns(table, fullQuery)
+	case model.Facets, model.FacetsNumeric:
+		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
+		fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
+		columns = []string{"key", "doc_count"}
+	case model.ListByField:
+		// queryInfo = (ListByField, fieldName, 0, LIMIT)
+		fullQuery = queryTranslator.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
+		columns = q.logManager.GetAllColumns(table, fullQuery)
+	case model.ListAllFields:
+		// queryInfo = (ListAllFields, "*", 0, LIMIT)
+		fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
+		columns = q.logManager.GetAllColumns(table, fullQuery)
+	case model.Normal:
+		fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, queryInfo.I2)
+		columns = q.logManager.GetAllColumns(table, fullQuery)
+	}
+	return fullQuery, columns
+}
+
 func (q *QueryRunner) searchWorkerCommon(ctx context.Context, queryTranslator IQueryTranslator,
 	table *clickhouse.Table, body []byte, optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
 
@@ -457,35 +492,12 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, queryTranslator IQ
 	} else {
 		dbQueryCtx = ctx
 	}
-
-	switch queryInfo.Typ {
-	case model.CountAsync:
-		fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-		hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, fullQuery, q.logManager.GetAllColumns(table, fullQuery))
-
-	case model.Facets, model.FacetsNumeric:
-		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
-		fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, fullQuery, []string{"key", "doc_count"})
-
-	case model.ListByField:
-		// queryInfo = (ListByField, fieldName, 0, LIMIT)
-		fullQuery = queryTranslator.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, fullQuery, q.logManager.GetAllColumns(table, fullQuery))
-
-	case model.ListAllFields:
-		// queryInfo = (ListAllFields, "*", 0, LIMIT)
-		fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
-		hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, fullQuery, q.logManager.GetAllColumns(table, fullQuery))
-
-	case model.Normal:
-		fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, queryInfo.I2)
-		hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, fullQuery, q.logManager.GetAllColumns(table, fullQuery))
-
-	default:
+	var columns []string
+	fullQuery, columns = q.makeBasicQuery(dbQueryCtx, queryTranslator, table, simpleQuery, queryInfo)
+	if fullQuery == nil {
 		logger.ErrorWithCtx(ctx).Msgf("unknown query type: %v, query body: %v", queryInfo.Typ, body)
-	}
-	if fullQuery != nil {
+	} else {
+		hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, fullQuery, columns)
 		translatedQueryBody = []byte(fullQuery.String())
 	}
 	if err != nil {
@@ -517,6 +529,23 @@ func (q *QueryRunner) searchWorker(ctx context.Context, queryTranslator IQueryTr
 			return
 		default:
 			_, _ = q.searchWorkerCommon(ctx, queryTranslator, table, body, optAsync)
+			return
+		}
+	}
+}
+
+func (q *QueryRunner) searchAggregationWorker(ctx context.Context, aggregations []model.QueryWithAggregation,
+	queryTranslator IQueryTranslator, table *clickhouse.Table,
+	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
+	if optAsync == nil {
+		return q.searchAggregationWorkerCommon(ctx, aggregations, queryTranslator, table, nil)
+
+	} else {
+		select {
+		case <-q.executionCtx.Done():
+			return
+		default:
+			_, _ = q.searchAggregationWorkerCommon(ctx, aggregations, queryTranslator, table, optAsync)
 			return
 		}
 	}
@@ -556,23 +585,6 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggrega
 		optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: nil}
 	}
 	return
-}
-
-func (q *QueryRunner) searchAggregationWorker(ctx context.Context, aggregations []model.QueryWithAggregation,
-	queryTranslator IQueryTranslator, table *clickhouse.Table,
-	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
-	if optAsync == nil {
-		return q.searchAggregationWorkerCommon(ctx, aggregations, queryTranslator, table, nil)
-
-	} else {
-		select {
-		case <-q.executionCtx.Done():
-			return
-		default:
-			_, _ = q.searchAggregationWorkerCommon(ctx, aggregations, queryTranslator, table, optAsync)
-			return
-		}
-	}
 }
 
 func (q *QueryRunner) Close() {
