@@ -1,12 +1,9 @@
 grammar EQL;
 
-query: ( simpleQuery
-     | sequenceQuery
-     | sampleQuery ) EOF
+query: ( simpleQuery | sequenceQuery | sampleQuery ) ('|' pipe)* EOF
     ;
 
 simpleQuery: category 'where' condition
-// TODO add support for pipe opertor  '|'
 ;
 
 sequenceQuery: 'sequence' ( 'by' fieldList )? ( 'with' 'maxspan' '=' interval )?
@@ -20,10 +17,9 @@ sampleQuery: 'sample' 'by' fieldList
 condition: BOOLEAN #ConditionBoolean
     | 'not' condition #ConditionNot
     | '(' condition ')' #ConditionGroup
-    | field op=('==' | '!=' | '>' | '<'  | '>=' | '<=' | ':'  | 'like' | 'like~' | 'regex' | 'regex~')  value #ConditionOp
-    | field op=( ':' | 'in' | 'in~'  | 'like' | 'like~' | 'regex' | 'regex~') list=literalList #ConditionOpList
-// FIXME This rule should part of the rule above. Not sure how to do it.
-    | field 'not' ('in' | 'in~')   list=literalList #ConditionNotIn
+    | left=value op=('==' | '!=' | '>' | '<'  | '>=' | '<=' | ':' | 'like' | 'like~' | 'regex' | 'regex~' ) right=value #ComparisonOp
+    | field 'not' op=('in' | 'in~')   list=literalList #LookupNotOpList
+    | field op=(':' | 'in' | 'in~'  | 'like' | 'like~' | 'regex' | 'regex~') list=literalList #LookupOpList
     | left=condition op=('and' | 'or') right=condition #ConditionLogicalOp
     | funcall #ConditionFuncall
     | 'not' funcall #ConditionNotFuncall
@@ -36,13 +32,12 @@ category
        | STRING
        ;
 
-field: ID;
-// TODO add optional field names: `?field_name`
+field: ID | ('?' ID);
+// TODO add optional field names: '?field_name'
 // TODO add backtick escape for field names
 
 fieldList : field (',' field)*;
 
-// TODO add floats
 literal: STRING | NUMBER | BOOLEAN;
 literalList: '(' literal (',' literal)* ')';
 
@@ -57,9 +52,39 @@ value:
 ;
 
 
+pipe:
+    'head' NUMBER  #PipeHead
+    | 'tail'  NUMBER  #PipeTail
+    | 'count' #PipeCount
+    | 'unique' fieldList #PipeUnique
+    | 'filter' condition #PipeFilter
+    | 'sort' fieldList #PipeSort
+    ;
+
 
 funcall: funcName '(' value (',' value)* ')';
-funcName: ID | ID '~';
+funcName: 
+          'add'
+        | 'between'
+        | 'cidrMatch'
+        | 'concat'
+        | 'divide'
+        | 'endsWith'
+        | 'endsWith~'
+        | 'indexOf'
+        | 'indexOf~'
+        | 'length'
+        | 'modulo'
+        | 'multiply'
+        | 'number'
+        | 'startsWith'
+        | 'startsWith~'
+        | 'string'
+        | 'stringContains'
+        | 'stringContains~'
+        | 'substring'
+        | 'subtract'
+;
 
 
 interval: INTERVAL;
@@ -70,11 +95,13 @@ MULTILINE_COMMENT: '/*' .*? '*/' -> channel(HIDDEN);
 ONELINE_COMMNET: '//' ~[\r\n]* -> channel(HIDDEN);
 BOOLEAN: 'true' | 'false';
 INTERVAL: [0-9]+[a-z];
-NUMBER: [0-9]+;
+
+NUMBER:  ('-' | ) ([0-9]+ | [0-9]* '.' [0-9]+) ([eE] [+-]? [0-9]+)?;
 
 ESC: '\\' .;
 STRING: '"' ('\\' . | '""' | ~["\\])*  '"' | '"""' .*? '"""';
 
 WS: [ \t\n\r\f]+ -> skip ;
+
 
 ID: [a-zA-Z_][.a-zA-Z0-9_-]*;

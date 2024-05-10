@@ -53,8 +53,16 @@ func (t *ClickhouseTransformer) replaceConstLikePattern(exp Exp) Exp {
 
 	if constant, ok := exp.(*Const); ok {
 		if s, ok := constant.Value.(string); ok {
-			// TODO replace ? to sth else
-			return NewConst(strings.Replace(s, "*", "%", -1))
+
+			// Fist escape % nad _, because it's a special character in LIKE operator
+
+			s = strings.ReplaceAll(s, "%", "\\%")
+			s = strings.ReplaceAll(s, "_", "\\_")
+
+			s = strings.ReplaceAll(s, "*", "%") // replace * with % for LIKE operator
+			s = strings.ReplaceAll(s, "?", "_") // replace ? with _ for LIKE operator
+
+			return NewConst(s)
 
 		}
 	}
@@ -105,7 +113,12 @@ func (t *ClickhouseTransformer) VisitInfixOp(e *InfixOp) interface{} {
 
 		return NewInfixOp(op, left, right)
 
-	case "in~":
+	case "not in~", "in~":
+
+		targetOp := "IN"
+		if op == "not in~" {
+			targetOp = "NOT IN"
+		}
 
 		if array, ok := right.(*Array); ok {
 
@@ -113,12 +126,12 @@ func (t *ClickhouseTransformer) VisitInfixOp(e *InfixOp) interface{} {
 				return t.clickhouseLower(e)
 			}
 
-			return NewInfixOp("IN",
+			return NewInfixOp(targetOp,
 				t.clickhouseLower(left),
 				NewArray(mapExp(fn, array.Values)...))
 		}
 
-		return NewInfixOp("IN", t.clickhouseLower(left), right)
+		return t.error(op + " operator requires a list of values")
 
 	case "like":
 
@@ -200,7 +213,7 @@ func (t *ClickhouseTransformer) VisitFunction(e *Function) interface{} {
 			return t.funcArityError(name, "3", argsCount)
 		}
 
-		return t.error("between function not implemented")
+		return t.error("between function is not implemented")
 
 	case "cidrMatch":
 		//https://clickhouse.com/docs/en/sql-reference/functions/ip-address-functions#isipaddressinrange

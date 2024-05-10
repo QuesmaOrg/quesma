@@ -34,6 +34,12 @@ func TestTransform(t *testing.T) {
 		{`any where not (foo == 1)`,
 			`(NOT ((foo = 1)))`},
 
+		{`any where not (foo == -1)`,
+			`(NOT ((foo = -1)))`},
+
+		{`any where not (foo == 1.2)`,
+			`(NOT ((foo = 1.2)))`},
+
 		{`any where process.name in ("naboo", "corusant")`,
 			`(process.name IN ('naboo', 'corusant'))`},
 
@@ -74,7 +80,7 @@ func TestTransform(t *testing.T) {
 			"match(process.name, 'FOO[0-9]')"},
 
 		{"any where process.name regex~ \"foo[0-9]\" ", "" +
-			"match(process.name, 'foo[0-9]')"}, // FIXME
+			"match(process.name, 'foo[0-9]')"},
 
 		{"any where process.parent.name == \"bar\" and process.name == \"foo\"",
 			"((process.parent.name = 'bar') AND (process.name = 'foo'))"},
@@ -88,9 +94,8 @@ func TestTransform(t *testing.T) {
 		{"any where process.name not in (\"foo\", \"BAR\", \"BAZ\")",
 			"(process.name NOT IN ('foo', 'BAR', 'BAZ'))"},
 
-		// FIXME implementation
 		{"any where process.name not in~ (\"foo\", \"bar\", \"baz\")",
-			"TODO (lower(process.name) NOT IN (lower('foo'), lower('bar'), lower('baz')))"},
+			"(lower(process.name) NOT IN (lower('foo'), lower('bar'), lower('baz')))"},
 
 		{"any where process.name : (\"foo\", \"bar\", \"baz\") ",
 			"((process.name ILIKE 'foo') OR ((process.name ILIKE 'bar') OR (process.name ILIKE 'baz')))"},
@@ -111,11 +116,8 @@ func TestTransform(t *testing.T) {
 		{"any where process.pid == ( 4 / process.args_count )",
 			"(process.pid = ((4 / process.args_count)))"},
 
-		// FIXME check if this is correct, no float support at the moment
-		{"any where (process.pid == ( 4.0 / process.args_count)) ",
-			"TODO (process.pid = ((4.0 / process.args_count)))"},
-
-		// FIXME add optional field names
+		{"any where process.pid == ( 4.1 / process.args_count) ",
+			"(process.pid = ((4.1 / process.args_count)))"},
 
 		{"any where ?user.id != null",
 			"TODO (user.id IS NOT NULL)"},
@@ -131,16 +133,16 @@ func TestTransform(t *testing.T) {
 			"(process.name ILIKE 'foo%')"},
 
 		{"any where process.name : \"foo?\"   ",
-			"(process.name ILIKE 'foo?')"},
+			"(process.name ILIKE 'foo_')"},
 
 		{"any where process.name like \"FOO?\" ",
-			"(process.name LIKE 'FOO?')"},
+			"(process.name LIKE 'FOO_')"},
 
 		{"any where process.name : (\"f*o\", \"ba?\", \"baz\")",
-			"((process.name ILIKE 'f%o') OR ((process.name ILIKE 'ba?') OR (process.name ILIKE 'baz')))"},
+			"((process.name ILIKE 'f%o') OR ((process.name ILIKE 'ba_') OR (process.name ILIKE 'baz')))"},
 
 		{"any where process.name like (\"F*O\", \"BA?\", \"baz\")",
-			"((process.name LIKE 'F%O') OR ((process.name LIKE 'BA?') OR (process.name LIKE 'baz')))"},
+			"((process.name LIKE 'F%O') OR ((process.name LIKE 'BA_') OR (process.name LIKE 'baz')))"},
 
 		{"any where process.pid == add(process.id, 5)", "" +
 			"(process.pid = (process.id + 5))"},
@@ -205,8 +207,26 @@ func TestTransform(t *testing.T) {
 		{"any where process.name == substring(\"start quesma.exe\", 6)",
 			"(process.name = substring('start quesma.exe', 6))"},
 
-		{"any where foo == subtract(10, 2)", "" +
+		{"any where foo == subtract(10, 2)",
 			"(foo = (10 - 2))"},
+
+		{"any where 1 == 2",
+			"(1 = 2)"},
+
+		{"any where add(1,2) == 2",
+			"((1 + 2) = 2)"},
+
+		{"any where  1  == null",
+			"(1 IS NULL)"},
+
+		{"any where add(1,null) == 1",
+			"((1 + NULL) = 1)"},
+
+		{`any where foo == "\n"`,
+			`(foo = '\n')`},
+
+		{`any where foo == "'; delete from table"`,
+			`(foo = '\'; delete from table')`},
 	}
 
 	for _, tt := range tests {
@@ -272,6 +292,38 @@ func TestTransformWithFieldName(t *testing.T) {
 			assert.NotNil(t, actualWhereClause)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedWhereClause, actualWhereClause)
+		})
+	}
+}
+
+func TestErrors(t *testing.T) {
+
+	tests := []struct {
+		eql          string
+		errorPattern string
+	}{
+		{`any where ?notexisting == true `,
+			`optional fields are not supported`},
+		{`any where true | head 1`,
+			"unsupported query type"},
+		{`any where between(file.path, "System32\\", ".exe")  == ""`,
+			`between function is not implemented`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.eql, func(t *testing.T) {
+
+			transformer := NewTransformer()
+			_, _, err := transformer.TransformQuery(tt.eql)
+
+			if err == nil {
+				t.Error("expected error: ", tt.errorPattern)
+				return
+			}
+
+			if !strings.Contains(err.Error(), tt.errorPattern) {
+				t.Error("expected error: ", tt.errorPattern, " got: ", err)
+			}
 		})
 	}
 }

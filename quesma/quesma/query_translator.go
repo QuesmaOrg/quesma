@@ -21,7 +21,7 @@ type IQueryTranslator interface {
 	ParseAggregationJson(aggregationJson string) ([]model.QueryWithAggregation, error)
 
 	BuildSimpleCountQuery(whereClause string) *model.Query
-	BuildSimpleSelectQuery(whereClause string) *model.Query
+	BuildSimpleSelectQuery(whereClause string, size int) *model.Query
 	BuildNRowsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query
 	BuildFacetsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query
 

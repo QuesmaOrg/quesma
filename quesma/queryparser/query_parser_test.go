@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
+	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/testdata"
@@ -43,14 +44,14 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	lm.AddTableIfDoesntExist(table)
 
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
+
 	for _, tt := range testdata.TestsSearch {
 		t.Run(tt.Name, func(t *testing.T) {
 			simpleQuery, queryInfo, _ := cw.ParseQuery(tt.QueryJson)
 			assert.True(t, simpleQuery.CanParse, "can parse")
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
-
-			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
+			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, model.DefaultSizeListQuery)
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}
@@ -77,8 +78,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 			assert.True(t, simpleQuery.CanParse, "can parse")
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
-
-			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
+			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, model.DefaultSizeListQuery)
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}
@@ -104,7 +104,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt)
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ)
 
-			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt)
+			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, model.DefaultSizeListQuery)
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}

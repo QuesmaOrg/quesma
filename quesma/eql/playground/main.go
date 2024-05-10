@@ -82,7 +82,7 @@ func translate(cmd string) (string, map[string]interface{}) {
 
 	trans := eql.NewTransformer()
 	trans.FieldNameTranslator = translateName
-	trans.ExtractParameters = true
+	trans.ExtractParameters = false
 	where, parameters, err := trans.TransformQuery(cmd)
 
 	if err != nil {

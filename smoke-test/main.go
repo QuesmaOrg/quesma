@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -36,7 +37,13 @@ const (
 	printInterval = 5 * time.Second
 )
 
-const query = `
+const (
+	localLogPath = "../docker/quesma/logs/quesma.log"
+	ciLogPath    = "/home/runner/work/quesma/quesma/docker/quesma/logs/quesma.log"
+	ciEnvVar     = "GITHUB_ACTIONS"
+)
+
+var queries = []string{`
 {
 	"_source": false,
 	"fields": [
@@ -75,8 +82,8 @@ const query = `
 					"range": {
 						"@timestamp": {
 							"format": "strict_date_optional_time",
-							"gte": "2024-01-23T14:43:19.481Z",
-							"lte": "2024-01-23T14:58:19.481Z"
+							"gte": "now-1d",
+							"lte": "now-1s"
 						}
 					}
 				}
@@ -110,7 +117,53 @@ const query = `
 	"track_total_hits": false,
 	"version": true
 }
-`
+`,
+	`{
+    "_source": {
+        "excludes": []
+    },
+    "aggs": {
+        "0": {
+            "date_histogram": {
+                "field": "@timestamp",
+                "fixed_interval": "30s",
+                "min_doc_count": 1,
+                "time_zone": "Europe/Warsaw"
+            }
+        }
+    },
+    "fields": [
+        {
+            "field": "@timestamp",
+            "format": "date_time"
+        }
+    ],
+    "query": {
+        "bool": {
+            "filter": [
+                {
+                    "range": {
+                        "@timestamp": {
+                            "format": "strict_date_optional_time",
+                            "gte": "now-1d",
+                            "lte": "now-1s"
+                        }
+                    }
+                }
+            ],
+            "must": [],
+            "must_not": [],
+            "should": []
+        }
+    },
+    "runtime_mappings": {},
+    "script_fields": {},
+    "size": 0,
+    "stored_fields": [
+        "*"
+    ],
+    "track_total_hits": true
+}`}
 
 const kibanaInternalLog = `
 {
@@ -182,7 +235,7 @@ func main() {
 		reportUri := waitForScheduleReportGeneration()
 		waitForLogsInClickhouse("logs-generic-default", time.Minute)
 		println("   Logs in Clickhouse: OK")
-		waitForAsyncQuery(time.Minute)
+		waitForAsyncQuery(time.Minute, queries)
 		println("   AsyncQuery: OK")
 		waitForKibanaLogExplorer("kibana LogExplorer", time.Minute)
 		println("   Kibana LogExplorer: OK")
@@ -424,37 +477,60 @@ func waitForLogsInElasticsearchRaw(serviceName, url string, quesmaSource bool, t
 	}
 }
 
-func waitForAsyncQuery(timeout time.Duration) {
+func checkLogs() {
+	value := os.Getenv(ciEnvVar)
+	logPath := localLogPath
+	if value != "" {
+		logPath = ciLogPath
+	}
+	content, err := os.ReadFile(logPath)
+	if err != nil {
+		panic("Error reading file:" + err.Error())
+		return
+	}
+
+	fileContent := string(content)
+	searchString := "Panic recovered:"
+
+	if bytes.Contains([]byte(fileContent), []byte(searchString)) {
+		panic("Panic recovered in quesma.log")
+	}
+}
+
+func waitForAsyncQuery(timeout time.Duration, queries []string) {
 	serviceName := "async query"
-	res := waitFor(serviceName, func() bool {
-		resp, err := http.Post(asyncQueryUrl, "application/json", bytes.NewBuffer([]byte(query)))
+	for _, query := range queries {
+		res := waitFor(serviceName, func() bool {
+			resp, err := http.Post(asyncQueryUrl, "application/json", bytes.NewBuffer([]byte(query)))
 
-		if err == nil {
-			defer resp.Body.Close()
-			if resp.StatusCode == 200 {
-				body, err := io.ReadAll(resp.Body)
-				if err == nil {
-					var response map[string]interface{}
-					_ = json.Unmarshal(body, &response)
+			if err == nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == 200 {
+					body, err := io.ReadAll(resp.Body)
+					if err == nil {
+						var response map[string]interface{}
+						_ = json.Unmarshal(body, &response)
 
-					if response["completion_time_in_millis"] != nil {
-						if sourceClickhouse(resp) {
-							return true
-						} else {
-							panic("invalid X-Quesma-Source header value")
+						if response["completion_time_in_millis"] != nil {
+							if sourceClickhouse(resp) {
+								return true
+							} else {
+								panic("invalid X-Quesma-Source header value")
+							}
 						}
+					} else {
+						log.Println(err)
 					}
-				} else {
-					log.Println(err)
 				}
 			}
-		}
-		return false
-	}, timeout)
+			return false
+		}, timeout)
 
-	if !res {
-		panic(serviceName + " is not alive or is not receiving logs")
+		if !res {
+			panic(serviceName + " is not alive or is not receiving logs")
+		}
 	}
+	checkLogs()
 }
 
 func headerExists(headers http.Header, key string, value string) bool {

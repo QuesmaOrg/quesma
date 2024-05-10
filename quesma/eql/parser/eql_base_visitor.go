@@ -23,11 +23,11 @@ func (v *BaseEQLVisitor) VisitSampleQuery(ctx *SampleQueryContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseEQLVisitor) VisitConditionOp(ctx *ConditionOpContext) interface{} {
+func (v *BaseEQLVisitor) VisitLookupOpList(ctx *LookupOpListContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseEQLVisitor) VisitConditionOpList(ctx *ConditionOpListContext) interface{} {
+func (v *BaseEQLVisitor) VisitComparisonOp(ctx *ComparisonOpContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -43,7 +43,7 @@ func (v *BaseEQLVisitor) VisitConditionNot(ctx *ConditionNotContext) interface{}
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseEQLVisitor) VisitConditionNotIn(ctx *ConditionNotInContext) interface{} {
+func (v *BaseEQLVisitor) VisitLookupNotOpList(ctx *LookupNotOpListContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -104,6 +104,30 @@ func (v *BaseEQLVisitor) VisitValueFuncall(ctx *ValueFuncallContext) interface{}
 }
 
 func (v *BaseEQLVisitor) VisitValueField(ctx *ValueFieldContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseEQLVisitor) VisitPipeHead(ctx *PipeHeadContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseEQLVisitor) VisitPipeTail(ctx *PipeTailContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseEQLVisitor) VisitPipeCount(ctx *PipeCountContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseEQLVisitor) VisitPipeUnique(ctx *PipeUniqueContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseEQLVisitor) VisitPipeFilter(ctx *PipeFilterContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseEQLVisitor) VisitPipeSort(ctx *PipeSortContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

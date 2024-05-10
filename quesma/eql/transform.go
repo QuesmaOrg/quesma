@@ -79,8 +79,6 @@ func (t *Transformer) TransformQuery(query string) (string, map[string]interface
 	}
 
 	// 6. Render the expression as WHERE clause
-	// TODO errors while rendering ?
-	// TODO add configuration for renderer
 	renderer := &transform.Renderer{}
 	whereClause := exp.Accept(renderer).(string)
 

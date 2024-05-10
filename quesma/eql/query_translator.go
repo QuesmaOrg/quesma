@@ -20,13 +20,29 @@ type ClickhouseEQLQueryTranslator struct {
 	Ctx          context.Context
 }
 
-func (cw *ClickhouseEQLQueryTranslator) BuildNRowsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query {
+func (cw *ClickhouseEQLQueryTranslator) applySizeLimit(size int) int {
+	// FIXME hard limit here to prevent OOM
+	const quesmaMaxSize = 10000
+	if size > quesmaMaxSize {
+		logger.WarnWithCtx(cw.Ctx).Msgf("setting hits size to=%d, got=%d", quesmaMaxSize, size)
+		size = quesmaMaxSize
+	}
+	return size
+}
 
+func (cw *ClickhouseEQLQueryTranslator) BuildNRowsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query {
+	suffixClauses := make([]string, 0)
+	if len(simpleQuery.SortFields) > 0 {
+		suffixClauses = append(suffixClauses, "ORDER BY "+strings.Join(simpleQuery.SortFields, ", "))
+	}
+	if limit > 0 {
+		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(cw.applySizeLimit(limit)))
+	}
 	return &model.Query{
 		Fields:          []string{fieldName},
 		NonSchemaFields: []string{},
 		WhereClause:     simpleQuery.Sql.Stmt,
-		SuffixClauses:   []string{},
+		SuffixClauses:   suffixClauses,
 		FromClause:      cw.Table.FullTableName(),
 		CanParse:        true,
 	}
@@ -119,7 +135,7 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query qu
 	where, _, err := trans.TransformQuery(eqlQuery)
 
 	if err != nil {
-		logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error transforming EQL query")
+		logger.ErrorWithCtx(cw.Ctx).Err(err).Msgf("error transforming EQL query: '%s'", eqlQuery)
 		query.CanParse = false
 		query.Sql.Stmt = "Invalid EQL query"
 		return query, model.NewSearchQueryInfoNone(), highlighter
@@ -127,6 +143,7 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query qu
 
 	query.Sql.Stmt = where
 	query.CanParse = true
+	query.SortFields = []string{"\"@timestamp\""}
 
 	return query, searchQueryInfo, highlighter
 }
@@ -137,7 +154,7 @@ func (cw *ClickhouseEQLQueryTranslator) BuildSimpleCountQuery(whereClause string
 	panic("EQL does not support count")
 }
 
-func (cw *ClickhouseEQLQueryTranslator) BuildSimpleSelectQuery(whereClause string) *model.Query {
+func (cw *ClickhouseEQLQueryTranslator) BuildSimpleSelectQuery(whereClause string, size int) *model.Query {
 	panic("EQL does not support this method")
 }
 
