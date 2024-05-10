@@ -247,8 +247,8 @@ func validateLog(log logJson) error {
 	if len(log.Fields.Severity) != 1 {
 		return errors.New("no one severity in log")
 	}
-	if isValidSeverity(log.Fields.Severity[0]) {
-		return errors.New("invalid severity in log")
+	if !isValidSeverity(log.Fields.Severity[0]) {
+		return errors.New("invalid severity in log " + log.Fields.Severity[0])
 	}
 	if len(log.Fields.Message) != 1 {
 		return errors.New("no one message in log")
@@ -267,6 +267,8 @@ func ensureSomeHits(jsonBody map[string]interface{}) bool {
 	hits := parseHits(jsonBody)
 
 	if len(hits) == 0 {
+		body, _ := json.Marshal(jsonBody)
+		fmt.Println("async invalid hit format" + string(body))
 		panic("no hits in response")
 	}
 
