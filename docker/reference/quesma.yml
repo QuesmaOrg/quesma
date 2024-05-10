@@ -3,7 +3,7 @@ mode: "dual-write-query-clickhouse"
 port: 8080 # public tcp port to listen for incoming traffic
 elasticsearch:
   call: false
-  adminUrl: "http://localhost:5061"
+  adminUrl: "http://localhost:5601"
 clickhouse: # reference clickhouse service
   url: "clickhouse://clickhouse:9000"
   adminUrl: "http://localhost:8123/play"
