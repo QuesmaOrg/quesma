@@ -42,12 +42,13 @@ func (lm *LogManager) GetAllColumns(table *Table, query *model.Query) []string {
 // we have to extract again different parts like where clause and columns to build a proper result
 func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *model.Query, columns []string) ([]model.QueryResultRow, error) {
 	colNames, err := table.extractColumns(query, false)
+
 	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
 		return nil, err
 	}
 
-	rows, err := executeQuery(ctx, lm, table.Name, query.StringFromColumns(colNames), columns, rowToScan)
+	rows, err := executeQuery(ctx, lm, table.Name, query.StringFromColumns(colNames), colNames, rowToScan)
 	if err == nil {
 		for _, row := range rows {
 			row.Index = table.Name
