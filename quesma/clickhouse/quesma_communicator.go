@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"sort"
 	"strings"
 	"time"
 )
@@ -32,6 +33,8 @@ func (lm *LogManager) Query(ctx context.Context, query string) (*sql.Rows, error
 // we have to extract again different parts like where clause and columns to build a proper result
 func (lm *LogManager) ProcessSelectQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
 	colNames, err := table.extractColumns(query, false)
+	sort.Strings(colNames)
+	sort.Strings(columns)
 	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
 		return nil, err
