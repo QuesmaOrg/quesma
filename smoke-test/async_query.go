@@ -266,6 +266,10 @@ func validateLog(log logJson) error {
 func ensureSomeHits(jsonBody map[string]interface{}) bool {
 	hits := parseHits(jsonBody)
 
+	if len(hits) == 0 {
+		panic("no hits in response")
+	}
+
 	for _, hit := range hits {
 		var log logJson
 		jsonHit, _ := json.Marshal(hit)
