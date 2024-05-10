@@ -2,7 +2,7 @@
 version: "3.7"
 services:
   quesma:
-    image: ${QUESMA_IMAGE_URL}
+    image: ${QUESMA_DOCKER_IMAGE}
     environment:
       - QUESMA_elasticsearch_url=http://opensearch:9200
       - QUESMA_CONFIG_FILE=/config/quesma.yml
