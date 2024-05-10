@@ -239,7 +239,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		}
 	})
 
-	router.RegisterPathMatcher(routes.EQLSearch, "GET", matchedAgainstPattern(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+	eqlHandler := func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		responseBody, err := queryRunner.handleEQLSearch(ctx, params["index"], []byte(body))
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
@@ -249,7 +249,10 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 			}
 		}
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
-	})
+	}
+
+	router.RegisterPathMatcher(routes.EQLSearch, "GET", matchedAgainstPattern(cfg), eqlHandler)
+	router.RegisterPathMatcher(routes.EQLSearch, "POST", matchedAgainstPattern(cfg), eqlHandler)
 
 	return router
 }
