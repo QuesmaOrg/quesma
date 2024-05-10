@@ -1,4 +1,4 @@
-GET http://localhost:8080/windows_logs/_eql/search
+GET http://localhost:9090/windows_logs/_eql/search
 Content-type: application/json
 
 {
