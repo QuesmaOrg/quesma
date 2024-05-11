@@ -82,7 +82,7 @@ Supported functions
 
 
 
-Known limitations
+Known EQL language limitations
 ---
 
 1. We support only simple EQL queries. Sequence and sample queries are not supported.
@@ -91,3 +91,51 @@ Known limitations
 4. Backtick escaping is not supported. (https://www.elastic.co/guide/en/elasticsearch/reference/current/eql-syntax.html#eql-syntax-escape-a-field-name)
 5. Error handling is missing. Every error will be returned as na internal server error.
 
+
+Kibana Alerts
+---
+
+Kibana alerts will not work at the moment. There is a few thing to do to make it work:
+1. Implement a proper schema. `field_caps` must return the names with '.' separator for nested fields (for example `event.category`)
+2. We should return a proper JSON response. Right now we are returning `hits`, we should return `events` collection instead. 
+3. We should parse both `query` and `filter` fields. Right now we are parsing only `query` field. In other words we should combine KQL and EQL queries. See sample query below:
+```
+{
+    "fields": [
+        {
+            "field": "*",
+            "include_unmapped": true
+        },
+        {
+            "field": "@timestamp",
+            "format": "strict_date_optional_time"
+        }
+    ],
+    "filter": {
+        "bool": {
+            "filter": [
+                {
+                    "range": {
+                        "@timestamp": {
+                            "format": "strict_date_optional_time",
+                            "gte": "2024-05-10T15:15:18.622Z",
+                            "lte": "2024-05-10T15:16:28.622Z"
+                        }
+                    }
+                },
+                {
+                    "bool": {
+                        "filter": [],
+                        "must": [],
+                        "must_not": [],
+                        "should": []
+                    }
+                }
+            ]
+        }
+    },
+    "query": "process where process.name == \"quesma.exe\"",
+    "runtime_mappings": {},
+    "size": 100
+}
+```
