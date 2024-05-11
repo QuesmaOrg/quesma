@@ -10,3 +10,4 @@ indexes:
     enabled: true
   logs-generic-default:
     enabled: true
+    fullTextFields: [ "message" ]
