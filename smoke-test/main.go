@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"slices"
@@ -42,128 +41,6 @@ const (
 	ciLogPath    = "/home/runner/work/quesma/quesma/docker/quesma/logs/quesma.log"
 	ciEnvVar     = "GITHUB_ACTIONS"
 )
-
-var queries = []string{`
-{
-	"_source": false,
-	"fields": [
-		{
-			"field": "*",
-			"include_unmapped": "true"
-		},
-		{
-			"field": "@timestamp",
-			"format": "strict_date_optional_time"
-		}
-	],
-	"highlight": {
-		"fields": {
-			"*": {}
-		},
-		"fragment_size": 2147483647,
-		"post_tags": [
-			"@/kibana-highlighted-field@"
-		],
-		"pre_tags": [
-			"@kibana-highlighted-field@"
-		]
-	},
-	"query": {
-		"bool": {
-			"filter": [
-				{
-					"multi_match": {
-						"lenient": true,
-						"query": "user",
-						"type": "best_fields"
-					}
-				},
-				{
-					"range": {
-						"@timestamp": {
-							"format": "strict_date_optional_time",
-							"gte": "now-1d",
-							"lte": "now-1s"
-						}
-					}
-				}
-			],
-			"must": [],
-			"must_not": [],
-			"should": []
-		}
-	},
-	"runtime_mappings": {},
-	"script_fields": {},
-	"size": 500,
-	"sort": [
-		{
-			"@timestamp": {
-				"format": "strict_date_optional_time",
-				"order": "desc",
-				"unmapped_type": "boolean"
-			}
-		},
-		{
-			"_doc": {
-				"order": "desc",
-				"unmapped_type": "boolean"
-			}
-		}
-	],
-	"stored_fields": [
-		"*"
-	],
-	"track_total_hits": false,
-	"version": true
-}
-`,
-	`{
-    "_source": {
-        "excludes": []
-    },
-    "aggs": {
-        "0": {
-            "date_histogram": {
-                "field": "@timestamp",
-                "fixed_interval": "30s",
-                "min_doc_count": 1,
-                "time_zone": "Europe/Warsaw"
-            }
-        }
-    },
-    "fields": [
-        {
-            "field": "@timestamp",
-            "format": "date_time"
-        }
-    ],
-    "query": {
-        "bool": {
-            "filter": [
-                {
-                    "range": {
-                        "@timestamp": {
-                            "format": "strict_date_optional_time",
-                            "gte": "now-1d",
-                            "lte": "now-1s"
-                        }
-                    }
-                }
-            ],
-            "must": [],
-            "must_not": [],
-            "should": []
-        }
-    },
-    "runtime_mappings": {},
-    "script_fields": {},
-    "size": 0,
-    "stored_fields": [
-        "*"
-    ],
-    "track_total_hits": true
-}`}
 
 const kibanaInternalLog = `
 {
@@ -235,7 +112,7 @@ func main() {
 		reportUri := waitForScheduleReportGeneration()
 		waitForLogsInClickhouse("logs-generic-default", time.Minute)
 		println("   Logs in Clickhouse: OK")
-		waitForAsyncQuery(time.Minute, queries)
+		waitForAsyncQuery(time.Minute)
 		println("   AsyncQuery: OK")
 		waitForKibanaLogExplorer("kibana LogExplorer", time.Minute)
 		println("   Kibana LogExplorer: OK")
@@ -495,42 +372,6 @@ func checkLogs() {
 	if bytes.Contains([]byte(fileContent), []byte(searchString)) {
 		panic("Panic recovered in quesma.log")
 	}
-}
-
-func waitForAsyncQuery(timeout time.Duration, queries []string) {
-	serviceName := "async query"
-	for _, query := range queries {
-		res := waitFor(serviceName, func() bool {
-			resp, err := http.Post(asyncQueryUrl, "application/json", bytes.NewBuffer([]byte(query)))
-
-			if err == nil {
-				defer resp.Body.Close()
-				if resp.StatusCode == 200 {
-					body, err := io.ReadAll(resp.Body)
-					if err == nil {
-						var response map[string]interface{}
-						_ = json.Unmarshal(body, &response)
-
-						if response["completion_time_in_millis"] != nil {
-							if sourceClickhouse(resp) {
-								return true
-							} else {
-								panic("invalid X-Quesma-Source header value")
-							}
-						}
-					} else {
-						log.Println(err)
-					}
-				}
-			}
-			return false
-		}, timeout)
-
-		if !res {
-			panic(serviceName + " is not alive or is not receiving logs")
-		}
-	}
-	checkLogs()
 }
 
 func headerExists(headers http.Header, key string, value string) bool {

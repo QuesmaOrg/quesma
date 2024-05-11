@@ -144,13 +144,13 @@ jobs:
       - name: Wait until services are healthy
         timeout-minutes: 6
         working-directory: smoke-test
-        run: go run main.go --wait-for-start
+        run: go run . --wait-for-start
 
       - name: Verify if data is flowing
         working-directory: smoke-test
         env:
           GITHUB_ACTIONS: true
-        run: go run main.go
+        run: go run .
 
       - name: Print docker status
         if: failure()
