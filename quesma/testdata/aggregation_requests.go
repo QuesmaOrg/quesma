@@ -3986,4 +3986,966 @@ var AggregationTests = []AggregationTestCase{
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/79200000))",
 		},
 	},
+	{ // [25]
+		TestName: "simple histogram, but min_doc_count: 0",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"histogram": {
+						"field": "bytes",
+						"interval": 100,
+						"min_doc_count": 0
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-05-10T13:47:56.077Z",
+									"lte": "2024-05-10T14:02:56.077Z"
+								}
+							}
+						}
+					],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"doc_count": 1,
+							"key": 9100.0
+						},
+						{
+							"doc_count": 0,
+							"key": 9200.0
+						},
+						{
+							"doc_count": 0,
+							"key": 9300.0
+						},
+						{
+							"doc_count": 0,
+							"key": 9400.0
+						},
+						{
+							"doc_count": 0,
+							"key": 9500.0
+						},
+						{
+							"doc_count": 0,
+							"key": 9600.0
+						},
+						{
+							"doc_count": 2,
+							"key": 9700.0
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 6
+				}
+			},
+			"timed_out": false,
+			"took": 10
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(6))}}},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 9100.0),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 9700.0),
+					model.NewQueryResultCol("doc_count", 2),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z') `,
+			`SELECT floor("bytes" / 100.000000) * 100.000000, count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z')  ` +
+				`GROUP BY (floor("bytes" / 100.000000) * 100.000000) ` +
+				`ORDER BY (floor("bytes" / 100.000000) * 100.000000)`,
+		},
+	},
+	{ // [26]
+		TestName: "simple date_histogram, but min_doc_count: 0",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"date_histogram": {
+						"field": "timestamp",
+						"fixed_interval": "30s",
+						"min_doc_count": 0,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-05-10T14:29:02.900Z",
+									"lte": "2024-05-10T14:44:02.900Z"
+								}
+							}
+						}
+					],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"doc_count": 1,
+							"key": 1715351610000,
+							"key_as_string": "2024-05-10T14:33:30.000"
+						},
+						{
+							"doc_count": 1,
+							"key": 1715351640000,
+							"key_as_string": "2024-05-10T14:34:00.000"
+						},
+						{
+							"doc_count": 0,
+							"key": 1715351670000,
+							"key_as_string": "2024-05-10T14:34:30.000"
+						},
+						{
+							"doc_count": 0,
+							"key": 1715351700000,
+							"key_as_string": "2024-05-10T14:35:00.000"
+						},
+						{
+							"doc_count": 1,
+							"key": 1715351730000,
+							"key_as_string": "2024-05-10T14:35:30.000"
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 4
+				}
+			},
+			"timed_out": false,
+			"took": 146
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4))}}},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715351610000/30000)),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715351730000/30000)),
+					model.NewQueryResultCol("doc_count", 2),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-10T14:29:02.900Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:44:02.900Z') `,
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/30000), count() " +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-10T14:29:02.900Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:44:02.900Z')  ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/30000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/30000))",
+		},
+	},
+	{ // [27]
+		TestName: "simple date_histogram, but min_doc_count: 0",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"2": {
+							"terms": {
+								"field": "message",
+								"size": 4
+							}
+						}
+					},
+					"histogram": {
+						"extended_bounds": {
+							"max": 10000,
+							"min": 0
+						},
+						"field": "rspContentLen",
+						"interval": 2000,
+						"min_doc_count": 0
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"doc_count": 1,
+							"key": 9100.0
+						},
+						{
+							"doc_count": 0,
+							"key": 9200.0
+						},
+						{
+							"doc_count": 0,
+							"key": 9300.0
+						},
+						{
+							"doc_count": 0,
+							"key": 9400.0
+						},
+						{
+							"doc_count": 0,
+							"key": 9500.0
+						},
+						{
+							"doc_count": 0,
+							"key": 9600.0
+						},
+						{
+							"doc_count": 2,
+							"key": 9700.0
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 6
+				}
+			},
+			"timed_out": false,
+			"took": 10
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(6))}}},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`floor("rspContentLen" / 2000.000000) * 2000.000000`, 0.0),
+					model.NewQueryResultCol("message", "a"),
+					model.NewQueryResultCol("doc_count", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`floor("rspContentLen" / 2000.000000) * 2000.000000`, 0.0),
+					model.NewQueryResultCol("message", "b"),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`floor("rspContentLen" / 2000.000000) * 2000.000000`, 4000.0),
+					model.NewQueryResultCol("message", "c"),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`floor("rspContentLen" / 2000.000000) * 2000.000000`, 0.0),
+					model.NewQueryResultCol("doc_count", 3),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`floor("rspContentLen" / 2000.000000) * 2000.000000`, 4000.0),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + QuotedTableName + ` `,
+			`SELECT floor("rspContentLen" / 2000.000000) * 2000.000000, "message", count() ` +
+				`FROM ` + QuotedTableName + `  ` +
+				`GROUP BY (floor("rspContentLen" / 2000.000000) * 2000.000000, "message") ` +
+				`ORDER BY (floor("rspContentLen" / 2000.000000) * 2000.000000, "message")`,
+			`SELECT floor("rspContentLen" / 2000.000000) * 2000.000000, count() ` +
+				`FROM ` + QuotedTableName + `  ` +
+				`GROUP BY (floor("rspContentLen" / 2000.000000) * 2000.000000) ` +
+				`ORDER BY (floor("rspContentLen" / 2000.000000) * 2000.000000)`,
+		},
+	},
+	{ // [28]
+		TestName: "Terms, completely different tree results from 2 queries - merging them didn't work before",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1-bucket": {
+							"filter": {
+								"bool": {
+									"filter": [
+										{
+											"bool": {
+												"minimum_should_match": 1,
+												"should": [
+													{
+														"match": {
+															"FlightDelay": true
+														}
+													}
+												]
+											}
+										}
+									],
+									"must": [],
+									"must_not": [],
+									"should": []
+								}
+							}
+						},
+						"3-bucket": {
+							"filter": {
+								"bool": {
+									"filter": [
+										{
+											"bool": {
+												"minimum_should_match": 1,
+												"should": [
+													{
+														"match": {
+															"Cancelled": true
+														}
+													}
+												]
+											}
+										}
+									],
+									"must": [],
+									"must_not": [],
+									"should": []
+								}
+							}
+						}
+					},
+					"terms": {
+						"field": "OriginCityName",
+						"order": {
+							"_key": "asc"
+						},
+						"size": 1000
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {
+				"hour_of_day": {
+					"script": {
+						"source": "emit(doc['timestamp'].value.getHour());"
+					},
+					"type": "long"
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"is_partial": false,
+			"is_running": false,
+			"start_time_in_millis": 1711785625800,
+			"expiration_time_in_millis": 1712217625800,
+			"completion_time_in_millis": 1711785625803,
+			"response": {
+				"took": 3,
+				"timed_out": false,
+				"_shards": {
+					"total": 1,
+					"successful": 1,
+					"skipped": 0,
+					"failed": 0
+				},
+				"hits": {
+					"total": {
+						"value": 2167,
+						"relation": "eq"
+					},
+					"max_score": null,
+					"hits": []
+				},
+				"aggregations": {
+					"0": {
+						"doc_count_error_upper_bound": 0,
+						"sum_other_doc_count": 0,
+						"buckets": [
+							{
+								"key": "Albuquerque",
+								"doc_count": 4,
+								"3-bucket": {
+									"doc_count": 2
+								},
+								"1-bucket": {
+									"doc_count": 1
+								}
+							},
+							{
+								"key": "Atlanta",
+								"doc_count": 5,
+								"3-bucket": {
+									"doc_count": 0
+								},
+								"1-bucket": {
+									"doc_count": 0
+								}
+							},
+							{
+								"key": "Baltimore",
+								"doc_count": 5,
+								"3-bucket": {
+									"doc_count": 0
+								},
+								"1-bucket": {
+									"doc_count": 2
+								}
+							}
+						]
+					}
+				}
+			}
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2167))}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 4)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Atlanta"), model.NewQueryResultCol("doc_count", 5)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Baltimore"), model.NewQueryResultCol("doc_count", 5)}},
+			},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 2)}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 1)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Baltimore"), model.NewQueryResultCol("doc_count", 2)}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + QuotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-03-23T07:32:06.246Z') AND "timestamp"<=parseDateTime64BestEffort('2024-03-30T07:32:06.246Z')`,
+			``,
+			``,
+			``,
+		},
+	},
+	{ // [29]
+		TestName: "Terms, completely different tree results from 2 queries - merging them didn't work before (logs)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"3": {
+					"aggs": {
+						"1": {
+							"sum": {
+								"field": "memory"
+							}
+						},
+						"2": {
+							"aggs": {
+								"1": {
+									"sum": {
+										"field": "memory"
+									}
+								}
+							},
+							"terms": {
+								"field": "machine.os.keyword",
+								"order": {
+									"1": "desc"
+								},
+								"size": 5
+							}
+						}
+					},
+					"terms": {
+						"field": "geo.src",
+						"order": {
+							"1": "desc"
+						},
+						"size": 5
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"match_all": {}
+						},
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-05-10T06:15:26.167Z",
+									"lte": "2024-05-10T21:15:26.167Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"is_partial": false,
+			"is_running": false,
+			"start_time_in_millis": 1711785625800,
+			"expiration_time_in_millis": 1712217625800,
+			"completion_time_in_millis": 1711785625803,
+			"response": {
+				"took": 3,
+				"timed_out": false,
+				"_shards": {
+					"total": 1,
+					"successful": 1,
+					"skipped": 0,
+					"failed": 0
+				},
+				"hits": {
+					"total": {
+						"value": 2167,
+						"relation": "eq"
+					},
+					"max_score": null,
+					"hits": []
+				},
+				"aggregations": {
+					"0": {
+						"doc_count_error_upper_bound": 0,
+						"sum_other_doc_count": 0,
+						"buckets": [
+							{
+								"key": "Albuquerque",
+								"doc_count": 4,
+								"3-bucket": {
+									"doc_count": 2
+								},
+								"1-bucket": {
+									"doc_count": 1
+								}
+							},
+							{
+								"key": "Atlanta",
+								"doc_count": 5,
+								"3-bucket": {
+									"doc_count": 0
+								},
+								"1-bucket": {
+									"doc_count": 0
+								}
+							},
+							{
+								"key": "Baltimore",
+								"doc_count": 5,
+								"3-bucket": {
+									"doc_count": 0
+								},
+								"1-bucket": {
+									"doc_count": 2
+								}
+							}
+						]
+					}
+				}
+			}
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2167))}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 4)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Atlanta"), model.NewQueryResultCol("doc_count", 5)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Baltimore"), model.NewQueryResultCol("doc_count", 5)}},
+			},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 2)}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 1)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Baltimore"), model.NewQueryResultCol("doc_count", 2)}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + QuotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-03-23T07:32:06.246Z') AND "timestamp"<=parseDateTime64BestEffort('2024-03-30T07:32:06.246Z')`,
+			``,
+			``,
+			``,
+		},
+	},
+	{ // [30]
+		TestName: "Terms, completely different tree results from 2 queries - merging them didn't work before (logs) co jak 0 cardinality?",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"cardinality": {
+								"field": "clientip"
+							}
+						}
+					},
+					"terms": {
+						"field": "machine.os.keyword",
+						"order": {
+							"1": "desc"
+						},
+						"size": 5
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"match_all": {}
+						},
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-05-10T06:22:39.037Z",
+									"lte": "2024-05-10T21:22:39.037Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"is_partial": false,
+			"is_running": false,
+			"start_time_in_millis": 1711785625800,
+			"expiration_time_in_millis": 1712217625800,
+			"completion_time_in_millis": 1711785625803,
+			"response": {
+				"took": 3,
+				"timed_out": false,
+				"_shards": {
+					"total": 1,
+					"successful": 1,
+					"skipped": 0,
+					"failed": 0
+				},
+				"hits": {
+					"total": {
+						"value": 2167,
+						"relation": "eq"
+					},
+					"max_score": null,
+					"hits": []
+				},
+				"aggregations": {
+					"0": {
+						"doc_count_error_upper_bound": 0,
+						"sum_other_doc_count": 0,
+						"buckets": [
+							{
+								"key": "Albuquerque",
+								"doc_count": 4,
+								"3-bucket": {
+									"doc_count": 2
+								},
+								"1-bucket": {
+									"doc_count": 1
+								}
+							},
+							{
+								"key": "Atlanta",
+								"doc_count": 5,
+								"3-bucket": {
+									"doc_count": 0
+								},
+								"1-bucket": {
+									"doc_count": 0
+								}
+							},
+							{
+								"key": "Baltimore",
+								"doc_count": 5,
+								"3-bucket": {
+									"doc_count": 0
+								},
+								"1-bucket": {
+									"doc_count": 2
+								}
+							}
+						]
+					}
+				}
+			}
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2167))}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 4)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Atlanta"), model.NewQueryResultCol("doc_count", 5)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Baltimore"), model.NewQueryResultCol("doc_count", 5)}},
+			},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 2)}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 1)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Baltimore"), model.NewQueryResultCol("doc_count", 2)}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + QuotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-03-23T07:32:06.246Z') AND "timestamp"<=parseDateTime64BestEffort('2024-03-30T07:32:06.246Z')`,
+			``,
+			``,
+			``,
+		},
+	},
+	// terms + histogram
+	// histogram + terms
+	// wszystko z jakimś avg, cardinality, itp
 }

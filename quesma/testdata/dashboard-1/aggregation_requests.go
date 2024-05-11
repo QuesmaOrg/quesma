@@ -26,7 +26,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 							},
 							"histogram": {
 								"extended_bounds": {
-									"max": 658654099,
+									"max": 6054099,
 									"min": 0
 								},
 								"field": "rspContentLen",
@@ -37,7 +37,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 					},
 					"histogram": {
 						"extended_bounds": {
-							"max": 658654099,
+							"max": 6054099,
 							"min": 0
 						},
 						"field": "rspContentLen",
@@ -141,35 +141,35 @@ var AggregationTests = []testdata.AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4636))}}},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0),
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0),
+					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
+					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
 					model.NewQueryResultCol("avgOrNull(rspContentLen)", 42516.52153947081),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 658000000),
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 658000000),
+					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
+					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
 					model.NewQueryResultCol("avgOrNull(rspContentLen)", 658654099),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0),
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0),
+					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
+					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
 					model.NewQueryResultCol("doc_count", 4573),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 658000000),
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 658000000),
+					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
+					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
 					model.NewQueryResultCol("doc_count", 1),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0),
+					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 0.0),
 					model.NewQueryResultCol("doc_count", 4573),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 658000000),
+					model.NewQueryResultCol("floor(rspContentLen / 2000000.000000) * 2000000.000000", 6000000.0),
 					model.NewQueryResultCol("doc_count", 1),
 				}},
 			},
@@ -363,54 +363,54 @@ var AggregationTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", int64(1713957330000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1),
+					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1.0),
 					model.NewQueryResultCol("quantile_95", []float64{77}),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", int64(1713957330000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3),
+					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3.0),
 					model.NewQueryResultCol("quantile_95", []float64{71}),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", int64(1713957360000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1),
+					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1.0),
 					model.NewQueryResultCol("quantile_95", []float64{80.44999999999999}),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", int64(1713957360000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3),
+					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3.0),
 					model.NewQueryResultCol("quantile_95", []float64{63}),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", int64(1713957360000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 5),
+					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 5.0),
 					model.NewQueryResultCol("quantile_95", []float64{83.8}),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", int64(1713957330000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1),
+					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1.0),
 					model.NewQueryResultCol("doc_count", 159),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", int64(1713957330000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3),
+					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3.0),
 					model.NewQueryResultCol("doc_count", 8),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", int64(1713957360000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1),
+					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 1.0),
 					model.NewQueryResultCol("doc_count", 52),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", int64(1713957360000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3),
+					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 3.0),
 					model.NewQueryResultCol("doc_count", 21),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("key", int64(1713957360000/30000)),
-					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 5),
+					model.NewQueryResultCol(`floor("billingRegion\" / 0.020000) * 0.020000`, 5.0),
 					model.NewQueryResultCol("doc_count", 5),
 				}},
 			},

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/kibana"
 	"mitmproxy/quesma/logger"
@@ -450,7 +451,14 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 	} else {
 		buckets := cw.splitResultSetIntoBuckets(ResultSet, selectLevel)
 		for _, bucket := range buckets {
-			bucketsReturnMap = append(bucketsReturnMap, cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+1)...)
+			fmt.Println("sialala aggrs:", query.Aggregators, "aggrLevel: ", aggregatorsLevel, "selectLvl:", selectLevel, "bucket:", bucket, cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+1))
+			for _, subbucket := range cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+1) {
+				if _, exists := subbucket["key"]; !exists {
+					subbucket[model.KeyToBeErased] = bucket[0].Cols[selectLevel].ExtractValue(cw.Ctx)
+				}
+				bucketsReturnMap = append(bucketsReturnMap, subbucket)
+			}
+			//bucketsReturnMap = append(bucketsReturnMap, cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+1)...)
 		}
 	}
 
@@ -497,7 +505,9 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []mod
 		if len(ResultSets) <= i+1 {
 			continue
 		}
+		fmt.Println(query, ResultSets[i+1])
 		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i+1], 0, 0)
+		pp.Println(aggregation)
 		if len(aggregation) != 0 {
 			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0]) // result of root node is always a single map, thus [0]
 		}

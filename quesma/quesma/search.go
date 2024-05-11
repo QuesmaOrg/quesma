@@ -592,8 +592,8 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggrega
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			continue
 		}
-		rows = agg.Type.PostprocessResults(rows)
-		resultRows = append(resultRows, rows)
+		postprocessedRows := agg.Type.PostprocessResults(rows)
+		resultRows = append(resultRows, postprocessedRows)
 	}
 	translatedQueryBody = []byte(sqls)
 	if optAsync != nil {
