@@ -132,13 +132,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	switch sources {
 	case sourceBoth:
-		logger.Error().Msgf("querying data in elasticsearch and clickhouse is not supported at the moment, index pattern [%s] resolved to both elasticsearch indices: [%s] and clickhouse tables: [%s]", indexPattern, sourcesElastic, sourcesClickhouse)
+		logger.Error().Msgf("querying data in elasticsearch and clickhouse is not supported at the moment - returning only data from clickhouse, index pattern [%s] resolved to both elasticsearch indices: [%s] and clickhouse tables: [%s]", indexPattern, sourcesElastic, sourcesClickhouse)
 		// TODO replace with actual handling
-		if optAsync != nil {
+		/*if optAsync != nil {
 			return queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 200)
 		} else {
 			return queryparser.EmptySearchResponse(ctx), nil
-		}
+		}*/
 	case sourceNone:
 		if elasticsearch.IsIndexPattern(indexPattern) {
 			if optAsync != nil {

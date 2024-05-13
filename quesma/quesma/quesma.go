@@ -3,14 +3,17 @@ package quesma
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/feature"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/network"
 	"mitmproxy/quesma/proxy"
+	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/gzip"
 	"mitmproxy/quesma/quesma/mux"
@@ -50,7 +53,7 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 	elkResponse.Body.Close()
 }
 
-func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, elkResponse *http.Response, zip bool) {
+func responseFromQuesmaCompareHeaders(ctx context.Context, unzipped []byte, w http.ResponseWriter, elkResponse *http.Response, zip bool) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
 	if zip {
@@ -66,6 +69,22 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 	}
 	if elkResponse != nil {
 		LogMissingEsHeaders(elkResponse.Header, w.Header(), id)
+	}
+}
+
+func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, zip bool) {
+	id := ctx.Value(tracing.RequestIdCtxKey).(string)
+	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
+	if zip {
+		zipped, err := gzip.Zip(unzipped)
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("Error zipping: %v", err)
+		}
+		w.Header().Add(httpHeaderContentLength, strconv.Itoa(len(zipped)))
+		_, _ = io.Copy(w, bytes.NewBuffer(zipped))
+	} else {
+		w.Header().Add(httpHeaderContentLength, strconv.Itoa(len(unzipped)))
+		_, _ = io.Copy(w, bytes.NewBuffer(unzipped))
 	}
 }
 
@@ -98,6 +117,101 @@ func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.Qu
 	}
 }
 
+func SendHttpRequest(ctx context.Context, method, path string, originalReqBody []byte, header http.Header) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, path, bytes.NewBuffer(originalReqBody))
+
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("Error creating request: %v", err)
+		return nil, err
+	}
+
+	req.Header = header
+
+	client := http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		logger.ErrorWithCtxAndReason(ctx, "No network connection").
+			Msgf("Error sending request: %v", err)
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func NewStreamHandlerBypass(ctx2 context.Context, cfg config.QuesmaConfiguration, w http.ResponseWriter, quesmaRouter *mux.PathRouter) *StreamHandlerBypass {
+	pathRouter := mux.NewPathRouter()
+	pathRouter.RegisterPathMatcher(routes.IndexAsyncSearchPath, "POST", func(m map[string]string, body string) bool {
+		return m["index"] == "logs-*,filebeat-*,kibana_sample_data_logs*"
+	}, func(ctx context.Context, body string, _ string, params map[string]string, header http.Header) (*mux.Result, error) {
+		clickhouseResult, err := quesmaRouter.Execute(ctx2, strings.ReplaceAll(routes.IndexAsyncSearchPath, ":index", "logs-generic-default"), body, "POST", header)
+		if err != nil {
+			return nil, err
+		}
+
+		elasticResult, err := SendHttpRequest(ctx, "POST", cfg.Elasticsearch.Url.String()+strings.ReplaceAll(routes.IndexAsyncSearchPath, ":index", params["index"]), []byte(body), header)
+		if err != nil {
+			return nil, err
+		}
+
+		_ = clickhouseResult
+
+		// read elasticResult body
+		elasticBody, err := io.ReadAll(elasticResult.Body)
+		if err != nil {
+			log.Println(err)
+		}
+
+		_ = elasticBody
+
+		responseBody, err := queryparser.EmptyAsyncSearchResponse("", false, 200)
+		_ = responseBody
+
+		if err != nil {
+			if errors.Is(errIndexNotExists, err) {
+				return &mux.Result{StatusCode: 404}, nil
+			} else {
+				return nil, err
+			}
+		}
+		return clickhouseResult, nil
+	})
+	return &StreamHandlerBypass{w, pathRouter, quesmaRouter}
+}
+
+type StreamHandlerBypass struct {
+	w              http.ResponseWriter
+	router         *mux.PathRouter
+	originalRouter *mux.PathRouter
+}
+
+func (s StreamHandlerBypass) Applies(req HttpRequest) bool {
+	return s.router.Matches(req.Path, req.Method, req.Body)
+}
+
+func (s StreamHandlerBypass) Execute(ctx context.Context, req HttpRequest, header http.Header) (*mux.Result, error) {
+	response, err := s.router.Execute(context.Background(), req.Path, req.Body, req.Method, header)
+	zip := strings.Contains(req.Headers.Get("Accept-Encoding"), "gzip")
+	unzipped := []byte{}
+	if response != nil {
+		unzipped = []byte(response.Body)
+	}
+	if len(unzipped) == 0 {
+		logger.Warn().Msg("empty response from Clickhouse")
+	}
+	addProductAndContentHeaders(req.Headers, s.w.Header())
+	for key, value := range response.Meta {
+		s.w.Header().Set(key, value)
+	}
+	if zip {
+		s.w.Header().Set("Content-Encoding", "gzip")
+	}
+	s.w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+	s.w.WriteHeader(response.StatusCode)
+	responseFromQuesma(ctx, unzipped, s.w, zip)
+
+	return response, err
+}
+
 func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, config config.QuesmaConfiguration, logChan <-chan tracing.LogWithLevel) *Quesma {
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logManager, indexManager, logChan, phoneHomeAgent)
 	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole)
@@ -128,7 +242,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		}
 
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
-			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method)
+			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method, req.Header)
 		})
 		var elkRawResponse elasticResult
 		var elkResponse *http.Response
@@ -167,7 +281,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			}
 			w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
 			w.WriteHeader(quesmaResponse.StatusCode)
-			responseFromQuesma(ctx, unzipped, w, elkResponse, zip)
+			responseFromQuesmaCompareHeaders(ctx, unzipped, w, elkResponse, zip)
 
 		} else {
 			if elkResponse != nil && r.config.Mode == config.DualWriteQueryClickhouseFallback {
@@ -189,7 +303,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 				// We should not send our error message to the client. There can be sensitive information in it.
 				// We will send ID of failed request instead
-				responseFromQuesma(ctx, []byte(fmt.Sprintf("Internal server error. Request ID: %s\n", requestId)), w, elkResponse, zip)
+				responseFromQuesmaCompareHeaders(ctx, []byte(fmt.Sprintf("Internal server error. Request ID: %s\n", requestId)), w, elkResponse, zip)
 			}
 		}
 	} else {
@@ -266,7 +380,7 @@ func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request
 				}
 			}
 
-			resp, err := r.sendHttpRequest(ctx, r.config.Elasticsearch.Url.String(), req, reqBody)
+			resp, err := r.SendHttpRequest(ctx, r.config.Elasticsearch.Url.String(), req, reqBody)
 			took := span.End(err)
 			return elasticResult{resp, err, took}
 		})
@@ -348,7 +462,7 @@ func (q *Quesma) Start() {
 	go q.quesmaManagementConsole.Run()
 }
 
-func (r *router) sendHttpRequest(ctx context.Context, address string, originalReq *http.Request, originalReqBody []byte) (*http.Response, error) {
+func (r *router) SendHttpRequest(ctx context.Context, address string, originalReq *http.Request, originalReqBody []byte) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, originalReq.Method, address+originalReq.URL.String(), bytes.NewBuffer(originalReqBody))
 
 	if err != nil {

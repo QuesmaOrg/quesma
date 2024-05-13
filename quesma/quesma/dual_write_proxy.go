@@ -13,6 +13,7 @@ import (
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/telemetry"
+	"mitmproxy/quesma/tracing"
 	"net/http"
 	"strconv"
 	"sync/atomic"
@@ -83,7 +84,17 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, indexManager elasticse
 		ua := req.Header.Get("User-Agent")
 		agent.UserAgentCounters().Add(ua, 1)
 
-		routerInstance.reroute(withTracing(req), w, req, reqBody, pathRouter, logManager)
+		rid := tracing.GetRequestId()
+		req.Header.Add("RequestId", rid)
+		ctx := req.Context()
+		ctx = context.WithValue(ctx, tracing.RequestIdCtxKey, rid)
+		ctx = context.WithValue(ctx, tracing.RequestPath, req.URL.Path)
+		streamHandlerBypass := NewStreamHandlerBypass(ctx, config, w, pathRouter)
+		bypassed := bypass(ctx, NewBypassChain(streamHandlerBypass), HttpRequest{Body: string(reqBody), Path: req.URL.Path, Method: req.Method, Headers: req.Header})
+
+		if !bypassed {
+			routerInstance.reroute(withTracing(req), w, req, reqBody, pathRouter, logManager)
+		}
 	})
 
 	limitedHandler := newSimultaneousClientsLimiter(handler, 50) // FIXME this should be configurable
@@ -100,6 +111,17 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, indexManager elasticse
 		asyncQueriesEvictor: NewAsyncQueriesEvictor(queryRunner.AsyncRequestStorage, queryRunner.AsyncQueriesContexts),
 		queryRunner:         queryRunner,
 	}
+}
+
+func bypass(ctx context.Context, bypassChain *BypassChain, r HttpRequest) bool {
+	bypassed := false
+	for _, processor := range bypassChain.Bypasses {
+		if processor.Applies(r) {
+			bypassed = true
+			_, _ = processor.Execute(ctx, r, r.Headers)
+		}
+	}
+	return bypassed
 }
 
 func (q *dualWriteHttpProxy) Close(ctx context.Context) {
