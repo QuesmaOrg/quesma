@@ -104,7 +104,7 @@ services:
     volumes:
       - ./kibana/:/local_mount
     command: ["/bin/bash", "-c", "/local_mount/add_sample_data.sh"]
-  clickhouse:
+  clickhouse: # user: 'default', no password
     image: clickhouse/clickhouse-server:23.12.2.59-alpine
     ports:
       - "8123:8123"
