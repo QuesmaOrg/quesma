@@ -77,8 +77,7 @@ jobs:
 
       - name: Wait until services are healthy
         timeout-minutes: 6
-        working-directory: smoke-test
-        run: go run . --wait-for-start
+        run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:9200)" = "200" ]; do sleep 3; done
 
       - name: Run e2e tests
         working-directory: quesma
