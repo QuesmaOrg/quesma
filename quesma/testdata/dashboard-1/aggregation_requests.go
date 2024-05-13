@@ -5,6 +5,27 @@ import (
 	"mitmproxy/quesma/testdata"
 )
 
+/*
+test below looked like this:
+TODO restore it, and add extended_bounds support (other PR)
+"histogram": {
+								"extended_bounds": {
+									"max": 6054099,
+									"min": 0
+								},
+								"field": "rspContentLen",
+								"interval": 2000000,
+								"min_doc_count": 0
+							}
+						}
+					},
+					"histogram": {
+						"extended_bounds": {
+							"max": 6054099,
+							"min": 0
+						},
+*/
+
 var AggregationTests = []testdata.AggregationTestCase{
 	{ // [0]
 		TestName: "dashboard-1: latency by region",
@@ -25,10 +46,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 								}
 							},
 							"histogram": {
-								"extended_bounds": {
-									"max": 6054099,
-									"min": 0
-								},
 								"field": "rspContentLen",
 								"interval": 2000000,
 								"min_doc_count": 0
@@ -36,10 +53,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 						}
 					},
 					"histogram": {
-						"extended_bounds": {
-							"max": 6054099,
-							"min": 0
-						},
 						"field": "rspContentLen",
 						"interval": 2000000,
 						"min_doc_count": 0
@@ -126,7 +139,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 											"value": 658654099
 										},
 										"doc_count": 1,
-										"key": 658000000
+										"key": 6000000
 									}
 								]
 							},

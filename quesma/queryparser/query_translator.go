@@ -451,14 +451,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 	} else {
 		buckets := cw.splitResultSetIntoBuckets(ResultSet, selectLevel)
 		for _, bucket := range buckets {
-			fmt.Println("sialala aggrs:", query.Aggregators, "aggrLevel: ", aggregatorsLevel, "selectLvl:", selectLevel, "bucket:", bucket, cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+1))
-			for _, subbucket := range cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+1) {
-				if _, exists := subbucket["key"]; !exists {
-					subbucket[model.KeyToBeErased] = bucket[0].Cols[selectLevel].ExtractValue(cw.Ctx)
-				}
-				bucketsReturnMap = append(bucketsReturnMap, subbucket)
-			}
-			//bucketsReturnMap = append(bucketsReturnMap, cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+1)...)
+			bucketsReturnMap = append(bucketsReturnMap, cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+1)...)
 		}
 	}
 

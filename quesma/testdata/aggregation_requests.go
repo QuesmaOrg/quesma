@@ -4609,10 +4609,21 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-03-23T07:32:06.246Z') AND "timestamp"<=parseDateTime64BestEffort('2024-03-30T07:32:06.246Z')`,
-			``,
-			``,
-			``,
+			`SELECT count() FROM ` + QuotedTableName + ` `,
+			`SELECT "OriginCityName", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "FlightDelay" == true  ` +
+				`GROUP BY ("OriginCityName") ` +
+				`ORDER BY ("OriginCityName")`,
+			`SELECT "OriginCityName", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "Cancelled" == true  ` +
+				`GROUP BY ("OriginCityName") ` +
+				`ORDER BY ("OriginCityName")`,
+			`SELECT "OriginCityName", count() ` +
+				`FROM ` + QuotedTableName + `  ` +
+				`GROUP BY ("OriginCityName") ` +
+				`ORDER BY ("OriginCityName")`,
 		},
 	},
 	{ // [29]
@@ -4789,7 +4800,7 @@ var AggregationTests = []AggregationTestCase{
 		},
 	},
 	{ // [30]
-		TestName: "Terms, completely different tree results from 2 queries - merging them didn't work before (logs) co jak 0 cardinality?",
+		TestName: "Terms, completely different tree results from 2 queries - merging them didn't work before (logs). what when cardinality = 0?",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -4947,5 +4958,5 @@ var AggregationTests = []AggregationTestCase{
 	},
 	// terms + histogram
 	// histogram + terms
-	// wszystko z jakimś avg, cardinality, itp
+	// everything with some avg, cardinality, etc
 }
