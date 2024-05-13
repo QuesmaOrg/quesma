@@ -223,11 +223,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						defer recovery.LogPanicWithCtx(ctx)
 						fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo)
 						fullQuery.QueryInfo = queryInfo
+						fullQuery.Highlighter = highlighter
 						q.searchWorker(ctx, fullQuery, columns, queryTranslator, table, body, optAsync)
 					}()
 				} else {
 					fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo)
 					fullQuery.QueryInfo = queryInfo
+					fullQuery.Highlighter = highlighter
 					translatedQueryBody, hits = q.searchWorker(ctx, fullQuery, columns, queryTranslator, table, body, nil)
 
 				}
@@ -479,7 +481,7 @@ func (q *QueryRunner) makeBasicQuery(ctx context.Context,
 }
 
 func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery *model.Query, columns []string, queryTranslator IQueryTranslator,
-	table *clickhouse.Table, body []byte, optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
+	table *clickhouse.Table, optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
 
 	if optAsync != nil && q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, optAsync.doneCh) {
 		return
@@ -487,7 +489,6 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery *model.Q
 
 	var err error
 
-	_, _, highlighter := queryTranslator.ParseQuery(string(body))
 	var dbQueryCtx context.Context
 	if optAsync != nil {
 		var dbCancel context.CancelFunc
@@ -511,7 +512,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery *model.Q
 		}
 	}
 	if optAsync != nil {
-		searchResponse, err := queryTranslator.MakeSearchResponse(hits, fullQuery.QueryInfo.Typ, highlighter)
+		searchResponse, err := queryTranslator.MakeSearchResponse(hits, fullQuery.QueryInfo.Typ, fullQuery.Highlighter)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, fullQuery.QueryInfo, hits)
 			optAsync.doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
@@ -525,13 +526,13 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery *model.Q
 func (q *QueryRunner) searchWorker(ctx context.Context, fullQuery *model.Query, columns []string, queryTranslator IQueryTranslator,
 	table *clickhouse.Table, body []byte, optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
 	if optAsync == nil {
-		return q.searchWorkerCommon(ctx, fullQuery, columns, queryTranslator, table, body, nil)
+		return q.searchWorkerCommon(ctx, fullQuery, columns, queryTranslator, table, nil)
 	} else {
 		select {
 		case <-q.executionCtx.Done():
 			return
 		default:
-			_, _ = q.searchWorkerCommon(ctx, fullQuery, columns, queryTranslator, table, body, optAsync)
+			_, _ = q.searchWorkerCommon(ctx, fullQuery, columns, queryTranslator, table, optAsync)
 			return
 		}
 	}
