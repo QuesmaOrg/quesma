@@ -17,6 +17,7 @@ type schemaLoader struct {
 func (sl *schemaLoader) ReloadTables() {
 	logger.Debug().Msg("reloading tables definitions")
 	configuredTables := make(map[string]discoveredTable)
+	var explicitlyDisabledTables, notConfiguredTables []string
 	databaseName := "default"
 	if sl.cfg.ClickHouse.Database != "" {
 		databaseName = sl.cfg.ClickHouse.Database
@@ -36,15 +37,19 @@ func (sl *schemaLoader) ReloadTables() {
 					comment := sl.SchemaManagement.tableComment(databaseName, table)
 					configuredTables[table] = discoveredTable{columns, indexConfig, comment}
 				} else {
-					logger.Debug().Msgf("table '%s' is disabled\n", table)
+					explicitlyDisabledTables = append(explicitlyDisabledTables, table)
 				}
 			} else {
-				logger.Info().Msgf("table '%s' not configured explicitly\n", table)
+				notConfiguredTables = append(notConfiguredTables, table)
 			}
 		}
 	}
-
-	logger.Debug().Msgf("discovered tables: [%s]", strings.Join(util.MapKeys(configuredTables), ","))
+	logger.Info().Msgf(
+		"Table discovery results: configured=[%s], found but not configured=[%s], explicitly disabled=[%s]",
+		strings.Join(util.MapKeys(configuredTables), ","),
+		strings.Join(notConfiguredTables, ","),
+		strings.Join(explicitlyDisabledTables, ","),
+	)
 
 	sl.populateTableDefinitions(configuredTables, databaseName, sl.cfg)
 }
