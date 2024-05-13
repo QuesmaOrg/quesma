@@ -75,10 +75,9 @@ jobs:
         timeout-minutes: 10
         run: docker-compose -f docker/e2e.yml up -d
 
-      - name: Wait until services are healthy
+      - name: Wait until Elasticsearch is up
         timeout-minutes: 6
-        working-directory: smoke-test
-        run: go run . --wait-for-start
+        run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:9200)" = "200" ]; do sleep 3; done
 
       - name: Run e2e tests
         working-directory: quesma
