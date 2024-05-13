@@ -78,7 +78,7 @@ jobs:
       - name: Wait until services are healthy
         timeout-minutes: 6
         working-directory: smoke-test
-        run: go run .
+        run: go run . --wait-for-start
 
       - name: Run e2e tests
         working-directory: quesma
