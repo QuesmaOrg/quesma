@@ -11,3 +11,5 @@ indexes:
   logs-generic-default:
     enabled: true
     fullTextFields: [ "message" ]
+  windows_logs:
+    enabled: true
