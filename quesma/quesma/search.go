@@ -221,10 +221,12 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				if optAsync != nil {
 					go func() {
 						defer recovery.LogPanicWithCtx(ctx)
-						q.searchWorker(ctx, queryTranslator, table, body, optAsync)
+						fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo)
+						q.searchWorker(ctx, fullQuery, columns, queryTranslator, table, body, optAsync)
 					}()
 				} else {
-					translatedQueryBody, hits = q.searchWorker(ctx, queryTranslator, table, body, nil)
+					fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo)
+					translatedQueryBody, hits = q.searchWorker(ctx, fullQuery, columns, queryTranslator, table, body, nil)
 
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
@@ -474,7 +476,7 @@ func (q *QueryRunner) makeBasicQuery(ctx context.Context,
 	return fullQuery, columns
 }
 
-func (q *QueryRunner) searchWorkerCommon(ctx context.Context, queryTranslator IQueryTranslator,
+func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery *model.Query, columns []string, queryTranslator IQueryTranslator,
 	table *clickhouse.Table, body []byte, optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
 
 	if optAsync != nil && q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, optAsync.doneCh) {
@@ -482,8 +484,8 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, queryTranslator IQ
 	}
 
 	var err error
-	var fullQuery *model.Query
-	simpleQuery, queryInfo, highlighter := queryTranslator.ParseQuery(string(body))
+
+	_, queryInfo, highlighter := queryTranslator.ParseQuery(string(body))
 	var dbQueryCtx context.Context
 	if optAsync != nil {
 		var dbCancel context.CancelFunc
@@ -492,8 +494,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, queryTranslator IQ
 	} else {
 		dbQueryCtx = ctx
 	}
-	var columns []string
-	fullQuery, columns = q.makeBasicQuery(dbQueryCtx, queryTranslator, table, simpleQuery, queryInfo)
+
 	if fullQuery == nil {
 		logger.ErrorWithCtx(ctx).Msgf("unknown query type: %v, query body: %v", queryInfo.Typ, body)
 	} else {
@@ -519,16 +520,16 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, queryTranslator IQ
 	return
 }
 
-func (q *QueryRunner) searchWorker(ctx context.Context, queryTranslator IQueryTranslator,
+func (q *QueryRunner) searchWorker(ctx context.Context, fullQuery *model.Query, columns []string, queryTranslator IQueryTranslator,
 	table *clickhouse.Table, body []byte, optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
 	if optAsync == nil {
-		return q.searchWorkerCommon(ctx, queryTranslator, table, body, nil)
+		return q.searchWorkerCommon(ctx, fullQuery, columns, queryTranslator, table, body, nil)
 	} else {
 		select {
 		case <-q.executionCtx.Done():
 			return
 		default:
-			_, _ = q.searchWorkerCommon(ctx, queryTranslator, table, body, optAsync)
+			_, _ = q.searchWorkerCommon(ctx, fullQuery, columns, queryTranslator, table, body, optAsync)
 			return
 		}
 	}
