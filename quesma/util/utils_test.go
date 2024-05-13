@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
+	"mitmproxy/quesma/logger"
 	"reflect"
 	"strconv"
 	"testing"
@@ -390,6 +391,7 @@ func TestJsonDifference(t *testing.T) {
 }
 
 func TestMergeMaps(t *testing.T) {
+	logger.InitSimpleLoggerForTests()
 	var cases = []struct {
 		m1     JsonMap
 		m2     JsonMap
@@ -603,9 +605,68 @@ func TestMergeMaps(t *testing.T) {
 	for i, tt := range cases {
 		t.Run("TestMergeMaps_"+strconv.Itoa(i), func(t *testing.T) {
 			// simple == or Equal doesn't work on nested maps => need DeepEqual
-			assert.True(t, reflect.DeepEqual(tt.wanted, MergeMaps(context.Background(), tt.m1, tt.m2)))
+			assert.True(t, reflect.DeepEqual(tt.wanted, MergeMaps(context.Background(), tt.m1, tt.m2, []int{})))
 		})
 	}
+	logger.Disable()
+}
+
+func TestMergeMapsWithMergingArrays(t *testing.T) {
+	logger.InitSimpleLoggerForTests()
+	m1 := JsonMap{
+		"2": JsonMap{
+			"buckets": []JsonMap{
+				{
+					"1": JsonMap{
+						"value": 6.000000,
+					},
+				},
+			},
+		},
+	}
+	m2 := JsonMap{
+		"2": JsonMap{
+			"buckets": []JsonMap{
+				{
+					"1": JsonMap{
+						"value": 0.000000,
+					},
+				},
+			},
+		},
+	}
+	wantedWhenMergingArrays := JsonMap{
+		"2": JsonMap{
+			"buckets": []JsonMap{
+				{
+					"1": JsonMap{
+						"value": 6.000000,
+					},
+				},
+				{
+					"1": JsonMap{
+						"value": 0.000000,
+					},
+				},
+			},
+		},
+	}
+	testcases := []struct {
+		mergeArraysOnLevels []int
+		wanted              JsonMap
+	}{
+		{[]int{}, m1},
+		{[]int{0, 1, 3}, m1},
+		{[]int{0, 1, 2}, wantedWhenMergingArrays},
+		{[]int{2}, wantedWhenMergingArrays},
+	}
+	for i, tt := range testcases {
+		t.Run("TestMergeMapsWithMergingArrays_"+strconv.Itoa(i), func(t *testing.T) {
+			// simple == or Equal doesn't work on nested maps => need DeepEqual
+			assert.True(t, reflect.DeepEqual(tt.wanted, MergeMaps(m1, m2, tt.mergeArraysOnLevels)))
+		})
+	}
+	logger.Disable()
 }
 
 func TestIsSqlEqual(t *testing.T) {

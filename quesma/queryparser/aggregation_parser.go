@@ -355,6 +355,12 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		cw.processRangeAggregation(currentAggr, Range, queryMap, resultAccumulator, metadata)
 	}
 
+	// process "date_range" with subaggregations
+	dateRange, isDateRange := currentAggr.Type.(bucket_aggregations.DateRange)
+	if isDateRange {
+		cw.processDateRangeAggregation(currentAggr, dateRange, queryMap, resultAccumulator, metadata)
+	}
+
 	// TODO what happens if there's all: filters, range, and subaggregations at current level?
 	// We probably need to do |ranges| * |filters| * |subaggregations| queries, but we don't do that yet.
 	// Or probably a bit less, if optimized correctly.
@@ -388,14 +394,14 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		delete(queryMap, "filters")
 	}
 
-	aggsHandledSeparately := isRange || isFilters
+	aggsHandledSeparately := isRange || isDateRange || isFilters
 	if aggs, ok := queryMap["aggs"]; ok && !aggsHandledSeparately {
 		cw.parseAggregationNames(currentAggr, aggs.(QueryMap), resultAccumulator)
 	}
 	delete(queryMap, "aggs") // no-op if no "aggs"
 
-	if bucketAggrPresent && !isRange {
-		// range aggregation has separate, optimized handling
+	if bucketAggrPresent && !isRange && !isDateRange {
+		// range aggregations has separate, optimized handling
 		*resultAccumulator = append(*resultAccumulator, currentAggr.buildBucketAggregation(metadata))
 	}
 
@@ -609,23 +615,15 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		return success, 0, 0
 	}
 	if dateRangeRaw, ok := queryMap["date_range"]; ok {
-		dateRange, ok := dateRangeRaw.(QueryMap)
+		dateRangeMap, ok := dateRangeRaw.(QueryMap)
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("date_range is not a map, but %T, value: %v. Using empty map", dateRangeRaw, dateRangeRaw)
 		}
-		dateRangeParsed := cw.parseDateRangeAggregation(dateRange)
-		currentAggr.Type = dateRangeParsed
-		for _, interval := range dateRangeParsed.Intervals {
-			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, interval.ToSQLSelectQuery(dateRangeParsed.FieldName))
-			if sqlSelect, selectNeeded := interval.BeginTimestampToSQL(); selectNeeded {
-				currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, sqlSelect)
-			}
-			if sqlSelect, selectNeeded := interval.EndTimestampToSQL(); selectNeeded {
-				currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, sqlSelect)
-			}
-		}
+		dateRange := cw.parseDateRangeAggregation(dateRangeMap)
+		currentAggr.Type = dateRange
+		currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Empty = false
 		delete(queryMap, "date_range")
-		return success, dateRangeParsed.SelectColumnsNr, 0
+		return success, 0, 0 //dateRangeParsed.SelectColumnsNr, 0
 	}
 	if _, ok := queryMap["sampler"]; ok {
 		currentAggr.Type = metrics_aggregations.NewCount(cw.Ctx)

@@ -454,12 +454,19 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []mod
 		return aggregations
 	}
 	for i, query := range queries[aggregation_start_index:] {
+		//if i == 2 {
+		//	break
+		//}
 		if len(ResultSets) <= i+1 {
 			continue
 		}
 		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i+1], 0, 0)
 		if len(aggregation) != 0 {
-			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0]) // result of root node is always a single map, thus [0]
+
+			//if i == 1 {
+			//	pp.Println(aggregations, aggregation[0], query.Aggregators)
+			//}
+			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0], []int{}) // result of root node is always a single map, thus [0]
 		}
 	}
 	return aggregations

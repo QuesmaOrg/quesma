@@ -256,10 +256,10 @@ func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
 // but none of them works for nested maps, so needed to write our own.
 // * mActual - uses JsonMap fully: values are []JsonMap, or JsonMap, or base types
 // * mExpected - value can also be []any, because it's generated from Golang's json.Unmarshal
-func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
-	var mergeMapsRec func(m1, m2 JsonMap) JsonMap
+func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, mergeArraysOnLevels []int) JsonMap {
+	var mergeMapsRec func(m1, m2 JsonMap, level int) JsonMap
 	// merges 'i1' and 'i2' in 3 cases: both are JsonMap, both are []JsonMap, or both are some base type
-	mergeAny := func(i1, i2 any) any {
+	mergeAny := func(i1, i2 any, level int) any {
 		switch i1Typed := i1.(type) {
 		case JsonMap:
 			i2Typed, ok := i2.(JsonMap)
@@ -267,7 +267,7 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
 				logger.ErrorWithCtx(ctx).Msgf("mergeAny: i1 is map, i2 is not. i1: %v, i2: %v", i1, i2)
 				return i1
 			}
-			return mergeMapsRec(i1Typed, i2Typed)
+			return mergeMapsRec(i1Typed, i2Typed, level)
 		case []JsonMap:
 			i2Typed, ok := i2.([]any)
 			if !ok {
@@ -282,6 +282,17 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
 				}
 			}
 
+			if slices.Contains(mergeArraysOnLevels, level) {
+				for _, el2 := range i2Typed {
+					if el2Typed, ok := el2.(JsonMap); ok {
+						i1Typed = append(i1Typed, el2Typed)
+					} else {
+						logger.Error().Msgf("element of array i2 is not a map. i1: %v, i2: %v", i1, i2)
+					}
+				}
+				return i1Typed
+			}
+
 			// lengths should be always equal in our usage of this function, maybe that'll change
 			if len(i1Typed) != len(i2Typed) {
 				logger.ErrorWithCtx(ctx).Msgf("mergeAny: i1 and i2 are slices, but have different lengths. len(i1): %v, len(i2): %v, i1: %v, i2: %v", len(i1Typed), len(i2Typed), i1, i2)
@@ -289,7 +300,7 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
 			}
 			mergedArray := make([]JsonMap, len(i1Typed))
 			for i := range i1Typed {
-				mergedArray[i] = mergeMapsRec(i1Typed[i], i2Typed[i].(JsonMap))
+				mergedArray[i] = mergeMapsRec(i1Typed[i], i2Typed[i].(JsonMap), level+1)
 			}
 			return mergedArray
 		default:
@@ -297,12 +308,12 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
 		}
 	}
 
-	mergeMapsRec = func(m1, m2 JsonMap) JsonMap {
+	mergeMapsRec = func(m1, m2 JsonMap, level int) JsonMap {
 		mergedMap := make(JsonMap)
 		for k, v1 := range m1 {
 			v2, ok := m2[k]
 			if ok {
-				mergedMap[k] = mergeAny(v1, v2)
+				mergedMap[k] = mergeAny(v1, v2, level+1)
 			} else {
 				mergedMap[k] = v1
 			}
@@ -315,7 +326,7 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
 		}
 		return mergedMap
 	}
-	return mergeMapsRec(mActual, mExpected)
+	return mergeMapsRec(mActual, mExpected, 0)
 }
 
 func BodyHandler(h func(body []byte, writer http.ResponseWriter, r *http.Request)) func(http.ResponseWriter, *http.Request) {

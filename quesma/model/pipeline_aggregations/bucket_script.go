@@ -27,7 +27,7 @@ func (query BucketScript) TranslateSqlResponseToJson(rows []model.QueryResultRow
 	for _, row := range rows {
 		response = append(response, model.JsonMap{"value": row.Cols[level].Value})
 	}
-	return response
+	// return response
 }
 
 func (query BucketScript) String() string {

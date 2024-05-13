@@ -1276,4 +1276,266 @@ var AggregationTests = []testdata.AggregationTestCase{
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000))",
 		},
 	},
+	{ // [8]
+		TestName: `Date_range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Sum, Buckets: Aggregation: Date Range`,
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"sum": {
+								"field": "day_of_week_i"
+							}
+						}
+					},
+					"date_range": {
+						"field": "order_date",
+						"ranges": [
+							{
+								"from": "now-1w/w",
+								"to": "now"
+							},
+							{
+								"from": "now"
+							}
+						],
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "customer_birth_date",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				},
+				{
+					"field": "products.created_on",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"order_date": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-05-02T20:53:02.710Z",
+									"lte": "2024-05-02T21:08:02.710Z"
+								}
+							}
+						}
+					],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"1": {
+								"value": 6.0
+							},
+							"doc_count": 2,
+							"from": 1713736800000.0,
+							"from_as_string": "2024-04-22T00:00:00.000+02:00",
+							"key": "2024-04-22T00:00:00.000+02:00-2024-05-02T23:08:02.753+02:00",
+							"to": 1714684082753.0,
+							"to_as_string": "2024-05-02T23:08:02.753+02:00"
+						},
+						{
+							"1": {
+								"value": 0.0
+							},
+							"doc_count": 0,
+							"from": 1714684082753.0,
+							"from_as_string": "2024-05-02T23:08:02.753+02:00",
+							"key": "2024-05-02T23:08:02.753+02:00-*"
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 2
+				}
+			},
+			"timed_out": false,
+			"took": 13
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2))}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("sum", 6.0)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("sum", 0.0)}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("doc_count", 1541),
+				model.NewQueryResultCol("to", int64(1713288530)),
+				model.NewQueryResultCol("doc_count", 1541),
+				model.NewQueryResultCol("from", int64(1711407600)),
+				model.NewQueryResultCol("to", int64(1713288530)),
+				model.NewQueryResultCol("doc_count", 414),
+				model.NewQueryResultCol("from", int64(1713045600)),
+				model.NewQueryResultCol("value", 1541),
+			}}},
+		},
+		ExpectedSQLs: []string{
+			``,
+			``,
+			``,
+			``,
+		},
+	},
+	{ // [9]
+		TestName: `Date_range with subaggregations. I don't know how to reproduce manually, but it's the same request as in: ` +
+			`Reproduce: Visualize -> Pie chart -> Aggregation: Sum, Buckets: Aggregation: Date Range ` +
+			`but with added "keyed": true`,
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"sum": {
+								"field": "day_of_week_i"
+							}
+						}
+					},
+					"date_range": {
+						"keyed": true, 
+						"field": "order_date",
+						"ranges": [
+							{
+								"from": "now-1w/w",
+								"to": "now"
+							},
+							{
+								"from": "now"
+							}
+						],
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "customer_birth_date",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				},
+				{
+					"field": "products.created_on",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"order_date": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-05-02T20:53:02.710Z",
+									"lte": "2024-05-02T21:08:02.710Z"
+								}
+							}
+						}
+					],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 39,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 2,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"2": {
+					"buckets": {
+						"2024-04-22T00:00:00.000+02:00-2024-05-02T23:32:58.494+02:00": {
+							"1": {
+								"value": 6
+							},
+							"from": 1713736800000,
+							"from_as_string": "2024-04-22T00:00:00.000+02:00",
+							"to": 1714685578494,
+							"to_as_string": "2024-05-02T23:32:58.494+02:00",
+							"doc_count": 2
+						},
+						"2024-05-02T23:32:58.494+02:00-*": {
+							"1": {
+								"value": 0
+							},
+							"from": 1714685578494,
+							"from_as_string": "2024-05-02T23:32:58.494+02:00",
+							"doc_count": 0
+						}
+					}
+				}
+			}
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{},
+		ExpectedSQLs:    []string{},
+	},
 }
