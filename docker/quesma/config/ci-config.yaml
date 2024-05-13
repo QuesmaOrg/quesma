@@ -11,5 +11,5 @@ indexes:
   logs-generic-default:
     enabled: true
     fullTextFields: [ "message" ]
-  windows_logs:
+  windows_logs:   # Used for EQL e2e tests
     enabled: true

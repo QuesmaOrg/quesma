@@ -79,6 +79,14 @@ jobs:
         timeout-minutes: 6
         run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:9200)" = "200" ]; do sleep 3; done
 
+      - name: Wait until ClickHouse is up
+        timeout-minutes: 6
+        run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:8123)" = "200" ]; do sleep 3; done
+
+      - name: Wait until Quesma is up ('/' is call routed to Elasticsearch)
+        timeout-minutes: 6
+        run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:8080)" = "200" ]; do sleep 3; done
+
       - name: Run e2e tests
         working-directory: quesma
         run: go test --tags=integration  -v ./...
