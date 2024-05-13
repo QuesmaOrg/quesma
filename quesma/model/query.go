@@ -206,6 +206,9 @@ func (q *QueryWithAggregation) TrimKeywordFromFields(ctx context.Context) {
 	}
 }
 
+// Name returns the name of this aggregation (specifically, the last aggregator)
+// So for nested aggregation {"a": {"b": {"c": this aggregation}}}, it returns "c".
+// In some queries aggregations are referenced by full name, so "a>b>c", but so far this implementation seems sufficient.
 func (q *QueryWithAggregation) Name() string {
 	if len(q.Aggregators) == 0 {
 		return ""
@@ -213,10 +216,13 @@ func (q *QueryWithAggregation) Name() string {
 	return q.Aggregators[len(q.Aggregators)-1].Name
 }
 
+// HasParentAggregation returns true <=> this aggregation has a parent aggregation, so there's no query to the DB,
+// and results are calculated based on parent aggregation's results.
 func (q *QueryWithAggregation) HasParentAggregation() bool {
 	return q.NoDBQuery && len(q.Parent) > 0 // first condition should be enough, second just in case
 }
 
+// IsChild returns true <=> this aggregation is a child of maybeParent (so maybeParent is its parent).
 func (q *QueryWithAggregation) IsChild(maybeParent QueryWithAggregation) bool {
 	return q.HasParentAggregation() && q.Parent == maybeParent.Name()
 }

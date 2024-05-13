@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
-	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/testdata"
@@ -542,7 +541,7 @@ func sortAggregations(aggregations []model.QueryWithAggregation) {
 }
 
 func Test2AggregationParserExternalTestcases(t *testing.T) {
-	logger.InitSimpleLoggerForTests()
+	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -592,10 +591,8 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 				}
 			}
 
-			if test.ExpectedResponse == "" {
-				// We haven't recorded expected response yet, so we can't compare it
-				return
-			}
+			// I copy `test.ExpectedResults`, as it's processed 2 times and each time it might be modified by
+			// pipeline aggregation processing.
 			expectedResultsCopy := deepcopy.MustAnything(test.ExpectedResults).([][]model.QueryResultRow)
 			// pp.Println("EXPECTED", expectedResultsCopy)
 			actualAggregationsPart := cw.MakeAggregationPartOfResponse(aggregations, test.ExpectedResults)

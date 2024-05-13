@@ -17,9 +17,17 @@ type QueryResultCol struct {
 	Value   interface{}
 }
 
+func NewQueryResultCol(colName string, value interface{}) QueryResultCol {
+	return QueryResultCol{ColName: colName, Value: value}
+}
+
 type QueryResultRow struct {
 	Index string
 	Cols  []QueryResultCol
+}
+
+func NewQueryResultRowEmpty(index string) QueryResultRow {
+	return QueryResultRow{Index: index}
 }
 
 const (
@@ -27,10 +35,6 @@ const (
 	ResultColDocCountIndex                        // for facets/histogram Col[1] == DocCount
 	ResultColKeyAsStringIndex                     // for histogram Col[2] == KeyAsString
 )
-
-func NewQueryResultCol(colName string, value interface{}) QueryResultCol {
-	return QueryResultCol{ColName: colName, Value: value}
-}
 
 // String returns the string representation of the column in format `"<colName>": <value>`, properly quoted.
 func (c QueryResultCol) String(ctx context.Context) string {
@@ -109,7 +113,7 @@ func (c QueryResultCol) ExtractValue(ctx context.Context) any {
 	return c.Value
 }
 
-func (r QueryResultRow) String(ctx context.Context) string {
+func (r *QueryResultRow) String(ctx context.Context) string {
 	str := strings.Builder{}
 	str.WriteString(util.Indent(1) + "{\n")
 	numCols := len(r.Cols)
@@ -126,6 +130,7 @@ func (r QueryResultRow) String(ctx context.Context) string {
 	return str.String()
 }
 
+// Copy returns a deep copy of the row.
 func (r *QueryResultRow) Copy() QueryResultRow {
 	newCols := make([]QueryResultCol, len(r.Cols))
 	copy(newCols, r.Cols)

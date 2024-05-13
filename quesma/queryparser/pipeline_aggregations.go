@@ -1,12 +1,13 @@
 package queryparser
 
 import (
-	"fmt"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/pipeline_aggregations"
 )
 
+// CAUTION: maybe "return" everywhere isn't corrent, as maybe there can be multiple pipeline aggregations at one level.
+// But I've tested some complex queries and it seems to not be the case. So let's keep it this way for now.
 func (cw *ClickhouseQueryTranslator) parsePipelineAggregations(queryMap QueryMap) (aggregationType model.QueryType, success bool) {
 	if aggregationType, success = cw.parseBucketScriptBasic(queryMap); success {
 		delete(queryMap, "bucket_script")
@@ -118,48 +119,9 @@ func (b *aggrQueryBuilder) buildPipelineAggregation(aggregationType model.QueryT
 				logger.WarnWithCtx(b.ctx).Msg("cumulative_sum with count as parent, but no parent aggregation found")
 			}
 			query.Parent = query.Aggregators[len(query.Aggregators)-2].Name
-
 		} else {
 			query.Parent = aggrType.Parent
 		}
 	}
 	return query
-}
-
-func (cw *ClickhouseQueryTranslator) sortInTopologicalOrder(queries []model.QueryWithAggregation) []int {
-	nameToIndex := make(map[string]int, len(queries))
-	for i, query := range queries {
-		nameToIndex[query.Name()] = i
-	}
-
-	canSelect := make([]bool, 0, len(queries))
-	for _, query := range queries {
-		// at the beginning we can select <=> no parent aggregation
-		canSelect = append(canSelect, !query.HasParentAggregation())
-	}
-	fmt.Println("canSelect", canSelect)
-	alreadySelected := make([]bool, len(queries))
-	indexesSorted := make([]int, 0, len(queries))
-	for len(indexesSorted) < len(queries) {
-		lenStart := len(indexesSorted)
-		for i, query := range queries {
-			if !alreadySelected[i] && canSelect[i] {
-				indexesSorted = append(indexesSorted, i)
-				alreadySelected[i] = true
-				// mark all children as canSelect, as their parent is already resolved (selected)
-				for j, maybeChildQuery := range queries {
-					if maybeChildQuery.IsChild(query) {
-						canSelect[j] = true
-					}
-				}
-			}
-		}
-		lenEnd := len(indexesSorted)
-		if lenEnd == lenStart {
-			// without this check, we'd end up in an infinite loop
-			logger.WarnWithCtx(cw.Ctx).Msg("could not resolve all parent-child relationships in queries")
-			break
-		}
-	}
-	return indexesSorted
 }

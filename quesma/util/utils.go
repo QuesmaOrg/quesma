@@ -576,6 +576,11 @@ func ExtractFloat64(value any) float64 {
 	return -1
 }
 
+// ExtractFloat64 returns float64 value behind `value`:
+// * value,  if it's float64/32
+// * *value, if it's *float64/32
+// * -1,     otherwise
+// Also, success: true if value was successfully extracted, false otherwise
 func ExtractFloat64Maybe(value any) (asFloat64 float64, success bool) {
 	switch valueTyped := value.(type) {
 	case float64:

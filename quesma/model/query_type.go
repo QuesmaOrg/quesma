@@ -14,6 +14,9 @@ type QueryType interface {
 	String() string
 }
 
+// PipelineQueryType is an interface for pipeline aggregations
+// It's an extension to QueryType interface
+// Adds a method to calculate result rows from its parent aggregation
 type PipelineQueryType interface {
 	// TranslateSqlResponseToJson 'level' - we want to translate [level:] (metrics aggr) or [level-1:] (bucket aggr) columns to JSON
 	// Previous columns are used for bucketing.
@@ -23,6 +26,9 @@ type PipelineQueryType interface {
 	// IsBucketAggregation if true, result from 'MakeResponse' will be a slice of buckets
 	// if false, it's a metrics aggregation and result from 'MakeResponse' will be a single bucket
 	IsBucketAggregation() bool
+
+	// CalculateResultWhenMissing calculates the result of this aggregation when it's a NoDBQuery
+	// (we don't query the DB for the results, but calculate them from the parent aggregation)
 	CalculateResultWhenMissing(parentRow QueryResultRow, thisAggrPreviousResults []QueryResultRow) QueryResultRow
 	String() string
 }

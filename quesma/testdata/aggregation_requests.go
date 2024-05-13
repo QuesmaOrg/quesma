@@ -2409,7 +2409,7 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		[][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(0))}}},
-			// Used to be just "nil", not &nilVariable, but deepcopy panics during ExpectedResults copy. Works as is.
+			// Used to be just "nil", not &nilVariable, but deepcopy panics during ExpectedResults copy. Now, works.
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`minOrNull("@timestamp")`, &nilVariable)}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("@timestamp")`, &nilVariable)}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("@timestamp")`, &nilVariable)}}},

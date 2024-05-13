@@ -575,8 +575,13 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggrega
 	logger.InfoWithCtx(ctx).Msg("we're using new Aggregation handling.")
 	for _, agg := range aggregations {
 		logger.InfoWithCtx(ctx).Msgf("aggregation: %+v", agg)
-		logger.InfoWithCtx(ctx).Msgf("SQL: %s", agg.String())
-		sqls += agg.Query.String() + "\n"
+		if agg.NoDBQuery {
+			logger.InfoWithCtx(ctx).Msg("noDBQuery: we don't send query to the DB.")
+			sqls += fmt.Sprintf("No DB Query, aggregation info: %+v\n", agg)
+		} else {
+			logger.InfoWithCtx(ctx).Msgf("SQL: %s", agg.String())
+			sqls += agg.Query.String() + "\n"
+		}
 		rows, err := q.logManager.ProcessQuery(dbQueryCtx, table, &agg.Query, q.logManager.GetAllColumns(table, &agg.Query))
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())

@@ -8,18 +8,24 @@ import (
 	"mitmproxy/quesma/util"
 )
 
+// We fully support this aggregation.
+// Description: A parent pipeline aggregation which calculates the cumulative sum of a specified metric
+// in a parent histogram (or date_histogram) aggregation.
+// The specified metric must be numeric and the enclosing histogram must have min_doc_count set to 0 (default for histogram aggregations).
+// https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-pipeline-cumulative-sum-aggregation.html
+
 type CumulativeSum struct {
 	ctx     context.Context
 	Parent  string
-	IsCount bool
+	IsCount bool // count is a special case, `bucketsPath` is not a path to another aggregation, but path-to-aggregation>_count
 }
 
 func NewCumulativeSum(ctx context.Context, bucketsPath string) CumulativeSum {
-	isCount := bucketsPath == countPath
+	isCount := bucketsPath == bucketsPathCount
 	return CumulativeSum{ctx: ctx, Parent: bucketsPath, IsCount: isCount}
 }
 
-const countPath = "_count"
+const bucketsPathCount = "_count" // special name for `buckets_path` parameter, normally it's some other aggregation's name
 
 func (query CumulativeSum) IsBucketAggregation() bool {
 	return false
@@ -38,13 +44,14 @@ func (query CumulativeSum) TranslateSqlResponseToJson(rows []model.QueryResultRo
 }
 
 func (query CumulativeSum) CalculateResultWhenMissing(parentRow model.QueryResultRow, previousResultsCurrentAggregation []model.QueryResultRow) model.QueryResultRow {
-	fmt.Println("hoho")
 	resultRow := parentRow.Copy() // result is the same as parent, with an exception of last element, which we'll change below
 	parentValue := parentRow.Cols[len(parentRow.Cols)-1].Value
 	var resultValue any
 	if len(previousResultsCurrentAggregation) == 0 {
 		resultValue = parentValue
 	} else {
+		// I don't check types too much, they are expected to be numeric, so either floats or ints.
+		// I propose to keep it this way until at least one case arises as this method can be called a lot of times.
 		previousValue := previousResultsCurrentAggregation[len(previousResultsCurrentAggregation)-1].Cols[len(previousResultsCurrentAggregation[len(previousResultsCurrentAggregation)-1].Cols)-1].Value
 		parentValueAsFloat, ok := util.ExtractFloat64Maybe(parentValue)
 		if ok {
@@ -62,7 +69,6 @@ func (query CumulativeSum) CalculateResultWhenMissing(parentRow model.QueryResul
 		}
 	}
 	resultRow.Cols[len(resultRow.Cols)-1].Value = resultValue
-	fmt.Println("resultRow", resultRow)
 	return resultRow
 }
 
