@@ -190,7 +190,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	for _, resolvedTableName := range sourcesClickhouse {
 		var queryTranslator IQueryTranslator
-		var highlighter queryparser.Highlighter
+		var highlighter model.Highlighter
 		var aggregations []model.QueryWithAggregation
 		var err error
 		var queryInfo model.SearchQueryInfo
