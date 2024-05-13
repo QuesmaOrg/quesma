@@ -1,20 +1,32 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"io/ioutil"
 	"log"
+	"mitmproxy/quesma/eql"
+	"mitmproxy/quesma/eql/transform"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
-// Everything is a database.
+// Every process is a database.
+
+type DatabaseLet interface {
+	Query(query Document) ([]Document, error)
+}
+
+// Every data is a document
 
 type Document map[string]interface{}
+
+//
 
 func NewDocument() Document {
 	return make(Document)
@@ -28,79 +40,184 @@ func (d Document) String() string {
 	return string(out)
 }
 
-// Ingest
-
-type Ingester interface {
-	Ingest(document Document) error
-}
-
-// Query
-
-type Querier interface {
-	Query(query Document) (Documents, error)
-}
-
-type Documents interface {
-	Next() bool
-	Document() Document
-}
+// --------------------------
 
 // ---------------------
+//
+
+// Aux  implementation
+
+type DocumentLetFunc func(Document) ([]Document, error)
+
+func (f DocumentLetFunc) Query(query Document) ([]Document, error) {
+	return f(query)
+}
+
+// ---
+
+var emptyDocuments = make([]Document, 0)
+
+type EmptyDatabaseLet struct{}
+
+func (e *EmptyDatabaseLet) Query(query Document) ([]Document, error) {
+	return emptyDocuments, nil
+}
+
+type ErrorDatabaseLet struct {
+	Err error
+}
+
+func (e *ErrorDatabaseLet) Query(query Document) ([]Document, error) {
+	return nil, e.Err
+}
+
+// -----
+
+type StaticDocuments struct {
+	Documents []Document
+}
+
+func (s *StaticDocuments) Query(query Document) ([]Document, error) {
+	return s.Documents, nil
+}
+
+//
+
+// Document transformer
 
 type Transformer interface {
 	Transform(document Document) Document
 }
 
-//
+type TransformerFunc func(Document) Document
 
-//
-
-type NullIngester struct {
+func (f TransformerFunc) Transform(document Document) Document {
+	return f(document)
 }
 
-func (n *NullIngester) Ingest(document Document) error {
-	return nil
-}
+// Transforms query document before passing it to the source
 
-type ConsoleIngester struct {
-}
-
-func (c *ConsoleIngester) Ingest(document Document) error {
-	fmt.Println(document.String())
-	return nil
-}
-
-type IngesterFunc func(document Document) error
-
-type IngesterTransformer struct {
+type QueryTransformer struct {
 	Transformer Transformer
-	Out         Ingester
+	Source      DatabaseLet
 }
 
-func (i *IngesterTransformer) Ingest(document Document) error {
-	doc := i.Transformer.Transform(document)
-	return i.Out.Ingest(doc)
+func (i *QueryTransformer) Query(query Document) ([]Document, error) {
+	query = i.Transformer.Transform(query)
+	return i.Source.Query(query)
 }
 
-type Timestamper struct {
+// Transforms documents after they are returned from the source
+
+type DocumentsTransformer struct {
+	Transformer Transformer
+	Source      DatabaseLet
 }
 
-func (t *Timestamper) Transform(document Document) Document {
-	document["@timestamp"] = time.Now().Format(time.RFC3339)
-	return document
+func (t *DocumentsTransformer) Query(query Document) ([]Document, error) {
+	query = t.Transformer.Transform(query)
+	docs, err := t.Source.Query(query)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, _ := range docs {
+		docs[i] = t.Transformer.Transform(docs[i])
+	}
+
+	return docs, nil
 }
 
-func ingestLogger() (logger Ingester) {
+// ------------------- []Document -> Document
 
-	console := &ConsoleIngester{}
-	stamp := &Timestamper{}
-	logger = &IngesterTransformer{Transformer: stamp, Out: console}
-	return logger
+type Reducer interface {
+	Reduce([]Document) Document
 }
 
-func Print(ingest Ingester, m string, a ...any) {
+type ReducerFunc func([]Document) Document
 
-	if ingest == nil {
+func (r ReducerFunc) Reduce(docs []Document) Document {
+	return r(docs)
+}
+
+type DocumentReducer struct {
+	Reducer Reducer
+	Source  DatabaseLet
+}
+
+func (r *DocumentReducer) Query(query Document) ([]Document, error) {
+	docs, err := r.Source.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	return []Document{r.Reducer.Reduce(docs)}, nil
+}
+
+// Exploder Document -> []Document
+
+type Exploder interface {
+	Explode(Document) []Document
+}
+
+type ExploderFunc func(Document) []Document
+
+func (e ExploderFunc) Explode(doc Document) []Document {
+	return e(doc)
+}
+
+type DocumentExploder struct {
+	Exploder Exploder
+	Source   DatabaseLet
+}
+
+func (e *DocumentExploder) Query(query Document) ([]Document, error) {
+	docs, err := e.Source.Query(query)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []Document
+
+	for _, doc := range docs {
+		out = append(out, e.Exploder.Explode(doc)...)
+	}
+
+	return out, nil
+}
+
+/// ---------
+
+// actual implementations
+
+type StdOutIngest struct{}
+
+func (c *StdOutIngest) Query(document Document) ([]Document, error) {
+	fmt.Println(document.String())
+	return emptyDocuments, nil
+}
+
+// ---
+
+func makeLogger() DatabaseLet {
+
+	console := &StdOutIngest{}
+
+	trans := &QueryTransformer{Transformer: TransformerFunc(func(in Document) Document {
+		in["@timestamp"] = time.Now().Format(time.RFC3339)
+		return in
+
+	})}
+
+	trans.Source = console
+
+	return trans
+}
+
+//
+
+func Print(m string, a ...any) {
+
+	if logger == nil {
 		return
 	}
 
@@ -108,7 +225,7 @@ func Print(ingest Ingester, m string, a ...any) {
 
 	doc["message"] = fmt.Sprintf(m, a...)
 
-	err := ingest.Ingest(doc)
+	_, err := logger.Query(doc)
 	if err != nil {
 		log.Println(err)
 	}
@@ -116,69 +233,49 @@ func Print(ingest Ingester, m string, a ...any) {
 
 // ----------
 
-type StaticDocuments struct {
-	count int
-	Docs  []Document
-}
-
-func (s *StaticDocuments) Next() bool {
-	if s.count < len(s.Docs) {
-		return true
-	}
-	return false
-}
-
-func (s *StaticDocuments) Document() Document {
-	doc := s.Docs[s.count]
-	s.count++
-	return doc
-}
-
-// ----
-
-type ZeroQuerier struct {
-}
-
-func (z *ZeroQuerier) Query(query string) (Documents, error) {
-	return &StaticDocuments{Docs: []Document{}}, nil
-}
-
 /// -------------------------------
-
-type StaticQuerier struct {
-	Docs []Document
-}
-
-func (s *StaticQuerier) Query(query Document) (Documents, error) {
-	return &StaticDocuments{Docs: s.Docs}, nil
-}
 
 //
 
-type TraceQuerier struct {
-	Source Querier
-	Out    Ingester
+type PanicBarrier struct {
+	Source DatabaseLet
 }
 
-func (t *TraceQuerier) Query(query Document) (Documents, error) {
+func (p *PanicBarrier) Query(query Document) ([]Document, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("panic:", r)
+		}
+	}()
 
-	Print(t.Out, "query: %s", query)
+	return p.Source.Query(query)
+}
+
+type Panic struct {
+}
+
+func (p *Panic) Query(query Document) ([]Document, error) {
+	panic("panic")
+	return nil, nil
+}
+
+type Tracer struct {
+	Source DatabaseLet
+}
+
+func (t *Tracer) Query(query Document) ([]Document, error) {
+
+	trace := make(Document)
+
+	trace["query"] = query
 
 	docs, err := t.Source.Query(query)
+	trace["docs"] = docs
+	trace["error"] = err
 
+	Print("TRACE %s", trace.String())
 	if err != nil {
-		Print(t.Out, "error: %v", err)
-	}
-
-	if err != nil {
-		return docs, err
-	}
-
-	var count int
-	for docs.Next() {
-		doc := docs.Document()
-		Print(t.Out, "doc: %d: %v", count, doc)
-		count++
+		return nil, err
 	}
 
 	return docs, err
@@ -186,12 +283,11 @@ func (t *TraceQuerier) Query(query Document) (Documents, error) {
 
 // --
 
-type DbQuerier struct {
-	db     *sql.DB
-	logger Ingester
+type SQLDatabase struct {
+	db *sql.DB
 }
 
-func (d *DbQuerier) Query(query Document) (Documents, error) {
+func (d *SQLDatabase) Query(query Document) ([]Document, error) {
 
 	sqlQuery := query["query"].(string)
 
@@ -202,8 +298,6 @@ func (d *DbQuerier) Query(query Document) (Documents, error) {
 
 	cols, err := rows.Columns()
 	if err != nil {
-		fmt.Println("cols error:")
-		fmt.Println(err)
 		return nil, err
 	}
 
@@ -232,18 +326,55 @@ func (d *DbQuerier) Query(query Document) (Documents, error) {
 		return nil, err
 	}
 
-	return &StaticDocuments{Docs: docs}, nil
+	return docs, nil
 }
 
 //
 
-type HttpConnector struct {
-	mux *http.ServeMux
-
-	Source Querier
+type RestClient struct {
 }
 
-func (h *HttpConnector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *RestClient) Query(query Document) ([]Document, error) {
+
+	url := query["url"].(string)
+
+	body := query["body"]
+
+	b, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.Post(url, "application/json", bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	b, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var doc Document
+
+	err = json.Unmarshal(b, &doc)
+	if err != nil {
+		return nil, err
+	}
+
+	return []Document{doc}, nil
+}
+
+//
+
+type RestServer struct {
+	mux    *http.ServeMux
+	Source DatabaseLet
+}
+
+func (h *RestServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 	b, err := ioutil.ReadAll(r.Body)
@@ -262,7 +393,20 @@ func (h *HttpConnector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	query["method"] = r.Method
 	query["path"] = r.URL.Path
-	query["payload"] = string(b)
+
+	body := make(Document)
+	err = json.Unmarshal(b, &body)
+
+	if err != nil {
+		internalError(err)
+		return
+	}
+	query["body"] = body
+
+	if h.Source == nil {
+		internalError(fmt.Errorf("no source"))
+		return
+	}
 
 	docs, err := h.Source.Query(query)
 	if err != nil {
@@ -270,78 +414,190 @@ func (h *HttpConnector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for docs.Next() {
-		doc := docs.Document()
-		out := doc.String()
+	for _, doc := range docs {
+
+		out, err := json.MarshalIndent(doc, "", " ")
+		if err != nil {
+			internalError(err)
+			return
+		}
 
 		w.Write([]byte(out))
 	}
 }
 
-func (h *HttpConnector) ListenAndServe(addr string) error {
+func (h *RestServer) ListenAndServe(addr string) error {
 
 	h.mux = http.NewServeMux()
-
 	h.mux.Handle("/", h)
-
 	go http.ListenAndServe(addr, h.mux)
-
 	return nil
+}
+
+//
+
+type Dispatcher struct {
+	Sources       map[string]DatabaseLet
+	DispatchField string
+}
+
+func (d *Dispatcher) Query(query Document) ([]Document, error) {
+
+	field, ok := query[d.DispatchField]
+	if !ok {
+		return nil, fmt.Errorf("missing dispatch field: %s", d.DispatchField)
+	}
+
+	source, ok := d.Sources[field.(string)]
+	if !ok {
+		return nil, fmt.Errorf("no source for field: %s", field)
+	}
+
+	return source.Query(query)
 
 }
+
+type If struct {
+	condition func() bool
+	True      DatabaseLet
+	False     DatabaseLet
+}
+
+func (i *If) Query(query Document) ([]Document, error) {
+	if i.condition() {
+		return i.True.Query(query)
+	}
+	return i.False.Query(query)
+}
+
+//
+
+var logger DatabaseLet
+var db *sql.DB
 
 func main() {
 
 	sig := make(chan os.Signal, 1)
 
-	logger := ingestLogger()
-
 	options := clickhouse.Options{Addr: []string{"localhost:9000"}}
-	db := clickhouse.OpenDB(&options)
+	db = clickhouse.OpenDB(&options)
 
-	dbQuerier := &DbQuerier{db: db, logger: logger}
+	logger = makeLogger()
 
-	docs, err := dbQuerier.Query(Document{"query": "SELECT name FROM system.tables"})
+	Print("starting...")
 
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	httpConnector := &RestServer{}
 
-	var docToServe Document
-	for docs.Next() {
+	panicBarrier := &PanicBarrier{}
+	dispatcher := &Dispatcher{Sources: make(map[string]DatabaseLet), DispatchField: "path"}
 
-		doc := docs.Document()
-		Print(logger, "doc: %v", doc)
-		docToServe = doc
-	}
+	httpConnector.Source = panicBarrier
+	panicBarrier.Source = dispatcher
 
-	static := &StaticQuerier{Docs: []Document{docToServe}}
+	httpConnector.ListenAndServe(":6666")
 
-	httpConnector := &HttpConnector{Source: static}
+	dispatcher.Sources["/logger"] = logger
 
-	httpConnector.ListenAndServe(":9090")
+	dispatcher.Sources["/sql"] = sqlPipeline()
 
-	fmt.Println("waiting for signal...")
+	dispatcher.Sources["/windows_logs/_eql"] = eqlPipeline()
+	dispatcher.Sources["/device_logs/_search"] = quesmaDeviceLogsPipeline()
+
+	dispatcher.Sources["/panic"] = &Panic{}
+
+	Print("waiting for signal...")
 
 	<-sig
-
 }
 
-type QuesmaLet interface {
-	IngestIns(name string) (Ingester, error)
-	IngestOuts(name string) (Ingester, error)
-	ConnectIngestOut(name string, in Ingester) error
+func sqlPipeline() DatabaseLet {
 
-	QueryIns(name string) (Querier, error)
-	QueryOuts(name string) (Querier, error)
-	ConnectQueryOut(name string, in Querier) error
+	restToSQL := &QueryTransformer{Transformer: TransformerFunc(func(doc Document) Document {
+		body := doc["body"].(Document)
+		doc["query"] = body["query"]
+		return doc
+	})}
 
-	Start() error
-	Stop() error
+	documentsToHits := &DocumentReducer{Reducer: ReducerFunc(func(docs []Document) Document {
+		return Document{"hits": len(docs), "docs": docs}
+	})}
+
+	redactFields := &DocumentsTransformer{Transformer: TransformerFunc(func(doc Document) Document {
+		delete(doc, "process::executable")
+		doc["create_table_query"] = "XXX REDACTED XXX"
+		return doc
+	})}
+
+	sqlDatabase := &SQLDatabase{db: db}
+
+	restToSQL.Source = documentsToHits
+	documentsToHits.Source = redactFields
+	redactFields.Source = sqlDatabase
+
+	return restToSQL
 }
 
-type Quesma interface {
-	AddQuesmaLet(name string, let QuesmaLet) error
-	Connect(inName, in, outName, out string) error
+func quesmaDeviceLogsPipeline() DatabaseLet {
+
+	toHttpRequest := &QueryTransformer{Transformer: TransformerFunc(func(doc Document) Document {
+
+		doc["url"] = "http://localhost:8080/device_logs/_search"
+
+		return doc
+	})}
+
+	restClient := &RestClient{}
+
+	toHttpRequest.Source = restClient
+
+	return toHttpRequest
+}
+
+func eqlPipeline() DatabaseLet {
+
+	restToSQL := &QueryTransformer{Transformer: TransformerFunc(func(doc Document) Document {
+		body := doc["body"].(Document)
+		doc["query"] = body["query"]
+		return doc
+	})}
+
+	eqlToSql := &QueryTransformer{Transformer: TransformerFunc(func(doc Document) Document {
+
+		eqlQuery := doc["query"].(string)
+
+		translateName := func(name *transform.Symbol) (*transform.Symbol, error) {
+			res := strings.ReplaceAll(name.Name, ".", "::")
+			res = "\"" + res + "\"" // TODO proper escaping
+			return transform.NewSymbol(res), nil
+		}
+
+		trans := eql.NewTransformer()
+		trans.FieldNameTranslator = translateName
+		trans.ExtractParameters = false
+		where, _, err := trans.TransformQuery(eqlQuery)
+
+		if err != nil {
+			fmt.Println("tranform errors:")
+			fmt.Println(err)
+		}
+
+		fmt.Printf("where clause: '%s'\n", where)
+
+		sqlQuery := `select "@timestamp", "event::category", "process::name", "process::pid", "process::executable" from windows_logs where ` + where
+
+		doc["query"] = sqlQuery
+		return doc
+	})}
+
+	documentsToHits := &DocumentReducer{Reducer: ReducerFunc(func(docs []Document) Document {
+		return Document{"hits": len(docs), "docs": docs}
+	})}
+
+	sqlDatabase := &SQLDatabase{db: db}
+
+	restToSQL.Source = eqlToSql
+	eqlToSql.Source = documentsToHits
+	documentsToHits.Source = sqlDatabase
+
+	return restToSQL
 }

@@ -1,0 +1,11 @@
+POST http://localhost:6666/logger
+Content-Type: application/json
+
+
+{
+    "level": "info",
+    "message": "Hello, World!"
+}
+
+
+

@@ -1,0 +1,6 @@
+POST http://localhost:6666/windows_logs/_eql
+Content-Type: application/json
+
+{
+  "query": "process where true"
+}
