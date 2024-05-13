@@ -75,7 +75,7 @@ jobs:
         timeout-minutes: 10
         run: docker-compose -f docker/e2e.yml up -d
 
-      - name: Wait until services are healthy
+      - name: Wait until Elasticsearch is up
         timeout-minutes: 6
         run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:9200)" = "200" ]; do sleep 3; done
 
