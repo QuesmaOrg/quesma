@@ -48,7 +48,7 @@ locals {
 
 resource "google_compute_instance" "vm_instance" {
 
-  name         = "${var.user}-quesma-demo-aio-vm"
+  name         = "${var.user}-quesma-demo-aio-vm-hydrolix"
   machine_type = "n1-standard-8"
   zone         = "europe-central2-a"
 
@@ -58,7 +58,7 @@ resource "google_compute_instance" "vm_instance" {
       size  = 200
       type = "pd-balanced"
       labels = {
-        name = "quesma-demo-aio-vm"
+        name = "quesma-demo-aio-vm-hydrolix"
       }
     }
   }
