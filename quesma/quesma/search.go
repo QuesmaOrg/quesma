@@ -222,10 +222,12 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					go func() {
 						defer recovery.LogPanicWithCtx(ctx)
 						fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo)
+						fullQuery.QueryInfo = queryInfo
 						q.searchWorker(ctx, fullQuery, columns, queryTranslator, table, body, optAsync)
 					}()
 				} else {
 					fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo)
+					fullQuery.QueryInfo = queryInfo
 					translatedQueryBody, hits = q.searchWorker(ctx, fullQuery, columns, queryTranslator, table, body, nil)
 
 				}
@@ -485,7 +487,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery *model.Q
 
 	var err error
 
-	_, queryInfo, highlighter := queryTranslator.ParseQuery(string(body))
+	_, _, highlighter := queryTranslator.ParseQuery(string(body))
 	var dbQueryCtx context.Context
 	if optAsync != nil {
 		var dbCancel context.CancelFunc
@@ -496,7 +498,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery *model.Q
 	}
 
 	if fullQuery == nil {
-		logger.ErrorWithCtx(ctx).Msgf("unknown query type: %v, query body: %v", queryInfo.Typ, body)
+		logger.ErrorWithCtx(ctx).Msgf("unknown query type: %v, query body: %v", fullQuery.QueryInfo.Typ, body)
 	} else {
 		hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, fullQuery, columns)
 		translatedQueryBody = []byte(fullQuery.String())
@@ -509,9 +511,9 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery *model.Q
 		}
 	}
 	if optAsync != nil {
-		searchResponse, err := queryTranslator.MakeSearchResponse(hits, queryInfo.Typ, highlighter)
+		searchResponse, err := queryTranslator.MakeSearchResponse(hits, fullQuery.QueryInfo.Typ, highlighter)
 		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queryInfo, hits)
+			logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, fullQuery.QueryInfo, hits)
 			optAsync.doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 			return
 		}

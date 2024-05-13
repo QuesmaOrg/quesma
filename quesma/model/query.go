@@ -20,6 +20,7 @@ type Query struct {
 	SuffixClauses   []string // ORDER BY, etc.
 	FromClause      string   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
 	CanParse        bool     // true <=> query is valid
+	QueryInfo       SearchQueryInfo
 }
 
 var NoMetadataField JsonMap = nil
