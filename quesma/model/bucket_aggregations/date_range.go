@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
-	"strconv"
 	"time"
 )
 
@@ -26,18 +25,44 @@ func NewDateTimeInterval(begin, end string) DateTimeInterval {
 	}
 }
 
+// String returns key part of the response, e.g. "1.0-2.0", or "*-6.55"
+func (interval DateTimeInterval) String() string {
+	return "dupa" //interval.floatToString(interval.Begin) + "-" + interval.floatToString(interval.End)
+}
+
 // ToSQLSelectQuery returns count(...) where ... is a condition for the interval, just like we want it in SQL's SELECT
 // from elastic docs: Note that this aggregation includes the from value and excludes the to value for each range.
-func (interval DateTimeInterval) ToSQLSelectQuery(fieldName string) string {
+func (interval DateTimeInterval) ToSQLSelectQuery(quotedFieldName string) string {
 	if interval.Begin != UnboundedInterval && interval.End != UnboundedInterval {
 		return fmt.Sprintf("count(if(%s >= %s AND %s < %s, 1, NULL))",
-			strconv.Quote(fieldName), interval.Begin, strconv.Quote(fieldName), interval.End)
+			quotedFieldName, interval.Begin, quotedFieldName, interval.End)
 	} else if interval.Begin != UnboundedInterval {
-		return fmt.Sprintf("count(if(%s >= %s, 1, NULL))", strconv.Quote(fieldName), interval.Begin)
+		return fmt.Sprintf("count(if(%s >= %s, 1, NULL))", quotedFieldName, interval.Begin)
 	} else if interval.End != UnboundedInterval {
-		return fmt.Sprintf("count(if(%s < %s, 1, NULL))", strconv.Quote(fieldName), interval.End)
+		return fmt.Sprintf("count(if(%s < %s, 1, NULL))", quotedFieldName, interval.End)
 	}
 	return "count()"
+}
+
+// ToWhereClause returns a condition for the interval, just like we want it in SQL's WHERE
+func (interval DateTimeInterval) ToWhereClause(quotedFieldName string) string {
+	var sqlLeft, sqlRight string
+	if interval.Begin != UnboundedInterval {
+		sqlLeft = quotedFieldName + " >= " + interval.Begin
+	}
+	if interval.End != UnboundedInterval {
+		sqlRight = quotedFieldName + " < " + interval.End
+	}
+	switch {
+	case sqlLeft != "" && sqlRight != "":
+		return sqlLeft + " AND " + sqlRight
+	case sqlLeft != "":
+		return sqlLeft
+	case sqlRight != "":
+		return sqlRight
+	default:
+		return quotedFieldName + " IS NOT NULL"
+	}
 }
 
 // BeginTimestampToSQL returns SQL select for the begin timestamp, and a boolean indicating if the select is needed
@@ -62,14 +87,14 @@ func (interval DateTimeInterval) EndTimestampToSQL() (sqlSelect string, selectNe
 
 type DateRange struct {
 	ctx             context.Context
-	FieldName       string
 	Format          string
+	QuotedFieldName string
 	Intervals       []DateTimeInterval
 	SelectColumnsNr int // how many columns we add to the query because of date_range aggregation, e.g. SELECT x,y,z -> 3
 }
 
-func NewDateRange(ctx context.Context, fieldName string, format string, intervals []DateTimeInterval, selectColumnsNr int) DateRange {
-	return DateRange{ctx: ctx, FieldName: fieldName, Format: format, Intervals: intervals, SelectColumnsNr: selectColumnsNr}
+func NewDateRange(ctx context.Context, quotedFieldName string, format string, intervals []DateTimeInterval, selectColumnsNr int) DateRange {
+	return DateRange{ctx: ctx, QuotedFieldName: quotedFieldName, Format: format, Intervals: intervals, SelectColumnsNr: selectColumnsNr}
 }
 
 func (query DateRange) IsBucketAggregation() bool {

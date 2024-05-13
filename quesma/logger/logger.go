@@ -135,6 +135,10 @@ func InitOnlyChannelLoggerForTests(cfg config.QuesmaConfiguration, asyncQueryTra
 	return logChannel
 }
 
+func Disable() {
+	logger = zerolog.Logger{}
+}
+
 func openLogFiles(logsPath string) {
 	var err error
 	StdLogFile, err = os.OpenFile(

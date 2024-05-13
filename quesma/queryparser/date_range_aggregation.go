@@ -1,10 +1,16 @@
 package queryparser
 
 import (
+	"fmt"
+	"github.com/barkimedes/go-deepcopy"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
+	"strconv"
 	"unicode"
 )
+
+// parser
 
 func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(dateRange QueryMap) bucket_aggregations.DateRange {
 	var fieldName, format string
@@ -66,7 +72,7 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(dateRange QueryMa
 		}
 		intervals = append(intervals, bucket_aggregations.NewDateTimeInterval(intervalBegin, intervalEnd))
 	}
-	return bucket_aggregations.NewDateRange(cw.Ctx, fieldName, format, intervals, selectColumnsNr)
+	return bucket_aggregations.NewDateRange(cw.Ctx, strconv.Quote(fieldName), format, intervals, selectColumnsNr)
 }
 
 // parseDateTimeInClickhouseMathLanguage parses dateTime from Clickhouse's format
@@ -122,5 +128,62 @@ func (cw *ClickhouseQueryTranslator) addRoundingToClickhouseDateTime(dateTime st
 	default:
 		logger.Error().Msgf("unknown rounding character %c in dateTime %s. Defaulting to /%s", dateTime[len(dateTime)-1], dateTime, string(defaultRounding))
 		return roundingFunction[defaultRounding] + "(" + parsedWithoutRounding + ")"
+	}
+}
+
+// processor
+
+func (cw *ClickhouseQueryTranslator) processDateRangeAggregation(currentAggr *aggrQueryBuilder, dateRange bucket_aggregations.DateRange,
+	queryCurrentLevel QueryMap, aggregationsAccumulator *[]model.QueryWithAggregation, metadata JsonMap) {
+
+	// build this aggregation
+	nonSchemaFieldsAdded := len(dateRange.Intervals)
+	for _, interval := range dateRange.Intervals {
+		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, interval.ToSQLSelectQuery(dateRange.QuotedFieldName))
+		if sqlSelect, selectNeeded := interval.BeginTimestampToSQL(); selectNeeded {
+			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, sqlSelect)
+			nonSchemaFieldsAdded++
+		}
+		if sqlSelect, selectNeeded := interval.EndTimestampToSQL(); selectNeeded {
+			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, sqlSelect)
+			nonSchemaFieldsAdded++
+		}
+	}
+	if len(currentAggr.Aggregators) > 0 {
+		currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Empty = false
+	} else {
+		logger.ErrorWithCtx(cw.Ctx).Msg("no aggregators in currentAggr")
+	}
+	*aggregationsAccumulator = append(*aggregationsAccumulator, currentAggr.buildBucketAggregation(metadata))
+	currentAggr.NonSchemaFields = currentAggr.NonSchemaFields[:len(currentAggr.NonSchemaFields)-nonSchemaFieldsAdded]
+
+	// build subaggregations
+	aggs, hasAggs := queryCurrentLevel["aggs"].(QueryMap)
+	if !hasAggs {
+		return
+	}
+
+	// TODO now we run a separate query for each range.
+	// it's much easier to code it this way, but that can, quite easily, be improved.
+	// Range aggregation with subaggregations should be a quite rare case, so I'm leaving that for later.
+	whereBeforeNesting := currentAggr.whereBuilder
+	for _, interval := range dateRange.Intervals {
+		fmt.Println("tutu")
+		currentAggr.whereBuilder = cw.combineWheres(
+			currentAggr.whereBuilder,
+			newSimpleQuery(NewSimpleStatement(interval.ToWhereClause(dateRange.QuotedFieldName)), true),
+		)
+		// currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, interval.String()+strconv.Itoa(i))
+		// currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(interval.String()+strconv.Itoa(i)))
+		aggsCopy, err := deepcopy.Anything(aggs)
+		if err == nil {
+			currentAggr.Type = model.NewUnknownAggregationType(cw.Ctx)
+			cw.parseAggregation(currentAggr, aggsCopy.(QueryMap), aggregationsAccumulator)
+		} else {
+			logger.ErrorWithCtx(cw.Ctx).Msgf("deepcopy 'aggs' map error: %v. Skipping current range's interval: %v, aggs: %v", err, interval, aggs)
+		}
+		// currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
+		//currentAggr.NonSchemaFields = currentAggr.NonSchemaFields[:len(currentAggr.NonSchemaFields)-1]
+		currentAggr.whereBuilder = whereBeforeNesting
 	}
 }
