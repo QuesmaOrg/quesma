@@ -574,7 +574,8 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggrega
 	}
 	logger.InfoWithCtx(ctx).Msg("we're using new Aggregation handling.")
 	for _, agg := range aggregations {
-		logger.InfoWithCtx(ctx).Msg(agg.String()) // I'd keep for now until aggregations work fully
+		logger.InfoWithCtx(ctx).Msgf("aggregation: %+v", agg)
+		logger.InfoWithCtx(ctx).Msgf("SQL: %s", agg.String())
 		sqls += agg.Query.String() + "\n"
 		rows, err := q.logManager.ProcessQuery(dbQueryCtx, table, &agg.Query, q.logManager.GetAllColumns(table, &agg.Query))
 		if err != nil {
