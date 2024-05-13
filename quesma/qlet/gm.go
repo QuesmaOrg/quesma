@@ -16,6 +16,18 @@ import (
 
 type Document map[string]interface{}
 
+func NewDocument() Document {
+	return make(Document)
+}
+
+func (d Document) String() string {
+	out, err := json.Marshal(d)
+	if err != nil {
+		return fmt.Sprintf("error: %v", err)
+	}
+	return string(out)
+}
+
 // Ingest
 
 type Ingester interface {
@@ -25,7 +37,7 @@ type Ingester interface {
 // Query
 
 type Querier interface {
-	Query(query string) (Documents, error)
+	Query(query Document) (Documents, error)
 }
 
 type Documents interface {
@@ -35,15 +47,11 @@ type Documents interface {
 
 // ---------------------
 
-//
-
-func (d Document) String() string {
-	out, err := json.Marshal(d)
-	if err != nil {
-		return fmt.Sprintf("error: %v", err)
-	}
-	return string(out)
+type Transformer interface {
+	Transform(document Document) Document
 }
+
+//
 
 //
 
@@ -62,13 +70,32 @@ func (c *ConsoleIngester) Ingest(document Document) error {
 	return nil
 }
 
-type Timestamper struct {
-	Out Ingester
+type IngesterFunc func(document Document) error
+
+type IngesterTransformer struct {
+	Transformer Transformer
+	Out         Ingester
 }
 
-func (t *Timestamper) Ingest(document Document) error {
+func (i *IngesterTransformer) Ingest(document Document) error {
+	doc := i.Transformer.Transform(document)
+	return i.Out.Ingest(doc)
+}
+
+type Timestamper struct {
+}
+
+func (t *Timestamper) Transform(document Document) Document {
 	document["@timestamp"] = time.Now().Format(time.RFC3339)
-	return t.Out.Ingest(document)
+	return document
+}
+
+func ingestLogger() (logger Ingester) {
+
+	console := &ConsoleIngester{}
+	stamp := &Timestamper{}
+	logger = &IngesterTransformer{Transformer: stamp, Out: console}
+	return logger
 }
 
 func Print(ingest Ingester, m string, a ...any) {
@@ -122,7 +149,7 @@ type StaticQuerier struct {
 	Docs []Document
 }
 
-func (s *StaticQuerier) Query(query string) (Documents, error) {
+func (s *StaticQuerier) Query(query Document) (Documents, error) {
 	return &StaticDocuments{Docs: s.Docs}, nil
 }
 
@@ -133,7 +160,7 @@ type TraceQuerier struct {
 	Out    Ingester
 }
 
-func (t *TraceQuerier) Query(query string) (Documents, error) {
+func (t *TraceQuerier) Query(query Document) (Documents, error) {
 
 	Print(t.Out, "query: %s", query)
 
@@ -164,8 +191,11 @@ type DbQuerier struct {
 	logger Ingester
 }
 
-func (d *DbQuerier) Query(query string) (Documents, error) {
-	rows, err := d.db.Query(query)
+func (d *DbQuerier) Query(query Document) (Documents, error) {
+
+	sqlQuery := query["query"].(string)
+
+	rows, err := d.db.Query(sqlQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -213,12 +243,6 @@ type HttpConnector struct {
 	Source Querier
 }
 
-type HTTPPayload struct {
-	Method  string
-	Path    string
-	Payload string
-}
-
 func (h *HttpConnector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
@@ -234,19 +258,13 @@ func (h *HttpConnector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payload := HTTPPayload{
-		Method:  r.Method,
-		Path:    r.URL.Path,
-		Payload: string(b),
-	}
+	query := make(Document)
 
-	query, err := json.Marshal(payload)
-	if err != nil {
-		internalError(err)
-		return
-	}
+	query["method"] = r.Method
+	query["path"] = r.URL.Path
+	query["payload"] = string(b)
 
-	docs, err := h.Source.Query(string(query))
+	docs, err := h.Source.Query(query)
 	if err != nil {
 		internalError(err)
 		return
@@ -276,15 +294,14 @@ func main() {
 
 	sig := make(chan os.Signal, 1)
 
-	console := &ConsoleIngester{}
-	logger := &Timestamper{Out: console}
+	logger := ingestLogger()
 
 	options := clickhouse.Options{Addr: []string{"localhost:9000"}}
 	db := clickhouse.OpenDB(&options)
 
 	dbQuerier := &DbQuerier{db: db, logger: logger}
 
-	docs, err := dbQuerier.Query("SELECT name FROM system.tables")
+	docs, err := dbQuerier.Query(Document{"query": "SELECT name FROM system.tables"})
 
 	if err != nil {
 		log.Println(err)
@@ -309,4 +326,22 @@ func main() {
 
 	<-sig
 
+}
+
+type QuesmaLet interface {
+	IngestIns(name string) (Ingester, error)
+	IngestOuts(name string) (Ingester, error)
+	ConnectIngestOut(name string, in Ingester) error
+
+	QueryIns(name string) (Querier, error)
+	QueryOuts(name string) (Querier, error)
+	ConnectQueryOut(name string, in Querier) error
+
+	Start() error
+	Stop() error
+}
+
+type Quesma interface {
+	AddQuesmaLet(name string, let QuesmaLet) error
+	Connect(inName, in, outName, out string) error
 }
