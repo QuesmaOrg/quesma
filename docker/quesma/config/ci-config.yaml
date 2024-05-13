@@ -10,3 +10,5 @@ indexes:
     enabled: true
   logs-generic-default:
     enabled: true
+  windows_logs:
+    enabled: true

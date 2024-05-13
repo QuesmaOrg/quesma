@@ -32,10 +32,10 @@ indexes:
     enabled: true
     fullTextFields: [ "message", "host.name" ]
   device_logs:
-    enabled: true
+    enabled: false
     fullTextFields: [ "message" ]
   phone_home_logs:
-    enabled: true
+    enabled: false
     fullTextFields: [ "message" ]
   windows_logs:
     enabled: true
