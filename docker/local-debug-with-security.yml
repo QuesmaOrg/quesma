@@ -12,8 +12,8 @@ services:
     environment:
       - QUESMA_CONFIG_FILE=/config/local-dev.yaml
       - QUESMA_elasticsearch_url=https://elasticsearch:9200
-      - QUESMA_ELASTICSEARCH_USER=elastic
-      - QUESMA_ELASTICSEARCH_PASSWORD=quesmaquesma
+      - QUESMA_elasticsearch_user=elastic
+      - QUESMA_elasticsearch_password=quesmaquesma
       - QUESMA_port=8080
       - QUESMA_logging_path=/var/quesma/logs
       - QUESMA_clickhouse_url=clickhouse://clickhouse:9000
