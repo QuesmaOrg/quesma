@@ -20,7 +20,6 @@ import (
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -58,10 +57,8 @@ func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWri
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("Error zipping: %v", err)
 		}
-		w.Header().Add(httpHeaderContentLength, strconv.Itoa(len(zipped)))
 		_, _ = io.Copy(w, bytes.NewBuffer(zipped))
 	} else {
-		w.Header().Add(httpHeaderContentLength, strconv.Itoa(len(unzipped)))
 		_, _ = io.Copy(w, bytes.NewBuffer(unzipped))
 	}
 	if elkResponse != nil {
