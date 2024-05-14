@@ -583,10 +583,11 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		if terms, ok := queryMap[termsType]; ok {
 			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms")
 			fieldName := strconv.Quote(cw.parseFieldField(terms, termsType))
+			isEmptyGroupBy := len(currentAggr.GroupByFields) == 0
 			currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
 			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
 			size := 10
-			if _, ok := queryMap["aggs"]; !ok { // we can do limit only ina leaf aggregation
+			if _, ok := queryMap["aggs"]; isEmptyGroupBy && !ok { // we can do limit only it terms are not nested
 				if jsonMap, ok := terms.(QueryMap); ok {
 					if sizeRaw, ok := jsonMap["size"]; ok {
 						if sizeParsed, ok := sizeRaw.(float64); ok {
