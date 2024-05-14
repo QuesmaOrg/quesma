@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/model/bucket_aggregations"
 	"mitmproxy/quesma/model/metrics_aggregations"
 	"mitmproxy/quesma/util"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -696,28 +697,41 @@ func (cw *ClickhouseQueryTranslator) parseFieldFieldMaybeScript(shouldBeMap any,
 	}
 
 	// else: maybe script
-	if scriptRaw, ok := Map["script"]; ok {
-		if script, ok := scriptRaw.(QueryMap); ok {
-			if sourceRaw, ok := script["source"]; ok {
-				if source, ok := sourceRaw.(string); ok {
-					suffixGood := strings.HasSuffix(source, ".getHour()") || strings.HasSuffix(source, ".hourOfDay")
-					fieldNameBegin := strings.Index(source, "doc['") + len("doc['")
-					fieldNameLength := strings.Index(source[fieldNameBegin:], "']")
-					if suffixGood && fieldNameBegin > 0 && fieldNameLength > 0 {
-						return fmt.Sprintf("toHour(`%s`)", source[fieldNameBegin:fieldNameBegin+fieldNameLength]), true
-					}
-				} else {
-					logger.WarnWithCtx(cw.Ctx).Msgf("source is not a string, but %T, value: %v", sourceRaw, sourceRaw)
-				}
-			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("source not found in script: %v", script)
-			}
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("script is not a JsonMap, but %T, value: %v", scriptRaw, scriptRaw)
-		}
+	if fieldName, ok := cw.parseFieldFromScriptField(Map); ok {
+		return fmt.Sprintf("toHour(`%s`)", fieldName), true
 	}
 
 	logger.WarnWithCtx(cw.Ctx).Msgf("field not found in %s aggregation: %v", aggregationType, Map)
+	return
+}
+
+func (cw *ClickhouseQueryTranslator) parseFieldFromScriptField(queryMap QueryMap) (fieldName string, success bool) {
+	scriptRaw, exists := queryMap["script"]
+	if !exists {
+		return
+	}
+	script, ok := scriptRaw.(QueryMap)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("script is not a JsonMap, but %T, value: %v", scriptRaw, scriptRaw)
+		return
+	}
+
+	sourceRaw, exists := script["source"]
+	if !exists {
+		logger.WarnWithCtx(cw.Ctx).Msgf("source not found in script: %v", script)
+		return
+	}
+	source, ok := sourceRaw.(string)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("source is not a string, but %T, value: %v", sourceRaw, sourceRaw)
+	}
+
+	// source must look like "doc['field_name'].value.getHour()" or "doc['field_name'].value.hourOfDay"
+	wantedRegex := regexp.MustCompile(`^doc\['(\w+)']\.value\.(?:getHour\(\)|hourOfDay)$`)
+	matches := wantedRegex.FindStringSubmatch(source)
+	if len(matches) == 2 {
+		return matches[1], true
+	}
 	return
 }
 

@@ -634,3 +634,31 @@ func Test_quoteArray(t *testing.T) {
 		assert.Equal(t, inputs[i], test.input) // check that original array isn't changed
 	}
 }
+
+func Test_parseFieldFromScriptField(t *testing.T) {
+	goodQueryMap := func(sourceField string) QueryMap {
+		return QueryMap{"script": QueryMap{"source": sourceField}}
+	}
+	testcases := []struct {
+		queryMap        QueryMap
+		expectedMatch   string
+		expectedSuccess bool
+	}{
+		{goodQueryMap("doc['field1'].value.getHour()"), "field1", true},
+		{goodQueryMap("doc['field1'].value.getHour() + doc['field2'].value.getHour()"), "", false},
+		{goodQueryMap("doc['field1'].value.hourOfDay"), "field1", true},
+		{goodQueryMap("doc['field1'].value"), "", false},
+		{goodQueryMap("value.getHour() + doc['field2'].value.getHour()"), "", false},
+		{QueryMap{}, "", false},
+		{QueryMap{"script": QueryMap{}}, "", false},
+		{QueryMap{"script": QueryMap{"source": ""}}, "", false},
+		{QueryMap{"script": "script"}, "", false},
+		{QueryMap{"script": QueryMap{"source": 1}}, "", false},
+	}
+	cw := ClickhouseQueryTranslator{Ctx: context.Background()}
+	for _, tc := range testcases {
+		fieldName, success := cw.parseFieldFromScriptField(tc.queryMap)
+		assert.Equal(t, tc.expectedSuccess, success)
+		assert.Equal(t, tc.expectedMatch, fieldName)
+	}
+}
