@@ -1,3 +1,5 @@
+//go:build integration
+
 package e2e
 
 import (
@@ -11,14 +13,7 @@ import (
 // Tests requires Quesma and Elastic to be running.
 // Queries are run against both Quesma and Elastic and results are compared.
 
-var runTests = false
-
 func TestE2E(t *testing.T) {
-
-	if !runTests {
-		t.Skip("Tests are disabled. To enable them, set the condition to false.")
-		return
-	}
 
 	// These are the queries that are run against both Quesma and Elastic.
 	// Queries start with a "--" are skipped.
