@@ -41,7 +41,7 @@ func TestNoAsciiTableName(t *testing.T) {
 	const Limit = 1000
 	query := queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, Limit)
 	assert.True(t, query.CanParse)
-	assert.Equal(t, fmt.Sprintf(`SELECT * FROM "%s" LIMIT %d`, tableName, Limit), query.String())
+	assert.Equal(t, fmt.Sprintf(`SELECT * FROM "%s"  LIMIT %d`, tableName, Limit), query.String())
 }
 
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.GetRequestId())

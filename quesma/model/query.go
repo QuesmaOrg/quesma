@@ -76,7 +76,7 @@ func (q *Query) String() string {
 	if len(q.WhereClause) == 0 {
 		where = ""
 	}
-	sb.WriteString(" FROM " + q.FromClause + where + q.WhereClause + " " + strings.Join(q.SuffixClauses, " "))
+	sb.WriteString(" FROM " + q.FromClause + where + q.WhereClause + " ")
 	if len(q.GroupByFields) > 0 {
 		sb.WriteString(" GROUP BY (")
 		for i, field := range q.GroupByFields {
@@ -95,6 +95,9 @@ func (q *Query) String() string {
 			}
 		}
 		sb.WriteString(")")
+	}
+	if len(q.SuffixClauses) > 0 {
+		sb.WriteString(" " + strings.Join(q.SuffixClauses, " "))
 	}
 	return sb.String()
 }
