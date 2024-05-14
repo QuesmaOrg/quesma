@@ -48,7 +48,7 @@ func (cw *ClickhouseEQLQueryTranslator) BuildNRowsQuery(fieldName string, simple
 	}
 }
 
-func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter queryparser.Highlighter) (*model.SearchResp, error) {
+func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) (*model.SearchResp, error) {
 
 	// This shares a lot of code with the ClickhouseQueryTranslator
 	//
@@ -88,7 +88,7 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 	}, nil
 }
 
-func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query queryparser.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter queryparser.Highlighter) {
+func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query queryparser.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter model.Highlighter) {
 
 	// no highlighting here
 	highlighter = queryparser.NewEmptyHighlighter()
