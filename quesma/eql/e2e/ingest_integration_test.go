@@ -75,6 +75,7 @@ func sendLogEntryTo(targetUrl string, logBytes []byte) {
 }
 
 func sendLogEntry(logBytes []byte) {
+	fmt.Println("Sending log entry\n", string(logBytes))
 	sendLogEntryTo(quesmaUrl, logBytes)
 	sendLogEntryTo(elasticUrl, logBytes)
 }

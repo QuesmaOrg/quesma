@@ -1,0 +1,8 @@
+POST http://localhost:8080/windows_logs/_eql/search
+Content-type: application/json
+#eq /hits/total/value
+
+{
+  "query": "REPLAYID where true"
+}
+

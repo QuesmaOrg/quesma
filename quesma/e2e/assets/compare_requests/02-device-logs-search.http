@@ -1,0 +1,88 @@
+POST http://quesma:8080/device_logs/_search
+Content-Type: application/json
+#eq /hits/total/value
+
+{
+    "_source": false,
+    "fields": [
+        {
+            "field": "*",
+            "include_unmapped": "true"
+        },
+        {
+            "field": "epoch_time",
+            "format": "strict_date_optional_time"
+        },
+        {
+            "field": "ts_time_druid",
+            "format": "strict_date_optional_time"
+        }
+    ],
+    "highlight": {
+        "fields": {
+            "*": {}
+        },
+        "fragment_size": 2147483647,
+        "post_tags": [
+            "@/kibana-highlighted-field@"
+        ],
+        "pre_tags": [
+            "@kibana-highlighted-field@"
+        ]
+    },
+    "query": {
+        "bool": {
+            "filter": [
+                {
+                    "bool": {
+                        "minimum_should_match": 1,
+                        "should": [
+                            {
+                                "term": {
+                                    "event_name": {
+                                        "value": "REPLAYID"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "range": {
+                        "epoch_time": {
+                            "format": "strict_date_optional_time",
+                            "gte": "2000-01-01T00:00:00.000Z",
+                            "lte": "2000-01-02T00:00:00.000Z"
+                        }
+                    }
+                }
+            ],
+            "must": [],
+            "must_not": [],
+            "should": []
+        }
+    },
+    "runtime_mappings": {},
+    "script_fields": {},
+    "size": 500,
+    "sort": [
+        {
+            "epoch_time": {
+                "format": "strict_date_optional_time",
+                "order": "desc",
+                "unmapped_type": "boolean"
+            }
+        },
+        {
+            "_doc": {
+                "order": "desc",
+                "unmapped_type": "boolean"
+            }
+        }
+    ],
+    "stored_fields": [
+        "*"
+    ],
+    "track_total_hits": false,
+    "version": true
+}
