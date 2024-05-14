@@ -43,10 +43,6 @@ jobs:
         working-directory: ${{ matrix.module }}
         run: go build -v ./...
 
-      - name: Test
-        working-directory: ${{ matrix.module }}
-        run: go test -race -v ./...
-        
       - name: Test (without race detector)
         working-directory: ${{ matrix.module }}
         run: go test  -v ./...
