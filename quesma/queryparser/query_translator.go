@@ -51,7 +51,7 @@ func (cw *ClickhouseQueryTranslator) ClearTokensToHighlight() {
 	cw.tokensToHighlight = []string{}
 }
 
-func (cw *ClickhouseQueryTranslator) highlightHit(hit *model.SearchHit, highlighter Highlighter, resultRow model.QueryResultRow) {
+func (cw *ClickhouseQueryTranslator) highlightHit(hit *model.SearchHit, highlighter model.Highlighter, resultRow model.QueryResultRow) {
 	for _, col := range resultRow.Cols {
 		hit.Fields[col.ColName] = []interface{}{col.Value}
 		if highlighter.ShouldHighlight(col.ColName) {
@@ -77,7 +77,7 @@ func (cw *ClickhouseQueryTranslator) highlightHit(hit *model.SearchHit, highligh
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.QueryResultRow, highlighter Highlighter) *model.SearchResp {
+func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.QueryResultRow, highlighter model.Highlighter) *model.SearchResp {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i, row := range ResultSet {
 		hits[i] = model.SearchHit{
@@ -133,7 +133,7 @@ func EmptyAsyncSearchResponse(id string, isPartial bool, completionStatus int) (
 	return asyncSearchResp.Marshal() // error should never ever happen here
 }
 
-func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter) (*model.SearchResp, error) {
+func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) (*model.SearchResp, error) {
 	switch typ {
 	case model.Normal:
 		return cw.makeSearchResponseNormal(ResultSet, highlighter), nil
@@ -146,7 +146,7 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryR
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) MakeSearchResponseMarshalled(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) MakeSearchResponseMarshalled(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) ([]byte, error) {
 	response, err := cw.MakeSearchResponse(ResultSet, typ, highlighter)
 	if err != nil {
 		return nil, err
@@ -276,7 +276,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter) *model.SearchResp {
+func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) *model.SearchResp {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
 		hits[i].Fields = make(map[string][]interface{})
@@ -310,7 +310,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter, asyncRequestIdStr string, isPartial bool) (*model.AsyncSearchEntireResp, error) {
+func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter, asyncRequestIdStr string, isPartial bool) (*model.AsyncSearchEntireResp, error) {
 	searchResponse, err := cw.MakeSearchResponse(ResultSet, typ, highlighter)
 	if err != nil {
 		return nil, err
@@ -329,7 +329,7 @@ func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.Q
 	return &response, nil
 }
 
-func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponseMarshalled(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponseMarshalled(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
 	response, err := cw.MakeAsyncSearchResponse(ResultSet, typ, highlighter, asyncRequestIdStr, isPartial)
 	if err != nil {
 		return nil, err
@@ -453,6 +453,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []mod
 	if len(queries) <= aggregation_start_index {
 		return aggregations
 	}
+	cw.postprocessPipelineAggregations(queries, ResultSets)
 	for i, query := range queries[aggregation_start_index:] {
 		if len(ResultSets) <= i+1 {
 			continue
@@ -512,6 +513,37 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncRequestI
 
 	response.CompletionStatus = &completionStatus
 	return &response
+}
+
+func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) {
+	queryIterationOrder := cw.sortInTopologicalOrder(queries)
+	// fmt.Println("qwerty", queryIterationOrder) let's remove all prints in this function after all pipeline aggregations are merged
+	for _, queryIndex := range queryIterationOrder {
+		query := queries[queryIndex]
+		//fmt.Println(queryIndex, query, ResultSets[queryIndex]) let's remove it after all pipeline aggregations implemented
+		pipelineQueryType, isPipeline := query.Type.(model.PipelineQueryType)
+		if !isPipeline || !query.HasParentAggregation() {
+			continue
+		}
+		// if we don't send the query, we need process the result ourselves
+		parentIndex := -1
+		// fmt.Println("queries", queryIndex, "parent:", query.Parent) let's remove it after all pipeline aggregations implemented
+		for i, parentQuery := range queries {
+			if parentQuery.Name() == query.Parent {
+				parentIndex = i
+				break
+			}
+		}
+		if parentIndex == -1 {
+			logger.WarnWithCtx(cw.Ctx).Msgf("parent index not found for query %v", query)
+			continue
+		}
+		// fmt.Println("ResultSets[i]", ResultSets[queryIndex], queryIndex, parentIndex)
+		for _, row := range ResultSets[parentIndex] {
+			ResultSets[queryIndex] = append(ResultSets[queryIndex], pipelineQueryType.CalculateResultWhenMissing(row, ResultSets[queryIndex]))
+		}
+		// fmt.Println("ResultSets[i] - post", ResultSets[queryIndex], "i:", queryIndex, "parent:", parentIndex)
+	}
 }
 
 func (cw *ClickhouseQueryTranslator) BuildSelectQuery(fields []string, whereClause string) *model.Query {
@@ -659,4 +691,51 @@ func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMa
 		dateTimeType = defaultDateTimeType
 	}
 	return clickhouse.TimestampGroupBy(fieldName, dateTimeType, interval)
+}
+
+// sortInTopologicalOrder sorts all our queries to DB, which we send to calculate response for a single query request.
+// It sorts them in a way that we can calculate them in the returned order, so any parent aggregation needs to be calculated before its child.
+// It's only really needed for pipeline aggregations, as only they have parent-child relationships.
+//
+// Probably you can create a query with loops in pipeline aggregations, but you can't do it in Kibana from Visualize view,
+// so I don't handle it here. We won't panic in such case, only log a warning/error + return non-full results, which is expected,
+// as you can't really compute cycled pipeline aggregations.
+func (cw *ClickhouseQueryTranslator) sortInTopologicalOrder(queries []model.QueryWithAggregation) []int {
+	nameToIndex := make(map[string]int, len(queries))
+	for i, query := range queries {
+		nameToIndex[query.Name()] = i
+	}
+
+	// canSelect[i] == true <=> queries[i] can be selected (it has no parent aggregation, or its parent aggregation is already resolved)
+	canSelect := make([]bool, 0, len(queries))
+	for _, query := range queries {
+		// at the beginning we can select <=> no parent aggregation
+		canSelect = append(canSelect, !query.HasParentAggregation())
+	}
+	alreadySelected := make([]bool, len(queries))
+	indexesSorted := make([]int, 0, len(queries))
+
+	// it's a slow O(query_nr^2) algorithm, can be done in O(query_nr), but since query_nr is ~2-10, we don't care
+	for len(indexesSorted) < len(queries) {
+		lenStart := len(indexesSorted)
+		for i, query := range queries {
+			if !alreadySelected[i] && canSelect[i] {
+				indexesSorted = append(indexesSorted, i)
+				alreadySelected[i] = true
+				// mark all children as canSelect, as their parent is already resolved (selected)
+				for j, maybeChildQuery := range queries {
+					if maybeChildQuery.IsChild(query) {
+						canSelect[j] = true
+					}
+				}
+			}
+		}
+		lenEnd := len(indexesSorted)
+		if lenEnd == lenStart {
+			// without this check, we'd end up in an infinite loop
+			logger.WarnWithCtx(cw.Ctx).Msg("could not resolve all parent-child relationships in queries")
+			break
+		}
+	}
+	return indexesSorted
 }

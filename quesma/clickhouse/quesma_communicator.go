@@ -42,6 +42,9 @@ func (lm *LogManager) GetAllColumns(table *Table, query *model.Query) []string {
 // sql statement that were already parsed and not string from which
 // we have to extract again different parts like where clause and columns to build a proper result
 func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *model.Query, columns []string) ([]model.QueryResultRow, error) {
+	if query.NoDBQuery {
+		return make([]model.QueryResultRow, 0), nil
+	}
 	colNames, err := table.extractColumns(query, false)
 	sort.Strings(colNames)
 	sort.Strings(columns)

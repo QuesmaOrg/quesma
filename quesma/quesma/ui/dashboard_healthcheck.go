@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"github.com/ClickHouse/clickhouse-go/v2"
 	"net/http"
 	"sync"
 	"time"
@@ -55,9 +54,7 @@ func (qmc *QuesmaManagementConsole) checkClickhouseHealth() healthCheckStatus {
 	}
 
 	return qmc.clickhouseStatusCache.check(func() healthCheckStatus {
-		chDb := clickhouse.OpenDB(&clickhouse.Options{Addr: []string{qmc.config.ClickHouse.Url.Host}})
-		defer chDb.Close()
-		err := chDb.Ping()
+		err := qmc.logManager.Ping()
 		if err != nil {
 			return healthCheckStatus{"red", "Ping failed", err.Error()}
 

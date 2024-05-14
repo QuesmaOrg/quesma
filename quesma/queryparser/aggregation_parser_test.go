@@ -3,6 +3,7 @@ package queryparser
 import (
 	"cmp"
 	"context"
+	"github.com/barkimedes/go-deepcopy"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
@@ -558,6 +559,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	allTests = append(allTests, opensearch_visualize.AggregationTests...)
 	allTests = append(allTests, dashboard_1.AggregationTests...)
 	allTests = append(allTests, testdata.PipelineAggregationTests...)
+	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if i == 26 {
@@ -584,20 +586,19 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 				// fmt.Println("--- SQL string ", aggregation.String())
 				// fmt.Println()
 				// fmt.Println("--- Group by: ", aggregation.GroupByFields)
-				if test.ExpectedSQLs[j] != "TODO" {
+				if test.ExpectedSQLs[j] != "NoDBQuery" {
 					util.AssertSqlEqual(t, test.ExpectedSQLs[j], aggregation.String())
 				}
 			}
 
-			if test.ExpectedResponse == "" {
-				// We haven't recorded expected response yet, so we can't compare it
-				return
-			}
-
+			// I copy `test.ExpectedResults`, as it's processed 2 times and each time it might be modified by
+			// pipeline aggregation processing.
+			expectedResultsCopy := deepcopy.MustAnything(test.ExpectedResults).([][]model.QueryResultRow)
+			// pp.Println("EXPECTED", expectedResultsCopy)
 			actualAggregationsPart := cw.MakeAggregationPartOfResponse(aggregations, test.ExpectedResults)
 			// pp.Println("ACTUAL", actualAggregationsPart)
 
-			fullResponse, err := cw.MakeResponseAggregationMarshalled(aggregations, test.ExpectedResults)
+			fullResponse, err := cw.MakeResponseAggregationMarshalled(aggregations, expectedResultsCopy)
 			assert.NoError(t, err)
 
 			expectedResponseMap, _ := util.JsonToMap(test.ExpectedResponse)
@@ -612,7 +613,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
 			acceptableDifference := []string{"doc_count_error_upper_bound", "sum_other_doc_count", "probability", "seed", "bg_count", "doc_count"}
 			// pp.Println("ACTUAL", actualMinusExpected)
-			// pp.Print("EXPECTED", expectedMinusActual)
+			// pp.Println("EXPECTED", expectedMinusActual)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
 			assert.Contains(t, string(fullResponse), `"value":`+strconv.FormatUint(test.ExpectedResults[0][0].Cols[0].Value.(uint64), 10)) // checks if hits nr is OK

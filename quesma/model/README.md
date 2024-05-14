@@ -19,7 +19,7 @@ More info: https://www.elastic.co/guide/en/elasticsearch/reference/current/searc
  Cardinality               | :white_check_mark: | Date histogram               | :white_check_mark: | Bucket sort            |        :x:         |
  Extended stats            |        :x:         | Date range                   | :white_check_mark: | Change point           |        :x:         |
  Geo-bounds                |        :x:         | Diversified sampler          |        :x:         | Cumulative cardinality |        :x:         |
- Geo-centroid              |        :x:         | Filter                       | :white_check_mark: | Cumulative sum         |        :x:         |
+ Geo-centroid              |        :x:         | Filter                       | :white_check_mark: | Cumulative sum         | :white_check_mark: |
  Geo-line                  |        :x:         | Filters                      | :white_check_mark: | Derivative             |        :x:         |
  Cartesian-bounds          |        :x:         | Frequent item sets           |        :x:         | Extended stats bucket  |        :x:         |
  Cartesian-centroid        |        :x:         | Geo-distance                 |        :x:         | Inference bucket       |        :x:         |

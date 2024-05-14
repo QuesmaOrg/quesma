@@ -5,11 +5,15 @@ services:
   quesma: ## Can be commented out if you want to just run Quesma from IDE
     build: ../quesma
     image: quesma:latest
-    network_mode: "bridge"
+    env_file:
+      # We require .env file to be present
+      # and contain QUESMA_licenseKey with your personal license key
+      - .env
     environment:
+      - QUESMA_CONFIG_FILE=/config/local-dev.yaml
       - QUESMA_elasticsearch_url=https://elasticsearch:9200
-      - QUESMA_ELASTICSEARCH_USER=elastic
-      - QUESMA_ELASTICSEARCH_PASSWORD=quesmaquesma
+      - QUESMA_elasticsearch_user=elastic
+      - QUESMA_elasticsearch_password=quesmaquesma
       - QUESMA_port=8080
       - QUESMA_logging_path=/var/quesma/logs
       - QUESMA_clickhouse_url=clickhouse://clickhouse:9000
@@ -24,11 +28,11 @@ services:
     volumes:
       - ./quesma/logs/:/var/quesma/logs
       - ./security/ca/ca.crt:/etc/ssl/certs/local-elastic-ca.pem
+      - ./quesma/config:/config # mount local config for indices
     restart: unless-stopped
   setup-ssl: # one-off container to set the password for kibana_system user once Elastic's up&running
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
     container_name: setup-ssl
-    network_mode: "bridge"
     restart: "no"
     volumes:
       - ./security/:/setup-ssl
@@ -37,7 +41,6 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
     container_name: elasticsearch
-    network_mode: "bridge"
     environment:
       discovery.type: single-node
       xpack.security.enrollment.enabled: true
@@ -68,20 +71,24 @@ services:
   mitmproxy:
     image: mitmproxy/mitmproxy:10.1.5
     container_name: mitmproxy
-    network_mode: "bridge"
     tty: true
     ports:
     - "6666:6666"
     - "8081:8081"
     command: >
-      mitmweb --set termlog_verbosity=warn --no-web-open-browser --listen-port 6666 --web-host 0.0.0.0 --mode reverse:http://${HOST_IP}:8080/
+      mitmweb --set termlog_verbosity=warn --no-web-open-browser --listen-port 6666 --web-host 0.0.0.0 --mode reverse:http://${HOST_IP}:8080
     restart: unless-stopped
     volumes:
       - ./mitmproxy:/var/mitmproxy
+    healthcheck:
+      # No curl/wget, going old school
+      test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/6666' || exit 1
+      interval: 1s
+      start_period: 1m
+      timeout: 1s
   setup-kibana-password: # one-off container to set the password for kibana_system user once Elastic's up&running
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
     container_name: setup-kibana-password
-    network_mode: "bridge"
     restart: "no"
     depends_on:
       elasticsearch:
@@ -91,7 +98,6 @@ services:
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.1
     container_name: kibana
-    network_mode: "bridge"
     environment:
       ELASTICSEARCH_SSL_VERIFICATIONMODE: none  # This keeps certificate verification off, think `curl -k`
       ELASTICSEARCH_HOSTS: '["http://mitmproxy:6666"]' # Even though security is enabled, we can still keep using http here so why not leverage the opportunity
@@ -118,7 +124,6 @@ services:
   kibana-sidecar:
     image: docker.elastic.co/kibana/kibana:8.11.1
     container_name: kibana-sidecar
-    network_mode: "bridge"
     restart: "no"
     environment:
       - ELASTICSEARCH_USER=elastic
@@ -134,7 +139,6 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:23.12.2.59-alpine
     container_name: clickhouse
-    network_mode: "bridge"
     ports:
       - "8123:8123"
       - "9000:9000"
@@ -143,4 +147,3 @@ services:
       interval: 1s
       timeout: 1s
       start_period: 1m
-

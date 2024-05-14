@@ -17,7 +17,7 @@ import (
 // 2. ClickhouseEQLQueryTranslator (implements only a subset of methods)
 
 type IQueryTranslator interface {
-	ParseQuery(queryAsJson string) (queryparser.SimpleQuery, model.SearchQueryInfo, queryparser.Highlighter)
+	ParseQuery(queryAsJson string) (queryparser.SimpleQuery, model.SearchQueryInfo, model.Highlighter)
 	ParseAggregationJson(aggregationJson string) ([]model.QueryWithAggregation, error)
 
 	BuildSimpleCountQuery(whereClause string) *model.Query
@@ -25,7 +25,7 @@ type IQueryTranslator interface {
 	BuildNRowsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query
 	BuildFacetsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query
 
-	MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter queryparser.Highlighter) (*model.SearchResp, error)
+	MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) (*model.SearchResp, error)
 	MakeResponseAggregation(aggregations []model.QueryWithAggregation, aggregationResults [][]model.QueryResultRow) *model.SearchResp
 }
 
