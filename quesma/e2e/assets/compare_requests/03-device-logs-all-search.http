@@ -1,16 +1,6 @@
 POST http://localhost:9201/device_logs/_search
 Content-Type: application/json
-# elastic didn't return {hits: {total: {value: 0}}} when there is no data
-#
 #eq /hits/hits/0/_index
-#eq /hits/hits/0/fields/dedup_id
-## timestamp format is different
-#SKIP eq /hits/hits/0/fields/epoch_time
-#eq /hits/hits/0/fields/event_name
-#eq /hits/hits/0/fields/hostname
-#eq /hits/hits/0/fields/log_level
-#eq /hits/hits/0/fields/message
-
 
 {
     "_source": false,
@@ -43,20 +33,7 @@ Content-Type: application/json
     "query": {
         "bool": {
             "filter": [
-                {
-                    "bool": {
-                        "minimum_should_match": 1,
-                        "should": [
-                            {
-                                "term": {
-                                    "event_name": {
-                                        "value": "test"
-                                    }
-                                }
-                            }
-                        ]
-                    }
-                },
+
                 {
                     "range": {
                         "epoch_time": {

@@ -1,0 +1,57 @@
+POST http://localhost:8080/device_logs/_search HTTP/1.1
+Content-Type: application/json
+#eq /hits/total/value
+
+{
+    "_source": {
+        "excludes": []
+    },
+    "aggs": {
+        "0": {
+            "date_histogram": {
+                "extended_bounds": {
+                    "max": 1715685298265,
+                    "min": 1715685261417
+                },
+                "field": "epoch_time",
+                "fixed_interval": "1s",
+                "time_zone": "Europe/Warsaw"
+            }
+        }
+    },
+    "fields": [
+        {
+            "field": "epoch_time",
+            "format": "date_time"
+        },
+        {
+            "field": "ts_time_druid",
+            "format": "date_time"
+        }
+    ],
+    "query": {
+        "bool": {
+            "filter": [
+                {
+                    "range": {
+                        "epoch_time": {
+                            "format": "strict_date_optional_time",
+                            "gte": "2024-05-14T11:14:21.417Z",
+                            "lte": "2024-05-14T11:14:58.265Z"
+                        }
+                    }
+                }
+            ],
+            "must": [],
+            "must_not": [],
+            "should": []
+        }
+    },
+    "runtime_mappings": {},
+    "script_fields": {},
+    "size": 0,
+    "stored_fields": [
+        "*"
+    ],
+    "track_total_hits": true
+}

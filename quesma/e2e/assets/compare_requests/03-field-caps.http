@@ -1,0 +1,19 @@
+POST http://localhost:8080/device_logs/_field_caps
+Content-Type: application/json
+## We do not return the same fields configuration as elastic
+#SKIP eq /fields/client_id
+# we can compare only a subset of field properties
+#eq /fields/client_id/searchable
+#eq /fields/client_ip/searchable
+#eq /fields/text/searchable
+#eq /fields/dedup_id/searchable
+#eq /fields/epoch_time/searchable
+#eq /fields/et_day/searchable
+#eq /fields/event_name/searchable
+#eq /fields/event_section/searchable
+
+{
+    "fields": [
+        "*"
+    ]
+}

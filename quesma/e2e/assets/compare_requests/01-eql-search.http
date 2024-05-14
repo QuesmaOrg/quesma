@@ -1,8 +1,10 @@
-POST http://localhost:8080/windows_logs/_eql/search
+POST http://localhost:9201/windows_logs/_eql/search
 Content-type: application/json
 #eq /hits/total/value
+#eq /hits/events/0/_source/event/category /hits/events/0/_source/event::category
+#eq /hits/events/0/_source/process/name /hits/events/0/_source/process::name
 
 {
-  "query": "REPLAYID where true"
+  "query": "process where true"
 }
 
