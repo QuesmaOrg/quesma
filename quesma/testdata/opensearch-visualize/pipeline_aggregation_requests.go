@@ -944,7 +944,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				"*"
 			]
 		}`,
-		ExpectedResponse: // opensearch returns "1": {null} for 2nd, 3rd and 3 last buckets. I think it's not correct... I return 0, and it seems working too.
+		ExpectedResponse: // I changed this a bit. Opensearch returns "1": {null} for 2nd, 3rd and 3 last buckets. I think it's not correct... I return 0, and it seems working too.
 		`{
 			"_shards": {
 				"failed": 0,
@@ -956,45 +956,48 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				"2": {
 					"buckets": [
 						{
+							"1": {
+								"value": null
+							},
 							"1-metric": {
 								"value": 2.0
 							},
 							"doc_count": 2,
 							"key": 1714869000000,
-							"key_as_string": "2024-05-05T02:30:00.000+02:00"
+							"key_as_string": "2024-05-05T00:30:00.000"
 						},
 						{
 							"1": {
-								"value": null
+								"value": 0.0
 							},
 							"1-metric": {
 								"value": 2.0
 							},
 							"doc_count": 0,
 							"key": 1714869600000,
-							"key_as_string": "2024-05-05T02:40:00.000+02:00"
+							"key_as_string": "2024-05-05T00:40:00.000"
 						},
 						{
 							"1": {
-								"value": null
+								"value": 0.0
 							},
 							"1-metric": {
 								"value": 2.0
 							},
 							"doc_count": 0,
 							"key": 1714878600000,
-							"key_as_string": "2024-05-05T05:10:00.000+02:00"
+							"key_as_string": "2024-05-05T03:10:00.000"
 						},
 						{
 							"1": {
-								"value": null
+								"value": 2.0
 							},
 							"1-metric": {
 								"value": 4.0
 							},
 							"doc_count": 2,
 							"key": 1714879200000,
-							"key_as_string": "2024-05-05T05:20:00.000+02:00"
+							"key_as_string": "2024-05-05T03:20:00.000"
 						},
 						{
 							"1": {
@@ -1005,7 +1008,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							},
 							"doc_count": 6,
 							"key": 1714879800000,
-							"key_as_string": "2024-05-05T05:30:00.000+02:00"
+							"key_as_string": "2024-05-05T03:30:00.000"
 						},
 						{
 							"1": {
@@ -1016,7 +1019,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							},
 							"doc_count": 2,
 							"key": 1714880400000,
-							"key_as_string": "2024-05-05T05:40:00.000+02:00"
+							"key_as_string": "2024-05-05T03:40:00.000"
 						},
 						{
 							"1": {
@@ -1027,40 +1030,40 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							},
 							"doc_count": 2,
 							"key": 1714881000000,
-							"key_as_string": "2024-05-05T05:50:00.000+02:00"
+							"key_as_string": "2024-05-05T03:50:00.000"
 						},
 						{
 							"1": {
-								"value": null
+								"value": 0.0
 							},
 							"1-metric": {
 								"value": 14.0
 							},
 							"doc_count": 0,
 							"key": 1714881600000,
-							"key_as_string": "2024-05-05T06:00:00.000+02:00"
+							"key_as_string": "2024-05-05T04:00:00.000"
 						},
 						{
 							"1": {
-								"value": null
+								"value": 2.0
 							},
 							"1-metric": {
 								"value": 16.0
 							},
 							"doc_count": 2,
 							"key": 1714882200000,
-							"key_as_string": "2024-05-05T06:10:00.000+02:00"
+							"key_as_string": "2024-05-05T04:10:00.000"
 						},
 						{
 							"1": {
-								"value": null
+								"value": 0.0
 							},
 							"1-metric": {
 								"value": 16.0
 							},
 							"doc_count": 0,
 							"key": 1714882800000,
-							"key_as_string": "2024-05-05T06:20:00.000+02:00"
+							"key_as_string": "2024-05-05T04:20:00.000"
 						}
 					]
 				}
@@ -1082,12 +1085,44 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			{}, // NoDBQuery
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", 0.0),
-					model.NewQueryResultCol("count()", 282),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714869000000/600000)),
+					model.NewQueryResultCol("count()", 2),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", 1.0),
-					model.NewQueryResultCol("count()", 300),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714869600000/600000)),
+					model.NewQueryResultCol("count()", 0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714878600000/600000)),
+					model.NewQueryResultCol("count()", 0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714879200000/600000)),
+					model.NewQueryResultCol("count()", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714879800000/600000)),
+					model.NewQueryResultCol("count()", 6),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714880400000/600000)),
+					model.NewQueryResultCol("count()", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714881000000/600000)),
+					model.NewQueryResultCol("count()", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714881600000/600000)),
+					model.NewQueryResultCol("count()", 0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714882200000/600000)),
+					model.NewQueryResultCol("count()", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714882800000/600000)),
+					model.NewQueryResultCol("count()", 0),
 				}},
 			},
 		},
