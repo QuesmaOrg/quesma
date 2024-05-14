@@ -139,7 +139,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		}
 	})
 
-	router.RegisterPathMatcher(routes.GlobalSearchPath, []string{"POST"}, func(_ map[string]string, _ string) bool {
+	router.RegisterPathMatcher(routes.GlobalSearchPath, []string{"GET", "POST"}, func(_ map[string]string, _ string) bool {
 		return true // for now, always route to Quesma, in the near future: combine results from both sources
 	}, func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		responseBody, err := queryRunner.handleSearch(ctx, "*", []byte(body))
@@ -153,7 +153,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
 
-	router.RegisterPathMatcher(routes.IndexSearchPath, []string{"POST"}, matchedAgainstPattern(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.IndexSearchPath, []string{"GET", "POST"}, matchedAgainstPattern(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		responseBody, err := queryRunner.handleSearch(ctx, params["index"], []byte(body))
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
@@ -164,7 +164,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		}
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
-	router.RegisterPathMatcher(routes.IndexAsyncSearchPath, []string{"POST"}, matchedAgainstPattern(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.IndexAsyncSearchPath, []string{"GET", "POST"}, matchedAgainstPattern(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		waitForResultsMs := 1000 // Defaults to 1 second as in docs
 		if v, ok := params["wait_for_completion_timeout"]; ok {
 			if w, err := time.ParseDuration(v); err == nil {
@@ -190,16 +190,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
 
-	router.RegisterPathMatcher(routes.AsyncSearchIdPath, []string{"GET"}, matchedAgainstAsyncId(), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
-		ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, params["id"])
-		responseBody, err := queryRunner.handlePartialAsyncSearch(ctx, params["id"])
-		if err != nil {
-			return nil, err
-		}
-		return elasticsearchQueryResult(string(responseBody), httpOk), nil
-	})
-
-	router.RegisterPathMatcher(routes.AsyncSearchIdPath, []string{"POST"}, matchedAgainstAsyncId(), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.AsyncSearchIdPath, []string{"GET", "POST"}, matchedAgainstAsyncId(), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, params["id"])
 		responseBody, err := queryRunner.handlePartialAsyncSearch(ctx, params["id"])
 		if err != nil {
@@ -216,7 +207,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
 
-	router.RegisterPathMatcher(routes.FieldCapsPath, []string{"POST"}, matchedAgainstPattern(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.FieldCapsPath, []string{"GET", "POST"}, matchedAgainstPattern(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		responseBody, err := handleFieldCaps(ctx, params["index"], []byte(body), lm)
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
@@ -251,8 +242,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	}
 
-	router.RegisterPathMatcher(routes.EQLSearch, []string{"GET"}, matchedAgainstPattern(cfg), eqlHandler)
-	router.RegisterPathMatcher(routes.EQLSearch, []string{"POST"}, matchedAgainstPattern(cfg), eqlHandler)
+	router.RegisterPathMatcher(routes.EQLSearch, []string{"GET", "POST"}, matchedAgainstPattern(cfg), eqlHandler)
 
 	return router
 }
