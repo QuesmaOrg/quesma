@@ -2,7 +2,6 @@ package bucket_aggregations
 
 import (
 	"context"
-	"fmt"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"strconv"
@@ -76,7 +75,6 @@ func (query DateHistogram) getKey(row model.QueryResultRow) int64 {
 // if minDocCount == 0, and we have buckets e.g. [key, value1], [key+10, value2], we need to insert [key+1, 0], [key+2, 0]...
 // CAUTION: a different kind of postprocessing is needed for minDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
 func (query DateHistogram) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	fmt.Println("HOHO", query.minDocCount, len(rowsFromDB), rowsFromDB)
 	if query.minDocCount != 0 || len(rowsFromDB) < 2 {
 		// we only add empty rows, when
 		// a) minDocCount == 0
@@ -103,6 +101,5 @@ func (query DateHistogram) PostprocessResults(rowsFromDB []model.QueryResultRow)
 		}
 		postprocessedRows = append(postprocessedRows, rowsFromDB[i])
 	}
-	fmt.Println("HOHO", postprocessedRows)
 	return postprocessedRows
 }

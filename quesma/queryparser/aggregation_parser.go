@@ -558,24 +558,24 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			fieldNameProperlyQuoted = strconv.Quote(fieldName)
 		}
 		var interval float64
-		intervalQueryMap, ok := histogram["interval"]
+		intervalRaw, ok := histogram["interval"]
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("interval not found in histogram: %v", histogram)
 		}
-		switch intervalRaw := intervalQueryMap.(type) {
+		switch intervalTyped := intervalRaw.(type) {
 		case string:
 			var err error
-			interval, err = strconv.ParseFloat(intervalRaw, 64)
+			interval, err = strconv.ParseFloat(intervalTyped, 64)
 			if err != nil {
 				logger.ErrorWithCtx(cw.Ctx).Err(err).Msgf("failed to parse interval: %v", intervalRaw)
 			}
 		case int:
-			interval = float64(intervalRaw)
+			interval = float64(intervalTyped)
 		case float64:
-			interval = intervalRaw
+			interval = intervalTyped
 		default:
 			interval = 1.0
-			logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v", intervalRaw, intervalRaw)
+			logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v", intervalTyped, intervalTyped)
 		}
 		minDocCount := cw.parseMinDocCount(histogram)
 		currentAggr.Type = bucket_aggregations.NewHistogram(cw.Ctx, interval, minDocCount)

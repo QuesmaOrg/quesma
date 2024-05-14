@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
-	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/testdata"
@@ -543,7 +542,7 @@ func sortAggregations(aggregations []model.QueryWithAggregation) {
 }
 
 func Test2AggregationParserExternalTestcases(t *testing.T) {
-	logger.InitSimpleLoggerForTests()
+	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -565,10 +564,10 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if i > 26 && i <= 30 {
-				t.Skip("New tests, failing for now, for empty rows/gaps in response")
+				t.Skip("New tests, harder, failing for now. Fixes for them in 2 next PRs")
 			}
 			if strings.HasPrefix(test.TestName, "dashboard-1") {
-				t.Skip("Those 2 tests have nested histograms with min_doc_count=0. I'll add support for that in next PR, already done")
+				t.Skip("Those 2 tests have nested histograms with min_doc_count=0. I'll add support for that in next PR, already most of work done")
 			}
 			if i == 32 {
 				t.Skip("Need a (most likely) small fix to top_hits.")

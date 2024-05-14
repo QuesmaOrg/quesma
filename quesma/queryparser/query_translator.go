@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/kibana"
 	"mitmproxy/quesma/logger"
@@ -498,9 +497,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []mod
 		if len(ResultSets) <= i+1 {
 			continue
 		}
-		fmt.Println(query, ResultSets[i+1])
 		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i+1], 0, 0)
-		pp.Println(aggregation)
 		if len(aggregation) != 0 {
 			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0]) // result of root node is always a single map, thus [0]
 		}
