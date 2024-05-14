@@ -228,28 +228,25 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						return nil, fmt.Errorf("properties %s not found in table %s", properties, table.Name)
 					}
 				}
-
 				oldHandlingUsed = true
+				fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
 				if optAsync != nil {
 					go func() {
 						defer recovery.LogPanicWithCtx(ctx)
-						fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
 						q.searchWorker(ctx, *fullQuery, columns, queryTranslator, table, optAsync)
 					}()
 				} else {
-					fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
 					translatedQueryBody, hits = q.searchWorker(ctx, *fullQuery, columns, queryTranslator, table, nil)
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
 				newAggregationHandlingUsed = true
+				columns := []string{}
 				if optAsync != nil {
 					go func() {
 						defer recovery.LogPanicWithCtx(ctx)
-						columns := []string{}
 						q.searchAggregationWorker(ctx, aggregations, columns, queryTranslator, table, optAsync)
 					}()
 				} else {
-					columns := []string{}
 					translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, aggregations, columns, queryTranslator, table, nil)
 				}
 			}
