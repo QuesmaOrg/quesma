@@ -441,6 +441,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			return metricsAggregation{
 				AggrType:            k,
 				FieldNames:          []string{fieldName},
+				FieldType:           cw.Table.GetDateTimeType(cw.Ctx, fieldName),
 				IsFieldNameCompound: isFieldNameFromScript,
 			}, true
 		}
