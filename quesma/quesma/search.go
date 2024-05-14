@@ -468,7 +468,7 @@ func (q *QueryRunner) makeBasicQuery(ctx context.Context,
 	case model.ListByField:
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)
 		fullQuery = queryTranslator.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		columns = q.logManager.GetAllColumns(table, fullQuery)
+		columns = []string{queryInfo.FieldName}
 	case model.ListAllFields:
 		// queryInfo = (ListAllFields, "*", 0, LIMIT)
 		fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
