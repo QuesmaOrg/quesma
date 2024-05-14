@@ -250,10 +250,12 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				if optAsync != nil {
 					go func() {
 						defer recovery.LogPanicWithCtx(ctx)
-						q.searchAggregationWorker(ctx, aggregations, queryTranslator, table, optAsync)
+						columns := []string{}
+						q.searchAggregationWorker(ctx, aggregations, columns, queryTranslator, table, optAsync)
 					}()
 				} else {
-					translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, aggregations, queryTranslator, table, nil)
+					columns := []string{}
+					translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, aggregations, columns, queryTranslator, table, nil)
 				}
 			}
 
@@ -545,23 +547,25 @@ func (q *QueryRunner) searchWorker(ctx context.Context, fullQuery model.Query, c
 }
 
 func (q *QueryRunner) searchAggregationWorker(ctx context.Context, aggregations []model.QueryWithAggregation,
+	columns []string,
 	queryTranslator IQueryTranslator, table *clickhouse.Table,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
 	if optAsync == nil {
-		return q.searchAggregationWorkerCommon(ctx, aggregations, queryTranslator, table, nil)
+		return q.searchAggregationWorkerCommon(ctx, aggregations, columns, queryTranslator, table, nil)
 
 	} else {
 		select {
 		case <-q.executionCtx.Done():
 			return
 		default:
-			_, _ = q.searchAggregationWorkerCommon(ctx, aggregations, queryTranslator, table, optAsync)
+			_, _ = q.searchAggregationWorkerCommon(ctx, aggregations, columns, queryTranslator, table, optAsync)
 			return
 		}
 	}
 }
 
 func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggregations []model.QueryWithAggregation,
+	columns []string,
 	queryTranslator IQueryTranslator, table *clickhouse.Table,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
 
