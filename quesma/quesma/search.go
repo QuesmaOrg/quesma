@@ -224,13 +224,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo)
 						fullQuery.QueryInfo = queryInfo
 						fullQuery.Highlighter = highlighter
-						q.searchWorker(ctx, fullQuery, columns, queryTranslator, table, optAsync)
+						q.searchWorker(ctx, *fullQuery, columns, queryTranslator, table, optAsync)
 					}()
 				} else {
 					fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo)
 					fullQuery.QueryInfo = queryInfo
 					fullQuery.Highlighter = highlighter
-					translatedQueryBody, hits = q.searchWorker(ctx, fullQuery, columns, queryTranslator, table, nil)
+					translatedQueryBody, hits = q.searchWorker(ctx, *fullQuery, columns, queryTranslator, table, nil)
 
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
@@ -480,7 +480,7 @@ func (q *QueryRunner) makeBasicQuery(ctx context.Context,
 	return fullQuery, columns
 }
 
-func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery *model.Query, columns []string, queryTranslator IQueryTranslator,
+func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery model.Query, columns []string, queryTranslator IQueryTranslator,
 	table *clickhouse.Table, optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
 
 	if optAsync != nil && q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, optAsync.doneCh) {
@@ -497,7 +497,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery *model.Q
 	} else {
 		dbQueryCtx = ctx
 	}
-	hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, fullQuery, columns)
+	hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, &fullQuery, columns)
 	translatedQueryBody = []byte(fullQuery.String())
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", hits, err)
@@ -518,7 +518,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery *model.Q
 	return
 }
 
-func (q *QueryRunner) searchWorker(ctx context.Context, fullQuery *model.Query, columns []string, queryTranslator IQueryTranslator,
+func (q *QueryRunner) searchWorker(ctx context.Context, fullQuery model.Query, columns []string, queryTranslator IQueryTranslator,
 	table *clickhouse.Table, optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
 	if optAsync == nil {
 		return q.searchWorkerCommon(ctx, fullQuery, columns, queryTranslator, table, nil)
