@@ -164,7 +164,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		}
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
-	router.RegisterPathMatcher(routes.IndexAsyncSearchPath, []string{"GET", "POST"}, matchedAgainstPattern(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.IndexAsyncSearchPath, []string{"POST"}, matchedAgainstPattern(cfg), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		waitForResultsMs := 1000 // Defaults to 1 second as in docs
 		if v, ok := params["wait_for_completion_timeout"]; ok {
 			if w, err := time.ParseDuration(v); err == nil {
@@ -190,7 +190,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
 
-	router.RegisterPathMatcher(routes.AsyncSearchIdPath, []string{"GET", "POST"}, matchedAgainstAsyncId(), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.AsyncSearchIdPath, []string{"POST"}, matchedAgainstAsyncId(), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
 		ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, params["id"])
 		responseBody, err := queryRunner.handlePartialAsyncSearch(ctx, params["id"])
 		if err != nil {
