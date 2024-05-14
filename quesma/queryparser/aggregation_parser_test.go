@@ -581,10 +581,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 
 			// Let's leave those commented debugs for now, they'll be useful in next PRs
 			for j, aggregation := range aggregations {
-				// fmt.Println("--- Aggregation "+strconv.Itoa(j)+":", aggregation)
-				// fmt.Println()
-				// fmt.Println("--- SQL string ", aggregation.String())
-				// fmt.Println()
+				// fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\n", j, aggregation, aggregation.String())
 				// fmt.Println("--- Group by: ", aggregation.GroupByFields)
 				if test.ExpectedSQLs[j] != "NoDBQuery" {
 					util.AssertSqlEqual(t, test.ExpectedSQLs[j], aggregation.String())
