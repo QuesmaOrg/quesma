@@ -20,9 +20,20 @@ func TestMatches_ShouldIgnoreTrailingSlash(t *testing.T) {
 
 	assert.True(t, router.Matches("/indexABC/_bulk", "POST", ""))
 	assert.True(t, router.Matches("/indexABC/_bulk/", "POST", ""))
-
 }
 
-func mockHandler(ctx context.Context, body, uri string, params map[string]string) (*Result, error) {
+func TestShouldMatchMultipleHttpMethods(t *testing.T) {
+	router := NewPathRouter()
+	router.RegisterPathMatcher("/:index/_bulk", []string{"POST", "GET"}, always, mockHandler)
+
+	assert.True(t, router.Matches("/index1/_bulk", "POST", ""))
+	assert.True(t, router.Matches("/index1/_bulk", "GET", ""))
+}
+
+func always(_ map[string]string, _ string) bool {
+	return true
+}
+
+func mockHandler(_ context.Context, _, _ string, _ map[string]string) (*Result, error) {
 	return &Result{}, nil
 }
