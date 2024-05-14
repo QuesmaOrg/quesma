@@ -2,8 +2,6 @@
 
 /*
   This file contains  tests which can raise a race condition.
-
-
 */
 
 package quesma
