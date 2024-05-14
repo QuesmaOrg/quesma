@@ -703,7 +703,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		model.SearchQueryInfo{Typ: model.Normal},
 		[]string{
 			`SELECT count() FROM "logs-generic-default" WHERE "@timestamp".*parseDateTime64BestEffort('2024-01-25T..:..:59.033Z') AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T..:..:59.033Z') `,
-			`SELECT "event.dataset", ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, time.Minute) + `, count() FROM "logs-generic-default" WHERE "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') GROUP BY ("event.dataset", ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, time.Minute) + `) ORDER BY ("event.dataset", ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, time.Minute) + ")",
+			`SELECT "event.dataset", ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, time.Minute) + `, count() FROM "logs-generic-default" WHERE "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z')  GROUP BY ("event.dataset", ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, time.Minute) + `) ORDER BY ("event.dataset", ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, time.Minute) + `)`,
 			`SELECT "event.dataset", count() FROM "logs-generic-default" WHERE "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z')  GROUP BY ("event.dataset") ORDER BY ("event.dataset")`,
 		},
 		true,
