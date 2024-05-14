@@ -699,11 +699,9 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
 		},
 	},
-	// waits for merge of #56
-	/*
-		{ // [5]
-			TestName: "Derivative with other aggregation. Reproduce: Visualize -> Vertical Bar: Metrics: Derivative (Aggregation: Sum), Buckets: Date Histogram",
-			QueryRequestJson: `
+	{ // [5]
+		TestName: "Derivative with other aggregation. Reproduce: Visualize -> Vertical Bar: Metrics: Derivative (Aggregation: Sum), Buckets: Date Histogram",
+		QueryRequestJson: `
 			{
 				"_source": {
 					"excludes": []
@@ -771,7 +769,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					"*"
 				]
 			}`,
-			ExpectedResponse: `
+		ExpectedResponse: `
 			{
 				"_shards": {
 					"failed": 0,
@@ -783,12 +781,15 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					"2": {
 						"buckets": [
 							{
+								"1": {
+									"value": null
+								},
 								"1-metric": {
 									"value": 19.0
 								},
 								"doc_count": 1,
 								"key": 1715196000000,
-								"key_as_string": "2024-05-08T21:20:00.000+02:00"
+								"key_as_string": "2024-05-08T19:20:00.000"
 							},
 							{
 								"1": {
@@ -799,18 +800,18 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								},
 								"doc_count": 1,
 								"key": 1715196600000,
-								"key_as_string": "2024-05-08T21:30:00.000+02:00"
+								"key_as_string": "2024-05-08T19:30:00.000"
 							},
 							{
 								"1": {
-									"value": null
+									"value": 1.0
 								},
 								"1-metric": {
 									"value": 20.0
 								},
 								"doc_count": 1,
 								"key": 1715198400000,
-								"key_as_string": "2024-05-08T22:00:00.000+02:00"
+								"key_as_string": "2024-05-08T20:00:00.000"
 							},
 							{
 								"1": {
@@ -820,8 +821,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 									"value": 32.0
 								},
 								"doc_count": 4,
-								"key": 171519900000,
-								"key_as_string": "2024-05-08T22:10:00.000+02:00"
+								"key": 1715199000000,
+								"key_as_string": "2024-05-08T20:10:00.000"
 							},
 							{
 								"1": {
@@ -832,7 +833,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 								},
 								"doc_count": 3,
 								"key": 1715199600000,
-								"key_as_string": "2024-05-08T22:20:00.000+02:00"
+								"key_as_string": "2024-05-08T20:20:00.000"
 							}
 						]
 					}
@@ -848,35 +849,70 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				"timed_out": false,
 				"took": 40
 			}`,
-			ExpectedResults: [][]model.QueryResultRow{
-				{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2553))}}},
-				{}, // NoDBQuery
-				{
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", 0.0),
-						model.NewQueryResultCol("doc_count", 106),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", 200.0),
-						model.NewQueryResultCol("doc_count", 39),
-					}},
-					{Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("key", 400.0),
-						model.NewQueryResultCol("doc_count", 21),
-					}},
-				},
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2553))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715196000000/600000)),
+					model.NewQueryResultCol("count()", 19.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715196600000/600000)),
+					model.NewQueryResultCol("count()", 19.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715198400000/600000)),
+					model.NewQueryResultCol("count()", 20.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715199000000/600000)),
+					model.NewQueryResultCol("count()", 32.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715199600000/600000)),
+					model.NewQueryResultCol("count()", 27.0),
+				}},
 			},
-			ExpectedSQLs: []string{
-				`SELECT count() ` +
-					`FROM ` + testdata.QuotedTableName + ` `,
-				`NoDBQuery`,
-				`SELECT floor("bytes" / 200.000000) * 200.000000, count() ` +
-					`FROM ` + testdata.QuotedTableName + `  ` +
-					`GROUP BY (floor("bytes" / 200.000000) * 200.000000) ` +
-					`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715196000000/600000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715196600000/600000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715198400000/600000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715199000000/600000)),
+					model.NewQueryResultCol("count()", 4),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715199600000/600000)),
+					model.NewQueryResultCol("count()", 3),
+				}},
 			},
 		},
-	*/
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` `,
+			`NoDBQuery`,
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
+				"sumOrNull(toHour(`timestamp`)) " +
+				"FROM " + testdata.QuotedTableName + "  " +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
+				"count() " +
+				"FROM " + testdata.QuotedTableName + "  " +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+		},
+	},
 	{ // [6]
 		TestName: "Derivative to cumulative sum. Reproduce: Visualize -> Vertical Bar: Metrics: Derivative (Aggregation: Cumulative Sum (Aggregation: Count)), Buckets: Date Histogram",
 		QueryRequestJson: `
