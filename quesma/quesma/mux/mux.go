@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/ucarion/urlpath"
 	"mitmproxy/quesma/logger"
+	"net/http"
 	"strings"
 )
 
@@ -39,12 +40,14 @@ func (p *PathRouter) RegisterPath(pattern, httpMethod string, handler handler) {
 	p.mappings = append(p.mappings, mapping)
 }
 
-func (p *PathRouter) RegisterPathMatcher(pattern, httpMethod string, predicate MatchPredicate, handler handler) {
-	mapping := mapping{pattern, urlpath.New(pattern), httpMethod, predicate, handler}
-	p.mappings = append(p.mappings, mapping)
+func (p *PathRouter) RegisterPathMatcher(pattern string, httpMethods []string, predicate MatchPredicate, handler handler) {
+	for _, httpMethod := range httpMethods {
+		mapping := mapping{pattern, urlpath.New(pattern), httpMethod, predicate, handler}
+		p.mappings = append(p.mappings, mapping)
+	}
 }
 
-func (p *PathRouter) Execute(ctx context.Context, path, body, httpMethod string) (*Result, error) {
+func (p *PathRouter) Execute(ctx context.Context, path, body, httpMethod string, headers http.Header) (*Result, error) {
 	handler, meta, found := p.findHandler(path, httpMethod, body)
 	if found {
 		return handler(ctx, body, path, meta.Params)

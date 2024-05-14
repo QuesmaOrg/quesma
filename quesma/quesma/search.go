@@ -266,7 +266,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					return responseBody, err
 				}
 				countQuery := queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-				countResult, err := q.logManager.ProcessQuery(ctx, table, countQuery, q.logManager.GetAllColumns(table, listQuery))
+				countResult, err := q.logManager.ProcessQuery(ctx, table, countQuery, q.logManager.GetAllColumns(table, countQuery))
 				if err != nil {
 					logger.ErrorWithCtx(ctx).Msgf("error processing count query. Err: %v, query: %+v", err, countQuery)
 					pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
@@ -574,8 +574,13 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggrega
 	}
 	logger.InfoWithCtx(ctx).Msg("we're using new Aggregation handling.")
 	for _, agg := range aggregations {
-		logger.InfoWithCtx(ctx).Msg(agg.String()) // I'd keep for now until aggregations work fully
-		sqls += agg.Query.String() + "\n"
+		logger.InfoWithCtx(ctx).Msgf("aggregation: %+v", agg)
+		if agg.NoDBQuery {
+			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", agg)
+		} else {
+			logger.InfoWithCtx(ctx).Msgf("SQL: %s", agg.String())
+			sqls += agg.Query.String() + "\n"
+		}
 		rows, err := q.logManager.ProcessQuery(dbQueryCtx, table, &agg.Query, q.logManager.GetAllColumns(table, &agg.Query))
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
