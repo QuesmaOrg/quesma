@@ -477,6 +477,10 @@ func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
 	return wasntCreated
 }
 
+func (lm *LogManager) Ping() error {
+	return lm.chDb.Ping()
+}
+
 func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent) *LogManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	var schemaManagement = NewSchemaManagement(chDb)
