@@ -911,34 +911,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [45]
-		TestName:  "pipeline aggregation: derivative",
-		QueryType: "derivative",
-		QueryRequestJson: `
-		{
-			"size": 0,
-			"aggs": {
-				"sales_per_month": {
-					"date_histogram": {
-						"field": "date",
-						"calendar_interval": "month"
-					},
-					"aggs": {
-						"sales": {
-							"sum": {
-								"field": "price"
-							}
-						},
-						"sales_deriv": {
-							"derivative": {
-								"buckets_path": "sales" 
-							}
-						}
-					}
-				}
-			}
-		}`,
-	},
 	{ // [46]
 		TestName:  "pipeline aggregation: extended_stats_bucket",
 		QueryType: "extended_stats_bucket",
