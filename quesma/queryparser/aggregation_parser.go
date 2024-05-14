@@ -10,7 +10,6 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
 	"mitmproxy/quesma/model/metrics_aggregations"
-	"mitmproxy/quesma/model/pipeline_aggregations"
 	"mitmproxy/quesma/util"
 	"slices"
 	"strconv"
@@ -65,13 +64,6 @@ func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.
 func (b *aggrQueryBuilder) buildCountAggregation(metadata model.JsonMap) model.QueryWithAggregation {
 	query := b.buildAggregationCommon(metadata)
 	query.Type = metrics_aggregations.NewCount(b.ctx)
-	query.NonSchemaFields = append(query.NonSchemaFields, "count()")
-	return query
-}
-
-func (b *aggrQueryBuilder) buildPipelineAggregation(metadata model.JsonMap) model.QueryWithAggregation {
-	query := b.buildAggregationCommon(metadata)
-	query.Type = pipeline_aggregations.NewBucketScript(b.ctx)
 	query.NonSchemaFields = append(query.NonSchemaFields, "count()")
 	return query
 }
@@ -317,9 +309,9 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	}
 
 	// 2. Pipeline aggregation => always leaf (for now)
-	if cw.isItSimplePipeline(queryMap) {
-		*resultAccumulator = append(*resultAccumulator, currentAggr.buildPipelineAggregation(metadata))
-		return
+	pipelineAggregationType, isPipelineAggregation := cw.parsePipelineAggregations(queryMap)
+	if isPipelineAggregation {
+		*resultAccumulator = append(*resultAccumulator, currentAggr.buildPipelineAggregation(pipelineAggregationType, metadata))
 	}
 
 	// 3. Now process filter(s) first, because they apply to everything else on the same level or below.
@@ -651,66 +643,6 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	}
 	success = false
 	return
-}
-
-func (cw *ClickhouseQueryTranslator) isItSimplePipeline(queryMap QueryMap) bool {
-	bucketScriptRaw, exists := queryMap["bucket_script"]
-	if !exists {
-		return false
-	}
-
-	// so far we only handle "count" here :D
-	delete(queryMap, "bucket_script")
-	bucketScript, ok := bucketScriptRaw.(QueryMap)
-	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("bucket_script is not a map, but %T, value: %v. Skipping this aggregation", bucketScriptRaw, bucketScriptRaw)
-		return false
-	}
-
-	// if ["buckets_path"] != "_count", skip the aggregation
-	if bucketsPathRaw, exists := bucketScript["buckets_path"]; exists {
-		if bucketsPath, ok := bucketsPathRaw.(string); ok {
-			if bucketsPath != "_count" {
-				logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not '_count', but %s. Skipping this aggregation", bucketsPath)
-				return false
-			}
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a string, but %T, value: %v. Skipping this aggregation", bucketsPathRaw, bucketsPathRaw)
-			return false
-		}
-	} else {
-		logger.WarnWithCtx(cw.Ctx).Msg("no buckets_path in bucket_script. Skipping this aggregation")
-		return false
-	}
-
-	// if ["script"]["source"] != "_value", skip the aggregation
-	scriptRaw, exists := bucketScript["script"]
-	if !exists {
-		logger.WarnWithCtx(cw.Ctx).Msg("no script in bucket_script. Skipping this aggregation")
-		return false
-	}
-	script, ok := scriptRaw.(QueryMap)
-	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("script is not a map, but %T, value: %v. Skipping this aggregation", scriptRaw, scriptRaw)
-		return false
-	}
-	if sourceRaw, exists := script["source"]; exists {
-		if source, ok := sourceRaw.(string); ok {
-			if source != "_value" {
-				logger.WarnWithCtx(cw.Ctx).Msgf("source is not '_value', but %s. Skipping this aggregation", source)
-				return false
-			}
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("source is not a string, but %T, value: %v. Skipping this aggregation", sourceRaw, sourceRaw)
-			return false
-		}
-	} else {
-		logger.WarnWithCtx(cw.Ctx).Msg("no source in script. Skipping this aggregation")
-		return false
-	}
-
-	// okay, we've checked everything, it's indeed a simple count
-	return true
 }
 
 // parseFieldField returns field 'field' from shouldBeMap, which should be a string. Logs some warnings in case of errors, and returns "" then

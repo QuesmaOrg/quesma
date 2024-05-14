@@ -750,5 +750,13 @@ func TestExtractInt64(t *testing.T) {
 		got := ExtractInt64(tt.v)
 		assert.Equal(t, tt.want, got)
 	}
-
+	for _, tt := range tests[:len(tests)-3] {
+		got, success := ExtractInt64Maybe(tt.v)
+		assert.Equal(t, tt.want, got)
+		assert.True(t, success)
+	}
+	for _, tt := range []any{1.1, "1"} {
+		_, success := ExtractInt64Maybe(tt)
+		assert.False(t, success)
+	}
 }
