@@ -557,6 +557,53 @@ func ExtractInt64(value any) int64 {
 	return -1
 }
 
+// ExtractInt64Maybe returns int64 value behind `value`:
+// * value,  if (u)it's int[8|16|32|64]
+// * *value, if it's *(u)int[8|16|32|64]
+// * -1,     otherwise
+// Also, success: true if value was successfully extracted, false otherwise
+func ExtractInt64Maybe(value any) (asInt64 int64, success bool) {
+	switch valueTyped := value.(type) {
+	case int64:
+		return valueTyped, true
+	case uint64:
+		return int64(valueTyped), true
+	case int:
+		return int64(valueTyped), true
+	case *int:
+		return int64(*valueTyped), true
+	case *int64:
+		return *valueTyped, true
+	case *uint64:
+		return int64(*valueTyped), true
+	case int8:
+		return int64(valueTyped), true
+	case uint8:
+		return int64(valueTyped), true
+	case *int8:
+		return int64(*valueTyped), true
+	case *uint8:
+		return int64(*valueTyped), true
+	case int16:
+		return int64(valueTyped), true
+	case uint16:
+		return int64(valueTyped), true
+	case *int16:
+		return int64(*valueTyped), true
+	case *uint16:
+		return int64(*valueTyped), true
+	case int32:
+		return int64(valueTyped), true
+	case uint32:
+		return int64(valueTyped), true
+	case *int32:
+		return int64(*valueTyped), true
+	case *uint32:
+		return int64(*valueTyped), true
+	}
+	return -1, false
+}
+
 // ExtractFloat64 returns float64 value behind `value`:
 // * value,  if it's float64/32
 // * *value, if it's *float64/32

@@ -576,8 +576,7 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggrega
 	for _, agg := range aggregations {
 		logger.InfoWithCtx(ctx).Msgf("aggregation: %+v", agg)
 		if agg.NoDBQuery {
-			logger.InfoWithCtx(ctx).Msg("noDBQuery: we don't send query to the DB.")
-			sqls += fmt.Sprintf("No DB Query, aggregation info: %+v\n", agg)
+			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", agg)
 		} else {
 			logger.InfoWithCtx(ctx).Msgf("SQL: %s", agg.String())
 			sqls += agg.Query.String() + "\n"

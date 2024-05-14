@@ -63,9 +63,20 @@ func (query CumulativeSum) CalculateResultWhenMissing(parentRow model.QueryResul
 				resultValue = previousValue
 			}
 		} else {
-			previousValueAsInt := util.ExtractInt64(previousValue)
-			parentValueAsInt := util.ExtractInt64(parentValue)
-			resultValue = parentValueAsInt + previousValueAsInt
+			previousValueAsInt, okPrevious := util.ExtractInt64Maybe(previousValue)
+			parentValueAsInt, okParent := util.ExtractInt64Maybe(parentValue)
+			if okPrevious && okParent {
+				resultValue = parentValueAsInt + previousValueAsInt
+			} else if okPrevious {
+				logger.WarnWithCtx(query.ctx).Msgf("could not convert parent value to int: %v, previousValue: %v. Using previousValue as sum", parentValue, previousValue)
+				resultValue = previousValue
+			} else if okParent {
+				logger.WarnWithCtx(query.ctx).Msgf("could not convert previous value to int: %v, parentValue: %v. Starting sum from 0", previousValue, parentValue)
+				resultValue = parentValue
+			} else {
+				logger.WarnWithCtx(query.ctx).Msgf("could not convert previous and parent value to int, previousValue: %v, parentValue: %v. Using nil as result", previousValue, parentValue)
+				resultValue = nil
+			}
 		}
 	}
 	resultRow.Cols[len(resultRow.Cols)-1].Value = resultValue
