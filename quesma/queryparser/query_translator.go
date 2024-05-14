@@ -51,7 +51,7 @@ func (cw *ClickhouseQueryTranslator) ClearTokensToHighlight() {
 	cw.tokensToHighlight = []string{}
 }
 
-func (cw *ClickhouseQueryTranslator) highlightHit(hit *model.SearchHit, highlighter Highlighter, resultRow model.QueryResultRow) {
+func (cw *ClickhouseQueryTranslator) highlightHit(hit *model.SearchHit, highlighter model.Highlighter, resultRow model.QueryResultRow) {
 	for _, col := range resultRow.Cols {
 		hit.Fields[col.ColName] = []interface{}{col.Value}
 		if highlighter.ShouldHighlight(col.ColName) {
@@ -77,7 +77,7 @@ func (cw *ClickhouseQueryTranslator) highlightHit(hit *model.SearchHit, highligh
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.QueryResultRow, highlighter Highlighter) *model.SearchResp {
+func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.QueryResultRow, highlighter model.Highlighter) *model.SearchResp {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i, row := range ResultSet {
 		hits[i] = model.SearchHit{
@@ -133,7 +133,7 @@ func EmptyAsyncSearchResponse(id string, isPartial bool, completionStatus int) (
 	return asyncSearchResp.Marshal() // error should never ever happen here
 }
 
-func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter) (*model.SearchResp, error) {
+func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) (*model.SearchResp, error) {
 	switch typ {
 	case model.Normal:
 		return cw.makeSearchResponseNormal(ResultSet, highlighter), nil
@@ -146,7 +146,7 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryR
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) MakeSearchResponseMarshalled(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) MakeSearchResponseMarshalled(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) ([]byte, error) {
 	response, err := cw.MakeSearchResponse(ResultSet, typ, highlighter)
 	if err != nil {
 		return nil, err
@@ -276,7 +276,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter) *model.SearchResp {
+func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) *model.SearchResp {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
 		hits[i].Fields = make(map[string][]interface{})
@@ -310,7 +310,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter, asyncRequestIdStr string, isPartial bool) (*model.AsyncSearchEntireResp, error) {
+func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter, asyncRequestIdStr string, isPartial bool) (*model.AsyncSearchEntireResp, error) {
 	searchResponse, err := cw.MakeSearchResponse(ResultSet, typ, highlighter)
 	if err != nil {
 		return nil, err
@@ -329,7 +329,7 @@ func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.Q
 	return &response, nil
 }
 
-func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponseMarshalled(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter Highlighter, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponseMarshalled(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
 	response, err := cw.MakeAsyncSearchResponse(ResultSet, typ, highlighter, asyncRequestIdStr, isPartial)
 	if err != nil {
 		return nil, err

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/telemetry"
@@ -131,7 +132,7 @@ func TestParseHighLight(t *testing.T) {
 
 func TestHighLightResults(t *testing.T) {
 
-	highLighter := queryparser.Highlighter{
+	highLighter := model.Highlighter{
 		Tokens:   []string{"user", "deleted"},
 		PreTags:  []string{"<b>"},
 		PostTags: []string{"</b>"},
@@ -232,7 +233,7 @@ func TestHighLightResults(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			highLighter := queryparser.Highlighter{
+			highLighter := model.Highlighter{
 				PreTags:  []string{"<b>"},
 				PostTags: []string{"</b>"},
 				Fields:   make(map[string]bool),
