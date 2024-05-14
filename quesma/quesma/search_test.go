@@ -41,7 +41,7 @@ func TestNoAsciiTableName(t *testing.T) {
 	const Limit = 1000
 	query := queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, Limit)
 	assert.True(t, query.CanParse)
-	assert.Equal(t, fmt.Sprintf(`SELECT * FROM "%s" LIMIT %d`, tableName, Limit), query.String())
+	assert.Equal(t, fmt.Sprintf(`SELECT * FROM "%s"  LIMIT %d`, tableName, Limit), query.String())
 }
 
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.GetRequestId())
@@ -77,6 +77,13 @@ func TestAsyncSearchHandler(t *testing.T) {
 	for i, tt := range testdata.TestsAsyncSearch {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
+			if tt.Name == "Histogram: possible query nr 2" {
+				queryMatcher := sqlmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
+					fmt.Printf("JM SQL: %s\n", actualSQL)
+					return sqlmock.QueryMatcherRegexp.Match(expectedSQL, actualSQL)
+				})
+				db, mock, err = sqlmock.New(sqlmock.QueryMatcherOption(queryMatcher))
+			}
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -716,7 +716,7 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') `,
-			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')  GROUP BY ("OriginCityName") ORDER BY ("OriginCityName")`,
+			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')  GROUP BY ("OriginCityName") ORDER BY count() DESC LIMIT 10`,
 			`SELECT COUNT(DISTINCT "OriginCityName") FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') `,
 		},
 	},
@@ -2072,7 +2072,7 @@ var AggregationTests = []AggregationTestCase{
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%' `,
 			`SELECT count() FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%' `,
-			`SELECT "host.name", count() FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%'  GROUP BY ("host.name") ORDER BY ("host.name")`,
+			`SELECT "host.name", count() FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%'  GROUP BY ("host.name") ORDER BY count() DESC LIMIT 10`,
 			`SELECT count() FROM "` + TableName + `" WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%' `,
 		},
 	},
@@ -2653,7 +2653,7 @@ var AggregationTests = []AggregationTestCase{
 			`SELECT "message", count() FROM ` + QuotedTableName + ` ` +
 				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z')  ` +
-				`GROUP BY ("message") ORDER BY ("message")`,
+				`GROUP BY ("message") ORDER BY count() DESC LIMIT 3`,
 		},
 	},
 	{ // [17]
@@ -3888,7 +3888,7 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + QuotedTableName + ` `,
-			`SELECT "message", count() FROM ` + QuotedTableName + `  GROUP BY ("message") ORDER BY ("message")`,
+			`SELECT "message", count() FROM ` + QuotedTableName + `  GROUP BY ("message") ORDER BY count() DESC LIMIT 4`,
 		},
 	},
 	{ // [24]
