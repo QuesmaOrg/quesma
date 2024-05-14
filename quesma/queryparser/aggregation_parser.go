@@ -292,6 +292,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	filterOnThisLevel := false
 	whereBeforeNesting := currentAggr.whereBuilder // to restore it after processing this level
 	queryTypeBeforeNesting := currentAggr.Type
+	suffixBeforeNesting := currentAggr.SuffixClauses
 
 	// check if metadata's present
 	var metadata model.JsonMap
@@ -416,6 +417,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		}
 	}
 	currentAggr.Type = queryTypeBeforeNesting
+	currentAggr.SuffixClauses = suffixBeforeNesting
 }
 
 // Tries to parse metrics aggregation from queryMap. If it's not a metrics aggregation, returns false.
