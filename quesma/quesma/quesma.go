@@ -128,7 +128,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		}
 
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
-			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method)
+			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method, req.Header)
 		})
 		var elkRawResponse elasticResult
 		var elkResponse *http.Response
