@@ -460,7 +460,7 @@ func (q *QueryRunner) makeBasicQuery(ctx context.Context,
 	switch queryInfo.Typ {
 	case model.CountAsync:
 		fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-		columns = q.logManager.GetAllColumns(table, fullQuery)
+		columns = []string{"doc_count"}
 	case model.Facets, model.FacetsNumeric:
 		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
 		fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
