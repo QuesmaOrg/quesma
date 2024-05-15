@@ -28,6 +28,8 @@ var notQueryPaths = []string{
 	"_doc",
 	"_field_caps",
 	"_health",
+	"_resolve",
+	"_refresh",
 }
 
 func IsNotQueryPath(path string) bool {

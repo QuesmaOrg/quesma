@@ -300,6 +300,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	filterOnThisLevel := false
 	whereBeforeNesting := currentAggr.whereBuilder // to restore it after processing this level
 	queryTypeBeforeNesting := currentAggr.Type
+	suffixBeforeNesting := currentAggr.SuffixClauses
 
 	// check if metadata's present
 	var metadata model.JsonMap
@@ -424,6 +425,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		}
 	}
 	currentAggr.Type = queryTypeBeforeNesting
+	currentAggr.SuffixClauses = suffixBeforeNesting
 }
 
 // Tries to parse metrics aggregation from queryMap. If it's not a metrics aggregation, returns false.
@@ -596,8 +598,23 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		if terms, ok := queryMap[termsType]; ok {
 			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms")
 			fieldName := strconv.Quote(cw.parseFieldField(terms, termsType))
+			isEmptyGroupBy := len(currentAggr.GroupByFields) == 0
 			currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
 			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
+			size := 10
+			if _, ok := queryMap["aggs"]; isEmptyGroupBy && !ok { // we can do limit only it terms are not nested
+				if jsonMap, ok := terms.(QueryMap); ok {
+					if sizeRaw, ok := jsonMap["size"]; ok {
+						if sizeParsed, ok := sizeRaw.(float64); ok {
+							size = int(sizeParsed)
+						} else {
+							logger.WarnWithCtx(cw.Ctx).Msgf("size is not an float64, but %T, value: %v. Using default", sizeRaw, sizeRaw)
+						}
+					}
+				}
+				currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, "ORDER BY count() DESC")
+				currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, fmt.Sprintf("LIMIT %d", size))
+			}
 			delete(queryMap, termsType)
 			return success, 1, 1
 		}

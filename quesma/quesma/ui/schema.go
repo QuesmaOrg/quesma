@@ -189,6 +189,27 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 				buffer.Html(`</tr>`)
 			}
 
+			buffer.Html("<tr>")
+			buffer.Html(`<td colspan=2 class="create-table-query">`)
+			query := table.CreateTableQuery
+			// indent first line
+			query = strings.Replace(query, "(", "(\n", 1)
+			query = strings.ReplaceAll(query, "),", "),\n")
+			query = strings.ReplaceAll(query, ")`,", ")`,\n")
+
+			query = strings.ReplaceAll(query, " ENGINE", "\nENGINE")
+			query = strings.ReplaceAll(query, " SETTINGS", "\nSETTINGS")
+			query = strings.ReplaceAll(query, " PARTITION BY", "\nPARTITION BY")
+			query = strings.ReplaceAll(query, " ORDER BY", "\nORDER BY")
+			query = strings.ReplaceAll(query, " PRIMARY KEY", "\nPRIMARY KEY")
+			query = strings.ReplaceAll(query, " SAMPLE BY", "\nSAMPLE BY")
+			query = strings.ReplaceAll(query, " TTL", "\nTTL")
+
+			buffer.Html("<details><summary><b>Click to show CREATE TABLE query</b></summary><pre>")
+			buffer.Text(query)
+			buffer.Html("</pre></details>")
+			buffer.Html(`</td>`)
+			buffer.Html(`</tr>`)
 		}
 
 		buffer.Html("\n</table>")

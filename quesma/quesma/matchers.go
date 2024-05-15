@@ -34,7 +34,7 @@ func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) func(m map
 
 func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.MatchPredicate {
 	return func(m map[string]string, _ string) bool {
-		indexPattern := m["index"]
+		indexPattern := elasticsearch.NormalizePattern(m["index"])
 		if elasticsearch.IsInternalIndex(indexPattern) {
 			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", indexPattern)
 			return false
@@ -52,7 +52,7 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.MatchPr
 
 			for _, pattern := range indexPatterns {
 				for _, indexName := range configuration.IndexConfig {
-					if config.MatchName(preprocessPattern(pattern), indexName.Name) {
+					if config.MatchName(elasticsearch.NormalizePattern(pattern), indexName.Name) {
 						if configuration.IndexConfig[indexName.Name].Enabled {
 							return true
 						}
@@ -62,7 +62,7 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.MatchPr
 			return false
 		} else {
 			for _, index := range configuration.IndexConfig {
-				pattern := preprocessPattern(indexPattern)
+				pattern := elasticsearch.NormalizePattern(indexPattern)
 				if config.MatchName(pattern, index.Name) {
 					if indexConfig, exists := configuration.IndexConfig[index.Name]; exists {
 						return indexConfig.Enabled
@@ -73,11 +73,4 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.MatchPr
 			return false
 		}
 	}
-}
-
-func preprocessPattern(p string) string {
-	if p == "_all" {
-		return "*"
-	}
-	return p
 }
