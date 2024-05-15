@@ -1784,6 +1784,97 @@ var TestsSearch = []SearchTestCase{
 		[]model.Query{newSimplestQuery()},
 		[]string{`SELECT "message" FROM "logs-generic-default" LIMIT 500`},
 	},
+	{ // [26]
+		"Empty must",
+		`
+		{
+			"query": {
+				"bool": {
+					"must": {}
+				}
+			}
+		}`,
+		[]string{``},
+		model.Normal,
+		[]model.Query{justSimplestWhere(``)},
+		[]string{qToStr(justSimplestWhere(``))},
+	},
+	{ // [27]
+		"Empty must not",
+		`
+		{
+			"query": {
+				"bool": {
+					"must_not": {}
+				}
+			}
+		}`,
+		[]string{``},
+		model.Normal,
+		[]model.Query{justSimplestWhere(``)},
+		[]string{qToStr(justSimplestWhere(``))},
+	},
+	{ // [28]
+		"Empty should",
+		`
+		{
+			"query": {
+				"bool": {
+					"should": {}
+				}
+			}
+		}`,
+		[]string{``},
+		model.Normal,
+		[]model.Query{justSimplestWhere(``)},
+		[]string{qToStr(justSimplestWhere(``))},
+	},
+	{ // [29]
+		"Empty all bools",
+		`
+		{
+			"query": {
+				"bool": {
+					"should": {},
+					"must": {},
+					"must_not": {},
+					"filter": {}
+				}
+			}
+		}`,
+		[]string{``},
+		model.Normal,
+		[]model.Query{justSimplestWhere(``)},
+		[]string{qToStr(justSimplestWhere(``))},
+	},
+	{ // [30]
+		"Some bools empty, some not",
+		`
+		{
+			"query": {
+				"bool": {
+					"should": [],
+					"must": {
+						"match_phrase": {
+							"message": "User logged out"
+						}
+					},
+					"must_not": {},
+					"filter": [
+						{
+							"match_phrase": {
+								"message": "User logged out"
+							}
+						}
+					]
+				}
+			}
+		}`,
+		[]string{`"message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%'`},
+		model.Normal,
+		[]model.Query{justSimplestWhere(`"message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%'`)},
+		[]string{qToStr(justSimplestWhere(`"message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%'`))},
+	},
 }
 
 var TestsSearchNoAttrs = []SearchTestCase{
@@ -1834,7 +1925,7 @@ var TestsSearchNoAttrs = []SearchTestCase{
 }
 
 var TestSearchFilter = []SearchTestCase{
-	{
+	{ // [0]
 		"Empty filter clause",
 		`{
 			  "_source": {
@@ -1887,7 +1978,7 @@ var TestSearchFilter = []SearchTestCase{
 			"SELECT " + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + ", count() FROM " + QuotedTableName + "  GROUP BY (" + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + ") ORDER BY (" + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + ")",
 		},
 	},
-	{
+	{ // [1]
 		"Filter with now in range",
 		`{
 		  "_source": {
@@ -1946,5 +2037,55 @@ var TestSearchFilter = []SearchTestCase{
 			"SELECT count() FROM " + QuotedTableName + ` WHERE "@timestamp">subDate(now(), INTERVAL 15 minute)`,
 			"SELECT " + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + `, count() FROM ` + QuotedTableName + ` WHERE "@timestamp">subDate(now(), INTERVAL 15 minute)  GROUP BY (` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + `) ORDER BY (` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second) + `)`,
 		},
+	},
+	{ // [2]
+		"Empty filter",
+		`
+		{
+			"query": {
+				"bool": {
+					"filter": {}
+				}
+			}
+		}`,
+		[]string{``},
+		model.Normal,
+		[]model.Query{justSimplestWhere(``)},
+		[]string{qToStr(justSimplestWhere(``))},
+	},
+	{ // [3]
+		"Empty filter with other clauses",
+		`
+		{
+			"query": {
+				"bool" : {
+					"must" : {
+						"term" : { "user.id" : "kimchy" }
+					},
+					"filter": {},
+					"must_not" : {
+						"range" : {
+							"age" : { "gte" : 10, "lte" : 20 }
+						}
+					},
+					"should" : [
+						{ "term" : { "tags" : "env1" } },
+						{ "term" : { "tags" : "deployed" } }
+					],
+					"minimum_should_match" : 1,
+					"boost" : 1.0
+				}
+			}
+		}`,
+		[]string{
+			`("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age"<=20 AND "age">=10)`,
+			`("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age">=10 AND "age"<=20)`,
+		},
+		model.Normal,
+		[]model.Query{
+			justSimplestWhere(`("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age"<=20 AND "age">=10)`),
+			justSimplestWhere(`("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age">=10 AND "age"<=20)`),
+		},
+		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age".=.0 AND "age".=.0)`},
 	},
 }
