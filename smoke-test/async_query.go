@@ -160,19 +160,7 @@ func waitForAsyncQuery(timeout time.Duration) {
 				if resp.StatusCode == 200 {
 					body, err := io.ReadAll(resp.Body)
 					if err == nil {
-						var response map[string]interface{}
-						_ = json.Unmarshal(body, &response)
-
-						if response["completion_time_in_millis"] != nil {
-							if !sourceClickhouse(resp) {
-								panic("invalid X-Quesma-Source header value")
-							}
-							if query.category == "simple" {
-								return ensureSomeHits(response)
-							} else {
-								return true
-							}
-						}
+						return validateResponse(query, resp, body)
 					} else {
 						log.Println(err)
 					}
@@ -285,5 +273,22 @@ func ensureSomeHits(jsonBody map[string]interface{}) bool {
 		}
 	}
 
+	return true
+}
+
+func validateResponse(query testQuery, resp *http.Response, body []byte) bool {
+	var response map[string]interface{}
+	_ = json.Unmarshal(body, &response)
+
+	if response["completion_time_in_millis"] != nil {
+		if !sourceClickhouse(resp) {
+			panic("invalid X-Quesma-Source header value")
+		}
+		if query.category == "simple" {
+			return ensureSomeHits(response)
+		} else {
+			return true
+		}
+	}
 	return true
 }
