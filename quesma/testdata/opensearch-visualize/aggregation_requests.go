@@ -1276,4 +1276,214 @@ var AggregationTests = []testdata.AggregationTestCase{
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000))",
 		},
 	},
+	{ // [8]
+		TestName: "Min/max with simple script. Reproduce: Visualize -> Line -> Metrics: Count, Buckets: X-Asis Histogram",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"maxAgg": {
+					"max": {
+						"script": {
+							"lang": "painless",
+							"source": "doc['timestamp'].value.getHour()"
+						}
+					}
+				},
+				"minAgg": {
+					"min": {
+						"script": {
+							"lang": "painless",
+							"source": "doc['timestamp'].value.getHour()"
+						}
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"maxAgg": {
+					"value": 23.0
+				},
+				"minAgg": {
+					"value": 0.0
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 13059
+				}
+			},
+			"timed_out": false,
+			"took": 17
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(13059))}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("todo")`, 23.0)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`minOrNull("todo")`, 0.0)}}},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + testdata.QuotedTableName + ` `,
+			"SELECT maxOrNull(toHour(`timestamp`)) FROM " + testdata.QuotedTableName + ` `,
+			"SELECT minOrNull(toHour(`timestamp`)) FROM " + testdata.QuotedTableName + ` `,
+		},
+	},
+	{ // [9]
+		TestName: "Histogram with simple script. Reproduce: Visualize -> Line -> Metrics: Count, Buckets: X-Asis Histogram",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"histogram": {
+						"interval": 1,
+						"min_doc_count": 1,
+						"script": {
+							"lang": "painless",
+							"source": "doc['timestamp'].value.getHour()"
+						}
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+  						{
+							"doc_count": 44,
+							"key": 0.0
+						},
+						{
+							"doc_count": 43,
+							"key": 1.0
+						},
+						{
+							"doc_count": 34,
+							"key": 2.0
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 886
+				}
+			},
+			"timed_out": false,
+			"took": 41
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(886))}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 0.0), model.NewQueryResultCol("doc_count", 44)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 1.0), model.NewQueryResultCol("doc_count", 43)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 2.0), model.NewQueryResultCol("doc_count", 34)}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + testdata.QuotedTableName + ` `,
+			"SELECT toHour(`timestamp`), count() FROM " + testdata.QuotedTableName + "  GROUP BY (toHour(`timestamp`)) ORDER BY (toHour(`timestamp`))",
+		},
+	},
 }

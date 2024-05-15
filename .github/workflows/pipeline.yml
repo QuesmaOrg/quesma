@@ -43,10 +43,9 @@ jobs:
         working-directory: ${{ matrix.module }}
         run: go build -v ./...
 
-      - name: Test (without race detector)
+      - name: Test (without race detection)
         working-directory: ${{ matrix.module }}
-        run: go test  -v ./...
-
+        run: go run gotest.tools/gotestsum@latest --format pkgname-and-test-fails ./...
 
   build-quesma-docker-image:
     strategy:

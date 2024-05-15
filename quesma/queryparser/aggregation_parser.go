@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/model/bucket_aggregations"
 	"mitmproxy/quesma/model/metrics_aggregations"
 	"mitmproxy/quesma/util"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -34,14 +35,15 @@ type aggrQueryBuilder struct {
 }
 
 type metricsAggregation struct {
-	AggrType    string
-	FieldNames  []string                // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
-	FieldType   clickhouse.DateTimeType // field type of FieldNames[0]. If it's a date field, a slightly different response is needed
-	Percentiles map[string]float64      // Only for percentiles aggregation
-	Keyed       bool                    // Only for percentiles aggregation
-	SortBy      string                  // Only for top_metrics
-	Size        int                     // Only for top_metrics
-	Order       string                  // Only for top_metrics
+	AggrType            string
+	FieldNames          []string                // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
+	FieldType           clickhouse.DateTimeType // field type of FieldNames[0]. If it's a date field, a slightly different response is needed
+	Percentiles         map[string]float64      // Only for percentiles aggregation
+	Keyed               bool                    // Only for percentiles aggregation
+	SortBy              string                  // Only for top_metrics
+	Size                int                     // Only for top_metrics
+	Order               string                  // Only for top_metrics
+	IsFieldNameCompound bool                    // Only for a few aggregations, where we have only 1 field. It's a compound, so e.g. toHour(timestamp), not just "timestamp"
 }
 
 const metricsAggregationDefaultFieldType = clickhouse.Invalid
@@ -84,7 +86,13 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	query := b.buildAggregationCommon(metadata)
 	switch metricsAggr.AggrType {
 	case "sum", "min", "max", "avg":
-		query.NonSchemaFields = append(query.NonSchemaFields, metricsAggr.AggrType+`OrNull("`+getFirstFieldName()+`")`)
+		var fieldNameProperlyQuoted string
+		if metricsAggr.IsFieldNameCompound {
+			fieldNameProperlyQuoted = getFirstFieldName()
+		} else {
+			fieldNameProperlyQuoted = strconv.Quote(getFirstFieldName())
+		}
+		query.NonSchemaFields = append(query.NonSchemaFields, metricsAggr.AggrType+`OrNull(`+fieldNameProperlyQuoted+`)`)
 	case "quantile":
 		// Sorting here useful mostly for determinism in tests.
 		// It wasn't there before, and everything worked fine. We could safely remove it, if needed.
@@ -292,6 +300,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	filterOnThisLevel := false
 	whereBeforeNesting := currentAggr.whereBuilder // to restore it after processing this level
 	queryTypeBeforeNesting := currentAggr.Type
+	suffixBeforeNesting := currentAggr.SuffixClauses
 
 	// check if metadata's present
 	var metadata model.JsonMap
@@ -416,6 +425,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		}
 	}
 	currentAggr.Type = queryTypeBeforeNesting
+	currentAggr.SuffixClauses = suffixBeforeNesting
 }
 
 // Tries to parse metrics aggregation from queryMap. If it's not a metrics aggregation, returns false.
@@ -430,11 +440,12 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 	metricsAggregations := []string{"sum", "avg", "min", "max", "cardinality", "value_count", "stats"}
 	for k, v := range queryMap {
 		if slices.Contains(metricsAggregations, k) {
-			fieldName := cw.parseFieldField(v, k)
+			fieldName, isFieldNameFromScript := cw.parseFieldFieldMaybeScript(v, k)
 			return metricsAggregation{
-				AggrType:   k,
-				FieldNames: []string{fieldName},
-				FieldType:  cw.Table.GetDateTimeType(cw.Ctx, fieldName),
+				AggrType:            k,
+				FieldNames:          []string{fieldName},
+				FieldType:           cw.Table.GetDateTimeType(cw.Ctx, fieldName),
+				IsFieldNameCompound: isFieldNameFromScript,
 			}, true
 		}
 	}
@@ -536,7 +547,13 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	success = true // returned in most cases
 	if histogram, ok := queryMap["histogram"]; ok {
 		currentAggr.Type = bucket_aggregations.NewHistogram(cw.Ctx)
-		fieldName := strconv.Quote(cw.parseFieldField(histogram, "histogram"))
+		fieldName, isFieldNameFromScript := cw.parseFieldFieldMaybeScript(histogram, "histogram")
+		var fieldNameProperlyQuoted string
+		if isFieldNameFromScript {
+			fieldNameProperlyQuoted = fieldName
+		} else {
+			fieldNameProperlyQuoted = strconv.Quote(fieldName)
+		}
 		var interval float64
 		intervalQueryMap, ok := histogram.(QueryMap)["interval"]
 		if !ok {
@@ -556,9 +573,9 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		default:
 			logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v", intervalRaw, intervalRaw)
 		}
-		groupByStr := fieldName
+		groupByStr := fieldNameProperlyQuoted
 		if interval != 1 {
-			groupByStr = fmt.Sprintf("floor(%s / %f) * %f", fieldName, interval, interval)
+			groupByStr = fmt.Sprintf("floor(%s / %f) * %f", fieldNameProperlyQuoted, interval, interval)
 		}
 		currentAggr.GroupByFields = append(currentAggr.GroupByFields, groupByStr)
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, groupByStr)
@@ -581,8 +598,23 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		if terms, ok := queryMap[termsType]; ok {
 			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms")
 			fieldName := strconv.Quote(cw.parseFieldField(terms, termsType))
+			isEmptyGroupBy := len(currentAggr.GroupByFields) == 0
 			currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
 			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
+			size := 10
+			if _, ok := queryMap["aggs"]; isEmptyGroupBy && !ok { // we can do limit only it terms are not nested
+				if jsonMap, ok := terms.(QueryMap); ok {
+					if sizeRaw, ok := jsonMap["size"]; ok {
+						if sizeParsed, ok := sizeRaw.(float64); ok {
+							size = int(sizeParsed)
+						} else {
+							logger.WarnWithCtx(cw.Ctx).Msgf("size is not an float64, but %T, value: %v. Using default", sizeRaw, sizeRaw)
+						}
+					}
+				}
+				currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, "ORDER BY count() DESC")
+				currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, fmt.Sprintf("LIMIT %d", size))
+			}
 			delete(queryMap, termsType)
 			return success, 1, 1
 		}
@@ -662,6 +694,62 @@ func (cw *ClickhouseQueryTranslator) parseFieldField(shouldBeMap any, aggregatio
 		logger.WarnWithCtx(cw.Ctx).Msgf("field not found in %s aggregation: %v", aggregationType, Map)
 	}
 	return ""
+}
+
+// parseFieldFieldMaybeScript is basically almost a copy of parseFieldField above, but it also handles a basic script, if "field" is missing.
+func (cw *ClickhouseQueryTranslator) parseFieldFieldMaybeScript(shouldBeMap any, aggregationType string) (field string, isFromScript bool) {
+	isFromScript = false
+	Map, ok := shouldBeMap.(QueryMap)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s aggregation is not a map, but %T, value: %v", aggregationType, shouldBeMap, shouldBeMap)
+		return
+	}
+	// maybe "field" field
+	if fieldRaw, ok := Map["field"]; ok {
+		if field, ok = fieldRaw.(string); ok {
+			return
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
+		}
+	}
+
+	// else: maybe script
+	if fieldName, ok := cw.parseFieldFromScriptField(Map); ok {
+		return fmt.Sprintf("toHour(`%s`)", fieldName), true
+	}
+
+	logger.WarnWithCtx(cw.Ctx).Msgf("field not found in %s aggregation: %v", aggregationType, Map)
+	return
+}
+
+func (cw *ClickhouseQueryTranslator) parseFieldFromScriptField(queryMap QueryMap) (fieldName string, success bool) {
+	scriptRaw, exists := queryMap["script"]
+	if !exists {
+		return
+	}
+	script, ok := scriptRaw.(QueryMap)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("script is not a JsonMap, but %T, value: %v", scriptRaw, scriptRaw)
+		return
+	}
+
+	sourceRaw, exists := script["source"]
+	if !exists {
+		logger.WarnWithCtx(cw.Ctx).Msgf("source not found in script: %v", script)
+		return
+	}
+	source, ok := sourceRaw.(string)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("source is not a string, but %T, value: %v", sourceRaw, sourceRaw)
+	}
+
+	// source must look like "doc['field_name'].value.getHour()" or "doc['field_name'].value.hourOfDay"
+	wantedRegex := regexp.MustCompile(`^doc\['(\w+)']\.value\.(?:getHour\(\)|hourOfDay)$`)
+	matches := wantedRegex.FindStringSubmatch(source)
+	if len(matches) == 2 {
+		return matches[1], true
+	}
+	return
 }
 
 func (cw *ClickhouseQueryTranslator) parseFilters(filtersMap QueryMap) []filter {
