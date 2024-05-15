@@ -502,7 +502,11 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery model.Qu
 	} else {
 		dbQueryCtx = ctx
 	}
-	hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, &fullQuery, columns)
+	if fullQuery.QueryInfo.Typ == model.Facets || fullQuery.QueryInfo.Typ == model.FacetsNumeric {
+		hits, err = q.logManager.ProcessFacetsQuery(dbQueryCtx, table, &fullQuery)
+	} else {
+		hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, &fullQuery, columns)
+	}
 	translatedQueryBody = []byte(fullQuery.String())
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", hits, err)
