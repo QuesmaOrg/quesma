@@ -47,7 +47,12 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 	}
 	colNames, err := table.extractColumns(query, false)
 	sort.Strings(colNames)
-	sort.Strings(columns)
+	if columns == nil {
+		columns = lm.GetAllColumns(table, query)
+		// We should sort only if columns are not provided
+		// Caller is responsible for providing columns in the right order
+		sort.Strings(columns)
+	}
 	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
 		return nil, err
@@ -60,15 +65,6 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 		}
 	}
 	return rows, err
-}
-
-func (lm *LogManager) ProcessFacetsQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
-	colNames, err := table.extractColumns(query, false)
-	if err != nil {
-		return nil, err
-	}
-	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
-	return executeQuery(ctx, lm, table.Name, query.StringFromColumns(colNames), []string{"key", "doc_count"}, rowToScan)
 }
 
 var random = rand.New(rand.NewSource(time.Now().UnixNano()))
