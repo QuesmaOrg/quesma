@@ -63,11 +63,13 @@ func NewCompoundStatementNoFieldName(stmt string) Statement {
 func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery, model.SearchQueryInfo, model.Highlighter) {
 	cw.ClearTokensToHighlight()
 	queryAsMap := make(QueryMap)
-	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
-	if err != nil {
-		logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
-		return newSimpleQuery(NewSimpleStatement("invalid JSON (ParseQuery)"), false),
-			model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
+	if queryAsJson != "" {
+		err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
+		if err != nil {
+			logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
+			return newSimpleQuery(NewSimpleStatement("invalid JSON (ParseQuery)"), false),
+				model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
+		}
 	}
 
 	// we must parse "highlights" here, because it is stripped from the queryAsMap later
