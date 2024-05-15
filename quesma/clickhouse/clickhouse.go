@@ -99,9 +99,10 @@ func (lm *LogManager) Stop() {
 }
 
 type discoveredTable struct {
-	columnTypes map[string]string
-	config      config.IndexConfiguration
-	comment     string
+	columnTypes      map[string]string
+	config           config.IndexConfiguration
+	comment          string
+	createTableQuery string
 }
 
 func (lm *LogManager) ReloadTables() {
