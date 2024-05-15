@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/qri-io/jsonpointer"
 	"io"
 	"log"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -206,7 +208,24 @@ var sampleQueries = []testQuery{
     "size": 0,
     "track_total_hits": true
 }`,
-		validate: func(m map[string]interface{}) bool {
+		validate: func(response map[string]interface{}) bool {
+			ptr, err := jsonpointer.Parse("/response/aggregations/sample/top_values/buckets/0/doc_count")
+			if err != nil {
+				fmt.Println(err)
+				return false
+			}
+			value, err := ptr.Eval(response)
+			if err != nil {
+				fmt.Println(err)
+				return false
+			}
+			valueType := reflect.TypeOf(value)
+
+			// Check if the type is int
+			if valueType.Kind() != reflect.Float64 {
+				fmt.Println("Expected float64, got", valueType)
+				return false
+			}
 			return true
 		},
 	},
