@@ -568,8 +568,23 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggrega
 	return
 }
 
-func (q *QueryRunner) searchWorker(ctx context.Context, fullQuery model.Query, columns []string, queryTranslator IQueryTranslator,
-	table *clickhouse.Table, optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
+func searchWorkerExt[T model.Query | model.QueryWithAggregation](ctx context.Context, queries []T,
+	columns [][]string,
+	queryTranslator IQueryTranslator, table *clickhouse.Table,
+	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
+
+	for _, query := range queries {
+		_ = query
+	}
+	return []byte{}, [][]model.QueryResultRow{}
+}
+
+func (q *QueryRunner) searchWorker(ctx context.Context,
+	fullQuery model.Query,
+	columns []string,
+	queryTranslator IQueryTranslator,
+	table *clickhouse.Table,
+	optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
 	if optAsync == nil {
 		return q.searchWorkerCommon(ctx, fullQuery, columns, queryTranslator, table, nil)
 	} else {
@@ -583,9 +598,11 @@ func (q *QueryRunner) searchWorker(ctx context.Context, fullQuery model.Query, c
 	}
 }
 
-func (q *QueryRunner) searchAggregationWorker(ctx context.Context, aggregations []model.QueryWithAggregation,
+func (q *QueryRunner) searchAggregationWorker(ctx context.Context,
+	aggregations []model.QueryWithAggregation,
 	columns []string,
-	queryTranslator IQueryTranslator, table *clickhouse.Table,
+	queryTranslator IQueryTranslator,
+	table *clickhouse.Table,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
 	if optAsync == nil {
 		return q.searchAggregationWorkerCommon(ctx, aggregations, columns, queryTranslator, table, nil)
