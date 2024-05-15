@@ -63,11 +63,13 @@ func NewCompoundStatementNoFieldName(stmt string) Statement {
 func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery, model.SearchQueryInfo, model.Highlighter) {
 	cw.ClearTokensToHighlight()
 	queryAsMap := make(QueryMap)
-	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
-	if err != nil {
-		logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
-		return newSimpleQuery(NewSimpleStatement("invalid JSON (ParseQuery)"), false),
-			model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
+	if queryAsJson != "" {
+		err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
+		if err != nil {
+			logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
+			return newSimpleQuery(NewSimpleStatement("invalid JSON (ParseQuery)"), false),
+				model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
+		}
 	}
 
 	// we must parse "highlights" here, because it is stripped from the queryAsMap later
@@ -260,7 +262,16 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 			logger.WarnWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).Msgf("unsupported query type: %s, value: %v", k, v)
 		}
 	}
-	return newSimpleQuery(NewSimpleStatement("can't parse query: "+pp.Sprint(queryMap)), false)
+	if len(queryMap) == 0 { // empty query is a valid query
+		return newSimpleQuery(NewSimpleStatement(""), true)
+	}
+
+	// if we can't parse the query, we should show the bug
+	unparsedQuery := pp.Sprint(queryMap)
+	if prettyMarshal, err := json.Marshal(queryMap); err == nil {
+		unparsedQuery = string(prettyMarshal)
+	}
+	return newSimpleQuery(NewSimpleStatement("can't parse query: "+unparsedQuery), false)
 }
 
 // Parses each SimpleQuery separately, returns list of translated SQLs

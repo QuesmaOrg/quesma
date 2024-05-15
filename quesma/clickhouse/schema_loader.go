@@ -35,7 +35,8 @@ func (sl *schemaLoader) ReloadTables() {
 						}
 					}
 					comment := sl.SchemaManagement.tableComment(databaseName, table)
-					configuredTables[table] = discoveredTable{columns, indexConfig, comment}
+					createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
+					configuredTables[table] = discoveredTable{columns, indexConfig, comment, createTableQuery}
 				} else {
 					explicitlyDisabledTables = append(explicitlyDisabledTables, table)
 				}
@@ -88,6 +89,7 @@ func (sl *schemaLoader) populateTableDefinitions(configuredTables map[string]dis
 					castUnsupportedAttrValueTypesToString: true,
 					preferCastingToOthers:                 true,
 				},
+				CreateTableQuery: resTable.createTableQuery,
 			}
 			if containsAttributes(resTable.columnTypes) {
 				table.Config.attributes = []Attribute{NewDefaultStringAttribute()}
