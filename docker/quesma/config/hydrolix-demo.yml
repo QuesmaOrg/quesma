@@ -15,6 +15,8 @@ indexes:
       timestamp:
         source: "@timestamp"
         target: "reqTimeSec"
+    fullTextFields: [ "city", "reqHost", "reqMethod", "reqPath",  "UA", "state", "rspContentType" ]
+
   siem:
     enabled: true
     ignoredFields:
@@ -23,9 +25,5 @@ indexes:
       "botData": true
       "userRiskData": true
       "clientData": true
-    fullTextFields: [ "country" ]
-    aliases:
-      timestamp:
-        source: "@timestamp"
-        target: "timestamp"
+    fullTextFields: [ "city", "country", "host", "method", "path", "ruleMessage", "UA" ]
 
