@@ -1875,6 +1875,14 @@ var TestsSearch = []SearchTestCase{
 		[]model.Query{justSimplestWhere(`"message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%'`)},
 		[]string{qToStr(justSimplestWhere(`"message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%'`))},
 	},
+	{ // [31]
+		"Match all (empty query)",
+		``,
+		[]string{""},
+		model.Normal,
+		[]model.Query{newSimplestQuery()},
+		[]string{qToStr(newSimplestQuery())},
+	},
 }
 
 var TestsSearchNoAttrs = []SearchTestCase{
