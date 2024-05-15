@@ -157,7 +157,7 @@ var sampleQueries = []testQuery{
 		},
 	},
 	{
-		name:     "Facets aggregation",
+		name:     "Facets aggregation, checking field types",
 		category: "aggregate",
 		body: `{
     "aggs": {
@@ -209,26 +209,32 @@ var sampleQueries = []testQuery{
     "track_total_hits": true
 }`,
 		validate: func(response map[string]interface{}) bool {
-			ptr, err := jsonpointer.Parse("/response/aggregations/sample/top_values/buckets/0/doc_count")
-			if err != nil {
-				fmt.Println(err)
-				return false
-			}
-			value, err := ptr.Eval(response)
-			if err != nil {
-				fmt.Println(err)
-				return false
-			}
-			valueType := reflect.TypeOf(value)
-
-			// Check if the type is int
-			if valueType.Kind() != reflect.Float64 {
-				fmt.Println("Expected float64, got", valueType)
-				return false
-			}
-			return true
+			return checkTypeExpectation("float64", "/response/aggregations/sample/top_values/buckets/0/doc_count", response) &&
+				checkTypeExpectation("string", "/response/aggregations/sample/top_values/buckets/0/key", response)
 		},
 	},
+}
+
+func checkTypeExpectation(expectedType string, path string, response map[string]interface{}) bool {
+	ptr, err := jsonpointer.Parse(path)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	value, err := ptr.Eval(response)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	valueType := reflect.TypeOf(value)
+
+	// Check if the type is int
+	if valueType.Kind().String() != expectedType {
+		fmt.Printf("Expected %s, got %s\n", expectedType, valueType.Kind().String())
+		return false
+	}
+	return true
+
 }
 
 func waitForAsyncQuery(timeout time.Duration) {
