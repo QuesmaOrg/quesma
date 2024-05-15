@@ -260,10 +260,16 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 			logger.WarnWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).Msgf("unsupported query type: %s, value: %v", k, v)
 		}
 	}
-	if len(queryMap) == 0 {
+	if len(queryMap) == 0 { // empty query is a valid query
 		return newSimpleQuery(NewSimpleStatement(""), true)
 	}
-	return newSimpleQuery(NewSimpleStatement("can't parse query: "+pp.Sprint(queryMap)), false)
+
+	// if we can't parse the query, we should show the bug
+	unparsedQuery := pp.Sprint(queryMap)
+	if prettyMarshal, err := json.Marshal(queryMap); err == nil {
+		unparsedQuery = string(prettyMarshal)
+	}
+	return newSimpleQuery(NewSimpleStatement("can't parse query: "+unparsedQuery), false)
 }
 
 // Parses each SimpleQuery separately, returns list of translated SQLs
