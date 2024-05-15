@@ -1,0 +1,53 @@
+POST http://localhost:8080/windows_logs/_search
+Content-Type: application/json
+#eq /
+
+{
+    "aggs": {
+        "sample": {
+            "aggs": {
+                "sample_count": {
+                    "value_count": {
+                        "field": "category.name"
+                    }
+                },
+                "top_values": {
+                    "terms": {
+                        "field": "category.name",
+                        "shard_size": 25,
+                        "size": 10
+                    }
+                }
+            },
+            "sampler": {
+                "shard_size": 5000
+            }
+        }
+    },
+    "query": {
+        "bool": {
+            "filter": [
+                {
+                    "range": {
+                        "@timestamp": {
+                            "format": "strict_date_optional_time",
+                            "gte": "2000-01-01T00:00:00",
+                            "lte": "2000-01-02T00:00"
+                        }
+                    }
+                },
+                {
+                    "bool": {
+                        "filter": [],
+                        "must": [],
+                        "must_not": [],
+                        "should": []
+                    }
+                }
+            ]
+        }
+    },
+    "runtime_mappings": {},
+    "size": 0,
+    "track_total_hits": true
+}
