@@ -12,15 +12,16 @@ import (
 )
 
 type Table struct {
-	Name         string
-	DatabaseName string `default:""`
-	Cluster      string `default:""`
-	Cols         map[string]*Column
-	Config       *ChTableConfig
-	Created      bool // do we need to create it during first insert
-	indexes      []IndexStatement
-	aliases      map[string]string
-	Comment      string // this human-readable comment
+	Name             string
+	DatabaseName     string `default:""`
+	Cluster          string `default:""`
+	Cols             map[string]*Column
+	Config           *ChTableConfig
+	Created          bool // do we need to create it during first insert
+	indexes          []IndexStatement
+	aliases          map[string]string
+	Comment          string // this human-readable comment
+	CreateTableQuery string
 }
 
 func (t *Table) GetFields() []string {

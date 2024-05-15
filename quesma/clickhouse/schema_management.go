@@ -45,3 +45,12 @@ func (s *SchemaManagement) tableComment(database, table string) (comment string)
 	}
 	return comment
 }
+
+func (s *SchemaManagement) createTableQuery(database, table string) (ddl string) {
+	err := s.chDb.QueryRow("SELECT create_table_query FROM system.tables WHERE database = ? and table = ? ", database, table).Scan(&ddl)
+
+	if err != nil {
+		logger.Error().Msgf("could not get table comment: %v", err)
+	}
+	return ddl
+}
