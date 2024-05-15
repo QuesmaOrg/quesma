@@ -154,6 +154,62 @@ var sampleQueries = []testQuery{
 			return true
 		},
 	},
+	{
+		name:     "Facets aggregation",
+		category: "aggregate",
+		body: `{
+    "aggs": {
+        "sample": {
+            "aggs": {
+                "sample_count": {
+                    "value_count": {
+                        "field": "service.name"
+                    }
+                },
+                "top_values": {
+                    "terms": {
+                        "field": "service.name",
+                        "shard_size": 25,
+                        "size": 10
+                    }
+                }
+            },
+            "sampler": {
+                "shard_size": 5000
+            }
+        }
+    },
+    "query": {
+        "bool": {
+            "filter": [
+                {
+                    "range": {
+                        "@timestamp": {
+                            "format": "strict_date_optional_time",
+                            "gte": "now-1d",
+                            "lte": "now-1s"
+                        }
+                    }
+                },
+                {
+                    "bool": {
+                        "filter": [],
+                        "must": [],
+                        "must_not": [],
+                        "should": []
+                    }
+                }
+            ]
+        }
+    },
+    "runtime_mappings": {},
+    "size": 0,
+    "track_total_hits": true
+}`,
+		validate: func(m map[string]interface{}) bool {
+			return true
+		},
+	},
 }
 
 func waitForAsyncQuery(timeout time.Duration) {
