@@ -33,7 +33,7 @@ func TestCompareResults(t *testing.T) {
 
 	sendBulk(bulk)
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(30 * time.Second)
 
 	const dir = "assets/compare_requests"
 

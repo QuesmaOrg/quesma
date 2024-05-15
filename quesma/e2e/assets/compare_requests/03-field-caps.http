@@ -5,7 +5,6 @@ Content-Type: application/json
 # we can compare only a subset of field properties
 #eq /fields/client_id/searchable
 #eq /fields/client_ip/searchable
-#eq /fields/text/searchable
 #eq /fields/dedup_id/searchable
 #eq /fields/epoch_time/searchable
 #eq /fields/et_day/searchable

@@ -1,0 +1,61 @@
+POST http://localhost:8080/device_logs/_search
+Content-Type: application/json
+#eq /hits/total/value
+
+
+
+
+{
+  "aggs": {
+    "suggestions": {
+      "terms": {
+        "field": "client_ip.keyword",
+        "order": {
+          "_count": "desc"
+        },
+        "shard_size": 10,
+        "size": 10
+      }
+    },
+    "unique_terms": {
+      "cardinality": {
+        "field": "dedup_id.keyword"
+      }
+    }
+  },
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "bool": {
+            "filter": [
+              {
+                "range": {
+                  "timestamp": {
+                    "format": "strict_date_optional_time",
+                    "gte": "2000-01-01T00:00:00.000Z",
+                    "lte": "2001-01-02T00:00:00.000Z"
+                  }
+                }
+              }
+            ],
+            "must": [],
+            "must_not": [],
+            "should": []
+          }
+        }
+      ]
+    }
+  },
+  "runtime_mappings": {
+    "hour_of_day": {
+      "script": {
+        "source": "emit(doc['timestamp'].value.getHour());"
+      },
+      "type": "long"
+    }
+  },
+  "size": 0,
+  "terminate_after": 100000,
+  "timeout": "1000ms"
+}
