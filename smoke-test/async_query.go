@@ -16,6 +16,7 @@ type testQuery struct {
 	name     string
 	category string
 	body     string
+	validate func(map[string]interface{}) bool
 }
 
 var sampleQueries = []testQuery{
@@ -96,6 +97,9 @@ var sampleQueries = []testQuery{
 	"track_total_hits": false,
 	"version": true
 }`,
+		validate: func(response map[string]interface{}) bool {
+			return ensureSomeHits(response)
+		},
 	},
 	{
 		name:     "Histogram in explore",
@@ -146,6 +150,9 @@ var sampleQueries = []testQuery{
     ],
     "track_total_hits": true
 }`,
+		validate: func(m map[string]interface{}) bool {
+			return true
+		},
 	},
 }
 
@@ -284,11 +291,7 @@ func validateResponse(query testQuery, resp *http.Response, body []byte) bool {
 		if !sourceClickhouse(resp) {
 			panic("invalid X-Quesma-Source header value")
 		}
-		if query.category == "simple" {
-			return ensureSomeHits(response)
-		} else {
-			return true
-		}
+		return query.validate(response)
 	}
 	return true
 }
