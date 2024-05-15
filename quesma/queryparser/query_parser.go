@@ -260,6 +260,9 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 			logger.WarnWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).Msgf("unsupported query type: %s, value: %v", k, v)
 		}
 	}
+	if len(queryMap) == 0 {
+		return newSimpleQuery(NewSimpleStatement(""), true)
+	}
 	return newSimpleQuery(NewSimpleStatement("can't parse query: "+pp.Sprint(queryMap)), false)
 }
 
