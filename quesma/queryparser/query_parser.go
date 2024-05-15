@@ -260,7 +260,11 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 			logger.WarnWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).Msgf("unsupported query type: %s, value: %v", k, v)
 		}
 	}
-	unparsedQuery := pp.Sprint(queryMap)
+  if len(queryMap) == 0 {
+		return newSimpleQuery(NewSimpleStatement(""), true)
+	}
+
+  unparsedQuery := pp.Sprint(queryMap)
 	if prettyMarshal, err := json.Marshal(queryMap); err == nil {
 		unparsedQuery = string(prettyMarshal)
 	}
