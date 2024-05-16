@@ -55,3 +55,5 @@ indexes:
     enabled: true
   opensearch_dashboards_sample_data_logs:
     enabled: true
+  type_logs:
+    enabled: true
