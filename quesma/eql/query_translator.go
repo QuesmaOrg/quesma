@@ -88,7 +88,7 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 	}, nil
 }
 
-func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query queryparser.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter model.Highlighter) {
+func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query queryparser.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter model.Highlighter, err error) {
 
 	// no highlighting here
 	highlighter = queryparser.NewEmptyHighlighter()
@@ -97,13 +97,13 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query qu
 	query.Sql = queryparser.Statement{}
 
 	queryAsMap := make(map[string]interface{})
-	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
+	err = json.Unmarshal([]byte(queryAsJson), &queryAsMap)
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
 
 		query.CanParse = false
 		query.Sql.Stmt = "Invalid JSON"
-		return query, model.NewSearchQueryInfoNone(), highlighter
+		return query, model.NewSearchQueryInfoNone(), highlighter, err
 	}
 
 	var eqlQuery string
@@ -115,7 +115,7 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query qu
 	if eqlQuery == "" {
 		query.CanParse = false
 		query.Sql.Stmt = "Empty query"
-		return query, model.NewSearchQueryInfoNone(), highlighter
+		return query, model.NewSearchQueryInfoNone(), highlighter, nil
 	}
 
 	// FIXME this is a naive translation.
@@ -138,14 +138,14 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query qu
 		logger.ErrorWithCtx(cw.Ctx).Err(err).Msgf("error transforming EQL query: '%s'", eqlQuery)
 		query.CanParse = false
 		query.Sql.Stmt = "Invalid EQL query"
-		return query, model.NewSearchQueryInfoNone(), highlighter
+		return query, model.NewSearchQueryInfoNone(), highlighter, err
 	}
 
 	query.Sql.Stmt = where
 	query.CanParse = true
 	query.SortFields = []string{"\"@timestamp\""}
 
-	return query, searchQueryInfo, highlighter
+	return query, searchQueryInfo, highlighter, nil
 }
 
 // These methods are not supported by EQL. They are here to satisfy the interface.

@@ -40,7 +40,7 @@ func TestSearchOpensearch(t *testing.T) {
 			managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())
 			cw := queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
 
-			simpleQuery, queryInfo, _ := cw.ParseQuery(tt.QueryJson)
+			simpleQuery, queryInfo, _, _ := cw.ParseQuery(tt.QueryJson)
 			assert.True(t, simpleQuery.CanParse, "can parse")
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
