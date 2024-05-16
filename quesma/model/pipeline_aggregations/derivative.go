@@ -67,6 +67,10 @@ func (query Derivative) CalculateResultWhenMissing(rowIndex int, parentRows []mo
 	return resultRow
 }
 
+func (query Derivative) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+	return rowsFromDB
+}
+
 func (query Derivative) String() string {
 	return fmt.Sprintf("derivative(%s)", query.Parent)
 }
