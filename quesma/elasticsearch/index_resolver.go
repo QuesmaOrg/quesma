@@ -42,6 +42,13 @@ func NewIndexResolver(elasticsearchUrl string) IndexResolver {
 	}
 }
 
+func NormalizePattern(p string) string {
+	if p == "_all" {
+		return "*"
+	}
+	return p
+}
+
 func (im *indexResolver) Resolve(indexPattern string) (Sources, bool, error) {
 	req, _ := http.NewRequest("GET", im.Url+"/_resolve/index/"+indexPattern+"?expand_wildcards=open", bytes.NewBuffer([]byte{}))
 	response, err := im.httpClient.Do(req)

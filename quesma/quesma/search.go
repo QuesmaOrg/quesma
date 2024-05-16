@@ -25,7 +25,10 @@ import (
 const asyncQueriesLimit = 10000
 const asyncQueriesLimitBytes = 1024 * 1024 * 500 // 500MB
 
-var errIndexNotExists = errors.New("table does not exist")
+var (
+	errIndexNotExists       = errors.New("table does not exist")
+	errCouldNotParseRequest = errors.New("parse exception")
+)
 var asyncRequestId atomic.Int64
 
 type AsyncRequestResult struct {
@@ -207,7 +210,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		queryTranslator = NewQueryTranslator(ctx, queryLanguage, table, q.logManager)
 
-		simpleQuery, queryInfo, highlighter = queryTranslator.ParseQuery(string(body))
+		simpleQuery, queryInfo, highlighter, err = queryTranslator.ParseQuery(string(body))
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("error parsing query: %v", err)
+			return nil, errors.Join(errCouldNotParseRequest, err)
+		}
 
 		if simpleQuery.CanParse {
 			if isNonAggregationQuery(queryInfo, body) {
@@ -259,14 +266,14 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					fieldName = "*"
 				}
 				listQuery := queryTranslator.BuildNRowsQuery(fieldName, simpleQuery, queryInfo.Size)
-				hitsFallback, err = q.logManager.ProcessQuery(ctx, table, listQuery, q.logManager.GetAllColumns(table, listQuery))
+				hitsFallback, err = q.logManager.ProcessQuery(ctx, table, listQuery, nil)
 				if err != nil {
 					logger.ErrorWithCtx(ctx).Msgf("error processing fallback query. Err: %v, query: %+v", err, listQuery)
 					pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
 					return responseBody, err
 				}
 				countQuery := queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-				countResult, err := q.logManager.ProcessQuery(ctx, table, countQuery, q.logManager.GetAllColumns(table, countQuery))
+				countResult, err := q.logManager.ProcessQuery(ctx, table, countQuery, nil)
 				if err != nil {
 					logger.ErrorWithCtx(ctx).Msgf("error processing count query. Err: %v, query: %+v", err, countQuery)
 					pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
@@ -477,10 +484,8 @@ func (q *QueryRunner) makeBasicQuery(ctx context.Context,
 	case model.ListAllFields:
 		// queryInfo = (ListAllFields, "*", 0, LIMIT)
 		fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
-		columns = q.logManager.GetAllColumns(table, fullQuery)
 	case model.Normal:
 		fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, queryInfo.I2)
-		columns = q.logManager.GetAllColumns(table, fullQuery)
 	}
 	return fullQuery, columns
 }
@@ -502,6 +507,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery model.Qu
 	} else {
 		dbQueryCtx = ctx
 	}
+
 	hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, &fullQuery, columns)
 	translatedQueryBody = []byte(fullQuery.String())
 	if err != nil {
@@ -581,7 +587,7 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggrega
 			logger.InfoWithCtx(ctx).Msgf("SQL: %s", agg.String())
 			sqls += agg.Query.String() + "\n"
 		}
-		rows, err := q.logManager.ProcessQuery(dbQueryCtx, table, &agg.Query, q.logManager.GetAllColumns(table, &agg.Query))
+		rows, err := q.logManager.ProcessQuery(dbQueryCtx, table, &agg.Query, nil)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			continue

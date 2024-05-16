@@ -7,6 +7,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/routes"
@@ -58,7 +59,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	})
 
 	router.RegisterPathMatcher(routes.ResolveIndexPath, []string{"GET"}, always(), func(ctx context.Context, body string, _ string, params map[string]string) (*mux.Result, error) {
-		pattern := params["index"]
+		pattern := elasticsearch.NormalizePattern(params["index"])
 		if elasticsearch.IsIndexPattern(pattern) {
 			// todo avoid creating new instances all the time
 			sources, found, err := elasticsearch.NewIndexResolver(cfg.Elasticsearch.Url.String()).Resolve(pattern)
@@ -78,7 +79,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 			})
 			definitions.Range(
 				func(name string, table *clickhouse.Table) bool {
-					if config.MatchName(preprocessPattern(pattern), name) {
+					if config.MatchName(elasticsearch.NormalizePattern(pattern), name) {
 						sources.DataStreams = append(sources.DataStreams, elasticsearch.DataStream{
 							Name:           name,
 							BackingIndices: []string{name},
@@ -91,7 +92,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 
 			return resolveIndexResult(sources), nil
 		} else {
-			if config.MatchName(preprocessPattern(pattern), pattern) {
+			if config.MatchName(elasticsearch.NormalizePattern(pattern), pattern) {
 				definitions := lm.GetTableDefinitions()
 				if definitions.Has(pattern) {
 					return resolveIndexResult(elasticsearch.Sources{
@@ -158,6 +159,11 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
 				return &mux.Result{StatusCode: 404}, nil
+			} else if errors.Is(err, errCouldNotParseRequest) {
+				return &mux.Result{
+					Body:       string(queryparser.BadRequestParseError(err)),
+					StatusCode: 400,
+				}, nil
 			} else {
 				return nil, err
 			}
@@ -183,6 +189,11 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
 				return &mux.Result{StatusCode: 404}, nil
+			} else if errors.Is(err, errCouldNotParseRequest) {
+				return &mux.Result{
+					Body:       string(queryparser.BadRequestParseError(err)),
+					StatusCode: 400,
+				}, nil
 			} else {
 				return nil, err
 			}

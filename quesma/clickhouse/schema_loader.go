@@ -35,7 +35,8 @@ func (sl *schemaLoader) ReloadTables() {
 						}
 					}
 					comment := sl.SchemaManagement.tableComment(databaseName, table)
-					configuredTables[table] = discoveredTable{columns, indexConfig, comment}
+					createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
+					configuredTables[table] = discoveredTable{columns, indexConfig, comment, createTableQuery}
 				} else {
 					explicitlyDisabledTables = append(explicitlyDisabledTables, table)
 				}
@@ -88,6 +89,7 @@ func (sl *schemaLoader) populateTableDefinitions(configuredTables map[string]dis
 					castUnsupportedAttrValueTypesToString: true,
 					preferCastingToOthers:                 true,
 				},
+				CreateTableQuery: resTable.createTableQuery,
 			}
 			if containsAttributes(resTable.columnTypes) {
 				table.Config.attributes = []Attribute{NewDefaultStringAttribute()}
@@ -204,8 +206,16 @@ func resolveColumn(colName, colType string) *Column {
 			},
 		}
 	} else {
-		logger.Error().Msgf("unknown type: %s, in column: %s, resolving to nil", colType, colName)
-		return nil
+		logger.Warn().Msgf("unknown type for column %s, %s", colName, colType)
+		typeName := "Unknown(" + colType + ")"
+		return &Column{
+			Name: colName,
+			Type: BaseType{
+				Name:     typeName,
+				goType:   NewBaseType("Unknown").goType,
+				Nullable: isNullable,
+			},
+		}
 	}
 }
 
