@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/model"
@@ -180,6 +181,18 @@ func handleFieldCapsIndex(ctx context.Context, indexes []string, tables clickhou
 	fieldCapsResponse := model.FieldCapsResponse{Fields: fields}
 	fieldCapsResponse.Indices = append(fieldCapsResponse.Indices, indexes...)
 	return json.Marshal(fieldCapsResponse)
+}
+
+func EmptyFieldCapsResponse() []byte {
+	var response = model.FieldCapsResponse{
+		Fields:  make(map[string]map[string]model.FieldCapability),
+		Indices: []string{},
+	}
+	if serialized, err := json.Marshal(response); err != nil {
+		panic(fmt.Sprintf("Failed to serialize empty field caps response: %v, this should never happen", err))
+	} else {
+		return serialized
+	}
 }
 
 func isInternalColumn(col *clickhouse.Column) bool {
