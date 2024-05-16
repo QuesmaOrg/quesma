@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/qri-io/jsonpointer"
 	"io"
-	"log"
 	"net/http"
 	"reflect"
 	"strings"
@@ -237,21 +236,26 @@ func checkTypeExpectation(expectedType string, path string, response map[string]
 
 }
 
+type asyncQueryType struct {
+	Id string `json:"id"`
+}
+
 func waitForAsyncQuery(timeout time.Duration) {
 	serviceName := "async query: "
 	for _, query := range sampleQueries {
+		var body []byte
 		res := waitFor(serviceName+query.name, func() bool {
 			resp, err := http.Post(asyncQueryUrl, "application/json", bytes.NewBuffer([]byte(query.body)))
 
 			if err == nil {
 				defer resp.Body.Close()
 				if resp.StatusCode == 200 {
-					body, err := io.ReadAll(resp.Body)
-					if err == nil {
-						return validateResponse(query, resp, body)
-					} else {
-						log.Println(err)
+					body, err = io.ReadAll(resp.Body)
+					if err != nil {
+						fmt.Println("Failed to read the body", err)
+						panic("can't read response body")
 					}
+					return validateResponse(query, resp, body)
 				}
 			}
 			return false
@@ -259,6 +263,24 @@ func waitForAsyncQuery(timeout time.Duration) {
 
 		if !res {
 			panic(serviceName + " is not alive or is not receiving logs")
+		}
+
+		var asyncQuery asyncQueryType
+		err := json.Unmarshal(body, &asyncQuery)
+		if err != nil {
+			fmt.Println("Parsing JSON out of _async_search failed", err)
+			panic("can't parse async query response")
+		}
+
+		resp, err := http.Get(asyncGetQueryUrlPrefix + asyncQuery.Id)
+		if err != nil {
+			fmt.Println("Getting _async_status failed", err)
+			panic("can't get async query status")
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			fmt.Printf("async query status is %d %s\n", resp.StatusCode, asyncGetQueryUrlPrefix+asyncQuery.Id)
+			panic("async query status is not 200")
 		}
 	}
 	checkLogs()
