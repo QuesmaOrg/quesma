@@ -568,17 +568,6 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggrega
 	return
 }
 
-func searchWorkerExt[T model.Query | model.QueryWithAggregation](ctx context.Context, queries []T,
-	columns [][]string,
-	queryTranslator IQueryTranslator, table *clickhouse.Table,
-	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
-
-	for _, query := range queries {
-		_ = query
-	}
-	return []byte{}, [][]model.QueryResultRow{}
-}
-
 func (q *QueryRunner) searchWorker(ctx context.Context,
 	fullQuery model.Query,
 	columns []string,
