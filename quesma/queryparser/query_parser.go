@@ -245,6 +245,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 		"match_phrase":        func(qm QueryMap) SimpleQuery { return cw.parseMatch(qm, true) },
 		"range":               cw.parseRange,
 		"exists":              cw.parseExists,
+		"ids":                 cw.parseIds,
 		"wildcard":            cw.parseWildcard,
 		"query_string":        cw.parseQueryString,
 		"simple_query_string": cw.parseQueryString,
@@ -261,6 +262,21 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 		}
 	}
 	return newSimpleQuery(NewSimpleStatement("can't parse query: "+pp.Sprint(queryMap)), false)
+}
+
+func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) SimpleQuery {
+	var ids []string
+	if val, ok := queryMap["values"]; ok {
+		if values, ok := val.([]interface{}); ok {
+			for _, id := range values {
+				ids = append(ids, id.(string))
+			}
+		}
+	} else {
+		return newSimpleQuery(NewSimpleStatement("parsing error: missing mandatory `values` field"), false)
+	}
+	queryStr := fmt.Sprintf(" 0=0 /* document _ids IN ('%s') */ ", strings.Join(ids, "','"))
+	return newSimpleQuery(NewSimpleStatement(queryStr), true)
 }
 
 // Parses each SimpleQuery separately, returns list of translated SQLs
@@ -357,6 +373,10 @@ func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) SimpleQuery {
 	if len(queryMap) == 1 {
 		for k, v := range queryMap {
 			cw.AddTokenToHighlight(v)
+			if k == "_index" { // index is a table name, already taken from URI and moved to FROM clause
+				logger.Warn().Msgf("term %s=%v in query body, ignoring in result SQL", k, v)
+				return newSimpleQuery(NewSimpleStatement(" 0=0 /* "+strconv.Quote(k)+"="+sprint(v)+" */ "), true)
+			}
 			return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+"="+sprint(v)), true)
 		}
 	}
