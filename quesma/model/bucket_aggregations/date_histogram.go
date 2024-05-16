@@ -81,6 +81,10 @@ func (query DateHistogram) PostprocessResults(rowsFromDB []model.QueryResultRow)
 		// b) we have > 1 rows, with < 2 rows we can't add anything in between
 		return rowsFromDB
 	}
+	if query.minDocCount < 0 {
+		logger.WarnWithCtx(query.ctx).Msgf("unexpected negative minDocCount: %d. Skipping postprocess", query.minDocCount)
+		return rowsFromDB
+	}
 	postprocessedRows := make([]model.QueryResultRow, 0, len(rowsFromDB))
 	postprocessedRows = append(postprocessedRows, rowsFromDB[0])
 	for i := 1; i < len(rowsFromDB); i++ {

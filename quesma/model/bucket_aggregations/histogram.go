@@ -68,14 +68,12 @@ func (query Histogram) PostprocessResults(rowsFromDB []model.QueryResultRow) []m
 		}
 		lastKey := query.getKey(rowsFromDB[i-1])
 		currentKey := query.getKey(rowsFromDB[i])
-		if util.IsSmaller(lastKey+query.interval, currentKey) {
-			// we need to add rows in between
-			for midKey := lastKey + query.interval; util.IsSmaller(midKey, currentKey); midKey += query.interval {
-				midRow := rowsFromDB[i-1].Copy()
-				midRow.Cols[len(midRow.Cols)-2].Value = midKey
-				midRow.Cols[len(midRow.Cols)-1].Value = 0
-				postprocessedRows = append(postprocessedRows, midRow)
-			}
+		// we need to add rows in between
+		for midKey := lastKey + query.interval; util.IsSmaller(midKey, currentKey); midKey += query.interval {
+			midRow := rowsFromDB[i-1].Copy()
+			midRow.Cols[len(midRow.Cols)-2].Value = midKey
+			midRow.Cols[len(midRow.Cols)-1].Value = 0
+			postprocessedRows = append(postprocessedRows, midRow)
 		}
 		postprocessedRows = append(postprocessedRows, rowsFromDB[i])
 	}

@@ -581,7 +581,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.Type = bucket_aggregations.NewHistogram(cw.Ctx, interval, minDocCount)
 		groupByStr := fieldNameProperlyQuoted
 		if interval != 1.0 {
-			groupByStr = fmt.Sprintf("floor(%s / %f) * %f", fieldName, interval, interval)
+			groupByStr = fmt.Sprintf("floor(%s / %f) * %f", fieldNameProperlyQuoted, interval, interval)
 		}
 		currentAggr.GroupByFields = append(currentAggr.GroupByFields, groupByStr)
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, groupByStr)
@@ -762,7 +762,11 @@ func (cw *ClickhouseQueryTranslator) parseFieldFromScriptField(queryMap QueryMap
 func (cw *ClickhouseQueryTranslator) parseMinDocCount(queryMap QueryMap) int {
 	if minDocCountRaw, exists := queryMap["min_doc_count"]; exists {
 		if minDocCount, ok := minDocCountRaw.(float64); ok {
-			return int(minDocCount)
+			asInt := int(minDocCount)
+			if asInt != 0 && asInt != 1 {
+				logger.WarnWithCtx(cw.Ctx).Msgf("min_doc_count is not 0 or 1, but %d. Not really supported", asInt)
+			}
+			return asInt
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("min_doc_count is not a number, but %T, value: %v. Using default value: %d",
 				minDocCountRaw, minDocCountRaw, bucket_aggregations.DefaultMinDocCount)
