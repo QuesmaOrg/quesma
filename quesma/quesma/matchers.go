@@ -74,3 +74,35 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.MatchPr
 		}
 	}
 }
+
+func matchAgainstKibanaAlerts() mux.MatchPredicate {
+	return func(m map[string]string, body string) bool {
+
+		if body == "" {
+			return true
+		}
+
+		// https://www.elastic.co/guide/en/security/current/alert-schema.html
+
+		// We parse query here and check if it contains references to fields that
+		// are alert related.
+		// But it's complex to do so. We just check if the body contains some keywords.
+
+		if strings.Contains(body, `"kibana.alert.rule.`) {
+			logger.Warn().Msg("kibana alert rule detected")
+			return false
+		}
+
+		if strings.Contains(body, `"kibana.alert.workflow.`) {
+			logger.Warn().Msg("kibana alert workflow detected")
+			return false
+		}
+
+		if strings.Contains(body, "kibana") {
+			logger.Warn().Msgf("kibana message detected %v", body)
+			return false
+		}
+
+		return true
+	}
+}
