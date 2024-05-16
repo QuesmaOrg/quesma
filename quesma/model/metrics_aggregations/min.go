@@ -26,3 +26,7 @@ func (query Min) TranslateSqlResponseToJson(rows []model.QueryResultRow, level i
 func (query Min) String() string {
 	return "min"
 }
+
+func (query Min) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+	return rowsFromDB
+}
