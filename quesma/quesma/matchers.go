@@ -1,6 +1,7 @@
 package quesma
 
 import (
+	"encoding/json"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
@@ -75,6 +76,7 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.MatchPr
 	}
 }
 
+// Returns false if the body contains a Kibana alert related field.
 func matchAgainstKibanaAlerts() mux.MatchPredicate {
 	return func(m map[string]string, body string) bool {
 
@@ -84,22 +86,51 @@ func matchAgainstKibanaAlerts() mux.MatchPredicate {
 
 		// https://www.elastic.co/guide/en/security/current/alert-schema.html
 
-		// We should parse query here and check if it contains references to fields that
-		// are alert related.
-		// But it's complex to do so. We just check if the body contains some keywords.
+		var query map[string]interface{}
+		err := json.Unmarshal([]byte(body), &query)
+		if err != nil {
+			logger.Warn().Msgf("error parsing json %v", err)
+			return true
+		}
 
-		if strings.Contains(body, `"kibana.alert.rule.`) {
-			logger.Warn().Msg("kibana alert rule detected")
+		var findKibanaAlertField func(node interface{}) bool
+
+		findKibanaAlertField = func(node interface{}) bool {
+
+			if node == nil {
+				return false
+			}
+
+			switch nodeValue := node.(type) {
+
+			case map[string]interface{}:
+
+				for k, v := range nodeValue {
+
+					if strings.Contains(k, "kibana.alert.") {
+						return true
+					}
+
+					if findKibanaAlertField(v) {
+						return true
+					}
+				}
+
+			case []interface{}:
+
+				for _, i := range nodeValue {
+					if findKibanaAlertField(i) {
+						return true
+					}
+				}
+
+			}
 			return false
 		}
 
-		if strings.Contains(body, `"kibana.alert.workflow.`) {
-			logger.Warn().Msg("kibana alert workflow detected")
-			return false
-		}
+		q := query["query"].(map[string]interface{})
 
-		if strings.Contains(body, "kibana") {
-			logger.Warn().Msgf("kibana message detected %v", body)
+		if findKibanaAlertField(q) {
 			return false
 		}
 
