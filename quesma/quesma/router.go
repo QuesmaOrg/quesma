@@ -219,10 +219,13 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
 
-	router.RegisterPathMatcher(routes.FieldCapsPath, []string{"GET", "POST"}, matchedAgainstPattern(cfg), func(ctx context.Context, body string, _ string, params map[string]string, _ http.Header, _ url.Values) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.FieldCapsPath, []string{"GET", "POST"}, matchedAgainstPattern(cfg), func(ctx context.Context, body string, _ string, params map[string]string, _ http.Header, queryParams url.Values) (*mux.Result, error) {
 		responseBody, err := handleFieldCaps(ctx, params["index"], []byte(body), lm)
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
+				if queryParams.Get("allow_no_indices") == "true" || queryParams.Get("ignore_unavailable") == "true" {
+					return elasticsearchQueryResult(string(EmptyFieldCapsResponse()), httpOk), nil
+				}
 				return &mux.Result{StatusCode: 404}, nil
 			} else {
 				return nil, err
