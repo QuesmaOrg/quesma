@@ -296,8 +296,10 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) SimpleQuery {
 		return newSimpleQuery(NewSimpleStatement("parsing error: missing mandatory `values` field"), false)
 	}
 	logger.Warn().Msgf("unsupported id query executed, requested ids of [%s]", strings.Join(ids, "','"))
-	queryStr := fmt.Sprintf(" 0=0 /* document _ids IN ('%s') */ ", strings.Join(ids, "','"))
-	return newSimpleQuery(NewSimpleStatement(queryStr), true)
+	// We'll make this something along the lines of:
+	// 			fmt.Sprintf("COMPUTED_ID(document) IN ('%s') */ ", strings.Join(ids, "','"))
+	// but for now leaving empty
+	return newSimpleQuery(NewSimpleStatement(""), true)
 }
 
 // Parses each SimpleQuery separately, returns list of translated SQLs
