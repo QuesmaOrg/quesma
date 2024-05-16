@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/qri-io/jsonpointer"
 	"io"
-	"log"
 	"net/http"
 	"reflect"
 	"strings"
@@ -253,7 +252,7 @@ func waitForAsyncQuery(timeout time.Duration) {
 				if resp.StatusCode == 200 {
 					body, err = io.ReadAll(resp.Body)
 					if err != nil {
-						log.Println(err)
+						fmt.Println("Failed to read the body", err)
 						panic("can't read response body")
 					}
 					return validateResponse(query, resp, body)
@@ -269,16 +268,18 @@ func waitForAsyncQuery(timeout time.Duration) {
 		var asyncQuery asyncQueryType
 		err := json.Unmarshal(body, &asyncQuery)
 		if err != nil {
+			fmt.Println("Parsing JSON out of _async_search failed", err)
 			panic("can't parse async query response")
 		}
 
 		resp, err := http.Get(asyncGetQueryUrlPrefix + asyncQuery.Id)
 		if err != nil {
+			fmt.Println("Getting _async_status failed", err)
 			panic("can't get async query status")
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != 200 {
-			log.Printf("async query status is %d %s\n", resp.StatusCode, asyncGetQueryUrlPrefix+asyncQuery.Id)
+			fmt.Printf("async query status is %d %s\n", resp.StatusCode, asyncGetQueryUrlPrefix+asyncQuery.Id)
 			panic("async query status is not 200")
 		}
 	}
