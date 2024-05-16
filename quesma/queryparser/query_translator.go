@@ -78,7 +78,8 @@ func (cw *ClickhouseQueryTranslator) highlightHit(hit *model.SearchHit, highligh
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.QueryResultRow, highlighter model.Highlighter) *model.SearchResp {
+func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.QueryResultRow, highlighter model.Highlighter, sortFields []string) *model.SearchResp {
+	// TODO sortFields
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i, row := range ResultSet {
 		hits[i] = model.SearchHit{
@@ -172,21 +173,21 @@ type (
 	}
 )
 
-func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) (*model.SearchResp, error) {
+func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter, sortFields []string) (*model.SearchResp, error) {
 	switch typ {
 	case model.Normal:
-		return cw.makeSearchResponseNormal(ResultSet, highlighter), nil
+		return cw.makeSearchResponseNormal(ResultSet, highlighter, sortFields), nil
 	case model.Facets, model.FacetsNumeric:
 		return cw.makeSearchResponseFacets(ResultSet, typ), nil
 	case model.ListByField, model.ListAllFields:
-		return cw.makeSearchResponseList(ResultSet, typ, highlighter), nil
+		return cw.makeSearchResponseList(ResultSet, typ, highlighter, sortFields), nil
 	default:
 		return nil, fmt.Errorf("unknown SearchQueryType: %v", typ)
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) MakeSearchResponseMarshalled(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) ([]byte, error) {
-	response, err := cw.MakeSearchResponse(ResultSet, typ, highlighter)
+func (cw *ClickhouseQueryTranslator) MakeSearchResponseMarshalled(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter, sortFields []string) ([]byte, error) {
+	response, err := cw.MakeSearchResponse(ResultSet, typ, highlighter, sortFields)
 	if err != nil {
 		return nil, err
 	}
@@ -315,7 +316,8 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) *model.SearchResp {
+func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter, sortFields []string) *model.SearchResp {
+	// TODO sortFields
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
 		hits[i].Fields = make(map[string][]interface{})
@@ -350,7 +352,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 }
 
 func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter, asyncRequestIdStr string, isPartial bool) (*model.AsyncSearchEntireResp, error) {
-	searchResponse, err := cw.MakeSearchResponse(ResultSet, typ, highlighter)
+	searchResponse, err := cw.MakeSearchResponse(ResultSet, typ, highlighter, []string{})
 	if err != nil {
 		return nil, err
 	}

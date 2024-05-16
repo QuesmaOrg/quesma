@@ -205,12 +205,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		var count int
 
 		table, _ := tables.Load(resolvedTableName)
-
-		var simpleQuery queryparser.SimpleQuery
-
 		queryTranslator = NewQueryTranslator(ctx, queryLanguage, table, q.logManager)
-
-		simpleQuery, queryInfo, highlighter, err = queryTranslator.ParseQuery(string(body))
+		simpleQuery, queryInfo, highlighter, err := queryTranslator.ParseQuery(string(body))
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error parsing query: %v", err)
 			return nil, errors.Join(errCouldNotParseRequest, err)
@@ -302,7 +298,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			var response, responseHits *model.SearchResp = nil, nil
 			err = nil
 			if oldHandlingUsed {
-				response, err = queryTranslator.MakeSearchResponse(hits, queryInfo.Typ, highlighter)
+				response, err = queryTranslator.MakeSearchResponse(hits, queryInfo.Typ, highlighter, simpleQuery.SortFields)
 			} else if newAggregationHandlingUsed {
 				response = queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
 			}
@@ -314,9 +310,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 			if hitsPresent {
 				if response == nil {
-					response, err = queryTranslator.MakeSearchResponse(hitsFallback, queryInfo.Typ, highlighter)
+					response, err = queryTranslator.MakeSearchResponse(hitsFallback, queryInfo.Typ, highlighter, simpleQuery.SortFields)
 				} else {
-					responseHits, err = queryTranslator.MakeSearchResponse(hitsFallback, queryInfo.Typ, highlighter)
+					responseHits, err = queryTranslator.MakeSearchResponse(hitsFallback, queryInfo.Typ, highlighter, simpleQuery.SortFields)
 					response.Hits = responseHits.Hits
 				}
 				response.Hits.Total.Value = count
@@ -487,6 +483,7 @@ func (q *QueryRunner) makeBasicQuery(ctx context.Context,
 	case model.Normal:
 		fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, queryInfo.I2)
 	}
+	fullQuery.SortFields = simpleQuery.SortFields
 	return fullQuery, columns
 }
 
@@ -518,7 +515,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery model.Qu
 		}
 	}
 	if optAsync != nil {
-		searchResponse, err := queryTranslator.MakeSearchResponse(hits, fullQuery.QueryInfo.Typ, fullQuery.Highlighter)
+		searchResponse, err := queryTranslator.MakeSearchResponse(hits, fullQuery.QueryInfo.Typ, fullQuery.Highlighter, fullQuery.SortFields)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, fullQuery.QueryInfo, hits)
 			optAsync.doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}

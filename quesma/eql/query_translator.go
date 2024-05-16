@@ -48,7 +48,7 @@ func (cw *ClickhouseEQLQueryTranslator) BuildNRowsQuery(fieldName string, simple
 	}
 }
 
-func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) (*model.SearchResp, error) {
+func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter, sortFields []string) (*model.SearchResp, error) {
 
 	// This shares a lot of code with the ClickhouseQueryTranslator
 	//

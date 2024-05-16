@@ -82,9 +82,15 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery
 	}
 
 	if sortPart, ok := queryAsMap["sort"]; ok {
-		if sortAsArray, ok := sortPart.([]any); ok {
-			parsedQuery.SortFields = cw.parseSortFields(sortAsArray)
-		} else {
+		switch sortPart := sortPart.(type) {
+		case []any:
+			parsedQuery.SortFields = cw.parseSortFields(sortPart)
+		case map[string]interface{}:
+			parsedQuery.SortFields = make([]string, 0)
+			for key, value := range sortPart {
+				parsedQuery.SortFields = append(parsedQuery.SortFields, fmt.Sprintf(`"%s" `, key)+value.(string))
+			}
+		default:
 			logger.WarnWithCtx(cw.Ctx).Msgf("unknown sort format, sort value: %v type: %T", sortPart, sortPart)
 		}
 	}

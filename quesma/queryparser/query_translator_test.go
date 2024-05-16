@@ -140,7 +140,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
-			ourResponse, err := cw.MakeSearchResponseMarshalled(args[i].ourQueryResult, args[i].queryType, NewEmptyHighlighter())
+			ourResponse, err := cw.MakeSearchResponseMarshalled(args[i].ourQueryResult, args[i].queryType, NewEmptyHighlighter(), []string{})
 			assert.NoError(t, err)
 			actualMinusExpected, expectedMinusActual, err := util.JsonDifference(string(ourResponse), args[i].elasticResponseJson)
 			if err != nil {
@@ -472,7 +472,7 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 		for _, field := range query.NonSchemaFields {
 			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field, Value: "not-important"})
 		}
-		_, err := cw.MakeSearchResponse([]model.QueryResultRow{resultRow}, model.Normal, NewEmptyHighlighter())
+		_, err := cw.MakeSearchResponse([]model.QueryResultRow{resultRow}, model.Normal, NewEmptyHighlighter(), []string{})
 		assert.NoError(t, err)
 	}
 }
