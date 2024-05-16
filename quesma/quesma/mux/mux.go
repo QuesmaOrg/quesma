@@ -5,6 +5,7 @@ import (
 	"github.com/ucarion/urlpath"
 	"mitmproxy/quesma/logger"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -24,7 +25,7 @@ type (
 		Meta       map[string]string
 		StatusCode int
 	}
-	handler        func(ctx context.Context, body, uri string, params map[string]string) (*Result, error)
+	handler        func(ctx context.Context, body, uri string, params map[string]string, headers http.Header, queryParams url.Values) (*Result, error)
 	MatchPredicate func(params map[string]string, body string) bool
 )
 
@@ -47,10 +48,10 @@ func (p *PathRouter) RegisterPathMatcher(pattern string, httpMethods []string, p
 	}
 }
 
-func (p *PathRouter) Execute(ctx context.Context, path, body, httpMethod string, headers http.Header) (*Result, error) {
+func (p *PathRouter) Execute(ctx context.Context, path, body, httpMethod string, headers http.Header, queryParams url.Values) (*Result, error) {
 	handler, meta, found := p.findHandler(path, httpMethod, body)
 	if found {
-		return handler(ctx, body, path, meta.Params)
+		return handler(ctx, body, path, meta.Params, headers, queryParams)
 	}
 	return nil, nil
 }

@@ -37,6 +37,8 @@ services:
     image: docker.elastic.co/kibana/kibana:8.11.1
     container_name: kibana
     network_mode: "bridge"
+    links:
+      - "mitmproxy"
     environment:
       ELASTICSEARCH_HOSTS: '["http://mitmproxy:6666"]'
       XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: 'QUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMA' # Just to get rid of annoying ERROR in logs
@@ -54,6 +56,8 @@ services:
   kibana-sidecar:
     image: docker.elastic.co/kibana/kibana:8.11.1
     container_name: kiabana-sidecar
+    links:
+      - "kibana"
     network_mode: "bridge"
     restart: "no"
     depends_on:

@@ -3,6 +3,8 @@ package mux
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"net/http"
+	"net/url"
 	"testing"
 )
 
@@ -34,6 +36,6 @@ func always(_ map[string]string, _ string) bool {
 	return true
 }
 
-func mockHandler(_ context.Context, _, _ string, _ map[string]string) (*Result, error) {
+func mockHandler(_ context.Context, _, _ string, _ map[string]string, _ http.Header, _ url.Values) (*Result, error) {
 	return &Result{}, nil
 }

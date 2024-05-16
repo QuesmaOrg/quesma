@@ -9,8 +9,6 @@ logging:
 indexes:
   logs:
     enabled: true
-    ignoredFields:
-      unknown: true
     aliases:
       timestamp:
         source: "@timestamp"
@@ -19,11 +17,5 @@ indexes:
 
   siem:
     enabled: true
-    ignoredFields:
-      "responseHeaders": true
-      "requestHeaders": true
-      "botData": true
-      "userRiskData": true
-      "clientData": true
     fullTextFields: [ "city", "country", "host", "method", "path", "ruleMessage", "UA" ]
 
