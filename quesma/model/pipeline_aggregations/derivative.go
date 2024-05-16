@@ -36,7 +36,6 @@ func (query Derivative) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 }
 
 func (query Derivative) CalculateResultWhenMissing(rowIndex int, parentRows []model.QueryResultRow, previousResultsCurrentAggregation []model.QueryResultRow) model.QueryResultRow {
-	fmt.Println("hoho", len(previousResultsCurrentAggregation))
 	resultRow := parentRows[rowIndex].Copy() // result is the same as parent, with an exception of last element, which we'll change below
 	var resultValue any
 	if rowIndex == 0 {
@@ -54,13 +53,17 @@ func (query Derivative) CalculateResultWhenMissing(rowIndex int, parentRows []mo
 				resultValue = nil
 			}
 		} else {
-			previousValueAsInt := util.ExtractInt64(previousValue)
-			currentValueAsInt := util.ExtractInt64(currentValue)
-			resultValue = currentValueAsInt - previousValueAsInt
+			previousValueAsInt, okPrevious := util.ExtractInt64Maybe(previousValue)
+			currentValueAsInt, okParent := util.ExtractInt64Maybe(currentValue)
+			if okPrevious && okParent {
+				resultValue = currentValueAsInt - previousValueAsInt
+			} else {
+				logger.WarnWithCtx(query.ctx).Msgf("could not convert previous or current value to int, previousValue: %v, currentValue: %v. Using nil as result", previousValue, currentValue)
+				resultValue = nil
+			}
 		}
 	}
 	resultRow.Cols[len(resultRow.Cols)-1].Value = resultValue
-	fmt.Println("resultRow", resultRow)
 	return resultRow
 }
 
