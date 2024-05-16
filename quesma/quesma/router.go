@@ -7,6 +7,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/routes"
@@ -158,6 +159,11 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
 				return &mux.Result{StatusCode: 404}, nil
+			} else if errors.Is(err, errCouldNotParseRequest) {
+				return &mux.Result{
+					Body:       string(queryparser.BadRequestParseError(err)),
+					StatusCode: 400,
+				}, nil
 			} else {
 				return nil, err
 			}
@@ -183,6 +189,11 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
 				return &mux.Result{StatusCode: 404}, nil
+			} else if errors.Is(err, errCouldNotParseRequest) {
+				return &mux.Result{
+					Body:       string(queryparser.BadRequestParseError(err)),
+					StatusCode: 400,
+				}, nil
 			} else {
 				return nil, err
 			}

@@ -60,15 +60,14 @@ func NewCompoundStatementNoFieldName(stmt string) Statement {
 	return Statement{Stmt: stmt, isCompound: true}
 }
 
-func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery, model.SearchQueryInfo, model.Highlighter) {
+func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery, model.SearchQueryInfo, model.Highlighter, error) {
 	cw.ClearTokensToHighlight()
 	queryAsMap := make(QueryMap)
 	if queryAsJson != "" {
 		err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
 		if err != nil {
 			logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
-			return newSimpleQuery(NewSimpleStatement("invalid JSON (ParseQuery)"), false),
-				model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
+			return SimpleQuery{}, model.SearchQueryInfo{}, NewEmptyHighlighter(), err
 		}
 	}
 
@@ -106,7 +105,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery
 	highlighter.SetTokens(cw.tokensToHighlight)
 	cw.ClearTokensToHighlight()
 
-	return parsedQuery, queryInfo, highlighter
+	return parsedQuery, queryInfo, highlighter, nil
 }
 
 func (cw *ClickhouseQueryTranslator) ParseHighlighter(queryMap QueryMap) model.Highlighter {

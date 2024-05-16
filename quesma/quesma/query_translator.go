@@ -17,7 +17,7 @@ import (
 // 2. ClickhouseEQLQueryTranslator (implements only a subset of methods)
 
 type IQueryTranslator interface {
-	ParseQuery(queryAsJson string) (queryparser.SimpleQuery, model.SearchQueryInfo, model.Highlighter)
+	ParseQuery(queryAsJson string) (queryparser.SimpleQuery, model.SearchQueryInfo, model.Highlighter, error)
 	ParseAggregationJson(aggregationJson string) ([]model.QueryWithAggregation, error)
 
 	BuildSimpleCountQuery(whereClause string) *model.Query
