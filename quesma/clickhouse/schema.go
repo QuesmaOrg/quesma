@@ -191,6 +191,9 @@ func NewBaseType(clickHouseTypeName string) BaseType {
 	return BaseType{Name: clickHouseTypeName, goType: goType}
 }
 
+// this is catch all type for all types we do not exlicitly support
+type UnknownType struct{}
+
 func ResolveType(clickHouseTypeName string) reflect.Type {
 	switch clickHouseTypeName {
 	case "String", "LowCardinality(String)", "UUID":
@@ -209,7 +212,10 @@ func ResolveType(clickHouseTypeName string) reflect.Type {
 		return reflect.TypeOf(true)
 	case "JSON":
 		return reflect.TypeOf(map[string]interface{}{})
+	case "Unknown":
+		return reflect.TypeOf(UnknownType{})
 	}
+
 	return nil
 }
 

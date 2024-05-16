@@ -25,7 +25,10 @@ import (
 const asyncQueriesLimit = 10000
 const asyncQueriesLimitBytes = 1024 * 1024 * 500 // 500MB
 
-var errIndexNotExists = errors.New("table does not exist")
+var (
+	errIndexNotExists       = errors.New("table does not exist")
+	errCouldNotParseRequest = errors.New("parse exception")
+)
 var asyncRequestId atomic.Int64
 
 type AsyncRequestResult struct {
@@ -207,7 +210,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		queryTranslator = NewQueryTranslator(ctx, queryLanguage, table, q.logManager)
 
-		simpleQuery, queryInfo, highlighter = queryTranslator.ParseQuery(string(body))
+		simpleQuery, queryInfo, highlighter, err = queryTranslator.ParseQuery(string(body))
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("error parsing query: %v", err)
+			return nil, errors.Join(errCouldNotParseRequest, err)
+		}
 
 		if simpleQuery.CanParse {
 			if isNonAggregationQuery(queryInfo, body) {
@@ -585,7 +592,8 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggrega
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			continue
 		}
-		resultRows = append(resultRows, rows)
+		postprocessedRows := agg.Type.PostprocessResults(rows)
+		resultRows = append(resultRows, postprocessedRows)
 	}
 	translatedQueryBody = []byte(sqls)
 	if optAsync != nil {

@@ -60,15 +60,14 @@ func NewCompoundStatementNoFieldName(stmt string) Statement {
 	return Statement{Stmt: stmt, isCompound: true}
 }
 
-func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery, model.SearchQueryInfo, model.Highlighter) {
+func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery, model.SearchQueryInfo, model.Highlighter, error) {
 	cw.ClearTokensToHighlight()
 	queryAsMap := make(QueryMap)
 	if queryAsJson != "" {
 		err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
 		if err != nil {
 			logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
-			return newSimpleQuery(NewSimpleStatement("invalid JSON (ParseQuery)"), false),
-				model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
+			return SimpleQuery{}, model.SearchQueryInfo{}, NewEmptyHighlighter(), err
 		}
 	}
 
@@ -106,7 +105,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery
 	highlighter.SetTokens(cw.tokensToHighlight)
 	cw.ClearTokensToHighlight()
 
-	return parsedQuery, queryInfo, highlighter
+	return parsedQuery, queryInfo, highlighter, nil
 }
 
 func (cw *ClickhouseQueryTranslator) ParseHighlighter(queryMap QueryMap) model.Highlighter {
@@ -247,6 +246,8 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 		"match_phrase":        func(qm QueryMap) SimpleQuery { return cw.parseMatch(qm, true) },
 		"range":               cw.parseRange,
 		"exists":              cw.parseExists,
+		"ids":                 cw.parseIds,
+		"constant_score":      cw.parseConstantScore,
 		"wildcard":            cw.parseWildcard,
 		"query_string":        cw.parseQueryString,
 		"simple_query_string": cw.parseQueryString,
@@ -272,6 +273,33 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 		unparsedQuery = string(prettyMarshal)
 	}
 	return newSimpleQuery(NewSimpleStatement("can't parse query: "+unparsedQuery), false)
+}
+
+// `constant_score` query is just a wrapper for filter query which returns constant relevance score, which we ignore anyway
+func (cw *ClickhouseQueryTranslator) parseConstantScore(queryMap QueryMap) SimpleQuery {
+	if _, ok := queryMap["filter"]; ok {
+		return cw.parseBool(queryMap)
+	} else {
+		return newSimpleQuery(NewSimpleStatement("parsing error: `constant_score` needs to wrap `filter` query"), false)
+	}
+}
+
+func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) SimpleQuery {
+	var ids []string
+	if val, ok := queryMap["values"]; ok {
+		if values, ok := val.([]interface{}); ok {
+			for _, id := range values {
+				ids = append(ids, id.(string))
+			}
+		}
+	} else {
+		return newSimpleQuery(NewSimpleStatement("parsing error: missing mandatory `values` field"), false)
+	}
+	logger.Warn().Msgf("unsupported id query executed, requested ids of [%s]", strings.Join(ids, "','"))
+	// We'll make this something along the lines of:
+	// 			fmt.Sprintf("COMPUTED_ID(document) IN ('%s') */ ", strings.Join(ids, "','"))
+	// but for now leaving empty
+	return newSimpleQuery(NewSimpleStatement(""), true)
 }
 
 // Parses each SimpleQuery separately, returns list of translated SQLs
@@ -368,6 +396,10 @@ func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) SimpleQuery {
 	if len(queryMap) == 1 {
 		for k, v := range queryMap {
 			cw.AddTokenToHighlight(v)
+			if k == "_index" { // index is a table name, already taken from URI and moved to FROM clause
+				logger.Warn().Msgf("term %s=%v in query body, ignoring in result SQL", k, v)
+				return newSimpleQuery(NewSimpleStatement(" 0=0 /* "+strconv.Quote(k)+"="+sprint(v)+" */ "), true)
+			}
 			return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+"="+sprint(v)), true)
 		}
 	}
@@ -770,6 +802,8 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 						} else if op == "gte" || op == "lte" || op == "gt" || op == "lt" {
 							vToPrint = parseDateMathExpression(vToPrint)
 						}
+					} else if v == nil {
+						vToPrint = "NULL"
 					}
 				case clickhouse.Invalid: // assumes it is number that does not need formatting
 					if len(vToPrint) > 2 && vToPrint[0] == '\'' && vToPrint[len(vToPrint)-1] == '\'' {

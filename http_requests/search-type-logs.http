@@ -1,0 +1,53 @@
+POST http://localhost:8080/type_logs/_search
+Content-Type: application/json
+
+
+{
+	"_source": false,
+	"fields": [
+		{
+			"field": "*",
+			"include_unmapped": "true"
+		},
+		{
+			"field": "@timestamp",
+			"format": "strict_date_optional_time"
+		}
+	],
+	"highlight": {
+
+	},
+	"query": {
+		"bool": {
+			"filter": [
+
+			],
+			"must": [],
+			"must_not": [],
+			"should": []
+		}
+	},
+	"runtime_mappings": {},
+	"script_fields": {},
+	"size": 500,
+	"sort": [
+		{
+			"@timestamp": {
+				"format": "strict_date_optional_time",
+				"order": "desc",
+				"unmapped_type": "boolean"
+			}
+		},
+		{
+			"_doc": {
+				"order": "desc",
+				"unmapped_type": "boolean"
+			}
+		}
+	],
+	"stored_fields": [
+		"*"
+	],
+	"track_total_hits": false,
+	"version": true
+}

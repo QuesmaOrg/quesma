@@ -132,6 +132,18 @@ do_silent_http_post "api/data_views/data_view" '{
     "override": true
 }'
 
+echo -n "Adding data view Type Logs... "
+do_silent_http_post "api/data_views/data_view" '{
+    "data_view": {
+       "name": "Type Logs",
+       "title": "type_logs",
+       "id": "type_logs",
+       "timeFieldName": "@timestamp",
+       "allowNoIndex": true
+    },
+    "override": true
+}'
+
 echo ""
 
 echo ""

@@ -1347,21 +1347,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [59]
-		TestName:  "Compound query: constant_score",
-		QueryType: "constant_score",
-		QueryRequestJson: `
-		{
-			"query": {
-				"constant_score": {
-					"filter": {
-						"term": { "user.id": "kimchy" }
-					},
-					"boost": 1.2
-				}
-			}
-		}`,
-	},
 	{ // [60]
 		TestName:  "Compound query: disjunction_max",
 		QueryType: "dis_max",
@@ -2020,18 +2005,20 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [95]
-		TestName:  "Term-level queries: IDs",
-		QueryType: "ids",
-		QueryRequestJson: `
-		{
-			"query": {
-				"ids" : {
-					"values" : ["1", "4", "100"]
-				}
-			}
-		}`,
-	},
+	//{ // [95]
+	//	The query is partially supported, doesn't blow up,
+	// 	but the response is not as expected due to the nature of the backend (ClickHouse).
+	//	TestName:  "Term-level queries: IDs",
+	//	QueryType: "ids",
+	//	QueryRequestJson: `
+	//	{
+	//		"query": {
+	//			"ids" : {
+	//				"values" : ["1", "4", "100"]
+	//			}
+	//		}
+	//	}`,
+	//},
 	{ // [96]
 		TestName:  "Term-level queries: Regexp",
 		QueryType: "regexp",

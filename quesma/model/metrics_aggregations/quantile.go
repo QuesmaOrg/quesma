@@ -149,3 +149,7 @@ func (query Quantile) processResult(colName string, percentileReturnedByClickhou
 var emptyPercentilesResult = []model.JsonMap{{
 	"values": 0,
 }}
+
+func (query Quantile) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+	return rowsFromDB
+}
