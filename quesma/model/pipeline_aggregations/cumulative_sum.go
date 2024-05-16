@@ -83,6 +83,10 @@ func (query CumulativeSum) CalculateResultWhenMissing(parentRow model.QueryResul
 	return resultRow
 }
 
+func (query CumulativeSum) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+	return rowsFromDB
+}
+
 func (query CumulativeSum) String() string {
 	return fmt.Sprintf("cumulative_sum(%s)", query.Parent)
 }

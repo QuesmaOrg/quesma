@@ -46,3 +46,7 @@ func (query Terms) String() string {
 	}
 	return "significant_terms"
 }
+
+func (query Terms) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+	return rowsFromDB
+}
