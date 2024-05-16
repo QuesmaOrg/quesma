@@ -296,10 +296,11 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) SimpleQuery {
 		return newSimpleQuery(NewSimpleStatement("parsing error: missing mandatory `values` field"), false)
 	}
 	logger.Warn().Msgf("unsupported id query executed, requested ids of [%s]", strings.Join(ids, "','"))
-	// We'll make this something along the lines of:
-	// 			fmt.Sprintf("COMPUTED_ID(document) IN ('%s') */ ", strings.Join(ids, "','"))
-	// but for now leaving empty
-	return newSimpleQuery(NewSimpleStatement(""), true)
+
+	// ugh, we need to know fields for hash computation ...
+	statement := fmt.Sprintf("lower(hex(SHA1(CONCAT(email, customer_full_name)))) IN ('%s') ", strings.Join(ids, "','"))
+
+	return newSimpleQuery(NewSimpleStatement(statement), true)
 }
 
 // Parses each SimpleQuery separately, returns list of translated SQLs

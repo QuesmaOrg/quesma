@@ -2,6 +2,8 @@ package queryparser
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
@@ -88,6 +90,15 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.
 			Highlight: make(map[string][]string),
 		}
 		cw.highlightHit(&hits[i], highlighter, ResultSet[i])
+	}
+
+	// Set the IDs
+	for i, hit := range hits {
+		if id, err := computeIdFromDocument(hit); err != nil {
+			hits[i].ID = strconv.Itoa(i + 1)
+		} else {
+			hits[i].ID = id
+		}
 	}
 
 	return &model.SearchResp{
@@ -315,6 +326,38 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.
 	}
 }
 
+func computeIdFromDocument(doc model.SearchHit) (string, error) {
+	// TBD which fields, eventually configurable
+	/*
+		This is ugly as hell but surprisingly gets the job done.
+		However works only on strings... if we are concatenating different types, we might end up with something different at ClickHouse/Hydrolix end...
+	*/
+	var email, fullName string
+	if v, ok := doc.Fields["email"]; ok {
+		if e, okk := v[0].(*string); okk {
+			email = *e
+		}
+	} else {
+		logger.Error().Msgf("PRZEMYSLAW FAIL email: [%v]", v)
+		return "", fmt.Errorf("missing email field")
+	}
+	if v, ok := doc.Fields["customer_full_name"]; ok {
+		if e, okk := v[0].(*string); okk {
+			fullName = *e
+		}
+	} else {
+		logger.Error().Msgf("PRZEMYSLAW FAIL customer_full_name: [%v]", v)
+		return "", fmt.Errorf("missing customer_full_name field")
+	}
+
+	concat := email + fullName
+	logger.Info().Msgf("concat: [%v]", concat)
+	hash := sha1.Sum([]byte(concat))
+	hashEncodedToString := hex.EncodeToString(hash[:])
+	logger.Info().Msgf("hash: [%s]", hashEncodedToString)
+	return hashEncodedToString, nil
+}
+
 func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) *model.SearchResp {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
@@ -331,6 +374,15 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 			}
 		}
 		cw.highlightHit(&hits[i], highlighter, ResultSet[i])
+	}
+
+	// Set the IDs
+	for i, hit := range hits {
+		if id, err := computeIdFromDocument(hit); err != nil {
+			hits[i].ID = strconv.Itoa(i + 1)
+		} else {
+			hits[i].ID = id
+		}
 	}
 
 	return &model.SearchResp{
