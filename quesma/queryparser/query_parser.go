@@ -246,6 +246,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 		"range":               cw.parseRange,
 		"exists":              cw.parseExists,
 		"ids":                 cw.parseIds,
+		"constant_score":      cw.parseConstantScore,
 		"wildcard":            cw.parseWildcard,
 		"query_string":        cw.parseQueryString,
 		"simple_query_string": cw.parseQueryString,
@@ -262,6 +263,15 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 		}
 	}
 	return newSimpleQuery(NewSimpleStatement("can't parse query: "+pp.Sprint(queryMap)), false)
+}
+
+// `constant_score` query is just a wrapper for filter query which returns constant relevance score, which we ignore anyway
+func (cw *ClickhouseQueryTranslator) parseConstantScore(queryMap QueryMap) SimpleQuery {
+	if _, ok := queryMap["filter"]; ok {
+		return cw.parseBool(queryMap)
+	} else {
+		return newSimpleQuery(NewSimpleStatement("parsing error: `constant_score` needs to wrap `filter` query"), false)
+	}
 }
 
 func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) SimpleQuery {
