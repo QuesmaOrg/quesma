@@ -22,6 +22,10 @@ type DatabaseLet interface {
 	Query(query Document) ([]Document, error)
 }
 
+type Ingester interface {
+	Ingest(document Document) error
+}
+
 // Every data is a document
 
 type Document map[string]interface{}
@@ -457,6 +461,8 @@ func (d *Dispatcher) Query(query Document) ([]Document, error) {
 
 }
 
+// -----------------
+
 type If struct {
 	condition func() bool
 	True      DatabaseLet
@@ -470,7 +476,7 @@ func (i *If) Query(query Document) ([]Document, error) {
 	return i.False.Query(query)
 }
 
-//
+// ------------------- solution
 
 var logger DatabaseLet
 var db *sql.DB
