@@ -224,10 +224,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		responseBody, err := handleFieldCaps(ctx, params["index"], []byte(body), lm)
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
-				if queryParams.Get("allow_no_indices") == "true" {
-					return elasticsearchQueryResult(string(EmptyFieldCapsResponse()), httpOk), nil
-				}
-				if queryParams.Get("ignore_unavailable") == "true" {
+				if queryParams.Get("allow_no_indices") == "true" || queryParams.Get("ignore_unavailable") == "true" {
 					return elasticsearchQueryResult(string(EmptyFieldCapsResponse()), httpOk), nil
 				}
 				return &mux.Result{StatusCode: 404}, nil

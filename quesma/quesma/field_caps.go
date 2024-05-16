@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/model"
@@ -187,8 +188,11 @@ func EmptyFieldCapsResponse() []byte {
 		Fields:  make(map[string]map[string]model.FieldCapability),
 		Indices: []string{},
 	}
-	serialized, _ := json.Marshal(response)
-	return serialized
+	if serialized, err := json.Marshal(response); err != nil {
+		panic(fmt.Sprintf("Failed to serialize empty field caps response: %v, this should never happen", err))
+	} else {
+		return serialized
+	}
 }
 
 func isInternalColumn(col *clickhouse.Column) bool {
