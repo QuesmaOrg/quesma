@@ -84,7 +84,7 @@ func matchAgainstKibanaAlerts() mux.MatchPredicate {
 
 		// https://www.elastic.co/guide/en/security/current/alert-schema.html
 
-		// We parse query here and check if it contains references to fields that
+		// We should parse query here and check if it contains references to fields that
 		// are alert related.
 		// But it's complex to do so. We just check if the body contains some keywords.
 
