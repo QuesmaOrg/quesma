@@ -1882,7 +1882,7 @@ var TestsSearch = []SearchTestCase{
 		model.Normal,
 		[]model.Query{newSimplestQuery()},
 		[]string{qToStr(newSimplestQuery())},
-  },
+	},
 	{ // [32]
 		"Constant score query",
 		`{
@@ -1898,7 +1898,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{`"user.id"='kimchy'`},
 		model.Normal,
 		[]model.Query{justSimplestWhere(`"user.id"='kimchy'`)},
-		[]string{qToStr(justSimplestWhere(`"user.id"='kimchy'`))},    
+		[]string{qToStr(justSimplestWhere(`"user.id"='kimchy'`))},
 	},
 }
 
