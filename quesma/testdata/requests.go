@@ -1784,6 +1784,23 @@ var TestsSearch = []SearchTestCase{
 		[]model.Query{newSimplestQuery()},
 		[]string{`SELECT "message" FROM "logs-generic-default" LIMIT 500`},
 	},
+	{
+		"Constant score query",
+		`{
+			"query": {
+ 				"constant_score": {
+ 					"filter": {
+ 						"term": { "user.id": "kimchy" }
+ 					},
+ 					"boost": 1.2
+ 				}
+ 			}
+		}`,
+		[]string{`"user.id"='kimchy'`},
+		model.Normal,
+		[]model.Query{justSimplestWhere(`"user.id"='kimchy'`)},
+		[]string{qToStr(justSimplestWhere(`"user.id"='kimchy'`))},
+	},
 }
 
 var TestsSearchNoAttrs = []SearchTestCase{

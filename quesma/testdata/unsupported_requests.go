@@ -1347,21 +1347,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	//{ // [59]  We support this one, just that we ignore the boost value
-	//	TestName:  "Compound query: constant_score",
-	//	QueryType: "constant_score",
-	//	QueryRequestJson: `
-	//	{
-	//		"query": {
-	//			"constant_score": {
-	//				"filter": {
-	//					"term": { "user.id": "kimchy" }
-	//				},
-	//				"boost": 1.2
-	//			}
-	//		}
-	//	}`,
-	//},
 	{ // [60]
 		TestName:  "Compound query: disjunction_max",
 		QueryType: "dis_max",
