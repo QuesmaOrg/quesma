@@ -199,7 +199,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	for _, resolvedTableName := range sourcesClickhouse {
 		var queryTranslator IQueryTranslator
 		var highlighter model.Highlighter
-		var aggregations []model.QueryWithAggregation
+		var aggregations []model.Query
 		var err error
 		var queryInfo model.SearchQueryInfo
 		var count int
@@ -525,7 +525,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery model.Qu
 	return
 }
 
-func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggregations []model.QueryWithAggregation,
+func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggregations []model.Query,
 	columns []string,
 	queryTranslator IQueryTranslator, table *clickhouse.Table,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
@@ -550,9 +550,9 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggrega
 			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", agg)
 		} else {
 			logger.InfoWithCtx(ctx).Msgf("SQL: %s", agg.String())
-			sqls += agg.Query.String() + "\n"
+			sqls += agg.String() + "\n"
 		}
-		rows, err := q.logManager.ProcessQuery(dbQueryCtx, table, &agg.Query, nil)
+		rows, err := q.logManager.ProcessQuery(dbQueryCtx, table, &agg, nil)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			continue
@@ -588,7 +588,7 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 }
 
 func (q *QueryRunner) searchAggregationWorker(ctx context.Context,
-	aggregations []model.QueryWithAggregation,
+	aggregations []model.Query,
 	columns []string,
 	queryTranslator IQueryTranslator,
 	table *clickhouse.Table,
