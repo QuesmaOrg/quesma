@@ -545,8 +545,11 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	success bool, nonSchemaFieldsAddedCount, groupByFieldsAddedCount int) {
 
 	success = true // returned in most cases
-	if histogram, ok := queryMap["histogram"]; ok {
-		currentAggr.Type = bucket_aggregations.NewHistogram(cw.Ctx)
+	if histogramRaw, ok := queryMap["histogram"]; ok {
+		histogram, ok := histogramRaw.(QueryMap)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("date_histogram is not a map, but %T, value: %v", histogramRaw, histogramRaw)
+		}
 		fieldName, isFieldNameFromScript := cw.parseFieldFieldMaybeScript(histogram, "histogram")
 		var fieldNameProperlyQuoted string
 		if isFieldNameFromScript {
@@ -555,26 +558,29 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			fieldNameProperlyQuoted = strconv.Quote(fieldName)
 		}
 		var interval float64
-		intervalQueryMap, ok := histogram.(QueryMap)["interval"]
+		intervalRaw, ok := histogram["interval"]
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("interval not found in histogram: %v", histogram)
 		}
-		switch intervalRaw := intervalQueryMap.(type) {
+		switch intervalTyped := intervalRaw.(type) {
 		case string:
 			var err error
-			interval, err = strconv.ParseFloat(intervalRaw, 64)
+			interval, err = strconv.ParseFloat(intervalTyped, 64)
 			if err != nil {
 				logger.ErrorWithCtx(cw.Ctx).Err(err).Msgf("failed to parse interval: %v", intervalRaw)
 			}
 		case int:
-			interval = float64(intervalRaw)
+			interval = float64(intervalTyped)
 		case float64:
-			interval = intervalRaw
+			interval = intervalTyped
 		default:
-			logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v", intervalRaw, intervalRaw)
+			interval = 1.0
+			logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v", intervalTyped, intervalTyped)
 		}
+		minDocCount := cw.parseMinDocCount(histogram)
+		currentAggr.Type = bucket_aggregations.NewHistogram(cw.Ctx, interval, minDocCount)
 		groupByStr := fieldNameProperlyQuoted
-		if interval != 1 {
+		if interval != 1.0 {
 			groupByStr = fmt.Sprintf("floor(%s / %f) * %f", fieldNameProperlyQuoted, interval, interval)
 		}
 		currentAggr.GroupByFields = append(currentAggr.GroupByFields, groupByStr)
@@ -587,7 +593,8 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("date_histogram is not a map, but %T, value: %v", dateHistogramRaw, dateHistogramRaw)
 		}
-		currentAggr.Type = bucket_aggregations.NewDateHistogram(cw.Ctx, cw.extractInterval(dateHistogram))
+		minDocCount := cw.parseMinDocCount(dateHistogram)
+		currentAggr.Type = bucket_aggregations.NewDateHistogram(cw.Ctx, minDocCount, cw.extractInterval(dateHistogram))
 		histogramPartOfQuery := cw.createHistogramPartOfQuery(dateHistogram)
 		currentAggr.GroupByFields = append(currentAggr.GroupByFields, histogramPartOfQuery)
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, histogramPartOfQuery)
@@ -750,6 +757,22 @@ func (cw *ClickhouseQueryTranslator) parseFieldFromScriptField(queryMap QueryMap
 		return matches[1], true
 	}
 	return
+}
+
+func (cw *ClickhouseQueryTranslator) parseMinDocCount(queryMap QueryMap) int {
+	if minDocCountRaw, exists := queryMap["min_doc_count"]; exists {
+		if minDocCount, ok := minDocCountRaw.(float64); ok {
+			asInt := int(minDocCount)
+			if asInt != 0 && asInt != 1 {
+				logger.WarnWithCtx(cw.Ctx).Msgf("min_doc_count is not 0 or 1, but %d. Not really supported", asInt)
+			}
+			return asInt
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("min_doc_count is not a number, but %T, value: %v. Using default value: %d",
+				minDocCountRaw, minDocCountRaw, bucket_aggregations.DefaultMinDocCount)
+		}
+	}
+	return bucket_aggregations.DefaultMinDocCount
 }
 
 func (cw *ClickhouseQueryTranslator) parseFilters(filtersMap QueryMap) []filter {
