@@ -130,10 +130,6 @@ func matchAgainstKibanaAlerts() mux.MatchPredicate {
 
 		q := query["query"].(map[string]interface{})
 
-		if findKibanaAlertField(q) {
-			return false
-		}
-
-		return true
+		return !findKibanaAlertField(q)
 	}
 }
