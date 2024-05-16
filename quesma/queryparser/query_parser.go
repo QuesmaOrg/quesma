@@ -789,6 +789,8 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 						} else if op == "gte" || op == "lte" || op == "gt" || op == "lt" {
 							vToPrint = parseDateMathExpression(vToPrint)
 						}
+					} else if v == nil {
+						vToPrint = "NULL"
 					}
 				case clickhouse.Invalid: // assumes it is number that does not need formatting
 					if len(vToPrint) > 2 && vToPrint[0] == '\'' && vToPrint[len(vToPrint)-1] == '\'' {
