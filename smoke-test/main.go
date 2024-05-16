@@ -18,15 +18,17 @@ import (
 )
 
 const (
-	clickhouseUrl            = "http://localhost:8123"
-	kibanaUrl                = "http://localhost:5601"
-	kibanaHealthCheckUrl     = "http://localhost:5601/api/status"
-	kibanaDataViewsUrl       = "http://localhost:5601/api/data_views"
-	kibanaCsvReportUrl       = "http://localhost:5601/api/reporting/generate/csv_searchsource"
-	elasticsearchBaseUrl     = "http://localhost:9201"
-	elasticIndexCountUrl     = "http://localhost:9201/logs-generic-default,logs-*/_count"
-	quesmaIndexCountUrl      = "http://localhost:9200/logs-generic-default,logs-*/_count"
-	asyncQueryUrl            = "http://localhost:8080/logs-*/_async_search?pretty"
+	clickhouseUrl          = "http://localhost:8123"
+	kibanaUrl              = "http://localhost:5601"
+	kibanaHealthCheckUrl   = "http://localhost:5601/api/status"
+	kibanaDataViewsUrl     = "http://localhost:5601/api/data_views"
+	kibanaCsvReportUrl     = "http://localhost:5601/api/reporting/generate/csv_searchsource"
+	elasticsearchBaseUrl   = "http://localhost:9201"
+	elasticIndexCountUrl   = "http://localhost:9201/logs-generic-default,logs-*/_count"
+	quesmaIndexCountUrl    = "http://localhost:9200/logs-generic-default,logs-*/_count"
+	asyncQueryUrl          = "http://localhost:8080/logs-*/_async_search?pretty&keep_on_completion=true"
+	asyncGetQueryUrlPrefix = "http://localhost:8080/_async_search/"
+
 	kibanaLogExplorerMainUrl = "http://localhost:5601/app/observability-log-explorer/?controlPanels=(data_stream.namespace:(explicitInput:(fieldName:data_stream.namespace,id:data_stream.namespace,title:Namespace),grow:!f,order:0,type:optionsListControl,width:medium))&_a=(columns:!(service.name,host.name,message),filters:!(),grid:(columns:(host.name:(width:320),service.name:(width:240))),index:BQZwpgNmDGAuCWB7AdgFQJ4AcwC4CGEEAlEA,interval:auto,query:(language:kuery,query:%27%27),rowHeight:0,sort:!(!(%27@timestamp%27,desc)))&_g=(filters:!(),refreshInterval:(pause:!t,value:60000),time:(from:now-15m,to:now))"
 	kibanaLogInternalUrl     = "http://localhost:5601/internal/controls/optionsList/logs-*-*"
 )
