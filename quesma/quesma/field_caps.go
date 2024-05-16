@@ -182,6 +182,15 @@ func handleFieldCapsIndex(ctx context.Context, indexes []string, tables clickhou
 	return json.Marshal(fieldCapsResponse)
 }
 
+func EmptyFieldCapsResponse() []byte {
+	var response = model.FieldCapsResponse{
+		Fields:  make(map[string]map[string]model.FieldCapability),
+		Indices: []string{},
+	}
+	serialized, _ := json.Marshal(response)
+	return serialized
+}
+
 func isInternalColumn(col *clickhouse.Column) bool {
 	return col.Name == clickhouse.AttributesKeyColumn || col.Name == clickhouse.AttributesValueColumn
 }
