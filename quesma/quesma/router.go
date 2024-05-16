@@ -142,20 +142,18 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		}
 	})
 
-	router.RegisterPathMatcher(routes.GlobalSearchPath, []string{"GET", "POST"}, matchAgainstKibanaAlerts(),
-		func(ctx context.Context, body string, _ string, params map[string]string, _ http.Header, _ url.Values) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.GlobalSearchPath, []string{"GET", "POST"}, matchAgainstKibanaAlerts(), func(ctx context.Context, body string, _ string, params map[string]string, _ http.Header, _ url.Values) (*mux.Result, error) {
 
-			responseBody, err := queryRunner.handleSearch(ctx, "*", []byte(body))
-			if err != nil {
-				if errors.Is(errIndexNotExists, err) {
-					return &mux.Result{StatusCode: 404}, nil
-				} else {
-					return nil, err
-				}
+		responseBody, err := queryRunner.handleSearch(ctx, "*", []byte(body))
+		if err != nil {
+			if errors.Is(errIndexNotExists, err) {
+				return &mux.Result{StatusCode: 404}, nil
+			} else {
+				return nil, err
 			}
-			return elasticsearchQueryResult(string(responseBody), httpOk), nil
-
-		})
+		}
+		return elasticsearchQueryResult(string(responseBody), httpOk), nil
+	})
 
 	router.RegisterPathMatcher(routes.IndexSearchPath, []string{"GET", "POST"}, matchedAgainstPattern(cfg), func(ctx context.Context, body string, _ string, params map[string]string, _ http.Header, _ url.Values) (*mux.Result, error) {
 		responseBody, err := queryRunner.handleSearch(ctx, params["index"], []byte(body))
