@@ -121,7 +121,11 @@ func (c IndexConfiguration) String() string {
 	)
 
 	if len(c.FullTextFields) > 0 {
-		return fmt.Sprintf("%s, fullTextFields: %s", str, strings.Join(c.FullTextFields, ", "))
+		str = fmt.Sprintf("%s, fullTextFields: %s", str, strings.Join(c.FullTextFields, ", "))
+	}
+
+	if c.TimestampField != nil {
+		return fmt.Sprintf("%s, timestampField: %s", str, *c.TimestampField)
 	} else {
 		return str
 	}
