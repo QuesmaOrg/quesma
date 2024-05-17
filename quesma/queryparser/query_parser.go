@@ -499,9 +499,11 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 			for _, subQuery := range subQueries {
 				cw.AddTokenToHighlight(subQuery)
 				if fieldName == "_id" { // We compute this field on the fly using our custom logic, so we have to parse it differently
-					return cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
+					query := cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
+					statements = append(statements, query.Sql)
+				} else {
+					statements = append(statements, NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE "+"'%"+subQuery+"%'"))
 				}
-				statements = append(statements, NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE "+"'%"+subQuery+"%'"))
 			}
 			return newSimpleQuery(or(statements), true)
 		}
