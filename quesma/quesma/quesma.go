@@ -116,7 +116,9 @@ type router struct {
 }
 
 func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, logManager *clickhouse.LogManager) {
-	defer recovery.LogPanicWithCtx(ctx)
+	defer recovery.LogAndHandlePanic(ctx, func() {
+		w.WriteHeader(500)
+	})
 	if router.Matches(req.URL.Path, req.Method, string(reqBody)) {
 		var elkResponseChan = make(chan elasticResult)
 
