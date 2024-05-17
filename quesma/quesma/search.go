@@ -232,6 +232,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				}
 				oldHandlingUsed = true
 				fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
+				queries := []model.Query{*fullQuery}
+				_ = queries
+				columnsSlice := make([][]string, 1)
+				columnsSlice[0] = columns
 				if optAsync != nil {
 					go func() {
 						defer recovery.LogAndHandlePanic(ctx, func() {
