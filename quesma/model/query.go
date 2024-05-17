@@ -31,23 +31,18 @@ type Query struct {
 	CanParse        bool     // true <=> query is valid
 	QueryInfo       SearchQueryInfo
 	Highlighter     Highlighter
-	NoDBQuery       bool   // true <=> we don't need query to DB here, true in some pipeline aggregations
-	Parent          string // parent aggregation name, used in some pipeline aggregations
-}
-
-var NoMetadataField JsonMap = nil
-
-// implements String() (now) and MakeResponse() interface (in the future (?))
-type QueryWithAggregation struct {
-	Query
-	Aggregators []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
-	Type        QueryType
+	NoDBQuery       bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
+	Parent          string       // parent aggregation name, used in some pipeline aggregations
+	Aggregators     []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
+	Type            QueryType
 	// dictionary to add as 'meta' field in the response.
 	// WARNING: it's probably not passed everywhere where it's needed, just in one place.
 	// But it works for the test + our dashboards, so let's fix it later if necessary.
 	// NoMetadataField (nil) is a valid option and means no meta field in the response.
 	Metadata JsonMap
 }
+
+var NoMetadataField JsonMap = nil
 
 // returns string with * in SELECT
 func (q *Query) String() string {
@@ -165,7 +160,7 @@ func (q *Query) IsWildcard() bool {
 }
 
 // CopyAggregationFields copies all aggregation fields from qwa to q
-func (q *QueryWithAggregation) CopyAggregationFields(qwa QueryWithAggregation) {
+func (q *Query) CopyAggregationFields(qwa Query) {
 	q.GroupByFields = make([]string, len(qwa.GroupByFields))
 	copy(q.GroupByFields, qwa.GroupByFields)
 
@@ -180,7 +175,7 @@ func (q *QueryWithAggregation) CopyAggregationFields(qwa QueryWithAggregation) {
 }
 
 // RemoveEmptyGroupBy removes EmptyFieldSelection from GroupByFields
-func (q *QueryWithAggregation) RemoveEmptyGroupBy() {
+func (q *Query) RemoveEmptyGroupBy() {
 	nonEmptyFields := make([]string, 0)
 	for _, field := range q.GroupByFields {
 		if field != EmptyFieldSelection {
@@ -192,7 +187,7 @@ func (q *QueryWithAggregation) RemoveEmptyGroupBy() {
 
 // TrimKeywordFromFields trims .keyword from fields and group by fields
 // In future probably handle it in a better way
-func (q *QueryWithAggregation) TrimKeywordFromFields(ctx context.Context) {
+func (q *Query) TrimKeywordFromFields(ctx context.Context) {
 	for i := range q.Fields {
 		if strings.HasSuffix(q.Fields[i], `.keyword"`) {
 			logger.WarnWithCtx(ctx).Msgf("trimming .keyword from field %s", q.Fields[i])
@@ -219,7 +214,7 @@ func (q *QueryWithAggregation) TrimKeywordFromFields(ctx context.Context) {
 // Name returns the name of this aggregation (specifically, the last aggregator)
 // So for nested aggregation {"a": {"b": {"c": this aggregation}}}, it returns "c".
 // In some queries aggregations are referenced by full name, so "a>b>c", but so far this implementation seems sufficient.
-func (q *QueryWithAggregation) Name() string {
+func (q *Query) Name() string {
 	if len(q.Aggregators) == 0 {
 		return ""
 	}
@@ -228,12 +223,12 @@ func (q *QueryWithAggregation) Name() string {
 
 // HasParentAggregation returns true <=> this aggregation has a parent aggregation, so there's no query to the DB,
 // and results are calculated based on parent aggregation's results.
-func (q *QueryWithAggregation) HasParentAggregation() bool {
+func (q *Query) HasParentAggregation() bool {
 	return q.NoDBQuery && len(q.Parent) > 0 // first condition should be enough, second just in case
 }
 
 // IsChild returns true <=> this aggregation is a child of maybeParent (so maybeParent is its parent).
-func (q *QueryWithAggregation) IsChild(maybeParent QueryWithAggregation) bool {
+func (q *Query) IsChild(maybeParent Query) bool {
 	return q.HasParentAggregation() && q.Parent == maybeParent.Name()
 }
 

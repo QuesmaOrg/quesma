@@ -529,8 +529,8 @@ func TestAggregationParser(t *testing.T) {
 }
 
 // Used in tests to make processing `aggregations` in a deterministic way
-func sortAggregations(aggregations []model.QueryWithAggregation) {
-	slices.SortFunc(aggregations, func(a, b model.QueryWithAggregation) int {
+func sortAggregations(aggregations []model.Query) {
+	slices.SortFunc(aggregations, func(a, b model.Query) int {
 		for i := range min(len(a.Aggregators), len(b.Aggregators)) {
 			if a.Aggregators[i].Name != b.Aggregators[i].Name {
 				return cmp.Compare(a.Aggregators[i].Name, b.Aggregators[i].Name)
