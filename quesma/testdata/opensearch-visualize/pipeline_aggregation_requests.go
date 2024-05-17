@@ -2100,7 +2100,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z')  ` +
 				`GROUP BY ("clientip") ` +
-				`ORDER BY ("clientip")`,
+				`ORDER BY count() DESC ` +
+				`LIMIT 5`,
 		},
 	},
 	{ // [12]

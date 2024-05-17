@@ -40,17 +40,17 @@ func (query MinBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 }
 
 func (query MinBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows []model.QueryResultRow) []model.QueryResultRow {
-	fmt.Println("hoho")
-	fmt.Println(parentRows)
 	resultRows := make([]model.QueryResultRow, 0)
 	if len(parentRows) == 0 {
 		return resultRows // maybe null?
 	}
 	qp := queryprocessor.NewQueryProcessor(query.ctx)
-	for _, parentRowsOneBucket := range qp.SplitResultSetIntoBuckets(parentRows, len(parentRows[0].Cols)-3) {
+	parentFieldsCnt := len(parentRows[0].Cols) - 2 // -2, because row is [parent_cols..., current_key, current_value]
+	// in calculateSingleAvgBucket we calculate avg all current_keys with the same parent_cols
+	// so we need to split into buckets based on parent_cols
+	for _, parentRowsOneBucket := range qp.SplitResultSetIntoBuckets(parentRows, parentFieldsCnt) {
 		resultRows = append(resultRows, query.calculateSingleMinBucket(parentRowsOneBucket))
 	}
-	fmt.Println("resultRows", resultRows)
 	return resultRows
 }
 
@@ -76,16 +76,21 @@ func (query MinBucket) calculateSingleMinBucket(parentRows []model.QueryResultRo
 				resultKeys = append(resultKeys, query.getKey(row))
 			}
 		}
-	} else {
+	} else if firstRowValueInt, firstRowValueIsInt := util.ExtractInt64Maybe(parentRows[0].LastColValue()); firstRowValueIsInt {
 		// find min
-		minValue := util.ExtractInt64(parentRows[0].LastColValue())
+		minValue := firstRowValueInt
 		for _, row := range parentRows[1:] {
-			minValue = min(minValue, util.ExtractInt64(row.LastColValue()))
+			value, ok := util.ExtractInt64Maybe(row.LastColValue())
+			if ok {
+				minValue = min(minValue, value)
+			} else {
+				logger.WarnWithCtx(query.ctx).Msgf("could not convert value to float: %v, type: %T. Skipping", row.LastColValue(), row.LastColValue())
+			}
 		}
 		resultValue = minValue
 		// find keys with min value
 		for _, row := range parentRows {
-			if value := util.ExtractInt64(row.LastColValue()); value == minValue {
+			if value, ok := util.ExtractInt64Maybe(row.LastColValue()); ok && value == minValue {
 				resultKeys = append(resultKeys, query.getKey(row))
 			}
 		}

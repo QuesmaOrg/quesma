@@ -7,8 +7,7 @@ import (
 )
 
 type BucketScript struct {
-	ctx   context.Context
-	index string // name of the index (table)
+	ctx context.Context
 }
 
 func NewBucketScript(ctx context.Context) BucketScript {

@@ -49,23 +49,35 @@ func (cw *ClickhouseQueryTranslator) parseDerivative(queryMap QueryMap) (aggrega
 	if !exists {
 		return
 	}
-
-	derivative, ok := derivativeRaw.(QueryMap)
+	bucketsPath, ok := cw.parseBucketsPath(derivativeRaw, "derivative")
 	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("derivative is not a map, but %T, value: %v", derivativeRaw, derivativeRaw)
-		return
-	}
-	bucketsPathRaw, exists := derivative["buckets_path"]
-	if !exists {
-		logger.WarnWithCtx(cw.Ctx).Msg("no buckets_path in derivative")
-		return
-	}
-	bucketsPath, ok := bucketsPathRaw.(string)
-	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a string, but %T, value: %v", bucketsPathRaw, bucketsPathRaw)
 		return
 	}
 	return pipeline_aggregations.NewDerivative(cw.Ctx, bucketsPath), true
+}
+
+func (cw *ClickhouseQueryTranslator) parseAverageBucket(queryMap QueryMap) (aggregationType model.QueryType, success bool) {
+	avgBucketRaw, exists := queryMap["avg_bucket"]
+	if !exists {
+		return
+	}
+	bucketsPath, ok := cw.parseBucketsPath(avgBucketRaw, "avg_bucket")
+	if !ok {
+		return
+	}
+	return pipeline_aggregations.NewAverageBucket(cw.Ctx, bucketsPath), true
+}
+
+func (cw *ClickhouseQueryTranslator) parseMinBucket(queryMap QueryMap) (aggregationType model.QueryType, success bool) {
+	minBucketRaw, exists := queryMap["min_bucket"]
+	if !exists {
+		return
+	}
+	bucketsPath, ok := cw.parseBucketsPath(minBucketRaw, "min_bucket")
+	if !ok {
+		return
+	}
+	return pipeline_aggregations.NewMinBucket(cw.Ctx, bucketsPath), true
 }
 
 func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (aggregationType model.QueryType, success bool) {
@@ -122,18 +134,6 @@ func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (
 	return pipeline_aggregations.NewBucketScript(cw.Ctx), true
 }
 
-func (cw *ClickhouseQueryTranslator) parseAverageBucket(queryMap QueryMap) (aggregationType model.QueryType, success bool) {
-	avgBucketRaw, exists := queryMap["avg_bucket"]
-	if !exists {
-		return
-	}
-	bucketsPath, ok := cw.parseBucketsPath(avgBucketRaw, "avg_bucket")
-	if !ok {
-		return
-	}
-	return pipeline_aggregations.NewAverageBucket(cw.Ctx, bucketsPath), true
-}
-
 func (cw *ClickhouseQueryTranslator) parseBucketsPath(shouldBeQueryMap any, aggregationName string) (bucketsPath string, success bool) {
 	queryMap, ok := shouldBeQueryMap.(QueryMap)
 	if !ok {
@@ -151,31 +151,6 @@ func (cw *ClickhouseQueryTranslator) parseBucketsPath(shouldBeQueryMap any, aggr
 		return
 	}
 	return bucketsPath, true
-}
-
-func (cw *ClickhouseQueryTranslator) parseMinBucket(queryMap QueryMap) (aggregationType model.QueryType, success bool) {
-	avgBucketRaw, exists := queryMap["min_bucket"]
-	if !exists {
-		return
-	}
-
-	avgBucket, ok := avgBucketRaw.(QueryMap)
-	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("avg_bucket is not a map, but %T, value: %v", avgBucketRaw, avgBucketRaw)
-		return
-	}
-	bucketsPathRaw, exists := avgBucket["buckets_path"]
-	if !exists {
-		logger.WarnWithCtx(cw.Ctx).Msg("no buckets_path in avg_bucket")
-		return
-	}
-	bucketsPath, ok := bucketsPathRaw.(string)
-	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a string, but %T, value: %v", bucketsPathRaw, bucketsPathRaw)
-		return
-	}
-
-	return pipeline_aggregations.NewMinBucket(cw.Ctx, bucketsPath), true
 }
 
 func (b *aggrQueryBuilder) buildPipelineAggregation(aggregationType model.QueryType, metadata model.JsonMap) model.Query {
