@@ -2,7 +2,7 @@ package queryparser
 
 import (
 	"encoding/json"
-	"errors"
+
 	"fmt"
 	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/clickhouse"
@@ -652,12 +652,24 @@ func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) SimpleQuery 
 	return newSimpleQuery(NewSimpleStatement("no query in nested query"), false)
 }
 
-
-func parseDateMathExpression(expr string) string {
+func parseDateMathExpression(expr string) (string, error) {
 	expr = strings.ReplaceAll(expr, "'", "")
-	exp := parseDateMathExpr(expr)
-	builder := &clickhouseDateMathExpressionBuilder{}
-	return builder.build(exp)
+
+	exp, err := ParseDateMathExpression(expr)
+	if err != nil {
+		logger.Warn().Msgf("error parsing date math expression: %s", expr)
+		return "", err
+	}
+
+	builder := &DateMathAsClickhouseIntervals{}
+
+	sql, err := builder.RenderSQL(exp)
+	if err != nil {
+		logger.Warn().Msgf("error rendering date math expression: %s", expr)
+		return "", err
+	}
+
+	return sql, nil
 }
 
 // DONE: tested in CH, it works for date format 'YYYY-MM-DDTHH:MM:SS.SSSZ'
@@ -698,7 +710,11 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 						if _, err := time.Parse(time.RFC3339Nano, dateTime); err == nil {
 							vToPrint = cw.parseDateTimeString(cw.Table, field, dateTime)
 						} else if op == "gte" || op == "lte" || op == "gt" || op == "lt" {
-							vToPrint = parseDateMathExpression(vToPrint)
+							vToPrint, err = parseDateMathExpression(vToPrint)
+							if err != nil {
+								logger.WarnWithCtx(cw.Ctx).Msgf("error parsing date math expression: %s", vToPrint)
+								return newSimpleQuery(NewSimpleStatement("error parsing date math expression: "+vToPrint), false)
+							}
 						}
 					} else if v == nil {
 						vToPrint = "NULL"

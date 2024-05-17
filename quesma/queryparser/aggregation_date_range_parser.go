@@ -6,8 +6,10 @@ import (
 	"unicode"
 )
 
-func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(dateRange QueryMap) bucket_aggregations.DateRange {
+func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(dateRange QueryMap) (bucket_aggregations.DateRange, error) {
+	var err error
 	var fieldName, format string
+
 	if field, exists := dateRange["field"]; exists {
 		if fieldNameRaw, ok := field.(string); ok {
 			fieldName = cw.Table.ResolveField(cw.Ctx, fieldNameRaw)
@@ -41,7 +43,10 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(dateRange QueryMa
 		from, exists := rangeMap["from"]
 		if exists {
 			if fromRaw, ok := from.(string); ok {
-				intervalBegin = cw.parseDateTimeInClickhouseMathLanguage(fromRaw)
+				intervalBegin, err = cw.parseDateTimeInClickhouseMathLanguage(fromRaw)
+				if err != nil {
+					return bucket_aggregations.DateRange{}, err
+				}
 				selectColumnsNr++
 			} else {
 				logger.WarnWithCtx(cw.Ctx).Msgf("from specified for date range aggregation is not a string. Querymap: %v "+
@@ -54,7 +59,10 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(dateRange QueryMa
 		to, exists := rangeMap["to"]
 		if exists {
 			if toRaw, ok := to.(string); ok {
-				intervalEnd = cw.parseDateTimeInClickhouseMathLanguage(toRaw)
+				intervalEnd, err = cw.parseDateTimeInClickhouseMathLanguage(toRaw)
+				if err != nil {
+					return bucket_aggregations.DateRange{}, err
+				}
 				selectColumnsNr++
 			} else {
 				logger.WarnWithCtx(cw.Ctx).Msgf("To specified for date range aggregation is not a string. Querymap: %v "+
@@ -66,21 +74,25 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(dateRange QueryMa
 		}
 		intervals = append(intervals, bucket_aggregations.NewDateTimeInterval(intervalBegin, intervalEnd))
 	}
-	return bucket_aggregations.NewDateRange(cw.Ctx, fieldName, format, intervals, selectColumnsNr)
+	return bucket_aggregations.NewDateRange(cw.Ctx, fieldName, format, intervals, selectColumnsNr), nil
 }
 
 // parseDateTimeInClickhouseMathLanguage parses dateTime from Clickhouse's format
 // It's described here: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-daterange-aggregation.html
 // Maybe not 100% of it is implemented, not sure.
-func (cw *ClickhouseQueryTranslator) parseDateTimeInClickhouseMathLanguage(dateTime string) string {
+func (cw *ClickhouseQueryTranslator) parseDateTimeInClickhouseMathLanguage(dateTime string) (string, error) {
 	// So far we've seen only either:
 	// 1. 2024-01-01 format
 	if cw.isSimpleDate(dateTime) {
-		return "'" + dateTime + "'"
+		return "'" + dateTime + "'", nil
 	}
 	// 2. expressions like now() or now()-1d
-	parsedWithoutRounding := parseDateMathExpression(dateTime)
-	return cw.addRoundingToClickhouseDateTime(dateTime, parsedWithoutRounding)
+	res, err := parseDateMathExpression(dateTime)
+	if err != nil {
+		return "", err
+	}
+	return res, nil
+
 }
 
 // isSimpleDate returns true if the given dateTime is a simple date string in format 2024-04-15

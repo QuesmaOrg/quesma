@@ -2,7 +2,6 @@ package queryparser
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
@@ -438,43 +437,6 @@ func TestOrAndAnd(t *testing.T) {
 	}
 }
 
-func TestQueryParserTimeUnit(t *testing.T) {
-	unitMappings := map[string]string{
-		"m": "minute",
-		"s": "second",
-		"h": "hour",
-		"H": "hour",
-		"d": "day",
-		"w": "week",
-		"M": "month",
-		"y": "year",
-	}
-	for inputUnit, expectedUnit := range unitMappings {
-		unit, err := parseTimeUnit(inputUnit)
-		require.NoError(t, err)
-		assert.Equal(t, expectedUnit, unit)
-	}
-	_, err := parseTimeUnit("unknown")
-	require.Error(t, err)
-}
-
-func TestQueryDateMathExpressionTokenizer(t *testing.T) {
-	exprs := map[string][]string{
-		"now-15m":     {"now", "-", "15", "m"},
-		"now-15m-25s": {"now", "-", "15", "m", "-", "25", "s"},
-		"no":          {},
-		"noy":         {},
-		"now*":        {"now"},
-		"now+a":       {"now", "+"},
-		"now+5QQ":     {"now", "+", "5", "Q"},
-	}
-	for expr, expectedTokens := range exprs {
-		tokens := tokenizeDateMathExpr(expr)
-		assert.Equal(t, len(expectedTokens), len(tokens))
-		assert.Equal(t, expectedTokens, tokens)
-	}
-}
-
 func TestQueryParseDateMathExpression(t *testing.T) {
 	exprs := map[string]string{
 		"now-15m":    "subDate(now(), INTERVAL 15 minute)",
@@ -483,7 +445,8 @@ func TestQueryParseDateMathExpression(t *testing.T) {
 		"now-15m+":   "subDate(now(), INTERVAL 15 minute)",
 	}
 	for expr, expected := range exprs {
-		resultExpr := parseDateMathExpression(expr)
+		resultExpr, err := parseDateMathExpression(expr)
+		assert.Nil(t, err)
 		assert.Equal(t, expected, resultExpr)
 	}
 }

@@ -2,23 +2,159 @@ package queryparser
 
 import (
 	"errors"
-	"mitmproxy/quesma/logger"
-	"unicode"
+	"fmt"
+	"strconv"
+	"strings"
 )
 
 type timeUnit string
 
-type interval struct {
+var timeUnits = []timeUnit{"m", "s", "h", "d", "w", "M", "y"}
+
+type DateMathInterval struct {
 	amount int
 	unit   timeUnit
 }
 
-type dateMathExpression struct {
-	intervals []interval
+type DateMathExpression struct {
+	intervals []DateMathInterval
 	rounding  timeUnit
 }
 
-func parseTimeUnit(timeUnit string) (string, error) {
+func ParseDateMathExpression(input string) (*DateMathExpression, error) {
+
+	result := &DateMathExpression{}
+	result.intervals = []DateMathInterval{}
+
+	result.rounding = ""
+
+	const NOW_LENGTH = 3
+	const OPERATOR_ADD = '+'
+	const OPERATOR_SUB = '-'
+	const ROUNDING = '/'
+
+	const now = "now"
+
+	expr := input
+
+	if strings.HasPrefix(expr, now) {
+		expr = expr[NOW_LENGTH:]
+	} else {
+		return nil, fmt.Errorf("invalid date math expression: 'now' keyword expected")
+	}
+
+	var number string
+	var rounding bool
+	for index := 0; index < len(expr); index++ {
+
+		letter := expr[index]
+
+		switch letter {
+
+		case OPERATOR_ADD:
+			number = string(expr[index])
+		case OPERATOR_SUB:
+			number = string(expr[index])
+
+		case ROUNDING:
+			rounding = true
+
+		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+
+			number = number + string(expr[index])
+
+		case 'm', 's', 'h', 'd', 'w', 'M', 'y', 'Y':
+
+			if rounding {
+				result.rounding = timeUnit(expr[index])
+
+				if len(expr[index:]) > 1 {
+					return nil, fmt.Errorf("garbage at the end of expression: %s", expr[1:])
+				}
+
+			} else {
+
+				if len(number) == 0 {
+					return nil, fmt.Errorf("number expected in date math expression %s", expr)
+				} else {
+					val, err := strconv.Atoi(number)
+					if err != nil {
+						return nil, fmt.Errorf("invalid number in date math expression %s", number)
+					}
+
+					result.intervals = append(result.intervals, DateMathInterval{amount: val, unit: timeUnit(expr[index])})
+					number = ""
+				}
+
+			}
+
+		default:
+			return nil, fmt.Errorf("invalid character in date math expression '%s' expr: %s", string(expr[index]), input)
+		}
+	}
+
+	return result, nil
+
+}
+
+type DateMathExpressionRenderer interface {
+	RenderSQL(expression *DateMathExpression) (string, error)
+}
+
+type DateMathAsClickhouseIntervals struct{}
+
+func (b *DateMathAsClickhouseIntervals) RenderSQL(expression *DateMathExpression) (string, error) {
+
+	var result string
+
+	result = "now()"
+
+	for _, interval := range expression.intervals {
+
+		if interval.amount == 0 {
+			continue
+		}
+
+		amount := interval.amount
+
+		var op string
+		if amount < 0 {
+			op = "subDate"
+			amount = -amount
+		} else {
+			op = "addDate"
+		}
+
+		unit, err := b.parseTimeUnit(interval.unit)
+		if err != nil {
+			return "", fmt.Errorf("invalid time unit: %s", interval.unit)
+		}
+
+		result = fmt.Sprintf("%s(%s, INTERVAL %d %s)", op, result, amount, unit)
+	}
+
+	const defaultRounding = 'd'
+	var roundingFunction = map[string]string{
+		"d": "toStartOfDay",
+		"w": "toStartOfWeek",
+		"M": "toStartOfMonth",
+		"Y": "toStartOfYear",
+	}
+
+	if expression.rounding != "" {
+
+		fn := roundingFunction["d"]
+		if function, ok := roundingFunction[string(expression.rounding)]; ok {
+			fn = function
+		}
+		result = fmt.Sprintf("%s(%s)", fn, result)
+
+	}
+
+	return result, nil
+}
+
+func (b *DateMathAsClickhouseIntervals) parseTimeUnit(timeUnit timeUnit) (string, error) {
 	switch timeUnit {
 	case "m":
 		return "minute", nil
@@ -36,102 +172,4 @@ func parseTimeUnit(timeUnit string) (string, error) {
 		return "year", nil
 	}
 	return "", errors.New("unsupported time unit")
-}
-
-func tokenizeDateMathExpr(expr string) []string {
-	tokens := make([]string, 0)
-	const NOW_LENGTH = 3
-	const OPERATOR_ADD = '+'
-	const OPERATOR_SUB = '-'
-	for index := 0; index < len(expr); index++ {
-		// This is now keyword
-		if expr[index] == 'n' {
-			if len(expr) < NOW_LENGTH {
-				return tokens
-			}
-			index = index + NOW_LENGTH
-			token := expr[:index]
-			if token != "now" {
-				return tokens
-			}
-			tokens = append(tokens, token)
-		}
-		if index < len(expr) && (expr[index] == OPERATOR_ADD || expr[index] == OPERATOR_SUB) {
-			token := expr[index : index+1]
-			tokens = append(tokens, token)
-			index = index + 1
-		} else {
-			logger.Error().Msgf("operator expected in date math expression '%s'", expr)
-			return tokens
-		}
-		var number string
-		for ; index < len(expr)-1; index++ {
-			if !unicode.IsDigit(rune(expr[index])) {
-				break
-			}
-			if unicode.IsDigit(rune(expr[index])) {
-				number = number + string(expr[index])
-			}
-		}
-		// Check if number has been tokenized
-		// correctly and if not, return tokens
-		if len(number) == 0 {
-			logger.Error().Msgf("number expected in date math expression '%s'", expr)
-			return tokens
-		}
-		tokens = append(tokens, number)
-		token := expr[index]
-		tokens = append(tokens, string(token))
-	}
-	return tokens
-}
-
-func parseDateMathExpr(expr string) dateMathExpression {
-	return dateMathExpression{tokens: tokenizeDateMathExpr(expr), rounding: "d"}
-}
-
-type mathExpressionBuilder interface {
-	build(expression dateMathExpression) string
-}
-
-type clickhouseDateMathExpressionBuilder struct{}
-
-func (b *clickhouseDateMathExpressionBuilder) build(expression dateMathExpression) string {
-	return b.build1(expression.tokens)
-}
-
-func (builder *clickhouseDateMathExpressionBuilder) build1(tokens []string) string {
-	const NEXT_OP_DISTANCE = 3
-	const TIME_UNIT_DISTANCE = 2
-	const TIME_AMOUNT_DISTANCE = 1
-	if len(tokens) == 0 {
-		return ""
-	}
-	tokenIndex := 0
-	currentExpr := tokens[tokenIndex]
-	switch currentExpr {
-	case "now":
-		currentExpr = "now()"
-	default:
-		logger.Error().Msg("unsupported date math argument")
-	}
-	tokenIndex = tokenIndex + 1
-	for tokenIndex+TIME_UNIT_DISTANCE < len(tokens) {
-		op := tokens[tokenIndex]
-		switch op {
-		case "+":
-			op = "addDate"
-		case "-":
-			op = "subDate"
-		}
-		timeUnit, err := parseTimeUnit(tokens[tokenIndex+TIME_UNIT_DISTANCE])
-		if err != nil {
-			logger.Error().Msg(err.Error())
-			return ""
-		}
-		timeAmount := tokens[tokenIndex+TIME_AMOUNT_DISTANCE]
-		currentExpr = op + "(" + currentExpr + "," + " INTERVAL " + timeAmount + " " + timeUnit + ")"
-		tokenIndex = tokenIndex + NEXT_OP_DISTANCE
-	}
-	return currentExpr
 }
