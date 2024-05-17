@@ -237,7 +237,14 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						defer recovery.LogAndHandlePanic(ctx, func() {
 							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 						})
-						q.searchWorker(ctx, *fullQuery, columns, queryTranslator, table, optAsync)
+						translatedQueryBody, hits = q.searchWorker(ctx, *fullQuery, columns, queryTranslator, table, optAsync)
+						searchResponse, err := queryTranslator.MakeSearchResponse(hits, fullQuery.QueryInfo.Typ, fullQuery.Highlighter)
+						if err != nil {
+							logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, fullQuery.QueryInfo, hits)
+							optAsync.doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
+							return
+						}
+						optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: nil}
 					}()
 				} else {
 					translatedQueryBody, hits = q.searchWorker(ctx, *fullQuery, columns, queryTranslator, table, nil)
@@ -250,7 +257,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						defer recovery.LogAndHandlePanic(ctx, func() {
 							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 						})
-						q.searchAggregationWorker(ctx, aggregations, columns, queryTranslator, table, optAsync)
+						translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, aggregations, columns, queryTranslator, table, optAsync)
+						searchResponse := queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
+						optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: nil}
 					}()
 				} else {
 					translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, aggregations, columns, queryTranslator, table, nil)
@@ -514,19 +523,6 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery model.Qu
 	translatedQueryBody = []byte(fullQuery.String())
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", hits, err)
-		if optAsync != nil {
-			optAsync.doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
-			return
-		}
-	}
-	if optAsync != nil {
-		searchResponse, err := queryTranslator.MakeSearchResponse(hits, fullQuery.QueryInfo.Typ, fullQuery.Highlighter)
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, fullQuery.QueryInfo, hits)
-			optAsync.doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
-			return
-		}
-		optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: nil}
 	}
 	return
 }
@@ -567,10 +563,6 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggrega
 		resultRows = append(resultRows, postprocessedRows)
 	}
 	translatedQueryBody = []byte(sqls)
-	if optAsync != nil {
-		searchResponse := queryTranslator.MakeResponseAggregation(aggregations, resultRows)
-		optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: nil}
-	}
 	return
 }
 
