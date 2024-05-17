@@ -527,7 +527,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery model.Qu
 	return
 }
 
-func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggregations []model.Query,
+func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, queries []model.Query,
 	columns []string,
 	queryTranslator IQueryTranslator, table *clickhouse.Table,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
@@ -545,21 +545,19 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, aggrega
 	} else {
 		dbQueryCtx = ctx
 	}
-	logger.InfoWithCtx(ctx).Msg("we're using new Aggregation handling.")
-	for _, agg := range aggregations {
-		logger.InfoWithCtx(ctx).Msgf("aggregation: %+v", agg)
-		if agg.NoDBQuery {
-			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", agg)
+	for _, query := range queries {
+		if query.NoDBQuery {
+			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
 		} else {
-			logger.InfoWithCtx(ctx).Msgf("SQL: %s", agg.String())
-			sqls += agg.String() + "\n"
+			logger.InfoWithCtx(ctx).Msgf("SQL: %s", query.String())
+			sqls += query.String() + "\n"
 		}
-		rows, err := q.logManager.ProcessQuery(dbQueryCtx, table, &agg, nil)
+		rows, err := q.logManager.ProcessQuery(dbQueryCtx, table, &query, nil)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			continue
 		}
-		postprocessedRows := agg.Type.PostprocessResults(rows)
+		postprocessedRows := query.Type.PostprocessResults(rows)
 		resultRows = append(resultRows, postprocessedRows)
 	}
 	translatedQueryBody = []byte(sqls)
