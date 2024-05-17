@@ -515,7 +515,7 @@ func TestAggregationParser(t *testing.T) {
 	for testIdx, test := range aggregationTests {
 		t.Run(strconv.Itoa(testIdx), func(t *testing.T) {
 			if testIdx == 1 || testIdx == 2 || testIdx == 4 || testIdx == 5 || testIdx == 6 || testIdx == 7 ||
-				testIdx == 9 || testIdx == 11 || testIdx == 12 || testIdx == 13 {
+				testIdx == 9 || testIdx == 11 || testIdx == 12 {
 				t.Skip("We can't handle one hardest request properly yet") // Let's skip in this PR. Next one already fixes some of issues here.
 			}
 			aggregations, err := cw.ParseAggregationJson(test.aggregationJson)
