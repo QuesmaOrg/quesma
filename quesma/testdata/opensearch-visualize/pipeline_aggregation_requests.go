@@ -564,7 +564,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 	},
 	{ // [4]
-<<<<<<< HEAD
 		TestName: "Simplest Derivative (count). Reproduce: Visualize -> Vertical Bar: Metrics: Derivative (Aggregation: Count), Buckets: Histogram",
 		QueryRequestJson: `
 		{
@@ -1174,8 +1173,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 	},
 	{ // [7]
-=======
->>>>>>> ff68d4c (Before rebase)
 		TestName: "Simplest avg_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Average Bucket (Bucket: Date Histogram, Metric: Count)",
 		QueryRequestJson: `
 		{
@@ -1303,11 +1300,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
 		},
 	},
-<<<<<<< HEAD
 	{ // [8]
-=======
-	{ // [5]
->>>>>>> ff68d4c (Before rebase)
 		TestName: "avg_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Average Bucket (Bucket: Date Histogram, Metric: Max)",
 		QueryRequestJson: `
 		{
@@ -1470,11 +1463,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 	},
 	/* TODO need fix for date_range and subaggregations. Same one, as already merged ~1-2 weeks ago for range. It's WIP.
-<<<<<<< HEAD
 	{ // [9]
-=======
-	{ // [6]
->>>>>>> ff68d4c (Before rebase)
 		TestName: "avg_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Average Bucket (Bucket: Date Range, Metric: Average), Buckets: X-Asis: Range",
 		QueryRequestJson: `
 		{
@@ -1772,7 +1761,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 	},
 	*/
-<<<<<<< HEAD
 	{ // [10]
 		TestName: "avg_bucket. Reproduce: Visualize -> Horizontal Bar: Metrics: Average Bucket (Bucket: Histogram, Metric: Count), Buckets: X-Asis: Date Histogram",
 		QueryRequestJson: `
@@ -1948,9 +1936,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 	},
 	{ // [11]
-=======
-	{ // [7]
->>>>>>> ff68d4c (Before rebase)
 		TestName: "Simplest min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Count)",
 		QueryRequestJson: `
 		{
@@ -2115,18 +2100,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z') ` +
 				`GROUP BY ("clientip") ` +
-<<<<<<< HEAD
 				`ORDER BY count() DESC ` +
 				`LIMIT 5`,
 		},
 	},
 	{ // [12]
-=======
-				`ORDER BY ("clientip")`,
-		},
-	},
-	{ // [8]
->>>>>>> ff68d4c (Before rebase)
 		TestName: "min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Unique Count)",
 		QueryRequestJson: `
 		{
@@ -2325,11 +2303,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY ("clientip")`,
 		},
 	},
-<<<<<<< HEAD
 	{ // [13]
-=======
-	{ // [9]
->>>>>>> ff68d4c (Before rebase)
 		TestName: "complex min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Sum), Buckets: Split Series: Histogram",
 		QueryRequestJson: `
 		{
@@ -2568,9 +2542,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
 		},
 	},
-<<<<<<< HEAD
-=======
-	{ // [10]
+	{ // [14]
 		TestName: "Simplest max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Terms, Metric: Count)",
 		QueryRequestJson: `
 		{
@@ -2717,7 +2689,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY ("clientip")`,
 		},
 	},
-	{ // [11]
+	{ // [15]
 		TestName: "max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum)",
 		QueryRequestJson: `
 		{
@@ -2922,7 +2894,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY ("clientip")`,
 		},
 	},
-	{ // [12]
+	{ // [16]
 		TestName: "complex max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum), Buckets: Split chart: Rows -> Range",
 		QueryRequestJson: `
 		{
@@ -3195,5 +3167,4 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
 		},
 	},
->>>>>>> ff68d4c (Before rebase)
 }
