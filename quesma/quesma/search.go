@@ -241,7 +241,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						defer recovery.LogAndHandlePanic(ctx, func() {
 							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 						})
-						translatedQueryBody, hits = q.searchWorker(ctx, *fullQuery, columns, table, false, optAsync)
+						translatedQueryBody, hits = q.searchWorker(ctx, queries, columnsSlice, table, false, optAsync)
 						searchResponse, err := queryTranslator.MakeSearchResponse(hits, fullQuery.QueryInfo.Typ, fullQuery.Highlighter)
 						if err != nil {
 							logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, fullQuery.QueryInfo, hits)
@@ -251,7 +251,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: nil}
 					}()
 				} else {
-					translatedQueryBody, hits = q.searchWorker(ctx, *fullQuery, columns, table, false, nil)
+					translatedQueryBody, hits = q.searchWorker(ctx, queries, columnsSlice, table, false, nil)
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
 				newAggregationHandlingUsed = true
@@ -507,8 +507,8 @@ func (q *QueryRunner) makeBasicQuery(ctx context.Context,
 
 func (q *QueryRunner) searchWorkerCommon(
 	ctx context.Context,
-	query model.Query,
-	columns []string,
+	queries []model.Query,
+	columns [][]string,
 	table *clickhouse.Table,
 	doPostProcessing bool,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
@@ -527,13 +527,18 @@ func (q *QueryRunner) searchWorkerCommon(
 	} else {
 		dbQueryCtx = ctx
 	}
-	if query.NoDBQuery {
-		logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
-	} else {
-		logger.InfoWithCtx(ctx).Msgf("SQL: %s", query.String())
-		sqls += query.String() + "\n"
+	columnsIndex := 0
+	for _, query := range queries {
+		if query.NoDBQuery {
+			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
+		} else {
+			logger.InfoWithCtx(ctx).Msgf("SQL: %s", query.String())
+			sqls += query.String() + "\n"
+		}
+		hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, &query, columns[columnsIndex])
+
+		columnsIndex++
 	}
-	hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, &query, columns)
 	translatedQueryBody = []byte(sqls)
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", hits, err)
@@ -586,8 +591,8 @@ func (q *QueryRunner) searchAggregationWorkerCommon(
 }
 
 func (q *QueryRunner) searchWorker(ctx context.Context,
-	fullQuery model.Query,
-	columns []string,
+	fullQuery []model.Query,
+	columns [][]string,
 	table *clickhouse.Table,
 	doPostProcessing bool,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
