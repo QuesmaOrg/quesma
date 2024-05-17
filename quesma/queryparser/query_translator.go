@@ -539,8 +539,8 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []m
 			continue
 		}
 		// fmt.Println("ResultSets[i]", ResultSets[queryIndex], queryIndex, parentIndex)
-		for _, row := range ResultSets[parentIndex] {
-			ResultSets[queryIndex] = append(ResultSets[queryIndex], pipelineQueryType.CalculateResultWhenMissing(row, ResultSets[queryIndex]))
+		for rowNr := range ResultSets[parentIndex] {
+			ResultSets[queryIndex] = append(ResultSets[queryIndex], pipelineQueryType.CalculateResultWhenMissing(rowNr, ResultSets[parentIndex], ResultSets[queryIndex]))
 		}
 		// fmt.Println("ResultSets[i] - post", ResultSets[queryIndex], "i:", queryIndex, "parent:", parentIndex)
 	}
