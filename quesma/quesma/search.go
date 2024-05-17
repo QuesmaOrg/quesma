@@ -501,8 +501,13 @@ func (q *QueryRunner) makeBasicQuery(ctx context.Context,
 	return fullQuery, columns
 }
 
-func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery model.Query, columns []string, queryTranslator IQueryTranslator,
-	table *clickhouse.Table, optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
+func (q *QueryRunner) searchWorkerCommon(
+	ctx context.Context,
+	query model.Query,
+	columns []string,
+	queryTranslator IQueryTranslator,
+	table *clickhouse.Table,
+	optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
 
 	if optAsync != nil && q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, optAsync.doneCh) {
 		return
@@ -519,18 +524,21 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery model.Qu
 		dbQueryCtx = ctx
 	}
 
-	hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, &fullQuery, columns)
-	translatedQueryBody = []byte(fullQuery.String())
+	hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, &query, columns)
+	translatedQueryBody = []byte(query.String())
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", hits, err)
 	}
 	return
 }
 
-func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, queries []model.Query,
+func (q *QueryRunner) searchAggregationWorkerCommon(
+	ctx context.Context,
+	queries []model.Query,
 	columns [][]string,
-	queryTranslator IQueryTranslator, table *clickhouse.Table,
-	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
+	queryTranslator IQueryTranslator,
+	table *clickhouse.Table,
+	optAsync *AsyncQuery) (translatedQueryBody []byte, hits [][]model.QueryResultRow) {
 
 	if optAsync != nil && q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, optAsync.doneCh) {
 		return
@@ -558,7 +566,7 @@ func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, queries
 			continue
 		}
 		postprocessedRows := query.Type.PostprocessResults(rows)
-		resultRows = append(resultRows, postprocessedRows)
+		hits = append(hits, postprocessedRows)
 	}
 	translatedQueryBody = []byte(sqls)
 	return
