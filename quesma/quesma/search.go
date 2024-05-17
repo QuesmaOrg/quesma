@@ -251,7 +251,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
 				newAggregationHandlingUsed = true
-				columns := [][]string{}
+				columns := make([][]string, len(aggregations))
 				if optAsync != nil {
 					go func() {
 						defer recovery.LogAndHandlePanic(ctx, func() {
@@ -553,6 +553,7 @@ func (q *QueryRunner) searchAggregationWorkerCommon(
 	} else {
 		dbQueryCtx = ctx
 	}
+	columnsIndex := 0
 	for _, query := range queries {
 		if query.NoDBQuery {
 			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
@@ -560,13 +561,14 @@ func (q *QueryRunner) searchAggregationWorkerCommon(
 			logger.InfoWithCtx(ctx).Msgf("SQL: %s", query.String())
 			sqls += query.String() + "\n"
 		}
-		rows, err := q.logManager.ProcessQuery(dbQueryCtx, table, &query, nil)
+		rows, err := q.logManager.ProcessQuery(dbQueryCtx, table, &query, columns[columnsIndex])
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			continue
 		}
 		postprocessedRows := query.Type.PostprocessResults(rows)
 		hits = append(hits, postprocessedRows)
+		columnsIndex++
 	}
 	translatedQueryBody = []byte(sqls)
 	return
