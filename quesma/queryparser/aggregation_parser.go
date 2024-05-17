@@ -604,7 +604,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.GroupByFields = append(currentAggr.GroupByFields, groupByStr)
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, groupByStr)
 		delete(queryMap, "histogram")
-		return success, 1, 0, nil
+		return success, 1, 1, nil
 	}
 	if dateHistogramRaw, ok := queryMap["date_histogram"]; ok {
 		dateHistogram, ok := dateHistogramRaw.(QueryMap)
