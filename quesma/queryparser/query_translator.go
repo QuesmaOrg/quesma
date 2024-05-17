@@ -93,7 +93,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.
 
 	// Set the IDs
 	for i, hit := range hits {
-		if id, err := computeIdFromDocument(hit); err != nil {
+		if id, err := cw.computeIdFromDocument(hit); err != nil {
 			hits[i].ID = strconv.Itoa(i + 1)
 		} else {
 			hits[i].ID = id
@@ -325,16 +325,17 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.
 	}
 }
 
-func computeIdFromDocument(doc model.SearchHit) (string, error) {
-	// TBD which fields, eventually configurable
-	/*
-		This is ugly as hell but surprisingly gets the job done.
-		However, works only on strings... if we are concatenating different types, we might end up with something different at ClickHouse/Hydrolix end...
-	*/
-	var timestamp string
-	if v, ok := doc.Fields["timestamp"]; ok {
+func (cw *ClickhouseQueryTranslator) computeIdFromDocument(doc model.SearchHit) (string, error) {
+	var pseudoUniqueFieldName, pseudoUniqueId string
+
+	if v, err := cw.ClickhouseLM.GetPseudoUniqueField(doc.Index); err != nil {
+		return "", fmt.Errorf("missing pseudo unique field for index %s", doc.Index)
+	} else {
+		pseudoUniqueFieldName = v
+	}
+	if v, ok := doc.Fields[pseudoUniqueFieldName]; ok {
 		if vv, okk := v[0].(time.Time); okk {
-			timestamp = strconv.Itoa(int(vv.UnixMilli()))
+			pseudoUniqueId = strconv.Itoa(int(vv.UnixMilli()))
 		} else {
 			fmt.Sprintf("????? FAILed timestamp type assert : [%v]", v)
 		}
@@ -347,7 +348,7 @@ func computeIdFromDocument(doc model.SearchHit) (string, error) {
 	//hash := sha1.Sum([]byte(concat))
 	//hashEncodedToString := hex.EncodeToString(hash[:])
 	//logger.Info().Msgf("hash: [%s]", hashEncodedToString)
-	return timestamp, nil
+	return pseudoUniqueId, nil
 }
 
 func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) *model.SearchResp {
@@ -370,7 +371,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 
 	// Set the IDs
 	for i, hit := range hits {
-		if id, err := computeIdFromDocument(hit); err != nil {
+		if id, err := cw.computeIdFromDocument(hit); err != nil {
 			hits[i].ID = strconv.Itoa(i + 1)
 		} else {
 			hits[i].ID = id

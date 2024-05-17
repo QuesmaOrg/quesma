@@ -299,7 +299,24 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) SimpleQuery {
 
 	//  variant when field is a datetime64
 	//statement := fmt.Sprintf("toUnixTimestamp64Milli(%s) IN (%s) ", strconv.Quote("timestamp"), ids)
-	statement := fmt.Sprintf("toUnixTimestamp(%s) *1000 IN (%s) ", strconv.Quote("timestamp"), ids)
+
+	pseudoUniqueFieldName, err := cw.ClickhouseLM.GetPseudoUniqueField(cw.Table.Name)
+	if err != nil && pseudoUniqueFieldName != "" {
+		return newSimpleQuery(NewSimpleStatement(""), true)
+	}
+	var statement string
+	if v, ok := cw.Table.Cols[pseudoUniqueFieldName]; !ok {
+		switch v.Type.String() {
+		case clickhouse.DateTime64.String():
+			statement = fmt.Sprintf("toUnixTimestamp64Milli(%s) IN (%s) ", strconv.Quote("timestamp"), ids)
+		case clickhouse.DateTime.String():
+			statement = fmt.Sprintf("toUnixTimestamp(%s) *1000 IN (%s) ", strconv.Quote("timestamp"), ids)
+		default:
+			return newSimpleQuery(NewSimpleStatement(""), true)
+		}
+	}
+
+	//statement := fmt.Sprintf("toUnixTimestamp(%s) *1000 IN (%s) ", strconv.Quote("timestamp"), ids)
 
 	return newSimpleQuery(NewSimpleStatement(statement), true)
 }
