@@ -205,7 +205,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		var count int
 
 		table, _ := tables.Load(resolvedTableName)
-
+		if table == nil {
+			continue
+		}
 		var simpleQuery queryparser.SimpleQuery
 
 		queryTranslator = NewQueryTranslator(ctx, queryLanguage, table, q.logManager)
