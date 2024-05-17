@@ -142,9 +142,8 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		}
 	})
 
-	router.RegisterPathMatcher(routes.GlobalSearchPath, []string{"GET", "POST"}, func(_ map[string]string, _ string) bool {
-		return true // for now, always route to Quesma, in the near future: combine results from both sources
-	}, func(ctx context.Context, body string, _ string, params map[string]string, _ http.Header, _ url.Values) (*mux.Result, error) {
+	router.RegisterPathMatcher(routes.GlobalSearchPath, []string{"GET", "POST"}, matchAgainstKibanaAlerts(), func(ctx context.Context, body string, _ string, params map[string]string, _ http.Header, _ url.Values) (*mux.Result, error) {
+
 		responseBody, err := queryRunner.handleSearch(ctx, "*", []byte(body))
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
