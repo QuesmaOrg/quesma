@@ -9,21 +9,23 @@ import (
 	"mitmproxy/quesma/util"
 )
 
-type MinBucket struct {
+type MaxBucket struct {
 	ctx    context.Context
 	Parent string
 	// IsCount bool
 }
 
-func NewMinBucket(ctx context.Context, bucketsPath string) MinBucket {
-	return MinBucket{ctx: ctx, Parent: parseBucketsPathIntoParentAggregationName(ctx, bucketsPath)}
+func NewMaxBucket(ctx context.Context, bucketsPath string) MaxBucket {
+	return MaxBucket{ctx: ctx, Parent: parseBucketsPathIntoParentAggregationName(ctx, bucketsPath)}
 }
 
-func (query MinBucket) IsBucketAggregation() bool {
+func (query MaxBucket) IsBucketAggregation() bool {
 	return false
 }
 
-func (query MinBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+// FIXME I think we should return all rows, not just 1
+// dunno why it's working, maybe I'm wrong
+func (query MaxBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for average bucket aggregation")
 		return []model.JsonMap{nil}
@@ -39,58 +41,54 @@ func (query MinBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 	}
 }
 
-func (query MinBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows []model.QueryResultRow) []model.QueryResultRow {
+// TODO unify with min_bucket, move to common
+func (query MaxBucket) CalculateResultWhenMissing(qwa model.QueryWithAggregation, parentRows []model.QueryResultRow) []model.QueryResultRow {
+	fmt.Println("hoho")
+	fmt.Println(parentRows)
 	resultRows := make([]model.QueryResultRow, 0)
 	if len(parentRows) == 0 {
 		return resultRows // maybe null?
 	}
 	qp := queryprocessor.NewQueryProcessor(query.ctx)
-	parentFieldsCnt := len(parentRows[0].Cols) - 2 // -2, because row is [parent_cols..., current_key, current_value]
-	// in calculateSingleAvgBucket we calculate avg all current_keys with the same parent_cols
-	// so we need to split into buckets based on parent_cols
-	for _, parentRowsOneBucket := range qp.SplitResultSetIntoBuckets(parentRows, parentFieldsCnt) {
+	for _, parentRowsOneBucket := range qp.SplitResultSetIntoBuckets(parentRows, len(parentRows[0].Cols)-3) {
 		resultRows = append(resultRows, query.calculateSingleMinBucket(parentRowsOneBucket))
 	}
+	fmt.Println("resultRows", resultRows)
 	return resultRows
 }
 
 // we're sure len(parentRows) > 0
-func (query MinBucket) calculateSingleMinBucket(parentRows []model.QueryResultRow) model.QueryResultRow {
+func (query MaxBucket) calculateSingleMinBucket(parentRows []model.QueryResultRow) model.QueryResultRow {
 	var resultValue any
 	var resultKeys []any
 	if firstRowValueFloat, firstRowValueIsFloat := util.ExtractFloat64Maybe(parentRows[0].LastColValue()); firstRowValueIsFloat {
-		// find min
-		minValue := firstRowValueFloat
+		// find max
+		maxValue := firstRowValueFloat
 		for _, row := range parentRows[1:] {
 			value, ok := util.ExtractFloat64Maybe(row.LastColValue())
 			if ok {
-				minValue = min(minValue, value)
+				maxValue = max(maxValue, value)
 			} else {
 				logger.WarnWithCtx(query.ctx).Msgf("could not convert value to float: %v, type: %T. Skipping", row.LastColValue(), row.LastColValue())
 			}
 		}
-		resultValue = minValue
-		// find keys with min value
+		resultValue = maxValue
+		// find keys with max value
 		for _, row := range parentRows {
-			if value, ok := util.ExtractFloat64Maybe(row.LastColValue()); ok && value == minValue {
+			if value, ok := util.ExtractFloat64Maybe(row.LastColValue()); ok && value == maxValue {
 				resultKeys = append(resultKeys, getKey(query.ctx, row))
 			}
 		}
-	} else if firstRowValueInt, firstRowValueIsInt := util.ExtractInt64Maybe(parentRows[0].LastColValue()); firstRowValueIsInt {
-		// find min
-		minValue := firstRowValueInt
+	} else {
+		// find max
+		minValue := util.ExtractInt64(parentRows[0].LastColValue())
 		for _, row := range parentRows[1:] {
-			value, ok := util.ExtractInt64Maybe(row.LastColValue())
-			if ok {
-				minValue = min(minValue, value)
-			} else {
-				logger.WarnWithCtx(query.ctx).Msgf("could not convert value to float: %v, type: %T. Skipping", row.LastColValue(), row.LastColValue())
-			}
+			minValue = min(minValue, util.ExtractInt64(row.LastColValue()))
 		}
 		resultValue = minValue
-		// find keys with min value
+		// find keys with max value
 		for _, row := range parentRows {
-			if value, ok := util.ExtractInt64Maybe(row.LastColValue()); ok && value == minValue {
+			if value := util.ExtractInt64(row.LastColValue()); value == minValue {
 				resultKeys = append(resultKeys, getKey(query.ctx, row))
 			}
 		}
@@ -104,10 +102,6 @@ func (query MinBucket) calculateSingleMinBucket(parentRows []model.QueryResultRo
 	return resultRow
 }
 
-func (query MinBucket) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}
-
-func (query MinBucket) String() string {
-	return fmt.Sprintf("min_bucket(%s)", query.Parent)
+func (query MaxBucket) String() string {
+	return fmt.Sprintf("max_bucket(%s)", query.Parent)
 }

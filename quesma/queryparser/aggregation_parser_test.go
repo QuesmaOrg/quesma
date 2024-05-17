@@ -556,7 +556,7 @@ func sortAggregations(aggregations []model.Query) {
 }
 
 func Test2AggregationParserExternalTestcases(t *testing.T) {
-	// logger.InitSimpleLoggerForTests()
+	logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -615,7 +615,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			expectedResultsCopy := deepcopy.MustAnything(test.ExpectedResults).([][]model.QueryResultRow)
 			// pp.Println("EXPECTED", expectedResultsCopy)
 			actualAggregationsPart := cw.MakeAggregationPartOfResponse(aggregations, test.ExpectedResults)
-			// pp.Println("ACTUAL", actualAggregationsPart)
+			pp.Println("ACTUAL", actualAggregationsPart)
 
 			fullResponse, err := cw.MakeResponseAggregationMarshalled(aggregations, expectedResultsCopy)
 			assert.NoError(t, err)
@@ -631,8 +631,8 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 
 			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
 			acceptableDifference := []string{"doc_count_error_upper_bound", "sum_other_doc_count", "probability", "seed", "bg_count", "doc_count"}
-			// pp.Println("ACTUAL", actualMinusExpected)
-			// pp.Println("EXPECTED", expectedMinusActual)
+			pp.Println("ACTUAL", actualMinusExpected)
+			pp.Println("EXPECTED", expectedMinusActual)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
 			assert.Contains(t, string(fullResponse), `"value":`+strconv.FormatUint(test.ExpectedResults[0][0].Cols[0].Value.(uint64), 10)) // checks if hits nr is OK

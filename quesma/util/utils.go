@@ -624,7 +624,7 @@ func ExtractFloat64(value any) float64 {
 	return -1
 }
 
-// ExtractFloat64 returns float64 value behind `value`:
+// ExtractFloat64Maybe returns float64 value behind `value`:
 // * value,  if it's float64/32
 // * *value, if it's *float64/32
 // * -1,     otherwise
