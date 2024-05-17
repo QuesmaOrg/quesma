@@ -250,7 +250,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				} else {
 					var hitsSlice [][]model.QueryResultRow
 					translatedQueryBody, hitsSlice = q.searchWorker(ctx, []model.Query{*fullQuery}, append(columnsSlice, columns), table, false, nil)
-					hits = hitsSlice[0]
+					if len(hitsSlice) > 0 {
+						// there is only one query
+						hits = hitsSlice[0]
+					}
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
 				newAggregationHandlingUsed = true
