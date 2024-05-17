@@ -241,7 +241,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						defer recovery.LogAndHandlePanic(ctx, func() {
 							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 						})
-						translatedQueryBody, hits = q.searchWorker(ctx, *fullQuery, columns, table, optAsync)
+						translatedQueryBody, hits = q.searchWorker(ctx, *fullQuery, columns, table, false, optAsync)
 						searchResponse, err := queryTranslator.MakeSearchResponse(hits, fullQuery.QueryInfo.Typ, fullQuery.Highlighter)
 						if err != nil {
 							logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, fullQuery.QueryInfo, hits)
@@ -251,7 +251,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: nil}
 					}()
 				} else {
-					translatedQueryBody, hits = q.searchWorker(ctx, *fullQuery, columns, table, nil)
+					translatedQueryBody, hits = q.searchWorker(ctx, *fullQuery, columns, table, false, nil)
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
 				newAggregationHandlingUsed = true
@@ -261,12 +261,12 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						defer recovery.LogAndHandlePanic(ctx, func() {
 							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 						})
-						translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, aggregations, columns, table, optAsync)
+						translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, aggregations, columns, table, true, optAsync)
 						searchResponse := queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
 						optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: nil}
 					}()
 				} else {
-					translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, aggregations, columns, table, nil)
+					translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, aggregations, columns, table, true, nil)
 				}
 			}
 
@@ -510,6 +510,7 @@ func (q *QueryRunner) searchWorkerCommon(
 	query model.Query,
 	columns []string,
 	table *clickhouse.Table,
+	doPostProcessing bool,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
 
 	if optAsync != nil && q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, optAsync.doneCh) {
@@ -517,7 +518,7 @@ func (q *QueryRunner) searchWorkerCommon(
 	}
 
 	var err error
-
+	sqls := ""
 	var dbQueryCtx context.Context
 	if optAsync != nil {
 		var dbCancel context.CancelFunc
@@ -526,9 +527,14 @@ func (q *QueryRunner) searchWorkerCommon(
 	} else {
 		dbQueryCtx = ctx
 	}
-
+	if query.NoDBQuery {
+		logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
+	} else {
+		logger.InfoWithCtx(ctx).Msgf("SQL: %s", query.String())
+		sqls += query.String() + "\n"
+	}
 	hits, err = q.logManager.ProcessQuery(dbQueryCtx, table, &query, columns)
-	translatedQueryBody = []byte(query.String())
+	translatedQueryBody = []byte(sqls)
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", hits, err)
 	}
@@ -540,6 +546,7 @@ func (q *QueryRunner) searchAggregationWorkerCommon(
 	queries []model.Query,
 	columns [][]string,
 	table *clickhouse.Table,
+	doPostProcessing bool,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, hits [][]model.QueryResultRow) {
 
 	if optAsync != nil && q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, optAsync.doneCh) {
@@ -568,8 +575,10 @@ func (q *QueryRunner) searchAggregationWorkerCommon(
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			continue
 		}
-		postprocessedRows := query.Type.PostprocessResults(rows)
-		hits = append(hits, postprocessedRows)
+		if doPostProcessing {
+			postprocessedRows := query.Type.PostprocessResults(rows)
+			hits = append(hits, postprocessedRows)
+		}
 		columnsIndex++
 	}
 	translatedQueryBody = []byte(sqls)
@@ -580,15 +589,16 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 	fullQuery model.Query,
 	columns []string,
 	table *clickhouse.Table,
+	doPostProcessing bool,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
 	if optAsync == nil {
-		return q.searchWorkerCommon(ctx, fullQuery, columns, table, nil)
+		return q.searchWorkerCommon(ctx, fullQuery, columns, table, doPostProcessing, nil)
 	} else {
 		select {
 		case <-q.executionCtx.Done():
 			return
 		default:
-			return q.searchWorkerCommon(ctx, fullQuery, columns, table, optAsync)
+			return q.searchWorkerCommon(ctx, fullQuery, columns, table, doPostProcessing, optAsync)
 		}
 	}
 }
@@ -597,16 +607,17 @@ func (q *QueryRunner) searchAggregationWorker(ctx context.Context,
 	aggregations []model.Query,
 	columns [][]string,
 	table *clickhouse.Table,
+	doPostProcessing bool,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
 	if optAsync == nil {
-		return q.searchAggregationWorkerCommon(ctx, aggregations, columns, table, nil)
+		return q.searchAggregationWorkerCommon(ctx, aggregations, columns, table, doPostProcessing, nil)
 
 	} else {
 		select {
 		case <-q.executionCtx.Done():
 			return
 		default:
-			return q.searchAggregationWorkerCommon(ctx, aggregations, columns, table, optAsync)
+			return q.searchAggregationWorkerCommon(ctx, aggregations, columns, table, doPostProcessing, optAsync)
 		}
 	}
 }
