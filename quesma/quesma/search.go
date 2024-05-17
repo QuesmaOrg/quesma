@@ -237,7 +237,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						defer recovery.LogAndHandlePanic(ctx, func() {
 							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 						})
-						translatedQueryBody, hits = q.searchWorker(ctx, *fullQuery, columns, queryTranslator, table, optAsync)
+						translatedQueryBody, hits = q.searchWorker(ctx, *fullQuery, columns, table, optAsync)
 						searchResponse, err := queryTranslator.MakeSearchResponse(hits, fullQuery.QueryInfo.Typ, fullQuery.Highlighter)
 						if err != nil {
 							logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, fullQuery.QueryInfo, hits)
@@ -247,7 +247,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: nil}
 					}()
 				} else {
-					translatedQueryBody, hits = q.searchWorker(ctx, *fullQuery, columns, queryTranslator, table, nil)
+					translatedQueryBody, hits = q.searchWorker(ctx, *fullQuery, columns, table, nil)
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
 				newAggregationHandlingUsed = true
@@ -257,12 +257,12 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						defer recovery.LogAndHandlePanic(ctx, func() {
 							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 						})
-						translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, aggregations, columns, queryTranslator, table, optAsync)
+						translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, aggregations, columns, table, optAsync)
 						searchResponse := queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
 						optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: nil}
 					}()
 				} else {
-					translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, aggregations, columns, queryTranslator, table, nil)
+					translatedQueryBody, aggregationResults = q.searchAggregationWorker(ctx, aggregations, columns, table, nil)
 				}
 			}
 
@@ -505,7 +505,6 @@ func (q *QueryRunner) searchWorkerCommon(
 	ctx context.Context,
 	query model.Query,
 	columns []string,
-	queryTranslator IQueryTranslator,
 	table *clickhouse.Table,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
 
@@ -536,7 +535,6 @@ func (q *QueryRunner) searchAggregationWorkerCommon(
 	ctx context.Context,
 	queries []model.Query,
 	columns [][]string,
-	queryTranslator IQueryTranslator,
 	table *clickhouse.Table,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, hits [][]model.QueryResultRow) {
 
@@ -577,17 +575,16 @@ func (q *QueryRunner) searchAggregationWorkerCommon(
 func (q *QueryRunner) searchWorker(ctx context.Context,
 	fullQuery model.Query,
 	columns []string,
-	queryTranslator IQueryTranslator,
 	table *clickhouse.Table,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, hits []model.QueryResultRow) {
 	if optAsync == nil {
-		return q.searchWorkerCommon(ctx, fullQuery, columns, queryTranslator, table, nil)
+		return q.searchWorkerCommon(ctx, fullQuery, columns, table, nil)
 	} else {
 		select {
 		case <-q.executionCtx.Done():
 			return
 		default:
-			return q.searchWorkerCommon(ctx, fullQuery, columns, queryTranslator, table, optAsync)
+			return q.searchWorkerCommon(ctx, fullQuery, columns, table, optAsync)
 		}
 	}
 }
@@ -595,18 +592,17 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 func (q *QueryRunner) searchAggregationWorker(ctx context.Context,
 	aggregations []model.Query,
 	columns [][]string,
-	queryTranslator IQueryTranslator,
 	table *clickhouse.Table,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
 	if optAsync == nil {
-		return q.searchAggregationWorkerCommon(ctx, aggregations, columns, queryTranslator, table, nil)
+		return q.searchAggregationWorkerCommon(ctx, aggregations, columns, table, nil)
 
 	} else {
 		select {
 		case <-q.executionCtx.Done():
 			return
 		default:
-			return q.searchAggregationWorkerCommon(ctx, aggregations, columns, queryTranslator, table, optAsync)
+			return q.searchAggregationWorkerCommon(ctx, aggregations, columns, table, optAsync)
 		}
 	}
 }
