@@ -44,62 +44,12 @@ type Query struct {
 
 var NoMetadataField JsonMap = nil
 
-// returns string with * in SELECT
+// returns string with SQL query
 func (q *Query) String() string {
-	var sb strings.Builder
-	sb.WriteString("SELECT ")
-	if q.IsDistinct {
-		sb.WriteString("DISTINCT ")
-	}
-	for i, field := range q.Fields {
-		if field == "*" || field == EmptyFieldSelection {
-			sb.WriteString(field)
-		} else {
-			sb.WriteString(strconv.Quote(field))
-		}
-		if i < len(q.Fields)-1 || len(q.NonSchemaFields) > 0 {
-			sb.WriteString(", ")
-		}
-	}
-	for i, field := range q.NonSchemaFields {
-		sb.WriteString(field)
-		if i < len(q.NonSchemaFields)-1 {
-			sb.WriteString(", ")
-		}
-	}
-	where := " WHERE "
-	if len(q.WhereClause) == 0 {
-		where = ""
-	}
-	sb.WriteString(" FROM " + q.FromClause + where + q.WhereClause)
-	if len(q.GroupByFields) > 0 {
-		sb.WriteString(" GROUP BY (")
-		for i, field := range q.GroupByFields {
-			sb.WriteString(field)
-			if i < len(q.GroupByFields)-1 {
-				sb.WriteString(", ")
-			}
-		}
-		sb.WriteString(")")
-
-		if len(q.SuffixClauses) == 0 {
-			sb.WriteString(" ORDER BY (")
-			for i, field := range q.GroupByFields {
-				sb.WriteString(field)
-				if i < len(q.GroupByFields)-1 {
-					sb.WriteString(", ")
-				}
-			}
-			sb.WriteString(")")
-		}
-	}
-	if len(q.SuffixClauses) > 0 {
-		sb.WriteString(" " + strings.Join(q.SuffixClauses, " "))
-	}
-	return sb.String()
+	return q.StringFromColumns(q.Fields)
 }
 
-// returns string without * in SELECT
+// returns string with SQL query
 // colNames - list of columns (schema fields) for SELECT
 func (q *Query) StringFromColumns(colNames []string) string {
 	var sb strings.Builder
@@ -127,7 +77,7 @@ func (q *Query) StringFromColumns(colNames []string) string {
 	if len(q.WhereClause) == 0 {
 		where = ""
 	}
-	sb.WriteString(" FROM " + q.FromClause + where + q.WhereClause + " ")
+	sb.WriteString(" FROM " + q.FromClause + where + q.WhereClause)
 	if len(q.GroupByFields) > 0 {
 		sb.WriteString(" GROUP BY (")
 		for i, field := range q.GroupByFields {
