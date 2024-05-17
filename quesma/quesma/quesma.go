@@ -99,6 +99,12 @@ func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.Qu
 func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, config config.QuesmaConfiguration, logChan <-chan tracing.LogWithLevel) *Quesma {
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logManager, indexManager, logChan, phoneHomeAgent)
 	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole)
+
+	// not sure how we should configure our query translator ???
+	// is this a config option??
+	
+	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
+
 	router := configureRouter(config, logManager, quesmaManagementConsole, phoneHomeAgent, queryRunner)
 	return &Quesma{
 		telemetryAgent:          phoneHomeAgent,

@@ -1,11 +1,9 @@
 package queryparser
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
-	"time"
 )
 
 func TestParseDateMathExpression(t *testing.T) {
@@ -69,19 +67,15 @@ func Test_parseDateTimeInClickhouseMathLanguage(t *testing.T) {
 
 func Test_DateMathExpressionAsLiteral(t *testing.T) {
 	exprs := map[string]string{
-		"now":          "now()",
-		"now-15m":      "subDate(now(), INTERVAL 15 minute)",
-		"now-15m+5s":   "addDate(subDate(now(), INTERVAL 15 minute), INTERVAL 5 second)",
-		"now-":         "now()",
-		"now-15m+/M":   "toStartOfMonth(subDate(now(), INTERVAL 15 minute))",
-		"now-15m/d":    "toStartOfDay(subDate(now(), INTERVAL 15 minute))",
-		"now-15m+5s/w": "toStartOfWeek(addDate(subDate(now(), INTERVAL 15 minute), INTERVAL 5 second))",
-		"now-/Y":       "toStartOfYear(now())",
+		"now":          "'2024-05-17 12:01:02'",
+		"now-15m":      "'2024-05-17 11:46:02'",
+		"now-15m+5s":   "'2024-05-17 11:46:07'",
+		"now-":         "'2024-05-17 12:01:02'",
+		"now-15m+/M":   "'2024-05-01 00:00:00'",
+		"now-15m/d":    "'2024-05-17 00:00:00'",
+		"now-15m+5s/w": "'2024-05-12 00:00:00'", // week starts on Sunday here so 2024-05-12 is the start of the week
+		"now-/Y":       "'2024-01-01 00:00:00'",
 	}
-
-	now := time.Date(2024, 5, 17, 12, 1, 1, 1, time.UTC)
-
-	fmt.Println("now: ", now)
 
 	for expr, expected := range exprs {
 		t.Run(expr, func(tt *testing.T) {
@@ -94,7 +88,7 @@ func Test_DateMathExpressionAsLiteral(t *testing.T) {
 			}
 
 			// this renderer is single use, so we can't reuse it
-			renderer := &DateMathExpressionAsLiteral{now: now}
+			renderer := DateMathExpressionRendererFactory(DateMathExpressionFormatLiteralTest)
 
 			resultExpr, err := renderer.RenderSQL(dt)
 			assert.NoError(t, err)

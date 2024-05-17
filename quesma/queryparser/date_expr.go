@@ -100,6 +100,25 @@ type DateMathExpressionRenderer interface {
 	RenderSQL(expression *DateMathExpression) (string, error)
 }
 
+const DateMathExpressionFormatLiteral = "literal"
+const DateMathExpressionFormatClickhouse = "clickhouse_intervals"
+const DateMathExpressionFormatLiteralTest = "test"
+
+func DateMathExpressionRendererFactory(format string) DateMathExpressionRenderer {
+	switch format {
+	case "":
+		return &DateMathAsClickhouseIntervals{}
+	case DateMathExpressionFormatClickhouse:
+		return &DateMathAsClickhouseIntervals{}
+	case DateMathExpressionFormatLiteral:
+		return &DateMathExpressionAsLiteral{now: time.Now()}
+	case DateMathExpressionFormatLiteralTest:
+		return &DateMathExpressionAsLiteral{now: time.Date(2024, 5, 17, 12, 1, 2, 3, time.UTC)}
+	default:
+		return nil
+	}
+}
+
 type DateMathAsClickhouseIntervals struct{}
 
 func (b *DateMathAsClickhouseIntervals) RenderSQL(expression *DateMathExpression) (string, error) {
@@ -178,6 +197,8 @@ type DateMathExpressionAsLiteral struct {
 
 func (b *DateMathExpressionAsLiteral) RenderSQL(expression *DateMathExpression) (string, error) {
 
+	const format = "2006-01-02 15:04:05"
+
 	result := b.now
 
 	timeUnitToDuration := map[timeUnit]time.Duration{
@@ -226,5 +247,5 @@ func (b *DateMathExpressionAsLiteral) RenderSQL(expression *DateMathExpression) 
 		return "", fmt.Errorf("unsupported rounding unit: %s", expression.rounding)
 	}
 
-	return result.Format(time.RFC3339), nil
+	return fmt.Sprintf("'%s'", result.Format(format)), nil
 }

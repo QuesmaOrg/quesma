@@ -54,6 +54,11 @@ type QueryRunner struct {
 	cfg                     config.QuesmaConfiguration
 	im                      elasticsearch.IndexManagement
 	quesmaManagementConsole *ui.QuesmaManagementConsole
+
+	// configuration
+
+	// this is passed to the QueryTranslator to render date math expressions
+	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 }
 
 func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole) *QueryRunner {
@@ -210,7 +215,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 		var simpleQuery queryparser.SimpleQuery
 
-		queryTranslator = NewQueryTranslator(ctx, queryLanguage, table, q.logManager)
+		queryTranslator = NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
 
 		simpleQuery, queryInfo, highlighter, err = queryTranslator.ParseQuery(string(body))
 		if err != nil {

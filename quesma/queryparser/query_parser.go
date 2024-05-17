@@ -661,24 +661,18 @@ func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string) (strin
 		return "", err
 	}
 
-	builder1 := &DateMathExpressionAsLiteral{now: time.Now()}
-	builder2 := &DateMathAsClickhouseIntervals{}
+	builder := DateMathExpressionRendererFactory(cw.DateMathRenderer)
+	if builder == nil {
+		return "", fmt.Errorf("no date math expression renderer found: %s", cw.DateMathRenderer)
+	}
 
-	sql1, err := builder1.RenderSQL(exp)
+	sql, err := builder.RenderSQL(exp)
 	if err != nil {
 		logger.Warn().Msgf("error rendering date math expression: %s", expr)
 		return "", err
 	}
 
-	sql2, err := builder2.RenderSQL(exp)
-	if err != nil {
-		logger.Warn().Msgf("error rendering date math expression: %s", expr)
-		return "", err
-	}
-
-	fmt.Println("DATE MATH EXPRESSION: ", sql1, sql2)
-
-	return sql1, nil
+	return sql, nil
 }
 
 // DONE: tested in CH, it works for date format 'YYYY-MM-DDTHH:MM:SS.SSSZ'

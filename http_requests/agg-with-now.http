@@ -1,0 +1,68 @@
+POST http://localhost:8080/kibana_sample_data_ecommerce/_search
+Content-Type: application/json
+
+{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"date_range": {
+						"field": "timestamp",
+						"ranges": [
+							{
+								"to": "now"
+							},
+							{
+								"from": "now-3w/d",
+								"to": "now"
+							},
+							{
+								"from": "2024-04-14"
+							}
+						],
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "customer_birth_date",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				},
+				{
+					"field": "products.created_on",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"match_all": {}
+						},
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-04-06T07:28:50.059Z",
+									"lte": "2024-04-16T17:28:50.059Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}
