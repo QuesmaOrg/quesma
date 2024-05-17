@@ -131,7 +131,6 @@ func (b *DateMathAsClickhouseIntervals) RenderSQL(expression *DateMathExpression
 		result = fmt.Sprintf("%s(%s, INTERVAL %d %s)", op, result, amount, unit)
 	}
 
-	const defaultRounding = "d"
 	var roundingFunction = map[string]string{
 		"d": "toStartOfDay",
 		"w": "toStartOfWeek",
