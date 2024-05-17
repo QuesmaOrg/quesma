@@ -297,27 +297,24 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) SimpleQuery {
 	}
 	logger.Warn().Msgf("unsupported id query executed, requested ids of [%s]", strings.Join(ids, "','"))
 
-	//  variant when field is a datetime64
-	//statement := fmt.Sprintf("toUnixTimestamp64Milli(%s) IN (%s) ", strconv.Quote("timestamp"), ids)
-
-	pseudoUniqueFieldName, err := cw.ClickhouseLM.GetPseudoUniqueField(cw.Table.Name)
-	if err != nil && pseudoUniqueFieldName != "" {
+	timestampColumnName, err := cw.GetTimestampFieldName()
+	if err != nil {
+		logger.Warn().Msgf("id query executed, but not timestamp field configured")
 		return newSimpleQuery(NewSimpleStatement(""), true)
 	}
+
 	var statement string
-	if v, ok := cw.Table.Cols[pseudoUniqueFieldName]; !ok {
+	if v, ok := cw.Table.Cols[timestampColumnName]; !ok {
 		switch v.Type.String() {
 		case clickhouse.DateTime64.String():
-			statement = fmt.Sprintf("toUnixTimestamp64Milli(%s) IN (%s) ", strconv.Quote("timestamp"), ids)
+			statement = fmt.Sprintf("toUnixTimestamp64Milli(%s) IN (%s) ", strconv.Quote(timestampColumnName), ids)
 		case clickhouse.DateTime.String():
-			statement = fmt.Sprintf("toUnixTimestamp(%s) *1000 IN (%s) ", strconv.Quote("timestamp"), ids)
+			statement = fmt.Sprintf("toUnixTimestamp(%s) *1000 IN (%s) ", strconv.Quote(timestampColumnName), ids)
 		default:
+			logger.Warn().Msgf("timestamp field of unsupported type %s", v.Type.String())
 			return newSimpleQuery(NewSimpleStatement(""), true)
 		}
 	}
-
-	//statement := fmt.Sprintf("toUnixTimestamp(%s) *1000 IN (%s) ", strconv.Quote("timestamp"), ids)
-
 	return newSimpleQuery(NewSimpleStatement(statement), true)
 }
 

@@ -49,6 +49,14 @@ func (cw *ClickhouseQueryTranslator) AddTokenToHighlight(token any) {
 
 }
 
+func (cw *ClickhouseQueryTranslator) GetTimestampFieldName() (string, error) {
+	if cw.Table.TimestampColumn != nil {
+		return *cw.Table.TimestampColumn, nil
+	} else {
+		return "", fmt.Errorf("no pseudo unique field configured for table %s", cw.Table.Name)
+	}
+}
+
 func (cw *ClickhouseQueryTranslator) ClearTokensToHighlight() {
 	cw.tokensToHighlight = []string{}
 }
@@ -326,28 +334,19 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.
 }
 
 func (cw *ClickhouseQueryTranslator) computeIdFromDocument(doc model.SearchHit) (string, error) {
-	var pseudoUniqueFieldName, pseudoUniqueId string
+	var pseudoUniqueId string
 
-	if v, err := cw.ClickhouseLM.GetPseudoUniqueField(doc.Index); err != nil {
-		return "", fmt.Errorf("missing pseudo unique field for index %s", doc.Index)
-	} else {
-		pseudoUniqueFieldName = v
+	tsFieldName, err := cw.GetTimestampFieldName()
+	if err != nil {
+		return "", err
 	}
-	if v, ok := doc.Fields[pseudoUniqueFieldName]; ok {
+	if v, ok := doc.Fields[tsFieldName]; ok {
 		if vv, okk := v[0].(time.Time); okk {
 			pseudoUniqueId = strconv.Itoa(int(vv.UnixMilli()))
 		} else {
-			fmt.Sprintf("????? FAILed timestamp type assert : [%v]", v)
+			return "", fmt.Errorf("timestamp field is not a time.Time")
 		}
-	} else {
-		logger.Error().Msgf("NO @timestamp FIELD [%v]", v)
-		return "", fmt.Errorf("missing @timestamp field")
 	}
-	//concat := email + fullName
-	//logger.Info().Msgf("concat: [%v]", concat)
-	//hash := sha1.Sum([]byte(concat))
-	//hashEncodedToString := hex.EncodeToString(hash[:])
-	//logger.Info().Msgf("hash: [%s]", hashEncodedToString)
 	return pseudoUniqueId, nil
 }
 
@@ -372,6 +371,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 	// Set the IDs
 	for i, hit := range hits {
 		if id, err := cw.computeIdFromDocument(hit); err != nil {
+			logger.Warn().Msgf("failed to compute ID for document: %v", err)
 			hits[i].ID = strconv.Itoa(i + 1)
 		} else {
 			hits[i].ID = id

@@ -80,12 +80,12 @@ type FieldAlias struct {
 }
 
 type IndexConfiguration struct {
-	Name              string                `koanf:"name"`
-	Enabled           bool                  `koanf:"enabled"`
-	FullTextFields    []string              `koanf:"fullTextFields"`
-	Aliases           map[string]FieldAlias `koanf:"aliases"`
-	IgnoredFields     map[string]bool       `koanf:"ignoredFields"`
-	PseudoUniqueField string                `koanf:"pseudoUniqueField"`
+	Name           string                `koanf:"name"`
+	Enabled        bool                  `koanf:"enabled"`
+	FullTextFields []string              `koanf:"fullTextFields"`
+	Aliases        map[string]FieldAlias `koanf:"aliases"`
+	IgnoredFields  map[string]bool       `koanf:"ignoredFields"`
+	TimestampField *string               `koanf:"timestampField"`
 }
 
 func (c IndexConfiguration) Matches(indexName string) bool {

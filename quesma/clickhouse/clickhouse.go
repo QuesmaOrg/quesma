@@ -114,19 +114,6 @@ func (lm *LogManager) Close() {
 	_ = lm.chDb.Close()
 }
 
-func (lm *LogManager) GetPseudoUniqueField(tableName string) (string, error) {
-
-	if v, ok := lm.cfg.IndexConfig[tableName]; ok {
-		if v.PseudoUniqueField != "" {
-			return v.PseudoUniqueField, nil
-		} else {
-			return "", fmt.Errorf("no pseudo unique field configured for table %s", tableName)
-		}
-	} else {
-		return "", fmt.Errorf("no index configuration for table %s", tableName)
-	}
-}
-
 func (lm *LogManager) matchIndex(ctx context.Context, indexNamePattern, indexName string) bool {
 	r, err := regexp.Compile("^" + strings.Replace(indexNamePattern, "*", ".*", -1) + "$")
 	if err != nil {
