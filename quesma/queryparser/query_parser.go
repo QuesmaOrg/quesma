@@ -506,7 +506,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 			cw.AddTokenToHighlight(vAsString)
 			for _, subQuery := range subQueries {
 				cw.AddTokenToHighlight(subQuery)
-				if fieldName == "_id" {
+				if fieldName == "_id" { // We compute this field on the fly using our custom logic, so we have to parse it differently
 					return cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
 				}
 				statements = append(statements, NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE "+"'%"+subQuery+"%'"))
