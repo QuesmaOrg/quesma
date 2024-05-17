@@ -6,7 +6,6 @@ import (
 	"mitmproxy/quesma/logger"
 	"net/http"
 	"net/url"
-	"strings"
 )
 
 type (
@@ -16,8 +15,7 @@ type (
 	mapping struct {
 		pattern      string
 		compiledPath urlpath.Path
-		httpMethod   string
-		predicate    MatchPredicate
+		predicate    RequestMatcher
 		handler      handler
 	}
 	Result struct {
@@ -25,9 +23,27 @@ type (
 		Meta       map[string]string
 		StatusCode int
 	}
-	handler        func(ctx context.Context, body, uri string, params map[string]string, headers http.Header, queryParams url.Values) (*Result, error)
-	MatchPredicate func(params map[string]string, body string) bool
+	Request struct {
+		Method      string
+		Path        string
+		Params      map[string]string
+		Headers     http.Header
+		QueryParams url.Values
+		Body        string
+		ParsedBody  map[string]interface{}
+	}
+	handler func(ctx context.Context, req *Request) (*Result, error)
+
+	RequestMatcher interface {
+		Matches(req *Request) bool
+	}
 )
+
+type RequestMatcherFunc func(req *Request) bool
+
+func (f RequestMatcherFunc) Matches(req *Request) bool {
+	return f(req)
+}
 
 // Url router where you can register multiple URL paths with handler.
 // We need our own component as default libraries caused side-effects on requests or response.
@@ -37,51 +53,87 @@ func NewPathRouter() *PathRouter {
 }
 
 func (p *PathRouter) RegisterPath(pattern, httpMethod string, handler handler) {
-	mapping := mapping{pattern, urlpath.New(pattern), httpMethod, identity(), handler}
+	mapping := mapping{pattern, urlpath.New(pattern), IsHTTPMethod(httpMethod), handler}
 	p.mappings = append(p.mappings, mapping)
 }
 
-func (p *PathRouter) RegisterPathMatcher(pattern string, httpMethods []string, predicate MatchPredicate, handler handler) {
-	for _, httpMethod := range httpMethods {
-		mapping := mapping{pattern, urlpath.New(pattern), httpMethod, predicate, handler}
-		p.mappings = append(p.mappings, mapping)
-	}
+func (p *PathRouter) RegisterPathMatcher(pattern string, httpMethods []string, predicate RequestMatcher, handler handler) {
+
+	mapping := mapping{pattern, urlpath.New(pattern), And(IsHTTPMethod(httpMethods...), predicate), handler}
+	p.mappings = append(p.mappings, mapping)
+
 }
 
-func (p *PathRouter) Execute(ctx context.Context, path, body, httpMethod string, headers http.Header, queryParams url.Values) (*Result, error) {
-	handler, meta, found := p.findHandler(path, httpMethod, body)
+func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler handler) {
+
+	mapping := mapping{pattern, urlpath.New(pattern), predicate, handler}
+	p.mappings = append(p.mappings, mapping)
+
+}
+
+func (p *PathRouter) Execute(ctx context.Context, req *Request) (*Result, error) {
+	handler, meta, found := p.findHandler(req)
 	if found {
-		return handler(ctx, body, path, meta.Params, headers, queryParams)
+		req.Params = meta.Params
+		return handler(ctx, req)
 	}
 	return nil, nil
 }
 
-func (p *PathRouter) Matches(path, httpMethod, body string) bool {
-	_, _, found := p.findHandler(path, httpMethod, body)
+func (p *PathRouter) Matches(req *Request) bool {
+	_, _, found := p.findHandler(req)
 	if found {
-		routerStatistics.addMatched(path)
-		logger.Debug().Msgf("Matched path: %s", path)
+		routerStatistics.addMatched(req.Path)
+		logger.Debug().Msgf("Matched path: %s", req.Path)
 		return true
 	} else {
-		routerStatistics.addUnmatched(path)
-		logger.Debug().Msgf("Non-matched path: %s", path)
+		routerStatistics.addUnmatched(req.Path)
+		logger.Debug().Msgf("Non-matched path: %s", req.Path)
 		return false
 	}
 }
 
-func (p *PathRouter) findHandler(path, httpMethod, body string) (handler, urlpath.Match, bool) {
-	path = strings.TrimSuffix(path, "/")
+func (p *PathRouter) findHandler(req *Request) (handler, urlpath.Match, bool) {
 	for _, m := range p.mappings {
-		meta, match := m.compiledPath.Match(path)
-		if match && m.httpMethod == httpMethod && m.predicate(meta.Params, body) {
+		meta, match := m.compiledPath.Match(req.Path)
+		if match && m.predicate.Matches(req) {
 			return m.handler, meta, true
 		}
 	}
 	return nil, urlpath.Match{}, false
 }
 
-func identity() MatchPredicate {
-	return func(map[string]string, string) bool {
-		return true
+type httpMethodPredicate struct {
+	methods []string
+}
+
+func (p *httpMethodPredicate) Matches(req *Request) bool {
+
+	for _, method := range p.methods {
+		if method == req.Method {
+			return true
+		}
 	}
+	return false
+}
+
+func IsHTTPMethod(methods ...string) RequestMatcher {
+	return &httpMethodPredicate{methods}
+}
+
+type predicateAnd struct {
+	predicates []RequestMatcher
+}
+
+func (p *predicateAnd) Matches(req *Request) bool {
+	for _, predicate := range p.predicates {
+		if !predicate.Matches(req) {
+			return false
+		}
+	}
+	return true
+}
+
+func And(predicates ...RequestMatcher) RequestMatcher {
+	return &predicateAnd{predicates}
 }

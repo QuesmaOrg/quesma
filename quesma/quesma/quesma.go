@@ -3,6 +3,7 @@ package quesma
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mitmproxy/quesma/clickhouse"
@@ -121,16 +122,31 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
 	})
-	if router.Matches(req.URL.Path, req.Method, string(reqBody)) {
+
+	parsedBody := make(map[string]interface{})
+	if err := json.Unmarshal(reqBody, &parsedBody); err != nil {
+		// TODO  Not sure what to do here
+	}
+
+	quesmaRequest := &mux.Request{
+		Method:      req.Method,
+		Path:        strings.TrimSuffix(req.URL.Path, "/"),
+		Params:      nil,
+		Headers:     req.Header,
+		QueryParams: req.URL.Query(),
+		Body:        string(reqBody),
+		ParsedBody:  parsedBody,
+	}
+
+	if router.Matches(quesmaRequest) {
 		var elkResponseChan = make(chan elasticResult)
 
 		if r.config.Elasticsearch.Call {
 			elkResponseChan = r.sendHttpRequestToElastic(ctx, req, reqBody, false)
 		}
 
-		req.URL.Query()
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
-			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method, req.Header, req.URL.Query())
+			return router.Execute(ctx, quesmaRequest)
 		})
 		var elkRawResponse elasticResult
 		var elkResponse *http.Response
