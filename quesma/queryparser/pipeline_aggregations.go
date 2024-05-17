@@ -105,7 +105,7 @@ func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (
 	return pipeline_aggregations.NewBucketScript(cw.Ctx), true
 }
 
-func (b *aggrQueryBuilder) buildPipelineAggregation(aggregationType model.QueryType, metadata model.JsonMap) model.QueryWithAggregation {
+func (b *aggrQueryBuilder) buildPipelineAggregation(aggregationType model.QueryType, metadata model.JsonMap) model.Query {
 	query := b.buildAggregationCommon(metadata)
 	query.Type = aggregationType
 	switch aggrType := aggregationType.(type) {
