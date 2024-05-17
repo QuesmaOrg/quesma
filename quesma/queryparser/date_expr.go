@@ -50,21 +50,21 @@ func ParseDateMathExpression(input string) (*DateMathExpression, error) {
 		switch letter {
 
 		case OPERATOR_ADD:
-			number = string(expr[index])
+			number = string(letter)
 		case OPERATOR_SUB:
-			number = string(expr[index])
+			number = string(letter)
 
 		case ROUNDING:
 			rounding = true
 
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 
-			number = number + string(expr[index])
+			number = number + string(letter)
 
 		case 'm', 's', 'h', 'd', 'w', 'M', 'y', 'Y':
 
 			if rounding {
-				result.rounding = timeUnit(expr[index])
+				result.rounding = timeUnit(letter)
 
 				if len(expr[index:]) > 1 {
 					return nil, fmt.Errorf("garbage at the end of expression: %s", expr[1:])
