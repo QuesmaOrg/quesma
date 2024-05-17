@@ -508,51 +508,6 @@ func (q *QueryRunner) makeBasicQuery(ctx context.Context,
 	return fullQuery, columns
 }
 
-func (q *QueryRunner) searchWorkerCommon(
-	ctx context.Context,
-	queries []model.Query,
-	columns [][]string,
-	table *clickhouse.Table,
-	doPostProcessing bool,
-	optAsync *AsyncQuery) (translatedQueryBody []byte, hits [][]model.QueryResultRow) {
-
-	if optAsync != nil && q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, optAsync.doneCh) {
-		return
-	}
-
-	var err error
-	sqls := ""
-	var dbQueryCtx context.Context
-	if optAsync != nil {
-		var dbCancel context.CancelFunc
-		dbQueryCtx, dbCancel = context.WithCancel(context.Background())
-		q.addAsyncQueryContext(dbQueryCtx, dbCancel, optAsync.asyncRequestIdStr)
-	} else {
-		dbQueryCtx = ctx
-	}
-	columnsIndex := 0
-	for _, query := range queries {
-		if query.NoDBQuery {
-			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
-		} else {
-			logger.InfoWithCtx(ctx).Msgf("SQL: %s", query.String())
-			sqls += query.String() + "\n"
-		}
-		rows, err := q.logManager.ProcessQuery(dbQueryCtx, table, &query, columns[columnsIndex])
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msg(err.Error())
-			continue
-		}
-		hits = append(hits, rows)
-		columnsIndex++
-	}
-	translatedQueryBody = []byte(sqls)
-	if err != nil {
-		logger.ErrorWithCtx(ctx).Msgf("Rows: %+v, err: %+v", hits, err)
-	}
-	return
-}
-
 func (q *QueryRunner) searchAggregationWorkerCommon(
 	ctx context.Context,
 	queries []model.Query,
@@ -597,24 +552,6 @@ func (q *QueryRunner) searchAggregationWorkerCommon(
 	}
 	translatedQueryBody = []byte(sqls)
 	return
-}
-
-func (q *QueryRunner) searchWorker(ctx context.Context,
-	fullQuery []model.Query,
-	columns [][]string,
-	table *clickhouse.Table,
-	doPostProcessing bool,
-	optAsync *AsyncQuery) (translatedQueryBody []byte, hits [][]model.QueryResultRow) {
-	if optAsync == nil {
-		return q.searchWorkerCommon(ctx, fullQuery, columns, table, doPostProcessing, nil)
-	} else {
-		select {
-		case <-q.executionCtx.Done():
-			return
-		default:
-			return q.searchWorkerCommon(ctx, fullQuery, columns, table, doPostProcessing, optAsync)
-		}
-	}
 }
 
 func (q *QueryRunner) searchAggregationWorker(ctx context.Context,
