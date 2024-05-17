@@ -332,7 +332,7 @@ func computeIdFromDocument(doc model.SearchHit) (string, error) {
 		However, works only on strings... if we are concatenating different types, we might end up with something different at ClickHouse/Hydrolix end...
 	*/
 	var timestamp string
-	if v, ok := doc.Fields["@timestamp"]; ok {
+	if v, ok := doc.Fields["timestamp"]; ok {
 		if vv, okk := v[0].(time.Time); okk {
 			timestamp = strconv.Itoa(int(vv.UnixMilli()))
 		} else {
