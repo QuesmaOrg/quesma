@@ -19,7 +19,14 @@ logging:
   remoteUrl: "https://api.quesma.com/phone-home"
   disableFileLogging: false
 indexes:
+  logs:
+    timestampField: "reqTimeSec"
+    enabled: true
+  siem:
+    timestampField: "timestamp"
+    enabled: true
   kibana_sample_data_ecommerce:
+    timestampField: "@timestamp"
     enabled: true
   kibana_sample_data_flights:
     enabled: true
