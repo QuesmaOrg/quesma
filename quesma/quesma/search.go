@@ -241,7 +241,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						defer recovery.LogAndHandlePanic(ctx, func() {
 							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 						})
-						translatedQueryBody, hitsSlice := q.searchWorker(ctx, queries, columnsSlice, table, false, optAsync)
+						translatedQueryBody, hitsSlice := q.searchAggregationWorker(ctx, queries, columnsSlice, table, false, optAsync)
 						hits = hitsSlice[0]
 						searchResponse, err := queryTranslator.MakeSearchResponse(hits, fullQuery.QueryInfo.Typ, fullQuery.Highlighter)
 						if err != nil {
@@ -253,7 +253,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					}()
 				} else {
 					var hitsSlice [][]model.QueryResultRow
-					translatedQueryBody, hitsSlice = q.searchWorker(ctx, queries, columnsSlice, table, false, nil)
+					translatedQueryBody, hitsSlice = q.searchAggregationWorker(ctx, queries, columnsSlice, table, false, nil)
 					hits = hitsSlice[0]
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
