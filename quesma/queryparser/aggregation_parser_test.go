@@ -44,9 +44,9 @@ var aggregationTests = []struct {
 			}
 		}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` `,
-			`SELECT maxOrNull("AvgTicketPrice") FROM ` + tableNameQuoted + ` `,
-			`SELECT minOrNull("AvgTicketPrice") FROM ` + tableNameQuoted + ` `,
+			`SELECT count() FROM ` + tableNameQuoted,
+			`SELECT maxOrNull("AvgTicketPrice") FROM ` + tableNameQuoted,
+			`SELECT minOrNull("AvgTicketPrice") FROM ` + tableNameQuoted,
 		},
 	},
 	{ // [1]
@@ -113,10 +113,10 @@ var aggregationTests = []struct {
 			}
 		}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` `,
-			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + `  GROUP BY ("OriginCityName")`,
-			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` WHERE "Cancelled" == true  GROUP BY ("OriginCityName")`,
-			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` WHERE "FlightDelay" == true  GROUP BY ("OriginCityName")`,
+			`SELECT count() FROM ` + tableNameQuoted,
+			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` GROUP BY ("OriginCityName")`,
+			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` WHERE "Cancelled" == true GROUP BY ("OriginCityName")`,
+			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` WHERE "FlightDelay" == true GROUP BY ("OriginCityName")`,
 		},
 	},
 	{ // [2]
@@ -149,9 +149,9 @@ var aggregationTests = []struct {
 			}
 		}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` `,
-			`SELECT "FlightDelayType", count() FROM ` + tableNameQuoted + `  GROUP BY ("FlightDelayType")`,
-			"SELECT \"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000), count() FROM " + tableNameQuoted + "  GROUP BY (\"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000))",
+			`SELECT count() FROM ` + tableNameQuoted,
+			`SELECT "FlightDelayType", count() FROM ` + tableNameQuoted + ` GROUP BY ("FlightDelayType")`,
+			"SELECT \"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000), count() FROM " + tableNameQuoted + " GROUP BY (\"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000))",
 		},
 	},
 	{ // [3]
@@ -184,8 +184,8 @@ var aggregationTests = []struct {
 			}
 		}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` `,
-			`SELECT count() FROM ` + tableNameQuoted + ` WHERE "FlightDelay" == true `,
+			`SELECT count() FROM ` + tableNameQuoted,
+			`SELECT count() FROM ` + tableNameQuoted + ` WHERE "FlightDelay" == true`,
 		},
 	},
 	{ // [4]
@@ -220,7 +220,7 @@ var aggregationTests = []struct {
 			}
 		}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` `,
+			`SELECT count() FROM ` + tableNameQuoted,
 			`SELECT count() FROM ` + tableNameQuoted + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') `,
 			`SELECT count() FROM ` + tableNameQuoted + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') `,
 		},
@@ -239,8 +239,8 @@ var aggregationTests = []struct {
 			}
 		}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` `,
-			`SELECT "FlightDelayMin", count() FROM ` + tableNameQuoted + `  GROUP BY ("FlightDelayMin")`,
+			`SELECT count() FROM ` + tableNameQuoted,
+			`SELECT "FlightDelayMin", count() FROM ` + tableNameQuoted + ` GROUP BY ("FlightDelayMin")`,
 		},
 	},
 	{ // [6]
@@ -287,11 +287,11 @@ var aggregationTests = []struct {
 			}
 		}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` `,
-			`SELECT "OriginAirportID", "DestAirportID", "DestLocation" FROM "(SELECT DestLocation, ROW_NUMBER() OVER (PARTITION BY DestLocation) AS row_number FROM ` + tableName + `)"  GROUP BY ("OriginAirportID", "DestAirportID")`,
-			`SELECT "OriginAirportID", "DestAirportID", count() FROM ` + tableNameQuoted + `  GROUP BY ("OriginAirportID", "DestAirportID")`,
-			`SELECT "OriginAirportID", "OriginLocation", "Origin" FROM "(SELECT OriginLocation, Origin, ROW_NUMBER() OVER (PARTITION BY OriginLocation, Origin) AS row_number FROM ` + tableName + `)"  GROUP BY ("OriginAirportID")`,
-			`SELECT "OriginAirportID", count() FROM ` + tableNameQuoted + `  GROUP BY ("OriginAirportID")`,
+			`SELECT count() FROM ` + tableNameQuoted,
+			`SELECT "OriginAirportID", "DestAirportID", "DestLocation" FROM "(SELECT DestLocation, ROW_NUMBER() OVER (PARTITION BY DestLocation) AS row_number FROM ` + tableName + `)" GROUP BY ("OriginAirportID", "DestAirportID")`,
+			`SELECT "OriginAirportID", "DestAirportID", count() FROM ` + tableNameQuoted + ` GROUP BY ("OriginAirportID", "DestAirportID")`,
+			`SELECT "OriginAirportID", "OriginLocation", "Origin" FROM "(SELECT OriginLocation, Origin, ROW_NUMBER() OVER (PARTITION BY OriginLocation, Origin) AS row_number FROM ` + tableName + `)" GROUP BY ("OriginAirportID")`,
+			`SELECT "OriginAirportID", count() FROM ` + tableNameQuoted + ` GROUP BY ("OriginAirportID")`,
 		},
 	},
 	{ // [7]
@@ -324,9 +324,9 @@ var aggregationTests = []struct {
 			}
 		}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` `,
-			`SELECT "category.keyword", "order_date", count() FROM ` + tableNameQuoted + `  GROUP BY ("category.keyword", "order_date")`,
-			`SELECT "category.keyword", count() FROM ` + tableNameQuoted + `  GROUP BY ("category.keyword")`,
+			`SELECT count() FROM ` + tableNameQuoted,
+			`SELECT "category.keyword", "order_date", count() FROM ` + tableNameQuoted + ` GROUP BY ("category.keyword", "order_date")`,
+			`SELECT "category.keyword", count() FROM ` + tableNameQuoted + ` GROUP BY ("category.keyword")`,
 		},
 	},
 	{ // [8]
@@ -341,8 +341,8 @@ var aggregationTests = []struct {
 			}
 		}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` `,
-			`SELECT sumOrNull("taxful_total_price") FROM ` + tableNameQuoted + " ",
+			`SELECT count() FROM ` + tableNameQuoted,
+			`SELECT sumOrNull("taxful_total_price") FROM ` + tableNameQuoted,
 		},
 	},
 	{ // [9]
@@ -360,8 +360,8 @@ var aggregationTests = []struct {
 			}
 		}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` `,
-			`SELECT quantile("taxful_total_price") FROM ` + tableNameQuoted + " ",
+			`SELECT count() FROM ` + tableNameQuoted,
+			`SELECT quantile("taxful_total_price") FROM ` + tableNameQuoted,
 		},
 	},
 	{ // [10]
@@ -376,8 +376,8 @@ var aggregationTests = []struct {
 			}
 		}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` `,
-			`SELECT avgOrNull("total_quantity") FROM ` + tableNameQuoted + " ",
+			`SELECT count() FROM ` + tableNameQuoted,
+			`SELECT avgOrNull("total_quantity") FROM ` + tableNameQuoted,
 		},
 	},
 	{ // [11]
@@ -441,7 +441,7 @@ var aggregationTests = []struct {
 			}
 		}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` `,
+			`SELECT count() FROM ` + tableNameQuoted,
 			`SELECT count() FROM "logs-generic-default" WHERE taxful_total_price>250 `,
 			`SELECT "order_date" FROM "(SELECT order_date, ROW_NUMBER() OVER (PARTITION BY order_date) AS row_number FROM ` + tableName + `)" WHERE taxful_total_price>250 `,
 			`SELECT "taxful_total_price" FROM "(SELECT taxful_total_price, ROW_NUMBER() OVER (PARTITION BY taxful_total_price) AS row_number FROM ` + tableName + `)" WHERE taxful_total_price>250 `,
@@ -468,9 +468,9 @@ var aggregationTests = []struct {
 				}
 			}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` `,
-			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + `  GROUP BY ("OriginCityName")`,
-			`SELECT COUNT(DISTINCT "OriginCityName") FROM ` + tableNameQuoted + " ",
+			`SELECT count() FROM ` + tableNameQuoted,
+			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` GROUP BY ("OriginCityName")`,
+			`SELECT COUNT(DISTINCT "OriginCityName") FROM ` + tableNameQuoted,
 		},
 	},
 	{ // [13]
@@ -492,9 +492,9 @@ var aggregationTests = []struct {
 				  }
 			}`,
 		[]string{
-			`SELECT count() FROM ` + tableNameQuoted + ` `,
-			`SELECT floor("bytes" / 1782.000000) * 1782.000000, count() FROM ` + tableNameQuoted + `  GROUP BY (floor("bytes" / 1782.000000) * 1782.000000) ORDER BY (floor("bytes" / 1782.000000) * 1782.000000)`,
-			`SELECT count() FROM ` + tableNameQuoted + ` `,
+			`SELECT count() FROM ` + tableNameQuoted,
+			`SELECT floor("bytes" / 1782.000000) * 1782.000000, count() FROM ` + tableNameQuoted + ` GROUP BY (floor("bytes" / 1782.000000) * 1782.000000) ORDER BY (floor("bytes" / 1782.000000) * 1782.000000)`,
+			`SELECT count() FROM ` + tableNameQuoted,
 		},
 	},
 }
