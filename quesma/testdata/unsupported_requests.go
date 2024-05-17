@@ -691,36 +691,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 	},
 
 	// pipeline:
-	{ // [37]
-		TestName:  "pipeline aggregation: avg_bucket",
-		QueryType: "avg_bucket",
-		QueryRequestJson: `
-		{
-			"size": 0,
-			"aggs": {
-				"sales_per_month": {
-					"date_histogram": {
-						"field": "date",
-						"calendar_interval": "month"
-					},
-					"aggs": {
-						"sales": {
-							"sum": {
-								"field": "price"
-							}
-						}
-					}
-				},
-				"avg_monthly_sales": {               
-					"avg_bucket": {
-						"buckets_path": "sales_per_month>sales",
-						"gap_policy": "skip",
-						"format": "#,##0.00;(#,##0.00)"
-					}               
-				}
-			}
-		}`,
-	},
 	{ // [38]
 		TestName:  "pipeline aggregation: bucket_count_ks_test",
 		QueryType: "bucket_count_ks_test",

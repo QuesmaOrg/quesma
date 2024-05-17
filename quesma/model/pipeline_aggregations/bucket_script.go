@@ -7,8 +7,7 @@ import (
 )
 
 type BucketScript struct {
-	ctx   context.Context
-	index string // name of the index (table)
+	ctx context.Context
 }
 
 func NewBucketScript(ctx context.Context) BucketScript {
@@ -31,8 +30,8 @@ func (query BucketScript) TranslateSqlResponseToJson(rows []model.QueryResultRow
 	return response
 }
 
-func (query BucketScript) CalculateResultWhenMissing(model.QueryResultRow, []model.QueryResultRow) model.QueryResultRow {
-	return model.NewQueryResultRowEmpty(query.index)
+func (query BucketScript) CalculateResultWhenMissing(*model.Query, []model.QueryResultRow) []model.QueryResultRow {
+	return []model.QueryResultRow{}
 }
 
 func (query BucketScript) String() string {

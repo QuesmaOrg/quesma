@@ -15,7 +15,7 @@ type Derivative struct {
 }
 
 func NewDerivative(ctx context.Context, bucketsPath string) Derivative {
-	isCount := bucketsPath == bucketsPathCount
+	isCount := bucketsPath == BucketsPathCount
 	return Derivative{ctx: ctx, Parent: bucketsPath, IsCount: isCount}
 }
 
