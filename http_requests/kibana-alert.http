@@ -1,0 +1,64 @@
+POST http://localhost:8080/_search
+Content-Type: application/json
+
+{
+  "aggs": {
+    "endpoint_alert_count": {
+      "cardinality": {
+        "field": "event.id"
+      }
+    }
+  },
+  "pit": {
+    "id": "gcSHBAEvLmludGVybmFsLmFsZXJ0cy1zZWN1cml0eS5hbGVydHMtZGVmYXVsdC0wMDAwMDEWRWdvdFQwblRUN0tNaFk4SWc3TDRSQQAWMEdVOVNnVk1TV0t3ckRxbUpkb3BzZwAAAAAAAASdvBZGQXQwWTUyTVRKQ29zaDJ1elRhWFR3AAEWRWdvdFQwblRUN0tNaFk4SWc3TDRSQQAA"
+  },
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "bool": {
+            "should": [
+              {
+                "match_phrase": {
+                  "event.module": "endpoint"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "bool": {
+            "should": [
+              {
+                "match_phrase": {
+                  "kibana.alert.rule.parameters.immutable": "true"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "range": {
+            "@timestamp": {
+              "gte": "now-3h",
+              "lte": "now"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "size": 1000,
+  "sort": [
+    {
+      "@timestamp": {
+        "format": "strict_date_optional_time_nanos",
+        "order": "asc"
+      }
+    },
+    {
+      "_shard_doc": "desc"
+    }
+  ],
+  "track_total_hits": false
+}

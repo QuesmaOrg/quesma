@@ -2,7 +2,6 @@ package queryparser
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/kibana"
@@ -133,44 +132,6 @@ func EmptyAsyncSearchResponse(id string, isPartial bool, completionStatus int) (
 	asyncSearchResp := SearchToAsyncSearchResponse(&searchResp, id, isPartial, completionStatus)
 	return asyncSearchResp.Marshal() // error should never ever happen here
 }
-
-func BadRequestParseError(err error) []byte {
-	serialized, _ := json.Marshal(ParseErrorResponse{
-		Error: Error{
-			RootCause: []RootCause{
-				{
-					Type:   "parsing_exception",
-					Reason: err.Error(),
-				},
-			},
-			Type:   "parsing_exception",
-			Reason: err.Error(),
-		},
-		Status: 400,
-	},
-	)
-	return serialized
-}
-
-type (
-	ParseErrorResponse struct {
-		Error  `json:"error"`
-		Status int `json:"status"`
-	}
-	Error struct {
-		RootCause []RootCause `json:"root_cause"`
-		Type      string      `json:"type"`
-		Reason    string      `json:"reason"`
-		Line      *int        `json:"line,omitempty"`
-		Col       *int        `json:"col,omitempty"`
-	}
-	RootCause struct {
-		Type   string `json:"type"`
-		Reason string `json:"reason"`
-		Line   *int   `json:"line,omitempty"`
-		Col    *int   `json:"col,omitempty"`
-	}
-)
 
 func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) (*model.SearchResp, error) {
 	switch typ {
@@ -376,7 +337,7 @@ func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponseMarshalled(ResultSet
 	return response.Marshal()
 }
 
-func (cw *ClickhouseQueryTranslator) finishMakeResponse(query model.QueryWithAggregation, ResultSet []model.QueryResultRow, level int) []model.JsonMap {
+func (cw *ClickhouseQueryTranslator) finishMakeResponse(query model.Query, ResultSet []model.QueryResultRow, level int) []model.JsonMap {
 	// fmt.Println("FinishMakeResponse", query, ResultSet, level, query.Type.String())
 	if query.Type.IsBucketAggregation() {
 		return query.Type.TranslateSqlResponseToJson(ResultSet, level)
@@ -426,7 +387,7 @@ func (cw *ClickhouseQueryTranslator) splitResultSetIntoBuckets(ResultSet []model
 // DFS algorithm
 // 'aggregatorsLevel' - index saying which (sub)aggregation we're handling
 // 'selectLevel' - which field from select we're grouping by at current level (or not grouping by, if query.Aggregators[aggregatorsLevel].Empty == true)
-func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query model.QueryWithAggregation,
+func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query model.Query,
 	ResultSet []model.QueryResultRow, aggregatorsLevel, selectLevel int) []model.JsonMap {
 
 	// either we finish
@@ -486,7 +447,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 	return []model.JsonMap{result}
 }
 
-func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) model.JsonMap {
+func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []model.Query, ResultSets [][]model.QueryResultRow) model.JsonMap {
 	const aggregation_start_index = 1
 	aggregations := model.JsonMap{}
 	if len(queries) <= aggregation_start_index {
@@ -505,7 +466,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []mod
 	return aggregations
 }
 
-func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) *model.SearchResp {
+func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
 	var totalCount uint64
 	if len(ResultSets) > 0 && len(ResultSets[0]) > 0 && len(ResultSets[0][0].Cols) > 0 {
 		// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
@@ -535,7 +496,7 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) MakeResponseAggregationMarshalled(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) MakeResponseAggregationMarshalled(queries []model.Query, ResultSets [][]model.QueryResultRow) ([]byte, error) {
 	response := cw.MakeResponseAggregation(queries, ResultSets)
 	return response.Marshal()
 }
@@ -554,7 +515,7 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncRequestI
 	return &response
 }
 
-func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []model.QueryWithAggregation, ResultSets [][]model.QueryResultRow) {
+func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []model.Query, ResultSets [][]model.QueryResultRow) {
 	queryIterationOrder := cw.sortInTopologicalOrder(queries)
 	// fmt.Println("qwerty", queryIterationOrder) let's remove all prints in this function after all pipeline aggregations are merged
 	for _, queryIndex := range queryIterationOrder {
@@ -739,7 +700,7 @@ func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMa
 // Probably you can create a query with loops in pipeline aggregations, but you can't do it in Kibana from Visualize view,
 // so I don't handle it here. We won't panic in such case, only log a warning/error + return non-full results, which is expected,
 // as you can't really compute cycled pipeline aggregations.
-func (cw *ClickhouseQueryTranslator) sortInTopologicalOrder(queries []model.QueryWithAggregation) []int {
+func (cw *ClickhouseQueryTranslator) sortInTopologicalOrder(queries []model.Query) []int {
 	nameToIndex := make(map[string]int, len(queries))
 	for i, query := range queries {
 		nameToIndex[query.Name()] = i
