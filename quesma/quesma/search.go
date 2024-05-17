@@ -251,7 +251,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
 				newAggregationHandlingUsed = true
-				columns := []string{}
+				columns := [][]string{}
 				if optAsync != nil {
 					go func() {
 						defer recovery.LogAndHandlePanic(ctx, func() {
@@ -528,7 +528,7 @@ func (q *QueryRunner) searchWorkerCommon(ctx context.Context, fullQuery model.Qu
 }
 
 func (q *QueryRunner) searchAggregationWorkerCommon(ctx context.Context, queries []model.Query,
-	columns []string,
+	columns [][]string,
 	queryTranslator IQueryTranslator, table *clickhouse.Table,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
 
@@ -584,7 +584,7 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 
 func (q *QueryRunner) searchAggregationWorker(ctx context.Context,
 	aggregations []model.Query,
-	columns []string,
+	columns [][]string,
 	queryTranslator IQueryTranslator,
 	table *clickhouse.Table,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
