@@ -102,7 +102,7 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 
 	// not sure how we should configure our query translator ???
 	// is this a config option??
-	
+
 	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
 
 	router := configureRouter(config, logManager, quesmaManagementConsole, phoneHomeAgent, queryRunner)
