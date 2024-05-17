@@ -2,8 +2,6 @@ package queryparser
 
 import (
 	"context"
-	"crypto/sha1"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
@@ -14,6 +12,7 @@ import (
 	"mitmproxy/quesma/util"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const facetsSampleSize = "20000"
@@ -330,32 +329,25 @@ func computeIdFromDocument(doc model.SearchHit) (string, error) {
 	// TBD which fields, eventually configurable
 	/*
 		This is ugly as hell but surprisingly gets the job done.
-		However works only on strings... if we are concatenating different types, we might end up with something different at ClickHouse/Hydrolix end...
+		However, works only on strings... if we are concatenating different types, we might end up with something different at ClickHouse/Hydrolix end...
 	*/
-	var email, fullName string
-	if v, ok := doc.Fields["email"]; ok {
-		if e, okk := v[0].(*string); okk {
-			email = *e
+	var timestamp string
+	if v, ok := doc.Fields["@timestamp"]; ok {
+		if vv, okk := v[0].(time.Time); okk {
+			timestamp = strconv.Itoa(int(vv.UnixMilli()))
+		} else {
+			fmt.Sprintf("????? FAILed timestamp type assert : [%v]", v)
 		}
 	} else {
-		logger.Error().Msgf("PRZEMYSLAW FAIL email: [%v]", v)
-		return "", fmt.Errorf("missing email field")
+		logger.Error().Msgf("NO @timestamp FIELD [%v]", v)
+		return "", fmt.Errorf("missing @timestamp field")
 	}
-	if v, ok := doc.Fields["customer_full_name"]; ok {
-		if e, okk := v[0].(*string); okk {
-			fullName = *e
-		}
-	} else {
-		logger.Error().Msgf("PRZEMYSLAW FAIL customer_full_name: [%v]", v)
-		return "", fmt.Errorf("missing customer_full_name field")
-	}
-
-	concat := email + fullName
-	logger.Info().Msgf("concat: [%v]", concat)
-	hash := sha1.Sum([]byte(concat))
-	hashEncodedToString := hex.EncodeToString(hash[:])
-	logger.Info().Msgf("hash: [%s]", hashEncodedToString)
-	return hashEncodedToString, nil
+	//concat := email + fullName
+	//logger.Info().Msgf("concat: [%v]", concat)
+	//hash := sha1.Sum([]byte(concat))
+	//hashEncodedToString := hex.EncodeToString(hash[:])
+	//logger.Info().Msgf("hash: [%s]", hashEncodedToString)
+	return timestamp, nil
 }
 
 func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) *model.SearchResp {

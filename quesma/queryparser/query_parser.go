@@ -297,8 +297,19 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) SimpleQuery {
 	}
 	logger.Warn().Msgf("unsupported id query executed, requested ids of [%s]", strings.Join(ids, "','"))
 
-	// ugh, we need to know fields for hash computation ...
-	statement := fmt.Sprintf("lower(hex(SHA1(CONCAT(email, customer_full_name)))) IN ('%s') ", strings.Join(ids, "','"))
+	//statement := fmt.Sprintf("lower(hex(SHA1(CONCAT(email, customer_full_name)))) IN ('%s') ", strings.Join(ids, "','"))
+	statement := fmt.Sprintf("toUnixTimestamp64Milli(%s) IN (%s) ", strconv.Quote("@timestamp"), ids)
+	//var colNames []string
+	//for _, col := range cw.Table.Cols {
+	//	colNames = append(colNames, fmt.Sprintf("ifNull(%s, '')", strconv.Quote(col.Name)))
+	//}
+	//sort.Strings(colNames)
+	//qq := fmt.Sprintf("lower(hex(SHA1(CONCAT(%s)))) IN ('44') ", strings.Join(colNames, ","))
+	//print(qq)
+	///*
+	//
+	// */
+	// clickhouse toUnix
 
 	return newSimpleQuery(NewSimpleStatement(statement), true)
 }
