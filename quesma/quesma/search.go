@@ -233,8 +233,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				oldHandlingUsed = true
 				fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
 				queries := []model.Query{*fullQuery}
-				_ = queries
-				columnsSlice := make([][]string, 1)
+				columnsSlice := make([][]string, len(queries))
 				columnsSlice[0] = columns
 				if optAsync != nil {
 					go func() {
@@ -242,8 +241,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 						})
 						translatedQueryBody, hitsSlice := q.searchAggregationWorker(ctx, queries, columnsSlice, table, false, optAsync)
-						hits = hitsSlice[0]
-						searchResponse, err := queryTranslator.MakeSearchResponse(hits, fullQuery.QueryInfo.Typ, fullQuery.Highlighter)
+						searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], fullQuery.QueryInfo.Typ, fullQuery.Highlighter)
 						if err != nil {
 							logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, fullQuery.QueryInfo, hits)
 							optAsync.doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
