@@ -112,27 +112,3 @@ func (cw *ClickhouseQueryTranslator) isSimpleDate(dateTime string) bool {
 	}
 	return true
 }
-
-// addRoundingToClickhouseDateTime adds rounding that might be present in Clickhouse's format.
-// If it exists, is at the end of dateTime in a "/[char]" format, e.g. /d, /w, /M, /Y
-// It means, e.g. /M, that we want to round to the beginning of the month.
-// It's done via Clickhouse's functions toStartOfDay, toStartOfWeek, toStartOfMonth, toStartOfYear.
-func (cw *ClickhouseQueryTranslator) addRoundingToClickhouseDateTime(dateTime string, parsedWithoutRounding string) string {
-	const defaultRounding = 'd'
-	var roundingFunction = map[rune]string{
-		'd': "toStartOfDay",
-		'w': "toStartOfWeek",
-		'M': "toStartOfMonth",
-		'Y': "toStartOfYear",
-	}
-	if len(dateTime) < len("/d") || dateTime[len(dateTime)-2] != '/' {
-		return parsedWithoutRounding
-	}
-	switch dateTime[len(dateTime)-1] {
-	case 'd', 'w', 'M', 'Y':
-		return roundingFunction[rune(dateTime[len(dateTime)-1])] + "(" + parsedWithoutRounding + ")"
-	default:
-		logger.Error().Msgf("unknown rounding character %c in dateTime %s. Defaulting to /%s", dateTime[len(dateTime)-1], dateTime, string(defaultRounding))
-		return roundingFunction[defaultRounding] + "(" + parsedWithoutRounding + ")"
-	}
-}

@@ -9,8 +9,6 @@ import (
 
 type timeUnit string
 
-var timeUnits = []timeUnit{"m", "s", "h", "d", "w", "M", "y"}
-
 type DateMathInterval struct {
 	amount int
 	unit   timeUnit
@@ -133,7 +131,7 @@ func (b *DateMathAsClickhouseIntervals) RenderSQL(expression *DateMathExpression
 		result = fmt.Sprintf("%s(%s, INTERVAL %d %s)", op, result, amount, unit)
 	}
 
-	const defaultRounding = 'd'
+	const defaultRounding = "d"
 	var roundingFunction = map[string]string{
 		"d": "toStartOfDay",
 		"w": "toStartOfWeek",
@@ -143,11 +141,11 @@ func (b *DateMathAsClickhouseIntervals) RenderSQL(expression *DateMathExpression
 
 	if expression.rounding != "" {
 
-		fn := roundingFunction["d"]
 		if function, ok := roundingFunction[string(expression.rounding)]; ok {
-			fn = function
+			result = fmt.Sprintf("%s(%s)", function, result)
+		} else {
+			return "", fmt.Errorf("invalid rounding unit: %s", expression.rounding)
 		}
-		result = fmt.Sprintf("%s(%s)", fn, result)
 
 	}
 
