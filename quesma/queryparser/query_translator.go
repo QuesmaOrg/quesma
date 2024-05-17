@@ -97,15 +97,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.
 			Highlight: make(map[string][]string),
 		}
 		cw.highlightHit(&hits[i], highlighter, ResultSet[i])
-	}
-
-	// Set the IDs
-	for i, hit := range hits {
-		if id, err := cw.computeIdFromDocument(hit); err != nil {
-			hits[i].ID = strconv.Itoa(i + 1)
-		} else {
-			hits[i].ID = id
-		}
+		hits[i].ID = cw.computeIdForDocument(hits[i], strconv.Itoa(i+1))
 	}
 
 	return &model.SearchResp{
@@ -333,21 +325,23 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) computeIdFromDocument(doc model.SearchHit) (string, error) {
-	var pseudoUniqueId string
-
+func (cw *ClickhouseQueryTranslator) computeIdForDocument(doc model.SearchHit, defaultID string) string {
 	tsFieldName, err := cw.GetTimestampFieldName()
 	if err != nil {
-		return "", err
+		return defaultID
 	}
+
+	var pseudoUniqueId string
+
 	if v, ok := doc.Fields[tsFieldName]; ok {
 		if vv, okk := v[0].(time.Time); okk {
 			pseudoUniqueId = strconv.Itoa(int(vv.UnixMilli()))
 		} else {
-			return "", fmt.Errorf("timestamp field is not a time.Time")
+			logger.WarnWithCtx(cw.Ctx).Msgf("failed to convert timestamp field [%v] to time.Time", v[0])
+			return defaultID
 		}
 	}
-	return pseudoUniqueId, nil
+	return pseudoUniqueId
 }
 
 func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) *model.SearchResp {
@@ -366,16 +360,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 			}
 		}
 		cw.highlightHit(&hits[i], highlighter, ResultSet[i])
-	}
-
-	// Set the IDs
-	for i, hit := range hits {
-		if id, err := cw.computeIdFromDocument(hit); err != nil {
-			logger.Warn().Msgf("failed to compute ID for document: %v", err)
-			hits[i].ID = strconv.Itoa(i + 1)
-		} else {
-			hits[i].ID = id
-		}
+		hits[i].ID = cw.computeIdForDocument(hits[i], strconv.Itoa(i+1))
 	}
 
 	return &model.SearchResp{
