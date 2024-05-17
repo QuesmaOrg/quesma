@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type timeUnit string
@@ -169,4 +170,61 @@ func (b *DateMathAsClickhouseIntervals) parseTimeUnit(timeUnit timeUnit) (string
 		return "year", nil
 	}
 	return "", errors.New("unsupported time unit")
+}
+
+type DateMathExpressionAsLiteral struct {
+	now time.Time
+}
+
+func (b *DateMathExpressionAsLiteral) RenderSQL(expression *DateMathExpression) (string, error) {
+
+	result := b.now
+
+	timeUnitToDuration := map[timeUnit]time.Duration{
+		"m": time.Minute,
+		"s": time.Second,
+		"h": time.Hour,
+		"H": time.Hour,
+		"d": 24 * time.Hour,
+		"w": 7 * 24 * time.Hour,
+		"M": 30 * 24 * time.Hour,
+		"Y": 365 * 24 * time.Hour,
+		"y": 365 * 24 * time.Hour,
+	}
+
+	for _, interval := range expression.intervals {
+
+		if interval.amount == 0 {
+			continue
+		}
+
+		amount := interval.amount
+
+		duration, ok := timeUnitToDuration[interval.unit]
+		if !ok {
+			return "", fmt.Errorf("unsupported time unit: %s", interval.unit)
+		}
+
+		result = result.Add(time.Duration(amount) * duration)
+	}
+
+	switch expression.rounding {
+	case "":
+		// do nothing
+	case "d":
+		result = time.Date(result.Year(), result.Month(), result.Day(), 0, 0, 0, 0, result.Location())
+	case "w":
+		weekday := int(result.Weekday())
+		result = result.AddDate(0, 0, -weekday)
+		result = time.Date(result.Year(), result.Month(), result.Day(), 0, 0, 0, 0, result.Location())
+	case "M":
+		result = time.Date(result.Year(), result.Month(), 1, 0, 0, 0, 0, result.Location())
+	case "Y":
+		result = time.Date(result.Year(), 1, 1, 0, 0, 0, 0, result.Location())
+
+	default:
+		return "", fmt.Errorf("unsupported rounding unit: %s", expression.rounding)
+	}
+
+	return result.Format(time.RFC3339), nil
 }

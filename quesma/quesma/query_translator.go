@@ -42,7 +42,7 @@ func NewQueryTranslator(ctx context.Context, language QueryLanguage, table *clic
 	case QueryLanguageEQL:
 		queryTranslator = &eql.ClickhouseEQLQueryTranslator{ClickhouseLM: logManager, Table: table, Ctx: ctx}
 	default:
-		queryTranslator = &queryparser.ClickhouseQueryTranslator{ClickhouseLM: logManager, Table: table, Ctx: ctx}
+		queryTranslator = &queryparser.ClickhouseQueryTranslator{ClickhouseLM: logManager, Table: table, Ctx: ctx, DateMathExpressionUseLiteral: true}
 	}
 
 	return queryTranslator

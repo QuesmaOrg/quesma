@@ -22,6 +22,8 @@ type ClickhouseQueryTranslator struct {
 	Table             *clickhouse.Table
 	tokensToHighlight []string
 	Ctx               context.Context
+
+	DateMathExpressionUseLiteral bool // if true, we use literal date math expressions, otherwise clickhouse interval functions
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()

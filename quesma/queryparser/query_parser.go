@@ -652,7 +652,7 @@ func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) SimpleQuery 
 	return newSimpleQuery(NewSimpleStatement("no query in nested query"), false)
 }
 
-func parseDateMathExpression(expr string) (string, error) {
+func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string) (string, error) {
 	expr = strings.ReplaceAll(expr, "'", "")
 
 	exp, err := ParseDateMathExpression(expr)
@@ -661,15 +661,24 @@ func parseDateMathExpression(expr string) (string, error) {
 		return "", err
 	}
 
-	builder := &DateMathAsClickhouseIntervals{}
+	builder1 := &DateMathExpressionAsLiteral{now: time.Now()}
+	builder2 := &DateMathAsClickhouseIntervals{}
 
-	sql, err := builder.RenderSQL(exp)
+	sql1, err := builder1.RenderSQL(exp)
 	if err != nil {
 		logger.Warn().Msgf("error rendering date math expression: %s", expr)
 		return "", err
 	}
 
-	return sql, nil
+	sql2, err := builder2.RenderSQL(exp)
+	if err != nil {
+		logger.Warn().Msgf("error rendering date math expression: %s", expr)
+		return "", err
+	}
+
+	fmt.Println("DATE MATH EXPRESSION: ", sql1, sql2)
+
+	return sql1, nil
 }
 
 // DONE: tested in CH, it works for date format 'YYYY-MM-DDTHH:MM:SS.SSSZ'
@@ -710,7 +719,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 						if _, err := time.Parse(time.RFC3339Nano, dateTime); err == nil {
 							vToPrint = cw.parseDateTimeString(cw.Table, field, dateTime)
 						} else if op == "gte" || op == "lte" || op == "gt" || op == "lt" {
-							vToPrint, err = parseDateMathExpression(vToPrint)
+							vToPrint, err = cw.parseDateMathExpression(vToPrint)
 							if err != nil {
 								logger.WarnWithCtx(cw.Ctx).Msgf("error parsing date math expression: %s", vToPrint)
 								return newSimpleQuery(NewSimpleStatement("error parsing date math expression: "+vToPrint), false)
