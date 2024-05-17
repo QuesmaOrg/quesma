@@ -25,6 +25,10 @@ func (cw *ClickhouseQueryTranslator) parsePipelineAggregations(queryMap QueryMap
 		delete(queryMap, "avg_bucket")
 		return
 	}
+	if aggregationType, success = cw.parseMinBucket(queryMap); success {
+		delete(queryMap, "min_bucket")
+		return
+	}
 	return
 }
 
@@ -149,6 +153,31 @@ func (cw *ClickhouseQueryTranslator) parseBucketsPath(shouldBeQueryMap any, aggr
 	return bucketsPath, true
 }
 
+func (cw *ClickhouseQueryTranslator) parseMinBucket(queryMap QueryMap) (aggregationType model.QueryType, success bool) {
+	avgBucketRaw, exists := queryMap["min_bucket"]
+	if !exists {
+		return
+	}
+
+	avgBucket, ok := avgBucketRaw.(QueryMap)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("avg_bucket is not a map, but %T, value: %v", avgBucketRaw, avgBucketRaw)
+		return
+	}
+	bucketsPathRaw, exists := avgBucket["buckets_path"]
+	if !exists {
+		logger.WarnWithCtx(cw.Ctx).Msg("no buckets_path in avg_bucket")
+		return
+	}
+	bucketsPath, ok := bucketsPathRaw.(string)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a string, but %T, value: %v", bucketsPathRaw, bucketsPathRaw)
+		return
+	}
+
+	return pipeline_aggregations.NewMinBucket(cw.Ctx, bucketsPath), true
+}
+
 func (b *aggrQueryBuilder) buildPipelineAggregation(aggregationType model.QueryType, metadata model.JsonMap) model.Query {
 	query := b.buildAggregationCommon(metadata)
 	query.Type = aggregationType
@@ -177,6 +206,9 @@ func (b *aggrQueryBuilder) buildPipelineAggregation(aggregationType model.QueryT
 			query.Parent = aggrType.Parent
 		}
 	case pipeline_aggregations.AverageBucket:
+		query.NoDBQuery = true
+		query.Parent = aggrType.Parent
+	case pipeline_aggregations.MinBucket:
 		query.NoDBQuery = true
 		query.Parent = aggrType.Parent
 	}

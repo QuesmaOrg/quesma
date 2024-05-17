@@ -1935,4 +1935,610 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
 		},
 	},
+	{ // [11]
+		TestName: "Simplest min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Count)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"1": {
+					"min_bucket": {
+						"buckets_path": "1-bucket>_count"
+					}
+				},
+				"1-bucket": {
+					"terms": {
+						"field": "clientip",
+						"order": {
+							"_key": "desc"
+						},
+						"size": 5
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-05-11T07:40:13.606Z",
+									"lte": "2024-05-11T22:40:13.606Z"
+								}
+							}
+						}
+					],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"1": {
+					"keys": [
+						"252.102.14.111",
+						"250.85.17.229",
+						"249.69.222.185",
+						"247.126.133.102"
+					],
+					"value": 1.0
+				},
+				"1-bucket": {
+					"buckets": [
+						{
+							"doc_count": 1,
+							"key": "252.102.14.111"
+						},
+						{
+							"doc_count": 1,
+							"key": "250.85.17.229"
+						},
+						{
+							"doc_count": 1,
+							"key": "249.69.222.185"
+						},
+						{
+							"doc_count": 3,
+							"key": "247.240.202.244"
+						},
+						{
+							"doc_count": 1,
+							"key": "247.126.133.102"
+						}
+					],
+					"doc_count_error_upper_bound": 0,
+					"sum_other_doc_count": 195
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 202
+				}
+			},
+			"timed_out": false,
+			"took": 32
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(202))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "252.102.14.111"),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "250.85.17.229"),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "249.69.222.185"),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "247.240.202.244"),
+					model.NewQueryResultCol("doc_count", 3),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "247.126.133.102"),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z') AND ` +
+				`"timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z') `,
+			`NoDBQuery`,
+			`SELECT "clientip", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z')  ` +
+				`GROUP BY ("clientip") ` +
+				`ORDER BY ("clientip")`,
+		},
+	},
+	{ // [12]
+		TestName: "min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Unique Count)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"1": {
+					"min_bucket": {
+						"buckets_path": "1-bucket>1-metric"
+					}
+				},
+				"1-bucket": {
+					"aggs": {
+						"1-metric": {
+							"cardinality": {
+								"field": "geo.coordinates"
+							}
+						}
+					},
+					"terms": {
+						"field": "clientip",
+						"order": {
+							"_key": "desc"
+						},
+						"size": 5
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"1": {
+					"keys": [
+						"255.205.14.152",
+						"255.174.89.45",
+						"253.69.5.67",
+						"252.177.62.191",
+						"251.250.144.158"
+					],
+					"value": 1.0
+				},
+				"1-bucket": {
+					"buckets": [
+						{
+							"1-metric": {
+								"value": 1
+							},
+							"doc_count": 1,
+							"key": "255.205.14.152"
+						},
+						{
+							"1-metric": {
+								"value": 1
+							},
+							"doc_count": 1,
+							"key": "255.174.89.45"
+						},
+						{
+							"1-metric": {
+								"value": 1
+							},
+							"doc_count": 1,
+							"key": "253.69.5.67"
+						},
+						{
+							"1-metric": {
+								"value": 1
+							},
+							"doc_count": 1,
+							"key": "252.177.62.191"
+						},
+						{
+							"1-metric": {
+								"value": 1
+							},
+							"doc_count": 1,
+							"key": "251.250.144.158"
+						}
+					],
+					"doc_count_error_upper_bound": 0,
+					"sum_other_doc_count": 194
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 199
+				}
+			},
+			"timed_out": false,
+			"took": 17
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(199))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "255.205.14.152"),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "255.174.89.45"),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "253.69.5.67"),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "252.177.62.191"),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "251.250.144.158"),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "255.205.14.152"),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "255.174.89.45"),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "253.69.5.67"),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "252.177.62.191"),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", "251.250.144.158"),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` `,
+			`NoDBQuery`,
+			`SELECT "clientip", COUNT(DISTINCT "geo.coordinates") ` +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				`GROUP BY ("clientip") ` +
+				`ORDER BY ("clientip")`,
+			`SELECT "clientip", count() ` +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				`GROUP BY ("clientip") ` +
+				`ORDER BY ("clientip")`,
+		},
+	},
+	{ // [13]
+		TestName: "complex min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Sum), Buckets: Split Series: Histogram",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"min_bucket": {
+								"buckets_path": "1-bucket>1-metric"
+							}
+						},
+						"1-bucket": {
+							"aggs": {
+								"1-metric": {
+									"sum": {
+										"field": "bytes"
+									}
+								}
+							},
+							"terms": {
+								"field": "clientip",
+								"order": {
+									"_key": "desc"
+								},
+								"size": 2
+							}
+						}
+					},
+					"histogram": {
+						"field": "bytes",
+						"interval": 200,
+						"min_doc_count": 1
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"1": {
+								"keys": [
+									"252.177.62.191"
+								],
+								"value": 7.0
+							},
+							"1-bucket": {
+								"buckets": [
+									{
+										"1-metric": {
+											"value": 13.0
+										},
+										"doc_count": 1,
+										"key": "255.205.14.152"
+									},
+									{
+										"1-metric": {
+											"value": 7.0
+										},
+										"doc_count": 1,
+										"key": "252.177.62.191"
+									}
+								],
+								"doc_count_error_upper_bound": 0,
+								"sum_other_doc_count": 68
+							},
+							"doc_count": 73,
+							"key": 0.0
+						},
+						{
+							"1": {
+								"keys": [
+									"246.106.125.113"
+								],
+								"value": 7.0
+							},
+							"1-bucket": {
+								"buckets": [
+									{
+										"1-metric": {
+											"value": 7.0
+										},
+										"doc_count": 1,
+										"key": "246.106.125.113"
+									},
+									{
+										"1-metric": {
+											"value": 18.0
+										},
+										"doc_count": 1,
+										"key": "236.212.255.77"
+									}
+								],
+								"doc_count_error_upper_bound": 0,
+								"sum_other_doc_count": 20
+							},
+							"doc_count": 25,
+							"key": 200.0
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 1838
+				}
+			},
+			"timed_out": false,
+			"took": 244
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1838))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 0.0),
+					model.NewQueryResultCol("client_ip", "255.205.14.152"),
+					model.NewQueryResultCol(`sumOrNull("bytes")`, 13.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 0.0),
+					model.NewQueryResultCol("client_ip", "252.177.62.191"),
+					model.NewQueryResultCol(`sumOrNull("bytes")`, 7.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
+					model.NewQueryResultCol("client_ip", "246.106.125.113"),
+					model.NewQueryResultCol(`sumOrNull("bytes")`, 7.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
+					model.NewQueryResultCol("client_ip", "236.212.255.77"),
+					model.NewQueryResultCol(`sumOrNull("bytes")`, 18.0),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 0.0),
+					model.NewQueryResultCol("client_ip", "255.205.14.152"),
+					model.NewQueryResultCol(`count()`, 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 0.0),
+					model.NewQueryResultCol("client_ip", "252.177.62.191"),
+					model.NewQueryResultCol(`count()`, 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
+					model.NewQueryResultCol("client_ip", "246.106.125.113"),
+					model.NewQueryResultCol(`count()`, 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
+					model.NewQueryResultCol("client_ip", "236.212.255.77"),
+					model.NewQueryResultCol(`count()`, 1),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 0.0),
+					model.NewQueryResultCol(`count()`, 73),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
+					model.NewQueryResultCol(`count()`, 25),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` `,
+			`NoDBQuery`,
+			`SELECT floor("bytes" / 200.000000) * 200.000000, "clientip", sumOrNull("bytes") ` +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				`GROUP BY (floor("bytes" / 200.000000) * 200.000000, "clientip") ` +
+				`ORDER BY (floor("bytes" / 200.000000) * 200.000000, "clientip")`,
+			`SELECT floor("bytes" / 200.000000) * 200.000000, "clientip", count() ` +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				`GROUP BY (floor("bytes" / 200.000000) * 200.000000, "clientip") ` +
+				`ORDER BY (floor("bytes" / 200.000000) * 200.000000, "clientip")`,
+			`SELECT floor("bytes" / 200.000000) * 200.000000, count() ` +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				`GROUP BY (floor("bytes" / 200.000000) * 200.000000) ` +
+				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
+		},
+	},
 }
