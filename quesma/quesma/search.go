@@ -587,8 +587,7 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 		case <-q.executionCtx.Done():
 			return
 		default:
-			_, _ = q.searchWorkerCommon(ctx, fullQuery, columns, queryTranslator, table, optAsync)
-			return
+			return q.searchWorkerCommon(ctx, fullQuery, columns, queryTranslator, table, optAsync)
 		}
 	}
 }
@@ -607,8 +606,7 @@ func (q *QueryRunner) searchAggregationWorker(ctx context.Context,
 		case <-q.executionCtx.Done():
 			return
 		default:
-			_, _ = q.searchAggregationWorkerCommon(ctx, aggregations, columns, queryTranslator, table, optAsync)
-			return
+			return q.searchAggregationWorkerCommon(ctx, aggregations, columns, queryTranslator, table, optAsync)
 		}
 	}
 }
