@@ -1,6 +1,7 @@
 package quesma
 
 import (
+	"encoding/json"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
@@ -72,5 +73,63 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.MatchPr
 			logger.Debug().Msgf("no index found for pattern %s", indexPattern)
 			return false
 		}
+	}
+}
+
+// Returns false if the body contains a Kibana alert related field.
+func matchAgainstKibanaAlerts() mux.MatchPredicate {
+	return func(m map[string]string, body string) bool {
+
+		if body == "" {
+			return true
+		}
+
+		// https://www.elastic.co/guide/en/security/current/alert-schema.html
+
+		var query map[string]interface{}
+		err := json.Unmarshal([]byte(body), &query)
+		if err != nil {
+			logger.Warn().Msgf("error parsing json %v", err)
+			return true
+		}
+
+		var findKibanaAlertField func(node interface{}) bool
+
+		findKibanaAlertField = func(node interface{}) bool {
+
+			if node == nil {
+				return false
+			}
+
+			switch nodeValue := node.(type) {
+
+			case map[string]interface{}:
+
+				for k, v := range nodeValue {
+
+					if strings.Contains(k, "kibana.alert.") {
+						return true
+					}
+
+					if findKibanaAlertField(v) {
+						return true
+					}
+				}
+
+			case []interface{}:
+
+				for _, i := range nodeValue {
+					if findKibanaAlertField(i) {
+						return true
+					}
+				}
+
+			}
+			return false
+		}
+
+		q := query["query"].(map[string]interface{})
+
+		return !findKibanaAlertField(q)
 	}
 }

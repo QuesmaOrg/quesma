@@ -158,7 +158,7 @@ func (cw *ClickhouseEQLQueryTranslator) BuildSimpleSelectQuery(whereClause strin
 	panic("EQL does not support this method")
 }
 
-func (cw *ClickhouseEQLQueryTranslator) MakeResponseAggregation(aggregations []model.QueryWithAggregation, aggregationResults [][]model.QueryResultRow) *model.SearchResp {
+func (cw *ClickhouseEQLQueryTranslator) MakeResponseAggregation(aggregations []model.Query, aggregationResults [][]model.QueryResultRow) *model.SearchResp {
 	panic("EQL does not support aggregations")
 }
 
@@ -166,6 +166,6 @@ func (cw *ClickhouseEQLQueryTranslator) BuildFacetsQuery(fieldName string, simpl
 	panic("EQL does not support facets")
 }
 
-func (cw *ClickhouseEQLQueryTranslator) ParseAggregationJson(aggregationJson string) ([]model.QueryWithAggregation, error) {
+func (cw *ClickhouseEQLQueryTranslator) ParseAggregationJson(aggregationJson string) ([]model.Query, error) {
 	panic("EQL does not support aggregations")
 }

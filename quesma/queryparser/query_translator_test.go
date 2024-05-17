@@ -723,32 +723,32 @@ func Test_makeSearchResponseFacetsNumericFloats(t *testing.T) {
 
 func Test_sortInTopologicalOrder(t *testing.T) {
 	var testcases = []struct {
-		queries                []model.QueryWithAggregation
+		queries                []model.Query
 		wantedTopologicalOrder []int
 	}{
 		{
-			queries: []model.QueryWithAggregation{
-				{Query: model.Query{Parent: "b", NoDBQuery: true}, Aggregators: []model.Aggregator{{Name: "c"}}},
-				{Query: model.Query{Parent: ""}, Aggregators: []model.Aggregator{{Name: "b"}}},
-				{Query: model.Query{Parent: "c", NoDBQuery: true}, Aggregators: []model.Aggregator{{Name: "d"}}},
+			queries: []model.Query{
+				{Parent: "b", NoDBQuery: true, Aggregators: []model.Aggregator{{Name: "c"}}},
+				{Parent: "", Aggregators: []model.Aggregator{{Name: "b"}}},
+				{Parent: "c", NoDBQuery: true, Aggregators: []model.Aggregator{{Name: "d"}}},
 			},
 			wantedTopologicalOrder: []int{1, 0, 2},
 		},
 		{
-			queries: []model.QueryWithAggregation{
-				{Query: model.Query{Parent: ""}, Aggregators: []model.Aggregator{{Name: "c"}}},
-				{Query: model.Query{Parent: ""}, Aggregators: []model.Aggregator{{Name: "b"}}},
-				{Query: model.Query{Parent: ""}, Aggregators: []model.Aggregator{{Name: "d"}}},
-				{Query: model.Query{Parent: ""}, Aggregators: []model.Aggregator{{Name: "e"}}},
+			queries: []model.Query{
+				{Parent: "", Aggregators: []model.Aggregator{{Name: "c"}}},
+				{Parent: "", Aggregators: []model.Aggregator{{Name: "b"}}},
+				{Parent: "", Aggregators: []model.Aggregator{{Name: "d"}}},
+				{Parent: "", Aggregators: []model.Aggregator{{Name: "e"}}},
 			},
 			wantedTopologicalOrder: []int{0, 1, 2, 3},
 		},
 		{
-			queries: []model.QueryWithAggregation{
-				{Query: model.Query{Parent: "a", NoDBQuery: true}, Aggregators: []model.Aggregator{{Name: "b1"}}},
-				{Query: model.Query{Parent: "a", NoDBQuery: true}, Aggregators: []model.Aggregator{{Name: "b2"}}},
-				{Query: model.Query{Parent: ""}, Aggregators: []model.Aggregator{{Name: "a"}}},
-				{Query: model.Query{Parent: "b2", NoDBQuery: true}, Aggregators: []model.Aggregator{{Name: "c"}}},
+			queries: []model.Query{
+				{Parent: "a", NoDBQuery: true, Aggregators: []model.Aggregator{{Name: "b1"}}},
+				{Parent: "a", NoDBQuery: true, Aggregators: []model.Aggregator{{Name: "b2"}}},
+				{Parent: "", Aggregators: []model.Aggregator{{Name: "a"}}},
+				{Parent: "b2", NoDBQuery: true, Aggregators: []model.Aggregator{{Name: "c"}}},
 			},
 			wantedTopologicalOrder: []int{2, 0, 1, 3},
 		},

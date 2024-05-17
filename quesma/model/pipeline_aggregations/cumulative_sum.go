@@ -21,11 +21,11 @@ type CumulativeSum struct {
 }
 
 func NewCumulativeSum(ctx context.Context, bucketsPath string) CumulativeSum {
-	isCount := bucketsPath == bucketsPathCount
+	isCount := bucketsPath == BucketsPathCount
 	return CumulativeSum{ctx: ctx, Parent: bucketsPath, IsCount: isCount}
 }
 
-const bucketsPathCount = "_count" // special name for `buckets_path` parameter, normally it's some other aggregation's name
+const BucketsPathCount = "_count" // special name for `buckets_path` parameter, normally it's some other aggregation's name
 
 func (query CumulativeSum) IsBucketAggregation() bool {
 	return false
@@ -43,44 +43,40 @@ func (query CumulativeSum) TranslateSqlResponseToJson(rows []model.QueryResultRo
 	return response
 }
 
-func (query CumulativeSum) CalculateResultWhenMissing(parentRow model.QueryResultRow, previousResultsCurrentAggregation []model.QueryResultRow) model.QueryResultRow {
-	resultRow := parentRow.Copy() // result is the same as parent, with an exception of last element, which we'll change below
-	parentValue := parentRow.Cols[len(parentRow.Cols)-1].Value
-	var resultValue any
-	if len(previousResultsCurrentAggregation) == 0 {
-		resultValue = parentValue
-	} else {
-		// I don't check types too much, they are expected to be numeric, so either floats or ints.
-		// I propose to keep it this way until at least one case arises as this method can be called a lot of times.
-		previousValue := previousResultsCurrentAggregation[len(previousResultsCurrentAggregation)-1].Cols[len(previousResultsCurrentAggregation[len(previousResultsCurrentAggregation)-1].Cols)-1].Value
-		parentValueAsFloat, ok := util.ExtractFloat64Maybe(parentValue)
-		if ok {
-			previousValueAsFloat, ok := util.ExtractFloat64Maybe(previousValue)
+func (query CumulativeSum) CalculateResultWhenMissing(qwa *model.Query, parentRows []model.QueryResultRow) []model.QueryResultRow {
+	resultRows := make([]model.QueryResultRow, 0, len(parentRows))
+	if len(parentRows) == 0 {
+		return resultRows
+	}
+
+	if _, firstRowValueIsFloat := util.ExtractFloat64Maybe(parentRows[0].LastColValue()); firstRowValueIsFloat {
+		sum := 0.0
+		for _, parentRow := range parentRows {
+			value, ok := util.ExtractFloat64Maybe(parentRow.LastColValue())
 			if ok {
-				resultValue = parentValueAsFloat + previousValueAsFloat
+				sum += value
 			} else {
-				logger.WarnWithCtx(query.ctx).Msgf("could not convert previous value to float: %v, parentValue: %v", previousValue, parentValue)
-				resultValue = previousValue
+				logger.WarnWithCtx(query.ctx).Msgf("could not convert value to float: %v, type: %T. Skipping", parentRow.LastColValue(), parentRow.LastColValue())
 			}
-		} else {
-			previousValueAsInt, okPrevious := util.ExtractInt64Maybe(previousValue)
-			parentValueAsInt, okParent := util.ExtractInt64Maybe(parentValue)
-			if okPrevious && okParent {
-				resultValue = parentValueAsInt + previousValueAsInt
-			} else if okPrevious {
-				logger.WarnWithCtx(query.ctx).Msgf("could not convert parent value to int: %v, previousValue: %v. Using previousValue as sum", parentValue, previousValue)
-				resultValue = previousValue
-			} else if okParent {
-				logger.WarnWithCtx(query.ctx).Msgf("could not convert previous value to int: %v, parentValue: %v. Starting sum from 0", previousValue, parentValue)
-				resultValue = parentValue
+			resultRow := parentRow.Copy()
+			resultRow.Cols[len(resultRow.Cols)-1].Value = sum
+			resultRows = append(resultRows, resultRow)
+		}
+	} else { // cumulative sum must be on numeric, so if it's not float64, it should always be int
+		var sum int64
+		for _, parentRow := range parentRows {
+			value, ok := util.ExtractInt64Maybe(parentRow.LastColValue())
+			if ok {
+				sum += value
 			} else {
-				logger.WarnWithCtx(query.ctx).Msgf("could not convert previous and parent value to int, previousValue: %v, parentValue: %v. Using nil as result", previousValue, parentValue)
-				resultValue = nil
+				logger.WarnWithCtx(query.ctx).Msgf("could not convert value to int: %v, type: %T. Skipping", parentRow.LastColValue(), parentRow.LastColValue())
 			}
+			resultRow := parentRow.Copy()
+			resultRow.Cols[len(resultRow.Cols)-1].Value = sum
+			resultRows = append(resultRows, resultRow)
 		}
 	}
-	resultRow.Cols[len(resultRow.Cols)-1].Value = resultValue
-	return resultRow
+	return resultRows
 }
 
 func (query CumulativeSum) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {

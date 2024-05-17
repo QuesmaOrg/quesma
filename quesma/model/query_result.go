@@ -136,3 +136,7 @@ func (r *QueryResultRow) Copy() QueryResultRow {
 	copy(newCols, r.Cols)
 	return QueryResultRow{Index: r.Index, Cols: newCols}
 }
+
+func (r *QueryResultRow) LastColValue() any {
+	return r.Cols[len(r.Cols)-1].Value
+}
