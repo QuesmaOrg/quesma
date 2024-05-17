@@ -234,7 +234,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
 				if optAsync != nil {
 					go func() {
-						defer recovery.LogPanicWithCtx(ctx)
+						defer recovery.LogAndHandlePanic(ctx, func() {
+							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
+						})
 						q.searchWorker(ctx, *fullQuery, columns, queryTranslator, table, optAsync)
 					}()
 				} else {
@@ -245,7 +247,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				columns := []string{}
 				if optAsync != nil {
 					go func() {
-						defer recovery.LogPanicWithCtx(ctx)
+						defer recovery.LogAndHandlePanic(ctx, func() {
+							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
+						})
 						q.searchAggregationWorker(ctx, aggregations, columns, queryTranslator, table, optAsync)
 					}()
 				} else {
