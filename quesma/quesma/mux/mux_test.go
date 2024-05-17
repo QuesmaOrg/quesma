@@ -3,8 +3,6 @@ package mux
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
-	"net/http"
-	"net/url"
 	"testing"
 )
 
@@ -14,28 +12,30 @@ func TestMatches_ShouldIgnoreTrailingSlash(t *testing.T) {
 	router.RegisterPath("/:index/_doc", "POST", mockHandler)
 	router.RegisterPath("/:index/_count", "GET", mockHandler)
 
-	assert.True(t, router.Matches("/i1,i2/_count", "GET", ""))
-	assert.True(t, router.Matches("/_all/_count/", "GET", ""))
-
-	assert.True(t, router.Matches("/index1/_doc", "POST", ""))
-	assert.True(t, router.Matches("/index2/_doc/", "POST", ""))
-
-	assert.True(t, router.Matches("/indexABC/_bulk", "POST", ""))
-	assert.True(t, router.Matches("/indexABC/_bulk/", "POST", ""))
+	assert.True(t, router.Matches(toRequest("/i1,i2/_count", "GET", "")))
+	assert.True(t, router.Matches(toRequest("/_all/_count/", "GET", "")))
+	assert.True(t, router.Matches(toRequest("/index1/_doc", "POST", "")))
+	assert.True(t, router.Matches(toRequest("/index2/_doc/", "POST", "")))
+	assert.True(t, router.Matches(toRequest("/indexABC/_bulk", "POST", "")))
+	assert.True(t, router.Matches(toRequest("/indexABC/_bulk/", "POST", "")))
 }
 
 func TestShouldMatchMultipleHttpMethods(t *testing.T) {
 	router := NewPathRouter()
-	router.RegisterPathMatcher("/:index/_bulk", []string{"POST", "GET"}, always, mockHandler)
+	router.Register("/:index/_bulk", IsHTTPMethod("POST", "GET"), mockHandler)
 
-	assert.True(t, router.Matches("/index1/_bulk", "POST", ""))
-	assert.True(t, router.Matches("/index1/_bulk", "GET", ""))
+	assert.True(t, router.Matches(toRequest("/index1/_bulk", "POST", "")))
+	assert.True(t, router.Matches(toRequest("/index1/_bulk", "GET", "")))
 }
 
-func always(_ map[string]string, _ string) bool {
-	return true
+func toRequest(path, method string, body string) *Request {
+	return &Request{
+		Path:   path,
+		Method: method,
+		Body:   body,
+	}
 }
 
-func mockHandler(_ context.Context, _, _ string, _ map[string]string, _ http.Header, _ url.Values) (*Result, error) {
+func mockHandler(_ context.Context, _ *Request) (*Result, error) {
 	return &Result{}, nil
 }

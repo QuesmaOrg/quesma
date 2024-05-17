@@ -6,6 +6,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 type (
@@ -81,6 +82,7 @@ func (p *PathRouter) Execute(ctx context.Context, req *Request) (*Result, error)
 }
 
 func (p *PathRouter) Matches(req *Request) bool {
+
 	_, _, found := p.findHandler(req)
 	if found {
 		routerStatistics.addMatched(req.Path)
@@ -94,8 +96,9 @@ func (p *PathRouter) Matches(req *Request) bool {
 }
 
 func (p *PathRouter) findHandler(req *Request) (handler, urlpath.Match, bool) {
+	path := strings.TrimSuffix(req.Path, "/")
 	for _, m := range p.mappings {
-		meta, match := m.compiledPath.Match(req.Path)
+		meta, match := m.compiledPath.Match(path)
 		if match && m.predicate.Matches(req) {
 			return m.handler, meta, true
 		}

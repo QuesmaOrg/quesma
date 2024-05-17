@@ -27,38 +27,43 @@ const (
 )
 
 func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *mux.PathRouter {
+
+	// some syntactic sugar
+	method := mux.IsHTTPMethod
+	and := mux.And
+
 	router := mux.NewPathRouter()
 	router.RegisterPath(routes.ClusterHealthPath, "GET", func(_ context.Context, req *mux.Request) (*mux.Result, error) {
 		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, httpOk), nil
 	})
 
-	router.Register(routes.BulkPath, mux.And(mux.IsHTTPMethod("POST"), matchedAgainstBulkBody(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.BulkPath, and(method("POST"), matchedAgainstBulkBody(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		results := dualWriteBulk(ctx, nil, req.Body, lm, cfg, phoneHomeAgent)
 		return bulkInsertResult(results), nil
 	})
 
-	router.Register(routes.IndexRefreshPath, mux.And(mux.IsHTTPMethod("POST"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexRefreshPath, and(method("POST"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		return elasticsearchInsertResult(`{"_shards":{"total":1,"successful":1,"failed":0}}`, httpOk), nil
 	})
 
-	router.RegisterPathMatcher(routes.IndexDocPath, []string{"POST"}, matchedExact(cfg), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexDocPath, and(method("POST"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		dualWrite(ctx, req.Params["index"], req.Body, lm, cfg)
 		return indexDocResult(req.Params["index"], httpOk), nil
 	})
 
-	router.RegisterPathMatcher(routes.IndexBulkPath, []string{"POST"}, matchedExact(cfg), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexBulkPath, and(method("POST"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		index := req.Params["index"]
 		results := dualWriteBulk(ctx, &index, req.Body, lm, cfg, phoneHomeAgent)
 		return bulkInsertResult(results), nil
 	})
 
-	router.RegisterPathMatcher(routes.IndexBulkPath, []string{"PUT"}, matchedExact(cfg), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexBulkPath, and(method("PUT"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		index := req.Params["index"]
 		results := dualWriteBulk(ctx, &index, req.Body, lm, cfg, phoneHomeAgent)
 		return bulkInsertResult(results), nil
 	})
 
-	router.Register(routes.ResolveIndexPath, mux.IsHTTPMethod("GET"), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.ResolveIndexPath, method("GET"), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		pattern := elasticsearch.NormalizePattern(req.Params["index"])
 		if elasticsearch.IsIndexPattern(pattern) {
 			// todo avoid creating new instances all the time
@@ -123,7 +128,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		}
 	})
 
-	router.RegisterPathMatcher(routes.IndexCountPath, []string{"GET"}, matchedAgainstPattern(cfg), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexCountPath, and(method("GET"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		cnt, err := queryRunner.handleCount(ctx, req.Params["index"])
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
@@ -140,7 +145,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		}
 	})
 
-	router.RegisterPathMatcher(routes.GlobalSearchPath, []string{"GET", "POST"}, matchAgainstKibanaAlerts(), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.GlobalSearchPath, and(method("GET", "POST"), matchAgainstKibanaAlerts()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
 		responseBody, err := queryRunner.handleSearch(ctx, "*", []byte(req.Body))
 		if err != nil {
@@ -153,7 +158,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
 
-	router.RegisterPathMatcher(routes.IndexSearchPath, []string{"GET", "POST"}, matchedAgainstPattern(cfg), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexSearchPath, and(method("GET", "POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		responseBody, err := queryRunner.handleSearch(ctx, req.Params["index"], []byte(req.Body))
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
@@ -169,7 +174,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		}
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
-	router.RegisterPathMatcher(routes.IndexAsyncSearchPath, []string{"POST"}, matchedAgainstPattern(cfg), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexAsyncSearchPath, and(method("POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		waitForResultsMs := 1000 // Defaults to 1 second as in docs
 		if v, ok := req.Params["wait_for_completion_timeout"]; ok {
 			if w, err := time.ParseDuration(v); err == nil {
@@ -200,7 +205,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
 
-	router.RegisterPathMatcher(routes.AsyncSearchIdPath, []string{"GET"}, matchedAgainstAsyncId(), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.AsyncSearchIdPath, and(method("GET"), matchedAgainstAsyncId()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, req.Params["id"])
 		responseBody, err := queryRunner.handlePartialAsyncSearch(ctx, req.Params["id"])
 		if err != nil {
@@ -209,7 +214,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
 
-	router.RegisterPathMatcher(routes.AsyncSearchIdPath, []string{"DELETE"}, matchedAgainstAsyncId(), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.AsyncSearchIdPath, and(method("DELETE"), matchedAgainstAsyncId()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		responseBody, err := queryRunner.deleteAsyncSeach(req.Params["id"])
 		if err != nil {
 			return nil, err
@@ -217,7 +222,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
 
-	router.RegisterPathMatcher(routes.FieldCapsPath, []string{"GET", "POST"}, matchedAgainstPattern(cfg), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.FieldCapsPath, and(method("GET", "POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		responseBody, err := handleFieldCaps(ctx, req.Params["index"], []byte(req.Body), lm)
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
@@ -231,7 +236,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		}
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
-	router.RegisterPathMatcher(routes.TermsEnumPath, []string{"POST"}, matchedAgainstPattern(cfg), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.TermsEnumPath, and(method("POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		if strings.Contains(req.Params["index"], ",") {
 			return nil, errors.New("multi index terms enum is not yet supported")
 		} else {
@@ -255,7 +260,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	}
 
-	router.RegisterPathMatcher(routes.EQLSearch, []string{"GET", "POST"}, matchedAgainstPattern(cfg), eqlHandler)
+	router.Register(routes.EQLSearch, and(method("GET", "POST"), matchedAgainstPattern(cfg)), eqlHandler)
 
 	return router
 }
