@@ -1172,4 +1172,767 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
 		},
 	},
+	{ // [7]
+		TestName: "Simplest avg_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Average Bucket (Bucket: Date Histogram, Metric: Count)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"1": {
+					"avg_bucket": {
+						"buckets_path": "1-bucket>_count"
+					}
+				},
+				"1-bucket": {
+					"date_histogram": {
+						"field": "timestamp",
+						"fixed_interval": "10m",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"1": {
+					"value": 1.3333333333333333
+				},
+				"1-bucket": {
+					"buckets": [
+						{
+							"doc_count": 1,
+							"key": 1715403000000,
+							"key_as_string": "2024-05-11T04:50:00.000"
+						},
+						{
+							"doc_count": 2,
+							"key": 1715403600000,
+							"key_as_string": "2024-05-11T05:00:00.000"
+						},
+						{
+							"doc_count": 1,
+							"key": 1715404200000,
+							"key_as_string": "2024-05-11T05:10:00.000"
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 207
+				}
+			},
+			"timed_out": false,
+			"took": 81
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1974))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715403000000/600000)),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715403600000/600000)),
+					model.NewQueryResultCol("doc_count", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715404200000/600000)),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` `,
+			`NoDBQuery`,
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), count() " +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+		},
+	},
+	{ // [8]
+		TestName: "avg_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Average Bucket (Bucket: Date Histogram, Metric: Max)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"1": {
+					"avg_bucket": {
+						"buckets_path": "1-bucket>1-metric"
+					}
+				},
+				"1-bucket": {
+					"aggs": {
+						"1-metric": {
+							"max": {
+								"field": "bytes"
+							}
+						}
+					},
+					"date_histogram": {
+						"field": "timestamp",
+						"fixed_interval": "10m",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"1": {
+					"value": 8835.6666666666667
+				},
+				"1-bucket": {
+					"buckets": [
+						{
+							"1-metric": {
+								"value": 8047.0
+							},
+							"doc_count": 1,
+							"key": 1715403000000,
+							"key_as_string": "2024-05-11T04:50:00.000"
+						},
+						{
+							"1-metric": {
+								"value": 9261.0
+							},
+							"doc_count": 4,
+							"key": 1715413800000,
+							"key_as_string": "2024-05-11T07:50:00.000"
+						},
+						{
+							"1-metric": {
+								"value": 9199.0
+							},
+							"doc_count": 2,
+							"key": 1715414400000,
+							"key_as_string": "2024-05-11T08:00:00.000"
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 207
+				}
+			},
+			"timed_out": false,
+			"took": 121
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(207))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715403000000/600000)),
+					model.NewQueryResultCol("doc_count", 8047.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715413800000/600000)),
+					model.NewQueryResultCol("doc_count", 9261.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715414400000/600000)),
+					model.NewQueryResultCol("doc_count", 9199.0),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715403000000/600000)),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715413800000/600000)),
+					model.NewQueryResultCol("doc_count", 4),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715414400000/600000)),
+					model.NewQueryResultCol("doc_count", 2),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` `,
+			`NoDBQuery`,
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " + `maxOrNull("bytes") ` +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), count() " +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+		},
+	},
+	/* TODO need fix for date_range and subaggregations. Same one, as already merged ~1-2 weeks ago for range. It's WIP.
+	{ // [9]
+		TestName: "avg_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Average Bucket (Bucket: Date Range, Metric: Average), Buckets: X-Asis: Range",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"avg_bucket": {
+								"buckets_path": "1-bucket>1-metric"
+							}
+						},
+						"1-bucket": {
+							"aggs": {
+								"1-metric": {
+									"avg": {
+										"field": "bytes"
+									}
+								}
+							},
+							"date_range": {
+								"field": "timestamp",
+								"ranges": [
+									{
+										"from": "now-1w/w",
+										"to": "now"
+									},
+									{
+										"to": "now"
+									}
+								],
+								"time_zone": "Europe/Warsaw"
+							}
+						}
+					},
+					"range": {
+						"keyed": true,
+						"ranges": [
+							{
+								"from": 3,
+								"to": 1000
+							},
+							{
+								"from": 2,
+								"to": 5
+							}
+						],
+						"field": "dayOfWeek"
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-05-11T01:55:02.236Z",
+									"lte": "2024-05-11T16:55:02.236Z"
+								}
+							}
+						}
+					],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": {
+						"2.0-5.0": {
+							"1": {
+								"value": 8047.0
+							},
+							"1-bucket": {
+								"buckets": [
+									{
+										"1-metric": {
+											"value": 8047.0
+										},
+										"doc_count": 1,
+										"key": "*-2024-05-11T18:55:02.344+02:00",
+										"to": 1715446502344.0,
+										"to_as_string": "2024-05-11T18:55:02.344+02:00"
+									},
+									{
+										"1-metric": {
+											"value": 8047.0
+										},
+										"doc_count": 1,
+										"from": 1714341600000.0,
+										"from_as_string": "2024-04-29T00:00:00.000+02:00",
+										"key": "2024-04-29T00:00:00.000+02:00-2024-05-11T18:55:02.344+02:00",
+										"to": 1715446502344.0,
+										"to_as_string": "2024-05-11T18:55:02.344+02:00"
+									}
+								]
+							},
+							"doc_count": 1,
+							"from": 2.0,
+							"to": 5.0
+						},
+						"3.0-1000.0": {
+							"1": {
+								"value": 5273.850241545893
+							},
+							"1-bucket": {
+								"buckets": [
+									{
+										"1-metric": {
+											"value": 5273.850241545893
+										},
+										"doc_count": 207,
+										"key": "*-2024-05-11T18:55:02.344+02:00",
+										"to": 1715446502344.0,
+										"to_as_string": "2024-05-11T18:55:02.344+02:00"
+									},
+									{
+										"1-metric": {
+											"value": 5273.850241545893
+										},
+										"doc_count": 207,
+										"from": 1714341600000.0,
+										"from_as_string": "2024-04-29T00:00:00.000+02:00",
+										"key": "2024-04-29T00:00:00.000+02:00-2024-05-11T18:55:02.344+02:00",
+										"to": 1715446502344.0,
+										"to_as_string": "2024-05-11T18:55:02.344+02:00"
+									}
+								]
+							},
+							"doc_count": 207,
+							"from": 3.0,
+							"to": 1000.0
+						}
+					}
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 207
+				}
+			},
+			"timed_out": false,
+			"took": 28
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(207))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("1", 1),
+					model.NewQueryResultCol("2", int64(1714341600000)),
+					model.NewQueryResultCol("3", int64(1715446502344)),
+					model.NewQueryResultCol("4", 1),
+					model.NewQueryResultCol("5", int64(1715446502344)),
+					model.NewQueryResultCol(`avgOrNull("bytes")`, 8047.0),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("1", 1),
+					model.NewQueryResultCol("2", int64(1714341600000)),
+					model.NewQueryResultCol("3", int64(1715446502344)),
+					model.NewQueryResultCol("4", 1),
+					model.NewQueryResultCol("5", int64(1715446502344)),
+					model.NewQueryResultCol(`count()`, 1),
+				}},
+			},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("1", 207),
+					model.NewQueryResultCol("2", int64(1714341600000)),
+					model.NewQueryResultCol("3", int64(1715446502344)),
+					model.NewQueryResultCol("4", 207),
+					model.NewQueryResultCol("5", int64(1715446502344)),
+					model.NewQueryResultCol(`avgOrNull("bytes")`, 5273.850241545893),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("1", 207),
+					model.NewQueryResultCol("2", int64(1714341600000)),
+					model.NewQueryResultCol("3", int64(1715446502344)),
+					model.NewQueryResultCol("4", 207),
+					model.NewQueryResultCol("5", int64(1715446502344)),
+					model.NewQueryResultCol(`count()`, 207),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("1", 207),
+					model.NewQueryResultCol("2", 1),
+					model.NewQueryResultCol("3", 207),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-11T01:55:02.236Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-11T16:55:02.236Z') `,
+			`NoDBQuery`,
+			`SELECT count(if("timestamp" >= toStartOfWeek(subDate(now(), INTERVAL 1 week)) AND "timestamp" < now(), 1, NULL)), ` +
+				`toInt64(toUnixTimestamp(toStartOfWeek(subDate(now(), INTERVAL 1 week)))), ` +
+				`toInt64(toUnixTimestamp(now())), ` +
+				`count(if("timestamp" < now(), 1, NULL)), ` +
+				`toInt64(toUnixTimestamp(now())), ` +
+				`avgOrNull("bytes") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-11T01:55:02.236Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-11T16:55:02.236Z')) ` +
+				`AND "dayOfWeek">=2 AND "dayOfWeek"<5 `,
+			`SELECT count(if("timestamp" >= toStartOfWeek(subDate(now(), INTERVAL 1 week)) AND "timestamp" < now(), 1, NULL)), ` +
+				`toInt64(toUnixTimestamp(toStartOfWeek(subDate(now(), INTERVAL 1 week)))), ` +
+				`toInt64(toUnixTimestamp(now())), ` +
+				`count(if("timestamp" < now(), 1, NULL)), ` +
+				`toInt64(toUnixTimestamp(now())), ` +
+				`count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-11T01:55:02.236Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-11T16:55:02.236Z')) ` +
+				`AND "dayOfWeek">=2 AND "dayOfWeek"<5 `,
+			`NoDBQuery`,
+			`SELECT count(if("timestamp" >= toStartOfWeek(subDate(now(), INTERVAL 1 week)) AND "timestamp" < now(), 1, NULL)), ` +
+				`toInt64(toUnixTimestamp(toStartOfWeek(subDate(now(), INTERVAL 1 week)))), ` +
+				`toInt64(toUnixTimestamp(now())), ` +
+				`count(if("timestamp" < now(), 1, NULL)), toInt64(toUnixTimestamp(now())), ` +
+				`avgOrNull("bytes") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-11T16:55:02.236Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-05-11T01:55:02.236Z')) ` +
+				`AND "dayOfWeek">=3 AND "dayOfWeek"<1000 `,
+			`SELECT count(if("timestamp" >= toStartOfWeek(subDate(now(), INTERVAL 1 week)) AND "timestamp" < now(), 1, NULL)), ` +
+				`toInt64(toUnixTimestamp(toStartOfWeek(subDate(now(), INTERVAL 1 week)))), ` +
+				`toInt64(toUnixTimestamp(now())), count(if("timestamp" < now(), 1, NULL)), ` +
+				`toInt64(toUnixTimestamp(now())), ` +
+				`count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-11T01:55:02.236Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-11T16:55:02.236Z')) ` +
+				`AND "dayOfWeek">=3 AND "dayOfWeek"<1000 `,
+			`SELECT count(if("dayOfWeek">=3 AND "dayOfWeek"<1000, 1, NULL)), ` +
+				`count(if("dayOfWeek">=2 AND "dayOfWeek"<5, 1, NULL)), ` +
+				`count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-11T01:55:02.236Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-11T16:55:02.236Z') `,
+		},
+	},
+	*/
+	{ // [10]
+		TestName: "avg_bucket. Reproduce: Visualize -> Horizontal Bar: Metrics: Average Bucket (Bucket: Histogram, Metric: Count), Buckets: X-Asis: Date Histogram",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"avg_bucket": {
+								"buckets_path": "1-bucket>_count"
+							}
+						},
+						"1-bucket": {
+							"histogram": {
+								"field": "bytes",
+								"interval": 1,
+								"min_doc_count": 1
+							}
+						}
+					},
+					"date_histogram": {
+						"field": "timestamp",
+						"fixed_interval": "10m",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"1": {
+								"value": 1.0
+							},
+							"1-bucket": {
+								"buckets": [
+									{
+										"doc_count": 1,
+										"key": 4202.0
+									}
+								]
+							},
+							"doc_count": 1,
+							"key": 1715818800000,
+							"key_as_string": "2024-05-16T00:20:00.000"
+						},
+						{
+							"1": {
+								"value": 2.0
+							},
+							"1-bucket": {
+								"buckets": [
+									{
+										"doc_count": 1,
+										"key": 0.0
+									},
+									{
+										"doc_count": 2,
+										"key": 293.0
+									},
+									{
+										"doc_count": 3,
+										"key": 1997.0
+									}
+								]
+							},
+							"doc_count": 9,
+							"key": 1715863800000,
+							"key_as_string": "2024-05-16T12:50:00.000"
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 141
+				}
+			},
+			"timed_out": false,
+			"took": 60
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(141))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715818800000/600000)),
+					model.NewQueryResultCol("bytes", 4202.0),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715863800000/600000)),
+					model.NewQueryResultCol("bytes", 0.0),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715863800000/600000)),
+					model.NewQueryResultCol("bytes", 293.0),
+					model.NewQueryResultCol("doc_count", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715863800000/600000)),
+					model.NewQueryResultCol("bytes", 1997.0),
+					model.NewQueryResultCol("doc_count", 3),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715818800000/600000)),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1715863800000/600000)),
+					model.NewQueryResultCol("doc_count", 9),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` `,
+			`NoDBQuery`,
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " + `"bytes", count() ` +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " + `"bytes") ` +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " + `"bytes")`,
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), count() " +
+				`FROM ` + testdata.QuotedTableName + `  ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+		},
+	},
 }

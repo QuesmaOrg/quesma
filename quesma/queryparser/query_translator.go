@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
+	"mitmproxy/quesma/queryprocessor"
 	"mitmproxy/quesma/util"
 	"strconv"
 	"strings"
@@ -351,39 +352,6 @@ func (cw *ClickhouseQueryTranslator) finishMakeResponse(query model.Query, Resul
 	}
 }
 
-// Returns if row1 and row2 have the same values for the first level + 1 fields
-func (cw *ClickhouseQueryTranslator) sameGroupByFields(row1, row2 model.QueryResultRow, level int) bool {
-	for i := 0; i <= level; i++ {
-		if row1.Cols[i].ExtractValue(cw.Ctx) != row2.Cols[i].ExtractValue(cw.Ctx) {
-			return false
-		}
-	}
-	return true
-}
-
-// Splits ResultSet into buckets, based on the first level + 1 fields
-// E.g. if level == 0, we split into buckets based on the first field,
-// e.g. [row(1, ...), row(1, ...), row(2, ...), row(2, ...), row(3, ...)] -> [[row(1, ...), row(1, ...)], [row(2, ...), row(2, ...)], [row(3, ...)]]
-func (cw *ClickhouseQueryTranslator) splitResultSetIntoBuckets(ResultSet []model.QueryResultRow, level int) [][]model.QueryResultRow {
-	if len(ResultSet) == 0 {
-		return [][]model.QueryResultRow{{}}
-	}
-
-	buckets := [][]model.QueryResultRow{{}}
-	curBucket := 0
-	lastRow := ResultSet[0]
-	for _, row := range ResultSet {
-		if cw.sameGroupByFields(row, lastRow, level) {
-			buckets[curBucket] = append(buckets[curBucket], row)
-		} else {
-			curBucket++
-			buckets = append(buckets, []model.QueryResultRow{row})
-		}
-		lastRow = row
-	}
-	return buckets
-}
-
 // DFS algorithm
 // 'aggregatorsLevel' - index saying which (sub)aggregation we're handling
 // 'selectLevel' - which field from select we're grouping by at current level (or not grouping by, if query.Aggregators[aggregatorsLevel].Empty == true)
@@ -405,11 +373,12 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 	// fmt.Println("level1 :/", level1, " level2 B):", level2)
 
 	// or we need to go deeper
+	qp := queryprocessor.NewQueryProcessor(cw.Ctx)
 	var bucketsReturnMap []model.JsonMap
 	if query.Aggregators[aggregatorsLevel].Empty {
 		bucketsReturnMap = append(bucketsReturnMap, cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel)...)
 	} else {
-		buckets := cw.splitResultSetIntoBuckets(ResultSet, selectLevel)
+		buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+1)
 		for _, bucket := range buckets {
 			bucketsReturnMap = append(bucketsReturnMap, cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+1)...)
 		}
@@ -520,7 +489,6 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []m
 	// fmt.Println("qwerty", queryIterationOrder) let's remove all prints in this function after all pipeline aggregations are merged
 	for _, queryIndex := range queryIterationOrder {
 		query := queries[queryIndex]
-		//fmt.Println(queryIndex, query, ResultSets[queryIndex]) let's remove it after all pipeline aggregations implemented
 		pipelineQueryType, isPipeline := query.Type.(model.PipelineQueryType)
 		if !isPipeline || !query.HasParentAggregation() {
 			continue
@@ -538,11 +506,7 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []m
 			logger.WarnWithCtx(cw.Ctx).Msgf("parent index not found for query %v", query)
 			continue
 		}
-		// fmt.Println("ResultSets[i]", ResultSets[queryIndex], queryIndex, parentIndex)
-		for rowNr := range ResultSets[parentIndex] {
-			ResultSets[queryIndex] = append(ResultSets[queryIndex], pipelineQueryType.CalculateResultWhenMissing(rowNr, ResultSets[parentIndex], ResultSets[queryIndex]))
-		}
-		// fmt.Println("ResultSets[i] - post", ResultSets[queryIndex], "i:", queryIndex, "parent:", parentIndex)
+		ResultSets[queryIndex] = pipelineQueryType.CalculateResultWhenMissing(&query, ResultSets[parentIndex])
 	}
 }
 

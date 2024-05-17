@@ -21,6 +21,10 @@ func (cw *ClickhouseQueryTranslator) parsePipelineAggregations(queryMap QueryMap
 		delete(queryMap, "derivative")
 		return
 	}
+	if aggregationType, success = cw.parseAverageBucket(queryMap); success {
+		delete(queryMap, "avg_bucket")
+		return
+	}
 	return
 }
 
@@ -29,23 +33,10 @@ func (cw *ClickhouseQueryTranslator) parseCumulativeSum(queryMap QueryMap) (aggr
 	if !exists {
 		return
 	}
-
-	cumulativeSum, ok := cumulativeSumRaw.(QueryMap)
+	bucketsPath, ok := cw.parseBucketsPath(cumulativeSumRaw, "cumulative_sum")
 	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("cumulative_sum is not a map, but %T, value: %v", cumulativeSumRaw, cumulativeSumRaw)
 		return
 	}
-	bucketsPathRaw, exists := cumulativeSum["buckets_path"]
-	if !exists {
-		logger.WarnWithCtx(cw.Ctx).Msg("no buckets_path in cumulative_sum")
-		return
-	}
-	bucketsPath, ok := bucketsPathRaw.(string)
-	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a string, but %T, value: %v", bucketsPathRaw, bucketsPathRaw)
-		return
-	}
-
 	return pipeline_aggregations.NewCumulativeSum(cw.Ctx, bucketsPath), true
 }
 
@@ -88,18 +79,12 @@ func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (
 	}
 
 	// if ["buckets_path"] != "_count", skip the aggregation
-	if bucketsPathRaw, exists := bucketScript["buckets_path"]; exists {
-		if bucketsPath, ok := bucketsPathRaw.(string); ok {
-			if bucketsPath != "_count" {
-				logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not '_count', but %s. Skipping this aggregation", bucketsPath)
-				return
-			}
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a string, but %T, value: %v. Skipping this aggregation", bucketsPathRaw, bucketsPathRaw)
-			return
-		}
-	} else {
-		logger.WarnWithCtx(cw.Ctx).Msg("no buckets_path in bucket_script. Skipping this aggregation")
+	bucketsPath, ok := cw.parseBucketsPath(bucketScript, "bucket_script")
+	if !ok {
+		return
+	}
+	if bucketsPath != pipeline_aggregations.BucketsPathCount {
+		logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not '_count', but %s. Skipping this aggregation", bucketsPath)
 		return
 	}
 
@@ -133,6 +118,37 @@ func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (
 	return pipeline_aggregations.NewBucketScript(cw.Ctx), true
 }
 
+func (cw *ClickhouseQueryTranslator) parseAverageBucket(queryMap QueryMap) (aggregationType model.QueryType, success bool) {
+	avgBucketRaw, exists := queryMap["avg_bucket"]
+	if !exists {
+		return
+	}
+	bucketsPath, ok := cw.parseBucketsPath(avgBucketRaw, "avg_bucket")
+	if !ok {
+		return
+	}
+	return pipeline_aggregations.NewAverageBucket(cw.Ctx, bucketsPath), true
+}
+
+func (cw *ClickhouseQueryTranslator) parseBucketsPath(shouldBeQueryMap any, aggregationName string) (bucketsPath string, success bool) {
+	queryMap, ok := shouldBeQueryMap.(QueryMap)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not a map, but %T, value: %v", aggregationName, shouldBeQueryMap, shouldBeQueryMap)
+		return
+	}
+	bucketsPathRaw, exists := queryMap["buckets_path"]
+	if !exists {
+		logger.WarnWithCtx(cw.Ctx).Msg("no buckets_path in avg_bucket")
+		return
+	}
+	bucketsPath, ok = bucketsPathRaw.(string)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a string, but %T, value: %v", bucketsPathRaw, bucketsPathRaw)
+		return
+	}
+	return bucketsPath, true
+}
+
 func (b *aggrQueryBuilder) buildPipelineAggregation(aggregationType model.QueryType, metadata model.JsonMap) model.Query {
 	query := b.buildAggregationCommon(metadata)
 	query.Type = aggregationType
@@ -142,7 +158,6 @@ func (b *aggrQueryBuilder) buildPipelineAggregation(aggregationType model.QueryT
 	case pipeline_aggregations.CumulativeSum:
 		query.NoDBQuery = true
 		if aggrType.IsCount {
-			query.NonSchemaFields = append(query.NonSchemaFields, "count()")
 			if len(query.Aggregators) < 2 {
 				logger.WarnWithCtx(b.ctx).Msg("cumulative_sum with count as parent, but no parent aggregation found")
 			}
@@ -161,6 +176,9 @@ func (b *aggrQueryBuilder) buildPipelineAggregation(aggregationType model.QueryT
 		} else {
 			query.Parent = aggrType.Parent
 		}
+	case pipeline_aggregations.AverageBucket:
+		query.NoDBQuery = true
+		query.Parent = aggrType.Parent
 	}
 	return query
 }
