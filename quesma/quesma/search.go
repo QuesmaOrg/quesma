@@ -232,15 +232,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				}
 				oldHandlingUsed = true
 				fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
-				queries := []model.Query{*fullQuery}
-				columnsSlice := make([][]string, len(queries))
-				columnsSlice[0] = columns
+				var columnsSlice [][]string
 				if optAsync != nil {
 					go func() {
 						defer recovery.LogAndHandlePanic(ctx, func() {
 							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 						})
-						translatedQueryBody, hitsSlice := q.searchWorker(ctx, queries, columnsSlice, table, false, optAsync)
+						translatedQueryBody, hitsSlice := q.searchWorker(ctx, []model.Query{*fullQuery}, append(columnsSlice, columns), table, false, optAsync)
 						searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], fullQuery.QueryInfo.Typ, fullQuery.Highlighter)
 						if err != nil {
 							logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, fullQuery.QueryInfo, hits)
@@ -251,7 +249,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					}()
 				} else {
 					var hitsSlice [][]model.QueryResultRow
-					translatedQueryBody, hitsSlice = q.searchWorker(ctx, queries, columnsSlice, table, false, nil)
+					translatedQueryBody, hitsSlice = q.searchWorker(ctx, []model.Query{*fullQuery}, append(columnsSlice, columns), table, false, nil)
 					hits = hitsSlice[0]
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
