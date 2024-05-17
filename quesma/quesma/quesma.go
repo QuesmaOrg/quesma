@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/network"
 	"mitmproxy/quesma/proxy"
+	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/gzip"
 	"mitmproxy/quesma/quesma/mux"
@@ -116,7 +117,10 @@ type router struct {
 }
 
 func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, logManager *clickhouse.LogManager) {
-	defer recovery.LogPanicWithCtx(ctx)
+	defer recovery.LogAndHandlePanic(ctx, func() {
+		w.WriteHeader(500)
+		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
+	})
 	if router.Matches(req.URL.Path, req.Method, string(reqBody)) {
 		var elkResponseChan = make(chan elasticResult)
 

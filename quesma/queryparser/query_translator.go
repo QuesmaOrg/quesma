@@ -2,7 +2,6 @@ package queryparser
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/kibana"
@@ -133,44 +132,6 @@ func EmptyAsyncSearchResponse(id string, isPartial bool, completionStatus int) (
 	asyncSearchResp := SearchToAsyncSearchResponse(&searchResp, id, isPartial, completionStatus)
 	return asyncSearchResp.Marshal() // error should never ever happen here
 }
-
-func BadRequestParseError(err error) []byte {
-	serialized, _ := json.Marshal(ParseErrorResponse{
-		Error: Error{
-			RootCause: []RootCause{
-				{
-					Type:   "parsing_exception",
-					Reason: err.Error(),
-				},
-			},
-			Type:   "parsing_exception",
-			Reason: err.Error(),
-		},
-		Status: 400,
-	},
-	)
-	return serialized
-}
-
-type (
-	ParseErrorResponse struct {
-		Error  `json:"error"`
-		Status int `json:"status"`
-	}
-	Error struct {
-		RootCause []RootCause `json:"root_cause"`
-		Type      string      `json:"type"`
-		Reason    string      `json:"reason"`
-		Line      *int        `json:"line,omitempty"`
-		Col       *int        `json:"col,omitempty"`
-	}
-	RootCause struct {
-		Type   string `json:"type"`
-		Reason string `json:"reason"`
-		Line   *int   `json:"line,omitempty"`
-		Col    *int   `json:"col,omitempty"`
-	}
-)
 
 func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) (*model.SearchResp, error) {
 	switch typ {

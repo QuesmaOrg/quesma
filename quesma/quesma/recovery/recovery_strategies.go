@@ -41,3 +41,12 @@ func LogPanicWithCtx(ctx context.Context) {
 		})
 	}
 }
+
+func LogAndHandlePanic(ctx context.Context, cleanupHandler func()) {
+	if r := recover(); r != nil {
+		commonRecovery(r, func() *zerolog.Event {
+			return logger.ErrorWithCtx(ctx)
+		})
+		cleanupHandler()
+	}
+}
