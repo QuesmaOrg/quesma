@@ -43,11 +43,11 @@ func (query CumulativeSum) TranslateSqlResponseToJson(rows []model.QueryResultRo
 	return response
 }
 
-func (query CumulativeSum) CalculateResultWhenMissing(parentRow model.QueryResultRow, previousResultsCurrentAggregation []model.QueryResultRow) model.QueryResultRow {
-	resultRow := parentRow.Copy() // result is the same as parent, with an exception of last element, which we'll change below
-	parentValue := parentRow.Cols[len(parentRow.Cols)-1].Value
+func (query CumulativeSum) CalculateResultWhenMissing(rowIndex int, parentRows []model.QueryResultRow, previousResultsCurrentAggregation []model.QueryResultRow) model.QueryResultRow {
+	resultRow := parentRows[rowIndex].Copy() // result is the same as parent, with an exception of last element, which we'll change below
+	parentValue := parentRows[rowIndex].Cols[len(parentRows[rowIndex].Cols)-1].Value
 	var resultValue any
-	if len(previousResultsCurrentAggregation) == 0 {
+	if rowIndex == 0 {
 		resultValue = parentValue
 	} else {
 		// I don't check types too much, they are expected to be numeric, so either floats or ints.

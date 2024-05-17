@@ -17,6 +17,10 @@ func (cw *ClickhouseQueryTranslator) parsePipelineAggregations(queryMap QueryMap
 		delete(queryMap, "cumulative_sum")
 		return
 	}
+	if aggregationType, success = cw.parseDerivative(queryMap); success {
+		delete(queryMap, "derivative")
+		return
+	}
 	return
 }
 
@@ -43,6 +47,30 @@ func (cw *ClickhouseQueryTranslator) parseCumulativeSum(queryMap QueryMap) (aggr
 	}
 
 	return pipeline_aggregations.NewCumulativeSum(cw.Ctx, bucketsPath), true
+}
+
+func (cw *ClickhouseQueryTranslator) parseDerivative(queryMap QueryMap) (aggregationType model.QueryType, success bool) {
+	derivativeRaw, exists := queryMap["derivative"]
+	if !exists {
+		return
+	}
+
+	derivative, ok := derivativeRaw.(QueryMap)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("derivative is not a map, but %T, value: %v", derivativeRaw, derivativeRaw)
+		return
+	}
+	bucketsPathRaw, exists := derivative["buckets_path"]
+	if !exists {
+		logger.WarnWithCtx(cw.Ctx).Msg("no buckets_path in derivative")
+		return
+	}
+	bucketsPath, ok := bucketsPathRaw.(string)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("buckets_path is not a string, but %T, value: %v", bucketsPathRaw, bucketsPathRaw)
+		return
+	}
+	return pipeline_aggregations.NewDerivative(cw.Ctx, bucketsPath), true
 }
 
 func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (aggregationType model.QueryType, success bool) {
@@ -112,6 +140,17 @@ func (b *aggrQueryBuilder) buildPipelineAggregation(aggregationType model.QueryT
 	case pipeline_aggregations.BucketScript:
 		query.NonSchemaFields = append(query.NonSchemaFields, "count()")
 	case pipeline_aggregations.CumulativeSum:
+		query.NoDBQuery = true
+		if aggrType.IsCount {
+			query.NonSchemaFields = append(query.NonSchemaFields, "count()")
+			if len(query.Aggregators) < 2 {
+				logger.WarnWithCtx(b.ctx).Msg("cumulative_sum with count as parent, but no parent aggregation found")
+			}
+			query.Parent = query.Aggregators[len(query.Aggregators)-2].Name
+		} else {
+			query.Parent = aggrType.Parent
+		}
+	case pipeline_aggregations.Derivative:
 		query.NoDBQuery = true
 		if aggrType.IsCount {
 			query.NonSchemaFields = append(query.NonSchemaFields, "count()")
