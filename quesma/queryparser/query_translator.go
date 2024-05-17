@@ -12,6 +12,7 @@ import (
 	"mitmproxy/quesma/util"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const facetsSampleSize = "20000"
@@ -46,6 +47,14 @@ func (cw *ClickhouseQueryTranslator) AddTokenToHighlight(token any) {
 		logger.WarnWithCtx(cw.Ctx).Msgf("unknown type for highlight token: %T, value: %v", token, token)
 	}
 
+}
+
+func (cw *ClickhouseQueryTranslator) GetTimestampFieldName() (string, error) {
+	if cw.Table.TimestampColumn != nil {
+		return *cw.Table.TimestampColumn, nil
+	} else {
+		return "", fmt.Errorf("no pseudo unique field configured for table %s", cw.Table.Name)
+	}
 }
 
 func (cw *ClickhouseQueryTranslator) ClearTokensToHighlight() {
@@ -88,6 +97,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.
 			Highlight: make(map[string][]string),
 		}
 		cw.highlightHit(&hits[i], highlighter, ResultSet[i])
+		hits[i].ID = cw.computeIdForDocument(hits[i], strconv.Itoa(i+1))
 	}
 
 	return &model.SearchResp{
@@ -277,6 +287,28 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.
 	}
 }
 
+func (cw *ClickhouseQueryTranslator) computeIdForDocument(doc model.SearchHit, defaultID string) string {
+	tsFieldName, err := cw.GetTimestampFieldName()
+	if err != nil {
+		return defaultID
+	}
+
+	var pseudoUniqueId string
+
+	if v, ok := doc.Fields[tsFieldName]; ok {
+		if vv, okk := v[0].(time.Time); okk {
+			// At database level we only compare timestamps with millisecond precision
+			// However in search results we append `q` plus generated digits (we use q because it's not in hex)
+			// so that kibana can iterate over documents in UI
+			pseudoUniqueId = fmt.Sprintf("%xq%s", int(vv.UnixMilli()), defaultID)
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("failed to convert timestamp field [%v] to time.Time", v[0])
+			return defaultID
+		}
+	}
+	return pseudoUniqueId
+}
+
 func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) *model.SearchResp {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
@@ -293,6 +325,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 			}
 		}
 		cw.highlightHit(&hits[i], highlighter, ResultSet[i])
+		hits[i].ID = cw.computeIdForDocument(hits[i], strconv.Itoa(i+1))
 	}
 
 	return &model.SearchResp{

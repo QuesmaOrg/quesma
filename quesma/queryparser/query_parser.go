@@ -296,10 +296,39 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) SimpleQuery {
 		return newSimpleQuery(NewSimpleStatement("parsing error: missing mandatory `values` field"), false)
 	}
 	logger.Warn().Msgf("unsupported id query executed, requested ids of [%s]", strings.Join(ids, "','"))
-	// We'll make this something along the lines of:
-	// 			fmt.Sprintf("COMPUTED_ID(document) IN ('%s') */ ", strings.Join(ids, "','"))
-	// but for now leaving empty
-	return newSimpleQuery(NewSimpleStatement(""), true)
+
+	timestampColumnName, err := cw.GetTimestampFieldName()
+	if err != nil {
+		logger.Warn().Msgf("id query executed, but not timestamp field configured")
+		return newSimpleQuery(NewSimpleStatement(""), true)
+	}
+
+	// when our generated ID appears in query looks like this: `18f7b8800b8q1`
+	// therefore we need to strip the hex part (before `q`) and convert it to decimal
+	// then we can query at DB level
+	for i, id := range ids {
+		idInHex := strings.Split(id, "q")[0]
+		if decimalValue, err := strconv.ParseUint(idInHex, 16, 64); err != nil {
+			logger.Error().Msgf("error parsing document id %s: %v", id, err)
+			return newSimpleQuery(NewSimpleStatement(""), true)
+		} else {
+			ids[i] = fmt.Sprintf("%d", decimalValue)
+		}
+	}
+
+	var statement string
+	if v, ok := cw.Table.Cols[timestampColumnName]; ok {
+		switch v.Type.String() {
+		case clickhouse.DateTime64.String():
+			statement = fmt.Sprintf("toUnixTimestamp64Milli(%s) IN (%s) ", strconv.Quote(timestampColumnName), ids)
+		case clickhouse.DateTime.String():
+			statement = fmt.Sprintf("toUnixTimestamp(%s) *1000 IN (%s) ", strconv.Quote(timestampColumnName), ids)
+		default:
+			logger.Warn().Msgf("timestamp field of unsupported type %s", v.Type.String())
+			return newSimpleQuery(NewSimpleStatement(""), true)
+		}
+	}
+	return newSimpleQuery(NewSimpleStatement(statement), true)
 }
 
 // Parses each SimpleQuery separately, returns list of translated SQLs
