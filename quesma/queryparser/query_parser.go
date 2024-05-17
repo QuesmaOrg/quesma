@@ -82,11 +82,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery
 	}
 
 	if sortPart, ok := queryAsMap["sort"]; ok {
-		if sortAsArray, ok := sortPart.([]any); ok {
-			parsedQuery.SortFields = cw.parseSortFields(sortAsArray)
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("unknown sort format, sort value: %v type: %T", sortPart, sortPart)
-		}
+		parsedQuery.SortFields = cw.parseSortFields(sortPart)
 	}
 
 	const defaultSize = 0
@@ -177,11 +173,7 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 	}
 
 	if sort, ok := queryAsMap["sort"]; ok {
-		if sortAsArray, ok := sort.([]any); ok {
-			parsedQuery.SortFields = cw.parseSortFields(sortAsArray)
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("unknown sort format, sort value: %v type: %T", sort, sort)
-		}
+		parsedQuery.SortFields = cw.parseSortFields(sort)
 	}
 	queryInfo := cw.tryProcessSearchMetadata(queryAsMap)
 
@@ -1146,38 +1138,74 @@ func (cw *ClickhouseQueryTranslator) extractInterval(queryMap QueryMap) string {
 
 // parseSortFields parses sort fields from the query
 // We're skipping ELK internal fields, like "_doc", "_id", etc. (we only accept field starting with "_" if it exists in our table)
-func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps []any) []string {
-	sortFields := make([]string, 0)
-	for _, sortMapAsAny := range sortMaps {
-		sortMap, ok := sortMapAsAny.(QueryMap)
-		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("parseSortFields: unexpected type of value: %T, value: %v", sortMapAsAny, sortMapAsAny)
-			continue
-		}
-
-		// sortMap has only 1 key, so we can just iterate over it
-		for k, v := range sortMap {
-			if strings.HasPrefix(k, "_") && cw.Table.GetFieldInfo(cw.Ctx, k) == clickhouse.NotExists {
-				// we're skipping ELK internal fields, like "_doc", "_id", etc.
+func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) []string {
+	switch sortMaps := sortMaps.(type) {
+	case []any:
+		sortFields := make([]string, 0)
+		for _, sortMapAsAny := range sortMaps {
+			sortMap, ok := sortMapAsAny.(QueryMap)
+			if !ok {
+				logger.WarnWithCtx(cw.Ctx).Msgf("parseSortFields: unexpected type of value: %T, value: %v", sortMapAsAny, sortMapAsAny)
 				continue
 			}
-			fieldName := cw.Table.ResolveField(cw.Ctx, k)
-			if vAsMap, ok := v.(QueryMap); ok {
-				if order, ok := vAsMap["order"]; ok {
-					if orderAsString, ok := order.(string); ok {
-						sortFields = append(sortFields, strconv.Quote(fieldName)+" "+orderAsString)
-					} else {
-						logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order type: %T, value: %v. Skipping", order, order)
-					}
-				} else {
-					sortFields = append(sortFields, strconv.Quote(fieldName))
+
+			// sortMap has only 1 key, so we can just iterate over it
+			for k, v := range sortMap {
+				if strings.HasPrefix(k, "_") && cw.Table.GetFieldInfo(cw.Ctx, k) == clickhouse.NotExists {
+					// we're skipping ELK internal fields, like "_doc", "_id", etc.
+					continue
 				}
-			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("unexpected value's type: %T (key, value): (%s, %v). Skipping", v, k, v)
+				fieldName := cw.Table.ResolveField(cw.Ctx, k)
+				switch v := v.(type) {
+				case QueryMap:
+					if order, ok := v["order"]; ok {
+						if orderAsString, ok := order.(string); ok {
+							sortFields = append(sortFields, strconv.Quote(fieldName)+" "+orderAsString)
+						} else {
+							logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order type: %T, value: %v. Skipping", order, order)
+						}
+					} else {
+						sortFields = append(sortFields, strconv.Quote(fieldName))
+					}
+				case string:
+					sortFields = append(sortFields, strconv.Quote(fieldName)+" "+v)
+				default:
+					logger.WarnWithCtx(cw.Ctx).Msgf("unexpected 'sort' value's type: %T (key, value): (%s, %v). Skipping", v, k, v)
+				}
 			}
 		}
+		return sortFields
+	case map[string]interface{}:
+		sortFields := make([]string, 0)
+
+		for fieldName, fieldValue := range sortMaps {
+			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, fieldName) == clickhouse.NotExists {
+				// TODO Elastic internal fields will need to be supported in the future
+				continue
+			}
+			if fieldValue, ok := fieldValue.(string); ok {
+				sortFields = append(sortFields, fmt.Sprintf("%s %s", strconv.Quote(fieldName), fieldValue))
+			}
+		}
+
+		return sortFields
+
+	case map[string]string:
+		sortFields := make([]string, 0)
+
+		for fieldName, fieldValue := range sortMaps {
+			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, fieldName) == clickhouse.NotExists {
+				// TODO Elastic internal fields will need to be supported in the future
+				continue
+			}
+			sortFields = append(sortFields, fmt.Sprintf("%s %s", strconv.Quote(fieldName), fieldValue))
+		}
+
+		return sortFields
+	default:
+		logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of sortMaps: %T, value: %v", sortMaps, sortMaps)
+		return []string{}
 	}
-	return sortFields
 }
 
 func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap) (size int, ok bool) {

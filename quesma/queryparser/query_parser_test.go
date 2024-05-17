@@ -453,7 +453,7 @@ func TestQueryParseDateMathExpression(t *testing.T) {
 
 func Test_parseSortFields(t *testing.T) {
 	tests := []struct {
-		sortMap    []any
+		sortMap    any
 		sortFields []string
 	}{
 		{
@@ -469,6 +469,26 @@ func Test_parseSortFields(t *testing.T) {
 		{
 			[]any{},
 			[]string{},
+		},
+		{
+			sortMap: map[string]string{
+				"timestamp": "desc",
+				"_doc":      "desc",
+			},
+			sortFields: []string{`"timestamp" desc`},
+		},
+		{
+			sortMap: map[string]interface{}{
+				"timestamp": "desc",
+				"_doc":      "desc",
+			},
+			sortFields: []string{`"timestamp" desc`},
+		}, {
+			sortMap: []any{
+				QueryMap{"@timestamp": "asc"},
+				QueryMap{"_doc": "asc"},
+			},
+			sortFields: []string{`"@timestamp" asc`},
 		},
 	}
 	table, _ := clickhouse.NewTable(`CREATE TABLE `+tableName+`
