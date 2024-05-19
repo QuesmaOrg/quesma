@@ -7,7 +7,6 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryprocessor"
 	"mitmproxy/quesma/util"
-	"strings"
 )
 
 type AverageBucket struct {
@@ -16,17 +15,7 @@ type AverageBucket struct {
 }
 
 func NewAverageBucket(ctx context.Context, bucketsPath string) AverageBucket {
-	const delimiter = ">"
-	withoutUnnecessarySuffix, _ := strings.CutSuffix(bucketsPath, delimiter+BucketsPathCount)
-	lastDelimiterIdx := strings.LastIndex(withoutUnnecessarySuffix, delimiter)
-	var parent string
-	if lastDelimiterIdx+1 < len(withoutUnnecessarySuffix) {
-		parent = withoutUnnecessarySuffix[lastDelimiterIdx+1:]
-	} else {
-		logger.WarnWithCtx(ctx).Msgf("invalid bucketsPath: %s, withoutUnnecessarySuffix: %s. Using empty string as parent.", bucketsPath, withoutUnnecessarySuffix)
-		parent = ""
-	}
-	return AverageBucket{ctx: ctx, Parent: parent}
+	return AverageBucket{ctx: ctx, Parent: parseBucketsPathIntoParentAggregationName(ctx, bucketsPath)}
 }
 
 func (query AverageBucket) IsBucketAggregation() bool {
