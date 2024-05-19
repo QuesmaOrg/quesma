@@ -245,7 +245,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 							optAsync.doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 							return
 						}
-						optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: nil}
+						optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody}
 					}()
 				} else {
 					var hitsSlice [][]model.QueryResultRow
@@ -265,7 +265,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						})
 						translatedQueryBody, aggregationResults = q.searchWorker(ctx, aggregations, columns, table, true, optAsync)
 						searchResponse := queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
-						optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: nil}
+						optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody}
 					}()
 				} else {
 					translatedQueryBody, aggregationResults = q.searchWorker(ctx, aggregations, columns, table, true, nil)
@@ -528,8 +528,7 @@ func (q *QueryRunner) searchWorkerCommon(
 	} else {
 		dbQueryCtx = ctx
 	}
-	columnsIndex := 0
-	for _, query := range queries {
+	for columnsIndex, query := range queries {
 		if query.NoDBQuery {
 			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
 		} else {
@@ -542,12 +541,9 @@ func (q *QueryRunner) searchWorkerCommon(
 			continue
 		}
 		if doPostProcessing {
-			postprocessedRows := query.Type.PostprocessResults(rows)
-			hits = append(hits, postprocessedRows)
-		} else {
-			hits = append(hits, rows)
+			rows = query.Type.PostprocessResults(rows)
 		}
-		columnsIndex++
+		hits = append(hits, rows)
 	}
 	translatedQueryBody = []byte(sqls)
 	return
@@ -561,7 +557,6 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
 	if optAsync == nil {
 		return q.searchWorkerCommon(ctx, aggregations, columns, table, doPostProcessing, nil)
-
 	} else {
 		select {
 		case <-q.executionCtx.Done():
