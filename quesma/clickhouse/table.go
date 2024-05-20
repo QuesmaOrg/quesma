@@ -22,9 +22,10 @@ type Table struct {
 	aliases          map[string]string
 	Comment          string // this human-readable comment
 	CreateTableQuery string
+	TimestampColumn  *string
 }
 
-func (t *Table) GetFields() []string {
+func (t *Table) GetFulltextFields() []string {
 	var res = make([]string, 0)
 	for _, col := range t.Cols {
 		if col.IsFullTextMatch {
@@ -166,6 +167,10 @@ func (t *Table) applyIndexConfig(configuration config.QuesmaConfiguration) {
 			t.aliases[alias.SourceFieldName] = alias.TargetFieldName
 		}
 	}
+	if v, ok := configuration.IndexConfig[t.Name]; ok {
+		t.TimestampColumn = v.TimestampField
+	}
+
 }
 
 func (t *Table) ResolveField(ctx context.Context, fieldName string) (field string) {

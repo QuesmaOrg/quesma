@@ -31,8 +31,7 @@ type PipelineQueryType interface {
 
 	// CalculateResultWhenMissing calculates the result of this aggregation when it's a NoDBQuery
 	// (we don't query the DB for the results, but calculate them from the parent aggregation)
-	// (it'll be changed in already done later PRs, so I don't comment on arguments, etc.)
-	CalculateResultWhenMissing(rowIndex int, parentRows []QueryResultRow, thisAggrPreviousResults []QueryResultRow) QueryResultRow
+	CalculateResultWhenMissing(query *Query, parentRows []QueryResultRow) []QueryResultRow
 
 	String() string
 }

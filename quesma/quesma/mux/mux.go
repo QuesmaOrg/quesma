@@ -18,14 +18,14 @@ type (
 		compiledPath urlpath.Path
 		httpMethod   string
 		predicate    MatchPredicate
-		handler      handler
+		handler      Handler
 	}
 	Result struct {
 		Body       string
 		Meta       map[string]string
 		StatusCode int
 	}
-	handler        func(ctx context.Context, body, uri string, params map[string]string, headers http.Header, queryParams url.Values) (*Result, error)
+	Handler        func(ctx context.Context, body, uri string, params map[string]string, headers http.Header, queryParams url.Values) (*Result, error)
 	MatchPredicate func(params map[string]string, body string) bool
 )
 
@@ -36,40 +36,32 @@ func NewPathRouter() *PathRouter {
 	return &PathRouter{mappings: make([]mapping, 0)}
 }
 
-func (p *PathRouter) RegisterPath(pattern, httpMethod string, handler handler) {
+func (p *PathRouter) RegisterPath(pattern, httpMethod string, handler Handler) {
 	mapping := mapping{pattern, urlpath.New(pattern), httpMethod, identity(), handler}
 	p.mappings = append(p.mappings, mapping)
 }
 
-func (p *PathRouter) RegisterPathMatcher(pattern string, httpMethods []string, predicate MatchPredicate, handler handler) {
+func (p *PathRouter) RegisterPathMatcher(pattern string, httpMethods []string, predicate MatchPredicate, handler Handler) {
 	for _, httpMethod := range httpMethods {
 		mapping := mapping{pattern, urlpath.New(pattern), httpMethod, predicate, handler}
 		p.mappings = append(p.mappings, mapping)
 	}
 }
 
-func (p *PathRouter) Execute(ctx context.Context, path, body, httpMethod string, headers http.Header, queryParams url.Values) (*Result, error) {
+func (p *PathRouter) Matches(path, httpMethod, body string) (Handler, urlpath.Match, bool) {
 	handler, meta, found := p.findHandler(path, httpMethod, body)
-	if found {
-		return handler(ctx, body, path, meta.Params, headers, queryParams)
-	}
-	return nil, nil
-}
-
-func (p *PathRouter) Matches(path, httpMethod, body string) bool {
-	_, _, found := p.findHandler(path, httpMethod, body)
 	if found {
 		routerStatistics.addMatched(path)
 		logger.Debug().Msgf("Matched path: %s", path)
-		return true
+		return handler, meta, true
 	} else {
 		routerStatistics.addUnmatched(path)
 		logger.Debug().Msgf("Non-matched path: %s", path)
-		return false
+		return nil, urlpath.Match{}, false
 	}
 }
 
-func (p *PathRouter) findHandler(path, httpMethod, body string) (handler, urlpath.Match, bool) {
+func (p *PathRouter) findHandler(path, httpMethod, body string) (Handler, urlpath.Match, bool) {
 	path = strings.TrimSuffix(path, "/")
 	for _, m := range p.mappings {
 		meta, match := m.compiledPath.Match(path)

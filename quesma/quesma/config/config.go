@@ -85,6 +85,7 @@ type IndexConfiguration struct {
 	FullTextFields []string              `koanf:"fullTextFields"`
 	Aliases        map[string]FieldAlias `koanf:"aliases"`
 	IgnoredFields  map[string]bool       `koanf:"ignoredFields"`
+	TimestampField *string               `koanf:"timestampField"`
 }
 
 func (c IndexConfiguration) Matches(indexName string) bool {
@@ -120,7 +121,11 @@ func (c IndexConfiguration) String() string {
 	)
 
 	if len(c.FullTextFields) > 0 {
-		return fmt.Sprintf("%s, fullTextFields: %s", str, strings.Join(c.FullTextFields, ", "))
+		str = fmt.Sprintf("%s, fullTextFields: %s", str, strings.Join(c.FullTextFields, ", "))
+	}
+
+	if c.TimestampField != nil {
+		return fmt.Sprintf("%s, timestampField: %s", str, *c.TimestampField)
 	} else {
 		return str
 	}

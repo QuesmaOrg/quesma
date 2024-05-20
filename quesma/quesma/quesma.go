@@ -127,16 +127,16 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
 	})
-	if router.Matches(req.URL.Path, req.Method, string(reqBody)) {
+	handler, parameters, found := router.Matches(req.URL.Path, req.Method, string(reqBody))
+	if found {
 		var elkResponseChan = make(chan elasticResult)
 
 		if r.config.Elasticsearch.Call {
 			elkResponseChan = r.sendHttpRequestToElastic(ctx, req, reqBody, false)
 		}
 
-		req.URL.Query()
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
-			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method, req.Header, req.URL.Query())
+			return handler(ctx, string(reqBody), req.URL.Path, parameters.Params, req.Header, req.URL.Query())
 		})
 		var elkRawResponse elasticResult
 		var elkResponse *http.Response
