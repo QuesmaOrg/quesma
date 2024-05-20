@@ -1,7 +1,6 @@
 package quesma
 
 import (
-	"encoding/json"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
@@ -9,19 +8,19 @@ import (
 	"strings"
 )
 
-func matchedAgainstAsyncId() mux.MatchPredicate {
-	return func(m map[string]string, _ string) bool {
-		if !strings.HasPrefix(m["id"], quesmaAsyncIdPrefix) {
-			logger.Debug().Msgf("async query id %s is forwarded to Elasticsearch", m["id"])
+func matchedAgainstAsyncId() mux.RequestMatcher {
+	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
+		if !strings.HasPrefix(req.Params["id"], quesmaAsyncIdPrefix) {
+			logger.Debug().Msgf("async query id %s is forwarded to Elasticsearch", req.Params["id"])
 			return false
 		}
 		return true
-	}
+	})
 }
 
-func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) func(m map[string]string, body string) bool {
-	return func(m map[string]string, body string) bool {
-		for idx, s := range strings.Split(body, "\n") {
+func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) mux.RequestMatcher {
+	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
+		for idx, s := range strings.Split(req.Body, "\n") {
 			if idx%2 == 0 && len(s) > 0 {
 				indexConfig, found := configuration.IndexConfig[extractIndexName(s)]
 				if !found || !indexConfig.Enabled {
@@ -30,12 +29,12 @@ func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) func(m map
 			}
 		}
 		return true
-	}
+	})
 }
 
-func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.MatchPredicate {
-	return func(m map[string]string, _ string) bool {
-		indexPattern := elasticsearch.NormalizePattern(m["index"])
+func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.RequestMatcher {
+	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
+		indexPattern := elasticsearch.NormalizePattern(req.Params["index"])
 		if elasticsearch.IsInternalIndex(indexPattern) {
 			logger.Debug().Msgf("index %s is an internal Elasticsearch index, skipping", indexPattern)
 			return false
@@ -73,25 +72,18 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.MatchPr
 			logger.Debug().Msgf("no index found for pattern %s", indexPattern)
 			return false
 		}
-	}
+	})
 }
 
 // Returns false if the body contains a Kibana alert related field.
-func matchAgainstKibanaAlerts() mux.MatchPredicate {
-	return func(m map[string]string, body string) bool {
+func matchAgainstKibanaAlerts() mux.RequestMatcher {
+	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 
-		if body == "" {
+		if req.JSON == nil {
 			return true
 		}
 
 		// https://www.elastic.co/guide/en/security/current/alert-schema.html
-
-		var query map[string]interface{}
-		err := json.Unmarshal([]byte(body), &query)
-		if err != nil {
-			logger.Warn().Msgf("error parsing json %v", err)
-			return true
-		}
 
 		var findKibanaAlertField func(node interface{}) bool
 
@@ -128,8 +120,8 @@ func matchAgainstKibanaAlerts() mux.MatchPredicate {
 			return false
 		}
 
-		q := query["query"].(map[string]interface{})
+		q := req.JSON["query"].(map[string]interface{})
 
 		return !findKibanaAlertField(q)
-	}
+	})
 }
