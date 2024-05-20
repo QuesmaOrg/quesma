@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/barkimedes/go-deepcopy"
 	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
@@ -20,18 +19,9 @@ import (
 
 const keyedDefaultValuePercentileRanks = true
 
-type filter struct {
-	name string
-	sql  SimpleQuery
-}
-
-func newFilter(name string, sql SimpleQuery) filter {
-	return filter{name: name, sql: sql}
-}
-
 type aggrQueryBuilder struct {
 	model.Query
-	whereBuilder SimpleQuery // during building this is used for where clause, not `aggr.Where`
+	whereBuilder model.SimpleQuery // during building this is used for where clause, not `aggr.Where`
 	ctx          context.Context
 }
 
@@ -49,6 +39,7 @@ type metricsAggregation struct {
 
 const metricsAggregationDefaultFieldType = clickhouse.Invalid
 
+/* code from my previous approach to this issue. Let's keep for now, 95% it'll be not needed, I'll remove it then.
 func (b *aggrQueryBuilder) applyTermsSubSelect(terms bucket_aggregations.Terms) {
 	termsField := b.Query.GroupByFields[len(b.Query.GroupByFields)-1]
 	pp.Println(b, terms, termsField, b.Query.String())
@@ -58,6 +49,7 @@ func (b *aggrQueryBuilder) applyTermsSubSelect(terms bucket_aggregations.Terms) 
 	b.whereBuilder = combineWheres(b.whereBuilder, newSimpleQuery(NewSimpleStatement(whereLimitStmt), true))
 	fmt.Println("where after:", b.whereBuilder.Sql.Stmt)
 }
+*/
 
 func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.Query {
 	query := b.Query
@@ -350,7 +342,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	// 2. Pipeline aggregation => always leaf (for now)
 	pipelineAggregationType, isPipelineAggregation := cw.parsePipelineAggregations(queryMap)
 	if isPipelineAggregation {
-		*resultAccumulator = append(*resultAccumulator, currentAggr.buildPipelineAggregation(pipelineAggregationType, metadata))
+		*resultAccumulator = append(*resultAccumulator, currentAggr.finishBuildingAggregationPipeline(pipelineAggregationType, metadata))
 	}
 
 	// 3. Now process filter(s) first, because they apply to everything else on the same level or below.
@@ -359,10 +351,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		if filter, ok := filterRaw.(QueryMap); ok {
 			filterOnThisLevel = true
 			currentAggr.Type = metrics_aggregations.NewCount(cw.Ctx)
-			currentAggr.whereBuilder = combineWheres(
-				currentAggr.whereBuilder,
-				cw.parseQueryMap(filter),
-			)
+			currentAggr.whereBuilder.CombineWheresWith(cw.Ctx, cw.parseQueryMap(filter))
 			*resultAccumulator = append(*resultAccumulator, currentAggr.buildCountAggregation(metadata))
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("filter is not a map, but %T, value: %v. Skipping", filterRaw, filterRaw)
@@ -394,47 +383,16 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	// Or probably a bit less, if optimized correctly.
 	// Let's wait until we see such a query, maybe range and filters are mutually exclusive.
 
-	filtersRaw, isFilters := queryMap["filters"]
+	filters, isFilters := currentAggr.Type.(bucket_aggregations.Filters)
 	if isFilters {
-		currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Filters = true
-		var filters []filter
-		if filtersAsMap, ok := filtersRaw.(QueryMap); ok {
-			filters = cw.parseFilters(filtersAsMap)
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("filters is not a map, but %T, value: %v. Using empty", filtersRaw, filtersRaw)
-		}
-		for _, filter := range filters {
-			currentAggr.Type = bucket_aggregations.NewFilters(cw.Ctx)
-			currentAggr.whereBuilder = combineWheres(currentAggr.whereBuilder, filter.sql)
-			currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(filter.name))
-			*resultAccumulator = append(*resultAccumulator, currentAggr.buildBucketAggregation(metadata))
-			if aggs, ok := queryMap["aggs"].(QueryMap); ok {
-				aggsCopy, err := deepcopy.Anything(aggs)
-				if err == nil {
-					err := cw.parseAggregationNames(currentAggr, aggsCopy.(QueryMap), resultAccumulator)
-					if err != nil {
-						return err
-					}
-				} else {
-					logger.ErrorWithCtx(cw.Ctx).Msgf("deepcopy 'aggs' map error: %v. Skipping current filter: %v, aggs: %v", err, filter, aggs)
-				}
-			}
-			currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
-			currentAggr.whereBuilder = whereBeforeNesting
-		}
-		delete(queryMap, "filters")
+		cw.processFiltersAggregation(currentAggr, filters, queryMap, resultAccumulator)
 	}
 
 	aggsHandledSeparately := isRange || isFilters
 	if aggs, ok := queryMap["aggs"]; ok && !aggsHandledSeparately {
 		pp.Println(currentAggr.Type)
-		var terms bucket_aggregations.Terms
-		var isTerms bool
+		_, isTerms := currentAggr.Type.(bucket_aggregations.Terms)
 		var oldWhere = currentAggr.whereBuilder
-		if terms, isTerms = currentAggr.Type.(bucket_aggregations.Terms); isTerms {
-			fmt.Println("jestem")
-			currentAggr.applyTermsSubSelect(terms)
-		}
 		err = cw.parseAggregationNames(currentAggr, aggs.(QueryMap), resultAccumulator)
 		if err != nil {
 			return err
@@ -654,6 +612,28 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	}
 	for _, termsType := range []string{"terms", "significant_terms"} {
 		if terms, ok := queryMap[termsType]; ok {
+			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms")
+			fieldName := strconv.Quote(cw.parseFieldField(terms, termsType))
+			isEmptyGroupBy := len(currentAggr.GroupByFields) == 0
+			currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
+			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
+			size := 10
+			if _, ok := queryMap["aggs"]; isEmptyGroupBy && !ok { // we can do limit only it terms are not nested
+				if jsonMap, ok := terms.(QueryMap); ok {
+					if sizeRaw, ok := jsonMap["size"]; ok {
+						if sizeParsed, ok := sizeRaw.(float64); ok {
+							size = int(sizeParsed)
+						} else {
+							logger.WarnWithCtx(cw.Ctx).Msgf("size is not an float64, but %T, value: %v. Using default", sizeRaw, sizeRaw)
+						}
+					}
+				}
+				currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, "ORDER BY count() DESC")
+				currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, fmt.Sprintf("LIMIT %d", size))
+			}
+			delete(queryMap, termsType)
+			return success, 1, 1, nil
+			/* will remove later
 			var size int
 			if sizeRaw, exists := terms.(QueryMap)["size"]; exists {
 				size = (int)(sizeRaw.(float64))
@@ -670,6 +650,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			fmt.Println("SUB:", currentAggr.SubSelect)
 			delete(queryMap, termsType)
 			return success, 1, 1, nil
+			*/
 		}
 	}
 	if rangeRaw, ok := queryMap["range"]; ok {
@@ -723,7 +704,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	}
 	if boolRaw, ok := queryMap["bool"]; ok {
 		if Bool, ok := boolRaw.(QueryMap); ok {
-			currentAggr.whereBuilder = combineWheres(currentAggr.whereBuilder, cw.parseBool(Bool))
+			currentAggr.whereBuilder.CombineWheresWith(cw.Ctx, cw.parseBool(Bool))
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("bool is not a map, but %T, value: %v. Skipping", boolRaw, boolRaw)
 		}
@@ -823,31 +804,6 @@ func (cw *ClickhouseQueryTranslator) parseMinDocCount(queryMap QueryMap) int {
 		}
 	}
 	return bucket_aggregations.DefaultMinDocCount
-}
-
-func (cw *ClickhouseQueryTranslator) parseFilters(filtersMap QueryMap) []filter {
-	var filters []filter
-	filtersMap = filtersMap["filters"].(QueryMap)
-	for name, filter := range filtersMap {
-		filters = append(filters, newFilter(name, cw.parseQueryMap(filter.(QueryMap))))
-	}
-	return filters
-}
-
-func combineWheres(where1, where2 SimpleQuery) SimpleQuery {
-	combined := SimpleQuery{
-		Sql:      and([]Statement{where1.Sql, where2.Sql}),
-		CanParse: where1.CanParse && where2.CanParse,
-	}
-	if len(where1.FieldName) > 0 && len(where2.FieldName) > 0 && where1.FieldName != where2.FieldName {
-		logger.Warn().Msgf("combining 2 where clauses with different field names: %s, %s, where queries: %v %v", where1.FieldName, where2.FieldName, where1, where2)
-	}
-	if len(where1.FieldName) > 0 {
-		combined.FieldName = where1.FieldName
-	} else {
-		combined.FieldName = where2.FieldName
-	}
-	return combined
 }
 
 // quoteArray returns a new array with the same elements, but quoted
