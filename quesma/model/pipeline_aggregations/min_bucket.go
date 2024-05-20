@@ -33,10 +33,9 @@ func (query MinBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 	}
 	if returnMap, ok := rows[0].LastColValue().(model.JsonMap); ok {
 		return []model.JsonMap{returnMap}
-	} else {
-		logger.WarnWithCtx(query.ctx).Msgf("could not convert value to JsonMap: %v, type: %T", rows[0].LastColValue(), rows[0].LastColValue())
-		return []model.JsonMap{nil}
 	}
+	logger.WarnWithCtx(query.ctx).Msgf("could not convert value to JsonMap: %v, type: %T", rows[0].LastColValue(), rows[0].LastColValue())
+	return []model.JsonMap{nil}
 }
 
 func (query MinBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows []model.QueryResultRow) []model.QueryResultRow {
@@ -48,6 +47,9 @@ func (query MinBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows [
 	parentFieldsCnt := len(parentRows[0].Cols) - 2 // -2, because row is [parent_cols..., current_key, current_value]
 	// in calculateSingleAvgBucket we calculate avg all current_keys with the same parent_cols
 	// so we need to split into buckets based on parent_cols
+	if parentFieldsCnt < 0 {
+		logger.WarnWithCtx(query.ctx).Msgf("parentFieldsCnt is less than 0: %d", parentFieldsCnt)
+	}
 	for _, parentRowsOneBucket := range qp.SplitResultSetIntoBuckets(parentRows, parentFieldsCnt) {
 		resultRows = append(resultRows, query.calculateSingleMinBucket(qwa, parentRowsOneBucket))
 	}
