@@ -17,22 +17,6 @@ import (
 
 type QueryMap = map[string]interface{}
 
-type SimpleQuery struct {
-	Sql        Statement
-	CanParse   bool
-	FieldName  string
-	SortFields []string
-}
-
-type Statement struct {
-	Stmt       string
-	isCompound bool // "a" -> not compound, "a AND b" -> compound. Used to not make unnecessary brackets (not always, but usually)
-	FieldName  string
-}
-
-// Added to the generated SQL where the query is fine, but we're sure no rows will match it
-var alwaysFalseStatement = NewSimpleStatement("false")
-
 // NewEmptyHighlighter returns no-op for error branches and tests
 func NewEmptyHighlighter() model.Highlighter {
 	return model.Highlighter{
@@ -40,45 +24,25 @@ func NewEmptyHighlighter() model.Highlighter {
 	}
 }
 
-func newSimpleQuery(sql Statement, canParse bool) SimpleQuery {
-	return SimpleQuery{Sql: sql, CanParse: canParse}
-}
-
-func newSimpleQueryWithFieldName(sql Statement, canParse bool, fieldName string) SimpleQuery {
-	return SimpleQuery{Sql: sql, CanParse: canParse, FieldName: fieldName}
-}
-
-func NewSimpleStatement(stmt string) Statement {
-	return Statement{Stmt: stmt, isCompound: false}
-}
-
-func NewCompoundStatement(stmt, fieldName string) Statement {
-	return Statement{Stmt: stmt, isCompound: true, FieldName: fieldName}
-}
-
-func NewCompoundStatementNoFieldName(stmt string) Statement {
-	return Statement{Stmt: stmt, isCompound: true}
-}
-
-func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery, model.SearchQueryInfo, model.Highlighter, error) {
+func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (model.SimpleQuery, model.SearchQueryInfo, model.Highlighter, error) {
 	cw.ClearTokensToHighlight()
 	queryAsMap := make(QueryMap)
 	if queryAsJson != "" {
 		err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
 		if err != nil {
 			logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
-			return SimpleQuery{}, model.SearchQueryInfo{}, NewEmptyHighlighter(), err
+			return model.SimpleQuery{}, model.SearchQueryInfo{}, NewEmptyHighlighter(), err
 		}
 	}
 
 	// we must parse "highlights" here, because it is stripped from the queryAsMap later
 	highlighter := cw.ParseHighlighter(queryAsMap)
 
-	var parsedQuery SimpleQuery
+	var parsedQuery model.SimpleQuery
 	if queryPart, ok := queryAsMap["query"]; ok {
 		parsedQuery = cw.parseQueryMap(queryPart.(QueryMap))
 	} else {
-		parsedQuery = newSimpleQuery(NewSimpleStatement(""), true)
+		parsedQuery = model.NewSimpleQuery(model.NewSimpleStatement(""), true)
 	}
 
 	if sortPart, ok := queryAsMap["sort"]; ok {
@@ -148,28 +112,28 @@ func (cw *ClickhouseQueryTranslator) ParseHighlighter(queryMap QueryMap) model.H
 	return highlighter
 }
 
-func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (SimpleQuery, model.SearchQueryInfo, model.Highlighter) {
+func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (model.SimpleQuery, model.SearchQueryInfo, model.Highlighter) {
 	cw.ClearTokensToHighlight()
 	queryAsMap := make(QueryMap)
 	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
-		return newSimpleQuery(NewSimpleStatement("invalid JSON (ParseQueryAsyncSearch)"), false), model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
+		return model.NewSimpleQuery(model.NewSimpleStatement("invalid JSON (ParseQueryAsyncSearch)"), false), model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
 	}
 
 	// we must parse "highlights" here, because it is stripped from the queryAsMap later
 	highlighter := cw.ParseHighlighter(queryAsMap)
 
-	var parsedQuery SimpleQuery
+	var parsedQuery model.SimpleQuery
 	if query, ok := queryAsMap["query"]; ok {
 		queryMap, ok := query.(QueryMap)
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid query type: %T, value: %v", query, query)
-			return newSimpleQuery(NewSimpleStatement("invalid query type"), false), model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
+			return model.NewSimpleQuery(model.NewSimpleStatement("invalid query type"), false), model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
 		}
 		parsedQuery = cw.parseQueryMap(queryMap)
 	} else {
-		return newSimpleQuery(NewSimpleStatement(""), true), cw.tryProcessSearchMetadata(queryAsMap), highlighter
+		return model.NewSimpleQuery(model.NewSimpleStatement(""), true), cw.tryProcessSearchMetadata(queryAsMap), highlighter
 	}
 
 	if sort, ok := queryAsMap["sort"]; ok {
@@ -197,10 +161,10 @@ func (cw *ClickhouseQueryTranslator) parseMetadata(queryMap QueryMap) QueryMap {
 	return queryMetadata
 }
 
-func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fieldName string, prefix *string, caseIns bool) SimpleQuery {
+func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fieldName string, prefix *string, caseIns bool) model.SimpleQuery {
 	fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
 	canParse := true
-	stmts := make([]Statement, 0)
+	stmts := make([]model.Statement, 0)
 	if indexFilter != nil {
 		res := cw.parseQueryMap(*indexFilter)
 		canParse = res.CanParse
@@ -215,19 +179,19 @@ func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fi
 			like = "LIKE"
 		}
 		cw.AddTokenToHighlight(*prefix)
-		stmts = append(stmts, NewSimpleStatement(fieldName+" "+like+" '"+*prefix+"%'"))
+		stmts = append(stmts, model.NewSimpleStatement(fieldName+" "+like+" '"+*prefix+"%'"))
 	}
-	return newSimpleQuery(and(stmts), canParse)
+	return model.NewSimpleQuery(model.And(stmts), canParse)
 }
 
-func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuery {
+func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) model.SimpleQuery {
 	if len(queryMap) != 1 {
 		// TODO suppress metadata for now
 		_ = cw.parseMetadata(queryMap)
 	}
-	parseMap := map[string]func(QueryMap) SimpleQuery{
+	parseMap := map[string]func(QueryMap) model.SimpleQuery{
 		"match_all":           cw.parseMatchAll,
-		"match":               func(qm QueryMap) SimpleQuery { return cw.parseMatch(qm, false) },
+		"match":               func(qm QueryMap) model.SimpleQuery { return cw.parseMatch(qm, false) },
 		"multi_match":         cw.parseMultiMatch,
 		"bool":                cw.parseBool,
 		"term":                cw.parseTerm,
@@ -235,7 +199,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 		"query":               cw.parseQueryMap,
 		"prefix":              cw.parsePrefix,
 		"nested":              cw.parseNested,
-		"match_phrase":        func(qm QueryMap) SimpleQuery { return cw.parseMatch(qm, true) },
+		"match_phrase":        func(qm QueryMap) model.SimpleQuery { return cw.parseMatch(qm, true) },
 		"range":               cw.parseRange,
 		"exists":              cw.parseExists,
 		"ids":                 cw.parseIds,
@@ -256,7 +220,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 		}
 	}
 	if len(queryMap) == 0 { // empty query is a valid query
-		return newSimpleQuery(NewSimpleStatement(""), true)
+		return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
 	}
 
 	// if we can't parse the query, we should show the bug
@@ -264,19 +228,19 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) SimpleQuer
 	if prettyMarshal, err := json.Marshal(queryMap); err == nil {
 		unparsedQuery = string(prettyMarshal)
 	}
-	return newSimpleQuery(NewSimpleStatement("can't parse query: "+unparsedQuery), false)
+	return model.NewSimpleQuery(model.NewSimpleStatement("can't parse query: "+unparsedQuery), false)
 }
 
 // `constant_score` query is just a wrapper for filter query which returns constant relevance score, which we ignore anyway
-func (cw *ClickhouseQueryTranslator) parseConstantScore(queryMap QueryMap) SimpleQuery {
+func (cw *ClickhouseQueryTranslator) parseConstantScore(queryMap QueryMap) model.SimpleQuery {
 	if _, ok := queryMap["filter"]; ok {
 		return cw.parseBool(queryMap)
 	} else {
-		return newSimpleQuery(NewSimpleStatement("parsing error: `constant_score` needs to wrap `filter` query"), false)
+		return model.NewSimpleQuery(model.NewSimpleStatement("parsing error: `constant_score` needs to wrap `filter` query"), false)
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) SimpleQuery {
+func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQuery {
 	var ids []string
 	if val, ok := queryMap["values"]; ok {
 		if values, ok := val.([]interface{}); ok {
@@ -285,14 +249,14 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) SimpleQuery {
 			}
 		}
 	} else {
-		return newSimpleQuery(NewSimpleStatement("parsing error: missing mandatory `values` field"), false)
+		return model.NewSimpleQuery(model.NewSimpleStatement("parsing error: missing mandatory `values` field"), false)
 	}
 	logger.Warn().Msgf("unsupported id query executed, requested ids of [%s]", strings.Join(ids, "','"))
 
 	timestampColumnName, err := cw.GetTimestampFieldName()
 	if err != nil {
 		logger.Warn().Msgf("id query executed, but not timestamp field configured")
-		return newSimpleQuery(NewSimpleStatement(""), true)
+		return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
 	}
 
 	// when our generated ID appears in query looks like this: `18f7b8800b8q1`
@@ -302,7 +266,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) SimpleQuery {
 		idInHex := strings.Split(id, "q")[0]
 		if decimalValue, err := strconv.ParseUint(idInHex, 16, 64); err != nil {
 			logger.Error().Msgf("error parsing document id %s: %v", id, err)
-			return newSimpleQuery(NewSimpleStatement(""), true)
+			return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
 		} else {
 			ids[i] = fmt.Sprintf("%d", decimalValue)
 		}
@@ -317,15 +281,15 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) SimpleQuery {
 			statement = fmt.Sprintf("toUnixTimestamp(%s) *1000 IN (%s)", strconv.Quote(timestampColumnName), ids)
 		default:
 			logger.Warn().Msgf("timestamp field of unsupported type %s", v.Type.String())
-			return newSimpleQuery(NewSimpleStatement(""), true)
+			return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
 		}
 	}
-	return newSimpleQuery(NewSimpleStatement(statement), true)
+	return model.NewSimpleQuery(model.NewSimpleStatement(statement), true)
 }
 
-// Parses each SimpleQuery separately, returns list of translated SQLs
-func (cw *ClickhouseQueryTranslator) parseQueryMapArray(queryMaps []interface{}) (stmts []Statement, canParse bool) {
-	stmts = make([]Statement, len(queryMaps))
+// Parses each model.SimpleQuery separately, returns list of translated SQLs
+func (cw *ClickhouseQueryTranslator) parseQueryMapArray(queryMaps []interface{}) (stmts []model.Statement, canParse bool) {
+	stmts = make([]model.Statement, len(queryMaps))
 	canParse = true
 	for i, v := range queryMaps {
 		if vAsMap, ok := v.(QueryMap); ok {
@@ -343,22 +307,22 @@ func (cw *ClickhouseQueryTranslator) parseQueryMapArray(queryMaps []interface{})
 	return stmts, canParse
 }
 
-func (cw *ClickhouseQueryTranslator) iterateListOrDictAndParse(queryMaps interface{}) (stmts []Statement, canParse bool) {
+func (cw *ClickhouseQueryTranslator) iterateListOrDictAndParse(queryMaps interface{}) (stmts []model.Statement, canParse bool) {
 	switch queryMapsTyped := queryMaps.(type) {
 	case []interface{}:
 		return cw.parseQueryMapArray(queryMapsTyped)
 	case QueryMap:
 		simpleQuery := cw.parseQueryMap(queryMapsTyped)
-		return []Statement{simpleQuery.Sql}, simpleQuery.CanParse
+		return []model.Statement{simpleQuery.Sql}, simpleQuery.CanParse
 	default:
 		logger.WarnWithCtx(cw.Ctx).Msgf("Invalid query type: %T, value: %v", queryMapsTyped, queryMapsTyped)
-		return []Statement{NewSimpleStatement("invalid iteration")}, false
+		return []model.Statement{model.NewSimpleStatement("invalid iteration")}, false
 	}
 }
 
 // TODO: minimum_should_match parameter. Now only ints supported and >1 changed into 1
-func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) SimpleQuery {
-	var andStmts []Statement
+func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) model.SimpleQuery {
+	var andStmts []model.Statement
 	canParse := true // will stay true only if all subqueries can be parsed
 	for _, andPhrase := range []string{"must", "filter"} {
 		if queries, ok := queryMap[andPhrase]; ok {
@@ -367,7 +331,7 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) SimpleQuery {
 			canParse = canParse && canParseThis
 		}
 	}
-	sql := and(andStmts)
+	sql := model.And(andStmts)
 
 	minimumShouldMatch := 0
 	if v, ok := queryMap["minimum_should_match"]; ok {
@@ -386,81 +350,81 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) SimpleQuery {
 	}
 	if queries, ok := queryMap["should"]; ok && minimumShouldMatch == 1 {
 		orSqls, canParseThis := cw.iterateListOrDictAndParse(queries)
-		orSql := or(orSqls)
+		orSql := model.Or(orSqls)
 		canParse = canParse && canParseThis
 		if len(andStmts) == 0 {
 			sql = orSql
 		} else if len(orSql.Stmt) > 0 {
-			sql = and([]Statement{sql, orSql})
+			sql = model.And([]model.Statement{sql, orSql})
 		}
 	}
 
 	if queries, ok := queryMap["must_not"]; ok {
 		sqlNots, canParseThis := cw.iterateListOrDictAndParse(queries)
-		sqlNots = filterNonEmpty(sqlNots)
+		sqlNots = model.FilterNonEmpty(sqlNots)
 		canParse = canParse && canParseThis
 		if len(sqlNots) > 0 {
-			orSql := or(sqlNots)
-			if orSql.isCompound {
+			orSql := model.Or(sqlNots)
+			if orSql.IsCompound {
 				orSql.Stmt = "NOT (" + orSql.Stmt + ")"
-				orSql.isCompound = false // NOT (compound) is again simple
+				orSql.IsCompound = false // NOT (compound) is again simple
 			} else {
 				orSql.Stmt = "NOT " + orSql.Stmt
 			}
-			sql = and([]Statement{sql, orSql})
+			sql = model.And([]model.Statement{sql, orSql})
 		}
 	}
-	return newSimpleQueryWithFieldName(sql, canParse, sql.FieldName)
+	return model.NewSimpleQueryWithFieldName(sql, canParse, sql.FieldName)
 }
 
-func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) SimpleQuery {
+func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) model.SimpleQuery {
 	if len(queryMap) == 1 {
 		for k, v := range queryMap {
 			cw.AddTokenToHighlight(v)
 			if k == "_index" { // index is a table name, already taken from URI and moved to FROM clause
 				logger.Warn().Msgf("term %s=%v in query body, ignoring in result SQL", k, v)
-				return newSimpleQuery(NewSimpleStatement(" 0=0 /* "+strconv.Quote(k)+"="+sprint(v)+" */ "), true)
+				return model.NewSimpleQuery(model.NewSimpleStatement(" 0=0 /* "+strconv.Quote(k)+"="+sprint(v)+" */ "), true)
 			}
-			return newSimpleQuery(NewSimpleStatement(strconv.Quote(k)+"="+sprint(v)), true)
+			return model.NewSimpleQuery(model.NewSimpleStatement(strconv.Quote(k)+"="+sprint(v)), true)
 		}
 	}
 	logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 term, got: %d. value: %v", len(queryMap), queryMap)
-	return newSimpleQuery(NewSimpleStatement("invalid term len, != 1"), false)
+	return model.NewSimpleQuery(model.NewSimpleStatement("invalid term len, != 1"), false)
 }
 
 // TODO remove optional parameters like boost
-func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) SimpleQuery {
+func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQuery {
 	if len(queryMap) != 1 {
 		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 term, got: %d. value: %v", len(queryMap), queryMap)
-		return newSimpleQuery(NewSimpleStatement("invalid terms len, != 1"), false)
+		return model.NewSimpleQuery(model.NewSimpleStatement("invalid terms len, != 1"), false)
 	}
 
 	for k, v := range queryMap {
 		if strings.HasPrefix(k, "_") {
 			// terms enum API uses _tier terms ( data_hot, data_warm, etc.)
 			// we don't want these internal fields to percolate to the SQL query
-			return newSimpleQuery(NewSimpleStatement(""), true)
+			return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
 		}
 		vAsArray, ok := v.([]interface{})
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid terms type: %T, value: %v", v, v)
-			return newSimpleQuery(NewSimpleStatement("invalid terms type"), false)
+			return model.NewSimpleQuery(model.NewSimpleStatement("invalid terms type"), false)
 		}
-		orStmts := make([]Statement, len(vAsArray))
+		orStmts := make([]model.Statement, len(vAsArray))
 		for i, v := range vAsArray {
 			cw.AddTokenToHighlight(v)
-			orStmts[i] = NewSimpleStatement(strconv.Quote(k) + "=" + sprint(v))
+			orStmts[i] = model.NewSimpleStatement(strconv.Quote(k) + "=" + sprint(v))
 		}
-		return newSimpleQuery(or(orStmts), true)
+		return model.NewSimpleQuery(model.Or(orStmts), true)
 	}
 
 	// unreachable unless something really weird happens
 	logger.ErrorWithCtx(cw.Ctx).Msg("theoretically unreachable code")
-	return newSimpleQuery(NewSimpleStatement("error, should be unreachable"), false)
+	return model.NewSimpleQuery(model.NewSimpleStatement("error, should be unreachable"), false)
 }
 
-func (cw *ClickhouseQueryTranslator) parseMatchAll(_ QueryMap) SimpleQuery {
-	return newSimpleQuery(NewSimpleStatement(""), true)
+func (cw *ClickhouseQueryTranslator) parseMatchAll(_ QueryMap) model.SimpleQuery {
+	return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
 }
 
 // Supports 'match' and 'match_phrase' queries.
@@ -473,10 +437,10 @@ func (cw *ClickhouseQueryTranslator) parseMatchAll(_ QueryMap) SimpleQuery {
 // (Optional, integer) Maximum number of terms to which the query will expand. Defaults to 50.
 // - fuzzy_transpositions
 // (Optional, Boolean) If true, edits for fuzzy matching include transpositions of two adjacent characters (ab → ba). Defaults to true.
-func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase bool) SimpleQuery {
+func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase bool) model.SimpleQuery {
 	if len(queryMap) != 1 {
 		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 match, got: %d. value: %v", len(queryMap), queryMap)
-		return newSimpleQuery(NewSimpleStatement("unsupported match len != 1"), false)
+		return model.NewSimpleQuery(model.NewSimpleStatement("unsupported match len != 1"), false)
 	}
 
 	for fieldName, v := range queryMap {
@@ -494,7 +458,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 			} else {
 				subQueries = strings.Split(vAsString, " ")
 			}
-			statements := make([]Statement, 0, len(subQueries))
+			statements := make([]model.Statement, 0, len(subQueries))
 			cw.AddTokenToHighlight(vAsString)
 			for _, subQuery := range subQueries {
 				cw.AddTokenToHighlight(subQuery)
@@ -502,24 +466,24 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 					computedIdMatchingQuery := cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
 					statements = append(statements, computedIdMatchingQuery.Sql)
 				} else {
-					statements = append(statements, NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE "+"'%"+subQuery+"%'"))
+					statements = append(statements, model.NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE "+"'%"+subQuery+"%'"))
 				}
 			}
-			return newSimpleQuery(or(statements), true)
+			return model.NewSimpleQuery(model.Or(statements), true)
 		}
 
 		cw.AddTokenToHighlight(vUnNested)
 
 		// so far we assume that only strings can be ORed here
-		return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" == "+sprint(vUnNested)), true)
+		return model.NewSimpleQuery(model.NewSimpleStatement(strconv.Quote(fieldName)+" == "+sprint(vUnNested)), true)
 	}
 
 	// unreachable unless something really weird happens
 	logger.ErrorWithCtx(cw.Ctx).Msg("theoretically unreachable code")
-	return newSimpleQuery(NewSimpleStatement("error, should be unreachable"), false)
+	return model.NewSimpleQuery(model.NewSimpleStatement("error, should be unreachable"), false)
 }
 
-func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) SimpleQuery {
+func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) model.SimpleQuery {
 	var fields []string
 	fieldsAsInterface, ok := queryMap["fields"]
 	if ok {
@@ -527,24 +491,24 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) SimpleQu
 			fields = cw.extractFields(fieldsAsArray)
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("invalid fields type: %T, value: %v", fieldsAsInterface, fieldsAsInterface)
-			return newSimpleQuery(NewSimpleStatement("invalid fields type"), false)
+			return model.NewSimpleQuery(model.NewSimpleStatement("invalid fields type"), false)
 		}
 	} else {
 		fields = cw.Table.GetFulltextFields()
 	}
 	if len(fields) == 0 {
-		return newSimpleQuery(alwaysFalseStatement, true)
+		return model.NewSimpleQuery(model.AlwaysFalseStatement, true)
 	}
 
 	query, ok := queryMap["query"]
 	if !ok {
 		logger.WarnWithCtx(cw.Ctx).Msgf("no query in multi_match query: %v", queryMap)
-		return newSimpleQuery(alwaysFalseStatement, false)
+		return model.NewSimpleQuery(model.AlwaysFalseStatement, false)
 	}
 	queryAsString, ok := query.(string)
 	if !ok {
 		logger.WarnWithCtx(cw.Ctx).Msgf("invalid query type: %T, value: %v", query, query)
-		return newSimpleQuery(alwaysFalseStatement, false)
+		return model.NewSimpleQuery(model.AlwaysFalseStatement, false)
 	}
 	var subQueries []string
 	wereDone := false
@@ -566,22 +530,22 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) SimpleQu
 		cw.AddTokenToHighlight(subQ)
 	}
 
-	sqls := make([]Statement, len(fields)*len(subQueries))
+	sqls := make([]model.Statement, len(fields)*len(subQueries))
 	i := 0
 	for _, field := range fields {
 		for _, subQ := range subQueries {
-			sqls[i] = NewSimpleStatement(strconv.Quote(field) + " iLIKE '%" + subQ + "%'")
+			sqls[i] = model.NewSimpleStatement(strconv.Quote(field) + " iLIKE '%" + subQ + "%'")
 			i++
 		}
 	}
-	return newSimpleQuery(or(sqls), true)
+	return model.NewSimpleQuery(model.Or(sqls), true)
 }
 
 // prefix works only on strings
-func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) SimpleQuery {
+func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) model.SimpleQuery {
 	if len(queryMap) != 1 {
 		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 prefix, got: %d. value: %v", len(queryMap), queryMap)
-		return newSimpleQuery(NewSimpleStatement("invalid prefix len != 1"), false)
+		return model.NewSimpleQuery(model.NewSimpleStatement("invalid prefix len != 1"), false)
 	}
 
 	for fieldName, v := range queryMap {
@@ -589,29 +553,29 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) SimpleQuery 
 		switch vCasted := v.(type) {
 		case string:
 			cw.AddTokenToHighlight(vCasted)
-			return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE '"+vCasted+"%'"), true)
+			return model.NewSimpleQuery(model.NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE '"+vCasted+"%'"), true)
 		case QueryMap:
 			token := vCasted["value"].(string)
 			cw.AddTokenToHighlight(token)
-			return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE '"+token+"%'"), true)
+			return model.NewSimpleQuery(model.NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE '"+token+"%'"), true)
 		default:
 			logger.WarnWithCtx(cw.Ctx).Msgf("unsupported prefix type: %T, value: %v", v, v)
-			return newSimpleQuery(NewSimpleStatement("unsupported prefix type"), false)
+			return model.NewSimpleQuery(model.NewSimpleStatement("unsupported prefix type"), false)
 		}
 	}
 
 	// unreachable unless something really weird happens
 	logger.ErrorWithCtx(cw.Ctx).Msg("theoretically unreachable code")
-	return newSimpleQuery(NewSimpleStatement("error, should be unreachable"), false)
+	return model.NewSimpleQuery(model.NewSimpleStatement("error, should be unreachable"), false)
 }
 
 // Not supporting 'case_insensitive' (optional)
 // Also not supporting wildcard (Required, string) (??) In both our example, and their in docs,
 // it's not provided.
-func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) SimpleQuery {
+func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) model.SimpleQuery {
 	if len(queryMap) != 1 {
 		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 wildcard, got: %d. value: %v", len(queryMap), queryMap)
-		return newSimpleQuery(NewSimpleStatement("invalid wildcard len != 1"), false)
+		return model.NewSimpleQuery(model.NewSimpleStatement("invalid wildcard len != 1"), false)
 	}
 
 	for fieldName, v := range queryMap {
@@ -620,30 +584,30 @@ func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) SimpleQuer
 			if value, ok := vAsMap["value"]; ok {
 				if valueAsString, ok := value.(string); ok {
 					cw.AddTokenToHighlight(valueAsString)
-					return newSimpleQuery(NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE '"+
+					return model.NewSimpleQuery(model.NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE '"+
 						strings.ReplaceAll(valueAsString, "*", "%")+"'"), true)
 				} else {
 					logger.WarnWithCtx(cw.Ctx).Msgf("invalid value type: %T, value: %v", value, value)
-					return newSimpleQuery(NewSimpleStatement("invalid value type"), false)
+					return model.NewSimpleQuery(model.NewSimpleStatement("invalid value type"), false)
 				}
 			} else {
 				logger.WarnWithCtx(cw.Ctx).Msgf("no value in wildcard query: %v", queryMap)
-				return newSimpleQuery(NewSimpleStatement("no value in wildcard query"), false)
+				return model.NewSimpleQuery(model.NewSimpleStatement("no value in wildcard query"), false)
 			}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid wildcard type: %T, value: %v", v, v)
-			return newSimpleQuery(NewSimpleStatement("invalid wildcard type"), false)
+			return model.NewSimpleQuery(model.NewSimpleStatement("invalid wildcard type"), false)
 		}
 	}
 
 	// unreachable unless something really weird happens
 	logger.ErrorWithCtx(cw.Ctx).Msg("theoretically unreachable code")
-	return newSimpleQuery(NewSimpleStatement("error, should be unreachable"), false)
+	return model.NewSimpleQuery(model.NewSimpleStatement("error, should be unreachable"), false)
 }
 
 // This one is really complicated (https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html)
 // `query` uses Lucene language, we don't support 100% of it, but most.
-func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) SimpleQuery {
+func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) model.SimpleQuery {
 	var fields []string
 	if fieldsRaw, ok := queryMap["fields"]; ok {
 		fields = cw.extractFields(fieldsRaw.([]interface{}))
@@ -661,21 +625,21 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) SimpleQ
 	}
 
 	// we always can parse, with invalid query we return "false"
-	return newSimpleQuery(NewSimpleStatement(lucene.TranslateToSQL(cw.Ctx, query, fields)), true)
+	return model.NewSimpleQuery(model.NewSimpleStatement(lucene.TranslateToSQL(cw.Ctx, query, fields)), true)
 }
 
-func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) SimpleQuery {
+func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) model.SimpleQuery {
 	if query, ok := queryMap["query"]; ok {
 		if queryAsMap, ok := query.(QueryMap); ok {
 			return cw.parseQueryMap(queryAsMap)
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid nested query type: %T, value: %v", query, query)
-			return newSimpleQuery(NewSimpleStatement("invalid nested query type"), false)
+			return model.NewSimpleQuery(model.NewSimpleStatement("invalid nested query type"), false)
 		}
 	}
 
 	logger.WarnWithCtx(cw.Ctx).Msgf("no query in nested query: %v", queryMap)
-	return newSimpleQuery(NewSimpleStatement("no query in nested query"), false)
+	return model.NewSimpleQuery(model.NewSimpleStatement("no query in nested query"), false)
 }
 
 func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string) (string, error) {
@@ -705,15 +669,15 @@ func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string) (strin
 // TODO:
 //   - check if parseDateTime64BestEffort really works for our case (it should)
 //   - implement "needed" date functions like now, now-1d etc.
-func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
+func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQuery {
 	if len(queryMap) != 1 {
 		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 range, got: %d. value: %v", len(queryMap), queryMap)
-		return newSimpleQuery(NewSimpleStatement("invalid range len != 1"), false)
+		return model.NewSimpleQuery(model.NewSimpleStatement("invalid range len != 1"), false)
 	}
 
 	for field, v := range queryMap {
 		field = cw.Table.ResolveField(cw.Ctx, field)
-		stmts := make([]Statement, 0)
+		stmts := make([]model.Statement, 0)
 		if _, ok := v.(QueryMap); !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid range type: %T, value: %v", v, v)
 			continue
@@ -742,7 +706,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 							vToPrint, err = cw.parseDateMathExpression(vToPrint)
 							if err != nil {
 								logger.WarnWithCtx(cw.Ctx).Msgf("error parsing date math expression: %s", vToPrint)
-								return newSimpleQuery(NewSimpleStatement("error parsing date math expression: "+vToPrint), false)
+								return model.NewSimpleQuery(model.NewSimpleStatement("error parsing date math expression: "+vToPrint), false)
 							}
 						}
 					} else if v == nil {
@@ -769,25 +733,25 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 
 			switch op {
 			case "gte":
-				stmts = append(stmts, NewSimpleStatement(fieldToPrint+">="+vToPrint))
+				stmts = append(stmts, model.NewSimpleStatement(fieldToPrint+">="+vToPrint))
 			case "lte":
-				stmts = append(stmts, NewSimpleStatement(fieldToPrint+"<="+vToPrint))
+				stmts = append(stmts, model.NewSimpleStatement(fieldToPrint+"<="+vToPrint))
 			case "gt":
-				stmts = append(stmts, NewSimpleStatement(fieldToPrint+">"+vToPrint))
+				stmts = append(stmts, model.NewSimpleStatement(fieldToPrint+">"+vToPrint))
 			case "lt":
-				stmts = append(stmts, NewSimpleStatement(fieldToPrint+"<"+vToPrint))
+				stmts = append(stmts, model.NewSimpleStatement(fieldToPrint+"<"+vToPrint))
 			case "format":
 				// ignored
 			default:
 				logger.WarnWithCtx(cw.Ctx).Msgf("invalid range operator: %s", op)
 			}
 		}
-		return newSimpleQueryWithFieldName(and(stmts), true, field)
+		return model.NewSimpleQueryWithFieldName(model.And(stmts), true, field)
 	}
 
 	// unreachable unless something really weird happens
 	logger.ErrorWithCtx(cw.Ctx).Msg("theoretically unreachable code")
-	return newSimpleQuery(NewSimpleStatement("error, should be unreachable"), false)
+	return model.NewSimpleQuery(model.NewSimpleStatement("error, should be unreachable"), false)
 }
 
 // parseDateTimeString returns string used to parse DateTime in Clickhouse (depends on column type)
@@ -808,39 +772,39 @@ func (cw *ClickhouseQueryTranslator) parseDateTimeString(table *clickhouse.Table
 // - The field has "index" : false and "doc_values" : false set in the mapping
 // - The length of the field value exceeded an ignore_above setting in the mapping
 // - The field value was malformed and ignore_malformed was defined in the mapping
-func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) SimpleQuery {
-	sql := NewSimpleStatement("")
+func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.SimpleQuery {
+	sql := model.NewSimpleStatement("")
 	for _, v := range queryMap {
 		fieldName, ok := v.(string)
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid exists type: %T, value: %v", v, v)
-			return newSimpleQuery(NewSimpleStatement("invalid exists type"), false)
+			return model.NewSimpleQuery(model.NewSimpleStatement("invalid exists type"), false)
 		}
 		fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
 		fieldNameQuoted := strconv.Quote(fieldName)
 
 		switch cw.Table.GetFieldInfo(cw.Ctx, fieldName) {
 		case clickhouse.ExistsAndIsBaseType:
-			sql = NewSimpleStatement(fieldNameQuoted + " IS NOT NULL")
+			sql = model.NewSimpleStatement(fieldNameQuoted + " IS NOT NULL")
 		case clickhouse.ExistsAndIsArray:
-			sql = NewSimpleStatement(fieldNameQuoted + ".size0 = 0")
+			sql = model.NewSimpleStatement(fieldNameQuoted + ".size0 = 0")
 		case clickhouse.NotExists:
 			attrs := cw.Table.GetAttributesList()
-			stmts := make([]Statement, len(attrs))
+			stmts := make([]model.Statement, len(attrs))
 			for i, a := range attrs {
-				stmts[i] = NewCompoundStatementNoFieldName(
+				stmts[i] = model.NewCompoundStatementNoFieldName(
 					fmt.Sprintf("has(%s,%s) AND %s[indexOf(%s,%s)] IS NOT NULL",
 						strconv.Quote(a.KeysArrayName), fieldNameQuoted, strconv.Quote(a.ValuesArrayName),
 						strconv.Quote(a.KeysArrayName), fieldNameQuoted,
 					),
 				)
 			}
-			sql = or(stmts)
+			sql = model.Or(stmts)
 		default:
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T for exists: %s", cw.Table.GetFieldInfo(cw.Ctx, fieldName), fieldName)
 		}
 	}
-	return newSimpleQuery(sql, true)
+	return model.NewSimpleQuery(sql, true)
 }
 
 func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []string {
@@ -858,60 +822,6 @@ func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []strin
 		result = append(result, fieldStr)
 	}
 	return result
-}
-
-// sep = "AND" or "OR"
-func combineStatements(stmts []Statement, sep string) Statement {
-	stmts = filterNonEmpty(stmts)
-	if len(stmts) > 1 {
-		stmts = quoteWithBracketsIfCompound(stmts)
-		var fieldName string
-		sql := ""
-		for i, stmt := range stmts {
-			sql += stmt.Stmt
-			if i < len(stmts)-1 {
-				sql += " " + sep + " "
-			}
-			if stmt.FieldName != "" {
-				fieldName = stmt.FieldName
-			}
-		}
-		return NewCompoundStatement(sql, fieldName)
-	}
-	if len(stmts) == 1 {
-		return stmts[0]
-	}
-	return NewSimpleStatement("")
-}
-
-func and(andStmts []Statement) Statement {
-	return combineStatements(andStmts, "AND")
-}
-
-func or(orStmts []Statement) Statement {
-	return combineStatements(orStmts, "OR")
-}
-
-func filterNonEmpty(slice []Statement) []Statement {
-	i := 0
-	for _, el := range slice {
-		if len(el.Stmt) > 0 {
-			slice[i] = el
-			i++
-		}
-	}
-	return slice[:i]
-}
-
-// used to combine statements with AND/OR
-// [a, b, a AND b] ==> ["a", "b", "(a AND b)"]
-func quoteWithBracketsIfCompound(slice []Statement) []Statement {
-	for i := range slice {
-		if slice[i].isCompound {
-			slice[i].Stmt = "(" + slice[i].Stmt + ")"
-		}
-	}
-	return slice
 }
 
 // sprint is a helper function to convert interface{} to string in a way that Clickhouse can understand it
