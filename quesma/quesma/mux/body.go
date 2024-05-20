@@ -23,6 +23,8 @@ func ParseRequestBody(ctx context.Context, req *Request) {
 
 	var errors []error
 
+	// maybe it's a JSON
+
 	if len(req.Body) > 1 && req.Body[0] == '{' {
 		parsedBody := make(JSON)
 		if err := json.Unmarshal([]byte(req.Body), &parsedBody); err != nil {
@@ -32,6 +34,8 @@ func ParseRequestBody(ctx context.Context, req *Request) {
 			return
 		}
 	}
+
+	// maybe it's a NDJSON
 
 	if len(req.Body) > 1 && req.Body[0] == '{' {
 
@@ -55,6 +59,8 @@ func ParseRequestBody(ctx context.Context, req *Request) {
 			return
 		}
 	}
+
+	// if nothing else, it's unknown
 
 	req.ParsedBody = Unknown(errors)
 
