@@ -132,14 +132,20 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		Body:        string(reqBody),
 	}
 
-	// try to parse the body as JSON
-	// we should rely here on the content type header
-	// or not?
-	parsedBody := make(map[string]interface{})
-	if err := json.Unmarshal(reqBody, &parsedBody); err != nil {
-		logger.ErrorWithCtx(ctx).Msgf("Error parsing request body as a JSON: %v", err)
-	} else {
-		quesmaRequest.JSON = parsedBody
+	// TODO omit _bulk requests from parsing JSON
+	if !strings.Contains(req.URL.Path, "_bulk") {
+		// try to parse the body as JSON
+		// we should rely here on the content type header
+		// or not?
+
+		if len(quesmaRequest.Body) > 1 && quesmaRequest.Body[0] == '{' {
+			parsedBody := make(map[string]interface{})
+			if err := json.Unmarshal(reqBody, &parsedBody); err != nil {
+				logger.ErrorWithCtx(ctx).Msgf("Error parsing request body as a JSON: %v", err)
+			} else {
+				quesmaRequest.JSON = parsedBody
+			}
+		}
 	}
 
 	// TODO parse other types of content types
