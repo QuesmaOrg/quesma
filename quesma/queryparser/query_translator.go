@@ -53,7 +53,7 @@ func (cw *ClickhouseQueryTranslator) GetTimestampFieldName() (string, error) {
 	if cw.Table.TimestampColumn != nil {
 		return *cw.Table.TimestampColumn, nil
 	} else {
-		return "", fmt.Errorf("no pseudo unique field configured for table %s", cw.Table.Name)
+		return "", fmt.Errorf("no timestamp field configured for table %s", cw.Table.Name)
 	}
 }
 
