@@ -20,17 +20,6 @@ func NewSimpleQueryWithFieldName(sql Statement, canParse bool, fieldName string)
 	return SimpleQuery{Sql: sql, CanParse: canParse, FieldName: fieldName}
 }
 
-func (sq *SimpleQuery) CombineWheresWith(ctx context.Context, sq2 SimpleQuery) {
-	sq.Sql = And([]Statement{sq.Sql, sq2.Sql})
-	sq.CanParse = sq.CanParse && sq2.CanParse
-	if len(sq.FieldName) > 0 && len(sq2.FieldName) > 0 && sq.FieldName != sq2.FieldName {
-		logger.WarnWithCtx(ctx).Msgf("combining 2 where clauses with different field names: %s, %s, where queries: %v %v", sq.FieldName, sq2.FieldName, sq, sq2)
-	}
-	if len(sq.FieldName) == 0 && len(sq2.FieldName) > 0 {
-		sq.FieldName = sq2.FieldName
-	}
-}
-
 type Statement struct {
 	Stmt       string
 	IsCompound bool // "a" -> not compound, "a AND b" -> compound. Used to not make unnecessary brackets (not always, but usually)
@@ -60,17 +49,6 @@ func Or(orStmts []Statement) Statement {
 	return combineStatements(orStmts, "OR")
 }
 
-func FilterNonEmpty(slice []Statement) []Statement {
-	i := 0
-	for _, el := range slice {
-		if len(el.Stmt) > 0 {
-			slice[i] = el
-			i++
-		}
-	}
-	return slice[:i]
-}
-
 // sep = "AND" or "OR"
 func combineStatements(stmts []Statement, sep string) Statement {
 	stmts = FilterNonEmpty(stmts)
@@ -93,6 +71,33 @@ func combineStatements(stmts []Statement, sep string) Statement {
 		return stmts[0]
 	}
 	return NewSimpleStatement("")
+}
+
+func CombineWheres(ctx context.Context, where1, where2 SimpleQuery) SimpleQuery {
+	combined := SimpleQuery{
+		Sql:      And([]Statement{where1.Sql, where2.Sql}),
+		CanParse: where1.CanParse && where2.CanParse,
+	}
+	if len(where1.FieldName) > 0 && len(where2.FieldName) > 0 && where1.FieldName != where2.FieldName {
+		logger.WarnWithCtx(ctx).Msgf("combining 2 where clauses with different field names: %s, %s, where queries: %v %v", where1.FieldName, where2.FieldName, where1, where2)
+	}
+	if len(where1.FieldName) > 0 {
+		combined.FieldName = where1.FieldName
+	} else {
+		combined.FieldName = where2.FieldName
+	}
+	return combined
+}
+
+func FilterNonEmpty(slice []Statement) []Statement {
+	i := 0
+	for _, el := range slice {
+		if len(el.Stmt) > 0 {
+			slice[i] = el
+			i++
+		}
+	}
+	return slice[:i]
 }
 
 // used to combine statements with AND/OR

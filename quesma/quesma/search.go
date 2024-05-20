@@ -243,7 +243,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		if table == nil {
 			continue
 		}
-		var simpleQuery queryparser.SimpleQuery
+		var simpleQuery model.SimpleQuery
 
 		queryTranslator = NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
 
@@ -443,7 +443,7 @@ func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.C
 
 func (q *QueryRunner) makeBasicQuery(ctx context.Context,
 	queryTranslator IQueryTranslator, table *clickhouse.Table,
-	simpleQuery queryparser.SimpleQuery, queryInfo model.SearchQueryInfo, highlighter model.Highlighter) (*model.Query, []string) {
+	simpleQuery model.SimpleQuery, queryInfo model.SearchQueryInfo, highlighter model.Highlighter) (*model.Query, []string) {
 	var fullQuery *model.Query
 	var columns []string
 	switch queryInfo.Typ {

@@ -85,7 +85,8 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 	// Range aggregation with subaggregations should be a quite rare case, so I'm leaving that for later.
 	whereBeforeNesting := currentAggr.whereBuilder
 	for _, interval := range Range.Intervals {
-		currentAggr.whereBuilder.CombineWheresWith(cw.Ctx,
+		currentAggr.whereBuilder = model.CombineWheres(
+			cw.Ctx, currentAggr.whereBuilder,
 			model.NewSimpleQuery(model.NewSimpleStatement(interval.ToWhereClause(Range.QuotedFieldName)), true),
 		)
 		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(interval.String()))
