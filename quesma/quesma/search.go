@@ -231,17 +231,16 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					}
 				}
 				oldHandlingUsed = true
-				fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
-				var columnsSlice [][]string
+				queries, columnsSlice := q.makeBasicQueries(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
 				if optAsync != nil {
 					go func() {
 						defer recovery.LogAndHandlePanic(ctx, func() {
 							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 						})
-						translatedQueryBody, hitsSlice := q.searchWorker(ctx, []model.Query{*fullQuery}, append(columnsSlice, columns), table, false, optAsync)
-						searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], fullQuery.QueryInfo.Typ, fullQuery.Highlighter)
+						translatedQueryBody, hitsSlice := q.searchWorker(ctx, queries, columnsSlice, table, false, optAsync)
+						searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], queries[0].QueryInfo.Typ, queries[0].Highlighter)
 						if err != nil {
-							logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, fullQuery.QueryInfo, hits)
+							logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queries[0].QueryInfo, hits)
 							optAsync.doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 							return
 						}
@@ -249,7 +248,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					}()
 				} else {
 					var hitsSlice [][]model.QueryResultRow
-					translatedQueryBody, hitsSlice = q.searchWorker(ctx, []model.Query{*fullQuery}, append(columnsSlice, columns), table, false, nil)
+					translatedQueryBody, hitsSlice = q.searchWorker(ctx, queries, columnsSlice, table, false, nil)
 					if len(hitsSlice) > 0 {
 						// there is only one query
 						hits = hitsSlice[0]
@@ -481,32 +480,34 @@ func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.C
 	q.AsyncQueriesContexts.Store(asyncRequestIdStr, NewAsyncQueryContext(ctx, cancel, asyncRequestIdStr))
 }
 
-func (q *QueryRunner) makeBasicQuery(ctx context.Context,
+func (q *QueryRunner) makeBasicQueries(ctx context.Context,
 	queryTranslator IQueryTranslator, table *clickhouse.Table,
-	simpleQuery queryparser.SimpleQuery, queryInfo model.SearchQueryInfo, highlighter model.Highlighter) (*model.Query, []string) {
+	simpleQuery queryparser.SimpleQuery, queryInfo model.SearchQueryInfo, highlighter model.Highlighter) ([]model.Query, [][]string) {
 	var fullQuery *model.Query
-	var columns []string
+	var columns [][]string
 	switch queryInfo.Typ {
 	case model.CountAsync:
 		fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-		columns = []string{"doc_count"}
+		columns = append(columns, []string{"doc_count"})
 	case model.Facets, model.FacetsNumeric:
 		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
 		fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		columns = []string{"key", "doc_count"}
+		columns = append(columns, []string{"key", "doc_count"})
 	case model.ListByField:
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)
 		fullQuery = queryTranslator.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		columns = []string{queryInfo.FieldName}
+		columns = append(columns, []string{queryInfo.FieldName})
 	case model.ListAllFields:
 		// queryInfo = (ListAllFields, "*", 0, LIMIT)
 		fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
+		columns = append(columns, []string{})
 	case model.Normal:
 		fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, queryInfo.I2)
+		columns = append(columns, []string{})
 	}
 	fullQuery.QueryInfo = queryInfo
 	fullQuery.Highlighter = highlighter
-	return fullQuery, columns
+	return []model.Query{*fullQuery}, columns
 }
 
 func (q *QueryRunner) searchWorkerCommon(

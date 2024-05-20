@@ -216,11 +216,12 @@ type SearchQueryInfo struct {
 	// to be used as replacement for FieldName
 	RequestedFields []string
 	// deprecated
-	FieldName string
-	Interval  string
-	I1        int
-	I2        int
-	Size      int // how many hits to return
+	FieldName      string
+	Interval       string
+	I1             int
+	I2             int
+	Size           int // how many hits to return
+	TrackTotalHits string
 }
 
 func NewSearchQueryInfoNone() SearchQueryInfo {
