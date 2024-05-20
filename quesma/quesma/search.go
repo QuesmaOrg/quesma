@@ -189,7 +189,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 
 	var hits []model.QueryResultRow
-	var hitsPresent *[]model.QueryResultRow
 	var aggregationResults [][]model.QueryResultRow
 	oldHandlingUsed := false
 	newAggregationHandlingUsed := false
@@ -270,8 +269,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					translatedQueryBody, aggregationResults = q.searchWorker(ctx, aggregations, columns, table, true, nil)
 					if queryInfo.Size > 0 {
 						listQuery := queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.Size)
-						hitsFallback, err := q.logManager.ProcessQuery(ctx, table, listQuery, nil)
-						hitsPresent = &hitsFallback
+						hits, err = q.logManager.ProcessQuery(ctx, table, listQuery, nil)
 						translatedQueryBody = append(translatedQueryBody, []byte("\n"+listQuery.String()+"\n")...)
 						if err != nil {
 							logger.ErrorWithCtx(ctx).Msgf("error processing fallback query. Err: %v, query: %+v", err, listQuery)
@@ -295,6 +293,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				response, err = queryTranslator.MakeSearchResponse(hits, model.Query{QueryInfo: queryInfo, Highlighter: highlighter})
 			} else if newAggregationHandlingUsed {
 				response = queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
+				responseHits, err = queryTranslator.MakeSearchResponse(hits, model.Query{QueryInfo: queryInfo, Highlighter: highlighter})
+				response.Hits = responseHits.Hits
 			}
 			if err != nil {
 				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queryInfo, hits)
@@ -302,17 +302,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				return responseBody, err
 			}
 
-			if hitsPresent != nil {
-				if response == nil {
-					response, err = queryTranslator.MakeSearchResponse(*hitsPresent, model.Query{QueryInfo: queryInfo, Highlighter: highlighter})
-				} else {
-					responseHits, err = queryTranslator.MakeSearchResponse(*hitsPresent, model.Query{QueryInfo: queryInfo, Highlighter: highlighter})
-					response.Hits = responseHits.Hits
-				}
-			}
-			if err != nil {
-				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %v, rows: %v", err, queryInfo, hitsPresent)
-			}
 			responseBody, err = response.Marshal()
 
 			pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
