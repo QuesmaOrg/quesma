@@ -19,6 +19,18 @@ type Highlighter struct {
 	PostTags []string
 }
 
+type NewQueryType int
+
+const (
+	QueryAggregate NewQueryType = iota
+	QuerySimple
+	QueryCount
+)
+
+func (queryType NewQueryType) String() string {
+	return []string{"Aggregate", "Simple", "Count"}[queryType]
+}
+
 // implements String() (now) and MakeResponse() interface (in the future (?))
 type Query struct {
 	IsDistinct      bool     // true <=> query is SELECT DISTINCT
@@ -30,6 +42,7 @@ type Query struct {
 	FromClause      string   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
 	CanParse        bool     // true <=> query is valid
 	QueryInfo       SearchQueryInfo
+	SearchQueryType NewQueryType
 	Highlighter     Highlighter
 	NoDBQuery       bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
 	Parent          string       // parent aggregation name, used in some pipeline aggregations

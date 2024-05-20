@@ -188,10 +188,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 	}
 
-	var hits, hitsFallback []model.QueryResultRow
+	var hitsFallback []model.QueryResultRow
 	var aggregationResults [][]model.QueryResultRow
-	oldHandlingUsed := false
-	newAggregationHandlingUsed := false
 	hitsPresent := false
 
 	tables := q.logManager.GetTableDefinitions()
@@ -230,32 +228,21 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						return nil, fmt.Errorf("properties %s not found in table %s", properties, table.Name)
 					}
 				}
-				oldHandlingUsed = true
 				queries, columnsSlice := q.makeBasicQueries(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
+				aggregations = queries
 				if optAsync != nil {
 					go func() {
 						defer recovery.LogAndHandlePanic(ctx, func() {
 							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 						})
 						translatedQueryBody, hitsSlice := q.searchWorker(ctx, queries, columnsSlice, table, false, optAsync)
-						searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], queries[0].QueryInfo.Typ, queries[0].Highlighter)
-						if err != nil {
-							logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queries[0].QueryInfo, hits)
-							optAsync.doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
-							return
-						}
+						searchResponse := queryTranslator.MakeResponseAggregation(queries, hitsSlice)
 						optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody}
 					}()
 				} else {
-					var hitsSlice [][]model.QueryResultRow
-					translatedQueryBody, hitsSlice = q.searchWorker(ctx, queries, columnsSlice, table, false, nil)
-					if len(hitsSlice) > 0 {
-						// there is only one query
-						hits = hitsSlice[0]
-					}
+					translatedQueryBody, aggregationResults = q.searchWorker(ctx, queries, columnsSlice, table, false, nil)
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
-				newAggregationHandlingUsed = true
 				columns := make([][]string, len(aggregations))
 				if optAsync != nil {
 					go func() {
@@ -317,17 +304,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		if optAsync == nil {
 			var response, responseHits *model.SearchResp = nil, nil
 			err = nil
-			if oldHandlingUsed {
-				response, err = queryTranslator.MakeSearchResponse(hits, queryInfo.Typ, highlighter)
-			} else if newAggregationHandlingUsed {
-				response = queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
-			}
-			if err != nil {
-				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queryInfo, hits)
-				pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
-				return responseBody, err
-			}
-
+			response = queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
 			if hitsPresent {
 				if response == nil {
 					response, err = queryTranslator.MakeSearchResponse(hitsFallback, queryInfo.Typ, highlighter)

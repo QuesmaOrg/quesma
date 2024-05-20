@@ -450,7 +450,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 }
 
 func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []model.Query, ResultSets [][]model.QueryResultRow) model.JsonMap {
-	const aggregation_start_index = 1
+	const aggregation_start_index = 0
 	aggregations := model.JsonMap{}
 	if len(queries) <= aggregation_start_index {
 		return aggregations
@@ -469,25 +469,63 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []mod
 }
 
 func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
-	var totalCount uint64
-	if len(ResultSets) > 0 && len(ResultSets[0]) > 0 && len(ResultSets[0][0].Cols) > 0 {
-		// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
-		if val, ok := ResultSets[0][0].Cols[0].Value.(uint64); ok {
-			totalCount = val
-		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets[0])
+	countQueryIdx := -1
+	hitQueryIdx := -1
+	var aggregates []model.Query
+	var aggregatesResult [][]model.QueryResultRow
+	for i, query := range queries {
+		switch query.SearchQueryType {
+		case model.QueryAggregate:
+			aggregates = append(aggregates, query)
+			aggregatesResult = append(aggregatesResult, ResultSets[i])
+		case model.QueryCount:
+			countQueryIdx = i
+		case model.QuerySimple:
+			hitQueryIdx = i
+		default:
+			logger.WarnWithCtx(cw.Ctx).Msgf("unknown query type: %v", query.SearchQueryType)
 		}
-	} else {
-		logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets)
-		totalCount = 0
+	}
+	var totalCount uint64
+	totalCountRelation := "eq"
+	if countQueryIdx != -1 {
+		if len(ResultSets[countQueryIdx]) > 0 && len(ResultSets[countQueryIdx][0].Cols) > 0 {
+			// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
+			if val, ok := ResultSets[countQueryIdx][0].Cols[0].Value.(uint64); ok {
+				totalCount = val
+			} else {
+				logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets[0])
+			}
+		} else {
+			logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets)
+			totalCount = 0
+		}
+	}
+	hits := []model.SearchHit{}
+	if hitQueryIdx != -1 {
+		hits := make([]model.SearchHit, len(ResultSets[hitQueryIdx]))
+		for i, row := range ResultSets[hitQueryIdx] {
+			hits[i] = model.SearchHit{
+				Index:     row.Index,
+				Source:    []byte(row.String(cw.Ctx)),
+				Fields:    make(map[string][]interface{}),
+				Highlight: make(map[string][]string),
+			}
+			cw.highlightHit(&hits[i], queries[hitQueryIdx].Highlighter, ResultSets[hitQueryIdx][i])
+			hits[i].ID = cw.computeIdForDocument(hits[i], strconv.Itoa(i+1))
+		}
+		if countQueryIdx == -1 {
+			totalCount = uint64(len(hits))
+			totalCountRelation = "gte"
+		}
 	}
 	return &model.SearchResp{
-		Aggregations: cw.MakeAggregationPartOfResponse(queries, ResultSets),
+		Aggregations: cw.MakeAggregationPartOfResponse(aggregates, aggregatesResult),
 		Hits: model.SearchHits{
-			Hits: []model.SearchHit{}, // seems redundant, but can't remove this, created JSON won't match
+			Hits: hits,
 			Total: &model.Total{
 				Value:    int(totalCount), // TODO just change this to uint64? It works now.
-				Relation: "eq",
+				Relation: totalCountRelation,
 			},
 		},
 		Shards: model.ResponseShards{
