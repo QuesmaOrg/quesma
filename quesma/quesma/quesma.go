@@ -145,7 +145,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		Body:        string(reqBody),
 	}
 
-	mux.ParseRequestBody(ctx, quesmaRequest)
+	quesmaRequest.ParsedBody = mux.ParseRequestBody(ctx, quesmaRequest)
 
 	handler, found := router.Matches(quesmaRequest)
 
