@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"fmt"
 	"mitmproxy/quesma/logger"
 	"sort"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 
 const RowNumberColumnName = "row_number"
 const EmptyFieldSelection = "''" // we can query SELECT '', that's why such quotes
+const CountShortName = "cnt"
 
 type Highlighter struct {
 	Tokens []string
@@ -26,9 +28,13 @@ type Query struct {
 	NonSchemaFields []string // Fields that are not in schema, but are in 'SELECT ...', e.g. count()
 	WhereClause     string   // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
 	GroupByFields   []string // if not empty, we do GROUP BY GroupByFields... They are quoted if they are column names, unquoted if non-schema. So no quotes need to be added.
-	SuffixClauses   []string // ORDER BY, etc.
+	OrderBy         []string // ORDER BY fields
+	SuffixClauses   []string // LIMIT, etc.
 	FromClause      string   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
-	CanParse        bool     // true <=> query is valid
+	TableName       string
+	SubQueries      []subQuery
+	OrderByCount    bool
+	CanParse        bool // true <=> query is valid
 	QueryInfo       SearchQueryInfo
 	Highlighter     Highlighter
 	NoDBQuery       bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
@@ -36,68 +42,84 @@ type Query struct {
 	Aggregators     []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
 	Type            QueryType
 	SubSelect       string
-	// dictionary to add as 'meta' field in the response.
-	// WARNING: it's probably not passed everywhere where it's needed, just in one place.
-	// But it works for the test + our dashboards, so let's fix it later if necessary.
-	// NoMetadataField (nil) is a valid option and means no meta field in the response.
-	Metadata JsonMap
+}
+
+type subQuery struct {
+	sql       string
+	innerJoin string
+	name      string
+}
+
+func newSubQuery(sql, innerJoin, name string) subQuery {
+	return subQuery{sql: sql, innerJoin: innerJoin, name: name}
 }
 
 var NoMetadataField JsonMap = nil
 
-// returns string with SQL query
+// returns string with * in SELECT
 func (q *Query) String() string {
-	return q.StringFromColumns(q.Fields)
+	return q.stringCommon(q.allFields())
 }
 
 // returns string with SQL query
 // colNames - list of columns (schema fields) for SELECT
 func (q *Query) StringFromColumns(colNames []string) string {
+	return q.stringCommon(colNames)
+}
+
+func (q *Query) stringCommon(selectSchemaFields []string) string {
 	var sb strings.Builder
+	if len(q.SubQueries) > 0 {
+		sb.WriteString("WITH ")
+		for i, sq := range q.SubQueries {
+			sb.WriteString(sq.name + " AS (" + sq.sql + ")")
+			if i < len(q.SubQueries)-1 {
+				sb.WriteString(", ")
+			}
+		}
+		sb.WriteString(" ")
+	}
 	sb.WriteString("SELECT ")
 	if q.IsDistinct {
 		sb.WriteString("DISTINCT ")
 	}
-	for i, field := range colNames {
-		if field == "*" || field == EmptyFieldSelection {
-			sb.WriteString(field)
-		} else {
-			sb.WriteString(strconv.Quote(field))
-		}
-		if i < len(colNames)-1 || len(q.NonSchemaFields) > 0 {
-			sb.WriteString(", ")
+	sb.WriteString(strings.Join(selectSchemaFields, ", "))
+	sb.WriteString(" FROM " + q.FromClause + " ") //where + q.WhereClause + " ")
+	for i, sq := range q.SubQueries {
+		sb.WriteString("INNER JOIN " + sq.name + " ON " + sq.innerJoin + " ")
+		if i < len(q.SubQueries)-1 {
+			sb.WriteString("AND ")
 		}
 	}
-	for i, field := range q.NonSchemaFields {
-		sb.WriteString(field)
-		if i < len(q.NonSchemaFields)-1 {
-			sb.WriteString(", ")
-		}
+	if len(q.WhereClause) > 0 {
+		sb.WriteString("WHERE " + q.WhereClause + " ")
 	}
 	where := " WHERE "
 	if len(q.WhereClause) == 0 {
 		where = ""
 	}
 	sb.WriteString(" FROM " + q.FromClause + where + q.WhereClause)
+	lastLetterIsSpace := true
 	if len(q.GroupByFields) > 0 {
-		sb.WriteString(" GROUP BY (")
+		sb.WriteString("GROUP BY ")
 		for i, field := range q.GroupByFields {
 			sb.WriteString(field)
 			if i < len(q.GroupByFields)-1 {
 				sb.WriteString(", ")
 			}
 		}
-		sb.WriteString(")")
-
-		if len(q.SuffixClauses) == 0 {
-			sb.WriteString(" ORDER BY (")
-			for i, field := range q.GroupByFields {
-				sb.WriteString(field)
-				if i < len(q.GroupByFields)-1 {
-					sb.WriteString(", ")
-				}
+		lastLetterIsSpace = false
+	}
+	if len(q.OrderBy) > 0 {
+		if !lastLetterIsSpace {
+			sb.WriteString(" ")
+		}
+		sb.WriteString("ORDER BY ")
+		for i, field := range q.OrderBy {
+			sb.WriteString(field)
+			if i < len(q.OrderBy)-1 {
+				sb.WriteString(", ")
 			}
-			sb.WriteString(")")
 		}
 	}
 	if len(q.SuffixClauses) > 0 {
@@ -110,6 +132,54 @@ func (q *Query) IsWildcard() bool {
 	return len(q.Fields) == 1 && q.Fields[0] == "*"
 }
 
+func (q *Query) allFields() []string {
+	fields := make([]string, 0, len(q.Fields)+len(q.NonSchemaFields))
+	for _, field := range q.Fields {
+		if field == "*" {
+			fields = append(fields, "*")
+		} else {
+			fields = append(fields, strconv.Quote(field))
+		}
+	}
+	for _, field := range q.NonSchemaFields {
+		fields = append(fields, field)
+	}
+	return fields
+}
+
+func (q *Query) AddSubQueryFromCurrentState(ctx context.Context, subqueryNr int) {
+	queryName := q.subQueryName(subqueryNr)
+
+	selectFields := make([]string, 0, len(q.Fields)+len(q.NonSchemaFields)+1)
+	for _, schemaField := range q.Fields {
+		if schemaField == "*" {
+			logger.WarnWithCtx(ctx).Msgf("Query with * shouldn't happen here. Skipping (query: %+v)", q)
+			continue
+		}
+		selectFields = append(selectFields, fmt.Sprintf(`"%s" AS "%s_%s"`, schemaField, queryName, schemaField))
+	}
+	for i, nonSchemaField := range q.NonSchemaFields {
+		selectFields = append(selectFields, fmt.Sprintf(`%s AS "%s_ns_%d"`, nonSchemaField, queryName, i))
+	}
+	selectFields = append(selectFields, fmt.Sprintf("count() AS %s", strconv.Quote(q.subQueryCountFieldName(subqueryNr))))
+	sql := q.StringFromColumns(selectFields)
+	innerJoinParts := make([]string, 0, len(q.GroupByFields))
+	for _, field := range q.Fields {
+		innerJoinParts = append(innerJoinParts, fmt.Sprintf(`"%s" = "%s_%s"`, field, queryName, field))
+		// FIXME add support for non-schema fields
+	}
+	innerJoin := strings.Join(innerJoinParts, " AND ")
+	q.SubQueries = append(q.SubQueries, newSubQuery(sql, innerJoin, queryName))
+}
+
+func (q *Query) subQueryName(nr int) string {
+	return "subQuery" + strconv.Itoa(nr)
+}
+
+func (q *Query) subQueryCountFieldName(nr int) string {
+	return q.subQueryName(nr) + "_" + CountShortName
+}
+
 // CopyAggregationFields copies all aggregation fields from qwa to q
 func (q *Query) CopyAggregationFields(qwa Query) {
 	q.GroupByFields = make([]string, len(qwa.GroupByFields))
@@ -120,6 +190,9 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 
 	q.NonSchemaFields = make([]string, len(qwa.NonSchemaFields))
 	copy(q.NonSchemaFields, qwa.NonSchemaFields)
+
+	q.SuffixClauses = make([]string, len(qwa.SuffixClauses))
+	copy(q.SuffixClauses, qwa.SuffixClauses)
 
 	q.Aggregators = make([]Aggregator, len(qwa.Aggregators))
 	copy(q.Aggregators, qwa.Aggregators)
