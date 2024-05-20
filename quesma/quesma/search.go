@@ -195,8 +195,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	var hits []model.QueryResultRow
 	var aggregationResults [][]model.QueryResultRow
-	oldHandlingUsed := false
-	newAggregationHandlingUsed := false
+	isAggregation := false
 
 	tables := q.logManager.GetTableDefinitions()
 
@@ -233,7 +232,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						return nil, fmt.Errorf("properties %s not found in table %s", properties, table.Name)
 					}
 				}
-				oldHandlingUsed = true
 				fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
 				var columnsSlice [][]string
 				if optAsync != nil {
@@ -259,7 +257,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					}
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
-				newAggregationHandlingUsed = true
+				isAggregation = true
 				columns := make([][]string, len(aggregations))
 				if optAsync != nil {
 					go func() {
@@ -294,9 +292,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		if optAsync == nil {
 			var response, responseHits *model.SearchResp = nil, nil
 			err = nil
-			if oldHandlingUsed {
+			if !isAggregation {
 				response, err = queryTranslator.MakeSearchResponse(hits, model.Query{QueryInfo: queryInfo, Highlighter: highlighter})
-			} else if newAggregationHandlingUsed {
+			} else {
 				response = queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
 				responseHits, err = queryTranslator.MakeSearchResponse(hits, model.Query{QueryInfo: queryInfo, Highlighter: highlighter})
 				response.Hits = responseHits.Hits
