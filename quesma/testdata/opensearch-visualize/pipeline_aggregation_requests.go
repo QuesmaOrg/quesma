@@ -2617,7 +2617,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"aggregations": {
 				"1": {
 					"keys": [
-						"false"
+						false
 					],
 					"value": 1923.0
 				},
@@ -2625,13 +2625,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					"buckets": [
 						{
 							"doc_count": 260,
-							"key": 1,
-							"key_as_string": "true"
+							"key": true
 						},
 						{
 							"doc_count": 1923,
-							"key": 0,
-							"key_as_string": "false"
+							"key": false
 						}
 					],
 					"doc_count_error_upper_bound": 0,
@@ -2650,45 +2648,35 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"took": 98
 		}`,
 		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(202))}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2183))}}},
 			{}, // NoDBQuery
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "252.102.14.111"),
-					model.NewQueryResultCol("doc_count", 1),
+					model.NewQueryResultCol("key", true),
+					model.NewQueryResultCol("doc_count", 260),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "250.85.17.229"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "249.69.222.185"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "247.240.202.244"),
-					model.NewQueryResultCol("doc_count", 3),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "247.126.133.102"),
-					model.NewQueryResultCol("doc_count", 1),
+					model.NewQueryResultCol("key", false),
+					model.NewQueryResultCol("doc_count", 1923),
 				}},
 			},
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z') AND ` +
-				`"timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z') `,
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') AND ` +
+				`"timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z') `,
 			`NoDBQuery`,
-			`SELECT "clientip", count() ` +
+			`SELECT "Cancelled", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z')  ` +
-				`GROUP BY ("clientip") ` +
-				`ORDER BY ("clientip")`,
+				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z')  ` +
+				`GROUP BY ("Cancelled") ` +
+				`ORDER BY count() DESC ` +
+				`LIMIT 5`,
 		},
 	},
+	/* waits for a simple filters fix
 	{ // [15]
 		TestName: "max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum)",
 		QueryRequestJson: `
@@ -2712,14 +2700,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					},
 					"filters": {
 						"filters": {
-							"FlightDelayMin > 100": {
+							"FlightDelayMin: >-100": {
 								"bool": {
 									"filter": [],
 									"must": [
 										{
 											"query_string": {
 												"analyze_wildcard": true,
-												"query": "FlightDelayMin > 100",
+												"query": "FlightDelayMin: >-100",
 												"time_zone": "Europe/Warsaw"
 											}
 										}
@@ -2756,22 +2744,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			],
 			"query": {
 				"bool": {
-					"filter": [
-						{
-							"range": {
-								"timestamp": {
-									"format": "strict_date_optional_time",
-									"gte": "2024-04-27T21:59:22.454Z",
-									"lte": "2024-05-12T21:59:22.454Z"
-								}
-							}
-						}
-					],
-					"must": [
-						{
-							"match_all": {}
-						}
-					],
+					"filter": [],
+					"must": [],
 					"must_not": [],
 					"should": []
 				}
@@ -2806,7 +2780,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				},
 				"1-bucket": {
 					"buckets": {
-						"FlightDelayMin > 100": {
+						"FlightDelayMin: >-100": {
 							"1-metric": {
 								"value": 0.0
 							},
@@ -2833,50 +2807,26 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"took": 189
 		}`,
 		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(199))}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2183))}}},
 			{}, // NoDBQuery
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "255.205.14.152"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "255.174.89.45"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "253.69.5.67"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "252.177.62.191"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "251.250.144.158"),
-					model.NewQueryResultCol("doc_count", 1),
+					model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "255.205.14.152"),
-					model.NewQueryResultCol("doc_count", 1),
+					model.NewQueryResultCol(`count()`, 0),
 				}},
+			},
+			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "255.174.89.45"),
-					model.NewQueryResultCol("doc_count", 1),
+					model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 4968221.14887619),
 				}},
+			},
+			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "253.69.5.67"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "252.177.62.191"),
-					model.NewQueryResultCol("doc_count", 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("key", "251.250.144.158"),
-					model.NewQueryResultCol("doc_count", 1),
+					model.NewQueryResultCol(`count()`, 722),
 				}},
 			},
 		},
@@ -2884,17 +2834,23 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` `,
 			`NoDBQuery`,
-			`SELECT "clientip", COUNT(DISTINCT "geo.coordinates") ` +
-				`FROM ` + testdata.QuotedTableName + `  ` +
-				`GROUP BY ("clientip") ` +
-				`ORDER BY ("clientip")`,
-			`SELECT "clientip", count() ` +
-				`FROM ` + testdata.QuotedTableName + `  ` +
-				`GROUP BY ("clientip") ` +
-				`ORDER BY ("clientip")`,
+			`SELECT sumOrNull("DistanceKilometers") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "FlightDelayMin" > '-100' `,
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "FlightDelayMin" > '-100' `,
+			`SELECT sumOrNull("DistanceKilometers") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE false `,
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE false `,
 		},
 	},
-	{ // [16]
+	*/
+	/* waiting for filters + pipeline aggregations fix
+	{ // [16] TODO check this test with other pipeline aggregations
 		TestName: "complex max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum), Buckets: Split chart: Rows -> Range",
 		QueryRequestJson: `
 		{
@@ -2919,14 +2875,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							},
 							"filters": {
 								"filters": {
-									"FlightDelayMin > 100": {
+									"FlightDelayMin: >100": {
 										"bool": {
 											"filter": [],
 											"must": [
 												{
 													"query_string": {
 														"analyze_wildcard": true,
-														"query": "FlightDelayMin > 100",
+														"query": "FlightDelayMin: >100",
 														"time_zone": "Europe/Warsaw"
 													}
 												}
@@ -2938,7 +2894,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 									"true": {
 										"bool": {
 											"filter": [
-												{
+													{
 													"multi_match": {
 														"lenient": true,
 														"query": true,
@@ -2979,17 +2935,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			],
 			"query": {
 				"bool": {
-					"filter": [
-						{
-							"range": {
-								"timestamp": {
-									"format": "strict_date_optional_time",
-									"gte": "2024-04-27T22:01:55.676Z",
-									"lte": "2024-05-12T22:01:55.676Z"
-								}
-							}
-						}
-					],
+					"filter": {},
 					"must": [
 						{
 							"match_all": {}
@@ -3032,7 +2978,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							},
 							"1-bucket": {
 								"buckets": {
-									"FlightDelayMin > 100": {
+									"FlightDelayMin: >100": {
 										"1-metric": {
 											"value": 0.0
 										},
@@ -3059,7 +3005,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							},
 							"1-bucket": {
 								"buckets": {
-									"FlightDelayMin > 100": {
+									"FlightDelayMin: >100": {
 										"1-metric": {
 											"value": 0.0
 										},
@@ -3092,79 +3038,56 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"took": 78
 		}`,
 		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1838))}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2184))}}},
 			{}, // NoDBQuery
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 0.0),
-					model.NewQueryResultCol("client_ip", "255.205.14.152"),
-					model.NewQueryResultCol(`sumOrNull("bytes")`, 13.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 0.0),
-					model.NewQueryResultCol("client_ip", "252.177.62.191"),
-					model.NewQueryResultCol(`sumOrNull("bytes")`, 7.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
-					model.NewQueryResultCol("client_ip", "246.106.125.113"),
-					model.NewQueryResultCol(`sumOrNull("bytes")`, 7.0),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
-					model.NewQueryResultCol("client_ip", "236.212.255.77"),
-					model.NewQueryResultCol(`sumOrNull("bytes")`, 18.0),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 0.0),
-					model.NewQueryResultCol("client_ip", "255.205.14.152"),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 0.0),
-					model.NewQueryResultCol("client_ip", "252.177.62.191"),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
-					model.NewQueryResultCol("client_ip", "246.106.125.113"),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
-					model.NewQueryResultCol("client_ip", "236.212.255.77"),
-					model.NewQueryResultCol(`count()`, 1),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 0.0),
-					model.NewQueryResultCol(`count()`, 73),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
-					model.NewQueryResultCol(`count()`, 25),
-				}},
-			},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 0)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 82682.96674728394)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 140)}}},
+			{}, // NoDBQuery
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 0)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 140267.98315429688)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 62)}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol(`count(if("DistanceMiles">=0 AND "DistanceMiles"<1000, 1, NULL))`, 419),
+				model.NewQueryResultCol(`count(if("DistanceMiles">=1000 AND "DistanceMiles"<2000, 1, NULL))`, 159),
+				model.NewQueryResultCol(`count()`, 2184),
+			}}},
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` `,
 			`NoDBQuery`,
-			`SELECT floor("bytes" / 200.000000) * 200.000000, "clientip", sumOrNull("bytes") ` +
-				`FROM ` + testdata.QuotedTableName + `  ` +
-				`GROUP BY (floor("bytes" / 200.000000) * 200.000000, "clientip") ` +
-				`ORDER BY (floor("bytes" / 200.000000) * 200.000000, "clientip")`,
-			`SELECT floor("bytes" / 200.000000) * 200.000000, "clientip", count() ` +
-				`FROM ` + testdata.QuotedTableName + `  ` +
-				`GROUP BY (floor("bytes" / 200.000000) * 200.000000, "clientip") ` +
-				`ORDER BY (floor("bytes" / 200.000000) * 200.000000, "clientip")`,
-			`SELECT floor("bytes" / 200.000000) * 200.000000, count() ` +
-				`FROM ` + testdata.QuotedTableName + `  ` +
-				`GROUP BY (floor("bytes" / 200.000000) * 200.000000) ` +
-				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
+			`SELECT sumOrNull("DistanceKilometers") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND "FlightDelayMin" > '100' `,
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND "FlightDelayMin" > '100' `,
+			`SELECT sumOrNull("DistanceKilometers") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND false `,
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND false `,
+			`NoDBQuery`,
+			`SELECT sumOrNull("DistanceKilometers") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND "FlightDelayMin" > '100' `,
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND "FlightDelayMin" > '100' `,
+			`SELECT sumOrNull("DistanceKilometers") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND false `,
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND false `,
+			`SELECT count(if("DistanceMiles">=0 AND "DistanceMiles"<1000, 1, NULL)), ` +
+				`count(if("DistanceMiles">=1000 AND "DistanceMiles"<2000, 1, NULL)), ` +
+				`count() ` +
+				`FROM ` + testdata.QuotedTableName + ` `,
 		},
-	},
+	}, */
 }

@@ -25,11 +25,11 @@ func (query MinBucket) IsBucketAggregation() bool {
 
 func (query MinBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	if len(rows) == 0 {
-		logger.WarnWithCtx(query.ctx).Msg("no rows returned for average bucket aggregation")
+		logger.WarnWithCtx(query.ctx).Msg("no rows returned for min bucket aggregation")
 		return []model.JsonMap{nil}
 	}
 	if len(rows) > 1 {
-		logger.WarnWithCtx(query.ctx).Msg("more than one row returned for average bucket aggregation")
+		logger.WarnWithCtx(query.ctx).Msg("more than one row returned for min bucket aggregation")
 	}
 	if returnMap, ok := rows[0].LastColValue().(model.JsonMap); ok {
 		return []model.JsonMap{returnMap}

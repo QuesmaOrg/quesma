@@ -662,6 +662,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) SimpleQ
 	}
 
 	// we always can parse, with invalid query we return "false"
+	fmt.Println("query", query)
 	return newSimpleQuery(NewSimpleStatement(lucene.TranslateToSQL(cw.Ctx, query, fields)), true)
 }
 

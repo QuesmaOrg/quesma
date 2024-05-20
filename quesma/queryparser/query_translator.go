@@ -522,11 +522,13 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncRequestI
 
 func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []model.Query, ResultSets [][]model.QueryResultRow) {
 	queryIterationOrder := cw.sortInTopologicalOrder(queries)
-	// fmt.Println("qwerty", queryIterationOrder) let's remove all prints in this function after all pipeline aggregations are merged
+	fmt.Println("qwerty", queryIterationOrder) // let's remove all prints in this function after all pipeline aggregations are merged
 	for _, queryIndex := range queryIterationOrder {
 		query := queries[queryIndex]
 		pipelineQueryType, isPipeline := query.Type.(model.PipelineQueryType)
+		fmt.Println("queries", queryIndex, "query:", query, "isPipeline:", isPipeline)
 		if !isPipeline || !query.HasParentAggregation() {
+			fmt.Println("queries", queryIndex, "not pipeline or no parent")
 			continue
 		}
 		// if we don't send the query, we need process the result ourselves

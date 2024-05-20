@@ -27,11 +27,11 @@ func (query MaxBucket) IsBucketAggregation() bool {
 // dunno why it's working, maybe I'm wrong
 func (query MaxBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	if len(rows) == 0 {
-		logger.WarnWithCtx(query.ctx).Msg("no rows returned for average bucket aggregation")
+		logger.WarnWithCtx(query.ctx).Msg("no rows returned for max bucket aggregation")
 		return []model.JsonMap{nil}
 	}
 	if len(rows) > 1 {
-		logger.WarnWithCtx(query.ctx).Msg("more than one row returned for average bucket aggregation")
+		logger.WarnWithCtx(query.ctx).Msg("more than one row returned for max bucket aggregation")
 	}
 	if returnMap, ok := rows[0].LastColValue().(model.JsonMap); ok {
 		return []model.JsonMap{returnMap}
@@ -42,7 +42,7 @@ func (query MaxBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 }
 
 // TODO unify with min_bucket, move to common
-func (query MaxBucket) CalculateResultWhenMissing(qwa model.QueryWithAggregation, parentRows []model.QueryResultRow) []model.QueryResultRow {
+func (query MaxBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows []model.QueryResultRow) []model.QueryResultRow {
 	fmt.Println("hoho")
 	fmt.Println(parentRows)
 	resultRows := make([]model.QueryResultRow, 0)
@@ -50,15 +50,18 @@ func (query MaxBucket) CalculateResultWhenMissing(qwa model.QueryWithAggregation
 		return resultRows // maybe null?
 	}
 	qp := queryprocessor.NewQueryProcessor(query.ctx)
-	for _, parentRowsOneBucket := range qp.SplitResultSetIntoBuckets(parentRows, len(parentRows[0].Cols)-3) {
-		resultRows = append(resultRows, query.calculateSingleMinBucket(parentRowsOneBucket))
+	parentFieldsCnt := len(parentRows[0].Cols) - 2 // -2, because row is [parent_cols..., current_key, current_value]
+	// in calculateSingleAvgBucket we calculate avg all current_keys with the same parent_cols
+	// so we need to split into buckets based on parent_cols
+	for _, parentRowsOneBucket := range qp.SplitResultSetIntoBuckets(parentRows, parentFieldsCnt) {
+		resultRows = append(resultRows, query.calculateSingleMaxBucket(parentRowsOneBucket))
 	}
 	fmt.Println("resultRows", resultRows)
 	return resultRows
 }
 
 // we're sure len(parentRows) > 0
-func (query MaxBucket) calculateSingleMinBucket(parentRows []model.QueryResultRow) model.QueryResultRow {
+func (query MaxBucket) calculateSingleMaxBucket(parentRows []model.QueryResultRow) model.QueryResultRow {
 	var resultValue any
 	var resultKeys []any
 	if firstRowValueFloat, firstRowValueIsFloat := util.ExtractFloat64Maybe(parentRows[0].LastColValue()); firstRowValueIsFloat {
@@ -79,16 +82,21 @@ func (query MaxBucket) calculateSingleMinBucket(parentRows []model.QueryResultRo
 				resultKeys = append(resultKeys, getKey(query.ctx, row))
 			}
 		}
-	} else {
-		// find max
-		minValue := util.ExtractInt64(parentRows[0].LastColValue())
+	} else if firstRowValueInt, firstRowValueIsInt := util.ExtractInt64Maybe(parentRows[0].LastColValue()); firstRowValueIsInt {
+		// find min
+		maxValue := firstRowValueInt
 		for _, row := range parentRows[1:] {
-			minValue = min(minValue, util.ExtractInt64(row.LastColValue()))
+			value, ok := util.ExtractInt64Maybe(row.LastColValue())
+			if ok {
+				maxValue = max(maxValue, value)
+			} else {
+				logger.WarnWithCtx(query.ctx).Msgf("could not convert value to float: %v, type: %T. Skipping", row.LastColValue(), row.LastColValue())
+			}
 		}
-		resultValue = minValue
-		// find keys with max value
+		resultValue = maxValue
+		// find keys with min value
 		for _, row := range parentRows {
-			if value := util.ExtractInt64(row.LastColValue()); value == minValue {
+			if value, ok := util.ExtractInt64Maybe(row.LastColValue()); ok && value == maxValue {
 				resultKeys = append(resultKeys, getKey(query.ctx, row))
 			}
 		}
@@ -100,6 +108,10 @@ func (query MaxBucket) calculateSingleMinBucket(parentRows []model.QueryResultRo
 		"keys":  resultKeys,
 	}
 	return resultRow
+}
+
+func (query MaxBucket) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+	return rowsFromDB
 }
 
 func (query MaxBucket) String() string {
