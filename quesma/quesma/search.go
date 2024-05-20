@@ -202,7 +202,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		var aggregations []model.Query
 		var err error
 		var queryInfo model.SearchQueryInfo
-		var count int
 
 		table, _ := tables.Load(resolvedTableName)
 		if table == nil {
@@ -272,7 +271,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				}
 			}
 
-			if optAsync == nil && queryInfo.Size > 0 {
+			if newAggregationHandlingUsed && optAsync == nil && queryInfo.Size > 0 {
 				hitsPresent = true
 				var fieldName string
 				if queryInfo.Typ == model.ListByField {
@@ -287,25 +286,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					logger.ErrorWithCtx(ctx).Msgf("error processing fallback query. Err: %v, query: %+v", err, listQuery)
 					pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
 					return responseBody, err
-				}
-				countQuery := queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-				countResult, err := q.logManager.ProcessQuery(ctx, table, countQuery, nil)
-				translatedQueryBody = append(translatedQueryBody, []byte("\n"+countQuery.String()+"\n")...)
-				if err != nil {
-					logger.ErrorWithCtx(ctx).Msgf("error processing count query. Err: %v, query: %+v", err, countQuery)
-					pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
-					return responseBody, err
-				}
-				if len(countResult) > 0 {
-					// This if only for tests... On production it'll never be 0.
-					// When e.g. sqlmock starts supporting uint64, we can remove it.
-					countRaw := countResult[0].Cols[0].Value
-					if countExpectedType, ok := countRaw.(uint64); ok {
-						count = int(countExpectedType)
-					} else {
-						logger.ErrorWithCtx(ctx).Msgf("unexpected count type: %T, count: %v. Defaulting to 0.", countRaw, countRaw)
-						count = 0
-					}
 				}
 			}
 		} else {
@@ -336,7 +316,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					responseHits, err = queryTranslator.MakeSearchResponse(hitsFallback, queryInfo.Typ, highlighter)
 					response.Hits = responseHits.Hits
 				}
-				response.Hits.Total.Value = count
 			}
 			if err != nil {
 				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %v, rows: %v", err, queryInfo, hitsFallback)
@@ -502,7 +481,7 @@ func (q *QueryRunner) makeBasicQuery(ctx context.Context,
 		// queryInfo = (ListAllFields, "*", 0, LIMIT)
 		fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
 	case model.Normal:
-		fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, queryInfo.I2)
+		fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
 	}
 	fullQuery.QueryInfo = queryInfo
 	fullQuery.Highlighter = highlighter
