@@ -188,11 +188,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 	}
 
-	var hits, hitsFallback []model.QueryResultRow
+	var hits []model.QueryResultRow
+	var hitsPresent *[]model.QueryResultRow
 	var aggregationResults [][]model.QueryResultRow
 	oldHandlingUsed := false
 	newAggregationHandlingUsed := false
-	hitsPresent := false
 
 	tables := q.logManager.GetTableDefinitions()
 
@@ -268,16 +268,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					}()
 				} else {
 					translatedQueryBody, aggregationResults = q.searchWorker(ctx, aggregations, columns, table, true, nil)
-					if newAggregationHandlingUsed && optAsync == nil && queryInfo.Size > 0 {
-						hitsPresent = true
-						var fieldName string
-						if queryInfo.Typ == model.ListByField {
-							fieldName = queryInfo.FieldName
-						} else {
-							fieldName = "*"
-						}
-						listQuery := queryTranslator.BuildNRowsQuery(fieldName, simpleQuery, queryInfo.Size)
-						hitsFallback, err = q.logManager.ProcessQuery(ctx, table, listQuery, nil)
+					if queryInfo.Size > 0 {
+						listQuery := queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.Size)
+						hitsFallback, err := q.logManager.ProcessQuery(ctx, table, listQuery, nil)
+						hitsPresent = &hitsFallback
 						translatedQueryBody = append(translatedQueryBody, []byte("\n"+listQuery.String()+"\n")...)
 						if err != nil {
 							logger.ErrorWithCtx(ctx).Msgf("error processing fallback query. Err: %v, query: %+v", err, listQuery)
@@ -308,16 +302,16 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				return responseBody, err
 			}
 
-			if hitsPresent {
+			if hitsPresent != nil {
 				if response == nil {
-					response, err = queryTranslator.MakeSearchResponse(hitsFallback, queryInfo.Typ, highlighter)
+					response, err = queryTranslator.MakeSearchResponse(*hitsPresent, queryInfo.Typ, highlighter)
 				} else {
-					responseHits, err = queryTranslator.MakeSearchResponse(hitsFallback, queryInfo.Typ, highlighter)
+					responseHits, err = queryTranslator.MakeSearchResponse(*hitsPresent, queryInfo.Typ, highlighter)
 					response.Hits = responseHits.Hits
 				}
 			}
 			if err != nil {
-				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %v, rows: %v", err, queryInfo, hitsFallback)
+				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %v, rows: %v", err, queryInfo, hitsPresent)
 			}
 			responseBody, err = response.Marshal()
 
