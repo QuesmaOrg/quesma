@@ -128,7 +128,6 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			elkResponseChan = r.sendHttpRequestToElastic(ctx, req, reqBody, false)
 		}
 
-		req.URL.Query()
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
 			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method, req.Header, req.URL.Query())
 		})
