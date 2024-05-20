@@ -24,7 +24,8 @@ func (query MaxBucket) IsBucketAggregation() bool {
 }
 
 // FIXME I think we should return all rows, not just 1
-// dunno why it's working, maybe I'm wrong
+// Dunno why it's working, maybe I'm wrong.
+// Let's wait for this until all pipeline merges, when I'll perform some more thorough tests.
 func (query MaxBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for max bucket aggregation")
@@ -41,10 +42,7 @@ func (query MaxBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 	}
 }
 
-// TODO unify with min_bucket, move to common
 func (query MaxBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows []model.QueryResultRow) []model.QueryResultRow {
-	fmt.Println("hoho")
-	fmt.Println(parentRows)
 	resultRows := make([]model.QueryResultRow, 0)
 	if len(parentRows) == 0 {
 		return resultRows // maybe null?
@@ -56,7 +54,6 @@ func (query MaxBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows [
 	for _, parentRowsOneBucket := range qp.SplitResultSetIntoBuckets(parentRows, parentFieldsCnt) {
 		resultRows = append(resultRows, query.calculateSingleMaxBucket(parentRowsOneBucket))
 	}
-	fmt.Println("resultRows", resultRows)
 	return resultRows
 }
 
@@ -83,7 +80,7 @@ func (query MaxBucket) calculateSingleMaxBucket(parentRows []model.QueryResultRo
 			}
 		}
 	} else if firstRowValueInt, firstRowValueIsInt := util.ExtractInt64Maybe(parentRows[0].LastColValue()); firstRowValueIsInt {
-		// find min
+		// find max
 		maxValue := firstRowValueInt
 		for _, row := range parentRows[1:] {
 			value, ok := util.ExtractInt64Maybe(row.LastColValue())
@@ -94,7 +91,7 @@ func (query MaxBucket) calculateSingleMaxBucket(parentRows []model.QueryResultRo
 			}
 		}
 		resultValue = maxValue
-		// find keys with min value
+		// find keys with max value
 		for _, row := range parentRows {
 			if value, ok := util.ExtractInt64Maybe(row.LastColValue()); ok && value == maxValue {
 				resultKeys = append(resultKeys, getKey(query.ctx, row))

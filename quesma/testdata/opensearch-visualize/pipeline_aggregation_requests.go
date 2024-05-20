@@ -2665,18 +2665,18 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') AND ` +
-				`"timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z') `,
+				`"timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z')`,
 			`NoDBQuery`,
 			`SELECT "Cancelled", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z')  ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') ` +
 				`GROUP BY ("Cancelled") ` +
 				`ORDER BY count() DESC ` +
 				`LIMIT 5`,
 		},
 	},
-	/* waits for a simple filters fix
+	/* waits for probably a simple filters fix
 	{ // [15]
 		TestName: "max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum)",
 		QueryRequestJson: `
@@ -2849,7 +2849,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 	},
 	*/
-	/* waiting for filters + pipeline aggregations fix
+	/* waits for probably a simple filters fix
 	{ // [16] TODO check this test with other pipeline aggregations
 		TestName: "complex max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum), Buckets: Split chart: Rows -> Range",
 		QueryRequestJson: `

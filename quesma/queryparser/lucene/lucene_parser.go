@@ -2,7 +2,6 @@ package lucene
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"mitmproxy/quesma/logger"
 	"slices"
@@ -64,7 +63,6 @@ var specialOperators = map[string]token{
 }
 
 func TranslateToSQL(ctx context.Context, query string, fields []string) string {
-	fmt.Println(query)
 	parser := newLuceneParser(ctx, fields)
 	return parser.translateToSQL(query)
 }
