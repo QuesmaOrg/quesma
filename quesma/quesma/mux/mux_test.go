@@ -32,7 +32,7 @@ func TestPathRouter_Matches_ShouldIgnoreTrailingSlash(t *testing.T) {
 		t.Run(tt.httpMethod+" "+tt.path, func(t *testing.T) {
 
 			req := toRequest(tt.path, tt.httpMethod, tt.body)
-			_, _, found := router.Matches(req)
+			_, found := router.Matches(req)
 			assert.Equalf(t, tt.want, found, "Matches(%v, %v, %v)", tt.path, tt.httpMethod, tt.body)
 		})
 	}
@@ -59,7 +59,7 @@ func TestShouldMatchMultipleHttpMethods(t *testing.T) {
 
 			req := toRequest(tt.path, tt.httpMethod, tt.body)
 
-			_, _, found := router.Matches(req)
+			_, found := router.Matches(req)
 			assert.Equalf(t, tt.want, found, "Matches(%v, %v, %v)", tt.path, tt.httpMethod, tt.body)
 		})
 	}

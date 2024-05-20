@@ -2,6 +2,7 @@ package mux
 
 import (
 	"context"
+	"fmt"
 	"github.com/ucarion/urlpath"
 	"mitmproxy/quesma/logger"
 	"net/http"
@@ -52,6 +53,10 @@ func (f RequestMatcherFunc) Matches(req *Request) bool {
 	return f(req)
 }
 
+func (f RequestMatcherFunc) String() string {
+	return fmt.Sprintf("(RequestMatcherFunc %v)", f)
+}
+
 // Url router where you can register multiple URL paths with handler.
 // We need our own component as default libraries caused side-effects on requests or response.
 // The pattern syntax is based on ucarion/urlpath project. e.g. "/shelves/:shelf/books/:book"
@@ -66,33 +71,43 @@ func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler 
 
 }
 
-func (p *PathRouter) Matches(req *Request) (Handler, urlpath.Match, bool) {
+func (p *PathRouter) Matches(req *Request) (Handler, bool) {
 
-	handler, parameters, found := p.findHandler(req)
+	handler, found := p.findHandler(req)
 	if found {
 		routerStatistics.addMatched(req.Path)
 		logger.Debug().Msgf("Matched path: %s", req.Path)
-		return handler, parameters, true
+		return handler, true
 	} else {
 		routerStatistics.addUnmatched(req.Path)
 		logger.Debug().Msgf("Non-matched path: %s", req.Path)
-		return handler, parameters, false
+		return handler, false
 	}
 }
 
-func (p *PathRouter) findHandler(req *Request) (Handler, urlpath.Match, bool) {
+func (p *PathRouter) findHandler(req *Request) (Handler, bool) {
 	path := strings.TrimSuffix(req.Path, "/")
 	for _, m := range p.mappings {
 		meta, match := m.compiledPath.Match(path)
-		if match && m.predicate.Matches(req) {
-			return m.handler, meta, true
+
+		if match {
+			req.Params = meta.Params
+			predicateResult := m.predicate.Matches(req)
+
+			if predicateResult {
+				return m.handler, true
+			}
 		}
 	}
-	return nil, urlpath.Match{}, false
+	return nil, false
 }
 
 type httpMethodPredicate struct {
 	methods []string
+}
+
+func (p *httpMethodPredicate) String() string {
+	return "(http methods: " + strings.Join(p.methods, ", ") + ")"
 }
 
 func (p *httpMethodPredicate) Matches(req *Request) bool {
@@ -111,6 +126,17 @@ func IsHTTPMethod(methods ...string) RequestMatcher {
 
 type predicateAnd struct {
 	predicates []RequestMatcher
+}
+
+func (p *predicateAnd) String() string {
+
+	res := "(and "
+	for _, predicate := range p.predicates {
+		res += fmt.Sprintf("%v", predicate) + ", "
+	}
+	res = res + ")"
+
+	return res
 }
 
 func (p *predicateAnd) Matches(req *Request) bool {

@@ -151,8 +151,8 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 	// TODO parse other types of content types
 	// It will be implemented after the next SLAM session
 
-	handler, parameters, found := router.Matches(quesmaRequest)
-	quesmaRequest.Params = parameters.Params
+	handler, found := router.Matches(quesmaRequest)
+
 	if found {
 
 		var elkResponseChan = make(chan elasticResult)
