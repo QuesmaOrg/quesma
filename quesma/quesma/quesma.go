@@ -45,6 +45,7 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 	logger.Debug().Str(logger.RID, id).Msg("responding from Elasticsearch")
 
 	copyHeaders(w, elkResponse)
+	w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 	// io.Copy calls WriteHeader implicitly
 	w.WriteHeader(elkResponse.StatusCode)
 	if _, err := io.Copy(w, elkResponse.Body); err != nil {
@@ -55,9 +56,12 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 	elkResponse.Body.Close()
 }
 
-func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, elkResponse *http.Response, zip bool) {
+func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, elkResponse *http.Response, statusCode int, zip bool) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
+
+	w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+	w.WriteHeader(statusCode)
 	if zip {
 		zipped, err := gzip.Zip(unzipped)
 		if err != nil {
@@ -210,20 +214,15 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			if zip {
 				w.Header().Set("Content-Encoding", "gzip")
 			}
-			w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-			w.WriteHeader(quesmaResponse.StatusCode)
-			responseFromQuesma(ctx, unzipped, w, elkResponse, zip)
+			responseFromQuesma(ctx, unzipped, w, elkResponse, quesmaResponse.StatusCode, zip)
 
 		} else {
 			if elkResponse != nil && r.config.Mode == config.DualWriteQueryClickhouseFallback {
 				logger.ErrorWithCtx(ctx).Msgf("Error processing request while responding from Elastic: %v", err)
-				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 				responseFromElastic(ctx, elkResponse, w)
 
 			} else {
 				logger.ErrorWithCtx(ctx).Msgf("Error processing request while responding from Quesma: %v", err)
-				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-				w.WriteHeader(500)
 
 				requestId := "n/a"
 				if contextRid, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
@@ -232,20 +231,18 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 				// We should not send our error message to the client. There can be sensitive information in it.
 				// We will send ID of failed request instead
-				responseFromQuesma(ctx, []byte(fmt.Sprintf("Internal server error. Request ID: %s\n", requestId)), w, elkResponse, zip)
+				responseFromQuesma(ctx, []byte(fmt.Sprintf("Internal server error. Request ID: %s\n", requestId)), w, elkResponse, 500, zip)
 			}
 		}
 	} else {
-
 		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, logManager.ResolveIndexes)
 
-		elkResponseChan := r.sendHttpRequestToElastic(ctx, req, reqBody, true)
-		rawResponse := <-elkResponseChan
+		rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
 		response := rawResponse.response
-		w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 		if response != nil {
 			responseFromElastic(ctx, response, w)
 		} else {
+			w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 			w.WriteHeader(500)
 			if rawResponse.error != nil {
 				_, _ = w.Write([]byte(rawResponse.error.Error()))
