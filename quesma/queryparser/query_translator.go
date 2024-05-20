@@ -450,7 +450,12 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 }
 
 func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []model.Query, ResultSets [][]model.QueryResultRow) model.JsonMap {
-	const aggregation_start_index = 0
+	sqls := ""
+	for _, query := range queries {
+		sqls += query.String() + "\n"
+	}
+	logger.Info().Ctx(cw.Ctx).Msgf("MakeAggregationPartOfResponse: %s", sqls)
+	const aggregation_start_index = 1
 	aggregations := model.JsonMap{}
 	if len(queries) <= aggregation_start_index {
 		return aggregations
@@ -480,6 +485,8 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 			aggregatesResult = append(aggregatesResult, ResultSets[i])
 		case model.QueryCount:
 			countQueryIdx = i
+			aggregates = append(aggregates, query)
+			aggregatesResult = append(aggregatesResult, ResultSets[i])
 		case model.QuerySimple:
 			hitQueryIdx = i
 		default:
@@ -503,7 +510,7 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 	}
 	hits := []model.SearchHit{}
 	if hitQueryIdx != -1 {
-		hits := make([]model.SearchHit, len(ResultSets[hitQueryIdx]))
+		hits = make([]model.SearchHit, len(ResultSets[hitQueryIdx]))
 		for i, row := range ResultSets[hitQueryIdx] {
 			hits[i] = model.SearchHit{
 				Index:     row.Index,

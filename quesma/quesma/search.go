@@ -462,10 +462,19 @@ func (q *QueryRunner) makeBasicQueries(ctx context.Context,
 	simpleQuery queryparser.SimpleQuery, queryInfo model.SearchQueryInfo, highlighter model.Highlighter) ([]model.Query, [][]string) {
 	var fullQuery *model.Query
 	var columns [][]string
+	queries := []model.Query{}
+	// TODO: More conditions
+	if queryInfo.TrackTotalHits != "false" && queryInfo.Typ != model.CountAsync {
+		countQuery := queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
+		countQuery.SearchQueryType = model.QueryCount
+		queries = append(queries, *countQuery)
+		columns = append(columns, []string{"doc_count"})
+	}
 	switch queryInfo.Typ {
 	case model.CountAsync:
 		fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
 		columns = append(columns, []string{"doc_count"})
+		fullQuery.SearchQueryType = model.QueryCount
 	case model.Facets, model.FacetsNumeric:
 		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
 		fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
@@ -474,22 +483,20 @@ func (q *QueryRunner) makeBasicQueries(ctx context.Context,
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)
 		fullQuery = queryTranslator.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
 		columns = append(columns, []string{queryInfo.FieldName})
+		fullQuery.SearchQueryType = model.QuerySimple
 	case model.ListAllFields:
 		// queryInfo = (ListAllFields, "*", 0, LIMIT)
 		fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
 		columns = append(columns, []string{})
+		fullQuery.SearchQueryType = model.QuerySimple
 	case model.Normal:
 		fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, queryInfo.I2)
 		columns = append(columns, []string{})
+		fullQuery.SearchQueryType = model.QuerySimple
 	}
 	fullQuery.QueryInfo = queryInfo
 	fullQuery.Highlighter = highlighter
-	queries := []model.Query{*fullQuery}
-	// TODO: More conditions
-	if queryInfo.TrackTotalHits != "false" && queryInfo.Typ != model.CountAsync {
-		queries = append(queries, *queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt))
-		columns = append(columns, []string{"doc_count"})
-	}
+	queries = append(queries, *fullQuery)
 	return queries, columns
 }
 

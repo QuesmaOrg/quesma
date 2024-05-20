@@ -212,7 +212,9 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 
 	// COUNT(*) is needed for every request. We should change it and don't duplicate it, as some
 	// requests also ask for that themselves, but let's leave it for later.
-	aggregations := []model.Query{currentAggr.buildCountAggregation(model.NoMetadataField)}
+	topCountQuery := currentAggr.buildCountAggregation(model.NoMetadataField)
+	topCountQuery.SearchQueryType = model.QueryCount
+	aggregations := []model.Query{topCountQuery}
 
 	if aggsRaw, ok := queryAsMap["aggs"]; ok {
 		aggs, ok := aggsRaw.(QueryMap)
