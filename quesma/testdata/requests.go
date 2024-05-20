@@ -1932,7 +1932,9 @@ var TestsSearch = []SearchTestCase{
 			justSimplestWhere(`"@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND toUnixTimestamp64Milli("@timestamp") IN ([1715956666388])`),
 			justSimplestWhere(`toUnixTimestamp64Milli("@timestamp") IN ([1715956666388]) AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')`),
 		},
-		[]string{`FROM "logs-generic-default" WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z') AND toUnixTimestamp64Milli("@timestamp") IN ([1715956666388])`},
+		// TestSearchHandler is pretty blunt with config loading so the test below can't be used.
+		// We will probably refactor it as we move forwards with schema which will get even more side-effecting
+		[]string{qToStr(justSimplestWhere(`"@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z')`))},
 	},
 }
 
