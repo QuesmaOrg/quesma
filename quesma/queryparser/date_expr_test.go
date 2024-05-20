@@ -66,21 +66,30 @@ func Test_parseDateTimeInClickhouseMathLanguage(t *testing.T) {
 }
 
 func Test_DateMathExpressionAsLiteral(t *testing.T) {
-	exprs := map[string]string{
-		"now":          "'2024-05-17 12:01:02'",
-		"now-15m":      "'2024-05-17 11:46:02'",
-		"now-15m+5s":   "'2024-05-17 11:46:07'",
-		"now-":         "'2024-05-17 12:01:02'",
-		"now-15m+/M":   "'2024-05-01 00:00:00'",
-		"now-15m/d":    "'2024-05-17 00:00:00'",
-		"now-15m+5s/w": "'2024-05-12 00:00:00'", // week starts on Sunday here so 2024-05-12 is the start of the week
-		"now-/Y":       "'2024-01-01 00:00:00'",
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"now", "'2024-05-17 12:01:02'"},
+		{"now-15m", "'2024-05-17 11:46:02'"},
+		{"now-15m+5s", "'2024-05-17 11:46:07'"},
+		{"now-", "'2024-05-17 12:01:02'"},
+		{"now-15m+/M", "'2024-05-01 00:00:00'"},
+		{"now-15m/d", "'2024-05-17 00:00:00'"},
+		{"now-15m+5s/w", "'2024-05-12 00:00:00'"}, // week starts on Sunday here so 2024-05-12 is the start of the week
+		{"now-/Y", "'2024-01-01 00:00:00'"},
+		{"now-2M", "'2024-03-17 12:01:02'"},
+		{"now-1y", "'2023-05-17 12:01:02'"},
+		{"now-1w", "'2024-05-10 12:01:02'"},
+		{"now-1s", "'2024-05-17 12:01:01'"},
+		{"now-1m", "'2024-05-17 12:00:02'"},
+		{"now-1d", "'2024-05-16 12:01:02'"},
 	}
 
-	for expr, expected := range exprs {
-		t.Run(expr, func(tt *testing.T) {
+	for _, test := range tests {
+		t.Run(test.input, func(tt *testing.T) {
 
-			dt, err := ParseDateMathExpression(expr)
+			dt, err := ParseDateMathExpression(test.input)
 			assert.NoError(tt, err)
 
 			if err != nil {
@@ -97,7 +106,7 @@ func Test_DateMathExpressionAsLiteral(t *testing.T) {
 				return
 			}
 
-			assert.Equal(t, expected, resultExpr)
+			assert.Equal(t, test.expected, resultExpr)
 		})
 	}
 }
