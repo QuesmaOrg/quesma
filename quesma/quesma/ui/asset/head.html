@@ -285,6 +285,7 @@
             overflow-x: auto;
             background-color: rgb(0, 0, 0);
             color: white;
+            overflow-wrap: break-word;
         }
 
         .menu a,
@@ -485,7 +486,6 @@
         }
 
         #request-info {
-            background-color: rgb(0, 0, 0);
             color: white;
         }
 
@@ -500,18 +500,26 @@
             padding: 0 5px;
         }
 
-        #request-info .title-logs {
-            margin-top: 1em;
+        #request-info > div {
+            position: absolute;
+            width: 50%;
+            overflow-x: auto;
         }
 
-        #request-info .two-columns {
-            display: flex;
-            height: 48%;
+        #request-info .debug-body {
+            left: 50.5%;
+            width: 49.5%;
+            min-height: 100%;
         }
 
         #request-info .elastic-response, #request-info .quesma-response, #request-info .query-body, #request-info .query-body-translated {
-            flex: 1;
             overflow: auto;
+            max-height: 50vh;
+        }
+
+        #request-info .elastic-response, #request-info .query-body-translated, #request-info .debug-body {
+            background-color: rgb(0, 0, 0);
+            color: white;
         }
 
         #request-info .query-body, #request-info .quesma-response {
@@ -519,14 +527,10 @@
             color: black;
         }
 
-        #request-info .query-body, #request-info .elastic-response {
-            border-right: white 5px solid;
-        }
-
         #request-info table, #errors table {
             border-collapse: collapse;
             table-layout: fixed;
-            width: 98%;
+            width: 100%;
             word-wrap: break-word;
             margin-bottom: 1em;
         }
@@ -539,20 +543,16 @@
         }
 
         #request-info .time {
-            width: 10%;
-        }
-
-        #request-info .level {
-            width: 5%;
+            width: 15%;
         }
 
         #request-info .message {
-            width: 55%;
+            width: 65%;
             white-space: pre-wrap;
         }
 
         #request-info .fields {
-            width: 28%;
+            width: 25%;
             white-space: pre-wrap;
         }
 

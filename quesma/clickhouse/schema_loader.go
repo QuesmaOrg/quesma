@@ -111,12 +111,16 @@ func (sl *schemaLoader) populateTableDefinitions(configuredTables map[string]dis
 		}
 		return true
 	})
+	discoveredTables := make([]string, 0)
 	tableMap.Range(func(key string, _ *Table) bool {
 		if !existing.Has(key) {
-			logger.Info().Msgf("discovered new table: %s", key)
+			discoveredTables = append(discoveredTables, key)
 		}
 		return true
 	})
+	if len(discoveredTables) > 0 {
+		logger.Info().Msgf("discovered new tables: %s", discoveredTables)
+	}
 	sl.tableDefinitions.Store(tableMap)
 }
 

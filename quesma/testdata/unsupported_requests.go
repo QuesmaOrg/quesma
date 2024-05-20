@@ -1012,34 +1012,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [49]
-		TestName:  "pipeline aggregation: min_bucket",
-		QueryType: "min_bucket",
-		QueryRequestJson: `
-		{
-			"size": 0,
-			"aggs": {
-				"sales_per_month": {
-					"date_histogram": {
-						"field": "date",
-						"calendar_interval": "month"
-					},
-					"aggs": {
-						"sales": {
-				  			"sum": {
-								"field": "price"
-				  			}
-						}
-					}
-				},
-				"min_monthly_sales": {
-					"min_bucket": {
-						"buckets_path": "sales_per_month>sales" 
-					}
-				}
-			}
-		}`,
-	},
 	{ // [50]
 		TestName:  "pipeline aggregation: moving_fn",
 		QueryType: "moving_fn",

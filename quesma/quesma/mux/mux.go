@@ -17,7 +17,7 @@ type (
 		pattern      string
 		compiledPath urlpath.Path
 		predicate    RequestMatcher
-		handler      handler
+		handler      Handler
 	}
 	Result struct {
 		Body       string
@@ -25,15 +25,18 @@ type (
 		StatusCode int
 	}
 	Request struct {
-		Method      string
-		Path        string
-		Params      map[string]string
+		Method string
+		Path   string
+		Params map[string]string
+
 		Headers     http.Header
 		QueryParams url.Values
+
+
 		Body        string
 		ParsedBody  map[string]interface{}
 	}
-	handler func(ctx context.Context, req *Request) (*Result, error)
+	Handler func(ctx context.Context, req *Request) (*Result, error)
 
 	RequestMatcher interface {
 		Matches(req *Request) bool
@@ -53,49 +56,41 @@ func NewPathRouter() *PathRouter {
 	return &PathRouter{mappings: make([]mapping, 0)}
 }
 
-func (p *PathRouter) RegisterPath(pattern, httpMethod string, handler handler) {
+func (p *PathRouter) RegisterPath(pattern, httpMethod string, handler Handler) {
 	mapping := mapping{pattern, urlpath.New(pattern), IsHTTPMethod(httpMethod), handler}
+
 	p.mappings = append(p.mappings, mapping)
 }
 
-func (p *PathRouter) RegisterPathMatcher(pattern string, httpMethods []string, predicate RequestMatcher, handler handler) {
+func (p *PathRouter) RegisterPathMatcher(pattern string, httpMethods []string, predicate RequestMatcher, handler Handler) {
 
 	mapping := mapping{pattern, urlpath.New(pattern), And(IsHTTPMethod(httpMethods...), predicate), handler}
 	p.mappings = append(p.mappings, mapping)
 
 }
 
-func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler handler) {
+func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler Handler) {
 
 	mapping := mapping{pattern, urlpath.New(pattern), predicate, handler}
 	p.mappings = append(p.mappings, mapping)
 
 }
 
-func (p *PathRouter) Execute(ctx context.Context, req *Request) (*Result, error) {
-	handler, meta, found := p.findHandler(req)
-	if found {
-		req.Params = meta.Params
-		return handler(ctx, req)
-	}
-	return nil, nil
-}
+func (p *PathRouter) Matches(req *Request) (Handler, urlpath.Match, bool) {
 
-func (p *PathRouter) Matches(req *Request) bool {
-
-	_, _, found := p.findHandler(req)
+	handler, parameters, found := p.findHandler(req)
 	if found {
 		routerStatistics.addMatched(req.Path)
 		logger.Debug().Msgf("Matched path: %s", req.Path)
-		return true
+		return handler, parameters, true
 	} else {
 		routerStatistics.addUnmatched(req.Path)
 		logger.Debug().Msgf("Non-matched path: %s", req.Path)
-		return false
+		return handler, parameters, false
 	}
 }
 
-func (p *PathRouter) findHandler(req *Request) (handler, urlpath.Match, bool) {
+func (p *PathRouter) findHandler(req *Request) (Handler, urlpath.Match, bool) {
 	path := strings.TrimSuffix(req.Path, "/")
 	for _, m := range p.mappings {
 		meta, match := m.compiledPath.Match(path)

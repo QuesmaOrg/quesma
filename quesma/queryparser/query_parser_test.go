@@ -453,22 +453,48 @@ func TestQueryParseDateMathExpression(t *testing.T) {
 
 func Test_parseSortFields(t *testing.T) {
 	tests := []struct {
-		sortMap    []any
+		name       string
+		sortMap    any
 		sortFields []string
 	}{
 		{
-			[]any{
+			name: "compound",
+			sortMap: []any{
 				QueryMap{"@timestamp": QueryMap{"format": "strict_date_optional_time", "order": "desc", "unmapped_type": "boolean"}},
 				QueryMap{"service.name": QueryMap{"order": "asc", "unmapped_type": "boolean"}},
 				QueryMap{"no_order_field": QueryMap{"unmapped_type": "boolean"}},
 				QueryMap{"_table_field_with_underscore": QueryMap{"order": "asc", "unmapped_type": "boolean"}}, // this should be accepted, as it exists in the table
 				QueryMap{"_doc": QueryMap{"order": "desc", "unmapped_type": "boolean"}},                        // this should be discarded, as it doesn't exist in the table
 			},
-			[]string{`"@timestamp" desc`, `"service.name" asc`, `"no_order_field"`, `"_table_field_with_underscore" asc`},
+			sortFields: []string{`"@timestamp" desc`, `"service.name" asc`, `"no_order_field"`, `"_table_field_with_underscore" asc`},
 		},
 		{
-			[]any{},
-			[]string{},
+			name:       "empty",
+			sortMap:    []any{},
+			sortFields: []string{},
+		},
+		{
+			name: "map[string]string",
+			sortMap: map[string]string{
+				"timestamp": "desc",
+				"_doc":      "desc",
+			},
+			sortFields: []string{`"timestamp" desc`},
+		},
+		{
+			name: "map[string]interface{}",
+			sortMap: map[string]interface{}{
+				"timestamp": "desc",
+				"_doc":      "desc",
+			},
+			sortFields: []string{`"timestamp" desc`},
+		}, {
+			name: "[]map[string]string",
+			sortMap: []any{
+				QueryMap{"@timestamp": "asc"},
+				QueryMap{"_doc": "asc"},
+			},
+			sortFields: []string{`"@timestamp" asc`},
 		},
 	}
 	table, _ := clickhouse.NewTable(`CREATE TABLE `+tableName+`
@@ -479,6 +505,8 @@ func Test_parseSortFields(t *testing.T) {
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	for _, tt := range tests {
-		assert.Equal(t, tt.sortFields, cw.parseSortFields(tt.sortMap))
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.sortFields, cw.parseSortFields(tt.sortMap))
+		})
 	}
 }

@@ -131,14 +131,17 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 	quesmaRequest := &mux.Request{
 		Method:      req.Method,
 		Path:        strings.TrimSuffix(req.URL.Path, "/"),
-		Params:      nil,
+		Params:      map[string]string{},
 		Headers:     req.Header,
 		QueryParams: req.URL.Query(),
 		Body:        string(reqBody),
 		ParsedBody:  parsedBody,
 	}
 
-	if router.Matches(quesmaRequest) {
+	handler, parameters, found := router.Matches(quesmaRequest)
+	quesmaRequest.Params = parameters.Params
+	if found {
+
 		var elkResponseChan = make(chan elasticResult)
 
 		if r.config.Elasticsearch.Call {
@@ -146,7 +149,8 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		}
 
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
-			return router.Execute(ctx, quesmaRequest)
+			return handler(ctx, quesmaRequest)
+
 		})
 		var elkRawResponse elasticResult
 		var elkResponse *http.Response
