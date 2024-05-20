@@ -471,6 +471,15 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []mod
 }
 
 func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
+	hits := []model.SearchHit{}
+	// Process hits as last aggregation
+	if len(queries) > 0 && len(ResultSets) > 0 && queries[len(queries)-1].IsWildcard() {
+		response := cw.makeSearchResponseNormal(ResultSets[len(ResultSets)-1], queries[len(queries)-1].Highlighter)
+		hits = response.Hits.Hits
+		queries = queries[:len(queries)-1]
+		ResultSets = ResultSets[:len(ResultSets)-1]
+	}
+
 	var totalCount uint64
 	if len(ResultSets) > 0 && len(ResultSets[0]) > 0 && len(ResultSets[0][0].Cols) > 0 {
 		// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
@@ -486,7 +495,7 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 	return &model.SearchResp{
 		Aggregations: cw.MakeAggregationPartOfResponse(queries, ResultSets),
 		Hits: model.SearchHits{
-			Hits: []model.SearchHit{}, // seems redundant, but can't remove this, created JSON won't match
+			Hits: hits,
 			Total: &model.Total{
 				Value:    int(totalCount), // TODO just change this to uint64? It works now.
 				Relation: "eq",

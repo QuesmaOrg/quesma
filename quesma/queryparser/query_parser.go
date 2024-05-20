@@ -949,7 +949,7 @@ func (cw *ClickhouseQueryTranslator) tryProcessSearchMetadata(queryMap QueryMap)
 	// case 3: maybe it's a normal request
 	var queryMapNested QueryMap
 	var ok bool
-	size, _ := cw.parseSize(metadata)
+	size := cw.parseSize(metadata, model.DefaultSizeListQuery)
 	if queryMapNested, ok = queryMap["aggs"].(QueryMap); !ok {
 		return model.SearchQueryInfo{Typ: model.Normal, I2: size}
 	}
@@ -1002,7 +1002,7 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 		return model.NewSearchQueryInfoNone(), false
 	}
 
-	size, ok := cw.parseSize(firstNestingMap)
+	size, ok := cw.parseSizeExists(firstNestingMap)
 	if !ok {
 		return model.NewSearchQueryInfoNone(), false
 	}
@@ -1046,7 +1046,7 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 // returns (model.NewSearchQueryInfoNone, false) if it's not ListAllFields/ListByField request
 func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.SearchQueryInfo, bool) {
 	// 1) case: very simple SELECT * kind of request
-	size, ok := cw.parseSize(queryMap)
+	size, ok := cw.parseSizeExists(queryMap)
 	if !ok {
 		return model.NewSearchQueryInfoNone(), false
 	}
@@ -1213,7 +1213,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) []string {
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap) (size int, ok bool) {
+func (cw *ClickhouseQueryTranslator) parseSizeExists(queryMap QueryMap) (size int, ok bool) {
 	sizeRaw, exists := queryMap["size"]
 	if !exists {
 		return model.DefaultSizeListQuery, false
@@ -1222,5 +1222,17 @@ func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap) (size int, ok 
 	} else {
 		logger.WarnWithCtx(cw.Ctx).Msgf("invalid size type: %T, value: %v. Expected float64", sizeRaw, sizeRaw)
 		return model.DefaultSizeListQuery, false
+	}
+}
+
+func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap, defaultSize int) int {
+	sizeRaw, exists := queryMap["size"]
+	if !exists {
+		return defaultSize
+	} else if sizeAsFloat, ok := sizeRaw.(float64); ok {
+		return int(sizeAsFloat)
+	} else {
+		logger.WarnWithCtx(cw.Ctx).Msgf("invalid size type: %T, value: %v. Expected float64", sizeRaw, sizeRaw)
+		return defaultSize
 	}
 }
