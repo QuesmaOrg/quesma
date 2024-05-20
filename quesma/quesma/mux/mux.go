@@ -24,7 +24,8 @@ type (
 		Meta       map[string]string
 		StatusCode int
 	}
-	Request struct {
+	ParsedJSON map[string]interface{}
+	Request    struct {
 		Method string
 		Path   string
 		Params map[string]string
@@ -35,8 +36,8 @@ type (
 		// body can be:
 
 		Body   string
-		JSON   map[string]interface{}
-		NDJSON []map[string]interface{}
+		JSON   ParsedJSON
+		NDJSON []ParsedJSON
 	}
 	Handler func(ctx context.Context, req *Request) (*Result, error)
 

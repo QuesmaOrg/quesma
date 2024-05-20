@@ -38,6 +38,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	})
 
 	router.Register(routes.BulkPath, and(method("POST"), matchedAgainstBulkBody(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		// TODO we should pass NDJSON here instead of []byte
 		results := dualWriteBulk(ctx, nil, req.Body, lm, cfg, phoneHomeAgent)
 		return bulkInsertResult(results), nil
 	})
@@ -47,18 +48,21 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	})
 
 	router.Register(routes.IndexDocPath, and(method("POST"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		// TODO we should pass JSON here instead of []byte
 		dualWrite(ctx, req.Params["index"], req.Body, lm, cfg)
 		return indexDocResult(req.Params["index"], httpOk), nil
 	})
 
 	router.Register(routes.IndexBulkPath, and(method("POST"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		index := req.Params["index"]
+		// TODO we should pass JSON or NDJSON here instead of []byte
 		results := dualWriteBulk(ctx, &index, req.Body, lm, cfg, phoneHomeAgent)
 		return bulkInsertResult(results), nil
 	})
 
 	router.Register(routes.IndexBulkPath, and(method("PUT"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		index := req.Params["index"]
+		// TODO we should pass JSON or NDJSON here instead of []byte
 		results := dualWriteBulk(ctx, &index, req.Body, lm, cfg, phoneHomeAgent)
 		return bulkInsertResult(results), nil
 	})
@@ -147,6 +151,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 
 	router.Register(routes.GlobalSearchPath, and(method("GET", "POST"), matchAgainstKibanaAlerts()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
+		// TODO we should pass JSON here instead of []byte
 		responseBody, err := queryRunner.handleSearch(ctx, "*", []byte(req.Body))
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
@@ -159,6 +164,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	})
 
 	router.Register(routes.IndexSearchPath, and(method("GET", "POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		// TODO we should pass JSON here instead of []byte
 		responseBody, err := queryRunner.handleSearch(ctx, req.Params["index"], []byte(req.Body))
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
@@ -189,6 +195,8 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 				keepOnCompletion = true
 			}
 		}
+
+		// TODO we should pass JSON here instead of []byte
 		responseBody, err := queryRunner.handleAsyncSearch(ctx, req.Params["index"], []byte(req.Body), waitForResultsMs, keepOnCompletion)
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
@@ -223,6 +231,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	})
 
 	router.Register(routes.FieldCapsPath, and(method("GET", "POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		// TODO we should pass JSON here instead of []byte
 		responseBody, err := handleFieldCaps(ctx, req.Params["index"], []byte(req.Body), lm)
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
@@ -240,6 +249,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		if strings.Contains(req.Params["index"], ",") {
 			return nil, errors.New("multi index terms enum is not yet supported")
 		} else {
+			// TODO we should pass JSON here instead of []byte
 			if responseBody, err := termsenum.HandleTermsEnum(ctx, req.Params["index"], []byte(req.Body), lm, console); err != nil {
 				return nil, err
 			} else {
