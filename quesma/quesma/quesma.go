@@ -233,25 +233,7 @@ func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request
 	go func() {
 		elkResponseChan <- recordRequestToElastic(req.URL.Path, r.quesmaManagementConsole, func() elasticResult {
 
-			isWrite := false
-
-			// Elastic API is not regular, and it is hard to determine if the request is read or write.
-			// We would like to keep this separate from the router configuration.
-			switch req.Method {
-			case http.MethodPost:
-				if strings.Contains(req.URL.Path, "/_bulk") ||
-					strings.Contains(req.URL.Path, "/_doc") ||
-					strings.Contains(req.URL.Path, "/_create") {
-					isWrite = true
-				}
-				// other are read
-			case http.MethodPut:
-				isWrite = true
-			case http.MethodDelete:
-				isWrite = true
-			default:
-				isWrite = false
-			}
+			isWrite := elasticsearch.IsWriteRequest(req)
 
 			var span telemetry.Span
 			if isManagement {
