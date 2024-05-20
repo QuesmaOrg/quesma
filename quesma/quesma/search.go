@@ -238,7 +238,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 						})
 						translatedQueryBody, hitsSlice := q.searchWorker(ctx, []model.Query{*fullQuery}, append(columnsSlice, columns), table, false, optAsync)
-						searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], fullQuery.QueryInfo.Typ, fullQuery.Highlighter)
+						searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], *fullQuery)
 						if err != nil {
 							logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, fullQuery.QueryInfo, hits)
 							optAsync.doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
@@ -292,7 +292,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			var response, responseHits *model.SearchResp = nil, nil
 			err = nil
 			if oldHandlingUsed {
-				response, err = queryTranslator.MakeSearchResponse(hits, queryInfo.Typ, highlighter)
+				response, err = queryTranslator.MakeSearchResponse(hits, model.Query{QueryInfo: queryInfo, Highlighter: highlighter})
 			} else if newAggregationHandlingUsed {
 				response = queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
 			}
@@ -304,9 +304,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 			if hitsPresent != nil {
 				if response == nil {
-					response, err = queryTranslator.MakeSearchResponse(*hitsPresent, queryInfo.Typ, highlighter)
+					response, err = queryTranslator.MakeSearchResponse(*hitsPresent, model.Query{QueryInfo: queryInfo, Highlighter: highlighter})
 				} else {
-					responseHits, err = queryTranslator.MakeSearchResponse(*hitsPresent, queryInfo.Typ, highlighter)
+					responseHits, err = queryTranslator.MakeSearchResponse(*hitsPresent, model.Query{QueryInfo: queryInfo, Highlighter: highlighter})
 					response.Hits = responseHits.Hits
 				}
 			}

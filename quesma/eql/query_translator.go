@@ -48,7 +48,7 @@ func (cw *ClickhouseEQLQueryTranslator) BuildNRowsQuery(fieldName string, simple
 	}
 }
 
-func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) (*model.SearchResp, error) {
+func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, query model.Query) (*model.SearchResp, error) {
 
 	// This shares a lot of code with the ClickhouseQueryTranslator
 	//
@@ -60,7 +60,7 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 		hits[i].Fields = make(map[string][]interface{})
 		hits[i].Highlight = make(map[string][]string)
 		hits[i].Source = []byte(resultRow.String(cw.Ctx))
-		if typ == model.ListAllFields {
+		if query.QueryInfo.Typ == model.ListAllFields {
 			hits[i].ID = strconv.Itoa(i + 1)
 			hits[i].Index = cw.Table.Name
 			hits[i].Score = 1
