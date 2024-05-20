@@ -1,6 +1,9 @@
 package model
 
-import "mitmproxy/quesma/logger"
+import (
+	"context"
+	"mitmproxy/quesma/logger"
+)
 
 type SimpleQuery struct {
 	Sql        Statement
@@ -17,11 +20,11 @@ func NewSimpleQueryWithFieldName(sql Statement, canParse bool, fieldName string)
 	return SimpleQuery{Sql: sql, CanParse: canParse, FieldName: fieldName}
 }
 
-func (sq *SimpleQuery) CombineWheresWith(sq2 SimpleQuery) {
+func (sq *SimpleQuery) CombineWheresWith(ctx context.Context, sq2 SimpleQuery) {
 	sq.Sql = And([]Statement{sq.Sql, sq2.Sql})
 	sq.CanParse = sq.CanParse && sq2.CanParse
 	if len(sq.FieldName) > 0 && len(sq2.FieldName) > 0 && sq.FieldName != sq2.FieldName {
-		logger.Warn().Msgf("combining 2 where clauses with different field names: %s, %s, where queries: %v %v", sq.FieldName, sq2.FieldName, sq, sq2)
+		logger.WarnWithCtx(ctx).Msgf("combining 2 where clauses with different field names: %s, %s, where queries: %v %v", sq.FieldName, sq2.FieldName, sq, sq2)
 	}
 	if len(sq.FieldName) == 0 && len(sq2.FieldName) > 0 {
 		sq.FieldName = sq2.FieldName
