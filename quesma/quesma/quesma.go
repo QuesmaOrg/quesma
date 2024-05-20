@@ -3,6 +3,7 @@ package quesma
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mitmproxy/quesma/clickhouse"
@@ -131,8 +132,39 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
 	})
-	handler, parameters, found := router.Matches(req.URL.Path, req.Method, string(reqBody))
+
+	quesmaRequest := &mux.Request{
+		Method:      req.Method,
+		Path:        strings.TrimSuffix(req.URL.Path, "/"),
+		Params:      map[string]string{},
+		Headers:     req.Header,
+		QueryParams: req.URL.Query(),
+		Body:        string(reqBody),
+	}
+
+	// TODO omit _bulk requests from parsing JSON
+	if !strings.Contains(req.URL.Path, "_bulk") {
+		// try to parse the body as JSON
+		// we should rely here on the content type header
+		// or not?
+
+		if len(quesmaRequest.Body) > 1 && quesmaRequest.Body[0] == '{' {
+			parsedBody := make(map[string]interface{})
+			if err := json.Unmarshal(reqBody, &parsedBody); err != nil {
+				logger.ErrorWithCtx(ctx).Msgf("Error parsing request body as a JSON: %v", err)
+			} else {
+				quesmaRequest.JSON = parsedBody
+			}
+		}
+	}
+
+	// TODO parse other types of content types
+	// It will be implemented after the next SLAM session
+
+	handler, found := router.Matches(quesmaRequest)
+
 	if found {
+
 		var elkResponseChan = make(chan elasticResult)
 
 		if r.config.Elasticsearch.Call {
@@ -140,7 +172,8 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		}
 
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
-			return handler(ctx, string(reqBody), req.URL.Path, parameters.Params, req.Header, req.URL.Query())
+			return handler(ctx, quesmaRequest)
+
 		})
 		var elkRawResponse elasticResult
 		var elkResponse *http.Response
