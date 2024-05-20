@@ -268,24 +268,23 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					}()
 				} else {
 					translatedQueryBody, aggregationResults = q.searchWorker(ctx, aggregations, columns, table, true, nil)
-				}
-			}
-
-			if newAggregationHandlingUsed && optAsync == nil && queryInfo.Size > 0 {
-				hitsPresent = true
-				var fieldName string
-				if queryInfo.Typ == model.ListByField {
-					fieldName = queryInfo.FieldName
-				} else {
-					fieldName = "*"
-				}
-				listQuery := queryTranslator.BuildNRowsQuery(fieldName, simpleQuery, queryInfo.Size)
-				hitsFallback, err = q.logManager.ProcessQuery(ctx, table, listQuery, nil)
-				translatedQueryBody = append(translatedQueryBody, []byte("\n"+listQuery.String()+"\n")...)
-				if err != nil {
-					logger.ErrorWithCtx(ctx).Msgf("error processing fallback query. Err: %v, query: %+v", err, listQuery)
-					pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
-					return responseBody, err
+					if newAggregationHandlingUsed && optAsync == nil && queryInfo.Size > 0 {
+						hitsPresent = true
+						var fieldName string
+						if queryInfo.Typ == model.ListByField {
+							fieldName = queryInfo.FieldName
+						} else {
+							fieldName = "*"
+						}
+						listQuery := queryTranslator.BuildNRowsQuery(fieldName, simpleQuery, queryInfo.Size)
+						hitsFallback, err = q.logManager.ProcessQuery(ctx, table, listQuery, nil)
+						translatedQueryBody = append(translatedQueryBody, []byte("\n"+listQuery.String()+"\n")...)
+						if err != nil {
+							logger.ErrorWithCtx(ctx).Msgf("error processing fallback query. Err: %v, query: %+v", err, listQuery)
+							pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
+							return responseBody, err
+						}
+					}
 				}
 			}
 		} else {
