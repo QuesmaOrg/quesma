@@ -140,7 +140,9 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
-			ourResponse, err := cw.MakeSearchResponseMarshalled(args[i].ourQueryResult, model.Query{QueryInfo: model.SearchQueryInfo{Typ: args[i].queryType}, Highlighter: NewEmptyHighlighter()})
+			ourResponseRaw, err := cw.MakeSearchResponse(args[i].ourQueryResult, model.Query{QueryInfo: model.SearchQueryInfo{Typ: args[i].queryType}, Highlighter: NewEmptyHighlighter()})
+			assert.NoError(t, err)
+			ourResponse, err := ourResponseRaw.Marshal()
 			assert.NoError(t, err)
 			actualMinusExpected, expectedMinusActual, err := util.JsonDifference(string(ourResponse), args[i].elasticResponseJson)
 			if err != nil {
