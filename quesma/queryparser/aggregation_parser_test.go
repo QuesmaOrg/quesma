@@ -41,7 +41,8 @@ var aggregationTests = []struct {
 						"field": "AvgTicketPrice"
 					}
 				}
-			}
+			},
+			"size": 0
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
@@ -110,7 +111,8 @@ var aggregationTests = []struct {
 						"size": 1000
 					}
 				}
-			}
+			},
+			"size": 0
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
@@ -146,7 +148,8 @@ var aggregationTests = []struct {
 						"size": 10
 					}
 				}
-			}
+			},
+			"size": 0
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
@@ -181,7 +184,8 @@ var aggregationTests = []struct {
 						}
 					}
 				}
-			}
+			},
+			"size": 0
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
@@ -217,7 +221,8 @@ var aggregationTests = []struct {
 						}
 					}
 				}
-			}
+			},
+			"size": 0
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
@@ -236,7 +241,8 @@ var aggregationTests = []struct {
 						"min_doc_count": 1
 					}
 				}
-			}
+			},
+			"size": 0
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
@@ -284,7 +290,8 @@ var aggregationTests = []struct {
 						"size": 10000
 					}
 				}
-			}
+			},
+			"size": 0
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
@@ -321,7 +328,8 @@ var aggregationTests = []struct {
 						"size": 10
 					}
 				}
-			}
+			},
+			"size": 0
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
@@ -338,7 +346,8 @@ var aggregationTests = []struct {
 						"field": "taxful_total_price"
 					}
 				}
-			}
+			},
+			"size": 0
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
@@ -357,7 +366,8 @@ var aggregationTests = []struct {
 						]
 					}
 				}
-			}
+			},
+			"size": 0
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
@@ -373,7 +383,8 @@ var aggregationTests = []struct {
 						"field": "total_quantity"
 					}
 				}
-			}
+			},
+			"size": 0
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
@@ -438,7 +449,8 @@ var aggregationTests = []struct {
 						}
 					}
 				}
-			}
+			},
+			"size": 0
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
@@ -465,7 +477,8 @@ var aggregationTests = []struct {
 							"field": "OriginCityName"
 						}
 					}
-				}
+				},
+				"size": 0
 			}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
@@ -489,7 +502,8 @@ var aggregationTests = []struct {
 						"shard_size": 5000
 					  }
 					}
-				  }
+				  },
+				  "size": 0
 			}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,

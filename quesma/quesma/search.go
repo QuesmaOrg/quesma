@@ -196,7 +196,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	var hits []model.QueryResultRow
 	var aggregationResults [][]model.QueryResultRow
 	oldHandlingUsed := false
-	newAggregationHandlingUsed := false
 
 	tables := q.logManager.GetTableDefinitions()
 
@@ -259,7 +258,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					}
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
-				newAggregationHandlingUsed = true
 				columns := make([][]string, len(aggregations))
 				if optAsync != nil {
 					go func() {
@@ -272,16 +270,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					}()
 				} else {
 					translatedQueryBody, aggregationResults = q.searchWorker(ctx, aggregations, columns, table, true, nil)
-					if queryInfo.Size > 0 {
-						listQuery := queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.Size)
-						hits, err = q.logManager.ProcessQuery(ctx, table, listQuery, nil)
-						translatedQueryBody = append(translatedQueryBody, []byte("\n"+listQuery.String()+"\n")...)
-						if err != nil {
-							logger.ErrorWithCtx(ctx).Msgf("error processing fallback query. Err: %v, query: %+v", err, listQuery)
-							pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
-							return responseBody, err
-						}
-					}
 				}
 			}
 		} else {
@@ -292,14 +280,12 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 
 		if optAsync == nil {
-			var response, responseHits *model.SearchResp = nil, nil
+			var response *model.SearchResp = nil
 			err = nil
 			if oldHandlingUsed {
 				response, err = queryTranslator.MakeSearchResponse(hits, model.Query{QueryInfo: queryInfo, Highlighter: highlighter})
-			} else if newAggregationHandlingUsed {
+			} else {
 				response = queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
-				responseHits, err = queryTranslator.MakeSearchResponse(hits, model.Query{QueryInfo: queryInfo, Highlighter: highlighter})
-				response.Hits = responseHits.Hits
 			}
 			if err != nil {
 				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queryInfo, hits)
@@ -508,7 +494,7 @@ func (q *QueryRunner) searchWorkerCommon(
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			continue
 		}
-		if doPostProcessing {
+		if doPostProcessing && query.Type != nil {
 			rows = query.Type.PostprocessResults(rows)
 		}
 		hits = append(hits, rows)

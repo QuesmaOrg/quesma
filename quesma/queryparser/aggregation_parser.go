@@ -241,6 +241,17 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 		return nil, fmt.Errorf("no aggs -> request is not an aggregation query")
 	}
 
+	const defaultSearchSize = 10
+	size := cw.parseSize(queryAsMap, defaultSearchSize)
+	if size > 0 {
+		simpleQuery := currentAggr.whereBuilder
+		if sort, ok := queryAsMap["sort"]; ok {
+			simpleQuery.SortFields = cw.parseSortFields(sort)
+		}
+		hitQuery := cw.BuildNRowsQuery("*", simpleQuery, size)
+		aggregations = append(aggregations, *hitQuery)
+	}
+
 	return aggregations, nil
 }
 
