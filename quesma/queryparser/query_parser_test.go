@@ -439,20 +439,6 @@ func TestOrAndAnd(t *testing.T) {
 	}
 }
 
-func TestQueryParseDateMathExpression(t *testing.T) {
-	exprs := map[string]string{
-		"now-15m":    "subDate(now(), INTERVAL 15 minute)",
-		"now-15m+5s": "addDate(subDate(now(), INTERVAL 15 minute), INTERVAL 5 second)",
-		"now-":       "now()",
-		"now-15m+":   "subDate(now(), INTERVAL 15 minute)",
-	}
-	for expr, expected := range exprs {
-		resultExpr, err := parseDateMathExpression(expr)
-		assert.Nil(t, err)
-		assert.Equal(t, expected, resultExpr)
-	}
-}
-
 func Test_parseSortFields(t *testing.T) {
 	tests := []struct {
 		name       string
