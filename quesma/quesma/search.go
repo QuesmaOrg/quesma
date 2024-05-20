@@ -282,6 +282,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				}
 				listQuery := queryTranslator.BuildNRowsQuery(fieldName, simpleQuery, queryInfo.Size)
 				hitsFallback, err = q.logManager.ProcessQuery(ctx, table, listQuery, nil)
+				translatedQueryBody = append(translatedQueryBody, []byte("\n"+listQuery.String()+"\n")...)
 				if err != nil {
 					logger.ErrorWithCtx(ctx).Msgf("error processing fallback query. Err: %v, query: %+v", err, listQuery)
 					pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
@@ -289,6 +290,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				}
 				countQuery := queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
 				countResult, err := q.logManager.ProcessQuery(ctx, table, countQuery, nil)
+				translatedQueryBody = append(translatedQueryBody, []byte("\n"+countQuery.String()+"\n")...)
 				if err != nil {
 					logger.ErrorWithCtx(ctx).Msgf("error processing count query. Err: %v, query: %+v", err, countQuery)
 					pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)

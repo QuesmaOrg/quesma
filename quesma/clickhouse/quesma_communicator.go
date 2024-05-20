@@ -58,7 +58,7 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 		return nil, err
 	}
 
-	rows, err := executeQuery(ctx, lm, table.Name, query.StringFromColumns(colNames), columns, rowToScan)
+	rows, err := executeQuery(ctx, lm, query.StringFromColumns(colNames), columns, rowToScan)
 	if err == nil {
 		for _, row := range rows {
 			row.Index = table.Name
@@ -106,7 +106,7 @@ func (lm *LogManager) explainQuery(ctx context.Context, query string, elapsed ti
 	}
 }
 
-func executeQuery(ctx context.Context, lm *LogManager, tableName string, queryAsString string, fields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
+func executeQuery(ctx context.Context, lm *LogManager, queryAsString string, fields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
 	span := lm.phoneHomeAgent.ClickHouseQueryDuration().Begin()
 
 	rows, err := lm.Query(ctx, queryAsString)
@@ -115,7 +115,7 @@ func executeQuery(ctx context.Context, lm *LogManager, tableName string, queryAs
 		return nil, fmt.Errorf("clickhouse: query failed. err: %v, query: %v", err, queryAsString)
 	}
 
-	res, err := read(tableName, rows, fields, rowToScan)
+	res, err := read(rows, fields, rowToScan)
 	elapsed := span.End(nil)
 	if err == nil {
 		if lm.shouldExplainQuery(elapsed) {
@@ -128,7 +128,7 @@ func executeQuery(ctx context.Context, lm *LogManager, tableName string, queryAs
 
 // 'selectFields' are all values that we return from the query, both columns and non-schema fields,
 // like e.g. count(), or toInt8(boolField)
-func read(tableName string, rows *sql.Rows, selectFields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
+func read(rows *sql.Rows, selectFields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
 	rowDb := make([]interface{}, 0, len(rowToScan))
 	for i := range rowToScan {
 		rowDb = append(rowDb, &rowToScan[i])
@@ -139,7 +139,7 @@ func read(tableName string, rows *sql.Rows, selectFields []string, rowToScan []i
 		if err != nil {
 			return nil, fmt.Errorf("clickhouse: scan failed: %v", err)
 		}
-		resultRow := model.QueryResultRow{Index: tableName, Cols: make([]model.QueryResultCol, len(selectFields))}
+		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, len(selectFields))}
 		for i, field := range selectFields {
 			resultRow.Cols[i] = model.QueryResultCol{ColName: field, Value: rowToScan[i]}
 		}

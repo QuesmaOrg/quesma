@@ -25,7 +25,7 @@ type Table struct {
 	TimestampColumn  *string
 }
 
-func (t *Table) GetFields() []string {
+func (t *Table) GetFulltextFields() []string {
 	var res = make([]string, 0)
 	for _, col := range t.Cols {
 		if col.IsFullTextMatch {
