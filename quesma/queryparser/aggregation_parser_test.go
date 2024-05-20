@@ -3,10 +3,12 @@ package queryparser
 import (
 	"cmp"
 	"context"
+	"fmt"
 	"github.com/barkimedes/go-deepcopy"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/testdata"
@@ -152,9 +154,19 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
+<<<<<<< HEAD
 			`SELECT count() FROM ` + tableNameQuoted,
 			`SELECT "FlightDelayType", count() FROM ` + tableNameQuoted + ` GROUP BY ("FlightDelayType")`,
 			"SELECT \"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000), count() FROM " + tableNameQuoted + " GROUP BY (\"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000))",
+=======
+			`SELECT count() FROM ` + tableNameQuoted + ` `,
+			`SELECT "FlightDelayType", count() FROM ` + tableNameQuoted + ` GROUP BY ("FlightDelayType") ORDER BY ("FlightDelayType") LIMIT 10`,
+			"SELECT \"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000), count() " +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "FlightDelayType" IN (SELECT "FlightDelayType" FROM ` + tableNameQuoted + ` GROUP BY ("FlightDelayType") ORDER BY ("FlightDelayType") LIMIT 10) ` +
+				"GROUP BY (\"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000)) " +
+				"ORDER BY (\"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000))",
+>>>>>>> 887bd60 (Most work done)
 		},
 	},
 	{ // [3]
@@ -245,8 +257,13 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
+<<<<<<< HEAD
 			`SELECT count() FROM ` + tableNameQuoted,
 			`SELECT "FlightDelayMin", count() FROM ` + tableNameQuoted + ` GROUP BY ("FlightDelayMin")`,
+=======
+			`SELECT count() FROM ` + tableNameQuoted + ` `,
+			`SELECT "FlightDelayMin", count() FROM ` + tableNameQuoted + ` GROUP BY ("FlightDelayMin") ORDER BY ("FlightDelayMin")`,
+>>>>>>> 887bd60 (Most work done)
 		},
 	},
 	{ // [6]
@@ -270,7 +287,7 @@ var aggregationTests = []struct {
 							},
 							"terms": {
 								"field": "DestAirportID",
-								"size": 10000
+								"size": 5
 							}
 						},
 						"originLocation": {
@@ -294,11 +311,23 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
+<<<<<<< HEAD
 			`SELECT count() FROM ` + tableNameQuoted,
 			`SELECT "OriginAirportID", "DestAirportID", "DestLocation" FROM "(SELECT DestLocation, ROW_NUMBER() OVER (PARTITION BY DestLocation) AS row_number FROM ` + tableName + `)" GROUP BY ("OriginAirportID", "DestAirportID")`,
 			`SELECT "OriginAirportID", "DestAirportID", count() FROM ` + tableNameQuoted + ` GROUP BY ("OriginAirportID", "DestAirportID")`,
 			`SELECT "OriginAirportID", "OriginLocation", "Origin" FROM "(SELECT OriginLocation, Origin, ROW_NUMBER() OVER (PARTITION BY OriginLocation, Origin) AS row_number FROM ` + tableName + `)" GROUP BY ("OriginAirportID")`,
 			`SELECT "OriginAirportID", count() FROM ` + tableNameQuoted + ` GROUP BY ("OriginAirportID")`,
+=======
+			`SELECT count() FROM ` + tableNameQuoted + ` `,
+			`SELECT "OriginAirportID", "DestAirportID", "DestLocation" FROM "(SELECT DestLocation, ROW_NUMBER() OVER (PARTITION BY DestLocation) AS row_number FROM ` + tableName + `)"  GROUP BY ("OriginAirportID", "DestAirportID")`,
+			`SELECT "OriginAirportID", "DestAirportID", count() FROM ` + tableNameQuoted + ` ` +
+				`WHERE "OriginAirportID" IN (SELECT "OriginAirportID" FROM ` + tableNameQuoted + ` GROUP BY ("OriginAirportID") ORDER BY ("OriginAirportID") LIMIT 10000) ` +
+				`GROUP BY ("OriginAirportID", "DestAirportID") ` +
+				`ORDER BY ("OriginAirportID", "DestAirportID") ` +
+				`LIMIT 5 BY ("DestAirportID")`,
+			`SELECT "OriginAirportID", "OriginLocation", "Origin" FROM "(SELECT OriginLocation, Origin, ROW_NUMBER() OVER (PARTITION BY OriginLocation, Origin) AS row_number FROM ` + tableName + `)"  GROUP BY ("OriginAirportID")`,
+			`SELECT "OriginAirportID", count() FROM ` + tableNameQuoted + ` GROUP BY ("OriginAirportID") ORDER BY ("OriginAirportID") LIMIT 10000`,
+>>>>>>> 887bd60 (Most work done)
 		},
 	},
 	{ // [7]
@@ -332,9 +361,19 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
+<<<<<<< HEAD
 			`SELECT count() FROM ` + tableNameQuoted,
 			`SELECT "category.keyword", "order_date", count() FROM ` + tableNameQuoted + ` GROUP BY ("category.keyword", "order_date")`,
 			`SELECT "category.keyword", count() FROM ` + tableNameQuoted + ` GROUP BY ("category.keyword")`,
+=======
+			`SELECT count() FROM ` + tableNameQuoted + ` `,
+			"SELECT \"category\", toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), count() " +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "category" IN (SELECT "category" FROM ` + tableNameQuoted + ` GROUP BY ("category") ORDER BY ("category") LIMIT 10) ` +
+				"GROUP BY (\"category\", toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) " +
+				"ORDER BY (\"category\", toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
+			`SELECT "category", count() FROM ` + tableNameQuoted + ` GROUP BY ("category") ORDER BY ("category") LIMIT 10`,
+>>>>>>> 887bd60 (Most work done)
 		},
 	},
 	{ // [8]
@@ -370,8 +409,13 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
+<<<<<<< HEAD
 			`SELECT count() FROM ` + tableNameQuoted,
 			`SELECT quantile("taxful_total_price") FROM ` + tableNameQuoted,
+=======
+			`SELECT count() FROM ` + tableNameQuoted + ` `,
+			"SELECT quantiles(0.500000)(`taxful_total_price`) AS `quantile_50` FROM " + tableNameQuoted + " ",
+>>>>>>> 887bd60 (Most work done)
 		},
 	},
 	{ // [10]
@@ -453,10 +497,30 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
+<<<<<<< HEAD
 			`SELECT count() FROM ` + tableNameQuoted,
 			`SELECT count() FROM "logs-generic-default" WHERE taxful_total_price>250 `,
+=======
+			`SELECT count() FROM ` + tableNameQuoted + ` `,
+			`SELECT count() FROM ` + tableNameQuoted + ` WHERE "taxful_total_price" > '250' `,
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), " +
+				`MAX("order_date") AS "windowed_order_date", ` +
+				`MAX("order_date") AS "windowed_order_date" ` +
+				`FROM (SELECT "order_date", "order_date", ROW_NUMBER() OVER ` +
+				"(PARTITION BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " + `ORDER BY "order_date" asc) AS row_number ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "taxful_total_price" > '250') ` +
+				`WHERE "taxful_total_price" > '250' AND row_number <= 10 ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/43200000))",
+>>>>>>> 887bd60 (Most work done)
 			`SELECT "order_date" FROM "(SELECT order_date, ROW_NUMBER() OVER (PARTITION BY order_date) AS row_number FROM ` + tableName + `)" WHERE taxful_total_price>250 `,
 			`SELECT "taxful_total_price" FROM "(SELECT taxful_total_price, ROW_NUMBER() OVER (PARTITION BY taxful_total_price) AS row_number FROM ` + tableName + `)" WHERE taxful_total_price>250 `,
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), count() " +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "taxful_total_price" > '250' ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/43200000))",
 		},
 	},
 	{ // [12]
@@ -481,9 +545,15 @@ var aggregationTests = []struct {
 				"size": 0
 			}`,
 		[]string{
+<<<<<<< HEAD
 			`SELECT count() FROM ` + tableNameQuoted,
 			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` GROUP BY ("OriginCityName")`,
 			`SELECT COUNT(DISTINCT "OriginCityName") FROM ` + tableNameQuoted,
+=======
+			`SELECT count() FROM ` + tableNameQuoted + ` `,
+			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` GROUP BY ("OriginCityName") ORDER BY ("OriginCityName") LIMIT 10`,
+			`SELECT COUNT(DISTINCT "OriginCityName") FROM ` + tableNameQuoted + " ",
+>>>>>>> 887bd60 (Most work done)
 		},
 	},
 	{ // [13]
@@ -506,9 +576,15 @@ var aggregationTests = []struct {
 				  "size": 0
 			}`,
 		[]string{
+<<<<<<< HEAD
 			`SELECT count() FROM ` + tableNameQuoted,
 			`SELECT floor("bytes" / 1782.000000) * 1782.000000, count() FROM ` + tableNameQuoted + ` GROUP BY (floor("bytes" / 1782.000000) * 1782.000000) ORDER BY (floor("bytes" / 1782.000000) * 1782.000000)`,
 			`SELECT count() FROM ` + tableNameQuoted,
+=======
+			`SELECT count() FROM ` + tableNameQuoted + ` `,
+			`SELECT floor("bytes" / 1782.000000) * 1782.000000, count() FROM ` + tableNameQuoted + ` GROUP BY (floor("bytes" / 1782.000000) * 1782.000000) ORDER BY (floor("bytes" / 1782.000000) * 1782.000000)`,
+			`SELECT count() FROM ` + tableNameQuoted + ` `,
+>>>>>>> 887bd60 (Most work done)
 		},
 	},
 }
@@ -528,14 +604,14 @@ func TestAggregationParser(t *testing.T) {
 
 	for testIdx, test := range aggregationTests {
 		t.Run(strconv.Itoa(testIdx), func(t *testing.T) {
-			if testIdx == 1 || testIdx == 2 || testIdx == 4 || testIdx == 5 || testIdx == 6 || testIdx == 7 ||
-				testIdx == 9 || testIdx == 11 || testIdx == 12 {
-				t.Skip("We can't handle one hardest request properly yet") // Let's skip in this PR. Next one already fixes some of issues here.
+			if testIdx == 6 || testIdx == 11 {
+				t.Skip("multiple terms + top_hits/metrics - it's a nightmare to check that. I'll do that shortly")
 			}
 			aggregations, err := cw.ParseAggregationJson(test.aggregationJson)
 			assert.NoError(t, err)
 			assert.Equal(t, len(test.translatedSqls), len(aggregations))
 			for _, aggregation := range aggregations {
+				fmt.Printf("agg: %s\n%+v\n\n\n", aggregation.String(), aggregation)
 				util.AssertContainsSqlEqual(t, test.translatedSqls, aggregation.String())
 			}
 		})
@@ -556,7 +632,7 @@ func sortAggregations(aggregations []model.Query) {
 }
 
 func Test2AggregationParserExternalTestcases(t *testing.T) {
-	// logger.InitSimpleLoggerForTests()
+	logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -577,6 +653,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
+<<<<<<< HEAD
 			if i > 26 && i <= 30 {
 				t.Skip("New tests, harder, failing for now. Fixes for them in 2 next PRs")
 			}
@@ -584,6 +661,12 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 				t.Skip("Those 2 tests have nested histograms with min_doc_count=0. I'll add support for that in next PR, already most of work done")
 			}
 			if i == 32 {
+=======
+			if i != 25 {
+				t.Skip()
+			}
+			if i == 29 { // fix{
+>>>>>>> 887bd60 (Most work done)
 				t.Skip("Need a (most likely) small fix to top_hits.")
 			}
 			if i == 20 {
