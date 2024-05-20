@@ -494,7 +494,7 @@ func (q *QueryRunner) findNonexistingProperties(queryInfo model.SearchQueryInfo,
 	var allReferencedFields = make([]string, 0)
 	allReferencedFields = append(allReferencedFields, queryInfo.RequestedFields...)
 	for _, field := range simpleQuery.SortFields {
-		allReferencedFields = append(allReferencedFields, strings.ReplaceAll(strings.Fields(field)[0], `"`, ""))
+		allReferencedFields = append(allReferencedFields, field.Field)
 	}
 
 	for _, property := range allReferencedFields {

@@ -579,7 +579,7 @@ func (cw *ClickhouseQueryTranslator) applySizeLimit(size int) int {
 func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query SimpleQuery, limit int) *model.Query {
 	suffixClauses := make([]string, 0)
 	if len(query.SortFields) > 0 {
-		suffixClauses = append(suffixClauses, "ORDER BY "+strings.Join(query.SortFields, ", "))
+		suffixClauses = append(suffixClauses, "ORDER BY "+AsQueryString(query.SortFields))
 	}
 	if limit > 0 {
 		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(cw.applySizeLimit(limit)))
@@ -727,4 +727,20 @@ func (cw *ClickhouseQueryTranslator) sortInTopologicalOrder(queries []model.Quer
 		}
 	}
 	return indexesSorted
+}
+
+func AsQueryString(sortFields []SortField) string {
+	if len(sortFields) == 0 {
+		return ""
+	}
+	sortStrings := make([]string, 0, len(sortFields))
+	for _, sortField := range sortFields {
+		query := strings.Builder{}
+		query.WriteString(strconv.Quote(sortField.Field))
+		if sortField.Desc {
+			query.WriteString(" desc")
+		}
+		sortStrings = append(sortStrings, query.String())
+	}
+	return strings.Join(sortStrings, ", ")
 }
