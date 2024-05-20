@@ -31,10 +31,12 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	}
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
+	tsField := "@timestamp"
 	indexConfig := config.IndexConfiguration{
 		Name:           "logs-generic-default",
 		Enabled:        true,
 		FullTextFields: []string{"message"},
+		TimestampField: &tsField,
 	}
 
 	cfg.IndexConfig[indexConfig.Name] = indexConfig
@@ -50,7 +52,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			assert.True(t, simpleQuery.CanParse, "can parse")
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
-			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, model.DefaultSizeListQuery)
+			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}
@@ -77,7 +79,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 			assert.True(t, simpleQuery.CanParse, "can parse")
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
-			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, model.DefaultSizeListQuery)
+			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}
@@ -103,7 +105,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt)
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ)
 
-			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, model.DefaultSizeListQuery)
+			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}

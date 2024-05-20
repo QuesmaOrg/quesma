@@ -1900,6 +1900,42 @@ var TestsSearch = []SearchTestCase{
 		[]model.Query{justSimplestWhere(`"user.id"='kimchy'`)},
 		[]string{qToStr(justSimplestWhere(`"user.id"='kimchy'`))},
 	},
+	{ // [33] this is a snowflake case as `_id` is a special field in ES and in clickhouse we compute
+		"Match phrase using _id field",
+		`{
+			  "query": {
+				"bool": {
+				  "filter": [
+					{
+					  "range": {
+						"@timestamp": {
+						  "format": "strict_date_optional_time",
+							"gte": "2024-01-22T09:26:10.299Z"
+						}
+					  }
+					},
+					{
+					  "match_phrase": {
+						"_id": "18f86fcd014q6"
+					  }
+					}
+				  ]
+				}
+			  }
+			}`,
+		[]string{
+			`"@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND toUnixTimestamp64Milli("@timestamp") IN ([1715956666388])`,
+			`toUnixTimestamp64Milli("@timestamp") IN ([1715956666388]) AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')`,
+		},
+		model.Normal,
+		[]model.Query{
+			justSimplestWhere(`"@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND toUnixTimestamp64Milli("@timestamp") IN ([1715956666388])`),
+			justSimplestWhere(`toUnixTimestamp64Milli("@timestamp") IN ([1715956666388]) AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')`),
+		},
+		// TestSearchHandler is pretty blunt with config loading so the test below can't be used.
+		// We will probably refactor it as we move forwards with schema which will get even more side-effecting
+		[]string{qToStr(justSimplestWhere(`"@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z')`))},
+	},
 }
 
 var TestsSearchNoAttrs = []SearchTestCase{
