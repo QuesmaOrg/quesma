@@ -52,7 +52,7 @@ document.body.addEventListener('htmx:afterSwap', function(event) {
 	buffer.Html("\n<h2>Menu</h2>")
 	buffer.Html("\n<h3>Find query</h3><br>\n")
 
-	buffer.Html(`<form onsubmit="location.href = '/request-Id/' + find_query_by_id_input.value; return false;">`)
+	buffer.Html(`<form onsubmit="location.href = '/request-id/' + find_query_by_id_input.value; return false;">`)
 	buffer.Html("\n")
 	buffer.Html(`&nbsp;<input Id="find_query_by_id_button" type="submit" class="btn" value="By Id" /><br>`)
 	buffer.Html(`&nbsp;<input type="text" Id="find_query_by_id_input" class="input" name="find_query_by_id_input" value="" required size="32"><br><br>`)
@@ -191,7 +191,7 @@ func generateQueries(debugKeyValueSlice []queryDebugInfoWithId, withLinks bool) 
 	buffer.Html(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buffer.Html(`<a href="/request-Id/`).Text(v.id).Html(`">`)
+			buffer.Html(`<a href="/request-id/`).Text(v.id).Html(`">`)
 		}
 		buffer.Html("<p>UUID:").Text(v.id).Html(" Path: ").Text(v.query.Path).Html("</p>\n")
 		buffer.Html(`<pre Id="query`).Text(v.id).Html(`">`)
@@ -209,7 +209,7 @@ func generateQueries(debugKeyValueSlice []queryDebugInfoWithId, withLinks bool) 
 	buffer.Html(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buffer.Html(`<a href="/request-Id/`).Text(v.id).Html(`">`)
+			buffer.Html(`<a href="/request-id/`).Text(v.id).Html(`">`)
 		}
 		tookStr := fmt.Sprintf(" took %d ms", v.query.PrimaryTook.Milliseconds())
 		buffer.Html("<p>UUID:").Text(v.id).Text(tookStr).Html("</p>\n")
@@ -232,7 +232,7 @@ func generateQueries(debugKeyValueSlice []queryDebugInfoWithId, withLinks bool) 
 	buffer.Html(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buffer.Html(`<a href="/request-Id/`).Text(v.id).Html(`">`)
+			buffer.Html(`<a href="/request-id/`).Text(v.id).Html(`">`)
 		}
 		tookStr := fmt.Sprintf(" took %d ms", v.query.SecondaryTook.Milliseconds())
 		buffer.Html("<p>UUID:").Text(v.id).Text(tookStr).Html(errorBanner(v.query)).Html("</p>\n")
@@ -251,7 +251,7 @@ func generateQueries(debugKeyValueSlice []queryDebugInfoWithId, withLinks bool) 
 	buffer.Html(`<div class="debug-body">`)
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
-			buffer.Html(`<a href="/request-Id/`).Text(v.id).Html(`">`)
+			buffer.Html(`<a href="/request-id/`).Text(v.id).Html(`">`)
 		}
 		buffer.Html("<p>UUID:").Text(v.id).Html(errorBanner(v.query)).Html("</p>\n")
 		buffer.Html(`<pre Id="second_response`).Text(v.id).Html(`">`)

@@ -31,7 +31,8 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 
 	// Show Request and SQL
 	if requestFound {
-		buffer.Html(`<div class="two-columns">` + "\n")
+		buffer.Html(`<div>` + "\n")
+
 		buffer.Html(`<div class="query-body">` + "\n")
 		buffer.Html("<p class=\"title\">Original query:</p>\n")
 		buffer.Html(`<pre>`)
@@ -45,23 +46,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 		buffer.Text(sqlfmt.SqlPrettyPrint(request.QueryBodyTranslated))
 		buffer.Html("\n</pre>")
 		buffer.Html(`</div>` + "\n")
-		buffer.Html(`</div>` + "\n")
-	}
 
-	buffer.Html("\n\n")
-	buffer.Html(`<div class="debug-body">`)
-
-	buffer.Html(`<p class="title title-logs">`)
-	if requestFound && len(request.logMessages) > 0 {
-		buffer.Html("Logs:</p>\n")
-		buffer.Write(logMessages)
-	} else {
-		buffer.Html("No logs for this request</p>\n")
-	}
-
-	//  Show ElasticSearch and Quesma Response
-	if requestFound {
-		buffer.Html(`<div class="two-columns">` + "\n")
 		buffer.Html(`<div class="elastic-response">` + "\n")
 		if len(request.QueryDebugPrimarySource.QueryResp) > 0 {
 			tookStr := fmt.Sprintf(" took %d ms:", request.PrimaryTook.Milliseconds())
@@ -85,9 +70,20 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 			buffer.Html("<p class=\"title\">No Quesma response for this request</p>\n")
 		}
 		buffer.Html(`</div>` + "\n")
+
 		buffer.Html(`</div>` + "\n")
 	}
 
+	buffer.Html("\n\n")
+	buffer.Html(`<div class="debug-body">`)
+
+	buffer.Html(`<p class="title title-logs">`)
+	if requestFound && len(request.logMessages) > 0 {
+		buffer.Html("Logs:</p>\n")
+		buffer.Write(logMessages)
+	} else {
+		buffer.Html("No logs for this request</p>\n")
+	}
 	buffer.Html("\n</div>\n")
 
 	buffer.Html("\n</main>\n")
@@ -159,8 +155,7 @@ func generateLogMessages(logMessages []string, links []string) ([]byte, *string)
 	buffer.Html("<table>\n")
 	buffer.Html("<thead>\n")
 	buffer.Html("<tr>\n")
-	buffer.Html(`<th class="time">Time</th>`)
-	buffer.Html(`<th class="level">Level</th>`)
+	buffer.Html(`<th class="time">Time Level</th>`)
 	buffer.Html(`<th class="message">Message</th>`)
 	buffer.Html(`<th class="fields">Fields</th>`)
 	buffer.Html("</tr>\n")
@@ -182,6 +177,7 @@ func generateLogMessages(logMessages []string, links []string) ([]byte, *string)
 		}
 		// time
 		buffer.Html(`<td class="time">` + addOpeningLink(i, 0))
+		buffer.Html("<span>")
 		if _, ok := fields["time"]; ok {
 			time := fields["time"].(string)
 			time = strings.Replace(time, "T", " ", 1)
@@ -191,17 +187,8 @@ func generateLogMessages(logMessages []string, links []string) ([]byte, *string)
 		} else {
 			buffer.Html("missing time")
 		}
-		buffer.Html(addClosingLink(i) + "</td>")
-
-		// get rid of request_id and async_id
-		delete(fields, "request_id")
-		if id, ok := fields["async_id"].(string); ok {
-			asyncId = &id
-			delete(fields, "async_id")
-		}
-
+		buffer.Html("</span>\n<br>\n")
 		// level
-		buffer.Html(`<td class="level">` + addOpeningLink(i, 1))
 		if level, ok := fields["level"].(string); ok {
 			if level == "error" {
 				buffer.Html(`<span class="debug-error-log">`)
@@ -216,6 +203,13 @@ func generateLogMessages(logMessages []string, links []string) ([]byte, *string)
 			buffer.Html("missing level")
 		}
 		buffer.Html(addClosingLink(i) + "</td>")
+
+		// get rid of request_id and async_id
+		delete(fields, "request_id")
+		if id, ok := fields["async_id"].(string); ok {
+			asyncId = &id
+			delete(fields, "async_id")
+		}
 
 		// message
 		buffer.Html(`<td class="message">` + addOpeningLink(i, 2))

@@ -68,7 +68,7 @@ func generateErrorMessage(errorReports []errorstats.ErrorReport) []byte {
 		// message
 		buffer.Html(`<td class="request-id">`)
 		if errorReport.RequestId != nil {
-			buffer.Html(`<a href="/request-Id/`).Text(url.PathEscape(*errorReport.RequestId)).Html(`">`)
+			buffer.Html(`<a href="/request-id/`).Text(url.PathEscape(*errorReport.RequestId)).Html(`">`)
 			buffer.Text(*errorReport.RequestId)
 			buffer.Html(`"</a>`)
 		} else {
