@@ -8,18 +8,31 @@ import (
 )
 
 func (cw *ClickhouseQueryTranslator) parseFilters(queryMap QueryMap) (success bool, filtersAggr bucket_aggregations.Filters) {
+	filtersAggr = bucket_aggregations.NewFiltersEmpty(cw.Ctx)
+
 	filtersRaw, exists := queryMap["filters"]
 	if !exists {
-		return false, bucket_aggregations.NewFiltersEmpty(cw.Ctx)
+		return
 	}
 
 	filtersMap, ok := filtersRaw.(QueryMap)
 	if !ok {
 		logger.WarnWithCtx(cw.Ctx).Msgf("filters is not a map, but %T, value: %v. Using empty.", filtersRaw, filtersRaw)
-		return false, bucket_aggregations.NewFiltersEmpty(cw.Ctx)
+		return
 	}
-	filters := make([]bucket_aggregations.Filter, 0, len(filtersMap))
-	for name, filter := range filtersMap {
+	nested, exists := filtersMap["filters"]
+	if !exists {
+		logger.WarnWithCtx(cw.Ctx).Msgf("filters is not a map, but %T, value: %v. Skipping filters.", filtersRaw, filtersRaw)
+		return
+	}
+	nestedMap, ok := nested.(QueryMap)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("filters is not a map, but %T, value: %v. Skipping filters.", nested, nested)
+		return
+	}
+
+	filters := make([]bucket_aggregations.Filter, 0, len(nestedMap))
+	for name, filter := range nestedMap {
 		filterMap, ok := filter.(QueryMap)
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("filter is not a map, but %T, value: %v. Skipping.", filter, filter)
@@ -32,13 +45,15 @@ func (cw *ClickhouseQueryTranslator) parseFilters(queryMap QueryMap) (success bo
 
 func (cw *ClickhouseQueryTranslator) processFiltersAggregation(aggrBuilder *aggrQueryBuilder,
 	aggr bucket_aggregations.Filters, queryMap QueryMap, resultAccumulator *[]model.Query) error {
+	whereBeforeNesting := aggrBuilder.whereBuilder
+	aggrBuilder.Aggregators[len(aggrBuilder.Aggregators)-1].Filters = true
 	for _, filter := range aggr.Filters {
 		// newBuilder := aggrBuilder.clone()
 		// newBuilder.Type = bucket_aggregations.NewFilters(cw.Ctx, []bucket_aggregations.Filter{filter})
 		// newBuilder.whereBuilder.CombineWheresWith(filter.Sql)
 		// newBuilder.Aggregators = append(aggrBuilder.Aggregators, model.NewAggregatorEmpty(filter.Name))
 		aggrBuilder.Type = aggr
-		aggrBuilder.whereBuilder.CombineWheresWith(cw.Ctx, filter.Sql)
+		aggrBuilder.whereBuilder = model.CombineWheres(cw.Ctx, aggrBuilder.whereBuilder, filter.Sql)
 		aggrBuilder.Aggregators = append(aggrBuilder.Aggregators, model.NewAggregatorEmpty(filter.Name))
 		*resultAccumulator = append(*resultAccumulator, aggrBuilder.buildBucketAggregation(nil)) // nil for now, will be changed
 		if aggs, ok := queryMap["aggs"].(QueryMap); ok {
@@ -53,6 +68,8 @@ func (cw *ClickhouseQueryTranslator) processFiltersAggregation(aggrBuilder *aggr
 				logger.ErrorWithCtx(cw.Ctx).Msgf("deepcopy 'aggs' map error: %v. Skipping. aggs: %v", errAggs, aggs)
 			}
 		}
+		aggrBuilder.Aggregators = aggrBuilder.Aggregators[:len(aggrBuilder.Aggregators)-1]
+		aggrBuilder.whereBuilder = whereBeforeNesting
 	}
 	delete(queryMap, "filters")
 	return nil

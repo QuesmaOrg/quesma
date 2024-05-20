@@ -30,7 +30,7 @@ func (cw *ClickhouseEQLQueryTranslator) applySizeLimit(size int) int {
 	return size
 }
 
-func (cw *ClickhouseEQLQueryTranslator) BuildNRowsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query {
+func (cw *ClickhouseEQLQueryTranslator) BuildNRowsQuery(fieldName string, simpleQuery model.SimpleQuery, limit int) *model.Query {
 	suffixClauses := make([]string, 0)
 	if len(simpleQuery.SortFields) > 0 {
 		suffixClauses = append(suffixClauses, "ORDER BY "+strings.Join(simpleQuery.SortFields, ", "))
@@ -88,13 +88,13 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 	}, nil
 }
 
-func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query queryparser.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter model.Highlighter, err error) {
+func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query model.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter model.Highlighter, err error) {
 
 	// no highlighting here
 	highlighter = queryparser.NewEmptyHighlighter()
 
 	searchQueryInfo.Typ = model.ListAllFields
-	query.Sql = queryparser.Statement{}
+	query.Sql = model.Statement{}
 
 	queryAsMap := make(map[string]interface{})
 	err = json.Unmarshal([]byte(queryAsJson), &queryAsMap)
@@ -158,7 +158,7 @@ func (cw *ClickhouseEQLQueryTranslator) MakeResponseAggregation(aggregations []m
 	panic("EQL does not support aggregations")
 }
 
-func (cw *ClickhouseEQLQueryTranslator) BuildFacetsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query {
+func (cw *ClickhouseEQLQueryTranslator) BuildFacetsQuery(fieldName string, simpleQuery model.SimpleQuery, limit int) *model.Query {
 	panic("EQL does not support facets")
 }
 

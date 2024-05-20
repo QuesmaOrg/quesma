@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
@@ -351,7 +350,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		if filter, ok := filterRaw.(QueryMap); ok {
 			filterOnThisLevel = true
 			currentAggr.Type = metrics_aggregations.NewCount(cw.Ctx)
-			currentAggr.whereBuilder.CombineWheresWith(cw.Ctx, cw.parseQueryMap(filter))
+			currentAggr.whereBuilder = model.CombineWheres(cw.Ctx, currentAggr.whereBuilder, cw.parseQueryMap(filter))
 			*resultAccumulator = append(*resultAccumulator, currentAggr.buildCountAggregation(metadata))
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("filter is not a map, but %T, value: %v. Skipping", filterRaw, filterRaw)
@@ -390,20 +389,14 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 
 	aggsHandledSeparately := isRange || isFilters
 	if aggs, ok := queryMap["aggs"]; ok && !aggsHandledSeparately {
-		pp.Println(currentAggr.Type)
-		_, isTerms := currentAggr.Type.(bucket_aggregations.Terms)
-		var oldWhere = currentAggr.whereBuilder
 		err = cw.parseAggregationNames(currentAggr, aggs.(QueryMap), resultAccumulator)
 		if err != nil {
 			return err
 		}
-		if isTerms {
-			currentAggr.whereBuilder = oldWhere
-		}
 	}
 	delete(queryMap, "aggs") // no-op if no "aggs"
 
-	if bucketAggrPresent && !isRange {
+	if bucketAggrPresent && !aggsHandledSeparately {
 		// range aggregation has separate, optimized handling
 		*resultAccumulator = append(*resultAccumulator, currentAggr.buildBucketAggregation(metadata))
 	}
@@ -704,11 +697,15 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	}
 	if boolRaw, ok := queryMap["bool"]; ok {
 		if Bool, ok := boolRaw.(QueryMap); ok {
-			currentAggr.whereBuilder.CombineWheresWith(cw.Ctx, cw.parseBool(Bool))
+			currentAggr.whereBuilder = model.CombineWheres(cw.Ctx, currentAggr.whereBuilder, cw.parseBool(Bool))
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("bool is not a map, but %T, value: %v. Skipping", boolRaw, boolRaw)
 		}
 		delete(queryMap, "bool")
+		return
+	}
+	if isFilters, aggregation := cw.parseFilters(queryMap); isFilters {
+		currentAggr.Type = aggregation
 		return
 	}
 	success = false
