@@ -254,6 +254,42 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						// there is only one query
 						hits = hitsSlice[0]
 					}
+					if queryInfo.Size > 0 {
+						hitsPresent = true
+						var fieldName string
+						if queryInfo.Typ == model.ListByField {
+							fieldName = queryInfo.FieldName
+						} else {
+							fieldName = "*"
+						}
+						listQuery := queryTranslator.BuildNRowsQuery(fieldName, simpleQuery, queryInfo.Size)
+						hitsFallback, err = q.logManager.ProcessQuery(ctx, table, listQuery, nil)
+						translatedQueryBody = append(translatedQueryBody, []byte("\n"+listQuery.String()+"\n")...)
+						if err != nil {
+							logger.ErrorWithCtx(ctx).Msgf("error processing fallback query. Err: %v, query: %+v", err, listQuery)
+							pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
+							return responseBody, err
+						}
+						countQuery := queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
+						countResult, err := q.logManager.ProcessQuery(ctx, table, countQuery, nil)
+						translatedQueryBody = append(translatedQueryBody, []byte("\n"+countQuery.String()+"\n")...)
+						if err != nil {
+							logger.ErrorWithCtx(ctx).Msgf("error processing count query. Err: %v, query: %+v", err, countQuery)
+							pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
+							return responseBody, err
+						}
+						if len(countResult) > 0 {
+							// This if only for tests... On production it'll never be 0.
+							// When e.g. sqlmock starts supporting uint64, we can remove it.
+							countRaw := countResult[0].Cols[0].Value
+							if countExpectedType, ok := countRaw.(uint64); ok {
+								count = int(countExpectedType)
+							} else {
+								logger.ErrorWithCtx(ctx).Msgf("unexpected count type: %T, count: %v. Defaulting to 0.", countRaw, countRaw)
+								count = 0
+							}
+						}
+					}
 				}
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
 				newAggregationHandlingUsed = true
@@ -269,45 +305,45 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					}()
 				} else {
 					translatedQueryBody, aggregationResults = q.searchWorker(ctx, aggregations, columns, table, true, nil)
-				}
-			}
-
-			if optAsync == nil && queryInfo.Size > 0 {
-				hitsPresent = true
-				var fieldName string
-				if queryInfo.Typ == model.ListByField {
-					fieldName = queryInfo.FieldName
-				} else {
-					fieldName = "*"
-				}
-				listQuery := queryTranslator.BuildNRowsQuery(fieldName, simpleQuery, queryInfo.Size)
-				hitsFallback, err = q.logManager.ProcessQuery(ctx, table, listQuery, nil)
-				translatedQueryBody = append(translatedQueryBody, []byte("\n"+listQuery.String()+"\n")...)
-				if err != nil {
-					logger.ErrorWithCtx(ctx).Msgf("error processing fallback query. Err: %v, query: %+v", err, listQuery)
-					pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
-					return responseBody, err
-				}
-				countQuery := queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-				countResult, err := q.logManager.ProcessQuery(ctx, table, countQuery, nil)
-				translatedQueryBody = append(translatedQueryBody, []byte("\n"+countQuery.String()+"\n")...)
-				if err != nil {
-					logger.ErrorWithCtx(ctx).Msgf("error processing count query. Err: %v, query: %+v", err, countQuery)
-					pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
-					return responseBody, err
-				}
-				if len(countResult) > 0 {
-					// This if only for tests... On production it'll never be 0.
-					// When e.g. sqlmock starts supporting uint64, we can remove it.
-					countRaw := countResult[0].Cols[0].Value
-					if countExpectedType, ok := countRaw.(uint64); ok {
-						count = int(countExpectedType)
-					} else {
-						logger.ErrorWithCtx(ctx).Msgf("unexpected count type: %T, count: %v. Defaulting to 0.", countRaw, countRaw)
-						count = 0
+					if queryInfo.Size > 0 {
+						hitsPresent = true
+						var fieldName string
+						if queryInfo.Typ == model.ListByField {
+							fieldName = queryInfo.FieldName
+						} else {
+							fieldName = "*"
+						}
+						listQuery := queryTranslator.BuildNRowsQuery(fieldName, simpleQuery, queryInfo.Size)
+						hitsFallback, err = q.logManager.ProcessQuery(ctx, table, listQuery, nil)
+						translatedQueryBody = append(translatedQueryBody, []byte("\n"+listQuery.String()+"\n")...)
+						if err != nil {
+							logger.ErrorWithCtx(ctx).Msgf("error processing fallback query. Err: %v, query: %+v", err, listQuery)
+							pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
+							return responseBody, err
+						}
+						countQuery := queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
+						countResult, err := q.logManager.ProcessQuery(ctx, table, countQuery, nil)
+						translatedQueryBody = append(translatedQueryBody, []byte("\n"+countQuery.String()+"\n")...)
+						if err != nil {
+							logger.ErrorWithCtx(ctx).Msgf("error processing count query. Err: %v, query: %+v", err, countQuery)
+							pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
+							return responseBody, err
+						}
+						if len(countResult) > 0 {
+							// This if only for tests... On production it'll never be 0.
+							// When e.g. sqlmock starts supporting uint64, we can remove it.
+							countRaw := countResult[0].Cols[0].Value
+							if countExpectedType, ok := countRaw.(uint64); ok {
+								count = int(countExpectedType)
+							} else {
+								logger.ErrorWithCtx(ctx).Msgf("unexpected count type: %T, count: %v. Defaulting to 0.", countRaw, countRaw)
+								count = 0
+							}
+						}
 					}
 				}
 			}
+
 		} else {
 			responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
 			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(string(responseBody))
