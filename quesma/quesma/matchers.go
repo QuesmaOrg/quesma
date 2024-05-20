@@ -79,7 +79,14 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.Request
 func matchAgainstKibanaAlerts() mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 
-		if req.JSON == nil {
+		var query mux.JSON
+
+		switch req.ParsedBody.(type) {
+
+		case mux.JSON:
+			query = req.ParsedBody.(mux.JSON)
+
+		default:
 			return true
 		}
 
@@ -120,7 +127,7 @@ func matchAgainstKibanaAlerts() mux.RequestMatcher {
 			return false
 		}
 
-		q := req.JSON["query"].(map[string]interface{})
+		q := query["query"].(map[string]interface{})
 
 		return !findKibanaAlertField(q)
 	})

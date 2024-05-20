@@ -1,7 +1,7 @@
 package quesma
 
 import (
-	"encoding/json"
+	"context"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/quesma/mux"
 	"testing"
@@ -161,16 +161,9 @@ func TestMatchAgainstKibanaAlerts(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(tt *testing.T) {
 
-			var parsed mux.ParsedJSON
-			if test.body != "" {
+			req := &mux.Request{Body: test.body}
 
-				err := json.Unmarshal([]byte(test.body), &parsed)
-				if err != nil {
-					tt.Fatal(err)
-				}
-			}
-
-			req := &mux.Request{Body: test.body, JSON: parsed}
+			mux.ParseRequestBody(context.TODO(), req)
 
 			actual := matchAgainstKibanaAlerts().Matches(req)
 			assert.Equal(t, test.expected, actual)
