@@ -8,9 +8,9 @@ import (
 
 func TestPathRouter_Matches_ShouldIgnoreTrailingSlash(t *testing.T) {
 	router := NewPathRouter()
-	router.RegisterPath("/:index/_bulk", "POST", mockHandler)
-	router.RegisterPath("/:index/_doc", "POST", mockHandler)
-	router.RegisterPath("/:index/_count", "GET", mockHandler)
+	router.Register("/:index/_bulk", IsHTTPMethod("POST"), mockHandler)
+	router.Register("/:index/_doc", IsHTTPMethod("POST"), mockHandler)
+	router.Register("/:index/_count", IsHTTPMethod("GET"), mockHandler)
 
 	tests := []struct {
 		path       string
