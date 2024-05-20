@@ -2,7 +2,6 @@ package mux
 
 import (
 	"context"
-	"fmt"
 	"github.com/ucarion/urlpath"
 	"mitmproxy/quesma/logger"
 	"net/http"
@@ -51,10 +50,6 @@ type RequestMatcherFunc func(req *Request) bool
 
 func (f RequestMatcherFunc) Matches(req *Request) bool {
 	return f(req)
-}
-
-func (f RequestMatcherFunc) String() string {
-	return fmt.Sprintf("(RequestMatcherFunc %v)", f)
 }
 
 // Url router where you can register multiple URL paths with handler.
@@ -106,10 +101,6 @@ type httpMethodPredicate struct {
 	methods []string
 }
 
-func (p *httpMethodPredicate) String() string {
-	return "(http methods: " + strings.Join(p.methods, ", ") + ")"
-}
-
 func (p *httpMethodPredicate) Matches(req *Request) bool {
 
 	for _, method := range p.methods {
@@ -126,17 +117,6 @@ func IsHTTPMethod(methods ...string) RequestMatcher {
 
 type predicateAnd struct {
 	predicates []RequestMatcher
-}
-
-func (p *predicateAnd) String() string {
-
-	res := "(and "
-	for _, predicate := range p.predicates {
-		res += fmt.Sprintf("%v", predicate) + ", "
-	}
-	res = res + ")"
-
-	return res
 }
 
 func (p *predicateAnd) Matches(req *Request) bool {
