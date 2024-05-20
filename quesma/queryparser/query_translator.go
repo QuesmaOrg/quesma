@@ -159,14 +159,6 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryR
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) MakeSearchResponseMarshalled(ResultSet []model.QueryResultRow, query model.Query) ([]byte, error) {
-	response, err := cw.MakeSearchResponse(ResultSet, query)
-	if err != nil {
-		return nil, err
-	}
-	return response.Marshal()
-}
-
 func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.QueryResultRow, typ model.SearchQueryType) *model.SearchResp {
 	const maxFacets = 10 // facets show only top 10 values
 	bucketsNr := min(len(ResultSet), maxFacets)
