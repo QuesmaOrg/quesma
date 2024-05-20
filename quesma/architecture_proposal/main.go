@@ -51,6 +51,9 @@ func main() {
 
 	currentQuesmaLike()
 
+	postgreSQLEndpoint()
+	postgreSQLEndpoint5433()
+
 	Print("waiting for signal...")
 
 	<-sig
@@ -99,15 +102,8 @@ func quesmaDeviceLogsPipeline() DatabaseLet {
 	return toHttpRequest
 }
 
-func eqlPipeline() DatabaseLet {
-
-	restToSQL := &QueryTransformer{Transformer: TransformerFunc(func(doc Document) Document {
-		body := doc["body"].(Document)
-		doc["query"] = body["query"]
-		return doc
-	})}
-
-	eqlToSql := &QueryTransformer{Transformer: TransformerFunc(func(doc Document) Document {
+func eqlToSql() *QueryTransformer {
+	return &QueryTransformer{Transformer: TransformerFunc(func(doc Document) Document {
 
 		eqlQuery := doc["query"].(string)
 
@@ -134,6 +130,17 @@ func eqlPipeline() DatabaseLet {
 		doc["query"] = sqlQuery
 		return doc
 	})}
+}
+
+func eqlPipeline() DatabaseLet {
+
+	restToSQL := &QueryTransformer{Transformer: TransformerFunc(func(doc Document) Document {
+		body := doc["body"].(Document)
+		doc["query"] = body["query"]
+		return doc
+	})}
+
+	translator := eqlToSql()
 
 	documentsToHits := &DocumentReducer{Reducer: ReducerFunc(func(docs []Document) Document {
 		return Document{"hits": len(docs), "docs": docs}
@@ -141,9 +148,44 @@ func eqlPipeline() DatabaseLet {
 
 	sqlDatabase := &SQLDatabase{db: db}
 
-	restToSQL.Source = eqlToSql
-	eqlToSql.Source = documentsToHits
+	restToSQL.Source = translator
+	translator.Source = documentsToHits
 	documentsToHits.Source = sqlDatabase
 
 	return restToSQL
+}
+
+func postgreSQLEndpoint() {
+
+	endpoint := &postgreSqlServer{}
+
+	database := &SQLDatabase{db: db}
+
+	endpoint.Source = database
+
+	endpoint.startAndListen(":5432")
+}
+
+func postgreSQLEndpoint5433() {
+
+	endpoint := &postgreSqlServer{}
+
+	stripSemicolon := &QueryTransformer{
+		Transformer: TransformerFunc(func(doc Document) Document {
+			query := doc["query"].(string)
+			query = strings.TrimSuffix(query, ";")
+			doc["query"] = query
+			return doc
+		}),
+	}
+
+	translator := eqlToSql()
+
+	database := &SQLDatabase{db: db}
+
+	endpoint.Source = stripSemicolon
+	stripSemicolon.Source = translator
+	translator.Source = database
+
+	endpoint.startAndListen(":5433")
 }
