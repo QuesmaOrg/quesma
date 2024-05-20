@@ -312,9 +312,9 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) SimpleQuery {
 	if v, ok := cw.Table.Cols[timestampColumnName]; ok {
 		switch v.Type.String() {
 		case clickhouse.DateTime64.String():
-			statement = fmt.Sprintf("toUnixTimestamp64Milli(%s) IN (%s) ", strconv.Quote(timestampColumnName), ids)
+			statement = fmt.Sprintf("toUnixTimestamp64Milli(%s) IN (%s)", strconv.Quote(timestampColumnName), ids)
 		case clickhouse.DateTime.String():
-			statement = fmt.Sprintf("toUnixTimestamp(%s) *1000 IN (%s) ", strconv.Quote(timestampColumnName), ids)
+			statement = fmt.Sprintf("toUnixTimestamp(%s) *1000 IN (%s)", strconv.Quote(timestampColumnName), ids)
 		default:
 			logger.Warn().Msgf("timestamp field of unsupported type %s", v.Type.String())
 			return newSimpleQuery(NewSimpleStatement(""), true)
@@ -499,9 +499,11 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 			for _, subQuery := range subQueries {
 				cw.AddTokenToHighlight(subQuery)
 				if fieldName == "_id" { // We compute this field on the fly using our custom logic, so we have to parse it differently
-					return cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
+					computedIdMatchingQuery := cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
+					statements = append(statements, computedIdMatchingQuery.Sql)
+				} else {
+					statements = append(statements, NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE "+"'%"+subQuery+"%'"))
 				}
-				statements = append(statements, NewSimpleStatement(strconv.Quote(fieldName)+" iLIKE "+"'%"+subQuery+"%'"))
 			}
 			return newSimpleQuery(or(statements), true)
 		}
