@@ -42,6 +42,10 @@ type (
 func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http.ResponseWriter) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Elasticsearch")
+
+	copyHeaders(w, elkResponse)
+	// io.Copy calls WriteHeader implicitly
+	w.WriteHeader(elkResponse.StatusCode)
 	if _, err := io.Copy(w, elkResponse.Body); err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("Error copying response body: %v", err)
 		http.Error(w, "Error copying response body", http.StatusInternalServerError)
@@ -121,16 +125,16 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
 	})
-	if router.Matches(req.URL.Path, req.Method, string(reqBody)) {
+	handler, parameters, found := router.Matches(req.URL.Path, req.Method, string(reqBody))
+	if found {
 		var elkResponseChan = make(chan elasticResult)
 
 		if r.config.Elasticsearch.Call {
 			elkResponseChan = r.sendHttpRequestToElastic(ctx, req, reqBody, false)
 		}
 
-		req.URL.Query()
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
-			return router.Execute(ctx, req.URL.Path, string(reqBody), req.Method, req.Header, req.URL.Query())
+			return handler(ctx, string(reqBody), req.URL.Path, parameters.Params, req.Header, req.URL.Query())
 		})
 		var elkRawResponse elasticResult
 		var elkResponse *http.Response
@@ -174,9 +178,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		} else {
 			if elkResponse != nil && r.config.Mode == config.DualWriteQueryClickhouseFallback {
 				logger.ErrorWithCtx(ctx).Msgf("Error processing request while responding from Elastic: %v", err)
-				copyHeaders(w, elkResponse)
 				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
-				w.WriteHeader(elkResponse.StatusCode)
 				responseFromElastic(ctx, elkResponse, w)
 
 			} else {
@@ -203,13 +205,11 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		response := rawResponse.response
 		w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 		if response != nil {
-			copyHeaders(w, response)
-			w.WriteHeader(response.StatusCode)
 			responseFromElastic(ctx, response, w)
 		} else {
 			w.WriteHeader(500)
 			if rawResponse.error != nil {
-				w.Write([]byte(rawResponse.error.Error()))
+				_, _ = w.Write([]byte(rawResponse.error.Error()))
 			}
 		}
 	}
