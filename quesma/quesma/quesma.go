@@ -123,11 +123,6 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
 	})
 
-	parsedBody := make(map[string]interface{})
-	if err := json.Unmarshal(reqBody, &parsedBody); err != nil {
-		// TODO  Not sure what to do here
-	}
-
 	quesmaRequest := &mux.Request{
 		Method:      req.Method,
 		Path:        strings.TrimSuffix(req.URL.Path, "/"),
@@ -135,8 +130,20 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		Headers:     req.Header,
 		QueryParams: req.URL.Query(),
 		Body:        string(reqBody),
-		ParsedBody:  parsedBody,
 	}
+
+	// try to parse the body as JSON
+	// we should rely here on the content type header
+	// or not?
+	parsedBody := make(map[string]interface{})
+	if err := json.Unmarshal(reqBody, &parsedBody); err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("Error parsing request body as a JSON: %v", err)
+	} else {
+		quesmaRequest.JSON = parsedBody
+	}
+
+	// TODO parse other types of content types
+	// It will be implemented after the next SLAM session
 
 	handler, parameters, found := router.Matches(quesmaRequest)
 	quesmaRequest.Params = parameters.Params

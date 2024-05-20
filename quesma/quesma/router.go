@@ -33,7 +33,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	and := mux.And
 
 	router := mux.NewPathRouter()
-	router.RegisterPath(routes.ClusterHealthPath, "GET", func(_ context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.ClusterHealthPath, method("GET"), func(_ context.Context, req *mux.Request) (*mux.Result, error) {
 		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, httpOk), nil
 	})
 
@@ -263,12 +263,6 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	router.Register(routes.EQLSearch, and(method("GET", "POST"), matchedAgainstPattern(cfg)), eqlHandler)
 
 	return router
-}
-
-func always() func(params map[string]string, body string) bool {
-	return func(params map[string]string, body string) bool {
-		return true
-	}
 }
 
 // check whether exact index name is enabled

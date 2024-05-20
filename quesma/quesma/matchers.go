@@ -1,7 +1,6 @@
 package quesma
 
 import (
-	"encoding/json"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
@@ -80,18 +79,11 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.Request
 func matchAgainstKibanaAlerts() mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 
-		if req.Body == "" {
+		if req.JSON == nil {
 			return true
 		}
 
 		// https://www.elastic.co/guide/en/security/current/alert-schema.html
-
-		var query map[string]interface{}
-		err := json.Unmarshal([]byte(req.Body), &query)
-		if err != nil {
-			logger.Warn().Msgf("error parsing json %v", err)
-			return true
-		}
 
 		var findKibanaAlertField func(node interface{}) bool
 
@@ -128,7 +120,7 @@ func matchAgainstKibanaAlerts() mux.RequestMatcher {
 			return false
 		}
 
-		q := query["query"].(map[string]interface{})
+		q := req.JSON["query"].(map[string]interface{})
 
 		return !findKibanaAlertField(q)
 	})

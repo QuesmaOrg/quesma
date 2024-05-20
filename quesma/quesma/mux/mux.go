@@ -32,9 +32,11 @@ type (
 		Headers     http.Header
 		QueryParams url.Values
 
+		// body can be:
 
-		Body        string
-		ParsedBody  map[string]interface{}
+		Body   string
+		JSON   map[string]interface{}
+		NDJSON []map[string]interface{}
 	}
 	Handler func(ctx context.Context, req *Request) (*Result, error)
 
@@ -54,19 +56,6 @@ func (f RequestMatcherFunc) Matches(req *Request) bool {
 // The pattern syntax is based on ucarion/urlpath project. e.g. "/shelves/:shelf/books/:book"
 func NewPathRouter() *PathRouter {
 	return &PathRouter{mappings: make([]mapping, 0)}
-}
-
-func (p *PathRouter) RegisterPath(pattern, httpMethod string, handler Handler) {
-	mapping := mapping{pattern, urlpath.New(pattern), IsHTTPMethod(httpMethod), handler}
-
-	p.mappings = append(p.mappings, mapping)
-}
-
-func (p *PathRouter) RegisterPathMatcher(pattern string, httpMethods []string, predicate RequestMatcher, handler Handler) {
-
-	mapping := mapping{pattern, urlpath.New(pattern), And(IsHTTPMethod(httpMethods...), predicate), handler}
-	p.mappings = append(p.mappings, mapping)
-
 }
 
 func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler Handler) {
