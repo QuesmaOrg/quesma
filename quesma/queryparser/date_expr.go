@@ -201,18 +201,6 @@ func (b *DateMathExpressionAsLiteral) RenderSQL(expression *DateMathExpression) 
 
 	result := b.now
 
-	timeUnitToDuration := map[timeUnit]time.Duration{
-		"m": time.Minute,
-		"s": time.Second,
-		"h": time.Hour,
-		"H": time.Hour,
-		"d": 24 * time.Hour,
-		"w": 7 * 24 * time.Hour,
-		"M": 30 * 24 * time.Hour,
-		"Y": 365 * 24 * time.Hour,
-		"y": 365 * 24 * time.Hour,
-	}
-
 	for _, interval := range expression.intervals {
 
 		if interval.amount == 0 {
@@ -221,12 +209,32 @@ func (b *DateMathExpressionAsLiteral) RenderSQL(expression *DateMathExpression) 
 
 		amount := interval.amount
 
-		duration, ok := timeUnitToDuration[interval.unit]
-		if !ok {
+		switch interval.unit {
+		case "m":
+			result = result.Add(time.Minute * time.Duration(amount))
+
+		case "s":
+			result = result.Add(time.Duration(amount) * time.Second)
+
+		case "h", "H":
+			result = result.Add(time.Duration(amount) * time.Hour)
+
+		case "d":
+			result = result.AddDate(0, 0, amount)
+
+		case "w":
+			result = result.AddDate(0, 0, amount*7)
+
+		case "M":
+			result = result.AddDate(0, amount, 0)
+
+		case "Y", "y":
+			result = result.AddDate(amount, 0, 0)
+
+		default:
 			return "", fmt.Errorf("unsupported time unit: %s", interval.unit)
 		}
 
-		result = result.Add(time.Duration(amount) * duration)
 	}
 
 	switch expression.rounding {
