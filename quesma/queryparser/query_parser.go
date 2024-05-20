@@ -98,7 +98,8 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery
 	queryInfo := cw.tryProcessSearchMetadata(queryAsMap)
 	queryInfo.Size = size
 
-	queryInfo.TrackTotalHits = "10000"
+	const defaultTotalHits = "10000"
+	queryInfo.TrackTotalHits = defaultTotalHits
 	if trackTotalHitsRaw, ok := queryAsMap["track_total_hits"]; ok {
 		switch trackTotalHitsRaw.(type) {
 		case bool:
@@ -106,7 +107,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(queryAsJson string) (SimpleQuery
 		case float64:
 			queryInfo.TrackTotalHits = strconv.Itoa(int(trackTotalHitsRaw.(float64)))
 		default:
-			logger.WarnWithCtx(cw.Ctx).Msgf("unknown track_total_hits format, track_total_hits value: %v type: %T. Using default (%s)", trackTotalHitsRaw, trackTotalHitsRaw, queryInfo.TrackTotalHits)
+			logger.WarnWithCtx(cw.Ctx).Msgf("unknown track_total_hits format, track_total_hits value: %v type: %T. Using default (%s)", trackTotalHitsRaw, trackTotalHitsRaw, defaultTotalHits)
 		}
 	}
 

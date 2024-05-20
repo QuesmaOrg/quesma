@@ -507,7 +507,13 @@ func (q *QueryRunner) makeBasicQueries(ctx context.Context,
 	}
 	fullQuery.QueryInfo = queryInfo
 	fullQuery.Highlighter = highlighter
-	return []model.Query{*fullQuery}, columns
+	queries := []model.Query{*fullQuery}
+	// TODO: More conditions
+	if queryInfo.TrackTotalHits != "false" && queryInfo.Typ != model.CountAsync {
+		queries = append(queries, *queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt))
+		columns = append(columns, []string{"doc_count"})
+	}
+	return queries, columns
 }
 
 func (q *QueryRunner) searchWorkerCommon(
