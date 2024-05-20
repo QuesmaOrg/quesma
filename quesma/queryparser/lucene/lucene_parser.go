@@ -204,8 +204,12 @@ func (p *luceneParser) parseRange(query string) (token token, remainingQuery str
 // acceptableCharsAfterNumber - what character is acceptable as first character after the number,
 // e.g. when acceptableCharsAfterNumber = {']', '}'}, then 200} or 200] parses to 200, but parsing 200( fails.
 func (p *luceneParser) parseNumber(query string, reportErrors bool, acceptableCharsAfterNumber []rune) (number float64, remainingQuery string) {
-	var i, dotCount = 0, 0
-	for i = 0; i < len(query); i++ {
+	query = strings.TrimSpace(query)
+	i, dotCount := 0, 0
+	if len(query) > 0 && query[0] == '-' {
+		i++
+	}
+	for ; i < len(query); i++ {
 		r := rune(query[i])
 		if r == '.' {
 			dotCount++
