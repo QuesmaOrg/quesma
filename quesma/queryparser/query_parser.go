@@ -678,7 +678,7 @@ func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) SimpleQuery 
 	return newSimpleQuery(NewSimpleStatement("no query in nested query"), false)
 }
 
-func parseDateMathExpression(expr string) (string, error) {
+func (cw *ClickhouseQueryTranslator) parseDateMathExpression(expr string) (string, error) {
 	expr = strings.ReplaceAll(expr, "'", "")
 
 	exp, err := ParseDateMathExpression(expr)
@@ -687,7 +687,10 @@ func parseDateMathExpression(expr string) (string, error) {
 		return "", err
 	}
 
-	builder := &DateMathAsClickhouseIntervals{}
+	builder := DateMathExpressionRendererFactory(cw.DateMathRenderer)
+	if builder == nil {
+		return "", fmt.Errorf("no date math expression renderer found: %s", cw.DateMathRenderer)
+	}
 
 	sql, err := builder.RenderSQL(exp)
 	if err != nil {
@@ -736,7 +739,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) SimpleQuery {
 						if _, err := time.Parse(time.RFC3339Nano, dateTime); err == nil {
 							vToPrint = cw.parseDateTimeString(cw.Table, field, dateTime)
 						} else if op == "gte" || op == "lte" || op == "gt" || op == "lt" {
-							vToPrint, err = parseDateMathExpression(vToPrint)
+							vToPrint, err = cw.parseDateMathExpression(vToPrint)
 							if err != nil {
 								logger.WarnWithCtx(cw.Ctx).Msgf("error parsing date math expression: %s", vToPrint)
 								return newSimpleQuery(NewSimpleStatement("error parsing date math expression: "+vToPrint), false)

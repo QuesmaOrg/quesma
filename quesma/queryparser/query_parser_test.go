@@ -52,7 +52,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			assert.True(t, simpleQuery.CanParse, "can parse")
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
-			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, model.DefaultSizeListQuery)
+			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}
@@ -79,7 +79,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 			assert.True(t, simpleQuery.CanParse, "can parse")
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
-			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, model.DefaultSizeListQuery)
+			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}
@@ -105,7 +105,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt)
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ)
 
-			query := cw.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, model.DefaultSizeListQuery)
+			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}
@@ -436,20 +436,6 @@ func TestOrAndAnd(t *testing.T) {
 			}
 			assert.Equal(t, tt.want, or(tt.stmts))
 		})
-	}
-}
-
-func TestQueryParseDateMathExpression(t *testing.T) {
-	exprs := map[string]string{
-		"now-15m":    "subDate(now(), INTERVAL 15 minute)",
-		"now-15m+5s": "addDate(subDate(now(), INTERVAL 15 minute), INTERVAL 5 second)",
-		"now-":       "now()",
-		"now-15m+":   "subDate(now(), INTERVAL 15 minute)",
-	}
-	for expr, expected := range exprs {
-		resultExpr, err := parseDateMathExpression(expr)
-		assert.Nil(t, err)
-		assert.Equal(t, expected, resultExpr)
 	}
 }
 

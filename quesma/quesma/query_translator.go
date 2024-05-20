@@ -35,13 +35,13 @@ const (
 	QueryLanguageEQL     = "eql"
 )
 
-func NewQueryTranslator(ctx context.Context, language QueryLanguage, table *clickhouse.Table, logManager *clickhouse.LogManager) (queryTranslator IQueryTranslator) {
+func NewQueryTranslator(ctx context.Context, language QueryLanguage, table *clickhouse.Table, logManager *clickhouse.LogManager, dateMathRenderer string) (queryTranslator IQueryTranslator) {
 
 	switch language {
 	case QueryLanguageEQL:
 		queryTranslator = &eql.ClickhouseEQLQueryTranslator{ClickhouseLM: logManager, Table: table, Ctx: ctx}
 	default:
-		queryTranslator = &queryparser.ClickhouseQueryTranslator{ClickhouseLM: logManager, Table: table, Ctx: ctx}
+		queryTranslator = &queryparser.ClickhouseQueryTranslator{ClickhouseLM: logManager, Table: table, Ctx: ctx, DateMathRenderer: dateMathRenderer}
 	}
 
 	return queryTranslator

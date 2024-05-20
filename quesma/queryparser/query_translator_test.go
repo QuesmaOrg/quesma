@@ -464,7 +464,7 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: nil, Table: clickhouse.NewEmptyTable("@"), Ctx: context.Background()}
 	const limit = 1000
 	queries := []*model.Query{
-		cw.BuildSimpleSelectQuery("", limit),
+		cw.BuildNRowsQuery("*", SimpleQuery{}, limit),
 		cw.BuildNRowsQuery("@", SimpleQuery{}, 0),
 	}
 	for _, query := range queries {

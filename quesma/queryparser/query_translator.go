@@ -24,6 +24,8 @@ type ClickhouseQueryTranslator struct {
 	Table             *clickhouse.Table
 	tokensToHighlight []string
 	Ctx               context.Context
+
+	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()
@@ -552,16 +554,6 @@ func (cw *ClickhouseQueryTranslator) BuildSelectQuery(fields []string, whereClau
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildSimpleSelectQuery(whereClause string, limit int) *model.Query {
-	return &model.Query{
-		Fields:        []string{"*"},
-		WhereClause:   whereClause,
-		FromClause:    cw.Table.FullTableName(),
-		SuffixClauses: []string{"LIMIT " + strconv.Itoa(cw.applySizeLimit(limit))},
-		CanParse:      true,
-	}
-}
-
 func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause string) *model.Query {
 	return &model.Query{
 		NonSchemaFields: []string{"count()"},
@@ -592,12 +584,11 @@ func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query Sim
 		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(cw.applySizeLimit(limit)))
 	}
 	return &model.Query{
-		Fields:          []string{fieldName},
-		NonSchemaFields: []string{},
-		WhereClause:     query.Sql.Stmt,
-		SuffixClauses:   suffixClauses,
-		FromClause:      cw.Table.FullTableName(),
-		CanParse:        true,
+		Fields:        []string{fieldName},
+		WhereClause:   query.Sql.Stmt,
+		SuffixClauses: suffixClauses,
+		FromClause:    cw.Table.FullTableName(),
+		CanParse:      true,
 	}
 }
 
