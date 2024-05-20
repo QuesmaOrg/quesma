@@ -576,7 +576,7 @@ func (cw *ClickhouseQueryTranslator) applySizeLimit(size int) int {
 
 // GetNMostRecentRows fieldName == "*" ==> we query all
 // otherwise ==> only this 1 field
-func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query SimpleQuery, limit int) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query model.SimpleQuery, limit int) *model.Query {
 	suffixClauses := make([]string, 0)
 	if len(query.SortFields) > 0 {
 		suffixClauses = append(suffixClauses, "ORDER BY "+AsQueryString(query.SortFields))
@@ -630,7 +630,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, query SimpleQuery, limitTodo int) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, query model.SimpleQuery, limitTodo int) *model.Query {
 	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
 	innerQuery := model.Query{
 		Fields:        []string{fieldName},
