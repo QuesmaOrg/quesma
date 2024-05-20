@@ -3,33 +3,33 @@ package pipeline_aggregations
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryprocessor"
 	"mitmproxy/quesma/util"
 )
 
-type MinBucket struct {
+type SumBucket struct {
 	ctx    context.Context
 	Parent string
-	// IsCount bool
 }
 
-func NewMinBucket(ctx context.Context, bucketsPath string) MinBucket {
-	return MinBucket{ctx: ctx, Parent: parseBucketsPathIntoParentAggregationName(ctx, bucketsPath)}
+func NewSumBucket(ctx context.Context, bucketsPath string) SumBucket {
+	return SumBucket{ctx: ctx, Parent: parseBucketsPathIntoParentAggregationName(ctx, bucketsPath)}
 }
 
-func (query MinBucket) IsBucketAggregation() bool {
+func (query SumBucket) IsBucketAggregation() bool {
 	return false
 }
 
-func (query MinBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query SumBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	if len(rows) == 0 {
-		logger.WarnWithCtx(query.ctx).Msg("no rows returned for min bucket aggregation")
+		logger.WarnWithCtx(query.ctx).Msg("no rows returned for average bucket aggregation")
 		return []model.JsonMap{nil}
 	}
 	if len(rows) > 1 {
-		logger.WarnWithCtx(query.ctx).Msg("more than one row returned for min bucket aggregation")
+		logger.WarnWithCtx(query.ctx).Msg("more than one row returned for average bucket aggregation")
 	}
 	if returnMap, ok := rows[0].LastColValue().(model.JsonMap); ok {
 		return []model.JsonMap{returnMap}
@@ -39,7 +39,9 @@ func (query MinBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 	}
 }
 
-func (query MinBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows []model.QueryResultRow) []model.QueryResultRow {
+func (query SumBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows []model.QueryResultRow) []model.QueryResultRow {
+	fmt.Println("hoho")
+	pp.Println("parentRows", parentRows)
 	resultRows := make([]model.QueryResultRow, 0)
 	if len(parentRows) == 0 {
 		return resultRows // maybe null?
@@ -49,65 +51,50 @@ func (query MinBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows [
 	// in calculateSingleAvgBucket we calculate avg all current_keys with the same parent_cols
 	// so we need to split into buckets based on parent_cols
 	for _, parentRowsOneBucket := range qp.SplitResultSetIntoBuckets(parentRows, parentFieldsCnt) {
-		resultRows = append(resultRows, query.calculateSingleMinBucket(qwa, parentRowsOneBucket))
+		resultRows = append(resultRows, query.calculateSingleSumBucket(parentRowsOneBucket))
 	}
+	pp.Println("resultRows", resultRows)
 	return resultRows
 }
 
 // we're sure len(parentRows) > 0
-func (query MinBucket) calculateSingleMinBucket(qwa *model.Query, parentRows []model.QueryResultRow) model.QueryResultRow {
+func (query SumBucket) calculateSingleSumBucket(parentRows []model.QueryResultRow) model.QueryResultRow {
 	var resultValue any
-	var resultKeys []any
 	if firstRowValueFloat, firstRowValueIsFloat := util.ExtractFloat64Maybe(parentRows[0].LastColValue()); firstRowValueIsFloat {
-		// find min
-		minValue := firstRowValueFloat
+		sum := firstRowValueFloat
 		for _, row := range parentRows[1:] {
 			value, ok := util.ExtractFloat64Maybe(row.LastColValue())
 			if ok {
-				minValue = min(minValue, value)
+				sum += value
 			} else {
 				logger.WarnWithCtx(query.ctx).Msgf("could not convert value to float: %v, type: %T. Skipping", row.LastColValue(), row.LastColValue())
 			}
 		}
-		resultValue = minValue
-		// find keys with min value
-		for _, row := range parentRows {
-			if value, ok := util.ExtractFloat64Maybe(row.LastColValue()); ok && value == minValue {
-				resultKeys = append(resultKeys, getKey(query.ctx, row, qwa))
-			}
-		}
+		resultValue = sum
 	} else if firstRowValueInt, firstRowValueIsInt := util.ExtractInt64Maybe(parentRows[0].LastColValue()); firstRowValueIsInt {
-		// find min
-		minValue := firstRowValueInt
+		sum := firstRowValueInt
 		for _, row := range parentRows[1:] {
 			value, ok := util.ExtractInt64Maybe(row.LastColValue())
 			if ok {
-				minValue = min(minValue, value)
+				sum += value
 			} else {
 				logger.WarnWithCtx(query.ctx).Msgf("could not convert value to int: %v, type: %T. Skipping", row.LastColValue(), row.LastColValue())
 			}
 		}
-		resultValue = minValue
-		// find keys with min value
-		for _, row := range parentRows {
-			if value, ok := util.ExtractInt64Maybe(row.LastColValue()); ok && value == minValue {
-				resultKeys = append(resultKeys, getKey(query.ctx, row, qwa))
-			}
-		}
+		resultValue = sum
 	}
 
 	resultRow := parentRows[0].Copy()
 	resultRow.Cols[len(resultRow.Cols)-1].Value = model.JsonMap{
 		"value": resultValue,
-		"keys":  resultKeys,
 	}
 	return resultRow
 }
 
-func (query MinBucket) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+func (query SumBucket) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	return rowsFromDB
 }
 
-func (query MinBucket) String() string {
-	return fmt.Sprintf("min_bucket(%s)", query.Parent)
+func (query SumBucket) String() string {
+	return fmt.Sprintf("sum_bucket(%s)", query.Parent)
 }
