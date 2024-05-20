@@ -7,7 +7,7 @@ type Dispatcher struct {
 	DispatchField string
 }
 
-func (d *Dispatcher) Query(query Document) ([]Document, error) {
+func (d *Dispatcher) Query(query JSON) ([]JSON, error) {
 
 	field, ok := query[d.DispatchField]
 	if !ok {
@@ -31,7 +31,7 @@ type If struct {
 	False     DatabaseLet
 }
 
-func (i *If) Query(query Document) ([]Document, error) {
+func (i *If) Query(query JSON) ([]JSON, error) {
 	if i.condition() {
 		return i.True.Query(query)
 	}

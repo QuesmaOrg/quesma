@@ -8,16 +8,16 @@ import (
 
 type StdOutIngest struct{}
 
-func (c *StdOutIngest) Query(document Document) ([]Document, error) {
-	fmt.Println(document.String())
-	return emptyDocuments, nil
+func (c *StdOutIngest) Query(query JSON) ([]JSON, error) {
+	fmt.Println(query.String())
+	return emptyList, nil
 }
 
 func makeLogger() DatabaseLet {
 
 	console := &StdOutIngest{}
 
-	trans := &QueryTransformer{Transformer: TransformerFunc(func(in Document) Document {
+	trans := &QueryTransformer{Transformer: TransformerFunc(func(in JSON) JSON {
 		in["@timestamp"] = time.Now().Format(time.RFC3339)
 		return in
 
@@ -36,7 +36,7 @@ func Print(m string, a ...any) {
 		return
 	}
 
-	doc := make(Document)
+	doc := make(JSON)
 
 	doc["message"] = fmt.Sprintf(m, a...)
 

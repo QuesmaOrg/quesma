@@ -11,7 +11,7 @@ import (
 type RestClient struct {
 }
 
-func (h *RestClient) Query(query Document) ([]Document, error) {
+func (h *RestClient) Query(query JSON) ([]JSON, error) {
 
 	url := query["url"].(string)
 
@@ -34,14 +34,14 @@ func (h *RestClient) Query(query Document) ([]Document, error) {
 		return nil, err
 	}
 
-	var doc Document
+	var doc JSON
 
 	err = json.Unmarshal(b, &doc)
 	if err != nil {
 		return nil, err
 	}
 
-	return []Document{doc}, nil
+	return []JSON{doc}, nil
 }
 
 //
@@ -66,12 +66,12 @@ func (h *RestServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := make(Document)
+	query := make(JSON)
 
 	query["method"] = r.Method
 	query["path"] = r.URL.Path
 
-	body := make(Document)
+	body := make(JSON)
 	err = json.Unmarshal(b, &body)
 
 	if err != nil {

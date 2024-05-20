@@ -5,11 +5,11 @@ import (
 	"fmt"
 )
 
-func NewDocument() Document {
-	return make(Document)
+func NewJSON() JSON {
+	return make(JSON)
 }
 
-func (d Document) String() string {
+func (d JSON) String() string {
 	out, err := json.Marshal(d)
 	if err != nil {
 		return fmt.Sprintf("error: %v", err)
@@ -24,43 +24,43 @@ func (d Document) String() string {
 
 // Aux  implementation
 
-type DocumentLetFunc func(Document) ([]Document, error)
+type DocumentLetFunc func(JSON) ([]JSON, error)
 
-func (f DocumentLetFunc) Query(query Document) ([]Document, error) {
+func (f DocumentLetFunc) Query(query JSON) ([]JSON, error) {
 	return f(query)
 }
 
 // ---
 
-var emptyDocuments = make([]Document, 0)
+var emptyList = make([]JSON, 0)
 
 type EmptyDatabaseLet struct{}
 
-func (e *EmptyDatabaseLet) Query(query Document) ([]Document, error) {
-	return emptyDocuments, nil
+func (e *EmptyDatabaseLet) Query(query JSON) ([]JSON, error) {
+	return emptyList, nil
 }
 
 type ErrorDatabaseLet struct {
 	Err error
 }
 
-func (e *ErrorDatabaseLet) Query(query Document) ([]Document, error) {
+func (e *ErrorDatabaseLet) Query(query JSON) ([]JSON, error) {
 	return nil, e.Err
 }
 
 // -----
 
 type StaticDocuments struct {
-	Documents []Document
+	Contents []JSON
 }
 
-func (s *StaticDocuments) Query(query Document) ([]Document, error) {
-	return s.Documents, nil
+func (s *StaticDocuments) Query(query JSON) ([]JSON, error) {
+	return s.Contents, nil
 }
 
 //
 
-// Document transformer
+// JSON transformer
 
 /// ---------
 
@@ -78,7 +78,7 @@ type PanicBarrier struct {
 	Source DatabaseLet
 }
 
-func (p *PanicBarrier) Query(query Document) ([]Document, error) {
+func (p *PanicBarrier) Query(query JSON) ([]JSON, error) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println("panic:", r)
@@ -91,7 +91,7 @@ func (p *PanicBarrier) Query(query Document) ([]Document, error) {
 type Panic struct {
 }
 
-func (p *Panic) Query(query Document) ([]Document, error) {
+func (p *Panic) Query(query JSON) ([]JSON, error) {
 	panic("panic")
 	return nil, nil
 }
@@ -100,9 +100,9 @@ type Tracer struct {
 	Source DatabaseLet
 }
 
-func (t *Tracer) Query(query Document) ([]Document, error) {
+func (t *Tracer) Query(query JSON) ([]JSON, error) {
 
-	trace := make(Document)
+	trace := make(JSON)
 
 	trace["query"] = query
 

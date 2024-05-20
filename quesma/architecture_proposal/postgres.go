@@ -57,10 +57,10 @@ func cellValue(a interface{}) string {
 func (p *postgreSqlServer) handler(ctx context.Context, query string) (wire.PreparedStatements, error) {
 	log.Println("incoming SQL query:", query)
 
-	documentQuery := NewDocument()
-	documentQuery["query"] = query
+	sourceQuery := NewJSON()
+	sourceQuery["query"] = query
 
-	docs, err := p.Source.Query(documentQuery)
+	docs, err := p.Source.Query(sourceQuery)
 
 	if err != nil {
 		return nil, err

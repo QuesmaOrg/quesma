@@ -61,17 +61,17 @@ func main() {
 
 func sqlPipeline() DatabaseLet {
 
-	restToSQL := &QueryTransformer{Transformer: TransformerFunc(func(doc Document) Document {
-		body := doc["body"].(Document)
+	restToSQL := &QueryTransformer{Transformer: TransformerFunc(func(doc JSON) JSON {
+		body := doc["body"].(JSON)
 		doc["query"] = body["query"]
 		return doc
 	})}
 
-	documentsToHits := &DocumentReducer{Reducer: ReducerFunc(func(docs []Document) Document {
-		return Document{"hits": len(docs), "docs": docs}
+	listToSingle := &ResultsReducer{Reducer: ReducerFunc(func(docs []JSON) JSON {
+		return JSON{"hits": len(docs), "docs": docs}
 	})}
 
-	redactFields := &DocumentsTransformer{Transformer: TransformerFunc(func(doc Document) Document {
+	redactFields := &ResultsTransformer{Transformer: TransformerFunc(func(doc JSON) JSON {
 		delete(doc, "process::executable")
 		doc["create_table_query"] = "XXX REDACTED XXX"
 		return doc
@@ -79,8 +79,8 @@ func sqlPipeline() DatabaseLet {
 
 	sqlDatabase := &SQLDatabase{db: db}
 
-	restToSQL.Source = documentsToHits
-	documentsToHits.Source = redactFields
+	restToSQL.Source = listToSingle
+	listToSingle.Source = redactFields
 	redactFields.Source = sqlDatabase
 
 	return restToSQL
@@ -88,7 +88,7 @@ func sqlPipeline() DatabaseLet {
 
 func quesmaDeviceLogsPipeline() DatabaseLet {
 
-	toHttpRequest := &QueryTransformer{Transformer: TransformerFunc(func(doc Document) Document {
+	toHttpRequest := &QueryTransformer{Transformer: TransformerFunc(func(doc JSON) JSON {
 
 		doc["url"] = "http://localhost:8080/device_logs/_search"
 
@@ -103,7 +103,7 @@ func quesmaDeviceLogsPipeline() DatabaseLet {
 }
 
 func eqlToSql() *QueryTransformer {
-	return &QueryTransformer{Transformer: TransformerFunc(func(doc Document) Document {
+	return &QueryTransformer{Transformer: TransformerFunc(func(doc JSON) JSON {
 
 		eqlQuery := doc["query"].(string)
 
@@ -134,23 +134,23 @@ func eqlToSql() *QueryTransformer {
 
 func eqlPipeline() DatabaseLet {
 
-	restToSQL := &QueryTransformer{Transformer: TransformerFunc(func(doc Document) Document {
-		body := doc["body"].(Document)
+	restToSQL := &QueryTransformer{Transformer: TransformerFunc(func(doc JSON) JSON {
+		body := doc["body"].(JSON)
 		doc["query"] = body["query"]
 		return doc
 	})}
 
 	translator := eqlToSql()
 
-	documentsToHits := &DocumentReducer{Reducer: ReducerFunc(func(docs []Document) Document {
-		return Document{"hits": len(docs), "docs": docs}
+	listToSingle := &ResultsReducer{Reducer: ReducerFunc(func(docs []JSON) JSON {
+		return JSON{"hits": len(docs), "docs": docs}
 	})}
 
 	sqlDatabase := &SQLDatabase{db: db}
 
 	restToSQL.Source = translator
-	translator.Source = documentsToHits
-	documentsToHits.Source = sqlDatabase
+	translator.Source = listToSingle
+	listToSingle.Source = sqlDatabase
 
 	return restToSQL
 }
@@ -171,7 +171,7 @@ func postgreSQLEndpoint5433() {
 	endpoint := &postgreSqlServer{}
 
 	stripSemicolon := &QueryTransformer{
-		Transformer: TransformerFunc(func(doc Document) Document {
+		Transformer: TransformerFunc(func(doc JSON) JSON {
 			query := doc["query"].(string)
 			query = strings.TrimSuffix(query, ";")
 			doc["query"] = query

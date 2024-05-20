@@ -6,7 +6,7 @@ type SQLDatabase struct {
 	db *sql.DB
 }
 
-func (d *SQLDatabase) Query(query Document) ([]Document, error) {
+func (d *SQLDatabase) Query(query JSON) ([]JSON, error) {
 
 	sqlQuery := query["query"].(string)
 
@@ -20,10 +20,10 @@ func (d *SQLDatabase) Query(query Document) ([]Document, error) {
 		return nil, err
 	}
 
-	var docs []Document
+	var docs []JSON
 
 	for rows.Next() {
-		doc := make(Document)
+		doc := make(JSON)
 
 		row := make([]any, len(cols))
 		for i := range row {

@@ -1,12 +1,12 @@
 package main
 
 type Transformer interface {
-	Transform(document Document) Document
+	Transform(document JSON) JSON
 }
 
-type TransformerFunc func(Document) Document
+type TransformerFunc func(JSON) JSON
 
-func (f TransformerFunc) Transform(document Document) Document {
+func (f TransformerFunc) Transform(document JSON) JSON {
 	return f(document)
 }
 
@@ -17,19 +17,19 @@ type QueryTransformer struct {
 	Source      DatabaseLet
 }
 
-func (i *QueryTransformer) Query(query Document) ([]Document, error) {
+func (i *QueryTransformer) Query(query JSON) ([]JSON, error) {
 	query = i.Transformer.Transform(query)
 	return i.Source.Query(query)
 }
 
 // Transforms documents after they are returned from the source
 
-type DocumentsTransformer struct {
+type ResultsTransformer struct {
 	Transformer Transformer
 	Source      DatabaseLet
 }
 
-func (t *DocumentsTransformer) Query(query Document) ([]Document, error) {
+func (t *ResultsTransformer) Query(query JSON) ([]JSON, error) {
 	query = t.Transformer.Transform(query)
 	docs, err := t.Source.Query(query)
 	if err != nil {
@@ -43,55 +43,55 @@ func (t *DocumentsTransformer) Query(query Document) ([]Document, error) {
 	return docs, nil
 }
 
-// ------------------- []Document -> Document
+// ------------------- []JSON -> JSON
 
 type Reducer interface {
-	Reduce([]Document) Document
+	Reduce([]JSON) JSON
 }
 
-type ReducerFunc func([]Document) Document
+type ReducerFunc func([]JSON) JSON
 
-func (r ReducerFunc) Reduce(docs []Document) Document {
+func (r ReducerFunc) Reduce(docs []JSON) JSON {
 	return r(docs)
 }
 
-type DocumentReducer struct {
+type ResultsReducer struct {
 	Reducer Reducer
 	Source  DatabaseLet
 }
 
-func (r *DocumentReducer) Query(query Document) ([]Document, error) {
+func (r *ResultsReducer) Query(query JSON) ([]JSON, error) {
 	docs, err := r.Source.Query(query)
 	if err != nil {
 		return nil, err
 	}
-	return []Document{r.Reducer.Reduce(docs)}, nil
+	return []JSON{r.Reducer.Reduce(docs)}, nil
 }
 
-// Exploder Document -> []Document
+// Exploder JSON -> []JSON
 
 type Exploder interface {
-	Explode(Document) []Document
+	Explode(JSON) []JSON
 }
 
-type ExploderFunc func(Document) []Document
+type ExploderFunc func(JSON) []JSON
 
-func (e ExploderFunc) Explode(doc Document) []Document {
+func (e ExploderFunc) Explode(doc JSON) []JSON {
 	return e(doc)
 }
 
-type DocumentExploder struct {
+type ResultsExploder struct {
 	Exploder Exploder
 	Source   DatabaseLet
 }
 
-func (e *DocumentExploder) Query(query Document) ([]Document, error) {
+func (e *ResultsExploder) Query(query JSON) ([]JSON, error) {
 	docs, err := e.Source.Query(query)
 	if err != nil {
 		return nil, err
 	}
 
-	var out []Document
+	var out []JSON
 
 	for _, doc := range docs {
 		out = append(out, e.Exploder.Explode(doc)...)

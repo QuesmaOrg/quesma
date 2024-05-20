@@ -3,13 +3,13 @@ package main
 // Every process is a database.
 
 type DatabaseLet interface {
-	Query(query Document) ([]Document, error)
+	Query(query JSON) ([]JSON, error)
 }
 
 type Ingester interface {
-	Ingest(document Document) error
+	Ingest(document JSON) error
 }
 
 // Every data is a document
 
-type Document map[string]interface{}
+type JSON map[string]interface{}
