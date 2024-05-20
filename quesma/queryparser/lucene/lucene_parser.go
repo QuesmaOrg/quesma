@@ -204,13 +204,9 @@ func (p *luceneParser) parseRange(query string) (token token, remainingQuery str
 // acceptableCharsAfterNumber - what character is acceptable as first character after the number,
 // e.g. when acceptableCharsAfterNumber = {']', '}'}, then 200} or 200] parses to 200, but parsing 200( fails.
 func (p *luceneParser) parseNumber(query string, reportErrors bool, acceptableCharsAfterNumber []rune) (number float64, remainingQuery string) {
-	startIndex := 0
-	for startIndex < len(query) && query[startIndex] == ' ' {
-		startIndex++
-	}
-
-	i, dotCount := startIndex, 0
-	if i < len(query) && query[i] == '-' {
+	query = strings.TrimSpace(query)
+	i, dotCount := 0, 0
+	if len(query) > 0 && query[0] == '-' {
 		i++
 	}
 	for ; i < len(query); i++ {
@@ -236,7 +232,7 @@ func (p *luceneParser) parseNumber(query string, reportErrors bool, acceptableCh
 		}
 	}
 	var err error
-	number, err = strconv.ParseFloat(query[startIndex:i], 64)
+	number, err = strconv.ParseFloat(query[:i], 64)
 	if err != nil {
 		if reportErrors {
 			logger.Error().Msgf("invalid number, query: %s, error: %v", query, err)
