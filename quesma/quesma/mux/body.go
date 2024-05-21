@@ -74,7 +74,7 @@ func (op BulkOperation) GetIndex() string {
 }
 
 func (op BulkOperation) GetOperation() string {
-	for operation, _ := range op {
+	for operation := range op {
 		return operation
 	}
 	return ""
