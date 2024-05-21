@@ -2677,7 +2677,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 	},
 	{ // [15]
-		TestName: "Max bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max Bucket (Aggregation: Date Histogram, Metric: Min)",
+		TestName: "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -2686,6 +2686,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"aggs": {
 				"1": {
 					"max_bucket": {
+						"buckets_path": "1-bucket>1-metric"
+					}
+				},
+				"2":{
+					"sum_bucket": {
 						"buckets_path": "1-bucket>1-metric"
 					}
 				},
@@ -2758,6 +2763,9 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 						"2024-05-21T05:20:00.000+02:00"
 					],
 					"value": 121360.0
+				},
+				"2": {
+					"dunno": "check in opensearch and add this"
 				},
 				"1-bucket": {
 					"buckets": [
@@ -2848,7 +2856,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 	},
 	{ // [16]
-		TestName: "Max bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max Bucket (Aggregation: Histogram, Metric: Max)",
+		TestName: "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max/Sum Bucket (Aggregation: Histogram, Metric: Max)",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -2857,6 +2865,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"aggs": {
 				"1": {
 					"max_bucket": {
+						"buckets_path": "1-bucket>1-metric"
+					}
+				},
+				"2":{
+					"sum_bucket": {
 						"buckets_path": "1-bucket>1-metric"
 					}
 				},
@@ -2930,6 +2943,10 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					],
 					"value": 211840
 				},
+				"2":
+				{
+					"value": 212292
+				},
 				"1-bucket": {
 					"buckets": [
 						{
@@ -2998,6 +3015,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					model.NewQueryResultCol("count()", 1),
 				}},
 			},
+			{}, // NoDBQuery
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName,
@@ -3010,6 +3028,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY ("bytes") ` +
 				`ORDER BY ("bytes")`,
+			`NoDBQuery`,
 		},
 	},
 	/* waits for probably a simple filters fix
