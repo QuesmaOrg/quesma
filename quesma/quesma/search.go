@@ -133,6 +133,42 @@ func isNonAggregationQuery(queryInfo model.SearchQueryInfo, body []byte) bool {
 		queryInfo.Typ == model.CountAsync
 }
 
+func (q *QueryRunner) ParseQuery(ctx context.Context,
+	queryTranslator IQueryTranslator,
+	body []byte,
+	table *clickhouse.Table) ([]model.Query, []string, bool, bool, error) {
+	simpleQuery, queryInfo, highlighter, err := queryTranslator.ParseQuery(string(body))
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("error parsing query: %v", err)
+		return nil, nil, false, false, err
+	}
+	var columns []string
+	var query *model.Query
+	var queries []model.Query
+	var isAggregation bool
+	canParse := false
+
+	if simpleQuery.CanParse {
+		canParse = true
+		if isNonAggregationQuery(queryInfo, body) {
+			query, columns = q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
+			queries = append(queries, *query)
+			isAggregation = false
+			return queries, columns, isAggregation, canParse, nil
+		} else {
+			queries, err = queryTranslator.ParseAggregationJson(string(body))
+			if err != nil {
+				logger.ErrorWithCtx(ctx).Msgf("error parsing aggregation: %v", err)
+				return nil, nil, false, false, err
+			}
+			isAggregation = true
+			return queries, columns, isAggregation, canParse, nil
+		}
+	}
+
+	return nil, nil, false, false, err
+}
+
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body []byte, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
 	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im, q.logManager)
 
