@@ -5,6 +5,8 @@ import (
 	"mitmproxy/quesma/testdata"
 )
 
+var nilVariable any = nil
+
 var PipelineAggregationTests = []testdata.AggregationTestCase{
 	{ // [0]
 		TestName: "Simplest cumulative_sum (count). Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Count), Buckets: Histogram",
@@ -2676,8 +2678,344 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`LIMIT 5`,
 		},
 	},
-	/* waits for probably a simple filters fix
 	{ // [15]
+		TestName: "Max bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max Bucket (Aggregation: Date Histogram, Metric: Min)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"1": {
+					"max_bucket": {
+						"buckets_path": "1-bucket>1-metric"
+					}
+				},
+				"1-bucket": {
+					"aggs": {
+						"1-metric": {
+							"min": {
+								"field": "memory"
+							}
+						}
+					},
+					"date_histogram": {
+						"field": "timestamp",
+						"fixed_interval": "10m",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"1": {
+					"keys": [
+						"2024-05-21T05:20:00.000+02:00"
+					],
+					"value": 121360.0
+				},
+				"1-bucket": {
+					"buckets": [
+						{
+							"1-metric": {
+								"value": null
+							},
+							"doc_count": 1,
+							"key": 1716231600000,
+							"key_as_string": "2024-05-20T19:00:00.000"
+						},
+						{
+							"1-metric": {
+								"value": 121360.0
+							},
+							"doc_count": 4,
+							"key": 1716276600000,
+							"key_as_string": "2024-05-21T07:30:00.000"
+						},
+						{
+							"1-metric": {
+								"value": null
+							},
+							"doc_count": 1,
+							"key": 1716277200000,
+							"key_as_string": "2024-05-21T07:40:00.000"
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 72
+				}
+			},
+			"timed_out": false,
+			"took": 4
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(72))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1716231600000/600000)),
+					model.NewQueryResultCol(`minOrNull("memory")`, nil),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1716276600000/600000)),
+					model.NewQueryResultCol(`minOrNull("memory")`, 121360.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1716277200000/600000)),
+					model.NewQueryResultCol(`minOrNull("memory")`, nil),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1716231600000/600000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1716276600000/600000)),
+					model.NewQueryResultCol("count()", 4),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1716277200000/600000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName,
+			`NoDBQuery`,
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
+				`minOrNull("memory") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
+				"count() " +
+				"FROM " + testdata.QuotedTableName + " " +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+		},
+	},
+	{ // [16]
+		TestName: "Max bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max Bucket (Aggregation: Histogram, Metric: Max)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"1": {
+					"max_bucket": {
+						"buckets_path": "1-bucket>1-metric"
+					}
+				},
+				"1-bucket": {
+					"aggs": {
+						"1-metric": {
+							"max": {
+								"field": "memory"
+							}
+						}
+					},
+					"histogram": {
+						"field": "bytes",
+						"interval": 1,
+						"min_doc_count": 1
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		// changed "5296.0" to 5296 in response, hope it works (check)
+		ExpectedResponse: ` 
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"1": {
+					"keys": [
+						5296
+					],
+					"value": 211840
+				},
+				"1-bucket": {
+					"buckets": [
+						{
+							"1-metric": {
+								"value": null
+							},
+							"doc_count": 5,
+							"key": 0.0
+						},
+						{
+							"1-metric": {
+								"value": 211840
+							},
+							"doc_count": 1,
+							"key": 5296.0
+						},
+						{
+							"1-metric": {
+								"value": 452
+							},
+							"doc_count": 1,
+							"key": 16837.0
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 73
+				}
+			},
+			"timed_out": false,
+			"took": 11
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1974))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("bytes", 0.0),
+					model.NewQueryResultCol(`maxOrNull("memory")`, nil),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("bytes", 5296.0),
+					model.NewQueryResultCol(`maxOrNull("memory")`, 211840),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("bytes", 16837.0),
+					model.NewQueryResultCol(`maxOrNull("memory")`, 452),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("bytes", 0.0),
+					model.NewQueryResultCol("count()", 5),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("bytes", 5296.0),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("bytes", 16837.0),
+					model.NewQueryResultCol("count()", 1),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + testdata.QuotedTableName,
+			`NoDBQuery`,
+			`SELECT "bytes", maxOrNull("memory") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY ("bytes") ` +
+				`ORDER BY ("bytes")`,
+			`SELECT "bytes", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY ("bytes") ` +
+				`ORDER BY ("bytes")`,
+		},
+	},
+	/* waits for probably a simple filters fix
+	{ // [17]
 		TestName: "max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum)",
 		QueryRequestJson: `
 		{
@@ -2850,7 +3188,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 	},
 	*/
 	/* waits for probably a simple filters fix
-	{ // [16] TODO check this test with other pipeline aggregations
+	{ // [18] TODO check this test with other pipeline aggregations
 		TestName: "complex max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum), Buckets: Split chart: Rows -> Range",
 		QueryRequestJson: `
 		{

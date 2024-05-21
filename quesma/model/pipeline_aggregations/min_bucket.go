@@ -49,13 +49,13 @@ func (query MinBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows [
 	// in calculateSingleAvgBucket we calculate avg all current_keys with the same parent_cols
 	// so we need to split into buckets based on parent_cols
 	for _, parentRowsOneBucket := range qp.SplitResultSetIntoBuckets(parentRows, parentFieldsCnt) {
-		resultRows = append(resultRows, query.calculateSingleMinBucket(parentRowsOneBucket))
+		resultRows = append(resultRows, query.calculateSingleMinBucket(qwa, parentRowsOneBucket))
 	}
 	return resultRows
 }
 
 // we're sure len(parentRows) > 0
-func (query MinBucket) calculateSingleMinBucket(parentRows []model.QueryResultRow) model.QueryResultRow {
+func (query MinBucket) calculateSingleMinBucket(qwa *model.Query, parentRows []model.QueryResultRow) model.QueryResultRow {
 	var resultValue any
 	var resultKeys []any
 	if firstRowValueFloat, firstRowValueIsFloat := util.ExtractFloat64Maybe(parentRows[0].LastColValue()); firstRowValueIsFloat {
@@ -73,7 +73,7 @@ func (query MinBucket) calculateSingleMinBucket(parentRows []model.QueryResultRo
 		// find keys with min value
 		for _, row := range parentRows {
 			if value, ok := util.ExtractFloat64Maybe(row.LastColValue()); ok && value == minValue {
-				resultKeys = append(resultKeys, getKey(query.ctx, row))
+				resultKeys = append(resultKeys, getKey(query.ctx, row, qwa))
 			}
 		}
 	} else if firstRowValueInt, firstRowValueIsInt := util.ExtractInt64Maybe(parentRows[0].LastColValue()); firstRowValueIsInt {
@@ -91,7 +91,7 @@ func (query MinBucket) calculateSingleMinBucket(parentRows []model.QueryResultRo
 		// find keys with min value
 		for _, row := range parentRows {
 			if value, ok := util.ExtractInt64Maybe(row.LastColValue()); ok && value == minValue {
-				resultKeys = append(resultKeys, getKey(query.ctx, row))
+				resultKeys = append(resultKeys, getKey(query.ctx, row, qwa))
 			}
 		}
 	}
