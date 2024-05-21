@@ -286,7 +286,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	})
 
 	eqlHandler := func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
-		// TODO we should pass JSON here instead of []byte
+		//
 		responseBody, err := queryRunner.handleEQLSearch(ctx, req.Params["index"], []byte(req.Body))
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {

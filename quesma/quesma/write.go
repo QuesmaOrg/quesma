@@ -36,6 +36,9 @@ func dualWriteBulk(ctx context.Context, defaultIndex *string, jsons mux.NDJSON, 
 	defer recovery.LogPanic()
 
 	indicesWithDocumentsToInsert := make(map[string][]mux.JSON, len(jsons))
+
+	// TODO use NDJSON.ForEach instead of iterating over the slice
+
 	for i := 0; i+1 < len(jsons); i += 2 {
 		operation := jsons[i]  // {"create":{"_index":"kibana_sample_data_flights", "_id": 1}}
 		document := jsons[i+1] // {"FlightNum":"9HY9SWR","DestCountry":"AU","OriginWeather":"Sunny","OriginCityName":"Frankfurt am Main" }

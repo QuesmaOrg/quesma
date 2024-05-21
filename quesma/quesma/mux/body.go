@@ -1,7 +1,6 @@
 package mux
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -41,6 +40,50 @@ func (j JSON) ShortString() string {
 
 type NDJSON []JSON
 
+type DocumentTarget struct {
+	Index *string `json:"_index"`
+	Id    *string `json:"_id"` // document's target id in Elasticsearch, we ignore it when writing to Clickhouse.
+}
+
+type NDJSONOperation map[string]DocumentTarget
+
+func (op NDJSONOperation) GetIndex() string {
+	for _, target := range op { // this map contains only 1 element though
+		if target.Index != nil {
+			return *target.Index
+		}
+	}
+
+	return ""
+}
+
+func (op NDJSONOperation) GetOperation() string {
+	for operation, _ := range op {
+		return operation
+	}
+	return ""
+}
+
+func (n NDJSON) ForEach(f func(operation NDJSONOperation, doc JSON)) error {
+
+	for i := 0; i+1 < len(n); i += 2 {
+		operation := n[i]  // {"create":{"_index":"kibana_sample_data_flights", "_id": 1}}
+		document := n[i+1] // {"FlightNum":"9HY9SWR","DestCountry":"AU","OriginWeather":"Sunny","OriginCityName":"Frankfurt am Main" }
+
+		var operationParsed NDJSONOperation // operationName (create, index, update, delete) -> DocumentTarget
+
+		err := operation.Remarshal(&operationParsed)
+		if err != nil {
+			return err
+		}
+
+		f(operationParsed, document)
+	}
+
+	return nil
+
+}
+
 // There we can add methods to iterate over NDJSON
 
 type Unknown []error
@@ -49,32 +92,31 @@ type RequestBody interface {
 	isParsedRequestBody() // this is a marker method
 }
 
-
 func (j JSON) isParsedRequestBody()    {}
 func (n NDJSON) isParsedRequestBody()  {}
 func (e Unknown) isParsedRequestBody() {}
 
-func ParseRequestBody(ctx context.Context, req *Request) RequestBody {
+func ParseRequestBody(body string) RequestBody {
 
 	var errors []error
 
 	switch {
 	// json
-	case len(req.Body) > 1 && req.Body[0] == '{':
+	case len(body) > 1 && body[0] == '{':
 		parsedBody := make(JSON)
-		if err := json.Unmarshal([]byte(req.Body), &parsedBody); err != nil {
+		if err := json.Unmarshal([]byte(body), &parsedBody); err != nil {
 			errors = append(errors, fmt.Errorf("error while parsing JSON %s", err))
 		} else {
 			return parsedBody
 		}
 
 	// ndjson
-	case len(req.Body) > 1 && req.Body[0] == '{':
+	case len(body) > 1 && body[0] == '{':
 
 		var ndjson NDJSON
 
 		var err error
-		for _, line := range strings.Split(req.Body, "\n") {
+		for _, line := range strings.Split(body, "\n") {
 
 			parsedLine := make(JSON)
 
