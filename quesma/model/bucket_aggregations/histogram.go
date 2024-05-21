@@ -8,13 +8,14 @@ import (
 )
 
 type Histogram struct {
-	ctx         context.Context
-	interval    float64
-	minDocCount int
+	ctx                     context.Context
+	FieldNameProperlyQuoted string
+	Interval                float64
+	minDocCount             int
 }
 
-func NewHistogram(ctx context.Context, interval float64, minDocCount int) Histogram {
-	return Histogram{ctx: ctx, interval: interval, minDocCount: minDocCount}
+func NewHistogram(ctx context.Context, fieldNameProperlyQuoted string, interval float64, minDocCount int) Histogram {
+	return Histogram{ctx: ctx, FieldNameProperlyQuoted: fieldNameProperlyQuoted, Interval: interval, minDocCount: minDocCount}
 }
 
 func (query Histogram) IsBucketAggregation() bool {
@@ -69,7 +70,7 @@ func (query Histogram) PostprocessResults(rowsFromDB []model.QueryResultRow) []m
 		lastKey := query.getKey(rowsFromDB[i-1])
 		currentKey := query.getKey(rowsFromDB[i])
 		// we need to add rows in between
-		for midKey := lastKey + query.interval; util.IsSmaller(midKey, currentKey); midKey += query.interval {
+		for midKey := lastKey + query.Interval; util.IsSmaller(midKey, currentKey); midKey += query.Interval {
 			midRow := rowsFromDB[i-1].Copy()
 			midRow.Cols[len(midRow.Cols)-2].Value = midKey
 			midRow.Cols[len(midRow.Cols)-1].Value = 0

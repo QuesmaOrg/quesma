@@ -54,7 +54,7 @@ func (cw *ClickhouseQueryTranslator) parseRangeAggregation(rangePart QueryMap) b
 }
 
 func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQueryBuilder, Range bucket_aggregations.Range,
-	queryCurrentLevel QueryMap, aggregationsAccumulator *[]model.Query, metadata JsonMap) {
+	queryCurrentLevel QueryMap, aggregationsAccumulator *[]model.Query) {
 
 	// build this aggregation
 	for _, interval := range Range.Intervals {
@@ -72,7 +72,7 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 			logger.ErrorWithCtx(cw.Ctx).Msg("no aggregators in currentAggr")
 		}
 	}
-	*aggregationsAccumulator = append(*aggregationsAccumulator, currentAggr.buildBucketAggregation(metadata))
+	*aggregationsAccumulator = append(*aggregationsAccumulator, currentAggr.finishBuildingAggregationBucket())
 	currentAggr.NonSchemaFields = currentAggr.NonSchemaFields[:len(currentAggr.NonSchemaFields)-len(Range.Intervals)]
 
 	// build subaggregations
@@ -83,21 +83,18 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 	// TODO now we run a separate query for each range.
 	// it's much easier to code it this way, but that can, quite easily, be improved.
 	// Range aggregation with subaggregations should be a quite rare case, so I'm leaving that for later.
-	whereBeforeNesting := currentAggr.whereBuilder
 	for _, interval := range Range.Intervals {
-		currentAggr.whereBuilder = model.CombineWheres(
-			cw.Ctx, currentAggr.whereBuilder,
+		cl := currentAggr.clone()
+		cl.whereBuilder = model.CombineWheres(cw.Ctx, cl.whereBuilder,
 			model.NewSimpleQuery(model.NewSimpleStatement(interval.ToWhereClause(Range.QuotedFieldName)), true),
 		)
-		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(interval.String()))
+		cl.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(interval.String()))
 		aggsCopy, err := deepcopy.Anything(aggs)
 		if err == nil {
 			currentAggr.Type = model.NewUnknownAggregationType(cw.Ctx)
-			cw.parseAggregationNames(currentAggr, aggsCopy.(QueryMap), aggregationsAccumulator)
+			cw.parseAggregationNames(cl, aggsCopy.(QueryMap), aggregationsAccumulator)
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("deepcopy 'aggs' map error: %v. Skipping current range's interval: %v, aggs: %v", err, interval, aggs)
 		}
-		currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
-		currentAggr.whereBuilder = whereBeforeNesting
 	}
 }

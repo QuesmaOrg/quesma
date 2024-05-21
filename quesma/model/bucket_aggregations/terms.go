@@ -2,17 +2,22 @@ package bucket_aggregations
 
 import (
 	"context"
+	"fmt"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 )
 
+const DefaultSize = 10
+
 type Terms struct {
-	ctx         context.Context
-	significant bool // true <=> significant_terms, false <=> terms
+	ctx             context.Context
+	Size            int
+	QuotedFieldName string
+	significant     bool // true <=> significant_terms, false <=> terms
 }
 
-func NewTerms(ctx context.Context, significant bool) Terms {
-	return Terms{ctx: ctx, significant: significant}
+func NewTerms(ctx context.Context, size int, quotedFieldName string, significant bool) Terms {
+	return Terms{ctx: ctx, Size: size, QuotedFieldName: quotedFieldName, significant: significant}
 }
 
 func (query Terms) IsBucketAggregation() bool {
@@ -41,10 +46,11 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 }
 
 func (query Terms) String() string {
-	if !query.significant {
-		return "terms"
+	var namePrefix string
+	if query.significant {
+		namePrefix = "significant_"
 	}
-	return "significant_terms"
+	return fmt.Sprintf("%sterms(size=%d)", namePrefix, query.Size)
 }
 
 func (query Terms) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {

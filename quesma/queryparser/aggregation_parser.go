@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jinzhu/copier"
+	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
@@ -22,6 +24,17 @@ type aggrQueryBuilder struct {
 	model.Query
 	whereBuilder model.SimpleQuery // during building this is used for where clause, not `aggr.Where`
 	ctx          context.Context
+	termsNr      int
+}
+
+func newAggrQueryBuilder(ctx context.Context, tableName string) *aggrQueryBuilder {
+	return &aggrQueryBuilder{
+		ctx: ctx,
+		Query: model.Query{
+			FromClause: tableName,
+			TableName:  tableName,
+		},
+	}
 }
 
 type metricsAggregation struct {
@@ -38,46 +51,48 @@ type metricsAggregation struct {
 
 const metricsAggregationDefaultFieldType = clickhouse.Invalid
 
-/* code from my previous approach to this issue. Let's keep for now, 95% it'll be not needed, I'll remove it then.
 func (b *aggrQueryBuilder) applyTermsSubSelect(terms bucket_aggregations.Terms) {
 	termsField := b.Query.GroupByFields[len(b.Query.GroupByFields)-1]
 	pp.Println(b, terms, termsField, b.Query.String())
 	whereLimitStmt := fmt.Sprintf("%s IN (%s)", termsField, b.String())
 	fmt.Println("WHERE LIMIT STMT:", whereLimitStmt)
 	fmt.Println("where before:", b.whereBuilder.Sql.Stmt)
-	b.whereBuilder = combineWheres(b.whereBuilder, newSimpleQuery(NewSimpleStatement(whereLimitStmt), true))
+	b.whereBuilder = model.CombineWheres(b.ctx, b.whereBuilder,
+		model.NewSimpleQuery(model.NewSimpleStatement(whereLimitStmt), true))
 	fmt.Println("where after:", b.whereBuilder.Sql.Stmt)
 }
-*/
 
-func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.Query {
-	query := b.Query
-	query.WhereClause = b.whereBuilder.Sql.Stmt
-
-	// Need to copy, as we might be proceeding to modify 'b' pointer
-	query.CopyAggregationFields(b.Query)
-	if len(query.Fields) > 0 && query.Fields[len(query.Fields)-1] == model.EmptyFieldSelection { // TODO 99% sure it's removed in next PR, let's leave for now
-		query.Fields = query.Fields[:len(query.Fields)-1]
-	}
-	query.RemoveEmptyGroupBy()
-	query.TrimKeywordFromFields(b.ctx)
-	query.Metadata = metadata
-	return query
+func (b *aggrQueryBuilder) finishBuildingAggregationCommon() model.Query {
+	b.Query.WhereClause = b.whereBuilder.Sql.Stmt
+	b.Query.TrimKeywordFromFields(b.ctx)
+	return b.Query
 }
 
-func (b *aggrQueryBuilder) buildCountAggregation(metadata model.JsonMap) model.Query {
-	query := b.buildAggregationCommon(metadata)
+func (b *aggrQueryBuilder) finishBuildingAggregationCount() model.Query {
+	query := b.finishBuildingAggregationCommon()
 	query.Type = metrics_aggregations.NewCount(b.ctx)
 	query.NonSchemaFields = append(query.NonSchemaFields, "count()")
+	fmt.Println("copy, non-schema: ", query.NonSchemaFields)
 	return query
 }
 
-func (b *aggrQueryBuilder) buildBucketAggregation(metadata model.JsonMap) model.Query {
-	query := b.buildAggregationCommon(metadata)
+func (b *aggrQueryBuilder) finishBuildingAggregationBucket() model.Query {
+	query := b.finishBuildingAggregationCommon()
 	query.NonSchemaFields = append(query.NonSchemaFields, "count()")
 	return query
 }
-func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregation, metadata model.JsonMap) model.Query {
+
+func (b *aggrQueryBuilder) clone() *aggrQueryBuilder {
+	fmt.Println("clone(), terms_nr: ", b.termsNr, "b:", *b)
+	var cop aggrQueryBuilder
+	err := copier.CopyWithOption(&cop, *b, copier.Option{DeepCopy: true})
+	fmt.Println(err)
+	fmt.Println("clone(), 2 terms_nr: ", cop.termsNr)
+	copPtr := &cop
+	return copPtr
+}
+
+func (b *aggrQueryBuilder) finishBuildingAggregationMetrics(metricsAggr metricsAggregation) model.Query {
 	getFirstFieldName := func() string {
 		if len(metricsAggr.FieldNames) > 0 {
 			return metricsAggr.FieldNames[0]
@@ -85,7 +100,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		logger.ErrorWithCtx(b.ctx).Msg("No field names in metrics aggregation. Using empty.")
 		return ""
 	}
-	query := b.buildAggregationCommon(metadata)
+	query := b.finishBuildingAggregationCommon()
 	switch metricsAggr.AggrType {
 	case "sum", "min", "max", "avg":
 		var fieldNameProperlyQuoted string
@@ -201,12 +216,10 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal error: %v", err)
 	}
-	currentAggr := aggrQueryBuilder{}
-	currentAggr.FromClause = cw.Table.FullTableName()
-	currentAggr.ctx = cw.Ctx
+	aggrBuilder := newAggrQueryBuilder(cw.Ctx, cw.Table.FullTableName())
 	if queryPartRaw, ok := queryAsMap["query"]; ok {
 		if queryPart, ok := queryPartRaw.(QueryMap); ok {
-			currentAggr.whereBuilder = cw.parseQueryMap(queryPart)
+			aggrBuilder.whereBuilder = cw.parseQueryMap(queryPart)
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("query is not a map, but %T, query: %v. Skipping", queryPartRaw, queryPartRaw)
 		}
@@ -214,8 +227,8 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 
 	// COUNT(*) is needed for every request. We should change it and don't duplicate it, as some
 	// requests also ask for that themselves, but let's leave it for later.
-	aggregations := []model.Query{currentAggr.buildCountAggregation(model.NoMetadataField)}
-
+	fmt.Println("POCZATEK", aggrBuilder.whereBuilder)
+	aggregations := []model.Query{aggrBuilder.clone().finishBuildingAggregationCount()}
 	if aggsRaw, ok := queryAsMap["aggs"]; ok {
 		aggs, ok := aggsRaw.(QueryMap)
 		if !ok {
@@ -232,12 +245,12 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 				logger.WarnWithCtx(cw.Ctx).Msgf("aggr is not a map, but %T, aggr: %v. Skipping", aggrRaw, aggrRaw)
 				continue
 			}
-			currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(aggrName))
-			err := cw.parseAggregation(&currentAggr, aggr, &aggregations)
+			cl := aggrBuilder.clone()
+			cl.Aggregators = append(cl.Aggregators, model.NewAggregatorEmpty(aggrName))
+			err := cw.parseAggregation(cl, aggr, &aggregations)
 			if err != nil {
 				return nil, err
 			}
-			currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
 		}
 	} else {
 		return nil, fmt.Errorf("no aggs -> request is not an aggregation query")
@@ -246,14 +259,13 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 	const defaultSearchSize = 10
 	size := cw.parseSize(queryAsMap, defaultSearchSize)
 	if size > 0 {
-		simpleQuery := currentAggr.whereBuilder
+		simpleQuery := aggrBuilder.whereBuilder
 		if sort, ok := queryAsMap["sort"]; ok {
 			simpleQuery.SortFields = cw.parseSortFields(sort)
 		}
 		hitQuery := cw.BuildNRowsQuery("*", simpleQuery, size)
 		aggregations = append(aggregations, *hitQuery)
 	}
-
 	return aggregations, nil
 }
 
@@ -275,12 +287,14 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 
 func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQueryBuilder, queryMap QueryMap, resultAccumulator *[]model.Query) (err error) {
 	// We process subaggregations, introduced via (k, v), meaning 'aggregation_name': { dict }
+	fmt.Println("po klonie: ", currentAggr.termsNr)
 	for k, v := range queryMap {
 		// I assume it's new aggregator name
 		logger.DebugWithCtx(cw.Ctx).Msgf("names += %s", k)
-		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(k))
+		cl := currentAggr.clone()
+		cl.Aggregators = append(cl.Aggregators, model.NewAggregatorEmpty(k))
 		if subAggregation, ok := v.(QueryMap); ok {
-			err = cw.parseAggregation(currentAggr, subAggregation, resultAccumulator)
+			err = cw.parseAggregation(cl, subAggregation, resultAccumulator)
 			if err != nil {
 				return err
 			}
@@ -289,7 +303,6 @@ func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQuer
 				Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", k, v, v)
 		}
 		logger.DebugWithCtx(cw.Ctx).Msgf("names -= %s", k)
-		currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
 	}
 	return nil
 }
@@ -313,45 +326,39 @@ func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQuer
 // Notice that on 0, 2, ..., level of nesting we have "aggs" key or aggregation type.
 // On 1, 3, ... level of nesting we have names of aggregations, which can be any arbitrary strings.
 // This function is called on those 0, 2, ... levels, and parses the actual aggregations.
-func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuilder, queryMap QueryMap, resultAccumulator *[]model.Query) error {
+func (cw *ClickhouseQueryTranslator) parseAggregation(aggrBuilder *aggrQueryBuilder, queryMap QueryMap, resultAccumulator *[]model.Query) error {
 	if len(queryMap) == 0 {
 		return nil
 	}
+	fmt.Println("WCHODZE ", aggrBuilder.Type)
 
-	filterOnThisLevel := false
-	whereBeforeNesting := currentAggr.whereBuilder // to restore it after processing this level
-	queryTypeBeforeNesting := currentAggr.Type
-	suffixBeforeNesting := currentAggr.SuffixClauses
-
-	// check if metadata's present
-	var metadata model.JsonMap
+	// set metadata
 	if metaRaw, exists := queryMap["meta"]; exists {
-		metadata = metaRaw.(model.JsonMap)
+		aggrBuilder.Metadata = metaRaw.(model.JsonMap)
 		delete(queryMap, "meta")
 	} else {
-		metadata = model.NoMetadataField
+		aggrBuilder.Metadata = model.NoMetadataField
 	}
 
 	// 1. Metrics aggregation => always leaf
 	if metricsAggrResult, isMetrics := cw.tryMetricsAggregation(queryMap); isMetrics {
-		*resultAccumulator = append(*resultAccumulator, currentAggr.buildMetricsAggregation(metricsAggrResult, metadata))
+		*resultAccumulator = append(*resultAccumulator, aggrBuilder.finishBuildingAggregationMetrics(metricsAggrResult))
 		return nil
 	}
 
 	// 2. Pipeline aggregation => always leaf (for now)
 	pipelineAggregationType, isPipelineAggregation := cw.parsePipelineAggregations(queryMap)
 	if isPipelineAggregation {
-		*resultAccumulator = append(*resultAccumulator, currentAggr.finishBuildingAggregationPipeline(pipelineAggregationType, metadata))
+		*resultAccumulator = append(*resultAccumulator, aggrBuilder.finishBuildingAggregationPipeline(pipelineAggregationType))
 	}
 
 	// 3. Now process filter(s) first, because they apply to everything else on the same level or below.
 	// Also filter introduces count to current level.
 	if filterRaw, ok := queryMap["filter"]; ok {
 		if filter, ok := filterRaw.(QueryMap); ok {
-			filterOnThisLevel = true
-			currentAggr.Type = metrics_aggregations.NewCount(cw.Ctx)
-			currentAggr.whereBuilder = model.CombineWheres(cw.Ctx, currentAggr.whereBuilder, cw.parseQueryMap(filter))
-			*resultAccumulator = append(*resultAccumulator, currentAggr.buildCountAggregation(metadata))
+			aggrBuilder.Type = metrics_aggregations.NewCount(cw.Ctx)
+			aggrBuilder.whereBuilder = model.CombineWheres(cw.Ctx, aggrBuilder.whereBuilder, cw.parseQueryMap(filter))
+			*resultAccumulator = append(*resultAccumulator, aggrBuilder.finishBuildingAggregationCount())
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("filter is not a map, but %T, value: %v. Skipping", filterRaw, filterRaw)
 		}
@@ -359,74 +366,86 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	}
 
 	// 4. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
-	bucketAggrPresent, nonSchemaFieldsAddedCount, groupByFieldsAddedCount, err := cw.tryBucketAggregation(currentAggr, queryMap)
+	bucketAggregationPresent, aggregation, err := cw.tryBucketAggregation(aggrBuilder, queryMap)
 	if err != nil {
 		return err
 	}
-	if nonSchemaFieldsAddedCount > 0 {
-		if len(currentAggr.Aggregators) > 0 {
-			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Empty = false
-		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("nonSchemaFieldsAddedCount > 0, but no aggregators present")
-		}
-	}
-
-	// process "range" with subaggregations
-	Range, isRange := currentAggr.Type.(bucket_aggregations.Range)
-	if isRange {
-		cw.processRangeAggregation(currentAggr, Range, queryMap, resultAccumulator, metadata)
-	}
-
-	// TODO what happens if there's all: filters, range, and subaggregations at current level?
-	// We probably need to do |ranges| * |filters| * |subaggregations| queries, but we don't do that yet.
-	// Or probably a bit less, if optimized correctly.
-	// Let's wait until we see such a query, maybe range and filters are mutually exclusive.
-
-	filters, isFilters := currentAggr.Type.(bucket_aggregations.Filters)
-	if isFilters {
-		cw.processFiltersAggregation(currentAggr, filters, queryMap, resultAccumulator)
-	}
-
-	aggsHandledSeparately := isRange || isFilters
-	if aggs, ok := queryMap["aggs"]; ok && !aggsHandledSeparately {
-		err = cw.parseAggregationNames(currentAggr, aggs.(QueryMap), resultAccumulator)
+	if bucketAggregationPresent {
+		aggrBuilder.Type = aggregation
+		err = cw.processBucketAggregation(aggrBuilder, queryMap, resultAccumulator)
 		if err != nil {
+			logger.ErrorWithCtx(cw.Ctx).Msgf("error processing bucket aggregation: %v", err)
 			return err
 		}
 	}
-	delete(queryMap, "aggs") // no-op if no "aggs"
 
-	if bucketAggrPresent && !aggsHandledSeparately {
-		// range aggregation has separate, optimized handling
-		*resultAccumulator = append(*resultAccumulator, currentAggr.buildBucketAggregation(metadata))
-	}
+	/*
+		if bucketAggregationPresent && totalFieldsAddedCount > 0 {
+			if len(currentAggr.Aggregators) > 0 {
+				currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Empty = false
+			} else {
+				logger.ErrorWithCtx(cw.Ctx).Msgf("nonSchemaFieldsAddedCount > 0, but no aggregators present")
+			}
+		}
 
-	for k, v := range queryMap {
+		// process "range" with subaggregations
+		Range, isRange := currentAggr.Type.(bucket_aggregations.Range)
+		if isRange {
+			cw.processRangeAggregation(currentAggr, Range, queryMap, resultAccumulator)
+		}
+
+		// TODO what happens if there's all: filters, range, and subaggregations at current level?
+		// We probably need to do |ranges| * |filters| * |subaggregations| queries, but we don't do that yet.
+		// Or probably a bit less, if optimized correctly.
+		// Let's wait until we see such a query, maybe range and filters are mutually exclusive.
+
+		// !!!!!!!!!!!TODO add to trybucketaggr
+		filtersRaw, isFilters := queryMap["filters"]
+		if isFilters {
+			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Filters = true
+			var filters []filter
+			if filtersAsMap, ok := filtersRaw.(QueryMap); ok {
+				filters = cw.parseFilters(filtersAsMap)
+			} else {
+				logger.WarnWithCtx(cw.Ctx).Msgf("filters is not a map, but %T, value: %v. Using empty", filtersRaw, filtersRaw)
+			}
+
+		}
+
+		aggsHandledSeparately := isRange || isFilters
+		if aggs, ok := queryMap["aggs"]; ok && !aggsHandledSeparately {
+			pp.Println(currentAggr.Type)
+			_, isTerms := currentAggr.Type.(bucket_aggregations.Terms)
+			if isTerms && bucketAggregationPresent {
+				fmt.Println("jestem", currentAggr.SuffixClauses)
+				// limit = currentAggr.SuffixClauses[len(currentAggr.SuffixClauses)-1]
+				// currentAggr.SuffixClauses = currentAggr.SuffixClauses[:len(currentAggr.SuffixClauses)-1] // remove LIMIT
+			}
+			fmt.Println("klonuje i terms_nr:", currentAggr.termsNr)
+			err = cw.parseAggregationNames(currentAggr.clone(), aggs.(QueryMap), resultAccumulator)
+			if err != nil {
+				return err
+			}
+		}
+		delete(queryMap, "aggs") // no-op if no "aggs"
+
+		if bucketAggregationPresent && !isRange {
+			// range aggregation has separate, optimized handling
+			_, isTerms := currentAggr.Type.(bucket_aggregations.Terms)
+			if isTerms {
+				fmt.Println("BUILDUJE TERMSY", util.SqlPrettyPrint([]byte(currentAggr.String())), currentAggr.SuffixClauses)
+			} else {
+				fmt.Printf("bobo %+v", currentAggr)
+			}
+			*resultAccumulator = append(*resultAccumulator, currentAggr.finishBuildingAggregationBucket())
+		}
+	*/
+	for aggrName, aggr := range queryMap {
+		fmt.Println(queryMap)
 		// should be empty by now. If it's not, it's an unsupported/unrecognized type of aggregation.
-		logger.ErrorWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).
-			Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", k, v, v)
+		logger.ErrorWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(aggrName)).
+			Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", aggrName, aggr, aggr)
 	}
-
-	// restore current state, removing subaggregation state
-	if filterOnThisLevel {
-		currentAggr.whereBuilder = whereBeforeNesting
-	}
-	if nonSchemaFieldsAddedCount > 0 {
-		if len(currentAggr.NonSchemaFields) >= nonSchemaFieldsAddedCount {
-			currentAggr.NonSchemaFields = currentAggr.NonSchemaFields[:len(currentAggr.NonSchemaFields)-nonSchemaFieldsAddedCount]
-		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("nonSchemaFieldsAddedCount > currentAggr.NonSchemaFields length -> should be impossible")
-		}
-	}
-	if groupByFieldsAddedCount > 0 {
-		if len(currentAggr.GroupByFields) >= groupByFieldsAddedCount {
-			currentAggr.GroupByFields = currentAggr.GroupByFields[:len(currentAggr.GroupByFields)-groupByFieldsAddedCount]
-		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("groupByFieldsAddecCount > currentAggr.GroupByFields length -> should be impossible")
-		}
-	}
-	currentAggr.Type = queryTypeBeforeNesting
-	currentAggr.SuffixClauses = suffixBeforeNesting
 	return nil
 }
 
@@ -544,51 +563,11 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 // * 'success': was it bucket aggreggation?
 // * 'nonSchemaFieldAdded': did we add a non-schema field to 'currentAggr', if it turned out to be bucket aggregation? If we did, we need to know, to remove it later.
 func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQueryBuilder, queryMap QueryMap) (
-	success bool, nonSchemaFieldsAddedCount, groupByFieldsAddedCount int, err error) {
+	success bool, aggregation model.QueryType, err error) {
 
-	success = true // returned in most cases
-	if histogramRaw, ok := queryMap["histogram"]; ok {
-		histogram, ok := histogramRaw.(QueryMap)
-		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("date_histogram is not a map, but %T, value: %v", histogramRaw, histogramRaw)
-		}
-		fieldName, isFieldNameFromScript := cw.parseFieldFieldMaybeScript(histogram, "histogram")
-		var fieldNameProperlyQuoted string
-		if isFieldNameFromScript {
-			fieldNameProperlyQuoted = fieldName
-		} else {
-			fieldNameProperlyQuoted = strconv.Quote(fieldName)
-		}
-		var interval float64
-		intervalRaw, ok := histogram["interval"]
-		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("interval not found in histogram: %v", histogram)
-		}
-		switch intervalTyped := intervalRaw.(type) {
-		case string:
-			var err error
-			interval, err = strconv.ParseFloat(intervalTyped, 64)
-			if err != nil {
-				logger.ErrorWithCtx(cw.Ctx).Err(err).Msgf("failed to parse interval: %v", intervalRaw)
-			}
-		case int:
-			interval = float64(intervalTyped)
-		case float64:
-			interval = intervalTyped
-		default:
-			interval = 1.0
-			logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v", intervalTyped, intervalTyped)
-		}
-		minDocCount := cw.parseMinDocCount(histogram)
-		currentAggr.Type = bucket_aggregations.NewHistogram(cw.Ctx, interval, minDocCount)
-		groupByStr := fieldNameProperlyQuoted
-		if interval != 1.0 {
-			groupByStr = fmt.Sprintf("floor(%s / %f) * %f", fieldNameProperlyQuoted, interval, interval)
-		}
-		currentAggr.GroupByFields = append(currentAggr.GroupByFields, groupByStr)
-		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, groupByStr)
-		delete(queryMap, "histogram")
-		return success, 1, 1, nil
+	if success, aggregation, err = cw.parseHistogramAggregation(queryMap); success {
+		fmt.Println("SUCCESS, aggr: ", aggregation)
+		return
 	}
 	if dateHistogramRaw, ok := queryMap["date_histogram"]; ok {
 		dateHistogram, ok := dateHistogramRaw.(QueryMap)
@@ -599,52 +578,16 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.Type = bucket_aggregations.NewDateHistogram(cw.Ctx, minDocCount, cw.extractInterval(dateHistogram))
 		histogramPartOfQuery := cw.createHistogramPartOfQuery(dateHistogram)
 		currentAggr.GroupByFields = append(currentAggr.GroupByFields, histogramPartOfQuery)
+		currentAggr.OrderBy = append(currentAggr.OrderBy, histogramPartOfQuery)
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, histogramPartOfQuery)
+		fmt.Println("current aggr po date histogram", currentAggr)
 		delete(queryMap, "date_histogram")
-		return success, 1, 1, nil
+		return true, currentAggr.Type, nil
 	}
-	for _, termsType := range []string{"terms", "significant_terms"} {
-		if terms, ok := queryMap[termsType]; ok {
-			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms")
-			fieldName := strconv.Quote(cw.parseFieldField(terms, termsType))
-			isEmptyGroupBy := len(currentAggr.GroupByFields) == 0
-			currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
-			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
-			size := 10
-			if _, ok := queryMap["aggs"]; isEmptyGroupBy && !ok { // we can do limit only it terms are not nested
-				if jsonMap, ok := terms.(QueryMap); ok {
-					if sizeRaw, ok := jsonMap["size"]; ok {
-						if sizeParsed, ok := sizeRaw.(float64); ok {
-							size = int(sizeParsed)
-						} else {
-							logger.WarnWithCtx(cw.Ctx).Msgf("size is not an float64, but %T, value: %v. Using default", sizeRaw, sizeRaw)
-						}
-					}
-				}
-				currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, "ORDER BY count() DESC")
-				currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, fmt.Sprintf("LIMIT %d", size))
-			}
-			delete(queryMap, termsType)
-			return success, 1, 1, nil
-			/* will remove later
-			var size int
-			if sizeRaw, exists := terms.(QueryMap)["size"]; exists {
-				size = (int)(sizeRaw.(float64))
-			} else {
-				size = bucket_aggregations.DefaultSize
-			}
-			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, size, termsType == "significant_terms")
-
-			fieldName := strconv.Quote(cw.parseFieldField(terms, termsType))
-			currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
-			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
-			currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, fmt.Sprintf("LIMIT %d", size))
-			currentAggr.SubSelect = currentAggr.Query.String()
-			fmt.Println("SUB:", currentAggr.SubSelect)
-			delete(queryMap, termsType)
-			return success, 1, 1, nil
-			*/
-		}
+	fmt.Println("presuccess")
+	if success, aggregation, err = cw.parseTermsAggregation(queryMap); success {
+		fmt.Println("SUCCESS, aggr: ", aggregation)
+		return
 	}
 	if rangeRaw, ok := queryMap["range"]; ok {
 		rangeMap, ok := rangeRaw.(QueryMap)
@@ -657,7 +600,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Keyed = true
 		}
 		delete(queryMap, "range")
-		return success, 0, 0, nil
+		return true, currentAggr.Type, nil
 	}
 	if dateRangeRaw, ok := queryMap["date_range"]; ok {
 		dateRange, ok := dateRangeRaw.(QueryMap)
@@ -667,7 +610,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		dateRangeParsed, err := cw.parseDateRangeAggregation(dateRange)
 		if err != nil {
 			logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("failed to parse date_range aggregation")
-			return false, 0, 0, err
+			return false, aggregation, err
 		}
 		currentAggr.Type = dateRangeParsed
 		for _, interval := range dateRangeParsed.Intervals {
@@ -680,35 +623,55 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			}
 		}
 		delete(queryMap, "date_range")
-		return success, dateRangeParsed.SelectColumnsNr, 0, nil
+		return true, currentAggr.Type, nil
 	}
-	if _, ok := queryMap["sampler"]; ok {
-		currentAggr.Type = metrics_aggregations.NewCount(cw.Ctx)
-		delete(queryMap, "sampler")
+	if success, aggregation = cw.parseFiltersAggregation(queryMap); success {
 		return
 	}
+	if success, aggregation = cw.parseSamplerAggregation(queryMap); success {
+		return
+	}
+	// move the comment below
 	// Let's treat random_sampler just like sampler for now, until we add `LIMIT` logic to sampler.
 	// Random sampler doesn't have `size` field, but `probability`, so logic in the final version should be different.
 	// So far I've only observed its "probability" field to be 1.0, so it's not really important.
-	if _, ok := queryMap["random_sampler"]; ok {
-		currentAggr.Type = metrics_aggregations.NewCount(cw.Ctx)
-		delete(queryMap, "random_sampler")
+	if success, aggregation = cw.parseRandomSamplerAggregation(queryMap); success {
 		return
 	}
-	if boolRaw, ok := queryMap["bool"]; ok {
-		if Bool, ok := boolRaw.(QueryMap); ok {
-			currentAggr.whereBuilder = model.CombineWheres(cw.Ctx, currentAggr.whereBuilder, cw.parseBool(Bool))
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("bool is not a map, but %T, value: %v. Skipping", boolRaw, boolRaw)
-		}
-		delete(queryMap, "bool")
+	if success, aggregation = cw.parseBoolAggregation(queryMap); success {
 		return
 	}
-	if isFilters, aggregation := cw.parseFilters(queryMap); isFilters {
-		currentAggr.Type = aggregation
-		return
-	}
+
 	success = false
+	return
+}
+
+func (cw *ClickhouseQueryTranslator) parseSamplerAggregation(queryMap QueryMap) (success bool, aggregation model.QueryType) {
+	if _, ok := queryMap["sampler"]; ok {
+		return true, bucket_aggregations.NewSampler(cw.Ctx)
+	}
+	return
+}
+
+func (cw *ClickhouseQueryTranslator) parseRandomSamplerAggregation(queryMap QueryMap) (success bool, aggregation model.QueryType) {
+	if _, ok := queryMap["sampler"]; ok {
+		return true, bucket_aggregations.NewRandomSampler(cw.Ctx)
+	}
+	return
+}
+
+func (cw *ClickhouseQueryTranslator) parseBoolAggregation(queryMap QueryMap) (success bool, aggregation model.QueryType) {
+	boolRaw, ok := queryMap["bool"]
+	if !ok {
+		return
+	}
+
+	delete(queryMap, "bool")
+	if Bool, ok := boolRaw.(QueryMap); ok {
+		return true, bucket_aggregations.NewBool(cw.Ctx, cw.parseBool(Bool))
+		// move to process currentAggr.whereBuilder = model.CombineWheres(cw.Ctx, currentAggr.whereBuilder,
+	}
+	logger.WarnWithCtx(cw.Ctx).Msgf("bool is not a map, but %T, value: %v. Skipping", boolRaw, boolRaw)
 	return
 }
 

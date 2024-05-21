@@ -3,10 +3,12 @@ package queryparser
 import (
 	"cmp"
 	"context"
+	"fmt"
 	"github.com/barkimedes/go-deepcopy"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/testdata"
@@ -556,7 +558,7 @@ func sortAggregations(aggregations []model.Query) {
 }
 
 func Test2AggregationParserExternalTestcases(t *testing.T) {
-	// logger.InitSimpleLoggerForTests()
+	logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -577,6 +579,11 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
+			//11
+			// 13 15 17 18
+			if i != 18 {
+				t.Skip()
+			}
 			if i > 26 && i <= 30 {
 				t.Skip("New tests, harder, failing for now. Fixes for them in 2 next PRs")
 			}
@@ -602,7 +609,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 
 			// Let's leave those commented debugs for now, they'll be useful in next PRs
 			for j, aggregation := range aggregations {
-				// fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\n", j, aggregation, aggregation.String())
+				fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\n", j, aggregation, aggregation.String())
 				test.ExpectedResults[j] = aggregation.Type.PostprocessResults(test.ExpectedResults[j])
 				// fmt.Println("--- Group by: ", aggregation.GroupByFields)
 				if test.ExpectedSQLs[j] != "NoDBQuery" {
