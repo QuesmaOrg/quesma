@@ -268,7 +268,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					defer recovery.LogAndHandlePanic(ctx, func() {
 						doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 					})
-					translatedQueryBody, hitsSlice := q.searchWorker(ctx, queries, append(columnsSlice, columns), table, false, doneCh, optAsync)
+					translatedQueryBody, hitsSlice := q.searchWorker(ctx, queries, append(columnsSlice, columns), table, doneCh, optAsync)
 					searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], queries[0])
 					if err != nil {
 						logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queries[0].QueryInfo, hits)
@@ -281,7 +281,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					defer recovery.LogAndHandlePanic(ctx, func() {
 						doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 					})
-					translatedQueryBody, aggregationResults = q.searchWorker(ctx, queries, columns, table, true, doneCh, optAsync)
+					translatedQueryBody, aggregationResults = q.searchWorker(ctx, queries, columns, table, doneCh, optAsync)
 					searchResponse := queryTranslator.MakeResponseAggregation(queries, aggregationResults)
 					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody}
 				}()
@@ -473,8 +473,7 @@ func (q *QueryRunner) searchWorkerCommon(
 	ctx context.Context,
 	queries []model.Query,
 	columns [][]string,
-	table *clickhouse.Table,
-	doPostProcessing bool) (translatedQueryBody []byte, hits [][]model.QueryResultRow) {
+	table *clickhouse.Table) (translatedQueryBody []byte, hits [][]model.QueryResultRow) {
 	sqls := ""
 	for columnsIndex, query := range queries {
 		if query.NoDBQuery {
@@ -488,7 +487,7 @@ func (q *QueryRunner) searchWorkerCommon(
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			continue
 		}
-		if doPostProcessing && query.Type != nil {
+		if query.Type != nil {
 			rows = query.Type.PostprocessResults(rows)
 		}
 		hits = append(hits, rows)
@@ -501,7 +500,6 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 	aggregations []model.Query,
 	columns [][]string,
 	table *clickhouse.Table,
-	doPostProcessing bool,
 	doneCh chan<- AsyncSearchWithError,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
 	if optAsync != nil {
@@ -513,7 +511,7 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 		ctx = dbQueryCtx
 	}
 
-	return q.searchWorkerCommon(ctx, aggregations, columns, table, doPostProcessing)
+	return q.searchWorkerCommon(ctx, aggregations, columns, table)
 }
 
 func (q *QueryRunner) Close() {
