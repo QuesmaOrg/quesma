@@ -74,18 +74,19 @@ func (c *RelationalDbConfiguration) IsNonEmpty() bool {
 	return !c.IsEmpty()
 }
 
-type FieldAlias struct {
-	TargetFieldName string `koanf:"target"`
-	SourceFieldName string `koanf:"source"`
+type IndexFieldConfiguration struct {
+	// Valid types: ignored, fulltext, alias, primary-timestamp
+	Type         *string `koanf:"type"`
+	AliasTo      *string `koanf:"aliasTo"`
+	DbColumnName *string `koanf:"dbColumnName"`
 }
 
 type IndexConfiguration struct {
-	Name           string                `koanf:"name"`
-	Enabled        bool                  `koanf:"enabled"`
-	FullTextFields []string              `koanf:"fullTextFields"`
-	Aliases        map[string]FieldAlias `koanf:"aliases"`
-	IgnoredFields  map[string]bool       `koanf:"ignoredFields"`
-	TimestampField *string               `koanf:"timestampField"`
+	Name    string                             `koanf:"name"`
+	Enabled bool                               `koanf:"enabled"`
+	Fields  map[string]IndexFieldConfiguration `koanf:"fields"`
+	// Valid: Add unmapped, add all, add none
+	DefaultFields *string `koanf:"policy"`
 }
 
 func (c IndexConfiguration) Matches(indexName string) bool {
