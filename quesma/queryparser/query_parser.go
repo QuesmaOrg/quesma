@@ -22,17 +22,12 @@ type (
 		Sql        Statement
 		CanParse   bool
 		FieldName  string
-		SortFields []SortField
+		SortFields []model.SortField
 	}
 	Statement struct {
 		Stmt       string
 		isCompound bool // "a" -> not compound, "a AND b" -> compound. Used to not make unnecessary brackets (not always, but usually)
 		FieldName  string
-	}
-
-	SortField struct {
-		Field string
-		Desc  bool
 	}
 )
 
@@ -1149,8 +1144,8 @@ func (cw *ClickhouseQueryTranslator) extractInterval(queryMap QueryMap) string {
 
 // parseSortFields parses sort fields from the query
 // We're skipping ELK internal fields, like "_doc", "_id", etc. (we only accept field starting with "_" if it exists in our table)
-func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortFields []SortField) {
-	sortFields = make([]SortField, 0)
+func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortFields []model.SortField) {
+	sortFields = make([]model.SortField, 0)
 	switch sortMaps := sortMaps.(type) {
 	case []any:
 		for _, sortMapAsAny := range sortMaps {
@@ -1173,7 +1168,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortFields [
 						if orderAsString, ok := order.(string); ok {
 							orderAsString = strings.ToLower(orderAsString)
 							if orderAsString == "asc" || orderAsString == "desc" {
-								sortFields = append(sortFields, SortField{Field: fieldName, Desc: orderAsString == "desc"})
+								sortFields = append(sortFields, model.SortField{Field: fieldName, Desc: orderAsString == "desc"})
 							} else {
 								logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", orderAsString)
 							}
@@ -1181,12 +1176,12 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortFields [
 							logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order type: %T, value: %v. Skipping", order, order)
 						}
 					} else {
-						sortFields = append(sortFields, SortField{Field: fieldName, Desc: false})
+						sortFields = append(sortFields, model.SortField{Field: fieldName, Desc: false})
 					}
 				case string:
 					v = strings.ToLower(v)
 					if v == "asc" || v == "desc" {
-						sortFields = append(sortFields, SortField{Field: fieldName, Desc: v == "desc"})
+						sortFields = append(sortFields, model.SortField{Field: fieldName, Desc: v == "desc"})
 					} else {
 						logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", v)
 					}
@@ -1205,7 +1200,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortFields [
 			if fieldValue, ok := fieldValue.(string); ok {
 				fieldValue = strings.ToLower(fieldValue)
 				if fieldValue == "asc" || fieldValue == "desc" {
-					sortFields = append(sortFields, SortField{Field: fieldName, Desc: fieldValue == "desc"})
+					sortFields = append(sortFields, model.SortField{Field: fieldName, Desc: fieldValue == "desc"})
 				} else {
 					logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", fieldValue)
 				}
@@ -1222,7 +1217,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortFields [
 			}
 			fieldValue = strings.ToLower(fieldValue)
 			if fieldValue == "asc" || fieldValue == "desc" {
-				sortFields = append(sortFields, SortField{Field: fieldName, Desc: fieldValue == "desc"})
+				sortFields = append(sortFields, model.SortField{Field: fieldName, Desc: fieldValue == "desc"})
 			} else {
 				logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", fieldValue)
 			}
@@ -1231,7 +1226,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortFields [
 		return sortFields
 	default:
 		logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of sortMaps: %T, value: %v", sortMaps, sortMaps)
-		return []SortField{}
+		return []model.SortField{}
 	}
 }
 

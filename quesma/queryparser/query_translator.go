@@ -729,7 +729,7 @@ func (cw *ClickhouseQueryTranslator) sortInTopologicalOrder(queries []model.Quer
 	return indexesSorted
 }
 
-func AsQueryString(sortFields []SortField) string {
+func AsQueryString(sortFields []model.SortField) string {
 	if len(sortFields) == 0 {
 		return ""
 	}

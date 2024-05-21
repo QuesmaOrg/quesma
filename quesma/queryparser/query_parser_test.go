@@ -443,7 +443,7 @@ func Test_parseSortFields(t *testing.T) {
 	tests := []struct {
 		name       string
 		sortMap    any
-		sortFields []SortField
+		sortFields []model.SortField
 	}{
 		{
 			name: "compound",
@@ -454,7 +454,7 @@ func Test_parseSortFields(t *testing.T) {
 				QueryMap{"_table_field_with_underscore": QueryMap{"order": "asc", "unmapped_type": "boolean"}}, // this should be accepted, as it exists in the table
 				QueryMap{"_doc": QueryMap{"order": "desc", "unmapped_type": "boolean"}},                        // this should be discarded, as it doesn't exist in the table
 			},
-			sortFields: []SortField{
+			sortFields: []model.SortField{
 				{Field: "@timestamp", Desc: true},
 				{Field: "service.name", Desc: false},
 				{Field: "no_order_field", Desc: false},
@@ -464,7 +464,7 @@ func Test_parseSortFields(t *testing.T) {
 		{
 			name:       "empty",
 			sortMap:    []any{},
-			sortFields: []SortField{},
+			sortFields: []model.SortField{},
 		},
 		{
 			name: "map[string]string",
@@ -472,7 +472,7 @@ func Test_parseSortFields(t *testing.T) {
 				"timestamp": "desc",
 				"_doc":      "desc",
 			},
-			sortFields: []SortField{
+			sortFields: []model.SortField{
 				{Field: "timestamp", Desc: true},
 			},
 		},
@@ -482,7 +482,7 @@ func Test_parseSortFields(t *testing.T) {
 				"timestamp": "desc",
 				"_doc":      "desc",
 			},
-			sortFields: []SortField{
+			sortFields: []model.SortField{
 				{Field: "timestamp", Desc: true},
 			},
 		}, {
@@ -491,7 +491,7 @@ func Test_parseSortFields(t *testing.T) {
 				QueryMap{"@timestamp": "asc"},
 				QueryMap{"_doc": "asc"},
 			},
-			sortFields: []SortField{
+			sortFields: []model.SortField{
 				{Field: "@timestamp", Desc: false},
 			},
 		},
