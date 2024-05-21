@@ -240,10 +240,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], *fullQuery)
 					if err != nil {
 						logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, fullQuery.QueryInfo, hits)
-						doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
-						return
 					}
-					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody}
+					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
 				}()
 			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
 				columns := make([][]string, len(aggregations))
@@ -474,7 +472,7 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 	doPostProcessing bool,
 	doneCh chan<- AsyncSearchWithError,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
-	if optAsync != nil && q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, doneCh) {
+	if optAsync != nil {
 		if q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, doneCh) {
 			return
 		}
@@ -483,12 +481,7 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 		ctx = dbQueryCtx
 	}
 
-	select {
-	case <-q.executionCtx.Done():
-		return // Unsure if needed or wanted
-	default:
-		return q.searchWorkerCommon(ctx, aggregations, columns, table, doPostProcessing)
-	}
+	return q.searchWorkerCommon(ctx, aggregations, columns, table, doPostProcessing)
 }
 
 func (q *QueryRunner) Close() {
