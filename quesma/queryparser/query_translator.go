@@ -80,13 +80,6 @@ func (cw *ClickhouseQueryTranslator) highlightHit(hit *model.SearchHit, highligh
 			}
 		}
 	}
-
-	// TODO: highlight and field checks
-	for _, alias := range cw.Table.AliasList() {
-		if v, ok := hit.Fields[alias.TargetFieldName]; ok {
-			hit.Fields[alias.SourceFieldName] = v
-		}
-	}
 }
 
 func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.QueryResultRow, highlighter model.Highlighter) *model.SearchResp {

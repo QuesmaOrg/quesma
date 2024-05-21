@@ -22,25 +22,35 @@ indexes:
     enabled: true
   kibana_sample_data_logs:
     enabled: true
-    aliases:
+    fields:
       timestamp:
-        targetfieldname: "timestamp"
-        sourcefieldname: "@timestamp"
+        type: "alias"
+        aliasTo: "@timestamp"
   kafka-example-topic:
     enabled: true
   logs-generic-default:
     enabled: true
-    fullTextFields: ["message", "host.name"]
+    fields:
+      message:
+        type: "fulltext"
+      host.name:
+        type: "fulltext"
   device-logs:
     enabled: true
-    fullTextFields: ["message"]
+    fields:
+      message:
+        type: "fulltext"
   phone_home_logs:
     enabled: true
-    fullTextFields: ["message"]
+    fields:
+      message:
+        type: "fulltext"
   windows_logs:
     enabled: true
   phone_home_data:
     enabled: true
-    fullTextFields: ["message"]
+    fields:
+      message:
+        type: "fulltext"
 
 

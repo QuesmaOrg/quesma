@@ -13,7 +13,6 @@ import (
 	"mitmproxy/quesma/index"
 	"mitmproxy/quesma/network"
 	"os"
-	"slices"
 	"strings"
 )
 
@@ -93,57 +92,44 @@ func (c IndexConfiguration) Matches(indexName string) bool {
 	return c.Name == indexName
 }
 
-func (c IndexConfiguration) HasFullTextField(fieldName string) bool {
-	return slices.Contains(c.FullTextFields, fieldName)
+func (c IndexConfiguration) FullTextFields() (fullTextFields []string) {
+	for fieldName, fieldConfig := range c.Fields {
+		if fieldConfig.Type != nil && *fieldConfig.Type == "fulltext" {
+			fullTextFields = append(fullTextFields, fieldName)
+		}
+	}
+	return
 }
 
 func (c IndexConfiguration) String() string {
-	var extraString string
-	extraString = ""
-	if len(c.Aliases) > 0 {
-		extraString += "; aliases: "
-		var aliases []string
-		for _, alias := range c.Aliases {
-			aliases = append(aliases, fmt.Sprintf("%s <- %s", alias.SourceFieldName, alias.TargetFieldName))
+	var build strings.Builder
+	for fieldName, fieldConfig := range c.Fields {
+		if build.Len() > 0 {
+			build.WriteString(", ")
 		}
-		extraString += strings.Join(aliases, ", ")
-	}
-	if len(c.IgnoredFields) > 0 {
-		extraString += "; ignored fields: "
-		var fields []string
-		for field := range c.IgnoredFields {
-			fields = append(fields, field)
+		setType := ""
+		if fieldConfig.Type != nil {
+			setType = *fieldConfig.Type
 		}
-		extraString += strings.Join(fields, ", ")
+		extra := ""
+		if fieldConfig.AliasTo != nil {
+			extra = fmt.Sprintf("alias to %s", *fieldConfig.AliasTo)
+		}
+		if fieldConfig.DbColumnName != nil {
+			extra = fmt.Sprintf("%s", *fieldConfig.DbColumnName)
+		}
+		build.WriteString(fmt.Sprintf("%s(%s)->%s", fieldName, setType, extra))
 	}
 	var str = fmt.Sprintf("\n\t\t%s, enabled: %t",
 		c.Name,
 		c.Enabled,
 	)
 
-	if len(c.FullTextFields) > 0 {
-		str = fmt.Sprintf("%s, fullTextFields: %s", str, strings.Join(c.FullTextFields, ", "))
+	if build.Len() > 0 {
+		str = fmt.Sprintf("%s, fields: %s", str, build.String())
 	}
 
-	if c.TimestampField != nil {
-		return fmt.Sprintf("%s, timestampField: %s", str, *c.TimestampField)
-	} else {
-		return str
-	}
-}
-
-func (c *QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string) bool {
-	if indexConfig, found := c.IndexConfig[indexName]; found {
-		return indexConfig.HasFullTextField(fieldName)
-	}
-	return false
-}
-
-func (c *QuesmaConfiguration) AliasFields(indexName string) map[string]FieldAlias {
-	if indexConfig, found := c.IndexConfig[indexName]; found {
-		return indexConfig.Aliases
-	}
-	return map[string]FieldAlias{}
+	return str
 }
 
 func MatchName(pattern, name string) bool {

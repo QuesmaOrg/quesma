@@ -5,31 +5,45 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
 	"os"
+	"slices"
 	"testing"
 )
 
 func TestIndexConfiguration_FullTextField(t *testing.T) {
 
+	fullText := "fulltext"
+
 	indexConfig := map[string]IndexConfiguration{
 		"none": {
-			Name:           "none",
-			Enabled:        true,
-			FullTextFields: []string{},
+			Name:    "none",
+			Enabled: true,
+			Fields:  map[string]IndexFieldConfiguration{},
 		},
 		"foo-bar": {
-			Name:           "foo-bar",
-			Enabled:        true,
-			FullTextFields: []string{"sometext"},
+			Name:    "foo-bar",
+			Enabled: true,
+			Fields: map[string]IndexFieldConfiguration{
+				"sometext": IndexFieldConfiguration{
+					Type: &fullText,
+				},
+			},
 		},
 		"bar-logs": {
-			Name:           "bar-logs",
-			Enabled:        true,
-			FullTextFields: []string{},
+			Name:    "bar-logs",
+			Enabled: true,
+			Fields:  map[string]IndexFieldConfiguration{},
 		},
 		"logs-generic-default": {
-			Name:           "logs-generic-default",
-			Enabled:        true,
-			FullTextFields: []string{"message", "content"},
+			Name:    "logs-generic-default",
+			Enabled: true,
+			Fields: map[string]IndexFieldConfiguration{
+				"message": IndexFieldConfiguration{
+					Type: &fullText,
+				},
+				"content": IndexFieldConfiguration{
+					Type: &fullText,
+				},
+			},
 		},
 	}
 
@@ -49,7 +63,13 @@ func TestIndexConfiguration_FullTextField(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, cfg.IsFullTextMatchField(tt.indexName, tt.fieldName), "IsFullTextMatchField(%parsedViper, %parsedViper)", tt.indexName, tt.fieldName)
+			isFullText := false
+			if index, ok := cfg.IndexConfig[tt.indexName]; ok {
+				if field, ok := index.Fields[tt.fieldName]; ok {
+					isFullText = field.Type != nil && *field.Type == "fulltext"
+				}
+			}
+			assert.Equalf(t, tt.want, isFullText, "IsFullTextMatchField(%parsedViper, %parsedViper)", tt.indexName, tt.fieldName)
 		})
 	}
 
@@ -98,10 +118,14 @@ func TestQuesmaConfigurationLoading(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// sort tt.fullTextFields
+			slices.Sort(tt.fullTextFields)
 			ic := findIndexConfig(tt.name)
+			actual := ic.FullTextFields()
+			slices.Sort(actual)
 			assert.NotNil(t, ic)
 			assert.Equal(t, tt.enabled, ic.Enabled)
-			assert.Equal(t, tt.fullTextFields, ic.FullTextFields)
+			assert.Equal(t, tt.fullTextFields, actual)
 		})
 	}
 }

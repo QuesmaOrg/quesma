@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/util"
 	"sort"
 	"strings"
 )
@@ -95,31 +94,6 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 
 				columnNames = append(columnNames, k)
 				columnMap[k] = c
-			}
-
-			for _, a := range qmc.config.AliasFields(table.Name) {
-
-				// check for collisions
-				if field, collide := columnMap[a.SourceFieldName]; collide {
-					field.warning = util.Pointer("alias declared with the same name")
-					columnMap[a.SourceFieldName] = field
-					continue
-				}
-
-				// check if target exists
-				c := tableColumn{}
-				c.name = a.SourceFieldName
-				if aliasedField, ok := columnMap[a.TargetFieldName]; ok {
-					c.typeName = fmt.Sprintf("alias of '%s', %s", a.TargetFieldName, aliasedField.typeName)
-					c.isFullTextSearch = aliasedField.isFullTextSearch
-					c.isAttribute = aliasedField.isAttribute
-				} else {
-					c.warning = util.Pointer("alias points to non-existing field '" + a.TargetFieldName + "'")
-					c.typeName = "dangling alias"
-				}
-
-				columnNames = append(columnNames, a.SourceFieldName)
-				columnMap[a.SourceFieldName] = c
 			}
 
 			// columns added by Quesma, not visible for the user
@@ -252,7 +226,7 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 		buffer.Html(`</td>`)
 
 		buffer.Html(`<td>`)
-		buffer.Text(strings.Join(cfg.FullTextFields, ", "))
+		buffer.Text(strings.Join(cfg.FullTextFields(), ", "))
 		buffer.Html(`</td>`)
 
 		buffer.Html(`</tr>`)

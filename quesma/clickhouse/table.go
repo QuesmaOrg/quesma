@@ -151,26 +151,30 @@ func (t *Table) GetDateTimeType(ctx context.Context, fieldName string) DateTimeT
 
 // applyIndexConfig applies full text search and alias configuration to the table
 func (t *Table) applyIndexConfig(configuration config.QuesmaConfiguration) {
-	for _, c := range t.Cols {
-		c.IsFullTextMatch = configuration.IsFullTextMatchField(t.Name, c.Name)
+	index, ok := configuration.IndexConfig[t.Name]
+	if !ok {
+		return
 	}
-
-	aliasFields := configuration.AliasFields(t.Name)
-	if len(aliasFields) > 0 {
-		t.aliases = make(map[string]string)
-		for _, alias := range aliasFields {
-			if _, ok := t.Cols[alias.TargetFieldName]; !ok {
-				logger.Warn().Msgf("target field '%s' for field '%s' not found in table '%s'",
-					alias.TargetFieldName, alias.SourceFieldName, t.Name)
-				continue
-			}
-			t.aliases[alias.SourceFieldName] = alias.TargetFieldName
+	for _, c := range t.Cols {
+		if field, ok := index.Fields[c.Name]; ok {
+			c.IsFullTextMatch = field.Type != nil && *field.Type == "fulltext"
 		}
 	}
-	if v, ok := configuration.IndexConfig[t.Name]; ok {
-		t.TimestampColumn = v.TimestampField
-	}
 
+	for fieldName, field := range index.Fields {
+		if field.Type == nil {
+			continue
+		}
+		if *field.Type == "alias" {
+			if _, ok := t.Cols[*field.AliasTo]; !ok {
+				logger.Warn().Msgf("field '%s' referenced, but not found in table '%s'", *field.AliasTo, t.Name)
+				continue
+			}
+			t.aliases[fieldName] = *field.AliasTo
+		} else if *field.Type == "primary-timestamp" {
+			t.TimestampColumn = &fieldName
+		}
+	}
 }
 
 func (t *Table) ResolveField(ctx context.Context, fieldName string) (field string) {
@@ -211,17 +215,6 @@ func (t *Table) AliasFields(ctx context.Context) []*Column {
 		})
 	}
 	return aliasFields
-}
-
-func (t *Table) AliasList() []config.FieldAlias {
-	result := make([]config.FieldAlias, 0)
-	for key, val := range t.aliases {
-		result = append(result, config.FieldAlias{
-			SourceFieldName: key,
-			TargetFieldName: val,
-		})
-	}
-	return result
 }
 
 func (t *Table) GetAttributesList() []Attribute {

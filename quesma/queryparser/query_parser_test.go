@@ -31,12 +31,15 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	}
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
-	tsField := "@timestamp"
+	fulltext := "fulltext"
+	timestamp := "primary-timestamp"
 	indexConfig := config.IndexConfiguration{
-		Name:           "logs-generic-default",
-		Enabled:        true,
-		FullTextFields: []string{"message"},
-		TimestampField: &tsField,
+		Name:    "logs-generic-default",
+		Enabled: true,
+		Fields: map[string]config.IndexFieldConfiguration{
+			"message":    {Type: &fulltext},
+			"@timestamp": {Type: &timestamp},
+		},
 	}
 
 	cfg.IndexConfig[indexConfig.Name] = indexConfig

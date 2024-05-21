@@ -29,8 +29,9 @@ func (sl *schemaLoader) ReloadTables() {
 		for table, columns := range tables {
 			if indexConfig, found := sl.cfg.IndexConfig[table]; found {
 				if indexConfig.Enabled {
+					// alias collision, likely will go away
 					for colName := range columns {
-						if _, exists := indexConfig.Aliases[colName]; exists {
+						if field, exists := indexConfig.Fields[colName]; exists && field.Type != nil && *field.Type == "alias" {
 							logger.Error().Msgf("column [%s] clashes with an existing alias, table [%s]", colName, table)
 						}
 					}
@@ -62,7 +63,7 @@ func (sl *schemaLoader) populateTableDefinitions(configuredTables map[string]dis
 		partiallyResolved := false
 		for col, colType := range resTable.columnTypes {
 
-			if _, isIgnored := resTable.config.IgnoredFields[col]; isIgnored {
+			if field, isIgnored := resTable.config.Fields[col]; isIgnored && field.Type != nil && *field.Type == "alias" {
 				logger.Debug().Msgf("table %s, column %s is ignored", tableName, col)
 				continue
 			}
