@@ -104,7 +104,7 @@ func configureRouting() *http.ServeMux {
 			return
 		}
 
-		ndjson.ForEach(func(operation mux.NDJSONOperation, document mux.JSON) {
+		err := ndjson.BulkForEach(func(operation mux.BulkOperation, document mux.JSON) {
 
 			index := operation.GetIndex()
 			if index == "" {
@@ -116,6 +116,10 @@ func configureRouting() *http.ServeMux {
 				stats.GlobalStatistics.Process(configuration, index, document, clickhouse.NestedSeparator)
 			}
 		})
+
+		if err != nil {
+			logger.Error().Msgf("Error processing _bulk: %v", err)
+		}
 
 	}))
 	router.HandleFunc("GET /", func(writer http.ResponseWriter, r *http.Request) {

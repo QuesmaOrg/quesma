@@ -14,20 +14,14 @@ import (
 	"sync/atomic"
 )
 
-const IndexName = "_index"
-
 type (
-	DocumentTarget struct {
-		Index *string `json:"_index"`
-		Id    *string `json:"_id"` // document's target id in Elasticsearch, we ignore it when writing to Clickhouse.
-	}
 	WriteResult struct {
 		Operation string
 		Index     string
 	}
 )
 
-func dualWriteBulk(ctx context.Context, defaultIndex *string, jsons mux.NDJSON, lm *clickhouse.LogManager,
+func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk mux.NDJSON, lm *clickhouse.LogManager,
 	cfg config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []WriteResult) {
 	if config.TrafficAnalysis.Load() {
 		logger.Info().Msg("analysing traffic, not writing to Clickhouse")
@@ -35,59 +29,61 @@ func dualWriteBulk(ctx context.Context, defaultIndex *string, jsons mux.NDJSON, 
 	}
 	defer recovery.LogPanic()
 
-	indicesWithDocumentsToInsert := make(map[string][]mux.JSON, len(jsons))
+	indicesWithDocumentsToInsert := make(map[string][]mux.JSON, len(bulk))
 
-	// TODO use NDJSON.ForEach instead of iterating over the slice
+	err := bulk.BulkForEach(func(op mux.BulkOperation, document mux.JSON) {
 
-	for i := 0; i+1 < len(jsons); i += 2 {
-		operation := jsons[i]  // {"create":{"_index":"kibana_sample_data_flights", "_id": 1}}
-		document := jsons[i+1] // {"FlightNum":"9HY9SWR","DestCountry":"AU","OriginWeather":"Sunny","OriginCityName":"Frankfurt am Main" }
+		index := op.GetIndex()
+		operation := op.GetOperation()
 
-		var operationParsed map[string]DocumentTarget // operationName (create, index, update, delete) -> DocumentTarget
-
-		err := operation.Remarshal(&operationParsed)
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Err(err).Msgf("Invalid operation in _bulk: %s", operation)
-			return nil
-		}
-
-		index := getTargetIndex(operationParsed, defaultIndex)
 		if index == "" {
-			logger.ErrorWithCtxAndReason(ctx, "no index name in _bulk").
-				Msgf("Invalid index name in _bulk: %s", operation)
-			continue
+			if defaultIndex != nil {
+				index = *defaultIndex
+			} else {
+				logger.ErrorWithCtxAndReason(ctx, "no index name in _bulk").
+					Msgf("Invalid index name in _bulk: %s", operation)
+				return
+			}
 		}
 
 		indexConfig, found := cfg.IndexConfig[index]
 		if !found {
 			logger.Debug().Msgf("index '%s' is not configured, skipping", index)
-			continue
+			return
 		}
 		if !indexConfig.Enabled {
 			logger.Debug().Msgf("index '%s' is disabled, ignoring", index)
-			continue
+			return
 		}
 
-		if _, ok := operation["create"]; ok {
-			results = append(results, WriteResult{"create", index})
+		switch operation {
+		case "create", "index":
+			results = append(results, WriteResult{operation, index})
 			indicesWithDocumentsToInsert[index] = append(indicesWithDocumentsToInsert[index], document)
-		} else if _, ok = operation["index"]; ok {
-			results = append(results, WriteResult{"index", index})
-			indicesWithDocumentsToInsert[index] = append(indicesWithDocumentsToInsert[index], document)
-		} else if _, ok = operation["update"]; ok {
+		case "update":
+
 			errorstats.GlobalErrorStatistics.RecordKnownError("_bulk update is not supported", nil,
 				"We do not support 'update' in _bulk")
 			logger.Debug().Msg("Not supporting 'update' _bulk.")
-		} else if _, ok = operation["delete"]; ok {
+
+		case "delete":
 			errorstats.GlobalErrorStatistics.RecordKnownError("_bulk delete is not supported", nil,
 				"We do not support 'delete' in _bulk")
 			logger.Debug().Msg("Not supporting 'delete' _bulk.")
-		} else {
+
+		default:
 			errorstats.GlobalErrorStatistics.RecordUnknownError(nil,
 				fmt.Sprintf("Unexpected operation in _bulk: %v", operation))
 			logger.Error().Msgf("Invalid JSON with operation definition in _bulk: %s", operation)
 		}
+
+	})
+
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("Error processing _bulk: %v", err)
+		return
 	}
+
 	for indexName, documents := range indicesWithDocumentsToInsert {
 		phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
 
@@ -99,18 +95,6 @@ func dualWriteBulk(ctx context.Context, defaultIndex *string, jsons mux.NDJSON, 
 		})
 	}
 	return results
-}
-
-func getTargetIndex(operation map[string]DocumentTarget, defaultIndex *string) string {
-	for _, target := range operation { // this map contains only 1 element though
-		if target.Index != nil {
-			return *target.Index
-		}
-	}
-	if defaultIndex != nil {
-		return *defaultIndex
-	}
-	return ""
 }
 
 func dualWrite(ctx context.Context, tableName string, body mux.JSON, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {

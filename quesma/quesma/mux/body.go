@@ -45,9 +45,9 @@ type DocumentTarget struct {
 	Id    *string `json:"_id"` // document's target id in Elasticsearch, we ignore it when writing to Clickhouse.
 }
 
-type NDJSONOperation map[string]DocumentTarget
+type BulkOperation map[string]DocumentTarget
 
-func (op NDJSONOperation) GetIndex() string {
+func (op BulkOperation) GetIndex() string {
 	for _, target := range op { // this map contains only 1 element though
 		if target.Index != nil {
 			return *target.Index
@@ -57,20 +57,20 @@ func (op NDJSONOperation) GetIndex() string {
 	return ""
 }
 
-func (op NDJSONOperation) GetOperation() string {
+func (op BulkOperation) GetOperation() string {
 	for operation, _ := range op {
 		return operation
 	}
 	return ""
 }
 
-func (n NDJSON) ForEach(f func(operation NDJSONOperation, doc JSON)) error {
+func (n NDJSON) BulkForEach(f func(operation BulkOperation, doc JSON)) error {
 
 	for i := 0; i+1 < len(n); i += 2 {
 		operation := n[i]  // {"create":{"_index":"kibana_sample_data_flights", "_id": 1}}
 		document := n[i+1] // {"FlightNum":"9HY9SWR","DestCountry":"AU","OriginWeather":"Sunny","OriginCityName":"Frankfurt am Main" }
 
-		var operationParsed NDJSONOperation // operationName (create, index, update, delete) -> DocumentTarget
+		var operationParsed BulkOperation // operationName (create, index, update, delete) -> DocumentTarget
 
 		err := operation.Remarshal(&operationParsed)
 		if err != nil {
