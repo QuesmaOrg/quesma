@@ -49,6 +49,7 @@ type Query struct {
 	Metadata JsonMap
 }
 
+/*
 type subQuery struct {
 	sql       string
 	innerJoin string
@@ -58,6 +59,8 @@ type subQuery struct {
 func newSubQuery(sql, innerJoin, name string) subQuery {
 	return subQuery{sql: sql, innerJoin: innerJoin, name: name}
 }
+ erase if still not used after 'respect size in aggregations' issue
+*/
 
 var NoMetadataField JsonMap = nil
 
