@@ -111,14 +111,13 @@ func (c IndexConfiguration) String() string {
 		if fieldConfig.Type != nil {
 			setType = *fieldConfig.Type
 		}
-		extra := ""
+		build.WriteString(fmt.Sprintf("%s(%s)", fieldName, setType))
 		if fieldConfig.AliasTo != nil {
-			extra = fmt.Sprintf("alias to %s", *fieldConfig.AliasTo)
+			build.WriteString(fmt.Sprintf("alias to %s", *fieldConfig.AliasTo))
 		}
 		if fieldConfig.DbColumnName != nil {
-			extra = fmt.Sprintf("%s", *fieldConfig.DbColumnName)
+			build.WriteString(fmt.Sprintf("->%s", *fieldConfig.DbColumnName))
 		}
-		build.WriteString(fmt.Sprintf("%s(%s)->%s", fieldName, setType, extra))
 	}
 	var str = fmt.Sprintf("\n\t\t%s, enabled: %t",
 		c.Name,

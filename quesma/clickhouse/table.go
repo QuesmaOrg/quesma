@@ -161,6 +161,7 @@ func (t *Table) applyIndexConfig(configuration config.QuesmaConfiguration) {
 		}
 	}
 
+	t.aliases = make(map[string]string)
 	for fieldName, field := range index.Fields {
 		if field.Type == nil {
 			continue
