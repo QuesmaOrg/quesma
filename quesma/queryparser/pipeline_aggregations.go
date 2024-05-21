@@ -29,6 +29,9 @@ func (cw *ClickhouseQueryTranslator) parsePipelineAggregations(queryMap QueryMap
 		delete(queryMap, "min_bucket")
 		return
 	}
+	if aggregationType, success = cw.parseMaxBucket(queryMap); success {
+		delete(queryMap, "max_bucket")
+	}
 	return
 }
 
@@ -78,6 +81,18 @@ func (cw *ClickhouseQueryTranslator) parseMinBucket(queryMap QueryMap) (aggregat
 		return
 	}
 	return pipeline_aggregations.NewMinBucket(cw.Ctx, bucketsPath), true
+}
+
+func (cw *ClickhouseQueryTranslator) parseMaxBucket(queryMap QueryMap) (aggregationType model.QueryType, success bool) {
+	maxBucketRaw, exists := queryMap["max_bucket"]
+	if !exists {
+		return
+	}
+	bucketsPath, ok := cw.parseBucketsPath(maxBucketRaw, "max_bucket")
+	if !ok {
+		return
+	}
+	return pipeline_aggregations.NewMaxBucket(cw.Ctx, bucketsPath), true
 }
 
 func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (aggregationType model.QueryType, success bool) {
@@ -185,6 +200,9 @@ func (b *aggrQueryBuilder) finishBuildingAggregationPipeline(aggregationType mod
 		query.NoDBQuery = true
 		query.Parent = aggrType.Parent
 	case pipeline_aggregations.MinBucket:
+		query.NoDBQuery = true
+		query.Parent = aggrType.Parent
+	case pipeline_aggregations.MaxBucket:
 		query.NoDBQuery = true
 		query.Parent = aggrType.Parent
 	}
