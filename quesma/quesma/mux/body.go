@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+//
+// These types are generic.
+// TODO move them to a separate package `types`
+//
+
 type JSON map[string]interface{}
 
 func MustJSON(s string) JSON {

@@ -29,6 +29,18 @@ func handleTermsEnumRequest(ctx context.Context, body mux.JSON, qt *queryparser.
 	request := NewRequest()
 	startTime := time.Now()
 
+	// TODO request should read the JSON itself
+	reqBody, err := body.Bytes()
+	if err != nil {
+		logger.Error().Msgf("error reading terms enum API request body: %s", err)
+		return json.Marshal(emptyTermsEnumResponse())
+	}
+
+	if err := request.UnmarshalJSON(reqBody); err != nil {
+		logger.Error().Msgf("error unmarshalling terms enum API request: %s", err)
+		return json.Marshal(emptyTermsEnumResponse())
+	}
+
 	where := qt.ParseAutocomplete(request.IndexFilter, request.Field, request.String, request.CaseInsensitive)
 	selectQuery := qt.BuildAutocompleteQuery(request.Field, where.Sql.Stmt, request.Size)
 	dbQueryCtx, cancel := context.WithCancel(ctx)
@@ -46,8 +58,6 @@ func handleTermsEnumRequest(ctx context.Context, body mux.JSON, qt *queryparser.
 			path = str
 		}
 	}
-
-	reqBody,err := body.Bytes()
 
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     ctx.Value(tracing.RequestIdCtxKey).(string),
