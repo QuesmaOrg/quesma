@@ -5,8 +5,6 @@ import (
 	"mitmproxy/quesma/testdata"
 )
 
-var nilVariable any = nil
-
 var PipelineAggregationTests = []testdata.AggregationTestCase{
 	{ // [0]
 		TestName: "Simplest cumulative_sum (count). Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Count), Buckets: Histogram",
