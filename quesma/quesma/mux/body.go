@@ -8,7 +8,41 @@ import (
 )
 
 type JSON map[string]interface{}
+
+func (j JSON) Bytes() ([]byte, error) {
+	return json.Marshal(j)
+}
+
+func (j JSON) Remarshal(v interface{}) error {
+	b, err := json.Marshal(j)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(b, v)
+}
+
+func (j JSON) ShortString() string {
+
+	var asString string
+	asBytes, err := json.Marshal(j)
+
+	if err != nil {
+		asString = fmt.Sprintf("Error marshalling JSON: %v, json: %v", err, j)
+	} else {
+		asString = string(asBytes)
+	}
+
+	if len(asString) < 70 {
+		return asString
+	}
+	return asString[:70]
+
+}
+
 type NDJSON []JSON
+
+// There we can add methods to iterate over NDJSON
+
 type Unknown []error
 
 type RequestBody interface {

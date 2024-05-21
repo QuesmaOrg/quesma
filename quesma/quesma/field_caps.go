@@ -199,7 +199,7 @@ func isInternalColumn(col *clickhouse.Column) bool {
 	return col.Name == clickhouse.AttributesKeyColumn || col.Name == clickhouse.AttributesValueColumn
 }
 
-func handleFieldCaps(ctx context.Context, index string, _ []byte, lm *clickhouse.LogManager) ([]byte, error) {
+func handleFieldCaps(ctx context.Context, index string, lm *clickhouse.LogManager) ([]byte, error) {
 	indexes := lm.ResolveIndexes(ctx, index)
 	if len(indexes) == 0 {
 		if !elasticsearch.IsIndexPattern(index) {

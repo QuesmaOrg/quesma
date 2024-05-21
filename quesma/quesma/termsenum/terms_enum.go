@@ -8,29 +8,26 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
+	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
 	"time"
 )
 
-func HandleTermsEnum(ctx context.Context, index string, reqBody []byte, lm *clickhouse.LogManager,
+func HandleTermsEnum(ctx context.Context, index string, body mux.JSON, lm *clickhouse.LogManager,
 	qmc *ui.QuesmaManagementConsole) ([]byte, error) {
 	if resolvedTableName := lm.ResolveTableName(ctx, index); resolvedTableName == "" {
 		errorMsg := fmt.Sprintf("terms enum failed - could not resolve table name for index: %s", index)
 		logger.Error().Msg(errorMsg)
 		return nil, fmt.Errorf(errorMsg)
 	} else {
-		return handleTermsEnumRequest(ctx, reqBody, &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: lm.FindTable(resolvedTableName), Ctx: context.Background()}, qmc)
+		return handleTermsEnumRequest(ctx, body, &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: lm.FindTable(resolvedTableName), Ctx: context.Background()}, qmc)
 	}
 }
 
-func handleTermsEnumRequest(ctx context.Context, reqBody []byte, qt *queryparser.ClickhouseQueryTranslator, qmc *ui.QuesmaManagementConsole) (result []byte, err error) {
+func handleTermsEnumRequest(ctx context.Context, body mux.JSON, qt *queryparser.ClickhouseQueryTranslator, qmc *ui.QuesmaManagementConsole) (result []byte, err error) {
 	request := NewRequest()
 	startTime := time.Now()
-	if err := request.UnmarshalJSON(reqBody); err != nil {
-		logger.Error().Msgf("error unmarshalling terms enum API request: %s", err)
-		return json.Marshal(emptyTermsEnumResponse())
-	}
 
 	where := qt.ParseAutocomplete(request.IndexFilter, request.Field, request.String, request.CaseInsensitive)
 	selectQuery := qt.BuildAutocompleteQuery(request.Field, where.Sql.Stmt, request.Size)
@@ -49,6 +46,9 @@ func handleTermsEnumRequest(ctx context.Context, reqBody []byte, qt *queryparser
 			path = str
 		}
 	}
+
+	reqBody,err := body.Bytes()
+
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     ctx.Value(tracing.RequestIdCtxKey).(string),
 		Path:                   path,

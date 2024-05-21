@@ -12,6 +12,7 @@ import (
 	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/util"
@@ -274,20 +275,15 @@ func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string,
 	return lm.sendCreateTableQuery(ctx, addOurFieldsToCreateTableQuery(query, config, table))
 }
 
-func buildCreateTableQueryNoOurFields(ctx context.Context, tableName, jsonData string, config *ChTableConfig) (string, error) {
-	m := make(SchemaMap)
-	err := json.Unmarshal([]byte(jsonData), &m)
-	if err != nil {
-		logger.ErrorWithCtx(ctx).Msgf("can't unmarshall, json: %s\nerr:%v", jsonData, err)
-		return "", err
-	}
+func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jsonData mux.JSON, config *ChTableConfig) (string, error) {
+
 	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
 (
 	%s
 )
 %s
 COMMENT 'created by Quesma'`,
-		tableName, FieldsMapToCreateTableString("", m, 1, config)+Indexes(m),
+		tableName, FieldsMapToCreateTableString("", jsonData, 1, config)+Indexes(jsonData),
 		config.CreateTablePostFieldsString())
 	return createTableCmd, nil
 }
@@ -306,7 +302,7 @@ func Indexes(m SchemaMap) string {
 	return result.String()
 }
 
-func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name, jsonData string, config *ChTableConfig) error {
+func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData mux.JSON, config *ChTableConfig) error {
 	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
 
 	query, err := buildCreateTableQueryNoOurFields(ctx, name, jsonData, config)
@@ -321,7 +317,17 @@ func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name, json
 	return nil
 }
 
-func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfig) (string, error) {
+// TODO
+// This method should be refactored to use mux.JSON instead of string
+func (lm *LogManager) BuildInsertJson(tableName string, data mux.JSON, config *ChTableConfig) (string, error) {
+
+	jsonData, err := json.Marshal(data)
+
+	if err != nil {
+		return "", err
+	}
+	js := string(jsonData)
+
 	if !config.hasOthers && len(config.attributes) == 0 {
 		return js, nil
 	}
@@ -383,7 +389,7 @@ func (lm *LogManager) BuildInsertJson(tableName, js string, config *ChTableConfi
 	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), nil
 }
 
-func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName, jsonData string) (*ChTableConfig, error) {
+func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName string, jsonData mux.JSON) (*ChTableConfig, error) {
 	table := lm.FindTable(tableName)
 	var config *ChTableConfig
 	if table == nil {
@@ -406,7 +412,7 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName, jso
 	return config, nil
 }
 
-func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []string) error {
+func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData mux.NDJSON) error {
 	if config, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0]); err != nil {
 		return err
 	} else {
@@ -414,7 +420,7 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, 
 	}
 }
 
-func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []string, config *ChTableConfig) error {
+func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []mux.JSON, config *ChTableConfig) error {
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
 		preprocessedJson := preprocess(jsonValue, NestedSeparator)
@@ -612,10 +618,6 @@ func (c *ChTableConfig) GetAttributes() []Attribute {
 	return c.attributes
 }
 
-func preprocess(jsonStr string, nestedSeparator string) string {
-	var data map[string]interface{}
-	_ = json.Unmarshal([]byte(jsonStr), &data)
-
-	resultJSON, _ := json.Marshal(jsonprocessor.FlattenMap(data, nestedSeparator))
-	return string(resultJSON)
+func preprocess(data mux.JSON, nestedSeparator string) mux.JSON {
+	return jsonprocessor.FlattenMap(data, nestedSeparator)
 }

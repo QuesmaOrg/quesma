@@ -38,8 +38,18 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	})
 
 	router.Register(routes.BulkPath, and(method("POST"), matchedAgainstBulkBody(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
-		// TODO we should pass NDJSON here instead of []byte
-		results := dualWriteBulk(ctx, nil, req.Body, lm, cfg, phoneHomeAgent)
+
+		var ndjson mux.NDJSON
+		switch b := req.ParsedBody.(type) {
+
+		case mux.NDJSON:
+			ndjson = b
+
+		default:
+			return nil, errors.New("invalid request body, expecting NDJSON")
+		}
+
+		results := dualWriteBulk(ctx, nil, ndjson, lm, cfg, phoneHomeAgent)
 		return bulkInsertResult(results), nil
 	})
 
@@ -48,22 +58,31 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	})
 
 	router.Register(routes.IndexDocPath, and(method("POST"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
-		// TODO we should pass JSON here instead of []byte
-		dualWrite(ctx, req.Params["index"], req.Body, lm, cfg)
+
+		var body mux.JSON
+		switch b := req.ParsedBody.(type) {
+		case mux.JSON:
+			body = b
+		default:
+			return nil, errors.New("invalid request body, expecting JSON")
+		}
+
+		dualWrite(ctx, req.Params["index"], body, lm, cfg)
 		return indexDocResult(req.Params["index"], httpOk), nil
 	})
 
-	router.Register(routes.IndexBulkPath, and(method("POST"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.IndexBulkPath, and(method("POST", "PUT"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		index := req.Params["index"]
-		// TODO we should pass JSON or NDJSON here instead of []byte
-		results := dualWriteBulk(ctx, &index, req.Body, lm, cfg, phoneHomeAgent)
-		return bulkInsertResult(results), nil
-	})
 
-	router.Register(routes.IndexBulkPath, and(method("PUT"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
-		index := req.Params["index"]
-		// TODO we should pass JSON or NDJSON here instead of []byte
-		results := dualWriteBulk(ctx, &index, req.Body, lm, cfg, phoneHomeAgent)
+		var body mux.NDJSON
+		switch b := req.ParsedBody.(type) {
+		case mux.NDJSON:
+			body = b
+		default:
+			return nil, errors.New("invalid request body, expecting JSON")
+		}
+
+		results := dualWriteBulk(ctx, &index, body, lm, cfg, phoneHomeAgent)
 		return bulkInsertResult(results), nil
 	})
 
@@ -231,8 +250,8 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	})
 
 	router.Register(routes.FieldCapsPath, and(method("GET", "POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
-		// TODO we should pass JSON here instead of []byte
-		responseBody, err := handleFieldCaps(ctx, req.Params["index"], []byte(req.Body), lm)
+
+		responseBody, err := handleFieldCaps(ctx, req.Params["index"], lm)
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
 				if req.QueryParams.Get("allow_no_indices") == "true" || req.QueryParams.Get("ignore_unavailable") == "true" {
@@ -249,8 +268,16 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		if strings.Contains(req.Params["index"], ",") {
 			return nil, errors.New("multi index terms enum is not yet supported")
 		} else {
-			// TODO we should pass JSON here instead of []byte
-			if responseBody, err := termsenum.HandleTermsEnum(ctx, req.Params["index"], []byte(req.Body), lm, console); err != nil {
+
+			var body mux.JSON
+			switch b := req.ParsedBody.(type) {
+			case mux.JSON:
+				body = b
+			default:
+				return nil, errors.New("invalid request body, expecting JSON")
+			}
+
+			if responseBody, err := termsenum.HandleTermsEnum(ctx, req.Params["index"], body, lm, console); err != nil {
 				return nil, err
 			} else {
 				return elasticsearchQueryResult(string(responseBody), httpOk), nil
@@ -259,6 +286,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	})
 
 	eqlHandler := func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		// TODO we should pass JSON here instead of []byte
 		responseBody, err := queryRunner.handleEQLSearch(ctx, req.Params["index"], []byte(req.Body))
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {

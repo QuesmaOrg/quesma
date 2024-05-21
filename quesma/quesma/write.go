@@ -2,18 +2,19 @@ package quesma
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/stats/errorstats"
 	"mitmproxy/quesma/telemetry"
-	"mitmproxy/quesma/util"
-	"strings"
 	"sync/atomic"
 )
+
+const IndexName = "_index"
 
 type (
 	DocumentTarget struct {
@@ -26,31 +27,31 @@ type (
 	}
 )
 
-func dualWriteBulk(ctx context.Context, defaultIndex *string, body string, lm *clickhouse.LogManager,
+func dualWriteBulk(ctx context.Context, defaultIndex *string, jsons mux.NDJSON, lm *clickhouse.LogManager,
 	cfg config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []WriteResult) {
 	if config.TrafficAnalysis.Load() {
 		logger.Info().Msg("analysing traffic, not writing to Clickhouse")
 		return
 	}
 	defer recovery.LogPanic()
-	jsons := strings.Split(body, "\n")
 
-	indicesWithDocumentsToInsert := make(map[string][]string)
+	indicesWithDocumentsToInsert := make(map[string][]mux.JSON, len(jsons))
 	for i := 0; i+1 < len(jsons); i += 2 {
-		operationDef := jsons[i] // {"create":{"_index":"kibana_sample_data_flights", "_id": 1}}
-		document := jsons[i+1]   // {"FlightNum":"9HY9SWR","DestCountry":"AU","OriginWeather":"Sunny","OriginCityName":"Frankfurt am Main" }
+		operation := jsons[i]  // {"create":{"_index":"kibana_sample_data_flights", "_id": 1}}
+		document := jsons[i+1] // {"FlightNum":"9HY9SWR","DestCountry":"AU","OriginWeather":"Sunny","OriginCityName":"Frankfurt am Main" }
 
-		var operation map[string]DocumentTarget // operationName (create, index, update, delete) -> DocumentTarget
+		var operationParsed map[string]DocumentTarget // operationName (create, index, update, delete) -> DocumentTarget
 
-		err := json.Unmarshal([]byte(operationDef), &operation)
-		if err != nil || len(operation) != 1 {
-			logger.Info().Msgf("Invalid action JSON in _bulk: %v %+v", err, operation)
-			continue
+		err := operation.Remarshal(&operationParsed)
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Err(err).Msgf("Invalid operation in _bulk: %s", operation)
+			return nil
 		}
-		index := getTargetIndex(operation, defaultIndex)
+
+		index := getTargetIndex(operationParsed, defaultIndex)
 		if index == "" {
 			logger.ErrorWithCtxAndReason(ctx, "no index name in _bulk").
-				Msgf("Invalid index name in _bulk: %s", operationDef)
+				Msgf("Invalid index name in _bulk: %s", operation)
 			continue
 		}
 
@@ -80,14 +81,14 @@ func dualWriteBulk(ctx context.Context, defaultIndex *string, body string, lm *c
 			logger.Debug().Msg("Not supporting 'delete' _bulk.")
 		} else {
 			errorstats.GlobalErrorStatistics.RecordUnknownError(nil,
-				"Unexpected operation in _bulk: "+operationDef)
-			logger.Error().Msgf("Invalid JSON with operation definition in _bulk: %s", operationDef)
+				fmt.Sprintf("Unexpected operation in _bulk: %v", operation))
+			logger.Error().Msgf("Invalid JSON with operation definition in _bulk: %s", operation)
 		}
 	}
 	for indexName, documents := range indicesWithDocumentsToInsert {
 		phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
 
-		withConfiguration(ctx, cfg, indexName, "{ BULK_PAYLOAD }", func() error {
+		withConfiguration(ctx, cfg, indexName, make(mux.JSON), func() error {
 			for _, document := range documents {
 				stats.GlobalStatistics.Process(cfg, indexName, document, clickhouse.NestedSeparator)
 			}
@@ -109,7 +110,7 @@ func getTargetIndex(operation map[string]DocumentTarget, defaultIndex *string) s
 	return ""
 }
 
-func dualWrite(ctx context.Context, tableName string, body string, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
+func dualWrite(ctx context.Context, tableName string, body mux.JSON, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
 	stats.GlobalStatistics.Process(cfg, tableName, body, clickhouse.NestedSeparator)
 	if config.TrafficAnalysis.Load() {
 		logger.Info().Msgf("analysing traffic, not writing to Clickhouse %s", tableName)
@@ -122,15 +123,15 @@ func dualWrite(ctx context.Context, tableName string, body string, lm *clickhous
 	}
 
 	withConfiguration(ctx, cfg, tableName, body, func() error {
-		return lm.ProcessInsertQuery(ctx, tableName, []string{body})
+		return lm.ProcessInsertQuery(ctx, tableName, mux.NDJSON{body})
 	})
 }
 
 var insertCounter = atomic.Int32{}
 
-func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, indexName string, body string, action func() error) {
+func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, indexName string, body mux.JSON, action func() error) {
 	if len(cfg.IndexConfig) == 0 {
-		logger.InfoWithCtx(ctx).Msgf("%s  --> clickhouse, body(shortened): %s", indexName, util.Truncate(body))
+		logger.InfoWithCtx(ctx).Msgf("%s  --> clickhouse, body(shortened): %s", indexName, body.ShortString())
 		err := action()
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg("Can't write to index: " + err.Error())
@@ -144,7 +145,7 @@ func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, inde
 		if matchingConfig.Enabled {
 			insertCounter.Add(1)
 			if insertCounter.Load()%50 == 1 {
-				logger.DebugWithCtx(ctx).Msgf("%s  --> clickhouse, body(shortened): %s, ctr: %d", indexName, util.Truncate(body), insertCounter.Load())
+				logger.DebugWithCtx(ctx).Msgf("%s  --> clickhouse, body(shortened): %s, ctr: %d", indexName, body.ShortString(), insertCounter.Load())
 			}
 			err := action()
 			if err != nil {
