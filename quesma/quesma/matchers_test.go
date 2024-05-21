@@ -1,7 +1,6 @@
 package quesma
 
 import (
-	"context"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/quesma/mux"
 	"testing"
@@ -163,7 +162,7 @@ func TestMatchAgainstKibanaAlerts(t *testing.T) {
 
 			req := &mux.Request{Body: test.body}
 
-			req.ParsedBody = mux.ParseRequestBody(context.TODO(), req)
+			req.ParsedBody = mux.ParseRequestBody(test.body)
 
 			actual := matchAgainstKibanaAlerts().Matches(req)
 			assert.Equal(t, test.expected, actual)

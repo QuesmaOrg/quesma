@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/mux"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -45,7 +46,7 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 
 	f := func(t1, t2 TableMap) {
 		lm := NewLogManager(fieldsMap, config.QuesmaConfiguration{})
-		j, err := lm.BuildInsertJson("tableName", rowToInsert, hasOthersConfig)
+		j, err := lm.BuildInsertJson("tableName", mux.MustJSON(rowToInsert), hasOthersConfig)
 		assert.NoError(t, err)
 		m := make(SchemaMap)
 		err = json.Unmarshal([]byte(j), &m)
@@ -117,7 +118,7 @@ func TestAddTimestamp(t *testing.T) {
 		castUnsupportedAttrValueTypesToString: false,
 		preferCastingToOthers:                 false,
 	}
-	query, err := buildCreateTableQueryNoOurFields(context.Background(), "tableName", `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`, config)
+	query, err := buildCreateTableQueryNoOurFields(context.Background(), "tableName", mux.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`), config)
 	assert.NoError(t, err)
 	assert.True(t, strings.Contains(query, timestampFieldName))
 }
