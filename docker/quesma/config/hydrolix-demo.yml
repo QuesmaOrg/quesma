@@ -9,13 +9,40 @@ logging:
 indexes:
   logs:
     enabled: true
-    aliases:
-      timestamp:
-        source: "@timestamp"
-        target: "reqTimeSec"
-    fullTextFields: [ "city", "reqHost", "reqMethod", "reqPath",  "UA", "state", "rspContentType" ]
+    fields:
+      "@timestamp":
+        type: "alias"
+        aliasTo: "reqTimeSec"
+      city:
+        type: "fulltext"
+      reqHost:
+        type: "fulltext"
+      reqMethod:
+        type: "fulltext"
+      reqPath:
+        type: "fulltext"
+      UA:
+        type: "fulltext"
+      state:
+        type: "fulltext"
+      rspContentType:
+        type: "fulltext"
 
   siem:
     enabled: true
-    fullTextFields: [ "city", "country", "host", "method", "path", "ruleMessage", "UA" ]
+    fields:
+      city:
+        type: "fulltext"
+      country:
+        type: "fulltext"
+      host:
+        type: "fulltext"
+      method:
+        type: "fulltext"
+      path:
+        type: "fulltext"
+      ruleMessage:
+        type: "fulltext"
+      UA:
+        type: "fulltext"
 

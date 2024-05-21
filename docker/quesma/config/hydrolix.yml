@@ -9,4 +9,8 @@ logging:
 indexes:
   211318:
     enabled: true
-    fullTextFields: [ "ua","city_name" ]
+    fields:
+      ua:
+        type: "fulltext"
+      city_name:
+        type: "fulltext"

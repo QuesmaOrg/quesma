@@ -10,6 +10,8 @@ indexes:
     enabled: true
   logs-generic-default:
     enabled: true
-    fullTextFields: [ "message" ]
+    fields:
+      message:
+        type: "fulltext"
   windows_logs:   # Used for EQL e2e tests
     enabled: true
