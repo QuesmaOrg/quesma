@@ -49,29 +49,27 @@ type RequestBody interface {
 	isParsedRequestBody() // this is a marker method
 }
 
+
 func (j JSON) isParsedRequestBody()    {}
 func (n NDJSON) isParsedRequestBody()  {}
 func (e Unknown) isParsedRequestBody() {}
 
-func ParseRequestBody(ctx context.Context, req *Request) {
+func ParseRequestBody(ctx context.Context, req *Request) RequestBody {
 
 	var errors []error
 
-	// maybe it's a JSON
-
-	if len(req.Body) > 1 && req.Body[0] == '{' {
+	switch {
+	// json
+	case len(req.Body) > 1 && req.Body[0] == '{':
 		parsedBody := make(JSON)
 		if err := json.Unmarshal([]byte(req.Body), &parsedBody); err != nil {
 			errors = append(errors, fmt.Errorf("error while parsing JSON %s", err))
 		} else {
-			req.ParsedBody = JSON(parsedBody)
-			return
+			return parsedBody
 		}
-	}
 
-	// maybe it's a NDJSON
-
-	if len(req.Body) > 1 && req.Body[0] == '{' {
+	// ndjson
+	case len(req.Body) > 1 && req.Body[0] == '{':
 
 		var ndjson NDJSON
 
@@ -89,13 +87,12 @@ func ParseRequestBody(ctx context.Context, req *Request) {
 			ndjson = append(ndjson, parsedLine)
 		}
 		if err == nil {
-			req.ParsedBody = ndjson
-			return
+			return ndjson
 		}
-	}
 
 	// if nothing else, it's unknown
-
-	req.ParsedBody = Unknown(errors)
-
+	default:
+		return Unknown(errors)
+	}
+	return Unknown(errors)
 }

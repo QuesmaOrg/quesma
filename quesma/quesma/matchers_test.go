@@ -163,7 +163,7 @@ func TestMatchAgainstKibanaAlerts(t *testing.T) {
 
 			req := &mux.Request{Body: test.body}
 
-			mux.ParseRequestBody(context.TODO(), req)
+			req.ParsedBody = mux.ParseRequestBody(context.TODO(), req)
 
 			actual := matchAgainstKibanaAlerts().Matches(req)
 			assert.Equal(t, test.expected, actual)
