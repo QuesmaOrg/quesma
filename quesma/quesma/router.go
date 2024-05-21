@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/logger"
@@ -40,13 +41,14 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	router.Register(routes.BulkPath, and(method("POST"), matchedAgainstBulkBody(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
 		var ndjson mux.NDJSON
+
 		switch b := req.ParsedBody.(type) {
 
 		case mux.NDJSON:
 			ndjson = b
 
 		default:
-			return nil, errors.New("invalid request body, expecting NDJSON")
+			return nil, fmt.Errorf("invalid request body, expecting NDJSON. Got: %T", req.ParsedBody)
 		}
 
 		results := dualWriteBulk(ctx, nil, ndjson, lm, cfg, phoneHomeAgent)
@@ -64,7 +66,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		case mux.JSON:
 			body = b
 		default:
-			return nil, errors.New("invalid request body, expecting JSON")
+			return nil, fmt.Errorf("invalid request body, expecting JSON . Got: %T", req.ParsedBody)
 		}
 
 		dualWrite(ctx, req.Params["index"], body, lm, cfg)
@@ -79,7 +81,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		case mux.NDJSON:
 			body = b
 		default:
-			return nil, errors.New("invalid request body, expecting JSON")
+			return nil, fmt.Errorf("invalid request body, expecting NDJSON. Got: %T", req.ParsedBody)
 		}
 
 		results := dualWriteBulk(ctx, &index, body, lm, cfg, phoneHomeAgent)

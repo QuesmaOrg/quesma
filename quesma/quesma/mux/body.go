@@ -13,10 +13,17 @@ import (
 
 type JSON map[string]interface{}
 
-func MustJSON(s string) JSON {
+func ParseJSON(body string) (JSON, error) {
 
 	var res JSON
-	err := json.Unmarshal([]byte(s), &res)
+	err := json.Unmarshal([]byte(body), &res)
+
+	return res, err
+}
+
+func MustJSON(s string) JSON {
+
+	res, err := ParseJSON(s)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to parse JSON: %v", err))
 	}
@@ -55,6 +62,35 @@ func (j JSON) ShortString() string {
 }
 
 type NDJSON []JSON
+
+func ParseNDJSON(body string) (NDJSON, error) {
+	var ndjson NDJSON
+
+	var err error
+	var errors []error
+	for x, line := range strings.Split(body, "\n") {
+
+		if line == "" {
+			continue
+		}
+
+		parsedLine := make(JSON)
+
+		err = json.Unmarshal([]byte(line), &parsedLine)
+		if err != nil {
+			errors = append(errors, fmt.Errorf("error while parsing line %d: %s: %s", x, line, err))
+			break
+		}
+
+		ndjson = append(ndjson, parsedLine)
+	}
+
+	if len(errors) > 0 {
+		err = fmt.Errorf("errors while parsing NDJSON: %v", errors)
+	}
+
+	return ndjson, err
+}
 
 type DocumentTarget struct {
 	Index *string `json:"_index"`
@@ -102,55 +138,53 @@ func (n NDJSON) BulkForEach(f func(operation BulkOperation, doc JSON)) error {
 
 // There we can add methods to iterate over NDJSON
 
-type Unknown []error
+type Unknown struct {
+	Body             string
+	JSONParseError   error
+	NDJSONParseError error
+}
+
+func (u *Unknown) String() string {
+
+	return fmt.Sprintf("Unknown{Body: %s, JSONParseError: %v, NDJSONParseError: %v}", u.Body, u.JSONParseError, u.NDJSONParseError)
+
+}
 
 type RequestBody interface {
 	isParsedRequestBody() // this is a marker method
 }
 
-func (j JSON) isParsedRequestBody()    {}
-func (n NDJSON) isParsedRequestBody()  {}
-func (e Unknown) isParsedRequestBody() {}
+func (j JSON) isParsedRequestBody()     {}
+func (n NDJSON) isParsedRequestBody()   {}
+func (u *Unknown) isParsedRequestBody() {}
 
 func ParseRequestBody(body string) RequestBody {
 
-	var errors []error
+	unknow := &Unknown{}
+	unknow.Body = body
 
-	switch {
 	// json
-	case len(body) > 1 && body[0] == '{':
-		parsedBody := make(JSON)
-		if err := json.Unmarshal([]byte(body), &parsedBody); err != nil {
-			errors = append(errors, fmt.Errorf("error while parsing JSON %s", err))
+	if len(body) > 1 && body[0] == '{' {
+		parsedBody, err := ParseJSON(body)
+		if err != nil {
+			unknow.JSONParseError = err
+		} else {
+			return parsedBody
+		}
+	}
+
+	// ndjson
+	if len(body) > 1 && body[0] == '{' {
+
+		parsedBody, err := ParseNDJSON(body)
+		if err != nil {
+			unknow.NDJSONParseError = err
 		} else {
 			return parsedBody
 		}
 
-	// ndjson
-	case len(body) > 1 && body[0] == '{':
-
-		var ndjson NDJSON
-
-		var err error
-		for _, line := range strings.Split(body, "\n") {
-
-			parsedLine := make(JSON)
-
-			err = json.Unmarshal([]byte(line), &parsedLine)
-			if err != nil {
-				errors = append(errors, fmt.Errorf("error while parsing NDJSON %s", err))
-				break
-			}
-
-			ndjson = append(ndjson, parsedLine)
-		}
-		if err == nil {
-			return ndjson
-		}
-
-	// if nothing else, it's unknown
-	default:
-		return Unknown(errors)
+		// if nothing else, it's unknown
 	}
-	return Unknown(errors)
+
+	return unknow
 }
