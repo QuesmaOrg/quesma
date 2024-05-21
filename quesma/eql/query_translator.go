@@ -33,7 +33,7 @@ func (cw *ClickhouseEQLQueryTranslator) applySizeLimit(size int) int {
 func (cw *ClickhouseEQLQueryTranslator) BuildNRowsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query {
 	suffixClauses := make([]string, 0)
 	if len(simpleQuery.SortFields) > 0 {
-		suffixClauses = append(suffixClauses, "ORDER BY "+strings.Join(simpleQuery.SortFields, ", "))
+		suffixClauses = append(suffixClauses, "ORDER BY "+queryparser.AsQueryString(simpleQuery.SortFields))
 	}
 	if limit > 0 {
 		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(cw.applySizeLimit(limit)))
@@ -143,7 +143,7 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query qu
 
 	query.Sql.Stmt = where
 	query.CanParse = true
-	query.SortFields = []string{"\"@timestamp\""}
+	query.SortFields = []model.SortField{{Field: "@timestamp"}}
 
 	return query, searchQueryInfo, highlighter, nil
 }

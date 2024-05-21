@@ -17,18 +17,19 @@ import (
 
 type QueryMap = map[string]interface{}
 
-type SimpleQuery struct {
-	Sql        Statement
-	CanParse   bool
-	FieldName  string
-	SortFields []string
-}
-
-type Statement struct {
-	Stmt       string
-	isCompound bool // "a" -> not compound, "a AND b" -> compound. Used to not make unnecessary brackets (not always, but usually)
-	FieldName  string
-}
+type (
+	SimpleQuery struct {
+		Sql        Statement
+		CanParse   bool
+		FieldName  string
+		SortFields []model.SortField
+	}
+	Statement struct {
+		Stmt       string
+		isCompound bool // "a" -> not compound, "a AND b" -> compound. Used to not make unnecessary brackets (not always, but usually)
+		FieldName  string
+	}
+)
 
 // Added to the generated SQL where the query is fine, but we're sure no rows will match it
 var alwaysFalseStatement = NewSimpleStatement("false")
@@ -1143,10 +1144,10 @@ func (cw *ClickhouseQueryTranslator) extractInterval(queryMap QueryMap) string {
 
 // parseSortFields parses sort fields from the query
 // We're skipping ELK internal fields, like "_doc", "_id", etc. (we only accept field starting with "_" if it exists in our table)
-func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) []string {
+func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortFields []model.SortField) {
+	sortFields = make([]model.SortField, 0)
 	switch sortMaps := sortMaps.(type) {
 	case []any:
-		sortFields := make([]string, 0)
 		for _, sortMapAsAny := range sortMaps {
 			sortMap, ok := sortMapAsAny.(QueryMap)
 			if !ok {
@@ -1165,15 +1166,25 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) []string {
 				case QueryMap:
 					if order, ok := v["order"]; ok {
 						if orderAsString, ok := order.(string); ok {
-							sortFields = append(sortFields, strconv.Quote(fieldName)+" "+orderAsString)
+							orderAsString = strings.ToLower(orderAsString)
+							if orderAsString == "asc" || orderAsString == "desc" {
+								sortFields = append(sortFields, model.SortField{Field: fieldName, Desc: orderAsString == "desc"})
+							} else {
+								logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", orderAsString)
+							}
 						} else {
 							logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order type: %T, value: %v. Skipping", order, order)
 						}
 					} else {
-						sortFields = append(sortFields, strconv.Quote(fieldName))
+						sortFields = append(sortFields, model.SortField{Field: fieldName, Desc: false})
 					}
 				case string:
-					sortFields = append(sortFields, strconv.Quote(fieldName)+" "+v)
+					v = strings.ToLower(v)
+					if v == "asc" || v == "desc" {
+						sortFields = append(sortFields, model.SortField{Field: fieldName, Desc: v == "desc"})
+					} else {
+						logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", v)
+					}
 				default:
 					logger.WarnWithCtx(cw.Ctx).Msgf("unexpected 'sort' value's type: %T (key, value): (%s, %v). Skipping", v, k, v)
 				}
@@ -1181,35 +1192,41 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) []string {
 		}
 		return sortFields
 	case map[string]interface{}:
-		sortFields := make([]string, 0)
-
 		for fieldName, fieldValue := range sortMaps {
 			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, fieldName) == clickhouse.NotExists {
 				// TODO Elastic internal fields will need to be supported in the future
 				continue
 			}
 			if fieldValue, ok := fieldValue.(string); ok {
-				sortFields = append(sortFields, fmt.Sprintf("%s %s", strconv.Quote(fieldName), fieldValue))
+				fieldValue = strings.ToLower(fieldValue)
+				if fieldValue == "asc" || fieldValue == "desc" {
+					sortFields = append(sortFields, model.SortField{Field: fieldName, Desc: fieldValue == "desc"})
+				} else {
+					logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", fieldValue)
+				}
 			}
 		}
 
 		return sortFields
 
 	case map[string]string:
-		sortFields := make([]string, 0)
-
 		for fieldName, fieldValue := range sortMaps {
 			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, fieldName) == clickhouse.NotExists {
 				// TODO Elastic internal fields will need to be supported in the future
 				continue
 			}
-			sortFields = append(sortFields, fmt.Sprintf("%s %s", strconv.Quote(fieldName), fieldValue))
+			fieldValue = strings.ToLower(fieldValue)
+			if fieldValue == "asc" || fieldValue == "desc" {
+				sortFields = append(sortFields, model.SortField{Field: fieldName, Desc: fieldValue == "desc"})
+			} else {
+				logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", fieldValue)
+			}
 		}
 
 		return sortFields
 	default:
 		logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of sortMaps: %T, value: %v", sortMaps, sortMaps)
-		return []string{}
+		return []model.SortField{}
 	}
 }
 
