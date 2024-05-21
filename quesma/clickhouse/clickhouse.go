@@ -412,7 +412,7 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 	return config, nil
 }
 
-func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData mux.NDJSON) error {
+func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []mux.JSON) error {
 	if config, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0]); err != nil {
 		return err
 	} else {

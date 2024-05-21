@@ -8,6 +8,17 @@ import (
 
 type JSON map[string]interface{}
 
+func MustJSON(s string) JSON {
+
+	var res JSON
+	err := json.Unmarshal([]byte(s), &res)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to parse JSON: %v", err))
+	}
+
+	return res
+}
+
 func (j JSON) Bytes() ([]byte, error) {
 	return json.Marshal(j)
 }
