@@ -350,6 +350,10 @@ func FilterNonEmpty(slice []string) []string {
 // (e.g. it only tries to find permutations of size 2)
 func AssertSqlEqual(t *testing.T, expected, actual string) {
 	if !IsSqlEqual(expected, actual) {
+		pp.Println("-- Expected:")
+		fmt.Printf("%s\n", SqlPrettyPrint([]byte(expected)))
+		pp.Println("---- Actual:")
+		fmt.Printf("%s\n", SqlPrettyPrint([]byte(actual)))
 		t.Errorf("Expected: %s, got: %s", expected, actual)
 	}
 }

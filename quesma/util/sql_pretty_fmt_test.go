@@ -1,4 +1,4 @@
-package sqlfmt
+package util
 
 import (
 	"github.com/stretchr/testify/assert"

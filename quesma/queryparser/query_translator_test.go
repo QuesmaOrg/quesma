@@ -466,8 +466,8 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: nil, Table: clickhouse.NewEmptyTable("@"), Ctx: context.Background()}
 	const limit = 1000
 	queries := []*model.Query{
-		cw.BuildNRowsQuery("*", SimpleQuery{}, limit),
-		cw.BuildNRowsQuery("@", SimpleQuery{}, 0),
+		cw.BuildNRowsQuery("*", model.SimpleQuery{}, limit),
+		cw.BuildNRowsQuery("@", model.SimpleQuery{}, 0),
 	}
 	for _, query := range queries {
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}
@@ -491,7 +491,7 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	queries := []*model.Query{
 		cw.BuildAutocompleteSuggestionsQuery("@", "", 0),
-		cw.BuildFacetsQuery("@", newSimpleQuery(NewSimpleStatement(""), true), 0),
+		cw.BuildFacetsQuery("@", model.NewSimpleQuery(model.NewSimpleStatement(""), true), 0),
 		// queryTranslator.BuildTimestampQuery("@", "@", "", true), TODO uncomment when add unification for this query type
 	}
 	types := []model.SearchQueryType{model.ListAllFields, model.ListByField}
