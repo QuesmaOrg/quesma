@@ -114,6 +114,9 @@ func (query MaxBucket) calculateSingleMaxBucket(qwa *model.Query, parentRows []m
 				resultKeys = append(resultKeys, getKey(query.ctx, row, qwa))
 			}
 		}
+	} else {
+		logger.WarnWithCtx(query.ctx).Msgf("could not convert value to float or int: %v, type: %T. Returning nil.",
+			parentRows[firstNonNilIndex].LastColValue(), parentRows[firstNonNilIndex].LastColValue())
 	}
 
 	resultRow := parentRows[0].Copy()
