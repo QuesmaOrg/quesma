@@ -143,7 +143,7 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query qu
 
 	query.Sql.Stmt = where
 	query.CanParse = true
-	query.SortFields = []queryparser.SortField{{Field: "@timestamp"}}
+	query.SortFields = []model.SortField{{Field: "@timestamp"}}
 
 	return query, searchQueryInfo, highlighter, nil
 }

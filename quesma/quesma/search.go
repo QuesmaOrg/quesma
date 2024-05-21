@@ -133,6 +133,43 @@ func isNonAggregationQuery(queryInfo model.SearchQueryInfo, body []byte) bool {
 		queryInfo.Typ == model.CountAsync
 }
 
+func (q *QueryRunner) ParseQuery(ctx context.Context,
+	queryTranslator IQueryTranslator,
+	body []byte,
+	table *clickhouse.Table) ([]model.Query, []string, bool, bool, error) {
+	simpleQuery, queryInfo, highlighter, err := queryTranslator.ParseQuery(string(body))
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("error parsing query: %v", err)
+		return nil, nil, false, false, err
+	}
+	var columns []string
+	var query *model.Query
+	var queries []model.Query
+	var isAggregation bool
+	canParse := false
+
+	if simpleQuery.CanParse {
+		canParse = true
+		if isNonAggregationQuery(queryInfo, body) {
+			query, columns = q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
+			query.SortFields = simpleQuery.SortFields
+			queries = append(queries, *query)
+			isAggregation = false
+			return queries, columns, isAggregation, canParse, nil
+		} else {
+			queries, err = queryTranslator.ParseAggregationJson(string(body))
+			if err != nil {
+				logger.ErrorWithCtx(ctx).Msgf("error parsing aggregation: %v", err)
+				return nil, nil, false, false, err
+			}
+			isAggregation = true
+			return queries, columns, isAggregation, canParse, nil
+		}
+	}
+
+	return nil, nil, false, false, err
+}
+
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body []byte, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
 	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im, q.logManager)
 
@@ -198,8 +235,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	for _, resolvedTableName := range sourcesClickhouse {
 		var queryTranslator IQueryTranslator
-		var highlighter model.Highlighter
-		var aggregations []model.Query
 		var err error
 		var queryInfo model.SearchQueryInfo
 		doneCh := make(chan AsyncSearchWithError, 1)
@@ -212,17 +247,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		queryTranslator = NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
 
-		simpleQuery, queryInfo, highlighter, err = queryTranslator.ParseQuery(string(body))
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error parsing query: %v", err)
-			return nil, errors.Join(errCouldNotParseRequest, err)
-		}
+		queries, columns, isAggregation, canParse, err := q.ParseQuery(ctx, queryTranslator, body, table)
 
-		if simpleQuery.CanParse {
-			if isNonAggregationQuery(queryInfo, body) {
-				logger.InfoWithCtx(ctx).Msgf("received search request, type: %v, async: %v", queryInfo.Typ, optAsync != nil)
-
-				if properties := q.findNonexistingProperties(queryInfo, simpleQuery, table); len(properties) > 0 {
+		if canParse {
+			if isNonAggregationQuery(queries[0].QueryInfo, body) {
+				if properties := q.findNonexistingProperties(queries[0].QueryInfo, queries[0].SortFields, table); len(properties) > 0 {
 					logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
 					if elasticsearch.IsIndexPattern(indexPattern) {
 						return queryparser.EmptySearchResponse(ctx), nil
@@ -230,27 +259,30 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						return nil, fmt.Errorf("properties %s not found in table %s", properties, table.Name)
 					}
 				}
-				fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
+			}
+		}
+		if canParse {
+			if !isAggregation {
 				var columnsSlice [][]string
 				go func() {
 					defer recovery.LogAndHandlePanic(ctx, func() {
 						doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 					})
-					translatedQueryBody, hitsSlice := q.searchWorker(ctx, []model.Query{*fullQuery}, append(columnsSlice, columns), table, false, doneCh, optAsync)
-					searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], *fullQuery)
+					translatedQueryBody, hitsSlice := q.searchWorker(ctx, queries, append(columnsSlice, columns), table, false, doneCh, optAsync)
+					searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], queries[0])
 					if err != nil {
-						logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, fullQuery.QueryInfo, hits)
+						logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queries[0].QueryInfo, hits)
 					}
 					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
 				}()
-			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
-				columns := make([][]string, len(aggregations))
+			} else {
+				columns := make([][]string, len(queries))
 				go func() {
 					defer recovery.LogAndHandlePanic(ctx, func() {
 						doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 					})
-					translatedQueryBody, aggregationResults = q.searchWorker(ctx, aggregations, columns, table, true, doneCh, optAsync)
-					searchResponse := queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
+					translatedQueryBody, aggregationResults = q.searchWorker(ctx, queries, columns, table, true, doneCh, optAsync)
+					searchResponse := queryTranslator.MakeResponseAggregation(queries, aggregationResults)
 					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody}
 				}()
 			}
@@ -489,11 +521,11 @@ func (q *QueryRunner) Close() {
 	logger.Info().Msg("queryRunner Stopped")
 }
 
-func (q *QueryRunner) findNonexistingProperties(queryInfo model.SearchQueryInfo, simpleQuery queryparser.SimpleQuery, table *clickhouse.Table) []string {
+func (q *QueryRunner) findNonexistingProperties(queryInfo model.SearchQueryInfo, sortFields []model.SortField, table *clickhouse.Table) []string {
 	var results = make([]string, 0)
 	var allReferencedFields = make([]string, 0)
 	allReferencedFields = append(allReferencedFields, queryInfo.RequestedFields...)
-	for _, field := range simpleQuery.SortFields {
+	for _, field := range sortFields {
 		allReferencedFields = append(allReferencedFields, field.Field)
 	}
 
