@@ -11,7 +11,8 @@ import (
 
 type (
 	PathRouter struct {
-		mappings []mapping
+		processors []RequestProcessor
+		mappings   []mapping
 	}
 	mapping struct {
 		pattern      string
@@ -61,17 +62,31 @@ func (f RequestMatcherFunc) Matches(req *Request) bool {
 // We need our own component as default libraries caused side-effects on requests or response.
 // The pattern syntax is based on ucarion/urlpath project. e.g. "/shelves/:shelf/books/:book"
 func NewPathRouter() *PathRouter {
-	return &PathRouter{mappings: make([]mapping, 0)}
+	return &PathRouter{mappings: make([]mapping, 0), processors: make([]RequestProcessor, 0)}
 }
 
 func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler Handler) {
-
 	mapping := mapping{pattern, urlpath.New(pattern), predicate, handler}
 	p.mappings = append(p.mappings, mapping)
+}
 
+func (p *PathRouter) RegisterProcessor(processor RequestProcessor) *PathRouter {
+	p.processors = append(p.processors, processor)
+	return p
 }
 
 func (p *PathRouter) Matches(req *Request) (Handler, bool) {
+	for _, processor := range p.processors {
+		if processor.Applies(req) {
+			if processor.IsFinal() {
+				logger.Info().Msgf("Taking over the request processing with %T", processor)
+				return AsHandler(processor), true
+			} else {
+				logger.Info().Msgf("Preprocessing request with %T", processor)
+				req = processor.PreprocessRequest(req)
+			}
+		}
+	}
 
 	handler, found := p.findHandler(req)
 	if found {

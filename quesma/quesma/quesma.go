@@ -120,6 +120,10 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
 
 	router := configureRouter(config, logManager, quesmaManagementConsole, phoneHomeAgent, queryRunner)
+	router.
+		RegisterProcessor(mux.NewIdentityRequestProcessor()).
+		RegisterProcessor(mux.NewFieldDroppingProcessor("password"))
+
 	return &Quesma{
 		telemetryAgent:          phoneHomeAgent,
 		processor:               newDualWriteProxy(logManager, indexManager, config, router, quesmaManagementConsole, phoneHomeAgent, queryRunner),

@@ -26,13 +26,15 @@ const (
 	quesmaAsyncIdPrefix = "quesma_async_search_id_"
 )
 
-func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *mux.PathRouter {
-
+func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, processors ...mux.RequestProcessor) *mux.PathRouter {
 	// some syntactic sugar
 	method := mux.IsHTTPMethod
 	and := mux.And
 
 	router := mux.NewPathRouter()
+	for _, processor := range processors {
+		router.RegisterProcessor(processor)
+	}
 	router.Register(routes.ClusterHealthPath, method("GET"), func(_ context.Context, req *mux.Request) (*mux.Result, error) {
 		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, httpOk), nil
 	})
@@ -258,7 +260,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		}
 	})
 
-	eqlHandler := func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.EQLSearch, and(method("GET", "POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		responseBody, err := queryRunner.handleEQLSearch(ctx, req.Params["index"], []byte(req.Body))
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
@@ -268,9 +270,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 			}
 		}
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
-	}
-
-	router.Register(routes.EQLSearch, and(method("GET", "POST"), matchedAgainstPattern(cfg)), eqlHandler)
+	})
 
 	return router
 }
