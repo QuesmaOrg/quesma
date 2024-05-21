@@ -153,7 +153,8 @@ func (cw *ClickhouseQueryTranslator) parseBucketsPath(shouldBeQueryMap any, aggr
 	return bucketsPath, true
 }
 
-func (b *aggrQueryBuilder) buildPipelineAggregation(aggregationType model.QueryType, metadata model.JsonMap) model.Query {
+func (b *aggrQueryBuilder) finishBuildingAggregationPipeline(aggregationType model.QueryType, metadata model.JsonMap) model.Query {
+	//query := b.finishBuildingAggregationCommon()
 	query := b.buildAggregationCommon(metadata)
 	query.Type = aggregationType
 	switch aggrType := aggregationType.(type) {

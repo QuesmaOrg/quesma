@@ -1,7 +1,7 @@
-package sqlfmt
+package util
 
 import (
-	sqllexer "github.com/DataDog/go-sqllexer"
+	"github.com/DataDog/go-sqllexer"
 	"strings"
 )
 
