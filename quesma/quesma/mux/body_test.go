@@ -47,9 +47,9 @@ func TestParseNDJSON(t *testing.T) {
 	// when
 	responseBody := ParseRequestBody(ndjson)
 
-	switch responseBody.(type) {
+	switch b := responseBody.(type) {
 	case NDJSON:
-		ndjsonData := responseBody.(NDJSON)
+		ndjsonData := b
 		assert.Equal(t, 4, len(ndjsonData))
 	default:
 		t.Fatal("Invalid response body. Should be NDJSON")
