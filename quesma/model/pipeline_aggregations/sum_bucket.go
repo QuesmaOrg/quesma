@@ -58,9 +58,25 @@ func (query SumBucket) CalculateResultWhenMissing(qwa *model.Query, parentRows [
 // we're sure len(parentRows) > 0
 func (query SumBucket) calculateSingleSumBucket(parentRows []model.QueryResultRow) model.QueryResultRow {
 	var resultValue any
-	if firstRowValueFloat, firstRowValueIsFloat := util.ExtractFloat64Maybe(parentRows[0].LastColValue()); firstRowValueIsFloat {
+
+	firstNonNilIndex := -1
+	for i, row := range parentRows {
+		if row.LastColValue() != nil {
+			firstNonNilIndex = i
+			break
+		}
+	}
+	if firstNonNilIndex == -1 {
+		resultRow := parentRows[0].Copy()
+		resultRow.Cols[len(resultRow.Cols)-1].Value = model.JsonMap{
+			"value": resultValue,
+		}
+		return resultRow
+	}
+
+	if firstRowValueFloat, firstRowValueIsFloat := util.ExtractFloat64Maybe(parentRows[firstNonNilIndex].LastColValue()); firstRowValueIsFloat {
 		sum := firstRowValueFloat
-		for _, row := range parentRows[1:] {
+		for _, row := range parentRows[firstNonNilIndex+1:] {
 			value, ok := util.ExtractFloat64Maybe(row.LastColValue())
 			if ok {
 				sum += value
@@ -69,9 +85,9 @@ func (query SumBucket) calculateSingleSumBucket(parentRows []model.QueryResultRo
 			}
 		}
 		resultValue = sum
-	} else if firstRowValueInt, firstRowValueIsInt := util.ExtractInt64Maybe(parentRows[0].LastColValue()); firstRowValueIsInt {
+	} else if firstRowValueInt, firstRowValueIsInt := util.ExtractInt64Maybe(parentRows[firstNonNilIndex].LastColValue()); firstRowValueIsInt {
 		sum := firstRowValueInt
-		for _, row := range parentRows[1:] {
+		for _, row := range parentRows[firstNonNilIndex+1:] {
 			value, ok := util.ExtractInt64Maybe(row.LastColValue())
 			if ok {
 				sum += value
@@ -80,6 +96,9 @@ func (query SumBucket) calculateSingleSumBucket(parentRows []model.QueryResultRo
 			}
 		}
 		resultValue = sum
+	} else {
+		logger.WarnWithCtx(query.ctx).Msgf("could not convert value to float or int: %v, type: %T. Returning nil.",
+			parentRows[firstNonNilIndex].LastColValue(), parentRows[firstNonNilIndex].LastColValue())
 	}
 
 	resultRow := parentRows[0].Copy()
