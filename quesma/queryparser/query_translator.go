@@ -163,10 +163,9 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryR
 	switch query.QueryInfo.Typ {
 	case model.Normal:
 		return cw.makeSearchResponseNormal(ResultSet, query.Highlighter, query.SortFields.Properties()), nil
-	case model.Facets, model.FacetsNumeric:
+	case model.Facets, model.FacetsNumeric, model.FacetsHistogram:
 		return cw.makeSearchResponseFacets(ResultSet, query.QueryInfo.Typ), nil
 	case model.ListByField, model.ListAllFields:
-
 		return cw.makeSearchResponseList(ResultSet, query.QueryInfo.Typ, query.Highlighter, query.SortFields.Properties()), nil
 	default:
 		return nil, fmt.Errorf("unknown SearchQueryType: %v", query.QueryInfo.Typ)
@@ -655,6 +654,23 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, whereCla
 		Fields:          []string{fieldName},
 		Columns:         []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
 		NonSchemaFields: []string{"count()"},
+		SuffixClauses:   suffixClauses,
+		FromClause:      "(" + innerQuery.String() + ")",
+		CanParse:        true,
+	}
+}
+
+func (cw *ClickhouseQueryTranslator) BuildFacetsHistogramQuery(fieldName string, query model.SimpleQuery, limitTodo int) *model.Query {
+	suffixClauses := []string{"GROUP BY " + fieldName, "ORDER BY count() DESC"}
+	innerQuery := model.Query{
+		NonSchemaFields: []string{fieldName},
+		WhereClause:     query.Sql.Stmt,
+		SuffixClauses:   []string{"LIMIT " + facetsSampleSize},
+		FromClause:      cw.Table.FullTableName(),
+		CanParse:        true,
+	}
+	return &model.Query{
+		NonSchemaFields: []string{fieldName, "count()"},
 		SuffixClauses:   suffixClauses,
 		FromClause:      "(" + innerQuery.String() + ")",
 		CanParse:        true,

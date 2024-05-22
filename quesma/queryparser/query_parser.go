@@ -83,6 +83,9 @@ func (cw *ClickhouseQueryTranslator) makeBasicQuery(
 		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
 		fullQuery = cw.BuildFacetsQuery(queryInfo.FieldName, whereClause)
 		columns = []string{"key", "doc_count"}
+	case model.FacetsHistogram:
+		fullQuery = cw.BuildFacetsHistogramQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
+		columns = []string{"key", "doc_count"}
 	case model.ListByField:
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)
 		fullQuery = cw.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
@@ -1067,14 +1070,15 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 	// c) aggsNr == 1 and only 1 'histogram' aggregation
 	switch aggsNr {
 	case 1:
-		if fieldName, size, success := cw.isHistogramFacets(aggs); success {
-			return model.SearchQueryInfo{Typ: model.FacetsHistogram, FieldName: fieldName, I1: size, I2: int(limit)}, true
+		if fieldName, success := cw.isHistogramFacets(aggs); success {
+			return model.SearchQueryInfo{Typ: model.FacetsHistogram, FieldName: fieldName, I2: int(limit)}, true
 		}
 	case 2:
 		if fieldName, size, success := cw.isTermsFacets(aggs); success {
 			return model.SearchQueryInfo{Typ: model.Facets, FieldName: fieldName, I1: size, I2: int(limit)}, true
 		}
 	case 4:
+		fmt.Println("tu")
 		if fieldName, size, success := cw.isTermsFacetsNumeric(aggs); success {
 			return model.SearchQueryInfo{Typ: model.FacetsNumeric, FieldName: fieldName, I1: size, I2: int(limit)}, true
 		}
@@ -1082,7 +1086,41 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 	return model.NewSearchQueryInfoNone(), false
 }
 
-func (cw *ClickhouseQueryTranslator) isHistogramFacets(aggs QueryMap) (fieldName string, size int, success bool) {
+func (cw *ClickhouseQueryTranslator) isHistogramFacets(aggs QueryMap) (fieldName string, success bool) {
+	// aggs should look exactly like this {"some_aggregation_name":{"histogram": {"field": some_fieldname, "interval": some_int}}
+	// No other fields.
+	if len(aggs) != 1 {
+		return
+	}
+	for _, aggregationRaw := range aggs {
+		aggregation, ok := aggregationRaw.(QueryMap)
+		if !ok || len(aggregation) != 1 {
+			return
+		}
+		for aggregationType, aggregationFields := range aggregation {
+			if aggregationType != "histogram" {
+				return
+			}
+			fields, ok := aggregationFields.(QueryMap)
+			if !ok || len(fields) != 2 {
+				return
+			}
+
+			fieldName, ok = fields["field"].(string)
+			if !ok {
+				return
+			}
+			fieldName = strings.TrimSuffix(fieldName, ".keyword")
+			fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
+
+			interval, ok := fields["interval"].(float64)
+			if !ok {
+				return
+			}
+			fmt.Println("tu2", fieldName, interval)
+			return fmt.Sprintf(`floor("%s" / %f) * %f`, fieldName, interval, interval), true
+		}
+	}
 	return
 }
 
@@ -1127,7 +1165,7 @@ func (cw *ClickhouseQueryTranslator) isTermsFacetsNumeric(aggs QueryMap) (fieldN
 
 	minAggr, minExists := aggs["min_value"].(QueryMap)
 	maxAggr, maxExists := aggs["max_value"].(QueryMap)
-	if !minExists || maxExists {
+	if !minExists || !maxExists {
 		return
 	}
 

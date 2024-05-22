@@ -18,6 +18,7 @@ func IsNonAggregationQuery(queryInfo model.SearchQueryInfo, body types.JSON) boo
 		!hasAggs) ||
 		queryInfo.Typ == model.Facets ||
 		queryInfo.Typ == model.FacetsNumeric ||
+		queryInfo.Typ == model.FacetsHistogram ||
 		queryInfo.Typ == model.CountAsync
 }
 
