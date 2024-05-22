@@ -121,6 +121,7 @@ CREATE TABLE IF NOT EXISTS "phone_home_data"
 
     "config_mode" Nullable(String),
     "top_errors"  Array(String),
+    "build_hash" Nullable(String),
     )
     ENGINE = MergeTree
     ORDER BY ("@timestamp")
