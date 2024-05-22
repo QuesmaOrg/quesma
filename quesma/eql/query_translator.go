@@ -3,6 +3,7 @@ package eql
 import (
 	"context"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/eql/transform"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
@@ -25,7 +26,6 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 
 	// This shares a lot of code with the ClickhouseQueryTranslator
 	//
-
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
 		resultRow := ResultSet[i]
@@ -38,9 +38,12 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 			hits[i].Index = cw.Table.Name
 			hits[i].Score = 1
 			hits[i].Version = 1
-			hits[i].Sort = []any{
-				"2024-01-30T19:38:54.607Z",
-				2944,
+		}
+		for _, property := range query.SortFields.Properties() {
+			if val, ok := hits[i].Fields[property]; ok {
+				hits[i].Sort = append(hits[i].Sort, elasticsearch.FormatSortValue(val[0]))
+			} else {
+				logger.WarnWithCtx(cw.Ctx).Msgf("property %s not found in fields", property)
 			}
 		}
 	}
