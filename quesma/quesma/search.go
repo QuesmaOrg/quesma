@@ -135,8 +135,7 @@ func isNonAggregationQuery(queryInfo model.SearchQueryInfo, body []byte) bool {
 
 func (q *QueryRunner) ParseQuery(ctx context.Context,
 	queryTranslator IQueryTranslator,
-	body []byte,
-	table *clickhouse.Table) ([]model.Query, []string, bool, bool, error) {
+	body []byte) ([]model.Query, []string, bool, bool, error) {
 	simpleQuery, queryInfo, highlighter, err := queryTranslator.ParseQuery(string(body))
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("error parsing query: %v", err)
@@ -151,7 +150,7 @@ func (q *QueryRunner) ParseQuery(ctx context.Context,
 	if simpleQuery.CanParse {
 		canParse = true
 		if isNonAggregationQuery(queryInfo, body) {
-			query, columns = q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
+			query, columns = q.makeBasicQuery(ctx, queryTranslator, simpleQuery, queryInfo, highlighter)
 			query.SortFields = simpleQuery.SortFields
 			queries = append(queries, *query)
 			isAggregation = false
@@ -241,7 +240,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
 
-		queries, columns, isAggregation, canParse, err := q.ParseQuery(ctx, queryTranslator, body, table)
+		queries, columns, isAggregation, canParse, err := q.ParseQuery(ctx, queryTranslator, body)
 
 		if canParse {
 			if isNonAggregationQuery(queries[0].QueryInfo, body) {
@@ -438,7 +437,7 @@ func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.C
 }
 
 func (q *QueryRunner) makeBasicQuery(ctx context.Context,
-	queryTranslator IQueryTranslator, table *clickhouse.Table,
+	queryTranslator IQueryTranslator,
 	simpleQuery model.SimpleQuery, queryInfo model.SearchQueryInfo, highlighter model.Highlighter) (*model.Query, []string) {
 	var fullQuery *model.Query
 	var columns []string
