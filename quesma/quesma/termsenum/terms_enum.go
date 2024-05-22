@@ -16,7 +16,7 @@ import (
 
 func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm *clickhouse.LogManager,
 	qmc *ui.QuesmaManagementConsole) ([]byte, error) {
-	if resolvedTableName := lm.ResolveTableName(ctx, index); resolvedTableName == "" {
+	if resolvedTableName := lm.ResolveTableName(index); resolvedTableName == "" {
 		errorMsg := fmt.Sprintf("terms enum failed - could not resolve table name for index: %s", index)
 		logger.Error().Msg(errorMsg)
 		return nil, fmt.Errorf(errorMsg)
