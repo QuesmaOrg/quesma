@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"mitmproxy/quesma/quesma/ui/internal/builder"
-	"mitmproxy/quesma/quesma/ui/internal/sqlfmt"
+	"mitmproxy/quesma/util"
 	"strings"
 )
 
@@ -43,7 +43,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 		buffer.Html(`<div class="query-body-translated">` + "\n")
 		buffer.Html("<p class=\"title\">Translated SQL:</p>\n")
 		buffer.Html(`<pre>`)
-		buffer.Text(sqlfmt.SqlPrettyPrint(request.QueryBodyTranslated))
+		buffer.Text(util.SqlPrettyPrint(request.QueryBodyTranslated))
 		buffer.Html("\n</pre>")
 		buffer.Html(`</div>` + "\n")
 

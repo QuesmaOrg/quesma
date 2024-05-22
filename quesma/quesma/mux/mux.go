@@ -46,6 +46,13 @@ type (
 
 type RequestMatcherFunc func(req *Request) bool
 
+func ServerErrorResult() *Result {
+	return &Result{
+		StatusCode: http.StatusInternalServerError,
+		Meta:       map[string]string{"Content-Type": "text/plain"},
+	}
+}
+
 func (f RequestMatcherFunc) Matches(req *Request) bool {
 	return f(req)
 }

@@ -7,11 +7,25 @@ import (
 )
 
 type Filters struct {
-	ctx context.Context
+	ctx     context.Context
+	Filters []Filter
 }
 
-func NewFilters(ctx context.Context) Filters {
-	return Filters{ctx}
+func NewFiltersEmpty(ctx context.Context) Filters {
+	return Filters{ctx: ctx}
+}
+
+func NewFilters(ctx context.Context, filters []Filter) Filters {
+	return Filters{ctx: ctx, Filters: filters}
+}
+
+type Filter struct {
+	Name string
+	Sql  model.SimpleQuery
+}
+
+func NewFilter(name string, sql model.SimpleQuery) Filter {
+	return Filter{Name: name, Sql: sql}
 }
 
 func (query Filters) IsBucketAggregation() bool {

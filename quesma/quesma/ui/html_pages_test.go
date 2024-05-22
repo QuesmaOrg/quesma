@@ -7,6 +7,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
@@ -55,7 +56,7 @@ func TestHtmlPages(t *testing.T) {
 
 	t.Run("statistics got no XSS", func(t *testing.T) {
 		cfg := config.QuesmaConfiguration{}
-		stats.GlobalStatistics.Process(cfg, xss, "{}", clickhouse.NestedSeparator)
+		stats.GlobalStatistics.Process(cfg, xss, mux.MustJSON("{}"), clickhouse.NestedSeparator)
 		response := string(qmc.generateStatistics())
 		assert.NotContains(t, response, xss)
 	})

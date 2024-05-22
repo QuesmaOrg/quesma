@@ -55,12 +55,18 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 	elkResponse.Body.Close()
 }
 
-func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, elkResponse *http.Response, statusCode int, zip bool) {
+func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, elkResponse *http.Response, quesmaResponse *mux.Result, zip bool) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
 
+	for key, value := range quesmaResponse.Meta {
+		w.Header().Set(key, value)
+	}
+	if zip {
+		w.Header().Set("Content-Encoding", "gzip")
+	}
 	w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-	w.WriteHeader(statusCode)
+	w.WriteHeader(quesmaResponse.StatusCode)
 	if zip {
 		zipped, err := gzip.Zip(unzipped)
 		if err != nil {
@@ -145,7 +151,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		Body:        string(reqBody),
 	}
 
-	quesmaRequest.ParsedBody = mux.ParseRequestBody(ctx, quesmaRequest)
+	quesmaRequest.ParsedBody = mux.ParseRequestBody(quesmaRequest.Body)
 
 	handler, found := router.Matches(quesmaRequest)
 
@@ -190,13 +196,8 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 				logger.WarnWithCtx(ctx).Msg("empty response from Clickhouse")
 			}
 			addProductAndContentHeaders(req.Header, w.Header())
-			for key, value := range quesmaResponse.Meta {
-				w.Header().Set(key, value)
-			}
-			if zip {
-				w.Header().Set("Content-Encoding", "gzip")
-			}
-			responseFromQuesma(ctx, unzipped, w, elkResponse, quesmaResponse.StatusCode, zip)
+
+			responseFromQuesma(ctx, unzipped, w, elkResponse, quesmaResponse, zip)
 
 		} else {
 			if elkResponse != nil && r.config.Mode == config.DualWriteQueryClickhouseFallback {
@@ -213,7 +214,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 				// We should not send our error message to the client. There can be sensitive information in it.
 				// We will send ID of failed request instead
-				responseFromQuesma(ctx, []byte(fmt.Sprintf("Internal server error. Request ID: %s\n", requestId)), w, elkResponse, 500, zip)
+				responseFromQuesma(ctx, []byte(fmt.Sprintf("Internal server error. Request ID: %s\n", requestId)), w, elkResponse, mux.ServerErrorResult(), zip)
 			}
 		}
 	} else {

@@ -3,6 +3,7 @@ package pipeline_aggregations
 import (
 	"context"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/model"
 	"strings"
 )
 
@@ -17,4 +18,12 @@ func parseBucketsPathIntoParentAggregationName(ctx context.Context, bucketsPath 
 		parentAggregationName = ""
 	}
 	return
+}
+
+func getKey(ctx context.Context, row model.QueryResultRow, query *model.Query) any {
+	if len(row.Cols) < 2 {
+		logger.WarnWithCtx(ctx).Msgf("row has less than 2 columns: %v", row)
+		return nil
+	}
+	return row.Cols[len(row.Cols)-2].Value
 }
