@@ -1,7 +1,6 @@
 package quesma
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
+	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/ui"
@@ -123,53 +123,6 @@ type AsyncQuery struct {
 	startTime         time.Time
 }
 
-func isNonAggregationQuery(queryInfo model.SearchQueryInfo, body []byte) bool {
-	return ((queryInfo.Typ == model.ListByField ||
-		queryInfo.Typ == model.ListAllFields ||
-		queryInfo.Typ == model.Normal) &&
-		!bytes.Contains(body, []byte("aggs"))) ||
-		queryInfo.Typ == model.Facets ||
-		queryInfo.Typ == model.FacetsNumeric ||
-		queryInfo.Typ == model.CountAsync
-}
-
-func (q *QueryRunner) ParseQuery(ctx context.Context,
-	queryTranslator IQueryTranslator,
-	body []byte,
-	table *clickhouse.Table) ([]model.Query, []string, bool, bool, error) {
-	simpleQuery, queryInfo, highlighter, err := queryTranslator.ParseQuery(string(body))
-	if err != nil {
-		logger.ErrorWithCtx(ctx).Msgf("error parsing query: %v", err)
-		return nil, nil, false, false, err
-	}
-	var columns []string
-	var query *model.Query
-	var queries []model.Query
-	var isAggregation bool
-	canParse := false
-
-	if simpleQuery.CanParse {
-		canParse = true
-		if isNonAggregationQuery(queryInfo, body) {
-			query, columns = q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
-			query.SortFields = simpleQuery.SortFields
-			queries = append(queries, *query)
-			isAggregation = false
-			return queries, columns, isAggregation, canParse, nil
-		} else {
-			queries, err = queryTranslator.ParseAggregationJson(string(body))
-			if err != nil {
-				logger.ErrorWithCtx(ctx).Msgf("error parsing aggregation: %v", err)
-				return nil, nil, false, false, err
-			}
-			isAggregation = true
-			return queries, columns, isAggregation, canParse, nil
-		}
-	}
-
-	return nil, nil, false, false, err
-}
-
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body []byte, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
 	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im, q.logManager)
 
@@ -241,10 +194,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
 
-		queries, columns, isAggregation, canParse, err := q.ParseQuery(ctx, queryTranslator, body, table)
+		queries, columns, isAggregation, canParse, err := queryTranslator.ParseQuery(body)
 
 		if canParse {
-			if isNonAggregationQuery(queries[0].QueryInfo, body) {
+			if query_util.IsNonAggregationQuery(queries[0].QueryInfo, body) {
 				if properties := q.findNonexistingProperties(queries[0].QueryInfo, queries[0].SortFields, table); len(properties) > 0 {
 					logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
 					if elasticsearch.IsIndexPattern(indexPattern) {
@@ -435,34 +388,6 @@ func (q *QueryRunner) reachedQueriesLimit(ctx context.Context, asyncRequestIdStr
 
 func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, asyncRequestIdStr string) {
 	q.AsyncQueriesContexts.Store(asyncRequestIdStr, NewAsyncQueryContext(ctx, cancel, asyncRequestIdStr))
-}
-
-func (q *QueryRunner) makeBasicQuery(ctx context.Context,
-	queryTranslator IQueryTranslator, table *clickhouse.Table,
-	simpleQuery model.SimpleQuery, queryInfo model.SearchQueryInfo, highlighter model.Highlighter) (*model.Query, []string) {
-	var fullQuery *model.Query
-	var columns []string
-	switch queryInfo.Typ {
-	case model.CountAsync:
-		fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-		columns = []string{"doc_count"}
-	case model.Facets, model.FacetsNumeric:
-		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
-		fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		columns = []string{"key", "doc_count"}
-	case model.ListByField:
-		// queryInfo = (ListByField, fieldName, 0, LIMIT)
-		fullQuery = queryTranslator.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		columns = []string{queryInfo.FieldName}
-	case model.ListAllFields:
-		// queryInfo = (ListAllFields, "*", 0, LIMIT)
-		fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
-	case model.Normal:
-		fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
-	}
-	fullQuery.QueryInfo = queryInfo
-	fullQuery.Highlighter = highlighter
-	return fullQuery, columns
 }
 
 func (q *QueryRunner) searchWorkerCommon(

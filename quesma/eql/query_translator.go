@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
+	"mitmproxy/quesma/queryparser/query_util"
 	"strconv"
 	"strings"
 )
@@ -18,34 +19,6 @@ type ClickhouseEQLQueryTranslator struct {
 	ClickhouseLM *clickhouse.LogManager
 	Table        *clickhouse.Table
 	Ctx          context.Context
-}
-
-func (cw *ClickhouseEQLQueryTranslator) applySizeLimit(size int) int {
-	// FIXME hard limit here to prevent OOM
-	const quesmaMaxSize = 10000
-	if size > quesmaMaxSize {
-		logger.WarnWithCtx(cw.Ctx).Msgf("setting hits size to=%d, got=%d", quesmaMaxSize, size)
-		size = quesmaMaxSize
-	}
-	return size
-}
-
-func (cw *ClickhouseEQLQueryTranslator) BuildNRowsQuery(fieldName string, simpleQuery model.SimpleQuery, limit int) *model.Query {
-	suffixClauses := make([]string, 0)
-	if len(simpleQuery.SortFields) > 0 {
-		suffixClauses = append(suffixClauses, "ORDER BY "+queryparser.AsQueryString(simpleQuery.SortFields))
-	}
-	if limit > 0 {
-		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(cw.applySizeLimit(limit)))
-	}
-	return &model.Query{
-		Fields:          []string{fieldName},
-		NonSchemaFields: []string{},
-		WhereClause:     simpleQuery.Sql.Stmt,
-		SuffixClauses:   suffixClauses,
-		FromClause:      cw.Table.FullTableName(),
-		CanParse:        true,
-	}
 }
 
 func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, query model.Query) (*model.SearchResp, error) {
@@ -88,7 +61,33 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 	}, nil
 }
 
-func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query model.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter model.Highlighter, err error) {
+func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body []byte) ([]model.Query, []string, bool, bool, error) {
+	simpleQuery, queryInfo, highlighter, err := cw.parseQuery(string(body))
+	if err != nil {
+		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
+		return nil, nil, false, false, err
+	}
+	var columns []string
+	var query *model.Query
+	var queries []model.Query
+	var isAggregation bool
+	canParse := false
+
+	if simpleQuery.CanParse {
+		canParse = true
+		query = query_util.BuildNRowsQuery(cw.Ctx, cw.Table.Name, "*", simpleQuery, queryInfo.I2)
+		query.QueryInfo = queryInfo
+		query.Highlighter = highlighter
+		query.SortFields = simpleQuery.SortFields
+		queries = append(queries, *query)
+		isAggregation = false
+		return queries, columns, isAggregation, canParse, nil
+	}
+
+	return nil, nil, false, false, err
+}
+
+func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsJson string) (query model.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter model.Highlighter, err error) {
 
 	// no highlighting here
 	highlighter = queryparser.NewEmptyHighlighter()
@@ -150,18 +149,6 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(queryAsJson string) (query mo
 
 // These methods are not supported by EQL. They are here to satisfy the interface.
 
-func (cw *ClickhouseEQLQueryTranslator) BuildSimpleCountQuery(whereClause string) *model.Query {
-	panic("EQL does not support count")
-}
-
 func (cw *ClickhouseEQLQueryTranslator) MakeResponseAggregation(aggregations []model.Query, aggregationResults [][]model.QueryResultRow) *model.SearchResp {
-	panic("EQL does not support aggregations")
-}
-
-func (cw *ClickhouseEQLQueryTranslator) BuildFacetsQuery(fieldName string, simpleQuery model.SimpleQuery, limit int) *model.Query {
-	panic("EQL does not support facets")
-}
-
-func (cw *ClickhouseEQLQueryTranslator) ParseAggregationJson(aggregationJson string) ([]model.Query, error) {
 	panic("EQL does not support aggregations")
 }
