@@ -6,8 +6,8 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/recovery"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/stats/errorstats"
 	"mitmproxy/quesma/telemetry"
@@ -21,7 +21,7 @@ type (
 	}
 )
 
-func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk mux.NDJSON, lm *clickhouse.LogManager,
+func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *clickhouse.LogManager,
 	cfg config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []WriteResult) {
 	if config.TrafficAnalysis.Load() {
 		logger.Info().Msg("analysing traffic, not writing to Clickhouse")
@@ -29,9 +29,9 @@ func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk mux.NDJSON, l
 	}
 	defer recovery.LogPanic()
 
-	indicesWithDocumentsToInsert := make(map[string][]mux.JSON, len(bulk))
+	indicesWithDocumentsToInsert := make(map[string][]types.JSON, len(bulk))
 
-	err := bulk.BulkForEach(func(op mux.BulkOperation, document mux.JSON) {
+	err := bulk.BulkForEach(func(op types.BulkOperation, document types.JSON) {
 
 		index := op.GetIndex()
 		operation := op.GetOperation()
@@ -87,7 +87,7 @@ func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk mux.NDJSON, l
 	for indexName, documents := range indicesWithDocumentsToInsert {
 		phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
 
-		withConfiguration(ctx, cfg, indexName, make(mux.JSON), func() error {
+		withConfiguration(ctx, cfg, indexName, make(types.JSON), func() error {
 			for _, document := range documents {
 				stats.GlobalStatistics.Process(cfg, indexName, document, clickhouse.NestedSeparator)
 			}
@@ -97,7 +97,7 @@ func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk mux.NDJSON, l
 	return results
 }
 
-func dualWrite(ctx context.Context, tableName string, body mux.JSON, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
+func dualWrite(ctx context.Context, tableName string, body types.JSON, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
 	stats.GlobalStatistics.Process(cfg, tableName, body, clickhouse.NestedSeparator)
 	if config.TrafficAnalysis.Load() {
 		logger.Info().Msgf("analysing traffic, not writing to Clickhouse %s", tableName)
@@ -110,13 +110,13 @@ func dualWrite(ctx context.Context, tableName string, body mux.JSON, lm *clickho
 	}
 
 	withConfiguration(ctx, cfg, tableName, body, func() error {
-		return lm.ProcessInsertQuery(ctx, tableName, mux.NDJSON{body})
+		return lm.ProcessInsertQuery(ctx, tableName, types.NDJSON{body})
 	})
 }
 
 var insertCounter = atomic.Int32{}
 
-func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, indexName string, body mux.JSON, action func() error) {
+func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, indexName string, body types.JSON, action func() error) {
 	if len(cfg.IndexConfig) == 0 {
 		logger.InfoWithCtx(ctx).Msgf("%s  --> clickhouse, body(shortened): %s", indexName, body.ShortString())
 		err := action()

@@ -17,6 +17,7 @@ import (
 	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/routes"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
@@ -151,7 +152,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		Body:        string(reqBody),
 	}
 
-	quesmaRequest.ParsedBody = mux.ParseRequestBody(quesmaRequest.Body)
+	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
 
 	handler, found := router.Matches(quesmaRequest)
 

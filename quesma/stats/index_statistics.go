@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/mux"
+	"mitmproxy/quesma/quesma/types"
 	"sort"
 	"strconv"
 	"strings"
@@ -67,7 +67,7 @@ func New() *Statistics {
 	return &statistics
 }
 
-func (s *Statistics) Process(cfg config.QuesmaConfiguration, index string, jsonData mux.JSON, nestedSeparator string) {
+func (s *Statistics) Process(cfg config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
 	// TODO reading cfg.IngestStatistics is not thread safe
 	if !cfg.IngestStatistics {
 		return
