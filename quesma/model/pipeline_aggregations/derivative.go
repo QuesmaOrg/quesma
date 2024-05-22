@@ -78,7 +78,7 @@ func (query Derivative) CalculateResultWhenMissing(qwa *model.Query, parentRows 
 			if okPrevious && okCurrent {
 				resultValue = currentValue - previousValue
 			} else {
-				logger.WarnWithCtx(query.ctx).Msgf("could not convert value to float: previousValue: %v, type: %T; currentValue: %v, type: %T. Skipping",
+				logger.WarnWithCtx(query.ctx).Msgf("could not convert value to int: previousValue: %v, type: %T; currentValue: %v, type: %T. Skipping",
 					previousValueRaw, previousValueRaw, currentValueRaw, currentValueRaw)
 				resultValue = nil
 			}

@@ -31,6 +31,11 @@ func (cw *ClickhouseQueryTranslator) parsePipelineAggregations(queryMap QueryMap
 	}
 	if aggregationType, success = cw.parseMaxBucket(queryMap); success {
 		delete(queryMap, "max_bucket")
+		return
+	}
+	if aggregationType, success = cw.parseSumBucket(queryMap); success {
+		delete(queryMap, "sum_bucket")
+		return
 	}
 	return
 }
@@ -93,6 +98,18 @@ func (cw *ClickhouseQueryTranslator) parseMaxBucket(queryMap QueryMap) (aggregat
 		return
 	}
 	return pipeline_aggregations.NewMaxBucket(cw.Ctx, bucketsPath), true
+}
+
+func (cw *ClickhouseQueryTranslator) parseSumBucket(queryMap QueryMap) (aggregationType model.QueryType, success bool) {
+	sumBucketRaw, exists := queryMap["sum_bucket"]
+	if !exists {
+		return
+	}
+	bucketsPath, ok := cw.parseBucketsPath(sumBucketRaw, "sum_bucket")
+	if !ok {
+		return
+	}
+	return pipeline_aggregations.NewSumBucket(cw.Ctx, bucketsPath), true
 }
 
 func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (aggregationType model.QueryType, success bool) {
@@ -203,6 +220,9 @@ func (b *aggrQueryBuilder) finishBuildingAggregationPipeline(aggregationType mod
 		query.NoDBQuery = true
 		query.Parent = aggrType.Parent
 	case pipeline_aggregations.MaxBucket:
+		query.NoDBQuery = true
+		query.Parent = aggrType.Parent
+	case pipeline_aggregations.SumBucket:
 		query.NoDBQuery = true
 		query.Parent = aggrType.Parent
 	}
