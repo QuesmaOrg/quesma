@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
@@ -386,6 +387,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 					responsePart = responseMap["response"].(model.JsonMap)
 				}
 				// check max
+				pp.Println(responsePart)
 				assert.Equal(t, tt.MaxExpected, responsePart["aggregations"].(model.JsonMap)["sample"].(model.JsonMap)["max_value"].(model.JsonMap)["value"].(float64))
 				// check min
 				assert.Equal(t, tt.MinExpected, responsePart["aggregations"].(model.JsonMap)["sample"].(model.JsonMap)["min_value"].(model.JsonMap)["value"].(float64))
