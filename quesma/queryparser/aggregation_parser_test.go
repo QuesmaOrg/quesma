@@ -589,7 +589,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			if strings.HasPrefix(test.TestName, "dashboard-1") {
 				t.Skip("Those 2 tests have nested histograms with min_doc_count=0. I'll add support for that in next PR, already most of work done")
 			}
-			if i == 32 {
+			if test.TestName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range" {
 				t.Skip("Need a (most likely) small fix to top_hits.")
 			}
 			if i == 20 {

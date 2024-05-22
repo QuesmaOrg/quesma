@@ -2,7 +2,6 @@ package metrics_aggregations
 
 import (
 	"context"
-	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"strconv"
@@ -30,7 +29,6 @@ func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 			level, len(rows[0].Cols), len(rows),
 		)
 	}
-	pp.Println(rows[0], level)
 	for _, row := range rows {
 		lastIndex := len(row.Cols) - 1 // per convention, we know that value we sorted by is in the last column
 		metrics := make(model.JsonMap)
@@ -44,7 +42,7 @@ func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 				withoutQuotes = col.ColName
 			}
 			colName, _ := strings.CutPrefix(withoutQuotes, `windowed_`)
-			metrics[colName] = col.ExtractValue(query.ctx) // CHANGE IT AFTER PART 2 MERGE!! ENTER REAL CONTEXT FROM THE query
+			metrics[colName] = col.ExtractValue(query.ctx)
 		}
 		elem := model.JsonMap{
 			"sort":    []interface{}{sortVal},
