@@ -3,16 +3,14 @@ package mux
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
-	"net/http"
-	"net/url"
 	"testing"
 )
 
 func TestPathRouter_Matches_ShouldIgnoreTrailingSlash(t *testing.T) {
 	router := NewPathRouter()
-	router.RegisterPath("/:index/_bulk", "POST", mockHandler)
-	router.RegisterPath("/:index/_doc", "POST", mockHandler)
-	router.RegisterPath("/:index/_count", "GET", mockHandler)
+	router.Register("/:index/_bulk", IsHTTPMethod("POST"), mockHandler)
+	router.Register("/:index/_doc", IsHTTPMethod("POST"), mockHandler)
+	router.Register("/:index/_count", IsHTTPMethod("GET"), mockHandler)
 
 	tests := []struct {
 		path       string
@@ -32,15 +30,18 @@ func TestPathRouter_Matches_ShouldIgnoreTrailingSlash(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.httpMethod+" "+tt.path, func(t *testing.T) {
-			_, _, found := router.Matches(tt.path, tt.httpMethod, tt.body)
+
+			req := toRequest(tt.path, tt.httpMethod, tt.body)
+			_, found := router.Matches(req)
 			assert.Equalf(t, tt.want, found, "Matches(%v, %v, %v)", tt.path, tt.httpMethod, tt.body)
 		})
 	}
+
 }
 
 func TestShouldMatchMultipleHttpMethods(t *testing.T) {
 	router := NewPathRouter()
-	router.RegisterPathMatcher("/:index/_bulk", []string{"POST", "GET"}, always, mockHandler)
+	router.Register("/:index/_bulk", IsHTTPMethod("POST", "GET"), mockHandler)
 
 	tests := []struct {
 		path       string
@@ -55,16 +56,23 @@ func TestShouldMatchMultipleHttpMethods(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.httpMethod+" "+tt.path, func(t *testing.T) {
-			_, _, found := router.Matches(tt.path, tt.httpMethod, tt.body)
+
+			req := toRequest(tt.path, tt.httpMethod, tt.body)
+
+			_, found := router.Matches(req)
 			assert.Equalf(t, tt.want, found, "Matches(%v, %v, %v)", tt.path, tt.httpMethod, tt.body)
 		})
 	}
 }
 
-func always(_ map[string]string, _ string) bool {
-	return true
+func toRequest(path, method string, body string) *Request {
+	return &Request{
+		Path:   path,
+		Method: method,
+		Body:   body,
+	}
 }
 
-func mockHandler(_ context.Context, _, _ string, _ map[string]string, _ http.Header, _ url.Values) (*Result, error) {
+func mockHandler(_ context.Context, _ *Request) (*Result, error) {
 	return &Result{}, nil
 }

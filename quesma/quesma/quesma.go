@@ -17,6 +17,7 @@ import (
 	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/routes"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
@@ -44,6 +45,7 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 	logger.Debug().Str(logger.RID, id).Msg("responding from Elasticsearch")
 
 	copyHeaders(w, elkResponse)
+	w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 	// io.Copy calls WriteHeader implicitly
 	w.WriteHeader(elkResponse.StatusCode)
 	if _, err := io.Copy(w, elkResponse.Body); err != nil {
@@ -54,9 +56,18 @@ func responseFromElastic(ctx context.Context, elkResponse *http.Response, w http
 	elkResponse.Body.Close()
 }
 
-func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, elkResponse *http.Response, zip bool) {
+func responseFromQuesma(ctx context.Context, unzipped []byte, w http.ResponseWriter, elkResponse *http.Response, quesmaResponse *mux.Result, zip bool) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	logger.Debug().Str(logger.RID, id).Msg("responding from Quesma")
+
+	for key, value := range quesmaResponse.Meta {
+		w.Header().Set(key, value)
+	}
+	if zip {
+		w.Header().Set("Content-Encoding", "gzip")
+	}
+	w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
+	w.WriteHeader(quesmaResponse.StatusCode)
 	if zip {
 		zipped, err := gzip.Zip(unzipped)
 		if err != nil {
@@ -103,6 +114,12 @@ func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.Qu
 func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, config config.QuesmaConfiguration, logChan <-chan tracing.LogWithLevel) *Quesma {
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logManager, indexManager, logChan, phoneHomeAgent)
 	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole)
+
+	// not sure how we should configure our query translator ???
+	// is this a config option??
+
+	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
+
 	router := configureRouter(config, logManager, quesmaManagementConsole, phoneHomeAgent, queryRunner)
 	return &Quesma{
 		telemetryAgent:          phoneHomeAgent,
@@ -125,8 +142,22 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		w.WriteHeader(500)
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
 	})
-	handler, parameters, found := router.Matches(req.URL.Path, req.Method, string(reqBody))
+
+	quesmaRequest := &mux.Request{
+		Method:      req.Method,
+		Path:        strings.TrimSuffix(req.URL.Path, "/"),
+		Params:      map[string]string{},
+		Headers:     req.Header,
+		QueryParams: req.URL.Query(),
+		Body:        string(reqBody),
+	}
+
+	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
+
+	handler, found := router.Matches(quesmaRequest)
+
 	if found {
+
 		var elkResponseChan = make(chan elasticResult)
 
 		if r.config.Elasticsearch.Call {
@@ -134,7 +165,8 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		}
 
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
-			return handler(ctx, string(reqBody), req.URL.Path, parameters.Params, req.Header, req.URL.Query())
+			return handler(ctx, quesmaRequest)
+
 		})
 		var elkRawResponse elasticResult
 		var elkResponse *http.Response
@@ -165,26 +197,16 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 				logger.WarnWithCtx(ctx).Msg("empty response from Clickhouse")
 			}
 			addProductAndContentHeaders(req.Header, w.Header())
-			for key, value := range quesmaResponse.Meta {
-				w.Header().Set(key, value)
-			}
-			if zip {
-				w.Header().Set("Content-Encoding", "gzip")
-			}
-			w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-			w.WriteHeader(quesmaResponse.StatusCode)
-			responseFromQuesma(ctx, unzipped, w, elkResponse, zip)
+
+			responseFromQuesma(ctx, unzipped, w, elkResponse, quesmaResponse, zip)
 
 		} else {
 			if elkResponse != nil && r.config.Mode == config.DualWriteQueryClickhouseFallback {
 				logger.ErrorWithCtx(ctx).Msgf("Error processing request while responding from Elastic: %v", err)
-				w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 				responseFromElastic(ctx, elkResponse, w)
 
 			} else {
 				logger.ErrorWithCtx(ctx).Msgf("Error processing request while responding from Quesma: %v", err)
-				w.Header().Set(quesmaSourceHeader, quesmaSourceClickhouse)
-				w.WriteHeader(500)
 
 				requestId := "n/a"
 				if contextRid, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
@@ -193,20 +215,18 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 				// We should not send our error message to the client. There can be sensitive information in it.
 				// We will send ID of failed request instead
-				responseFromQuesma(ctx, []byte(fmt.Sprintf("Internal server error. Request ID: %s\n", requestId)), w, elkResponse, zip)
+				responseFromQuesma(ctx, []byte(fmt.Sprintf("Internal server error. Request ID: %s\n", requestId)), w, elkResponse, mux.ServerErrorResult(), zip)
 			}
 		}
 	} else {
-
 		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, logManager.ResolveIndexes)
 
-		elkResponseChan := r.sendHttpRequestToElastic(ctx, req, reqBody, true)
-		rawResponse := <-elkResponseChan
+		rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
 		response := rawResponse.response
-		w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 		if response != nil {
 			responseFromElastic(ctx, response, w)
 		} else {
+			w.Header().Set(quesmaSourceHeader, quesmaSourceElastic)
 			w.WriteHeader(500)
 			if rawResponse.error != nil {
 				_, _ = w.Write([]byte(rawResponse.error.Error()))
@@ -233,25 +253,7 @@ func (r *router) sendHttpRequestToElastic(ctx context.Context, req *http.Request
 	go func() {
 		elkResponseChan <- recordRequestToElastic(req.URL.Path, r.quesmaManagementConsole, func() elasticResult {
 
-			isWrite := false
-
-			// Elastic API is not regular, and it is hard to determine if the request is read or write.
-			// We would like to keep this separate from the router configuration.
-			switch req.Method {
-			case http.MethodPost:
-				if strings.Contains(req.URL.Path, "/_bulk") ||
-					strings.Contains(req.URL.Path, "/_doc") ||
-					strings.Contains(req.URL.Path, "/_create") {
-					isWrite = true
-				}
-				// other are read
-			case http.MethodPut:
-				isWrite = true
-			case http.MethodDelete:
-				isWrite = true
-			default:
-				isWrite = false
-			}
+			isWrite := elasticsearch.IsWriteRequest(req)
 
 			var span telemetry.Span
 			if isManagement {

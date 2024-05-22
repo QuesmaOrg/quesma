@@ -2,6 +2,8 @@ package quesma
 
 import (
 	"github.com/stretchr/testify/assert"
+	"mitmproxy/quesma/quesma/mux"
+	"mitmproxy/quesma/quesma/types"
 	"testing"
 )
 
@@ -152,14 +154,19 @@ func TestMatchAgainstKibanaAlerts(t *testing.T) {
 		body     string
 		expected bool
 	}{
-		{"kibana alerts", kibanaAlerts, false},
+		{"{kibana alerts", kibanaAlerts, false},
 		{"non kibana alerts", nonKibanaAlerts, true},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			actual := matchAgainstKibanaAlerts()(nil, tt.body)
-			assert.Equal(t, tt.expected, actual)
+	for _, test := range tests {
+		t.Run(test.name, func(tt *testing.T) {
+
+			req := &mux.Request{Body: test.body}
+
+			req.ParsedBody = types.ParseRequestBody(test.body)
+
+			actual := matchAgainstKibanaAlerts().Matches(req)
+			assert.Equal(t, test.expected, actual)
 		})
 
 	}

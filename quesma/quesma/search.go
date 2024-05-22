@@ -1,7 +1,6 @@
 package quesma
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
+	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/ui"
@@ -54,6 +54,11 @@ type QueryRunner struct {
 	cfg                     config.QuesmaConfiguration
 	im                      elasticsearch.IndexManagement
 	quesmaManagementConsole *ui.QuesmaManagementConsole
+
+	// configuration
+
+	// this is passed to the QueryTranslator to render date math expressions
+	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 }
 
 func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole) *QueryRunner {
@@ -96,7 +101,6 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string
 	waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
 	async := AsyncQuery{
 		asyncRequestIdStr: generateAsyncRequestId(),
-		doneCh:            make(chan AsyncSearchWithError, 1),
 		waitForResultsMs:  waitForResultsMs,
 		keepOnCompletion:  keepOnCompletion,
 		startTime:         time.Now(),
@@ -114,24 +118,13 @@ type AsyncSearchWithError struct {
 
 type AsyncQuery struct {
 	asyncRequestIdStr string
-	doneCh            chan AsyncSearchWithError
 	waitForResultsMs  int
 	keepOnCompletion  bool
 	startTime         time.Time
 }
 
-func isNonAggregationQuery(queryInfo model.SearchQueryInfo, body []byte) bool {
-	return ((queryInfo.Typ == model.ListByField ||
-		queryInfo.Typ == model.ListAllFields ||
-		queryInfo.Typ == model.Normal) &&
-		!bytes.Contains(body, []byte("aggs"))) ||
-		queryInfo.Typ == model.Facets ||
-		queryInfo.Typ == model.FacetsNumeric ||
-		queryInfo.Typ == model.CountAsync
-}
-
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body []byte, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
-	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im, q.logManager)
+	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im)
 
 	switch sources {
 	case sourceBoth:
@@ -177,7 +170,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		sourcesClickhouse = sourcesClickhouse[1:2]
 	}
 
-	var responseBody, translatedQueryBody []byte
+	var responseBody []byte
 
 	startTime := time.Now()
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
@@ -188,41 +181,24 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 	}
 
-	var hits, hitsFallback []model.QueryResultRow
-	var aggregationResults [][]model.QueryResultRow
-	oldHandlingUsed := false
-	newAggregationHandlingUsed := false
-	hitsPresent := false
-
 	tables := q.logManager.GetTableDefinitions()
 
 	for _, resolvedTableName := range sourcesClickhouse {
-		var queryTranslator IQueryTranslator
-		var highlighter model.Highlighter
-		var aggregations []model.Query
 		var err error
-		var queryInfo model.SearchQueryInfo
-		var count int
+		doneCh := make(chan AsyncSearchWithError, 1)
 
 		table, _ := tables.Load(resolvedTableName)
 		if table == nil {
-			continue
-		}
-		var simpleQuery queryparser.SimpleQuery
-
-		queryTranslator = NewQueryTranslator(ctx, queryLanguage, table, q.logManager)
-
-		simpleQuery, queryInfo, highlighter, err = queryTranslator.ParseQuery(string(body))
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error parsing query: %v", err)
-			return nil, errors.Join(errCouldNotParseRequest, err)
+			return []byte{}, fmt.Errorf("can't load %s table", resolvedTableName)
 		}
 
-		if simpleQuery.CanParse {
-			if isNonAggregationQuery(queryInfo, body) {
-				logger.InfoWithCtx(ctx).Msgf("received search request, type: %v, async: %v", queryInfo.Typ, optAsync != nil)
+		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
 
-				if properties := q.findNonexistingProperties(queryInfo, simpleQuery, table); len(properties) > 0 {
+		queries, columns, isAggregation, canParse, err := queryTranslator.ParseQuery(body)
+
+		if canParse {
+			if query_util.IsNonAggregationQuery(queries[0].QueryInfo, body) {
+				if properties := q.findNonexistingProperties(queries[0].QueryInfo, queries[0].SortFields, table); len(properties) > 0 {
 					logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
 					if elasticsearch.IsIndexPattern(indexPattern) {
 						return queryparser.EmptySearchResponse(ctx), nil
@@ -230,131 +206,64 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						return nil, fmt.Errorf("properties %s not found in table %s", properties, table.Name)
 					}
 				}
-				oldHandlingUsed = true
-				fullQuery, columns := q.makeBasicQuery(ctx, queryTranslator, table, simpleQuery, queryInfo, highlighter)
-				var columnsSlice [][]string
-				if optAsync != nil {
-					go func() {
-						defer recovery.LogAndHandlePanic(ctx, func() {
-							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
-						})
-						translatedQueryBody, hitsSlice := q.searchWorker(ctx, []model.Query{*fullQuery}, append(columnsSlice, columns), table, false, optAsync)
-						searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], fullQuery.QueryInfo.Typ, fullQuery.Highlighter)
-						if err != nil {
-							logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, fullQuery.QueryInfo, hits)
-							optAsync.doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
-							return
-						}
-						optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody}
-					}()
-				} else {
-					var hitsSlice [][]model.QueryResultRow
-					translatedQueryBody, hitsSlice = q.searchWorker(ctx, []model.Query{*fullQuery}, append(columnsSlice, columns), table, false, nil)
-					if len(hitsSlice) > 0 {
-						// there is only one query
-						hits = hitsSlice[0]
-					}
-				}
-			} else if aggregations, err = queryTranslator.ParseAggregationJson(string(body)); err == nil {
-				newAggregationHandlingUsed = true
-				columns := make([][]string, len(aggregations))
-				if optAsync != nil {
-					go func() {
-						defer recovery.LogAndHandlePanic(ctx, func() {
-							optAsync.doneCh <- AsyncSearchWithError{err: errors.New("panic")}
-						})
-						translatedQueryBody, aggregationResults = q.searchWorker(ctx, aggregations, columns, table, true, optAsync)
-						searchResponse := queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
-						optAsync.doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody}
-					}()
-				} else {
-					translatedQueryBody, aggregationResults = q.searchWorker(ctx, aggregations, columns, table, true, nil)
-				}
 			}
 
-			if optAsync == nil && queryInfo.Size > 0 {
-				hitsPresent = true
-				var fieldName string
-				if queryInfo.Typ == model.ListByField {
-					fieldName = queryInfo.FieldName
-				} else {
-					fieldName = "*"
-				}
-				listQuery := queryTranslator.BuildNRowsQuery(fieldName, simpleQuery, queryInfo.Size)
-				hitsFallback, err = q.logManager.ProcessQuery(ctx, table, listQuery, nil)
-				translatedQueryBody = append(translatedQueryBody, []byte("\n"+listQuery.String()+"\n")...)
-				if err != nil {
-					logger.ErrorWithCtx(ctx).Msgf("error processing fallback query. Err: %v, query: %+v", err, listQuery)
-					pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
-					return responseBody, err
-				}
-				countQuery := queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-				countResult, err := q.logManager.ProcessQuery(ctx, table, countQuery, nil)
-				translatedQueryBody = append(translatedQueryBody, []byte("\n"+countQuery.String()+"\n")...)
-				if err != nil {
-					logger.ErrorWithCtx(ctx).Msgf("error processing count query. Err: %v, query: %+v", err, countQuery)
-					pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
-					return responseBody, err
-				}
-				if len(countResult) > 0 {
-					// This if only for tests... On production it'll never be 0.
-					// When e.g. sqlmock starts supporting uint64, we can remove it.
-					countRaw := countResult[0].Cols[0].Value
-					if countExpectedType, ok := countRaw.(uint64); ok {
-						count = int(countExpectedType)
-					} else {
-						logger.ErrorWithCtx(ctx).Msgf("unexpected count type: %T, count: %v. Defaulting to 0.", countRaw, countRaw)
-						count = 0
+			if !isAggregation {
+				go func() {
+					defer recovery.LogAndHandlePanic(ctx, func() {
+						doneCh <- AsyncSearchWithError{err: errors.New("panic")}
+					})
+					columnsSlice := [][]string{columns}
+					translatedQueryBody, hitsSlice := q.searchWorker(ctx, queries, columnsSlice, table, doneCh, optAsync)
+					searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], queries[0])
+					if err != nil {
+						logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queries[0].QueryInfo, hitsSlice[0])
 					}
-				}
+					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
+				}()
+			} else {
+				go func() {
+					defer recovery.LogAndHandlePanic(ctx, func() {
+						doneCh <- AsyncSearchWithError{err: errors.New("panic")}
+					})
+					columnsSlice := make([][]string, len(queries))
+					translatedQueryBody, aggregationResults := q.searchWorker(ctx, queries, columnsSlice, table, doneCh, optAsync)
+					searchResponse := queryTranslator.MakeResponseAggregation(queries, aggregationResults)
+					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody}
+				}()
 			}
 		} else {
-			responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
-			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(string(responseBody))
-			pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
+			queriesBody := ""
+			for _, query := range queries {
+				queriesBody += query.String() + "\n"
+			}
+			responseBody = []byte(fmt.Sprintf("Invalid Queries: %s, err: %v", queriesBody, err))
+			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBody)
+			pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, []byte(queriesBody), responseBody, startTime)
 			return responseBody, errors.New(string(responseBody))
 		}
 
 		if optAsync == nil {
-			var response, responseHits *model.SearchResp = nil, nil
-			err = nil
-			if oldHandlingUsed {
-				response, err = queryTranslator.MakeSearchResponse(hits, queryInfo.Typ, highlighter)
-			} else if newAggregationHandlingUsed {
-				response = queryTranslator.MakeResponseAggregation(aggregations, aggregationResults)
-			}
-			if err != nil {
-				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queryInfo, hits)
-				pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
-				return responseBody, err
+			response := <-doneCh
+			if response.err != nil {
+				err = response.err
+				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v", err, queries[0].QueryInfo)
+			} else {
+				responseBody, err = response.response.Marshal()
 			}
 
-			if hitsPresent {
-				if response == nil {
-					response, err = queryTranslator.MakeSearchResponse(hitsFallback, queryInfo.Typ, highlighter)
-				} else {
-					responseHits, err = queryTranslator.MakeSearchResponse(hitsFallback, queryInfo.Typ, highlighter)
-					response.Hits = responseHits.Hits
-				}
-				response.Hits.Total.Value = count
-			}
-			if err != nil {
-				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %v, rows: %v", err, queryInfo, hitsFallback)
-			}
-			responseBody, err = response.Marshal()
-
-			pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
+			pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, response.translatedQueryBody, responseBody, startTime)
 			return responseBody, err
 		} else {
 			select {
 			case <-time.After(time.Duration(optAsync.waitForResultsMs) * time.Millisecond):
 				go func() { // Async search takes longer. Return partial results and wait for
 					recovery.LogPanicWithCtx(ctx)
-					res := <-optAsync.doneCh
+					res := <-doneCh
 					q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res, true)
 				}()
 				return q.handlePartialAsyncSearch(ctx, optAsync.asyncRequestIdStr)
-			case res := <-optAsync.doneCh:
+			case res := <-doneCh:
 				responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res,
 					optAsync.keepOnCompletion)
 
@@ -481,55 +390,12 @@ func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.C
 	q.AsyncQueriesContexts.Store(asyncRequestIdStr, NewAsyncQueryContext(ctx, cancel, asyncRequestIdStr))
 }
 
-func (q *QueryRunner) makeBasicQuery(ctx context.Context,
-	queryTranslator IQueryTranslator, table *clickhouse.Table,
-	simpleQuery queryparser.SimpleQuery, queryInfo model.SearchQueryInfo, highlighter model.Highlighter) (*model.Query, []string) {
-	var fullQuery *model.Query
-	var columns []string
-	switch queryInfo.Typ {
-	case model.CountAsync:
-		fullQuery = queryTranslator.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
-		columns = []string{"doc_count"}
-	case model.Facets, model.FacetsNumeric:
-		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
-		fullQuery = queryTranslator.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		columns = []string{"key", "doc_count"}
-	case model.ListByField:
-		// queryInfo = (ListByField, fieldName, 0, LIMIT)
-		fullQuery = queryTranslator.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		columns = []string{queryInfo.FieldName}
-	case model.ListAllFields:
-		// queryInfo = (ListAllFields, "*", 0, LIMIT)
-		fullQuery = queryTranslator.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
-	case model.Normal:
-		fullQuery = queryTranslator.BuildSimpleSelectQuery(simpleQuery.Sql.Stmt, queryInfo.I2)
-	}
-	fullQuery.QueryInfo = queryInfo
-	fullQuery.Highlighter = highlighter
-	return fullQuery, columns
-}
-
 func (q *QueryRunner) searchWorkerCommon(
 	ctx context.Context,
 	queries []model.Query,
 	columns [][]string,
-	table *clickhouse.Table,
-	doPostProcessing bool,
-	optAsync *AsyncQuery) (translatedQueryBody []byte, hits [][]model.QueryResultRow) {
-
-	if optAsync != nil && q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, optAsync.doneCh) {
-		return
-	}
-
+	table *clickhouse.Table) (translatedQueryBody []byte, hits [][]model.QueryResultRow) {
 	sqls := ""
-	var dbQueryCtx context.Context
-	if optAsync != nil {
-		var dbCancel context.CancelFunc
-		dbQueryCtx, dbCancel = context.WithCancel(context.Background())
-		q.addAsyncQueryContext(dbQueryCtx, dbCancel, optAsync.asyncRequestIdStr)
-	} else {
-		dbQueryCtx = ctx
-	}
 	for columnsIndex, query := range queries {
 		if query.NoDBQuery {
 			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
@@ -537,12 +403,12 @@ func (q *QueryRunner) searchWorkerCommon(
 			logger.InfoWithCtx(ctx).Msgf("SQL: %s", query.String())
 			sqls += query.String() + "\n"
 		}
-		rows, err := q.logManager.ProcessQuery(dbQueryCtx, table, &query, columns[columnsIndex])
+		rows, err := q.logManager.ProcessQuery(ctx, table, &query, columns[columnsIndex])
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
 			continue
 		}
-		if doPostProcessing {
+		if query.Type != nil {
 			rows = query.Type.PostprocessResults(rows)
 		}
 		hits = append(hits, rows)
@@ -555,18 +421,18 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 	aggregations []model.Query,
 	columns [][]string,
 	table *clickhouse.Table,
-	doPostProcessing bool,
+	doneCh chan<- AsyncSearchWithError,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
-	if optAsync == nil {
-		return q.searchWorkerCommon(ctx, aggregations, columns, table, doPostProcessing, nil)
-	} else {
-		select {
-		case <-q.executionCtx.Done():
+	if optAsync != nil {
+		if q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, doneCh) {
 			return
-		default:
-			return q.searchWorkerCommon(ctx, aggregations, columns, table, doPostProcessing, optAsync)
 		}
+		dbQueryCtx, dbCancel := context.WithCancel(context.Background())
+		q.addAsyncQueryContext(dbQueryCtx, dbCancel, optAsync.asyncRequestIdStr)
+		ctx = dbQueryCtx
 	}
+
+	return q.searchWorkerCommon(ctx, aggregations, columns, table)
 }
 
 func (q *QueryRunner) Close() {
@@ -574,12 +440,12 @@ func (q *QueryRunner) Close() {
 	logger.Info().Msg("queryRunner Stopped")
 }
 
-func (q *QueryRunner) findNonexistingProperties(queryInfo model.SearchQueryInfo, simpleQuery queryparser.SimpleQuery, table *clickhouse.Table) []string {
+func (q *QueryRunner) findNonexistingProperties(queryInfo model.SearchQueryInfo, sortFields []model.SortField, table *clickhouse.Table) []string {
 	var results = make([]string, 0)
 	var allReferencedFields = make([]string, 0)
 	allReferencedFields = append(allReferencedFields, queryInfo.RequestedFields...)
-	for _, field := range simpleQuery.SortFields {
-		allReferencedFields = append(allReferencedFields, strings.ReplaceAll(strings.Fields(field)[0], `"`, ""))
+	for _, field := range sortFields {
+		allReferencedFields = append(allReferencedFields, field.Field)
 	}
 
 	for _, property := range allReferencedFields {

@@ -1,12 +1,10 @@
 package stats
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
 	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/util"
+	"mitmproxy/quesma/quesma/types"
 	"sort"
 	"strconv"
 	"strings"
@@ -69,18 +67,12 @@ func New() *Statistics {
 	return &statistics
 }
 
-func (s *Statistics) Process(cfg config.QuesmaConfiguration, index string, jsonStr string, nestedSeparator string) {
+func (s *Statistics) Process(cfg config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
 	// TODO reading cfg.IngestStatistics is not thread safe
 	if !cfg.IngestStatistics {
 		return
 	}
-	if !util.IsValidJson(jsonStr) {
-		log.Println("Invalid JSON, ignoring:", jsonStr)
-		return
-	}
 
-	var jsonData map[string]interface{}
-	_ = json.Unmarshal([]byte(jsonStr), &jsonData)
 	flatJson := jsonprocessor.FlattenMap(jsonData, nestedSeparator)
 
 	mu.Lock()

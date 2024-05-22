@@ -3,6 +3,7 @@ package quesma
 import (
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/mux"
 	"testing"
 )
 
@@ -35,7 +36,10 @@ func Test_matchedAgainstConfig(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, matchedExact(tt.config)(map[string]string{"index": tt.index}, tt.body), "matchedAgainstConfig(%v), index: %s", tt.config, tt.index)
+
+			req := &mux.Request{Params: map[string]string{"index": tt.index}, Body: tt.body}
+
+			assert.Equalf(t, tt.want, matchedExact(tt.config).Matches(req), "matchedAgainstConfig(%v), index: %s", tt.config, tt.index)
 		})
 	}
 }
@@ -123,7 +127,10 @@ func Test_matchedAgainstPattern(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, matchedAgainstPattern(tt.configuration)(map[string]string{"index": tt.pattern}, tt.body), "matchedAgainstPattern(%v)", tt.configuration)
+
+			req := &mux.Request{Params: map[string]string{"index": tt.pattern}, Body: tt.body}
+
+			assert.Equalf(t, tt.want, matchedAgainstPattern(tt.configuration).Matches(req), "matchedAgainstPattern(%v)", tt.configuration)
 		})
 	}
 }
@@ -166,7 +173,9 @@ func Test_matchedAgainstBulkBody(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, matchedAgainstBulkBody(tt.config)(map[string]string{}, tt.body), "matchedAgainstBulkBody(%+v)", tt.config)
+
+			req := &mux.Request{Body: tt.body}
+			assert.Equalf(t, tt.want, matchedAgainstBulkBody(tt.config).Matches(req), "matchedAgainstBulkBody(%+v)", tt.config)
 		})
 	}
 }

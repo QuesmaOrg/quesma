@@ -112,6 +112,7 @@ func InitSimpleLoggerForTests() {
 			Out:        os.Stderr,
 			TimeFormat: time.StampMilli,
 		}).
+		Level(zerolog.DebugLevel).
 		With().
 		Timestamp().
 		Logger()

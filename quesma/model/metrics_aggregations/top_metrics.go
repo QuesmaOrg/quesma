@@ -4,6 +4,7 @@ import (
 	"context"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"strconv"
 	"strings"
 )
 
@@ -34,8 +35,14 @@ func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 		valuesForMetrics := row.Cols[:lastIndex]
 		sortVal := row.Cols[lastIndex].Value
 		for _, col := range valuesForMetrics[level:] {
-			colName, _ := strings.CutPrefix(col.ColName, "windowed_")
-			metrics[colName] = col.ExtractValue(query.ctx) // CHANGE IT AFTER PART 2 MERGE!! ENTER REAL CONTEXT FROM THE query
+			var withoutQuotes string
+			if unquoted, err := strconv.Unquote(col.ColName); err == nil {
+				withoutQuotes = unquoted
+			} else {
+				withoutQuotes = col.ColName
+			}
+			colName, _ := strings.CutPrefix(withoutQuotes, `windowed_`)
+			metrics[colName] = col.ExtractValue(query.ctx)
 		}
 		elem := model.JsonMap{
 			"sort":    []interface{}{sortVal},

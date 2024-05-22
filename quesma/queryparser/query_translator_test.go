@@ -58,7 +58,7 @@ const (
 func TestSearchResponse(t *testing.T) {
 	row := []model.QueryResultRow{{}}
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
-	searchRespBuf, err := cw.MakeAsyncSearchResponseMarshalled(row, model.ListAllFields, NewEmptyHighlighter(), asyncRequestIdStr, false)
+	searchRespBuf, err := cw.MakeAsyncSearchResponseMarshalled(row, model.Query{QueryInfo: model.SearchQueryInfo{Typ: model.ListAllFields}, Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
 	require.NoError(t, err)
 	var searchResponseResult model.SearchResp
 	err = json.Unmarshal(searchRespBuf, &searchResponseResult)
@@ -140,7 +140,9 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
-			ourResponse, err := cw.MakeSearchResponseMarshalled(args[i].ourQueryResult, args[i].queryType, NewEmptyHighlighter())
+			ourResponseRaw, err := cw.MakeSearchResponse(args[i].ourQueryResult, model.Query{QueryInfo: model.SearchQueryInfo{Typ: args[i].queryType}, Highlighter: NewEmptyHighlighter()})
+			assert.NoError(t, err)
+			ourResponse, err := ourResponseRaw.Marshal()
 			assert.NoError(t, err)
 			actualMinusExpected, expectedMinusActual, err := util.JsonDifference(string(ourResponse), args[i].elasticResponseJson)
 			if err != nil {
@@ -447,7 +449,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
-			ourResponse, err := cw.MakeAsyncSearchResponseMarshalled(args[i].ourQueryResult, args[i].queryType, NewEmptyHighlighter(), asyncRequestIdStr, false)
+			ourResponse, err := cw.MakeAsyncSearchResponseMarshalled(args[i].ourQueryResult, model.Query{QueryInfo: model.SearchQueryInfo{Typ: args[i].queryType}, Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
 			assert.NoError(t, err)
 
 			actualMinusExpected, expectedMinusActual, err := util.JsonDifference(string(ourResponse), args[i].elasticResponseJson)
@@ -464,15 +466,15 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: nil, Table: clickhouse.NewEmptyTable("@"), Ctx: context.Background()}
 	const limit = 1000
 	queries := []*model.Query{
-		cw.BuildSimpleSelectQuery("", limit),
-		cw.BuildNRowsQuery("@", SimpleQuery{}, 0),
+		cw.BuildNRowsQuery("*", model.SimpleQuery{}, limit),
+		cw.BuildNRowsQuery("@", model.SimpleQuery{}, 0),
 	}
 	for _, query := range queries {
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}
 		for _, field := range query.NonSchemaFields {
 			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field, Value: "not-important"})
 		}
-		_, err := cw.MakeSearchResponse([]model.QueryResultRow{resultRow}, model.Normal, NewEmptyHighlighter())
+		_, err := cw.MakeSearchResponse([]model.QueryResultRow{resultRow}, model.Query{QueryInfo: model.SearchQueryInfo{Typ: model.Normal}, Highlighter: NewEmptyHighlighter()})
 		assert.NoError(t, err)
 	}
 }
@@ -489,7 +491,7 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	queries := []*model.Query{
 		cw.BuildAutocompleteSuggestionsQuery("@", "", 0),
-		cw.BuildFacetsQuery("@", newSimpleQuery(NewSimpleStatement(""), true), 0),
+		cw.BuildFacetsQuery("@", model.NewSimpleQuery(model.NewSimpleStatement(""), true), 0),
 		// queryTranslator.BuildTimestampQuery("@", "@", "", true), TODO uncomment when add unification for this query type
 	}
 	types := []model.SearchQueryType{model.ListAllFields, model.ListByField}
@@ -502,7 +504,7 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 			}
 			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field, Value: value})
 		}
-		_, err := cw.MakeAsyncSearchResponse([]model.QueryResultRow{resultRow}, types[i], NewEmptyHighlighter(), asyncRequestIdStr, false)
+		_, err := cw.MakeAsyncSearchResponse([]model.QueryResultRow{resultRow}, model.Query{QueryInfo: model.SearchQueryInfo{Typ: types[i]}, Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
 		assert.NoError(t, err)
 	}
 }

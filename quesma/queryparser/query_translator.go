@@ -8,10 +8,10 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
+	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/queryprocessor"
 	"mitmproxy/quesma/util"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -24,6 +24,8 @@ type ClickhouseQueryTranslator struct {
 	Table             *clickhouse.Table
 	tokensToHighlight []string
 	Ctx               context.Context
+
+	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()
@@ -144,25 +146,17 @@ func EmptyAsyncSearchResponse(id string, isPartial bool, completionStatus int) (
 	return asyncSearchResp.Marshal() // error should never ever happen here
 }
 
-func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) (*model.SearchResp, error) {
-	switch typ {
+func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, query model.Query) (*model.SearchResp, error) {
+	switch query.QueryInfo.Typ {
 	case model.Normal:
-		return cw.makeSearchResponseNormal(ResultSet, highlighter), nil
+		return cw.makeSearchResponseNormal(ResultSet, query.Highlighter), nil
 	case model.Facets, model.FacetsNumeric:
-		return cw.makeSearchResponseFacets(ResultSet, typ), nil
+		return cw.makeSearchResponseFacets(ResultSet, query.QueryInfo.Typ), nil
 	case model.ListByField, model.ListAllFields:
-		return cw.makeSearchResponseList(ResultSet, typ, highlighter), nil
+		return cw.makeSearchResponseList(ResultSet, query.QueryInfo.Typ, query.Highlighter), nil
 	default:
-		return nil, fmt.Errorf("unknown SearchQueryType: %v", typ)
+		return nil, fmt.Errorf("unknown SearchQueryType: %v", query.QueryInfo.Typ)
 	}
-}
-
-func (cw *ClickhouseQueryTranslator) MakeSearchResponseMarshalled(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) ([]byte, error) {
-	response, err := cw.MakeSearchResponse(ResultSet, typ, highlighter)
-	if err != nil {
-		return nil, err
-	}
-	return response.Marshal()
 }
 
 func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.QueryResultRow, typ model.SearchQueryType) *model.SearchResp {
@@ -344,8 +338,8 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter, asyncRequestIdStr string, isPartial bool) (*model.AsyncSearchEntireResp, error) {
-	searchResponse, err := cw.MakeSearchResponse(ResultSet, typ, highlighter)
+func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.QueryResultRow, query model.Query, asyncRequestIdStr string, isPartial bool) (*model.AsyncSearchEntireResp, error) {
+	searchResponse, err := cw.MakeSearchResponse(ResultSet, query)
 	if err != nil {
 		return nil, err
 	}
@@ -363,8 +357,8 @@ func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.Q
 	return &response, nil
 }
 
-func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponseMarshalled(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
-	response, err := cw.MakeAsyncSearchResponse(ResultSet, typ, highlighter, asyncRequestIdStr, isPartial)
+func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponseMarshalled(ResultSet []model.QueryResultRow, query model.Query, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
+	response, err := cw.MakeAsyncSearchResponse(ResultSet, query, asyncRequestIdStr, isPartial)
 	if err != nil {
 		return nil, err
 	}
@@ -469,6 +463,15 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []mod
 }
 
 func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
+	hits := []model.SearchHit{}
+	// Process hits as last aggregation
+	if len(queries) > 0 && len(ResultSets) > 0 && queries[len(queries)-1].IsWildcard() {
+		response := cw.makeSearchResponseNormal(ResultSets[len(ResultSets)-1], queries[len(queries)-1].Highlighter)
+		hits = response.Hits.Hits
+		queries = queries[:len(queries)-1]
+		ResultSets = ResultSets[:len(ResultSets)-1]
+	}
+
 	var totalCount uint64
 	if len(ResultSets) > 0 && len(ResultSets[0]) > 0 && len(ResultSets[0][0].Cols) > 0 {
 		// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
@@ -484,7 +487,7 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 	return &model.SearchResp{
 		Aggregations: cw.MakeAggregationPartOfResponse(queries, ResultSets),
 		Hits: model.SearchHits{
-			Hits: []model.SearchHit{}, // seems redundant, but can't remove this, created JSON won't match
+			Hits: hits,
 			Total: &model.Total{
 				Value:    int(totalCount), // TODO just change this to uint64? It works now.
 				Relation: "eq",
@@ -552,16 +555,6 @@ func (cw *ClickhouseQueryTranslator) BuildSelectQuery(fields []string, whereClau
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildSimpleSelectQuery(whereClause string, limit int) *model.Query {
-	return &model.Query{
-		Fields:        []string{"*"},
-		WhereClause:   whereClause,
-		FromClause:    cw.Table.FullTableName(),
-		SuffixClauses: []string{"LIMIT " + strconv.Itoa(cw.applySizeLimit(limit))},
-		CanParse:      true,
-	}
-}
-
 func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause string) *model.Query {
 	return &model.Query{
 		NonSchemaFields: []string{"count()"},
@@ -571,34 +564,8 @@ func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause string) *
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) applySizeLimit(size int) int {
-	// FIXME hard limit here to prevent OOM
-	const quesmaMaxSize = 10000
-	if size > quesmaMaxSize {
-		logger.WarnWithCtx(cw.Ctx).Msgf("setting hits size to=%d, got=%d", quesmaMaxSize, size)
-		size = quesmaMaxSize
-	}
-	return size
-}
-
-// GetNMostRecentRows fieldName == "*" ==> we query all
-// otherwise ==> only this 1 field
-func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query SimpleQuery, limit int) *model.Query {
-	suffixClauses := make([]string, 0)
-	if len(query.SortFields) > 0 {
-		suffixClauses = append(suffixClauses, "ORDER BY "+strings.Join(query.SortFields, ", "))
-	}
-	if limit > 0 {
-		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(cw.applySizeLimit(limit)))
-	}
-	return &model.Query{
-		Fields:          []string{fieldName},
-		NonSchemaFields: []string{},
-		WhereClause:     query.Sql.Stmt,
-		SuffixClauses:   suffixClauses,
-		FromClause:      cw.Table.FullTableName(),
-		CanParse:        true,
-	}
+func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query model.SimpleQuery, limit int) *model.Query {
+	return query_util.BuildNRowsQuery(cw.Ctx, cw.Table.FullTableName(), fieldName, query, limit)
 }
 
 func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, whereClause string, limit int) *model.Query {
@@ -638,7 +605,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, query SimpleQuery, limitTodo int) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, query model.SimpleQuery, limitTodo int) *model.Query {
 	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
 	innerQuery := model.Query{
 		Fields:        []string{fieldName},

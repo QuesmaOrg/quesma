@@ -87,7 +87,7 @@ func (cw *ClickhouseQueryTranslator) parseDateTimeInClickhouseMathLanguage(dateT
 		return "'" + dateTime + "'", nil
 	}
 	// 2. expressions like now() or now()-1d
-	res, err := parseDateMathExpression(dateTime)
+	res, err := cw.parseDateMathExpression(dateTime)
 	if err != nil {
 		return "", err
 	}

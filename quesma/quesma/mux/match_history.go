@@ -84,12 +84,16 @@ func (s Statistics) GroupByFirstSegment() (sortedMatchedKeys []string, matched m
 
 	for _, url := range s.Matched {
 		segments := strings.Split(url, "/")
-		matched["/"+segments[1]] = append(matched["/"+segments[1]], url)
+		if len(segments) > 1 {
+			matched["/"+segments[1]] = append(matched["/"+segments[1]], url)
+		}
 	}
 
 	for _, url := range s.Unmatched {
 		segments := strings.Split(url, "/")
-		unmatched["/"+segments[1]] = append(unmatched["/"+segments[1]], url)
+		if len(segments) > 1 {
+			unmatched["/"+segments[1]] = append(unmatched["/"+segments[1]], url)
+		}
 	}
 
 	for _, paths := range matched {

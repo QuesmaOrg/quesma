@@ -17,15 +17,9 @@ import (
 // 2. ClickhouseEQLQueryTranslator (implements only a subset of methods)
 
 type IQueryTranslator interface {
-	ParseQuery(queryAsJson string) (queryparser.SimpleQuery, model.SearchQueryInfo, model.Highlighter, error)
-	ParseAggregationJson(aggregationJson string) ([]model.Query, error)
+	ParseQuery(body []byte) ([]model.Query, []string, bool, bool, error)
 
-	BuildSimpleCountQuery(whereClause string) *model.Query
-	BuildSimpleSelectQuery(whereClause string, size int) *model.Query
-	BuildNRowsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query
-	BuildFacetsQuery(fieldName string, simpleQuery queryparser.SimpleQuery, limit int) *model.Query
-
-	MakeSearchResponse(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter) (*model.SearchResp, error)
+	MakeSearchResponse(ResultSet []model.QueryResultRow, query model.Query) (*model.SearchResp, error)
 	MakeResponseAggregation(aggregations []model.Query, aggregationResults [][]model.QueryResultRow) *model.SearchResp
 }
 
@@ -36,15 +30,13 @@ const (
 	QueryLanguageEQL     = "eql"
 )
 
-func NewQueryTranslator(ctx context.Context, language QueryLanguage, table *clickhouse.Table, logManager *clickhouse.LogManager) (queryTranslator IQueryTranslator) {
-
+func NewQueryTranslator(ctx context.Context, language QueryLanguage, table *clickhouse.Table, logManager *clickhouse.LogManager, dateMathRenderer string) (queryTranslator IQueryTranslator) {
 	switch language {
 	case QueryLanguageEQL:
 		queryTranslator = &eql.ClickhouseEQLQueryTranslator{ClickhouseLM: logManager, Table: table, Ctx: ctx}
 	default:
-		queryTranslator = &queryparser.ClickhouseQueryTranslator{ClickhouseLM: logManager, Table: table, Ctx: ctx}
+		queryTranslator = &queryparser.ClickhouseQueryTranslator{ClickhouseLM: logManager, Table: table, Ctx: ctx, DateMathRenderer: dateMathRenderer}
 	}
 
 	return queryTranslator
-
 }

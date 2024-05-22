@@ -7,7 +7,6 @@ import (
 )
 
 var timestampGroupByClause = clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 30*time.Second)
-var nilVariable any = nil
 
 var AggregationTests = []AggregationTestCase{
 	{ // [0]
@@ -1915,8 +1914,8 @@ var AggregationTests = []AggregationTestCase{
 		[]string{
 			`SELECT count() FROM ` + QuotedTableName + ` WHERE "order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')`,
-			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), " + `MAX("order_date") AS "windowed_order_date", ` +
-				`MAX("order_date") AS "windowed_order_date" FROM ` +
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), " + `maxOrNull("order_date") AS "windowed_order_date", ` +
+				`maxOrNull("order_date") AS "windowed_order_date" FROM ` +
 				`(SELECT "order_date", "order_date", ROW_NUMBER() OVER ` +
 				"(PARTITION BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
 				`ORDER BY "order_date" asc) AS row_number FROM ` + QuotedTableName + " " +
@@ -1925,8 +1924,8 @@ var AggregationTests = []AggregationTestCase{
 				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
 				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250' AND row_number <= 10 ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/43200000))",
-			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), " + `MAX("taxful_total_price") AS "windowed_taxful_total_price", ` +
-				`MAX("order_date") AS "windowed_order_date" FROM ` +
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), " + `maxOrNull("taxful_total_price") AS "windowed_taxful_total_price", ` +
+				`maxOrNull("order_date") AS "windowed_order_date" FROM ` +
 				`(SELECT "taxful_total_price", "order_date", ROW_NUMBER() OVER ` +
 				"(PARTITION BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
 				`ORDER BY "order_date" asc) AS row_number FROM ` + QuotedTableName + " " +
@@ -2409,10 +2408,9 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		[][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(0))}}},
-			// Used to be just "nil", not &nilVariable, but deepcopy panics during ExpectedResults copy. Now, works.
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`minOrNull("@timestamp")`, &nilVariable)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("@timestamp")`, &nilVariable)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("@timestamp")`, &nilVariable)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`minOrNull("@timestamp")`, nil)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("@timestamp")`, nil)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("@timestamp")`, nil)}}},
 		},
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%'`,
@@ -4959,4 +4957,223 @@ var AggregationTests = []AggregationTestCase{
 	// terms + histogram
 	// histogram + terms
 	// everything with some avg, cardinality, etc
+	{ // [31]
+		TestName: "Kibana Visualize -> Last Value. Used to panic",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1-bucket": {
+							"aggs": {
+								"1-metric": {
+									"top_metrics": {
+										"metrics": {
+											"field": "message"
+										},
+										"size": 1,
+										"sort": {
+											"order_date": "desc"
+										}
+									}
+								}
+							},
+							"filter": {
+								"bool": {
+									"filter": [
+										{
+											"bool": {
+												"minimum_should_match": 1,
+												"should": [
+													{
+														"exists": {
+															"field": "message"
+														}
+													}
+												]
+											}
+										}
+									],
+									"must": [],
+									"must_not": [],
+									"should": []
+								}
+							}
+						}
+					},
+					"date_histogram": {
+						"calendar_interval": "1d",
+						"field": "@timestamp",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "order_date",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_status": 200,
+			"completion_time_in_millis": 0,
+			"expiration_time_in_millis": 0,
+			"id": "quesma_async_search_id_17",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{
+								"1-bucket": {
+									"1-metric": {
+										"top": [
+											{
+												"metrics": {
+													"message": 5
+												},
+												"sort": [
+													"2024-05-09T23:52:48Z"
+												]
+											}
+										]
+									},
+									"doc_count": 146
+								},
+								"doc_count": 146,
+								"key": 1715212800000,
+								"key_as_string": "2024-05-09T00:00:00.000"
+							},
+							{
+								"1-bucket": {
+									"1-metric": {
+										"top": [
+											{
+												"metrics": {
+													"message": 30
+												},
+												"sort": [
+													"2024-05-22T10:20:38Z"
+												]
+											}
+										]
+									},
+									"doc_count": 58
+								},
+								"doc_count": 58,
+								"key": 1716336000000,
+								"key_as_string": "2024-05-22T00:00:00.000"
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 1974
+					}
+				},
+				"timed_out": false,
+				"took": 0
+			},
+			"start_time_in_millis": 0
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2167))}}},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000)", int64(1715212800000/86400000)),
+					model.NewQueryResultCol(`"windowed_message"`, 5),
+					model.NewQueryResultCol(`minOrNull("order_date")`, "2024-05-09T23:52:48Z"),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000)", int64(1716336000000/86400000)),
+					model.NewQueryResultCol(`windowed_message`, 30),
+					model.NewQueryResultCol(`minOrNull("order_date")`, "2024-05-22T10:20:38Z"),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000)", int64(1715212800000/86400000)),
+					model.NewQueryResultCol(`count()`, 146),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000)", int64(1716336000000/86400000)),
+					model.NewQueryResultCol(`count()`, 58),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000)", int64(1715212800000/86400000)),
+					model.NewQueryResultCol(`count()`, 146),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000)", int64(1716336000000/86400000)),
+					model.NewQueryResultCol(`count()`, 58),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName,
+			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000), " +
+				`minOrNull("message") AS "windowed_message", ` +
+				`minOrNull("order_date") AS "windowed_order_date" ` +
+				`FROM (SELECT "message", "order_date", ROW_NUMBER() OVER ` +
+				"(PARTITION BY toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000) " +
+				`ORDER BY "order_date" desc) ` +
+				`AS row_number ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL) ` +
+				`WHERE "message" IS NOT NULL ` +
+				`AND row_number <= 1 ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000), " +
+				"count() " +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000), " +
+				"count() " +
+				`FROM ` + QuotedTableName + ` ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000))",
+		},
+	},
 }

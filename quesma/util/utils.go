@@ -26,11 +26,6 @@ func Truncate(body string) string {
 	return body[:70]
 }
 
-func IsValidJson(jsonStr string) bool {
-	var js map[string]interface{}
-	return json.Unmarshal([]byte(jsonStr), &js) == nil
-}
-
 func prettify(jsonStr string) string {
 	data := []byte(jsonStr)
 	empty := []byte{}
@@ -350,6 +345,10 @@ func FilterNonEmpty(slice []string) []string {
 // (e.g. it only tries to find permutations of size 2)
 func AssertSqlEqual(t *testing.T, expected, actual string) {
 	if !IsSqlEqual(expected, actual) {
+		pp.Println("-- Expected:")
+		fmt.Printf("%s\n", SqlPrettyPrint([]byte(expected)))
+		pp.Println("---- Actual:")
+		fmt.Printf("%s\n", SqlPrettyPrint([]byte(actual)))
 		t.Errorf("Expected: %s, got: %s", expected, actual)
 	}
 }
@@ -624,7 +623,7 @@ func ExtractFloat64(value any) float64 {
 	return -1
 }
 
-// ExtractFloat64 returns float64 value behind `value`:
+// ExtractFloat64Maybe returns float64 value behind `value`:
 // * value,  if it's float64/32
 // * *value, if it's *float64/32
 // * -1,     otherwise

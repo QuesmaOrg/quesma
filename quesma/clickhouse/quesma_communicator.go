@@ -46,18 +46,23 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 		return make([]model.QueryResultRow, 0), nil
 	}
 	colNames, err := table.extractColumns(query, false)
-	sort.Strings(colNames)
+	if query.IsWildcard() {
+		sort.Strings(colNames)
+	}
 	if columns == nil {
 		columns = lm.GetAllColumns(table, query)
 		// We should sort only if columns are not provided
 		// Caller is responsible for providing columns in the right order
-		sort.Strings(columns)
+		if query.IsWildcard() {
+			sort.Strings(columns)
+		}
 	}
 	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
 	if err != nil {
 		return nil, err
 	}
 
+	// will become: rows, err := executeQuery(ctx, lm, query.StringFromColumns(colNames, true), columns, rowToScan)
 	rows, err := executeQuery(ctx, lm, query.StringFromColumns(colNames), columns, rowToScan)
 	if err == nil {
 		for _, row := range rows {

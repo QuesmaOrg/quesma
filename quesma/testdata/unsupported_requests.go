@@ -984,34 +984,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [48]
-		TestName:  "pipeline aggregation: max_bucket",
-		QueryType: "max_bucket",
-		QueryRequestJson: `
-		{
-			"size": 0,
-			"aggs": {
-				"sales_per_month": {
-					"date_histogram": {
-						"field": "date",
-						"calendar_interval": "month"
-					},
-					"aggs": {
-						"sales": {
-							"sum": {
-								"field": "price"
-							}
-						}
-					}
-				},
-				"max_monthly_sales": {
-					"max_bucket": {
-						"buckets_path": "sales_per_month>sales" 
-					}
-				}
-			}
-		}`,
-	},
 	{ // [50]
 		TestName:  "pipeline aggregation: moving_fn",
 		QueryType: "moving_fn",
@@ -1180,34 +1152,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 				},
 				"stats_monthly_sales": {
 					"stats_bucket": {
-						"buckets_path": "sales_per_month>sales" 
-					}
-				}
-			}
-		}`,
-	},
-	{ // [56]
-		TestName:  "pipeline aggregation: sum_bucket",
-		QueryType: "sum_bucket",
-		QueryRequestJson: `
-		{
-			"size": 0,
-			"aggs": {
-				"sales_per_month": {
-					"date_histogram": {
-						"field": "date",
-						"calendar_interval": "month"
-					},
-					"aggs": {
-						"sales": {
-							"sum": {
-								"field": "price"
-							}
-						}
-					}
-				},
-				"sum_monthly_sales": {
-					"sum_bucket": {
 						"buckets_path": "sales_per_month>sales" 
 					}
 				}
