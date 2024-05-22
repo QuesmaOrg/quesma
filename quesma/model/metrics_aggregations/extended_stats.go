@@ -16,7 +16,7 @@ func NewExtendedStats(ctx context.Context, sigma float64) ExtendedStats {
 	return ExtendedStats{ctx: ctx, sigma: sigma}
 }
 
-const selectFieldsNr = 8
+const selectFieldsNr = 10
 
 func (query ExtendedStats) IsBucketAggregation() bool {
 	return false

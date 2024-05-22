@@ -649,6 +649,7 @@ func ExtractFloat64Maybe(value any) (asFloat64 float64, success bool) {
 	return -1, false
 }
 
+// ExtractNumeric64Maybe returns float64 value behind `value`, if it's numeric (some kind of (*)int or (*)float).
 func ExtractNumeric64Maybe(value any) (asFloat64 float64, success bool) {
 	if asFloat64, success = ExtractFloat64Maybe(value); success {
 		return asFloat64, true
