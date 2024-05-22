@@ -5176,4 +5176,293 @@ var AggregationTests = []AggregationTestCase{
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000))",
 		},
 	},
+	{ // [32]
+		TestName: "Terms, completely different tree results from 2 queries - merging them didn't work before (logs). what when cardinality = 0?",
+		QueryRequestJson: `
+		{
+    "_source": {
+        "excludes": []
+    },
+    "aggs": {
+        "0": {
+            "aggs": {
+                "1": {
+                    "extended_stats": {
+                        "field": "bytes"
+                    }
+                }
+            },
+            "date_histogram": {
+                "field": "timestamp",
+                "fixed_interval": "10m",
+                "min_doc_count": 1,
+                "time_zone": "Europe/Warsaw"
+            }
+        }
+    },
+    "fields": [
+        {
+            "field": "@timestamp",
+            "format": "date_time"
+        },
+        {
+            "field": "timestamp",
+            "format": "date_time"
+        },
+        {
+            "field": "utc_time",
+            "format": "date_time"
+        }
+    ],
+    "query": {
+        "bool": {
+            "filter": [
+                {
+                    "range": {
+                        "timestamp": {
+                            "format": "strict_date_optional_time",
+                            "gte": "2024-05-21T21:35:34.210Z",
+                            "lte": "2024-05-22T12:35:34.210Z"
+                        }
+                    }
+                }
+            ],
+            "must": [],
+            "must_not": [],
+            "should": []
+        }
+    },
+    "runtime_mappings": {
+        "hour_of_day": {
+            "script": {
+                "source": "emit(doc['timestamp'].value.getHour());"
+            },
+            "type": "long"
+        }
+    },
+    "script_fields": {},
+    "size": 0,
+    "stored_fields": [
+        "*"
+    ],
+    "track_total_hits": true
+}`,
+		ExpectedResponse: `
+		                          "lower": -3537.717063669472,
+                                "lower_population": -3537.717063669472,
+                                "lower_sampling": -6285.758847599474,
+                                "upper": 20917.050397002804,
+                                "upper_population": 20917.050397002804,
+                                "upper_sampling": 23665.092180932807
+                            },
+                            "std_deviation_population": 6113.691865168069,
+                            "std_deviation_sampling": 7487.71275713307,
+                            "sum": 26069.0,
+                            "sum_of_squares": 338662605.0,
+                            "variance": 37377228.22222222,
+                            "variance_population": 37377228.22222222,
+                            "variance_sampling": 56065842.33333333
+                        },
+                        "doc_count": 3,
+                        "key": 1716376800000,
+                        "key_as_string": "2024-05-22T13:20:00.000+02:00"
+                    },
+                    {
+                        "1": {
+                            "avg": 5754.375,
+                            "count": 8,
+                            "max": 7708.0,
+                            "min": 2426.0,
+                            "std_deviation": 1580.8501618986538,
+                            "std_deviation_bounds": {
+                                "lower": 2592.6746762026924,
+                                "lower_population": 2592.6746762026924,
+                                "lower_sampling": 2374.375179628069,
+                                "upper": 8916.075323797308,
+                                "upper_population": 8916.075323797308,
+                                "upper_sampling": 9134.374820371931
+                            },
+                            "std_deviation_population": 1580.8501618986538,
+                            "std_deviation_sampling": 1689.9999101859655,
+                            "sum": 46035.0,
+                            "sum_of_squares": 284895351.0,
+                            "variance": 2499087.234375,
+                            "variance_population": 2499087.234375,
+                            "variance_sampling": 2856099.6964285714
+                        },
+                        "doc_count": 8,
+                        "key": 1716377400000,
+                        "key_as_string": "2024-05-22T13:30:00.000+02:00"
+                    },
+                    {
+                        "1": {
+                            "avg": 4756.5,
+                            "count": 2,
+                            "max": 9021.0,
+                            "min": 492.0,
+                            "std_deviation": 4264.5,
+                            "std_deviation_bounds": {
+                                "lower": -3772.5,
+                                "lower_population": -3772.5,
+                                "lower_sampling": -7305.327473480127,
+                                "upper": 13285.5,
+                                "upper_population": 13285.5,
+                                "upper_sampling": 16818.327473480127
+                            },
+                            "std_deviation_population": 4264.5,
+                            "std_deviation_sampling": 6030.9137367400635,
+                            "sum": 9513.0,
+                            "sum_of_squares": 81620505.0,
+                            "variance": 18185960.25,
+                            "variance_population": 18185960.25,
+                            "variance_sampling": 36371920.5
+                        },
+                        "doc_count": 2,
+                        "key": 1716378000000,
+                        "key_as_string": "2024-05-22T13:40:00.000+02:00"
+                    },
+                    {
+                        "1": {
+                            "avg": 3415.5,
+                            "count": 2,
+                            "max": 6610.0,
+                            "min": 221.0,
+                            "std_deviation": 3194.5,
+                            "std_deviation_bounds": {
+                                "lower": -2973.5,
+                                "lower_population": -2973.5,
+                                "lower_sampling": -5619.910450001704,
+                                "upper": 9804.5,
+                                "upper_population": 9804.5,
+                                "upper_sampling": 12450.910450001704
+                            },
+                            "std_deviation_population": 3194.5,
+                            "std_deviation_sampling": 4517.705225000852,
+                            "sum": 6831.0,
+                            "sum_of_squares": 43740941.0,
+                            "variance": 10204830.25,
+                            "variance_population": 10204830.25,
+                            "variance_sampling": 20409660.5
+                        },
+                        "doc_count": 2,
+                        "key": 1716378600000,
+                        "key_as_string": "2024-05-22T13:50:00.000+02:00"
+                    },
+                    {
+                        "1": {
+                            "avg": 5191.75,
+                            "count": 4,
+                            "max": 8564.0,
+                            "min": 1597.0,
+                            "std_deviation": 2677.784006879569,
+                            "std_deviation_bounds": {
+                                "lower": -163.818013759138,
+                                "lower_population": -163.818013759138,
+                                "lower_sampling": -992.3272688143752,
+                                "upper": 10547.318013759137,
+                                "upper_population": 10547.318013759137,
+                                "upper_sampling": 11375.827268814375
+                            },
+                            "std_deviation_population": 2677.784006879569,
+                            "std_deviation_sampling": 3092.0386344071876,
+                            "sum": 20767.0,
+                            "sum_of_squares": 136499181.0,
+                            "variance": 7170527.1875,
+                            "variance_population": 7170527.1875,
+                            "variance_sampling": 9560702.916666666
+                        },
+                        "doc_count": 4,
+                        "key": 1716379200000,
+                        "key_as_string": "2024-05-22T14:00:00.000+02:00"
+                    },
+                    {
+                        "1": {
+                            "avg": 4617.666666666667,
+                            "count": 3,
+                            "max": 8416.0,
+                            "min": 990.0,
+                            "std_deviation": 3034.0527718255366,
+                            "std_deviation_bounds": {
+                                "lower": -1450.4388769844063,
+                                "lower_population": -1450.4388769844063,
+                                "lower_sampling": -2814.2144769828556,
+                                "upper": 10685.77221031774,
+                                "upper_population": 10685.77221031774,
+                                "upper_sampling": 12049.54781031619
+                            },
+                            "std_deviation_population": 3034.0527718255366,
+                            "std_deviation_sampling": 3715.9405718247613,
+                            "sum": 13853.0,
+                            "sum_of_squares": 91584965.0,
+                            "variance": 9205476.222222222,
+                            "variance_population": 9205476.222222222,
+                            "variance_sampling": 13808214.333333332
+                        },
+                        "doc_count": 3,
+                        "key": 1716379800000,
+                        "key_as_string": "2024-05-22T14:10:00.000+02:00"
+                    },
+                    {
+                        "1": {
+                            "avg": 6873.5,
+                            "count": 2,
+                            "max": 8631.0,
+                            "min": 5116.0,
+                            "std_deviation": 1757.5,
+                            "std_deviation_bounds": {
+                                "lower": 3358.5,
+                                "lower_population": 3358.5,
+                                "lower_sampling": 1902.539328258571,
+                                "upper": 10388.5,
+                                "upper_population": 10388.5,
+                                "upper_sampling": 11844.460671741428
+                            },
+                            "std_deviation_population": 1757.5,
+                            "std_deviation_sampling": 2485.4803358707145,
+                            "sum": 13747.0,
+                            "sum_of_squares": 100667617.0,
+                            "variance": 3088806.25,
+                            "variance_population": 3088806.25,
+                            "variance_sampling": 6177612.5
+                        },
+                        "doc_count": 2,
+                        "key": 1716380400000,
+                        "key_as_string": "2024-05-22T14:20:00.000+02:00"
+                    }
+                ]
+            }
+        },
+        "hits": {
+            "hits": [],
+            "max_score": null,
+            "total": {
+                "relation": "eq",
+                "value": 122
+            }
+        },
+        "timed_out": false,
+        "took": 5
+    },
+    "start_time_in_millis": 1716381334365
+}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2167))}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 4)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Atlanta"), model.NewQueryResultCol("doc_count", 5)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Baltimore"), model.NewQueryResultCol("doc_count", 5)}},
+			},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 2)}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 1)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Baltimore"), model.NewQueryResultCol("doc_count", 2)}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + QuotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-03-23T07:32:06.246Z') AND "timestamp"<=parseDateTime64BestEffort('2024-03-30T07:32:06.246Z')`,
+			``,
+			``,
+			``,
+		},
+	},
 }
