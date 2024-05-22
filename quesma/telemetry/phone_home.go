@@ -13,6 +13,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
+	"mitmproxy/quesma/stats/errorstats"
 	"net/http"
 	"net/url"
 	"os"
@@ -87,6 +88,7 @@ type PhoneHomeStats struct {
 	ReportType     string       `json:"report_type"`
 	TakenAt        int64        `json:"taken_at"`
 	ConfigMode     string       `json:"config_mode"`
+	TopErrors      []string     `json:"top_errors"`
 }
 
 type PhoneHomeAgent interface {
@@ -466,8 +468,17 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 	stats.IngestCounters = a.ingestCounters.Aggregate()
 
 	stats.RuntimeStats = a.runtimeStats()
+	stats.TopErrors = a.topErrors()
 
 	return stats
+}
+
+func (a *agent) topErrors() []string {
+	var errors []string
+	for _, e := range errorstats.GlobalErrorStatistics.ReturnTopErrors(10) {
+		errors = append(errors, e.Reason)
+	}
+	return errors
 }
 
 func (a *agent) phoneHomeRemoteEndpoint(ctx context.Context, body []byte) (err error) {

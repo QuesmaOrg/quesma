@@ -95,12 +95,12 @@ do_silent_http_post "api/data_views/data_view" '{
     "override": true
 }'
 
-echo -n "Adding data view Phone Home Logs... "
+echo -n "Adding data view Phone Home Data... "
 do_silent_http_post "api/data_views/data_view" '{
     "data_view": {
-       "name": "Quesma Phone Home Logs",
-       "title": "phone_home_logs",
-       "id": "phone_home_logs",
+       "name": "Quesma Phone Home Data",
+       "title": "phone_home_data",
+       "id": "phone_home_data",
        "timeFieldName": "@timestamp",
        "allowNoIndex": true
     },
