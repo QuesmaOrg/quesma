@@ -1,8 +1,6 @@
 package quesma
 
 import (
-	"context"
-	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
@@ -17,7 +15,7 @@ const (
 	sourceNone          = "none"
 )
 
-func ResolveSources(indexPattern string, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, lm *clickhouse.LogManager) (string, []string, []string) {
+func ResolveSources(indexPattern string, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement) (string, []string, []string) {
 	if elasticsearch.IsIndexPattern(indexPattern) {
 		matchesElastic := []string{}
 		matchesClickhouse := []string{}
@@ -29,7 +27,11 @@ func ResolveSources(indexPattern string, cfg config.QuesmaConfiguration, im elas
 				}
 			}
 
-			matchesClickhouse = append(matchesClickhouse, lm.ResolveIndexes(context.Background(), pattern)...)
+			for indexName, indexConfig := range cfg.IndexConfig {
+				if elasticsearch.IndexMatches(pattern, indexName) && indexConfig.Enabled {
+					matchesClickhouse = append(matchesClickhouse, indexName)
+				}
+			}
 		}
 		slices.Sort(matchesElastic)
 		slices.Sort(matchesClickhouse)
