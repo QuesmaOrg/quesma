@@ -217,7 +217,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		sourcesClickhouse = sourcesClickhouse[1:2]
 	}
 
-	var responseBody, translatedQueryBody []byte
+	var responseBody []byte
 
 	startTime := time.Now()
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
@@ -228,24 +228,18 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 	}
 
-	var hits []model.QueryResultRow
-	var aggregationResults [][]model.QueryResultRow
-
 	tables := q.logManager.GetTableDefinitions()
 
 	for _, resolvedTableName := range sourcesClickhouse {
-		var queryTranslator IQueryTranslator
 		var err error
-		var queryInfo model.SearchQueryInfo
 		doneCh := make(chan AsyncSearchWithError, 1)
 
 		table, _ := tables.Load(resolvedTableName)
 		if table == nil {
-			continue
+			return []byte{}, fmt.Errorf("can't load %s table", resolvedTableName)
 		}
-		var simpleQuery model.SimpleQuery
 
-		queryTranslator = NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
+		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
 
 		queries, columns, isAggregation, canParse, err := q.ParseQuery(ctx, queryTranslator, body, table)
 
@@ -260,50 +254,52 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					}
 				}
 			}
-		}
-		if canParse {
+
 			if !isAggregation {
-				var columnsSlice [][]string
 				go func() {
 					defer recovery.LogAndHandlePanic(ctx, func() {
 						doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 					})
-					translatedQueryBody, hitsSlice := q.searchWorker(ctx, queries, append(columnsSlice, columns), table, doneCh, optAsync)
+					columnsSlice := [][]string{columns}
+					translatedQueryBody, hitsSlice := q.searchWorker(ctx, queries, columnsSlice, table, doneCh, optAsync)
 					searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], queries[0])
 					if err != nil {
-						logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queries[0].QueryInfo, hits)
+						logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queries[0].QueryInfo, hitsSlice[0])
 					}
 					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
 				}()
 			} else {
-				columns := make([][]string, len(queries))
 				go func() {
 					defer recovery.LogAndHandlePanic(ctx, func() {
 						doneCh <- AsyncSearchWithError{err: errors.New("panic")}
 					})
-					translatedQueryBody, aggregationResults = q.searchWorker(ctx, queries, columns, table, doneCh, optAsync)
+					columnsSlice := make([][]string, len(queries))
+					translatedQueryBody, aggregationResults := q.searchWorker(ctx, queries, columnsSlice, table, doneCh, optAsync)
 					searchResponse := queryTranslator.MakeResponseAggregation(queries, aggregationResults)
 					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody}
 				}()
 			}
 		} else {
-			responseBody = []byte("Invalid Query, err: " + simpleQuery.Sql.Stmt)
-			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(string(responseBody))
-			pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
+			queriesBody := ""
+			for _, query := range queries {
+				queriesBody += query.String() + "\n"
+			}
+			responseBody = []byte("Invalid Queries, err: " + err.Error())
+			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBody)
+			pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, []byte(queriesBody), responseBody, startTime)
 			return responseBody, errors.New(string(responseBody))
 		}
 
 		if optAsync == nil {
 			response := <-doneCh
-			translatedQueryBody = response.translatedQueryBody
 			if response.err != nil {
-				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queryInfo, hits)
-				pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
-				return responseBody, err
+				err = response.err
+				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v", err, queries[0].QueryInfo)
+			} else {
+				responseBody, err = response.response.Marshal()
 			}
 
-			responseBody, err = response.response.Marshal()
-			pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, translatedQueryBody, responseBody, startTime)
+			pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, response.translatedQueryBody, responseBody, startTime)
 			return responseBody, err
 		} else {
 			select {
