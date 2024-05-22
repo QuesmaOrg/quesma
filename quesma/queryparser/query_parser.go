@@ -25,7 +25,7 @@ func NewEmptyHighlighter() model.Highlighter {
 }
 
 func (cw *ClickhouseQueryTranslator) ParseQuery(body []byte) ([]model.Query, []string, bool, bool, error) {
-	simpleQuery, queryInfo, highlighter, err := cw.parseQuery(string(body))
+	simpleQuery, queryInfo, highlighter, err := cw.ParseQueryInternal(string(body))
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
 		return nil, nil, false, false, err
@@ -85,7 +85,7 @@ func (cw *ClickhouseQueryTranslator) makeBasicQuery(
 	return fullQuery, columns
 }
 
-func (cw *ClickhouseQueryTranslator) parseQuery(queryAsJson string) (model.SimpleQuery, model.SearchQueryInfo, model.Highlighter, error) {
+func (cw *ClickhouseQueryTranslator) ParseQueryInternal(queryAsJson string) (model.SimpleQuery, model.SearchQueryInfo, model.Highlighter, error) {
 	cw.ClearTokensToHighlight()
 	queryAsMap := make(QueryMap)
 	if queryAsJson != "" {
