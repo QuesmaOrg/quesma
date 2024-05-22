@@ -68,10 +68,10 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 				newStmtWithoutParentheses = strings.ReplaceAll(newStmtWithoutParentheses, ")", "")
 
 				assert.Equal(t, newStmtWithoutParentheses, oldStmtWithoutParentheses)
-			} else { // the old where statement should be empty then...
-				// We have some Lucene fields to figure out ...
-				//assert.Equal(t, simpleQuery.Sql.Stmt, "")
 			}
+			// the old where statement should be empty then...
+			// BUT have some Lucene fields to figure out ...
+			//assert.Equal(t, simpleQuery.Sql.Stmt, "")
 		})
 	}
 }
