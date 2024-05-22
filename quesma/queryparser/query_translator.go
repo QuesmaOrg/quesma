@@ -8,10 +8,10 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
+	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/queryprocessor"
 	"mitmproxy/quesma/util"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -564,33 +564,8 @@ func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause string) *
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) applySizeLimit(size int) int {
-	// FIXME hard limit here to prevent OOM
-	const quesmaMaxSize = 10000
-	if size > quesmaMaxSize {
-		logger.WarnWithCtx(cw.Ctx).Msgf("setting hits size to=%d, got=%d", quesmaMaxSize, size)
-		size = quesmaMaxSize
-	}
-	return size
-}
-
-// GetNMostRecentRows fieldName == "*" ==> we query all
-// otherwise ==> only this 1 field
 func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query model.SimpleQuery, limit int) *model.Query {
-	suffixClauses := make([]string, 0)
-	if len(query.SortFields) > 0 {
-		suffixClauses = append(suffixClauses, "ORDER BY "+AsQueryString(query.SortFields))
-	}
-	if limit > 0 {
-		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(cw.applySizeLimit(limit)))
-	}
-	return &model.Query{
-		Fields:        []string{fieldName},
-		WhereClause:   query.Sql.Stmt,
-		SuffixClauses: suffixClauses,
-		FromClause:    cw.Table.FullTableName(),
-		CanParse:      true,
-	}
+	return query_util.BuildNRowsQuery(cw.Ctx, cw.Table.FullTableName(), fieldName, query, limit)
 }
 
 func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, whereClause string, limit int) *model.Query {
@@ -727,20 +702,4 @@ func (cw *ClickhouseQueryTranslator) sortInTopologicalOrder(queries []model.Quer
 		}
 	}
 	return indexesSorted
-}
-
-func AsQueryString(sortFields []model.SortField) string {
-	if len(sortFields) == 0 {
-		return ""
-	}
-	sortStrings := make([]string, 0, len(sortFields))
-	for _, sortField := range sortFields {
-		query := strings.Builder{}
-		query.WriteString(strconv.Quote(sortField.Field))
-		if sortField.Desc {
-			query.WriteString(" desc")
-		}
-		sortStrings = append(sortStrings, query.String())
-	}
-	return strings.Join(sortStrings, ", ")
 }
