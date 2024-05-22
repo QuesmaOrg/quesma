@@ -284,7 +284,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			for _, query := range queries {
 				queriesBody += query.String() + "\n"
 			}
-			responseBody = []byte("Invalid Queries, err: " + err.Error())
+			responseBody = []byte(fmt.Sprintf("Invalid Queries: %s, err: %v", queriesBody, err))
 			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBody)
 			pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, []byte(queriesBody), responseBody, startTime)
 			return responseBody, errors.New(string(responseBody))
