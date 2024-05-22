@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -11,11 +10,11 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/network"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/util"
 	"net"
 	"net/http"
-	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -59,24 +58,69 @@ func configureRouting() *http.ServeMux {
 	configuration := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{"_all": {Name: "_all", Enabled: true}}}
 	router.HandleFunc("POST /{index}/_doc", util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		index := r.PathValue("index")
+
+		parsedBody := mux.ParseRequestBody(string(body))
+		var jsonBody mux.JSON
+		switch b := parsedBody.(type) {
+		case mux.JSON:
+			jsonBody = b
+		default:
+			logger.Error().Msgf("Invalid JSON body: %v", parsedBody)
+			return
+		}
+
 		if !elasticsearch.IsInternalIndex(index) {
-			stats.GlobalStatistics.Process(configuration, index, string(body), clickhouse.NestedSeparator)
+			stats.GlobalStatistics.Process(configuration, index, jsonBody, clickhouse.NestedSeparator)
 		}
 	}))
 
 	router.HandleFunc("POST /{index}/_bulk", util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		index := r.PathValue("index")
+
+		parsedBody := mux.ParseRequestBody(string(body))
+		var jsonBody mux.JSON
+		switch b := parsedBody.(type) {
+		case mux.JSON:
+			jsonBody = b
+		default:
+			logger.Error().Msgf("Invalid JSON body: %v", parsedBody)
+			return
+		}
+
 		if !elasticsearch.IsInternalIndex(index) {
-			stats.GlobalStatistics.Process(configuration, index, string(body), clickhouse.NestedSeparator)
+			stats.GlobalStatistics.Process(configuration, index, jsonBody, clickhouse.NestedSeparator)
 		}
 	}))
 
 	router.HandleFunc("POST /_bulk", util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
-		forEachInBulk(string(body), func(index string, document string) {
+
+		parsedBody := mux.ParseRequestBody(string(body))
+		var ndjson mux.NDJSON
+		switch b := parsedBody.(type) {
+		case mux.NDJSON:
+			ndjson = b
+		default:
+			logger.Error().Msgf("Invalid JSON body: %v", parsedBody)
+			return
+		}
+
+		err := ndjson.BulkForEach(func(operation mux.BulkOperation, document mux.JSON) {
+
+			index := operation.GetIndex()
+			if index == "" {
+				logger.Error().Msg("No index in operation")
+				return
+			}
+
 			if !elasticsearch.IsInternalIndex(index) {
 				stats.GlobalStatistics.Process(configuration, index, document, clickhouse.NestedSeparator)
 			}
 		})
+
+		if err != nil {
+			logger.Error().Msgf("Error processing _bulk: %v", err)
+		}
+
 	}))
 	router.HandleFunc("GET /", func(writer http.ResponseWriter, r *http.Request) {
 		writer.WriteHeader(http.StatusOK)
@@ -193,39 +237,5 @@ func (t *TcpProxy) copyData(src io.Reader, dest io.Writer) {
 func closeConnection(connection net.Conn) {
 	if err := connection.Close(); err != nil {
 		logger.Error().Msgf("Error closing connection: %v", err)
-	}
-}
-
-func forEachInBulk(body string, f func(index string, document string)) {
-	jsons := strings.Split(body, "\n")
-	for i := 0; i+1 < len(jsons); i += 2 {
-		action := jsons[i]
-		document := jsons[i+1]
-
-		var jsonData map[string]interface{}
-		err := json.Unmarshal([]byte(action), &jsonData)
-		if err != nil {
-			logger.Error().Msgf("Invalid action JSON in _bulk: %v %s", err, action)
-			continue
-		}
-		createObj, ok := jsonData[bulkCreate]
-		if ok {
-			createJson, ok := createObj.(map[string]interface{})
-			if !ok {
-				logger.Error().Msgf("Invalid create JSON in _bulk: %s", action)
-				continue
-			}
-			indexName, ok := createJson["_index"].(string)
-			if !ok {
-				if len(indexName) == 0 {
-					logger.Error().Msgf("Invalid create JSON in _bulk, no _index name: %s", action)
-					continue
-				}
-			}
-
-			f(indexName, document)
-		} else {
-			logger.Debug().Msgf("Unsupported actions in _bulk: %s", action)
-		}
 	}
 }

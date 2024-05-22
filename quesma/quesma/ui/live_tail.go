@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/quesma/ui/internal/builder"
-	"mitmproxy/quesma/quesma/ui/internal/sqlfmt"
+	"mitmproxy/quesma/util"
 )
 
 func (qmc *QuesmaManagementConsole) generateLiveTail() []byte {
@@ -237,7 +237,7 @@ func generateQueries(debugKeyValueSlice []queryDebugInfoWithId, withLinks bool) 
 		tookStr := fmt.Sprintf(" took %d ms", v.query.SecondaryTook.Milliseconds())
 		buffer.Html("<p>UUID:").Text(v.id).Text(tookStr).Html(errorBanner(v.query)).Html("</p>\n")
 		buffer.Html(`<pre Id="second_query`).Text(v.id).Html(`">`)
-		buffer.Text(sqlfmt.SqlPrettyPrint(v.query.QueryBodyTranslated))
+		buffer.Text(util.SqlPrettyPrint(v.query.QueryBodyTranslated))
 		buffer.Html("\n</pre>")
 		if withLinks {
 			buffer.Html("\n</a>")

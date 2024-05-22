@@ -2542,4 +2542,888 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
 		},
 	},
+	{ // [14]
+		TestName: "Simplest max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Terms, Metric: Count)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"1": {
+					"max_bucket": {
+						"buckets_path": "1-bucket>_count"
+					}
+				},
+				"1-bucket": {
+					"terms": {
+						"field": "Cancelled",
+						"order": {
+							"_key": "desc"
+						},
+						"size": 5
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-04-27T21:56:51.264Z",
+									"lte": "2024-05-12T21:56:51.264Z"
+								}
+							}
+						}
+					],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.hourOfDay"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"1": {
+					"keys": [
+						false
+					],
+					"value": 1923.0
+				},
+				"1-bucket": {
+					"buckets": [
+						{
+							"doc_count": 260,
+							"key": true
+						},
+						{
+							"doc_count": 1923,
+							"key": false
+						}
+					],
+					"doc_count_error_upper_bound": 0,
+					"sum_other_doc_count": 0
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 2183
+				}
+			},
+			"timed_out": false,
+			"took": 98
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2183))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", true),
+					model.NewQueryResultCol("doc_count", 260),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", false),
+					model.NewQueryResultCol("doc_count", 1923),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') AND ` +
+				`"timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z')`,
+			`NoDBQuery`,
+			`SELECT "Cancelled", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') ` +
+				`GROUP BY ("Cancelled") ` +
+				`ORDER BY count() DESC ` +
+				`LIMIT 5`,
+		},
+	},
+	{ // [15]
+		TestName: "Max bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max Bucket (Aggregation: Date Histogram, Metric: Min)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"1": {
+					"max_bucket": {
+						"buckets_path": "1-bucket>1-metric"
+					}
+				},
+				"1-bucket": {
+					"aggs": {
+						"1-metric": {
+							"min": {
+								"field": "memory"
+							}
+						}
+					},
+					"date_histogram": {
+						"field": "timestamp",
+						"fixed_interval": "10m",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"1": {
+					"keys": [
+						"2024-05-21T05:20:00.000+02:00"
+					],
+					"value": 121360.0
+				},
+				"1-bucket": {
+					"buckets": [
+						{
+							"1-metric": {
+								"value": null
+							},
+							"doc_count": 1,
+							"key": 1716231600000,
+							"key_as_string": "2024-05-20T19:00:00.000"
+						},
+						{
+							"1-metric": {
+								"value": 121360.0
+							},
+							"doc_count": 4,
+							"key": 1716276600000,
+							"key_as_string": "2024-05-21T07:30:00.000"
+						},
+						{
+							"1-metric": {
+								"value": null
+							},
+							"doc_count": 1,
+							"key": 1716277200000,
+							"key_as_string": "2024-05-21T07:40:00.000"
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 72
+				}
+			},
+			"timed_out": false,
+			"took": 4
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(72))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1716231600000/600000)),
+					model.NewQueryResultCol(`minOrNull("memory")`, nil),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1716276600000/600000)),
+					model.NewQueryResultCol(`minOrNull("memory")`, 121360.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1716277200000/600000)),
+					model.NewQueryResultCol(`minOrNull("memory")`, nil),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1716231600000/600000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1716276600000/600000)),
+					model.NewQueryResultCol("count()", 4),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1716277200000/600000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName,
+			`NoDBQuery`,
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
+				`minOrNull("memory") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
+				"count() " +
+				"FROM " + testdata.QuotedTableName + " " +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+		},
+	},
+	{ // [16]
+		TestName: "Max bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max Bucket (Aggregation: Histogram, Metric: Max)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"1": {
+					"max_bucket": {
+						"buckets_path": "1-bucket>1-metric"
+					}
+				},
+				"1-bucket": {
+					"aggs": {
+						"1-metric": {
+							"max": {
+								"field": "memory"
+							}
+						}
+					},
+					"histogram": {
+						"field": "bytes",
+						"interval": 1,
+						"min_doc_count": 1
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		// changed "5296.0" to 5296 in response, hope it works (check)
+		ExpectedResponse: ` 
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"1": {
+					"keys": [
+						5296
+					],
+					"value": 211840
+				},
+				"1-bucket": {
+					"buckets": [
+						{
+							"1-metric": {
+								"value": null
+							},
+							"doc_count": 5,
+							"key": 0.0
+						},
+						{
+							"1-metric": {
+								"value": 211840
+							},
+							"doc_count": 1,
+							"key": 5296.0
+						},
+						{
+							"1-metric": {
+								"value": 452
+							},
+							"doc_count": 1,
+							"key": 16837.0
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 73
+				}
+			},
+			"timed_out": false,
+			"took": 11
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1974))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("bytes", 0.0),
+					model.NewQueryResultCol(`maxOrNull("memory")`, nil),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("bytes", 5296.0),
+					model.NewQueryResultCol(`maxOrNull("memory")`, 211840),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("bytes", 16837.0),
+					model.NewQueryResultCol(`maxOrNull("memory")`, 452),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("bytes", 0.0),
+					model.NewQueryResultCol("count()", 5),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("bytes", 5296.0),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("bytes", 16837.0),
+					model.NewQueryResultCol("count()", 1),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + testdata.QuotedTableName,
+			`NoDBQuery`,
+			`SELECT "bytes", maxOrNull("memory") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY ("bytes") ` +
+				`ORDER BY ("bytes")`,
+			`SELECT "bytes", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY ("bytes") ` +
+				`ORDER BY ("bytes")`,
+		},
+	},
+	/* waits for probably a simple filters fix
+	{ // [17]
+		TestName: "max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"1": {
+					"max_bucket": {
+						"buckets_path": "1-bucket>1-metric"
+					}
+				},
+				"1-bucket": {
+					"aggs": {
+						"1-metric": {
+							"sum": {
+								"field": "DistanceKilometers"
+							}
+						}
+					},
+					"filters": {
+						"filters": {
+							"FlightDelayMin: >-100": {
+								"bool": {
+									"filter": [],
+									"must": [
+										{
+											"query_string": {
+												"analyze_wildcard": true,
+												"query": "FlightDelayMin: >-100",
+												"time_zone": "Europe/Warsaw"
+											}
+										}
+									],
+									"must_not": [],
+									"should": []
+								}
+							},
+							"true": {
+								"bool": {
+									"filter": [
+										{
+											"multi_match": {
+												"lenient": true,
+												"query": true,
+												"type": "best_fields"
+											}
+										}
+									],
+									"must": [],
+									"must_not": [],
+									"should": []
+								}
+							}
+						}
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.hourOfDay"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"1": {
+					"keys": [
+						"true"
+					],
+					"value": 4968221.14887619
+				},
+				"1-bucket": {
+					"buckets": {
+						"FlightDelayMin: >-100": {
+							"1-metric": {
+								"value": 0.0
+							},
+							"doc_count": 0
+						},
+						"true": {
+							"1-metric": {
+								"value": 4968221.14887619
+							},
+							"doc_count": 722
+						}
+					}
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 2183
+				}
+			},
+			"timed_out": false,
+			"took": 189
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2183))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`count()`, 0),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 4968221.14887619),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol(`count()`, 722),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` `,
+			`NoDBQuery`,
+			`SELECT sumOrNull("DistanceKilometers") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "FlightDelayMin" > '-100' `,
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "FlightDelayMin" > '-100' `,
+			`SELECT sumOrNull("DistanceKilometers") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE false `,
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE false `,
+		},
+	},
+	*/
+	/* waits for probably a simple filters fix
+	{ // [18] TODO check this test with other pipeline aggregations
+		TestName: "complex max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum), Buckets: Split chart: Rows -> Range",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"max_bucket": {
+								"buckets_path": "1-bucket>1-metric"
+							}
+						},
+						"1-bucket": {
+							"aggs": {
+								"1-metric": {
+									"sum": {
+										"field": "DistanceKilometers"
+									}
+								}
+							},
+							"filters": {
+								"filters": {
+									"FlightDelayMin: >100": {
+										"bool": {
+											"filter": [],
+											"must": [
+												{
+													"query_string": {
+														"analyze_wildcard": true,
+														"query": "FlightDelayMin: >100",
+														"time_zone": "Europe/Warsaw"
+													}
+												}
+											],
+											"must_not": [],
+											"should": []
+										}
+									},
+									"true": {
+										"bool": {
+											"filter": [
+													{
+													"multi_match": {
+														"lenient": true,
+														"query": true,
+														"type": "best_fields"
+													}
+												}
+											],
+											"must": [],
+											"must_not": [],
+											"should": []
+										}
+									}
+								}
+							}
+						}
+					},
+					"range": {
+						"field": "DistanceMiles",
+						"keyed": true,
+						"ranges": [
+							{
+								"from": 0,
+								"to": 1000
+							},
+							{
+								"from": 1000,
+								"to": 2000
+							}
+						]
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": {},
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.hourOfDay"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": {
+						"0.0-1000.0": {
+							"1": {
+								"keys": [
+									"true"
+								],
+								"value": 82682.96674728394
+							},
+							"1-bucket": {
+								"buckets": {
+									"FlightDelayMin: >100": {
+										"1-metric": {
+											"value": 0.0
+										},
+										"doc_count": 0
+									},
+									"true": {
+										"1-metric": {
+											"value": 82682.96674728394
+										},
+										"doc_count": 140
+									}
+								}
+							},
+							"doc_count": 419,
+							"from": 0.0,
+							"to": 1000.0
+						},
+						"1000.0-2000.0": {
+							"1": {
+								"keys": [
+									"true"
+								],
+								"value": 140267.98315429688
+							},
+							"1-bucket": {
+								"buckets": {
+									"FlightDelayMin: >100": {
+										"1-metric": {
+											"value": 0.0
+										},
+										"doc_count": 0
+									},
+									"true": {
+										"1-metric": {
+											"value": 140267.98315429688
+										},
+										"doc_count": 62
+									}
+								}
+							},
+							"doc_count": 159,
+							"from": 1000.0,
+							"to": 2000.0
+						}
+					}
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 2184
+				}
+			},
+			"timed_out": false,
+			"took": 78
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2184))}}},
+			{}, // NoDBQuery
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 0)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 82682.96674728394)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 140)}}},
+			{}, // NoDBQuery
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 0)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 140267.98315429688)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 62)}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol(`count(if("DistanceMiles">=0 AND "DistanceMiles"<1000, 1, NULL))`, 419),
+				model.NewQueryResultCol(`count(if("DistanceMiles">=1000 AND "DistanceMiles"<2000, 1, NULL))`, 159),
+				model.NewQueryResultCol(`count()`, 2184),
+			}}},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` `,
+			`NoDBQuery`,
+			`SELECT sumOrNull("DistanceKilometers") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND "FlightDelayMin" > '100' `,
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND "FlightDelayMin" > '100' `,
+			`SELECT sumOrNull("DistanceKilometers") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND false `,
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND false `,
+			`NoDBQuery`,
+			`SELECT sumOrNull("DistanceKilometers") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND "FlightDelayMin" > '100' `,
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND "FlightDelayMin" > '100' `,
+			`SELECT sumOrNull("DistanceKilometers") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND false `,
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND false `,
+			`SELECT count(if("DistanceMiles">=0 AND "DistanceMiles"<1000, 1, NULL)), ` +
+				`count(if("DistanceMiles">=1000 AND "DistanceMiles"<2000, 1, NULL)), ` +
+				`count() ` +
+				`FROM ` + testdata.QuotedTableName + ` `,
+		},
+	}, */
 }
