@@ -484,6 +484,13 @@ func equal(a, b any) bool {
 	if a == b {
 		return true
 	}
+
+	aFloat, aIsFloat := a.(float64)
+	bFloat, bIsFloat := b.(float64)
+	if aIsFloat && bIsFloat {
+		return aFloat-bFloat < 1e-10 && aFloat-bFloat > -1e-10
+	}
+
 	switch aTyped := a.(type) {
 	case float64:
 		bAsInt, ok := b.(int)

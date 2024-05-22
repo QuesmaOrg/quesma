@@ -5190,6 +5190,12 @@ var AggregationTests = []AggregationTestCase{
 							"extended_stats": {
 								"field": "bytes"
 							}
+						},
+						"2": {
+							"extended_stats": {
+								"field": "bytes",
+								"sigma": 3.0
+							}
 						}
 					},
 					"date_histogram": {
@@ -5287,6 +5293,28 @@ var AggregationTests = []AggregationTestCase{
 									"variance_population": 0.0,
 									"variance_sampling": "NaN"
 								},
+								"2": {
+									"avg": 7676.0,
+									"count": 1,
+									"max": 7676.0,
+									"min": 7676.0,
+									"std_deviation": 0.0,
+									"std_deviation_bounds": {
+										"lower": 7676.0,
+										"lower_population": 7676.0,
+										"lower_sampling": "NaN",
+										"upper": 7676.0,
+										"upper_population": 7676.0,
+										"upper_sampling": "NaN"
+									},
+									"std_deviation_population": 0.0,
+									"std_deviation_sampling": "NaN",
+									"sum": 7676.0,
+									"sum_of_squares": 58920976.0,
+									"variance": 0.0,
+									"variance_population": 0.0,
+									"variance_sampling": "NaN"
+								},
 								"doc_count": 1,
 								"key": 1716333600000,
 								"key_as_string": "2024-05-21T23:20:00.000"
@@ -5305,6 +5333,28 @@ var AggregationTests = []AggregationTestCase{
 										"upper": 8916.075323797308,
 										"upper_population": 8916.075323797308,
 										"upper_sampling": 9134.374820371931
+									},
+									"std_deviation_population": 1580.8501618986538,
+									"std_deviation_sampling": 1689.9999101859655,
+									"sum": 46035.0,
+									"sum_of_squares": 284895351.0,
+									"variance": 2499087.234375,
+									"variance_population": 2499087.234375,
+									"variance_sampling": 2856099.6964285714
+								},
+								"2": {
+									"avg": 5754.375,
+									"count": 8,
+									"max": 7708.0,
+									"min": 2426.0,
+									"std_deviation": 1580.8501618986538,
+									"std_deviation_bounds": {
+										"lower": 1011.8245143040385,
+										"lower_population": 1011.8245143040385,
+										"lower_sampling": 684.375269442103,
+										"upper": 10496.925485695961,
+										"upper_population": 10496.925485695961,
+										"upper_sampling": 10824.374730557896
 									},
 									"std_deviation_population": 1580.8501618986538,
 									"std_deviation_sampling": 1689.9999101859655,
@@ -5365,6 +5415,34 @@ var AggregationTests = []AggregationTestCase{
 				}},
 			},
 			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1716333600000/600000)),
+					model.NewQueryResultCol(`count("bytes")`, 1),
+					model.NewQueryResultCol(`minOrNull("bytes")`, 7676.0),
+					model.NewQueryResultCol(`maxOrNull("bytes")`, 7676.0),
+					model.NewQueryResultCol(`avgOrNull("bytes")`, 7676.0),
+					model.NewQueryResultCol(`sumOrNull("bytes")`, 7676.0),
+					model.NewQueryResultCol(`sumOrNull("bytes"*"bytes")`, 58920976.0),
+					model.NewQueryResultCol(`varPop("bytes")`, 0.0),
+					model.NewQueryResultCol(`varSamp("bytes")`, nil),
+					model.NewQueryResultCol(`stddevPop("bytes")`, 0.0),
+					model.NewQueryResultCol(`stddevSamp("bytes")`, nil),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1716377400000/600000)),
+					model.NewQueryResultCol(`count("bytes")`, 8),
+					model.NewQueryResultCol(`minOrNull("bytes")`, 2426.0),
+					model.NewQueryResultCol(`maxOrNull("bytes")`, 7708.0),
+					model.NewQueryResultCol(`avgOrNull("bytes")`, 5754.375),
+					model.NewQueryResultCol(`sumOrNull("bytes")`, 46035.0),
+					model.NewQueryResultCol(`sumOrNull("bytes"*"bytes")`, 284895351.0),
+					model.NewQueryResultCol(`varPop("bytes")`, 2499087.234375),
+					model.NewQueryResultCol(`varSamp("bytes")`, 2856099.6964285714),
+					model.NewQueryResultCol(`stddevPop("bytes")`, 1580.8501618986538),
+					model.NewQueryResultCol(`stddevSamp("bytes")`, 1689.9999101859655),
+				}},
+			},
+			{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1716333600000/600000)), model.NewQueryResultCol("count()", 1)}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1716377400000/600000)), model.NewQueryResultCol("count()", 8)}},
 			},
@@ -5382,7 +5460,23 @@ var AggregationTests = []AggregationTestCase{
 				`sumOrNull("bytes"), ` +
 				`sumOrNull("bytes"*"bytes"), ` +
 				`varPop("bytes"), ` +
-				`varSamp("bytes") ` +
+				`varSamp("bytes"), ` +
+				`stddevPop("bytes"), ` +
+				`stddevSamp("bytes") ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z') ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
+				`count("bytes"), ` +
+				`minOrNull("bytes"), ` +
+				`maxOrNull("bytes"), ` +
+				`avgOrNull("bytes"), ` +
+				`sumOrNull("bytes"), ` +
+				`sumOrNull("bytes"*"bytes"), ` +
+				`varPop("bytes"), ` +
+				`varSamp("bytes"), ` +
 				`stddevPop("bytes"), ` +
 				`stddevSamp("bytes") ` +
 				`FROM ` + QuotedTableName + ` ` +

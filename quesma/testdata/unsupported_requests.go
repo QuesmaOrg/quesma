@@ -477,17 +477,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [24]
-		TestName:  "metrics aggregation: extended_stats",
-		QueryType: "extended_stats",
-		QueryRequestJson: `
-		{
-			"size": 0,
-			"aggs": {
-				"grades_stats": { "extended_stats": { "field": "grade" } }
-			}
-		}`,
-	},
 	{ // [25]
 		TestName:  "metrics aggregation: geo_bounds",
 		QueryType: "geo_bounds",
