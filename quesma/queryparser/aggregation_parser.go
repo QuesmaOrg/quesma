@@ -132,9 +132,9 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			var ordFunc string
 			switch metricsAggr.Order {
 			case "asc":
-				ordFunc = `MAX`
+				ordFunc = `maxOrNull`
 			case "desc":
-				ordFunc = `MIN`
+				ordFunc = `minOrNull`
 			}
 			var topSelectFields []string
 			innerFields := append(metricsAggr.FieldNames, metricsAggr.SortBy)
@@ -142,7 +142,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				topSelectFields = append(topSelectFields, fmt.Sprintf(`%s("%s") AS "windowed_%s"`, ordFunc, field, field))
 			}
 			query.NonSchemaFields = append(query.NonSchemaFields, topSelectFields...)
-			partitionBy := strings.Join(b.Query.GroupByFields, "")
+			partitionBy := strings.Join(b.Query.GroupByFields, ", ")
 			fieldsAsString := strings.Join(quoteArray(innerFields), ", ") // need those fields in the inner clause
 			query.FromClause = fmt.Sprintf(
 				"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s %s) AS %s FROM %s WHERE %s)",

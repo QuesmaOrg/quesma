@@ -35,11 +35,16 @@ func (query DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRo
 	var response []model.JsonMap
 	for _, row := range rows {
 		intervalInMilliseconds := query.IntervalAsDuration().Milliseconds()
-		key := row.Cols[level-1].Value.(int64) * intervalInMilliseconds
+		var key int64
+		if keyValue, ok := row.Cols[len(row.Cols)-2].Value.(int64); ok { // used to be [level-1], but because some columns are duplicated, it doesn't work in 100% cases now
+			key = keyValue * intervalInMilliseconds
+		} else {
+			logger.WarnWithCtx(query.ctx).Msgf("unexpected type of key value: %T, %+v, Should be int64", row.Cols[len(row.Cols)-2].Value, row.Cols[len(row.Cols)-2].Value)
+		}
 		intervalStart := time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000")
 		response = append(response, model.JsonMap{
 			"key":           key,
-			"doc_count":     row.Cols[level].Value,
+			"doc_count":     row.LastColValue(), // used to be [level], but because some columns are duplicated, it doesn't work in 100% cases now
 			"key_as_string": intervalStart,
 		})
 	}
