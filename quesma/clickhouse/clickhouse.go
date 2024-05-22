@@ -15,6 +15,7 @@ import (
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/telemetry"
+	"mitmproxy/quesma/tracing"
 	"mitmproxy/quesma/util"
 	"regexp"
 	"slices"
@@ -421,6 +422,9 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, 
 }
 
 func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON, config *ChTableConfig) error {
+
+	ctx = tracing.WithReason(ctx, "clickhouse insert")
+
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
 		preprocessedJson := preprocess(jsonValue, NestedSeparator)

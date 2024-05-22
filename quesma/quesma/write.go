@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/stats/errorstats"
 	"mitmproxy/quesma/telemetry"
+	"mitmproxy/quesma/tracing"
 	"sync/atomic"
 )
 
@@ -23,6 +24,9 @@ type (
 
 func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *clickhouse.LogManager,
 	cfg config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []WriteResult) {
+
+	ctx = tracing.WithReason(ctx, "dual write bulk")
+
 	if config.TrafficAnalysis.Load() {
 		logger.Info().Msg("analysing traffic, not writing to Clickhouse")
 		return
