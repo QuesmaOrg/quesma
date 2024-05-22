@@ -11,7 +11,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/mux"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
@@ -89,7 +89,7 @@ func TestHandleTermsEnumRequest(t *testing.T) {
 	mock.ExpectQuery(fmt.Sprintf("%s|%s", regexp.QuoteMeta(expectedQuery1), regexp.QuoteMeta(expectedQuery2))).
 		WillReturnRows(sqlmock.NewRows([]string{"client_name"}).AddRow("client_a").AddRow("client_b"))
 
-	resp, err := handleTermsEnumRequest(ctx, mux.MustJSON(string(rawRequestBody)), qt, managementConsole)
+	resp, err := handleTermsEnumRequest(ctx, types.MustJSON(string(rawRequestBody)), qt, managementConsole)
 	assert.NoError(t, err)
 
 	var responseModel model.TermsEnumResponse
