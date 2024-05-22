@@ -122,7 +122,8 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 	router := configureRouter(config, logManager, quesmaManagementConsole, phoneHomeAgent, queryRunner)
 	router.
 		RegisterProcessor(mux.NewIdentityRequestProcessor()).
-		RegisterProcessor(mux.NewFieldDroppingProcessor("password"))
+		RegisterProcessor(mux.NewFieldDroppingProcessor("password")).
+		RegisterProcessor(mux.NewTransparentProcessor(router))
 
 	return &Quesma{
 		telemetryAgent:          phoneHomeAgent,
@@ -153,11 +154,12 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		Headers:     req.Header,
 		QueryParams: req.URL.Query(),
 		Body:        string(reqBody),
+		Context:     ctx,
 	}
 
 	quesmaRequest.ParsedBody = mux.ParseRequestBody(ctx, quesmaRequest)
 
-	handler, found := router.Matches(quesmaRequest)
+	handler, found := router.Matches(quesmaRequest, true)
 
 	if found {
 

@@ -26,15 +26,12 @@ const (
 	quesmaAsyncIdPrefix = "quesma_async_search_id_"
 )
 
-func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner, processors ...mux.RequestProcessor) *mux.PathRouter {
+func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *mux.PathRouter {
 	// some syntactic sugar
 	method := mux.IsHTTPMethod
 	and := mux.And
 
 	router := mux.NewPathRouter()
-	for _, processor := range processors {
-		router.RegisterProcessor(processor)
-	}
 	router.Register(routes.ClusterHealthPath, method("GET"), func(_ context.Context, req *mux.Request) (*mux.Result, error) {
 		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, httpOk), nil
 	})

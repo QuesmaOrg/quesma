@@ -5,12 +5,17 @@ import (
 	"mitmproxy/quesma/logger"
 )
 
-type RequestProcessor interface {
-	Applies(req *Request) bool
-	PreprocessRequest(req *Request) *Request
-	ProcessRequest(req *Request) (*Result, error)
-	IsFinal() bool
-}
+type (
+	RequestProcessor interface {
+		Applies(req *Request) bool
+		PreprocessRequest(req *Request) *Request
+		ProcessRequest(req *Request) (*Result, error)
+		IsFinal() bool
+	}
+	ResponseProcessor interface {
+		ProcessResponse(res *Result) (*Result, error)
+	}
+)
 
 func AsHandler(rp RequestProcessor) Handler {
 	return func(ctx context.Context, req *Request) (*Result, error) {
@@ -26,13 +31,38 @@ func NewIdentityRequestProcessor() RequestProcessor {
 	return IdentityRequestProcessor{}
 }
 
+func NewTransparentProcessor(router *PathRouter) RequestProcessor {
+	return TransparentProcessor{QuesmaPathRouter: router}
+}
+
 type (
 	IdentityRequestProcessor struct {
 	}
 	FieldDroppingProcessor struct {
 		Fields []string
 	}
+	TransparentProcessor struct {
+		QuesmaPathRouter *PathRouter
+	}
 )
+
+func (t TransparentProcessor) Applies(req *Request) bool {
+	_, found := t.QuesmaPathRouter.Matches(req, false)
+	return found
+}
+
+func (t TransparentProcessor) PreprocessRequest(req *Request) *Request {
+	return req
+}
+
+func (t TransparentProcessor) ProcessRequest(req *Request) (*Result, error) {
+	handler, _ := t.QuesmaPathRouter.Matches(req, false)
+	return handler(context.Background(), req)
+}
+
+func (t TransparentProcessor) IsFinal() bool {
+	return true
+}
 
 func (f FieldDroppingProcessor) Applies(*Request) bool {
 	return true
@@ -80,3 +110,4 @@ func (i IdentityRequestProcessor) IsFinal() bool { return false }
 
 var _ RequestProcessor = IdentityRequestProcessor{}
 var _ RequestProcessor = FieldDroppingProcessor{}
+var _ RequestProcessor = TransparentProcessor{}

@@ -11,8 +11,9 @@ import (
 
 type (
 	PathRouter struct {
-		processors []RequestProcessor
-		mappings   []mapping
+		processors         []RequestProcessor
+		responseProcessors []ResponseProcessor
+		mappings           []mapping
 	}
 	mapping struct {
 		pattern      string
@@ -36,6 +37,7 @@ type (
 
 		Body       string
 		ParsedBody RequestBody
+		Context    context.Context
 	}
 
 	Handler func(ctx context.Context, req *Request) (*Result, error)
@@ -62,7 +64,7 @@ func (f RequestMatcherFunc) Matches(req *Request) bool {
 // We need our own component as default libraries caused side-effects on requests or response.
 // The pattern syntax is based on ucarion/urlpath project. e.g. "/shelves/:shelf/books/:book"
 func NewPathRouter() *PathRouter {
-	return &PathRouter{mappings: make([]mapping, 0), processors: make([]RequestProcessor, 0)}
+	return &PathRouter{mappings: make([]mapping, 0), processors: make([]RequestProcessor, 0), responseProcessors: make([]ResponseProcessor, 0)}
 }
 
 func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler Handler) {
@@ -75,15 +77,35 @@ func (p *PathRouter) RegisterProcessor(processor RequestProcessor) *PathRouter {
 	return p
 }
 
-func (p *PathRouter) Matches(req *Request) (Handler, bool) {
-	for _, processor := range p.processors {
-		if processor.Applies(req) {
-			if processor.IsFinal() {
-				logger.Info().Msgf("Taking over the request processing with %T", processor)
-				return AsHandler(processor), true
-			} else {
-				logger.Info().Msgf("Preprocessing request with %T", processor)
-				req = processor.PreprocessRequest(req)
+func (p *PathRouter) RegisterResponseProcessor(processor ResponseProcessor) *PathRouter {
+	p.RegisterResponseProcessor(processor)
+	return p
+}
+
+func (p *PathRouter) Matches(req *Request, process bool) (Handler, bool) {
+	if process {
+		for _, processor := range p.processors {
+			if processor.Applies(req) {
+				if processor.IsFinal() {
+					logger.Info().Msgf("Taking over the request processing with %T", processor)
+					return func(ctx context.Context, req *Request) (*Result, error) {
+						result, err := AsHandler(processor)(ctx, req)
+						if err != nil {
+							return nil, err
+						}
+
+						for _, processor := range p.responseProcessors {
+							result, err = processor.ProcessResponse(result)
+							if err != nil {
+								return nil, err
+							}
+						}
+						return result, nil
+					}, true
+				} else {
+					logger.Info().Msgf("Preprocessing request with %T", processor)
+					req = processor.PreprocessRequest(req)
+				}
 			}
 		}
 	}
@@ -92,7 +114,20 @@ func (p *PathRouter) Matches(req *Request) (Handler, bool) {
 	if found {
 		routerStatistics.addMatched(req.Path)
 		logger.Debug().Msgf("Matched path: %s", req.Path)
-		return handler, true
+		return func(ctx context.Context, req *Request) (*Result, error) {
+			result, err := handler(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, processor := range p.responseProcessors {
+				result, err = processor.ProcessResponse(result)
+				if err != nil {
+					return nil, err
+				}
+			}
+			return result, nil
+		}, true
 	} else {
 		routerStatistics.addUnmatched(req.Path)
 		logger.Debug().Msgf("Non-matched path: %s", req.Path)
