@@ -12,8 +12,8 @@ import (
 	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/recovery"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/util"
 	"regexp"
@@ -275,7 +275,7 @@ func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string,
 	return lm.sendCreateTableQuery(ctx, addOurFieldsToCreateTableQuery(query, config, table))
 }
 
-func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jsonData mux.JSON, config *ChTableConfig) (string, error) {
+func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jsonData types.JSON, config *ChTableConfig) (string, error) {
 
 	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
 (
@@ -302,7 +302,7 @@ func Indexes(m SchemaMap) string {
 	return result.String()
 }
 
-func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData mux.JSON, config *ChTableConfig) error {
+func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig) error {
 	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
 
 	query, err := buildCreateTableQueryNoOurFields(ctx, name, jsonData, config)
@@ -319,7 +319,7 @@ func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name strin
 
 // TODO
 // This method should be refactored to use mux.JSON instead of string
-func (lm *LogManager) BuildInsertJson(tableName string, data mux.JSON, config *ChTableConfig) (string, error) {
+func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, config *ChTableConfig) (string, error) {
 
 	jsonData, err := json.Marshal(data)
 
@@ -389,7 +389,7 @@ func (lm *LogManager) BuildInsertJson(tableName string, data mux.JSON, config *C
 	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), nil
 }
 
-func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName string, jsonData mux.JSON) (*ChTableConfig, error) {
+func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName string, jsonData types.JSON) (*ChTableConfig, error) {
 	table := lm.FindTable(tableName)
 	var config *ChTableConfig
 	if table == nil {
@@ -412,7 +412,7 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 	return config, nil
 }
 
-func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []mux.JSON) error {
+func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []types.JSON) error {
 	if config, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0]); err != nil {
 		return err
 	} else {
@@ -420,7 +420,7 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, 
 	}
 }
 
-func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []mux.JSON, config *ChTableConfig) error {
+func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON, config *ChTableConfig) error {
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
 		preprocessedJson := preprocess(jsonValue, NestedSeparator)
@@ -618,6 +618,6 @@ func (c *ChTableConfig) GetAttributes() []Attribute {
 	return c.attributes
 }
 
-func preprocess(data mux.JSON, nestedSeparator string) mux.JSON {
+func preprocess(data types.JSON, nestedSeparator string) types.JSON {
 	return jsonprocessor.FlattenMap(data, nestedSeparator)
 }

@@ -8,13 +8,13 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
-	"mitmproxy/quesma/quesma/mux"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
 	"time"
 )
 
-func HandleTermsEnum(ctx context.Context, index string, body mux.JSON, lm *clickhouse.LogManager,
+func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm *clickhouse.LogManager,
 	qmc *ui.QuesmaManagementConsole) ([]byte, error) {
 	if resolvedTableName := lm.ResolveTableName(ctx, index); resolvedTableName == "" {
 		errorMsg := fmt.Sprintf("terms enum failed - could not resolve table name for index: %s", index)
@@ -25,7 +25,7 @@ func HandleTermsEnum(ctx context.Context, index string, body mux.JSON, lm *click
 	}
 }
 
-func handleTermsEnumRequest(ctx context.Context, body mux.JSON, qt *queryparser.ClickhouseQueryTranslator, qmc *ui.QuesmaManagementConsole) (result []byte, err error) {
+func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparser.ClickhouseQueryTranslator, qmc *ui.QuesmaManagementConsole) (result []byte, err error) {
 	request := NewRequest()
 	startTime := time.Now()
 

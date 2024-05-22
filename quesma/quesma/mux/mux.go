@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/ucarion/urlpath"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/quesma/types"
 	"net/http"
 	"net/url"
 	"strings"
@@ -34,7 +35,7 @@ type (
 		QueryParams url.Values
 
 		Body       string
-		ParsedBody RequestBody
+		ParsedBody types.RequestBody
 	}
 
 	Handler func(ctx context.Context, req *Request) (*Result, error)

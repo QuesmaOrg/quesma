@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/mux"
+	"mitmproxy/quesma/quesma/types"
 	"testing"
 )
 
@@ -43,10 +43,10 @@ func TestStatistics_process(t *testing.T) {
 	cfg := config.QuesmaConfiguration{
 		IngestStatistics: true,
 	}
-	stats.Process(cfg, "index1", mux.MustJSON(string(marshal1)), "::")
-	stats.Process(cfg, "index1", mux.MustJSON(string(marshal2)), "::")
-	stats.Process(cfg, "index1", mux.MustJSON(string(marshal3)), "::")
-	stats.Process(cfg, "index1", mux.MustJSON(string(marshal3)), "::")
+	stats.Process(cfg, "index1", types.MustJSON(string(marshal1)), "::")
+	stats.Process(cfg, "index1", types.MustJSON(string(marshal2)), "::")
+	stats.Process(cfg, "index1", types.MustJSON(string(marshal3)), "::")
+	stats.Process(cfg, "index1", types.MustJSON(string(marshal3)), "::")
 
 	indexStats := (*stats)["index1"]
 

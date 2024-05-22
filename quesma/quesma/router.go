@@ -13,6 +13,7 @@ import (
 	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/routes"
 	"mitmproxy/quesma/quesma/termsenum"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
@@ -40,11 +41,11 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 
 	router.Register(routes.BulkPath, and(method("POST"), matchedAgainstBulkBody(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
-		var ndjson mux.NDJSON
+		var ndjson types.NDJSON
 
 		switch b := req.ParsedBody.(type) {
 
-		case mux.NDJSON:
+		case types.NDJSON:
 			ndjson = b
 
 		default:
@@ -61,9 +62,9 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 
 	router.Register(routes.IndexDocPath, and(method("POST"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
-		var body mux.JSON
+		var body types.JSON
 		switch b := req.ParsedBody.(type) {
-		case mux.JSON:
+		case types.JSON:
 			body = b
 		default:
 			return nil, fmt.Errorf("invalid request body, expecting JSON . Got: %T", req.ParsedBody)
@@ -76,9 +77,9 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	router.Register(routes.IndexBulkPath, and(method("POST", "PUT"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		index := req.Params["index"]
 
-		var body mux.NDJSON
+		var body types.NDJSON
 		switch b := req.ParsedBody.(type) {
-		case mux.NDJSON:
+		case types.NDJSON:
 			body = b
 		default:
 			return nil, fmt.Errorf("invalid request body, expecting NDJSON. Got: %T", req.ParsedBody)
@@ -271,9 +272,9 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 			return nil, errors.New("multi index terms enum is not yet supported")
 		} else {
 
-			var body mux.JSON
+			var body types.JSON
 			switch b := req.ParsedBody.(type) {
-			case mux.JSON:
+			case types.JSON:
 				body = b
 			default:
 				return nil, errors.New("invalid request body, expecting JSON")

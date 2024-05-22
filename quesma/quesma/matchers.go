@@ -5,6 +5,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/mux"
+	"mitmproxy/quesma/quesma/types"
 	"strings"
 )
 
@@ -79,12 +80,12 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.Request
 func matchAgainstKibanaAlerts() mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 
-		var query mux.JSON
+		var query types.JSON
 
 		switch req.ParsedBody.(type) {
 
-		case mux.JSON:
-			query = req.ParsedBody.(mux.JSON)
+		case types.JSON:
+			query = req.ParsedBody.(types.JSON)
 
 		default:
 			return true

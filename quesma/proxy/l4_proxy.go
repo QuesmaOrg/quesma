@@ -10,7 +10,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/network"
 	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/mux"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/util"
 	"net"
@@ -59,10 +59,10 @@ func configureRouting() *http.ServeMux {
 	router.HandleFunc("POST /{index}/_doc", util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		index := r.PathValue("index")
 
-		parsedBody := mux.ParseRequestBody(string(body))
-		var jsonBody mux.JSON
+		parsedBody := types.ParseRequestBody(string(body))
+		var jsonBody types.JSON
 		switch b := parsedBody.(type) {
-		case mux.JSON:
+		case types.JSON:
 			jsonBody = b
 		default:
 			logger.Error().Msgf("Invalid JSON body: %v", parsedBody)
@@ -77,10 +77,10 @@ func configureRouting() *http.ServeMux {
 	router.HandleFunc("POST /{index}/_bulk", util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 		index := r.PathValue("index")
 
-		parsedBody := mux.ParseRequestBody(string(body))
-		var jsonBody mux.JSON
+		parsedBody := types.ParseRequestBody(string(body))
+		var jsonBody types.JSON
 		switch b := parsedBody.(type) {
-		case mux.JSON:
+		case types.JSON:
 			jsonBody = b
 		default:
 			logger.Error().Msgf("Invalid JSON body: %v", parsedBody)
@@ -94,17 +94,17 @@ func configureRouting() *http.ServeMux {
 
 	router.HandleFunc("POST /_bulk", util.BodyHandler(func(body []byte, writer http.ResponseWriter, r *http.Request) {
 
-		parsedBody := mux.ParseRequestBody(string(body))
-		var ndjson mux.NDJSON
+		parsedBody := types.ParseRequestBody(string(body))
+		var ndjson types.NDJSON
 		switch b := parsedBody.(type) {
-		case mux.NDJSON:
+		case types.NDJSON:
 			ndjson = b
 		default:
 			logger.Error().Msgf("Invalid JSON body: %v", parsedBody)
 			return
 		}
 
-		err := ndjson.BulkForEach(func(operation mux.BulkOperation, document mux.JSON) {
+		err := ndjson.BulkForEach(func(operation types.BulkOperation, document types.JSON) {
 
 			index := operation.GetIndex()
 			if index == "" {
