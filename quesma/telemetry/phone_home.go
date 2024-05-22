@@ -86,6 +86,7 @@ type PhoneHomeStats struct {
 	NumberOfPanics int64        `json:"number_of_panics"`
 	ReportType     string       `json:"report_type"`
 	TakenAt        int64        `json:"taken_at"`
+	ConfigMode     string       `json:"config_mode"`
 }
 
 type PhoneHomeAgent interface {
@@ -442,6 +443,7 @@ func (a *agent) runtimeStats() (stats RuntimeStats) {
 
 func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHomeStats) {
 
+	stats.ConfigMode = a.config.Mode.String()
 	stats.ReportType = reportType
 	stats.Hostname = a.hostname
 	stats.AgentStartedAt = a.statedAt.Unix()
