@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/queryparser/where_clause"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,14 +27,15 @@ type Highlighter struct {
 
 // implements String() (now) and MakeResponse() interface (in the future (?))
 type Query struct {
-	IsDistinct      bool     // true <=> query is SELECT DISTINCT
-	Fields          []string // Fields in 'SELECT Fields FROM ...'
-	NonSchemaFields []string // Fields that are not in schema, but are in 'SELECT ...', e.g. count()
-	WhereClause     string   // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
-	GroupByFields   []string // if not empty, we do GROUP BY GroupByFields... They are quoted if they are column names, unquoted if non-schema. So no quotes need to be added.
-	SuffixClauses   []string // ORDER BY, etc.
-	FromClause      string   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
-	CanParse        bool     // true <=> query is valid
+	IsDistinct      bool                   // true <=> query is SELECT DISTINCT
+	Fields          []string               // Fields in 'SELECT Fields FROM ...'
+	NonSchemaFields []string               // Fields that are not in schema, but are in 'SELECT ...', e.g. count()
+	WhereClause     string                 // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
+	WhereStatement  where_clause.Statement // This should contain virtually the same information as above WhereClause, but in a structured way.
+	GroupByFields   []string               // if not empty, we do GROUP BY GroupByFields... They are quoted if they are column names, unquoted if non-schema. So no quotes need to be added.
+	SuffixClauses   []string               // ORDER BY, etc.
+	FromClause      string                 // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
+	CanParse        bool                   // true <=> query is valid
 	QueryInfo       SearchQueryInfo
 	Highlighter     Highlighter
 	NoDBQuery       bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
