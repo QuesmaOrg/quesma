@@ -32,6 +32,7 @@ require (
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a // indirect
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842 // indirect
 )
 

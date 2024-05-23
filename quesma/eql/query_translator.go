@@ -2,13 +2,13 @@ package eql
 
 import (
 	"context"
-	"encoding/json"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/eql/transform"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/queryparser/query_util"
+	"mitmproxy/quesma/quesma/types"
 	"strconv"
 	"strings"
 )
@@ -95,8 +95,7 @@ func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsJson string) (query mo
 	searchQueryInfo.Typ = model.ListAllFields
 	query.Sql = model.Statement{}
 
-	queryAsMap := make(map[string]interface{})
-	err = json.Unmarshal([]byte(queryAsJson), &queryAsMap)
+	queryAsMap, err := types.ParseJSON(queryAsJson)
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
 
