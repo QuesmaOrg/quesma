@@ -11,7 +11,7 @@ This is also important from a performance perspective, as it allows for generati
 This problem consists of two sub-problems:
 
 Schema representation
-Schema validation
+Query validation against schema
 
 This ADR is about the second part - schema validation except for some initial information needed
 to correctly generate queries like field types, and indexes - tables mapping. This can be even hardcoded
