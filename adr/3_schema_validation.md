@@ -89,7 +89,7 @@ Chosen option: "Option B", because
 * It's easier to test and reason about the code as we can test specific transformation in isolation.
 * It requires an abstract query representation that should simplify future db engines support.
 
-We rejected "Option B" because:
+We rejected "Option A" because:
 
 * It requires more changes in the current architecture and flow.
 * It's harder to reason about the code and changes as it will touch multiple places to
