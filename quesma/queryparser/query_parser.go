@@ -485,13 +485,18 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid terms type: %T, value: %v", v, v)
 			return model.NewSimpleQuery(model.NewSimpleStatement("invalid terms type"), false)
 		}
-		orStmts := make([]model.Statement, len(vAsArray))
+		listStmt := make([]model.Statement, len(vAsArray))
 		for i, v := range vAsArray {
 			cw.AddTokenToHighlight(v)
-			simpleStat := model.NewSimpleStatement(strconv.Quote(k) + "=" + sprint(v))
-			simpleStat.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(k), "=", wc.NewLiteral(sprint(v)))
-			orStmts[i] = simpleStat
+			simpleStat := model.NewSimpleStatement(sprint(v))
+			simpleStat.WhereStatement = wc.NewLiteral(sprint(v))
+			listStmt[i] = simpleStat
 		}
+		//combinedClause := model.NewSimpleStatement("")
+		combinedClause := wc.ListOf(listStmt)
+		combinedStat := model.NewSimpleStatement(strconv.Quote(k) + "IN" + sprint(v))
+		combinedStat.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(k), "IN", combinedClause)
+		return combinedStat
 		return model.NewSimpleQuery(model.Or(orStmts), true)
 	}
 

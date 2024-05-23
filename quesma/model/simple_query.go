@@ -52,6 +52,10 @@ func Or(orStmts []Statement) Statement {
 	return combineStatements(orStmts, "OR")
 }
 
+func ListOf(commaStmts []Statement) Statement {
+	return combineStatements(commaStmts, ",")
+}
+
 // sep = "AND" or "OR"
 func combineStatements(stmts []Statement, sep string) Statement {
 	stmts = FilterNonEmpty(stmts)

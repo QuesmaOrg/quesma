@@ -1989,12 +1989,9 @@ var TestsSearchNoAttrs = []SearchTestCase{
 		{
 			"query": {
 				"bool" : {
-					"must" : {
-						"term" : { "user.id" : ["kimchy", "jacek", "krzysiek"] }
-					},
-					"filter": {},
-					"must_not" : {},
-					"should" : [],
+					"filter" : {
+						"terms" : { "user.id": ["kimchy", "jacek", "krzysiek"] }
+					}
 				}
 			}
 		}`,

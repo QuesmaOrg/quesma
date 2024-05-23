@@ -135,6 +135,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			assert.True(t, simpleQuery.CanParse)
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt)
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ)
+			cw.ParseQueryInternal(tt.QueryJson)
 
 			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
 			if simpleQuery.Sql.WhereStatement != nil {
