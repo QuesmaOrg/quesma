@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/testdata"
@@ -104,7 +105,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 				mock.ExpectQuery(wantedRegex).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
-			_, err = queryRunner.handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), defaultAsyncSearchTimeout, true)
+			_, err = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryJson), defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
 			if err := mock.ExpectationsWereMet(); err != nil {
@@ -143,7 +144,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 			}
 
 			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
-			_, err = queryRunner.handleAsyncSearch(ctx, tableName, []byte(tt.QueryRequestJson), defaultAsyncSearchTimeout, true)
+			_, err = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryRequestJson), defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
 			if err = mock.ExpectationsWereMet(); err != nil {
@@ -186,7 +187,7 @@ func TestSearchHandler(t *testing.T) {
 					WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
-			_, _ = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson))
+			_, _ = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -213,7 +214,7 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
-			_, _ = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson))
+			_, _ = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -239,7 +240,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
-			_, _ = queryRunner.handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), defaultAsyncSearchTimeout, true)
+			_, _ = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryJson), defaultAsyncSearchTimeout, true)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
 			}
@@ -313,7 +314,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))
 		// .AddRow(1000, uint64(10)).AddRow(1001, uint64(20))) // here rows should be added if uint64 were supported
 		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
-		response, err := queryRunner.handleAsyncSearch(ctx, tableName, []byte(query(fieldName)), defaultAsyncSearchTimeout, true)
+		response, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(query(fieldName)), defaultAsyncSearchTimeout, true)
 		assert.NoError(t, err)
 
 		var responseMap model.JsonMap
@@ -370,9 +371,9 @@ func TestNumericFacetsQueries(t *testing.T) {
 				queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
 				var response []byte
 				if handlerName == "handleSearch" {
-					response, err = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson))
+					response, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 				} else if handlerName == "handleAsyncSearch" {
-					response, err = queryRunner.handleAsyncSearch(ctx, tableName, []byte(tt.QueryJson), defaultAsyncSearchTimeout, true)
+					response, err = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryJson), defaultAsyncSearchTimeout, true)
 				}
 				assert.NoError(t, err)
 

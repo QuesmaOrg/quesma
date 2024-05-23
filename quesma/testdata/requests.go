@@ -1877,7 +1877,7 @@ var TestsSearch = []SearchTestCase{
 	},
 	{ // [31]
 		"Match all (empty query)",
-		``,
+		`{}`,
 		[]string{""},
 		model.Normal,
 		[]model.Query{newSimplestQuery()},

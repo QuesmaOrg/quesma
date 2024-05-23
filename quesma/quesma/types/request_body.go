@@ -56,3 +56,23 @@ func ParseRequestBody(body string) RequestBody {
 
 	return unknow
 }
+
+func ExpectJSON(body RequestBody) (JSON, error) {
+
+	switch b := body.(type) {
+	case JSON:
+		return b, nil
+	default:
+		return nil, fmt.Errorf("invalid request body, expecting JSON . Got: %T", body)
+	}
+}
+
+func ExpectNDJSON(body RequestBody) (NDJSON, error) {
+
+	switch b := body.(type) {
+	case NDJSON:
+		return b, nil
+	default:
+		return nil, fmt.Errorf("invalid request body, expecting NDJSON . Got: %T", body)
+	}
+}

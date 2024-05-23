@@ -5,15 +5,20 @@ import (
 	"context"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/quesma/types"
 	"strconv"
 	"strings"
 )
 
-func IsNonAggregationQuery(queryInfo model.SearchQueryInfo, body []byte) bool {
+func IsNonAggregationQuery(queryInfo model.SearchQueryInfo, body types.JSON) bool {
+
+	bodyAsBytes, _ := body.Bytes()
+
 	return ((queryInfo.Typ == model.ListByField ||
 		queryInfo.Typ == model.ListAllFields ||
 		queryInfo.Typ == model.Normal) &&
-		!bytes.Contains(body, []byte("aggs"))) ||
+		// FIXME this is a hack
+		!bytes.Contains(bodyAsBytes, []byte("aggs"))) ||
 		queryInfo.Typ == model.Facets ||
 		queryInfo.Typ == model.FacetsNumeric ||
 		queryInfo.Typ == model.CountAsync

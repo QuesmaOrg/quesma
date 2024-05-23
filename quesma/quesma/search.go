@@ -13,6 +13,7 @@ import (
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
 	"mitmproxy/quesma/util"
@@ -89,15 +90,15 @@ func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int
 	}
 }
 
-func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, body []byte) ([]byte, error) {
+func (q *QueryRunner) handleSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error) {
 	return q.handleSearchCommon(ctx, indexPattern, body, nil, QueryLanguageDefault)
 }
 
-func (q *QueryRunner) handleEQLSearch(ctx context.Context, indexPattern string, body []byte) ([]byte, error) {
+func (q *QueryRunner) handleEQLSearch(ctx context.Context, indexPattern string, body types.JSON) ([]byte, error) {
 	return q.handleSearchCommon(ctx, indexPattern, body, nil, QueryLanguageEQL)
 }
 
-func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string, body []byte,
+func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON,
 	waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
 	async := AsyncQuery{
 		asyncRequestIdStr: generateAsyncRequestId(),
@@ -123,7 +124,7 @@ type AsyncQuery struct {
 	startTime         time.Time
 }
 
-func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body []byte, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
+func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
 	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im)
 
 	switch sources {
@@ -194,7 +195,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
 
-		queries, columns, isAggregation, canParse, err := queryTranslator.ParseQuery(body)
+		queries, columns, isAggregation, canParse, err := queryTranslator.ParseQuery(body.Clone())
 
 		if canParse {
 			if query_util.IsNonAggregationQuery(queries[0].QueryInfo, body) {
@@ -244,7 +245,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			}
 			responseBody = []byte(fmt.Sprintf("Invalid Queries: %s, err: %v", queriesBody, err))
 			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBody)
-			pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, []byte(queriesBody), responseBody, startTime)
+			bodyAsBytes, _ := body.Bytes()
+			pushSecondaryInfo(q.quesmaManagementConsole, id, path, bodyAsBytes, []byte(queriesBody), responseBody, startTime)
 			return responseBody, errors.New(string(responseBody))
 		}
 
@@ -256,8 +258,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			} else {
 				responseBody, err = response.response.Marshal()
 			}
-
-			pushSecondaryInfo(q.quesmaManagementConsole, id, path, body, response.translatedQueryBody, responseBody, startTime)
+			bodyAsBytes, _ := body.Bytes()
+			pushSecondaryInfo(q.quesmaManagementConsole, id, path, bodyAsBytes, response.translatedQueryBody, responseBody, startTime)
 			return responseBody, err
 		} else {
 			select {
@@ -281,7 +283,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 }
 
 func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncRequestIdStr string,
-	startTime time.Time, path string, body []byte, result AsyncSearchWithError, keep bool) (responseBody []byte, err error) {
+	startTime time.Time, path string, body types.JSON, result AsyncSearchWithError, keep bool) (responseBody []byte, err error) {
 	took := time.Since(startTime)
 	if result.err != nil {
 		if keep {
@@ -290,10 +292,11 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 		}
 		responseBody, _ = queryparser.EmptyAsyncSearchResponse(asyncRequestIdStr, false, 503)
 		err = result.err
+		bodyAsBytes, _ := body.Bytes()
 		qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 			Id:                     id,
 			Path:                   path,
-			IncomingQueryBody:      body,
+			IncomingQueryBody:      bodyAsBytes,
 			QueryBodyTranslated:    result.translatedQueryBody,
 			QueryTranslatedResults: responseBody,
 			SecondaryTook:          took,
@@ -302,10 +305,11 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 	}
 	asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, asyncRequestIdStr, false, 200)
 	responseBody, err = asyncResponse.Marshal()
+	bodyAsBytes, _ := body.Bytes()
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     id,
 		Path:                   path,
-		IncomingQueryBody:      body,
+		IncomingQueryBody:      bodyAsBytes,
 		QueryBodyTranslated:    result.translatedQueryBody,
 		QueryTranslatedResults: responseBody,
 		SecondaryTook:          took,

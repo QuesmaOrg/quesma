@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/testdata"
 	"strconv"
@@ -52,7 +53,8 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	for _, tt := range testdata.TestsSearch {
 		t.Run(tt.Name, func(t *testing.T) {
-			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(tt.QueryJson)
+
+			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(types.MustJSON(tt.QueryJson))
 			assert.True(t, simpleQuery.CanParse, "can parse")
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
@@ -93,7 +95,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 
 	for i, tt := range testdata.TestsSearchNoFullTextFields {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(tt.QueryJson)
+			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(types.MustJSON(tt.QueryJson))
 			assert.True(t, simpleQuery.CanParse, "can parse")
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
@@ -131,7 +133,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
-			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(tt.QueryJson)
+			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(types.MustJSON(tt.QueryJson))
 			assert.True(t, simpleQuery.CanParse)
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt)
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ)
