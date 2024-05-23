@@ -2,12 +2,13 @@ package end_user_errors
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 )
 
 func TestEndUserError_error_as(t *testing.T) {
 
-	err := ErrDatabaseAuthenticationError.New()
+	err := ErrDatabaseAuthenticationError.New(fmt.Errorf("some error"))
 
 	var asEndUserError *EndUserError
 

@@ -74,7 +74,7 @@ func NewTableMap() *TableMap {
 
 func (lm *LogManager) Start() {
 	if err := lm.chDb.Ping(); err != nil {
-		endUserError := end_user_errors.GuessClickhouseError(err)
+		endUserError := end_user_errors.GuessClickhouseErrorType(err)
 		logger.ErrorWithCtxAndReason(lm.ctx, endUserError.Reason()).Msgf("could not connect to clickhouse. error: %v", endUserError)
 	}
 
@@ -419,7 +419,7 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 		preprocessedJson := preprocess(jsonValue, NestedSeparator)
 		insertJson, err := lm.BuildInsertJson(tableName, preprocessedJson, config)
 		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error BuildInsertJson, tablename: %s\nerror: %v\njson:%s", tableName, err, PrettyJson(insertJson))
+			return fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)
 		}
 		jsonsReadyForInsertion = append(jsonsReadyForInsertion, insertJson)
 	}
@@ -435,7 +435,7 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 	_, err := lm.chDb.ExecContext(ctx, insert)
 	span.End(err)
 	if err != nil {
-		return end_user_errors.GuessClickhouseError(err).InternalDetails("error [%s] on Insert, tablename: [%s]", err, tableName)
+		return end_user_errors.GuessClickhouseErrorType(err).InternalDetails("insert into table '%s' failed", tableName)
 	} else {
 		return nil
 	}

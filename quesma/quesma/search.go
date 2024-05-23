@@ -130,12 +130,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	switch sources {
 	case sourceBoth:
 
-		err := end_user_errors.ErrQueryElasticAndQuesma.New().InternalDetails("index pattern [%s] resolved to both elasticsearch indices: [%s] and clickhouse tables: [%s]", indexPattern, sourcesElastic, sourcesClickhouse)
+		err := end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to both elasticsearch indices: [%s] and clickhouse tables: [%s]", indexPattern, sourcesElastic, sourcesClickhouse))
 
 		var resp []byte
 		if optAsync != nil {
 			resp, _ = queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 200)
-			queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 200)
 		} else {
 			resp = queryparser.EmptySearchResponse(ctx)
 		}
@@ -154,8 +153,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	case sourceClickhouse:
 		logger.Debug().Msgf("index pattern [%s] resolved to clickhouse tables: [%s]", indexPattern, sourcesClickhouse)
 	case sourceElasticsearch:
-		logger.Error().Msgf("index pattern [%s] resolved to elasticsearch indices: [%s]", indexPattern, sourcesElastic)
-		panic("elasticsearch-only indexes should not be routed here at all")
+		return nil, end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to elasticsearch indices: [%s]", indexPattern, sourcesElastic))
 	}
 	logger.Debug().Msgf("resolved sources for index pattern %s -> %s", indexPattern, sources)
 
@@ -194,7 +192,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		table, _ := tables.Load(resolvedTableName)
 		if table == nil {
-			return []byte{}, end_user_errors.ErrNoSuchTable.New().Details("Table: %s", resolvedTableName).InternalDetails("can't load %s table", resolvedTableName)
+			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}
 
 		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)

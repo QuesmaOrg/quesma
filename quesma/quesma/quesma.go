@@ -217,9 +217,9 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 				msg := "Internal Quesma Error.\nPlease contact support if the problem persists."
 				reason := "Failed request."
 
+				// if error is an error with user-friendly message, we should use it
 				var endUserError *end_user_errors.EndUserError
 				if errors.As(err, &endUserError) {
-					fmt.Println("THIS IS END USER ERROR")
 					msg = endUserError.EndUserErrorMessage()
 					reason = endUserError.Reason()
 				}

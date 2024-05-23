@@ -57,7 +57,7 @@ func (qmc *QuesmaManagementConsole) checkClickhouseHealth() healthCheckStatus {
 	return qmc.clickhouseStatusCache.check(func() healthCheckStatus {
 		err := qmc.logManager.Ping()
 		if err != nil {
-			endUserError := end_user_errors.GuessClickhouseError(err)
+			endUserError := end_user_errors.GuessClickhouseErrorType(err)
 			return healthCheckStatus{"red", "Ping failed", endUserError.Reason()}
 
 		}

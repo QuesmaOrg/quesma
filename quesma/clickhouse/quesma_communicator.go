@@ -118,7 +118,7 @@ func executeQuery(ctx context.Context, lm *LogManager, queryAsString string, fie
 	rows, err := lm.Query(ctx, queryAsString)
 	if err != nil {
 		span.End(err)
-		return nil, end_user_errors.GuessClickhouseError(err).InternalDetails("clickhouse: query failed. err: %v, query: %v", err, queryAsString)
+		return nil, end_user_errors.GuessClickhouseErrorType(err).InternalDetails("clickhouse: query failed. err: %v, query: %v", err, queryAsString)
 	}
 
 	res, err := read(rows, fields, rowToScan)

@@ -6,35 +6,40 @@ import (
 
 // EndUserError This represents an error that can be shown to the end user.
 type EndUserError struct {
-	errorMessage    *ErrorType
+	errorType       *ErrorType
 	details         string
 	internalDetails string
-	originError     error
+	originError     error // this can be nil
 }
 
+// Error this is the error interface implementation. This message is logged in the logs.
 func (e *EndUserError) Error() string {
 
 	details := ""
 
 	if e.internalDetails != "" {
-		details = fmt.Sprintf("%s(internal details: '%s')", details, e.internalDetails)
+		details = fmt.Sprintf("%s %s", details, e.internalDetails)
 	}
 
 	if e.details != "" {
 		details += e.details
 	}
 
-	return fmt.Sprintf("%s%s: %s", e.errorMessage.String(), details, e.originError)
+	if e.originError == nil {
+		return fmt.Sprintf("%s %s", e.errorType.String(), details)
+	} else {
+		return fmt.Sprintf("%s %s: %s", e.errorType.String(), details, e.originError)
+	}
 }
 
 // Reason returns message logged in to reason field
 func (e *EndUserError) Reason() string {
-	return e.errorMessage.Message
+	return e.errorType.Message
 }
 
 // EndUserErrorMessage returns the error message that can be shown to the end user.
 func (e *EndUserError) EndUserErrorMessage() string {
-	return fmt.Sprintf("%s%s", e.errorMessage.String(), e.details)
+	return fmt.Sprintf("%s%s", e.errorType.String(), e.details)
 }
 
 // Details sets details about the error. It will be available for end user.
@@ -58,19 +63,11 @@ func (t *ErrorType) String() string {
 	return fmt.Sprintf("Q%04d: %s", t.Number, t.Message)
 }
 
-// NewWithErr creates an error instance with origin error
-func (t *ErrorType) NewWithErr(originError error) *EndUserError {
-
+// New create an error instance based on the error type.
+func (t *ErrorType) New(err error) *EndUserError {
 	return &EndUserError{
-		errorMessage: t,
-		originError:  originError,
-	}
-}
-
-// New create an error instance
-func (t *ErrorType) New() *EndUserError {
-	return &EndUserError{
-		errorMessage: t,
+		errorType:   t,
+		originError: err,
 	}
 }
 
@@ -85,7 +82,7 @@ func errorType(number int, message string) *ErrorType {
 // Q3XXX - Errors related to external storages like Clickhouse, Elasticsearch, etc.
 // Q4XXX - Errors related to other internal components telemetry, etc.
 
-var ErrQueryElasticAndQuesma = errorType(2001, "Querying data in Elasticsearch and database is not supported at the moment.")
+var ErrSearchCondition = errorType(2001, "Not supported search condition.")
 var ErrNoSuchTable = errorType(2002, "Missing table.")
 
 var ErrDatabaseTableNotFound = errorType(3001, "Table not found in database.")
