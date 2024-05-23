@@ -109,10 +109,10 @@ func dualWrite(ctx context.Context, tableName string, body types.JSON, lm *click
 		return nil
 	}
 
-	err := withConfiguration(ctx, cfg, tableName, body, func() error {
+	withConfiguration(ctx, cfg, tableName, body, func() error {
 		return lm.ProcessInsertQuery(ctx, tableName, types.NDJSON{body})
 	})
-	return err
+	return nil
 }
 
 var insertCounter = atomic.Int32{}
