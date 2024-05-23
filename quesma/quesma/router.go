@@ -220,7 +220,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 		if err != nil {
 			return nil, err
 		}
-		
+
 		responseBody, err := queryRunner.handleAsyncSearch(ctx, req.Params["index"], body, waitForResultsMs, keepOnCompletion)
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
