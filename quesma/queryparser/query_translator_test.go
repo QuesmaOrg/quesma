@@ -360,7 +360,8 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 							]
 						},
 						"sort": [
-							"2024-01-30T19:39:35.767Z"
+							"2024-01-30T19:39:35.767Z",
+							"apollo"
 						]
 					},
 					{
@@ -398,7 +399,8 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 							]
 						},
 						"sort": [
-							"2024-01-30T19:38:54.607Z"
+							"2024-01-30T19:38:54.607Z",
+							"apollo"
 						]
 					}
 				],
@@ -450,7 +452,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 			ourResponse, err := cw.MakeAsyncSearchResponseMarshalled(args[i].ourQueryResult, model.Query{
 				QueryInfo:   model.SearchQueryInfo{Typ: args[i].queryType},
 				Highlighter: NewEmptyHighlighter(),
-				SortFields:  []model.SortField{{Field: "@timestamp", Desc: true}},
+				SortFields:  []model.SortField{{Field: "@timestamp", Desc: true}, {Field: "host.name", Desc: true}},
 			}, asyncRequestIdStr, false)
 			assert.NoError(t, err)
 
