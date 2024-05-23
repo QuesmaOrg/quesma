@@ -1158,34 +1158,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [56]
-		TestName:  "pipeline aggregation: sum_bucket",
-		QueryType: "sum_bucket",
-		QueryRequestJson: `
-		{
-			"size": 0,
-			"aggs": {
-				"sales_per_month": {
-					"date_histogram": {
-						"field": "date",
-						"calendar_interval": "month"
-					},
-					"aggs": {
-						"sales": {
-							"sum": {
-								"field": "price"
-							}
-						}
-					}
-				},
-				"sum_monthly_sales": {
-					"sum_bucket": {
-						"buckets_path": "sales_per_month>sales" 
-					}
-				}
-			}
-		}`,
-	},
 	// random non-existing aggregation:
 	{ // [57]
 		TestName:  "non-existing aggregation: Augustus_Caesar",

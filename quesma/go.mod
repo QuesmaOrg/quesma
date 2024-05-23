@@ -11,12 +11,13 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/go-multierror v1.1.1
+	github.com/jinzhu/copier v0.4.0
 	github.com/k0kubun/pp v3.0.1+incompatible
 	github.com/knadh/koanf/parsers/yaml v0.1.0
 	github.com/knadh/koanf/providers/env v0.1.0
 	github.com/knadh/koanf/providers/file v0.1.0
 	github.com/knadh/koanf/v2 v2.1.1
-	github.com/rs/zerolog v1.32.0
+	github.com/rs/zerolog v1.33.0
 	github.com/shirou/gopsutil/v3 v3.24.4
 	github.com/stretchr/testify v1.9.0
 	github.com/ucarion/urlpath v0.0.0-20200424170820-7ccc79b76bbb
@@ -25,7 +26,6 @@ require (
 require (
 	github.com/go-viper/mapstructure/v2 v2.0.0-alpha.1 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
-	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/knadh/koanf/maps v0.1.1 // indirect
 	github.com/kr/text v0.2.0 // indirect

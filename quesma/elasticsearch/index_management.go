@@ -15,8 +15,8 @@ type (
 		startable
 		ReloadIndices()
 		GetSources() Sources
-		GetSourceNames() map[string]interface{}
-		GetSourceNamesMatching(indexPattern string) map[string]interface{}
+		GetSourceNames() map[string]bool
+		GetSourceNamesMatching(indexPattern string) map[string]bool
 	}
 	indexManagement struct {
 		ElasticsearchUrl string
@@ -51,17 +51,17 @@ func (im *indexManagement) GetSources() Sources {
 	return *im.sources.Load()
 }
 
-func (im *indexManagement) GetSourceNames() map[string]interface{} {
-	names := make(map[string]interface{})
+func (im *indexManagement) GetSourceNames() map[string]bool {
+	names := make(map[string]bool)
 	sources := *im.sources.Load()
 	for _, stream := range sources.DataStreams {
-		names[stream.Name] = struct{}{}
+		names[stream.Name] = true
 	}
 	for _, index := range sources.Indices {
-		names[index.Name] = struct{}{}
+		names[index.Name] = true
 	}
 	for _, alias := range sources.Aliases {
-		names[alias.Name] = struct{}{}
+		names[alias.Name] = true
 	}
 	for key := range names {
 		if strings.TrimSpace(key) == "" {
@@ -71,16 +71,16 @@ func (im *indexManagement) GetSourceNames() map[string]interface{} {
 	return names
 }
 
-func (im *indexManagement) GetSourceNamesMatching(indexPattern string) map[string]interface{} {
+func (im *indexManagement) GetSourceNamesMatching(indexPattern string) map[string]bool {
 	all := im.GetSourceNames()
-	filtered := make(map[string]interface{})
+	filtered := make(map[string]bool)
 
 	if indexPattern == "*" || indexPattern == "_all" || indexPattern == "" {
 		return all
 	} else {
 		for key := range all {
 			if config.MatchName(indexPattern, key) {
-				filtered[key] = struct{}{}
+				filtered[key] = true
 			}
 		}
 	}
@@ -106,6 +106,5 @@ func (im *indexManagement) Start() {
 }
 
 func (im *indexManagement) Stop() {
-
 	im.cancel()
 }

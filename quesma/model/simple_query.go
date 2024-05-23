@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/queryparser/where_clause"
 )
 
 type SimpleQuery struct {
@@ -21,9 +22,11 @@ func NewSimpleQueryWithFieldName(sql Statement, canParse bool, fieldName string)
 }
 
 type Statement struct {
-	Stmt       string
-	IsCompound bool // "a" -> not compound, "a AND b" -> compound. Used to not make unnecessary brackets (not always, but usually)
-	FieldName  string
+	// deprecated - we're moving to the new WhereStatement which should also remove the need for IsCompound and FieldName
+	Stmt           string                 // Old, clunky and soon to be deprecated version
+	WhereStatement where_clause.Statement // New, better and bold version
+	IsCompound     bool                   // "a" -> not compound, "a AND b" -> compound. Used to not make unnecessary brackets (not always, but usually)
+	FieldName      string
 }
 
 func NewSimpleStatement(stmt string) Statement {
@@ -52,6 +55,13 @@ func Or(orStmts []Statement) Statement {
 // sep = "AND" or "OR"
 func combineStatements(stmts []Statement, sep string) Statement {
 	stmts = FilterNonEmpty(stmts)
+	var newWhereStatement where_clause.Statement
+	if len(stmts) > 0 {
+		newWhereStatement = stmts[0].WhereStatement
+		for _, stmt := range stmts[1:] {
+			newWhereStatement = where_clause.NewInfixOp(newWhereStatement, sep, stmt.WhereStatement)
+		}
+	}
 	if len(stmts) > 1 {
 		stmts = quoteWithBracketsIfCompound(stmts)
 		var fieldName string
@@ -65,7 +75,12 @@ func combineStatements(stmts []Statement, sep string) Statement {
 				fieldName = stmt.FieldName
 			}
 		}
-		return NewCompoundStatement(sql, fieldName)
+		return Statement{
+			WhereStatement: newWhereStatement,
+			Stmt:           sql,
+			IsCompound:     true,
+			FieldName:      fieldName,
+		}
 	}
 	if len(stmts) == 1 {
 		return stmts[0]

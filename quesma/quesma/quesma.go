@@ -25,6 +25,7 @@ import (
 	"mitmproxy/quesma/tracing"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -137,6 +138,7 @@ type router struct {
 	quesmaManagementConsole *ui.QuesmaManagementConsole
 	phoneHomeAgent          telemetry.PhoneHomeAgent
 	httpClient              *http.Client
+	failedRequests          atomic.Int64
 }
 
 func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, logManager *clickhouse.LogManager) {
@@ -203,6 +205,9 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			responseFromQuesma(ctx, unzipped, w, elkResponse, quesmaResponse, zip)
 
 		} else {
+
+			r.failedRequests.Add(1)
+
 			if elkResponse != nil && r.config.Mode == config.DualWriteQueryClickhouseFallback {
 				logger.ErrorWithCtx(ctx).Msgf("Error processing request while responding from Elastic: %v", err)
 				responseFromElastic(ctx, elkResponse, w)

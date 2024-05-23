@@ -17,7 +17,6 @@ import (
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
 	"mitmproxy/quesma/util"
-	"regexp"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -116,22 +115,13 @@ func (lm *LogManager) Close() {
 	_ = lm.chDb.Close()
 }
 
-func (lm *LogManager) matchIndex(ctx context.Context, indexNamePattern, indexName string) bool {
-	r, err := regexp.Compile("^" + strings.Replace(indexNamePattern, "*", ".*", -1) + "$")
-	if err != nil {
-		logger.ErrorWithCtx(ctx).Msgf("invalid index name pattern [%s]: %s", indexNamePattern, err)
-		return false
-	}
-	return r.MatchString(indexName)
-}
-
 // Deprecated: use ResolveIndexes instead, this method will be removed once we switch to the new one
 // Indexes can be in a form of wildcard, e.g. "index-*"
 // If we have such index, we need to resolve it to a real table name.
-func (lm *LogManager) ResolveTableName(ctx context.Context, index string) (result string) {
+func (lm *LogManager) ResolveTableName(index string) (result string) {
 	lm.schemaLoader.TableDefinitions().
 		Range(func(k string, v *Table) bool {
-			if lm.matchIndex(ctx, index, k) {
+			if elasticsearch.IndexMatches(index, k) {
 				result = k
 				return false
 			}
@@ -164,7 +154,7 @@ func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (resu
 		} else {
 			lm.schemaLoader.TableDefinitions().
 				Range(func(tableName string, v *Table) bool {
-					if lm.matchIndex(ctx, patterns, tableName) {
+					if elasticsearch.IndexMatches(patterns, tableName) {
 						results = append(results, tableName)
 					}
 					return true

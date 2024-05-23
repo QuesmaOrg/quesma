@@ -13,6 +13,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
+	"mitmproxy/quesma/stats/errorstats"
 	"net/http"
 	"net/url"
 	"os"
@@ -63,6 +64,7 @@ type PhoneHomeStats struct {
 	AgentStartedAt int64  `json:"started_at"`
 	Hostname       string `json:"hostname"`
 	QuesmaVersion  string `json:"quesma_version"`
+	BuildHash      string `json:"build_hash"`
 	InstanceID     string `json:"instanceId"`
 
 	// add more stats here about running
@@ -82,11 +84,14 @@ type PhoneHomeStats struct {
 	IngestCounters    MultiCounterStats          `json:"-"`
 	UserAgentCounters MultiCounterTopValuesStats `json:"top_user_agents"`
 
-	RuntimeStats   RuntimeStats `json:"runtime"`
-	NumberOfPanics int64        `json:"number_of_panics"`
-	ReportType     string       `json:"report_type"`
-	TakenAt        int64        `json:"taken_at"`
-	ConfigMode     string       `json:"config_mode"`
+	RuntimeStats           RuntimeStats `json:"runtime"`
+	NumberOfPanics         int64        `json:"number_of_panics"`
+	TopErrors              []string     `json:"top_errors"`
+	NumberOfFailedRequests int64        `json:"number_of_failed_requests"`
+
+	ReportType string `json:"report_type"`
+	TakenAt    int64  `json:"taken_at"`
+	ConfigMode string `json:"config_mode"`
 }
 
 type PhoneHomeAgent interface {
@@ -105,6 +110,7 @@ type PhoneHomeAgent interface {
 
 	IngestCounters() MultiCounter
 	UserAgentCounters() MultiCounter
+	FailedRequestsCollector(f func() int64)
 }
 
 type agent struct {
@@ -128,6 +134,8 @@ type agent struct {
 
 	ingestCounters    MultiCounter
 	userAgentCounters MultiCounter
+
+	failedRequestCollector func() int64
 
 	recent            PhoneHomeStats
 	telemetryEndpoint *config.Url
@@ -181,6 +189,10 @@ func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *s
 		telemetryEndpoint: configuration.QuesmaInternalTelemetryUrl,
 		httpClient:        &http.Client{Timeout: time.Minute},
 	}
+}
+
+func (a *agent) FailedRequestsCollector(f func() int64) {
+	a.failedRequestCollector = f
 }
 
 func (a *agent) ClickHouseQueryDuration() DurationMeasurement {
@@ -449,6 +461,7 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 	stats.AgentStartedAt = a.statedAt.Unix()
 	stats.TakenAt = time.Now().Unix()
 	stats.QuesmaVersion = buildinfo.Version
+	stats.BuildHash = buildinfo.BuildHash
 	stats.NumberOfPanics = recovery.PanicCounter.Load()
 	stats.InstanceID = a.instanceId
 
@@ -466,8 +479,21 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 	stats.IngestCounters = a.ingestCounters.Aggregate()
 
 	stats.RuntimeStats = a.runtimeStats()
+	stats.TopErrors = a.topErrors()
+
+	if a.failedRequestCollector != nil {
+		stats.NumberOfFailedRequests = a.failedRequestCollector()
+	}
 
 	return stats
+}
+
+func (a *agent) topErrors() []string {
+	var errors []string
+	for _, e := range errorstats.GlobalErrorStatistics.ReturnTopErrors(10) {
+		errors = append(errors, e.Reason)
+	}
+	return errors
 }
 
 func (a *agent) phoneHomeRemoteEndpoint(ctx context.Context, body []byte) (err error) {

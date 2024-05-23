@@ -2,9 +2,11 @@ package queryparser
 
 import (
 	"context"
+	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/testdata"
@@ -14,6 +16,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 )
+
+var whereStatementRenderer = &where_clause.StringRenderer{}
 
 // TODO:
 //  1. 14th test, "Query string". "(message LIKE '%%%' OR message LIKE '%logged%')", is it really
@@ -48,12 +52,26 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	for _, tt := range testdata.TestsSearch {
 		t.Run(tt.Name, func(t *testing.T) {
-			simpleQuery, queryInfo, _, _ := cw.ParseQuery(tt.QueryJson)
+			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(tt.QueryJson)
 			assert.True(t, simpleQuery.CanParse, "can parse")
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
 			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
 			assert.Contains(t, tt.WantedQuery, *query)
+			// Test the new WhereStatement
+			if simpleQuery.Sql.WhereStatement != nil {
+				oldStmtWithoutParentheses := strings.ReplaceAll(simpleQuery.Sql.Stmt, "(", "")
+				oldStmtWithoutParentheses = strings.ReplaceAll(oldStmtWithoutParentheses, ")", "")
+
+				newWhereStmt := simpleQuery.Sql.WhereStatement.Accept(whereStatementRenderer)
+				newStmtWithoutParentheses := strings.ReplaceAll(newWhereStmt.(string), "(", "")
+				newStmtWithoutParentheses = strings.ReplaceAll(newStmtWithoutParentheses, ")", "")
+
+				assert.Equal(t, newStmtWithoutParentheses, oldStmtWithoutParentheses)
+			}
+			// the old where statement should be empty then...
+			// BUT have some Lucene fields to figure out ...
+			//assert.Equal(t, simpleQuery.Sql.Stmt, "")
 		})
 	}
 }
@@ -75,12 +93,25 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 
 	for i, tt := range testdata.TestsSearchNoFullTextFields {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			simpleQuery, queryInfo, _, _ := cw.ParseQuery(tt.QueryJson)
+			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(tt.QueryJson)
 			assert.True(t, simpleQuery.CanParse, "can parse")
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
 			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
 			assert.Contains(t, tt.WantedQuery, *query)
+			// Test the new WhereStatement
+			if simpleQuery.Sql.WhereStatement != nil {
+				oldStmtWithoutParentheses := strings.ReplaceAll(simpleQuery.Sql.Stmt, "(", "")
+				oldStmtWithoutParentheses = strings.ReplaceAll(oldStmtWithoutParentheses, ")", "")
+
+				newWhereStmt := simpleQuery.Sql.WhereStatement.Accept(whereStatementRenderer)
+				newStmtWithoutParentheses := strings.ReplaceAll(newWhereStmt.(string), "(", "")
+				newStmtWithoutParentheses = strings.ReplaceAll(newStmtWithoutParentheses, ")", "")
+
+				assert.Equal(t, newStmtWithoutParentheses, oldStmtWithoutParentheses)
+			} else { // the old where statement should be empty then...
+				assert.Equal(t, simpleQuery.Sql.Stmt, "")
+			}
 		})
 	}
 }
@@ -100,12 +131,19 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
-			simpleQuery, queryInfo, _, _ := cw.ParseQuery(tt.QueryJson)
+			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(tt.QueryJson)
 			assert.True(t, simpleQuery.CanParse)
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt)
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ)
 
 			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
+			if simpleQuery.Sql.WhereStatement != nil {
+				ss := simpleQuery.Sql.WhereStatement.Accept(whereStatementRenderer)
+				assert.Equal(t, simpleQuery.Sql.Stmt, ss.(string))
+			} else {
+				oldOne := simpleQuery.Sql.Stmt
+				fmt.Printf("No new where statement but old one is [%s]", oldOne)
+			}
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}

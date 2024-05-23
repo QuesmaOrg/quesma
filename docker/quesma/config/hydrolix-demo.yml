@@ -9,6 +9,7 @@ logging:
 indexes:
   logs:
     enabled: true
+    timestampField: "reqTimeSec"
     aliases:
       timestamp:
         source: "@timestamp"
@@ -17,5 +18,6 @@ indexes:
 
   siem:
     enabled: true
+    timestampField: "timestamp"
     fullTextFields: [ "city", "country", "host", "method", "path", "ruleMessage", "UA" ]
 

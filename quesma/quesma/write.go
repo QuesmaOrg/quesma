@@ -23,11 +23,9 @@ type (
 )
 
 func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *clickhouse.LogManager,
-	cfg config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []WriteResult) {
+	cfg config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []WriteResult, err error) {
 
-	ctx = tracing.WithReason(ctx, "dual write bulk")
-
-	if config.TrafficAnalysis.Load() {
+  if config.TrafficAnalysis.Load() {
 		logger.Info().Msg("analysing traffic, not writing to Clickhouse")
 		return
 	}
@@ -35,7 +33,7 @@ func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON,
 
 	indicesWithDocumentsToInsert := make(map[string][]types.JSON, len(bulk))
 
-	err := bulk.BulkForEach(func(op types.BulkOperation, document types.JSON) {
+	err = bulk.BulkForEach(func(op types.BulkOperation, document types.JSON) {
 
 		index := op.GetIndex()
 		operation := op.GetOperation()
@@ -85,20 +83,25 @@ func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON,
 
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("Error processing _bulk: %v", err)
-		return
+		return results, err
 	}
 
 	for indexName, documents := range indicesWithDocumentsToInsert {
 		phoneHomeAgent.IngestCounters().Add(indexName, int64(len(documents)))
 
-		withConfiguration(ctx, cfg, indexName, make(types.JSON), func() error {
+		err = withConfiguration(ctx, cfg, indexName, make(types.JSON), func() error {
 			for _, document := range documents {
 				stats.GlobalStatistics.Process(cfg, indexName, document, clickhouse.NestedSeparator)
 			}
 			return lm.ProcessInsertQuery(ctx, indexName, documents)
 		})
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("Can't write to index: %s, error: %v", indexName, err)
+			return results, err
+		}
+
 	}
-	return results
+	return results, nil
 }
 
 func dualWrite(ctx context.Context, tableName string, body types.JSON, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
@@ -120,18 +123,19 @@ func dualWrite(ctx context.Context, tableName string, body types.JSON, lm *click
 
 var insertCounter = atomic.Int32{}
 
-func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, indexName string, body types.JSON, action func() error) {
+func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, indexName string, body types.JSON, action func() error) error {
 	if len(cfg.IndexConfig) == 0 {
 		logger.InfoWithCtx(ctx).Msgf("%s  --> clickhouse, body(shortened): %s", indexName, body.ShortString())
 		err := action()
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg("Can't write to index: " + err.Error())
+			return err
 		}
 	} else {
 		matchingConfig, ok := findMatchingConfig(indexName, cfg)
 		if !ok {
 			logger.InfoWithCtx(ctx).Msgf("index '%s' is not configured, skipping", indexName)
-			return
+			return nil
 		}
 		if matchingConfig.Enabled {
 			insertCounter.Add(1)
@@ -141,11 +145,13 @@ func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, inde
 			err := action()
 			if err != nil {
 				logger.ErrorWithCtx(ctx).Msg("Can't write to Clickhouse: " + err.Error())
+				return err
 			}
 		} else {
 			logger.InfoWithCtx(ctx).Msgf("index '%s' is disabled, ignoring", indexName)
 		}
 	}
+	return nil
 }
 
 var matchCounter = atomic.Int32{}
