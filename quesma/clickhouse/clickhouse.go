@@ -8,6 +8,7 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/elasticsearch"
+	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/index"
 	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
@@ -15,7 +16,6 @@ import (
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/telemetry"
-	"mitmproxy/quesma/tracing"
 	"mitmproxy/quesma/util"
 	"slices"
 	"strings"
@@ -74,7 +74,8 @@ func NewTableMap() *TableMap {
 
 func (lm *LogManager) Start() {
 	if err := lm.chDb.Ping(); err != nil {
-		logger.Error().Msgf("could not connect to clickhouse. error: %v", err)
+		endUserError := end_user_errors.GuessClickhouseError(err)
+		logger.ErrorWithCtxAndReason(lm.ctx, endUserError.Reason()).Msgf("could not connect to clickhouse. error: %v", endUserError)
 	}
 
 	lm.schemaLoader.ReloadTables()
@@ -413,8 +414,6 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, 
 
 func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON, config *ChTableConfig) error {
 
-	ctx = tracing.WithReason(ctx, "clickhouse insert")
-
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
 		preprocessedJson := preprocess(jsonValue, NestedSeparator)
@@ -436,9 +435,7 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 	_, err := lm.chDb.ExecContext(ctx, insert)
 	span.End(err)
 	if err != nil {
-		errorMsg := fmt.Sprintf("error [%s] on Insert, tablename: [%s]", err, tableName)
-		logger.ErrorWithCtx(ctx).Msg(errorMsg)
-		return fmt.Errorf(errorMsg)
+		return end_user_errors.GuessClickhouseError(err).InternalDetails("error [%s] on Insert, tablename: [%s]", err, tableName)
 	} else {
 		return nil
 	}

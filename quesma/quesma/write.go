@@ -11,7 +11,6 @@ import (
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/stats/errorstats"
 	"mitmproxy/quesma/telemetry"
-	"mitmproxy/quesma/tracing"
 	"sync/atomic"
 )
 
@@ -25,7 +24,7 @@ type (
 func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *clickhouse.LogManager,
 	cfg config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []WriteResult, err error) {
 
-  if config.TrafficAnalysis.Load() {
+	if config.TrafficAnalysis.Load() {
 		logger.Info().Msg("analysing traffic, not writing to Clickhouse")
 		return
 	}
@@ -96,7 +95,7 @@ func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON,
 			return lm.ProcessInsertQuery(ctx, indexName, documents)
 		})
 		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("Can't write to index: %s, error: %v", indexName, err)
+			logger.ErrorWithCtx(ctx).Msgf("dual write (bulk) failed (index: %s): %v", indexName, err)
 			return results, err
 		}
 
@@ -104,21 +103,22 @@ func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON,
 	return results, nil
 }
 
-func dualWrite(ctx context.Context, tableName string, body types.JSON, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
+func dualWrite(ctx context.Context, tableName string, body types.JSON, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) error {
 	stats.GlobalStatistics.Process(cfg, tableName, body, clickhouse.NestedSeparator)
 	if config.TrafficAnalysis.Load() {
 		logger.Info().Msgf("analysing traffic, not writing to Clickhouse %s", tableName)
-		return
+		return nil
 	}
 
 	defer recovery.LogPanic()
 	if len(body) == 0 {
-		return
+		return nil
 	}
 
-	withConfiguration(ctx, cfg, tableName, body, func() error {
+	err := withConfiguration(ctx, cfg, tableName, body, func() error {
 		return lm.ProcessInsertQuery(ctx, tableName, types.NDJSON{body})
 	})
+	return err
 }
 
 var insertCounter = atomic.Int32{}
@@ -128,7 +128,6 @@ func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, inde
 		logger.InfoWithCtx(ctx).Msgf("%s  --> clickhouse, body(shortened): %s", indexName, body.ShortString())
 		err := action()
 		if err != nil {
-			logger.ErrorWithCtx(ctx).Msg("Can't write to index: " + err.Error())
 			return err
 		}
 	} else {
@@ -144,7 +143,6 @@ func withConfiguration(ctx context.Context, cfg config.QuesmaConfiguration, inde
 			}
 			err := action()
 			if err != nil {
-				logger.ErrorWithCtx(ctx).Msg("Can't write to Clickhouse: " + err.Error())
 				return err
 			}
 		} else {

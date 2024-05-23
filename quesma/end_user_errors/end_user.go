@@ -6,70 +6,91 @@ import (
 
 // EndUserError This represents an error that can be shown to the end user.
 type EndUserError struct {
-	msg             *ErrorMessage
+	errorMessage    *ErrorType
 	details         string
 	internalDetails string
 	originError     error
 }
 
 func (e *EndUserError) Error() string {
-	return fmt.Sprintf("EndUserError: Q%04d: %s: %s:  %s", e.msg.Number, e.msg.Message+e.details, e.internalDetails, e.originError)
+
+	details := ""
+
+	if e.internalDetails != "" {
+		details = fmt.Sprintf("%s(internal details: '%s')", details, e.internalDetails)
+	}
+
+	if e.details != "" {
+		details += e.details
+	}
+
+	return fmt.Sprintf("%s%s: %s", e.errorMessage.String(), details, e.originError)
 }
 
+// Reason returns message logged in to reason field
 func (e *EndUserError) Reason() string {
-	return fmt.Sprintf("Q%04d: %s", e.msg.Number, e.msg.Message+e.details)
+	return e.errorMessage.Message
 }
 
 // EndUserErrorMessage returns the error message that can be shown to the end user.
 func (e *EndUserError) EndUserErrorMessage() string {
-	return fmt.Sprintf("Q%04d: %s", e.msg.Number, e.msg.Message+e.details)
+	return fmt.Sprintf("%s%s", e.errorMessage.String(), e.details)
 }
 
+// Details sets details about the error. It will be available for end user.
 func (e *EndUserError) Details(format string, args ...any) *EndUserError {
 	e.details = fmt.Sprintf(format, args...)
 	return e
 }
 
+// InternalDetails sets our internal details.
 func (e *EndUserError) InternalDetails(format string, args ...any) *EndUserError {
 	e.internalDetails = fmt.Sprintf(format, args...)
 	return e
 }
 
-type ErrorMessage struct {
+type ErrorType struct {
 	Number  int
 	Message string
 }
 
-func (m *ErrorMessage) NewWithErr(originError error) *EndUserError {
+func (t *ErrorType) String() string {
+	return fmt.Sprintf("Q%04d: %s", t.Number, t.Message)
+}
+
+// NewWithErr creates an error instance with origin error
+func (t *ErrorType) NewWithErr(originError error) *EndUserError {
 
 	return &EndUserError{
-		msg:         m,
-		originError: originError,
+		errorMessage: t,
+		originError:  originError,
 	}
 }
 
-func (m *ErrorMessage) New() *EndUserError {
+// New create an error instance
+func (t *ErrorType) New() *EndUserError {
 	return &EndUserError{
-		msg: m,
+		errorMessage: t,
 	}
 }
 
-func msg(number int, message string) *ErrorMessage {
-	return &ErrorMessage{Number: number, Message: message}
+func errorType(number int, message string) *ErrorType {
+	return &ErrorType{Number: number, Message: message}
 }
 
-// Error numbers follow the pattern QXXXX
+// Error type numbers follow the pattern QXXXX
 // Where
 // Q1XXX - Preprocessing errors (related to HTTP requests, JSON parsing, etc.)
 // Q2XXX - Query processing errors. Query translation etc.
 // Q3XXX - Errors related to external storages like Clickhouse, Elasticsearch, etc.
 // Q4XXX - Errors related to other internal components telemetry, etc.
 
-var ErrQueryElasticAndQuesma = msg(2001, "Querying data in Elasticsearch and Clickhouse is not supported at the moment.")
-var ErrNoSuchTable = msg(2002, "Missing table.")
+var ErrQueryElasticAndQuesma = errorType(2001, "Querying data in Elasticsearch and database is not supported at the moment.")
+var ErrNoSuchTable = errorType(2002, "Missing table.")
 
-var ErrClickhouseTableNotFound = msg(3001, "Table not found in Clickhouse")
-var ErrClickhouseFieldNotFound = msg(3002, "Field not found in Clickhouse")
-var ErrClickhouseConnectionError = msg(3003, "Error connecting to Clickhouse")
-var ErrClickhouseQueryError = msg(3004, "Error executing query in Clickhouse")
-var ErrClickhouseAuthError = msg(3005, "Error authenticating with Clickhouse")
+var ErrDatabaseTableNotFound = errorType(3001, "Table not found in database.")
+var ErrDatabaseFieldNotFound = errorType(3002, "Field not found in database.")
+var ErrDatabaseConnectionError = errorType(3003, "Error connecting to database.")
+var ErrDatabaseQueryError = errorType(3004, "Error executing query in database.")
+var ErrDatabaseAuthenticationError = errorType(3005, "Error authenticating with database.")
+var ErrDatabaseOtherError = errorType(3003, "Unspecified database error.")

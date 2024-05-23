@@ -7,7 +7,7 @@ import (
 
 func TestEndUserError_error_as(t *testing.T) {
 
-	err := ErrClickhouseAuthError.New()
+	err := ErrDatabaseAuthenticationError.New()
 
 	var asEndUserError *EndUserError
 

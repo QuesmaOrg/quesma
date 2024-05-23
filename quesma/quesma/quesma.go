@@ -209,22 +209,22 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			r.failedRequests.Add(1)
 
 			if elkResponse != nil && r.config.Mode == config.DualWriteQueryClickhouseFallback {
-				logger.ErrorWithCtx(ctx).Msgf("Error processing request while responding from Elastic: %v", err)
+				logger.ErrorWithCtx(ctx).Msgf("quesma request failed: %v", err)
 				responseFromElastic(ctx, elkResponse, w)
 
 			} else {
 
 				msg := "Internal Quesma Error.\nPlease contact support if the problem persists."
-				reason := "Failed request"
+				reason := "Failed request."
 
 				var endUserError *end_user_errors.EndUserError
 				if errors.As(err, &endUserError) {
 					fmt.Println("THIS IS END USER ERROR")
 					msg = endUserError.EndUserErrorMessage()
-					reason = endUserError.EndUserErrorMessage()
+					reason = endUserError.Reason()
 				}
 
-				logger.ErrorWithCtxAndReason(ctx, reason).Msgf("Error processing request while responding from Quesma: %v", err)
+				logger.ErrorWithCtxAndReason(ctx, reason).Msgf("quesma request failed: %v", err)
 
 				requestId := "n/a"
 				if contextRid, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {

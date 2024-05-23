@@ -10,10 +10,21 @@ func GuessClickhouseError(err error) *EndUserError {
 	fmt.Print("Guessing Clickhouse error type: " + err.Error())
 
 	for {
-		msg := err.Error()
+		s := err.Error()
 
-		if strings.Contains(msg, "clickhouse") {
-			return ErrClickhouseQueryError.NewWithErr(err)
+		// TODO this is stupid, but works.
+		// We should check the error type, not the string.
+
+		if strings.Contains(s, "error [code: 60") {
+			return ErrDatabaseTableNotFound.NewWithErr(err)
+		}
+
+		if strings.HasPrefix(s, "dial tcp") {
+			return ErrDatabaseConnectionError.NewWithErr(err)
+		}
+
+		if strings.HasPrefix(s, "code: 516") {
+			return ErrDatabaseAuthenticationError.NewWithErr(err)
 		}
 
 		err = errors.Unwrap(err)
@@ -22,5 +33,5 @@ func GuessClickhouseError(err error) *EndUserError {
 		}
 	}
 
-	return ErrClickhouseQueryError.NewWithErr(err)
+	return ErrDatabaseOtherError.NewWithErr(err)
 }

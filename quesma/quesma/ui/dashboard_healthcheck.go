@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"mitmproxy/quesma/end_user_errors"
 	"net/http"
 	"sync"
 	"time"
@@ -56,7 +57,8 @@ func (qmc *QuesmaManagementConsole) checkClickhouseHealth() healthCheckStatus {
 	return qmc.clickhouseStatusCache.check(func() healthCheckStatus {
 		err := qmc.logManager.Ping()
 		if err != nil {
-			return healthCheckStatus{"red", "Ping failed", err.Error()}
+			endUserError := end_user_errors.GuessClickhouseError(err)
+			return healthCheckStatus{"red", "Ping failed", endUserError.Reason()}
 
 		}
 		return healthCheckStatus{"green", "Healthy", ""}
