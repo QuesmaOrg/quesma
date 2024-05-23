@@ -34,7 +34,6 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	and := mux.And
 
 	router := mux.NewPathRouter()
-
 	router.Register(routes.ClusterHealthPath, method("GET"), func(_ context.Context, req *mux.Request) (*mux.Result, error) {
 		return elasticsearchQueryResult(`{"cluster_name": "quesma"}`, httpOk), nil
 	})
@@ -46,8 +45,8 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 			return nil, err
 		}
 
-		results, err := dualWriteBulk(ctx, nil, body, lm, cfg, phoneHomeAgent)
-		return bulkInsertResult(results), err
+		results := dualWriteBulk(ctx, nil, ndjson, lm, cfg, phoneHomeAgent)
+		return bulkInsertResult(results), nil
 	})
 
 	router.Register(routes.IndexRefreshPath, and(method("POST"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
@@ -73,8 +72,8 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 			return nil, err
 		}
 
-		results, err := dualWriteBulk(ctx, &index, body, lm, cfg, phoneHomeAgent)
-		return bulkInsertResult(results), err
+		results := dualWriteBulk(ctx, &index, body, lm, cfg, phoneHomeAgent)
+		return bulkInsertResult(results), nil
 	})
 
 	router.Register(routes.ResolveIndexPath, method("GET"), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
