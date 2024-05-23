@@ -215,6 +215,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					})
 					columnsSlice := [][]string{columns}
 					translatedQueryBody, hitsSlice := q.searchWorker(ctx, queries, columnsSlice, table, doneCh, optAsync)
+					if len(hitsSlice) == 0 {
+						logger.ErrorWithCtx(ctx).Msgf("no hits, queryInfo: %d", translatedQueryBody)
+						doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
+						return
+					}
 					searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], queries[0])
 					if err != nil {
 						logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queries[0].QueryInfo, hitsSlice[0])
