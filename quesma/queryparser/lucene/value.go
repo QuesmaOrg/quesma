@@ -3,6 +3,7 @@ package lucene
 import (
 	"fmt"
 	"mitmproxy/quesma/logger"
+	wc "mitmproxy/quesma/queryparser/where_clause"
 	"slices"
 	"strconv"
 	"strings"
@@ -21,6 +22,7 @@ var specialCharacters = []rune{'+', '-', '!', '(', ')', '{', '}', '[', ']', '^',
 
 type value interface {
 	toSQL(fieldName string) string
+	toStatement(fieldName string) wc.Statement
 }
 
 type termValue struct {
@@ -41,6 +43,19 @@ func (v termValue) toSQL(fieldName string) string {
 		return strconv.Quote(fieldName) + " ILIKE '" + termAsStringToClickhouse + "'"
 	} else {
 		return strconv.Quote(fieldName) + " = '" + termAsStringToClickhouse + "'"
+	}
+}
+
+func (v termValue) toStatement(fieldName string) wc.Statement {
+	termAsStringToClickhouse, wildcardsExist := v.transformSpecialCharacters()
+
+	if alreadyQuoted(v.term) {
+		termAsStringToClickhouse = termAsStringToClickhouse[1 : len(termAsStringToClickhouse)-1]
+	}
+	if wildcardsExist {
+		return wc.NewInfixOp(wc.NewColumnRef(fieldName), "ILIKE", wc.NewLiteral(fmt.Sprintf("'%s'", termAsStringToClickhouse)))
+	} else {
+		return wc.NewInfixOp(wc.NewColumnRef(fieldName), " = ", wc.NewLiteral(fmt.Sprintf("'%s'", termAsStringToClickhouse)))
 	}
 }
 
@@ -138,6 +153,50 @@ func (v rangeValue) toSQL(fieldName string) string {
 	return left + right
 }
 
+func (v rangeValue) toStatement(fieldName string) wc.Statement {
+	if v.totallyUnbounded() {
+		return wc.NewInfixOp(wc.NewColumnRef(fieldName), "IS", wc.NewLiteral("NOT NULL"))
+	}
+
+	var left, right wc.Statement
+	var operator string
+	if v.lowerBound != unbounded {
+		if v.lowerBoundInclusive {
+			operator = " >= "
+		} else {
+			operator = " > "
+		}
+		if exp, ok := v.lowerBound.(expression); ok {
+			left = wc.NewInfixOp(wc.NewColumnRef(fieldName), operator, exp.toStatement())
+		} else {
+			left = wc.NewInfixOp(wc.NewColumnRef(fieldName), operator, wc.NewLiteral(fmt.Sprintf("'%v'", v.lowerBound)))
+		}
+	}
+	if v.upperBound != unbounded {
+		if v.upperBoundInclusive {
+			operator = " <= "
+		} else {
+			operator = " < "
+		}
+		if exp, ok := v.upperBound.(expression); ok {
+			right = wc.NewInfixOp(wc.NewColumnRef(fieldName), operator, exp.toStatement())
+		} else {
+			right = wc.NewInfixOp(wc.NewColumnRef(fieldName), operator, wc.NewLiteral(fmt.Sprintf("'%v'", v.upperBound)))
+		}
+	}
+	if left != nil && right != nil {
+		return wc.NewInfixOp(left, "AND", right)
+	}
+	if left != nil {
+		return left
+	}
+	if right != nil {
+		return right
+	}
+	return wc.NewLiteral("<SOMETHING MESSED UP HERE>")
+
+}
+
 type andValue struct {
 	left  value
 	right value
@@ -149,6 +208,10 @@ func newAndValue(left, right value) andValue {
 
 func (v andValue) toSQL(fieldName string) string {
 	return "(" + v.left.toSQL(fieldName) + " AND " + v.right.toSQL(fieldName) + ")"
+}
+
+func (v andValue) toStatement(fieldName string) wc.Statement {
+	return wc.NewInfixOp(v.left.toStatement(fieldName), "AND", v.right.toStatement(fieldName))
 }
 
 type orValue struct {
@@ -164,6 +227,10 @@ func (v orValue) toSQL(fieldName string) string {
 	return "(" + v.left.toSQL(fieldName) + " OR " + v.right.toSQL(fieldName) + ")"
 }
 
+func (v orValue) toStatement(fieldName string) wc.Statement {
+	return wc.NewInfixOp(v.left.toStatement(fieldName), "OR", v.right.toStatement(fieldName))
+}
+
 type notValue struct {
 	value value
 }
@@ -176,6 +243,10 @@ func (v notValue) toSQL(fieldName string) string {
 	return "NOT (" + v.value.toSQL(fieldName) + ")"
 }
 
+func (v notValue) toStatement(fieldName string) wc.Statement {
+	return wc.NewPrefixOp("NOT", []wc.Statement{v.value.toStatement(fieldName)})
+}
+
 type invalidValue struct {
 }
 
@@ -185,6 +256,10 @@ func newInvalidValue() invalidValue {
 
 func (v invalidValue) toSQL(fieldName string) string {
 	return "false"
+}
+
+func (v invalidValue) toStatement(fieldName string) wc.Statement {
+	return wc.NewLiteral("false")
 }
 
 // buildValue builds a value from p.tokens

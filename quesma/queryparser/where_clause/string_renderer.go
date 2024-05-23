@@ -28,9 +28,9 @@ func (v *StringRenderer) VisitInfixOp(e *InfixOp) interface{} {
 	}
 	// This might look like a strange heuristics to but is aligned with the way we are currently generating the statement
 	// I think in the future every infix op should be in braces.
-	if e.Op == "OR" {
+	if e.Op == "AND" || e.Op == "OR" {
 		return fmt.Sprintf("(%v %v %v)", lhs, e.Op, rhs)
-	} else if e.Op == "AND" || strings.Contains(e.Op, "LIKE") || e.Op == "IS" || e.Op == "IN" {
+	} else if strings.Contains(e.Op, "LIKE") || e.Op == "IS" || e.Op == "IN" {
 		return fmt.Sprintf("%v %v %v", lhs, e.Op, rhs)
 	} else {
 		return fmt.Sprintf("%v%v%v", lhs, e.Op, rhs)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/queryparser/where_clause"
 	"slices"
 	"strconv"
 	"strings"
@@ -33,6 +34,7 @@ type luceneParser struct {
 	tokens            []token
 	defaultFieldNames []string
 	lastExpression    expression
+	WhereStatement    where_clause.Statement
 }
 
 func newLuceneParser(ctx context.Context, defaultFieldNames []string) luceneParser {
@@ -67,6 +69,8 @@ func TranslateToSQL(ctx context.Context, query string, fields []string) string {
 	return parser.translateToSQL(query)
 }
 
+var toString = &where_clause.StringRenderer{}
+
 func (p *luceneParser) translateToSQL(query string) string {
 	query = p.removeFuzzySearchOperator(query)
 	query = p.removeBoostingOperator(query)
@@ -77,12 +81,18 @@ func (p *luceneParser) translateToSQL(query string) string {
 		}
 	}
 	for len(p.tokens) > 0 {
-		p.lastExpression = p.buildExpression(true)
+		p.lastExpression, p.WhereStatement = p.buildExpression(true)
 	}
 	if p.lastExpression == nil {
+		p.WhereStatement = where_clause.NewLiteral("true")
+		iWouldReturn := p.WhereStatement.Accept(toString).(string)
+		logger.Info().Msgf("Returning [true], got [%s]", iWouldReturn)
 		return "true"
 	}
-	return p.lastExpression.toSQL()
+	newWhereClause := p.WhereStatement.Accept(toString).(string)
+	oldWhereClause := p.lastExpression.toSQL()
+	logger.Info().Msgf("OLD: [%s]\nNEW: [%s]", oldWhereClause, newWhereClause)
+	return newWhereClause
 }
 
 // tokenizeQuery splits the query into tokens, which are stored in p.tokens.
