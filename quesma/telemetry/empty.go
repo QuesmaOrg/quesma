@@ -86,6 +86,10 @@ func (d emptyAgent) UserAgentCounters() MultiCounter {
 	return &emptyMultiCounter{}
 }
 
+func (d emptyAgent) FailedRequestsCollector(func() int64) {
+
+}
+
 func NewPhoneHomeEmptyAgent() PhoneHomeAgent {
 	return &emptyAgent{}
 }
