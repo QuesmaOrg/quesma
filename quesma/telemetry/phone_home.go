@@ -84,12 +84,14 @@ type PhoneHomeStats struct {
 	IngestCounters    MultiCounterStats          `json:"-"`
 	UserAgentCounters MultiCounterTopValuesStats `json:"top_user_agents"`
 
-	RuntimeStats   RuntimeStats `json:"runtime"`
-	NumberOfPanics int64        `json:"number_of_panics"`
-	ReportType     string       `json:"report_type"`
-	TakenAt        int64        `json:"taken_at"`
-	ConfigMode     string       `json:"config_mode"`
-	TopErrors      []string     `json:"top_errors"`
+	RuntimeStats           RuntimeStats `json:"runtime"`
+	NumberOfPanics         int64        `json:"number_of_panics"`
+	TopErrors              []string     `json:"top_errors"`
+	NumberOfFailedRequests int64        `json:"number_of_failed_requests"`
+
+	ReportType string `json:"report_type"`
+	TakenAt    int64  `json:"taken_at"`
+	ConfigMode string `json:"config_mode"`
 }
 
 type PhoneHomeAgent interface {
@@ -108,6 +110,7 @@ type PhoneHomeAgent interface {
 
 	IngestCounters() MultiCounter
 	UserAgentCounters() MultiCounter
+	FailedRequestsCollector(f func() int64)
 }
 
 type agent struct {
@@ -131,6 +134,8 @@ type agent struct {
 
 	ingestCounters    MultiCounter
 	userAgentCounters MultiCounter
+
+	failedRequestCollector func() int64
 
 	recent            PhoneHomeStats
 	telemetryEndpoint *config.Url
@@ -184,6 +189,10 @@ func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *s
 		telemetryEndpoint: configuration.QuesmaInternalTelemetryUrl,
 		httpClient:        &http.Client{Timeout: time.Minute},
 	}
+}
+
+func (a *agent) FailedRequestsCollector(f func() int64) {
+	a.failedRequestCollector = f
 }
 
 func (a *agent) ClickHouseQueryDuration() DurationMeasurement {
@@ -471,6 +480,10 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 
 	stats.RuntimeStats = a.runtimeStats()
 	stats.TopErrors = a.topErrors()
+
+	if a.failedRequestCollector != nil {
+		stats.NumberOfFailedRequests = a.failedRequestCollector()
+	}
 
 	return stats
 }
