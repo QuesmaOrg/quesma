@@ -74,7 +74,12 @@ func combineStatements(stmts []Statement, sep string) Statement {
 				fieldName = stmt.FieldName
 			}
 		}
-		return NewCompoundStatement(sql, fieldName)
+		return Statement{
+			WhereStatement: newWhereStatement,
+			Stmt:           sql,
+			IsCompound:     true,
+			FieldName:      fieldName,
+		}
 	}
 	if len(stmts) == 1 {
 		return stmts[0]
