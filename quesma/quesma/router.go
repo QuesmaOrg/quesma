@@ -45,7 +45,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 			return nil, err
 		}
 
-		results := dualWriteBulk(ctx, nil, ndjson, lm, cfg, phoneHomeAgent)
+		results := dualWriteBulk(ctx, nil, body, lm, cfg, phoneHomeAgent)
 		return bulkInsertResult(results), nil
 	})
 
