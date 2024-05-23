@@ -656,7 +656,7 @@ func ExtractNumeric64Maybe(value any) (asFloat64 float64, success bool) {
 	}
 	var asInt64 int64
 	if asInt64, success = ExtractInt64Maybe(value); success {
-		asFloat64 = float64(asInt64)
+		return float64(asInt64), true
 	}
-	return asFloat64, success
+	return 0.0, false
 }

@@ -23,7 +23,7 @@ func (query Stats) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for stats aggregation")
 		return []model.JsonMap{{
-			"value": nil,
+			"value": nil, // not completely sure if it's a good return value, but it looks fine to me. We should always get 1 row, not 0 anyway.
 		}}
 	}
 	if len(rows) > 1 {
@@ -36,7 +36,7 @@ func (query Stats) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 		// first: avgOrNull(..) -> avgOrNull
 		firstLeftBracketIndex := strings.Index(v.ColName, "(")
 		if firstLeftBracketIndex == -1 {
-			logger.Error().Msgf("invalid column name in stats aggregation: %s. Skipping", v.ColName)
+			logger.Warn().Msgf("invalid column name in stats aggregation: %s. Skipping", v.ColName)
 			continue
 		}
 		fullName := v.ColName[:firstLeftBracketIndex]

@@ -2,6 +2,7 @@ package metrics_aggregations
 
 import (
 	"context"
+	"fmt"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/util"
@@ -9,14 +10,14 @@ import (
 
 type ExtendedStats struct {
 	ctx   context.Context
-	sigma float64
+	sigma float64 // sigma is for std deviation bounds. We need to return (avg +- sigma*stddev) in the response.
 }
 
 func NewExtendedStats(ctx context.Context, sigma float64) ExtendedStats {
 	return ExtendedStats{ctx: ctx, sigma: sigma}
 }
 
-const selectFieldsNr = 10
+const selectFieldsNr = 10 // how many selects we do to Clickhouse for this aggregation (count, min, ...)
 
 func (query ExtendedStats) IsBucketAggregation() bool {
 	return false
@@ -26,7 +27,7 @@ func (query ExtendedStats) TranslateSqlResponseToJson(rows []model.QueryResultRo
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for stats aggregation")
 		return []model.JsonMap{{
-			"value": nil,
+			"value": nil, // not completely sure if it's a good return value, but it looks fine to me. We should always get 1 row, not 0 anyway.
 		}}
 	}
 	if len(rows) > 1 {
@@ -35,7 +36,7 @@ func (query ExtendedStats) TranslateSqlResponseToJson(rows []model.QueryResultRo
 	if len(rows[0].Cols) < selectFieldsNr {
 		logger.WarnWithCtx(query.ctx).Msgf("not enough fields in the response for extended_stats aggregation. Expected at least %d, got %d. Got: %+v. Returning empty result.", selectFieldsNr, len(rows[0].Cols), rows[0])
 		return []model.JsonMap{{
-			"value": nil,
+			"value": nil, // not completely sure if it's a good return value, but it looks fine to me. We should always get >= selectFieldsNr columns anyway.
 		}}
 	}
 
@@ -78,14 +79,14 @@ func (query ExtendedStats) TranslateSqlResponseToJson(rows []model.QueryResultRo
 }
 
 func (query ExtendedStats) String() string {
-	return "stats"
+	return fmt.Sprintf("extended_stats(sigma=%f)", query.sigma)
 }
 
 func (query ExtendedStats) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	return rowsFromDB
 }
 
-// we're not out of bounds, because we've checked it in TranslateSqlResponseToJson
+// we're not out of bounds for row.Cols[idx], because we've checked it in TranslateSqlResponseToJson
 func (query ExtendedStats) getValue(row model.QueryResultRow, functionName string) any {
 	l := len(row.Cols)
 	functionNameToColumnIdx := map[string]int{
