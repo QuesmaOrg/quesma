@@ -2,7 +2,7 @@ package queryparser
 
 import (
 	"encoding/json"
-	"mitmproxy/quesma/queryparser/where_clause"
+	wc "mitmproxy/quesma/queryparser/where_clause"
 
 	"fmt"
 	"github.com/k0kubun/pp"
@@ -243,7 +243,7 @@ func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fi
 		}
 		cw.AddTokenToHighlight(*prefix)
 		simpleStat := model.NewSimpleStatement(fieldName + " " + like + " '" + *prefix + "%'")
-		simpleStat.WhereStatement = where_clause.NewInfixOp(where_clause.NewColumnRef(fieldName), like, where_clause.NewLiteral("'"+*prefix+"%'"))
+		simpleStat.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(fieldName), like, wc.NewLiteral("'"+*prefix+"%'"))
 		stmts = append(stmts, simpleStat)
 	}
 	return model.NewSimpleQuery(model.And(stmts), canParse)
@@ -342,13 +342,13 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		switch v.Type.String() {
 		case clickhouse.DateTime64.String():
 			statement = model.NewSimpleStatement(fmt.Sprintf("toUnixTimestamp64Milli(%s) IN (%s)", strconv.Quote(timestampColumnName), ids))
-			statement.WhereStatement = where_clause.NewInfixOp(where_clause.NewFunction("toUnixTimestamp64Milli", []where_clause.Statement{where_clause.NewColumnRef(timestampColumnName)}...), "IN", where_clause.NewLiteral("(["+strings.Join(ids, ",")+"])"))
+			statement.WhereStatement = wc.NewInfixOp(wc.NewFunction("toUnixTimestamp64Milli", []wc.Statement{wc.NewColumnRef(timestampColumnName)}...), "IN", wc.NewLiteral("(["+strings.Join(ids, ",")+"])"))
 		case clickhouse.DateTime.String():
 			statement = model.NewSimpleStatement(fmt.Sprintf("toUnixTimestamp(%s) * 1000 IN (%s)", strconv.Quote(timestampColumnName), ids))
-			statement.WhereStatement = where_clause.NewInfixOp(where_clause.NewInfixOp(
-				where_clause.NewFunction("toUnixTimestamp", []where_clause.Statement{where_clause.NewColumnRef(timestampColumnName)}...),
+			statement.WhereStatement = wc.NewInfixOp(wc.NewInfixOp(
+				wc.NewFunction("toUnixTimestamp", []wc.Statement{wc.NewColumnRef(timestampColumnName)}...),
 				"*",
-				where_clause.NewLiteral("1000")), "IN", where_clause.NewLiteral("("+strings.Join(ids, ",")+")"))
+				wc.NewLiteral("1000")), "IN", wc.NewLiteral("("+strings.Join(ids, ",")+")"))
 		default:
 			logger.Warn().Msgf("timestamp field of unsupported type %s", v.Type.String())
 			return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
@@ -435,7 +435,7 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) model.SimpleQu
 		canParse = canParse && canParseThis
 		if len(sqlNots) > 0 {
 			orSql := model.Or(sqlNots)
-			orSql.WhereStatement = where_clause.NewPrefixOp("NOT", []where_clause.Statement{orSql.WhereStatement})
+			orSql.WhereStatement = wc.NewPrefixOp("NOT", []wc.Statement{orSql.WhereStatement})
 			if orSql.IsCompound {
 				orSql.Stmt = "NOT (" + orSql.Stmt + ")"
 				orSql.IsCompound = false // NOT (compound) is again simple
@@ -455,11 +455,11 @@ func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) model.SimpleQu
 			if k == "_index" { // index is a table name, already taken from URI and moved to FROM clause
 				logger.Warn().Msgf("term %s=%v in query body, ignoring in result SQL", k, v)
 				simpleStat := model.NewSimpleStatement(" 0=0 /* " + strconv.Quote(k) + "=" + sprint(v) + " */ ")
-				simpleStat.WhereStatement = where_clause.NewInfixOp(where_clause.NewLiteral("0"), "=", where_clause.NewLiteral("0 /* "+k+"="+sprint(v)+" */"))
+				simpleStat.WhereStatement = wc.NewInfixOp(wc.NewLiteral("0"), "=", wc.NewLiteral("0 /* "+k+"="+sprint(v)+" */"))
 				return model.NewSimpleQuery(simpleStat, true)
 			}
 			simpleStat := model.NewSimpleStatement(strconv.Quote(k) + "=" + sprint(v))
-			simpleStat.WhereStatement = where_clause.NewInfixOp(where_clause.NewColumnRef(k), "=", where_clause.NewLiteral(sprint(v)))
+			simpleStat.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(k), "=", wc.NewLiteral(sprint(v)))
 			return model.NewSimpleQuery(simpleStat, true)
 		}
 	}
@@ -489,7 +489,7 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 		for i, v := range vAsArray {
 			cw.AddTokenToHighlight(v)
 			simpleStat := model.NewSimpleStatement(strconv.Quote(k) + "=" + sprint(v))
-			simpleStat.WhereStatement = where_clause.NewInfixOp(where_clause.NewColumnRef(k), "=", where_clause.NewLiteral(sprint(v)))
+			simpleStat.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(k), "=", wc.NewLiteral(sprint(v)))
 			orStmts[i] = simpleStat
 		}
 		return model.NewSimpleQuery(model.Or(orStmts), true)
@@ -544,7 +544,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 					statements = append(statements, computedIdMatchingQuery.Sql)
 				} else {
 					simpleStat := model.NewSimpleStatement(strconv.Quote(fieldName) + " iLIKE " + "'%" + subQuery + "%'")
-					simpleStat.WhereStatement = where_clause.NewInfixOp(where_clause.NewColumnRef(fieldName), "iLIKE", where_clause.NewLiteral("'%"+subQuery+"%'"))
+					simpleStat.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(fieldName), "iLIKE", wc.NewLiteral("'%"+subQuery+"%'"))
 					statements = append(statements, simpleStat)
 				}
 			}
@@ -576,7 +576,7 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) model.Si
 		fields = cw.Table.GetFulltextFields()
 	}
 	alwaysFalseStmt := model.AlwaysFalseStatement
-	alwaysFalseStmt.WhereStatement = where_clause.NewLiteral("false")
+	alwaysFalseStmt.WhereStatement = wc.NewLiteral("false")
 	if len(fields) == 0 {
 		return model.NewSimpleQuery(alwaysFalseStmt, true)
 	}
@@ -616,7 +616,7 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) model.Si
 	for _, field := range fields {
 		for _, subQ := range subQueries {
 			simpleStat := model.NewSimpleStatement(strconv.Quote(field) + " iLIKE '%" + subQ + "%'")
-			simpleStat.WhereStatement = where_clause.NewInfixOp(where_clause.NewColumnRef(field), "iLIKE", where_clause.NewLiteral("'%"+subQ+"%'"))
+			simpleStat.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(field), "iLIKE", wc.NewLiteral("'%"+subQ+"%'"))
 			sqls[i] = simpleStat
 			i++
 		}
@@ -637,13 +637,13 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) model.Simple
 		case string:
 			cw.AddTokenToHighlight(vCasted)
 			simpleStat := model.NewSimpleStatement(strconv.Quote(fieldName) + " iLIKE '" + vCasted + "%'")
-			simpleStat.WhereStatement = where_clause.NewInfixOp(where_clause.NewColumnRef(fieldName), "iLIKE", where_clause.NewLiteral("'"+vCasted+"%'"))
+			simpleStat.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(fieldName), "iLIKE", wc.NewLiteral("'"+vCasted+"%'"))
 			return model.NewSimpleQuery(simpleStat, true)
 		case QueryMap:
 			token := vCasted["value"].(string)
 			cw.AddTokenToHighlight(token)
 			simpleStat := model.NewSimpleStatement(strconv.Quote(fieldName) + " iLIKE '" + token + "%'")
-			simpleStat.WhereStatement = where_clause.NewInfixOp(where_clause.NewColumnRef(fieldName), "iLIKE", where_clause.NewLiteral("'"+token+"%'"))
+			simpleStat.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(fieldName), "iLIKE", wc.NewLiteral("'"+token+"%'"))
 			return model.NewSimpleQuery(simpleStat, true)
 		default:
 			logger.WarnWithCtx(cw.Ctx).Msgf("unsupported prefix type: %T, value: %v", v, v)
@@ -673,7 +673,7 @@ func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) model.Simp
 					cw.AddTokenToHighlight(valueAsString)
 					simpleStat := model.NewSimpleStatement(strconv.Quote(fieldName) + " iLIKE '" +
 						strings.ReplaceAll(valueAsString, "*", "%") + "'")
-					simpleStat.WhereStatement = where_clause.NewInfixOp(where_clause.NewColumnRef(fieldName), "iLIKE", where_clause.NewLiteral("'"+strings.ReplaceAll(valueAsString, "*", "%")+"'"))
+					simpleStat.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(fieldName), "iLIKE", wc.NewLiteral("'"+strings.ReplaceAll(valueAsString, "*", "%")+"'"))
 					return model.NewSimpleQuery(simpleStat, true)
 				} else {
 					logger.WarnWithCtx(cw.Ctx).Msgf("invalid value type: %T, value: %v", value, value)
@@ -778,10 +778,10 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 
 		for op, v := range v.(QueryMap) {
 			var fieldToPrint, timeFormatFuncName string
-			var valueToCompare where_clause.Statement
+			var valueToCompare wc.Statement
 			fieldType := cw.Table.GetDateTimeType(cw.Ctx, field)
 			vToPrint := sprint(v)
-			valueToCompare = where_clause.NewLiteral(vToPrint)
+			valueToCompare = wc.NewLiteral(vToPrint)
 			if !isDatetimeInDefaultFormat {
 				timeFormatFuncName = "toUnixTimestamp64Milli"
 				fieldToPrint = "toUnixTimestamp64Milli(" + strconv.Quote(field) + ")"
@@ -795,7 +795,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 						if _, err := time.Parse(time.RFC3339Nano, dateTime); err == nil {
 							vToPrint, timeFormatFuncName = cw.parseDateTimeString(cw.Table, field, dateTime)
 							// TODO Investigate the quotation below
-							valueToCompare = where_clause.NewFunction(timeFormatFuncName, where_clause.NewLiteral(fmt.Sprintf("'%s'", dateTime)))
+							valueToCompare = wc.NewFunction(timeFormatFuncName, wc.NewLiteral(fmt.Sprintf("'%s'", dateTime)))
 						} else if op == "gte" || op == "lte" || op == "gt" || op == "lt" {
 							vToPrint, err = cw.parseDateMathExpression(vToPrint)
 							if err != nil {
@@ -805,7 +805,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 						}
 					} else if v == nil {
 						vToPrint = "NULL"
-						valueToCompare = where_clause.NewLiteral("NULL")
+						valueToCompare = wc.NewLiteral("NULL")
 					}
 				case clickhouse.Invalid: // assumes it is number that does not need formatting
 					if len(vToPrint) > 2 && vToPrint[0] == '\'' && vToPrint[len(vToPrint)-1] == '\'' {
@@ -820,7 +820,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 						} else {
 							logger.WarnWithCtx(cw.Ctx).Msgf("we use range with unknown literal %s, field %s", vToPrint, field)
 						}
-						valueToCompare = where_clause.NewLiteral(vToPrint)
+						valueToCompare = wc.NewLiteral(vToPrint)
 					}
 				default:
 					logger.WarnWithCtx(cw.Ctx).Msgf("invalid DateTime type for field: %s, parsed dateTime value: %s", field, vToPrint)
@@ -830,19 +830,19 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			switch op {
 			case "gte":
 				simpleStat := model.NewSimpleStatement(fieldToPrint + ">=" + vToPrint)
-				simpleStat.WhereStatement = where_clause.NewInfixOp(where_clause.NewColumnRef(field), ">=", valueToCompare)
+				simpleStat.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(field), ">=", valueToCompare)
 				stmts = append(stmts, simpleStat)
 			case "lte":
 				simpleStat := model.NewSimpleStatement(fieldToPrint + "<=" + vToPrint)
-				simpleStat.WhereStatement = where_clause.NewInfixOp(where_clause.NewColumnRef(field), "<=", valueToCompare)
+				simpleStat.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(field), "<=", valueToCompare)
 				stmts = append(stmts, simpleStat)
 			case "gt":
 				simpleStat := model.NewSimpleStatement(fieldToPrint + ">" + vToPrint)
-				simpleStat.WhereStatement = where_clause.NewInfixOp(where_clause.NewColumnRef(field), ">", valueToCompare)
+				simpleStat.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(field), ">", valueToCompare)
 				stmts = append(stmts, simpleStat)
 			case "lt":
 				simpleStat := model.NewSimpleStatement(fieldToPrint + "<" + vToPrint)
-				simpleStat.WhereStatement = where_clause.NewInfixOp(where_clause.NewColumnRef(field), "<", valueToCompare)
+				simpleStat.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(field), "<", valueToCompare)
 				stmts = append(stmts, simpleStat)
 			case "format":
 				// ignored
@@ -890,15 +890,15 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 		switch cw.Table.GetFieldInfo(cw.Ctx, fieldName) {
 		case clickhouse.ExistsAndIsBaseType:
 			simpleStatement := model.NewSimpleStatement(fieldNameQuoted + " IS NOT NULL")
-			simpleStatement.WhereStatement = where_clause.NewInfixOp(where_clause.NewColumnRef(fieldNameQuoted), "IS", where_clause.NewLiteral("NOT NULL"))
+			simpleStatement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(fieldNameQuoted), "IS", wc.NewLiteral("NOT NULL"))
 			statement := simpleStatement
 			sql = statement
 		case clickhouse.ExistsAndIsArray:
 			statement := model.NewSimpleStatement(fieldNameQuoted + ".size0 = 0")
-			statement.WhereStatement = where_clause.NewInfixOp(where_clause.NewNestedProperty(
-				*where_clause.NewColumnRef(fieldNameQuoted),
-				*where_clause.NewLiteral("size0"),
-			), "=", where_clause.NewLiteral("0"))
+			statement.WhereStatement = wc.NewInfixOp(wc.NewNestedProperty(
+				*wc.NewColumnRef(fieldNameQuoted),
+				*wc.NewLiteral("size0"),
+			), "=", wc.NewLiteral("0"))
 			sql = statement
 		case clickhouse.NotExists:
 			attrs := cw.Table.GetAttributesList()
@@ -911,10 +911,10 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 					),
 				)
 				compoundStatementNoFieldName.WhereStatement = nil
-				hasFunc := where_clause.NewFunction("has", []where_clause.Statement{where_clause.NewColumnRef(a.KeysArrayName), where_clause.NewColumnRef(fieldName)}...)
-				arrayAccess := where_clause.NewArrayAccess(*where_clause.NewColumnRef(a.ValuesArrayName), where_clause.NewFunction("indexOf", []where_clause.Statement{where_clause.NewColumnRef(a.KeysArrayName), where_clause.NewLiteral(fieldNameQuoted)}...))
-				isNotNull := where_clause.NewInfixOp(arrayAccess, "IS", where_clause.NewLiteral("NOT NULL"))
-				compoundStatementNoFieldName.WhereStatement = where_clause.NewInfixOp(hasFunc, "AND", isNotNull)
+				hasFunc := wc.NewFunction("has", []wc.Statement{wc.NewColumnRef(a.KeysArrayName), wc.NewColumnRef(fieldName)}...)
+				arrayAccess := wc.NewArrayAccess(*wc.NewColumnRef(a.ValuesArrayName), wc.NewFunction("indexOf", []wc.Statement{wc.NewColumnRef(a.KeysArrayName), wc.NewLiteral(fieldNameQuoted)}...))
+				isNotNull := wc.NewInfixOp(arrayAccess, "IS", wc.NewLiteral("NOT NULL"))
+				compoundStatementNoFieldName.WhereStatement = wc.NewInfixOp(hasFunc, "AND", isNotNull)
 				stmts[i] = compoundStatementNoFieldName
 			}
 			sql = model.Or(stmts)
