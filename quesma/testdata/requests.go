@@ -1936,6 +1936,22 @@ var TestsSearch = []SearchTestCase{
 		// We will probably refactor it as we move forwards with schema which will get even more side-effecting
 		[]string{qToStr(justSimplestWhere(`"@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z')`))},
 	},
+	{ // [34] Comments in queries
+		"Comments in filter",
+		`{
+			"query": { /*one comment */
+				"bool": {
+					"must": {
+ 						"term": { "user.id": "kimchy" } // One comment
+                     }
+				}
+			}
+		}`,
+		[]string{`"user.id"='kimchy'`},
+		model.Normal,
+		[]model.Query{justSimplestWhere(`"user.id"='kimchy'`)},
+		[]string{qToStr(justSimplestWhere(`"user.id"='kimchy'`))},
+	},
 }
 
 var TestsSearchNoAttrs = []SearchTestCase{

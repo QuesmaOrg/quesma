@@ -133,7 +133,7 @@ func TestJsonToFieldsMap(t *testing.T) {
 		"timestamp":    "2024-01-08T18:56:08.454Z",
 	}
 	j := `{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure","timestamp":"2024-01-08T18:56:08.454Z"}`
-	m, err := JsonToFieldsMap(j)
+	m, err := types.ParseJSON(j)
 	assert.NoError(t, err)
 	assert.Equal(t, len(mExpected), len(m))
 	for k, vExpected := range mExpected {

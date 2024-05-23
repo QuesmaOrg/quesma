@@ -2,13 +2,13 @@ package queryparser
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
 	"mitmproxy/quesma/model/metrics_aggregations"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/util"
 	"regexp"
 	"slices"
@@ -196,8 +196,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 // ParseAggregationJson parses JSON with aggregation query and returns array of queries with aggregations.
 // If there are no aggregations, returns nil.
 func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([]model.Query, error) {
-	queryAsMap := make(QueryMap)
-	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
+	queryAsMap, err := types.ParseJSON(queryAsJson)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal error: %v", err)
 	}

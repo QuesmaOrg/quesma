@@ -324,7 +324,7 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, config 
 		return js, nil
 	}
 	// we find all non-schema fields
-	m, err := JsonToFieldsMap(js)
+	m, err := types.ParseJSON(js)
 	if err != nil {
 		return "", err
 	}
