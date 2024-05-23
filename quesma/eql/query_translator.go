@@ -61,7 +61,7 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 	}, nil
 }
 
-func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) ([]model.Query, []string, bool, bool, error) {
+func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body []byte) ([]model.Query, []string, bool, bool, error) {
 	simpleQuery, queryInfo, highlighter, err := cw.parseQuery(body)
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
@@ -87,7 +87,13 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) ([]model.Que
 	return nil, nil, false, false, err
 }
 
-func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query model.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter model.Highlighter, err error) {
+func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsString []byte) (query model.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter model.Highlighter, err error) {
+
+	queryAsMap, err := types.ParseJSON(string(queryAsString))
+	if err != nil {
+		logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query")
+		return query, model.NewSearchQueryInfoNone(), highlighter, err
+	}
 
 	// no highlighting here
 	highlighter = queryparser.NewEmptyHighlighter()

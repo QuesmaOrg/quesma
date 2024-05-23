@@ -125,6 +125,12 @@ type AsyncQuery struct {
 }
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
+
+	bodyAsBytes, err := body.Bytes()
+	if err != nil {
+		return nil, err
+	}
+
 	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im)
 
 	switch sources {
@@ -195,10 +201,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
 
-		queries, columns, isAggregation, canParse, err := queryTranslator.ParseQuery(body.Clone())
+		queries, columns, isAggregation, canParse, err := queryTranslator.ParseQuery(bodyAsBytes)
 
 		if canParse {
-			if query_util.IsNonAggregationQuery(queries[0].QueryInfo, body) {
+			bodyAsBytes, _ := body.Bytes()
+			if query_util.IsNonAggregationQuery(queries[0].QueryInfo, bodyAsBytes) {
 				if properties := q.findNonexistingProperties(queries[0].QueryInfo, queries[0].SortFields, table); len(properties) > 0 {
 					logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
 					if elasticsearch.IsIndexPattern(indexPattern) {
