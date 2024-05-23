@@ -63,16 +63,23 @@ func TestOrAndAnd(t *testing.T) {
 		t.Run("AND "+strconv.Itoa(i), func(t *testing.T) {
 			b := make([]Statement, len(tt.stmts))
 			copy(b, tt.stmts)
-			assert.Equal(t, tt.want, And(b))
+			tt.want.WhereStatement = nil
+			finalAnd := And(b)
+			finalAnd.WhereStatement = nil
+			assert.Equal(t, tt.want, finalAnd)
 		})
 	}
 	for i, tt := range tests {
 		t.Run("OR "+strconv.Itoa(i), func(t *testing.T) {
+			tt.want.WhereStatement = nil
 			tt.want.Stmt = strings.ReplaceAll(tt.want.Stmt, "AND", "OR")
 			for i := range tt.stmts {
 				tt.stmts[i].Stmt = strings.ReplaceAll(tt.stmts[i].Stmt, "AND", "OR")
 			}
-			assert.Equal(t, tt.want, Or(tt.stmts))
+			tt.want.WhereStatement = nil
+			finalOr := Or(tt.stmts)
+			finalOr.WhereStatement = nil
+			assert.Equal(t, tt.want, finalOr)
 		})
 	}
 }
