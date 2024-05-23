@@ -1983,6 +1983,30 @@ var TestsSearchNoAttrs = []SearchTestCase{
 		},
 		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-25T13:..:45.968Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-25T13:..:45.968Z')) AND (has("attributes_string_key","summary") AND "attributes_string_value"[indexOf("attributes_string_key","summary")] IS NOT NULL) AND NOT (has("attributes_string_key","run_once") AND "attributes_string_value"[indexOf("attributes_string_key","run_once")] IS NOT NULL)`},
 	},
+	{ // [1]
+		"Support matching to multiple terms",
+		`
+		{
+			"query": {
+				"bool" : {
+					"must" : {
+						"term" : { "user.id" : ["kimchy", "jacek", "krzysiek"] }
+					},
+					"filter": {},
+					"must_not" : {},
+					"should" : [],
+				}
+			}
+		}`,
+		[]string{
+			`("user.id" IN ('kimchy',"jacek","krzysiek")`,
+		},
+		model.Normal,
+		[]model.Query{
+			justSimplestWhere(`("user.id" IN ('kimchy','jacek','krzysiek')`),
+		},
+		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "user.id" IN ('kimchy','jacek','krzysiek')`},
+	},
 }
 
 var TestSearchFilter = []SearchTestCase{
