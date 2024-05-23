@@ -3,10 +3,12 @@ package quesma
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/elasticsearch"
+	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/feature"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/network"
@@ -206,7 +208,18 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 				responseFromElastic(ctx, elkResponse, w)
 
 			} else {
-				logger.ErrorWithCtx(ctx).Msgf("Error processing request while responding from Quesma: %v", err)
+
+				msg := "Internal Quesma Error.\nPlease contact support if the problem persists."
+				reason := "Failed request"
+
+				var endUserError *end_user_errors.EndUserError
+				if errors.As(err, &endUserError) {
+					fmt.Println("THIS IS END USER ERROR")
+					msg = endUserError.EndUserErrorMessage()
+					reason = endUserError.EndUserErrorMessage()
+				}
+
+				logger.ErrorWithCtxAndReason(ctx, reason).Msgf("Error processing request while responding from Quesma: %v", err)
 
 				requestId := "n/a"
 				if contextRid, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
@@ -215,7 +228,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 				// We should not send our error message to the client. There can be sensitive information in it.
 				// We will send ID of failed request instead
-				responseFromQuesma(ctx, []byte(fmt.Sprintf("Internal server error. Request ID: %s\n", requestId)), w, elkResponse, mux.ServerErrorResult(), zip)
+				responseFromQuesma(ctx, []byte(fmt.Sprintf("%s\nRequest ID: %s\n", msg, requestId)), w, elkResponse, mux.ServerErrorResult(), zip)
 			}
 		}
 	} else {

@@ -1,4 +1,4 @@
-POST http://localhost:8080/type_logs/_search
+POST http://localhost:8080/device_logs/_search
 Content-Type: application/json
 
 
