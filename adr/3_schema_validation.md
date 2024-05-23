@@ -82,7 +82,7 @@ Steps 3 and 4 require some more detailed planning and investigation.
 
 ## Decision Outcome and Drivers
 
-Chosen option: "Option A", because
+Chosen option: "Option B", because
 
 * Seems that it's easier to do all required transformations at one place having all the information available.
 * It promotes pipeline architecture where we can easily add more transformations in the future.
