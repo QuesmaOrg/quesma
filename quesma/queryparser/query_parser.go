@@ -3,6 +3,7 @@ package queryparser
 import (
 	"encoding/json"
 	wc "mitmproxy/quesma/queryparser/where_clause"
+	"mitmproxy/quesma/quesma/types"
 
 	"fmt"
 	"github.com/k0kubun/pp"
@@ -91,7 +92,8 @@ func (cw *ClickhouseQueryTranslator) ParseQueryInternal(queryAsJson string) (mod
 	cw.ClearTokensToHighlight()
 	queryAsMap := make(QueryMap)
 	if queryAsJson != "" {
-		err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
+		var err error
+		queryAsMap, err = types.ParseJSON(queryAsJson)
 		if err != nil {
 			logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
 			return model.SimpleQuery{}, model.SearchQueryInfo{}, NewEmptyHighlighter(), err
@@ -177,8 +179,7 @@ func (cw *ClickhouseQueryTranslator) ParseHighlighter(queryMap QueryMap) model.H
 
 func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (model.SimpleQuery, model.SearchQueryInfo, model.Highlighter) {
 	cw.ClearTokensToHighlight()
-	queryAsMap := make(QueryMap)
-	err := json.Unmarshal([]byte(queryAsJson), &queryAsMap)
+	queryAsMap, err := types.ParseJSON(queryAsJson)
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
 		return model.NewSimpleQuery(model.NewSimpleStatement("invalid JSON (ParseQueryAsyncSearch)"), false), model.NewSearchQueryInfoNone(), NewEmptyHighlighter()

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/gogo/protobuf/types"
 	"io"
 	"strconv"
@@ -72,18 +71,6 @@ func NewRequest() *Request {
 		CaseInsensitive: defaultCaseInsensitive,
 	}
 	return r
-}
-
-// FromJSON allows to load an arbitrary json into the request structure
-func (r *Request) FromJSON(data string) (*Request, error) {
-	var req Request
-	err := json.Unmarshal([]byte(data), &req)
-
-	if err != nil {
-		return nil, fmt.Errorf("could not deserialise json into Termsenum request: %w", err)
-	}
-
-	return &req, nil
 }
 
 func (s *Request) UnmarshalJSON(data []byte) error {
