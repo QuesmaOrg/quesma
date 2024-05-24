@@ -36,7 +36,7 @@ func (qmc *QuesmaManagementConsole) generateDatasources() []byte {
 	buffer.Html(`<ul>`)
 
 	tableNames := []string{}
-	for tableName := range qmc.config.IndexConfig {
+	for tableName := range qmc.cfg.IndexConfig {
 		tableNames = append(tableNames, tableName)
 	}
 	slices.Sort(tableNames)

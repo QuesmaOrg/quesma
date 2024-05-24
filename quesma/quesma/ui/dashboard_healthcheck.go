@@ -49,7 +49,7 @@ type healthCheckStatus struct {
 }
 
 func (qmc *QuesmaManagementConsole) checkClickhouseHealth() healthCheckStatus {
-	if !qmc.config.WritesToClickhouse() && !qmc.config.ReadsFromClickhouse() {
+	if !qmc.cfg.WritesToClickhouse() && !qmc.cfg.ReadsFromClickhouse() {
 		return healthCheckStatus{"grey", "N/A (not writing)", ""}
 	}
 
@@ -64,12 +64,12 @@ func (qmc *QuesmaManagementConsole) checkClickhouseHealth() healthCheckStatus {
 }
 
 func (qmc *QuesmaManagementConsole) checkElasticsearch() healthCheckStatus {
-	if !qmc.config.WritesToElasticsearch() && !qmc.config.ReadsFromElasticsearch() {
+	if !qmc.cfg.WritesToElasticsearch() && !qmc.cfg.ReadsFromElasticsearch() {
 		return healthCheckStatus{"grey", "N/A (not writing)", ""}
 	}
 
 	return qmc.elasticStatusCache.check(func() healthCheckStatus {
-		resp, err := http.Get(qmc.config.Elasticsearch.Url.String())
+		resp, err := http.Get(qmc.cfg.Elasticsearch.Url.String())
 		if err != nil {
 			return healthCheckStatus{"red", "Ping failed", err.Error()}
 		}
