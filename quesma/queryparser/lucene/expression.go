@@ -19,13 +19,14 @@ type expression interface {
 	toStatement() wc.Statement
 }
 
-func (p *luceneParser) BuildWhereStatement() {
+func (p *luceneParser) BuildWhereStatement() wc.Statement {
 	for len(p.tokens) > 0 {
 		p.WhereStatement = p.buildWhereStatement(true)
 	}
 	if p.WhereStatement == nil {
 		p.WhereStatement = wc.NewLiteral("true")
 	}
+	return p.WhereStatement
 }
 
 func newLeafStatement(fieldNames []string, value value) wc.Statement {

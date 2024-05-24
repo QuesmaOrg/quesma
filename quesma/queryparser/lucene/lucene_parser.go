@@ -79,8 +79,8 @@ func (p *luceneParser) translateToSQL(query string) string {
 			logger.WarnWithCtx(p.ctx).Msgf("Invalid query, can't tokenize: %s", query)
 		}
 	}
-	p.BuildWhereStatement()
-	return p.WhereStatement.Accept(toString).(string)
+	stmt := p.BuildWhereStatement()
+	return stmt.Accept(toString).(string)
 }
 
 // tokenizeQuery splits the query into tokens, which are stored in p.tokens.
