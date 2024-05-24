@@ -4,7 +4,6 @@ import (
 	"context"
 	"mitmproxy/quesma/logger"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -15,22 +14,27 @@ const (
 
 type (
 	Query struct {
-		IsDistinct      bool     // true <=> query is SELECT DISTINCT
+		IsDistinct bool // true <=> query is SELECT DISTINCT
+
+		Columns []*Column // Columns to select, including aliases
+
+		// TO BE REMOVED
 		Fields          []string // Fields in 'SELECT Fields FROM ...'
 		NonSchemaFields []string // Fields that are not in schema, but are in 'SELECT ...', e.g. count()
-		WhereClause     string   // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
-		GroupByFields   []string // if not empty, we do GROUP BY GroupByFields... They are quoted if they are column names, unquoted if non-schema. So no quotes need to be added.
-		SuffixClauses   []string // ORDER BY, etc.
-		FromClause      string   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
-		CanParse        bool     // true <=> query is valid
-		QueryInfo       SearchQueryInfo
-		Highlighter     Highlighter
-		NoDBQuery       bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
-		Parent          string       // parent aggregation name, used in some pipeline aggregations
-		Aggregators     []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
-		Type            QueryType
-		SortFields      SortFields // fields to sort by
-		SubSelect       string
+
+		WhereClause   string   // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
+		GroupByFields []string // if not empty, we do GROUP BY GroupByFields... They are quoted if they are column names, unquoted if non-schema. So no quotes need to be added.
+		SuffixClauses []string // ORDER BY, etc.
+		FromClause    string   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
+		CanParse      bool     // true <=> query is valid
+		QueryInfo     SearchQueryInfo
+		Highlighter   Highlighter
+		NoDBQuery     bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
+		Parent        string       // parent aggregation name, used in some pipeline aggregations
+		Aggregators   []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
+		Type          QueryType
+		SortFields    SortFields // fields to sort by
+		SubSelect     string
 		// dictionary to add as 'meta' field in the response.
 		// WARNING: it's probably not passed everywhere where it's needed, just in one place.
 		// But it works for the test + our dashboards, so let's fix it later if necessary.
@@ -87,22 +91,33 @@ func (q *Query) StringFromColumns(colNames []string) string {
 	if q.IsDistinct {
 		sb.WriteString("DISTINCT ")
 	}
-	for i, field := range colNames {
-		if field == "*" || field == EmptyFieldSelection {
+
+	columns := make([]string, 0)
+	for _, col := range q.Columns {
+		columns = append(columns, col.String())
+	}
+
+	sb.WriteString(strings.Join(columns, ", "))
+
+	/*
+		for i, field := range colNames {
+			if field == "*" || field == EmptyFieldSelection {
+				sb.WriteString(field)
+			} else {
+				sb.WriteString(strconv.Quote(field))
+			}
+			if i < len(colNames)-1 || len(q.NonSchemaFields) > 0 {
+				sb.WriteString(", ")
+			}
+		}
+		for i, field := range q.NonSchemaFields {
 			sb.WriteString(field)
-		} else {
-			sb.WriteString(strconv.Quote(field))
+			if i < len(q.NonSchemaFields)-1 {
+				sb.WriteString(", ")
+			}
 		}
-		if i < len(colNames)-1 || len(q.NonSchemaFields) > 0 {
-			sb.WriteString(", ")
-		}
-	}
-	for i, field := range q.NonSchemaFields {
-		sb.WriteString(field)
-		if i < len(q.NonSchemaFields)-1 {
-			sb.WriteString(", ")
-		}
-	}
+	*/
+
 	where := " WHERE "
 	if len(q.WhereClause) == 0 {
 		where = ""
@@ -144,9 +159,11 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 	q.GroupByFields = make([]string, len(qwa.GroupByFields))
 	copy(q.GroupByFields, qwa.GroupByFields)
 
+	q.Columns = make([]*Column, len(qwa.Columns))
+
+	// TODO
 	q.Fields = make([]string, len(qwa.Fields))
 	copy(q.Fields, qwa.Fields)
-
 	q.NonSchemaFields = make([]string, len(qwa.NonSchemaFields))
 	copy(q.NonSchemaFields, qwa.NonSchemaFields)
 
