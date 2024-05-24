@@ -57,6 +57,20 @@ var parseRangeTests = []parseRangeTest{
 		ENGINE = Memory`,
 		`"time_taken">100`,
 	},
+	{
+		"DateTime64",
+		QueryMap{
+			"timestamp": QueryMap{
+				"format": "strict_date_optional_time",
+				"gte":    "2024-02-02T13:47:16",
+				"lte":    "2024-02-09T13:47:16",
+			},
+		},
+		`CREATE TABLE ` + tableName + `
+		( "message" String, "timestamp" DateTime64(3, 'UTC') )
+		ENGINE = Memory`,
+		`"timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16')`,
+	},
 }
 
 func Test_parseRange(t *testing.T) {
