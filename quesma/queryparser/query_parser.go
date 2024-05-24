@@ -1,6 +1,7 @@
 package queryparser
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
@@ -308,7 +309,7 @@ func (cw *ClickhouseQueryTranslator) parseConstantScore(queryMap QueryMap) model
 }
 
 func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQuery {
-	var ids []string
+	var ids, finalIds []string
 	if val, ok := queryMap["values"]; ok {
 		if values, ok := val.([]interface{}); ok {
 			for _, id := range values {
@@ -325,17 +326,21 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		logger.Warn().Msgf("id query executed, but not timestamp field configured")
 		return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
 	}
+	if len(ids) == 0 {
+		return model.NewSimpleQuery(model.NewSimpleStatement("parsing error: empty _id array"), false)
+	}
 
-	// when our generated ID appears in query looks like this: `18f7b8800b8q1`
+	// when our generated ID appears in query looks like this: `1d<TRUNCATED>0b8q1`
 	// therefore we need to strip the hex part (before `q`) and convert it to decimal
 	// then we can query at DB level
 	for i, id := range ids {
 		idInHex := strings.Split(id, "q")[0]
-		if decimalValue, err := strconv.ParseUint(idInHex, 16, 64); err != nil {
+		if idAsStr, err := hex.DecodeString(idInHex); err != nil {
 			logger.Error().Msgf("error parsing document id %s: %v", id, err)
 			return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
 		} else {
-			ids[i] = fmt.Sprintf("%d", decimalValue)
+			tsWithoutTZ := strings.TrimSuffix(string(idAsStr), " +0000 UTC")
+			ids[i] = fmt.Sprintf("'%s'", tsWithoutTZ)
 		}
 	}
 
@@ -343,14 +348,17 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	if v, ok := cw.Table.Cols[timestampColumnName]; ok {
 		switch v.Type.String() {
 		case clickhouse.DateTime64.String():
-			statement = model.NewSimpleStatement(fmt.Sprintf("toUnixTimestamp64Milli(%s) IN (%s)", strconv.Quote(timestampColumnName), ids))
-			statement.WhereStatement = wc.NewInfixOp(wc.NewFunction("toUnixTimestamp64Milli", []wc.Statement{wc.NewColumnRef(timestampColumnName)}...), "IN", wc.NewLiteral("(["+strings.Join(ids, ",")+"])"))
+			for _, id := range ids {
+				finalIds = append(finalIds, fmt.Sprintf("toDateTime64(%s,3)", id))
+			}
+			statement = model.NewSimpleStatement(fmt.Sprintf("%s IN (%s)", strconv.Quote(timestampColumnName), strings.Join(finalIds, ",")))
+			statement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(timestampColumnName), " IN ", wc.NewFunction("toDateTime64", wc.NewLiteral(strings.Join(ids, ",")), wc.NewLiteral("3")))
 		case clickhouse.DateTime.String():
-			statement = model.NewSimpleStatement(fmt.Sprintf("toUnixTimestamp(%s) * 1000 IN (%s)", strconv.Quote(timestampColumnName), ids))
-			statement.WhereStatement = wc.NewInfixOp(wc.NewInfixOp(
-				wc.NewFunction("toUnixTimestamp", []wc.Statement{wc.NewColumnRef(timestampColumnName)}...),
-				"*",
-				wc.NewLiteral("1000")), "IN", wc.NewLiteral("("+strings.Join(ids, ",")+")"))
+			for _, id := range ids {
+				finalIds = append(finalIds, fmt.Sprintf("toDateTime(%s)", id))
+			}
+			statement = model.NewSimpleStatement(fmt.Sprintf("%s IN (%s)", strconv.Quote(timestampColumnName), strings.Join(finalIds, ",")))
+			statement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(timestampColumnName), " IN ", wc.NewFunction("toDateTime", wc.NewLiteral(strings.Join(ids, ","))))
 		default:
 			logger.Warn().Msgf("timestamp field of unsupported type %s", v.Type.String())
 			return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
