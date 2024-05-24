@@ -1980,10 +1980,10 @@ var TestsSearch = []SearchTestCase{
 			}
 		  }
 		}`,
-		[]string{`"(cliIP"='2601:204:c503:c240:9c41:5531:ad94:4d90' OR cliIP='50.116.43.98' OR cliIP='75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`},
+		[]string{`("cliIP"='2601:204:c503:c240:9c41:5531:ad94:4d90' OR "cliIP"='50.116.43.98' OR "cliIP"='75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`},
 		model.Normal,
-		[]model.Query{justSimplestWhere(`(cliIP"='2601:204:c503:c240:9c41:5531:ad94:4d90' OR cliIP='50.116.43.98' OR cliIP='75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`)},
-		[]string{qToStr(justSimplestWhere(`(cliIP"='2601:204:c503:c240:9c41:5531:ad94:4d90' OR cliIP='50.116.43.98' OR cliIP='75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`))},
+		[]model.Query{withLimit(justSimplestWhere(`("cliIP"='2601:204:c503:c240:9c41:5531:ad94:4d90' OR "cliIP"='50.116.43.98' OR "cliIP"='75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`), 1)},
+		[]string{qToStr(withLimit(justSimplestWhere(`("cliIP"='2601:204:c503:c240:9c41:5531:ad94:4d90' OR "cliIP"='50.116.43.98' OR "cliIP"='75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`), 1))},
 	},
 }
 

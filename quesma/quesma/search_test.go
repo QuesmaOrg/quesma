@@ -165,7 +165,15 @@ func TestSearchHandler(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
 	for _, tt := range testdata.TestsSearch {
 		t.Run(tt.Name, func(t *testing.T) {
+
 			db, mock, err := sqlmock.New()
+			if tt.Name == "Terms with range" {
+				queryMatcher := sqlmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
+					fmt.Printf("SQL: %s\n", actualSQL)
+					return sqlmock.QueryMatcherRegexp.Match(expectedSQL, actualSQL)
+				})
+				db, mock, err = sqlmock.New(sqlmock.QueryMatcherOption(queryMatcher))
+			}
 			if err != nil {
 				t.Fatal(err)
 			}
