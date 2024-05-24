@@ -2,18 +2,17 @@ package queryparser
 
 import (
 	"encoding/json"
-	"github.com/relvacode/iso8601"
-	wc "mitmproxy/quesma/queryparser/where_clause"
-	"mitmproxy/quesma/quesma/types"
-	"slices"
-
 	"fmt"
 	"github.com/k0kubun/pp"
+	"github.com/relvacode/iso8601"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/lucene"
 	"mitmproxy/quesma/queryparser/query_util"
+	wc "mitmproxy/quesma/queryparser/where_clause"
+	"mitmproxy/quesma/quesma/types"
+	"mitmproxy/quesma/util"
 	"strconv"
 	"strings"
 	"unicode"
@@ -778,13 +777,8 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			isDatetimeInDefaultFormat = false
 		}
 
-		keys := make([]string, 0) // I need to get consistent order
-		for k := range v.(QueryMap) {
-			keys = append(keys, k)
-		}
-		slices.Sort(keys)
-
-		for _, op := range keys {
+		keysSorted := util.MapKeysSorted(v.(QueryMap))
+		for _, op := range keysSorted {
 			v := v.(QueryMap)[op]
 			var fieldToPrint, timeFormatFuncName string
 			var valueToCompare wc.Statement
