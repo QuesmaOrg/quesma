@@ -18,11 +18,15 @@ type TableColumn struct {
 	ColumnName string
 }
 
-func C(columnName string) *TableColumn {
-	return &TableColumn{ColumnName: columnName}
+func (e TableColumn) String() string {
+	return fmt.Sprintf("(tablecolumn '%s' . '%s') ", e.TableName, e.ColumnName)
 }
 
-func (e *TableColumn) Accept(v AExpVisitor) interface{} {
+func C(columnName string) TableColumn {
+	return TableColumn{ColumnName: columnName}
+}
+
+func (e TableColumn) Accept(v AExpVisitor) interface{} {
 	return v.VisitTableColumn(e)
 }
 
@@ -31,15 +35,15 @@ type Function struct {
 	Args []AExp
 }
 
-func (e *Function) Accept(v AExpVisitor) interface{} {
+func (e Function) Accept(v AExpVisitor) interface{} {
 	return v.VisitFunction(e)
 }
 
-func FN(name string, args ...AExp) *Function {
-	return &Function{Name: name, Args: args}
+func FN(name string, args ...AExp) Function {
+	return Function{Name: name, Args: args}
 }
 
-func Count(args ...AExp) *Function {
+func Count(args ...AExp) Function {
 	return FN("COUNT", args...)
 }
 
@@ -47,20 +51,24 @@ type Literal struct {
 	Value any
 }
 
-func L(value any) *Literal {
-	return &Literal{Value: value}
+func (e Literal) String() string {
+	return fmt.Sprintf("(literal %s)", e.Value)
 }
 
-var Wildcard = &Literal{Value: "*"}
+func L(value any) Literal {
+	return Literal{Value: value}
+}
+
+var Wildcard = Literal{Value: "*"}
 
 // it will render as IS
 type symbol string
 
-func Symbol(s string) *Literal {
+func Symbol(s string) Literal {
 	return L(symbol(s))
 }
 
-func (e *Literal) Accept(v AExpVisitor) interface{} {
+func (e Literal) Accept(v AExpVisitor) interface{} {
 	return v.VisitLiteral(e)
 }
 
@@ -68,7 +76,7 @@ type Composite struct {
 	Expressions []AExp
 }
 
-func (e *Composite) Accept(v AExpVisitor) interface{} {
+func (e Composite) Accept(v AExpVisitor) interface{} {
 	return v.VisitComposite(e)
 }
 
@@ -80,28 +88,33 @@ type SQL struct {
 	Query string
 }
 
-func (s *SQL) Accept(v AExpVisitor) interface{} {
+func (s SQL) Accept(v AExpVisitor) interface{} {
 	return v.VisitSQL(s)
 }
 
 type AExpVisitor interface {
-	VisitTableColumn(e *TableColumn) interface{}
-	VisitFunction(e *Function) interface{}
-	VisitLiteral(l *Literal) interface{}
-	VisitComposite(e *Composite) interface{}
-	VisitSQL(s *SQL) interface{}
+	VisitTableColumn(e TableColumn) interface{}
+	VisitFunction(e Function) interface{}
+	VisitLiteral(l Literal) interface{}
+	VisitComposite(e Composite) interface{}
+	VisitSQL(s SQL) interface{}
 }
 
 type renderer struct{}
 
-func (v *renderer) VisitTableColumn(e *TableColumn) interface{} {
+func (v *renderer) VisitTableColumn(e TableColumn) interface{} {
+
+	var res string
+
 	if e.TableName == "" {
-		return e.ColumnName
+		res = e.ColumnName
+	} else {
+		res = e.TableName + "." + e.ColumnName
 	}
-	return e.TableName + "." + e.ColumnName
+	return "\"" + res + "\""
 }
 
-func (v *renderer) VisitFunction(e *Function) interface{} {
+func (v *renderer) VisitFunction(e Function) interface{} {
 	args := make([]string, 0)
 	for _, arg := range e.Args {
 		args = append(args, arg.Accept(v).(string))
@@ -110,11 +123,23 @@ func (v *renderer) VisitFunction(e *Function) interface{} {
 
 }
 
-func (v *renderer) VisitLiteral(l *Literal) interface{} {
-	return fmt.Sprintf("%s", l.Value)
+func (v *renderer) VisitLiteral(l Literal) interface{} {
+
+	if l == Wildcard {
+		return "*"
+	}
+
+	switch l.Value.(type) {
+	case string:
+		return fmt.Sprintf("'%s'", l.Value)
+	case float64:
+		return fmt.Sprintf("%f", l.Value)
+	default:
+		return fmt.Sprintf("%v", l.Value)
+	}
 }
 
-func (v *renderer) VisitComposite(e *Composite) interface{} {
+func (v *renderer) VisitComposite(e Composite) interface{} {
 	exps := make([]string, 0)
 	for _, exp := range e.Expressions {
 		exps = append(exps, exp.Accept(v).(string))
@@ -122,7 +147,6 @@ func (v *renderer) VisitComposite(e *Composite) interface{} {
 	return strings.Join(exps, " ")
 }
 
-
-func (v *renderer) VisitSQL(s *SQL) interface{} {
+func (v *renderer) VisitSQL(s SQL) interface{} {
 	return s.Query
 }

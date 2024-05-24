@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"fmt"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/queryparser/aexp"
 	"sort"
@@ -18,7 +19,7 @@ type (
 	Query struct {
 		IsDistinct bool // true <=> query is SELECT DISTINCT
 
-		Columns []*Column // Columns to select, including aliases
+		Columns []Column // Columns to select, including aliases
 
 		// TO BE REMOVED
 		Fields          []string // Fields in 'SELECT Fields FROM ...'
@@ -85,7 +86,7 @@ func (q *Query) String() string {
 	return q.StringFromColumns(q.Fields)
 }
 
-func (q *Query) AddColumn(column *Column) {
+func (q *Query) XAddColumn(column Column) {
 	q.Columns = append(q.Columns, column)
 }
 
@@ -100,7 +101,12 @@ func (q *Query) StringFromColumnsNew() string {
 
 	columns := make([]string, 0)
 	for _, col := range q.Columns {
-		columns = append(columns, col.String())
+		if col.Expression == nil {
+			fmt.Println("Columns: ", q.Columns)
+			columns = append(columns, "COLUMN WITH NIL EXPRESSION"+col.String())
+		} else {
+			columns = append(columns, col.SQL())
+		}
 	}
 
 	sb.WriteString(strings.Join(columns, ", "))
@@ -143,10 +149,15 @@ func (q *Query) StringFromColumns(colNames []string) string {
 	newSQL := q.StringFromColumnsNew()
 
 	if oldSQL != newSQL {
-		logger.Warn().Msgf("SQL query mismatch: old: %s, new: %s", oldSQL, newSQL)
+		fmt.Printf("SQL query mismatch\n")
+		fmt.Printf("Colnames: %s\n", colNames)
+		fmt.Printf("Fields: %s\n", q.Fields)
+		fmt.Printf("NonSchemaFields: %s\n", q.NonSchemaFields)
+		fmt.Printf("Columns: %s\n", q.Columns)
+		fmt.Printf("XXX OLD: %s\nXXX NEW: %s\n", oldSQL, newSQL)
 	}
 
-	return oldSQL
+	return newSQL
 
 }
 
@@ -217,8 +228,8 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 	q.GroupByFields = make([]string, len(qwa.GroupByFields))
 	copy(q.GroupByFields, qwa.GroupByFields)
 
-	q.Columns = make([]*Column, len(qwa.Columns))
-
+	q.Columns = make([]Column, len(qwa.Columns))
+	copy(q.Columns, qwa.Columns)
 	// TODO
 
 	if TODOBOTH {

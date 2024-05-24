@@ -47,7 +47,7 @@ const oneMinute = 60 * time.Second
 func newSimplestQuery() model.Query {
 	return model.Query{
 		Fields:        []string{"*"},
-		Columns:       []*model.Column{{Expression: aexp.Wildcard}},
+		Columns:       []model.Column{{Expression: aexp.Wildcard}},
 		FromClause:    strconv.Quote(TableName),
 		SuffixClauses: []string{"LIMIT " + strconv.Itoa(defaultLimit)},
 		CanParse:      true,

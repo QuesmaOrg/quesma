@@ -188,20 +188,20 @@ var AggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName + ` WHERE "reqTimeSec">='2024-04-24T10:55:23.606Z' AND "reqTimeSec"<='2024-04-24T11:10:23.606Z' `,
+			`SELECT COUNT() FROM ` + testdata.QuotedTableName + ` WHERE "reqTimeSec">='2024-04-24T10:55:23.606Z' AND "reqTimeSec"<='2024-04-24T11:10:23.606Z' `,
 			`SELECT floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000, avgOrNull("rspContentLen") ` +
 				`FROM ` + testdata.QuotedTableName + ` WHERE "reqTimeSec">='2024-04-24T10:55:23.606Z' AND "reqTimeSec"<='2024-04-24T11:10:23.606Z'  ` +
 				`GROUP BY (floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000) ` +
 				`ORDER BY (floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000)`,
-			`SELECT floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000, count() ` +
+			`SELECT floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000, COUNT() ` +
 				`FROM ` + testdata.QuotedTableName + ` WHERE "reqTimeSec">='2024-04-24T10:55:23.606Z' AND "reqTimeSec"<='2024-04-24T11:10:23.606Z'  ` +
 				`GROUP BY (floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000) ` +
 				`ORDER BY (floor("rspContentLen" / 2000000.000000) * 2000000.000000, floor("rspContentLen" / 2000000.000000) * 2000000.000000)`,
-			`SELECT floor("rspContentLen" / 2000000.000000) * 2000000.000000, count() FROM ` + testdata.QuotedTableName + ` ` +
+			`SELECT floor("rspContentLen" / 2000000.000000) * 2000000.000000, COUNT() FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "reqTimeSec">='2024-04-24T10:55:23.606Z' AND "reqTimeSec"<='2024-04-24T11:10:23.606Z'  ` +
 				`GROUP BY (floor("rspContentLen" / 2000000.000000) * 2000000.000000) ` +
 				`ORDER BY (floor("rspContentLen" / 2000000.000000) * 2000000.000000)`,
-			`SELECT floor("rspContentLen" / 2000000.000000) * 2000000.000000, count() FROM ` + testdata.QuotedTableName + ` ` +
+			`SELECT floor("rspContentLen" / 2000000.000000) * 2000000.000000, COUNT() FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "reqTimeSec">='2024-04-24T10:55:23.606Z' AND "reqTimeSec"<='2024-04-24T11:10:23.606Z'  ` +
 				`GROUP BY (floor("rspContentLen" / 2000000.000000) * 2000000.000000) ` +
 				`ORDER BY (floor("rspContentLen" / 2000000.000000) * 2000000.000000)`,
@@ -439,16 +439,16 @@ var AggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + testdata.QuotedTableName + ` WHERE "reqTimeSec">='2024-04-24T11:15:46.279Z' AND "reqTimeSec"<='2024-04-24T11:30:46.279Z' `,
+			`SELECT COUNT() FROM ` + testdata.QuotedTableName + ` WHERE "reqTimeSec">='2024-04-24T11:15:46.279Z' AND "reqTimeSec"<='2024-04-24T11:30:46.279Z' `,
 			"SELECT toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), floor(" + `"billingRegion"` + " / 0.020000) * 0.020000, quantiles(0.950000)(`latency`) AS `quantile_95` " +
 				`FROM ` + testdata.QuotedTableName + ` WHERE "reqTimeSec">='2024-04-24T11:15:46.279Z' AND "reqTimeSec"<='2024-04-24T11:30:46.279Z'  ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), " + `floor("billingRegion" / 0.020000) * 0.020000) ` +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), " + `floor("billingRegion" / 0.020000) * 0.020000)`,
-			"SELECT toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), floor(" + `"billingRegion" / 0.020000) * 0.020000, count() ` +
+			"SELECT toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), floor(" + `"billingRegion" / 0.020000) * 0.020000, COUNT() ` +
 				`FROM ` + testdata.QuotedTableName + ` WHERE "reqTimeSec">='2024-04-24T11:15:46.279Z' AND "reqTimeSec"<='2024-04-24T11:30:46.279Z'  ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), " + `floor("billingRegion" / 0.020000) * 0.020000) ` +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), " + `floor("billingRegion" / 0.020000) * 0.020000)`,
-			"SELECT toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), count() " +
+			"SELECT toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), COUNT() " +
 				`FROM ` + testdata.QuotedTableName + ` WHERE "reqTimeSec">='2024-04-24T11:15:46.279Z' AND "reqTimeSec"<='2024-04-24T11:30:46.279Z'  ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000))",

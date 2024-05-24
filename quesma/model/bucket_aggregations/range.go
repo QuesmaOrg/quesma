@@ -45,7 +45,7 @@ func (interval Interval) ToSQLSelectQuery(quotedFieldName string) string {
 	case sqlRight != "":
 		sql = sqlRight
 	default:
-		return "count()"
+		return "COUNT()"
 	}
 	return "count(if(" + sql + ", 1, NULL))"
 }

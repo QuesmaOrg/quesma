@@ -10,7 +10,11 @@ type Column struct {
 	Expression aexp.AExp
 }
 
-func (c *Column) String() string {
+func (c Column) SQL() string {
+
+	if c.Expression == nil {
+		panic("Column expression is nil")
+	}
 
 	exprAsString := aexp.RenderSQL(c.Expression)
 
@@ -22,7 +26,13 @@ func (c *Column) String() string {
 
 }
 
-func Columns(columns ...*Column) []*Column {
+func (c Column) String() string {
+
+	return fmt.Sprintf("Column(Alias: '%s', expression: '%v')", c.Alias, c.Expression)
+
+}
+
+func Columns(columns ...Column) []Column {
 	return columns
 }
 
