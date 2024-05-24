@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"strings"
 )
 
 // There we can add methods to iterate over NDJSON
@@ -30,6 +31,8 @@ func ParseRequestBody(body string) RequestBody {
 
 	unknow := &Unknown{}
 	unknow.Body = body
+
+	body = strings.TrimSpace(body)
 
 	// json
 	if len(body) > 1 && body[0] == '{' {
