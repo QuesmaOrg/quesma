@@ -5,7 +5,6 @@ import (
 	"mitmproxy/quesma/logger"
 	wc "mitmproxy/quesma/queryparser/where_clause"
 	"slices"
-	"strconv"
 	"strings"
 )
 
@@ -21,7 +20,6 @@ var wildcards = map[rune]rune{
 var specialCharacters = []rune{'+', '-', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\'} // they can be escaped in query string
 
 type value interface {
-	toSQL(fieldName string) string
 	toStatement(fieldName string) wc.Statement
 }
 
@@ -31,19 +29,6 @@ type termValue struct {
 
 func newTermValue(term string) termValue {
 	return termValue{term: term}
-}
-
-func (v termValue) toSQL(fieldName string) string {
-	termAsStringToClickhouse, wildcardsExist := v.transformSpecialCharacters()
-
-	if alreadyQuoted(v.term) {
-		termAsStringToClickhouse = termAsStringToClickhouse[1 : len(termAsStringToClickhouse)-1]
-	}
-	if wildcardsExist {
-		return strconv.Quote(fieldName) + " ILIKE '" + termAsStringToClickhouse + "'"
-	} else {
-		return strconv.Quote(fieldName) + " = '" + termAsStringToClickhouse + "'"
-	}
 }
 
 func (v termValue) toStatement(fieldName string) wc.Statement {
@@ -125,34 +110,6 @@ func (v rangeValue) totallyUnbounded() bool {
 	return v.lowerBound == unbounded && v.upperBound == unbounded
 }
 
-func (v rangeValue) toSQL(fieldName string) string {
-	if v.totallyUnbounded() {
-		return strconv.Quote(fieldName) + " IS NOT NULL"
-	}
-
-	var left, right, operator string
-	if v.lowerBound != unbounded {
-		if v.lowerBoundInclusive {
-			operator = ">="
-		} else {
-			operator = ">"
-		}
-		left = fmt.Sprintf("%s %s '%v'", strconv.Quote(fieldName), operator, v.lowerBound)
-	}
-	if v.upperBound != unbounded {
-		if v.upperBoundInclusive {
-			operator = "<="
-		} else {
-			operator = "<"
-		}
-		right = fmt.Sprintf("%s %s '%v'", strconv.Quote(fieldName), operator, v.upperBound)
-	}
-	if left != "" && right != "" {
-		return "(" + left + " AND " + right + ")"
-	}
-	return left + right
-}
-
 func (v rangeValue) toStatement(fieldName string) wc.Statement {
 	if v.totallyUnbounded() {
 		return wc.NewInfixOp(wc.NewColumnRef(fieldName), "IS", wc.NewLiteral("NOT NULL"))
@@ -206,10 +163,6 @@ func newAndValue(left, right value) andValue {
 	return andValue{left: left, right: right}
 }
 
-func (v andValue) toSQL(fieldName string) string {
-	return "(" + v.left.toSQL(fieldName) + " AND " + v.right.toSQL(fieldName) + ")"
-}
-
 func (v andValue) toStatement(fieldName string) wc.Statement {
 	return wc.NewInfixOp(v.left.toStatement(fieldName), "AND", v.right.toStatement(fieldName))
 }
@@ -221,10 +174,6 @@ type orValue struct {
 
 func newOrValue(left, right value) orValue {
 	return orValue{left: left, right: right}
-}
-
-func (v orValue) toSQL(fieldName string) string {
-	return "(" + v.left.toSQL(fieldName) + " OR " + v.right.toSQL(fieldName) + ")"
 }
 
 func (v orValue) toStatement(fieldName string) wc.Statement {
@@ -239,10 +188,6 @@ func newNotValue(value value) notValue {
 	return notValue{value: value}
 }
 
-func (v notValue) toSQL(fieldName string) string {
-	return "NOT (" + v.value.toSQL(fieldName) + ")"
-}
-
 func (v notValue) toStatement(fieldName string) wc.Statement {
 	return wc.NewPrefixOp("NOT", []wc.Statement{v.value.toStatement(fieldName)})
 }
@@ -252,10 +197,6 @@ type invalidValue struct {
 
 func newInvalidValue() invalidValue {
 	return invalidValue{}
-}
-
-func (v invalidValue) toSQL(fieldName string) string {
-	return "false"
 }
 
 func (v invalidValue) toStatement(fieldName string) wc.Statement {

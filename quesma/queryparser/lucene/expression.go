@@ -3,7 +3,6 @@ package lucene
 import (
 	"mitmproxy/quesma/logger"
 	wc "mitmproxy/quesma/queryparser/where_clause"
-	"strings"
 )
 
 // expression is an interface representing a fully parsed (part of) Lucene query.
@@ -17,125 +16,41 @@ import (
 // E.g. "title:abc AND text:def" is parsed into andExpression(title:abc, text:def)".
 
 type expression interface {
-	toSQL() string
 	toStatement() wc.Statement
 }
 
-type andExpression struct {
-	left  expression
-	right expression
+func (p *luceneParser) BuildWhereStatement() {
+	for len(p.tokens) > 0 {
+		p.WhereStatement = p.buildWhereStatement(true)
+	}
+	if p.WhereStatement == nil {
+		p.WhereStatement = wc.NewLiteral("true")
+	}
 }
 
-func newAndExpression(left, right expression) andExpression {
-	return andExpression{left: left, right: right}
-}
-
-func (e andExpression) toSQL() string {
-	return "(" + e.left.toSQL() + " AND " + e.right.toSQL() + ")"
-}
-
-func (e andExpression) toStatement() wc.Statement {
-	return wc.NewInfixOp(e.left.toStatement(), "AND", e.right.toStatement())
-}
-
-type orExpression struct {
-	left  expression
-	right expression
-}
-
-func newOrExpression(left, right expression) orExpression {
-	return orExpression{left: left, right: right}
-}
-
-func (e orExpression) toSQL() string {
-	return "(" + e.left.toSQL() + " OR " + e.right.toSQL() + ")"
-}
-
-func (e orExpression) toStatement() wc.Statement {
-	return wc.NewInfixOp(e.left.toStatement(), "OR", e.right.toStatement())
-}
-
-type notExpression struct {
-	expr expression
-}
-
-func newNotExpression(expr expression) notExpression {
-	return notExpression{expr: expr}
-}
-
-func (e notExpression) toSQL() string {
-	return "NOT (" + e.expr.toSQL() + ")"
-}
-
-func (e notExpression) toStatement() wc.Statement {
-	return wc.NewPrefixOp("NOT", []wc.Statement{e.expr.toStatement()})
-}
-
-type leafExpression struct {
-	fieldNames []string // empty string in query means default field(s). They'll be present here.
-	value      value
-}
-
-func newLeafExpression(fieldNames []string, value value) leafExpression {
-	return leafExpression{fieldNames: fieldNames, value: value}
-}
-
-func (e leafExpression) toStatement() wc.Statement {
-	if len(e.fieldNames) == 0 {
+func newLeafStatement(fieldNames []string, value value) wc.Statement {
+	if len(fieldNames) == 0 {
 		return wc.NewLiteral("false")
 	}
 
 	var newStatement wc.Statement
-	if len(e.fieldNames) > 0 {
-		newStatement = e.value.toStatement(e.fieldNames[0])
-		for _, fieldName := range e.fieldNames[1:] {
-			newStatement = wc.NewInfixOp(newStatement, "OR", e.value.toStatement(fieldName))
+	if len(fieldNames) > 0 {
+		newStatement = value.toStatement(fieldNames[0])
+		for _, fieldName := range fieldNames[1:] {
+			newStatement = wc.NewInfixOp(newStatement, "OR", value.toStatement(fieldName))
 		}
 	}
-	if len(e.fieldNames) == 1 {
-		return e.value.toStatement(e.fieldNames[0])
+	if len(fieldNames) == 1 {
+		return value.toStatement(fieldNames[0])
 	}
 	return newStatement
 }
 
-func (e leafExpression) toSQL() string {
-	if len(e.fieldNames) == 0 {
-		return "false"
-	}
-
-	var sql strings.Builder
-	for i, fieldName := range e.fieldNames {
-		if i > 0 {
-			sql.WriteString(" OR ")
-		}
-		sql.WriteString(e.value.toSQL(fieldName))
-	}
-	if len(e.fieldNames) == 1 {
-		return sql.String()
-	}
-	return "(" + sql.String() + ")"
-}
-
-type invalidExpression struct {
-}
-
-func newInvalidExpression() invalidExpression {
-	return invalidExpression{}
-}
-
-func (e invalidExpression) toSQL() string {
-	return "false"
-}
-
-func (e invalidExpression) toStatement() wc.Statement {
-	return wc.NewLiteral("false")
-}
-
-var invalidExpressionInstance = newInvalidExpression()
+var invalidStatement = wc.NewLiteral("false")
 
 // buildExpression builds an expression tree from p.tokens
 // Called only when p.tokens is not empty.
-func (p *luceneParser) buildExpression(addDefaultOperator bool) wc.Statement {
+func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) wc.Statement {
 	tok := p.tokens[0]
 	p.tokens = p.tokens[1:]
 	var currentStatement wc.Statement
@@ -144,42 +59,33 @@ func (p *luceneParser) buildExpression(addDefaultOperator bool) wc.Statement {
 		if len(p.tokens) <= 1 {
 			logger.Error().Msgf("invalid expression, missing value, tokens: %v", p.tokens)
 			p.tokens = p.tokens[:0]
-			return invalidExpressionInstance.toStatement()
+			return invalidStatement
 		}
 		if _, isNextTokenSeparator := p.tokens[0].(separatorToken); !isNextTokenSeparator {
 			logger.Error().Msgf("invalid expression, missing separator, tokens: %v", p.tokens)
-			return invalidExpressionInstance.toStatement()
+			return invalidStatement
 		}
 		p.tokens = p.tokens[1:]
-		currentStatement = newLeafExpression(
-			[]string{currentToken.fieldName},
-			p.buildValue([]value{}, 0),
-		).toStatement()
+		currentStatement = newLeafStatement([]string{currentToken.fieldName}, p.buildValue([]value{}, 0))
 	case separatorToken:
-		currentStatement = newLeafExpression(
+		currentStatement = newLeafStatement(
 			p.defaultFieldNames,
 			p.buildValue([]value{}, 0),
-		).toStatement()
+		)
 	case termToken:
-		currentStatement = newLeafExpression(
-			p.defaultFieldNames,
-			newTermValue(currentToken.term),
-		).toStatement()
+		currentStatement = newLeafStatement(p.defaultFieldNames, newTermValue(currentToken.term))
 	case andToken:
-		return wc.NewInfixOp(p.WhereStatement, "AND", p.buildExpression(false))
+		return wc.NewInfixOp(p.WhereStatement, "AND", p.buildWhereStatement(false))
 	case orToken:
-		return wc.NewInfixOp(p.WhereStatement, "OR", p.buildExpression(false))
+		return wc.NewInfixOp(p.WhereStatement, "OR", p.buildWhereStatement(false))
 	case notToken:
-		latterExp := p.buildExpression(false)
+		latterExp := p.buildWhereStatement(false)
 		currentStatement = wc.NewPrefixOp("NOT", []wc.Statement{latterExp})
 	case leftParenthesisToken:
-		currentStatement = newLeafExpression(
-			p.defaultFieldNames,
-			p.buildValue([]value{}, 1),
-		).toStatement()
+		currentStatement = newLeafStatement(p.defaultFieldNames, p.buildValue([]value{}, 1))
 	default:
 		logger.Error().Msgf("buildExpression: invalid expression, unexpected token: %#v, tokens: %v", currentToken, p.tokens)
-		return invalidExpressionInstance.toStatement()
+		return invalidStatement
 	}
 	if !addDefaultOperator || p.WhereStatement == nil {
 		return currentStatement

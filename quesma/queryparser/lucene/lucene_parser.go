@@ -33,12 +33,11 @@ type luceneParser struct {
 	ctx               context.Context
 	tokens            []token
 	defaultFieldNames []string
-	lastExpression    expression
 	WhereStatement    where_clause.Statement
 }
 
 func newLuceneParser(ctx context.Context, defaultFieldNames []string) luceneParser {
-	return luceneParser{ctx: ctx, defaultFieldNames: defaultFieldNames, lastExpression: nil, tokens: make([]token, 0)}
+	return luceneParser{ctx: ctx, defaultFieldNames: defaultFieldNames, tokens: make([]token, 0)}
 }
 
 const fuzzyOperator = '~'
@@ -80,12 +79,7 @@ func (p *luceneParser) translateToSQL(query string) string {
 			logger.WarnWithCtx(p.ctx).Msgf("Invalid query, can't tokenize: %s", query)
 		}
 	}
-	for len(p.tokens) > 0 {
-		p.WhereStatement = p.buildExpression(true)
-	}
-	if p.WhereStatement == nil {
-		p.WhereStatement = where_clause.NewLiteral("true")
-	}
+	p.BuildWhereStatement()
 	return p.WhereStatement.Accept(toString).(string)
 }
 
