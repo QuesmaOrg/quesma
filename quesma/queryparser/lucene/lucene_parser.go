@@ -81,18 +81,12 @@ func (p *luceneParser) translateToSQL(query string) string {
 		}
 	}
 	for len(p.tokens) > 0 {
-		p.lastExpression, p.WhereStatement = p.buildExpression(true)
+		p.WhereStatement = p.buildExpression(true)
 	}
-	if p.lastExpression == nil {
+	if p.WhereStatement == nil {
 		p.WhereStatement = where_clause.NewLiteral("true")
-		iWouldReturn := p.WhereStatement.Accept(toString).(string)
-		logger.Info().Msgf("Returning [true], got [%s]", iWouldReturn)
-		return "true"
 	}
-	newWhereClause := p.WhereStatement.Accept(toString).(string)
-	oldWhereClause := p.lastExpression.toSQL()
-	logger.Info().Msgf("OLD: [%s]\nNEW: [%s]", oldWhereClause, newWhereClause)
-	return newWhereClause
+	return p.WhereStatement.Accept(toString).(string)
 }
 
 // tokenizeQuery splits the query into tokens, which are stored in p.tokens.

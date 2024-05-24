@@ -135,67 +135,63 @@ var invalidExpressionInstance = newInvalidExpression()
 
 // buildExpression builds an expression tree from p.tokens
 // Called only when p.tokens is not empty.
-func (p *luceneParser) buildExpression(addDefaultOperator bool) (expression, wc.Statement) {
+func (p *luceneParser) buildExpression(addDefaultOperator bool) wc.Statement {
 	tok := p.tokens[0]
 	p.tokens = p.tokens[1:]
-	var currentExpression expression
 	var currentStatement wc.Statement
 	switch currentToken := tok.(type) {
 	case fieldNameToken:
 		if len(p.tokens) <= 1 {
 			logger.Error().Msgf("invalid expression, missing value, tokens: %v", p.tokens)
 			p.tokens = p.tokens[:0]
-			return invalidExpressionInstance, invalidExpressionInstance.toStatement()
+			return invalidExpressionInstance.toStatement()
 		}
 		if _, isNextTokenSeparator := p.tokens[0].(separatorToken); !isNextTokenSeparator {
 			logger.Error().Msgf("invalid expression, missing separator, tokens: %v", p.tokens)
-			return invalidExpressionInstance, invalidExpressionInstance.toStatement()
+			return invalidExpressionInstance.toStatement()
 		}
 		p.tokens = p.tokens[1:]
-		currentExpression = newLeafExpression(
+		currentStatement = newLeafExpression(
 			[]string{currentToken.fieldName},
 			p.buildValue([]value{}, 0),
-		)
-		currentStatement = currentExpression.toStatement()
+		).toStatement()
 	case separatorToken:
-		currentExpression = newLeafExpression(
+		currentStatement = newLeafExpression(
 			p.defaultFieldNames,
 			p.buildValue([]value{}, 0),
-		)
-		currentStatement = currentExpression.toStatement()
+		).toStatement()
 	case termToken:
-		currentExpression = newLeafExpression(
+		currentStatement = newLeafExpression(
 			p.defaultFieldNames,
 			newTermValue(currentToken.term),
-		)
-		currentStatement = currentExpression.toStatement()
+		).toStatement()
 	case andToken:
-		formerExp, latterExp := p.buildExpression(false)
-		return newAndExpression(p.lastExpression, formerExp), wc.NewInfixOp(p.WhereStatement, "AND", latterExp)
+		return wc.NewInfixOp(p.WhereStatement, "AND", p.buildExpression(false))
 	case orToken:
-		formerExp, latterExp := p.buildExpression(false)
-		return newOrExpression(p.lastExpression, formerExp), wc.NewInfixOp(p.WhereStatement, "OR", latterExp)
+		return wc.NewInfixOp(p.WhereStatement, "OR", p.buildExpression(false))
 	case notToken:
-		formerExp, latterExp := p.buildExpression(false)
-		currentExpression = newNotExpression(formerExp)
+		latterExp := p.buildExpression(false)
 		currentStatement = wc.NewPrefixOp("NOT", []wc.Statement{latterExp})
 	case leftParenthesisToken:
-		currentExpression = newLeafExpression(
+		currentStatement = newLeafExpression(
 			p.defaultFieldNames,
 			p.buildValue([]value{}, 1),
-		)
-		currentStatement = currentExpression.toStatement() // buildLeafStatement(p.defaultFieldNames, p.buildValue([]value{}, 1)) // wc.NewLiteral(currentExpression.toSQL())
+		).toStatement()
 	default:
 		logger.Error().Msgf("buildExpression: invalid expression, unexpected token: %#v, tokens: %v", currentToken, p.tokens)
-		return invalidExpressionInstance, invalidExpressionInstance.toStatement()
+		return invalidExpressionInstance.toStatement()
 	}
-	if !addDefaultOperator || p.lastExpression == nil {
-		return currentExpression, currentStatement
+	if !addDefaultOperator || p.WhereStatement == nil {
+		return currentStatement
 	}
-	switch currentExpression.(type) {
-	case notExpression:
-		return newAndExpression(p.lastExpression, currentExpression), wc.NewInfixOp(p.WhereStatement, "AND", currentStatement)
+	switch stmt := currentStatement.(type) {
+	case *wc.PrefixOp:
+		if stmt.Op == "NOT" {
+			return wc.NewInfixOp(p.WhereStatement, "AND", currentStatement)
+		} else {
+			return wc.NewInfixOp(p.WhereStatement, "OR", currentStatement)
+		}
 	default:
-		return newOrExpression(p.lastExpression, currentExpression), wc.NewInfixOp(p.WhereStatement, "OR", currentStatement)
+		return wc.NewInfixOp(p.WhereStatement, "OR", currentStatement)
 	}
 }
