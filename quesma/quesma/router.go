@@ -70,8 +70,8 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 			return nil, fmt.Errorf("invalid request body, expecting JSON . Got: %T", req.ParsedBody)
 		}
 
-		dualWrite(ctx, req.Params["index"], body, lm, cfg)
-		return indexDocResult(req.Params["index"], httpOk), nil
+		err := dualWrite(ctx, req.Params["index"], body, lm, cfg)
+		return indexDocResult(req.Params["index"], httpOk), err
 	})
 
 	router.Register(routes.IndexBulkPath, and(method("POST", "PUT"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {

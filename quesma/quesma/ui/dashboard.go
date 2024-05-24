@@ -120,7 +120,7 @@ func secondsToTerseString(second uint64) string {
 }
 
 func statusToDiv(s healthCheckStatus) string {
-	return fmt.Sprintf(`<div class="status %s" title="%s">%s</div>`, s.status, s.tooltip, s.message)
+	return fmt.Sprintf(`<span class="status %s" title="%s">%s</span>`, s.status, s.tooltip, s.message)
 }
 
 func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
