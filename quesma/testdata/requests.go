@@ -928,12 +928,12 @@ var TestsSearch = []SearchTestCase{
 				}
 			}
 		}`,
-		[]string{`"type"='task' AND ("task.enabled"=true OR "task.enabled"=54)`},
+		[]string{`"type"='task' AND "task.enabled" IN (true,54)`},
 		model.Normal,
 		[]model.Query{
-			justSimplestWhere(`"type"='task' AND ("task.enabled"=true OR "task.enabled"=54)`),
+			justSimplestWhere(`"type"='task' AND "task.enabled" IN (true,54)`),
 		},
-		[]string{qToStr(justSimplestWhere(`"type"='task' AND ("task.enabled"=true OR "task.enabled"=54)`))},
+		[]string{qToStr(justSimplestWhere(`"type"='task' AND "task.enabled" IN (true,54)`))},
 	},
 	{ // [3]
 		"Sample log query",
@@ -1980,10 +1980,10 @@ var TestsSearch = []SearchTestCase{
 			}
 		  }
 		}`,
-		[]string{`("cliIP"='2601:204:c503:c240:9c41:5531:ad94:4d90' OR "cliIP"='50.116.43.98' OR "cliIP"='75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`},
+		[]string{`"cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`},
 		model.Normal,
-		[]model.Query{withLimit(justSimplestWhere(`("cliIP"='2601:204:c503:c240:9c41:5531:ad94:4d90' OR "cliIP"='50.116.43.98' OR "cliIP"='75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`), 1)},
-		[]string{qToStr(withLimit(justSimplestWhere(`("cliIP"='2601:204:c503:c240:9c41:5531:ad94:4d90' OR "cliIP"='50.116.43.98' OR "cliIP"='75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`), 1))},
+		[]model.Query{withLimit(justSimplestWhere(`"cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`), 1)},
+		[]string{qToStr(withLimit(justSimplestWhere(`"cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`), 1))},
 	},
 }
 
