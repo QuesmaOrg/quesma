@@ -32,15 +32,7 @@ func (query CumulativeSum) IsBucketAggregation() bool {
 }
 
 func (query CumulativeSum) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
-	if len(rows) == 0 {
-		logger.WarnWithCtx(query.ctx).Msg("no rows returned for cumulative sum aggregation")
-		return []model.JsonMap{{}}
-	}
-	var response []model.JsonMap
-	for _, row := range rows {
-		response = append(response, model.JsonMap{"value": row.Cols[len(row.Cols)-1].Value})
-	}
-	return response
+	return translateSqlResponseToJsonCommon(query.ctx, rows, query.String())
 }
 
 func (query CumulativeSum) CalculateResultWhenMissing(qwa *model.Query, parentRows []model.QueryResultRow) []model.QueryResultRow {

@@ -1173,6 +1173,782 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 	},
 	{ // [7]
+		TestName: "Simplest Serial Diff (count), lag=default (1). Reproduce: Visualize -> Vertical Bar: Metrics: Serial Diff (Aggregation: Count), Buckets: Histogram",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"serial_diff": {
+								"buckets_path": "_count"
+							}
+						}
+					},
+					"histogram": {
+						"field": "bytes",
+						"interval": 200,
+						"min_doc_count": 0
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.hourOfDay"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"doc_count": 106,
+							"key": 0.0,
+							"1": {
+								"value": null
+							}
+						},
+						{
+							"1": {
+								"value": -67.0
+							},
+							"doc_count": 39,
+							"key": 200.0
+						},
+						{
+							"1": {
+								"value": -39.0
+							},
+							"doc_count": 0,
+							"key": 400.0
+						},
+						{
+							"1": {
+								"value": 0.0
+							},
+							"doc_count": 0,
+							"key": 600.0
+						},
+						{
+							"1": {
+								"value": 21.0
+							},
+							"doc_count": 21,
+							"key": 800.0
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 2553
+				}
+			},
+			"timed_out": false,
+			"took": 40
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2553))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 0.0),
+					model.NewQueryResultCol("doc_count", 106),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 200.0),
+					model.NewQueryResultCol("doc_count", 39),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 800.0),
+					model.NewQueryResultCol("doc_count", 21),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName,
+			`NoDBQuery`,
+			`SELECT floor("bytes" / 200.000000) * 200.000000, count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY (floor("bytes" / 200.000000) * 200.000000) ` +
+				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
+		},
+	},
+	{ // [8]
+		TestName: "Simplest Serial Diff (count), lag=2. Don't know how to reproduce in OpenSearch, but you can click out:" +
+			"Reproduce: Visualize -> Vertical Bar: Metrics: Serial Diff (Aggregation: Count), Buckets: Histogram" +
+			"And then change the request manually",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"serial_diff": {
+								"buckets_path": "_count",
+								"lag": 2
+							}
+						}
+					},
+					"histogram": {
+						"field": "bytes",
+						"interval": 200,
+						"min_doc_count": 0
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"doc_count": 106,
+							"key": 0.0,
+							"1": {
+								"value": null
+							}
+						},
+						{
+							"1": {
+								"value": null
+							},
+							"doc_count": 39,
+							"key": 200.0
+						},
+						{
+							"1": {
+								"value": -106.0
+							},
+							"doc_count": 0,
+							"key": 400.0
+						},
+						{
+							"1": {
+								"value": -39.0
+							},
+							"doc_count": 0,
+							"key": 600.0
+						},
+						{
+							"1": {
+								"value": 21.0
+							},
+							"doc_count": 21,
+							"key": 800.0
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 2553
+				}
+			},
+			"timed_out": false,
+			"took": 40
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2553))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 0.0),
+					model.NewQueryResultCol("doc_count", 106),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 200.0),
+					model.NewQueryResultCol("doc_count", 39),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 800.0),
+					model.NewQueryResultCol("doc_count", 21),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName,
+			`NoDBQuery`,
+			`SELECT floor("bytes" / 200.000000) * 200.000000, count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY (floor("bytes" / 200.000000) * 200.000000) ` +
+				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
+		},
+	},
+	{ // [9]
+		TestName: "Serial diff with other aggregation. Reproduce: Visualize -> Vertical Bar: Metrics: Serial Diff (Aggregation: Sum), Buckets: Date Histogram",
+		QueryRequestJson: `
+			{
+				"_source": {
+					"excludes": []
+				},
+				"aggs": {
+					"2": {
+						"aggs": {
+							"1": {
+								"serial_diff": {
+									"buckets_path": "1-metric"
+								}
+							},
+							"1-metric": {
+								"sum": {
+									"script": {
+										"lang": "painless",
+										"source": "doc['timestamp'].value.getHour()"
+									}
+								}
+							}
+						},
+						"date_histogram": {
+							"field": "timestamp",
+							"fixed_interval": "10m",
+							"time_zone": "Europe/Warsaw"
+						}
+					}
+				},
+				"docvalue_fields": [
+					{
+						"field": "@timestamp",
+						"format": "date_time"
+					},
+					{
+						"field": "timestamp",
+						"format": "date_time"
+					},
+					{
+						"field": "utc_time",
+						"format": "date_time"
+					}
+				],
+				"query": {
+					"bool": {
+						"filter": [],
+						"must": [
+							{
+								"match_all": {}
+							}
+						],
+						"must_not": [],
+						"should": []
+					}
+				},
+				"script_fields": {
+					"hour_of_day": {
+						"script": {
+							"lang": "painless",
+							"source": "doc['timestamp'].value.getHour()"
+						}
+					}
+				},
+				"size": 0,
+				"stored_fields": [
+					"*"
+				]
+			}`,
+		ExpectedResponse: `
+			{
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"2": {
+						"buckets": [
+							{
+								"1": {
+									"value": null
+								},
+								"1-metric": {
+									"value": 19.0
+								},
+								"doc_count": 1,
+								"key": 1715196000000,
+								"key_as_string": "2024-05-08T19:20:00.000"
+							},
+							{
+								"1": {
+									"value": 0.0
+								},
+								"1-metric": {
+									"value": 19.0
+								},
+								"doc_count": 1,
+								"key": 1715196600000,
+								"key_as_string": "2024-05-08T19:30:00.000"
+							},
+							{
+								"1": {
+									"value": 1.0
+								},
+								"1-metric": {
+									"value": 20.0
+								},
+								"doc_count": 1,
+								"key": 1715198400000,
+								"key_as_string": "2024-05-08T20:00:00.000"
+							},
+							{
+								"1": {
+									"value": 12.0
+								},
+								"1-metric": {
+									"value": 32.0
+								},
+								"doc_count": 4,
+								"key": 1715199000000,
+								"key_as_string": "2024-05-08T20:10:00.000"
+							},
+							{
+								"1": {
+									"value": -5.0
+								},
+								"1-metric": {
+									"value": 27.0
+								},
+								"doc_count": 3,
+								"key": 1715199600000,
+								"key_as_string": "2024-05-08T20:20:00.000"
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 2553
+					}
+				},
+				"timed_out": false,
+				"took": 40
+			}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2553))}}},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715196000000/600000)),
+					model.NewQueryResultCol("count()", 19.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715196600000/600000)),
+					model.NewQueryResultCol("count()", 19.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715198400000/600000)),
+					model.NewQueryResultCol("count()", 20.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715199000000/600000)),
+					model.NewQueryResultCol("count()", 32.0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715199600000/600000)),
+					model.NewQueryResultCol("count()", 27.0),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715196000000/600000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715196600000/600000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715198400000/600000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715199000000/600000)),
+					model.NewQueryResultCol("count()", 4),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715199600000/600000)),
+					model.NewQueryResultCol("count()", 3),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName,
+			`NoDBQuery`,
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
+				"sumOrNull(toHour(`timestamp`)) " +
+				"FROM " + testdata.QuotedTableName + " " +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
+				"count() " +
+				"FROM " + testdata.QuotedTableName + " " +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+		},
+	},
+	{ // [10]
+		TestName: "Serial Diff to cumulative sum. Reproduce: Visualize -> Vertical Bar: Metrics: Serial Diff (Aggregation: Cumulative Sum (Aggregation: Count)), Buckets: Date Histogram",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"serial_diff": {
+								"buckets_path": "1-metric"
+							}
+						},
+						"1-metric": {
+							"cumulative_sum": {
+								"buckets_path": "_count"
+							}
+						}
+					},
+					"date_histogram": {
+						"field": "timestamp",
+						"fixed_interval": "10m",
+						"time_zone": "Europe/Warsaw"
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			]
+		}`,
+		ExpectedResponse: // I changed this a bit. Opensearch returns "1": {null} for 2nd, 3rd and 3 last buckets. I think it's not correct... I return 0, and it seems working too.
+		`{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"1": {
+								"value": null
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 2,
+							"key": 1714869000000,
+							"key_as_string": "2024-05-05T00:30:00.000"
+						},
+						{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 0,
+							"key": 1714869600000,
+							"key_as_string": "2024-05-05T00:40:00.000"
+						},
+						{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 2.0
+							},
+							"doc_count": 0,
+							"key": 1714878600000,
+							"key_as_string": "2024-05-05T03:10:00.000"
+						},
+						{
+							"1": {
+								"value": 2.0
+							},
+							"1-metric": {
+								"value": 4.0
+							},
+							"doc_count": 2,
+							"key": 1714879200000,
+							"key_as_string": "2024-05-05T03:20:00.000"
+						},
+						{
+							"1": {
+								"value": 6.0
+							},
+							"1-metric": {
+								"value": 10.0
+							},
+							"doc_count": 6,
+							"key": 1714879800000,
+							"key_as_string": "2024-05-05T03:30:00.000"
+						},
+						{
+							"1": {
+								"value": 2.0
+							},
+							"1-metric": {
+								"value": 12.0
+							},
+							"doc_count": 2,
+							"key": 1714880400000,
+							"key_as_string": "2024-05-05T03:40:00.000"
+						},
+						{
+							"1": {
+								"value": 2.0
+							},
+							"1-metric": {
+								"value": 14.0
+							},
+							"doc_count": 2,
+							"key": 1714881000000,
+							"key_as_string": "2024-05-05T03:50:00.000"
+						},
+						{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 14.0
+							},
+							"doc_count": 0,
+							"key": 1714881600000,
+							"key_as_string": "2024-05-05T04:00:00.000"
+						},
+						{
+							"1": {
+								"value": 2.0
+							},
+							"1-metric": {
+								"value": 16.0
+							},
+							"doc_count": 2,
+							"key": 1714882200000,
+							"key_as_string": "2024-05-05T04:10:00.000"
+						},
+						{
+							"1": {
+								"value": 0.0
+							},
+							"1-metric": {
+								"value": 16.0
+							},
+							"doc_count": 0,
+							"key": 1714882800000,
+							"key_as_string": "2024-05-05T04:20:00.000"
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 1974
+				}
+			},
+			"timed_out": false,
+			"took": 10
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1974))}}},
+			{}, // NoDBQuery
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714869000000/600000)),
+					model.NewQueryResultCol("count()", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714869600000/600000)),
+					model.NewQueryResultCol("count()", 0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714878600000/600000)),
+					model.NewQueryResultCol("count()", 0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714879200000/600000)),
+					model.NewQueryResultCol("count()", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714879800000/600000)),
+					model.NewQueryResultCol("count()", 6),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714880400000/600000)),
+					model.NewQueryResultCol("count()", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714881000000/600000)),
+					model.NewQueryResultCol("count()", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714881600000/600000)),
+					model.NewQueryResultCol("count()", 0),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714882200000/600000)),
+					model.NewQueryResultCol("count()", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714882800000/600000)),
+					model.NewQueryResultCol("count()", 0),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + testdata.QuotedTableName,
+			`NoDBQuery`,
+			`NoDBQuery`,
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), count() " +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+		},
+	},
+	{ // [11]
 		TestName: "Simplest avg_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Average Bucket (Bucket: Date Histogram, Metric: Count)",
 		QueryRequestJson: `
 		{
@@ -1300,7 +2076,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
 		},
 	},
-	{ // [8]
+	{ // [12]
 		TestName: "avg_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Average Bucket (Bucket: Date Histogram, Metric: Max)",
 		QueryRequestJson: `
 		{
@@ -1463,7 +2239,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 	},
 	/* TODO need fix for date_range and subaggregations. Same one, as already merged ~1-2 weeks ago for range. It's WIP.
-	{ // [9]
+	{ // [13]
 		TestName: "avg_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Average Bucket (Bucket: Date Range, Metric: Average), Buckets: X-Asis: Range",
 		QueryRequestJson: `
 		{
@@ -1761,7 +2537,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 	},
 	*/
-	{ // [10]
+	{ // [14]
 		TestName: "avg_bucket. Reproduce: Visualize -> Horizontal Bar: Metrics: Average Bucket (Bucket: Histogram, Metric: Count), Buckets: X-Asis: Date Histogram",
 		QueryRequestJson: `
 		{
@@ -1935,7 +2711,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
 		},
 	},
-	{ // [11]
+	{ // [15]
 		TestName: "Simplest min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Count)",
 		QueryRequestJson: `
 		{
@@ -2104,7 +2880,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`LIMIT 5`,
 		},
 	},
-	{ // [12]
+	{ // [16]
 		TestName: "min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Unique Count)",
 		QueryRequestJson: `
 		{
@@ -2303,7 +3079,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY ("clientip")`,
 		},
 	},
-	{ // [13]
+	{ // [17]
 		TestName: "complex min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Sum), Buckets: Split Series: Histogram",
 		QueryRequestJson: `
 		{
@@ -2542,7 +3318,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
 		},
 	},
-	{ // [14]
+	{ // [18]
 		TestName: "Simplest max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Terms, Metric: Count)",
 		QueryRequestJson: `
 		{
@@ -2676,7 +3452,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`LIMIT 5`,
 		},
 	},
-	{ // [15]
+	{ // [19]
 		TestName: "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)",
 		QueryRequestJson: `
 		{
@@ -2855,7 +3631,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
 		},
 	},
-	{ // [16]
+	{ // [20]
 		TestName: "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max/Sum Bucket (Aggregation: Histogram, Metric: Max)",
 		QueryRequestJson: `
 		{
@@ -3032,7 +3808,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 	},
 	/* waits for probably a simple filters fix
-	{ // [17]
+	{ // [21]
 		TestName: "max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum)",
 		QueryRequestJson: `
 		{
@@ -3205,7 +3981,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 	},
 	*/
 	/* waits for probably a simple filters fix
-	{ // [18] TODO check this test with other pipeline aggregations
+	{ // [22] TODO check this test with other pipeline aggregations
 		TestName: "complex max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Filters, Metric: Sum), Buckets: Split chart: Rows -> Range",
 		QueryRequestJson: `
 		{
@@ -3445,7 +4221,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.QuotedTableName + ` `,
 		},
 	}, */
-	{ // [19]
+	{ // [23]
 		TestName: "Simplest sum_bucket. Reproduce: Visualize -> Horizontal Bar: Metrics: Sum Bucket (B ucket: Terms, Metric: Count)",
 		QueryRequestJson: `
 		{
@@ -3608,7 +4384,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`LIMIT 5`,
 		},
 	},
-	{ // [20]
+	{ // [24]
 		TestName: "sum_bucket. Reproduce: Visualize -> Horizontal Bar: Metrics: Sum Bucket (Bucket: Significant Terms, Metric: Average)",
 		QueryRequestJson: `
 		{
@@ -3775,7 +4551,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY ("extension")`,
 		},
 	},
-	{ // [21]
+	{ // [25]
 		TestName: "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram",
 		QueryRequestJson: `
 		{
