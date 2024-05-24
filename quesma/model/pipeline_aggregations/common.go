@@ -50,6 +50,7 @@ func calculateResultWhenMissingCommonForDiffAggregations(ctx context.Context, pa
 		return resultRows
 	}
 
+	// first "lag" rows have nil value
 	rowsWithNilValueCnt := min(lag, len(parentRows))
 	for _, parentRow := range parentRows[:rowsWithNilValueCnt] {
 		resultRow := parentRow.Copy()
@@ -57,9 +58,26 @@ func calculateResultWhenMissingCommonForDiffAggregations(ctx context.Context, pa
 		resultRows = append(resultRows, resultRow)
 	}
 
-	if _, firstRowValueIsFloat := util.ExtractFloat64Maybe(parentRows[0].LastColValue()); firstRowValueIsFloat {
-		for i, currentRow := range parentRows[rowsWithNilValueCnt:] {
-			previousRow := parentRows[i]
+	// until we find non-null row, still append nils
+	firstNonNilIndex := -1
+	for i, row := range parentRows[rowsWithNilValueCnt:] {
+		if row.LastColValue() != nil {
+			firstNonNilIndex = i + rowsWithNilValueCnt
+			break
+		} else {
+			resultRow := row.Copy()
+			resultRow.Cols[len(resultRow.Cols)-1].Value = nil
+			resultRows = append(resultRows, resultRow)
+		}
+	}
+	if firstNonNilIndex == -1 {
+		return resultRows
+	}
+
+	// normal calculation at last
+	if _, firstRowValueIsFloat := util.ExtractFloat64Maybe(parentRows[firstNonNilIndex].LastColValue()); firstRowValueIsFloat {
+		for i, currentRow := range parentRows[firstNonNilIndex:] {
+			previousRow := parentRows[i+firstNonNilIndex-rowsWithNilValueCnt]
 			previousValueRaw := previousRow.LastColValue()
 			previousValue, okPrevious := util.ExtractFloat64Maybe(previousValueRaw)
 
@@ -70,17 +88,15 @@ func calculateResultWhenMissingCommonForDiffAggregations(ctx context.Context, pa
 			if okPrevious && okCurrent {
 				resultValue = currentValue - previousValue
 			} else {
-				logger.WarnWithCtx(ctx).Msgf("could not convert value to float: previousValue: %v, type: %T; currentValue: %v, type: %T. Skipping",
-					previousValueRaw, previousValueRaw, currentValueRaw, currentValueRaw)
 				resultValue = nil
 			}
 			resultRow := currentRow.Copy()
 			resultRow.Cols[len(resultRow.Cols)-1].Value = resultValue
 			resultRows = append(resultRows, resultRow)
 		}
-	} else { // derivative/serial diff must be on numeric, so if it's not float64, it should always be int
-		for i, currentRow := range parentRows[rowsWithNilValueCnt:] {
-			previousRow := parentRows[i]
+	} else if _, firstRowValueIsInt := util.ExtractInt64Maybe(parentRows[firstNonNilIndex].LastColValue()); firstRowValueIsInt {
+		for i, currentRow := range parentRows[firstNonNilIndex:] {
+			previousRow := parentRows[i+firstNonNilIndex-rowsWithNilValueCnt]
 			previousValueRaw := previousRow.LastColValue()
 			previousValue, okPrevious := util.ExtractInt64Maybe(previousValueRaw)
 
@@ -91,12 +107,18 @@ func calculateResultWhenMissingCommonForDiffAggregations(ctx context.Context, pa
 			if okPrevious && okCurrent {
 				resultValue = currentValue - previousValue
 			} else {
-				logger.WarnWithCtx(ctx).Msgf("could not convert value to int: previousValue: %v, type: %T; currentValue: %v, type: %T. Skipping",
-					previousValueRaw, previousValueRaw, currentValueRaw, currentValueRaw)
 				resultValue = nil
 			}
 			resultRow := currentRow.Copy()
 			resultRow.Cols[len(resultRow.Cols)-1].Value = resultValue
+			resultRows = append(resultRows, resultRow)
+		}
+	} else {
+		logger.WarnWithCtx(ctx).Msgf("could not convert value to float or int: %v, type: %T. Returning nil values.",
+			parentRows[firstNonNilIndex].LastColValue(), parentRows[firstNonNilIndex].LastColValue())
+		for _, row := range parentRows[firstNonNilIndex:] {
+			resultRow := row.Copy()
+			resultRow.Cols[len(resultRow.Cols)-1].Value = nil
 			resultRows = append(resultRows, resultRow)
 		}
 	}

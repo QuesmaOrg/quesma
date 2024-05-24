@@ -3632,7 +3632,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		},
 	},
 	{ // [20]
-		TestName: "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max/Sum Bucket (Aggregation: Histogram, Metric: Max)",
+		TestName: "Different pipeline aggrs with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max/Sum Bucket/etc. (Aggregation: Histogram, Metric: Max)",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -3644,7 +3644,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 						"buckets_path": "1-bucket>1-metric"
 					}
 				},
-				"2":{
+				"2": {
 					"sum_bucket": {
 						"buckets_path": "1-bucket>1-metric"
 					}
@@ -3655,7 +3655,17 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"max": {
 								"field": "memory"
 							}
-						}
+						},
+						"3": {
+							"derivative": {
+								"buckets_path": "1-metric"
+							}
+						},
+						"4": {
+							"serial_diff": {
+								"buckets_path": "1-metric"
+							}
+						},
 					},
 					"histogram": {
 						"field": "bytes",
@@ -3717,11 +3727,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					"keys": [
 						5296
 					],
-					"value": 211840
+					"value": 211840.2
 				},
 				"2":
 				{
-					"value": 212292
+					"value": 212292.2
 				},
 				"1-bucket": {
 					"buckets": [
@@ -3729,12 +3739,50 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"1-metric": {
 								"value": null
 							},
+							"3": {
+								"value": null
+							},
+							"4": {
+								"value": null
+							},
 							"doc_count": 5,
 							"key": 0.0
 						},
 						{
 							"1-metric": {
-								"value": 211840
+								"value": null
+							},
+							"3": {
+								"value": null
+							},
+							"4": {
+								"value": null
+							},
+							"doc_count": 6,
+							"key": 200.0
+						},
+						{
+							"1-metric": {
+								"value": null
+							},
+							"3": {
+								"value": null
+							},
+							"4": {
+								"value": null
+							},
+							"doc_count": 7,
+							"key": 400.0
+						},
+						{
+							"1-metric": {
+								"value": 211840.2
+							},
+							"3": {
+								"value": null
+							},
+							"4": {
+								"value": null
 							},
 							"doc_count": 1,
 							"key": 5296.0
@@ -3742,6 +3790,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 						{
 							"1-metric": {
 								"value": 452
+							},
+							"3": {
+								"value": -211388.2
+							},
+							"4": {
+								"value": -211388.2
 							},
 							"doc_count": 1,
 							"key": 16837.0
@@ -3769,18 +3823,36 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					model.NewQueryResultCol(`maxOrNull("memory")`, nil),
 				}},
 				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("bytes", 200.0),
+					model.NewQueryResultCol(`maxOrNull("memory")`, nil),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("bytes", 400.0),
+					model.NewQueryResultCol(`maxOrNull("memory")`, nil),
+				}},
+				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("bytes", 5296.0),
-					model.NewQueryResultCol(`maxOrNull("memory")`, 211840),
+					model.NewQueryResultCol(`maxOrNull("memory")`, 211840.2),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("bytes", 16837.0),
-					model.NewQueryResultCol(`maxOrNull("memory")`, 452),
+					model.NewQueryResultCol(`maxOrNull("memory")`, float64(452)),
 				}},
 			},
+			{}, // NoDBQuery
+			{}, // NoDBQuery
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("bytes", 0.0),
 					model.NewQueryResultCol("count()", 5),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("bytes", 200.0),
+					model.NewQueryResultCol("count()", 6),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("bytes", 400.0),
+					model.NewQueryResultCol("count()", 7),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("bytes", 5296.0),
@@ -3800,6 +3872,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY ("bytes") ` +
 				`ORDER BY ("bytes")`,
+			`NoDBQuery`,
+			`NoDBQuery`,
 			`SELECT "bytes", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY ("bytes") ` +
