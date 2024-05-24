@@ -1101,35 +1101,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [54]
-		TestName:  "pipeline aggregation: serial_diff",
-		QueryType: "serial_diff",
-		QueryRequestJson: `
-		{
-			"size": 0,
-			"aggs": {
-				"my_date_histo": {                  
-					"date_histogram": {
-						"field": "timestamp",
-						"calendar_interval": "day"
-					},
-					"aggs": {
-						"the_sum": {
-							"sum": {
-								"field": "lemmings"     
-							}
-						},
-						"thirtieth_difference": {
-							"serial_diff": {                
-								"buckets_path": "the_sum",
-								"lag" : 30
-							}
-						}
-					}
-				}
-			}
-		}`,
-	},
 	{ // [55]
 		TestName:  "pipeline aggregation: stats_bucket",
 		QueryType: "stats_bucket",
