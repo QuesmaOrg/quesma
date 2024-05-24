@@ -1781,7 +1781,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{""},
 		model.ListByField,
-		[]model.Query{newSimplestQuery()},
+		[]model.Query{withLimit(newSimplestQuery(), 500)},
 		[]string{`SELECT "message" FROM "logs-generic-default" LIMIT 500`},
 	},
 	{ // [26]
