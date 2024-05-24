@@ -92,7 +92,7 @@ func (q *Query) XAddColumn(column Column) {
 
 // returns string with SQL query
 // colNames - list of columns (schema fields) for SELECT
-func (q *Query) StringFromColumnsNew() string {
+func (q *Query) StringFromColumnsNew(colNames []string) string {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	if q.IsDistinct {
@@ -100,12 +100,22 @@ func (q *Query) StringFromColumnsNew() string {
 	}
 
 	columns := make([]string, 0)
-	for _, col := range q.Columns {
-		if col.Expression == nil {
-			fmt.Println("Columns: ", q.Columns)
-			columns = append(columns, "COLUMN WITH NIL EXPRESSION"+col.String())
-		} else {
-			columns = append(columns, col.SQL())
+
+	if len(q.Columns) == 1 && q.Columns[0].Expression == aexp.Wildcard && len(colNames) > 0 {
+
+		for _, col := range colNames {
+			columns = append(columns, Column{Expression: aexp.C(col)}.SQL())
+		}
+
+		columns = append(columns, "*")
+	} else {
+		for _, col := range q.Columns {
+			if col.Expression == nil {
+				fmt.Println("Columns: ", q.Columns)
+				columns = append(columns, "COLUMN WITH NIL EXPRESSION"+col.String())
+			} else {
+				columns = append(columns, col.SQL())
+			}
 		}
 	}
 
@@ -146,7 +156,7 @@ func (q *Query) StringFromColumnsNew() string {
 func (q *Query) StringFromColumns(colNames []string) string {
 
 	oldSQL := q.StringFromColumnsOld(colNames)
-	newSQL := q.StringFromColumnsNew()
+	newSQL := q.StringFromColumnsNew(colNames)
 
 	if oldSQL != newSQL {
 		fmt.Printf("SQL query mismatch\n")
