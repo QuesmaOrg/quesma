@@ -7,11 +7,15 @@ import (
 
 func GuessClickhouseErrorType(err error) *EndUserError {
 
-	for {
+	// This limit a depth of error unwrapping.
+	// We don't need forever loops especially in error handling branches
+	const maxDepth = 100
+
+	for i := 0; i < maxDepth; i++ {
 		s := err.Error()
 
-		// TODO this is stupid, but works.
 		// We should check the error type, not the string.
+		// But Clickhouse doesn't provide a specific error type with details about the error.
 
 		if strings.Contains(s, "code: 60") {
 			return ErrDatabaseTableNotFound.New(err)
