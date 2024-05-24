@@ -289,7 +289,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequests(title string, requ
 
 	buffer.Html(`<main id="queries">`)
 
-	buffer.Write(generateQueries(requests, true))
+	buffer.Write(qmc.populateQueries(requests, true))
 
 	buffer.Html("\n</main>\n\n")
 
