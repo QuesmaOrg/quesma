@@ -38,23 +38,23 @@ func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 	// One limitation is that, we don't update color of paths after initial draw.
 	// They rarely change, so it's not a big deal for now.
 	// Clickhouse -> Kibana
-	if qmc.config.ReadsFromClickhouse() {
+	if qmc.cfg.ReadsFromClickhouse() {
 		status, _ := qmc.generateDashboardTrafficText(RequestStatisticKibana2Clickhouse)
 		buffer.Html(fmt.Sprintf(`<path d="M 0 250 L 1000 250" fill="none" stroke="%s" />`, status))
 	}
 	// Elasticsearch -> Kibana
-	if qmc.config.ReadsFromElasticsearch() {
+	if qmc.cfg.ReadsFromElasticsearch() {
 		status, _ := qmc.generateDashboardTrafficText(RequestStatisticKibana2Elasticsearch)
 		buffer.Html(fmt.Sprintf(`<path d="M 0 350 L 150 350 L 150 700 L 1000 700" fill="none" stroke="%s" />`, status))
 	}
 
 	// Ingest -> Clickhouse
-	if qmc.config.WritesToClickhouse() {
+	if qmc.cfg.WritesToClickhouse() {
 		status, _ := qmc.generateDashboardTrafficText(RequestStatisticIngest2Clickhouse)
 		buffer.Html(fmt.Sprintf(`<path d="M 1000 350 L 300 350 L 300 650 L 0 650" fill="none" stroke="%s" />`, status))
 	}
 	// Ingest -> Elasticsearch
-	if qmc.config.WritesToElasticsearch() {
+	if qmc.cfg.WritesToElasticsearch() {
 		status, _ := qmc.generateDashboardTrafficText(RequestStatisticIngest2Elasticsearch)
 		buffer.Html(fmt.Sprintf(`<path d="M 1000 800 L 0 800" fill="none" stroke="%s" />`, status))
 	}
@@ -93,22 +93,22 @@ func (qmc *QuesmaManagementConsole) generateDashboardTrafficPanel() []byte {
 	var buffer builder.HtmlBuffer
 
 	// Clickhouse -> Kibana
-	if qmc.config.ReadsFromClickhouse() {
+	if qmc.cfg.ReadsFromClickhouse() {
 		buffer.Html(qmc.generateDashboardTrafficElement(RequestStatisticKibana2Clickhouse, 21))
 	}
 
 	// Elasticsearch -> Kibana
-	if qmc.config.ReadsFromElasticsearch() {
+	if qmc.cfg.ReadsFromElasticsearch() {
 		buffer.Html(qmc.generateDashboardTrafficElement(RequestStatisticKibana2Elasticsearch, 66))
 	}
 
 	// Ingest -> Clickhouse
-	if qmc.config.WritesToClickhouse() {
+	if qmc.cfg.WritesToClickhouse() {
 		buffer.Html(qmc.generateDashboardTrafficElement(RequestStatisticIngest2Clickhouse, 31))
 	}
 
 	// Ingest -> Elasticsearch
-	if qmc.config.WritesToElasticsearch() {
+	if qmc.cfg.WritesToElasticsearch() {
 		buffer.Html(qmc.generateDashboardTrafficElement(RequestStatisticIngest2Elasticsearch, 76))
 	}
 
@@ -128,22 +128,22 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 
 	dashboardName := "<h3>Kibana</h3>"
 	storeName := "<h3>Elasticsearch</h3>"
-	if qmc.config.Elasticsearch.Url != nil && strings.Contains(qmc.config.Elasticsearch.Url.String(), "opensearch") {
+	if qmc.cfg.Elasticsearch.Url != nil && strings.Contains(qmc.cfg.Elasticsearch.Url.String(), "opensearch") {
 		dashboardName = "<h3>OpenSearch</h3><h3>Dashboards</h3>"
 		storeName = "<h3>OpenSearch</h3>"
 	}
 
 	clickhouseName := "<h3>ClickHouse</h3>"
-	if qmc.config.Hydrolix.Url != nil {
+	if qmc.cfg.Hydrolix.Url != nil {
 		clickhouseName = "<h3>Hydrolix</h3>"
 	}
 
 	buffer.Html(`<div id="dashboard-kibana" class="component">`)
-	if qmc.config.Elasticsearch.AdminUrl != nil {
-		buffer.Html(`<a href="`).Text(qmc.config.Elasticsearch.AdminUrl.String()).Html(`">`)
+	if qmc.cfg.Elasticsearch.AdminUrl != nil {
+		buffer.Html(`<a href="`).Text(qmc.cfg.Elasticsearch.AdminUrl.String()).Html(`">`)
 	}
 	buffer.Html(dashboardName)
-	if qmc.config.Elasticsearch.AdminUrl != nil {
+	if qmc.cfg.Elasticsearch.AdminUrl != nil {
 		buffer.Html(`</a>`)
 	}
 	buffer.Html(statusToDiv(qmc.checkKibana()))
@@ -160,11 +160,11 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	buffer.Html(`</div>`)
 
 	buffer.Html(`<div id="dashboard-clickhouse" class="component">`)
-	if qmc.config.ClickHouse.AdminUrl != nil {
-		buffer.Html(`<a href="`).Text(qmc.config.ClickHouse.AdminUrl.String()).Html(`">`)
+	if qmc.cfg.ClickHouse.AdminUrl != nil {
+		buffer.Html(`<a href="`).Text(qmc.cfg.ClickHouse.AdminUrl.String()).Html(`">`)
 	}
 	buffer.Html(clickhouseName)
-	if qmc.config.ClickHouse.AdminUrl != nil {
+	if qmc.cfg.ClickHouse.AdminUrl != nil {
 		buffer.Html(`</a>`)
 	}
 	buffer.Html(statusToDiv(qmc.checkClickhouseHealth()))
@@ -198,7 +198,7 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	duration := uint64(time.Since(qmc.startedAt).Seconds())
 
 	buffer.Html(fmt.Sprintf(`<div class="status">Started: %s ago</div>`, secondsToTerseString(duration)))
-	buffer.Html(fmt.Sprintf(`<div class="status">Mode: %s</div>`, qmc.config.Mode.String()))
+	buffer.Html(fmt.Sprintf(`<div class="status">Mode: %s</div>`, qmc.cfg.Mode.String()))
 
 	if h, errH := host.Info(); errH == nil {
 		buffer.Html(fmt.Sprintf(`<div class="status">Host uptime: %s</div>`, secondsToTerseString(h.Uptime)))

@@ -2,19 +2,19 @@ package queryparser
 
 import (
 	"encoding/json"
-	wc "mitmproxy/quesma/queryparser/where_clause"
-	"mitmproxy/quesma/quesma/types"
-
 	"fmt"
 	"github.com/k0kubun/pp"
+	"github.com/relvacode/iso8601"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/lucene"
 	"mitmproxy/quesma/queryparser/query_util"
+	wc "mitmproxy/quesma/queryparser/where_clause"
+	"mitmproxy/quesma/quesma/types"
+	"mitmproxy/quesma/util"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 )
 
@@ -777,7 +777,9 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			isDatetimeInDefaultFormat = false
 		}
 
-		for op, v := range v.(QueryMap) {
+		keysSorted := util.MapKeysSorted(v.(QueryMap))
+		for _, op := range keysSorted {
+			v := v.(QueryMap)[op]
 			var fieldToPrint, timeFormatFuncName string
 			var valueToCompare wc.Statement
 			fieldType := cw.Table.GetDateTimeType(cw.Ctx, field)
@@ -793,7 +795,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 					if dateTime, ok := v.(string); ok {
 						// if it's a date, we need to parse it to Clickhouse's DateTime format
 						// how to check if it does not contain date math expression?
-						if _, err := time.Parse(time.RFC3339Nano, dateTime); err == nil {
+						if _, err := iso8601.ParseString(dateTime); err == nil {
 							vToPrint, timeFormatFuncName = cw.parseDateTimeString(cw.Table, field, dateTime)
 							// TODO Investigate the quotation below
 							valueToCompare = wc.NewFunction(timeFormatFuncName, wc.NewLiteral(fmt.Sprintf("'%s'", dateTime)))

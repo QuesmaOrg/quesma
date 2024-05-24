@@ -31,7 +31,7 @@ func (qmc *QuesmaManagementConsole) generateStatistics() []byte {
 	var buffer builder.HtmlBuffer
 	const maxTopValues = 5
 
-	if !qmc.config.IngestStatistics {
+	if !qmc.cfg.IngestStatistics {
 		buffer.Html("<h2>Statistics are disabled.</h2>\n")
 		buffer.Html("<p>&nbsp;You can enable them by changing ingest_statistics setting to true.</p>\n")
 		return buffer.Bytes()

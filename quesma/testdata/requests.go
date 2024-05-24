@@ -1781,7 +1781,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{""},
 		model.ListByField,
-		[]model.Query{newSimplestQuery()},
+		[]model.Query{withLimit(newSimplestQuery(), 500)},
 		[]string{`SELECT "message" FROM "logs-generic-default" LIMIT 500`},
 	},
 	{ // [26]
@@ -1951,6 +1951,39 @@ var TestsSearch = []SearchTestCase{
 		model.Normal,
 		[]model.Query{justSimplestWhere(`"user.id"='kimchy'`)},
 		[]string{qToStr(justSimplestWhere(`"user.id"='kimchy'`))},
+	},
+	{ // [35] terms with range
+		"Terms with range",
+		`{
+		  "size": 1,
+		  "query": {
+			"bool": {
+			  "filter": [
+				{
+				  "terms": {
+					"cliIP": [
+					  "2601:204:c503:c240:9c41:5531:ad94:4d90",
+					  "50.116.43.98",
+					  "75.246.0.64"
+					]
+				  }
+				},
+				{
+				  "range": {
+					"@timestamp": {
+					  "gte": "2024-05-16T00:00:00",
+					  "lte": "2024-05-17T23:59:59"
+					}
+				  }
+				}
+			  ]
+			}
+		  }
+		}`,
+		[]string{`("cliIP"='2601:204:c503:c240:9c41:5531:ad94:4d90' OR "cliIP"='50.116.43.98' OR "cliIP"='75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`},
+		model.Normal,
+		[]model.Query{withLimit(justSimplestWhere(`("cliIP"='2601:204:c503:c240:9c41:5531:ad94:4d90' OR "cliIP"='50.116.43.98' OR "cliIP"='75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`), 1)},
+		[]string{qToStr(withLimit(justSimplestWhere(`("cliIP"='2601:204:c503:c240:9c41:5531:ad94:4d90' OR "cliIP"='50.116.43.98' OR "cliIP"='75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`), 1))},
 	},
 }
 

@@ -8,10 +8,55 @@ import (
 	"strings"
 )
 
-const RowNumberColumnName = "row_number"
-const EmptyFieldSelection = "''" // we can query SELECT '', that's why such quotes
+const (
+	RowNumberColumnName = "row_number"
+	EmptyFieldSelection = "''" // we can query SELECT '', that's why such quotes
+)
 
 type (
+	Query struct {
+		IsDistinct      bool     // true <=> query is SELECT DISTINCT
+		Fields          []string // Fields in 'SELECT Fields FROM ...'
+		NonSchemaFields []string // Fields that are not in schema, but are in 'SELECT ...', e.g. count()
+		WhereClause     string   // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
+		GroupByFields   []string // if not empty, we do GROUP BY GroupByFields... They are quoted if they are column names, unquoted if non-schema. So no quotes need to be added.
+		SuffixClauses   []string // ORDER BY, etc.
+		FromClause      string   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
+		CanParse        bool     // true <=> query is valid
+		QueryInfo       SearchQueryInfo
+		Highlighter     Highlighter
+		NoDBQuery       bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
+		Parent          string       // parent aggregation name, used in some pipeline aggregations
+		Aggregators     []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
+		Type            QueryType
+		SortFields      SortFields // fields to sort by
+		SubSelect       string
+		// dictionary to add as 'meta' field in the response.
+		// WARNING: it's probably not passed everywhere where it's needed, just in one place.
+		// But it works for the test + our dashboards, so let's fix it later if necessary.
+		// NoMetadataField (nil) is a valid option and means no meta field in the response.
+		Metadata JsonMap
+	}
+	QueryType interface {
+		// TranslateSqlResponseToJson 'level' - we want to translate [level:] (metrics aggr) or [level-1:] (bucket aggr) columns to JSON
+		// Previous columns are used for bucketing.
+		// For 'bucket' aggregation result is a slice of buckets, for 'metrics' aggregation it's a single bucket (only look at [0])
+		TranslateSqlResponseToJson(rows []QueryResultRow, level int) []JsonMap
+
+		PostprocessResults(rowsFromDB []QueryResultRow) (ultimateRows []QueryResultRow)
+
+		// IsBucketAggregation if true, result from 'MakeResponse' will be a slice of buckets
+		// if false, it's a metrics aggregation and result from 'MakeResponse' will be a single bucket
+		IsBucketAggregation() bool
+		String() string
+	}
+	Highlighter struct {
+		Tokens []string
+		Fields map[string]bool
+
+		PreTags  []string
+		PostTags []string
+	}
 	SortFields []SortField
 	SortField  struct {
 		Field string
@@ -26,52 +71,6 @@ func (sf SortFields) Properties() []string {
 	}
 	return properties
 }
-
-type Highlighter struct {
-	Tokens []string
-	Fields map[string]bool
-
-	PreTags  []string
-	PostTags []string
-}
-
-// implements String() (now) and MakeResponse() interface (in the future (?))
-type Query struct {
-	IsDistinct      bool     // true <=> query is SELECT DISTINCT
-	Fields          []string // Fields in 'SELECT Fields FROM ...'
-	NonSchemaFields []string // Fields that are not in schema, but are in 'SELECT ...', e.g. count()
-	WhereClause     string   // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
-	GroupByFields   []string // if not empty, we do GROUP BY GroupByFields... They are quoted if they are column names, unquoted if non-schema. So no quotes need to be added.
-	SuffixClauses   []string // ORDER BY, etc.
-	FromClause      string   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
-	CanParse        bool     // true <=> query is valid
-	QueryInfo       SearchQueryInfo
-	Highlighter     Highlighter
-	NoDBQuery       bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
-	Parent          string       // parent aggregation name, used in some pipeline aggregations
-	Aggregators     []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
-	Type            QueryType
-	SortFields      SortFields // fields to sort by
-	SubSelect       string
-	// dictionary to add as 'meta' field in the response.
-	// WARNING: it's probably not passed everywhere where it's needed, just in one place.
-	// But it works for the test + our dashboards, so let's fix it later if necessary.
-	// NoMetadataField (nil) is a valid option and means no meta field in the response.
-	Metadata JsonMap
-}
-
-/*
-type subQuery struct {
-	sql       string
-	innerJoin string
-	name      string
-}
-
-func newSubQuery(sql, innerJoin, name string) subQuery {
-	return subQuery{sql: sql, innerJoin: innerJoin, name: name}
-}
- erase if still not used after 'respect size in aggregations' issue
-*/
 
 var NoMetadataField JsonMap = nil
 
@@ -353,5 +352,30 @@ func (h *Highlighter) SetTokens(tokens []string) {
 	sort.Slice(h.Tokens, func(i, j int) bool {
 		return len(h.Tokens[i]) > len(h.Tokens[j])
 	})
+}
 
+// UnknownAggregationType is a placeholder for an aggregation type that'll be determined in the future,
+// after descending further into the aggregation tree
+type UnknownAggregationType struct {
+	ctx context.Context
+}
+
+func NewUnknownAggregationType(ctx context.Context) UnknownAggregationType {
+	return UnknownAggregationType{ctx: ctx}
+}
+
+func (query UnknownAggregationType) IsBucketAggregation() bool {
+	return false
+}
+
+func (query UnknownAggregationType) TranslateSqlResponseToJson(rows []QueryResultRow, level int) []JsonMap {
+	return make([]JsonMap, 0)
+}
+
+func (query UnknownAggregationType) String() string {
+	return "unknown aggregation type"
+}
+
+func (query UnknownAggregationType) PostprocessResults(rowsFromDB []QueryResultRow) []QueryResultRow {
+	return rowsFromDB
 }

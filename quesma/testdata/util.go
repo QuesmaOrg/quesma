@@ -64,6 +64,11 @@ func justSimplestWhere(whereClause string) model.Query {
 	return query
 }
 
+func withLimit(query model.Query, limit int) model.Query {
+	query.SuffixClauses = []string{"LIMIT " + strconv.Itoa(limit)}
+	return query
+}
+
 // EscapeBrackets is a simple helper function used in sqlmock's tests.
 // Example usage: sqlmock.ExpectQuery(EscapeBrackets(`SELECT count() FROM "logs-generic-default" WHERE `))
 func EscapeBrackets(s string) string {
