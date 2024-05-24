@@ -1916,7 +1916,7 @@ var TestsSearch = []SearchTestCase{
 					},
 					{
 					  "match_phrase": {
-						"_id": "18f86fcd014q6"
+						"_id": "323032342d30352d32342031333a33323a34372e333037202b3030303020555443q1"
 					  }
 					}
 				  ]
@@ -1924,13 +1924,13 @@ var TestsSearch = []SearchTestCase{
 			  }
 			}`,
 		[]string{
-			`"@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND toUnixTimestamp64Milli("@timestamp") IN ([1715956666388])`,
-			`toUnixTimestamp64Milli("@timestamp") IN ([1715956666388]) AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')`,
+			`"@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3)`,
+			`"@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3) AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')`,
 		},
 		model.Normal,
 		[]model.Query{
-			justSimplestWhere(`"@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND toUnixTimestamp64Milli("@timestamp") IN ([1715956666388])`),
-			justSimplestWhere(`toUnixTimestamp64Milli("@timestamp") IN ([1715956666388]) AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')`),
+			justSimplestWhere(`"@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3)`),
+			justSimplestWhere(`"@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3) AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')`),
 		},
 		// TestSearchHandler is pretty blunt with config loading so the test below can't be used.
 		// We will probably refactor it as we move forwards with schema which will get even more side-effecting

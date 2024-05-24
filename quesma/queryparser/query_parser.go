@@ -353,13 +353,10 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		switch v.Type.String() {
 		case clickhouse.DateTime64.String():
 			statement = model.NewSimpleStatement(fmt.Sprintf("%s = toDateTime64(%s,3)", strconv.Quote(timestampColumnName), finalIdQuoted))
-			statement.WhereStatement = wc.NewInfixOp(wc.NewFunction("toUnixTimestamp64Milli", []wc.Statement{wc.NewColumnRef(timestampColumnName)}...), "IN", wc.NewLiteral("("+strings.Join(ids, ",")+")"))
+			statement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(timestampColumnName), " = ", wc.NewFunction("toDateTime64", wc.NewLiteral(finalIdQuoted), wc.NewLiteral("3")))
 		case clickhouse.DateTime.String():
 			statement = model.NewSimpleStatement(fmt.Sprintf("%s = toDateTime(%s)", strconv.Quote(timestampColumnName), finalIdQuoted))
-			statement.WhereStatement = wc.NewInfixOp(wc.NewInfixOp(
-				wc.NewFunction("toUnixTimestamp", []wc.Statement{wc.NewColumnRef(timestampColumnName)}...),
-				"*",
-				wc.NewLiteral("1000")), "IN", wc.NewLiteral("("+strings.Join(ids, ",")+")"))
+			statement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(timestampColumnName), " = ", wc.NewFunction("toDateTime", wc.NewLiteral(finalIdQuoted)))
 		default:
 			logger.Warn().Msgf("timestamp field of unsupported type %s", v.Type.String())
 			return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
