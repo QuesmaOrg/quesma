@@ -1,6 +1,7 @@
 package queryparser
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
@@ -325,28 +326,36 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		logger.Warn().Msgf("id query executed, but not timestamp field configured")
 		return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
 	}
+	if len(ids) == 0 {
+		return model.NewSimpleQuery(model.NewSimpleStatement("parsing error: empty _id array"), false)
+	}
 
-	// when our generated ID appears in query looks like this: `18f7b8800b8q1`
+	// when our generated ID appears in query looks like this: `1d<TRUNCATED>0b8q1`
 	// therefore we need to strip the hex part (before `q`) and convert it to decimal
 	// then we can query at DB level
 	for i, id := range ids {
 		idInHex := strings.Split(id, "q")[0]
-		if decimalValue, err := strconv.ParseUint(idInHex, 16, 64); err != nil {
+		if idAsStr, err := hex.DecodeString(idInHex); err != nil {
 			logger.Error().Msgf("error parsing document id %s: %v", id, err)
 			return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
 		} else {
-			ids[i] = fmt.Sprintf("%d", decimalValue)
+			ids[i] = string(idAsStr)
 		}
 	}
+	if len(ids) > 1 {
+		logger.Warn().Msgf("multiple ids in query, only first will be used")
+	}
 
+	finalId := strings.TrimSuffix(ids[0], " +0000 UTC")
+	finalIdQuoted := fmt.Sprintf("'%s'", finalId)
 	var statement model.Statement
 	if v, ok := cw.Table.Cols[timestampColumnName]; ok {
 		switch v.Type.String() {
 		case clickhouse.DateTime64.String():
-			statement = model.NewSimpleStatement(fmt.Sprintf("toUnixTimestamp64Milli(%s) IN (%s)", strconv.Quote(timestampColumnName), ids))
-			statement.WhereStatement = wc.NewInfixOp(wc.NewFunction("toUnixTimestamp64Milli", []wc.Statement{wc.NewColumnRef(timestampColumnName)}...), "IN", wc.NewLiteral("(["+strings.Join(ids, ",")+"])"))
+			statement = model.NewSimpleStatement(fmt.Sprintf("%s = toDateTime64(%s,3)", strconv.Quote(timestampColumnName), finalIdQuoted))
+			statement.WhereStatement = wc.NewInfixOp(wc.NewFunction("toUnixTimestamp64Milli", []wc.Statement{wc.NewColumnRef(timestampColumnName)}...), "IN", wc.NewLiteral("("+strings.Join(ids, ",")+")"))
 		case clickhouse.DateTime.String():
-			statement = model.NewSimpleStatement(fmt.Sprintf("toUnixTimestamp(%s) * 1000 IN (%s)", strconv.Quote(timestampColumnName), ids))
+			statement = model.NewSimpleStatement(fmt.Sprintf("%s = toDateTime(%s)", strconv.Quote(timestampColumnName), finalIdQuoted))
 			statement.WhereStatement = wc.NewInfixOp(wc.NewInfixOp(
 				wc.NewFunction("toUnixTimestamp", []wc.Statement{wc.NewColumnRef(timestampColumnName)}...),
 				"*",
