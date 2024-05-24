@@ -11,9 +11,20 @@ import (
 const RowNumberColumnName = "row_number"
 const EmptyFieldSelection = "''" // we can query SELECT '', that's why such quotes
 
-type SortField struct {
-	Field string
-	Desc  bool
+type (
+	SortFields []SortField
+	SortField  struct {
+		Field string
+		Desc  bool
+	}
+)
+
+func (sf SortFields) Properties() []string {
+	properties := make([]string, 0)
+	for _, sortField := range sf {
+		properties = append(properties, sortField.Field)
+	}
+	return properties
 }
 
 type Highlighter struct {
@@ -40,7 +51,7 @@ type Query struct {
 	Parent          string       // parent aggregation name, used in some pipeline aggregations
 	Aggregators     []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
 	Type            QueryType
-	SortFields      []SortField // fields to sort by
+	SortFields      SortFields // fields to sort by
 	SubSelect       string
 	// dictionary to add as 'meta' field in the response.
 	// WARNING: it's probably not passed everywhere where it's needed, just in one place.

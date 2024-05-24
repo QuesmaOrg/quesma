@@ -97,7 +97,7 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 				columnMap[k] = c
 			}
 
-			for _, a := range qmc.config.AliasFields(table.Name) {
+			for _, a := range qmc.cfg.AliasFields(table.Name) {
 
 				// check for collisions
 				if field, collide := columnMap[a.SourceFieldName]; collide {
@@ -238,7 +238,7 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 
 	buffer.Html(`</tr>`)
 
-	for _, cfg := range qmc.config.IndexConfig {
+	for _, cfg := range qmc.cfg.IndexConfig {
 		buffer.Html(`<tr>`)
 		buffer.Html(`<td>`)
 		buffer.Text(cfg.Name)
