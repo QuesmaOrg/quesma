@@ -3,8 +3,6 @@ package queryparser
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/k0kubun/pp"
-	"github.com/relvacode/iso8601"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
@@ -16,6 +14,9 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/k0kubun/pp"
+	"github.com/relvacode/iso8601"
 )
 
 type QueryMap = map[string]interface{}
@@ -555,7 +556,9 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 		cw.AddTokenToHighlight(vUnNested)
 
 		// so far we assume that only strings can be ORed here
-		return model.NewSimpleQuery(model.NewSimpleStatement(strconv.Quote(fieldName)+" == "+sprint(vUnNested)), true)
+		statement := model.NewSimpleStatement(strconv.Quote(fieldName) + " == " + sprint(vUnNested))
+		statement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(fieldName), "==", wc.NewLiteral(sprint(vUnNested)))
+		return model.NewSimpleQuery(statement, true)
 	}
 
 	// unreachable unless something really weird happens
