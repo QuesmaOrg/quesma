@@ -3,7 +3,9 @@ package model
 import (
 	"context"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/queryparser/aexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -83,9 +85,13 @@ func (q *Query) String() string {
 	return q.StringFromColumns(q.Fields)
 }
 
+func (q *Query) AddColumn(column *Column) {
+	q.Columns = append(q.Columns, column)
+}
+
 // returns string with SQL query
 // colNames - list of columns (schema fields) for SELECT
-func (q *Query) StringFromColumns(colNames []string) string {
+func (q *Query) StringFromColumnsNew() string {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	if q.IsDistinct {
@@ -99,24 +105,76 @@ func (q *Query) StringFromColumns(colNames []string) string {
 
 	sb.WriteString(strings.Join(columns, ", "))
 
-	/*
-		for i, field := range colNames {
-			if field == "*" || field == EmptyFieldSelection {
-				sb.WriteString(field)
-			} else {
-				sb.WriteString(strconv.Quote(field))
-			}
-			if i < len(colNames)-1 || len(q.NonSchemaFields) > 0 {
-				sb.WriteString(", ")
-			}
-		}
-		for i, field := range q.NonSchemaFields {
+	where := " WHERE "
+	if len(q.WhereClause) == 0 {
+		where = ""
+	}
+	sb.WriteString(" FROM " + q.FromClause + where + q.WhereClause)
+	if len(q.GroupByFields) > 0 {
+		sb.WriteString(" GROUP BY (")
+		for i, field := range q.GroupByFields {
 			sb.WriteString(field)
-			if i < len(q.NonSchemaFields)-1 {
+			if i < len(q.GroupByFields)-1 {
 				sb.WriteString(", ")
 			}
 		}
-	*/
+		sb.WriteString(")")
+
+		if len(q.SuffixClauses) == 0 {
+			sb.WriteString(" ORDER BY (")
+			for i, field := range q.GroupByFields {
+				sb.WriteString(field)
+				if i < len(q.GroupByFields)-1 {
+					sb.WriteString(", ")
+				}
+			}
+			sb.WriteString(")")
+		}
+	}
+	if len(q.SuffixClauses) > 0 {
+		sb.WriteString(" " + strings.Join(q.SuffixClauses, " "))
+	}
+	return sb.String()
+}
+
+func (q *Query) StringFromColumns(colNames []string) string {
+
+	oldSQL := q.StringFromColumnsOld(colNames)
+	newSQL := q.StringFromColumnsNew()
+
+	if oldSQL != newSQL {
+		logger.Warn().Msgf("SQL query mismatch: old: %s, new: %s", oldSQL, newSQL)
+	}
+
+	return oldSQL
+
+}
+
+// returns string with SQL query
+// colNames - list of columns (schema fields) for SELECT
+func (q *Query) StringFromColumnsOld(colNames []string) string {
+	var sb strings.Builder
+	sb.WriteString("SELECT ")
+	if q.IsDistinct {
+		sb.WriteString("DISTINCT ")
+	}
+
+	for i, field := range colNames {
+		if field == "*" || field == EmptyFieldSelection {
+			sb.WriteString(field)
+		} else {
+			sb.WriteString(strconv.Quote(field))
+		}
+		if i < len(colNames)-1 || len(q.NonSchemaFields) > 0 {
+			sb.WriteString(", ")
+		}
+	}
+	for i, field := range q.NonSchemaFields {
+		sb.WriteString(field)
+		if i < len(q.NonSchemaFields)-1 {
+			sb.WriteString(", ")
+		}
+	}
 
 	where := " WHERE "
 	if len(q.WhereClause) == 0 {
@@ -151,7 +209,7 @@ func (q *Query) StringFromColumns(colNames []string) string {
 }
 
 func (q *Query) IsWildcard() bool {
-	return len(q.Fields) == 1 && q.Fields[0] == "*"
+	return len(q.Columns) == 1 && q.Columns[0].Expression == aexp.Wildcard
 }
 
 // CopyAggregationFields copies all aggregation fields from qwa to q
@@ -162,10 +220,13 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 	q.Columns = make([]*Column, len(qwa.Columns))
 
 	// TODO
-	q.Fields = make([]string, len(qwa.Fields))
-	copy(q.Fields, qwa.Fields)
-	q.NonSchemaFields = make([]string, len(qwa.NonSchemaFields))
-	copy(q.NonSchemaFields, qwa.NonSchemaFields)
+
+	if TODOBOTH {
+		q.Fields = make([]string, len(qwa.Fields))
+		copy(q.Fields, qwa.Fields)
+		q.NonSchemaFields = make([]string, len(qwa.NonSchemaFields))
+		copy(q.NonSchemaFields, qwa.NonSchemaFields)
+	}
 
 	q.Aggregators = make([]Aggregator, len(qwa.Aggregators))
 	copy(q.Aggregators, qwa.Aggregators)
@@ -185,6 +246,9 @@ func (q *Query) RemoveEmptyGroupBy() {
 // TrimKeywordFromFields trims .keyword from fields and group by fields
 // In future probably handle it in a better way
 func (q *Query) TrimKeywordFromFields(ctx context.Context) {
+
+	TODO("REMOVE THIS FUNCTION")
+
 	for i := range q.Fields {
 		if strings.HasSuffix(q.Fields[i], `.keyword"`) {
 			logger.WarnWithCtx(ctx).Msgf("trimming .keyword from field %s", q.Fields[i])
@@ -206,6 +270,7 @@ func (q *Query) TrimKeywordFromFields(ctx context.Context) {
 			q.NonSchemaFields[i] += `"`
 		}
 	}
+
 }
 
 // Name returns the name of this aggregation (specifically, the last aggregator)

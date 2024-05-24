@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
 	"mitmproxy/quesma/model/metrics_aggregations"
+	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/util"
 	"regexp"
@@ -56,9 +57,13 @@ func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.
 
 	// Need to copy, as we might be proceeding to modify 'b' pointer
 	query.CopyAggregationFields(b.Query)
-	if len(query.Fields) > 0 && query.Fields[len(query.Fields)-1] == model.EmptyFieldSelection { // TODO 99% sure it's removed in next PR, let's leave for now
-		query.Fields = query.Fields[:len(query.Fields)-1]
+
+	if model.TODOBOTH {
+		if len(query.Fields) > 0 && query.Fields[len(query.Fields)-1] == model.EmptyFieldSelection { // TODO 99% sure it's removed in next PR, let's leave for now
+			query.Fields = query.Fields[:len(query.Fields)-1]
+		}
 	}
+
 	query.RemoveEmptyGroupBy()
 	query.TrimKeywordFromFields(b.ctx)
 	query.Metadata = metadata
@@ -68,13 +73,19 @@ func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.
 func (b *aggrQueryBuilder) buildCountAggregation(metadata model.JsonMap) model.Query {
 	query := b.buildAggregationCommon(metadata)
 	query.Type = metrics_aggregations.NewCount(b.ctx)
-	query.NonSchemaFields = append(query.NonSchemaFields, "count()")
+	if model.TODOBOTH {
+		query.NonSchemaFields = append(query.NonSchemaFields, "count()")
+	}
+	query.AddColumn(&model.Column{Expression: aexp.Count()})
 	return query
 }
 
 func (b *aggrQueryBuilder) buildBucketAggregation(metadata model.JsonMap) model.Query {
 	query := b.buildAggregationCommon(metadata)
-	query.NonSchemaFields = append(query.NonSchemaFields, "count()")
+	if model.TODOBOTH {
+		query.NonSchemaFields = append(query.NonSchemaFields, "count()")
+	}
+	query.AddColumn(&model.Column{Expression: aexp.Count()})
 	return query
 }
 func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregation, metadata model.JsonMap) model.Query {
@@ -95,21 +106,36 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			fieldNameProperlyQuoted = strconv.Quote(getFirstFieldName())
 		}
 		query.NonSchemaFields = append(query.NonSchemaFields, metricsAggr.AggrType+`OrNull(`+fieldNameProperlyQuoted+`)`)
+
+		query.AddColumn(&model.Column{Expression: aexp.FN(metricsAggr.AggrType, aexp.FN("OrNull", aexp.C(getFirstFieldName())))})
 	case "quantile":
 		// Sorting here useful mostly for determinism in tests.
 		// It wasn't there before, and everything worked fine. We could safely remove it, if needed.
 		usersPercents := util.MapKeysSortedByValue(metricsAggr.Percentiles)
 		for _, usersPercent := range usersPercents {
 			percentAsFloat := metricsAggr.Percentiles[usersPercent]
+
 			query.NonSchemaFields = append(query.NonSchemaFields, fmt.Sprintf(
 				"quantiles(%6f)(`%s`) AS `quantile_%s`", percentAsFloat, getFirstFieldName(), usersPercent))
+
+			query.AddColumn(&model.Column{
+				Expression: aexp.FN("quantiles", aexp.L(percentAsFloat), aexp.C(getFirstFieldName())),
+				Alias:      fmt.Sprintf("quantile_%s", usersPercent),
+			})
 		}
 	case "cardinality":
 		query.NonSchemaFields = append(query.NonSchemaFields, `COUNT(DISTINCT "`+getFirstFieldName()+`")`)
+
+		query.AddColumn(&model.Column{Expression: aexp.Count(aexp.NewComposite(aexp.Symbol("DISTINCT"), aexp.C(getFirstFieldName())))})
+
 	case "value_count":
 		query.NonSchemaFields = append(query.NonSchemaFields, "count()")
+
+		query.AddColumn(&model.Column{Expression: aexp.Count()})
+
 	case "stats":
 		fieldName := getFirstFieldName()
+
 		query.NonSchemaFields = append(
 			query.NonSchemaFields,
 			"count(`"+fieldName+"`)",
@@ -118,13 +144,24 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			"avgOrNull(`"+fieldName+"`)",
 			"sumOrNull(`"+fieldName+"`)",
 		)
+
+		query.AddColumn(&model.Column{Expression: aexp.Count(aexp.C(fieldName))})
+		query.AddColumn(&model.Column{Expression: aexp.FN("minOrNull", aexp.C(fieldName))})
+		query.AddColumn(&model.Column{Expression: aexp.FN("maxOrNull", aexp.C(fieldName))})
+		query.AddColumn(&model.Column{Expression: aexp.FN("avgOrNull", aexp.C(fieldName))})
+		query.AddColumn(&model.Column{Expression: aexp.FN("sumOrNull", aexp.C(fieldName))})
+
 	case "top_hits":
 		query.Fields = append(query.Fields, metricsAggr.FieldNames...)
 		fieldsAsString := strings.Join(metricsAggr.FieldNames, ", ")
+
+		model.TODO("top_hits: add support for sorting and size")
+
 		query.FromClause = fmt.Sprintf(
 			"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s) AS %s FROM %s)",
 			fieldsAsString, fieldsAsString, model.RowNumberColumnName, query.FromClause,
 		)
+
 	case "top_metrics":
 		// This appending of `metricsAggr.SortBy` and having it duplicated in SELECT block
 		// is a way to pass value we're sorting by to the query result. In the future we might add SQL aliasing support, e.g. SELECT x AS 'sort_by' FROM ...
@@ -141,6 +178,9 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			for _, field := range innerFields {
 				topSelectFields = append(topSelectFields, fmt.Sprintf(`%s("%s") AS "windowed_%s"`, ordFunc, field, field))
 			}
+
+			model.TODO("top_metrics: ")
+
 			query.NonSchemaFields = append(query.NonSchemaFields, topSelectFields...)
 			partitionBy := strings.Join(b.Query.GroupByFields, ", ")
 			fieldsAsString := strings.Join(quoteArray(innerFields), ", ") // need those fields in the inner clause

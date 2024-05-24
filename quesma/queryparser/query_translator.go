@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
+	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/queryprocessor"
 	"mitmproxy/quesma/util"
@@ -559,17 +560,9 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []m
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildSelectQuery(fields []string, whereClause string) *model.Query {
-	return &model.Query{
-		Fields:      fields,
-		WhereClause: whereClause,
-		FromClause:  cw.Table.FullTableName(),
-		CanParse:    true,
-	}
-}
-
 func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause string) *model.Query {
 	return &model.Query{
+		Columns:         []*model.Column{{Expression: aexp.Count()}},
 		NonSchemaFields: []string{"count()"},
 		WhereClause:     whereClause,
 		FromClause:      cw.Table.FullTableName(),
@@ -589,6 +582,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, whereClau
 	return &model.Query{
 		IsDistinct:      true,
 		Fields:          []string{fieldName},
+		Columns:         []*model.Column{{Expression: aexp.C(fieldName)}},
 		NonSchemaFields: []string{},
 		WhereClause:     whereClause,
 		SuffixClauses:   suffixClauses,
@@ -610,6 +604,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 	}
 	return &model.Query{
 		Fields:          []string{fieldName},
+		Columns:         []*model.Column{{Expression: aexp.C(fieldName)}},
 		NonSchemaFields: []string{},
 		WhereClause:     whereClause,
 		SuffixClauses:   suffixClauses,
@@ -622,6 +617,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, query mo
 	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
 	innerQuery := model.Query{
 		Fields:        []string{fieldName},
+		Columns:       []*model.Column{{Expression: aexp.C(fieldName)}},
 		WhereClause:   query.Sql.Stmt,
 		SuffixClauses: []string{"LIMIT " + facetsSampleSize},
 		FromClause:    cw.Table.FullTableName(),
@@ -629,6 +625,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, query mo
 	}
 	return &model.Query{
 		Fields:          []string{fieldName},
+		Columns:         []*model.Column{{Expression: aexp.C(fieldName)}, {Expression: aexp.Count()}},
 		NonSchemaFields: []string{"count()"},
 		SuffixClauses:   suffixClauses,
 		FromClause:      "(" + innerQuery.String() + ")",
@@ -648,6 +645,7 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName, whe
 	suffixClauses := []string{orderBy, "LIMIT 1"}
 	return &model.Query{
 		Fields:        []string{timestampFieldName},
+		Columns:       []*model.Column{{Expression: aexp.C(timestampFieldName)}},
 		WhereClause:   whereClause,
 		SuffixClauses: suffixClauses,
 		FromClause:    cw.Table.FullTableName(),
