@@ -54,6 +54,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(tt.QueryJson)
 			assert.True(t, simpleQuery.CanParse, "can parse")
+			simpleQuery, queryInfo, _, _ = cw.ParseQueryInternal(tt.QueryJson)
 			assert.Contains(t, tt.WantedSql, simpleQuery.Sql.Stmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
 			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
