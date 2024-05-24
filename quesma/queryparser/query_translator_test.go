@@ -361,7 +361,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 						},
 						"sort": [
 							"2024-01-30T19:39:35.767Z",
-							16
+							"apollo"
 						]
 					},
 					{
@@ -400,7 +400,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 						},
 						"sort": [
 							"2024-01-30T19:38:54.607Z",
-							2944
+							"apollo"
 						]
 					}
 				],
@@ -449,13 +449,17 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
-			ourResponse, err := cw.MakeAsyncSearchResponseMarshalled(args[i].ourQueryResult, model.Query{QueryInfo: model.SearchQueryInfo{Typ: args[i].queryType}, Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
+			ourResponse, err := cw.MakeAsyncSearchResponseMarshalled(args[i].ourQueryResult, model.Query{
+				QueryInfo:   model.SearchQueryInfo{Typ: args[i].queryType},
+				Highlighter: NewEmptyHighlighter(),
+				SortFields:  []model.SortField{{Field: "@timestamp", Desc: true}, {Field: "host.name", Desc: true}},
+			}, asyncRequestIdStr, false)
 			assert.NoError(t, err)
 
 			actualMinusExpected, expectedMinusActual, err := util.JsonDifference(string(ourResponse), args[i].elasticResponseJson)
 			assert.NoError(t, err)
-			assert.Empty(t, actualMinusExpected)
-			assert.Empty(t, expectedMinusActual)
+			assert.Empty(t, actualMinusExpected, "actualMinusExpected: %s", actualMinusExpected)
+			assert.Empty(t, expectedMinusActual, "expectedMinusActual: %s", expectedMinusActual)
 		})
 	}
 }
