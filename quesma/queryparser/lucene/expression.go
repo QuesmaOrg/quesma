@@ -5,20 +5,6 @@ import (
 	wc "mitmproxy/quesma/queryparser/where_clause"
 )
 
-// expression is an interface representing a fully parsed (part of) Lucene query.
-// leafExpression is a smallest part of a query that can be translated into SQL,
-// e.g. "title:abc", or "abc", or "title:(abc OR def)".
-// Expression can be only a part of the query, as e.g. for a query: "title:abc AND text:def",
-// there are two leftExpressions: "title:abc" and "text:def".
-//
-// During parsing, we only keep one expression, because we're combining leafExpressions into
-// a tree of expressions. We keep the lastExpression to combine it with the next one.
-// E.g. "title:abc AND text:def" is parsed into andExpression(title:abc, text:def)".
-
-type expression interface {
-	toStatement() wc.Statement
-}
-
 func (p *luceneParser) BuildWhereStatement() wc.Statement {
 	for len(p.tokens) > 0 {
 		p.WhereStatement = p.buildWhereStatement(true)
@@ -29,6 +15,8 @@ func (p *luceneParser) BuildWhereStatement() wc.Statement {
 	return p.WhereStatement
 }
 
+// LeafStatement is a smallest part of a query that can be translated into SQL,
+// e.g. "title:abc", or "abc", or "title:(abc OR def)".
 func newLeafStatement(fieldNames []string, value value) wc.Statement {
 	if len(fieldNames) == 0 {
 		return wc.NewLiteral("false")
@@ -49,8 +37,10 @@ func newLeafStatement(fieldNames []string, value value) wc.Statement {
 
 var invalidStatement = wc.NewLiteral("false")
 
-// buildExpression builds an expression tree from p.tokens
-// Called only when p.tokens is not empty.
+// buildWhereStatement builds a WHERE statement from the tokens.
+// During parsing, we only keep one expression, because we're combining leafExpressions into
+// a tree of expressions. We keep the lastExpression to combine it with the next one.
+// E.g. "title:abc AND text:def" is parsed into andExpression(title:abc, text:def)".
 func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) wc.Statement {
 	tok := p.tokens[0]
 	p.tokens = p.tokens[1:]

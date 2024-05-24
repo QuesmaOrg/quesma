@@ -123,8 +123,8 @@ func (v rangeValue) toStatement(fieldName string) wc.Statement {
 		} else {
 			operator = " > "
 		}
-		if exp, ok := v.lowerBound.(expression); ok {
-			left = wc.NewInfixOp(wc.NewColumnRef(fieldName), operator, exp.toStatement())
+		if exp, ok := v.lowerBound.(wc.Statement); ok {
+			left = wc.NewInfixOp(wc.NewColumnRef(fieldName), operator, exp)
 		} else {
 			left = wc.NewInfixOp(wc.NewColumnRef(fieldName), operator, wc.NewLiteral(fmt.Sprintf("'%v'", v.lowerBound)))
 		}
@@ -135,8 +135,8 @@ func (v rangeValue) toStatement(fieldName string) wc.Statement {
 		} else {
 			operator = " < "
 		}
-		if exp, ok := v.upperBound.(expression); ok {
-			right = wc.NewInfixOp(wc.NewColumnRef(fieldName), operator, exp.toStatement())
+		if exp, ok := v.upperBound.(wc.Statement); ok {
+			right = wc.NewInfixOp(wc.NewColumnRef(fieldName), operator, exp)
 		} else {
 			right = wc.NewInfixOp(wc.NewColumnRef(fieldName), operator, wc.NewLiteral(fmt.Sprintf("'%v'", v.upperBound)))
 		}
