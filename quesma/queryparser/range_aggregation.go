@@ -5,6 +5,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
+	"mitmproxy/quesma/queryparser/aexp"
 	"strconv"
 )
 
@@ -62,6 +63,10 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 			currentAggr.NonSchemaFields,
 			interval.ToSQLSelectQuery(Range.QuotedFieldName),
 		)
+
+		// TODO XXXX
+		currentAggr.Columns = append(currentAggr.Columns, model.Column{Expression: aexp.SQL{Query: interval.ToSQLSelectQuery(Range.QuotedFieldName)}})
+
 	}
 	if !Range.Keyed {
 		// there's a difference in output structure whether the range is keyed or not
