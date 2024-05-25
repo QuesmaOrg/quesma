@@ -74,6 +74,9 @@ func (c QueryResultCol) ExtractValue(ctx context.Context) any {
 	v := reflect.ValueOf(c.Value)
 
 	if v.Kind() == reflect.Ptr {
+		if v.Elem().Kind() == 0 {
+			return nil
+		}
 		return v.Elem().Interface()
 	}
 
