@@ -21,6 +21,10 @@ func (cw *ClickhouseQueryTranslator) parsePipelineAggregations(queryMap QueryMap
 		delete(queryMap, "derivative")
 		return
 	}
+	if aggregationType, success = cw.parseSerialDiff(queryMap); success {
+		delete(queryMap, "derivative")
+		return
+	}
 	if aggregationType, success = cw.parseAverageBucket(queryMap); success {
 		delete(queryMap, "avg_bucket")
 		return
@@ -110,6 +114,37 @@ func (cw *ClickhouseQueryTranslator) parseSumBucket(queryMap QueryMap) (aggregat
 		return
 	}
 	return pipeline_aggregations.NewSumBucket(cw.Ctx, bucketsPath), true
+}
+
+func (cw *ClickhouseQueryTranslator) parseSerialDiff(queryMap QueryMap) (aggregationType model.QueryType, success bool) {
+	serialDiffRaw, exists := queryMap["serial_diff"]
+	if !exists {
+		return
+	}
+
+	// buckets_path
+	bucketsPath, ok := cw.parseBucketsPath(serialDiffRaw, "serial_diff")
+	if !ok {
+		return
+	}
+
+	// lag
+	const defaultLag = 1
+	serialDiff, ok := serialDiffRaw.(QueryMap)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("serial_diff is not a map, but %T, value: %v", serialDiffRaw, serialDiffRaw)
+		return
+	}
+	lagRaw, exists := serialDiff["lag"]
+	if !exists {
+		return pipeline_aggregations.NewSerialDiff(cw.Ctx, bucketsPath, defaultLag), true
+	}
+	if lag, ok := lagRaw.(float64); ok {
+		return pipeline_aggregations.NewSerialDiff(cw.Ctx, bucketsPath, int(lag)), true
+	}
+
+	logger.WarnWithCtx(cw.Ctx).Msgf("lag is not a float64, but %T, value: %v", lagRaw, lagRaw)
+	return
 }
 
 func (cw *ClickhouseQueryTranslator) parseBucketScriptBasic(queryMap QueryMap) (aggregationType model.QueryType, success bool) {
@@ -207,7 +242,18 @@ func (b *aggrQueryBuilder) finishBuildingAggregationPipeline(aggregationType mod
 		if aggrType.IsCount {
 			query.NonSchemaFields = append(query.NonSchemaFields, "count()")
 			if len(query.Aggregators) < 2 {
-				logger.WarnWithCtx(b.ctx).Msg("cumulative_sum with count as parent, but no parent aggregation found")
+				logger.WarnWithCtx(b.ctx).Msg("derivative with count as parent, but no parent aggregation found")
+			}
+			query.Parent = query.Aggregators[len(query.Aggregators)-2].Name
+		} else {
+			query.Parent = aggrType.Parent
+		}
+	case pipeline_aggregations.SerialDiff:
+		query.NoDBQuery = true
+		if aggrType.IsCount {
+			query.NonSchemaFields = append(query.NonSchemaFields, "count()")
+			if len(query.Aggregators) < 2 {
+				logger.WarnWithCtx(b.ctx).Msg("serial diff with count as parent, but no parent aggregation found")
 			}
 			query.Parent = query.Aggregators[len(query.Aggregators)-2].Name
 		} else {

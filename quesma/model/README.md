@@ -9,40 +9,42 @@ More info: https://www.elastic.co/guide/en/elasticsearch/reference/current/searc
 | :wavy_dash:        | <b>Partially</b> supported.                                                                                                                                                                                                                                                    |
 | :x:                | Completely <b>not</b> supported.                                                                                                                                                                                                                                               |
 
- Metrics aggregation       |      Support       | Bucket aggregation           |      Support       | Pipeline aggregation   |      Support       |
----------------------------|:------------------:|------------------------------|:------------------:|------------------------|:------------------:|
- Avg                       | :white_check_mark: | Adjacency matrix             |        :x:         | Average bucket         |        :x:         |
- Cardinality               | :white_check_mark: | Auto-interval date histogram |        :x:         | Bucket script          |        :x:         |
- Extended Stats            |        :x:         | Categorize text              |        :x:         | Bucket count K-S test  |        :x:         |
- Avg                       | :white_check_mark: | Children                     |        :x:         | Bucket correlation     |        :x:         |
- Boxplot                   |        :x:         | Composite                    |        :x:         | Bucket selector        |        :x:         |
- Cardinality               | :white_check_mark: | Date histogram               | :white_check_mark: | Bucket sort            |        :x:         |
- Extended stats            |        :x:         | Date range                   | :white_check_mark: | Change point           |        :x:         |
- Geo-bounds                |        :x:         | Diversified sampler          |        :x:         | Cumulative cardinality |        :x:         |
- Geo-centroid              |        :x:         | Filter                       | :white_check_mark: | Cumulative sum         | :white_check_mark: |
- Geo-line                  |        :x:         | Filters                      | :white_check_mark: | Derivative             |        :x:         |
- Cartesian-bounds          |        :x:         | Frequent item sets           |        :x:         | Extended stats bucket  |        :x:         |
- Cartesian-centroid        |        :x:         | Geo-distance                 |        :x:         | Inference bucket       |        :x:         |
- Matrix stats              |        :x:         | Geohash grid                 |        :x:         | Max bucket             |        :x:         |
- Max                       | :white_check_mark: | Geotile grid                 |        :x:         | Min bucket             |        :x:         |
- Median absolute deviation |        :x:         | Global                       |        :x:         | Moving function        |        :x:         |
- Min                       | :white_check_mark: | Histogram                    | :white_check_mark: | Moving percentiles     |        :x:         |
- Percentile ranks          | :white_check_mark: | IP prefix                    |        :x:         | Normalize              |        :x:         |
- Percentiles               | :white_check_mark: | IP range                     |        :x:         | Percentiles bucket     |        :x:         |
- Rate                      |        :x:         | Missing                      |        :x:         | Serial differencing    |        :x:         |
- Scripted metric           |        :x:         | Multi-terms                  |        :x:         | Stats bucket           |        :x:         |
- Stats                     | :white_check_mark: | Nested                       |        :x:         | Sum bucket             |        :x:         |
- String stats              |        :x:         | Parent                       |        :x:         |
- Sum                       | :white_check_mark: | Random sampler               |    :wavy_dash:     |
- T-test                    |        :x:         | Range                        | :white_check_mark: |
- Top hits                  | :white_check_mark: | Rare terms                   |        :x:         |
- Top metrics               | :white_check_mark: | Reverse nested               |        :x:         |
- Value count               | :white_check_mark: | Sampler                      |    :wavy_dash:     |
- Weighted avg              |        :x:         | Significant terms            | :white_check_mark: |
-|                          |                    | Significant text             |        :x:         |
-|                          |                    | Terms                        | :white_check_mark: |
-|                          |                    | Time series                  |        :x:         |
-|                          |                    | Variable width histogram     |        :x:         |
+ Metrics aggregation       |        Support         | Bucket aggregation           |      Support       | Pipeline aggregation   |      Support       |
+---------------------------|:----------------------:|------------------------------|:------------------:|------------------------|:------------------:|
+ Avg                       |   :white_check_mark:   | Adjacency matrix             |        :x:         | Average bucket         |        :x:         |
+ Cardinality               |   :white_check_mark:   | Auto-interval date histogram |        :x:         | Bucket script          |        :x:         |
+ Extended Stats            |          :x:           | Categorize text              |        :x:         | Bucket count K-S test  |        :x:         |
+ Avg                       |   :white_check_mark:   | Children                     |        :x:         | Bucket correlation     |        :x:         |
+ Boxplot                   |          :x:           | Composite                    |        :x:         | Bucket selector        |        :x:         |
+ Cardinality               |   :white_check_mark:   | Date histogram               | :white_check_mark: | Bucket sort            |        :x:         |
+ Extended stats            | :white_check_mark:[^1] | Date range                   | :white_check_mark: | Change point           |        :x:         |
+ Geo-bounds                |          :x:           | Diversified sampler          |        :x:         | Cumulative cardinality |        :x:         |
+ Geo-centroid              |          :x:           | Filter                       | :white_check_mark: | Cumulative sum         | :white_check_mark: |
+ Geo-line                  |          :x:           | Filters                      | :white_check_mark: | Derivative             |        :x:         |
+ Cartesian-bounds          |          :x:           | Frequent item sets           |        :x:         | Extended stats bucket  |        :x:         |
+ Cartesian-centroid        |          :x:           | Geo-distance                 |        :x:         | Inference bucket       |        :x:         |
+ Matrix stats              |          :x:           | Geohash grid                 |        :x:         | Max bucket             |        :x:         |
+ Max                       |   :white_check_mark:   | Geotile grid                 |        :x:         | Min bucket             |        :x:         |
+ Median absolute deviation |          :x:           | Global                       |        :x:         | Moving function        |        :x:         |
+ Min                       |   :white_check_mark:   | Histogram                    | :white_check_mark: | Moving percentiles     |        :x:         |
+ Percentile ranks          |   :white_check_mark:   | IP prefix                    |        :x:         | Normalize              |        :x:         |
+ Percentiles               |   :white_check_mark:   | IP range                     |        :x:         | Percentiles bucket     |        :x:         |
+ Rate                      |          :x:           | Missing                      |        :x:         | Serial differencing    |        :x:         |
+ Scripted metric           |          :x:           | Multi-terms                  |        :x:         | Stats bucket           |        :x:         |
+ Stats                     |   :white_check_mark:   | Nested                       |        :x:         | Sum bucket             |        :x:         |
+ String stats              |          :x:           | Parent                       |        :x:         |
+ Sum                       |   :white_check_mark:   | Random sampler               |    :wavy_dash:     |
+ T-test                    |          :x:           | Range                        | :white_check_mark: |
+ Top hits                  |   :white_check_mark:   | Rare terms                   |        :x:         |
+ Top metrics               |   :white_check_mark:   | Reverse nested               |        :x:         |
+ Value count               |   :white_check_mark:   | Sampler                      |    :wavy_dash:     |
+ Weighted avg              |          :x:           | Significant terms            | :white_check_mark: |
+|                          |                        | Significant text             |        :x:         |
+|                          |                        | Terms                        | :white_check_mark: |
+|                          |                        | Time series                  |        :x:         |
+|                          |                        | Variable width histogram     |        :x:         |
+
+[^1]: only `missing` parameter isn't supported, but it seems like a very unlikely use case.
 
 # Query DSL support list
 

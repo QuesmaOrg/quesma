@@ -34,6 +34,7 @@ type metricsAggregation struct {
 	Size                int                     // Only for top_metrics
 	Order               string                  // Only for top_metrics
 	IsFieldNameCompound bool                    // Only for a few aggregations, where we have only 1 field. It's a compound, so e.g. toHour(timestamp), not just "timestamp"
+	sigma               float64                 // only for standard deviation
 }
 
 const metricsAggregationDefaultFieldType = clickhouse.Invalid
@@ -162,6 +163,20 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			Select := fmt.Sprintf("count(if(%s<=%f, 1, NULL))/count(*)*100", strconv.Quote(getFirstFieldName()), cutValue)
 			query.NonSchemaFields = append(query.NonSchemaFields, Select)
 		}
+	case "extended_stats":
+		fieldName := "(" + strconv.Quote(getFirstFieldName()) + ")"
+		query.NonSchemaFields = append(query.NonSchemaFields,
+			"count"+fieldName,
+			"minOrNull"+fieldName,
+			"maxOrNull"+fieldName,
+			"avgOrNull"+fieldName,
+			"sumOrNull"+fieldName,
+			fmt.Sprintf("sumOrNull(%s*%s)", fieldName[1:len(fieldName)-1], fieldName[1:len(fieldName)-1]),
+			"varPop"+fieldName,
+			"varSamp"+fieldName,
+			"stddevPop"+fieldName,
+			"stddevSamp"+fieldName,
+		)
 	default:
 		logger.WarnWithCtx(b.ctx).Msgf("unknown metrics aggregation: %s", metricsAggr.AggrType)
 		query.CanParse = false
@@ -177,6 +192,8 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		query.Type = metrics_aggregations.NewAvg(b.ctx, metricsAggr.FieldType)
 	case "stats":
 		query.Type = metrics_aggregations.NewStats(b.ctx)
+	case "extended_stats":
+		query.Type = metrics_aggregations.NewExtendedStats(b.ctx, metricsAggr.sigma)
 	case "cardinality":
 		query.Type = metrics_aggregations.NewCardinality(b.ctx)
 	case "quantile":
@@ -532,6 +549,28 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			FieldNames: fieldNames,
 			FieldType:  metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
 			Keyed:      keyed,
+		}, true
+	}
+
+	if extendedStatsRaw, exists := queryMap["extended_stats"]; exists {
+		extendedStats, ok := extendedStatsRaw.(QueryMap)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("extended_stats is not a map, but %T, value: %v. Skipping.", extendedStatsRaw, extendedStatsRaw)
+			return metricsAggregation{}, false
+		}
+		const defaultSigma = 2.0
+		sigma := defaultSigma
+		if sigmaRaw, exists := extendedStats["sigma"]; exists {
+			sigma, ok = sigmaRaw.(float64)
+			if !ok {
+				logger.WarnWithCtx(cw.Ctx).Msgf("sigma in extended_stats is not a float64, but %T, value: %v. Using default.", sigmaRaw, sigmaRaw)
+				sigma = defaultSigma
+			}
+		}
+		return metricsAggregation{
+			AggrType:   "extended_stats",
+			FieldNames: []string{cw.parseFieldField(extendedStats, "extended_stats")},
+			sigma:      sigma,
 		}, true
 	}
 
