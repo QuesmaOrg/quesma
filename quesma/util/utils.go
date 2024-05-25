@@ -484,6 +484,13 @@ func equal(a, b any) bool {
 	if a == b {
 		return true
 	}
+
+	aFloat, aIsFloat := a.(float64)
+	bFloat, bIsFloat := b.(float64)
+	if aIsFloat && bIsFloat {
+		return aFloat-bFloat < 1e-10 && aFloat-bFloat > -1e-10
+	}
+
 	switch aTyped := a.(type) {
 	case float64:
 		bAsInt, ok := b.(int)
@@ -640,4 +647,16 @@ func ExtractFloat64Maybe(value any) (asFloat64 float64, success bool) {
 		return float64(*valueTyped), true
 	}
 	return -1, false
+}
+
+// ExtractNumeric64Maybe returns float64 value behind `value`, if it's numeric (some kind of (*)int or (*)float).
+func ExtractNumeric64Maybe(value any) (asFloat64 float64, success bool) {
+	if asFloat64, success = ExtractFloat64Maybe(value); success {
+		return asFloat64, true
+	}
+	var asInt64 int64
+	if asInt64, success = ExtractInt64Maybe(value); success {
+		return float64(asInt64), true
+	}
+	return 0.0, false
 }

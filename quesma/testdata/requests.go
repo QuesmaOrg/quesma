@@ -928,12 +928,12 @@ var TestsSearch = []SearchTestCase{
 				}
 			}
 		}`,
-		[]string{`"type"='task' AND ("task.enabled"=true OR "task.enabled"=54)`},
+		[]string{`"type"='task' AND "task.enabled" IN (true,54)`},
 		model.Normal,
 		[]model.Query{
-			justSimplestWhere(`"type"='task' AND ("task.enabled"=true OR "task.enabled"=54)`),
+			justSimplestWhere(`"type"='task' AND "task.enabled" IN (true,54)`),
 		},
-		[]string{qToStr(justSimplestWhere(`"type"='task' AND ("task.enabled"=true OR "task.enabled"=54)`))},
+		[]string{qToStr(justSimplestWhere(`"type"='task' AND "task.enabled" IN (true,54)`))},
 	},
 	{ // [3]
 		"Sample log query",
@@ -1781,7 +1781,7 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{""},
 		model.ListByField,
-		[]model.Query{newSimplestQuery()},
+		[]model.Query{withLimit(newSimplestQuery(), 500)},
 		[]string{`SELECT "message" FROM "logs-generic-default" LIMIT 500`},
 	},
 	{ // [26]
@@ -1916,7 +1916,7 @@ var TestsSearch = []SearchTestCase{
 					},
 					{
 					  "match_phrase": {
-						"_id": "18f86fcd014q6"
+						"_id": "323032342d30352d32342031333a33323a34372e333037202b3030303020555443q1"
 					  }
 					}
 				  ]
@@ -1924,13 +1924,13 @@ var TestsSearch = []SearchTestCase{
 			  }
 			}`,
 		[]string{
-			`"@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND toUnixTimestamp64Milli("@timestamp") IN ([1715956666388])`,
-			`toUnixTimestamp64Milli("@timestamp") IN ([1715956666388]) AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')`,
+			`"@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp" IN (toDateTime64('2024-05-24 13:32:47.307',3))`,
+			`"@timestamp" IN (toDateTime64('2024-05-24 13:32:47.307',3)) AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')`,
 		},
 		model.Normal,
 		[]model.Query{
-			justSimplestWhere(`"@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND toUnixTimestamp64Milli("@timestamp") IN ([1715956666388])`),
-			justSimplestWhere(`toUnixTimestamp64Milli("@timestamp") IN ([1715956666388]) AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')`),
+			justSimplestWhere(`"@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp" IN (toDateTime64('2024-05-24 13:32:47.307',3))`),
+			justSimplestWhere(`"@timestamp" IN (toDateTime64('2024-05-24 13:32:47.307',3)) AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')`),
 		},
 		// TestSearchHandler is pretty blunt with config loading so the test below can't be used.
 		// We will probably refactor it as we move forwards with schema which will get even more side-effecting
@@ -1951,6 +1951,39 @@ var TestsSearch = []SearchTestCase{
 		model.Normal,
 		[]model.Query{justSimplestWhere(`"user.id"='kimchy'`)},
 		[]string{qToStr(justSimplestWhere(`"user.id"='kimchy'`))},
+	},
+	{ // [35] terms with range
+		"Terms with range",
+		`{
+		  "size": 1,
+		  "query": {
+			"bool": {
+			  "filter": [
+				{
+				  "terms": {
+					"cliIP": [
+					  "2601:204:c503:c240:9c41:5531:ad94:4d90",
+					  "50.116.43.98",
+					  "75.246.0.64"
+					]
+				  }
+				},
+				{
+				  "range": {
+					"@timestamp": {
+					  "gte": "2024-05-16T00:00:00",
+					  "lte": "2024-05-17T23:59:59"
+					}
+				  }
+				}
+			  ]
+			}
+		  }
+		}`,
+		[]string{`"cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`},
+		model.Normal,
+		[]model.Query{withLimit(justSimplestWhere(`"cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`), 1)},
+		[]string{qToStr(withLimit(justSimplestWhere(`"cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`), 1))},
 	},
 }
 

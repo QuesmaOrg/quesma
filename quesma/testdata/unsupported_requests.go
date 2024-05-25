@@ -477,17 +477,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [24]
-		TestName:  "metrics aggregation: extended_stats",
-		QueryType: "extended_stats",
-		QueryRequestJson: `
-		{
-			"size": 0,
-			"aggs": {
-				"grades_stats": { "extended_stats": { "field": "grade" } }
-			}
-		}`,
-	},
 	{ // [25]
 		TestName:  "metrics aggregation: geo_bounds",
 		QueryType: "geo_bounds",
@@ -1096,35 +1085,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 					"percentiles_bucket": {
 						"buckets_path": "sales_per_month>sales", 
 						"percents": [ 25.0, 50.0, 75.0 ]         
-					}
-				}
-			}
-		}`,
-	},
-	{ // [54]
-		TestName:  "pipeline aggregation: serial_diff",
-		QueryType: "serial_diff",
-		QueryRequestJson: `
-		{
-			"size": 0,
-			"aggs": {
-				"my_date_histo": {                  
-					"date_histogram": {
-						"field": "timestamp",
-						"calendar_interval": "day"
-					},
-					"aggs": {
-						"the_sum": {
-							"sum": {
-								"field": "lemmings"     
-							}
-						},
-						"thirtieth_difference": {
-							"serial_diff": {                
-								"buckets_path": "the_sum",
-								"lag" : 30
-							}
-						}
 					}
 				}
 			}

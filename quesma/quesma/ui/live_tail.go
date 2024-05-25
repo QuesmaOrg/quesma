@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"mitmproxy/quesma/buildinfo"
+	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"mitmproxy/quesma/util"
 )
@@ -80,7 +81,7 @@ document.body.addEventListener('htmx:afterSwap', function(event) {
 
 	buffer.Html(`<h3>Details</h3>`)
 	buffer.Html(`<ul>`)
-	buffer.Html("<li><small>Mode: ").Text(qmc.config.Mode.String()).Html("</small></li>")
+	buffer.Html("<li><small>Mode: ").Text(qmc.cfg.Mode.String()).Html("</small></li>")
 	buffer.Html(`</ul>`)
 
 	buffer.Html("\n</div>")
@@ -104,7 +105,7 @@ func (qmc *QuesmaManagementConsole) generateQueries() []byte {
 	}
 	qmc.mutex.Unlock()
 
-	queriesBytes := generateQueries(debugKeyValueSlice, true)
+	queriesBytes := qmc.populateQueries(debugKeyValueSlice, true)
 	queriesStats := qmc.generateQueriesStatsPanel()
 	unsupportedQueriesStats := qmc.generateUnsupportedQuerySidePanel()
 	return append(queriesBytes, append(queriesStats, unsupportedQueriesStats...)...)
@@ -182,7 +183,7 @@ func (qmc *QuesmaManagementConsole) generateQueriesStatsPanel() []byte {
 	return buffer.Bytes()
 }
 
-func generateQueries(debugKeyValueSlice []queryDebugInfoWithId, withLinks bool) []byte {
+func (qmc *QuesmaManagementConsole) populateQueries(debugKeyValueSlice []queryDebugInfoWithId, withLinks bool) []byte {
 	var buffer builder.HtmlBuffer
 
 	buffer.Html("\n" + `<div class="left" id="query-left">` + "\n")
@@ -205,25 +206,31 @@ func generateQueries(debugKeyValueSlice []queryDebugInfoWithId, withLinks bool) 
 	buffer.Html("\n</div>\n")
 
 	buffer.Html(`<div class="right" id="query-right">` + "\n")
-	buffer.Html(`<div class="title-bar">Elasticsearch response` + "\n" + `</div>`)
-	buffer.Html(`<div class="debug-body">`)
-	for _, v := range debugKeyValueSlice {
-		if withLinks {
-			buffer.Html(`<a href="/request-id/`).Text(v.id).Html(`">`)
+	// TODO revisit after modes are redone
+	if qmc.cfg.Mode == config.DualWriteQueryClickhouse && qmc.cfg.Elasticsearch.Call {
+		buffer.Html(`<div class="title-bar">Elasticsearch response` + "\n" + `</div>`)
+		buffer.Html(`<div class="debug-body">`)
+		for _, v := range debugKeyValueSlice {
+			if withLinks {
+				buffer.Html(`<a href="/request-id/`).Text(v.id).Html(`">`)
+			}
+			tookStr := fmt.Sprintf(" took %d ms", v.query.PrimaryTook.Milliseconds())
+			buffer.Html("<p>UUID:").Text(v.id).Text(tookStr).Html("</p>\n")
+			buffer.Html(`<pre Id="response`).Text(v.id).Html(`">`)
+			if len(v.query.QueryResp) > 0 {
+				buffer.Text(string(v.query.QueryResp))
+			} else {
+				buffer.Text("(empty, request was not sent to Elasticsearch)")
+			}
+			buffer.Html("\n</pre>")
+			if withLinks {
+				buffer.Html("\n</a>")
+			}
 		}
-		tookStr := fmt.Sprintf(" took %d ms", v.query.PrimaryTook.Milliseconds())
-		buffer.Html("<p>UUID:").Text(v.id).Text(tookStr).Html("</p>\n")
-		buffer.Html(`<pre Id="response`).Text(v.id).Html(`">`)
-		if len(v.query.QueryResp) > 0 {
-			buffer.Text(string(v.query.QueryResp))
-		} else {
-			buffer.Text("(empty, request was not sent to Elasticsearch)")
-		}
-		buffer.Html("\n</pre>")
-		if withLinks {
-			buffer.Html("\n</a>")
-		}
+	} else {
+		buffer.Html(`<div class="title-bar">Elasticsearch response (not applicable)` + "\n" + `</div>`)
 	}
+
 	buffer.Html("\n</div>")
 	buffer.Html("\n</div>\n")
 

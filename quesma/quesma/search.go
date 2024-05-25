@@ -7,6 +7,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/elasticsearch"
+	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
@@ -135,13 +136,16 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	switch sources {
 	case sourceBoth:
-		logger.Error().Msgf("querying data in elasticsearch and clickhouse is not supported at the moment, index pattern [%s] resolved to both elasticsearch indices: [%s] and clickhouse tables: [%s]", indexPattern, sourcesElastic, sourcesClickhouse)
-		// TODO replace with actual handling
+
+		err := end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to both elasticsearch indices: [%s] and clickhouse tables: [%s]", indexPattern, sourcesElastic, sourcesClickhouse))
+
+		var resp []byte
 		if optAsync != nil {
-			return queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 200)
+			resp, _ = queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 200)
 		} else {
-			return queryparser.EmptySearchResponse(ctx), nil
+			resp = queryparser.EmptySearchResponse(ctx)
 		}
+		return resp, err
 	case sourceNone:
 		if elasticsearch.IsIndexPattern(indexPattern) {
 			if optAsync != nil {
@@ -156,8 +160,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	case sourceClickhouse:
 		logger.Debug().Msgf("index pattern [%s] resolved to clickhouse tables: [%s]", indexPattern, sourcesClickhouse)
 	case sourceElasticsearch:
-		logger.Error().Msgf("index pattern [%s] resolved to elasticsearch indices: [%s]", indexPattern, sourcesElastic)
-		panic("elasticsearch-only indexes should not be routed here at all")
+		return nil, end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to elasticsearch indices: [%s]", indexPattern, sourcesElastic))
 	}
 	logger.Debug().Msgf("resolved sources for index pattern %s -> %s", indexPattern, sources)
 
@@ -196,7 +199,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		table, _ := tables.Load(resolvedTableName)
 		if table == nil {
-			return []byte{}, fmt.Errorf("can't load %s table", resolvedTableName)
+			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}
 
 		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)

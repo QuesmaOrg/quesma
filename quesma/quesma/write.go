@@ -97,21 +97,22 @@ func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON,
 	return results
 }
 
-func dualWrite(ctx context.Context, tableName string, body types.JSON, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) {
+func dualWrite(ctx context.Context, tableName string, body types.JSON, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) error {
 	stats.GlobalStatistics.Process(cfg, tableName, body, clickhouse.NestedSeparator)
 	if config.TrafficAnalysis.Load() {
 		logger.Info().Msgf("analysing traffic, not writing to Clickhouse %s", tableName)
-		return
+		return nil
 	}
 
 	defer recovery.LogPanic()
 	if len(body) == 0 {
-		return
+		return nil
 	}
 
 	withConfiguration(ctx, cfg, tableName, body, func() error {
 		return lm.ProcessInsertQuery(ctx, tableName, types.NDJSON{body})
 	})
+	return nil
 }
 
 var insertCounter = atomic.Int32{}

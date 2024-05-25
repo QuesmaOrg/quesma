@@ -1,21 +1,23 @@
 package queryparser
 
 import (
+	"encoding/hex"
 	"encoding/json"
-	wc "mitmproxy/quesma/queryparser/where_clause"
-	"mitmproxy/quesma/quesma/types"
-
 	"fmt"
-	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/lucene"
 	"mitmproxy/quesma/queryparser/query_util"
+	wc "mitmproxy/quesma/queryparser/where_clause"
+	"mitmproxy/quesma/quesma/types"
+	"mitmproxy/quesma/util"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
+
+	"github.com/k0kubun/pp"
+	"github.com/relvacode/iso8601"
 )
 
 type QueryMap = map[string]interface{}
@@ -307,7 +309,7 @@ func (cw *ClickhouseQueryTranslator) parseConstantScore(queryMap QueryMap) model
 }
 
 func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQuery {
-	var ids []string
+	var ids, finalIds []string
 	if val, ok := queryMap["values"]; ok {
 		if values, ok := val.([]interface{}); ok {
 			for _, id := range values {
@@ -324,17 +326,21 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		logger.Warn().Msgf("id query executed, but not timestamp field configured")
 		return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
 	}
+	if len(ids) == 0 {
+		return model.NewSimpleQuery(model.NewSimpleStatement("parsing error: empty _id array"), false)
+	}
 
-	// when our generated ID appears in query looks like this: `18f7b8800b8q1`
+	// when our generated ID appears in query looks like this: `1d<TRUNCATED>0b8q1`
 	// therefore we need to strip the hex part (before `q`) and convert it to decimal
 	// then we can query at DB level
 	for i, id := range ids {
 		idInHex := strings.Split(id, "q")[0]
-		if decimalValue, err := strconv.ParseUint(idInHex, 16, 64); err != nil {
+		if idAsStr, err := hex.DecodeString(idInHex); err != nil {
 			logger.Error().Msgf("error parsing document id %s: %v", id, err)
 			return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
 		} else {
-			ids[i] = fmt.Sprintf("%d", decimalValue)
+			tsWithoutTZ := strings.TrimSuffix(string(idAsStr), " +0000 UTC")
+			ids[i] = fmt.Sprintf("'%s'", tsWithoutTZ)
 		}
 	}
 
@@ -342,14 +348,17 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	if v, ok := cw.Table.Cols[timestampColumnName]; ok {
 		switch v.Type.String() {
 		case clickhouse.DateTime64.String():
-			statement = model.NewSimpleStatement(fmt.Sprintf("toUnixTimestamp64Milli(%s) IN (%s)", strconv.Quote(timestampColumnName), ids))
-			statement.WhereStatement = wc.NewInfixOp(wc.NewFunction("toUnixTimestamp64Milli", []wc.Statement{wc.NewColumnRef(timestampColumnName)}...), "IN", wc.NewLiteral("(["+strings.Join(ids, ",")+"])"))
+			for _, id := range ids {
+				finalIds = append(finalIds, fmt.Sprintf("toDateTime64(%s,3)", id))
+			}
+			statement = model.NewSimpleStatement(fmt.Sprintf("%s IN (%s)", strconv.Quote(timestampColumnName), strings.Join(finalIds, ",")))
+			statement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(timestampColumnName), " IN ", wc.NewFunction("toDateTime64", wc.NewLiteral(strings.Join(ids, ",")), wc.NewLiteral("3")))
 		case clickhouse.DateTime.String():
-			statement = model.NewSimpleStatement(fmt.Sprintf("toUnixTimestamp(%s) * 1000 IN (%s)", strconv.Quote(timestampColumnName), ids))
-			statement.WhereStatement = wc.NewInfixOp(wc.NewInfixOp(
-				wc.NewFunction("toUnixTimestamp", []wc.Statement{wc.NewColumnRef(timestampColumnName)}...),
-				"*",
-				wc.NewLiteral("1000")), "IN", wc.NewLiteral("("+strings.Join(ids, ",")+")"))
+			for _, id := range ids {
+				finalIds = append(finalIds, fmt.Sprintf("toDateTime(%s)", id))
+			}
+			statement = model.NewSimpleStatement(fmt.Sprintf("%s IN (%s)", strconv.Quote(timestampColumnName), strings.Join(finalIds, ",")))
+			statement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(timestampColumnName), " IN ", wc.NewFunction("toDateTime", wc.NewLiteral(strings.Join(ids, ","))))
 		default:
 			logger.Warn().Msgf("timestamp field of unsupported type %s", v.Type.String())
 			return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
@@ -486,14 +495,20 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid terms type: %T, value: %v", v, v)
 			return model.NewSimpleQuery(model.NewSimpleStatement("invalid terms type"), false)
 		}
-		orStmts := make([]model.Statement, len(vAsArray))
+		if len(vAsArray) == 1 {
+			simpleStatement := model.NewSimpleStatement(strconv.Quote(k) + "=" + sprint(vAsArray[0]))
+			simpleStatement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(k), "=", wc.NewLiteral(sprint(vAsArray[0])))
+			return model.NewSimpleQuery(simpleStatement, true)
+		}
+		values := make([]string, len(vAsArray))
 		for i, v := range vAsArray {
 			cw.AddTokenToHighlight(v)
-			simpleStat := model.NewSimpleStatement(strconv.Quote(k) + "=" + sprint(v))
-			simpleStat.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(k), "=", wc.NewLiteral(sprint(v)))
-			orStmts[i] = simpleStat
+			values[i] = sprint(v)
 		}
-		return model.NewSimpleQuery(model.Or(orStmts), true)
+		combinedValues := "(" + strings.Join(values, ",") + ")"
+		compoundStatement := model.NewSimpleStatement(fmt.Sprintf("%s IN %s", strconv.Quote(k), combinedValues))
+		compoundStatement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(k), "IN", wc.NewLiteral(combinedValues))
+		return model.NewSimpleQuery(compoundStatement, true)
 	}
 
 	// unreachable unless something really weird happens
@@ -555,7 +570,9 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 		cw.AddTokenToHighlight(vUnNested)
 
 		// so far we assume that only strings can be ORed here
-		return model.NewSimpleQuery(model.NewSimpleStatement(strconv.Quote(fieldName)+" == "+sprint(vUnNested)), true)
+		statement := model.NewSimpleStatement(strconv.Quote(fieldName) + " == " + sprint(vUnNested))
+		statement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(fieldName), "==", wc.NewLiteral(sprint(vUnNested)))
+		return model.NewSimpleQuery(statement, true)
 	}
 
 	// unreachable unless something really weird happens
@@ -777,7 +794,9 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			isDatetimeInDefaultFormat = false
 		}
 
-		for op, v := range v.(QueryMap) {
+		keysSorted := util.MapKeysSorted(v.(QueryMap))
+		for _, op := range keysSorted {
+			v := v.(QueryMap)[op]
 			var fieldToPrint, timeFormatFuncName string
 			var valueToCompare wc.Statement
 			fieldType := cw.Table.GetDateTimeType(cw.Ctx, field)
@@ -793,7 +812,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 					if dateTime, ok := v.(string); ok {
 						// if it's a date, we need to parse it to Clickhouse's DateTime format
 						// how to check if it does not contain date math expression?
-						if _, err := time.Parse(time.RFC3339Nano, dateTime); err == nil {
+						if _, err := iso8601.ParseString(dateTime); err == nil {
 							vToPrint, timeFormatFuncName = cw.parseDateTimeString(cw.Table, field, dateTime)
 							// TODO Investigate the quotation below
 							valueToCompare = wc.NewFunction(timeFormatFuncName, wc.NewLiteral(fmt.Sprintf("'%s'", dateTime)))
