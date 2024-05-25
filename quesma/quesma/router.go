@@ -60,7 +60,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 			return nil, err
 		}
 
-		err := dualWrite(ctx, req.Params["index"], body, lm, cfg)
+		err = dualWrite(ctx, req.Params["index"], body, lm, cfg)
 		return indexDocResult(req.Params["index"], httpOk), err
 	})
 
