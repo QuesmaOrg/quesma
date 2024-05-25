@@ -495,14 +495,20 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid terms type: %T, value: %v", v, v)
 			return model.NewSimpleQuery(model.NewSimpleStatement("invalid terms type"), false)
 		}
-		orStmts := make([]model.Statement, len(vAsArray))
+		if len(vAsArray) == 1 {
+			simpleStatement := model.NewSimpleStatement(strconv.Quote(k) + "=" + sprint(vAsArray[0]))
+			simpleStatement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(k), "=", wc.NewLiteral(sprint(vAsArray[0])))
+			return model.NewSimpleQuery(simpleStatement, true)
+		}
+		values := make([]string, len(vAsArray))
 		for i, v := range vAsArray {
 			cw.AddTokenToHighlight(v)
-			simpleStat := model.NewSimpleStatement(strconv.Quote(k) + "=" + sprint(v))
-			simpleStat.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(k), "=", wc.NewLiteral(sprint(v)))
-			orStmts[i] = simpleStat
+			values[i] = sprint(v)
 		}
-		return model.NewSimpleQuery(model.Or(orStmts), true)
+		combinedValues := "(" + strings.Join(values, ",") + ")"
+		compoundStatement := model.NewSimpleStatement(fmt.Sprintf("%s IN %s", strconv.Quote(k), combinedValues))
+		compoundStatement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(k), "IN", wc.NewLiteral(combinedValues))
+		return model.NewSimpleQuery(compoundStatement, true)
 	}
 
 	// unreachable unless something really weird happens
