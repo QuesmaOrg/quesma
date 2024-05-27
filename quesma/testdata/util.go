@@ -2,6 +2,7 @@ package testdata
 
 import (
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/queryparser/aexp"
 	"strconv"
 	"strings"
 	"time"
@@ -46,6 +47,7 @@ const oneMinute = 60 * time.Second
 func newSimplestQuery() model.Query {
 	return model.Query{
 		Fields:        []string{"*"},
+		Columns:       []model.SelectColumn{{Expression: aexp.Wildcard}},
 		FromClause:    strconv.Quote(TableName),
 		SuffixClauses: []string{"LIMIT " + strconv.Itoa(defaultLimit)},
 		CanParse:      true,

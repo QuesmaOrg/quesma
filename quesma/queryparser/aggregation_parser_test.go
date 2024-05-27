@@ -483,7 +483,7 @@ var aggregationTests = []struct {
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
 			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` GROUP BY ("OriginCityName")`,
-			`SELECT COUNT(DISTINCT "OriginCityName") FROM ` + tableNameQuoted,
+			`SELECT count(DISTINCT "OriginCityName") FROM ` + tableNameQuoted,
 		},
 	},
 	{ // [13]

@@ -62,6 +62,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 				size = queryInfo.Size
 			}
 			query := cw.BuildNRowsQuery("*", simpleQuery, size)
+
 			assert.Contains(t, tt.WantedQuery, *query)
 			// Test the new WhereStatement
 			if simpleQuery.Sql.WhereStatement != nil {

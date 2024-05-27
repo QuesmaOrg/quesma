@@ -69,6 +69,7 @@ func (t *Table) createTableOurFieldsString() []string {
 }
 
 func (t *Table) extractColumns(query *model.Query, addNonSchemaFields bool) ([]string, error) {
+
 	N := len(query.Fields)
 	if query.IsWildcard() {
 		N = len(t.Cols)
