@@ -65,14 +65,14 @@ var specialOperators = map[string]token{
 	string(rightParenthesis): rightParenthesisToken{},
 }
 
-func TranslateToSQL(ctx context.Context, query string, fields []string) string {
+func TranslateToSQL(ctx context.Context, query string, fields []string) where_clause.Statement {
 	parser := newLuceneParser(ctx, fields)
 	return parser.translateToSQL(query)
 }
 
 var toString = &where_clause.StringRenderer{}
 
-func (p *luceneParser) translateToSQL(query string) string {
+func (p *luceneParser) translateToSQL(query string) where_clause.Statement {
 	query = p.removeFuzzySearchOperator(query)
 	query = p.removeBoostingOperator(query)
 	p.tokenizeQuery(query)
@@ -81,8 +81,7 @@ func (p *luceneParser) translateToSQL(query string) string {
 			logger.WarnWithCtx(p.ctx).Msgf("Invalid query, can't tokenize: %s", query)
 		}
 	}
-	stmt := p.BuildWhereStatement()
-	return stmt.Accept(toString).(string)
+	return p.BuildWhereStatement()
 }
 
 // tokenizeQuery splits the query into tokens, which are stored in p.tokens.
