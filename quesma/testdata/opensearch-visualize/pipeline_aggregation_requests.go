@@ -3069,7 +3069,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
-			`SELECT "clientip", COUNT(DISTINCT "geo.coordinates") ` +
+			`SELECT "clientip", count(DISTINCT "geo.coordinates") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY ("clientip") ` +
 				`ORDER BY ("clientip")`,

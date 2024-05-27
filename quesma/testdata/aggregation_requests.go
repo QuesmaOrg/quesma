@@ -716,7 +716,7 @@ var AggregationTests = []AggregationTestCase{
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
 			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') GROUP BY ("OriginCityName") ORDER BY count() DESC LIMIT 10`,
-			`SELECT COUNT(DISTINCT "OriginCityName") FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
+			`SELECT count(DISTINCT "OriginCityName") FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
 		},
 	},
 	{ // [5]
@@ -3974,7 +3974,7 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + QuotedTableName,
-			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/79200000), " + `COUNT(DISTINCT "host.name") ` +
+			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/79200000), " + `count(DISTINCT "host.name") ` +
 				`FROM ` + QuotedTableName + " " +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/79200000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/79200000))",

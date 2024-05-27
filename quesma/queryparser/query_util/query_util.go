@@ -5,6 +5,7 @@ import (
 	"context"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/queryparser/aexp"
 	"strconv"
 	"strings"
 )
@@ -27,7 +28,16 @@ func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, qu
 	if limit > 0 {
 		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(applySizeLimit(ctx, limit)))
 	}
+
+	var col model.SelectColumn
+	if fieldName == "*" {
+		col = model.SelectColumn{Expression: aexp.Wildcard}
+	} else {
+		col = model.SelectColumn{Expression: aexp.TableColumn(fieldName)}
+	}
+
 	return &model.Query{
+		Columns:       []model.SelectColumn{col},
 		Fields:        []string{fieldName},
 		WhereClause:   query.Sql.Stmt,
 		SuffixClauses: suffixClauses,

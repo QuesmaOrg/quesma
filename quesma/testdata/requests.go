@@ -1481,7 +1481,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{`SELECT count() FROM "logs-generic-default" WHERE "service.name"='admin' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z'))`},
 	},
 	{ // [21]
-		"Count() as /_search query. With filter", // response should be just ["hits"]["total"]["value"] == result of count()
+		"count() as /_search query. With filter", // response should be just ["hits"]["total"]["value"] == result of count()
 		`{
 		"aggs": {
 			"suggestions": {
@@ -1549,7 +1549,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z'))`},
 	},
 	{ // [22]
-		"Count() as /_search or /logs-*-/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count()
+		"count() as /_search or /logs-*-/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count()
 		`{
 			"aggs": {
 				"suggestions": {
@@ -1614,7 +1614,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z'))`},
 	},
 	{ // [23]
-		"Count() as /_search query. With filter", // response should be just ["hits"]["total"]["value"] == result of count()
+		"count() as /_search query. With filter", // response should be just ["hits"]["total"]["value"] == result of count()
 		`{
 		"aggs": {
 			"suggestions": {
@@ -1682,7 +1682,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z'))`},
 	},
 	{ // [24]
-		"Count() as /_search or /logs-*-/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count()
+		"count() as /_search or /logs-*-/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count()
 		`{
 			"aggs": {
 				"suggestions": {
