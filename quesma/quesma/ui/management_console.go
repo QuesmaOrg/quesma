@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	maxLastMessages = 10000
+	maxLastMessages         = 10000
+	maxLogMessagePerRequest = 1000
 )
 
 const (
@@ -207,7 +208,14 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 			}
 			qmc.addNewMessageId(requestId)
 		} else {
-			value.logMessages = append(value.logMessages, log.Msg)
+			if len(value.logMessages) < maxLogMessagePerRequest {
+				value.logMessages = append(value.logMessages, log.Msg)
+			} else {
+				lastMsg := `{"level":"error",message":"Max log messages reached"}`
+				if value.logMessages[len(value.logMessages)-1] != lastMsg {
+					value.logMessages = append(value.logMessages, lastMsg)
+				}
+			}
 		}
 		if log.Level == zerolog.ErrorLevel {
 			value.errorLogCount += 1
