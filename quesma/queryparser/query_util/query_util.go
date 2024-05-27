@@ -33,7 +33,7 @@ func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, qu
 	if fieldName == "*" {
 		col = model.Column{Expression: aexp.Wildcard}
 	} else {
-		col = model.Column{Expression: aexp.C(fieldName)}
+		col = model.Column{Expression: aexp.TableColumn(fieldName)}
 	}
 
 	return &model.Query{

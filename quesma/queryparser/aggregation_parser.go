@@ -111,9 +111,9 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 
 		// TODO firstFieldName can be an SQL expression or field name
 		if strings.Contains(getFirstFieldName(), "(") {
-			query.Columns = append(query.Columns, model.Column{Expression: aexp.FN(metricsAggr.AggrType+"OrNull", aexp.SQL{Query: getFirstFieldName()})})
+			query.Columns = append(query.Columns, model.Column{Expression: aexp.Function(metricsAggr.AggrType+"OrNull", aexp.SQL{Query: getFirstFieldName()})})
 		} else {
-			query.Columns = append(query.Columns, model.Column{Expression: aexp.FN(metricsAggr.AggrType+"OrNull", aexp.C(getFirstFieldName()))})
+			query.Columns = append(query.Columns, model.Column{Expression: aexp.Function(metricsAggr.AggrType+"OrNull", aexp.TableColumn(getFirstFieldName()))})
 		}
 
 	case "quantile":
@@ -127,16 +127,16 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				"quantiles(%6f)(\"%s\") AS \"quantile_%s\"", percentAsFloat, getFirstFieldName(), usersPercent))
 
 			query.Columns = append(query.Columns, model.Column{
-				Expression: aexp.MultiFunction{
+				Expression: aexp.MultiFunctionExp{
 					Name: "quantiles",
-					Args: []aexp.AExp{aexp.L(percentAsFloat), aexp.C(getFirstFieldName())}},
+					Args: []aexp.AExp{aexp.Literal(percentAsFloat), aexp.TableColumn(getFirstFieldName())}},
 				Alias: fmt.Sprintf("quantile_%s", usersPercent),
 			})
 		}
 	case "cardinality":
 		query.NonSchemaFields = append(query.NonSchemaFields, `count(DISTINCT "`+getFirstFieldName()+`")`)
 
-		query.Columns = append(query.Columns, model.Column{Expression: aexp.Count(aexp.NewComposite(aexp.Symbol("DISTINCT"), aexp.C(getFirstFieldName())))})
+		query.Columns = append(query.Columns, model.Column{Expression: aexp.Count(aexp.NewComposite(aexp.Symbol("DISTINCT"), aexp.TableColumn(getFirstFieldName())))})
 
 	case "value_count":
 		query.NonSchemaFields = append(query.NonSchemaFields, "count()")
@@ -155,11 +155,11 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			"sumOrNull(`"+fieldName+"`)",
 		)
 
-		query.Columns = append(query.Columns, model.Column{Expression: aexp.Count(aexp.C(fieldName))},
-			model.Column{Expression: aexp.FN("minOrNull", aexp.C(fieldName))},
-			model.Column{Expression: aexp.FN("maxOrNull", aexp.C(fieldName))},
-			model.Column{Expression: aexp.FN("avgOrNull", aexp.C(fieldName))},
-			model.Column{Expression: aexp.FN("sumOrNull", aexp.C(fieldName))})
+		query.Columns = append(query.Columns, model.Column{Expression: aexp.Count(aexp.TableColumn(fieldName))},
+			model.Column{Expression: aexp.Function("minOrNull", aexp.TableColumn(fieldName))},
+			model.Column{Expression: aexp.Function("maxOrNull", aexp.TableColumn(fieldName))},
+			model.Column{Expression: aexp.Function("avgOrNull", aexp.TableColumn(fieldName))},
+			model.Column{Expression: aexp.Function("sumOrNull", aexp.TableColumn(fieldName))})
 
 	case "top_hits":
 		query.Fields = append(query.Fields, metricsAggr.FieldNames...)
@@ -675,7 +675,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
 			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
 
-			currentAggr.Columns = append(currentAggr.Columns, model.Column{Expression: aexp.C(cw.parseFieldField(terms, termsType))})
+			currentAggr.Columns = append(currentAggr.Columns, model.Column{Expression: aexp.TableColumn(cw.parseFieldField(terms, termsType))})
 
 			size := 10
 			if _, ok := queryMap["aggs"]; isEmptyGroupBy && !ok { // we can do limit only it terms are not nested

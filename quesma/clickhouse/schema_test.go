@@ -55,19 +55,19 @@ var queries = []struct {
 		[]string{"all", "count()"},
 	},
 	{
-		&model.Query{Fields: []string{"message", "timestamp"}, Columns: []model.Column{{Expression: aexp.C("message")}, {Expression: aexp.C("timestamp")}}},
+		&model.Query{Fields: []string{"message", "timestamp"}, Columns: []model.Column{{Expression: aexp.TableColumn("message")}, {Expression: aexp.TableColumn("timestamp")}}},
 		[]string{"message", "timestamp"},
 	},
 	{
-		&model.Query{Fields: []string{"message", "non-existent"}, Columns: []model.Column{{Expression: aexp.C("message")}, {Expression: aexp.C("non-existent")}}},
+		&model.Query{Fields: []string{"message", "non-existent"}, Columns: []model.Column{{Expression: aexp.TableColumn("message")}, {Expression: aexp.TableColumn("non-existent")}}},
 		[]string{"message"},
 	},
 	{
-		&model.Query{Fields: []string{"non-existent"}, Columns: []model.Column{{Expression: aexp.C("non-existent")}}},
+		&model.Query{Fields: []string{"non-existent"}, Columns: []model.Column{{Expression: aexp.TableColumn("non-existent")}}},
 		[]string{},
 	},
 	{
-		&model.Query{Fields: []string{"message", "timestamp"}, NonSchemaFields: []string{"toString(count())"}, Columns: []model.Column{{Expression: aexp.C("message")}, {Expression: aexp.C("timestamp")}, {Expression: aexp.FN("toString", aexp.Count())}}},
+		&model.Query{Fields: []string{"message", "timestamp"}, NonSchemaFields: []string{"toString(count())"}, Columns: []model.Column{{Expression: aexp.TableColumn("message")}, {Expression: aexp.TableColumn("timestamp")}, {Expression: aexp.Function("toString", aexp.Count())}}},
 		[]string{"message", "timestamp"},
 	},
 	//{ // we don't support such a query. Supporting it would slow down query's code, and this query seems pointless

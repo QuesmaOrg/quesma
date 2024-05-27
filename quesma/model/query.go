@@ -121,7 +121,7 @@ func (q *Query) StringFromColumnsNew(colNames []string) string {
 			if col == "*" || col == EmptyFieldSelection {
 				columns = append(columns, Column{Expression: aexp.Wildcard}.SQL())
 			} else {
-				columns = append(columns, Column{Expression: aexp.C(col)}.SQL())
+				columns = append(columns, Column{Expression: aexp.TableColumn(col)}.SQL())
 			}
 		}
 
