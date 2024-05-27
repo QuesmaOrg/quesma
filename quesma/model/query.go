@@ -125,7 +125,7 @@ func (q *Query) StringFromColumns(colNames []string) string {
 	}
 
 	// we return old SQL for now
-	return oldSQL
+	return newSQL
 }
 
 // returns string with SQL query

@@ -221,12 +221,32 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			"maxOrNull"+fieldName,
 			"avgOrNull"+fieldName,
 			"sumOrNull"+fieldName,
-			fmt.Sprintf("sumOrNull(%s*%s)", fieldName[1:len(fieldName)-1], fieldName[1:len(fieldName)-1]),
+			fmt.Sprintf("sumOrNull(%s * %s)", fieldName[1:len(fieldName)-1], fieldName[1:len(fieldName)-1]),
 			"varPop"+fieldName,
 			"varSamp"+fieldName,
 			"stddevPop"+fieldName,
 			"stddevSamp"+fieldName,
 		)
+
+		fieldNameBare := getFirstFieldName()
+
+		addColumn := func(funcName string) {
+			query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Function(funcName, aexp.TableColumn(fieldNameBare))})
+		}
+
+		addColumn("count")
+		addColumn("minOrNull")
+		addColumn("maxOrNull")
+		addColumn("avgOrNull")
+		addColumn("sumOrNull")
+
+		query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Function("sumOrNull", aexp.Infix(aexp.TableColumn(fieldNameBare), "*", aexp.TableColumn(fieldNameBare)))})
+
+		addColumn("varPop")
+		addColumn("varSamp")
+		addColumn("stddevPop")
+		addColumn("stddevSamp")
+
 	default:
 		logger.WarnWithCtx(b.ctx).Msgf("unknown metrics aggregation: %s", metricsAggr.AggrType)
 		query.CanParse = false
