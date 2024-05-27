@@ -61,3 +61,11 @@ func (j JSON) ShortString() string {
 	return asString[:70]
 
 }
+
+func (j JSON) Clone() JSON {
+	clone := make(JSON)
+	for k, v := range j {
+		clone[k] = v
+	}
+	return clone
+}

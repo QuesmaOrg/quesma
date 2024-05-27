@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/logger"
@@ -41,18 +40,12 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 
 	router.Register(routes.BulkPath, and(method("POST"), matchedAgainstBulkBody(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
-		var ndjson types.NDJSON
-
-		switch b := req.ParsedBody.(type) {
-
-		case types.NDJSON:
-			ndjson = b
-
-		default:
-			return nil, fmt.Errorf("invalid request body, expecting NDJSON. Got: %T", req.ParsedBody)
+		body, err := types.ExpectNDJSON(req.ParsedBody)
+		if err != nil {
+			return nil, err
 		}
 
-		results := dualWriteBulk(ctx, nil, ndjson, lm, cfg, phoneHomeAgent)
+		results := dualWriteBulk(ctx, nil, body, lm, cfg, phoneHomeAgent)
 		return bulkInsertResult(results), nil
 	})
 
@@ -62,27 +55,21 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 
 	router.Register(routes.IndexDocPath, and(method("POST"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
-		var body types.JSON
-		switch b := req.ParsedBody.(type) {
-		case types.JSON:
-			body = b
-		default:
-			return nil, fmt.Errorf("invalid request body, expecting JSON . Got: %T", req.ParsedBody)
+		body, err := types.ExpectJSON(req.ParsedBody)
+		if err != nil {
+			return nil, err
 		}
 
-		err := dualWrite(ctx, req.Params["index"], body, lm, cfg)
+		err = dualWrite(ctx, req.Params["index"], body, lm, cfg)
 		return indexDocResult(req.Params["index"], httpOk), err
 	})
 
 	router.Register(routes.IndexBulkPath, and(method("POST", "PUT"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		index := req.Params["index"]
 
-		var body types.NDJSON
-		switch b := req.ParsedBody.(type) {
-		case types.NDJSON:
-			body = b
-		default:
-			return nil, fmt.Errorf("invalid request body, expecting NDJSON. Got: %T", req.ParsedBody)
+		body, err := types.ExpectNDJSON(req.ParsedBody)
+		if err != nil {
+			return nil, err
 		}
 
 		results := dualWriteBulk(ctx, &index, body, lm, cfg, phoneHomeAgent)
@@ -173,8 +160,13 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 
 	router.Register(routes.GlobalSearchPath, and(method("GET", "POST"), matchAgainstKibanaAlerts()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
+		body, err := types.ExpectJSON(req.ParsedBody)
+		if err != nil {
+			return nil, err
+		}
+
 		// TODO we should pass JSON here instead of []byte
-		responseBody, err := queryRunner.handleSearch(ctx, "*", []byte(req.Body))
+		responseBody, err := queryRunner.handleSearch(ctx, "*", body)
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
 				return &mux.Result{StatusCode: 404}, nil
@@ -186,8 +178,13 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	})
 
 	router.Register(routes.IndexSearchPath, and(method("GET", "POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
-		// TODO we should pass JSON here instead of []byte
-		responseBody, err := queryRunner.handleSearch(ctx, req.Params["index"], []byte(req.Body))
+
+		body, err := types.ExpectJSON(req.ParsedBody)
+		if err != nil {
+			return nil, err
+		}
+
+		responseBody, err := queryRunner.handleSearch(ctx, req.Params["index"], body)
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
 				return &mux.Result{StatusCode: 404}, nil
@@ -218,8 +215,12 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 			}
 		}
 
-		// TODO we should pass JSON here instead of []byte
-		responseBody, err := queryRunner.handleAsyncSearch(ctx, req.Params["index"], []byte(req.Body), waitForResultsMs, keepOnCompletion)
+		body, err := types.ExpectJSON(req.ParsedBody)
+		if err != nil {
+			return nil, err
+		}
+
+		responseBody, err := queryRunner.handleAsyncSearch(ctx, req.Params["index"], body, waitForResultsMs, keepOnCompletion)
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
 				return &mux.Result{StatusCode: 404}, nil
@@ -289,8 +290,13 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	})
 
 	eqlHandler := func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
-		//
-		responseBody, err := queryRunner.handleEQLSearch(ctx, req.Params["index"], []byte(req.Body))
+
+		body, err := types.ExpectJSON(req.ParsedBody)
+		if err != nil {
+			return nil, err
+		}
+
+		responseBody, err := queryRunner.handleEQLSearch(ctx, req.Params["index"], body)
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
 				return &mux.Result{StatusCode: 404}, nil

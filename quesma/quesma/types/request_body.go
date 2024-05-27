@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"strings"
 )
 
 // There we can add methods to iterate over NDJSON
@@ -31,6 +32,8 @@ func ParseRequestBody(body string) RequestBody {
 	unknow := &Unknown{}
 	unknow.Body = body
 
+	body = strings.TrimSpace(body)
+
 	// json
 	if len(body) > 1 && body[0] == '{' {
 		parsedBody, err := ParseJSON(body)
@@ -55,4 +58,24 @@ func ParseRequestBody(body string) RequestBody {
 	}
 
 	return unknow
+}
+
+func ExpectJSON(body RequestBody) (JSON, error) {
+
+	switch b := body.(type) {
+	case JSON:
+		return b, nil
+	default:
+		return nil, fmt.Errorf("invalid request body, expecting JSON . Got: %T", body)
+	}
+}
+
+func ExpectNDJSON(body RequestBody) (NDJSON, error) {
+
+	switch b := body.(type) {
+	case NDJSON:
+		return b, nil
+	default:
+		return nil, fmt.Errorf("invalid request body, expecting NDJSON . Got: %T", body)
+	}
 }
