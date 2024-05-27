@@ -164,11 +164,14 @@ func (q *Query) StringFromColumnsNew(colNames []string) string {
 
 	sb.WriteString(strings.Join(columns, ", "))
 
-	where := " WHERE "
-	if len(q.WhereClause) == 0 {
-		where = ""
+	sb.WriteString(" FROM ")
+	sb.WriteString(q.FromClause)
+
+	if len(q.WhereClause) > 0 {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(q.WhereClause)
 	}
-	sb.WriteString(" FROM " + q.FromClause + where + q.WhereClause)
+
 	if len(q.GroupByFields) > 0 {
 		sb.WriteString(" GROUP BY (")
 		for i, field := range q.GroupByFields {
