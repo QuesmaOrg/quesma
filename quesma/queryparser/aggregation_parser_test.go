@@ -3,7 +3,6 @@ package queryparser
 import (
 	"cmp"
 	"context"
-	"fmt"
 	"github.com/jinzhu/copier"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
@@ -609,7 +608,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 
 			// Let's leave those commented debugs for now, they'll be useful in next PRs
 			for j, aggregation := range aggregations {
-				fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\n", j, aggregation, aggregation.String())
+				// fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\n", j, aggregation, aggregation.String())
 				test.ExpectedResults[j] = aggregation.Type.PostprocessResults(test.ExpectedResults[j])
 				// fmt.Println("--- Group by: ", aggregation.GroupByFields)
 				if test.ExpectedSQLs[j] != "NoDBQuery" {
