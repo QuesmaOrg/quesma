@@ -21,10 +21,8 @@ func Symbol(s string) LiteralExp {
 
 func TableColumn(columnName string) TableColumnExp {
 
-	if strings.HasSuffix(columnName, ".keyword") {
-		columnName = strings.TrimSuffix(columnName, ".keyword")
-	}
-
+	columnName = strings.TrimSuffix(columnName, ".keyword")
+	
 	return TableColumnExp{ColumnName: columnName}
 }
 
