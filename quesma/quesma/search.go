@@ -204,11 +204,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
 
-		queries, columns, isAggregation, canParse, err := queryTranslator.ParseQuery(bodyAsBytes)
+		queries, columns, isAggregation, canParse, err := queryTranslator.ParseQuery(body)
 
 		if canParse {
-			bodyAsBytes, _ := body.Bytes()
-			if query_util.IsNonAggregationQuery(queries[0].QueryInfo, bodyAsBytes) {
+			if query_util.IsNonAggregationQuery(queries[0].QueryInfo, body) {
 				if properties := q.findNonexistingProperties(queries[0].QueryInfo, queries[0].SortFields, table); len(properties) > 0 {
 					logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
 					if elasticsearch.IsIndexPattern(indexPattern) {
@@ -255,7 +254,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			}
 			responseBody = []byte(fmt.Sprintf("Invalid Queries: %s, err: %v", queriesBody, err))
 			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBody)
-			bodyAsBytes, _ := body.Bytes()
 			pushSecondaryInfo(q.quesmaManagementConsole, id, path, bodyAsBytes, []byte(queriesBody), responseBody, startTime)
 			return responseBody, errors.New(string(responseBody))
 		}
@@ -268,7 +266,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			} else {
 				responseBody, err = response.response.Marshal()
 			}
-			bodyAsBytes, _ := body.Bytes()
 			pushSecondaryInfo(q.quesmaManagementConsole, id, path, bodyAsBytes, response.translatedQueryBody, responseBody, startTime)
 			return responseBody, err
 		} else {

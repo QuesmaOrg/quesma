@@ -399,6 +399,20 @@ func (cw *ClickhouseQueryTranslator) finishMakeResponse(query model.Query, Resul
 func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query model.Query,
 	ResultSet []model.QueryResultRow, aggregatorsLevel, selectLevel int) []model.JsonMap {
 
+	if len(ResultSet) == 0 {
+		// We still should preserve `meta` field if it's there.
+		// (we don't preserve it if it's in subaggregations, as we cut them off in case of empty parent aggregation)
+		// Both cases tested with Elasticsearch in proxy mode, and our tests.
+		metaDict := make(model.JsonMap, 0)
+		metaAdded := cw.addMetadataIfNeeded(query, metaDict, aggregatorsLevel)
+		if !metaAdded {
+			return []model.JsonMap{}
+		}
+		return []model.JsonMap{{
+			query.Aggregators[aggregatorsLevel].Name: metaDict,
+		}}
+	}
+
 	// either we finish
 	if aggregatorsLevel == len(query.Aggregators) || (aggregatorsLevel == len(query.Aggregators)-1 && !query.Type.IsBucketAggregation()) {
 		/*
@@ -445,16 +459,27 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 		subResult["buckets"] = bucketsReturnMap
 	}
 
+	_ = cw.addMetadataIfNeeded(query, subResult, aggregatorsLevel)
+
+	result[query.Aggregators[aggregatorsLevel].Name] = subResult
+	return []model.JsonMap{result}
+}
+
+// addMetadataIfNeeded adds metadata to the `result` dictionary, if needed.
+func (cw *ClickhouseQueryTranslator) addMetadataIfNeeded(query model.Query, result model.JsonMap, aggregatorsLevel int) (added bool) {
+	if query.Metadata == nil {
+		return false
+	}
+
 	desiredLevel := len(query.Aggregators) - 1
 	if _, ok := query.Type.(bucket_aggregations.Filters); ok {
 		desiredLevel = len(query.Aggregators) - 2
 	}
-	if aggregatorsLevel == desiredLevel && query.Metadata != nil {
-		subResult["meta"] = query.Metadata
+	if aggregatorsLevel == desiredLevel {
+		result["meta"] = query.Metadata
+		return true
 	}
-
-	result[query.Aggregators[aggregatorsLevel].Name] = subResult
-	return []model.JsonMap{result}
+	return false
 }
 
 func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []model.Query, ResultSets [][]model.QueryResultRow) model.JsonMap {
