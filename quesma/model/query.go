@@ -129,8 +129,8 @@ func (q *Query) StringFromColumnsNew(colNames []string) string {
 	} else {
 		for _, col := range q.Columns {
 			if col.Expression == nil {
-				fmt.Println("Columns: ", q.Columns)
-				columns = append(columns, "XXX COLUMN WITH NIL EXPRESSION"+col.String())
+				// this is paraonoid check, it should never happen
+				panic("Column expression is nil")
 			} else {
 				columns = append(columns, col.SQL())
 			}

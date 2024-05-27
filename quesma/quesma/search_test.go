@@ -287,9 +287,9 @@ func TestHandlingDateTimeFields(t *testing.T) {
 		}`
 	}
 	expectedSelectStatementRegex := map[string]string{
-		dateTimeTimestampField:      "SELECT toInt64(toUnixTimestamp(`timestamp`)/60.000000), count() FROM",
-		dateTime64TimestampField:    "SELECT toInt64(toUnixTimestamp64Milli(`timestamp64`)/60000), count() FROM",
-		dateTime64OurTimestampField: "SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/60000), count() FROM",
+		dateTimeTimestampField:      "SELECT toInt64(toUnixTimestamp(`timestamp`)/60.000000), COUNT() FROM",
+		dateTime64TimestampField:    "SELECT toInt64(toUnixTimestamp64Milli(`timestamp64`)/60000), COUNT() FROM",
+		dateTime64OurTimestampField: "SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/60000), COUNT() FROM",
 	}
 
 	db, mock, err := sqlmock.New()
@@ -301,7 +301,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())
 
 	for _, fieldName := range []string{dateTimeTimestampField, dateTime64TimestampField, dateTime64OurTimestampField} {
-		mock.ExpectQuery(testdata.EscapeBrackets(`SELECT count() FROM "logs-generic-default" WHERE `)).
+		mock.ExpectQuery(testdata.EscapeBrackets(`SELECT COUNT() FROM "logs-generic-default" WHERE `)).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}))
 		mock.ExpectQuery(testdata.EscapeBrackets(expectedSelectStatementRegex[fieldName])).
 			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))

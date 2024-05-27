@@ -304,7 +304,6 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 		hitQuery := cw.BuildNRowsQuery("*", simpleQuery, size)
 		aggregations = append(aggregations, *hitQuery)
 	}
-	fmt.Println("XXXXX", aggregations)
 	return aggregations, nil
 }
 
