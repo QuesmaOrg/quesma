@@ -225,7 +225,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 					reason = endUserError.Reason()
 
 					// we treat all `Q1xxx` errors as bad requests here
-					if endUserError.ErrorType().Number <= 2000 {
+					if endUserError.ErrorType().Number < 2000 {
 						result = mux.BadReqeustResult()
 					}
 				}
