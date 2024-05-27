@@ -16,7 +16,7 @@ const (
 )
 
 type (
-	Column struct {
+	SelectColumn struct {
 		Alias      string
 		Expression aexp.AExp
 	}
@@ -25,7 +25,7 @@ type (
 		IsDistinct bool // true <=> query is SELECT DISTINCT
 
 		// This is the future.
-		Columns []Column // Columns to select, including aliases
+		Columns []SelectColumn // Columns to select, including aliases
 
 		// TO BE REMOVED
 		Fields          []string // Fields in 'SELECT Fields FROM ...'
@@ -77,10 +77,10 @@ type (
 	}
 )
 
-func (c Column) SQL() string {
+func (c SelectColumn) SQL() string {
 
 	if c.Expression == nil {
-		panic("Column expression is nil")
+		panic("SelectColumn expression is nil")
 	}
 
 	exprAsString := aexp.RenderSQL(c.Expression)
@@ -92,8 +92,8 @@ func (c Column) SQL() string {
 	return fmt.Sprintf("%s AS \"%s\"", exprAsString, c.Alias)
 }
 
-func (c Column) String() string {
-	return fmt.Sprintf("Column(Alias: '%s', expression: '%v')", c.Alias, c.Expression)
+func (c SelectColumn) String() string {
+	return fmt.Sprintf("SelectColumn(Alias: '%s', expression: '%v')", c.Alias, c.Expression)
 }
 
 func (sf SortFields) Properties() []string {
@@ -144,9 +144,9 @@ func (q *Query) StringFromColumnsNew(colNames []string) string {
 		for _, col := range colNames {
 
 			if col == "*" || col == EmptyFieldSelection {
-				columns = append(columns, Column{Expression: aexp.Wildcard}.SQL())
+				columns = append(columns, SelectColumn{Expression: aexp.Wildcard}.SQL())
 			} else {
-				columns = append(columns, Column{Expression: aexp.TableColumn(col)}.SQL())
+				columns = append(columns, SelectColumn{Expression: aexp.TableColumn(col)}.SQL())
 			}
 		}
 
@@ -155,7 +155,7 @@ func (q *Query) StringFromColumnsNew(colNames []string) string {
 		for _, col := range q.Columns {
 			if col.Expression == nil {
 				// this is paraonoid check, it should never happen
-				panic("Column expression is nil")
+				panic("SelectColumn expression is nil")
 			} else {
 				columns = append(columns, col.SQL())
 			}
@@ -273,7 +273,7 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 	q.GroupByFields = make([]string, len(qwa.GroupByFields))
 	copy(q.GroupByFields, qwa.GroupByFields)
 
-	q.Columns = make([]Column, len(qwa.Columns))
+	q.Columns = make([]SelectColumn, len(qwa.Columns))
 	copy(q.Columns, qwa.Columns)
 
 	q.Fields = make([]string, len(qwa.Fields))

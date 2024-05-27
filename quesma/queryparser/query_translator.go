@@ -562,7 +562,7 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []m
 
 func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause string) *model.Query {
 	return &model.Query{
-		Columns:         []model.Column{{Expression: aexp.Count()}},
+		Columns:         []model.SelectColumn{{Expression: aexp.Count()}},
 		NonSchemaFields: []string{"count()"},
 		WhereClause:     whereClause,
 		FromClause:      cw.Table.FullTableName(),
@@ -582,7 +582,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, whereClau
 	return &model.Query{
 		IsDistinct:      true,
 		Fields:          []string{fieldName},
-		Columns:         []model.Column{{Expression: aexp.TableColumn(fieldName)}},
+		Columns:         []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
 		NonSchemaFields: []string{},
 		WhereClause:     whereClause,
 		SuffixClauses:   suffixClauses,
@@ -604,7 +604,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 	}
 	return &model.Query{
 		Fields:          []string{fieldName},
-		Columns:         []model.Column{{Expression: aexp.TableColumn(fieldName)}},
+		Columns:         []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
 		NonSchemaFields: []string{},
 		WhereClause:     whereClause,
 		SuffixClauses:   suffixClauses,
@@ -617,7 +617,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, query mo
 	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
 	innerQuery := model.Query{
 		Fields:        []string{fieldName},
-		Columns:       []model.Column{{Expression: aexp.TableColumn(fieldName)}},
+		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
 		WhereClause:   query.Sql.Stmt,
 		SuffixClauses: []string{"LIMIT " + facetsSampleSize},
 		FromClause:    cw.Table.FullTableName(),
@@ -625,7 +625,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, query mo
 	}
 	return &model.Query{
 		Fields:          []string{fieldName},
-		Columns:         []model.Column{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
+		Columns:         []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
 		NonSchemaFields: []string{"count()"},
 		SuffixClauses:   suffixClauses,
 		FromClause:      "(" + innerQuery.String() + ")",
@@ -645,7 +645,7 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName, whe
 	suffixClauses := []string{orderBy, "LIMIT 1"}
 	return &model.Query{
 		Fields:        []string{timestampFieldName},
-		Columns:       []model.Column{{Expression: aexp.TableColumn(timestampFieldName)}},
+		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(timestampFieldName)}},
 		WhereClause:   whereClause,
 		SuffixClauses: suffixClauses,
 		FromClause:    cw.Table.FullTableName(),

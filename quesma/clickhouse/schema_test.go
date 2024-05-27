@@ -43,31 +43,31 @@ var queries = []struct {
 		[]string{},
 	},
 	{
-		&model.Query{Fields: []string{"*"}, Columns: []model.Column{{Expression: aexp.Wildcard}}},
+		&model.Query{Fields: []string{"*"}, Columns: []model.SelectColumn{{Expression: aexp.Wildcard}}},
 		[]string{"all"},
 	},
 	{
-		&model.Query{Fields: []string{"*"}, NonSchemaFields: []string{"count()"}, Columns: []model.Column{{Expression: aexp.Wildcard}, {Expression: aexp.Count()}}},
+		&model.Query{Fields: []string{"*"}, NonSchemaFields: []string{"count()"}, Columns: []model.SelectColumn{{Expression: aexp.Wildcard}, {Expression: aexp.Count()}}},
 		[]string{"all", "count()"},
 	},
 	{
-		&model.Query{Fields: []string{"*"}, NonSchemaFields: []string{"count()"}, Columns: []model.Column{{Expression: aexp.Wildcard}, {Expression: aexp.Count()}}, WhereClause: "message = 'hello'"}, // select fields + where clause
+		&model.Query{Fields: []string{"*"}, NonSchemaFields: []string{"count()"}, Columns: []model.SelectColumn{{Expression: aexp.Wildcard}, {Expression: aexp.Count()}}, WhereClause: "message = 'hello'"}, // select fields + where clause
 		[]string{"all", "count()"},
 	},
 	{
-		&model.Query{Fields: []string{"message", "timestamp"}, Columns: []model.Column{{Expression: aexp.TableColumn("message")}, {Expression: aexp.TableColumn("timestamp")}}},
+		&model.Query{Fields: []string{"message", "timestamp"}, Columns: []model.SelectColumn{{Expression: aexp.TableColumn("message")}, {Expression: aexp.TableColumn("timestamp")}}},
 		[]string{"message", "timestamp"},
 	},
 	{
-		&model.Query{Fields: []string{"message", "non-existent"}, Columns: []model.Column{{Expression: aexp.TableColumn("message")}, {Expression: aexp.TableColumn("non-existent")}}},
+		&model.Query{Fields: []string{"message", "non-existent"}, Columns: []model.SelectColumn{{Expression: aexp.TableColumn("message")}, {Expression: aexp.TableColumn("non-existent")}}},
 		[]string{"message"},
 	},
 	{
-		&model.Query{Fields: []string{"non-existent"}, Columns: []model.Column{{Expression: aexp.TableColumn("non-existent")}}},
+		&model.Query{Fields: []string{"non-existent"}, Columns: []model.SelectColumn{{Expression: aexp.TableColumn("non-existent")}}},
 		[]string{},
 	},
 	{
-		&model.Query{Fields: []string{"message", "timestamp"}, NonSchemaFields: []string{"toString(count())"}, Columns: []model.Column{{Expression: aexp.TableColumn("message")}, {Expression: aexp.TableColumn("timestamp")}, {Expression: aexp.Function("toString", aexp.Count())}}},
+		&model.Query{Fields: []string{"message", "timestamp"}, NonSchemaFields: []string{"toString(count())"}, Columns: []model.SelectColumn{{Expression: aexp.TableColumn("message")}, {Expression: aexp.TableColumn("timestamp")}, {Expression: aexp.Function("toString", aexp.Count())}}},
 		[]string{"message", "timestamp"},
 	},
 	//{ // we don't support such a query. Supporting it would slow down query's code, and this query seems pointless

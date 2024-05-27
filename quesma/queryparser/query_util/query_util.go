@@ -29,15 +29,15 @@ func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, qu
 		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(applySizeLimit(ctx, limit)))
 	}
 
-	var col model.Column
+	var col model.SelectColumn
 	if fieldName == "*" {
-		col = model.Column{Expression: aexp.Wildcard}
+		col = model.SelectColumn{Expression: aexp.Wildcard}
 	} else {
-		col = model.Column{Expression: aexp.TableColumn(fieldName)}
+		col = model.SelectColumn{Expression: aexp.TableColumn(fieldName)}
 	}
 
 	return &model.Query{
-		Columns:       []model.Column{col},
+		Columns:       []model.SelectColumn{col},
 		Fields:        []string{fieldName},
 		WhereClause:   query.Sql.Stmt,
 		SuffixClauses: suffixClauses,

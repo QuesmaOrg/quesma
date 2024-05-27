@@ -65,7 +65,7 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 		)
 
 		// TODO XXXX
-		currentAggr.Columns = append(currentAggr.Columns, model.Column{Expression: aexp.SQL{Query: interval.ToSQLSelectQuery(Range.QuotedFieldName)}})
+		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: interval.ToSQLSelectQuery(Range.QuotedFieldName)}})
 
 	}
 	if !Range.Keyed {
