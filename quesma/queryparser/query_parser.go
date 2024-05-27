@@ -832,6 +832,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 							valueToCompare = wc.NewFunction(timeFormatFuncName, wc.NewLiteral(fmt.Sprintf("'%s'", dateTime)))
 						} else if op == "gte" || op == "lte" || op == "gt" || op == "lt" {
 							vToPrint, err = cw.parseDateMathExpression(vToPrint)
+							valueToCompare = wc.NewLiteral(vToPrint)
 							if err != nil {
 								logger.WarnWithCtx(cw.Ctx).Msgf("error parsing date math expression: %s", vToPrint)
 								return model.NewSimpleQuery(model.NewSimpleStatement("error parsing date math expression: "+vToPrint), false)
