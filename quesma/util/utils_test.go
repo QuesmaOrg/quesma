@@ -93,7 +93,7 @@ func TestMapDifference(t *testing.T) {
 					"_id":    "",
 					"_score": 0.000000,
 					"_source": JsonMap{
-						"COUNT()": 7.000000,
+						"count()": 7.000000,
 					},
 					"_type": "",
 					"sort":  nil,
@@ -129,7 +129,7 @@ func TestMapDifference(t *testing.T) {
 				"_index": "",
 				"_score": 0.000000,
 				"_source": JsonMap{
-					"COUNT()": 7.000000,
+					"count()": 7.000000,
 				},
 				"_type": "",
 				"sort":  nil,
@@ -620,13 +620,13 @@ func TestIsSqlEqual(t *testing.T) {
 		{"a OR (b AND c)", "a OR (c AND b)", true},
 		{"a OR (b AND c)", "a OR (c OR b)", false},
 		{
-			`SELECT COUNT() FROM add-this WHERE \"timestamp\"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') AND \"timestamp\">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')`,
-			`SELECT COUNT() FROM add-this WHERE \"timestamp\">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND \"timestamp\"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
+			`SELECT count() FROM add-this WHERE \"timestamp\"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') AND \"timestamp\">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')`,
+			`SELECT count() FROM add-this WHERE \"timestamp\">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND \"timestamp\"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
 			true,
 		},
 		{
-			`SELECT COUNT() FROM "logs-generic-default" WHERE ("FlightDelay" == true AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) AND ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
-			`SELECT COUNT() FROM "logs-generic-default" WHERE ("FlightDelay" == true AND (("timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') AND "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')) OR ("timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z')))) AND ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
+			`SELECT count() FROM "logs-generic-default" WHERE ("FlightDelay" == true AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) AND ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
+			`SELECT count() FROM "logs-generic-default" WHERE ("FlightDelay" == true AND (("timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') AND "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')) OR ("timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z')))) AND ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
 			true,
 		},
 	}

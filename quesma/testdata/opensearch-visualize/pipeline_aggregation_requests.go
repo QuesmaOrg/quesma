@@ -125,11 +125,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z')`,
 			`NoDBQuery`,
-			`SELECT "day_of_week_i", COUNT() ` +
+			`SELECT "day_of_week_i", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z') ` +
 				`GROUP BY ("day_of_week_i") ` +
@@ -266,13 +266,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() FROM ` + testdata.QuotedTableName,
+			`SELECT count() FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
 			`SELECT "day_of_week_i", avgOrNull("day_of_week_i") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY ("day_of_week_i") ` +
 				`ORDER BY ("day_of_week_i")`,
-			`SELECT "day_of_week_i", COUNT() ` +
+			`SELECT "day_of_week_i", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY ("day_of_week_i") ` +
 				`ORDER BY ("day_of_week_i")`,
@@ -399,10 +399,10 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() FROM ` + testdata.QuotedTableName,
+			`SELECT count() FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
 			`NoDBQuery`,
-			`SELECT "day_of_week_i", COUNT() ` +
+			`SELECT "day_of_week_i", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY ("day_of_week_i") ` +
 				`ORDER BY ("day_of_week_i")`,
@@ -550,14 +550,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() FROM ` + testdata.QuotedTableName,
+			`SELECT count() FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
 			`NoDBQuery`,
 			`SELECT "day_of_week_i", maxOrNull("products.base_price") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY ("day_of_week_i") ` +
 				`ORDER BY ("day_of_week_i")`,
-			`SELECT "day_of_week_i", COUNT() ` +
+			`SELECT "day_of_week_i", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY ("day_of_week_i") ` +
 				`ORDER BY ("day_of_week_i")`,
@@ -690,10 +690,10 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
-			`SELECT floor("bytes" / 200.000000) * 200.000000, COUNT() ` +
+			`SELECT floor("bytes" / 200.000000) * 200.000000, count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY (floor("bytes" / 200.000000) * 200.000000) ` +
 				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
@@ -855,50 +855,50 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715196000000/600000)),
-					model.NewQueryResultCol("COUNT()", 19.0),
+					model.NewQueryResultCol("count()", 19.0),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715196600000/600000)),
-					model.NewQueryResultCol("COUNT()", 19.0),
+					model.NewQueryResultCol("count()", 19.0),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715198400000/600000)),
-					model.NewQueryResultCol("COUNT()", 20.0),
+					model.NewQueryResultCol("count()", 20.0),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715199000000/600000)),
-					model.NewQueryResultCol("COUNT()", 32.0),
+					model.NewQueryResultCol("count()", 32.0),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715199600000/600000)),
-					model.NewQueryResultCol("COUNT()", 27.0),
+					model.NewQueryResultCol("count()", 27.0),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715196000000/600000)),
-					model.NewQueryResultCol("COUNT()", 1),
+					model.NewQueryResultCol("count()", 1),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715196600000/600000)),
-					model.NewQueryResultCol("COUNT()", 1),
+					model.NewQueryResultCol("count()", 1),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715198400000/600000)),
-					model.NewQueryResultCol("COUNT()", 1),
+					model.NewQueryResultCol("count()", 1),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715199000000/600000)),
-					model.NewQueryResultCol("COUNT()", 4),
+					model.NewQueryResultCol("count()", 4),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1715199600000/600000)),
-					model.NewQueryResultCol("COUNT()", 3),
+					model.NewQueryResultCol("count()", 3),
 				}},
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
@@ -907,7 +907,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
-				"COUNT() " +
+				"count() " +
 				"FROM " + testdata.QuotedTableName + " " +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
@@ -1122,51 +1122,51 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714869000000/600000)),
-					model.NewQueryResultCol("COUNT()", 2),
+					model.NewQueryResultCol("count()", 2),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714869600000/600000)),
-					model.NewQueryResultCol("COUNT()", 0),
+					model.NewQueryResultCol("count()", 0),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714878600000/600000)),
-					model.NewQueryResultCol("COUNT()", 0),
+					model.NewQueryResultCol("count()", 0),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714879200000/600000)),
-					model.NewQueryResultCol("COUNT()", 2),
+					model.NewQueryResultCol("count()", 2),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714879800000/600000)),
-					model.NewQueryResultCol("COUNT()", 6),
+					model.NewQueryResultCol("count()", 6),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714880400000/600000)),
-					model.NewQueryResultCol("COUNT()", 2),
+					model.NewQueryResultCol("count()", 2),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714881000000/600000)),
-					model.NewQueryResultCol("COUNT()", 2),
+					model.NewQueryResultCol("count()", 2),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714881600000/600000)),
-					model.NewQueryResultCol("COUNT()", 0),
+					model.NewQueryResultCol("count()", 0),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714882200000/600000)),
-					model.NewQueryResultCol("COUNT()", 2),
+					model.NewQueryResultCol("count()", 2),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1714882800000/600000)),
-					model.NewQueryResultCol("COUNT()", 0),
+					model.NewQueryResultCol("count()", 0),
 				}},
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() FROM ` + testdata.QuotedTableName,
+			`SELECT count() FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
 			`NoDBQuery`,
-			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), COUNT() " +
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), count() " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
@@ -1291,10 +1291,10 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
-			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), COUNT() " +
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), count() " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
@@ -1449,14 +1449,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " + `maxOrNull("bytes") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
-			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), COUNT() " +
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), count() " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
@@ -1675,7 +1675,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					model.NewQueryResultCol("3", int64(1715446502344)),
 					model.NewQueryResultCol("4", 1),
 					model.NewQueryResultCol("5", int64(1715446502344)),
-					model.NewQueryResultCol(`COUNT()`, 1),
+					model.NewQueryResultCol(`count()`, 1),
 				}},
 			},
 			{}, // NoDBQuery
@@ -1696,7 +1696,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 					model.NewQueryResultCol("3", int64(1715446502344)),
 					model.NewQueryResultCol("4", 207),
 					model.NewQueryResultCol("5", int64(1715446502344)),
-					model.NewQueryResultCol(`COUNT()`, 207),
+					model.NewQueryResultCol(`count()`, 207),
 				}},
 			},
 			{
@@ -1708,7 +1708,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-11T01:55:02.236Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-11T16:55:02.236Z') `,
@@ -1728,7 +1728,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`toInt64(toUnixTimestamp(now())), ` +
 				`count(if("timestamp" < now(), 1, NULL)), ` +
 				`toInt64(toUnixTimestamp(now())), ` +
-				`COUNT() ` +
+				`count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-11T01:55:02.236Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-11T16:55:02.236Z')) ` +
@@ -1747,14 +1747,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`toInt64(toUnixTimestamp(toStartOfWeek(subDate(now(), INTERVAL 1 week)))), ` +
 				`toInt64(toUnixTimestamp(now())), count(if("timestamp" < now(), 1, NULL)), ` +
 				`toInt64(toUnixTimestamp(now())), ` +
-				`COUNT() ` +
+				`count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-11T01:55:02.236Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-11T16:55:02.236Z')) ` +
 				`AND "dayOfWeek">=3 AND "dayOfWeek"<1000 `,
 			`SELECT count(if("dayOfWeek">=3 AND "dayOfWeek"<1000, 1, NULL)), ` +
 				`count(if("dayOfWeek">=2 AND "dayOfWeek"<5, 1, NULL)), ` +
-				`COUNT() ` +
+				`count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-11T01:55:02.236Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-11T16:55:02.236Z') `,
@@ -1922,14 +1922,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
-			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " + `"bytes", COUNT() ` +
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " + `"bytes", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " + `"bytes") ` +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " + `"bytes")`,
-			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), COUNT() " +
+			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), count() " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
@@ -2090,17 +2090,17 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z') AND ` +
 				`"timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z')`,
 			`NoDBQuery`,
-			`SELECT "clientip", COUNT() ` +
+			`SELECT "clientip", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z') ` +
 				`GROUP BY ("clientip") ` +
-				`ORDER BY COUNT() DESC ` +
+				`ORDER BY count() DESC ` +
 				`LIMIT 5`,
 		},
 	},
@@ -2290,14 +2290,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
-			`SELECT "clientip", COUNT(DISTINCT "geo.coordinates") ` +
+			`SELECT "clientip", count(DISTINCT "geo.coordinates") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY ("clientip") ` +
 				`ORDER BY ("clientip")`,
-			`SELECT "clientip", COUNT() ` +
+			`SELECT "clientip", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY ("clientip") ` +
 				`ORDER BY ("clientip")`,
@@ -2495,48 +2495,48 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 0.0),
 					model.NewQueryResultCol("client_ip", "255.205.14.152"),
-					model.NewQueryResultCol(`COUNT()`, 1),
+					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 0.0),
 					model.NewQueryResultCol("client_ip", "252.177.62.191"),
-					model.NewQueryResultCol(`COUNT()`, 1),
+					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
 					model.NewQueryResultCol("client_ip", "246.106.125.113"),
-					model.NewQueryResultCol(`COUNT()`, 1),
+					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
 					model.NewQueryResultCol("client_ip", "236.212.255.77"),
-					model.NewQueryResultCol(`COUNT()`, 1),
+					model.NewQueryResultCol(`count()`, 1),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 0.0),
-					model.NewQueryResultCol(`COUNT()`, 73),
+					model.NewQueryResultCol(`count()`, 73),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
-					model.NewQueryResultCol(`COUNT()`, 25),
+					model.NewQueryResultCol(`count()`, 25),
 				}},
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
 			`SELECT floor("bytes" / 200.000000) * 200.000000, "clientip", sumOrNull("bytes") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY (floor("bytes" / 200.000000) * 200.000000, "clientip") ` +
 				`ORDER BY (floor("bytes" / 200.000000) * 200.000000, "clientip")`,
-			`SELECT floor("bytes" / 200.000000) * 200.000000, "clientip", COUNT() ` +
+			`SELECT floor("bytes" / 200.000000) * 200.000000, "clientip", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY (floor("bytes" / 200.000000) * 200.000000, "clientip") ` +
 				`ORDER BY (floor("bytes" / 200.000000) * 200.000000, "clientip")`,
-			`SELECT floor("bytes" / 200.000000) * 200.000000, COUNT() ` +
+			`SELECT floor("bytes" / 200.000000) * 200.000000, count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY (floor("bytes" / 200.000000) * 200.000000) ` +
 				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
@@ -2662,17 +2662,17 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') AND ` +
 				`"timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z')`,
 			`NoDBQuery`,
-			`SELECT "Cancelled", COUNT() ` +
+			`SELECT "Cancelled", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') ` +
 				`GROUP BY ("Cancelled") ` +
-				`ORDER BY COUNT() DESC ` +
+				`ORDER BY count() DESC ` +
 				`LIMIT 5`,
 		},
 	},
@@ -2827,20 +2827,20 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1716231600000/600000)),
-					model.NewQueryResultCol("COUNT()", 1),
+					model.NewQueryResultCol("count()", 1),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1716276600000/600000)),
-					model.NewQueryResultCol("COUNT()", 4),
+					model.NewQueryResultCol("count()", 4),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)", int64(1716277200000/600000)),
-					model.NewQueryResultCol("COUNT()", 1),
+					model.NewQueryResultCol("count()", 1),
 				}},
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
@@ -2849,7 +2849,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
-				"COUNT() " +
+				"count() " +
 				"FROM " + testdata.QuotedTableName + " " +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
@@ -3004,27 +3004,27 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("bytes", 0.0),
-					model.NewQueryResultCol("COUNT()", 5),
+					model.NewQueryResultCol("count()", 5),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("bytes", 5296.0),
-					model.NewQueryResultCol("COUNT()", 1),
+					model.NewQueryResultCol("count()", 1),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("bytes", 16837.0),
-					model.NewQueryResultCol("COUNT()", 1),
+					model.NewQueryResultCol("count()", 1),
 				}},
 			},
 			{}, // NoDBQuery
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() FROM ` + testdata.QuotedTableName,
+			`SELECT count() FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
 			`SELECT "bytes", maxOrNull("memory") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY ("bytes") ` +
 				`ORDER BY ("bytes")`,
-			`SELECT "bytes", COUNT() ` +
+			`SELECT "bytes", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY ("bytes") ` +
 				`ORDER BY ("bytes")`,
@@ -3171,7 +3171,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`COUNT()`, 0),
+					model.NewQueryResultCol(`count()`, 0),
 				}},
 			},
 			{
@@ -3181,24 +3181,24 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`COUNT()`, 722),
+					model.NewQueryResultCol(`count()`, 722),
 				}},
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` `,
 			`NoDBQuery`,
 			`SELECT sumOrNull("DistanceKilometers") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "FlightDelayMin" > '-100' `,
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "FlightDelayMin" > '-100' `,
 			`SELECT sumOrNull("DistanceKilometers") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE false `,
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE false `,
 		},
@@ -3396,52 +3396,52 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2184))}}},
 			{}, // NoDBQuery
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`COUNT()`, 0)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 0)}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 82682.96674728394)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`COUNT()`, 140)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 140)}}},
 			{}, // NoDBQuery
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 0.0)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`COUNT()`, 0)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 0)}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`sumOrNull("DistanceKilometers")`, 140267.98315429688)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`COUNT()`, 62)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`count()`, 62)}}},
 			{{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol(`count(if("DistanceMiles">=0 AND "DistanceMiles"<1000, 1, NULL))`, 419),
 				model.NewQueryResultCol(`count(if("DistanceMiles">=1000 AND "DistanceMiles"<2000, 1, NULL))`, 159),
-				model.NewQueryResultCol(`COUNT()`, 2184),
+				model.NewQueryResultCol(`count()`, 2184),
 			}}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` `,
 			`NoDBQuery`,
 			`SELECT sumOrNull("DistanceKilometers") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND "FlightDelayMin" > '100' `,
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND "FlightDelayMin" > '100' `,
 			`SELECT sumOrNull("DistanceKilometers") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND false `,
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "DistanceMiles">=0 AND "DistanceMiles"<1000 AND false `,
 			`NoDBQuery`,
 			`SELECT sumOrNull("DistanceKilometers") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND "FlightDelayMin" > '100' `,
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND "FlightDelayMin" > '100' `,
 			`SELECT sumOrNull("DistanceKilometers") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND false `,
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "DistanceMiles">=1000 AND "DistanceMiles"<2000 AND false `,
 			`SELECT count(if("DistanceMiles">=0 AND "DistanceMiles"<1000, 1, NULL)), ` +
 				`count(if("DistanceMiles">=1000 AND "DistanceMiles"<2000, 1, NULL)), ` +
-				`COUNT() ` +
+				`count() ` +
 				`FROM ` + testdata.QuotedTableName + ` `,
 		},
 	}, */
@@ -3594,17 +3594,17 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z')`,
 			`NoDBQuery`,
-			`SELECT "extension", COUNT() ` +
+			`SELECT "extension", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z') ` +
 				`GROUP BY ("extension") ` +
-				`ORDER BY COUNT() DESC ` +
+				`ORDER BY count() DESC ` +
 				`LIMIT 5`,
 		},
 	},
@@ -3762,14 +3762,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
 			`SELECT "extension", avgOrNull("machine.ram") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY ("extension") ` +
 				`ORDER BY ("extension")`,
-			`SELECT "extension", COUNT() ` +
+			`SELECT "extension", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY ("extension") ` +
 				`ORDER BY ("extension")`,
@@ -4175,46 +4175,46 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 0.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 6),
+					model.NewQueryResultCol(`count()`, 6),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 0.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 9),
+					model.NewQueryResultCol(`count()`, 9),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 1),
+					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 2),
+					model.NewQueryResultCol(`count()`, 2),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 3),
+					model.NewQueryResultCol(`count()`, 3),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 600.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 1),
+					model.NewQueryResultCol(`count()`, 1),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 0.0),
-					model.NewQueryResultCol(`COUNT()`, 15),
+					model.NewQueryResultCol(`count()`, 15),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 200.0),
-					model.NewQueryResultCol(`COUNT()`, 6),
+					model.NewQueryResultCol(`count()`, 6),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 600.0),
-					model.NewQueryResultCol(`COUNT()`, 1),
+					model.NewQueryResultCol(`count()`, 1),
 				}},
 			},
 			{}, // NoDBQuery
@@ -4279,91 +4279,91 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 1000.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 1),
+					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 1000.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715205600000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 1),
+					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 1200.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715162400000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 1),
+					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 1400.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 1),
+					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 1400.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 2),
+					model.NewQueryResultCol(`count()`, 2),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 1600.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 3),
+					model.NewQueryResultCol(`count()`, 3),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 1600.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715248800000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 1),
+					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 1800.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714860000000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 2),
+					model.NewQueryResultCol(`count()`, 2),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 1800.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714903200000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 6),
+					model.NewQueryResultCol(`count()`, 6),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 1800.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1714989600000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 8),
+					model.NewQueryResultCol(`count()`, 8),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 1800.0),
 					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)", int64(1715076000000/43200000)),
-					model.NewQueryResultCol(`COUNT()`, 7),
+					model.NewQueryResultCol(`count()`, 7),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 1000.0),
-					model.NewQueryResultCol(`COUNT()`, 2),
+					model.NewQueryResultCol(`count()`, 2),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 1200.0),
-					model.NewQueryResultCol(`COUNT()`, 1),
+					model.NewQueryResultCol(`count()`, 1),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 1400.0),
-					model.NewQueryResultCol(`COUNT()`, 3),
+					model.NewQueryResultCol(`count()`, 3),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 1600.0),
-					model.NewQueryResultCol(`COUNT()`, 4),
+					model.NewQueryResultCol(`count()`, 4),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`floor("bytes" / 200.000000) * 200.000000`, 1800.0),
-					model.NewQueryResultCol(`COUNT()`, 23),
+					model.NewQueryResultCol(`count()`, 23),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol(`count(if("bytes">=0 AND "bytes"<1000, 1, NULL))`, 168),
 					model.NewQueryResultCol(`count(if("bytes">=1000 AND "bytes"<2000, 1, NULL))`, 94),
-					model.NewQueryResultCol(`COUNT()`, 1865),
+					model.NewQueryResultCol(`count()`, 1865),
 				}},
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT COUNT() ` +
+			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
 			`SELECT floor("bytes" / 200.000000) * 200.000000, ` +
@@ -4375,13 +4375,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY (floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000))",
 			`SELECT floor("bytes" / 200.000000) * 200.000000, ` +
 				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
-				`COUNT() ` +
+				`count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "bytes">=0 AND "bytes"<1000 ` +
 				`GROUP BY (floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)) " +
 				`ORDER BY (floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000))",
 			`SELECT floor("bytes" / 200.000000) * 200.000000, ` +
-				`COUNT() ` +
+				`count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "bytes">=0 AND "bytes"<1000 ` +
 				`GROUP BY (floor("bytes" / 200.000000) * 200.000000) ` +
@@ -4396,20 +4396,20 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY (floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000))",
 			`SELECT floor("bytes" / 200.000000) * 200.000000, ` +
 				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
-				`COUNT() ` +
+				`count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "bytes">=1000 AND "bytes"<2000 ` +
 				`GROUP BY (floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)) " +
 				`ORDER BY (floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000))",
 			`SELECT floor("bytes" / 200.000000) * 200.000000, ` +
-				`COUNT() ` +
+				`count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "bytes">=1000 AND "bytes"<2000 ` +
 				`GROUP BY (floor("bytes" / 200.000000) * 200.000000) ` +
 				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
 			`SELECT count(if("bytes">=0 AND "bytes"<1000, 1, NULL)), ` +
 				`count(if("bytes">=1000 AND "bytes"<2000, 1, NULL)), ` +
-				`COUNT() ` +
+				`count() ` +
 				`FROM ` + testdata.QuotedTableName,
 		},
 	},

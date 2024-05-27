@@ -37,7 +37,7 @@ func (interval DateTimeInterval) ToSQLSelectQuery(fieldName string) string {
 	} else if interval.End != UnboundedInterval {
 		return fmt.Sprintf("count(if(%s < %s, 1, NULL))", strconv.Quote(fieldName), interval.End)
 	}
-	return "COUNT()"
+	return "count()"
 }
 
 // BeginTimestampToSQL returns SQL select for the begin timestamp, and a boolean indicating if the select is needed

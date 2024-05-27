@@ -74,7 +74,7 @@ func (b *aggrQueryBuilder) buildCountAggregation(metadata model.JsonMap) model.Q
 	query := b.buildAggregationCommon(metadata)
 	query.Type = metrics_aggregations.NewCount(b.ctx)
 
-	query.NonSchemaFields = append(query.NonSchemaFields, "COUNT()")
+	query.NonSchemaFields = append(query.NonSchemaFields, "count()")
 
 	query.Columns = append(query.Columns, model.Column{Expression: aexp.Count()})
 	return query
@@ -83,7 +83,7 @@ func (b *aggrQueryBuilder) buildCountAggregation(metadata model.JsonMap) model.Q
 func (b *aggrQueryBuilder) buildBucketAggregation(metadata model.JsonMap) model.Query {
 	query := b.buildAggregationCommon(metadata)
 
-	query.NonSchemaFields = append(query.NonSchemaFields, "COUNT()")
+	query.NonSchemaFields = append(query.NonSchemaFields, "count()")
 
 	query.Columns = append(query.Columns, model.Column{Expression: aexp.Count()})
 	return query
@@ -134,12 +134,12 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			})
 		}
 	case "cardinality":
-		query.NonSchemaFields = append(query.NonSchemaFields, `COUNT(DISTINCT "`+getFirstFieldName()+`")`)
+		query.NonSchemaFields = append(query.NonSchemaFields, `count(DISTINCT "`+getFirstFieldName()+`")`)
 
 		query.Columns = append(query.Columns, model.Column{Expression: aexp.Count(aexp.NewComposite(aexp.Symbol("DISTINCT"), aexp.C(getFirstFieldName())))})
 
 	case "value_count":
-		query.NonSchemaFields = append(query.NonSchemaFields, "COUNT()")
+		query.NonSchemaFields = append(query.NonSchemaFields, "count()")
 
 		query.Columns = append(query.Columns, model.Column{Expression: aexp.Count()})
 
@@ -263,7 +263,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 		}
 	}
 
-	// COUNT(*) is needed for every request. We should change it and don't duplicate it, as some
+	// count(*) is needed for every request. We should change it and don't duplicate it, as some
 	// requests also ask for that themselves, but let's leave it for later.
 	aggregations := []model.Query{currentAggr.buildCountAggregation(model.NoMetadataField)}
 
@@ -688,7 +688,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 						}
 					}
 				}
-				currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, "ORDER BY COUNT() DESC")
+				currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, "ORDER BY count() DESC")
 				currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, fmt.Sprintf("LIMIT %d", size))
 			}
 			delete(queryMap, termsType)

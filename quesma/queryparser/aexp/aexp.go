@@ -49,7 +49,7 @@ func FN(name string, args ...AExp) Function {
 }
 
 func Count(args ...AExp) Function {
-	return FN("COUNT", args...)
+	return FN("count", args...)
 }
 
 // It represents functions with multitple arguments list

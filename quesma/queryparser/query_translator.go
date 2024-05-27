@@ -563,7 +563,7 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []m
 func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause string) *model.Query {
 	return &model.Query{
 		Columns:         []model.Column{{Expression: aexp.Count()}},
-		NonSchemaFields: []string{"COUNT()"},
+		NonSchemaFields: []string{"count()"},
 		WhereClause:     whereClause,
 		FromClause:      cw.Table.FullTableName(),
 		CanParse:        true,
@@ -614,7 +614,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 }
 
 func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, query model.SimpleQuery, limitTodo int) *model.Query {
-	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY COUNT() DESC"}
+	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
 	innerQuery := model.Query{
 		Fields:        []string{fieldName},
 		Columns:       []model.Column{{Expression: aexp.C(fieldName)}},
@@ -626,7 +626,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, query mo
 	return &model.Query{
 		Fields:          []string{fieldName},
 		Columns:         []model.Column{{Expression: aexp.C(fieldName)}, {Expression: aexp.Count()}},
-		NonSchemaFields: []string{"COUNT()"},
+		NonSchemaFields: []string{"count()"},
 		SuffixClauses:   suffixClauses,
 		FromClause:      "(" + innerQuery.String() + ")",
 		CanParse:        true,
