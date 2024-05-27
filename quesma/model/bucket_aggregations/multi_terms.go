@@ -2,17 +2,19 @@ package bucket_aggregations
 
 import (
 	"context"
+	"fmt"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 )
 
 type MultiTerms struct {
-	ctx         context.Context
-	significant bool // true <=> significant_terms, false <=> terms
+	ctx    context.Context
+	fields []string
+	size   int
 }
 
-func NewMultiTerms(ctx context.Context, significant bool) Terms {
-	return Terms{ctx: ctx, significant: significant}
+func NewMultiTerms(ctx context.Context, fields []string, size int) MultiTerms {
+	return MultiTerms{ctx: ctx, fields: fields, size: size}
 }
 
 func (query MultiTerms) IsBucketAggregation() bool {
@@ -21,15 +23,20 @@ func (query MultiTerms) IsBucketAggregation() bool {
 
 func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	var response []model.JsonMap
-	if len(rows) > 0 && len(rows[0].Cols) < 2 {
+	fieldsNr := len(query.fields)
+	expectedColNrLowerBound := fieldsNr + 1 // +1 for doc_count
+	if len(rows) > 0 && len(rows[0].Cols) < expectedColNrLowerBound {
 		logger.ErrorWithCtx(query.ctx).Msgf(
-			"unexpected number of columns in terms aggregation response, len: %d, rows[0]: %v", len(rows[0].Cols), rows[0])
+			"unexpected number of columns in terms aggregation response, len: %d, expected (at least): %d, rows[0]: %v", len(rows[0].Cols), expectedColNrLowerBound, rows[0])
 	}
+	const delimiter = '|' // between keys in key_as_string
 	for _, row := range rows {
 		docCount := row.Cols[len(row.Cols)-1].Value
-		bucket := model.JsonMap{
-			"key":       row.Cols[len(row.Cols)-2].Value,
-			"doc_count": docCount,
+		var key []string
+		var keyAsString string
+		keyColumns := row.Cols[len(row.Cols)-expectedColNrLowerBound : len(row.Cols)-1]
+		for _, col := range keyColumns {
+
 		}
 		if query.significant {
 			bucket["score"] = docCount
@@ -41,10 +48,7 @@ func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 }
 
 func (query MultiTerms) String() string {
-	if !query.significant {
-		return "terms"
-	}
-	return "significant_terms"
+	return fmt.Sprintf("multi_terms(fields: %v, size: %d)", query.fields, query.size)
 }
 
 func (query MultiTerms) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {

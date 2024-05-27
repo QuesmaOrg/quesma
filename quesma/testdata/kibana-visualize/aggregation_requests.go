@@ -476,4 +476,168 @@ var AggregationTests = []testdata.AggregationTestCase{
 		ExpectedResults: [][]model.QueryResultRow{},
 		ExpectedSQLs:    []string{""},
 	},
+	{ // [3]
+		TestName: "Quite simple multi_terms, but with non-string keys. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"date_histogram": {
+								"field": "timestamp",
+								"fixed_interval": "30s",
+								"min_doc_count": 1,
+								"time_zone": "Europe/Warsaw"
+							}
+						}
+					},
+					"multi_terms": {
+						"order": {
+							"_count": "desc"
+						},
+						"size": 3,
+						"terms": [
+							{
+								"field": "Cancelled"
+							},
+							{
+								"field": "AvgTicketPrice"
+							}
+						]
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-05-27T19:29:39.433Z",
+									"lte": "2024-05-27T19:44:39.433Z"
+								}
+							}
+						}
+					],
+					"must": [],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"runtime_mappings": {
+				"hour_of_day": {
+					"script": {
+						"source": "emit(doc['timestamp'].value.getHour());"
+					},
+					"type": "long"
+				}
+			},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		// I erased empty date_histogram buckets, we don't support extended_bounds yet
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1716839096599,
+			"expiration_time_in_millis": 1716839156591,
+			"id": "FnlDTkxYWlI1VEpxQlBhS24yaW16amccRVZINklxc1VTQ2lhVEtwMnpmZjNEZzo5NjIyMA==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"0": {
+						"buckets": [
+							{
+								"1": {
+									"buckets": [
+										{
+											"doc_count": 1,
+											"key": 1716839040000,
+											"key_as_string": "2024-05-27T21:44:00.000+02:00"
+										}
+									]
+								},
+								"doc_count": 1,
+								"key": [
+									false,
+									167.05126953125
+								],
+								"key_as_string": "false|167.05126953125"
+							},
+							{
+								"1": {
+									"buckets": [
+										{
+											"doc_count": 1,
+											"key": 1716838530000,
+											"key_as_string": "2024-05-27T21:35:30.000+02:00"
+										}
+									]
+								},
+								"doc_count": 1,
+								"key": [
+									false,
+									331.336181640625
+								],
+								"key_as_string": "false|331.336181640625"
+							},
+							{
+								"1": {
+									"buckets": [
+										{
+											"doc_count": 1,
+											"key": 1716838500000,
+											"key_as_string": "2024-05-27T21:35:00.000+02:00"
+										}
+									]
+								},
+								"doc_count": 1,
+								"key": [
+									false,
+									714.4038696289062
+								],
+								"key_as_string": "false|714.4038696289062"
+							}
+						],
+						"doc_count_error_upper_bound": 0,
+						"sum_other_doc_count": 1
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 4
+					}
+				},
+				"timed_out": false,
+				"took": 8
+			},
+			"start_time_in_millis": 1716839096591
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{},
+		ExpectedSQLs:    []string{},
+	},
 }

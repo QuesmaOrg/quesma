@@ -775,8 +775,39 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			*/
 		}
 	}
-	if multiTermsRaw, ok := queryMap["multi_terms"]; ok {
+	if multiTermsRaw, exists := queryMap["multi_terms"]; exists {
+		multiTerms, ok := multiTermsRaw.(QueryMap)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("multi_terms is not a map, but %T, value: %v", multiTermsRaw, multiTermsRaw)
+		}
 
+		const defaultSize = 10
+		size := cw.parseIntField(multiTerms, "size", defaultSize)
+		if _, exists := queryMap["aggs"]; !exists { // we can do limit only it terms are not nested
+			currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, "ORDER BY count() DESC")
+			currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, fmt.Sprintf("LIMIT %d", size))
+		}
+
+		// TODO: "order" field
+
+		var fields []string
+		if termsRaw, exists := multiTerms["terms"]; exists {
+			terms, ok := termsRaw.([]any)
+			if !ok {
+				logger.WarnWithCtx(cw.Ctx).Msgf("terms is not an array, but %T, value: %v. Using empty array", termsRaw, termsRaw)
+			}
+			for _, term := range terms {
+				fieldName := cw.parseFieldField(term, "multi_terms")
+				fields = append(fields, fieldName)
+				currentAggr.Fields = append(currentAggr.Fields, fieldName)
+				currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
+			}
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msg("no terms in multi_terms")
+		}
+		currentAggr.Type = bucket_aggregations.NewMultiTerms(cw.Ctx, fields, size)
+
+		delete(queryMap, "multi_terms")
 	}
 	if rangeRaw, ok := queryMap["range"]; ok {
 		rangeMap, ok := rangeRaw.(QueryMap)
@@ -864,6 +895,16 @@ func (cw *ClickhouseQueryTranslator) parseFieldField(shouldBeMap any, aggregatio
 		logger.WarnWithCtx(cw.Ctx).Msgf("field not found in %s aggregation: %v", aggregationType, Map)
 	}
 	return ""
+}
+
+func (cw *ClickhouseQueryTranslator) parseIntField(queryMap QueryMap, fieldName string, defaultValue int) int {
+	if valueRaw, exists := queryMap[fieldName]; exists {
+		if asFloat, ok := valueRaw.(float64); ok {
+			return int(asFloat)
+		}
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not an float64, but %T, value: %v. Using default", fieldName, sizeRaw, sizeRaw)
+	}
+	return defaultValue
 }
 
 // parseFieldFieldMaybeScript is basically almost a copy of parseFieldField above, but it also handles a basic script, if "field" is missing.
