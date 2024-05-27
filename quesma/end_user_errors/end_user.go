@@ -32,6 +32,10 @@ func (e *EndUserError) Error() string {
 	}
 }
 
+func (e *EndUserError) ErrorType() *ErrorType {
+	return e.errorType
+}
+
 // Reason returns message logged in to reason field
 func (e *EndUserError) Reason() string {
 	return e.errorType.Message
@@ -81,6 +85,9 @@ func errorType(number int, message string) *ErrorType {
 // Q2XXX - Query processing errors. Query translation etc.
 // Q3XXX - Errors related to external storages like Clickhouse, Elasticsearch, etc.
 // Q4XXX - Errors related to other internal components telemetry, etc.
+
+var ErrExpectedJSON = errorType(1001, "Invalid request body. We're expecting JSON here.")
+var ErrExpectedNDJSON = errorType(1002, "Invalid request body. We're expecting NDJSON here.")
 
 var ErrSearchCondition = errorType(2001, "Not supported search condition.")
 var ErrNoSuchTable = errorType(2002, "Missing table.")
