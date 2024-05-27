@@ -775,6 +775,9 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			*/
 		}
 	}
+	if multiTermsRaw, ok := queryMap["multi_terms"]; ok {
+
+	}
 	if rangeRaw, ok := queryMap["range"]; ok {
 		rangeMap, ok := rangeRaw.(QueryMap)
 		if !ok {
