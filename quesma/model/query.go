@@ -16,9 +16,15 @@ const (
 )
 
 type (
+	Column struct {
+		Alias      string
+		Expression aexp.AExp
+	}
+
 	Query struct {
 		IsDistinct bool // true <=> query is SELECT DISTINCT
 
+		// This is the future.
 		Columns []Column // Columns to select, including aliases
 
 		// TO BE REMOVED
@@ -70,6 +76,27 @@ type (
 		Desc  bool
 	}
 )
+
+func (c Column) SQL() string {
+
+	if c.Expression == nil {
+		panic("Column expression is nil")
+	}
+
+	exprAsString := aexp.RenderSQL(c.Expression)
+
+	if c.Alias == "" {
+		return exprAsString
+	}
+
+	return fmt.Sprintf("%s AS \"%s\"", exprAsString, c.Alias)
+}
+
+func (c Column) String() string {
+
+	return fmt.Sprintf("Column(Alias: '%s', expression: '%v')", c.Alias, c.Expression)
+
+}
 
 func (sf SortFields) Properties() []string {
 	properties := make([]string, 0)
@@ -247,14 +274,11 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 
 	q.Columns = make([]Column, len(qwa.Columns))
 	copy(q.Columns, qwa.Columns)
-	// TODO
 
-	if TODOBOTH {
-		q.Fields = make([]string, len(qwa.Fields))
-		copy(q.Fields, qwa.Fields)
-		q.NonSchemaFields = make([]string, len(qwa.NonSchemaFields))
-		copy(q.NonSchemaFields, qwa.NonSchemaFields)
-	}
+	q.Fields = make([]string, len(qwa.Fields))
+	copy(q.Fields, qwa.Fields)
+	q.NonSchemaFields = make([]string, len(qwa.NonSchemaFields))
+	copy(q.NonSchemaFields, qwa.NonSchemaFields)
 
 	q.Aggregators = make([]Aggregator, len(qwa.Aggregators))
 	copy(q.Aggregators, qwa.Aggregators)

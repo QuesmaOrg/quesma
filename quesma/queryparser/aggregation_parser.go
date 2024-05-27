@@ -58,10 +58,8 @@ func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.
 	// Need to copy, as we might be proceeding to modify 'b' pointer
 	query.CopyAggregationFields(b.Query)
 
-	if model.TODOBOTH {
-		if len(query.Fields) > 0 && query.Fields[len(query.Fields)-1] == model.EmptyFieldSelection { // TODO 99% sure it's removed in next PR, let's leave for now
-			query.Fields = query.Fields[:len(query.Fields)-1]
-		}
+	if len(query.Fields) > 0 && query.Fields[len(query.Fields)-1] == model.EmptyFieldSelection { // TODO 99% sure it's removed in next PR, let's leave for now
+		query.Fields = query.Fields[:len(query.Fields)-1]
 	}
 
 	query.RemoveEmptyGroupBy()
