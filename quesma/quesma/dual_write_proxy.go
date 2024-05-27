@@ -72,6 +72,10 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, indexManager elasticse
 	}
 	routerInstance := router{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client}
 
+	agent.FailedRequestsCollector(func() int64 {
+		return routerInstance.failedRequests.Load()
+	})
+
 	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		defer recovery.LogPanic()
 		reqBody, err := peekBody(req)

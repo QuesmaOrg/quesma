@@ -40,7 +40,9 @@ func (v *StringRenderer) VisitInfixOp(e *InfixOp) interface{} {
 func (v *StringRenderer) VisitPrefixOp(e *PrefixOp) interface{} {
 	args := make([]string, len(e.Args))
 	for i, arg := range e.Args {
-		args[i] = arg.Accept(v).(string)
+		if arg != nil {
+			args[i] = arg.Accept(v).(string)
+		}
 	}
 
 	argsAsString := strings.Join(args, ", ")
@@ -50,7 +52,9 @@ func (v *StringRenderer) VisitPrefixOp(e *PrefixOp) interface{} {
 func (v *StringRenderer) VisitFunction(e *Function) interface{} {
 	args := make([]string, len(e.Args))
 	for i, arg := range e.Args {
-		args[i] = arg.Accept(v).(string)
+		if arg != nil {
+			args[i] = arg.Accept(v).(string)
+		}
 	}
 
 	argsAsString := strings.Join(args, ",")

@@ -2,6 +2,7 @@ package clickhouse
 
 import (
 	"database/sql"
+	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/logger"
 )
 
@@ -18,6 +19,7 @@ func (s *SchemaManagement) readTables(database string) (map[string]map[string]st
 
 	rows, err := s.chDb.Query("SELECT table, name, type FROM system.columns WHERE database = ?", database)
 	if err != nil {
+		err = end_user_errors.GuessClickhouseErrorType(err).InternalDetails("reading list of columns from system.columns")
 		return map[string]map[string]string{}, err
 	}
 	defer rows.Close()

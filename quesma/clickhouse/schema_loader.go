@@ -1,6 +1,9 @@
 package clickhouse
 
 import (
+	"context"
+	"errors"
+	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/util"
@@ -23,7 +26,14 @@ func (sl *schemaLoader) ReloadTables() {
 		databaseName = sl.cfg.ClickHouse.Database
 	}
 	if tables, err := sl.SchemaManagement.readTables(databaseName); err != nil {
-		logger.Error().Msgf("could not describe tables: %v", err)
+
+		var endUserError *end_user_errors.EndUserError
+		if errors.As(err, &endUserError) {
+			logger.ErrorWithCtxAndReason(context.Background(), endUserError.Reason()).Msgf("could not describe tables: %v", err)
+		} else {
+			logger.Error().Msgf("could not describe tables: %v", err)
+		}
+
 		return
 	} else {
 		for table, columns := range tables {

@@ -6,6 +6,18 @@ import (
 	"testing"
 )
 
+func TestCommentedJson(t *testing.T) {
+	jsonStr := `{"key1":"value1","key2":"value2"}`
+	commentedJsonStr := `// comment
+{"key1":"value1","key2":"value2" /* another comment */ }`
+
+	jsonStruct, err := ParseJSON(commentedJsonStr)
+	assert.NoError(t, err)
+	withoutComment := jsonStruct.ShortString()
+
+	assert.Equal(t, jsonStr, withoutComment)
+}
+
 func TestReMarshalJSON(t *testing.T) {
 
 	type dest struct {

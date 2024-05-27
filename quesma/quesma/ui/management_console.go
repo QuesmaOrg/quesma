@@ -78,7 +78,7 @@ type QuesmaManagementConsole struct {
 	debugInfoMessages         map[string]queryDebugInfo
 	debugLastMessages         []string
 	responseMatcherChannel    chan queryDebugInfo
-	config                    config.QuesmaConfiguration
+	cfg                       config.QuesmaConfiguration
 	requestsStore             *stats.RequestStatisticStore
 	requestsSource            chan *recordRequests
 	startedAt                 time.Time
@@ -98,7 +98,7 @@ func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *c
 		debugInfoMessages:         make(map[string]queryDebugInfo),
 		debugLastMessages:         make([]string, 0),
 		responseMatcherChannel:    make(chan queryDebugInfo, 5),
-		config:                    config,
+		cfg:                       config,
 		requestsStore:             stats.NewRequestStatisticStore(),
 		requestsSource:            make(chan *recordRequests, 100),
 		startedAt:                 time.Now(),

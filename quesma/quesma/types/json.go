@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/tailscale/hujson"
 )
 
 type JSON map[string]interface{}
@@ -11,6 +12,11 @@ func ParseJSON(body string) (JSON, error) {
 
 	var res JSON
 	err := json.Unmarshal([]byte(body), &res)
+	if err != nil {
+		if newBytes, errStd := hujson.Standardize([]byte(body)); errStd == nil {
+			err = json.Unmarshal(newBytes, &res)
+		}
+	}
 
 	return res, err
 }
@@ -54,4 +60,12 @@ func (j JSON) ShortString() string {
 	}
 	return asString[:70]
 
+}
+
+func (j JSON) Clone() JSON {
+	clone := make(JSON)
+	for k, v := range j {
+		clone[k] = v
+	}
+	return clone
 }

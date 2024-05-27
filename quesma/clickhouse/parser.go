@@ -1,8 +1,8 @@
 package clickhouse
 
 import (
-	"encoding/json"
 	"fmt"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/util"
 	"slices"
 	"strings"
@@ -10,19 +10,8 @@ import (
 
 const NestedSeparator = "::"
 
-// TODO remove schemamap type?
-// TODO change all return types to * when worth it like here
-func JsonToFieldsMap(jsonn string) (SchemaMap, error) {
-	m := make(SchemaMap)
-	err := json.Unmarshal([]byte(jsonn), &m)
-	if err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
 func JsonToTableSchema(jsonn, tableName string, config *ChTableConfig) (*Table, error) {
-	m, err := JsonToFieldsMap(jsonn)
+	m, err := types.ParseJSON(jsonn)
 	if err != nil {
 		return nil, err
 	}
