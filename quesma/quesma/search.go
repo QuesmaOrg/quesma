@@ -204,7 +204,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
 
-		queries, columns, isAggregation, canParse, err := queryTranslator.ParseQuery(bodyAsBytes)
+		queries, columns, isAggregation, canParse, err := queryTranslator.ParseQuery(body)
 
 		if canParse {
 			if query_util.IsNonAggregationQuery(queries[0].QueryInfo, body) {
