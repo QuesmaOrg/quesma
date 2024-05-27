@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/util"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -67,49 +68,18 @@ func (c QueryResultCol) String(ctx context.Context) string {
 // ExtractValue returns the value of the column. If it is a pointer, it returns the value of the pointer.
 // Care: it's untested how it works with '[]type' or '[]*type'.
 func (c QueryResultCol) ExtractValue(ctx context.Context) any {
-	switch valueTyped := c.Value.(type) {
-	case string, time.Time, int, int64, float64, uint64, bool:
-		return valueTyped
-	case *string:
-		if valueTyped == nil {
+	if c.Value == nil {
+		return nil
+	}
+	v := reflect.ValueOf(c.Value)
+
+	if v.Kind() == reflect.Ptr {
+		if v.Elem().Kind() == reflect.Invalid {
 			return nil
-		} else {
-			return *valueTyped
 		}
-	case *time.Time:
-		if valueTyped == nil {
-			return nil
-		} else {
-			return *valueTyped
-		}
-	case *int64:
-		if valueTyped == nil {
-			return nil
-		} else {
-			return *valueTyped
-		}
-	case *float64:
-		if valueTyped == nil {
-			return nil
-		} else {
-			return *valueTyped
-		}
-	case *int:
-		if valueTyped == nil {
-			return nil
-		} else {
-			return *valueTyped
-		}
-	case *bool:
-		if valueTyped == nil {
-			return nil
-		} else {
-			return *valueTyped
-		}
+		return v.Elem().Interface()
 	}
 
-	// TODO Add arrays
-	logger.WarnWithCtx(ctx).Msgf("extractValue: unseed type %T, value: %v", c.Value, c.Value)
 	return c.Value
 }
 
