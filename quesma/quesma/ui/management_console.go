@@ -211,7 +211,7 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 			if len(value.logMessages) < maxLogMessagePerRequest {
 				value.logMessages = append(value.logMessages, log.Msg)
 			} else {
-				lastMsg := `{"level":"error",message":"Max log messages reached"}`
+				lastMsg := `{"level":"error","message":"Max log messages reached"}`
 				if value.logMessages[len(value.logMessages)-1] != lastMsg {
 					value.logMessages = append(value.logMessages, lastMsg)
 				}
