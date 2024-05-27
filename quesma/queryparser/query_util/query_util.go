@@ -1,20 +1,21 @@
 package query_util
 
 import (
-	"bytes"
 	"context"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/aexp"
+	"mitmproxy/quesma/quesma/types"
 	"strconv"
 	"strings"
 )
 
-func IsNonAggregationQuery(queryInfo model.SearchQueryInfo, body []byte) bool {
+func IsNonAggregationQuery(queryInfo model.SearchQueryInfo, body types.JSON) bool {
+	_, hasAggs := body["aggs"]
 	return ((queryInfo.Typ == model.ListByField ||
 		queryInfo.Typ == model.ListAllFields ||
 		queryInfo.Typ == model.Normal) &&
-		!bytes.Contains(body, []byte("aggs"))) ||
+		!hasAggs) ||
 		queryInfo.Typ == model.Facets ||
 		queryInfo.Typ == model.FacetsNumeric ||
 		queryInfo.Typ == model.CountAsync
