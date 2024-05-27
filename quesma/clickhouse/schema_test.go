@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/queryparser/aexp"
 	"slices"
 	"strconv"
 	"testing"
@@ -42,31 +43,31 @@ var queries = []struct {
 		[]string{},
 	},
 	{
-		&model.Query{Fields: []string{"*"}},
+		&model.Query{Fields: []string{"*"}, Columns: []model.Column{{Expression: aexp.Wildcard}}},
 		[]string{"all"},
 	},
 	{
-		&model.Query{Fields: []string{"*"}, NonSchemaFields: []string{"count()"}},
+		&model.Query{Fields: []string{"*"}, NonSchemaFields: []string{"count()"}, Columns: []model.Column{{Expression: aexp.Wildcard}, {Expression: aexp.Count()}}},
 		[]string{"all", "count()"},
 	},
 	{
-		&model.Query{Fields: []string{"*"}, NonSchemaFields: []string{"count()"}, WhereClause: "message = 'hello'"}, // select fields + where clause
+		&model.Query{Fields: []string{"*"}, NonSchemaFields: []string{"count()"}, Columns: []model.Column{{Expression: aexp.Wildcard}, {Expression: aexp.Count()}}, WhereClause: "message = 'hello'"}, // select fields + where clause
 		[]string{"all", "count()"},
 	},
 	{
-		&model.Query{Fields: []string{"message", "timestamp"}},
+		&model.Query{Fields: []string{"message", "timestamp"}, Columns: []model.Column{{Expression: aexp.C("message")}, {Expression: aexp.C("timestamp")}}},
 		[]string{"message", "timestamp"},
 	},
 	{
-		&model.Query{Fields: []string{"message", "non-existent"}},
+		&model.Query{Fields: []string{"message", "non-existent"}, Columns: []model.Column{{Expression: aexp.C("message")}, {Expression: aexp.C("non-existent")}}},
 		[]string{"message"},
 	},
 	{
-		&model.Query{Fields: []string{"non-existent"}},
+		&model.Query{Fields: []string{"non-existent"}, Columns: []model.Column{{Expression: aexp.C("non-existent")}}},
 		[]string{},
 	},
 	{
-		&model.Query{Fields: []string{"message", "timestamp"}, NonSchemaFields: []string{"toString(count())"}},
+		&model.Query{Fields: []string{"message", "timestamp"}, NonSchemaFields: []string{"toString(count())"}, Columns: []model.Column{{Expression: aexp.C("message")}, {Expression: aexp.C("timestamp")}, {Expression: aexp.FN("toString", aexp.Count())}}},
 		[]string{"message", "timestamp"},
 	},
 	//{ // we don't support such a query. Supporting it would slow down query's code, and this query seems pointless

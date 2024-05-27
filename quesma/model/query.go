@@ -86,8 +86,21 @@ func (q *Query) String() string {
 	return q.StringFromColumns(q.Fields)
 }
 
-func (q *Query) XAddColumn(column Column) {
-	q.Columns = append(q.Columns, column)
+func (q *Query) StringFromColumns(colNames []string) string {
+
+	// render based on Field and NonSchemaFields
+	oldSQL := q.StringFromColumnsOld(colNames)
+
+	// render based on Columns
+	newSQL := q.StringFromColumnsNew(colNames)
+
+	if oldSQL != newSQL {
+		fmt.Printf("Query rendered SQLmismatch:\n")
+		fmt.Printf("OLD: %s\nNEW: %s\n", oldSQL, newSQL)
+	}
+
+	return newSQL
+
 }
 
 // returns string with SQL query
@@ -104,15 +117,20 @@ func (q *Query) StringFromColumnsNew(colNames []string) string {
 	if len(q.Columns) == 1 && q.Columns[0].Expression == aexp.Wildcard && len(colNames) > 0 {
 
 		for _, col := range colNames {
-			columns = append(columns, Column{Expression: aexp.C(col)}.SQL())
+
+			if col == "*" || col == EmptyFieldSelection {
+				columns = append(columns, Column{Expression: aexp.Wildcard}.SQL())
+			} else {
+				columns = append(columns, Column{Expression: aexp.C(col)}.SQL())
+			}
 		}
 
-		columns = append(columns, "*")
+		//columns = append(columns, "*")
 	} else {
 		for _, col := range q.Columns {
 			if col.Expression == nil {
 				fmt.Println("Columns: ", q.Columns)
-				columns = append(columns, "COLUMN WITH NIL EXPRESSION"+col.String())
+				columns = append(columns, "XXX COLUMN WITH NIL EXPRESSION"+col.String())
 			} else {
 				columns = append(columns, col.SQL())
 			}
@@ -151,24 +169,6 @@ func (q *Query) StringFromColumnsNew(colNames []string) string {
 		sb.WriteString(" " + strings.Join(q.SuffixClauses, " "))
 	}
 	return sb.String()
-}
-
-func (q *Query) StringFromColumns(colNames []string) string {
-
-	oldSQL := q.StringFromColumnsOld(colNames)
-	newSQL := q.StringFromColumnsNew(colNames)
-
-	if oldSQL != newSQL {
-		fmt.Printf("SQL query mismatch\n")
-		fmt.Printf("Colnames: %s\n", colNames)
-		fmt.Printf("Fields: %s\n", q.Fields)
-		fmt.Printf("NonSchemaFields: %s\n", q.NonSchemaFields)
-		fmt.Printf("Columns: %s\n", q.Columns)
-		fmt.Printf("XXX OLD: %s\nXXX NEW: %s\n", oldSQL, newSQL)
-	}
-
-	return newSQL
-
 }
 
 // returns string with SQL query
@@ -230,7 +230,14 @@ func (q *Query) StringFromColumnsOld(colNames []string) string {
 }
 
 func (q *Query) IsWildcard() bool {
-	return len(q.Columns) == 1 && q.Columns[0].Expression == aexp.Wildcard
+
+	for _, col := range q.Columns {
+		if col.Expression == aexp.Wildcard {
+			return true
+		}
+	}
+
+	return false
 }
 
 // CopyAggregationFields copies all aggregation fields from qwa to q
@@ -267,8 +274,6 @@ func (q *Query) RemoveEmptyGroupBy() {
 // TrimKeywordFromFields trims .keyword from fields and group by fields
 // In future probably handle it in a better way
 func (q *Query) TrimKeywordFromFields(ctx context.Context) {
-
-	TODO("REMOVE THIS FUNCTION")
 
 	for i := range q.Fields {
 		if strings.HasSuffix(q.Fields[i], `.keyword"`) {

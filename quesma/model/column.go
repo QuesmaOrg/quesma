@@ -22,7 +22,7 @@ func (c Column) SQL() string {
 		return exprAsString
 	}
 
-	return fmt.Sprintf("%s AS %s", exprAsString, c.Alias)
+	return fmt.Sprintf("%s AS \"%s\"", exprAsString, c.Alias)
 
 }
 

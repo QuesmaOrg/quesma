@@ -79,6 +79,7 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 	}
 	*aggregationsAccumulator = append(*aggregationsAccumulator, currentAggr.buildBucketAggregation(metadata))
 	currentAggr.NonSchemaFields = currentAggr.NonSchemaFields[:len(currentAggr.NonSchemaFields)-len(Range.Intervals)]
+	currentAggr.Columns = currentAggr.Columns[:len(currentAggr.Columns)-len(Range.Intervals)]
 
 	// build subaggregations
 	aggs, hasAggs := queryCurrentLevel["aggs"].(QueryMap)

@@ -440,7 +440,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT COUNT() FROM ` + testdata.QuotedTableName + ` WHERE "reqTimeSec">='2024-04-24T11:15:46.279Z' AND "reqTimeSec"<='2024-04-24T11:30:46.279Z' `,
-			"SELECT toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), floor(" + `"billingRegion"` + " / 0.020000) * 0.020000, quantiles(0.950000)(`latency`) AS `quantile_95` " +
+			"SELECT toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), floor(" + `"billingRegion"` + " / 0.020000) * 0.020000, quantiles(0.950000)(\"latency\") AS \"quantile_95\" " +
 				`FROM ` + testdata.QuotedTableName + ` WHERE "reqTimeSec">='2024-04-24T11:15:46.279Z' AND "reqTimeSec"<='2024-04-24T11:30:46.279Z'  ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), " + `floor("billingRegion" / 0.020000) * 0.020000) ` +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`reqTimeSec`)/30000), " + `floor("billingRegion" / 0.020000) * 0.020000)`,

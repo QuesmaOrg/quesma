@@ -607,11 +607,11 @@ var AggregationTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT COUNT() FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z'`,
-			"SELECT quantiles(0.500000)(`properties::entry_time`) AS `quantile_50` " +
+			"SELECT quantiles(0.500000)(\"properties::entry_time\") AS \"quantile_50\" " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
 				`AND "properties::exoestimation_connection_speedinkbps">=0 AND "properties::exoestimation_connection_speedinkbps"<1000`,
-			"SELECT quantiles(0.500000)(`properties::entry_time`) AS `quantile_50` " +
+			"SELECT quantiles(0.500000)(\"properties::entry_time\") AS \"quantile_50\" " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
 				`AND "properties::exoestimation_connection_speedinkbps">=1000 AND "properties::exoestimation_connection_speedinkbps"<2000`,
@@ -1105,13 +1105,13 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')`,
 			`SELECT "response", ` +
-				"quantiles(0.010000)(`timestamp`) AS `quantile_1`, " +
-				"quantiles(0.020000)(`timestamp`) AS `quantile_2`, " +
-				"quantiles(0.250000)(`timestamp`) AS `quantile_25`, " +
-				"quantiles(0.500000)(`timestamp`) AS `quantile_50`, " +
-				"quantiles(0.750000)(`timestamp`) AS `quantile_75`, " +
-				"quantiles(0.950000)(`timestamp`) AS `quantile_95`, " +
-				"quantiles(0.990000)(`timestamp`) AS `quantile_99` " +
+				"quantiles(0.010000)(\"timestamp\") AS \"quantile_1\", " +
+				"quantiles(0.020000)(\"timestamp\") AS \"quantile_2\", " +
+				"quantiles(0.250000)(\"timestamp\") AS \"quantile_25\", " +
+				"quantiles(0.500000)(\"timestamp\") AS \"quantile_50\", " +
+				"quantiles(0.750000)(\"timestamp\") AS \"quantile_75\", " +
+				"quantiles(0.950000)(\"timestamp\") AS \"quantile_95\", " +
+				"quantiles(0.990000)(\"timestamp\") AS \"quantile_99\" " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z') ` +

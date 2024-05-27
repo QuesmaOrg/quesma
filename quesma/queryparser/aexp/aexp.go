@@ -23,6 +23,11 @@ func (e TableColumn) String() string {
 }
 
 func C(columnName string) TableColumn {
+
+	if strings.HasSuffix(columnName, ".keyword") {
+		columnName = strings.TrimSuffix(columnName, ".keyword")
+	}
+
 	return TableColumn{ColumnName: columnName}
 }
 
@@ -45,6 +50,17 @@ func FN(name string, args ...AExp) Function {
 
 func Count(args ...AExp) Function {
 	return FN("COUNT", args...)
+}
+
+// It represents functions with multitple arguments list
+// like `quantile(level)(expr)
+type MultiFunction struct {
+	Name string
+	Args []AExp
+}
+
+func (e MultiFunction) Accept(v AExpVisitor) interface{} {
+	return v.VisitMultiFunction(e)
 }
 
 type Literal struct {
@@ -72,6 +88,7 @@ func (e Literal) Accept(v AExpVisitor) interface{} {
 	return v.VisitLiteral(e)
 }
 
+// Space separated expressions
 type Composite struct {
 	Expressions []AExp
 }
@@ -84,6 +101,8 @@ func NewComposite(expressions ...AExp) *Composite {
 	return &Composite{Expressions: expressions}
 }
 
+// ASIS expressions, this is workaroung for not supported expressions
+// It can be named as TODO.
 type SQL struct {
 	Query string
 }
@@ -95,6 +114,7 @@ func (s SQL) Accept(v AExpVisitor) interface{} {
 type AExpVisitor interface {
 	VisitTableColumn(e TableColumn) interface{}
 	VisitFunction(e Function) interface{}
+	VisitMultiFunction(e MultiFunction) interface{}
 	VisitLiteral(l Literal) interface{}
 	VisitComposite(e Composite) interface{}
 	VisitSQL(s SQL) interface{}
@@ -149,4 +169,13 @@ func (v *renderer) VisitComposite(e Composite) interface{} {
 
 func (v *renderer) VisitSQL(s SQL) interface{} {
 	return s.Query
+}
+
+func (v *renderer) VisitMultiFunction(f MultiFunction) interface{} {
+	args := make([]string, 0)
+	for _, arg := range f.Args {
+		r := "(" + arg.Accept(v).(string) + ")"
+		args = append(args, r)
+	}
+	return f.Name + strings.Join(args, "")
 }

@@ -109,7 +109,12 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		}
 		query.NonSchemaFields = append(query.NonSchemaFields, metricsAggr.AggrType+`OrNull(`+fieldNameProperlyQuoted+`)`)
 
-		query.Columns = append(query.Columns, model.Column{Expression: aexp.FN(metricsAggr.AggrType+"OrNull", aexp.C(getFirstFieldName()))})
+		// TODO firstFieldName can be an SQL expression or field name
+		if strings.Contains(getFirstFieldName(), "(") {
+			query.Columns = append(query.Columns, model.Column{Expression: aexp.FN(metricsAggr.AggrType+"OrNull", aexp.SQL{Query: getFirstFieldName()})})
+		} else {
+			query.Columns = append(query.Columns, model.Column{Expression: aexp.FN(metricsAggr.AggrType+"OrNull", aexp.C(getFirstFieldName()))})
+		}
 
 	case "quantile":
 		// Sorting here useful mostly for determinism in tests.
@@ -119,11 +124,13 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			percentAsFloat := metricsAggr.Percentiles[usersPercent]
 
 			query.NonSchemaFields = append(query.NonSchemaFields, fmt.Sprintf(
-				"quantiles(%6f)(`%s`) AS `quantile_%s`", percentAsFloat, getFirstFieldName(), usersPercent))
+				"quantiles(%6f)(\"%s\") AS \"quantile_%s\"", percentAsFloat, getFirstFieldName(), usersPercent))
 
 			query.Columns = append(query.Columns, model.Column{
-				Expression: aexp.FN("quantiles", aexp.L(percentAsFloat), aexp.C(getFirstFieldName())),
-				Alias:      fmt.Sprintf("quantile_%s", usersPercent),
+				Expression: aexp.MultiFunction{
+					Name: "quantiles",
+					Args: []aexp.AExp{aexp.L(percentAsFloat), aexp.C(getFirstFieldName())}},
+				Alias: fmt.Sprintf("quantile_%s", usersPercent),
 			})
 		}
 	case "cardinality":
@@ -158,8 +165,6 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		query.Fields = append(query.Fields, metricsAggr.FieldNames...)
 		fieldsAsString := strings.Join(metricsAggr.FieldNames, ", ")
 
-		model.TODO("top_hits: add support for sorting and size")
-
 		query.FromClause = fmt.Sprintf(
 			"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s) AS %s FROM %s)",
 			fieldsAsString, fieldsAsString, model.RowNumberColumnName, query.FromClause,
@@ -181,8 +186,6 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			for _, field := range innerFields {
 				topSelectFields = append(topSelectFields, fmt.Sprintf(`%s("%s") AS "windowed_%s"`, ordFunc, field, field))
 			}
-
-			model.TODO("top_metrics: ")
 
 			query.NonSchemaFields = append(query.NonSchemaFields, topSelectFields...)
 
@@ -460,7 +463,6 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		currentAggr.whereBuilder = whereBeforeNesting
 	}
 	if nonSchemaFieldsAddedCount > 0 {
-		fmt.Println("XXXX DDDING NON SCHEMA FIELDS ", nonSchemaFieldsAddedCount, currentAggr.NonSchemaFields)
 		if len(currentAggr.NonSchemaFields) >= nonSchemaFieldsAddedCount {
 			currentAggr.NonSchemaFields = currentAggr.NonSchemaFields[:len(currentAggr.NonSchemaFields)-nonSchemaFieldsAddedCount]
 
