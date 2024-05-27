@@ -93,9 +93,7 @@ func (c Column) SQL() string {
 }
 
 func (c Column) String() string {
-
 	return fmt.Sprintf("Column(Alias: '%s', expression: '%v')", c.Alias, c.Expression)
-
 }
 
 func (sf SortFields) Properties() []string {
@@ -128,7 +126,6 @@ func (q *Query) StringFromColumns(colNames []string) string {
 
 	// we return old SQL for now
 	return oldSQL
-
 }
 
 // returns string with SQL query

@@ -25,7 +25,6 @@ func (v *renderer) VisitFunction(e FunctionExp) interface{} {
 		args = append(args, arg.Accept(v).(string))
 	}
 	return e.Name + "(" + strings.Join(args, ", ") + ")"
-
 }
 
 func (v *renderer) VisitLiteral(l LiteralExp) interface{} {
