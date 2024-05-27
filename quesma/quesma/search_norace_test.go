@@ -16,6 +16,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/testdata"
@@ -48,7 +49,7 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 
 			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
 			newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
-			_, _ = queryRunner.handleSearch(newCtx, tableName, []byte(tt.QueryRequestJson))
+			_, _ = queryRunner.handleSearch(newCtx, tableName, types.MustJSON(tt.QueryRequestJson))
 
 			for _, queryType := range model.AllQueryTypes {
 				if queryType != tt.QueryType {
@@ -104,7 +105,7 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
 	for _, testNr := range testNrs {
 		newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
-		_, _ = queryRunner.handleSearch(newCtx, tableName, []byte(testdata.UnsupportedQueriesTests[testNr].QueryRequestJson))
+		_, _ = queryRunner.handleSearch(newCtx, tableName, types.MustJSON(testdata.UnsupportedQueriesTests[testNr].QueryRequestJson))
 	}
 
 	for i, tt := range testdata.UnsupportedQueriesTests {

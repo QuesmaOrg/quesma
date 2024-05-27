@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/testdata"
@@ -50,7 +51,7 @@ func TestSearchOpensearch(t *testing.T) {
 			}
 
 			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
-			_, err = queryRunner.handleSearch(ctx, tableName, []byte(tt.QueryJson))
+			_, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 			assert.NoError(t, err)
 
 			if err = mock.ExpectationsWereMet(); err != nil {
@@ -179,7 +180,7 @@ func TestHighlighter(t *testing.T) {
 															AddRow("text", "text", "text"))
 
 	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
-	response, err := queryRunner.handleSearch(ctx, tableName, []byte(query))
+	response, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(query))
 	assert.NoError(t, err)
 	if err = mock.ExpectationsWereMet(); err != nil {
 		t.Fatal("there were unfulfilled expections:", err)

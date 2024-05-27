@@ -23,10 +23,6 @@ type (
 
 func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *clickhouse.LogManager,
 	cfg config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []WriteResult) {
-	if config.TrafficAnalysis.Load() {
-		logger.Info().Msg("analysing traffic, not writing to Clickhouse")
-		return
-	}
 	defer recovery.LogPanic()
 
 	indicesWithDocumentsToInsert := make(map[string][]types.JSON, len(bulk))
@@ -99,10 +95,6 @@ func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON,
 
 func dualWrite(ctx context.Context, tableName string, body types.JSON, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) error {
 	stats.GlobalStatistics.Process(cfg, tableName, body, clickhouse.NestedSeparator)
-	if config.TrafficAnalysis.Load() {
-		logger.Info().Msgf("analysing traffic, not writing to Clickhouse %s", tableName)
-		return nil
-	}
 
 	defer recovery.LogPanic()
 	if len(body) == 0 {

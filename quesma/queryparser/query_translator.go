@@ -305,7 +305,7 @@ func (cw *ClickhouseQueryTranslator) computeIdForDocument(doc model.SearchHit, d
 			// At database level we only compare timestamps with millisecond precision
 			// However in search results we append `q` plus generated digits (we use q because it's not in hex)
 			// so that kibana can iterate over documents in UI
-			pseudoUniqueId = fmt.Sprintf("%xq%s", int(vv.UnixMilli()), defaultID)
+			pseudoUniqueId = fmt.Sprintf("%xq%s", vv, defaultID)
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("failed to convert timestamp field [%v] to time.Time", v[0])
 			return defaultID
