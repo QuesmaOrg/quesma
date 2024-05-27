@@ -638,12 +638,12 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, query model.SimpleQuery, limitTodo int) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, whereClause string) *model.Query {
 	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
 	innerQuery := model.Query{
 		Fields:        []string{fieldName},
+		WhereClause:   whereClause,
 		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
-		WhereClause:   query.Sql.Stmt,
 		SuffixClauses: []string{"LIMIT " + facetsSampleSize},
 		FromClause:    cw.Table.FullTableName(),
 		CanParse:      true,
