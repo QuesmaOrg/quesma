@@ -351,14 +351,24 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 			for _, id := range ids {
 				finalIds = append(finalIds, fmt.Sprintf("toDateTime64(%s,3)", id))
 			}
-			statement = model.NewSimpleStatement(fmt.Sprintf("%s IN (%s)", strconv.Quote(timestampColumnName), strings.Join(finalIds, ",")))
-			statement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(timestampColumnName), " IN ", wc.NewFunction("toDateTime64", wc.NewLiteral(strings.Join(ids, ",")), wc.NewLiteral("3")))
+			if len(finalIds) == 1 {
+				statement = model.NewSimpleStatement(fmt.Sprintf("%s = %s", strconv.Quote(timestampColumnName), finalIds[0]))
+				statement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(timestampColumnName), " = ", wc.NewFunction("toDateTime64", wc.NewLiteral(ids[0]), wc.NewLiteral("3")))
+			} else {
+				statement = model.NewSimpleStatement(fmt.Sprintf("%s IN (%s)", strconv.Quote(timestampColumnName), strings.Join(finalIds, ",")))
+				statement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(timestampColumnName), " IN ", wc.NewFunction("toDateTime64", wc.NewLiteral(strings.Join(ids, ",")), wc.NewLiteral("3")))
+			}
 		case clickhouse.DateTime.String():
 			for _, id := range ids {
 				finalIds = append(finalIds, fmt.Sprintf("toDateTime(%s)", id))
 			}
-			statement = model.NewSimpleStatement(fmt.Sprintf("%s IN (%s)", strconv.Quote(timestampColumnName), strings.Join(finalIds, ",")))
-			statement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(timestampColumnName), " IN ", wc.NewFunction("toDateTime", wc.NewLiteral(strings.Join(ids, ","))))
+			if len(finalIds) == 1 {
+				statement = model.NewSimpleStatement(fmt.Sprintf("%s = (%s)", strconv.Quote(timestampColumnName), finalIds[0]))
+				statement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(timestampColumnName), " = ", wc.NewFunction("toDateTime", wc.NewLiteral(finalIds[0])))
+			} else {
+				statement = model.NewSimpleStatement(fmt.Sprintf("%s IN (%s)", strconv.Quote(timestampColumnName), strings.Join(finalIds, ",")))
+				statement.WhereStatement = wc.NewInfixOp(wc.NewColumnRef(timestampColumnName), " IN ", wc.NewFunction("toDateTime", wc.NewLiteral(strings.Join(ids, ","))))
+			}
 		default:
 			logger.Warn().Msgf("timestamp field of unsupported type %s", v.Type.String())
 			return model.NewSimpleQuery(model.NewSimpleStatement(""), true)
