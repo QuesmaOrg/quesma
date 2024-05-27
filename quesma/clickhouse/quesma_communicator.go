@@ -46,6 +46,9 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 	if query.NoDBQuery {
 		return make([]model.QueryResultRow, 0), nil
 	}
+
+	// THIS IS complicated
+	// wildcard should be resolved before calling this function
 	colNames, err := table.extractColumns(query, false)
 	if query.IsWildcard() {
 		sort.Strings(colNames)
@@ -58,12 +61,14 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 			sort.Strings(columns)
 		}
 	}
-	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
+	rowToScan := make([]interface{}, len(query.Columns))
 	if err != nil {
 		return nil, err
 	}
 
 	// will become: rows, err := executeQuery(ctx, lm, query.StringFromColumns(colNames, true), columns, rowToScan)
+
+	// FIXME
 	rows, err := executeQuery(ctx, lm, query.StringFromColumns(colNames), columns, rowToScan)
 	if err == nil {
 		for _, row := range rows {

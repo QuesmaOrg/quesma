@@ -59,10 +59,6 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 
 	// build this aggregation
 	for _, interval := range Range.Intervals {
-		currentAggr.NonSchemaFields = append(
-			currentAggr.NonSchemaFields,
-			interval.ToSQLSelectQuery(Range.QuotedFieldName),
-		)
 
 		// TODO XXXX
 		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: interval.ToSQLSelectQuery(Range.QuotedFieldName)}})
@@ -78,7 +74,6 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 		}
 	}
 	*aggregationsAccumulator = append(*aggregationsAccumulator, currentAggr.buildBucketAggregation(metadata))
-	currentAggr.NonSchemaFields = currentAggr.NonSchemaFields[:len(currentAggr.NonSchemaFields)-len(Range.Intervals)]
 	currentAggr.Columns = currentAggr.Columns[:len(currentAggr.Columns)-len(Range.Intervals)]
 
 	// build subaggregations

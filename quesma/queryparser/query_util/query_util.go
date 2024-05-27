@@ -38,7 +38,6 @@ func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, qu
 
 	return &model.Query{
 		Columns:       []model.SelectColumn{col},
-		Fields:        []string{fieldName},
 		WhereClause:   query.Sql.Stmt,
 		SuffixClauses: suffixClauses,
 		FromClause:    tableName,

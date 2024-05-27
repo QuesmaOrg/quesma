@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/util"
 	"strconv"
@@ -70,7 +71,7 @@ func (t *Table) createTableOurFieldsString() []string {
 
 func (t *Table) extractColumns(query *model.Query, addNonSchemaFields bool) ([]string, error) {
 
-	N := len(query.Fields)
+	N := len(query.Columns)
 	if query.IsWildcard() {
 		N = len(t.Cols)
 	}
@@ -80,27 +81,23 @@ func (t *Table) extractColumns(query *model.Query, addNonSchemaFields bool) ([]s
 			cols = append(cols, col.Name)
 		}
 	} else {
-		for _, field := range query.Fields {
-			if field == model.EmptyFieldSelection {
-				cols = append(cols, "")
-				continue
-			}
-			col, ok := t.Cols[field]
-			if !ok {
-				return nil, fmt.Errorf("column %s not found in table %s", field, t.Name)
-			}
-			cols = append(cols, col.Name)
-		}
-		if addNonSchemaFields {
-			for _, field := range query.NonSchemaFields {
-				if strings.Contains(field, "AS") {
-					components := strings.Split(field, " AS ")
-					fieldNameMaybeQuoted := strings.TrimSpace(components[1])
-					cols = append(cols, strings.Trim(fieldNameMaybeQuoted, "`"))
-				} else {
-					cols = append(cols, field)
+		for _, selectColumn := range query.Columns {
+
+			switch selectColumn.Expression.(type) {
+
+			case aexp.TableColumnExp:
+				colName := selectColumn.Expression.(aexp.TableColumnExp).ColumnName
+				_, ok := t.Cols[colName]
+				if !ok {
+					return nil, fmt.Errorf("column %s not found in table %s", selectColumn, t.Name)
 				}
+
+				cols = append(cols, colName)
+
+			default:
+				cols = append(cols, selectColumn.Alias)
 			}
+
 		}
 	}
 	return cols, nil
