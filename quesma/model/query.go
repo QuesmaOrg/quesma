@@ -122,11 +122,12 @@ func (q *Query) StringFromColumns(colNames []string) string {
 	newSQL := q.StringFromColumnsNew(colNames)
 
 	if oldSQL != newSQL {
-		fmt.Printf("Query rendered SQLmismatch:\n")
+		fmt.Printf("Query rendered SQL mismatch:\n")
 		fmt.Printf("OLD: %s\nNEW: %s\n", oldSQL, newSQL)
 	}
 
-	return newSQL
+	// we return old SQL for now
+	return oldSQL
 
 }
 
