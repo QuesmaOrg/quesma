@@ -2008,7 +2008,7 @@ var TestsSearchNoAttrs = []SearchTestCase{
 			}
 		}`,
 		[]string{
-			`"(@timestamp">=parseDateTime64BestEffort('2024-01-25T13:22:45.968Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T13:37:45.968Z'))`,
+			`("@timestamp">=parseDateTime64BestEffort('2024-01-25T13:22:45.968Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T13:37:45.968Z'))`,
 		},
 		model.Normal,
 		[]model.Query{
