@@ -70,8 +70,6 @@ func TranslateToSQL(ctx context.Context, query string, fields []string) where_cl
 	return parser.translateToSQL(query)
 }
 
-var toString = &where_clause.StringRenderer{}
-
 func (p *luceneParser) translateToSQL(query string) where_clause.Statement {
 	query = p.removeFuzzySearchOperator(query)
 	query = p.removeBoostingOperator(query)
