@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/queryparser/where_clause"
 	"slices"
 	"strconv"
 	"strings"
@@ -24,19 +25,21 @@ import (
 
 // Date ranges are only in format YYYY-MM-DD, as in docs there are no other examples. That can be changed if needed.
 
-// Used in parsing one Lucene query. During parsing lastExpression keeps parsed part of the query,
+// Used in parsing one Lucene query. During parsing WhereStatement keeps parsed part of the query,
 // and tokens keep the rest (unparsed yet) part of the query.
-// After parsing, the result expression is in lastExpression.
+// After parsing, the result statement is kept in p.WhereStatement (we should change it in the future)
 // If you have multiple queries to parse, create a new luceneParser for each query.
 type luceneParser struct {
 	ctx               context.Context
 	tokens            []token
 	defaultFieldNames []string
-	lastExpression    expression
+	// This is a little awkward, at some point we should remove `WhereStatement` and just return the statement from `BuildWhereStatement`
+	// However, given parsing implementation, it's easier to keep it for now.
+	WhereStatement where_clause.Statement
 }
 
 func newLuceneParser(ctx context.Context, defaultFieldNames []string) luceneParser {
-	return luceneParser{ctx: ctx, defaultFieldNames: defaultFieldNames, lastExpression: nil, tokens: make([]token, 0)}
+	return luceneParser{ctx: ctx, defaultFieldNames: defaultFieldNames, tokens: make([]token, 0)}
 }
 
 const fuzzyOperator = '~'
@@ -67,6 +70,8 @@ func TranslateToSQL(ctx context.Context, query string, fields []string) string {
 	return parser.translateToSQL(query)
 }
 
+var toString = &where_clause.StringRenderer{}
+
 func (p *luceneParser) translateToSQL(query string) string {
 	query = p.removeFuzzySearchOperator(query)
 	query = p.removeBoostingOperator(query)
@@ -76,13 +81,8 @@ func (p *luceneParser) translateToSQL(query string) string {
 			logger.WarnWithCtx(p.ctx).Msgf("Invalid query, can't tokenize: %s", query)
 		}
 	}
-	for len(p.tokens) > 0 {
-		p.lastExpression = p.buildExpression(true)
-	}
-	if p.lastExpression == nil {
-		return "true"
-	}
-	return p.lastExpression.toSQL()
+	stmt := p.BuildWhereStatement()
+	return stmt.Accept(toString).(string)
 }
 
 // tokenizeQuery splits the query into tokens, which are stored in p.tokens.

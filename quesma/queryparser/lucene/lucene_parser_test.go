@@ -85,7 +85,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 			parser := newLuceneParser(context.Background(), defaultFieldNames)
 			got := parser.translateToSQL(tt.query)
 			if got != tt.want {
-				t.Errorf("got %q, want %q", got, tt.want)
+				t.Errorf("\ngot  [%q]\nwant [%q]", got, tt.want)
 			}
 		})
 	}

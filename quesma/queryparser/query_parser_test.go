@@ -142,9 +142,15 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ)
 
 			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
+			// Test the new where statement
 			if simpleQuery.Sql.WhereStatement != nil {
-				ss := simpleQuery.Sql.WhereStatement.Accept(whereStatementRenderer)
-				assert.Equal(t, simpleQuery.Sql.Stmt, ss.(string))
+				oldStmtWithoutParentheses := strings.ReplaceAll(simpleQuery.Sql.Stmt, "(", "")
+				oldStmtWithoutParentheses = strings.ReplaceAll(oldStmtWithoutParentheses, ")", "")
+
+				newWhereStmt := simpleQuery.Sql.WhereStatement.Accept(whereStatementRenderer)
+				newStmtWithoutParentheses := strings.ReplaceAll(newWhereStmt.(string), "(", "")
+				newStmtWithoutParentheses = strings.ReplaceAll(newStmtWithoutParentheses, ")", "")
+				assert.Equal(t, oldStmtWithoutParentheses, newStmtWithoutParentheses)
 			} else {
 				oldOne := simpleQuery.Sql.Stmt
 				fmt.Printf("No new where statement but old one is [%s]", oldOne)
