@@ -7,6 +7,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/testdata"
 	"strconv"
@@ -50,7 +51,9 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	for _, tt := range testdata.TestsSearch {
 		t.Run(tt.Name, func(t *testing.T) {
-			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(tt.QueryJson)
+			body, parseErr := types.ParseJSON(tt.QueryJson)
+			assert.NoError(t, parseErr)
+			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(body)
 			assert.True(t, simpleQuery.CanParse, "can parse")
 			var whereStmt string
 			if simpleQuery.Sql.WhereStatement == nil {
@@ -88,7 +91,9 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 
 	for i, tt := range testdata.TestsSearchNoFullTextFields {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(tt.QueryJson)
+			body, parseErr := types.ParseJSON(tt.QueryJson)
+			assert.NoError(t, parseErr)
+			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(body)
 			assert.True(t, simpleQuery.CanParse, "can parse")
 			var whereStmt string
 			if simpleQuery.Sql.WhereStatement == nil {
@@ -119,7 +124,9 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
-			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(tt.QueryJson)
+			body, parseErr := types.ParseJSON(tt.QueryJson)
+			assert.NoError(t, parseErr)
+			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(body)
 			assert.True(t, simpleQuery.CanParse)
 			var whereStmt string
 			if simpleQuery.Sql.WhereStatement == nil {

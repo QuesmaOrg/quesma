@@ -6,6 +6,7 @@ import (
 	"mitmproxy/quesma/eql"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
+	"mitmproxy/quesma/quesma/types"
 )
 
 // This is an extracted interface for query translation.
@@ -17,7 +18,7 @@ import (
 // 2. ClickhouseEQLQueryTranslator (implements only a subset of methods)
 
 type IQueryTranslator interface {
-	ParseQuery(body []byte) ([]model.Query, []string, bool, bool, error)
+	ParseQuery(body types.JSON) ([]model.Query, []string, bool, bool, error)
 
 	MakeSearchResponse(ResultSet []model.QueryResultRow, query model.Query) (*model.SearchResp, error)
 	MakeResponseAggregation(aggregations []model.Query, aggregationResults [][]model.QueryResultRow) *model.SearchResp
