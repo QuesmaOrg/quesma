@@ -41,7 +41,7 @@ const (
 func (c QueryResultCol) String(ctx context.Context) string {
 	valueExtracted := c.ExtractValue(ctx)
 	if valueExtracted == nil {
-		return fmt.Sprintf(`"%s": null`, c.ColName)
+		return ""
 	}
 	switch valueExtracted.(type) {
 	case string:
@@ -86,15 +86,16 @@ func (c QueryResultCol) ExtractValue(ctx context.Context) any {
 func (r *QueryResultRow) String(ctx context.Context) string {
 	str := strings.Builder{}
 	str.WriteString(util.Indent(1) + "{\n")
-	numCols := len(r.Cols)
 	i := 0
 	for _, col := range r.Cols {
-		str.WriteString(util.Indent(2) + col.String(ctx))
-		if i < numCols-1 {
-			str.WriteString(",")
+		colStr := col.String(ctx)
+		if len(colStr) > 0 {
+			if i > 0 {
+				str.WriteString(",\n")
+			}
+			str.WriteString(util.Indent(2) + colStr)
+			i++
 		}
-		str.WriteString("\n")
-		i++
 	}
 	str.WriteString("\n" + util.Indent(1) + "}")
 	return str.String()

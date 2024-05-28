@@ -65,8 +65,11 @@ func (cw *ClickhouseQueryTranslator) ClearTokensToHighlight() {
 	cw.tokensToHighlight = []string{}
 }
 
-func (cw *ClickhouseQueryTranslator) highlightHit(hit *model.SearchHit, highlighter model.Highlighter, resultRow model.QueryResultRow) {
+func (cw *ClickhouseQueryTranslator) addAndHighlightHit(hit *model.SearchHit, highlighter model.Highlighter, resultRow model.QueryResultRow) {
 	for _, col := range resultRow.Cols {
+		if col.Value == nil {
+			continue // We don't return empty value
+		}
 		hit.Fields[col.ColName] = []interface{}{col.Value}
 		if highlighter.ShouldHighlight(col.ColName) {
 			// check if we have a string here and if so, highlight it
@@ -101,7 +104,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.
 			Highlight: make(map[string][]string),
 			Sort:      []any{},
 		}
-		cw.highlightHit(&hits[i], highlighter, ResultSet[i])
+		cw.addAndHighlightHit(&hits[i], highlighter, ResultSet[i])
 		hits[i].ID = cw.computeIdForDocument(hits[i], strconv.Itoa(i+1))
 		for _, property := range sortProperties {
 			if val, ok := hits[i].Fields[property]; ok {
@@ -325,7 +328,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 			hits[i].Score = 1
 			hits[i].Version = 1
 		}
-		cw.highlightHit(&hits[i], highlighter, ResultSet[i])
+		cw.addAndHighlightHit(&hits[i], highlighter, ResultSet[i])
 		hits[i].ID = cw.computeIdForDocument(hits[i], strconv.Itoa(i+1))
 		for _, property := range sortProperties {
 			if val, ok := hits[i].Fields[property]; ok {

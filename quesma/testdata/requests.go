@@ -1910,13 +1910,11 @@ var TestsSearch = []SearchTestCase{
 			  }
 			}`,
 		[]string{
-			`("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp" IN toDateTime64('2024-05-24 13:32:47.307',3))`,
-			`("@timestamp" IN toDateTime64('2024-05-24 13:32:47.307',3) AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z'))`,
+			`("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3))`,
 		},
 		model.Normal,
 		[]model.Query{
-			justSimplestWhere(`"@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp" IN (toDateTime64('2024-05-24 13:32:47.307',3))`),
-			justSimplestWhere(`"@timestamp" IN (toDateTime64('2024-05-24 13:32:47.307',3)) AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')`),
+			justSimplestWhere(`"@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3)`),
 		},
 		// TestSearchHandler is pretty blunt with config loading so the test below can't be used.
 		// We will probably refactor it as we move forwards with schema which will get even more side-effecting
