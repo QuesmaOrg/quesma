@@ -223,6 +223,19 @@ func (q *Query) RemoveEmptyGroupBy() {
 	q.GroupByFields = nonEmptyFields
 }
 
+// TrimKeywordFromFields trims .keyword from fields and group by fields
+// In future probably handle it in a better way
+func (q *Query) TrimKeywordFromFields() {
+
+	for i := range q.GroupByFields {
+		if strings.HasSuffix(q.GroupByFields[i], `.keyword"`) {
+			q.GroupByFields[i] = strings.TrimSuffix(q.GroupByFields[i], `.keyword"`)
+			q.GroupByFields[i] += `"`
+		}
+	}
+
+}
+
 // Name returns the name of this aggregation (specifically, the last aggregator)
 // So for nested aggregation {"a": {"b": {"c": this aggregation}}}, it returns "c".
 // In some queries aggregations are referenced by full name, so "a>b>c", but so far this implementation seems sufficient.

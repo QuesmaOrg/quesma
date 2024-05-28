@@ -58,7 +58,7 @@ func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.
 
 	// Need to copy, as we might be proceeding to modify 'b' pointer
 	query.CopyAggregationFields(b.Query)
-
+	query.TrimKeywordFromFields()
 	query.RemoveEmptyGroupBy()
 	query.Metadata = metadata
 	return query
@@ -185,6 +185,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 
 		fieldNameBare := getFirstFieldName()
 
+		// add column with fn applied to field
 		addColumn := func(funcName string) {
 			query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Function(funcName, aexp.TableColumn(fieldNameBare))})
 		}

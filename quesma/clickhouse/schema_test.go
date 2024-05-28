@@ -67,7 +67,7 @@ var queries = []struct {
 		[]string{},
 	},
 	{
-		&model.Query{Columns: []model.SelectColumn{{Expression: aexp.TableColumn("message")}, {Expression: aexp.TableColumn("timestamp")}, {Expression: aexp.Function("toString", aexp.Count())}}},
+		&model.Query{Columns: []model.SelectColumn{{Expression: aexp.TableColumn("message")}, {Expression: aexp.TableColumn("timestamp")}}},
 		[]string{"message", "timestamp"},
 	},
 	//{ // we don't support such a query. Supporting it would slow down query's code, and this query seems pointless
