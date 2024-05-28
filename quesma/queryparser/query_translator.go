@@ -658,7 +658,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, whereCla
 		Columns:         []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
 		NonSchemaFields: []string{"count()"},
 		SuffixClauses:   suffixClauses,
-		FromClause:      "(" + innerQuery.String() + ")",
+		FromClause:      "(" + innerQuery.String(cw.Ctx) + ")",
 		CanParse:        true,
 	}
 }

@@ -63,7 +63,6 @@ func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.
 		query.Fields = query.Fields[:len(query.Fields)-1]
 	}
 
-	query.RemoveEmptyGroupBy()
 	query.TrimKeywordFromFields(b.ctx)
 	query.Metadata = metadata
 	return query
@@ -172,7 +171,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "top_metrics":
 		// This appending of `metricsAggr.SortBy` and having it duplicated in SELECT block
 		// is a way to pass value we're sorting by to the query result. In the future we might add SQL aliasing support, e.g. SELECT x AS 'sort_by' FROM ...
-		if len(b.Query.GroupByFields) > 0 {
+		if len(b.Query.GroupBy) > 0 {
 			var ordFunc string
 			switch metricsAggr.Order {
 			case "asc":
@@ -192,7 +191,11 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.SQL{Query: field}})
 			}
 
-			partitionBy := strings.Join(b.Query.GroupByFields, ", ")
+			partitionByArr := make([]string, 0, len(b.Query.GroupBy))
+			for _, groupByField := range b.Query.GroupBy {
+				partitionByArr = append(partitionByArr, groupByField.SQL())
+			}
+			partitionBy := strings.Join(partitionByArr, ", ")
 			fieldsAsString := strings.Join(quoteArray(innerFields), ", ") // need those fields in the inner clause
 			query.FromClause = fmt.Sprintf(
 				"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s %s) AS %s FROM %s WHERE %s)",
@@ -489,8 +492,8 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 
 	}
 	if groupByFieldsAddedCount > 0 {
-		if len(currentAggr.GroupByFields) >= groupByFieldsAddedCount {
-			currentAggr.GroupByFields = currentAggr.GroupByFields[:len(currentAggr.GroupByFields)-groupByFieldsAddedCount]
+		if len(currentAggr.GroupBy) >= groupByFieldsAddedCount {
+			currentAggr.GroupBy = currentAggr.GroupBy[:len(currentAggr.GroupBy)-groupByFieldsAddedCount]
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("groupByFieldsAddecCount > currentAggr.GroupByFields length -> should be impossible")
 		}
@@ -677,7 +680,16 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		if interval != 1.0 {
 			groupByStr = fmt.Sprintf("floor(%s / %f) * %f", fieldNameProperlyQuoted, interval, interval)
 		}
-		currentAggr.GroupByFields = append(currentAggr.GroupByFields, groupByStr)
+		currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{
+			Expression: aexp.NewComposite(
+				aexp.FunctionExp{
+					Name: "floor",
+					Args: []aexp.AExp{aexp.TableColumn(fieldNameProperlyQuoted), aexp.Literal("/"), aexp.Literal(interval)},
+				},
+				aexp.Literal("*"),
+				aexp.Literal(interval),
+			),
+		})
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, groupByStr)
 
 		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: groupByStr}})
@@ -693,7 +705,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		minDocCount := cw.parseMinDocCount(dateHistogram)
 		currentAggr.Type = bucket_aggregations.NewDateHistogram(cw.Ctx, minDocCount, cw.extractInterval(dateHistogram))
 		histogramPartOfQuery := cw.createHistogramPartOfQuery(dateHistogram)
-		currentAggr.GroupByFields = append(currentAggr.GroupByFields, histogramPartOfQuery)
+		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: histogramPartOfQuery}})
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, histogramPartOfQuery)
 
 		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: histogramPartOfQuery}})
@@ -704,11 +716,9 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	for _, termsType := range []string{"terms", "significant_terms"} {
 		if terms, ok := queryMap[termsType]; ok {
 			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms")
-			fieldName := strconv.Quote(cw.parseFieldField(terms, termsType))
-			isEmptyGroupBy := len(currentAggr.GroupByFields) == 0
-			currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
-			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
+			isEmptyGroupBy := len(currentAggr.GroupBy) == 0
 
+			currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: aexp.TableColumn(cw.parseFieldField(terms, termsType))})
 			currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.TableColumn(cw.parseFieldField(terms, termsType))})
 
 			size := 10

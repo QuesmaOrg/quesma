@@ -107,17 +107,17 @@ func (sf SortFields) Properties() []string {
 var NoMetadataField JsonMap = nil
 
 // returns string with SQL query
-func (q *Query) String() string {
-	return q.StringFromColumns(q.Fields)
+func (q *Query) String(ctx context.Context) string {
+	return q.StringFromColumns(ctx, q.Fields)
 }
 
 func (q *Query) StringFromColumns(ctx context.Context, colNames []string) string {
 
 	// render based on Field and NonSchemaFields
-	oldSQL := q.StringFromColumnsOld(colNames)
+	oldSQL := q.StringFromColumnsOld(ctx, colNames)
 
 	// render based on Columns
-	newSQL := q.StringFromColumnsNew(colNames)
+	newSQL := q.StringFromColumnsNew(ctx, colNames)
 
 	if oldSQL != newSQL {
 		fmt.Printf("Query rendered SQL mismatch:\n")
@@ -130,7 +130,7 @@ func (q *Query) StringFromColumns(ctx context.Context, colNames []string) string
 
 // returns string with SQL query
 // colNames - list of columns (schema fields) for SELECT
-func (q *Query) StringFromColumnsNew(colNames []string) string {
+func (q *Query) StringFromColumnsNew(ctx context.Context, colNames []string) string {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	if q.IsDistinct {
@@ -180,21 +180,11 @@ func (q *Query) StringFromColumnsNew(colNames []string) string {
 			groupBy = append(groupBy, col.SQL())
 		}
 	}
-	if len(q.GroupBy) > 0 {
+	if len(groupBy) > 0 {
 		sb.WriteString(" GROUP BY ")
 		sb.WriteString(strings.Join(groupBy, ", "))
-
-		if len(q.SuffixClauses) == 0 {
-			sb.WriteString(" ORDER BY (")
-			for i, field := range q.GroupByFields {
-				sb.WriteString(field)
-				if i < len(q.GroupByFields)-1 {
-					sb.WriteString(", ")
-				}
-			}
-			sb.WriteString(")")
-		}
 	}
+
 	if len(q.SuffixClauses) > 0 {
 		sb.WriteString(" " + strings.Join(q.SuffixClauses, " "))
 	}
@@ -203,7 +193,7 @@ func (q *Query) StringFromColumnsNew(colNames []string) string {
 
 // returns string with SQL query
 // colNames - list of columns (schema fields) for SELECT
-func (q *Query) StringFromColumnsOld(colNames []string) string {
+func (q *Query) StringFromColumnsOld(ctx context.Context, colNames []string) string {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	if q.IsDistinct {
@@ -232,27 +222,24 @@ func (q *Query) StringFromColumnsOld(colNames []string) string {
 		where = ""
 	}
 	sb.WriteString(" FROM " + q.FromClause + where + q.WhereClause)
-	if len(q.GroupByFields) > 0 {
-		sb.WriteString(" GROUP BY (")
-		for i, field := range q.GroupByFields {
-			sb.WriteString(field)
-			if i < len(q.GroupByFields)-1 {
-				sb.WriteString(", ")
-			}
-		}
-		sb.WriteString(")")
 
-		if len(q.SuffixClauses) == 0 {
-			sb.WriteString(" ORDER BY (")
-			for i, field := range q.GroupByFields {
-				sb.WriteString(field)
-				if i < len(q.GroupByFields)-1 {
-					sb.WriteString(", ")
-				}
-			}
-			sb.WriteString(")")
+	groupBy := make([]string, 0, len(q.GroupBy))
+	for _, col := range q.GroupBy {
+		if col.Expression == nil {
+			logger.WarnWithCtx(ctx).Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
+		} else {
+			groupBy = append(groupBy, col.SQL())
 		}
 	}
+	if len(groupBy) > 0 {
+		sb.WriteString(" GROUP BY ")
+		sb.WriteString(strings.Join(groupBy, ", "))
+		if len(q.SuffixClauses) == 0 {
+			sb.WriteString(" ORDER BY ")
+			sb.WriteString(strings.Join(groupBy, ", "))
+		}
+	}
+
 	if len(q.SuffixClauses) > 0 {
 		sb.WriteString(" " + strings.Join(q.SuffixClauses, " "))
 	}
@@ -272,8 +259,8 @@ func (q *Query) IsWildcard() bool {
 
 // CopyAggregationFields copies all aggregation fields from qwa to q
 func (q *Query) CopyAggregationFields(qwa Query) {
-	q.GroupByFields = make([]string, len(qwa.GroupByFields))
-	copy(q.GroupByFields, qwa.GroupByFields)
+	q.GroupBy = make([]SelectColumn, 0, len(qwa.GroupBy))
+	copy(q.GroupBy, qwa.GroupBy)
 
 	q.Columns = make([]SelectColumn, len(qwa.Columns))
 	copy(q.Columns, qwa.Columns)
@@ -287,21 +274,9 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 	copy(q.Aggregators, qwa.Aggregators)
 }
 
-// RemoveEmptyGroupBy removes EmptyFieldSelection from GroupByFields
-func (q *Query) RemoveEmptyGroupBy() {
-	nonEmptyFields := make([]string, 0)
-	for _, field := range q.GroupByFields {
-		if field != EmptyFieldSelection {
-			nonEmptyFields = append(nonEmptyFields, field)
-		}
-	}
-	q.GroupByFields = nonEmptyFields
-}
-
 // TrimKeywordFromFields trims .keyword from fields and group by fields
 // In future probably handle it in a better way
 func (q *Query) TrimKeywordFromFields(ctx context.Context) {
-
 	for i := range q.Fields {
 		if strings.HasSuffix(q.Fields[i], `.keyword"`) {
 			logger.WarnWithCtx(ctx).Msgf("trimming .keyword from field %s", q.Fields[i])
@@ -309,16 +284,9 @@ func (q *Query) TrimKeywordFromFields(ctx context.Context) {
 			q.Fields[i] += `"`
 		}
 	}
-	for i := range q.GroupByFields {
-		if strings.HasSuffix(q.GroupByFields[i], `.keyword"`) {
-			logger.WarnWithCtx(ctx).Msgf("trimming .keyword from group by field %s", q.GroupByFields[i])
-			q.GroupByFields[i] = strings.TrimSuffix(q.GroupByFields[i], `.keyword"`)
-			q.GroupByFields[i] += `"`
-		}
-	}
 	for i := range q.NonSchemaFields {
 		if strings.HasSuffix(q.NonSchemaFields[i], `.keyword"`) {
-			logger.WarnWithCtx(ctx).Msgf("trimming .keyword from group by field %s", q.GroupByFields[i])
+			logger.WarnWithCtx(ctx).Msgf("trimming .keyword from group by field %s", q.NonSchemaFields[i])
 			q.NonSchemaFields[i] = strings.TrimSuffix(q.NonSchemaFields[i], `.keyword"`)
 			q.NonSchemaFields[i] += `"`
 		}
