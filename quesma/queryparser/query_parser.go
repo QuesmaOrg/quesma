@@ -1065,9 +1065,9 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 
 	aggsNr := len(aggs)
 	// simple "facets" aggregation, which we try to match here, will have here either:
-	// a) aggsNr == 2 ('top_values' and 'sample_count' keys), and only 1 'terms' aggregation
-	// b) aggsNr == 4 ('top_values', 'sample_count', 'max_value', 'min_value' keys), and only 1 'terms' aggregation (besides min and max)
-	// c) aggsNr == 1 and only 1 'histogram' aggregation
+	// a) aggsNr == 1 and only 1 'histogram' aggregation
+	// b) aggsNr == 2 ('top_values' and 'sample_count' keys), and only 1 'terms' aggregation
+	// c) aggsNr == 4 ('top_values', 'sample_count', 'max_value', 'min_value' keys), and only 1 'terms' aggregation (besides min and max)
 	switch aggsNr {
 	case 1:
 		if fieldName, success := cw.isHistogramFacets(aggs); success {
@@ -1078,7 +1078,6 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 			return model.SearchQueryInfo{Typ: model.Facets, FieldName: fieldName, I1: size, I2: int(limit)}, true
 		}
 	case 4:
-		fmt.Println("tu")
 		if fieldName, size, success := cw.isTermsFacetsNumeric(aggs); success {
 			return model.SearchQueryInfo{Typ: model.FacetsNumeric, FieldName: fieldName, I1: size, I2: int(limit)}, true
 		}
@@ -1086,9 +1085,10 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 	return model.NewSearchQueryInfoNone(), false
 }
 
+// aggs should look exactly like this {"some_aggregation_name": {"histogram": {"field": some_fieldname, "interval": some_int}}}
+// No other fields.
+// Then we return (some_fieldname, true), otherwise ("", false)
 func (cw *ClickhouseQueryTranslator) isHistogramFacets(aggs QueryMap) (fieldName string, success bool) {
-	// aggs should look exactly like this {"some_aggregation_name":{"histogram": {"field": some_fieldname, "interval": some_int}}
-	// No other fields.
 	if len(aggs) != 1 {
 		return
 	}
@@ -1117,17 +1117,20 @@ func (cw *ClickhouseQueryTranslator) isHistogramFacets(aggs QueryMap) (fieldName
 			if !ok {
 				return
 			}
-			fmt.Println("tu2", fieldName, interval)
 			return fmt.Sprintf(`floor("%s" / %f) * %f`, fieldName, interval, interval), true
 		}
 	}
 	return
 }
 
+// aggs should look exactly like this {"sample_count": int_we_discard, "top_values": {"terms": {"field": some_fieldname, "size": some_int}}}
+// No other fields.
+// Then we return (some_fieldname, some_int, true), otherwise ("", 0, false)
 func (cw *ClickhouseQueryTranslator) isTermsFacets(aggs QueryMap) (fieldName string, size int, success bool) {
 	if _, ok := aggs["sample_count"]; !ok {
 		return
 	}
+
 	topValues, ok := aggs["top_values"].(QueryMap)
 	if !ok {
 		return
@@ -1156,6 +1159,8 @@ func (cw *ClickhouseQueryTranslator) isTermsFacets(aggs QueryMap) (fieldName str
 	return fieldName, size, true
 }
 
+// aggs should have 'top_values', 'sample_count', 'max_value', 'min_value' keys, and only 1 'terms' aggregation (besides min and max) (named 'top_values')
+// No other fields.
 func (cw *ClickhouseQueryTranslator) isTermsFacetsNumeric(aggs QueryMap) (fieldName string, size int, success bool) {
 	var ok bool
 	fieldName, size, ok = cw.isTermsFacets(aggs)

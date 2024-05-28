@@ -661,7 +661,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, whereCla
 }
 
 func (cw *ClickhouseQueryTranslator) BuildFacetsHistogramQuery(fieldName string, query model.SimpleQuery, limitTodo int) *model.Query {
-	suffixClauses := []string{"GROUP BY " + fieldName, "ORDER BY count() DESC"}
+	// fieldName needs to be in NonSchemaFields, as it's actually a complex field, like e.g. "(field / 200) * 200"
 	innerQuery := model.Query{
 		NonSchemaFields: []string{fieldName},
 		WhereClause:     query.Sql.Stmt,
@@ -671,7 +671,8 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsHistogramQuery(fieldName string,
 	}
 	return &model.Query{
 		NonSchemaFields: []string{fieldName, "count()"},
-		SuffixClauses:   suffixClauses,
+		GroupByFields:   []string{fieldName},
+		SuffixClauses:   []string{"ORDER BY count() DESC"},
 		FromClause:      "(" + innerQuery.String() + ")",
 		CanParse:        true,
 	}

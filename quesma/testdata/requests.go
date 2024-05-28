@@ -1940,8 +1940,8 @@ var TestsSearch = []SearchTestCase{
 			"track_total_hits": true
 		}`,
 		[]string{
-			`"timestamp">='2024-05-22T17:03:10.170Z' AND "timestamp"<='2024-05-22T17:18:10.170Z'`,
-			`"timestamp"<='2024-05-22T17:18:10.170Z' AND "timestamp">='2024-05-22T17:03:10.170Z'`,
+			`("timestamp">='2024-05-22T17:03:10.170Z' AND "timestamp"<='2024-05-22T17:18:10.170Z')`,
+			`("timestamp"<='2024-05-22T17:18:10.170Z' AND "timestamp">='2024-05-22T17:03:10.170Z')`,
 		},
 		model.FacetsHistogram,
 		[]model.Query{
@@ -1957,7 +1957,7 @@ var TestsSearch = []SearchTestCase{
 				`WHERE "timestamp".='2024-05-22T17:..:10.170Z' AND "timestamp".='2024-05-22T17:..:10.170Z' ` +
 				`LIMIT 20000` +
 				`) ` +
-				`GROUP BY floor("message" / 251.180456) * 251.180456 ` +
+				`GROUP BY (floor("message" / 251.180456) * 251.180456) ` +
 				`ORDER BY count() DESC`,
 		},
 	},
@@ -1995,7 +1995,7 @@ var TestsSearch = []SearchTestCase{
 		// We will probably refactor it as we move forwards with schema which will get even more side-effecting
 		[]string{qToStr(justSimplestWhere(`"@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z')`))},
 	},
-	{ // [34] Comments in queries
+	{ // [35] Comments in queries
 		"Comments in filter",
 		`{
 			"query": { /*one comment */
@@ -2011,7 +2011,7 @@ var TestsSearch = []SearchTestCase{
 		[]model.Query{justSimplestWhere(`"user.id"='kimchy'`)},
 		[]string{qToStr(justSimplestWhere(`"user.id"='kimchy'`))},
 	},
-	{ // [35] terms with range
+	{ // [36] terms with range
 		"Terms with range",
 		`{
 		  "size": 1,
