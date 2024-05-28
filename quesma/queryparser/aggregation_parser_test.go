@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/testdata"
 	dashboard_1 "mitmproxy/quesma/testdata/dashboard-1"
 	opensearch_visualize "mitmproxy/quesma/testdata/opensearch-visualize"
@@ -483,7 +484,7 @@ var aggregationTests = []struct {
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
 			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` GROUP BY ("OriginCityName")`,
-			`SELECT COUNT(DISTINCT "OriginCityName") FROM ` + tableNameQuoted,
+			`SELECT count(DISTINCT "OriginCityName") FROM ` + tableNameQuoted,
 		},
 	},
 	{ // [13]
@@ -532,7 +533,9 @@ func TestAggregationParser(t *testing.T) {
 				testIdx == 9 || testIdx == 11 || testIdx == 12 {
 				t.Skip("We can't handle one hardest request properly yet") // Let's skip in this PR. Next one already fixes some of issues here.
 			}
-			aggregations, err := cw.ParseAggregationJson(test.aggregationJson)
+			body, parseErr := types.ParseJSON(test.aggregationJson)
+			assert.NoError(t, parseErr)
+			aggregations, err := cw.ParseAggregationJson(body)
 			assert.NoError(t, err)
 			assert.Equal(t, len(test.translatedSqls), len(aggregations))
 			for _, aggregation := range aggregations {
@@ -599,7 +602,9 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 				t.Skip("Let's implement top_hits in next PR. Easily doable, just a bit of code.")
 			}
 
-			aggregations, err := cw.ParseAggregationJson(test.QueryRequestJson)
+			body, parseErr := types.ParseJSON(test.QueryRequestJson)
+			assert.NoError(t, parseErr)
+			aggregations, err := cw.ParseAggregationJson(body)
 			// fmt.Println("Aggregations len", len(aggregations), err)
 			// pp.Println(aggregations)
 			assert.NoError(t, err)

@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
 	"mitmproxy/quesma/model/metrics_aggregations"
+	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/util"
 	"regexp"
@@ -57,9 +58,11 @@ func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.
 
 	// Need to copy, as we might be proceeding to modify 'b' pointer
 	query.CopyAggregationFields(b.Query)
+
 	if len(query.Fields) > 0 && query.Fields[len(query.Fields)-1] == model.EmptyFieldSelection { // TODO 99% sure it's removed in next PR, let's leave for now
 		query.Fields = query.Fields[:len(query.Fields)-1]
 	}
+
 	query.RemoveEmptyGroupBy()
 	query.TrimKeywordFromFields(b.ctx)
 	query.Metadata = metadata
@@ -69,13 +72,19 @@ func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.
 func (b *aggrQueryBuilder) buildCountAggregation(metadata model.JsonMap) model.Query {
 	query := b.buildAggregationCommon(metadata)
 	query.Type = metrics_aggregations.NewCount(b.ctx)
+
 	query.NonSchemaFields = append(query.NonSchemaFields, "count()")
+
+	query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Count()})
 	return query
 }
 
 func (b *aggrQueryBuilder) buildBucketAggregation(metadata model.JsonMap) model.Query {
 	query := b.buildAggregationCommon(metadata)
+
 	query.NonSchemaFields = append(query.NonSchemaFields, "count()")
+
+	query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Count()})
 	return query
 }
 func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregation, metadata model.JsonMap) model.Query {
@@ -86,7 +95,9 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		logger.ErrorWithCtx(b.ctx).Msg("No field names in metrics aggregation. Using empty.")
 		return ""
 	}
+
 	query := b.buildAggregationCommon(metadata)
+
 	switch metricsAggr.AggrType {
 	case "sum", "min", "max", "avg":
 		var fieldNameProperlyQuoted string
@@ -96,21 +107,44 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			fieldNameProperlyQuoted = strconv.Quote(getFirstFieldName())
 		}
 		query.NonSchemaFields = append(query.NonSchemaFields, metricsAggr.AggrType+`OrNull(`+fieldNameProperlyQuoted+`)`)
+
+		// TODO firstFieldName can be an SQL expression or field name
+		if strings.Contains(getFirstFieldName(), "(") {
+			query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Function(metricsAggr.AggrType+"OrNull", aexp.SQL{Query: getFirstFieldName()})})
+		} else {
+			query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Function(metricsAggr.AggrType+"OrNull", aexp.TableColumn(getFirstFieldName()))})
+		}
+
 	case "quantile":
 		// Sorting here useful mostly for determinism in tests.
 		// It wasn't there before, and everything worked fine. We could safely remove it, if needed.
 		usersPercents := util.MapKeysSortedByValue(metricsAggr.Percentiles)
 		for _, usersPercent := range usersPercents {
 			percentAsFloat := metricsAggr.Percentiles[usersPercent]
+
 			query.NonSchemaFields = append(query.NonSchemaFields, fmt.Sprintf(
-				"quantiles(%6f)(`%s`) AS `quantile_%s`", percentAsFloat, getFirstFieldName(), usersPercent))
+				"quantiles(%6f)(\"%s\") AS \"quantile_%s\"", percentAsFloat, getFirstFieldName(), usersPercent))
+
+			query.Columns = append(query.Columns, model.SelectColumn{
+				Expression: aexp.MultiFunctionExp{
+					Name: "quantiles",
+					Args: []aexp.AExp{aexp.Literal(percentAsFloat), aexp.TableColumn(getFirstFieldName())}},
+				Alias: fmt.Sprintf("quantile_%s", usersPercent),
+			})
 		}
 	case "cardinality":
-		query.NonSchemaFields = append(query.NonSchemaFields, `COUNT(DISTINCT "`+getFirstFieldName()+`")`)
+		query.NonSchemaFields = append(query.NonSchemaFields, `count(DISTINCT "`+getFirstFieldName()+`")`)
+
+		query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Count(aexp.NewComposite(aexp.Symbol("DISTINCT"), aexp.TableColumn(getFirstFieldName())))})
+
 	case "value_count":
 		query.NonSchemaFields = append(query.NonSchemaFields, "count()")
+
+		query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Count()})
+
 	case "stats":
 		fieldName := getFirstFieldName()
+
 		query.NonSchemaFields = append(
 			query.NonSchemaFields,
 			"count(`"+fieldName+"`)",
@@ -119,13 +153,22 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			"avgOrNull(`"+fieldName+"`)",
 			"sumOrNull(`"+fieldName+"`)",
 		)
+
+		query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Count(aexp.TableColumn(fieldName))},
+			model.SelectColumn{Expression: aexp.Function("minOrNull", aexp.TableColumn(fieldName))},
+			model.SelectColumn{Expression: aexp.Function("maxOrNull", aexp.TableColumn(fieldName))},
+			model.SelectColumn{Expression: aexp.Function("avgOrNull", aexp.TableColumn(fieldName))},
+			model.SelectColumn{Expression: aexp.Function("sumOrNull", aexp.TableColumn(fieldName))})
+
 	case "top_hits":
 		query.Fields = append(query.Fields, metricsAggr.FieldNames...)
 		fieldsAsString := strings.Join(metricsAggr.FieldNames, ", ")
+
 		query.FromClause = fmt.Sprintf(
 			"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s) AS %s FROM %s)",
 			fieldsAsString, fieldsAsString, model.RowNumberColumnName, query.FromClause,
 		)
+
 	case "top_metrics":
 		// This appending of `metricsAggr.SortBy` and having it duplicated in SELECT block
 		// is a way to pass value we're sorting by to the query result. In the future we might add SQL aliasing support, e.g. SELECT x AS 'sort_by' FROM ...
@@ -142,7 +185,13 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			for _, field := range innerFields {
 				topSelectFields = append(topSelectFields, fmt.Sprintf(`%s("%s") AS "windowed_%s"`, ordFunc, field, field))
 			}
+
 			query.NonSchemaFields = append(query.NonSchemaFields, topSelectFields...)
+
+			for _, field := range topSelectFields {
+				query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.SQL{Query: field}})
+			}
+
 			partitionBy := strings.Join(b.Query.GroupByFields, ", ")
 			fieldsAsString := strings.Join(quoteArray(innerFields), ", ") // need those fields in the inner clause
 			query.FromClause = fmt.Sprintf(
@@ -162,6 +211,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			cutValue, _ := strconv.ParseFloat(cutValueAsString, 64)
 			Select := fmt.Sprintf("count(if(%s<=%f, 1, NULL))/count(*)*100", strconv.Quote(getFirstFieldName()), cutValue)
 			query.NonSchemaFields = append(query.NonSchemaFields, Select)
+			query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.SQL{Query: Select}})
 		}
 	case "extended_stats":
 		fieldName := "(" + strconv.Quote(getFirstFieldName()) + ")"
@@ -212,11 +262,8 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 
 // ParseAggregationJson parses JSON with aggregation query and returns array of queries with aggregations.
 // If there are no aggregations, returns nil.
-func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([]model.Query, error) {
-	queryAsMap, err := types.ParseJSON(queryAsJson)
-	if err != nil {
-		return nil, fmt.Errorf("unmarshal error: %v", err)
-	}
+func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]model.Query, error) {
+	queryAsMap := body.Clone()
 	currentAggr := aggrQueryBuilder{}
 	currentAggr.FromClause = cw.Table.FullTableName()
 	currentAggr.ctx = cw.Ctx
@@ -228,7 +275,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 		}
 	}
 
-	// COUNT(*) is needed for every request. We should change it and don't duplicate it, as some
+	// count(*) is needed for every request. We should change it and don't duplicate it, as some
 	// requests also ask for that themselves, but let's leave it for later.
 	aggregations := []model.Query{currentAggr.buildCountAggregation(model.NoMetadataField)}
 
@@ -269,7 +316,6 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([
 		hitQuery := cw.BuildNRowsQuery("*", simpleQuery, size)
 		aggregations = append(aggregations, *hitQuery)
 	}
-
 	return aggregations, nil
 }
 
@@ -430,9 +476,17 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	if nonSchemaFieldsAddedCount > 0 {
 		if len(currentAggr.NonSchemaFields) >= nonSchemaFieldsAddedCount {
 			currentAggr.NonSchemaFields = currentAggr.NonSchemaFields[:len(currentAggr.NonSchemaFields)-nonSchemaFieldsAddedCount]
+
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("nonSchemaFieldsAddedCount > currentAggr.NonSchemaFields length -> should be impossible")
 		}
+
+		if len(currentAggr.Columns) >= nonSchemaFieldsAddedCount {
+			currentAggr.Columns = currentAggr.Columns[:len(currentAggr.Columns)-nonSchemaFieldsAddedCount]
+		} else {
+			logger.ErrorWithCtx(cw.Ctx).Msgf("nonSchemaFieldsAddedCount > currentAggr.Columns length -> should be impossible")
+		}
+
 	}
 	if groupByFieldsAddedCount > 0 {
 		if len(currentAggr.GroupByFields) >= groupByFieldsAddedCount {
@@ -625,6 +679,9 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		}
 		currentAggr.GroupByFields = append(currentAggr.GroupByFields, groupByStr)
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, groupByStr)
+
+		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: groupByStr}})
+
 		delete(queryMap, "histogram")
 		return success, 1, 1, nil
 	}
@@ -638,6 +695,9 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		histogramPartOfQuery := cw.createHistogramPartOfQuery(dateHistogram)
 		currentAggr.GroupByFields = append(currentAggr.GroupByFields, histogramPartOfQuery)
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, histogramPartOfQuery)
+
+		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: histogramPartOfQuery}})
+
 		delete(queryMap, "date_histogram")
 		return success, 1, 1, nil
 	}
@@ -648,6 +708,9 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			isEmptyGroupBy := len(currentAggr.GroupByFields) == 0
 			currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
 			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
+
+			currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.TableColumn(cw.parseFieldField(terms, termsType))})
+
 			size := 10
 			if _, ok := queryMap["aggs"]; isEmptyGroupBy && !ok { // we can do limit only it terms are not nested
 				if jsonMap, ok := terms.(QueryMap); ok {
@@ -710,13 +773,19 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.Type = dateRangeParsed
 		for _, interval := range dateRangeParsed.Intervals {
 			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, interval.ToSQLSelectQuery(dateRangeParsed.FieldName))
+
+			currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: interval.ToSQLSelectQuery(dateRangeParsed.FieldName)}})
+
 			if sqlSelect, selectNeeded := interval.BeginTimestampToSQL(); selectNeeded {
 				currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, sqlSelect)
+				currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: sqlSelect}})
 			}
 			if sqlSelect, selectNeeded := interval.EndTimestampToSQL(); selectNeeded {
 				currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, sqlSelect)
+				currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: sqlSelect}})
 			}
 		}
+
 		delete(queryMap, "date_range")
 		return success, dateRangeParsed.SelectColumnsNr, 0, nil
 	}

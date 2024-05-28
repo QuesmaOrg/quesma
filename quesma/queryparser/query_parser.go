@@ -20,6 +20,8 @@ import (
 	"github.com/relvacode/iso8601"
 )
 
+var stringRenderer = &wc.StringRenderer{}
+
 type QueryMap = map[string]interface{}
 
 // NewEmptyHighlighter returns no-op for error branches and tests
@@ -29,8 +31,8 @@ func NewEmptyHighlighter() model.Highlighter {
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) ParseQuery(body []byte) ([]model.Query, []string, bool, bool, error) {
-	simpleQuery, queryInfo, highlighter, err := cw.ParseQueryInternal(string(body))
+func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]model.Query, []string, bool, bool, error) {
+	simpleQuery, queryInfo, highlighter, err := cw.ParseQueryInternal(body)
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
 		return nil, nil, false, false, err
@@ -50,7 +52,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body []byte) ([]model.Query, []s
 			isAggregation = false
 			return queries, columns, isAggregation, canParse, nil
 		} else {
-			queries, err = cw.ParseAggregationJson(string(body))
+			queries, err = cw.ParseAggregationJson(body)
 			if err != nil {
 				logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing aggregation: %v", err)
 				return nil, nil, false, false, err
@@ -67,13 +69,19 @@ func (cw *ClickhouseQueryTranslator) makeBasicQuery(
 	simpleQuery model.SimpleQuery, queryInfo model.SearchQueryInfo, highlighter model.Highlighter) (*model.Query, []string) {
 	var fullQuery *model.Query
 	var columns []string
+	var whereClause string
+	if simpleQuery.Sql.WhereStatement == nil {
+		whereClause = ""
+	} else {
+		whereClause = simpleQuery.Sql.WhereStatement.Accept(stringRenderer).(string)
+	}
 	switch queryInfo.Typ {
 	case model.CountAsync:
-		fullQuery = cw.BuildSimpleCountQuery(simpleQuery.Sql.Stmt)
+		fullQuery = cw.BuildSimpleCountQuery(whereClause)
 		columns = []string{"doc_count"}
 	case model.Facets, model.FacetsNumeric:
 		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
-		fullQuery = cw.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
+		fullQuery = cw.BuildFacetsQuery(queryInfo.FieldName, whereClause)
 		columns = []string{"key", "doc_count"}
 	case model.ListByField:
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)
@@ -90,17 +98,9 @@ func (cw *ClickhouseQueryTranslator) makeBasicQuery(
 	return fullQuery, columns
 }
 
-func (cw *ClickhouseQueryTranslator) ParseQueryInternal(queryAsJson string) (model.SimpleQuery, model.SearchQueryInfo, model.Highlighter, error) {
+func (cw *ClickhouseQueryTranslator) ParseQueryInternal(body types.JSON) (model.SimpleQuery, model.SearchQueryInfo, model.Highlighter, error) {
+	queryAsMap := body.Clone()
 	cw.ClearTokensToHighlight()
-	queryAsMap := make(QueryMap)
-	if queryAsJson != "" {
-		var err error
-		queryAsMap, err = types.ParseJSON(queryAsJson)
-		if err != nil {
-			logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
-			return model.SimpleQuery{}, model.SearchQueryInfo{}, NewEmptyHighlighter(), err
-		}
-	}
 
 	// we must parse "highlights" here, because it is stripped from the queryAsMap later
 	highlighter := cw.ParseHighlighter(queryAsMap)
@@ -741,8 +741,14 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) model.S
 		cw.AddTokenToHighlight(querySubstring)
 	}
 
-	// we always can parse, with invalid query we return "false"
-	return model.NewSimpleQuery(model.NewSimpleStatement(lucene.TranslateToSQL(cw.Ctx, query, fields)), true)
+	// we always call `TranslateToSQL` - Lucene parser returns "false" in case of invalid query
+	whereStmtFromLucene := lucene.TranslateToSQL(cw.Ctx, query, fields)
+	simpleStat := model.NewSimpleStatement("")
+	if whereStmtFromLucene != nil {
+		simpleStat = model.NewSimpleStatement(whereStmtFromLucene.Accept(stringRenderer).(string))
+	}
+	simpleStat.WhereStatement = whereStmtFromLucene
+	return model.NewSimpleQuery(simpleStat, true)
 }
 
 func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) model.SimpleQuery {
@@ -828,6 +834,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 							valueToCompare = wc.NewFunction(timeFormatFuncName, wc.NewLiteral(fmt.Sprintf("'%s'", dateTime)))
 						} else if op == "gte" || op == "lte" || op == "gt" || op == "lt" {
 							vToPrint, err = cw.parseDateMathExpression(vToPrint)
+							valueToCompare = wc.NewLiteral(vToPrint)
 							if err != nil {
 								logger.WarnWithCtx(cw.Ctx).Msgf("error parsing date math expression: %s", vToPrint)
 								return model.NewSimpleQuery(model.NewSimpleStatement("error parsing date math expression: "+vToPrint), false)

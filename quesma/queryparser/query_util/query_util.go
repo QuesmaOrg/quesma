@@ -1,19 +1,21 @@
 package query_util
 
 import (
-	"bytes"
 	"context"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/queryparser/aexp"
+	"mitmproxy/quesma/quesma/types"
 	"strconv"
 	"strings"
 )
 
-func IsNonAggregationQuery(queryInfo model.SearchQueryInfo, body []byte) bool {
+func IsNonAggregationQuery(queryInfo model.SearchQueryInfo, body types.JSON) bool {
+	_, hasAggs := body["aggs"]
 	return ((queryInfo.Typ == model.ListByField ||
 		queryInfo.Typ == model.ListAllFields ||
 		queryInfo.Typ == model.Normal) &&
-		!bytes.Contains(body, []byte("aggs"))) ||
+		!hasAggs) ||
 		queryInfo.Typ == model.Facets ||
 		queryInfo.Typ == model.FacetsNumeric ||
 		queryInfo.Typ == model.CountAsync
@@ -27,7 +29,16 @@ func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, qu
 	if limit > 0 {
 		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(applySizeLimit(ctx, limit)))
 	}
+
+	var col model.SelectColumn
+	if fieldName == "*" {
+		col = model.SelectColumn{Expression: aexp.Wildcard}
+	} else {
+		col = model.SelectColumn{Expression: aexp.TableColumn(fieldName)}
+	}
+
 	return &model.Query{
+		Columns:       []model.SelectColumn{col},
 		Fields:        []string{fieldName},
 		WhereClause:   query.Sql.Stmt,
 		SuffixClauses: suffixClauses,

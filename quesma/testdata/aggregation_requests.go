@@ -716,7 +716,7 @@ var AggregationTests = []AggregationTestCase{
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
 			`SELECT "OriginCityName", count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') GROUP BY ("OriginCityName") ORDER BY count() DESC LIMIT 10`,
-			`SELECT COUNT(DISTINCT "OriginCityName") FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
+			`SELECT count(DISTINCT "OriginCityName") FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
 		},
 	},
 	{ // [5]
@@ -3974,7 +3974,7 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + QuotedTableName,
-			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/79200000), " + `COUNT(DISTINCT "host.name") ` +
+			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/79200000), " + `count(DISTINCT "host.name") ` +
 				`FROM ` + QuotedTableName + " " +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/79200000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/79200000))",
@@ -5491,6 +5491,497 @@ var AggregationTests = []AggregationTestCase{
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z') ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+		},
+	},
+	{
+		TestName: "0 result rows in 2x terms",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"terms": {
+								"field": "message",
+								"order": {
+			  						"_count": "desc"
+								},
+								"shard_size": 25,
+								"size": 3
+							}
+						}
+					},
+					"terms": {
+						"field": "host.name",
+						"order": {
+							"_count": "desc"
+						},
+						"shard_size": 25,
+						"size": 10
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "reqTimeSec",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"exists": {
+								"field": "message"
+							}
+						}
+					],
+					"must": [],
+					"must_not": [
+						{
+							"match_phrase": {
+								"message": "US"
+							}
+						}
+					],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `{"response": {"aggregations":{}}}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(122))}}},
+			{},
+			{},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%'`,
+			`SELECT "host.name", "message", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`GROUP BY ("host.name", "message") ` +
+				`ORDER BY ("host.name", "message")`,
+			`SELECT "host.name", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`GROUP BY ("host.name") ` +
+				`ORDER BY ("host.name")`,
+		},
+	},
+	{
+		TestName: "0 result rows in 3x terms",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"terms": {
+								"field": "message",
+								"order": {
+			  						"_count": "desc"
+								},
+								"shard_size": 25,
+								"size": 3
+							},
+							"aggs": {
+								"2": {
+									"terms": {
+										"field": "message",
+										"order": {
+											"_count": "desc"
+										},
+										"shard_size": 25,
+										"size": 3
+									}
+								}
+							},
+						}
+					},
+					"terms": {
+						"field": "host.name",
+						"order": {
+							"_count": "desc"
+						},
+						"shard_size": 25,
+						"size": 10
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "reqTimeSec",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"exists": {
+								"field": "message"
+							}
+						}
+					],
+					"must": [],
+					"must_not": [
+						{
+							"match_phrase": {
+								"message": "US"
+							}
+						}
+					],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `{"response": {"aggregations":{}}}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(122))}}},
+			{},
+			{},
+			{},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%'`,
+			`SELECT "host.name", "message", "message", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`GROUP BY ("host.name", "message", "message") ` +
+				`ORDER BY ("host.name", "message", "message")`,
+			`SELECT "host.name", "message", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`GROUP BY ("host.name", "message") ` +
+				`ORDER BY ("host.name", "message")`,
+			`SELECT "host.name", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`GROUP BY ("host.name") ` +
+				`ORDER BY ("host.name")`,
+		},
+	},
+	{
+		TestName: "0 result rows in terms+histogram",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"histogram": {
+								"field": "FlightDelayMin",
+								"interval": 1,
+								"min_doc_count": 1
+							}
+						}
+					},
+					"terms": {
+						"field": "host.name",
+						"order": {
+							"_count": "desc"
+						},
+						"shard_size": 25,
+						"size": 10
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "reqTimeSec",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"exists": {
+								"field": "message"
+							}
+						}
+					],
+					"must": [],
+					"must_not": [
+						{
+							"match_phrase": {
+								"message": "US"
+							}
+						}
+					],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `{"response": {"aggregations":{}}}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(122))}}},
+			{},
+			{},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%'`,
+			`SELECT "host.name", "FlightDelayMin", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`GROUP BY ("host.name", "FlightDelayMin") ` +
+				`ORDER BY ("host.name", "FlightDelayMin")`,
+			`SELECT "host.name", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`GROUP BY ("host.name") ` +
+				`ORDER BY ("host.name")`,
+		},
+	},
+	{
+		TestName: "0 result rows in terms+histogram + meta field",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"histogram": {
+								"field": "FlightDelayMin",
+								"interval": 1,
+								"min_doc_count": 1
+							}
+						}
+					},
+					"terms": {
+						"field": "host.name",
+						"order": {
+							"_count": "desc"
+						},
+						"shard_size": 25,
+						"size": 10
+					},
+					"meta": {
+						"bucketSize": 3600,
+						"intervalString": "3600s",
+						"seriesId": "61ca57f1-469d-11e7-af02-69e470af7417",
+						"timeField": "timestamp"
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "reqTimeSec",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"exists": {
+								"field": "message"
+							}
+						}
+					],
+					"must": [],
+					"must_not": [
+						{
+							"match_phrase": {
+								"message": "US"
+							}
+						}
+					],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"response": {
+				"aggregations": {
+					"0": {
+						"meta": {
+							"bucketSize":     3600.000000,
+							"intervalString": "3600s",
+							"seriesId":       "61ca57f1-469d-11e7-af02-69e470af7417",
+							"timeField":      "timestamp"
+						}
+					}
+				}
+			}
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(122))}}},
+			{},
+			{},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%'`,
+			`SELECT "host.name", "FlightDelayMin", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`GROUP BY ("host.name", "FlightDelayMin") ` +
+				`ORDER BY ("host.name", "FlightDelayMin")`,
+			`SELECT "host.name", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`GROUP BY ("host.name") ` +
+				`ORDER BY ("host.name")`,
+		},
+	},
+	{
+		// Now we don't copy, as it's nested. Tested with Elasticsearch.
+		TestName: "0 result rows in terms+histogram + meta field, meta in subaggregation",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"0": {
+					"aggs": {
+						"1": {
+							"histogram": {
+								"field": "FlightDelayMin",
+								"interval": 1,
+								"min_doc_count": 1
+							},
+							"meta": {
+								"bucketSize": 3600,
+								"intervalString": "3600s",
+								"seriesId": "61ca57f1-469d-11e7-af02-69e470af7417",
+								"timeField": "timestamp"
+							}
+						}
+					},
+					"terms": {
+						"field": "host.name",
+						"order": {
+							"_count": "desc"
+						},
+						"shard_size": 25,
+						"size": 10
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "reqTimeSec",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"exists": {
+								"field": "message"
+							}
+						}
+					],
+					"must": [],
+					"must_not": [
+						{
+							"match_phrase": {
+								"message": "US"
+							}
+						}
+					],
+					"should": []
+				}
+			},
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `{"response": {"aggregations":{}}}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(122))}}},
+			{},
+			{},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%'`,
+			`SELECT "host.name", "FlightDelayMin", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`GROUP BY ("host.name", "FlightDelayMin") ` +
+				`ORDER BY ("host.name", "FlightDelayMin")`,
+			`SELECT "host.name", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`GROUP BY ("host.name") ` +
+				`ORDER BY ("host.name")`,
 		},
 	},
 }

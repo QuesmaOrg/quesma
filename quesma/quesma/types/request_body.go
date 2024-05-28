@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"mitmproxy/quesma/end_user_errors"
 	"strings"
 )
 
@@ -66,7 +67,7 @@ func ExpectJSON(body RequestBody) (JSON, error) {
 	case JSON:
 		return b, nil
 	default:
-		return nil, fmt.Errorf("invalid request body, expecting JSON . Got: %T", body)
+		return nil, end_user_errors.ErrExpectedJSON.New(fmt.Errorf("expecting JSON . Got: %T", body))
 	}
 }
 
@@ -76,6 +77,6 @@ func ExpectNDJSON(body RequestBody) (NDJSON, error) {
 	case NDJSON:
 		return b, nil
 	default:
-		return nil, fmt.Errorf("invalid request body, expecting NDJSON . Got: %T", body)
+		return nil, end_user_errors.ErrExpectedNDJSON.New(fmt.Errorf("expecting NDJSON . Got: %T", body))
 	}
 }

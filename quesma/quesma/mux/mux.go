@@ -54,6 +54,13 @@ func ServerErrorResult() *Result {
 	}
 }
 
+func BadReqeustResult() *Result {
+	return &Result{
+		StatusCode: http.StatusBadRequest,
+		Meta:       map[string]string{"Content-Type": "text/plain"},
+	}
+}
+
 func (f RequestMatcherFunc) Matches(req *Request) bool {
 	return f(req)
 }

@@ -64,8 +64,8 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 	}, nil
 }
 
-func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body []byte) ([]model.Query, []string, bool, bool, error) {
-	simpleQuery, queryInfo, highlighter, err := cw.parseQuery(string(body))
+func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) ([]model.Query, []string, bool, bool, error) {
+	simpleQuery, queryInfo, highlighter, err := cw.parseQuery(body)
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
 		return nil, nil, false, false, err
@@ -90,22 +90,13 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body []byte) ([]model.Query, 
 	return nil, nil, false, false, err
 }
 
-func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsJson string) (query model.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter model.Highlighter, err error) {
+func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query model.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter model.Highlighter, err error) {
 
 	// no highlighting here
 	highlighter = queryparser.NewEmptyHighlighter()
 
 	searchQueryInfo.Typ = model.ListAllFields
 	query.Sql = model.Statement{}
-
-	queryAsMap, err := types.ParseJSON(queryAsJson)
-	if err != nil {
-		logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
-
-		query.CanParse = false
-		query.Sql.Stmt = "Invalid JSON"
-		return query, model.NewSearchQueryInfoNone(), highlighter, err
-	}
 
 	var eqlQuery string
 
