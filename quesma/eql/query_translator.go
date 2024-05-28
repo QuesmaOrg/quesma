@@ -64,13 +64,13 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 	}, nil
 }
 
-func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body []byte) ([]model.Query, []string, bool, bool, error) {
+func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body []byte) ([]model.Query, bool, bool, error) {
 	simpleQuery, queryInfo, highlighter, err := cw.parseQuery(string(body))
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
-		return nil, nil, false, false, err
+		return nil,  false, false, err
 	}
-	var columns []string
+
 	var query *model.Query
 	var queries []model.Query
 	var isAggregation bool
@@ -84,10 +84,10 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body []byte) ([]model.Query, 
 		query.SortFields = simpleQuery.SortFields
 		queries = append(queries, *query)
 		isAggregation = false
-		return queries, columns, isAggregation, canParse, nil
+		return queries,  isAggregation, canParse, nil
 	}
 
-	return nil, nil, false, false, err
+	return nil,  false, false, err
 }
 
 func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsJson string) (query model.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter model.Highlighter, err error) {

@@ -87,6 +87,14 @@ func (c SelectColumn) SQL() string {
 		return exprAsString
 	}
 
+	// if alias is the same as column name, we don't need to add it
+	switch exp := c.Expression.(type) {
+	case aexp.TableColumnExp:
+		if exp.ColumnName == c.Alias {
+			return exprAsString
+		}
+	}
+
 	return fmt.Sprintf("%s AS \"%s\"", exprAsString, c.Alias)
 }
 

@@ -42,7 +42,7 @@ func (lm *LogManager) GetAllColumns(table *Table, query *model.Query) []string {
 // TODO query param should be type safe Query representing all parts of
 // sql statement that were already parsed and not string from which
 // we have to extract again different parts like where clause and columns to build a proper result
-func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *model.Query, columns []string) ([]model.QueryResultRow, error) {
+func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
 	if query.NoDBQuery {
 		return make([]model.QueryResultRow, 0), nil
 	}
@@ -51,7 +51,7 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 
 	rowToScan := make([]interface{}, len(query.Columns))
 
-	columns = []string{}
+	var columns []string
 
 	var count int
 	for _, col := range query.Columns {
@@ -150,6 +150,9 @@ func executeQuery(ctx context.Context, lm *LogManager, queryAsString string, fie
 // 'selectFields' are all values that we return from the query, both columns and non-schema fields,
 // like e.g. count(), or toInt8(boolField)
 func read(rows *sql.Rows, selectFields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
+
+	// read selected fields from the metadata
+
 	rowDb := make([]interface{}, 0, len(rowToScan))
 	for i := range rowToScan {
 		rowDb = append(rowDb, &rowToScan[i])
