@@ -481,7 +481,7 @@ func (lm *LogManager) Ping() error {
 
 func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent) *LogManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	var schemaManagement = NewSchemaManagement(chDb)
+	var schemaManagement = NewSchemaManagement(chDb, cfg)
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
 	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, schemaLoader: &schemaLoader{SchemaManagement: schemaManagement, tableDefinitions: &tableDefinitions, cfg: cfg}, cfg: cfg, phoneHomeAgent: phoneHomeAgent}
@@ -497,7 +497,7 @@ func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager
 func NewLogManagerWithConnection(db *sql.DB, tables *TableMap) *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
-	return &LogManager{chDb: db, schemaLoader: &schemaLoader{tableDefinitions: &tableDefinitions, SchemaManagement: NewSchemaManagement(db)}, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{chDb: db, schemaLoader: &schemaLoader{tableDefinitions: &tableDefinitions, SchemaManagement: NewSchemaManagement(db, config.QuesmaConfiguration{})}, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 func NewLogManagerEmpty() *LogManager {

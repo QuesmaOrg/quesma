@@ -38,6 +38,12 @@ func (sl *schemaLoader) ReloadTables() {
 	} else {
 		for table, columns := range tables {
 			if indexConfig, found := sl.cfg.IndexConfig[table]; found {
+				if indexConfig.SchemaConfiguration != nil {
+					logger.Info().Msgf("schema configuration for table [%s] provided explicitly, skipping discovery", table)
+					continue
+				}
+			}
+			if indexConfig, found := sl.cfg.IndexConfig[table]; found {
 				if indexConfig.Enabled {
 					for colName := range columns {
 						if _, exists := indexConfig.Aliases[colName]; exists {

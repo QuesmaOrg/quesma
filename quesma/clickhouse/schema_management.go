@@ -4,14 +4,16 @@ import (
 	"database/sql"
 	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/quesma/config"
 )
 
 type SchemaManagement struct {
+	cfg  config.QuesmaConfiguration
 	chDb *sql.DB
 }
 
-func NewSchemaManagement(chDb *sql.DB) *SchemaManagement {
-	return &SchemaManagement{chDb: chDb}
+func NewSchemaManagement(chDb *sql.DB, cfg config.QuesmaConfiguration) *SchemaManagement {
+	return &SchemaManagement{chDb: chDb, cfg: cfg}
 }
 
 func (s *SchemaManagement) readTables(database string) (map[string]map[string]string, error) {
@@ -29,6 +31,7 @@ func (s *SchemaManagement) readTables(database string) (map[string]map[string]st
 		if err := rows.Scan(&table, &colName, &colType); err != nil {
 			return map[string]map[string]string{}, err
 		}
+
 		if _, ok := columnsPerTable[table]; !ok {
 			columnsPerTable[table] = make(map[string]string)
 		}
