@@ -22,6 +22,7 @@ indexes:
       fields:
         "@timestamp":
           type: "date"
+          primary-key: true
         "message":
           type: "text"
         "service":

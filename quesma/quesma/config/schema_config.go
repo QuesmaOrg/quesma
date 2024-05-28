@@ -16,7 +16,8 @@ type (
 	FieldConfiguration struct {
 		Name FieldName `koanf:"name"`
 		// when 'alias' used, other fields are inherited from the aliased field
-		Type FieldType `koanf:"type"`
+		Type         FieldType `koanf:"type"`
+		IsPrimaryKey bool      `koanf:"primary-key"`
 		// target column name, if different than the field name, can point to 'attributes'
 		ColumnName string `koanf:"column-name"`
 	}
