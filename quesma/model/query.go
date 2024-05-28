@@ -25,17 +25,17 @@ type (
 		IsDistinct bool // true <=> query is SELECT DISTINCT
 
 		// This is the future.
-		Columns []SelectColumn // Columns to select, including aliases
+		Columns     []SelectColumn // Columns to select, including aliases
+		GroupBy     []SelectColumn // if not empty, we do GROUP BY GroupBy...
+		WhereClause string         // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
 
 		// TO BE REMOVED
 		Fields          []string // Fields in 'SELECT Fields FROM ...'
 		NonSchemaFields []string // Fields that are not in schema, but are in 'SELECT ...', e.g. count()
 
-		WhereClause   string         // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
-		GroupBy       []SelectColumn // if not empty, we do GROUP BY GroupByFields... They are quoted if they are column names, unquoted if non-schema. So no quotes need to be added.
-		SuffixClauses []string       // ORDER BY, etc.
-		FromClause    string         // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
-		CanParse      bool           // true <=> query is valid
+		SuffixClauses []string // ORDER BY, etc.
+		FromClause    string   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
+		CanParse      bool     // true <=> query is valid
 		QueryInfo     SearchQueryInfo
 		Highlighter   Highlighter
 		NoDBQuery     bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
@@ -183,7 +183,6 @@ func (q *Query) StringFromColumnsNew(ctx context.Context, colNames []string) str
 	if len(groupBy) > 0 {
 		sb.WriteString(" GROUP BY ")
 		sb.WriteString(strings.Join(groupBy, ", "))
-		fmt.Println("===========", strings.Join(groupBy, ", "))
 	}
 
 	if len(q.SuffixClauses) > 0 {
@@ -241,8 +240,6 @@ func (q *Query) StringFromColumnsOld(ctx context.Context, colNames []string) str
 		}
 	}
 
-	fmt.Println("===========", strings.Join(groupBy, ", "))
-
 	if len(q.SuffixClauses) > 0 {
 		sb.WriteString(" " + strings.Join(q.SuffixClauses, " "))
 	}
@@ -280,6 +277,7 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 // TrimKeywordFromFields trims .keyword from fields and group by fields
 // In future probably handle it in a better way
 func (q *Query) TrimKeywordFromFields(ctx context.Context) {
+
 	for i := range q.Fields {
 		if strings.HasSuffix(q.Fields[i], `.keyword"`) {
 			logger.WarnWithCtx(ctx).Msgf("trimming .keyword from field %s", q.Fields[i])
