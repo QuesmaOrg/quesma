@@ -6,7 +6,6 @@ import (
 )
 
 func GuessClickhouseErrorType(err error) *EndUserError {
-	
 	// This limit a depth of error unwrapping.
 	// We don't need forever loops especially in error handling branches
 	const maxDepth = 100
