@@ -679,17 +679,10 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		groupByStr := fieldNameProperlyQuoted
 		if interval != 1.0 {
 			groupByStr = fmt.Sprintf("floor(%s / %f) * %f", fieldNameProperlyQuoted, interval, interval)
+			currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: aexp.SQL{Query: groupByStr}})
+		} else {
+			currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: aexp.TableColumn(fieldName)})
 		}
-		currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{
-			Expression: aexp.NewComposite(
-				aexp.FunctionExp{
-					Name: "floor",
-					Args: []aexp.AExp{aexp.TableColumn(fieldNameProperlyQuoted), aexp.Literal("/"), aexp.Literal(interval)},
-				},
-				aexp.Literal("*"),
-				aexp.Literal(interval),
-			),
-		})
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, groupByStr)
 
 		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: groupByStr}})
@@ -705,6 +698,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		minDocCount := cw.parseMinDocCount(dateHistogram)
 		currentAggr.Type = bucket_aggregations.NewDateHistogram(cw.Ctx, minDocCount, cw.extractInterval(dateHistogram))
 		histogramPartOfQuery := cw.createHistogramPartOfQuery(dateHistogram)
+		currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: aexp.SQL{Query: histogramPartOfQuery}})
 		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: histogramPartOfQuery}})
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, histogramPartOfQuery)
 
@@ -718,8 +712,11 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms")
 			isEmptyGroupBy := len(currentAggr.GroupBy) == 0
 
+			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, strconv.Quote(cw.parseFieldField(terms, termsType)))
 			currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: aexp.TableColumn(cw.parseFieldField(terms, termsType))})
 			currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.TableColumn(cw.parseFieldField(terms, termsType))})
+
+			fmt.Println("-----", currentAggr.String(cw.Ctx))
 
 			size := 10
 			if _, ok := queryMap["aggs"]; isEmptyGroupBy && !ok { // we can do limit only it terms are not nested

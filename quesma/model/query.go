@@ -183,6 +183,7 @@ func (q *Query) StringFromColumnsNew(ctx context.Context, colNames []string) str
 	if len(groupBy) > 0 {
 		sb.WriteString(" GROUP BY ")
 		sb.WriteString(strings.Join(groupBy, ", "))
+		fmt.Println("===========", strings.Join(groupBy, ", "))
 	}
 
 	if len(q.SuffixClauses) > 0 {
@@ -240,6 +241,8 @@ func (q *Query) StringFromColumnsOld(ctx context.Context, colNames []string) str
 		}
 	}
 
+	fmt.Println("===========", strings.Join(groupBy, ", "))
+
 	if len(q.SuffixClauses) > 0 {
 		sb.WriteString(" " + strings.Join(q.SuffixClauses, " "))
 	}
@@ -259,7 +262,7 @@ func (q *Query) IsWildcard() bool {
 
 // CopyAggregationFields copies all aggregation fields from qwa to q
 func (q *Query) CopyAggregationFields(qwa Query) {
-	q.GroupBy = make([]SelectColumn, 0, len(qwa.GroupBy))
+	q.GroupBy = make([]SelectColumn, len(qwa.GroupBy))
 	copy(q.GroupBy, qwa.GroupBy)
 
 	q.Columns = make([]SelectColumn, len(qwa.Columns))

@@ -508,7 +508,9 @@ var aggregationTests = []struct {
 			}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
-			`SELECT floor("bytes" / 1782.000000) * 1782.000000, count() FROM ` + tableNameQuoted + ` GROUP BY (floor("bytes" / 1782.000000) * 1782.000000) ORDER BY (floor("bytes" / 1782.000000) * 1782.000000)`,
+			`SELECT floor("bytes" / 1782.000000) * 1782.000000, count() FROM ` + tableNameQuoted + ` ` +
+				`GROUP BY floor("bytes" / 1782.000000) * 1782.000000 ` +
+				`ORDER BY floor("bytes" / 1782.000000) * 1782.000000`,
 			`SELECT count() FROM ` + tableNameQuoted,
 		},
 	},
@@ -580,7 +582,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if i != 1 {
+			if i > 12 {
 				t.Skip()
 			}
 			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)" {
