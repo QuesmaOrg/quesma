@@ -582,9 +582,6 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if i > 12 {
-				t.Skip()
-			}
 			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)" {
 				t.Skip("Needs to be fixed by keeping last key for every aggregation. Now we sometimes don't know it. Hard to reproduce, leaving it for separate PR")
 			}

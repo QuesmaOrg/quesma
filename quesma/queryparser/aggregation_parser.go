@@ -676,14 +676,15 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		}
 		minDocCount := cw.parseMinDocCount(histogram)
 		currentAggr.Type = bucket_aggregations.NewHistogram(cw.Ctx, interval, minDocCount)
-		groupByStr := fieldNameProperlyQuoted
+
+		var groupByStr string
 		if interval != 1.0 {
 			groupByStr = fmt.Sprintf("floor(%s / %f) * %f", fieldNameProperlyQuoted, interval, interval)
-			currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: aexp.SQL{Query: groupByStr}})
 		} else {
-			currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: aexp.TableColumn(fieldName)})
+			groupByStr = fieldNameProperlyQuoted
 		}
 		currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, groupByStr)
+		currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: aexp.SQL{Query: groupByStr}})
 
 		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: groupByStr}})
 
