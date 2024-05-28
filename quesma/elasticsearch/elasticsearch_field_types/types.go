@@ -1,6 +1,6 @@
 package elasticsearch_field_types
 
-// https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-types.html
+// https://opensearch.org/docs/latest/field-types/supported-field-types/index/
 
 // Common types
 const (

@@ -166,7 +166,8 @@ func (c *QuesmaConfiguration) Validate() error {
 	}
 	for indexName, indexConfig := range c.IndexConfig {
 		result = c.validateIndexName(indexName, result)
-		result = c.validateDeprecated(indexConfig, result)
+		// TODO enable when rolling out schema configuration
+		//result = c.validateDeprecated(indexConfig, result)
 		result = c.validateSchemaConfiguration(indexConfig, result)
 	}
 	if c.Hydrolix.IsNonEmpty() {
