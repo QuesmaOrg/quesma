@@ -93,7 +93,7 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 	for _, interval := range Range.Intervals {
 		currentAggr.whereBuilder = model.CombineWheres(
 			cw.Ctx, currentAggr.whereBuilder,
-			model.NewSimpleQuery(model.NewSimpleStatement(interval.ToWhereClause(Range.QuotedFieldName)), true),
+			model.NewSimpleQuery(interval.ToWhereClause(Range.QuotedFieldName), true),
 		)
 		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(interval.String()))
 		aggsCopy, err := deepcopy.Anything(aggs)

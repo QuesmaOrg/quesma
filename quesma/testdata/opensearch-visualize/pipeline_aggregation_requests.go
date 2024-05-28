@@ -127,11 +127,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z')`,
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z'))`,
 			`NoDBQuery`,
 			`SELECT "day_of_week_i", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z') ` +
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z')) ` +
 				`GROUP BY ("day_of_week_i") ` +
 				`ORDER BY ("day_of_week_i")`,
 		},
@@ -2868,13 +2868,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z') AND ` +
-				`"timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z') AND ` +
+				`"timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z'))`,
 			`NoDBQuery`,
 			`SELECT "clientip", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z') ` +
+				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z')) ` +
 				`GROUP BY ("clientip") ` +
 				`ORDER BY count() DESC ` +
 				`LIMIT 5`,
@@ -3440,13 +3440,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') AND ` +
-				`"timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') AND ` +
+				`"timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z'))`,
 			`NoDBQuery`,
 			`SELECT "Cancelled", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') ` +
+				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z')) ` +
 				`GROUP BY ("Cancelled") ` +
 				`ORDER BY count() DESC ` +
 				`LIMIT 5`,
@@ -4446,13 +4446,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z')`,
+				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z'))`,
 			`NoDBQuery`,
 			`SELECT "extension", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z') ` +
+				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z')) ` +
 				`GROUP BY ("extension") ` +
 				`ORDER BY count() DESC ` +
 				`LIMIT 5`,
