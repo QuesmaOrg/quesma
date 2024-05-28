@@ -244,7 +244,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		} else {
 			queriesBody := ""
 			for _, query := range queries {
-				queriesBody += query.String() + "\n"
+				queriesBody += query.String(ctx) + "\n"
 			}
 			responseBody = []byte(fmt.Sprintf("Invalid Queries: %s, err: %v", queriesBody, err))
 			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBody)
@@ -412,8 +412,8 @@ func (q *QueryRunner) searchWorkerCommon(
 		if query.NoDBQuery {
 			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
 		} else {
-			logger.InfoWithCtx(ctx).Msgf("SQL: %s", query.String())
-			sqls += query.String() + "\n"
+			logger.InfoWithCtx(ctx).Msgf("SQL: %s", query.String(ctx))
+			sqls += query.String(ctx) + "\n"
 		}
 		rows, err := q.logManager.ProcessQuery(ctx, table, &query, columns[columnsIndex])
 		if err != nil {
