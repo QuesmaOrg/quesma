@@ -6194,4 +6194,132 @@ var AggregationTests = []AggregationTestCase{
 				`ORDER BY "host.name"`,
 		},
 	},
+	{ // [38]
+		TestName: "simplest top_metrics, no sort",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"tm_empty_result": {
+					"top_metrics": {
+						"metrics": {"field": "message"}
+					}
+				},
+				"tm_with_result": {
+					"top_metrics": {
+						"metrics": {"field": "message"},
+						"size": 2
+					}
+				}
+			},
+			"size": 0
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 0,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"failed": 0,
+				"skipped": 0
+			},
+			"hits": {
+				"total": {
+					"value": 6018,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"tm_with_result": {
+					"top": [
+						{
+							"metrics": {
+								"message": "User updated"
+							},
+							"sort": []
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(6018))}}},
+			{},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("message", "User updated")}}},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + QuotedTableName,
+			`SELECT "message" FROM ` + QuotedTableName + ` LIMIT 1`,
+			`SELECT "message" FROM ` + QuotedTableName + ` LIMIT 2`,
+		},
+	},
+	{ // [39]
+		TestName: "simplest top_metrics, with sort",
+		QueryRequestJson: `
+		{
+			"aggs": {
+				"tm_empty_result": {
+					"top_metrics": {
+						"metrics": {"field": "message"},
+						"sort": {"timestamp": "desc"}
+					}
+				},
+				"tm_with_result": {
+					"top_metrics": {
+						"metrics": {"field": "message"},
+						"sort": {"timestamp": "desc"}
+					}
+				}
+			},
+			"size": 0
+		}`,
+		ExpectedResponse: `
+		{
+			"took": 0,
+			"timed_out": false,
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"failed": 0,
+				"skipped": 0
+			},
+			"hits": {
+				"total": {
+					"value": 6018,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": []
+			},
+			"aggregations": {
+				"tm_with_result": {
+					"top": [
+						{
+							"metrics": {
+								"message": "User updated"
+							},
+							"sort": [
+								"stamp"
+							]
+						}
+					]
+				}
+			}
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(6018))}}},
+			{},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("message", "User updated"),
+				model.NewQueryResultCol("timestamp", "stamp"),
+			}}},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + QuotedTableName,
+			`SELECT "message", "timestamp" FROM ` + QuotedTableName + ` ORDER BY "timestamp" desc LIMIT 1`,
+			`SELECT "message", "timestamp" FROM ` + QuotedTableName + ` ORDER BY "timestamp" desc LIMIT 1`,
+		},
+	},
 }

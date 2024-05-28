@@ -9,11 +9,12 @@ import (
 )
 
 type TopMetrics struct {
-	ctx context.Context
+	ctx                context.Context
+	isSortFieldPresent bool
 }
 
-func NewTopMetrics(ctx context.Context) TopMetrics {
-	return TopMetrics{ctx: ctx}
+func NewTopMetrics(ctx context.Context, isSortFieldPresent bool) TopMetrics {
+	return TopMetrics{ctx: ctx, isSortFieldPresent: isSortFieldPresent}
 }
 
 func (query TopMetrics) IsBucketAggregation() bool {
@@ -30,10 +31,23 @@ func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 		)
 	}
 	for _, row := range rows {
-		lastIndex := len(row.Cols) - 1 // per convention, we know that value we sorted by is in the last column
+		if len(row.Cols) == 0 {
+			logger.WarnWithCtx(query.ctx).Msg("no columns returned for top_metrics aggregation, skipping")
+			continue
+		}
+
+		var lastIndex int
+		var sortVal []any
+		if query.isSortFieldPresent {
+			// per convention, we know that value we sorted by is in the last column (if it exists)
+			lastIndex = len(row.Cols) - 1 // last column is the sort column, we don't return it
+			sortVal = append(sortVal, row.Cols[lastIndex].Value)
+		} else {
+			lastIndex = len(row.Cols)
+		}
+
 		metrics := make(model.JsonMap)
 		valuesForMetrics := row.Cols[:lastIndex]
-		sortVal := row.Cols[lastIndex].Value
 		for _, col := range valuesForMetrics[level:] {
 			var withoutQuotes string
 			if unquoted, err := strconv.Unquote(col.ColName); err == nil {
@@ -45,7 +59,7 @@ func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 			metrics[colName] = col.ExtractValue(query.ctx)
 		}
 		elem := model.JsonMap{
-			"sort":    []interface{}{sortVal},
+			"sort":    sortVal,
 			"metrics": metrics,
 		}
 		topElems = append(topElems, elem)
