@@ -69,8 +69,9 @@ func (t *Table) createTableOurFieldsString() []string {
 	return rows
 }
 
+// it will be removed soon,
+// we should rely on metadata from clickhouse
 func (t *Table) applyTableSchema(query *model.Query) {
-
 	var newColumns []model.SelectColumn
 	var hasWildcard bool
 
@@ -90,9 +91,7 @@ func (t *Table) applyTableSchema(query *model.Query) {
 	}
 
 	query.Columns = newColumns
-
 	return
-
 }
 
 func (t *Table) extractColumns(query *model.Query, addNonSchemaFields bool) ([]string, error) {
