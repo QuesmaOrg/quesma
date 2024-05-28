@@ -220,8 +220,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 			if !isAggregation {
 				go func() {
-					defer recovery.LogAndHandlePanic(ctx, func() {
-						doneCh <- AsyncSearchWithError{err: errors.New("panic")}
+					defer recovery.LogAndHandlePanic(ctx, func(err error) {
+						doneCh <- AsyncSearchWithError{err: err}
 					})
 					columnsSlice := [][]string{columns}
 					translatedQueryBody, hitsSlice := q.searchWorker(ctx, queries, columnsSlice, table, doneCh, optAsync)
@@ -238,8 +238,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				}()
 			} else {
 				go func() {
-					defer recovery.LogAndHandlePanic(ctx, func() {
-						doneCh <- AsyncSearchWithError{err: errors.New("panic")}
+					defer recovery.LogAndHandlePanic(ctx, func(err error) {
+						doneCh <- AsyncSearchWithError{err: err}
 					})
 					columnsSlice := make([][]string, len(queries))
 					translatedQueryBody, aggregationResults := q.searchWorker(ctx, queries, columnsSlice, table, doneCh, optAsync)
