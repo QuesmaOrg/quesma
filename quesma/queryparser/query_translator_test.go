@@ -499,7 +499,7 @@ func FIXME_TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	queries := []*model.Query{
 		cw.BuildAutocompleteSuggestionsQuery("@", "", 0),
-		cw.BuildFacetsQuery("@", model.NewSimpleQuery(model.NewSimpleStatement(""), true), 0),
+		cw.BuildFacetsQuery("@", ""),
 		// queryTranslator.BuildTimestampQuery("@", "@", "", true), TODO uncomment when add unification for this query type
 	}
 	types := []model.SearchQueryType{model.ListAllFields, model.ListByField}

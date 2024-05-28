@@ -65,8 +65,11 @@ func (cw *ClickhouseQueryTranslator) ClearTokensToHighlight() {
 	cw.tokensToHighlight = []string{}
 }
 
-func (cw *ClickhouseQueryTranslator) highlightHit(hit *model.SearchHit, highlighter model.Highlighter, resultRow model.QueryResultRow) {
+func (cw *ClickhouseQueryTranslator) addAndHighlightHit(hit *model.SearchHit, highlighter model.Highlighter, resultRow model.QueryResultRow) {
 	for _, col := range resultRow.Cols {
+		if col.Value == nil {
+			continue // We don't return empty value
+		}
 		hit.Fields[col.ColName] = []interface{}{col.Value}
 		if highlighter.ShouldHighlight(col.ColName) {
 			// check if we have a string here and if so, highlight it
@@ -101,7 +104,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.
 			Highlight: make(map[string][]string),
 			Sort:      []any{},
 		}
-		cw.highlightHit(&hits[i], highlighter, ResultSet[i])
+		cw.addAndHighlightHit(&hits[i], highlighter, ResultSet[i])
 		hits[i].ID = cw.computeIdForDocument(hits[i], strconv.Itoa(i+1))
 		for _, property := range sortProperties {
 			if val, ok := hits[i].Fields[property]; ok {
@@ -325,7 +328,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 			hits[i].Score = 1
 			hits[i].Version = 1
 		}
-		cw.highlightHit(&hits[i], highlighter, ResultSet[i])
+		cw.addAndHighlightHit(&hits[i], highlighter, ResultSet[i])
 		hits[i].ID = cw.computeIdForDocument(hits[i], strconv.Itoa(i+1))
 		for _, property := range sortProperties {
 			if val, ok := hits[i].Fields[property]; ok {
@@ -399,6 +402,20 @@ func (cw *ClickhouseQueryTranslator) finishMakeResponse(query model.Query, Resul
 func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query model.Query,
 	ResultSet []model.QueryResultRow, aggregatorsLevel, selectLevel int) []model.JsonMap {
 
+	if len(ResultSet) == 0 {
+		// We still should preserve `meta` field if it's there.
+		// (we don't preserve it if it's in subaggregations, as we cut them off in case of empty parent aggregation)
+		// Both cases tested with Elasticsearch in proxy mode, and our tests.
+		metaDict := make(model.JsonMap, 0)
+		metaAdded := cw.addMetadataIfNeeded(query, metaDict, aggregatorsLevel)
+		if !metaAdded {
+			return []model.JsonMap{}
+		}
+		return []model.JsonMap{{
+			query.Aggregators[aggregatorsLevel].Name: metaDict,
+		}}
+	}
+
 	// either we finish
 	if aggregatorsLevel == len(query.Aggregators) || (aggregatorsLevel == len(query.Aggregators)-1 && !query.Type.IsBucketAggregation()) {
 		/*
@@ -445,16 +462,27 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 		subResult["buckets"] = bucketsReturnMap
 	}
 
+	_ = cw.addMetadataIfNeeded(query, subResult, aggregatorsLevel)
+
+	result[query.Aggregators[aggregatorsLevel].Name] = subResult
+	return []model.JsonMap{result}
+}
+
+// addMetadataIfNeeded adds metadata to the `result` dictionary, if needed.
+func (cw *ClickhouseQueryTranslator) addMetadataIfNeeded(query model.Query, result model.JsonMap, aggregatorsLevel int) (added bool) {
+	if query.Metadata == nil {
+		return false
+	}
+
 	desiredLevel := len(query.Aggregators) - 1
 	if _, ok := query.Type.(bucket_aggregations.Filters); ok {
 		desiredLevel = len(query.Aggregators) - 2
 	}
-	if aggregatorsLevel == desiredLevel && query.Metadata != nil {
-		subResult["meta"] = query.Metadata
+	if aggregatorsLevel == desiredLevel {
+		result["meta"] = query.Metadata
+		return true
 	}
-
-	result[query.Aggregators[aggregatorsLevel].Name] = subResult
-	return []model.JsonMap{result}
+	return false
 }
 
 func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []model.Query, ResultSets [][]model.QueryResultRow) model.JsonMap {
@@ -608,11 +636,11 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, query model.SimpleQuery, limitTodo int) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, whereClause string) *model.Query {
 	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
 	innerQuery := model.Query{
+		WhereClause:   whereClause,
 		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
-		WhereClause:   query.Sql.Stmt,
 		SuffixClauses: []string{"LIMIT " + facetsSampleSize},
 		FromClause:    cw.Table.FullTableName(),
 		CanParse:      true,

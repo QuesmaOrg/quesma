@@ -238,11 +238,8 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 
 // ParseAggregationJson parses JSON with aggregation query and returns array of queries with aggregations.
 // If there are no aggregations, returns nil.
-func (cw *ClickhouseQueryTranslator) ParseAggregationJson(queryAsJson string) ([]model.Query, error) {
-	queryAsMap, err := types.ParseJSON(queryAsJson)
-	if err != nil {
-		return nil, fmt.Errorf("unmarshal error: %v", err)
-	}
+func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]model.Query, error) {
+	queryAsMap := body.Clone()
 	currentAggr := aggrQueryBuilder{}
 	currentAggr.FromClause = cw.Table.FullTableName()
 	currentAggr.ctx = cw.Ctx

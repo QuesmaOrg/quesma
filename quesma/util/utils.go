@@ -280,7 +280,7 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
 
 			// lengths should be always equal in our usage of this function, maybe that'll change
 			if len(i1Typed) != len(i2Typed) {
-				logger.ErrorWithCtx(ctx).Msgf(pp.Sprintf("mergeAny: i1 and i2 are slices, but have different lengths. len(i1): %v, len(i2): %v, i1: %v, i2: %v", len(i1Typed), len(i2Typed), i1, i2))
+				logger.ErrorWithCtx(ctx).Msgf(pp.Sprintf("mergeAny: i1 and i2 are slices, but have different lengths. len(i1): %d, len(i2): %d, i1: %v, i2: %v", len(i1Typed), len(i2Typed), i1, i2))
 				return []JsonMap{}
 			}
 			mergedArray := make([]JsonMap, len(i1Typed))
