@@ -91,7 +91,6 @@ func (t *Table) applyTableSchema(query *model.Query) {
 	}
 
 	query.Columns = newColumns
-	return
 }
 
 func (t *Table) extractColumns(query *model.Query, addNonSchemaFields bool) ([]string, error) {
