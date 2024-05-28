@@ -178,6 +178,9 @@ func (c *QuesmaConfiguration) Validate() error {
 	return result
 }
 
+// TODO remove ignore when rolling out schema configuration
+//
+//lint:ignore U1000 Ignore unused function temporarily for debugging
 func (c *QuesmaConfiguration) validateDeprecated(indexName IndexConfiguration, result error) error {
 	if len(indexName.FullTextFields) > 0 {
 		fmt.Printf("index configuration %s contains deprecated field 'fullTextFields'", indexName.Name)
