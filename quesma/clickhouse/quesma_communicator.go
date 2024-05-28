@@ -8,7 +8,7 @@ import (
 	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
-	"sort"
+	"mitmproxy/quesma/queryparser/aexp"
 	"strings"
 	"time"
 )
@@ -47,29 +47,39 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 		return make([]model.QueryResultRow, 0), nil
 	}
 
-	// THIS IS complicated
-	// wildcard should be resolved before calling this function
-	colNames, err := table.extractColumns(query, false)
-	if query.IsWildcard() {
-		sort.Strings(colNames)
-	}
-	if columns == nil {
-		columns = lm.GetAllColumns(table, query)
-		// We should sort only if columns are not provided
-		// Caller is responsible for providing columns in the right order
-		if query.IsWildcard() {
-			sort.Strings(columns)
-		}
-	}
+	table.applyTableSchema(query)
+
 	rowToScan := make([]interface{}, len(query.Columns))
-	if err != nil {
-		return nil, err
+
+	columns = []string{}
+
+	var count int
+	for _, col := range query.Columns {
+		count = count + 1
+		var colName string
+
+		switch col.Expression.(type) {
+
+		// this is a compensation for the fact we don't have columns named in the query
+		case aexp.TableColumnExp:
+			if col.Alias == "" {
+				colName = col.Expression.(aexp.TableColumnExp).ColumnName
+			} else {
+				colName = col.Alias
+			}
+
+		default:
+			colName = col.Alias
+			if colName == "" {
+				colName = fmt.Sprintf("column_%d", count)
+			}
+		}
+
+		columns = append(columns, colName)
+
 	}
 
-	// will become: rows, err := executeQuery(ctx, lm, query.StringFromColumns(colNames, true), columns, rowToScan)
-
-	// FIXME
-	rows, err := executeQuery(ctx, lm, query.StringFromColumns(colNames), columns, rowToScan)
+	rows, err := executeQuery(ctx, lm, query.String(), columns, rowToScan)
 	if err == nil {
 		for _, row := range rows {
 			row.Index = table.Name

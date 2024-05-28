@@ -106,21 +106,7 @@ var NoMetadataField JsonMap = nil
 
 // returns string with SQL query
 func (q *Query) String() string {
-	return q.StringFromColumns([]string{})
-}
 
-func (q *Query) StringFromColumns(colNames []string) string {
-
-	// render based on Columns
-	newSQL := q.StringFromColumnsNew(colNames)
-
-	// we return old SQL for now
-	return newSQL
-}
-
-// returns string with SQL query
-// colNames - list of columns (schema fields) for SELECT
-func (q *Query) StringFromColumnsNew(colNames []string) string {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	if q.IsDistinct {
@@ -129,26 +115,12 @@ func (q *Query) StringFromColumnsNew(colNames []string) string {
 
 	columns := make([]string, 0)
 
-	if len(q.Columns) == 1 && q.Columns[0].Expression == aexp.Wildcard && len(colNames) > 0 {
-
-		for _, col := range colNames {
-
-			if col == "*" || col == EmptyFieldSelection {
-				columns = append(columns, SelectColumn{Expression: aexp.Wildcard}.SQL())
-			} else {
-				columns = append(columns, SelectColumn{Expression: aexp.TableColumn(col)}.SQL())
-			}
-		}
-
-		//columns = append(columns, "*")
-	} else {
-		for _, col := range q.Columns {
-			if col.Expression == nil {
-				// this is paraonoid check, it should never happen
-				panic("SelectColumn expression is nil")
-			} else {
-				columns = append(columns, col.SQL())
-			}
+	for _, col := range q.Columns {
+		if col.Expression == nil {
+			// this is paraonoid check, it should never happen
+			panic("SelectColumn expression is nil")
+		} else {
+			columns = append(columns, col.SQL())
 		}
 	}
 

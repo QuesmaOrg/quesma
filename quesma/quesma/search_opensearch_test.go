@@ -182,6 +182,10 @@ func TestHighlighter(t *testing.T) {
 	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
 	response, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(query))
 	assert.NoError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if err = mock.ExpectationsWereMet(); err != nil {
 		t.Fatal("there were unfulfilled expections:", err)
 	}

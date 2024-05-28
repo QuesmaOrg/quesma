@@ -69,6 +69,32 @@ func (t *Table) createTableOurFieldsString() []string {
 	return rows
 }
 
+func (t *Table) applyTableSchema(query *model.Query) {
+
+	var newColumns []model.SelectColumn
+	var hasWildcard bool
+
+	for _, selectColumn := range query.Columns {
+
+		if selectColumn.Expression == aexp.Wildcard {
+			hasWildcard = true
+		} else {
+			newColumns = append(newColumns, selectColumn)
+		}
+	}
+
+	if hasWildcard {
+		for _, col := range t.Cols {
+			newColumns = append(newColumns, model.SelectColumn{Expression: aexp.TableColumnExp{ColumnName: col.Name}})
+		}
+	}
+
+	query.Columns = newColumns
+
+	return
+
+}
+
 func (t *Table) extractColumns(query *model.Query, addNonSchemaFields bool) ([]string, error) {
 
 	N := len(query.Columns)
