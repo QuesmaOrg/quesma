@@ -18,7 +18,7 @@ logging:
 indexes:
   logs-generic-default:
     enabled: true
-    schema:
+    static-schema:
       fields:
         "@timestamp":
           type: "date"

@@ -18,7 +18,7 @@ type IndexConfiguration struct {
 	// TODO to be deprecated
 	TimestampField *string `koanf:"timestampField"`
 	// optional, for now
-	SchemaConfiguration *SchemaConfiguration `koanf:"schema"`
+	SchemaConfiguration *SchemaConfiguration `koanf:"static-schema"`
 }
 
 func (c IndexConfiguration) HasFullTextField(fieldName string) bool {
@@ -44,7 +44,7 @@ func (c IndexConfiguration) String() string {
 		}
 		extraString += strings.Join(fields, ", ")
 	}
-	var str = fmt.Sprintf("\n\t\t%s, enabled: %t, schema: %v",
+	var str = fmt.Sprintf("\n\t\t%s, enabled: %t, static-schema: %v",
 		c.Name,
 		c.Enabled,
 		c.SchemaConfiguration,
