@@ -5,7 +5,6 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/telemetry"
@@ -15,8 +14,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 )
-
-var whereStatementRenderer = &where_clause.StringRenderer{}
 
 // TODO:
 //  1. 14th test, "Query string". "(message LIKE '%%%' OR message LIKE '%logged%')", is it really
@@ -55,12 +52,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			assert.NoError(t, parseErr)
 			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(body)
 			assert.True(t, simpleQuery.CanParse, "can parse")
-			var whereStmt string
-			if simpleQuery.Sql.WhereStatement == nil {
-				whereStmt = ""
-			} else {
-				whereStmt = simpleQuery.Sql.WhereStatement.Accept(whereStatementRenderer).(string)
-			}
+			whereStmt := simpleQuery.WhereClauseAsString()
 			assert.Contains(t, tt.WantedSql, whereStmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
 			size := model.DefaultSizeListQuery
@@ -95,12 +87,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 			assert.NoError(t, parseErr)
 			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(body)
 			assert.True(t, simpleQuery.CanParse, "can parse")
-			var whereStmt string
-			if simpleQuery.Sql.WhereStatement == nil {
-				whereStmt = ""
-			} else {
-				whereStmt = simpleQuery.Sql.WhereStatement.Accept(whereStatementRenderer).(string)
-			}
+			whereStmt := simpleQuery.WhereClauseAsString()
 			assert.Contains(t, tt.WantedSql, whereStmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
 			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
@@ -128,12 +115,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			assert.NoError(t, parseErr)
 			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(body)
 			assert.True(t, simpleQuery.CanParse)
-			var whereStmt string
-			if simpleQuery.Sql.WhereStatement == nil {
-				whereStmt = ""
-			} else {
-				whereStmt = simpleQuery.Sql.WhereStatement.Accept(whereStatementRenderer).(string)
-			}
+			whereStmt := simpleQuery.WhereClauseAsString()
 			assert.Contains(t, tt.WantedSql, whereStmt)
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ)
 

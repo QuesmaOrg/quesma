@@ -128,13 +128,13 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			// TODO after merge of some PR, change logs-generic-default to testdata.QuotedTableName
-			`SELECT count() FROM "logs-generic-default" WHERE "epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z'`,
+			`SELECT count() FROM "logs-generic-default" WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z')`,
 			`SELECT count(DISTINCT "ftd_session_time") FROM "logs-generic-default" ` +
-				`WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z') AND "ftd_session_time"<1000`,
+				`WHERE (("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z') AND "ftd_session_time"<1000)`,
 			`SELECT count(DISTINCT "ftd_session_time") FROM "logs-generic-default" ` +
-				`WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z') AND "ftd_session_time">=-100`,
+				`WHERE (("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z') AND "ftd_session_time">=-100)`,
 			`SELECT count(if("ftd_session_time"<1000, 1, NULL)), count(if("ftd_session_time">=-100, 1, NULL)), count() ` +
-				`FROM "logs-generic-default" WHERE "epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z'`,
+				`FROM "logs-generic-default" WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z')`,
 		},
 	},
 	// Need to improve 'top_hits' aggregation. Seems really easy, but done in next PR.
@@ -464,16 +464,16 @@ var AggregationTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			// TODO after merge of some PR, change logs-generic-default to testdata.QuotedTableName
 			`SELECT count() FROM "logs-generic-default" ` +
-				`WHERE "epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z'`,
+				`WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z')`,
 			`SELECT sumOrNull("properties.entry_time") FROM "logs-generic-default" ` +
-				`WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z') ` +
-				`AND "epoch_time_original">=0 AND "epoch_time_original"<1000`,
+				`WHERE (("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z') ` +
+				`AND ("epoch_time_original">=0 AND "epoch_time_original"<1000))`,
 			`SELECT sumOrNull("properties.entry_time") FROM "logs-generic-default" ` +
-				`WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z') ` +
-				`AND "epoch_time_original">=1000`,
+				`WHERE (("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z') ` +
+				`AND "epoch_time_original">=1000)`,
 			`SELECT count(if("epoch_time_original">=0 AND "epoch_time_original"<1000, 1, NULL)), ` +
 				`count(if("epoch_time_original">=1000, 1, NULL)), count() FROM "logs-generic-default" ` +
-				`WHERE "epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z'`,
+				`WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z')`,
 		},
 	},
 	{ // [3]
@@ -606,20 +606,20 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z'`,
+				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z')`,
 			"SELECT quantiles(0.500000)(\"properties::entry_time\") AS \"quantile_50\" " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
-				`AND "properties::exoestimation_connection_speedinkbps">=0 AND "properties::exoestimation_connection_speedinkbps"<1000`,
+				`WHERE (("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
+				`AND ("properties::exoestimation_connection_speedinkbps">=0 AND "properties::exoestimation_connection_speedinkbps"<1000))`,
 			"SELECT quantiles(0.500000)(\"properties::entry_time\") AS \"quantile_50\" " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
-				`AND "properties::exoestimation_connection_speedinkbps">=1000 AND "properties::exoestimation_connection_speedinkbps"<2000`,
+				`WHERE (("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
+				`AND ("properties::exoestimation_connection_speedinkbps">=1000 AND "properties::exoestimation_connection_speedinkbps"<2000))`,
 			`SELECT count(if("properties::exoestimation_connection_speedinkbps">=0 AND "properties::exoestimation_connection_speedinkbps"<1000, 1, NULL)), ` +
 				`count(if("properties::exoestimation_connection_speedinkbps">=1000 AND "properties::exoestimation_connection_speedinkbps"<2000, 1, NULL)), ` +
 				`count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z'`,
+				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z')`,
 		},
 	},
 	{ // [4]
@@ -763,18 +763,18 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z'))`,
 			`SELECT "response", maxOrNull("timestamp") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z')) ` +
 				`GROUP BY "response" ` +
 				`ORDER BY "response"`,
 			`SELECT "response", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z')) ` +
 				`GROUP BY "response" ` +
 				`ORDER BY "response"`,
 		},
@@ -922,18 +922,18 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z'))`,
 			`SELECT "response", minOrNull("timestamp") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z')) ` +
 				`GROUP BY "response" ` +
 				`ORDER BY "response"`,
 			`SELECT "response", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z')) ` +
 				`GROUP BY "response" ` +
 				`ORDER BY "response"`,
 		},
@@ -1102,8 +1102,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))`,
 			`SELECT "response", ` +
 				"quantiles(0.010000)(\"timestamp\") AS \"quantile_1\", " +
 				"quantiles(0.020000)(\"timestamp\") AS \"quantile_2\", " +
@@ -1113,13 +1113,13 @@ var AggregationTests = []testdata.AggregationTestCase{
 				"quantiles(0.950000)(\"timestamp\") AS \"quantile_95\", " +
 				"quantiles(0.990000)(\"timestamp\") AS \"quantile_99\" " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
 				`GROUP BY "response" ` +
 				`ORDER BY "response"`,
 			`SELECT "response", count() FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
 				`GROUP BY "response" ` +
 				`ORDER BY "response"`,
 		},

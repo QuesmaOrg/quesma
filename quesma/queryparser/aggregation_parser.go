@@ -54,7 +54,7 @@ func (b *aggrQueryBuilder) applyTermsSubSelect(terms bucket_aggregations.Terms) 
 
 func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.Query {
 	query := b.Query
-	query.WhereClause = b.whereBuilder.Sql.Stmt
+	query.WhereClause = b.whereBuilder.WhereClauseAsString()
 
 	// Need to copy, as we might be proceeding to modify 'b' pointer
 	query.CopyAggregationFields(b.Query)
@@ -168,7 +168,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s %s) AS %s FROM %s WHERE %s)",
 				fieldsAsString, partitionBy,
 				strconv.Quote(metricsAggr.SortBy), metricsAggr.Order,
-				model.RowNumberColumnName, query.FromClause, b.whereBuilder.Sql.Stmt,
+				model.RowNumberColumnName, query.FromClause, b.whereBuilder.WhereClauseAsString(),
 			)
 			query.WhereClause = query.WhereClause + fmt.Sprintf(" AND %s <= %d", model.RowNumberColumnName, metricsAggr.Size)
 		} else {

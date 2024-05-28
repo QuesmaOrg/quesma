@@ -42,7 +42,7 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparse
 	}
 
 	where := qt.ParseAutocomplete(request.IndexFilter, request.Field, request.String, request.CaseInsensitive)
-	selectQuery := qt.BuildAutocompleteQuery(request.Field, where.Sql.Stmt, request.Size)
+	selectQuery := qt.BuildAutocompleteQuery(request.Field, where.WhereClauseAsString(), request.Size)
 	dbQueryCtx, cancel := context.WithCancel(ctx)
 	// TODO this will be used to cancel goroutine that is executing the query
 	_ = cancel

@@ -190,7 +190,7 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
-			`SELECT count() FROM ` + tableNameQuoted + ` WHERE "FlightDelay" == true`,
+			`SELECT count() FROM ` + tableNameQuoted + ` WHERE "FlightDelay"==true`,
 		},
 	},
 	{ // [4]
