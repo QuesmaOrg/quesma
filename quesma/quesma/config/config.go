@@ -336,7 +336,20 @@ func (c *QuesmaConfiguration) validateSchemaConfiguration(config IndexConfigurat
 		if alias, found := config.SchemaConfiguration.Aliases[fieldName]; found && alias.TargetFieldName == "" {
 			err = multierror.Append(err, fmt.Errorf("field %s in index %s is aliased to an empty field", fieldName, config.Name))
 		}
+
+		if countPrimaryKeys(config) > 1 {
+			err = multierror.Append(err, fmt.Errorf("index %s has more than one primary key", config.Name))
+		}
 	}
 
 	return err
+}
+
+func countPrimaryKeys(config IndexConfiguration) (count int) {
+	for _, configuration := range config.SchemaConfiguration.Fields {
+		if configuration.IsPrimaryKey {
+			count++
+		}
+	}
+	return count
 }
