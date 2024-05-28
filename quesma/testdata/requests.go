@@ -1886,7 +1886,82 @@ var TestsSearch = []SearchTestCase{
 		[]model.Query{justSimplestWhere(`"user.id"='kimchy'`)},
 		[]string{qToStr(justSimplestWhere(`"user.id"='kimchy'`))},
 	},
-	{ // [33] this is a snowflake case as `_id` is a special field in ES and in clickhouse we compute
+	{ // [33]
+		"Histogram facets, for now it should be handled differently than a normal aggregation. It checks if it's the case",
+		`
+		{
+			"aggs": {
+				"sample": {
+					"aggs": {
+						"histo": {
+							"histogram": {
+								"field": "message",
+								"interval": 251.18045644270697
+							}
+						}
+					},
+					"sampler": {
+						"shard_size": 5000
+					}
+				}
+			},
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-05-22T17:03:10.170Z",
+									"lte": "2024-05-22T17:18:10.170Z"
+								}
+							}
+						},
+						{
+							"bool": {
+								"filter": [],
+								"must": [],
+								"must_not": [],
+								"should": []
+							}
+						}
+					]
+				}
+			},
+			"runtime_mappings": {
+				"hour_of_day": {
+					"script": {
+						"source": "emit(doc['timestamp'].value.getHour());"
+					},
+					"type": "long"
+				}
+			},
+			"size": 0,
+			"track_total_hits": true
+		}`,
+		[]string{
+			`("timestamp">='2024-05-22T17:03:10.170Z' AND "timestamp"<='2024-05-22T17:18:10.170Z')`,
+			`("timestamp"<='2024-05-22T17:18:10.170Z' AND "timestamp">='2024-05-22T17:03:10.170Z')`,
+		},
+		model.FacetsHistogram,
+		[]model.Query{
+			justSimplestWhere(`"timestamp">='2024-05-22T17:03:10.170Z' AND "timestamp"<='2024-05-22T17:18:10.170Z'`),
+			justSimplestWhere(`"timestamp"<='2024-05-22T17:18:10.170Z' AND "timestamp">='2024-05-22T17:03:10.170Z'`),
+		},
+		[]string{
+			`SELECT floor("message" / 251.180456) * 251.180456, ` +
+				`count() ` +
+				`FROM ` +
+				`(SELECT floor("message" / 251.180456) * 251.180456 ` +
+				`FROM "` + TableName + `" ` +
+				`WHERE "timestamp".='2024-05-22T17:..:10.170Z' AND "timestamp".='2024-05-22T17:..:10.170Z' ` +
+				`LIMIT 20000` +
+				`) ` +
+				`GROUP BY (floor("message" / 251.180456) * 251.180456) ` +
+				`ORDER BY count() DESC`,
+		},
+	},
+	{ // [34] this is a snowflake case as `_id` is a special field in ES and in clickhouse we compute
 		"Match phrase using _id field",
 		`{
 			  "query": {
@@ -1920,7 +1995,7 @@ var TestsSearch = []SearchTestCase{
 		// We will probably refactor it as we move forwards with schema which will get even more side-effecting
 		[]string{qToStr(justSimplestWhere(`"@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z')`))},
 	},
-	{ // [34] Comments in queries
+	{ // [35] Comments in queries
 		"Comments in filter",
 		`{
 			"query": { /*one comment */
@@ -1936,7 +2011,7 @@ var TestsSearch = []SearchTestCase{
 		[]model.Query{justSimplestWhere(`"user.id"='kimchy'`)},
 		[]string{qToStr(justSimplestWhere(`"user.id"='kimchy'`))},
 	},
-	{ // [35] terms with range
+	{ // [36] terms with range
 		"Terms with range",
 		`{
 		  "size": 1,

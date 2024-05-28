@@ -83,6 +83,9 @@ func (cw *ClickhouseQueryTranslator) makeBasicQuery(
 		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
 		fullQuery = cw.BuildFacetsQuery(queryInfo.FieldName, whereClause)
 		columns = []string{"key", "doc_count"}
+	case model.FacetsHistogram:
+		fullQuery = cw.BuildFacetsHistogramQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
+		columns = []string{"key", "doc_count"}
 	case model.ListByField:
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)
 		fullQuery = cw.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
@@ -1044,66 +1047,152 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 	if !ok {
 		return model.NewSearchQueryInfoNone(), false
 	}
+
+	// we need to have "sampler" to allow us to only sample results and set a LIMIT
+	sampler, ok := queryMap["sampler"].(QueryMap)
+	if !ok {
+		return model.NewSearchQueryInfoNone(), false
+	}
+	limit, ok := sampler["shard_size"].(float64)
+	if !ok {
+		return model.NewSearchQueryInfoNone(), false
+	}
+
 	aggs, ok := queryMap["aggs"].(QueryMap)
 	if !ok {
 		return model.NewSearchQueryInfoNone(), false
 	}
 
 	aggsNr := len(aggs)
-	// simple "facets" aggregation, which we try to match here, will have here:
-	// * "top_values" and "sample_count" keys
-	// * aggsNr = 2 (or 4 and 'max_value', 'min_value', as remaining 2)
-	_, ok = aggs["sample_count"]
-	if !ok {
-		return model.NewSearchQueryInfoNone(), false
-	}
-	firstNestingMap, ok := aggs["top_values"].(QueryMap)
-	if !ok {
-		return model.NewSearchQueryInfoNone(), false
-	}
-
-	firstNestingMap, ok = firstNestingMap["terms"].(QueryMap)
-	if !ok {
-		return model.NewSearchQueryInfoNone(), false
-	}
-
-	size, ok := cw.parseSizeExists(firstNestingMap)
-	if !ok {
-		return model.NewSearchQueryInfoNone(), false
-	}
-	fieldNameRaw, ok := firstNestingMap["field"]
-	if !ok {
-		return model.NewSearchQueryInfoNone(), false
-	}
-	fieldName, ok := fieldNameRaw.(string)
-	if !ok {
-		logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T, value: %v. Expected string", fieldNameRaw, fieldNameRaw)
-		return model.NewSearchQueryInfoNone(), false
-	}
-	fieldName = strings.TrimSuffix(fieldName, ".keyword")
-	fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
-
-	secondNestingMap, ok := queryMap["sampler"].(QueryMap)
-	if !ok {
-		return model.NewSearchQueryInfoNone(), false
-	}
-	shardSize, ok := secondNestingMap["shard_size"].(float64)
-	if !ok {
-		return model.NewSearchQueryInfoNone(), false
-	}
-
-	if aggsNr == 2 {
-		// normal facets
-		return model.SearchQueryInfo{Typ: model.Facets, FieldName: fieldName, I1: size, I2: int(shardSize)}, true
-	} else if aggsNr == 4 {
-		// maybe numeric facets
-		_, minExists := aggs["min_value"]
-		_, maxExists := aggs["max_value"]
-		if minExists && maxExists {
-			return model.SearchQueryInfo{Typ: model.FacetsNumeric, FieldName: fieldName, I1: size, I2: int(shardSize)}, true
+	// simple "facets" aggregation, which we try to match here, will have here either:
+	// a) aggsNr == 1 and only 1 'histogram' aggregation
+	// b) aggsNr == 2 ('top_values' and 'sample_count' keys), and only 1 'terms' aggregation
+	// c) aggsNr == 4 ('top_values', 'sample_count', 'max_value', 'min_value' keys), and only 1 'terms' aggregation (besides min and max)
+	switch aggsNr {
+	case 1:
+		if fieldName, success := cw.isHistogramFacets(aggs); success {
+			return model.SearchQueryInfo{Typ: model.FacetsHistogram, FieldName: fieldName, I2: int(limit)}, true
+		}
+	case 2:
+		if fieldName, size, success := cw.isTermsFacets(aggs); success {
+			return model.SearchQueryInfo{Typ: model.Facets, FieldName: fieldName, I1: size, I2: int(limit)}, true
+		}
+	case 4:
+		if fieldName, size, success := cw.isTermsFacetsNumeric(aggs); success {
+			return model.SearchQueryInfo{Typ: model.FacetsNumeric, FieldName: fieldName, I1: size, I2: int(limit)}, true
 		}
 	}
 	return model.NewSearchQueryInfoNone(), false
+}
+
+// aggs should look exactly like this {"some_aggregation_name": {"histogram": {"field": some_fieldname, "interval": some_int}}}
+// No other fields.
+// Then we return (some_fieldname, true), otherwise ("", false)
+func (cw *ClickhouseQueryTranslator) isHistogramFacets(aggs QueryMap) (fieldName string, success bool) {
+	if len(aggs) != 1 {
+		return
+	}
+	for _, aggregationRaw := range aggs {
+		aggregation, ok := aggregationRaw.(QueryMap)
+		if !ok || len(aggregation) != 1 {
+			return
+		}
+		for aggregationType, aggregationFields := range aggregation {
+			if aggregationType != "histogram" {
+				return
+			}
+			fields, ok := aggregationFields.(QueryMap)
+			if !ok || len(fields) != 2 {
+				return
+			}
+
+			fieldName, ok = fields["field"].(string)
+			if !ok {
+				return
+			}
+			fieldName = strings.TrimSuffix(fieldName, ".keyword")
+			fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
+
+			interval, ok := fields["interval"].(float64)
+			if !ok {
+				return
+			}
+			return fmt.Sprintf(`floor("%s" / %f) * %f`, fieldName, interval, interval), true
+		}
+	}
+	return
+}
+
+// aggs should look exactly like this {"sample_count": int_we_discard, "top_values": {"terms": {"field": some_fieldname, "size": some_int}}}
+// No other fields.
+// Then we return (some_fieldname, some_int, true), otherwise ("", 0, false)
+func (cw *ClickhouseQueryTranslator) isTermsFacets(aggs QueryMap) (fieldName string, size int, success bool) {
+	if _, ok := aggs["sample_count"]; !ok {
+		return
+	}
+
+	topValues, ok := aggs["top_values"].(QueryMap)
+	if !ok {
+		return
+	}
+
+	terms, ok := topValues["terms"].(QueryMap)
+	if !ok {
+		return
+	}
+
+	size, ok = cw.parseSizeExists(terms)
+	if !ok {
+		return
+	}
+	fieldNameRaw, ok := terms["field"]
+	if !ok {
+		return
+	}
+	fieldName, ok = fieldNameRaw.(string)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T, value: %v. Expected string", fieldNameRaw, fieldNameRaw)
+		return
+	}
+	fieldName = strings.TrimSuffix(fieldName, ".keyword")
+	fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
+	return fieldName, size, true
+}
+
+// aggs should have 'top_values', 'sample_count', 'max_value', 'min_value' keys, and only 1 'terms' aggregation (besides min and max) (named 'top_values')
+// No other fields.
+func (cw *ClickhouseQueryTranslator) isTermsFacetsNumeric(aggs QueryMap) (fieldName string, size int, success bool) {
+	var ok bool
+	fieldName, size, ok = cw.isTermsFacets(aggs)
+	if !ok {
+		return
+	}
+
+	minAggr, minExists := aggs["min_value"].(QueryMap)
+	maxAggr, maxExists := aggs["max_value"].(QueryMap)
+	if !minExists || !maxExists {
+		return
+	}
+
+	// minAggr should look exactly like this {"min":{"field": fieldName}}. No other fields.
+	minAggrFields, ok := minAggr["min"].(QueryMap)
+	if !ok || len(minAggrFields) != 1 {
+		return
+	}
+	if field, ok := minAggrFields["field"]; !ok || field != fieldName {
+		return
+	}
+
+	// maxAggr should look exactly like this {"max":{"field": fieldName}}. No other fields.
+	maxAggrFields, ok := maxAggr["max"].(QueryMap)
+	if !ok || len(minAggrFields) != 1 {
+		return
+	}
+	if field, ok := maxAggrFields["field"]; !ok || field != fieldName {
+		return
+	}
+
+	return fieldName, size, true
 }
 
 // 'queryMap' - metadata part of the JSON query

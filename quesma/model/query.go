@@ -361,6 +361,7 @@ type SearchQueryType int
 const (
 	Facets SearchQueryType = iota
 	FacetsNumeric
+	FacetsHistogram
 	ListByField
 	ListAllFields
 	CountAsync
@@ -371,7 +372,7 @@ const (
 const DefaultSizeListQuery = 1000 // we use LIMIT 1000 in some simple list queries (SELECT ...)
 
 func (queryType SearchQueryType) String() string {
-	return []string{"Facets", "FacetsNumeric", "ListByField", "ListAllFields", "CountAsync", "Normal", "None"}[queryType]
+	return []string{"Facets", "FacetsNumeric", "FacetsHistogram", "ListByField", "ListAllFields", "CountAsync", "Normal", "None"}[queryType]
 }
 
 type SearchQueryInfo struct {
