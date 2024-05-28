@@ -12,6 +12,7 @@ import (
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/testdata"
 	dashboard_1 "mitmproxy/quesma/testdata/dashboard-1"
+	kibana_visualize "mitmproxy/quesma/testdata/kibana-visualize"
 	opensearch_visualize "mitmproxy/quesma/testdata/opensearch-visualize"
 	"mitmproxy/quesma/util"
 	"slices"
@@ -619,6 +620,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	allTests = append(allTests, dashboard_1.AggregationTests...)
 	allTests = append(allTests, testdata.PipelineAggregationTests...)
 	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
+	allTests = append(allTests, kibana_visualize.AggregationTests...)
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)" {

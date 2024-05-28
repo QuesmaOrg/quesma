@@ -32,15 +32,22 @@ func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 	const delimiter = '|' // between keys in key_as_string
 	for _, row := range rows {
 		docCount := row.Cols[len(row.Cols)-1].Value
-		var key []string
+
+		keys := make([]any, 0, fieldsNr)
 		var keyAsString string
 		keyColumns := row.Cols[len(row.Cols)-expectedColNrLowerBound : len(row.Cols)-1]
 		for _, col := range keyColumns {
-
+			keys = append(keys, col.Value)
+			keyAsString += fmt.Sprintf("%v%c", col.Value, delimiter)
 		}
-		if query.significant {
-			bucket["score"] = docCount
-			bucket["bg_count"] = docCount
+		if len(keyAsString) > 0 {
+			keyAsString = keyAsString[:len(keyAsString)-1] // remove trailing delimiter
+		}
+
+		bucket := model.JsonMap{
+			"key":           keys,
+			"key_as_string": keyAsString,
+			"doc_count":     docCount,
 		}
 		response = append(response, bucket)
 	}
