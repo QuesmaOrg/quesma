@@ -627,7 +627,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			err = copier.CopyWithOption(&expectedResultsCopy, &test.ExpectedResults, copier.Option{DeepCopy: true})
 			assert.NoError(t, err)
 			// pp.Println("EXPECTED", expectedResultsCopy)
-			actualAggregationsPart := cw.MakeAggregationPartOfResponse(aggregations, test.ExpectedResults)
+			actualAggregationsPart := cw.MakeAggregationPartOfResponse(aggregations[1:], test.ExpectedResults[1:])
 			// pp.Println("ACTUAL", actualAggregationsPart)
 
 			fullResponse, err := cw.MakeResponseAggregationMarshalled(aggregations, expectedResultsCopy)
