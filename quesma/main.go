@@ -38,6 +38,7 @@ func main() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	doneCh := make(chan struct{})
 	var cfg = config.Load()
+
 	if err := cfg.Validate(); err != nil {
 		log.Fatalf("error validating configuration: %v", err)
 	}
