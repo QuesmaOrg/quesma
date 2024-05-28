@@ -22,26 +22,22 @@ type (
 	Query struct {
 		IsDistinct bool // true <=> query is SELECT DISTINCT
 
-		// This is the future.
-		Columns []SelectColumn // Columns to select, including aliases
+		// This is SELECT query. These fields should be extracted to separate struct.
+		Columns       []SelectColumn // Columns to select, including aliases
+		FromClause    string         // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
+		WhereClause   string         // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
+		GroupByFields []string       // if not empty, we do GROUP BY GroupByFields... They are quoted if they are column names, unquoted if non-schema. So no quotes need to be added.
+		SuffixClauses []string       // ORDER BY, etc.
 
-		// TO BE REMOVED
-		xFields          []string // Fields in 'SELECT Fields FROM ...'
-		xNonSchemaFields []string // Fields that are not in schema, but are in 'SELECT ...', e.g. count()
-
-		WhereClause   string   // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
-		GroupByFields []string // if not empty, we do GROUP BY GroupByFields... They are quoted if they are column names, unquoted if non-schema. So no quotes need to be added.
-		SuffixClauses []string // ORDER BY, etc.
-		FromClause    string   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
-		CanParse      bool     // true <=> query is valid
-		QueryInfo     SearchQueryInfo
-		Highlighter   Highlighter
-		NoDBQuery     bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
-		Parent        string       // parent aggregation name, used in some pipeline aggregations
-		Aggregators   []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
-		Type          QueryType
-		SortFields    SortFields // fields to sort by
-		SubSelect     string
+		CanParse    bool // true <=> query is valid
+		QueryInfo   SearchQueryInfo
+		Highlighter Highlighter
+		NoDBQuery   bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
+		Parent      string       // parent aggregation name, used in some pipeline aggregations
+		Aggregators []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
+		Type        QueryType
+		SortFields  SortFields // fields to sort by
+		SubSelect   string
 		// dictionary to add as 'meta' field in the response.
 		// WARNING: it's probably not passed everywhere where it's needed, just in one place.
 		// But it works for the test + our dashboards, so let's fix it later if necessary.
