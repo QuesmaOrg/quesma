@@ -806,15 +806,15 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 		keysSorted := util.MapKeysSorted(v.(QueryMap))
 		for _, op := range keysSorted {
 			v := v.(QueryMap)[op]
-			//var fieldToPrint string
 			var timeFormatFuncName string
-			var valueToCompare wc.Statement
+			var finalLHS, valueToCompare wc.Statement
 			fieldType := cw.Table.GetDateTimeType(cw.Ctx, field)
 			vToPrint := sprint(v)
 			valueToCompare = wc.NewLiteral(vToPrint)
+			finalLHS = wc.NewColumnRef(field)
 			if !isDatetimeInDefaultFormat {
 				timeFormatFuncName = "toUnixTimestamp64Milli"
-				//fieldToPrint = "toUnixTimestamp64Milli(" + strconv.Quote(field) + ")"
+				finalLHS = wc.NewFunction(timeFormatFuncName, wc.NewColumnRef(field))
 			} else {
 				//fieldToPrint = strconv.Quote(field)
 				switch fieldType {
@@ -860,16 +860,16 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 
 			switch op {
 			case "gte":
-				stmt := wc.NewInfixOp(wc.NewColumnRef(field), ">=", valueToCompare)
+				stmt := wc.NewInfixOp(finalLHS, ">=", valueToCompare)
 				stmts = append(stmts, stmt)
 			case "lte":
-				stmt := wc.NewInfixOp(wc.NewColumnRef(field), "<=", valueToCompare)
+				stmt := wc.NewInfixOp(finalLHS, "<=", valueToCompare)
 				stmts = append(stmts, stmt)
 			case "gt":
-				stmt := wc.NewInfixOp(wc.NewColumnRef(field), ">", valueToCompare)
+				stmt := wc.NewInfixOp(finalLHS, ">", valueToCompare)
 				stmts = append(stmts, stmt)
 			case "lt":
-				stmt := wc.NewInfixOp(wc.NewColumnRef(field), "<", valueToCompare)
+				stmt := wc.NewInfixOp(finalLHS, "<", valueToCompare)
 				stmts = append(stmts, stmt)
 			case "format":
 				// ignored

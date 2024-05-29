@@ -3047,15 +3047,15 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1026))}}},
 		},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE ("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))`,
-			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), " + `sumOrNull("taxful_total_price") FROM ` + QuotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
-			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), " + `sumOrNull("taxful_total_price") FROM ` + QuotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
-			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), count() FROM " + QuotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z') AND "order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))`,
-			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), " + `sumOrNull("taxful_total_price") FROM ` + QuotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')) GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
-			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), " + `sumOrNull("taxful_total_price") FROM ` + QuotedTableName + ` WHERE (("order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z') AND "order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')) GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
-			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), count() FROM " + QuotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')) GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))`,
+			`SELECT count() FROM ` + QuotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')))`,
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), " + `sumOrNull("taxful_total_price") FROM ` + QuotedTableName + ` WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z'))) GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), " + `sumOrNull("taxful_total_price") FROM ` + QuotedTableName + ` WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z'))) GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), count() FROM " + QuotedTableName + ` WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z'))) GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
+			`SELECT count() FROM ` + QuotedTableName + ` WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z') AND "order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')))`,
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), " + `sumOrNull("taxful_total_price") FROM ` + QuotedTableName + ` WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), " + `sumOrNull("taxful_total_price") FROM ` + QuotedTableName + ` WHERE ((("order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z') AND "order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), count() FROM " + QuotedTableName + ` WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) GROUP BY ` + "(toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)) ORDER BY (toInt64(toUnixTimestamp64Milli(`order_date`)/86400000))",
+			`SELECT count() FROM ` + QuotedTableName + ` WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) OR ("order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') AND "order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z'))) AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')))`,
 		},
 	},
 	{ // [19]
@@ -3163,7 +3163,7 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM "` + TableName + `" WHERE (toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12)`,
-			`SELECT ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + `, count() FROM "` + TableName + `" WHERE toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12 GROUP BY (` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + `) ORDER BY (` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + ")",
+			`SELECT ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + `, count() FROM "` + TableName + `" WHERE (toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12) GROUP BY (` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + `) ORDER BY (` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + ")",
 			`SELECT count() FROM "` + TableName + `" WHERE (toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12)`,
 		},
 	},
@@ -3778,14 +3778,14 @@ var AggregationTests = []AggregationTestCase{
 			}}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z')`,
+			`SELECT count() FROM ` + QuotedTableName + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z'))`,
 			`SELECT count(if("timestamp" < now(), 1, NULL)), toInt64(toUnixTimestamp(now())), ` +
 				`count(if("timestamp" >= toStartOfDay(subDate(now(), INTERVAL 3 week)) AND "timestamp" < now(), 1, NULL)), ` +
 				`toInt64(toUnixTimestamp(toStartOfDay(subDate(now(), INTERVAL 3 week)))), ` +
 				`toInt64(toUnixTimestamp(now())), count(if("timestamp" >= '2024-04-14', 1, NULL)), toInt64(toUnixTimestamp('2024-04-14')), ` +
-				`count() FROM "logs-generic-default" WHERE "timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z')`,
+				`count() FROM "logs-generic-default" WHERE ("timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z'))`,
 		},
 	},
 	{ // [23]
@@ -5450,8 +5450,8 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z'))`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
 				`count("bytes"), ` +
 				`minOrNull("bytes"), ` +
@@ -5464,8 +5464,8 @@ var AggregationTests = []AggregationTestCase{
 				`stddevPop("bytes"), ` +
 				`stddevSamp("bytes") ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z')) ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
@@ -5480,15 +5480,15 @@ var AggregationTests = []AggregationTestCase{
 				`stddevPop("bytes"), ` +
 				`stddevSamp("bytes") ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z')) ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
 				`count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z')) ` +
 				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
 				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
 		},
