@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/elasticsearch"
+	"mitmproxy/quesma/elasticsearch/elasticsearch_field_types"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/util"
 	"slices"
@@ -83,15 +84,22 @@ func IsAggregatable(typeName string) bool {
 	return false
 }
 
+func BuildFieldCapability(indexName, typeName string) model.FieldCapability {
+	capability := model.FieldCapability{
+		Type:         typeName,
+		Aggregatable: IsAggregatable(typeName),
+		Searchable:   true,
+		Indices:      []string{indexName},
+	}
+	if typeName != elasticsearch_field_types.FieldTypeKeyword {
+		capability.MetadataField = util.Pointer(false)
+	}
+	return capability
+}
+
 func addNewDefaultFieldCapability(fields map[string]map[string]model.FieldCapability, col *clickhouse.Column, index string) {
 	typeName := mapClickhouseToElasticType(col)
-	fieldCapability := model.FieldCapability{Indices: []string{index}}
-	fieldCapability.Aggregatable = IsAggregatable(typeName)
-	// For now all fields are searchable
-	fieldCapability.Searchable = true
-	// We treat all fields as non-metadata ones
-	fieldCapability.MetadataField = util.Pointer(false)
-	fieldCapability.Type = typeName
+	fieldCapability := BuildFieldCapability(index, typeName)
 
 	if _, exists := fields[col.Name]; !exists {
 		fields[col.Name] = make(map[string]model.FieldCapability)
@@ -113,12 +121,7 @@ func canBeKeywordField(col *clickhouse.Column) bool {
 }
 
 func addNewKeywordFieldCapability(fields map[string]map[string]model.FieldCapability, col *clickhouse.Column, index string) {
-	var keyword = model.FieldCapability{
-		Aggregatable: true,
-		Searchable:   true,
-		Type:         "keyword",
-		Indices:      []string{index},
-	}
+	var keyword = BuildFieldCapability(index, elasticsearch_field_types.FieldTypeKeyword)
 	if _, exists := fields[col.Name]; !exists {
 		fields[col.Name] = make(map[string]model.FieldCapability)
 	}
