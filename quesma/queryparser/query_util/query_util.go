@@ -2,7 +2,6 @@ package query_util
 
 import (
 	"context"
-	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/quesma/types"
@@ -41,6 +40,7 @@ func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, qu
 	}
 }
 
+/* TODO ah, need to restore it.
 func applySizeLimit(ctx context.Context, size int) int {
 	// FIXME hard limit here to prevent OOM
 	const quesmaMaxSize = 10000
@@ -50,3 +50,4 @@ func applySizeLimit(ctx context.Context, size int) int {
 	}
 	return size
 }
+*/
