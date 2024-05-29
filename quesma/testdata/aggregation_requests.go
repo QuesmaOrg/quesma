@@ -5668,7 +5668,7 @@ var AggregationTests = []AggregationTestCase{
 				`maxOrNull("bytes"), ` +
 				`avgOrNull("bytes"), ` +
 				`sumOrNull("bytes"), ` +
-				`sumOrNull("bytes"*"bytes"), ` +
+				`sumOrNull("bytes" * "bytes"), ` +
 				`varPop("bytes"), ` +
 				`varSamp("bytes"), ` +
 				`stddevPop("bytes"), ` +
@@ -5684,7 +5684,7 @@ var AggregationTests = []AggregationTestCase{
 				`maxOrNull("bytes"), ` +
 				`avgOrNull("bytes"), ` +
 				`sumOrNull("bytes"), ` +
-				`sumOrNull("bytes"*"bytes"), ` +
+				`sumOrNull("bytes" * "bytes"), ` +
 				`varPop("bytes"), ` +
 				`varSamp("bytes"), ` +
 				`stddevPop("bytes"), ` +

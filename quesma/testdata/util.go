@@ -1,7 +1,6 @@
 package testdata
 
 import (
-	"context"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/aexp"
 	"strconv"
@@ -47,7 +46,6 @@ const oneMinute = 60 * time.Second
 
 func newSimplestQuery() model.Query {
 	return model.Query{
-		Fields:        []string{"*"},
 		Columns:       []model.SelectColumn{{Expression: aexp.Wildcard}},
 		FromClause:    strconv.Quote(TableName),
 		SuffixClauses: []string{"LIMIT " + strconv.Itoa(defaultLimit)},
@@ -57,7 +55,7 @@ func newSimplestQuery() model.Query {
 
 // qToStr is a simple helper function to help fill out test cases
 func qToStr(query model.Query) string {
-	return strings.Replace(query.String(context.Background()), "*", `"message"`, 1)
+	return strings.Replace(query.String(), "*", `"message"`, 1)
 }
 
 // justWhere is a simple helper function to help fill out test cases

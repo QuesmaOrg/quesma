@@ -31,13 +31,14 @@ func NewEmptyHighlighter() model.Highlighter {
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]model.Query, []string, bool, bool, error) {
+func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]model.Query, bool, bool, error) {
 	simpleQuery, queryInfo, highlighter, err := cw.ParseQueryInternal(body)
+
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
-		return nil, nil, false, false, err
+		return nil, false, false, err
 	}
-	var columns []string
+
 	var query *model.Query
 	var queries []model.Query
 	var isAggregation bool
@@ -46,29 +47,29 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]model.Query,
 	if simpleQuery.CanParse {
 		canParse = true
 		if query_util.IsNonAggregationQuery(queryInfo, body) {
-			query, columns = cw.makeBasicQuery(simpleQuery, queryInfo, highlighter)
+			query = cw.makeBasicQuery(simpleQuery, queryInfo, highlighter)
 			query.SortFields = simpleQuery.SortFields
 			queries = append(queries, *query)
 			isAggregation = false
-			return queries, columns, isAggregation, canParse, nil
+			return queries, isAggregation, canParse, nil
 		} else {
 			queries, err = cw.ParseAggregationJson(body)
 			if err != nil {
 				logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing aggregation: %v", err)
-				return nil, nil, false, false, err
+				return nil, false, false, err
 			}
 			isAggregation = true
-			return queries, columns, isAggregation, canParse, nil
+			return queries, isAggregation, canParse, nil
 		}
 	}
 
-	return nil, nil, false, false, err
+	return nil, false, false, err
 }
 
 func (cw *ClickhouseQueryTranslator) makeBasicQuery(
-	simpleQuery model.SimpleQuery, queryInfo model.SearchQueryInfo, highlighter model.Highlighter) (*model.Query, []string) {
+	simpleQuery model.SimpleQuery, queryInfo model.SearchQueryInfo, highlighter model.Highlighter) *model.Query {
 	var fullQuery *model.Query
-	var columns []string
+
 	var whereClause string
 	if simpleQuery.Sql.WhereStatement == nil {
 		whereClause = ""
@@ -78,15 +79,26 @@ func (cw *ClickhouseQueryTranslator) makeBasicQuery(
 	switch queryInfo.Typ {
 	case model.CountAsync:
 		fullQuery = cw.BuildSimpleCountQuery(whereClause)
-		columns = []string{"doc_count"}
+		if len(fullQuery.Columns) > 0 {
+			fullQuery.Columns[0].Alias = "doc_count"
+		}
+
 	case model.Facets, model.FacetsNumeric:
 		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
 		fullQuery = cw.BuildFacetsQuery(queryInfo.FieldName, whereClause)
-		columns = []string{"key", "doc_count"}
+
+		if len(fullQuery.Columns) > 0 {
+			fullQuery.Columns[0].Alias = "key"
+			fullQuery.Columns[1].Alias = "doc_count"
+		}
+
 	case model.ListByField:
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)
 		fullQuery = cw.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		columns = []string{queryInfo.FieldName}
+		if len(fullQuery.Columns) > 0 {
+			fullQuery.Columns[0].Alias = queryInfo.FieldName
+		}
+
 	case model.ListAllFields:
 		// queryInfo = (ListAllFields, "*", 0, LIMIT)
 		fullQuery = cw.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
@@ -95,7 +107,7 @@ func (cw *ClickhouseQueryTranslator) makeBasicQuery(
 	}
 	fullQuery.QueryInfo = queryInfo
 	fullQuery.Highlighter = highlighter
-	return fullQuery, columns
+	return fullQuery
 }
 
 func (cw *ClickhouseQueryTranslator) ParseQueryInternal(body types.JSON) (model.SimpleQuery, model.SearchQueryInfo, model.Highlighter, error) {
