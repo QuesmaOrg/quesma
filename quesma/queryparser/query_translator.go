@@ -399,9 +399,12 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 	if query.Aggregators[aggregatorsLevel].Empty {
 		bucketsReturnMap = append(bucketsReturnMap, cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel)...)
 	} else {
-		buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+1)
+		// normally it's just 1. It used to be just 1 before multi_terms aggregation, where we usually split over > 1 field
+		weSplitOverHowManyFields := query.Aggregators[aggregatorsLevel].SplitOverHowManyFields
+		buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+weSplitOverHowManyFields)
 		for _, bucket := range buckets {
-			bucketsReturnMap = append(bucketsReturnMap, cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+1)...)
+			bucketsReturnMap = append(bucketsReturnMap,
+				cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)...)
 		}
 	}
 

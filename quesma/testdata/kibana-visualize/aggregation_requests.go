@@ -127,7 +127,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 								},
 								"doc_count": 4,
 								"key": 1716834210000,
-								"key_as_string": "2024-05-27T20:23:30.000+02:00"
+								"key_as_string": "2024-05-27T18:23:30.000"
 							},
 							{
 								"1": {
@@ -154,7 +154,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 								},
 								"doc_count": 16,
 								"key": 1716834270000,
-								"key_as_string": "2024-05-27T20:24:30.000+02:00"
+								"key_as_string": "2024-05-27T18:24:30.000"
 							}
 						]
 					}
@@ -176,37 +176,46 @@ var AggregationTests = []testdata.AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(378))}}},
 			{
 				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716834210000/30000)),
 					model.NewQueryResultCol("severity", "artemis"),
 					model.NewQueryResultCol("source", "error"),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", 1716834210000/30000),
 					model.NewQueryResultCol("count()", 1),
 				}},
 				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716834210000/30000)),
 					model.NewQueryResultCol("severity", "artemis"),
 					model.NewQueryResultCol("source", "info"),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", 1716834210000/30000),
 					model.NewQueryResultCol("count()", 1),
 				}},
 				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716834210000/30000)),
 					model.NewQueryResultCol("severity", "jupiter"),
 					model.NewQueryResultCol("source", "info"),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", 1716834210000/30000),
 					model.NewQueryResultCol("count()", 1),
 				}},
 				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716834270000/30000)),
 					model.NewQueryResultCol("severity", "apollo"),
 					model.NewQueryResultCol("source", "info"),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", 1716834270000/30000),
 					model.NewQueryResultCol("count()", 2),
 				}},
 				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716834270000/30000)),
 					model.NewQueryResultCol("severity", "cassandra"),
 					model.NewQueryResultCol("source", "debug"),
-					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", 1716834270000/30000),
 					model.NewQueryResultCol("count()", 1),
 				}},
 			},
-			{},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716834210000/30000)),
+					model.NewQueryResultCol("count()", 4),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716834270000/30000)),
+					model.NewQueryResultCol("count()", 16),
+				}},
+			},
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
@@ -214,12 +223,12 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`WHERE "@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z')`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000), " +
-				`"severity", "source", count() "` +
+				`"severity", "source", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z') ` +
-				"GROUP BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000), severity, source) " +
-				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000, severity, source)",
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000), " + `"severity", "source") ` +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000), " + `"severity", "source")`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000), count() " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z') ` +
@@ -274,17 +283,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 			],
 			"query": {
 				"bool": {
-					"filter": [
-						{
-							"range": {
-								"@timestamp": {
-									"format": "strict_date_optional_time",
-									"gte": "2024-05-27T11:59:33.493Z",
-									"lte": "2024-05-27T12:14:33.493Z"
-								}
-							}
-						}
-					],
+					"filter": [],
 					"must": [],
 					"must_not": [],
 					"should": []
@@ -322,17 +321,17 @@ var AggregationTests = []testdata.AggregationTestCase{
 										{
 											"doc_count": 1,
 											"key": 1716834420000,
-											"key_as_string": "2024-05-27T20:27:00.000+02:00"
+											"key_as_string": "2024-05-27T18:27:00.000"
 										},
 										{
 											"doc_count": 1,
 											"key": 1716834450000,
-											"key_as_string": "2024-05-27T20:27:30.000+02:00"
+											"key_as_string": "2024-05-27T18:27:30.000"
 										},
 										{
 											"doc_count": 2,
 											"key": 1716834510000,
-											"key_as_string": "2024-05-27T20:28:30.000+02:00"
+											"key_as_string": "2024-05-27T18:28:30.000"
 										}
 									]
 								},
@@ -361,8 +360,47 @@ var AggregationTests = []testdata.AggregationTestCase{
 			},
 			"start_time_in_millis": 1716834668791
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{},
-		ExpectedSQLs:    []string{``},
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(378))}}},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("message", "info"),
+					model.NewQueryResultCol("host.name", "redhat"),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716834420000/30000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("message", "info"),
+					model.NewQueryResultCol("host.name", "redhat"),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716834450000/30000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("message", "info"),
+					model.NewQueryResultCol("host.name", "redhat"),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716834510000/30000)),
+					model.NewQueryResultCol("count()", 2),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("message", "info"),
+					model.NewQueryResultCol("host.name", "redhat"),
+					model.NewQueryResultCol("count()", 13),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + testdata.QuotedTableName,
+			`SELECT "message", "host.name", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000), count() " +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY ("message", "host.name", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)) " +
+				`ORDER BY ("message", "host.name", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000))",
+			`SELECT "message", "host.name", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY ("message", "host.name") ` +
+				`ORDER BY ("message", "host.name")`,
+		},
 	},
 	{ //[2],
 		TestName: "Multi_terms with double-nested subaggregations. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Unique count, Breakdown: @timestamp",
@@ -463,7 +501,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 											},
 											"doc_count": 1,
 											"key": 1716834300000,
-											"key_as_string": "2024-05-27T20:25:00.000+02:00"
+											"key_as_string": "2024-05-27T18:25:00.000"
 										},
 										{
 											"2": {
@@ -471,7 +509,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 											},
 											"doc_count": 1,
 											"key": 1716834390000,
-											"key_as_string": "2024-05-27T20:26:30.000+02:00"
+											"key_as_string": "2024-05-27T18:26:30.000"
 										}
 									]
 								},
@@ -494,7 +532,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 											},
 											"doc_count": 1,
 											"key": 1716834270000,
-											"key_as_string": "2024-05-27T20:24:30.000+02:00"
+											"key_as_string": "2024-05-27T18:24:30.000"
 										}
 									]
 								},
@@ -526,8 +564,92 @@ var AggregationTests = []testdata.AggregationTestCase{
 			},
 			"start_time_in_millis": 1716834482815
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{},
-		ExpectedSQLs:    []string{""},
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(378))}}},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("severity", "critical"),
+					model.NewQueryResultCol("source", "alpine"),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716834300000/30000)),
+					model.NewQueryResultCol(`COUNT(DISTINCT "severity")`, 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("severity", "critical"),
+					model.NewQueryResultCol("source", "alpine"),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716834390000/30000)),
+					model.NewQueryResultCol(`COUNT(DISTINCT "severity")`, 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("severity", "critical"),
+					model.NewQueryResultCol("source", "fedora"),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716834270000/30000)),
+					model.NewQueryResultCol(`COUNT(DISTINCT "severity")`, 1),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("severity", "critical"),
+					model.NewQueryResultCol("source", "alpine"),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716834300000/30000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("severity", "critical"),
+					model.NewQueryResultCol("source", "alpine"),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716834390000/30000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("severity", "critical"),
+					model.NewQueryResultCol("source", "fedora"),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716834270000/30000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("severity", "critical"),
+					model.NewQueryResultCol("source", "alpine"),
+					model.NewQueryResultCol(`COUNT(DISTINCT "severity")`, 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("severity", "critical"),
+					model.NewQueryResultCol("source", "fedora"),
+					model.NewQueryResultCol(`COUNT(DISTINCT "severity")`, 1),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("severity", "critical"),
+					model.NewQueryResultCol("source", "alpine"),
+					model.NewQueryResultCol("count()", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("severity", "critical"),
+					model.NewQueryResultCol("source", "fedora"),
+					model.NewQueryResultCol("count()", 1),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + testdata.QuotedTableName,
+			`SELECT "severity", "source", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000), " + `COUNT(DISTINCT "severity") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY ("severity", "source", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)) " +
+				`ORDER BY ("severity", "source", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000))",
+			`SELECT "severity", "source", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000), count() " +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY ("severity", "source", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)) " +
+				`ORDER BY ("severity", "source", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000))",
+			`SELECT "severity", "source", COUNT(DISTINCT "severity") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY ("severity", "source") ` +
+				`ORDER BY ("severity", "source")`,
+			`SELECT "severity", "source", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY ("severity", "source") ` +
+				`ORDER BY ("severity", "source")`,
+		},
 	},
 	{ // [3]
 		TestName: "Quite simple multi_terms, but with non-string keys. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)",
@@ -541,7 +663,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 					"aggs": {
 						"1": {
 							"date_histogram": {
-								"field": "timestamp",
+								"field": "@timestamp",
 								"fixed_interval": "30s",
 								"min_doc_count": 1,
 								"time_zone": "Europe/Warsaw"
@@ -566,32 +688,14 @@ var AggregationTests = []testdata.AggregationTestCase{
 			},
 			"fields": [
 				{
-					"field": "timestamp",
+					"field": "@timestamp",
 					"format": "date_time"
 				}
 			],
-			"query": {
-				"bool": {
-					"filter": [
-						{
-							"range": {
-								"timestamp": {
-									"format": "strict_date_optional_time",
-									"gte": "2024-05-27T19:29:39.433Z",
-									"lte": "2024-05-27T19:44:39.433Z"
-								}
-							}
-						}
-					],
-					"must": [],
-					"must_not": [],
-					"should": []
-				}
-			},
 			"runtime_mappings": {
 				"hour_of_day": {
 					"script": {
-						"source": "emit(doc['timestamp'].value.getHour());"
+						"source": "emit(doc['@timestamp'].value.getHour());"
 					},
 					"type": "long"
 				}
@@ -627,7 +731,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 										{
 											"doc_count": 1,
 											"key": 1716839040000,
-											"key_as_string": "2024-05-27T21:44:00.000+02:00"
+											"key_as_string": "2024-05-27T19:44:00.000"
 										}
 									]
 								},
@@ -644,7 +748,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 										{
 											"doc_count": 1,
 											"key": 1716838530000,
-											"key_as_string": "2024-05-27T21:35:30.000+02:00"
+											"key_as_string": "2024-05-27T19:35:30.000"
 										}
 									]
 								},
@@ -661,7 +765,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 										{
 											"doc_count": 1,
 											"key": 1716838500000,
-											"key_as_string": "2024-05-27T21:35:00.000+02:00"
+											"key_as_string": "2024-05-27T19:35:00.000"
 										}
 									]
 								},
@@ -690,7 +794,56 @@ var AggregationTests = []testdata.AggregationTestCase{
 			},
 			"start_time_in_millis": 1716839096591
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{},
-		ExpectedSQLs:    []string{},
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(378))}}},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("Cancelled", false),
+					model.NewQueryResultCol("AvgTicketPrice", 167.05126953125),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716839040000/30000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("Cancelled", false),
+					model.NewQueryResultCol("AvgTicketPrice", 331.336181640625),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716838530000/30000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("Cancelled", false),
+					model.NewQueryResultCol("AvgTicketPrice", 714.4038696289062),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", int64(1716838500000/30000)),
+					model.NewQueryResultCol("count()", 1),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("Cancelled", false),
+					model.NewQueryResultCol("AvgTicketPrice", 167.05126953125),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("Cancelled", false),
+					model.NewQueryResultCol("AvgTicketPrice", 331.336181640625),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("Cancelled", false),
+					model.NewQueryResultCol("AvgTicketPrice", 714.4038696289062),
+					model.NewQueryResultCol("count()", 1),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + testdata.QuotedTableName,
+			`SELECT "Cancelled", "AvgTicketPrice", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000), count() " +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY ("Cancelled", "AvgTicketPrice", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)) " +
+				`ORDER BY ("Cancelled", "AvgTicketPrice", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000))",
+			`SELECT "Cancelled", "AvgTicketPrice", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY ("Cancelled", "AvgTicketPrice") ` +
+				`ORDER BY ("Cancelled", "AvgTicketPrice")`,
+		},
 	},
 }
