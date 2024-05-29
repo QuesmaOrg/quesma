@@ -6,10 +6,11 @@ import (
 )
 
 func GuessClickhouseErrorType(err error) *EndUserError {
-
 	// This limit a depth of error unwrapping.
 	// We don't need forever loops especially in error handling branches
 	const maxDepth = 100
+
+	originalErr := err
 
 	for i := 0; i < maxDepth; i++ {
 		s := err.Error()
@@ -18,15 +19,23 @@ func GuessClickhouseErrorType(err error) *EndUserError {
 		// But Clickhouse doesn't provide a specific error type with details about the error.
 
 		if strings.Contains(s, "code: 60") {
-			return ErrDatabaseTableNotFound.New(err)
+			return ErrDatabaseTableNotFound.New(originalErr)
 		}
 
 		if strings.HasPrefix(s, "dial tcp") {
-			return ErrDatabaseConnectionError.New(err)
+			return ErrDatabaseConnectionError.New(originalErr)
 		}
 
 		if strings.HasPrefix(s, "code: 516") {
-			return ErrDatabaseAuthenticationError.New(err)
+			return ErrDatabaseAuthenticationError.New(originalErr)
+		}
+
+		if strings.Contains(s, "unexpected packet") {
+			return ErrDatabaseInvalidProtocol.New(originalErr)
+		}
+
+		if strings.Contains(s, "tls: first record does not look like a TLS handshake") {
+			return ErrDatabaseTLS.New(originalErr)
 		}
 
 		err = errors.Unwrap(err)
@@ -35,5 +44,5 @@ func GuessClickhouseErrorType(err error) *EndUserError {
 		}
 	}
 
-	return ErrDatabaseOtherError.New(err)
+	return ErrDatabaseOtherError.New(originalErr)
 }

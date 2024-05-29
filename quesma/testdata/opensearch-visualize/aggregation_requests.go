@@ -769,14 +769,14 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z') ` +
-				`GROUP BY ("response") ` +
-				`ORDER BY ("response")`,
+				`GROUP BY "response" ` +
+				`ORDER BY "response"`,
 			`SELECT "response", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z') ` +
-				`GROUP BY ("response") ` +
-				`ORDER BY ("response")`,
+				`GROUP BY "response" ` +
+				`ORDER BY "response"`,
 		},
 	},
 	{ // [5]
@@ -928,14 +928,14 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z') ` +
-				`GROUP BY ("response") ` +
-				`ORDER BY ("response")`,
+				`GROUP BY "response" ` +
+				`ORDER BY "response"`,
 			`SELECT "response", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z') ` +
-				`GROUP BY ("response") ` +
-				`ORDER BY ("response")`,
+				`GROUP BY "response" ` +
+				`ORDER BY "response"`,
 		},
 	},
 	{ // [6]
@@ -1115,13 +1115,13 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z') ` +
-				`GROUP BY ("response") ` +
-				`ORDER BY ("response")`,
+				`GROUP BY "response" ` +
+				`ORDER BY "response"`,
 			`SELECT "response", count() FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z') ` +
-				`GROUP BY ("response") ` +
-				`ORDER BY ("response")`,
+				`GROUP BY "response" ` +
+				`ORDER BY "response"`,
 		},
 	},
 	{ // [7]
@@ -1268,12 +1268,12 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`count(if("AvgTicketPrice"<=0.000000, 1, NULL))/count(*)*100, ` +
 				`count(if("AvgTicketPrice"<=50000.000000, 1, NULL))/count(*)*100 ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000)) " +
-				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000))",
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000)",
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000), count() " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000)) " +
-				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000))",
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/3600000)",
 		},
 	},
 	{ // [8]
@@ -1483,7 +1483,9 @@ var AggregationTests = []testdata.AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName,
-			"SELECT toHour(`timestamp`), count() FROM " + testdata.QuotedTableName + " GROUP BY (toHour(`timestamp`)) ORDER BY (toHour(`timestamp`))",
+			"SELECT toHour(`timestamp`), count() FROM " + testdata.QuotedTableName + " " +
+				"GROUP BY toHour(`timestamp`) " +
+				"ORDER BY toHour(`timestamp`)",
 		},
 	},
 }

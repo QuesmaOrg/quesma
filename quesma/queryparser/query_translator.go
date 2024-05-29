@@ -486,17 +486,16 @@ func (cw *ClickhouseQueryTranslator) addMetadataIfNeeded(query model.Query, resu
 }
 
 func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []model.Query, ResultSets [][]model.QueryResultRow) model.JsonMap {
-	const aggregation_start_index = 1
 	aggregations := model.JsonMap{}
-	if len(queries) <= aggregation_start_index {
+	if len(queries) == 0 {
 		return aggregations
 	}
 	cw.postprocessPipelineAggregations(queries, ResultSets)
-	for i, query := range queries[aggregation_start_index:] {
-		if len(ResultSets) <= i+1 {
+	for i, query := range queries {
+		if i >= len(ResultSets) {
 			continue
 		}
-		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i+1], 0, 0)
+		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
 		if len(aggregation) != 0 {
 			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0]) // result of root node is always a single map, thus [0]
 		}
@@ -516,12 +515,15 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 
 	var totalCount uint64
 	if len(ResultSets) > 0 && len(ResultSets[0]) > 0 && len(ResultSets[0][0].Cols) > 0 {
+		// TODO: Eventually we should detect whether first column is actual hits
 		// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
 		if val, ok := ResultSets[0][0].Cols[0].Value.(uint64); ok {
 			totalCount = val
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets[0])
 		}
+		queries = queries[1:]
+		ResultSets = ResultSets[1:]
 	} else {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets)
 		totalCount = 0

@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"fmt"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/queryparser/aexp"
 	"sort"
 	"strings"
@@ -26,7 +27,7 @@ type (
 		Columns       []SelectColumn // Columns to select, including aliases
 		FromClause    string         // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
 		WhereClause   string         // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
-		GroupByFields []string       // if not empty, we do GROUP BY GroupByFields... They are quoted if they are column names, unquoted if non-schema. So no quotes need to be added.
+		GroupBy       []SelectColumn // if not empty, we do GROUP BY GroupBy...
 		SuffixClauses []string       // ORDER BY, etc.
 
 		CanParse    bool // true <=> query is valid
@@ -38,6 +39,7 @@ type (
 		Type        QueryType
 		SortFields  SortFields // fields to sort by
 		SubSelect   string
+
 		// dictionary to add as 'meta' field in the response.
 		// WARNING: it's probably not passed everywhere where it's needed, just in one place.
 		// But it works for the test + our dashboards, so let's fix it later if necessary.
@@ -138,27 +140,19 @@ func (q *Query) String() string {
 		sb.WriteString(q.WhereClause)
 	}
 
-	if len(q.GroupByFields) > 0 {
-		sb.WriteString(" GROUP BY (")
-		for i, field := range q.GroupByFields {
-			sb.WriteString(field)
-			if i < len(q.GroupByFields)-1 {
-				sb.WriteString(", ")
-			}
-		}
-		sb.WriteString(")")
-
-		if len(q.SuffixClauses) == 0 {
-			sb.WriteString(" ORDER BY (")
-			for i, field := range q.GroupByFields {
-				sb.WriteString(field)
-				if i < len(q.GroupByFields)-1 {
-					sb.WriteString(", ")
-				}
-			}
-			sb.WriteString(")")
+	groupBy := make([]string, 0, len(q.GroupBy))
+	for _, col := range q.GroupBy {
+		if col.Expression == nil {
+			logger.Warn().Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
+		} else {
+			groupBy = append(groupBy, col.SQL())
 		}
 	}
+	if len(groupBy) > 0 {
+		sb.WriteString(" GROUP BY ")
+		sb.WriteString(strings.Join(groupBy, ", "))
+	}
+
 	if len(q.SuffixClauses) > 0 {
 		sb.WriteString(" " + strings.Join(q.SuffixClauses, " "))
 	}
@@ -178,8 +172,8 @@ func (q *Query) IsWildcard() bool {
 
 // CopyAggregationFields copies all aggregation fields from qwa to q
 func (q *Query) CopyAggregationFields(qwa Query) {
-	q.GroupByFields = make([]string, len(qwa.GroupByFields))
-	copy(q.GroupByFields, qwa.GroupByFields)
+	q.GroupBy = make([]SelectColumn, len(qwa.GroupBy))
+	copy(q.GroupBy, qwa.GroupBy)
 
 	q.Columns = make([]SelectColumn, len(qwa.Columns))
 	copy(q.Columns, qwa.Columns)
@@ -188,27 +182,9 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 	copy(q.Aggregators, qwa.Aggregators)
 }
 
-// RemoveEmptyGroupBy removes EmptyFieldSelection from GroupByFields
-func (q *Query) RemoveEmptyGroupBy() {
-	nonEmptyFields := make([]string, 0)
-	for _, field := range q.GroupByFields {
-		if field != EmptyFieldSelection {
-			nonEmptyFields = append(nonEmptyFields, field)
-		}
-	}
-	q.GroupByFields = nonEmptyFields
-}
-
 // TrimKeywordFromFields trims .keyword from fields and group by fields
 // In future probably handle it in a better way
 func (q *Query) TrimKeywordFromFields() {
-
-	for i := range q.GroupByFields {
-		if strings.HasSuffix(q.GroupByFields[i], `.keyword"`) {
-			q.GroupByFields[i] = strings.TrimSuffix(q.GroupByFields[i], `.keyword"`)
-			q.GroupByFields[i] += `"`
-		}
-	}
 
 }
 

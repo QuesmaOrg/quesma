@@ -126,12 +126,6 @@ type AsyncQuery struct {
 }
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
-
-	bodyAsBytes, err := body.Bytes()
-	if err != nil {
-		return nil, err
-	}
-
 	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im)
 
 	switch sources {
@@ -220,8 +214,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 			if !isAggregation {
 				go func() {
-					defer recovery.LogAndHandlePanic(ctx, func() {
-						doneCh <- AsyncSearchWithError{err: errors.New("panic")}
+					defer recovery.LogAndHandlePanic(ctx, func(err error) {
+						doneCh <- AsyncSearchWithError{err: err}
 					})
 
 					translatedQueryBody, hitsSlice := q.searchWorker(ctx, queries, table, doneCh, optAsync)
@@ -238,8 +232,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				}()
 			} else {
 				go func() {
-					defer recovery.LogAndHandlePanic(ctx, func() {
-						doneCh <- AsyncSearchWithError{err: errors.New("panic")}
+					defer recovery.LogAndHandlePanic(ctx, func(err error) {
+						doneCh <- AsyncSearchWithError{err: err}
 					})
 
 					translatedQueryBody, aggregationResults := q.searchWorker(ctx, queries, table, doneCh, optAsync)
@@ -254,11 +248,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			}
 			responseBody = []byte(fmt.Sprintf("Invalid Queries: %s, err: %v", queriesBody, err))
 			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBody)
+			bodyAsBytes, _ := body.Bytes()
 			pushSecondaryInfo(q.quesmaManagementConsole, id, path, bodyAsBytes, []byte(queriesBody), responseBody, startTime)
 			return responseBody, errors.New(string(responseBody))
 		}
 
 		if optAsync == nil {
+			bodyAsBytes, _ := body.Bytes()
 			response := <-doneCh
 			if response.err != nil {
 				err = response.err
