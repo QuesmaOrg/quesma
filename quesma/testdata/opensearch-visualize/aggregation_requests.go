@@ -609,12 +609,12 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z')`,
 			"SELECT quantiles(0.500000)(\"properties::entry_time\") AS \"quantile_50\" " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
-				`AND "properties::exoestimation_connection_speedinkbps">=0 AND "properties::exoestimation_connection_speedinkbps"<1000`,
+				`WHERE (("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
+				`AND ("properties::exoestimation_connection_speedinkbps">=0 AND "properties::exoestimation_connection_speedinkbps"<1000))`,
 			"SELECT quantiles(0.500000)(\"properties::entry_time\") AS \"quantile_50\" " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
-				`AND "properties::exoestimation_connection_speedinkbps">=1000 AND "properties::exoestimation_connection_speedinkbps"<2000`,
+				`WHERE (("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
+				`AND ("properties::exoestimation_connection_speedinkbps">=1000 AND "properties::exoestimation_connection_speedinkbps"<2000))`,
 			`SELECT count(if("properties::exoestimation_connection_speedinkbps">=0 AND "properties::exoestimation_connection_speedinkbps"<1000, 1, NULL)), ` +
 				`count(if("properties::exoestimation_connection_speedinkbps">=1000 AND "properties::exoestimation_connection_speedinkbps"<2000, 1, NULL)), ` +
 				`count() ` +
