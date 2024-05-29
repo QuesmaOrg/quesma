@@ -79,32 +79,12 @@ func (cw *ClickhouseQueryTranslator) makeBasicQuery(
 	switch queryInfo.Typ {
 	case model.CountAsync:
 		fullQuery = cw.BuildSimpleCountQuery(whereClause)
-		if len(fullQuery.Columns) > 1 {
-			fullQuery.Columns[0].Alias = "doc_count"
-		} else {
-			panic("count query should have at least one column")
-		}
-
 	case model.Facets, model.FacetsNumeric:
 		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
 		fullQuery = cw.BuildFacetsQuery(queryInfo.FieldName, whereClause)
-
-		if len(fullQuery.Columns) > 1 {
-			fullQuery.Columns[0].Alias = "key"
-			fullQuery.Columns[1].Alias = "doc_count"
-		} else {
-			panic("facets query should have at least two columns")
-		}
-
 	case model.ListByField:
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)
 		fullQuery = cw.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		if len(fullQuery.Columns) > 0 {
-			fullQuery.Columns[0].Alias = queryInfo.FieldName
-		} else {
-			panic("list by field query should have at least one column")
-		}
-
 	case model.ListAllFields:
 		// queryInfo = (ListAllFields, "*", 0, LIMIT)
 		fullQuery = cw.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
