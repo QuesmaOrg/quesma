@@ -51,27 +51,6 @@ func (interval Interval) ToSQLSelectQuery(quotedFieldName string) string {
 	return "count(if(" + sql + ", 1, NULL))"
 }
 
-//// deprecated
-//func (interval Interval) ToWhereClause(quotedFieldName string) string { // returns a condition for the interval, just like we want it in SQL's WHERE
-//	var sqlLeft, sqlRight string
-//	if !interval.IsOpeningBoundInfinite() {
-//		sqlLeft = quotedFieldName + ">=" + strconv.FormatFloat(interval.Begin, 'f', -1, 64)
-//	}
-//	if !interval.IsClosingBoundInfinite() {
-//		sqlRight = quotedFieldName + "<" + strconv.FormatFloat(interval.End, 'f', -1, 64)
-//	}
-//	switch {
-//	case sqlLeft != "" && sqlRight != "":
-//		return sqlLeft + " AND " + sqlRight
-//	case sqlLeft != "":
-//		return sqlLeft
-//	case sqlRight != "":
-//		return sqlRight
-//	default:
-//		return quotedFieldName + " IS NOT NULL"
-//	}
-//}
-
 func (interval Interval) ToWhereClause(quotedFieldName string) wc.Statement { // returns a condition for the interval, just like we want it in SQL's WHERE
 	var sqlLeft, sqlRight wc.Statement
 	if !interval.IsOpeningBoundInfinite() {

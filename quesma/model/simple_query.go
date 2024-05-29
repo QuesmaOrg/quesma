@@ -41,21 +41,6 @@ type Statement struct {
 	FieldName      string
 }
 
-//func NewSimpleStatement(stmt string) Statement {
-//	return Statement{Stmt: stmt, IsCompound: false}
-//}
-//
-//func NewCompoundStatement(stmt, fieldName string) Statement {
-//	return Statement{Stmt: stmt, IsCompound: true, FieldName: fieldName}
-//}
-//
-//func NewCompoundStatementNoFieldName(stmt string) Statement {
-//	return Statement{Stmt: stmt, IsCompound: true}
-//}
-
-// Added to the generated SQL where the query is fine, but we're sure no rows will match it
-//var AlwaysFalseStatement = NewSimpleStatement("false")
-
 func And(andStmts []where_clause.Statement) where_clause.Statement {
 	return combineStatements(andStmts, "AND")
 }
