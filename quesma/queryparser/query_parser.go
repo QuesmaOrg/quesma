@@ -46,7 +46,12 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]model.Query,
 		canParse = true
 		if query_util.IsNonAggregationQuery(queryInfo, body) {
 			query = cw.makeBasicQuery(simpleQuery, queryInfo, highlighter)
-			query.SortFields = simpleQuery.SortFields
+			switch queryInfo.Typ {
+			case model.Facets, model.FacetsNumeric:
+				break
+			default:
+				query.OrderBy = simpleQuery.OrderBy
+			}
 			queries = append(queries, *query)
 			isAggregation = false
 			return queries, isAggregation, canParse, nil
@@ -118,7 +123,7 @@ func (cw *ClickhouseQueryTranslator) ParseQueryInternal(body types.JSON) (model.
 	}
 
 	if sortPart, ok := queryAsMap["sort"]; ok {
-		parsedQuery.SortFields = cw.parseSortFields(sortPart)
+		parsedQuery.OrderBy = cw.parseSortFields(sortPart)
 	}
 	const defaultSize = 0
 	size := defaultSize
@@ -207,7 +212,7 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 	}
 
 	if sort, ok := queryAsMap["sort"]; ok {
-		parsedQuery.SortFields = cw.parseSortFields(sort)
+		parsedQuery.OrderBy = cw.parseSortFields(sort)
 	}
 	queryInfo := cw.tryProcessSearchMetadata(queryAsMap)
 
@@ -1177,8 +1182,8 @@ func (cw *ClickhouseQueryTranslator) extractInterval(queryMap QueryMap) string {
 
 // parseSortFields parses sort fields from the query
 // We're skipping ELK internal fields, like "_doc", "_id", etc. (we only accept field starting with "_" if it exists in our table)
-func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortFields []model.SortField) {
-	sortFields = make([]model.SortField, 0)
+func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns []model.SelectColumn) {
+	sortColumns = make([]model.SelectColumn, 0)
 	switch sortMaps := sortMaps.(type) {
 	case []any:
 		for _, sortMapAsAny := range sortMaps {
@@ -1201,7 +1206,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortFields [
 						if orderAsString, ok := order.(string); ok {
 							orderAsString = strings.ToLower(orderAsString)
 							if orderAsString == "asc" || orderAsString == "desc" {
-								sortFields = append(sortFields, model.SortField{Field: fieldName, Desc: orderAsString == "desc"})
+								sortColumns = append(sortColumns, model.NewSortColumn(fieldName, orderAsString == "desc"))
 							} else {
 								logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", orderAsString)
 							}
@@ -1209,12 +1214,12 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortFields [
 							logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order type: %T, value: %v. Skipping", order, order)
 						}
 					} else {
-						sortFields = append(sortFields, model.SortField{Field: fieldName, Desc: false})
+						sortColumns = append(sortColumns, model.NewSortColumn(fieldName, false))
 					}
 				case string:
 					v = strings.ToLower(v)
 					if v == "asc" || v == "desc" {
-						sortFields = append(sortFields, model.SortField{Field: fieldName, Desc: v == "desc"})
+						sortColumns = append(sortColumns, model.NewSortColumn(fieldName, v == "desc"))
 					} else {
 						logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", v)
 					}
@@ -1223,7 +1228,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortFields [
 				}
 			}
 		}
-		return sortFields
+		return sortColumns
 	case map[string]interface{}:
 		for fieldName, fieldValue := range sortMaps {
 			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, fieldName) == clickhouse.NotExists {
@@ -1233,14 +1238,14 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortFields [
 			if fieldValue, ok := fieldValue.(string); ok {
 				fieldValue = strings.ToLower(fieldValue)
 				if fieldValue == "asc" || fieldValue == "desc" {
-					sortFields = append(sortFields, model.SortField{Field: fieldName, Desc: fieldValue == "desc"})
+					sortColumns = append(sortColumns, model.NewSortColumn(fieldName, fieldValue == "desc"))
 				} else {
 					logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", fieldValue)
 				}
 			}
 		}
 
-		return sortFields
+		return sortColumns
 
 	case map[string]string:
 		for fieldName, fieldValue := range sortMaps {
@@ -1250,16 +1255,16 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortFields [
 			}
 			fieldValue = strings.ToLower(fieldValue)
 			if fieldValue == "asc" || fieldValue == "desc" {
-				sortFields = append(sortFields, model.SortField{Field: fieldName, Desc: fieldValue == "desc"})
+				sortColumns = append(sortColumns, model.NewSortColumn(fieldName, fieldValue == "desc"))
 			} else {
 				logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", fieldValue)
 			}
 		}
 
-		return sortFields
+		return sortColumns
 	default:
 		logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of sortMaps: %T, value: %v", sortMaps, sortMaps)
-		return []model.SortField{}
+		return []model.SelectColumn{}
 	}
 }
 

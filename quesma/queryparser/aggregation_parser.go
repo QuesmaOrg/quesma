@@ -176,16 +176,14 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			)
 			query.WhereClause = query.WhereClause + fmt.Sprintf(" AND %s <= %d", model.RowNumberColumnName, metricsAggr.Size)
 		} else {
+			query.Limit = metricsAggr.Size
 			for _, f := range metricsAggr.FieldNames {
 				query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.TableColumn(f)})
 			}
-			orderBy := ""
 			if metricsAggr.sortByExists() {
 				query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.TableColumn(metricsAggr.SortBy)})
-				orderBy = fmt.Sprintf("ORDER BY %s %s ", strconv.Quote(metricsAggr.SortBy), metricsAggr.Order)
+				query.OrderBy = append(query.OrderBy, model.NewSortColumn(metricsAggr.SortBy, strings.ToLower(metricsAggr.Order) == "desc"))
 			}
-			query.SuffixClauses = append(query.SuffixClauses,
-				fmt.Sprintf(`%sLIMIT %d`, orderBy, metricsAggr.Size))
 		}
 	case "percentile_ranks":
 		for _, cutValueAsString := range metricsAggr.FieldNames[1:] {
@@ -300,7 +298,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]mo
 	if size > 0 {
 		simpleQuery := currentAggr.whereBuilder
 		if sort, ok := queryAsMap["sort"]; ok {
-			simpleQuery.SortFields = cw.parseSortFields(sort)
+			simpleQuery.OrderBy = cw.parseSortFields(sort)
 		}
 		hitQuery := cw.BuildNRowsQuery("*", simpleQuery, size)
 		aggregations = append(aggregations, *hitQuery)
@@ -372,7 +370,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	filterOnThisLevel := false
 	whereBeforeNesting := currentAggr.whereBuilder // to restore it after processing this level
 	queryTypeBeforeNesting := currentAggr.Type
-	suffixBeforeNesting := currentAggr.SuffixClauses
+	limitBeforeNesting := currentAggr.Limit
 
 	// check if metadata's present
 	var metadata model.JsonMap
@@ -477,9 +475,14 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("groupByFieldsAddecCount > currentAggr.GroupByFields length -> should be impossible")
 		}
+		if len(currentAggr.OrderBy) >= groupByFieldsAddedCount {
+			currentAggr.OrderBy = currentAggr.GroupBy[:len(currentAggr.OrderBy)-groupByFieldsAddedCount]
+		} else {
+			logger.ErrorWithCtx(cw.Ctx).Msgf("groupByFieldsAddecCount > currentAggr.GroupByFields length -> should be impossible")
+		}
 	}
 	currentAggr.Type = queryTypeBeforeNesting
-	currentAggr.SuffixClauses = suffixBeforeNesting
+	currentAggr.Limit = limitBeforeNesting
 	return nil
 }
 
@@ -665,6 +668,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		}
 
 		currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: aexp.SQL{Query: groupByStr}})
+		currentAggr.OrderBy = append(currentAggr.OrderBy, model.SelectColumn{Expression: aexp.SQL{Query: groupByStr}})
 
 		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: groupByStr}})
 
@@ -681,6 +685,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		histogramPartOfQuery := cw.createHistogramPartOfQuery(dateHistogram)
 
 		currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: aexp.SQL{Query: histogramPartOfQuery}})
+		currentAggr.OrderBy = append(currentAggr.OrderBy, model.SelectColumn{Expression: aexp.SQL{Query: histogramPartOfQuery}})
 
 		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: histogramPartOfQuery}})
 
@@ -694,8 +699,10 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			isEmptyGroupBy := len(currentAggr.GroupBy) == 0
 
 			currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: aexp.TableColumn(cw.parseFieldField(terms, termsType))})
+
 			currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.TableColumn(cw.parseFieldField(terms, termsType))})
 
+			orderByAdded := false
 			size := 10
 			if _, ok := queryMap["aggs"]; isEmptyGroupBy && !ok { // we can do limit only it terms are not nested
 				if jsonMap, ok := terms.(QueryMap); ok {
@@ -707,10 +714,14 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 						}
 					}
 				}
-				currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, "ORDER BY count() DESC")
-				currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, fmt.Sprintf("LIMIT %d", size))
+				currentAggr.Limit = size
+				currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewSortByCountColumn(true))
+				orderByAdded = true
 			}
 			delete(queryMap, termsType)
+			if !orderByAdded {
+				currentAggr.OrderBy = append(currentAggr.OrderBy, model.SelectColumn{Expression: aexp.TableColumn(cw.parseFieldField(terms, termsType))})
+			}
 			return success, 1, 1, nil
 			/* will remove later
 			var size int

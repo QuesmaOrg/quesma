@@ -2,6 +2,7 @@ package quesma
 
 import (
 	"context"
+	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
@@ -34,7 +35,11 @@ func TestSearchOpensearch(t *testing.T) {
 
 	for i, tt := range testdata.OpensearchSearchTests {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
-			db, mock, err := sqlmock.New()
+			queryMatcher := sqlmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
+				fmt.Printf("actu SQL: %s\n", actualSQL)
+				return sqlmock.QueryMatcherRegexp.Match(expectedSQL, actualSQL)
+			})
+			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(queryMatcher))
 			assert.NoError(t, err)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))

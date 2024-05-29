@@ -39,7 +39,7 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 			hits[i].Score = 1
 			hits[i].Version = 1
 		}
-		for _, property := range query.SortFields.Properties() {
+		for _, property := range query.SortColumnsToProperties() {
 			if val, ok := hits[i].Fields[property]; ok {
 				hits[i].Sort = append(hits[i].Sort, elasticsearch.FormatSortValue(val[0]))
 			} else {
@@ -82,7 +82,7 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) ([]model.Que
 		query = query_util.BuildNRowsQuery(cw.Ctx, cw.Table.Name, "*", simpleQuery, queryInfo.I2)
 		query.QueryInfo = queryInfo
 		query.Highlighter = highlighter
-		query.SortFields = simpleQuery.SortFields
+		query.OrderBy = simpleQuery.OrderBy
 		queries = append(queries, *query)
 		isAggregation = false
 		return queries, isAggregation, canParse, nil
@@ -134,7 +134,7 @@ func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query
 
 	query.Sql.Stmt = where
 	query.CanParse = true
-	query.SortFields = []model.SortField{{Field: "@timestamp"}}
+	query.OrderBy = []model.SelectColumn{model.NewSortColumn("@timestamp", true)}
 
 	return query, searchQueryInfo, highlighter, nil
 }

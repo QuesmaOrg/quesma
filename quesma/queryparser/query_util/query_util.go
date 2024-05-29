@@ -6,8 +6,6 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/quesma/types"
-	"strconv"
-	"strings"
 )
 
 func IsNonAggregationQuery(queryInfo model.SearchQueryInfo, body types.JSON) bool {
@@ -22,12 +20,8 @@ func IsNonAggregationQuery(queryInfo model.SearchQueryInfo, body types.JSON) boo
 }
 
 func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, query model.SimpleQuery, limit int) *model.Query {
-	suffixClauses := make([]string, 0)
-	if len(query.SortFields) > 0 {
-		suffixClauses = append(suffixClauses, "ORDER BY "+AsQueryString(query.SortFields))
-	}
-	if limit > 0 {
-		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(applySizeLimit(ctx, limit)))
+	if limit == 0 {
+		limit = -1 // change somehow
 	}
 
 	var col model.SelectColumn
@@ -38,28 +32,13 @@ func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, qu
 	}
 
 	return &model.Query{
-		Columns:       []model.SelectColumn{col},
-		WhereClause:   query.WhereClauseAsString(),
-		SuffixClauses: suffixClauses,
-		FromClause:    tableName,
-		CanParse:      true,
+		Columns:     []model.SelectColumn{col},
+		WhereClause: query.WhereClauseAsString(),
+		OrderBy:     query.OrderBy,
+		Limit:       limit,
+		FromClause:  tableName,
+		CanParse:    true,
 	}
-}
-
-func AsQueryString(sortFields []model.SortField) string {
-	if len(sortFields) == 0 {
-		return ""
-	}
-	sortStrings := make([]string, 0, len(sortFields))
-	for _, sortField := range sortFields {
-		query := strings.Builder{}
-		query.WriteString(strconv.Quote(sortField.Field))
-		if sortField.Desc {
-			query.WriteString(" desc")
-		}
-		sortStrings = append(sortStrings, query.String())
-	}
-	return strings.Join(sortStrings, ", ")
 }
 
 func applySizeLimit(ctx context.Context, size int) int {

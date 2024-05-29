@@ -94,7 +94,7 @@ var OpensearchSearchTests = []SearchTestCase{
 			`SELECT.*"-@bytes".*FROM ` + QuotedTableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +
 				`AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z')) ` +
-				`ORDER BY "-@timestamp" desc LIMIT 500`,
+				`ORDER BY "-@timestamp" DESC LIMIT 500`,
 		},
 	},
 	{

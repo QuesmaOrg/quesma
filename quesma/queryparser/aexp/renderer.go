@@ -43,6 +43,10 @@ func (v *renderer) VisitLiteral(l LiteralExp) interface{} {
 	}
 }
 
+func (v *renderer) VisitString(e StringExp) interface{} {
+	return e.Value
+}
+
 func (v *renderer) VisitComposite(e CompositeExp) interface{} {
 	exps := make([]string, 0)
 	for _, exp := range e.Expressions {

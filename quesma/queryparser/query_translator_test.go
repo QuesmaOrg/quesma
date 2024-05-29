@@ -452,7 +452,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 			ourResponse, err := cw.MakeAsyncSearchResponseMarshalled(args[i].ourQueryResult, model.Query{
 				QueryInfo:   model.SearchQueryInfo{Typ: args[i].queryType},
 				Highlighter: NewEmptyHighlighter(),
-				SortFields:  []model.SortField{{Field: "@timestamp", Desc: true}, {Field: "host.name", Desc: true}},
+				OrderBy:     []model.SelectColumn{model.NewSortColumn("@timestamp", true), model.NewSortColumn("host.name", true)},
 			}, asyncRequestIdStr, false)
 			assert.NoError(t, err)
 
