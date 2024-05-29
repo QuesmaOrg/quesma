@@ -9,6 +9,7 @@ import (
 type SimpleQuery struct {
 	WhereClause where_clause.Statement
 	// deprecated
+	//TODO FIND ALL INSTANCES OF THIS AND REPLACE WITH WHERECLAUSE
 	Sql        Statement // This will be removed as soon as WhereClause is used everywhere
 	CanParse   bool
 	FieldName  string

@@ -868,7 +868,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		``,
 		"happens e.g. in Explorer > Field Statistics view",
 		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"properties::isreg"}, FieldName: "properties::isreg", I1: 0, I2: 100},
-		[]string{`SELECT "properties::isreg" FROM "logs-generic-default" WHERE (toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12 AND toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12) AND (toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12 AND toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12) AND "properties::isreg" IS NOT NULL LIMIT 100`},
+		[]string{`SELECT "properties::isreg" FROM "logs-generic-default" WHERE (((toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12 AND toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12) AND (toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12 AND toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12)) AND "properties::isreg" IS NOT NULL) LIMIT 100`},
 		false,
 	},
 }
