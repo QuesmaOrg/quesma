@@ -2180,6 +2180,6 @@ var TestSearchFilter = []SearchTestCase{
 			justSimplestWhere(`("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age"<=20 AND "age">=10)`),
 			justSimplestWhere(`("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age">=10 AND "age"<=20)`),
 		},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age".=.0 AND "age".=.0)`},
+		[]string{`SELECT "message" FROM "logs-generic-default" WHERE (("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age".=10 AND "age".=20)))`},
 	},
 }
