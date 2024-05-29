@@ -71,6 +71,7 @@ func (t *Table) createTableOurFieldsString() []string {
 
 // it will be removed soon,
 // we should rely on metadata from clickhouse
+// And we shouldn't use '*'. All columns should be explicitly defined.
 func (t *Table) applyTableSchema(query *model.Query) {
 	var newColumns []model.SelectColumn
 	var hasWildcard bool
