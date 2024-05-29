@@ -54,7 +54,8 @@ func (b *aggrQueryBuilder) applyTermsSubSelect(terms bucket_aggregations.Terms) 
 
 func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.Query {
 	query := b.Query
-	query.WhereClause = b.whereBuilder.WhereClauseAsString()
+	bb := b.whereBuilder
+	query.WhereClause = bb.WhereClauseAsString()
 
 	// Need to copy, as we might be proceeding to modify 'b' pointer
 	query.CopyAggregationFields(b.Query)

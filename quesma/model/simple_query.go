@@ -65,8 +65,8 @@ func Or(orStmts []where_clause.Statement) where_clause.Statement {
 }
 
 // operator = "AND" or "OR"
-func combineStatements(stmts []where_clause.Statement, operator string) where_clause.Statement {
-	stmts = FilterOutEmptyStatements(stmts)
+func combineStatements(stmtsToCombine []where_clause.Statement, operator string) where_clause.Statement {
+	stmts := FilterOutEmptyStatements(stmtsToCombine)
 	var newWhereStatement where_clause.Statement
 	if len(stmts) > 1 {
 		newWhereStatement = stmts[0]
@@ -106,15 +106,4 @@ func FilterOutEmptyStatements(stmts []where_clause.Statement) []where_clause.Sta
 		}
 	}
 	return nonEmptyStmts
-}
-
-// used to combine statements with AND/OR
-// [a, b, a AND b] ==> ["a", "b", "(a AND b)"]
-func quoteWithBracketsIfCompound(slice []Statement) []Statement {
-	for i := range slice {
-		if slice[i].IsCompound {
-			slice[i].Stmt = "(" + slice[i].Stmt + ")"
-		}
-	}
-	return slice
 }
