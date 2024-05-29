@@ -14,10 +14,13 @@ type IndexConfiguration struct {
 	// TODO to be deprecated
 	Aliases map[string]FieldAlias `koanf:"aliases"`
 	// TODO to be deprecated
+	TypeMappings map[string]string `koanf:"mappings"`
+	// TODO to be deprecated
 	IgnoredFields map[string]bool `koanf:"ignoredFields"`
 	// TODO to be deprecated
 	TimestampField *string `koanf:"timestampField"`
-	// optional, for now
+	// this is hidden from the user right now
+	// deprecated
 	SchemaConfiguration *SchemaConfiguration `koanf:"static-schema"`
 }
 

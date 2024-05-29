@@ -22,6 +22,9 @@ indexes:
     enabled: true
   kibana_sample_data_logs:
     enabled: true
+    mappings:
+      ip: "ip"
+      clientip: "ip"
     aliases:
       timestamp:
         source: "timestamp"

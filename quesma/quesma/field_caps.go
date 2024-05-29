@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/elasticsearch/elasticsearch_field_types"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/util"
 	"slices"
 )
@@ -73,15 +74,11 @@ func mapClickhouseToElasticType(col *clickhouse.Column) string {
 
 var aggregatableTypes = []string{
 	"date", "byte", "short", "integer", "long", "unsigned_long", "float", "double",
+	"ip", "ip_range", "keyword", "geo_point",
 }
 
 func IsAggregatable(typeName string) bool {
-	for _, t := range aggregatableTypes {
-		if t == typeName {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(aggregatableTypes, typeName)
 }
 
 func BuildFieldCapability(indexName, typeName string) model.FieldCapability {
@@ -95,6 +92,23 @@ func BuildFieldCapability(indexName, typeName string) model.FieldCapability {
 		capability.MetadataField = util.Pointer(false)
 	}
 	return capability
+}
+
+func addFieldCapabilityFromStaticSchema(fields map[string]map[string]model.FieldCapability, colName string, typeName string, index string) {
+	fieldCapability := BuildFieldCapability(index, typeName)
+
+	if _, exists := fields[colName]; !exists {
+		fields[colName] = make(map[string]model.FieldCapability)
+	}
+
+	if existing, exists := fields[colName][typeName]; exists {
+		merged, ok := merge(existing, fieldCapability)
+		if ok {
+			fields[colName][typeName] = merged
+		}
+	} else {
+		fields[colName][typeName] = fieldCapability
+	}
 }
 
 func addNewDefaultFieldCapability(fields map[string]map[string]model.FieldCapability, col *clickhouse.Column, index string) {
@@ -113,6 +127,17 @@ func addNewDefaultFieldCapability(fields map[string]map[string]model.FieldCapabi
 	} else {
 		fields[col.Name][typeName] = fieldCapability
 	}
+}
+
+func isConfiguredExplicitly(indexName string, fieldName config.FieldName, cfg config.QuesmaConfiguration) (string, bool) {
+	if indexConfig, exists := cfg.IndexConfig[indexName]; exists {
+		if indexConfig.TypeMappings != nil {
+			if fieldConfig, exists := indexConfig.TypeMappings[fieldName.AsString()]; exists {
+				return fieldConfig, exists
+			}
+		}
+	}
+	return "", false
 }
 
 func canBeKeywordField(col *clickhouse.Column) bool {
@@ -135,7 +160,7 @@ func addNewKeywordFieldCapability(fields map[string]map[string]model.FieldCapabi
 	}
 }
 
-func handleFieldCapsIndex(ctx context.Context, indexes []string, tables clickhouse.TableMap) ([]byte, error) {
+func handleFieldCapsIndex(ctx context.Context, cfg config.QuesmaConfiguration, indexes []string, tables clickhouse.TableMap) ([]byte, error) {
 	fields := make(map[string]map[string]model.FieldCapability)
 	for _, resolvedIndex := range indexes {
 		if len(resolvedIndex) == 0 {
@@ -147,7 +172,7 @@ func handleFieldCapsIndex(ctx context.Context, indexes []string, tables clickhou
 				return nil, errors.New("could not find table for index : " + resolvedIndex)
 			}
 
-			for _, col := range table.Cols {
+			for colName, col := range table.Cols {
 
 				if col == nil {
 					continue
@@ -157,7 +182,10 @@ func handleFieldCapsIndex(ctx context.Context, indexes []string, tables clickhou
 					continue
 				}
 
-				if canBeKeywordField(col) {
+				customTypeName, configuredExplicitly := isConfiguredExplicitly(resolvedIndex, config.FieldName(colName), cfg)
+				if configuredExplicitly {
+					addFieldCapabilityFromStaticSchema(fields, colName, customTypeName, resolvedIndex)
+				} else if canBeKeywordField(col) {
 					addNewKeywordFieldCapability(fields, col, resolvedIndex)
 				} else {
 					addNewDefaultFieldCapability(fields, col, resolvedIndex)
@@ -202,14 +230,14 @@ func isInternalColumn(col *clickhouse.Column) bool {
 	return col.Name == clickhouse.AttributesKeyColumn || col.Name == clickhouse.AttributesValueColumn
 }
 
-func handleFieldCaps(ctx context.Context, index string, lm *clickhouse.LogManager) ([]byte, error) {
+func handleFieldCaps(ctx context.Context, cfg config.QuesmaConfiguration, index string, lm *clickhouse.LogManager) ([]byte, error) {
 	indexes := lm.ResolveIndexes(ctx, index)
 	if len(indexes) == 0 {
 		if !elasticsearch.IsIndexPattern(index) {
 			return nil, errIndexNotExists
 		}
 	}
-	return handleFieldCapsIndex(ctx, indexes, lm.GetTableDefinitions())
+	return handleFieldCapsIndex(ctx, cfg, indexes, lm.GetTableDefinitions())
 }
 
 func merge(cap1, cap2 model.FieldCapability) (model.FieldCapability, bool) {
