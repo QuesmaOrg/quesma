@@ -440,7 +440,6 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) model.SimpleQu
 
 	if queries, ok := queryMap["must_not"]; ok {
 		sqlNots, canParseThis := cw.iterateListOrDictAndParse(queries)
-		//sqlNots = model.FilterNonEmpty(sqlNots)
 		canParse = canParse && canParseThis
 		if len(sqlNots) > 0 {
 			for i, stmt := range sqlNots {
@@ -448,19 +447,10 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) model.SimpleQu
 					sqlNots[i] = wc.NewPrefixOp("NOT", []wc.Statement{stmt})
 				}
 			}
-			orSql := model.Or(sqlNots) // TODO  I AM LITTLE UNSURE BUT GOING TO TRY THIS ANYWAYS ...
-			//orSql := model.Or(sqlNots)
-			//orSql.WhereStatement = wc.NewPrefixOp("NOT", []wc.Statement{orSql.WhereStatement})
-			//if orSql.IsCompound {
-			//	orSql.Stmt = "NOT (" + orSql.Stmt + ")"
-			//	orSql.IsCompound = false // NOT (compound) is again simple
-			//} else {
-			//	orSql.Stmt = "NOT " + orSql.Stmt
-			//}
+			orSql := model.Or(sqlNots)
 			sql = model.And([]wc.Statement{sql, orSql})
 		}
 	}
-	//return model.NewSimpleQueryWithFieldName(sql, canParse, sql.FieldName)
 	return model.NewSimpleQuery(sql, canParse)
 }
 

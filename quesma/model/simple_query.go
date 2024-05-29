@@ -68,7 +68,14 @@ func combineStatements(stmtsToCombine []where_clause.Statement, operator string)
 }
 
 func CombineWheres(ctx context.Context, where1, where2 SimpleQuery) SimpleQuery {
-	combinedWhereClause := where_clause.NewInfixOp(where1.WhereClause, "AND", where2.WhereClause)
+	var combinedWhereClause where_clause.Statement
+	if where1.WhereClause != nil && where2.WhereClause != nil {
+		combinedWhereClause = where_clause.NewInfixOp(where1.WhereClause, "AND", where2.WhereClause)
+	} else if where1.WhereClause != nil {
+		combinedWhereClause = where1.WhereClause
+	} else if where2.WhereClause != nil {
+		combinedWhereClause = where2.WhereClause
+	}
 	combined := SimpleQuery{
 		WhereClause: combinedWhereClause,
 		CanParse:    where1.CanParse && where2.CanParse,
