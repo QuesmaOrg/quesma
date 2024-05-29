@@ -1053,7 +1053,7 @@ var TestsSearch = []SearchTestCase{
 		[]string{`((("message" iLIKE '%this%' OR "message" iLIKE '%is%') OR "message" iLIKE '%a%') OR "message" iLIKE '%test%')`},
 		model.Normal,
 		[]model.Query{justSimplestWhere(`((("message" iLIKE '%this%' OR "message" iLIKE '%is%') OR "message" iLIKE '%a%') OR "message" iLIKE '%test%')`)},
-		[]string{qToStr(justSimplestWhere(`"message" iLIKE '%this%' OR "message" iLIKE '%is%' OR "message" iLIKE '%a%' OR "message" iLIKE '%test%'`))},
+		[]string{qToStr(justSimplestWhere(`((("message" iLIKE '%this%' OR "message" iLIKE '%is%') OR "message" iLIKE '%a%') OR "message" iLIKE '%test%')`))},
 	},
 	{ // [7]
 		"Terms",
