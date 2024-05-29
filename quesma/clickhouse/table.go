@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/util"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -86,8 +87,15 @@ func (t *Table) applyTableSchema(query *model.Query) {
 	}
 
 	if hasWildcard {
+
+		cols := make([]string, 0, len(t.Cols))
 		for _, col := range t.Cols {
-			newColumns = append(newColumns, model.SelectColumn{Expression: aexp.TableColumnExp{ColumnName: col.Name}})
+			cols = append(cols, col.Name)
+		}
+		sort.Strings(cols)
+
+		for _, col := range cols {
+			newColumns = append(newColumns, model.SelectColumn{Expression: aexp.TableColumnExp{ColumnName: col}})
 		}
 	}
 
