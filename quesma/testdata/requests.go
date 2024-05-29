@@ -287,7 +287,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 }
 `, "there should be 97 results, I truncated most of them",
 		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"message"}, FieldName: "message", I1: 0, I2: 100},
-		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) AND "message" iLIKE '%user%' AND "message" IS NOT NULL ORDER BY "@timestamp" desc LIMIT 100`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE ((("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) AND "message" iLIKE '%user%') AND "message" IS NOT NULL) ORDER BY "@timestamp" desc LIMIT 100`},
 		false,
 	},
 	{ // [2]
