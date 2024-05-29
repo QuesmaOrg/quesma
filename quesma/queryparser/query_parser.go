@@ -444,7 +444,9 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) model.SimpleQu
 		canParse = canParse && canParseThis
 		if len(sqlNots) > 0 {
 			for i, stmt := range sqlNots {
-				sqlNots[i] = wc.NewPrefixOp("NOT", []wc.Statement{stmt})
+				if stmt != nil {
+					sqlNots[i] = wc.NewPrefixOp("NOT", []wc.Statement{stmt})
+				}
 			}
 			orSql := model.Or(sqlNots) // TODO  I AM LITTLE UNSURE BUT GOING TO TRY THIS ANYWAYS ...
 			//orSql := model.Or(sqlNots)
