@@ -467,7 +467,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z')`,
 			`SELECT sumOrNull("properties.entry_time") FROM "logs-generic-default" ` +
 				`WHERE (("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z') ` +
-				`AND "epoch_time_original">=0 AND "epoch_time_original"<1000)`,
+				`AND ("epoch_time_original">=0 AND "epoch_time_original"<1000))`,
 			`SELECT sumOrNull("properties.entry_time") FROM "logs-generic-default" ` +
 				`WHERE (("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z') ` +
 				`AND "epoch_time_original">=1000)`,
