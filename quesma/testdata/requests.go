@@ -1665,9 +1665,9 @@ var TestsSearch = []SearchTestCase{
 		[]string{`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`},
 		model.Normal,
 		[]model.Query{
-			justSimplestWhere(`"message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))`),
+			justSimplestWhere(`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`),
 		},
-		[]string{`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z'))`},
+		[]string{`SELECT count() FROM "logs-generic-default" WHERE (("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') AND ("@timestamp".=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`},
 	},
 	{ // [24]
 		"count() as /_search or /logs-*-/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count()
@@ -1728,9 +1728,9 @@ var TestsSearch = []SearchTestCase{
 		[]string{`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`},
 		model.Normal,
 		[]model.Query{
-			justSimplestWhere(`"message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))`),
+			justSimplestWhere(`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`),
 		},
-		[]string{`SELECT count() FROM "logs-generic-default" WHERE "message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z'))`},
+		[]string{`SELECT count() FROM "logs-generic-default" WHERE ("message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`},
 	},
 	{ // [25]
 		"_search, only one so far with fields, we're not sure if SELECT * is correct, or should be SELECT @timestamp",
@@ -1858,8 +1858,8 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`("message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%')`},
 		model.Normal,
-		[]model.Query{justSimplestWhere(`"message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%'`)},
-		[]string{qToStr(justSimplestWhere(`"message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%'`))},
+		[]model.Query{justSimplestWhere(`("message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%')`)},
+		[]string{qToStr(justSimplestWhere(`("message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%')`))},
 	},
 	{ // [31]
 		"Match all (empty query)",
@@ -1915,8 +1915,8 @@ var TestsSearch = []SearchTestCase{
 		},
 		model.Normal,
 		[]model.Query{
-			justSimplestWhere(`"@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp" IN (toDateTime64('2024-05-24 13:32:47.307',3))`),
-			justSimplestWhere(`"@timestamp" IN (toDateTime64('2024-05-24 13:32:47.307',3)) AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z')`),
+			justSimplestWhere(`("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp" IN toDateTime64('2024-05-24 13:32:47.307',3))`),
+			justSimplestWhere(`("@timestamp" IN toDateTime64('2024-05-24 13:32:47.307',3) AND "@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z'))`),
 		},
 		// TestSearchHandler is pretty blunt with config loading so the test below can't be used.
 		// We will probably refactor it as we move forwards with schema which will get even more side-effecting
@@ -1968,8 +1968,8 @@ var TestsSearch = []SearchTestCase{
 		}`,
 		[]string{`("cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59')))`},
 		model.Normal,
-		[]model.Query{withLimit(justSimplestWhere(`"cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`), 1)},
-		[]string{qToStr(withLimit(justSimplestWhere(`"cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))`), 1))},
+		[]model.Query{withLimit(justSimplestWhere(`("cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59')))`), 1)},
+		[]string{qToStr(withLimit(justSimplestWhere(`("cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59')))`), 1))},
 	},
 }
 
