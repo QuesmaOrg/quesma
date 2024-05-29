@@ -2012,9 +2012,9 @@ var TestsSearchNoAttrs = []SearchTestCase{
 		},
 		model.Normal,
 		[]model.Query{
-			justSimplestWhere(`"@timestamp">=parseDateTime64BestEffort('2024-01-25T13:22:45.968Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T13:37:45.968Z')`),
+			justSimplestWhere(`("@timestamp">=parseDateTime64BestEffort('2024-01-25T13:22:45.968Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T13:37:45.968Z'))`),
 		},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ("@timestamp".=parseDateTime64BestEffort('2024-01-25T13:..:45.968Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-25T13:..:45.968Z')) AND (has("attributes_string_key","summary") AND "attributes_string_value"[indexOf("attributes_string_key","summary")] IS NOT NULL) AND NOT (has("attributes_string_key","run_once") AND "attributes_string_value"[indexOf("attributes_string_key","run_once")] IS NOT NULL)`},
+		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ((("@timestamp".=parseDateTime64BestEffort('2024-01-25T13:22:45.968Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-25T13:37:45.968Z')) AND (has("attributes_string_key","summary") AND "attributes_string_value"[indexOf("attributes_string_key","summary")] IS NOT NULL)) AND NOT ((has("attributes_string_key","run_once") AND "attributes_string_value"[indexOf("attributes_string_key","run_once")] IS NOT NULL)))`},
 	},
 }
 
