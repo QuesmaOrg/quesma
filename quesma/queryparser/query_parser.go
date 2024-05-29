@@ -70,11 +70,7 @@ func (cw *ClickhouseQueryTranslator) makeBasicQuery(
 	var fullQuery *model.Query
 	var columns []string
 	var whereClause string
-	if simpleQuery.Sql.WhereStatement == nil {
-		whereClause = ""
-	} else {
-		whereClause = simpleQuery.Sql.WhereStatement.Accept(stringRenderer).(string)
-	}
+	whereClause = simpleQuery.WhereClauseAsString()
 	switch queryInfo.Typ {
 	case model.CountAsync:
 		fullQuery = cw.BuildSimpleCountQuery(whereClause)
