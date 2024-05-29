@@ -151,6 +151,11 @@ func (q *Query) String() string {
 	if len(groupBy) > 0 {
 		sb.WriteString(" GROUP BY ")
 		sb.WriteString(strings.Join(groupBy, ", "))
+
+		if len(q.SuffixClauses) == 0 {
+			sb.WriteString(" ORDER BY ")
+			sb.WriteString(strings.Join(groupBy, ", "))
+		}
 	}
 
 	if len(q.SuffixClauses) > 0 {
