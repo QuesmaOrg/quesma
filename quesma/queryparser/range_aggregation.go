@@ -94,10 +94,10 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 	for _, interval := range Range.Intervals {
 		var fieldName string
 		if f, err := strconv.Unquote(Range.QuotedFieldName); err != nil {
-			logger.Error().Msgf("Unquoting field name in range aggregation failed: %v", err)
-			fieldName = f
-		} else {
+			logger.Error().Msgf("Unquoting field name in range aggregation failed: %v", err) // fallback to what we have...
 			fieldName = Range.QuotedFieldName
+		} else {
+			fieldName = f
 		}
 		currentAggr.whereBuilder = model.CombineWheres(
 			cw.Ctx, currentAggr.whereBuilder,
