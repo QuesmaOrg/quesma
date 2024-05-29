@@ -5675,20 +5675,20 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%'`,
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))`,
 			`SELECT "host.name", "message", "message", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY ("host.name", "message", "message") ` +
 				`ORDER BY ("host.name", "message", "message")`,
 			`SELECT "host.name", "message", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY ("host.name", "message") ` +
 				`ORDER BY ("host.name", "message")`,
 			`SELECT "host.name", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY ("host.name") ` +
 				`ORDER BY ("host.name")`,
 		},
@@ -5771,12 +5771,12 @@ var AggregationTests = []AggregationTestCase{
 				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))`,
 			`SELECT "host.name", "FlightDelayMin", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT "message" iLIKE '%US%')) ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY ("host.name", "FlightDelayMin") ` +
 				`ORDER BY ("host.name", "FlightDelayMin")`,
 			`SELECT "host.name", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT "message" iLIKE '%US%')) ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY ("host.name") ` +
 				`ORDER BY ("host.name")`,
 		},
@@ -5876,15 +5876,15 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%'`,
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))`,
 			`SELECT "host.name", "FlightDelayMin", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY ("host.name", "FlightDelayMin") ` +
 				`ORDER BY ("host.name", "FlightDelayMin")`,
 			`SELECT "host.name", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY ("host.name") ` +
 				`ORDER BY ("host.name")`,
 		},
@@ -5971,15 +5971,15 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%'`,
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))`,
 			`SELECT "host.name", "FlightDelayMin", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY ("host.name", "FlightDelayMin") ` +
 				`ORDER BY ("host.name", "FlightDelayMin")`,
 			`SELECT "host.name", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY ("host.name") ` +
 				`ORDER BY ("host.name")`,
 		},
