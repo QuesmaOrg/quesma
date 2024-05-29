@@ -168,9 +168,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			query.WhereClause = query.WhereClause + fmt.Sprintf(" AND %s <= %d", model.RowNumberColumnName, metricsAggr.Size)
 		} else {
 
-			// FIXME XXXX
-
-			//query.Fields = append(metricsAggr.FieldNames, metricsAggr.SortBy)
+			query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.TableColumn(metricsAggr.SortBy)})
 			query.SuffixClauses = append(query.SuffixClauses,
 				fmt.Sprintf(`ORDER BY %s %s LIMIT %d`, metricsAggr.SortBy, metricsAggr.Order, metricsAggr.Size))
 		}
