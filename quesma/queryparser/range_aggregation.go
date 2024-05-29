@@ -46,6 +46,7 @@ func (cw *ClickhouseQueryTranslator) parseRangeAggregation(rangePart QueryMap) b
 	}
 	if keyedRaw, exists := rangePart["keyed"]; exists {
 		if keyed, ok := keyedRaw.(bool); ok {
+			// TODO we should not store Quoted field name in the range struct
 			return bucket_aggregations.NewRange(cw.Ctx, strconv.Quote(fieldName), intervals, keyed)
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("keyed is not a bool, but %T, value: %v", keyedRaw, keyedRaw)
@@ -91,9 +92,16 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 	// Range aggregation with subaggregations should be a quite rare case, so I'm leaving that for later.
 	whereBeforeNesting := currentAggr.whereBuilder
 	for _, interval := range Range.Intervals {
+		var fieldName string
+		if f, err := strconv.Unquote(Range.QuotedFieldName); err != nil {
+			logger.Error().Msgf("Unquoting field name in range aggregation failed: %v", err)
+			fieldName = f
+		} else {
+			fieldName = Range.QuotedFieldName
+		}
 		currentAggr.whereBuilder = model.CombineWheres(
 			cw.Ctx, currentAggr.whereBuilder,
-			model.NewSimpleQuery(interval.ToWhereClause(Range.QuotedFieldName), true),
+			model.NewSimpleQuery(interval.ToWhereClause(fieldName), true),
 		)
 		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(interval.String()))
 		aggsCopy, err := deepcopy.Anything(aggs)

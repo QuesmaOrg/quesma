@@ -51,13 +51,13 @@ func (interval Interval) ToSQLSelectQuery(quotedFieldName string) string {
 	return "count(if(" + sql + ", 1, NULL))"
 }
 
-func (interval Interval) ToWhereClause(quotedFieldName string) wc.Statement { // returns a condition for the interval, just like we want it in SQL's WHERE
+func (interval Interval) ToWhereClause(fieldName string) wc.Statement { // returns a condition for the interval, just like we want it in SQL's WHERE
 	var sqlLeft, sqlRight wc.Statement
 	if !interval.IsOpeningBoundInfinite() {
-		sqlLeft = wc.NewInfixOp(wc.NewColumnRef(quotedFieldName), ">=", wc.NewLiteral(strconv.FormatFloat(interval.Begin, 'f', -1, 64)))
+		sqlLeft = wc.NewInfixOp(wc.NewColumnRef(fieldName), ">=", wc.NewLiteral(strconv.FormatFloat(interval.Begin, 'f', -1, 64)))
 	}
 	if !interval.IsClosingBoundInfinite() {
-		sqlRight = wc.NewInfixOp(wc.NewColumnRef(quotedFieldName), "<", wc.NewLiteral(strconv.FormatFloat(interval.End, 'f', -1, 64)))
+		sqlRight = wc.NewInfixOp(wc.NewColumnRef(fieldName), "<", wc.NewLiteral(strconv.FormatFloat(interval.End, 'f', -1, 64)))
 	}
 	switch {
 	case sqlLeft != nil && sqlRight != nil:
@@ -67,7 +67,7 @@ func (interval Interval) ToWhereClause(quotedFieldName string) wc.Statement { //
 	case sqlRight != nil:
 		return sqlRight
 	default:
-		return wc.NewInfixOp(wc.NewColumnRef(quotedFieldName), "IS", wc.NewLiteral("NOT NULL"))
+		return wc.NewInfixOp(wc.NewColumnRef(fieldName), "IS", wc.NewLiteral("NOT NULL"))
 	}
 }
 
