@@ -799,7 +799,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			for _, term := range terms {
 				fieldName := cw.parseFieldField(term, "multi_terms")
 				fields = append(fields, fieldName)
-				currentAggr.Fields = append(currentAggr.Fields, fieldName)
+				currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
 				currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
 			}
 		} else {
@@ -808,6 +808,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.Type = bucket_aggregations.NewMultiTerms(cw.Ctx, fields, size)
 
 		delete(queryMap, "multi_terms")
+		return success, len(fields), len(fields), nil
 	}
 	if rangeRaw, ok := queryMap["range"]; ok {
 		rangeMap, ok := rangeRaw.(QueryMap)

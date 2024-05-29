@@ -172,8 +172,61 @@ var AggregationTests = []testdata.AggregationTestCase{
 			},
 			"start_time_in_millis": 1716834974732
 		}`,
-		ExpectedResults: [][]model.QueryResultRow{},
-		ExpectedSQLs:    []string{},
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(378))}}},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("severity", "artemis"),
+					model.NewQueryResultCol("source", "error"),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", 1716834210000/30000),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("severity", "artemis"),
+					model.NewQueryResultCol("source", "info"),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", 1716834210000/30000),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("severity", "jupiter"),
+					model.NewQueryResultCol("source", "info"),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", 1716834210000/30000),
+					model.NewQueryResultCol("count()", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("severity", "apollo"),
+					model.NewQueryResultCol("source", "info"),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", 1716834270000/30000),
+					model.NewQueryResultCol("count()", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("severity", "cassandra"),
+					model.NewQueryResultCol("source", "debug"),
+					model.NewQueryResultCol("toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)", 1716834270000/30000),
+					model.NewQueryResultCol("count()", 1),
+				}},
+			},
+			{},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z')`,
+			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000), " +
+				`"severity", "source", count() "` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z') ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000), severity, source) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000, severity, source)",
+			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000), count() " +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "@timestamp">=parseDateTime64BestEffort('2024-05-27T11:59:56.627Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-05-27T12:14:56.627Z') ` +
+				"GROUP BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)) " +
+				"ORDER BY (toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000))",
+		},
 	},
 	{ // [1]
 		TestName: "Multi_terms with simple count. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Count of records, Breakdown: @timestamp",
