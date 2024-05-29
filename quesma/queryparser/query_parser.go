@@ -473,11 +473,9 @@ func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) model.SimpleQu
 			cw.AddTokenToHighlight(v)
 			if k == "_index" { // index is a table name, already taken from URI and moved to FROM clause
 				logger.Warn().Msgf("term %s=%v in query body, ignoring in result SQL", k, v)
-				//simpleStat := model.NewSimpleStatement(" 0=0 /* " + strconv.Quote(k) + "=" + sprint(v) + " */ ")
 				whereClause = wc.NewInfixOp(wc.NewLiteral("0"), "=", wc.NewLiteral("0 /* "+k+"="+sprint(v)+" */"))
 				return model.NewSimpleQuery(whereClause, true)
 			}
-			//simpleStat := model.NewSimpleStatement(strconv.Quote(k) + "=" + sprint(v))
 			whereClause = wc.NewInfixOp(wc.NewColumnRef(k), "=", wc.NewLiteral(sprint(v)))
 			return model.NewSimpleQuery(whereClause, true)
 		}
@@ -566,7 +564,6 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 					computedIdMatchingQuery := cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
 					statements = append(statements, computedIdMatchingQuery.WhereClause)
 				} else {
-					//simpleStat := model.NewSimpleStatement(strconv.Quote(fieldName) + " iLIKE " + "'%" + subQuery + "%'")
 					simpleStat := wc.NewInfixOp(wc.NewColumnRef(fieldName), "iLIKE", wc.NewLiteral("'%"+subQuery+"%'"))
 					statements = append(statements, simpleStat)
 				}
@@ -638,7 +635,6 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) model.Si
 	i := 0
 	for _, field := range fields {
 		for _, subQ := range subQueries {
-			//simpleStat := model.NewSimpleStatement(strconv.Quote(field) + " iLIKE '%" + subQ + "%'")
 			simpleStat := wc.NewInfixOp(wc.NewColumnRef(field), "iLIKE", wc.NewLiteral("'%"+subQ+"%'"))
 			sqls[i] = simpleStat
 			i++
@@ -659,13 +655,11 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) model.Simple
 		switch vCasted := v.(type) {
 		case string:
 			cw.AddTokenToHighlight(vCasted)
-			//simpleStat := model.NewSimpleStatement(strconv.Quote(fieldName) + " iLIKE '" + vCasted + "%'")
 			simpleStat := wc.NewInfixOp(wc.NewColumnRef(fieldName), "iLIKE", wc.NewLiteral("'"+vCasted+"%'"))
 			return model.NewSimpleQuery(simpleStat, true)
 		case QueryMap:
 			token := vCasted["value"].(string)
 			cw.AddTokenToHighlight(token)
-			//simpleStat := model.NewSimpleStatement(strconv.Quote(fieldName) + " iLIKE '" + token + "%'")
 			simpleStat := wc.NewInfixOp(wc.NewColumnRef(fieldName), "iLIKE", wc.NewLiteral("'"+token+"%'"))
 			return model.NewSimpleQuery(simpleStat, true)
 		default:
@@ -736,11 +730,6 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) model.S
 
 	// we always call `TranslateToSQL` - Lucene parser returns "false" in case of invalid query
 	whereStmtFromLucene := lucene.TranslateToSQL(cw.Ctx, query, fields)
-	//simpleStat := model.NewSimpleStatement("")
-	//if whereStmtFromLucene != nil {
-	//	simpleStat = model.NewSimpleStatement(whereStmtFromLucene.Accept(stringRenderer).(string))
-	//}
-	//simpleStat.WhereStatement = whereStmtFromLucene
 	return model.NewSimpleQuery(whereStmtFromLucene, true)
 }
 
@@ -816,7 +805,6 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 				timeFormatFuncName = "toUnixTimestamp64Milli"
 				finalLHS = wc.NewFunction(timeFormatFuncName, wc.NewColumnRef(field))
 			} else {
-				//fieldToPrint = strconv.Quote(field)
 				switch fieldType {
 				case clickhouse.DateTime64, clickhouse.DateTime:
 					if dateTime, ok := v.(string); ok {
@@ -917,10 +905,8 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 
 		switch cw.Table.GetFieldInfo(cw.Ctx, fieldName) {
 		case clickhouse.ExistsAndIsBaseType:
-			//simpleStatement := model.NewSimpleStatement(fieldNameQuoted + " IS NOT NULL")
-			sql = wc.NewInfixOp(wc.NewColumnRef(fieldNameQuoted), "IS", wc.NewLiteral("NOT NULL"))
+			sql = wc.NewInfixOp(wc.NewColumnRef(fieldName), "IS", wc.NewLiteral("NOT NULL"))
 		case clickhouse.ExistsAndIsArray:
-			//statement := model.NewSimpleStatement(fieldNameQuoted + ".size0 = 0")
 			sql = wc.NewInfixOp(wc.NewNestedProperty(
 				*wc.NewColumnRef(fieldNameQuoted),
 				*wc.NewLiteral("size0"),
