@@ -65,8 +65,11 @@ func (cw *ClickhouseQueryTranslator) ClearTokensToHighlight() {
 	cw.tokensToHighlight = []string{}
 }
 
-func (cw *ClickhouseQueryTranslator) highlightHit(hit *model.SearchHit, highlighter model.Highlighter, resultRow model.QueryResultRow) {
+func (cw *ClickhouseQueryTranslator) addAndHighlightHit(hit *model.SearchHit, highlighter model.Highlighter, resultRow model.QueryResultRow) {
 	for _, col := range resultRow.Cols {
+		if col.Value == nil {
+			continue // We don't return empty value
+		}
 		hit.Fields[col.ColName] = []interface{}{col.Value}
 		if highlighter.ShouldHighlight(col.ColName) {
 			// check if we have a string here and if so, highlight it
@@ -101,7 +104,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.
 			Highlight: make(map[string][]string),
 			Sort:      []any{},
 		}
-		cw.highlightHit(&hits[i], highlighter, ResultSet[i])
+		cw.addAndHighlightHit(&hits[i], highlighter, ResultSet[i])
 		hits[i].ID = cw.computeIdForDocument(hits[i], strconv.Itoa(i+1))
 		for _, property := range sortProperties {
 			if val, ok := hits[i].Fields[property]; ok {
@@ -325,7 +328,7 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 			hits[i].Score = 1
 			hits[i].Version = 1
 		}
-		cw.highlightHit(&hits[i], highlighter, ResultSet[i])
+		cw.addAndHighlightHit(&hits[i], highlighter, ResultSet[i])
 		hits[i].ID = cw.computeIdForDocument(hits[i], strconv.Itoa(i+1))
 		for _, property := range sortProperties {
 			if val, ok := hits[i].Fields[property]; ok {
@@ -399,6 +402,20 @@ func (cw *ClickhouseQueryTranslator) finishMakeResponse(query model.Query, Resul
 func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query model.Query,
 	ResultSet []model.QueryResultRow, aggregatorsLevel, selectLevel int) []model.JsonMap {
 
+	if len(ResultSet) == 0 {
+		// We still should preserve `meta` field if it's there.
+		// (we don't preserve it if it's in subaggregations, as we cut them off in case of empty parent aggregation)
+		// Both cases tested with Elasticsearch in proxy mode, and our tests.
+		metaDict := make(model.JsonMap, 0)
+		metaAdded := cw.addMetadataIfNeeded(query, metaDict, aggregatorsLevel)
+		if !metaAdded {
+			return []model.JsonMap{}
+		}
+		return []model.JsonMap{{
+			query.Aggregators[aggregatorsLevel].Name: metaDict,
+		}}
+	}
+
 	// either we finish
 	if aggregatorsLevel == len(query.Aggregators) || (aggregatorsLevel == len(query.Aggregators)-1 && !query.Type.IsBucketAggregation()) {
 		/*
@@ -445,30 +462,40 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 		subResult["buckets"] = bucketsReturnMap
 	}
 
-	desiredLevel := len(query.Aggregators) - 1
-	if _, ok := query.Type.(bucket_aggregations.Filters); ok {
-		desiredLevel = len(query.Aggregators) - 2
-	}
-	if aggregatorsLevel == desiredLevel && query.Metadata != nil {
-		subResult["meta"] = query.Metadata
-	}
+	_ = cw.addMetadataIfNeeded(query, subResult, aggregatorsLevel)
 
 	result[query.Aggregators[aggregatorsLevel].Name] = subResult
 	return []model.JsonMap{result}
 }
 
+// addMetadataIfNeeded adds metadata to the `result` dictionary, if needed.
+func (cw *ClickhouseQueryTranslator) addMetadataIfNeeded(query model.Query, result model.JsonMap, aggregatorsLevel int) (added bool) {
+	if query.Metadata == nil {
+		return false
+	}
+
+	desiredLevel := len(query.Aggregators) - 1
+	if _, ok := query.Type.(bucket_aggregations.Filters); ok {
+		desiredLevel = len(query.Aggregators) - 2
+	}
+	if aggregatorsLevel == desiredLevel {
+		result["meta"] = query.Metadata
+		return true
+	}
+	return false
+}
+
 func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []model.Query, ResultSets [][]model.QueryResultRow) model.JsonMap {
-	const aggregation_start_index = 1
 	aggregations := model.JsonMap{}
-	if len(queries) <= aggregation_start_index {
+	if len(queries) == 0 {
 		return aggregations
 	}
 	cw.postprocessPipelineAggregations(queries, ResultSets)
-	for i, query := range queries[aggregation_start_index:] {
-		if len(ResultSets) <= i+1 {
+	for i, query := range queries {
+		if i >= len(ResultSets) {
 			continue
 		}
-		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i+1], 0, 0)
+		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
 		if len(aggregation) != 0 {
 			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0]) // result of root node is always a single map, thus [0]
 		}
@@ -488,12 +515,15 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 
 	var totalCount uint64
 	if len(ResultSets) > 0 && len(ResultSets[0]) > 0 && len(ResultSets[0][0].Cols) > 0 {
+		// TODO: Eventually we should detect whether first column is actual hits
 		// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
 		if val, ok := ResultSets[0][0].Cols[0].Value.(uint64); ok {
 			totalCount = val
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets[0])
 		}
+		queries = queries[1:]
+		ResultSets = ResultSets[1:]
 	} else {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets)
 		totalCount = 0
@@ -562,11 +592,10 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []m
 
 func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause string) *model.Query {
 	return &model.Query{
-		Columns:         []model.SelectColumn{{Expression: aexp.Count()}},
-		NonSchemaFields: []string{"count()"},
-		WhereClause:     whereClause,
-		FromClause:      cw.Table.FullTableName(),
-		CanParse:        true,
+		Columns:     []model.SelectColumn{{Expression: aexp.Count()}},
+		WhereClause: whereClause,
+		FromClause:  cw.Table.FullTableName(),
+		CanParse:    true,
 	}
 }
 
@@ -580,14 +609,12 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, whereClau
 		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(limit))
 	}
 	return &model.Query{
-		IsDistinct:      true,
-		Fields:          []string{fieldName},
-		Columns:         []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
-		NonSchemaFields: []string{},
-		WhereClause:     whereClause,
-		SuffixClauses:   suffixClauses,
-		FromClause:      cw.Table.FullTableName(),
-		CanParse:        true,
+		IsDistinct:    true,
+		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		WhereClause:   whereClause,
+		SuffixClauses: suffixClauses,
+		FromClause:    cw.Table.FullTableName(),
+		CanParse:      true,
 	}
 }
 
@@ -603,33 +630,28 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(limit))
 	}
 	return &model.Query{
-		Fields:          []string{fieldName},
-		Columns:         []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
-		NonSchemaFields: []string{},
-		WhereClause:     whereClause,
-		SuffixClauses:   suffixClauses,
-		FromClause:      cw.Table.FullTableName(),
-		CanParse:        true,
+		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		WhereClause:   whereClause,
+		SuffixClauses: suffixClauses,
+		FromClause:    cw.Table.FullTableName(),
+		CanParse:      true,
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, query model.SimpleQuery, limitTodo int) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, whereClause string) *model.Query {
 	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
 	innerQuery := model.Query{
-		Fields:        []string{fieldName},
+		WhereClause:   whereClause,
 		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
-		WhereClause:   query.Sql.Stmt,
 		SuffixClauses: []string{"LIMIT " + facetsSampleSize},
 		FromClause:    cw.Table.FullTableName(),
 		CanParse:      true,
 	}
 	return &model.Query{
-		Fields:          []string{fieldName},
-		Columns:         []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
-		NonSchemaFields: []string{"count()"},
-		SuffixClauses:   suffixClauses,
-		FromClause:      "(" + innerQuery.String() + ")",
-		CanParse:        true,
+		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
+		SuffixClauses: suffixClauses,
+		FromClause:    "(" + innerQuery.String() + ")",
+		CanParse:      true,
 	}
 }
 
@@ -644,7 +666,6 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName, whe
 	}
 	suffixClauses := []string{orderBy, "LIMIT 1"}
 	return &model.Query{
-		Fields:        []string{timestampFieldName},
 		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(timestampFieldName)}},
 		WhereClause:   whereClause,
 		SuffixClauses: suffixClauses,

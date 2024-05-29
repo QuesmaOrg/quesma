@@ -32,6 +32,10 @@ func (e *EndUserError) Error() string {
 	}
 }
 
+func (e *EndUserError) ErrorType() *ErrorType {
+	return e.errorType
+}
+
 // Reason returns message logged in to reason field
 func (e *EndUserError) Reason() string {
 	return e.errorType.Message
@@ -82,12 +86,17 @@ func errorType(number int, message string) *ErrorType {
 // Q3XXX - Errors related to external storages like Clickhouse, Elasticsearch, etc.
 // Q4XXX - Errors related to other internal components telemetry, etc.
 
+var ErrExpectedJSON = errorType(1001, "Invalid request body. We're expecting JSON here.")
+var ErrExpectedNDJSON = errorType(1002, "Invalid request body. We're expecting NDJSON here.")
+
 var ErrSearchCondition = errorType(2001, "Not supported search condition.")
 var ErrNoSuchTable = errorType(2002, "Missing table.")
 
 var ErrDatabaseTableNotFound = errorType(3001, "Table not found in database.")
 var ErrDatabaseFieldNotFound = errorType(3002, "Field not found in database.")
-var ErrDatabaseConnectionError = errorType(3003, "Error connecting to database.")
+var ErrDatabaseConnectionError = errorType(3003, "Error connecting to the database. Check your connection settings.")
 var ErrDatabaseQueryError = errorType(3004, "Error executing query in database.")
-var ErrDatabaseAuthenticationError = errorType(3005, "Error authenticating with database.")
+var ErrDatabaseAuthenticationError = errorType(3005, "Error authenticating with database. Check your connection settings.")
 var ErrDatabaseOtherError = errorType(3006, "Unspecified database error.")
+var ErrDatabaseInvalidProtocol = errorType(3007, "Invalid database protocol. Check your connection settings. ")
+var ErrDatabaseTLS = errorType(3008, "Error establishing TLS connection with database. Check your connection settings.")

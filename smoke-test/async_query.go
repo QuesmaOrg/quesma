@@ -227,9 +227,14 @@ func checkTypeExpectation(expectedType string, path string, response map[string]
 	}
 	valueType := reflect.TypeOf(value)
 
+	if valueType == nil {
+		fmt.Println("Expected a value, got nil. Path", path)
+		return false
+	}
+
 	// Check if the type is int
 	if valueType.Kind().String() != expectedType {
-		fmt.Printf("Expected %s, got %s\n", expectedType, valueType.Kind().String())
+		fmt.Printf("Expected %s, got %s. Path: %s\n", expectedType, valueType.Kind().String(), path)
 		return false
 	}
 	return true

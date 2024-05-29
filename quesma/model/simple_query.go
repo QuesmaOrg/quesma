@@ -22,8 +22,8 @@ func NewSimpleQueryWithFieldName(sql Statement, canParse bool, fieldName string)
 }
 
 type Statement struct {
-	// deprecated - we're moving to the new WhereStatement which should also remove the need for IsCompound and FieldName
-	Stmt           string                 // Old, clunky and soon to be deprecated version
+	// deprecated
+	Stmt           string                 // We're moving to the new WhereStatement which should also remove the need for IsCompound and FieldName
 	WhereStatement where_clause.Statement // New, better and bold version
 	IsCompound     bool                   // "a" -> not compound, "a AND b" -> compound. Used to not make unnecessary brackets (not always, but usually)
 	FieldName      string
