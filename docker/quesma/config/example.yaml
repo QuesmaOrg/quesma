@@ -15,35 +15,22 @@ logging:
   level: "info"
   remoteUrl: "https://api.quesma.com/phone-home"
   disableFileLogging: false
+
 indexes:
   logs-generic-default:
     enabled: true
-    static-schema:
+    primary-id: ["timestamp", "request_id"]
+    mappings-overrides:
       fields:
         "timestamp":
           type: "alias"
           aliased-field: "@timestamp"
         "@timestamp":
           type: "date"
-          primary-key: true
         "message":
           type: "text"
-        "service":
-          type: "keyword"
-        "severity":
-          type: "keyword"
-        "source":
-          type: "keyword"
-        "service.name":
-          type: "keyword"
-        "host.name":
-          type: "keyword"
         "data_stream.dataset":
-          type: "keyword"
-        "data_stream.type":
-          type: "keyword"
-        "data_stream.namespace":
-          type: "keyword"
+          column: "data_stream_dataset"
       ignored:
         - "foobar17"
       unknown-fields:

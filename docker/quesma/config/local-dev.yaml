@@ -31,6 +31,14 @@ indexes:
   logs-generic-default:
     enabled: true
     fullTextFields: [ "message", "host.name" ]
+    mapping-overrides:
+      fields:
+        "client_ip":
+          type: "ip"
+        "message":
+          type: "text"
+        "host.name":
+          type: "text"
   device_logs:
     enabled: true
     fullTextFields: [ "message" ]
