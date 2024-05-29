@@ -75,12 +75,7 @@ var aggregatableTypes = []string{
 }
 
 func IsAggregatable(typeName string) bool {
-	for _, t := range aggregatableTypes {
-		if t == typeName {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(aggregatableTypes, typeName)
 }
 
 func addNewDefaultFieldCapability(fields map[string]map[string]model.FieldCapability, col *clickhouse.Column, index string) {
