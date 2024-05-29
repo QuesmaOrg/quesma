@@ -466,7 +466,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 
 // tests MakeSearchResponse, in particular if JSON we return is a proper JSON.
 // used to fail before we fixed field quoting.
-func FIXME_TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
+func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: nil, Table: clickhouse.NewEmptyTable("@"), Ctx: context.Background()}
 	const limit = 1000
 	queries := []*model.Query{
@@ -475,13 +475,6 @@ func FIXME_TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 	}
 	for range queries {
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}
-
-		/*
-			for _, field := range query.NonSchemaFields {
-				//	resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field, Value: "not-important"})
-			}
-		*/
-
 		_, err := cw.MakeSearchResponse([]model.QueryResultRow{resultRow}, model.Query{QueryInfo: model.SearchQueryInfo{Typ: model.Normal}, Highlighter: NewEmptyHighlighter()})
 		assert.NoError(t, err)
 	}
@@ -489,7 +482,7 @@ func FIXME_TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 
 // tests MakeAsyncSearchResponse, in particular if JSON we return is a proper JSON.
 // used to fail before we fixed field quoting.
-func FIXME_TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
+func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 	table, _ := clickhouse.NewTable(`CREATE TABLE `+tableName+`
 		( "message" String, "timestamp" DateTime )
 		ENGINE = Memory`,
@@ -505,16 +498,7 @@ func FIXME_TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 	types := []model.SearchQueryType{model.ListAllFields, model.ListByField}
 	for i := range queries {
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}
-		/*
-			for j, field := range query.NonSchemaFields {
-				var value interface{} = "not-important"
-				if j == model.ResultColDocCountIndex {
-					value = uint64(5)
-				}
-				resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field, Value: value})
-			}
 
-		*/
 		_, err := cw.MakeAsyncSearchResponse([]model.QueryResultRow{resultRow}, model.Query{QueryInfo: model.SearchQueryInfo{Typ: types[i]}, Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
 		assert.NoError(t, err)
 	}
