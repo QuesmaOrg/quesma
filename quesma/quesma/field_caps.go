@@ -200,7 +200,11 @@ func isInternalColumn(col *clickhouse.Column) bool {
 }
 
 func handleFieldCaps(ctx context.Context, index string, lm *clickhouse.LogManager) ([]byte, error) {
-	indexes := lm.ResolveIndexes(ctx, index)
+	indexes, err := lm.ResolveIndexes(ctx, index)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(indexes) == 0 {
 		if !elasticsearch.IsIndexPattern(index) {
 			return nil, errIndexNotExists

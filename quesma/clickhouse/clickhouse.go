@@ -135,23 +135,32 @@ func (lm *LogManager) ResolveTableName(index string) (result string) {
 // this method returns all matching indexes
 // empty pattern means all indexes
 // "_all" index name means all indexes
-func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (results []string) {
+func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (results []string, err error) {
+
+	if lm.schemaLoader.ReloadTablesError != nil {
+		return nil, lm.schemaLoader.ReloadTablesError
+	}
+
 	results = make([]string, 0)
 	if strings.Contains(patterns, ",") {
 		for _, pattern := range strings.Split(patterns, ",") {
 			if pattern == elasticsearch.AllIndexesAliasIndexName || pattern == "" {
 				results = lm.schemaLoader.TableDefinitions().Keys()
 				slices.Sort(results)
-				return results
+				return results, nil
 			} else {
-				results = append(results, lm.ResolveIndexes(ctx, pattern)...)
+				indexes, err := lm.ResolveIndexes(ctx, pattern)
+				if err != nil {
+					return nil, err
+				}
+				results = append(results, indexes...)
 			}
 		}
 	} else {
 		if patterns == elasticsearch.AllIndexesAliasIndexName || len(patterns) == 0 {
 			results = lm.schemaLoader.TableDefinitions().Keys()
 			slices.Sort(results)
-			return results
+			return results, nil
 		} else {
 			lm.schemaLoader.TableDefinitions().
 				Range(func(tableName string, v *Table) bool {
@@ -164,7 +173,7 @@ func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (resu
 	}
 
 	slices.Sort(results)
-	return slices.Compact(results)
+	return slices.Compact(results), nil
 }
 
 // updates also Table TODO stop updating table here, find a better solution

@@ -74,7 +74,10 @@ func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id str
 
 // returns -1 when table name could not be resolved
 func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int64, error) {
-	indexes := q.logManager.ResolveIndexes(ctx, indexPattern)
+	indexes, err := q.logManager.ResolveIndexes(ctx, indexPattern)
+	if err != nil {
+		return 0, err
+	}
 	if len(indexes) == 0 {
 		if elasticsearch.IsIndexPattern(indexPattern) {
 			return 0, nil
@@ -217,8 +220,14 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					defer recovery.LogAndHandlePanic(ctx, func(err error) {
 						doneCh <- AsyncSearchWithError{err: err}
 					})
+
 					columnsSlice := [][]string{columns}
-					translatedQueryBody, hitsSlice := q.searchWorker(ctx, queries, columnsSlice, table, doneCh, optAsync)
+					translatedQueryBody, hitsSlice, err := q.searchWorker(ctx, queries, columnsSlice, table, doneCh, optAsync)
+					if err != nil {
+						doneCh <- AsyncSearchWithError{err: err}
+						return
+					}
+
 					if len(hitsSlice) == 0 {
 						logger.ErrorWithCtx(ctx).Msgf("no hits, queryInfo: %d", translatedQueryBody)
 						doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
@@ -236,9 +245,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						doneCh <- AsyncSearchWithError{err: err}
 					})
 					columnsSlice := make([][]string, len(queries))
-					translatedQueryBody, aggregationResults := q.searchWorker(ctx, queries, columnsSlice, table, doneCh, optAsync)
+					translatedQueryBody, aggregationResults, err := q.searchWorker(ctx, queries, columnsSlice, table, doneCh, optAsync)
+
 					searchResponse := queryTranslator.MakeResponseAggregation(queries, aggregationResults)
-					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody}
+					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
 				}()
 			}
 		} else {
@@ -406,7 +416,8 @@ func (q *QueryRunner) searchWorkerCommon(
 	ctx context.Context,
 	queries []model.Query,
 	columns [][]string,
-	table *clickhouse.Table) (translatedQueryBody []byte, hits [][]model.QueryResultRow) {
+	table *clickhouse.Table) (translatedQueryBody []byte, hits [][]model.QueryResultRow, err error) {
+
 	sqls := ""
 	for columnsIndex, query := range queries {
 		if query.NoDBQuery {
@@ -418,7 +429,7 @@ func (q *QueryRunner) searchWorkerCommon(
 		rows, err := q.logManager.ProcessQuery(ctx, table, &query, columns[columnsIndex])
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
-			continue
+			return nil, nil, err
 		}
 		if query.Type != nil {
 			rows = query.Type.PostprocessResults(rows)
@@ -434,7 +445,7 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 	columns [][]string,
 	table *clickhouse.Table,
 	doneCh chan<- AsyncSearchWithError,
-	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
+	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow, err error) {
 	if optAsync != nil {
 		if q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, doneCh) {
 			return
