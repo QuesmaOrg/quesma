@@ -50,12 +50,9 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 	table.applyTableSchema(query)
 
 	rowToScan := make([]interface{}, len(query.Columns))
+	columns := make([]string, 0, len(query.Columns))
 
-	var columns []string
-
-	var count int
-	for _, col := range query.Columns {
-		count = count + 1
+	for count, col := range query.Columns {
 		var colName string
 
 		switch col.Expression.(type) {
