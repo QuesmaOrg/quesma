@@ -302,10 +302,16 @@ func TestHandlingDateTimeFields(t *testing.T) {
 	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())
 
 	for _, fieldName := range []string{dateTimeTimestampField, dateTime64TimestampField, dateTime64OurTimestampField} {
+
 		mock.ExpectQuery(testdata.EscapeBrackets(`SELECT count() FROM "logs-generic-default" WHERE `)).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}))
+
 		mock.ExpectQuery(testdata.EscapeBrackets(expectedSelectStatementRegex[fieldName])).
 			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))
+
+		mock.ExpectQuery(testdata.EscapeBrackets(`SELECT "timestamp", "timestamp64" FROM "logs-generic-default" WHERE`)).
+			WillReturnRows(sqlmock.NewRows([]string{"timestamp", "timestamp64"}))
+
 		// .AddRow(1000, uint64(10)).AddRow(1001, uint64(20))) // here rows should be added if uint64 were supported
 		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
 		response, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(query(fieldName)), defaultAsyncSearchTimeout, true)
