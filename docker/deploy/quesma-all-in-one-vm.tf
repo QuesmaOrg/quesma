@@ -50,7 +50,7 @@ resource "google_compute_instance" "vm_instance" {
 
   name         = "${var.user}-quesma-demo-aio-vm"
   machine_type = "n1-standard-8"
-  zone         = "europe-central2-a"
+  zone         = "asia-northeast2-a"
 
   boot_disk {
     initialize_params {
