@@ -9,7 +9,6 @@ type (
 	// not yet in use
 	SchemaConfiguration struct {
 		Fields                    map[FieldName]FieldConfiguration `koanf:"fields"`
-		Aliases                   map[FieldName]AliasConfiguration `koanf:"aliases"`
 		Ignored                   []string                         `koanf:"ignored"`
 		UnknownPropertiesStrategy UnknownPropertiesConfiguration   `koanf:"unknown-fields"`
 	}
@@ -19,11 +18,8 @@ type (
 		Type         FieldType `koanf:"type"`
 		IsPrimaryKey bool      `koanf:"primary-key"`
 		// target column name, if different than the field name, can point to 'attributes'
-		ColumnName string `koanf:"column-name"`
-	}
-	AliasConfiguration struct {
-		AliasName       FieldName `koanf:"name"`
-		TargetFieldName string    `koanf:"target-field"`
+		ColumnName   string `koanf:"column-name"`
+		AliasedField string `koanf:"aliased-field"`
 	}
 	FieldName                      string
 	FieldType                      string
@@ -58,11 +54,6 @@ func (sc *SchemaConfiguration) String() string {
 	builder.WriteString("Fields:\n")
 	for fieldName, fieldConfig := range sc.Fields {
 		builder.WriteString(fmt.Sprintf("\t%s: %+v\n", fieldName, fieldConfig))
-	}
-
-	builder.WriteString("Aliases:\n")
-	for aliasName, aliasConfig := range sc.Aliases {
-		builder.WriteString(fmt.Sprintf("\t%s:%v\n", aliasName, aliasConfig))
 	}
 
 	builder.WriteString("Ignored:\n")

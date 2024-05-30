@@ -20,6 +20,9 @@ indexes:
     enabled: true
     static-schema:
       fields:
+        "timestamp":
+          type: "alias"
+          aliased-field: "@timestamp"
         "@timestamp":
           type: "date"
           primary-key: true
@@ -41,9 +44,6 @@ indexes:
           type: "keyword"
         "data_stream.namespace":
           type: "keyword"
-      aliases:
-        "timestamp":
-          target-field: "@timestamp"
       ignored:
         - "foobar17"
       unknown-fields:
