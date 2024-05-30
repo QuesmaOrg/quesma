@@ -97,7 +97,6 @@ func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query
 	highlighter = queryparser.NewEmptyHighlighter()
 
 	searchQueryInfo.Typ = model.ListAllFields
-	query.Sql = model.Statement{}
 
 	var eqlQuery string
 
@@ -107,7 +106,6 @@ func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query
 
 	if eqlQuery == "" {
 		query.CanParse = false
-		query.Sql.Stmt = "Empty query"
 		return query, model.NewSearchQueryInfoNone(), highlighter, nil
 	}
 

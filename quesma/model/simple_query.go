@@ -7,20 +7,33 @@ import (
 )
 
 type SimpleQuery struct {
-	Sql        Statement
+	WhereClause where_clause.Statement
+	// deprecated
+	//TODO FIND ALL INSTANCES OF THIS AND REPLACE WITH WHERECLAUSE
+	Sql        Statement // This will be removed as soon as WhereClause is used everywhere
 	CanParse   bool
 	FieldName  string
 	SortFields []SortField
 }
 
-func NewSimpleQuery(sql Statement, canParse bool) SimpleQuery {
-	return SimpleQuery{Sql: sql, CanParse: canParse}
+var asString = where_clause.StringRenderer{}
+
+func (s *SimpleQuery) WhereClauseAsString() string {
+	if s.WhereClause == nil {
+		return ""
+	}
+	return (s.WhereClause).Accept(&asString).(string)
 }
 
-func NewSimpleQueryWithFieldName(sql Statement, canParse bool, fieldName string) SimpleQuery {
-	return SimpleQuery{Sql: sql, CanParse: canParse, FieldName: fieldName}
+func NewSimpleQuery(whereClause where_clause.Statement, canParse bool) SimpleQuery {
+	return SimpleQuery{WhereClause: whereClause, CanParse: canParse}
 }
 
+func NewSimpleQueryWithFieldName(whereClause where_clause.Statement, canParse bool, fieldName string) SimpleQuery {
+	return SimpleQuery{WhereClause: whereClause, CanParse: canParse, FieldName: fieldName}
+}
+
+// deprecated
 type Statement struct {
 	// deprecated
 	Stmt           string                 // We're moving to the new WhereStatement which should also remove the need for IsCompound and FieldName
@@ -29,69 +42,43 @@ type Statement struct {
 	FieldName      string
 }
 
-func NewSimpleStatement(stmt string) Statement {
-	return Statement{Stmt: stmt, IsCompound: false}
-}
-
-func NewCompoundStatement(stmt, fieldName string) Statement {
-	return Statement{Stmt: stmt, IsCompound: true, FieldName: fieldName}
-}
-
-func NewCompoundStatementNoFieldName(stmt string) Statement {
-	return Statement{Stmt: stmt, IsCompound: true}
-}
-
-// Added to the generated SQL where the query is fine, but we're sure no rows will match it
-var AlwaysFalseStatement = NewSimpleStatement("false")
-
-func And(andStmts []Statement) Statement {
+func And(andStmts []where_clause.Statement) where_clause.Statement {
 	return combineStatements(andStmts, "AND")
 }
 
-func Or(orStmts []Statement) Statement {
+func Or(orStmts []where_clause.Statement) where_clause.Statement {
 	return combineStatements(orStmts, "OR")
 }
 
-// sep = "AND" or "OR"
-func combineStatements(stmts []Statement, sep string) Statement {
-	stmts = FilterNonEmpty(stmts)
+// operator = "AND" or "OR"
+func combineStatements(stmtsToCombine []where_clause.Statement, operator string) where_clause.Statement {
+	stmts := FilterOutEmptyStatements(stmtsToCombine)
 	var newWhereStatement where_clause.Statement
-	if len(stmts) > 0 {
-		newWhereStatement = stmts[0].WhereStatement
-		for _, stmt := range stmts[1:] {
-			newWhereStatement = where_clause.NewInfixOp(newWhereStatement, sep, stmt.WhereStatement)
-		}
-	}
 	if len(stmts) > 1 {
-		stmts = quoteWithBracketsIfCompound(stmts)
-		var fieldName string
-		sql := ""
-		for i, stmt := range stmts {
-			sql += stmt.Stmt
-			if i < len(stmts)-1 {
-				sql += " " + sep + " "
-			}
-			if stmt.FieldName != "" {
-				fieldName = stmt.FieldName
-			}
+		newWhereStatement = stmts[0]
+		for _, stmt := range stmts[1:] {
+			newWhereStatement = where_clause.NewInfixOp(newWhereStatement, operator, stmt)
 		}
-		return Statement{
-			WhereStatement: newWhereStatement,
-			Stmt:           sql,
-			IsCompound:     true,
-			FieldName:      fieldName,
-		}
+		return newWhereStatement
 	}
 	if len(stmts) == 1 {
 		return stmts[0]
 	}
-	return NewSimpleStatement("")
+	return nil
 }
 
 func CombineWheres(ctx context.Context, where1, where2 SimpleQuery) SimpleQuery {
+	var combinedWhereClause where_clause.Statement
+	if where1.WhereClause != nil && where2.WhereClause != nil {
+		combinedWhereClause = where_clause.NewInfixOp(where1.WhereClause, "AND", where2.WhereClause)
+	} else if where1.WhereClause != nil {
+		combinedWhereClause = where1.WhereClause
+	} else if where2.WhereClause != nil {
+		combinedWhereClause = where2.WhereClause
+	}
 	combined := SimpleQuery{
-		Sql:      And([]Statement{where1.Sql, where2.Sql}),
-		CanParse: where1.CanParse && where2.CanParse,
+		WhereClause: combinedWhereClause,
+		CanParse:    where1.CanParse && where2.CanParse,
 	}
 	if len(where1.FieldName) > 0 && len(where2.FieldName) > 0 && where1.FieldName != where2.FieldName {
 		logger.WarnWithCtx(ctx).Msgf("combining 2 where clauses with different field names: %s, %s, where queries: %v %v", where1.FieldName, where2.FieldName, where1, where2)
@@ -104,24 +91,12 @@ func CombineWheres(ctx context.Context, where1, where2 SimpleQuery) SimpleQuery 
 	return combined
 }
 
-func FilterNonEmpty(slice []Statement) []Statement {
-	i := 0
-	for _, el := range slice {
-		if len(el.Stmt) > 0 {
-			slice[i] = el
-			i++
+func FilterOutEmptyStatements(stmts []where_clause.Statement) []where_clause.Statement {
+	var nonEmptyStmts []where_clause.Statement
+	for _, stmt := range stmts {
+		if stmt != nil {
+			nonEmptyStmts = append(nonEmptyStmts, stmt)
 		}
 	}
-	return slice[:i]
-}
-
-// used to combine statements with AND/OR
-// [a, b, a AND b] ==> ["a", "b", "(a AND b)"]
-func quoteWithBracketsIfCompound(slice []Statement) []Statement {
-	for i := range slice {
-		if slice[i].IsCompound {
-			slice[i].Stmt = "(" + slice[i].Stmt + ")"
-		}
-	}
-	return slice
+	return nonEmptyStmts
 }
