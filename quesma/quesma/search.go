@@ -199,7 +199,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
 
 		queries, isAggregation, canParse, err := queryTranslator.ParseQuery(body)
-
+		fmt.Printf("%+v\n", queries[0].QueryInfo)
+		for _, qq := range queries {
+			fmt.Println(qq.String())
+		}
 		if canParse {
 			if query_util.IsNonAggregationQuery(queries[0].QueryInfo, body) {
 				if properties := q.findNonexistingProperties(queries[0].QueryInfo, queries[0].SortFields, table); len(properties) > 0 {
@@ -411,6 +414,7 @@ func (q *QueryRunner) searchWorkerCommon(
 			logger.InfoWithCtx(ctx).Msgf("SQL: %s", query.String())
 			sqls += query.String() + "\n"
 		}
+		fmt.Println("q: ", query.String())
 		rows, err := q.logManager.ProcessQuery(ctx, table, &query)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())

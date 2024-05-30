@@ -38,4 +38,6 @@ type UnsupportedQueryTestCase struct {
 type FullSearchTestCase struct {
 	Name             string
 	QueryRequestJson string
+	ExpectedResponse string
+	ExpectedSQLs     []string
 }
