@@ -479,9 +479,10 @@ func (q *QueryRunner) findNonexistingProperties(queryInfo model.SearchQueryInfo,
 	var results = make([]string, 0)
 	var allReferencedFields = make([]string, 0)
 	allReferencedFields = append(allReferencedFields, queryInfo.RequestedFields...)
-	/*for _, field := range sortFields {
-		allReferencedFields = append(allReferencedFields, field.Field)
-	}*/
+
+	// adds fields from 'sortFields'
+	temporarySlightlyHackishQuery := &model.Query{OrderBy: sortFields}
+	allReferencedFields = append(allReferencedFields, temporarySlightlyHackishQuery.OrderByFieldNames()...)
 
 	for _, property := range allReferencedFields {
 		if property != "*" && !table.HasColumn(q.executionCtx, property) {

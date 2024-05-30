@@ -47,6 +47,8 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]model.Query,
 		if query_util.IsNonAggregationQuery(queryInfo, body) {
 			query = cw.makeBasicQuery(simpleQuery, queryInfo, highlighter)
 			switch queryInfo.Typ {
+			// current facets never return hits, so we don't need this info.
+			// Adding that would also interfere with current ORDER BY in facets
 			case model.Facets, model.FacetsNumeric:
 				break
 			default:

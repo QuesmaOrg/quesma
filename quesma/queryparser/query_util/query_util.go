@@ -2,6 +2,7 @@ package query_util
 
 import (
 	"context"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/quesma/types"
@@ -19,10 +20,6 @@ func IsNonAggregationQuery(queryInfo model.SearchQueryInfo, body types.JSON) boo
 }
 
 func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, query model.SimpleQuery, limit int) *model.Query {
-	if limit == 0 {
-		limit = -1 // change somehow
-	}
-
 	var col model.SelectColumn
 	if fieldName == "*" {
 		col = model.SelectColumn{Expression: aexp.Wildcard}
@@ -34,13 +31,12 @@ func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, qu
 		Columns:     []model.SelectColumn{col},
 		WhereClause: query.WhereClauseAsString(),
 		OrderBy:     query.OrderBy,
-		Limit:       limit,
+		Limit:       applySizeLimit(ctx, limit),
 		FromClause:  tableName,
 		CanParse:    true,
 	}
 }
 
-/* TODO ah, need to restore it.
 func applySizeLimit(ctx context.Context, size int) int {
 	// FIXME hard limit here to prevent OOM
 	const quesmaMaxSize = 10000
@@ -50,4 +46,3 @@ func applySizeLimit(ctx context.Context, size int) int {
 	}
 	return size
 }
-*/

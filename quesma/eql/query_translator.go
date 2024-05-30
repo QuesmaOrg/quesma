@@ -39,11 +39,11 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 			hits[i].Score = 1
 			hits[i].Version = 1
 		}
-		for _, property := range query.SortColumnsToProperties() {
-			if val, ok := hits[i].Fields[property]; ok {
+		for _, fieldName := range query.OrderByFieldNames() {
+			if val, ok := hits[i].Fields[fieldName]; ok {
 				hits[i].Sort = append(hits[i].Sort, elasticsearch.FormatSortValue(val[0]))
 			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("property %s not found in fields", property)
+				logger.WarnWithCtx(cw.Ctx).Msgf("field %s not found in fields", fieldName)
 			}
 		}
 	}

@@ -127,7 +127,7 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryR
 	case model.Facets, model.FacetsNumeric:
 		return cw.makeSearchResponseFacets(ResultSet, query.QueryInfo.Typ), nil
 	case model.ListByField, model.ListAllFields, model.Normal:
-		return cw.makeSearchResponseList(ResultSet, query.QueryInfo.Typ, query.Highlighter, query.SortColumnsToProperties()), nil
+		return cw.makeSearchResponseList(ResultSet, query.QueryInfo.Typ, query.Highlighter, query.OrderByFieldNames()), nil
 	default:
 		return nil, fmt.Errorf("unknown SearchQueryType: %v", query.QueryInfo.Typ)
 	}
@@ -277,7 +277,7 @@ func (cw *ClickhouseQueryTranslator) computeIdForDocument(doc model.SearchHit, d
 	return pseudoUniqueId
 }
 
-func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter, sortProperties []string) *model.SearchResp {
+func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter, sortFieldNames []string) *model.SearchResp {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
 		hits[i].Fields = make(map[string][]interface{})
@@ -292,11 +292,11 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 		}
 		cw.addAndHighlightHit(&hits[i], highlighter, ResultSet[i])
 		hits[i].ID = cw.computeIdForDocument(hits[i], strconv.Itoa(i+1))
-		for _, property := range sortProperties {
-			if val, ok := hits[i].Fields[property]; ok {
+		for _, fieldName := range sortFieldNames {
+			if val, ok := hits[i].Fields[fieldName]; ok {
 				hits[i].Sort = append(hits[i].Sort, elasticsearch.FormatSortValue(val[0]))
 			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("property %s not found in fields", property)
+				logger.WarnWithCtx(cw.Ctx).Msgf("field %s not found in fields", fieldName)
 			}
 		}
 	}
@@ -469,7 +469,7 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 	hits := []model.SearchHit{}
 	// Process hits as last aggregation
 	if len(queries) > 0 && len(ResultSets) > 0 && queries[len(queries)-1].IsWildcard() {
-		response := cw.makeSearchResponseList(ResultSets[len(ResultSets)-1], model.Normal, queries[len(queries)-1].Highlighter, queries[len(queries)-1].SortColumnsToProperties())
+		response := cw.makeSearchResponseList(ResultSets[len(ResultSets)-1], model.Normal, queries[len(queries)-1].Highlighter, queries[len(queries)-1].OrderByFieldNames())
 		hits = response.Hits.Hits
 		queries = queries[:len(queries)-1]
 		ResultSets = ResultSets[:len(ResultSets)-1]
@@ -566,9 +566,6 @@ func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query mod
 }
 
 func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, whereClause string, limit int) *model.Query {
-	if limit <= 0 {
-		limit = -1
-	}
 	return &model.Query{
 		IsDistinct:  true,
 		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
@@ -585,9 +582,6 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 	if len(prefix) > 0 {
 		whereClause = strconv.Quote(fieldName) + " iLIKE '" + prefix + "%'"
 		cw.AddTokenToHighlight(prefix)
-	}
-	if limit <= 0 {
-		limit = -1
 	}
 	return &model.Query{
 		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},

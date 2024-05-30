@@ -2,7 +2,6 @@ package queryparser
 
 import (
 	"context"
-	"github.com/k0kubun/pp"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
@@ -61,7 +60,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 				size = queryInfo.Size
 			}
 			query := cw.BuildNRowsQuery("*", simpleQuery, size)
-			pp.Println(query, tt.WantedQuery)
+
 			assert.Contains(t, tt.WantedQuery, *query)
 		})
 	}
@@ -349,26 +348,26 @@ func Test_parseSortFields(t *testing.T) {
 			sortColumns: []model.SelectColumn{
 				model.NewSortColumn("timestamp", true),
 			},
-		}, /*
-			{
-				name: "map[string]interface{}",
-				sortMap: map[string]interface{}{
-					"timestamp": "desc",
-					"_doc":      "desc",
-				},
-				sortFields: []model.SortField{
-					{Field: "timestamp", Desc: true},
-				},
-			}, {
-				name: "[]map[string]string",
-				sortMap: []any{
-					QueryMap{"@timestamp": "asc"},
-					QueryMap{"_doc": "asc"},
-				},
-				sortFields: []model.SortField{
-					{Field: "@timestamp", Desc: false},
-				},
-			},*/
+		},
+		{
+			name: "map[string]interface{}",
+			sortMap: map[string]interface{}{
+				"timestamp": "desc",
+				"_doc":      "desc",
+			},
+			sortColumns: []model.SelectColumn{
+				model.NewSortColumn("timestamp", true),
+			},
+		}, {
+			name: "[]map[string]string",
+			sortMap: []any{
+				QueryMap{"@timestamp": "asc"},
+				QueryMap{"_doc": "asc"},
+			},
+			sortColumns: []model.SelectColumn{
+				model.NewSortColumn("@timestamp", false),
+			},
+		},
 	}
 	table, _ := clickhouse.NewTable(`CREATE TABLE `+tableName+`
 		( "@timestamp" DateTime64(3, 'UTC'), "service.name" String, "no_order_field" String, "_table_field_with_underscore" Int64 )

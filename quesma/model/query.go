@@ -12,7 +12,9 @@ import (
 
 const (
 	RowNumberColumnName = "row_number"
-	noLimit             = -1
+	noLimit             = 0
+	Desc                = "DESC"
+	Asc                 = "ASC"
 )
 
 type (
@@ -40,6 +42,7 @@ type (
 		Aggregators []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
 		Type        QueryType
 		SubSelect   string
+
 		// dictionary to add as 'meta' field in the response.
 		// WARNING: it's probably not passed everywhere where it's needed, just in one place.
 		// But it works for the test + our dashboards, so let's fix it later if necessary.
@@ -71,21 +74,21 @@ type (
 func NewSortColumn(field string, desc bool) SelectColumn {
 	var order string
 	if desc {
-		order = "DESC"
+		order = Desc
 	} else {
-		order = "ASC"
+		order = Asc
 	}
-	return SelectColumn{Expression: &aexp.CompositeExp{Expressions: []aexp.AExp{aexp.TableColumn(field), aexp.StringExp{Value: order}}}}
+	return SelectColumn{Expression: aexp.NewComposite(aexp.TableColumn(field), aexp.String(order))}
 }
 
 func NewSortByCountColumn(desc bool) SelectColumn {
 	var order string
 	if desc {
-		order = "DESC"
+		order = Desc
 	} else {
-		order = "ASC"
+		order = Asc
 	}
-	return SelectColumn{Expression: &aexp.CompositeExp{Expressions: []aexp.AExp{aexp.Count(), aexp.StringExp{Value: order}}}}
+	return SelectColumn{Expression: aexp.NewComposite(aexp.Count(), aexp.String(order))}
 }
 
 func (c SelectColumn) SQL() string {
@@ -165,7 +168,6 @@ func (q *Query) String(ctx context.Context) string {
 		if col.Expression == nil {
 			logger.WarnWithCtx(ctx).Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
 		} else {
-			fmt.Println("DUPA", col.SQL())
 			orderBy = append(orderBy, col.SQL())
 		}
 	}
@@ -174,7 +176,7 @@ func (q *Query) String(ctx context.Context) string {
 		sb.WriteString(strings.Join(orderBy, ", "))
 	}
 
-	if q.Limit != noLimit && q.Limit != 0 {
+	if q.Limit != noLimit {
 		sb.WriteString(fmt.Sprintf(" LIMIT %d", q.Limit))
 	}
 
@@ -233,7 +235,7 @@ func (q *Query) StringFromColumnsOld(ctx context.Context, colNames []string) str
 		sb.WriteString(strings.Join(orderBy, ", "))
 	}
 
-	if q.Limit != noLimit && q.Limit != 0 {
+	if q.Limit != noLimit {
 		sb.WriteString(fmt.Sprintf(" LIMIT %d", q.Limit))
 	}
 
@@ -269,8 +271,11 @@ func (q *Query) TrimKeywordFromFields() {
 
 }
 
-func (q *Query) SortColumnsToProperties() []string {
-	properties := make([]string, 0)
+// somewhat hacky, can be improved
+// only returns Order By columns, which are "tableColumn ASC/DESC",
+// won't return complex ones, like e.g. toInt(int_field / 5).
+// but it was like that before the refactor
+func (q *Query) OrderByFieldNames() (fieldNames []string) {
 	for _, col := range q.OrderBy {
 		compositeExp, ok := col.Expression.(*aexp.CompositeExp)
 		if !ok {
@@ -280,7 +285,7 @@ func (q *Query) SortColumnsToProperties() []string {
 			continue
 		}
 		orderExp, ok := compositeExp.Expressions[1].(aexp.StringExp)
-		if !ok || (orderExp.Value != "ASC" && orderExp.Value != "DESC") {
+		if !ok || (orderExp.Value != Asc && orderExp.Value != Desc) {
 			continue
 		}
 
@@ -289,9 +294,9 @@ func (q *Query) SortColumnsToProperties() []string {
 			continue
 		}
 
-		properties = append(properties, tableColExp.ColumnName)
+		fieldNames = append(fieldNames, tableColExp.ColumnName)
 	}
-	return properties
+	return fieldNames
 }
 
 // Name returns the name of this aggregation (specifically, the last aggregator)

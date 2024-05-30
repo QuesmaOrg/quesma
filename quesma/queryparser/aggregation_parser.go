@@ -478,7 +478,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		if len(currentAggr.OrderBy) >= groupByFieldsAddedCount {
 			currentAggr.OrderBy = currentAggr.GroupBy[:len(currentAggr.OrderBy)-groupByFieldsAddedCount]
 		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("groupByFieldsAddecCount > currentAggr.GroupByFields length -> should be impossible")
+			logger.ErrorWithCtx(cw.Ctx).Msgf("groupByFieldsAddecCount > currentAggr.OrderBy length -> should be impossible")
 		}
 	}
 	currentAggr.Type = queryTypeBeforeNesting
@@ -699,7 +699,6 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			isEmptyGroupBy := len(currentAggr.GroupBy) == 0
 
 			currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: aexp.TableColumn(cw.parseFieldField(terms, termsType))})
-
 			currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.TableColumn(cw.parseFieldField(terms, termsType))})
 
 			orderByAdded := false
