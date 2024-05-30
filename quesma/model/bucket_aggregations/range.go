@@ -6,6 +6,7 @@ import (
 	"math"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	wc "mitmproxy/quesma/queryparser/where_clause"
 	"strconv"
 	"strings"
 )
@@ -50,24 +51,23 @@ func (interval Interval) ToSQLSelectQuery(quotedFieldName string) string {
 	return "count(if(" + sql + ", 1, NULL))"
 }
 
-// ToWhereClause returns a condition for the interval, just like we want it in SQL's WHERE
-func (interval Interval) ToWhereClause(quotedFieldName string) string {
-	var sqlLeft, sqlRight string
+func (interval Interval) ToWhereClause(fieldName string) wc.Statement { // returns a condition for the interval, just like we want it in SQL's WHERE
+	var sqlLeft, sqlRight wc.Statement
 	if !interval.IsOpeningBoundInfinite() {
-		sqlLeft = quotedFieldName + ">=" + strconv.FormatFloat(interval.Begin, 'f', -1, 64)
+		sqlLeft = wc.NewInfixOp(wc.NewColumnRef(fieldName), ">=", wc.NewLiteral(strconv.FormatFloat(interval.Begin, 'f', -1, 64)))
 	}
 	if !interval.IsClosingBoundInfinite() {
-		sqlRight = quotedFieldName + "<" + strconv.FormatFloat(interval.End, 'f', -1, 64)
+		sqlRight = wc.NewInfixOp(wc.NewColumnRef(fieldName), "<", wc.NewLiteral(strconv.FormatFloat(interval.End, 'f', -1, 64)))
 	}
 	switch {
-	case sqlLeft != "" && sqlRight != "":
-		return sqlLeft + " AND " + sqlRight
-	case sqlLeft != "":
+	case sqlLeft != nil && sqlRight != nil:
+		return wc.NewInfixOp(sqlLeft, "AND", sqlRight)
+	case sqlLeft != nil:
 		return sqlLeft
-	case sqlRight != "":
+	case sqlRight != nil:
 		return sqlRight
 	default:
-		return quotedFieldName + " IS NOT NULL"
+		return wc.NewInfixOp(wc.NewColumnRef(fieldName), "IS", wc.NewLiteral("NOT NULL"))
 	}
 }
 

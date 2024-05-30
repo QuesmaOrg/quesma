@@ -18,8 +18,7 @@ import (
 // 2. ClickhouseEQLQueryTranslator (implements only a subset of methods)
 
 type IQueryTranslator interface {
-	ParseQuery(body types.JSON) ([]model.Query, []string, bool, bool, error)
-
+	ParseQuery(body types.JSON) ([]model.Query, bool, bool, error)
 	MakeSearchResponse(ResultSet []model.QueryResultRow, query model.Query) (*model.SearchResp, error)
 	MakeResponseAggregation(aggregations []model.Query, aggregationResults [][]model.QueryResultRow) *model.SearchResp
 }

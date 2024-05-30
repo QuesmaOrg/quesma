@@ -6,7 +6,6 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/queryparser/aexp"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -24,26 +23,23 @@ type (
 	Query struct {
 		IsDistinct bool // true <=> query is SELECT DISTINCT
 
-		// This is the future.
-		Columns     []SelectColumn // Columns to select, including aliases
-		GroupBy     []SelectColumn // if not empty, we do GROUP BY GroupBy...
-		WhereClause string         // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
+		// This is SELECT query. These fields should be extracted to separate struct.
+		Columns       []SelectColumn // Columns to select, including aliases
+		FromClause    string         // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
+		WhereClause   string         // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
+		GroupBy       []SelectColumn // if not empty, we do GROUP BY GroupBy...
+		SuffixClauses []string       // ORDER BY, etc.
 
-		// TO BE REMOVED
-		Fields          []string // Fields in 'SELECT Fields FROM ...'
-		NonSchemaFields []string // Fields that are not in schema, but are in 'SELECT ...', e.g. count()
+		CanParse    bool // true <=> query is valid
+		QueryInfo   SearchQueryInfo
+		Highlighter Highlighter
+		NoDBQuery   bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
+		Parent      string       // parent aggregation name, used in some pipeline aggregations
+		Aggregators []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
+		Type        QueryType
+		SortFields  SortFields // fields to sort by
+		SubSelect   string
 
-		SuffixClauses []string // ORDER BY, etc.
-		FromClause    string   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
-		CanParse      bool     // true <=> query is valid
-		QueryInfo     SearchQueryInfo
-		Highlighter   Highlighter
-		NoDBQuery     bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
-		Parent        string       // parent aggregation name, used in some pipeline aggregations
-		Aggregators   []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
-		Type          QueryType
-		SortFields    SortFields // fields to sort by
-		SubSelect     string
 		// dictionary to add as 'meta' field in the response.
 		// WARNING: it's probably not passed everywhere where it's needed, just in one place.
 		// But it works for the test + our dashboards, so let's fix it later if necessary.
@@ -89,6 +85,14 @@ func (c SelectColumn) SQL() string {
 		return exprAsString
 	}
 
+	// if alias is the same as column name, we don't need to add it
+	switch exp := c.Expression.(type) {
+	case aexp.TableColumnExp:
+		if exp.ColumnName == c.Alias {
+			return exprAsString
+		}
+	}
+
 	return fmt.Sprintf("%s AS \"%s\"", exprAsString, c.Alias)
 }
 
@@ -107,30 +111,8 @@ func (sf SortFields) Properties() []string {
 var NoMetadataField JsonMap = nil
 
 // returns string with SQL query
-func (q *Query) String(ctx context.Context) string {
-	return q.StringFromColumns(ctx, q.Fields)
-}
+func (q *Query) String() string {
 
-func (q *Query) StringFromColumns(ctx context.Context, colNames []string) string {
-
-	// render based on Field and NonSchemaFields
-	oldSQL := q.StringFromColumnsOld(ctx, colNames)
-
-	// render based on Columns
-	newSQL := q.StringFromColumnsNew(ctx, colNames)
-
-	if oldSQL != newSQL {
-		fmt.Printf("Query rendered SQL mismatch:\n")
-		fmt.Printf("OLD: %s\nNEW: %s\n", oldSQL, newSQL)
-	}
-
-	// we return old SQL for now
-	return oldSQL
-}
-
-// returns string with SQL query
-// colNames - list of columns (schema fields) for SELECT
-func (q *Query) StringFromColumnsNew(ctx context.Context, colNames []string) string {
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	if q.IsDistinct {
@@ -139,26 +121,12 @@ func (q *Query) StringFromColumnsNew(ctx context.Context, colNames []string) str
 
 	columns := make([]string, 0)
 
-	if len(q.Columns) == 1 && q.Columns[0].Expression == aexp.Wildcard && len(colNames) > 0 {
-
-		for _, col := range colNames {
-
-			if col == "*" || col == EmptyFieldSelection {
-				columns = append(columns, SelectColumn{Expression: aexp.Wildcard}.SQL())
-			} else {
-				columns = append(columns, SelectColumn{Expression: aexp.TableColumn(col)}.SQL())
-			}
-		}
-
-		//columns = append(columns, "*")
-	} else {
-		for _, col := range q.Columns {
-			if col.Expression == nil {
-				// this is paraonoid check, it should never happen
-				panic("SelectColumn expression is nil")
-			} else {
-				columns = append(columns, col.SQL())
-			}
+	for _, col := range q.Columns {
+		if col.Expression == nil {
+			// this is paraonoid check, it should never happen
+			panic("SelectColumn expression is nil")
+		} else {
+			columns = append(columns, col.SQL())
 		}
 	}
 
@@ -175,7 +143,7 @@ func (q *Query) StringFromColumnsNew(ctx context.Context, colNames []string) str
 	groupBy := make([]string, 0, len(q.GroupBy))
 	for _, col := range q.GroupBy {
 		if col.Expression == nil {
-			logger.WarnWithCtx(ctx).Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
+			logger.Warn().Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
 		} else {
 			groupBy = append(groupBy, col.SQL())
 		}
@@ -183,57 +151,7 @@ func (q *Query) StringFromColumnsNew(ctx context.Context, colNames []string) str
 	if len(groupBy) > 0 {
 		sb.WriteString(" GROUP BY ")
 		sb.WriteString(strings.Join(groupBy, ", "))
-	}
 
-	if len(q.SuffixClauses) > 0 {
-		sb.WriteString(" " + strings.Join(q.SuffixClauses, " "))
-	}
-	return sb.String()
-}
-
-// returns string with SQL query
-// colNames - list of columns (schema fields) for SELECT
-func (q *Query) StringFromColumnsOld(ctx context.Context, colNames []string) string {
-	var sb strings.Builder
-	sb.WriteString("SELECT ")
-	if q.IsDistinct {
-		sb.WriteString("DISTINCT ")
-	}
-
-	for i, field := range colNames {
-		if field == "*" || field == EmptyFieldSelection {
-			sb.WriteString(field)
-		} else {
-			sb.WriteString(strconv.Quote(field))
-		}
-		if i < len(colNames)-1 || len(q.NonSchemaFields) > 0 {
-			sb.WriteString(", ")
-		}
-	}
-	for i, field := range q.NonSchemaFields {
-		sb.WriteString(field)
-		if i < len(q.NonSchemaFields)-1 {
-			sb.WriteString(", ")
-		}
-	}
-
-	where := " WHERE "
-	if len(q.WhereClause) == 0 {
-		where = ""
-	}
-	sb.WriteString(" FROM " + q.FromClause + where + q.WhereClause)
-
-	groupBy := make([]string, 0, len(q.GroupBy))
-	for _, col := range q.GroupBy {
-		if col.Expression == nil {
-			logger.WarnWithCtx(ctx).Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
-		} else {
-			groupBy = append(groupBy, col.SQL())
-		}
-	}
-	if len(groupBy) > 0 {
-		sb.WriteString(" GROUP BY ")
-		sb.WriteString(strings.Join(groupBy, ", "))
 		if len(q.SuffixClauses) == 0 {
 			sb.WriteString(" ORDER BY ")
 			sb.WriteString(strings.Join(groupBy, ", "))
@@ -265,33 +183,13 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 	q.Columns = make([]SelectColumn, len(qwa.Columns))
 	copy(q.Columns, qwa.Columns)
 
-	q.Fields = make([]string, len(qwa.Fields))
-	copy(q.Fields, qwa.Fields)
-	q.NonSchemaFields = make([]string, len(qwa.NonSchemaFields))
-	copy(q.NonSchemaFields, qwa.NonSchemaFields)
-
 	q.Aggregators = make([]Aggregator, len(qwa.Aggregators))
 	copy(q.Aggregators, qwa.Aggregators)
 }
 
 // TrimKeywordFromFields trims .keyword from fields and group by fields
 // In future probably handle it in a better way
-func (q *Query) TrimKeywordFromFields(ctx context.Context) {
-
-	for i := range q.Fields {
-		if strings.HasSuffix(q.Fields[i], `.keyword"`) {
-			logger.WarnWithCtx(ctx).Msgf("trimming .keyword from field %s", q.Fields[i])
-			q.Fields[i] = strings.TrimSuffix(q.Fields[i], `.keyword"`)
-			q.Fields[i] += `"`
-		}
-	}
-	for i := range q.NonSchemaFields {
-		if strings.HasSuffix(q.NonSchemaFields[i], `.keyword"`) {
-			logger.WarnWithCtx(ctx).Msgf("trimming .keyword from group by field %s", q.NonSchemaFields[i])
-			q.NonSchemaFields[i] = strings.TrimSuffix(q.NonSchemaFields[i], `.keyword"`)
-			q.NonSchemaFields[i] += `"`
-		}
-	}
+func (q *Query) TrimKeywordFromFields() {
 
 }
 

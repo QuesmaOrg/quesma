@@ -106,14 +106,14 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
 			`SELECT maxOrNull("AvgTicketPrice") FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
 			`SELECT minOrNull("AvgTicketPrice") FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
 		},
 	},
 	{ // [1]
@@ -321,23 +321,23 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')`,
+				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z'))`,
 			`SELECT "OriginCityName", count() FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
-				`AND "FlightDelay" == true ` +
+				`AND "FlightDelay"==true) ` +
+				`GROUP BY "OriginCityName" ` +
+				`ORDER BY "OriginCityName"`,
+			`SELECT "OriginCityName", count() FROM ` + QuotedTableName + ` ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
+				`AND "Cancelled"==true) ` +
 				`GROUP BY "OriginCityName" ` +
 				`ORDER BY "OriginCityName"`,
 			`SELECT "OriginCityName", count() FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
-				`AND "Cancelled" == true ` +
-				`GROUP BY "OriginCityName" ` +
-				`ORDER BY "OriginCityName"`,
-			`SELECT "OriginCityName", count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') ` +
 				`GROUP BY "OriginCityName" ` +
 				`ORDER BY "OriginCityName"`,
 		},
@@ -529,17 +529,17 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
 			`SELECT "FlightDelayType", ` + clickhouse.TimestampGroupBy("timestamp", clickhouse.DateTime64, 3*time.Hour) + `, count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
 				`GROUP BY "FlightDelayType", ` + clickhouse.TimestampGroupBy("timestamp", clickhouse.DateTime64, 3*time.Hour) + ` ` +
 				`ORDER BY "FlightDelayType", ` + clickhouse.TimestampGroupBy("timestamp", clickhouse.DateTime64, 3*time.Hour),
 			`SELECT "FlightDelayType", count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
 				`GROUP BY "FlightDelayType" ` +
 				`ORDER BY "FlightDelayType"`,
 		},
@@ -633,8 +633,8 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", 76631.67578125)}}},
 		},
 		[]string{
-			`SELECT count() FROM "` + TableName + `" WHERE "order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')`,
-			`SELECT sumOrNull("taxful_total_price") FROM "` + TableName + `" WHERE "order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')`,
+			`SELECT count() FROM "` + TableName + `" WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z'))`,
+			`SELECT sumOrNull("taxful_total_price") FROM "` + TableName + `" WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z'))`,
 		},
 	},
 	{ // [4]
@@ -748,17 +748,17 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
 			`SELECT "OriginCityName", count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
 				`GROUP BY "OriginCityName" ` +
 				`ORDER BY count() DESC ` +
 				`LIMIT 10`,
 			`SELECT count(DISTINCT "OriginCityName") FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
 		},
 	},
 	{ // [5]
@@ -867,8 +867,8 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", uint64(553))}}},
 		},
 		[]string{
-			`SELECT count() FROM "` + TableName + `" WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
-			`SELECT count() FROM "` + TableName + `" WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) AND "FlightDelay" == true`,
+			`SELECT count() FROM "` + TableName + `" WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
+			`SELECT count() FROM "` + TableName + `" WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) AND "FlightDelay"==true)`,
 		},
 	},
 	{ // [6]
@@ -1020,15 +1020,15 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 351)}}},
 		},
 		[]string{
-			`SELECT count() FROM "` + TableName + `" WHERE "FlightDelay" == true AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))`,
-			`SELECT count() FROM "` + TableName + `" WHERE ("FlightDelay" == true ` +
+			`SELECT count() FROM "` + TableName + `" WHERE ("FlightDelay"==true AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z'))))`,
+			`SELECT count() FROM "` + TableName + `" WHERE (("FlightDelay"==true ` +
 				`AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
 				`OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) ` +
-				`AND ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
-			`SELECT count() FROM "` + TableName + `" WHERE ("FlightDelay" == true ` +
+				`AND ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')))`,
+			`SELECT count() FROM "` + TableName + `" WHERE (("FlightDelay"==true ` +
 				`AND (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
 				`OR ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))) ` +
-				`AND ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z'))`,
+				`AND ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))`,
 		},
 	},
 	{ // [7]
@@ -1475,13 +1475,13 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
-				`AND NOT "FlightDelayMin" == 0`,
+				`AND NOT ("FlightDelayMin"==0))`,
 			`SELECT "FlightDelayMin", count() FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
-				`AND NOT "FlightDelayMin" == 0 ` +
+				`AND NOT ("FlightDelayMin"==0)) ` +
 				`GROUP BY "FlightDelayMin" ` +
 				`ORDER BY "FlightDelayMin"`,
 		},
@@ -1690,19 +1690,19 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "host.name" iLIKE '%prometheus%' ` +
+				`WHERE ("host.name" iLIKE '%prometheus%' ` +
 				`AND ("@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z') ` +
-				`AND "@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z'))`,
+				`AND "@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z')))`,
 			`SELECT "severity", toInt64(toUnixTimestamp64Milli(` + "`@timestamp`" + `)/10800000), count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "host.name" iLIKE '%prometheus%' ` +
+				`WHERE ("host.name" iLIKE '%prometheus%' ` +
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') ` +
-				`AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z')) ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))) ` +
 				`GROUP BY "severity", toInt64(toUnixTimestamp64Milli(` + "`@timestamp`)/10800000)" + ` ` +
 				`ORDER BY "severity", toInt64(toUnixTimestamp64Milli(` + "`@timestamp`)/10800000)",
 			`SELECT "severity", count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "host.name" iLIKE '%prometheus%' ` +
+				`WHERE ("host.name" iLIKE '%prometheus%' ` +
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') ` +
-				`AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z')) ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))) ` +
 				`GROUP BY "severity" ` +
 				`ORDER BY "severity"`,
 		},
@@ -1975,17 +1975,17 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4))}}},
 		},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE "order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')`,
+			`SELECT count() FROM ` + QuotedTableName + ` WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z'))`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), " + `maxOrNull("order_date") AS "windowed_order_date", ` +
 				`maxOrNull("order_date") AS "windowed_order_date" FROM ` +
 				`(SELECT "order_date", "order_date", ROW_NUMBER() OVER ` +
 				"(PARTITION BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
 				`ORDER BY "order_date" asc) AS row_number FROM ` + QuotedTableName + " " +
-				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
-				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250') ` +
-				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
-				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250' AND row_number <= 10 ` +
+				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
+				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250')) ` +
+				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
+				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250') AND row_number <= 10 ` +
 				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
 				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)",
 			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), " + `maxOrNull("taxful_total_price") AS "windowed_taxful_total_price", ` +
@@ -1993,19 +1993,19 @@ var AggregationTests = []AggregationTestCase{
 				`(SELECT "taxful_total_price", "order_date", ROW_NUMBER() OVER ` +
 				"(PARTITION BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
 				`ORDER BY "order_date" asc) AS row_number FROM ` + QuotedTableName + " " +
-				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
-				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250') ` +
-				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
-				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250' AND row_number <= 10 ` +
+				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
+				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250')) ` +
+				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
+				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250') AND row_number <= 10 ` +
 				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
 				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)",
 			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), count() FROM " + QuotedTableName + " " +
-				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
-				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250' ` +
+				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
+				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250') ` +
 				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
 				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)",
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250'`,
+			`SELECT count() FROM ` + QuotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250')`,
 		},
 	},
 	{ // [11], "old" test, also can be found in testdata/requests.go TestAsyncSearch[0]
@@ -2136,23 +2136,23 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
+				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
-				`AND "message" iLIKE '%user%'`,
+				`AND "message" iLIKE '%user%')`,
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
+				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
-				`AND "message" iLIKE '%user%'`,
+				`AND "message" iLIKE '%user%')`,
 			`SELECT "host.name", count() FROM ` + QuotedTableName + ` ` +
-				`WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
+				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
-				`AND "message" iLIKE '%user%' ` +
+				`AND "message" iLIKE '%user%') ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY count() DESC LIMIT 10`,
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE ("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
+				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
-				`AND "message" iLIKE '%user%'`,
+				`AND "message" iLIKE '%user%')`,
 		},
 	},
 	{ // [12], "old" test, also can be found in testdata/requests.go TestAsyncSearch[3]
@@ -2266,13 +2266,13 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" iLIKE '%user%' ` +
+				`WHERE ("message" iLIKE '%user%' ` +
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
-				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))`,
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z')))`,
 			`SELECT ` + timestampGroupByClause + `, count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" iLIKE '%user%' ` +
+				`WHERE ("message" iLIKE '%user%' ` +
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
-				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z')) ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))) ` +
 				`GROUP BY ` + timestampGroupByClause + ` ` +
 				`ORDER BY ` + timestampGroupByClause,
 		},
@@ -2395,16 +2395,16 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') ` +
-				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z')`,
+				`WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z'))`,
 			`SELECT "event.dataset", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/60000), count() " +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z') ` +
+				`WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z')) ` +
 				`GROUP BY "event.dataset", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/60000) " +
 				`ORDER BY "event.dataset", ` + "toInt64(toUnixTimestamp64Milli(`@timestamp`)/60000)",
 			`SELECT "event.dataset", count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') ` +
-				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z') ` +
+				`WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z')) ` +
 				`GROUP BY "event.dataset" ` +
 				`ORDER BY "event.dataset"`,
 		},
@@ -2502,10 +2502,10 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("@timestamp")`, nil)}}},
 		},
 		[]string{
-			`SELECT count() FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%'`,
-			`SELECT avgOrNull("@timestamp") FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%'`,
-			`SELECT minOrNull("@timestamp") FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%'`,
-			`SELECT maxOrNull("@timestamp") FROM "` + TableName + `" WHERE "message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%'`,
+			`SELECT count() FROM "` + TableName + `" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
+			`SELECT avgOrNull("@timestamp") FROM "` + TableName + `" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
+			`SELECT minOrNull("@timestamp") FROM "` + TableName + `" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
+			`SELECT maxOrNull("@timestamp") FROM "` + TableName + `" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
 		},
 	},
 	{ // [15]
@@ -2633,19 +2633,19 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z')`,
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z'))`,
 			`SELECT ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 24*time.Hour) + `, ` +
 				`sumOrNull("taxful_total_price") ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z') ` +
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z')) ` +
 				`GROUP BY ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 24*time.Hour) + ` ` +
 				`ORDER BY ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 24*time.Hour),
 			`SELECT ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 24*time.Hour) + `, count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z') ` +
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z')) ` +
 				`GROUP BY ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 24*time.Hour) + ` ` +
 				`ORDER BY ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 24*time.Hour),
 		},
@@ -2748,11 +2748,11 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z')`,
+				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z'))`,
 			`SELECT "message", count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z') ` +
+				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z')) ` +
 				`GROUP BY "message" ` +
 				`ORDER BY count() DESC LIMIT 3`,
 		},
@@ -2924,27 +2924,27 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "order_date">=parseDateTime64BestEffort('2024-02-22T18:47:34.149Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T18:47:34.149Z')`,
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-22T18:47:34.149Z') ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T18:47:34.149Z'))`,
 			`SELECT ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour) + `, ` +
 				`sumOrNull("taxful_total_price") ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-22T18:47:34.149Z') ` +
+				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T18:47:34.149Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T18:47:34.149Z')) ` +
-				`AND "products.product_name" ILIKE '%watch%' ` +
+				`AND "products.product_name" ILIKE '%watch%') ` +
+				`GROUP BY ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour) + ` ` +
+				`ORDER BY ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour),
+			`SELECT ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour) + `, count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T18:47:34.149Z') ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T18:47:34.149Z')) ` +
+				`AND "products.product_name" ILIKE '%watch%') ` +
 				`GROUP BY ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour) + ` ` +
 				`ORDER BY ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour),
 			`SELECT ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour) + `, count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-22T18:47:34.149Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T18:47:34.149Z')) ` +
-				`AND "products.product_name" ILIKE '%watch%' ` +
-				`GROUP BY ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour) + ` ` +
-				`ORDER BY ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour),
-			`SELECT ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour) + `, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "order_date">=parseDateTime64BestEffort('2024-02-22T18:47:34.149Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T18:47:34.149Z') ` +
 				`GROUP BY ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour) + ` ` +
 				`ORDER BY ` + clickhouse.TimestampGroupBy("order_date", clickhouse.DateTime64, 12*time.Hour),
 		},
@@ -3171,89 +3171,89 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
+				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) ` +
 				`OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))`,
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')))`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), " + `sumOrNull("taxful_total_price") ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
+				`WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) ` +
 				`OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) ` +
 				`AND ("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z'))) ` +
 				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/86400000) " +
 				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)",
 			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), " +
 				`sumOrNull("taxful_total_price") ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
+				`WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) ` +
 				`OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) ` +
 				`AND ("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z'))) ` +
 				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/86400000) " +
 				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)",
 			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), count() " +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
+				`WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) ` +
 				`OR ("order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
 				`AND "order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z'))) ` +
 				`AND ("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z'))) ` +
 				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/86400000) " +
 				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)",
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
+				`WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) ` +
 				`OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) ` +
 				`AND ("order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z') ` +
-				`AND "order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))`,
+				`AND "order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')))`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), " +
 				`sumOrNull("taxful_total_price") ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
+				`WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) ` +
 				`OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) ` +
 				`AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')) ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) ` +
 				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/86400000) " +
 				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)",
 			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), " +
 				`sumOrNull("taxful_total_price") ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE (("order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z') ` +
+				`WHERE ((("order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z') ` +
 				`AND "order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')) ` +
 				`OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) ` +
 				`AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')) ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) ` +
 				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/86400000) " +
 				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)",
 			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), count() " +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
+				`WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) ` +
 				`OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) ` +
 				`AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')) ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) ` +
 				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/86400000) " +
 				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)",
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
+				`WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) ` +
 				`OR ("order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
 				`AND "order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z'))) ` +
 				`AND ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))`,
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')))`,
 		},
 	},
 	{ // [19]
@@ -3361,17 +3361,17 @@ var AggregationTests = []AggregationTestCase{
 		},
 		[]string{
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 ` +
-				`AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12`,
+				`WHERE (toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 ` +
+				`AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12)`,
 			`SELECT ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + `, count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 ` +
-				`AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12 ` +
+				`WHERE (toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 ` +
+				`AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12) ` +
 				`GROUP BY ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second) + ` ` +
 				`ORDER BY ` + clickhouse.TimestampGroupBy("@timestamp", clickhouse.DateTime64, 15*time.Second),
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 ` +
-				`AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12`,
+				`WHERE (toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 ` +
+				`AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12)`,
 		},
 	},
 	{ // [20]
@@ -3838,20 +3838,20 @@ var AggregationTests = []AggregationTestCase{
 			}}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z')`,
+			`SELECT count() FROM ` + QuotedTableName + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z'))`,
 			`SELECT count(if("bytes_gauge">=0 AND "bytes_gauge"<1000, 1, NULL)), ` +
 				`count(if("bytes_gauge">=1000 AND "bytes_gauge"<2000, 1, NULL)), ` +
 				`count(if("bytes_gauge">=-5.5, 1, NULL)), ` +
 				`count(if("bytes_gauge"<6.555, 1, NULL)), ` +
-				`count(), count() FROM ` + QuotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z')`,
+				`count(), count() FROM ` + QuotedTableName + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z'))`,
 			`SELECT count(if("bytes_gauge">=0 AND "bytes_gauge"<1000, 1, NULL)), ` +
 				`count(if("bytes_gauge">=1000 AND "bytes_gauge"<2000, 1, NULL)), ` +
 				`count(if("bytes_gauge">=-5.5, 1, NULL)), ` +
 				`count(if("bytes_gauge"<6.555, 1, NULL)), ` +
-				`count(), count() FROM ` + QuotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z')`,
+				`count(), count() FROM ` + QuotedTableName + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z'))`,
 		},
 	},
 	{ // [22]
@@ -3988,14 +3988,14 @@ var AggregationTests = []AggregationTestCase{
 			}}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z')`,
+			`SELECT count() FROM ` + QuotedTableName + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z'))`,
 			`SELECT count(if("timestamp" < now(), 1, NULL)), toInt64(toUnixTimestamp(now())), ` +
 				`count(if("timestamp" >= toStartOfDay(subDate(now(), INTERVAL 3 week)) AND "timestamp" < now(), 1, NULL)), ` +
 				`toInt64(toUnixTimestamp(toStartOfDay(subDate(now(), INTERVAL 3 week)))), ` +
 				`toInt64(toUnixTimestamp(now())), count(if("timestamp" >= '2024-04-14', 1, NULL)), toInt64(toUnixTimestamp('2024-04-14')), ` +
-				`count() FROM "logs-generic-default" WHERE "timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z')`,
+				`count() FROM "logs-generic-default" WHERE ("timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z'))`,
 		},
 	},
 	{ // [23]
@@ -4327,12 +4327,12 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))`,
 			`SELECT floor("bytes" / 100.000000) * 100.000000, count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z')) ` +
 				`GROUP BY floor("bytes" / 100.000000) * 100.000000 ` +
 				`ORDER BY floor("bytes" / 100.000000) * 100.000000`,
 		},
@@ -4468,12 +4468,12 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-10T14:29:02.900Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:44:02.900Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T14:29:02.900Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:44:02.900Z'))`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/30000), count() " +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-10T14:29:02.900Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:44:02.900Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T14:29:02.900Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:44:02.900Z')) ` +
 				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/30000) " +
 				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/30000)",
 		},
@@ -5660,22 +5660,22 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z'))`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
 				`count("bytes"), ` +
 				`minOrNull("bytes"), ` +
 				`maxOrNull("bytes"), ` +
 				`avgOrNull("bytes"), ` +
 				`sumOrNull("bytes"), ` +
-				`sumOrNull("bytes"*"bytes"), ` +
+				`sumOrNull("bytes" * "bytes"), ` +
 				`varPop("bytes"), ` +
 				`varSamp("bytes"), ` +
 				`stddevPop("bytes"), ` +
 				`stddevSamp("bytes") ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z')) ` +
 				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000) " +
 				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)",
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
@@ -5684,21 +5684,21 @@ var AggregationTests = []AggregationTestCase{
 				`maxOrNull("bytes"), ` +
 				`avgOrNull("bytes"), ` +
 				`sumOrNull("bytes"), ` +
-				`sumOrNull("bytes"*"bytes"), ` +
+				`sumOrNull("bytes" * "bytes"), ` +
 				`varPop("bytes"), ` +
 				`varSamp("bytes"), ` +
 				`stddevPop("bytes"), ` +
 				`stddevSamp("bytes") ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z')) ` +
 				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000) " +
 				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)",
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
 				`count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z') ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z')) ` +
 				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000) " +
 				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)",
 		},
@@ -5781,15 +5781,15 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%'`,
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))`,
 			`SELECT "host.name", "message", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY "host.name", "message" ` +
 				`ORDER BY "host.name", "message"`,
 			`SELECT "host.name", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY "host.name"`,
 		},
@@ -5885,20 +5885,20 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%'`,
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))`,
 			`SELECT "host.name", "message", "message", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY "host.name", "message", "message" ` +
 				`ORDER BY "host.name", "message", "message"`,
 			`SELECT "host.name", "message", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY "host.name", "message" ` +
 				`ORDER BY "host.name", "message"`,
 			`SELECT "host.name", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY "host.name"`,
 		},
@@ -5978,15 +5978,15 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%'`,
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))`,
 			`SELECT "host.name", "FlightDelayMin", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY "host.name", "FlightDelayMin" ` +
 				`ORDER BY "host.name", "FlightDelayMin"`,
 			`SELECT "host.name", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY "host.name"`,
 		},
@@ -6086,15 +6086,15 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%'`,
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))`,
 			`SELECT "host.name", "FlightDelayMin", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY "host.name", "FlightDelayMin" ` +
 				`ORDER BY "host.name", "FlightDelayMin"`,
 			`SELECT "host.name", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY "host.name"`,
 		},
@@ -6181,15 +6181,15 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%'`,
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))`,
 			`SELECT "host.name", "FlightDelayMin", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY "host.name", "FlightDelayMin" ` +
 				`ORDER BY "host.name", "FlightDelayMin"`,
 			`SELECT "host.name", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "message" IS NOT NULL AND NOT "message" iLIKE '%US%' ` +
+				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY "host.name"`,
 		},
