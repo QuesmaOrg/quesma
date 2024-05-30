@@ -94,8 +94,18 @@ func (e CompositeExp) String() string {
 	return fmt.Sprintf("(composite %s)", strings.Join(exps, " "))
 }
 
-func NewComposite(expressions ...AExp) *CompositeExp {
-	return &CompositeExp{Expressions: expressions}
+type InfixExp struct {
+	Left  AExp
+	Op    string
+	Right AExp
+}
+
+func (e InfixExp) String() string {
+	return fmt.Sprintf("(infix %s %s %s)", e.Left, e.Op, e.Right)
+}
+
+func (e InfixExp) Accept(v AExpVisitor) interface{} {
+	return v.VisitInfix(e)
 }
 
 // ASIS expressions, this is workaroung for not supported expressions
@@ -118,5 +128,6 @@ type AExpVisitor interface {
 	VisitMultiFunction(e MultiFunctionExp) interface{}
 	VisitLiteral(l LiteralExp) interface{}
 	VisitComposite(e CompositeExp) interface{}
+	VisitInfix(e InfixExp) interface{}
 	VisitSQL(s SQL) interface{}
 }

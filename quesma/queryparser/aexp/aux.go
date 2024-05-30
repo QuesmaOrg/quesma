@@ -27,3 +27,11 @@ func TableColumn(columnName string) TableColumnExp {
 func Literal(value any) LiteralExp {
 	return LiteralExp{Value: value}
 }
+
+func NewComposite(expressions ...AExp) *CompositeExp {
+	return &CompositeExp{Expressions: expressions}
+}
+
+func Infix(lhs AExp, operator string, rhs AExp) InfixExp {
+	return InfixExp{lhs, operator, rhs}
+}

@@ -127,13 +127,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z')`,
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z'))`,
 			`NoDBQuery`,
 			`SELECT "day_of_week_i", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z') ` +
-				`GROUP BY ("day_of_week_i") ` +
-				`ORDER BY ("day_of_week_i")`,
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-01-24T11:23:10.802Z') AND "order_date"<=parseDateTime64BestEffort('2024-05-08T10:23:10.802Z')) ` +
+				`GROUP BY "day_of_week_i" ` +
+				`ORDER BY "day_of_week_i"`,
 		},
 	},
 	{ // [1]
@@ -270,12 +270,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			`SELECT "day_of_week_i", avgOrNull("day_of_week_i") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY ("day_of_week_i") ` +
-				`ORDER BY ("day_of_week_i")`,
+				`GROUP BY "day_of_week_i" ` +
+				`ORDER BY "day_of_week_i"`,
 			`SELECT "day_of_week_i", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY ("day_of_week_i") ` +
-				`ORDER BY ("day_of_week_i")`,
+				`GROUP BY "day_of_week_i" ` +
+				`ORDER BY "day_of_week_i"`,
 		},
 	},
 	{ // [2]
@@ -404,8 +404,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			`SELECT "day_of_week_i", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY ("day_of_week_i") ` +
-				`ORDER BY ("day_of_week_i")`,
+				`GROUP BY "day_of_week_i" ` +
+				`ORDER BY "day_of_week_i"`,
 		},
 	},
 	{ // [3]
@@ -555,12 +555,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			`SELECT "day_of_week_i", maxOrNull("products.base_price") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY ("day_of_week_i") ` +
-				`ORDER BY ("day_of_week_i")`,
+				`GROUP BY "day_of_week_i" ` +
+				`ORDER BY "day_of_week_i"`,
 			`SELECT "day_of_week_i", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY ("day_of_week_i") ` +
-				`ORDER BY ("day_of_week_i")`,
+				`GROUP BY "day_of_week_i" ` +
+				`ORDER BY "day_of_week_i"`,
 		},
 	},
 	{ // [4]
@@ -695,8 +695,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			`SELECT floor("bytes" / 200.000000) * 200.000000, count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY (floor("bytes" / 200.000000) * 200.000000) ` +
-				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
+				`GROUP BY floor("bytes" / 200.000000) * 200.000000 ` +
+				`ORDER BY floor("bytes" / 200.000000) * 200.000000`,
 		},
 	},
 	{ // [5]
@@ -904,13 +904,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
 				"sumOrNull(toHour(`timestamp`)) " +
 				"FROM " + testdata.QuotedTableName + " " +
-				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
-				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)",
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
 				"count() " +
 				"FROM " + testdata.QuotedTableName + " " +
-				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
-				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)",
 		},
 	},
 	{ // [6]
@@ -1168,8 +1168,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), count() " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
-				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)",
 		},
 	},
 	{ // [7]
@@ -1318,8 +1318,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			`SELECT floor("bytes" / 200.000000) * 200.000000, count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY (floor("bytes" / 200.000000) * 200.000000) ` +
-				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
+				`GROUP BY floor("bytes" / 200.000000) * 200.000000 ` +
+				`ORDER BY floor("bytes" / 200.000000) * 200.000000`,
 		},
 	},
 	{ // [8]
@@ -1471,8 +1471,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			`SELECT floor("bytes" / 200.000000) * 200.000000, count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY (floor("bytes" / 200.000000) * 200.000000) ` +
-				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
+				`GROUP BY floor("bytes" / 200.000000) * 200.000000 ` +
+				`ORDER BY floor("bytes" / 200.000000) * 200.000000`,
 		},
 	},
 	{ // [9]
@@ -1680,13 +1680,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
 				"sumOrNull(toHour(`timestamp`)) " +
 				"FROM " + testdata.QuotedTableName + " " +
-				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
-				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)",
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
 				"count() " +
 				"FROM " + testdata.QuotedTableName + " " +
-				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
-				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)",
 		},
 	},
 	{ // [10]
@@ -1944,8 +1944,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), count() " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
-				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)",
 		},
 	},
 	{ // [11]
@@ -2072,8 +2072,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), count() " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
-				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)",
 		},
 	},
 	{ // [12]
@@ -2230,12 +2230,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " + `maxOrNull("bytes") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
-				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)",
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), count() " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
-				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)",
 		},
 	},
 	/* TODO need fix for date_range and subaggregations. Same one, as already merged ~1-2 weeks ago for range. It's WIP.
@@ -2703,12 +2703,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " + `"bytes", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " + `"bytes") ` +
-				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " + `"bytes")`,
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " + `"bytes" ` +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " + `"bytes"`,
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), count() " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
-				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)",
 		},
 	},
 	{ // [15]
@@ -2868,14 +2868,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z') AND ` +
-				`"timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z') AND ` +
+				`"timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z'))`,
 			`NoDBQuery`,
 			`SELECT "clientip", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z') ` +
-				`GROUP BY ("clientip") ` +
+				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z')) ` +
+				`GROUP BY "clientip" ` +
 				`ORDER BY count() DESC ` +
 				`LIMIT 5`,
 		},
@@ -3071,12 +3071,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			`SELECT "clientip", count(DISTINCT "geo.coordinates") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY ("clientip") ` +
-				`ORDER BY ("clientip")`,
+				`GROUP BY "clientip" ` +
+				`ORDER BY "clientip"`,
 			`SELECT "clientip", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY ("clientip") ` +
-				`ORDER BY ("clientip")`,
+				`GROUP BY "clientip" ` +
+				`ORDER BY "clientip"`,
 		},
 	},
 	{ // [17]
@@ -3306,16 +3306,16 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			`SELECT floor("bytes" / 200.000000) * 200.000000, "clientip", sumOrNull("bytes") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY (floor("bytes" / 200.000000) * 200.000000, "clientip") ` +
-				`ORDER BY (floor("bytes" / 200.000000) * 200.000000, "clientip")`,
+				`GROUP BY floor("bytes" / 200.000000) * 200.000000, "clientip" ` +
+				`ORDER BY floor("bytes" / 200.000000) * 200.000000, "clientip"`,
 			`SELECT floor("bytes" / 200.000000) * 200.000000, "clientip", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY (floor("bytes" / 200.000000) * 200.000000, "clientip") ` +
-				`ORDER BY (floor("bytes" / 200.000000) * 200.000000, "clientip")`,
+				`GROUP BY floor("bytes" / 200.000000) * 200.000000, "clientip" ` +
+				`ORDER BY floor("bytes" / 200.000000) * 200.000000, "clientip"`,
 			`SELECT floor("bytes" / 200.000000) * 200.000000, count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY (floor("bytes" / 200.000000) * 200.000000) ` +
-				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
+				`GROUP BY floor("bytes" / 200.000000) * 200.000000 ` +
+				`ORDER BY floor("bytes" / 200.000000) * 200.000000`,
 		},
 	},
 	{ // [18]
@@ -3440,14 +3440,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') AND ` +
-				`"timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z')`,
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') AND ` +
+				`"timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z'))`,
 			`NoDBQuery`,
 			`SELECT "Cancelled", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z') ` +
-				`GROUP BY ("Cancelled") ` +
+				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z')) ` +
+				`GROUP BY "Cancelled" ` +
 				`ORDER BY count() DESC ` +
 				`LIMIT 5`,
 		},
@@ -3622,13 +3622,13 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
 				`minOrNull("memory") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
-				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)",
 			"SELECT toInt64(toUnixTimestamp64Milli(`timestamp`)/600000), " +
 				"count() " +
 				"FROM " + testdata.QuotedTableName + " " +
-				"GROUP BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)) " +
-				"ORDER BY (toInt64(toUnixTimestamp64Milli(`timestamp`)/600000))",
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`timestamp`)/600000)",
 		},
 	},
 	{ // [20]
@@ -3870,14 +3870,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			`SELECT "bytes", maxOrNull("memory") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY ("bytes") ` +
-				`ORDER BY ("bytes")`,
+				`GROUP BY "bytes" ` +
+				`ORDER BY "bytes"`,
 			`NoDBQuery`,
 			`NoDBQuery`,
 			`SELECT "bytes", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY ("bytes") ` +
-				`ORDER BY ("bytes")`,
+				`GROUP BY "bytes" ` +
+				`ORDER BY "bytes"`,
 			`NoDBQuery`,
 		},
 	},
@@ -4446,14 +4446,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z')`,
+				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z'))`,
 			`NoDBQuery`,
 			`SELECT "extension", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE "timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z') ` +
-				`GROUP BY ("extension") ` +
+				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
+				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z')) ` +
+				`GROUP BY "extension" ` +
 				`ORDER BY count() DESC ` +
 				`LIMIT 5`,
 		},
@@ -4617,12 +4617,12 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			`SELECT "extension", avgOrNull("machine.ram") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY ("extension") ` +
-				`ORDER BY ("extension")`,
+				`GROUP BY "extension" ` +
+				`ORDER BY "extension"`,
 			`SELECT "extension", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY ("extension") ` +
-				`ORDER BY ("extension")`,
+				`GROUP BY "extension" ` +
+				`ORDER BY "extension"`,
 		},
 	},
 	{ // [25]
@@ -5221,42 +5221,42 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`avgOrNull("memory") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "bytes">=0 AND "bytes"<1000 ` +
-				`GROUP BY (floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)) " +
-				`ORDER BY (floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000))",
+				`GROUP BY floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
+				`ORDER BY floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
 			`SELECT floor("bytes" / 200.000000) * 200.000000, ` +
 				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
 				`count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "bytes">=0 AND "bytes"<1000 ` +
-				`GROUP BY (floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)) " +
-				`ORDER BY (floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000))",
+				`GROUP BY floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
+				`ORDER BY floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
 			`SELECT floor("bytes" / 200.000000) * 200.000000, ` +
 				`count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "bytes">=0 AND "bytes"<1000 ` +
-				`GROUP BY (floor("bytes" / 200.000000) * 200.000000) ` +
-				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
+				`GROUP BY floor("bytes" / 200.000000) * 200.000000 ` +
+				`ORDER BY floor("bytes" / 200.000000) * 200.000000`,
 			`NoDBQuery`,
 			`SELECT floor("bytes" / 200.000000) * 200.000000, ` +
 				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
 				`avgOrNull("memory") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "bytes">=1000 AND "bytes"<2000 ` +
-				`GROUP BY (floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)) " +
-				`ORDER BY (floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000))",
+				`GROUP BY floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
+				`ORDER BY floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
 			`SELECT floor("bytes" / 200.000000) * 200.000000, ` +
 				"toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000), " +
 				`count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "bytes">=1000 AND "bytes"<2000 ` +
-				`GROUP BY (floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)) " +
-				`ORDER BY (floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000))",
+				`GROUP BY floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000) " +
+				`ORDER BY floor("bytes" / 200.000000) * 200.000000, ` + "toInt64(toUnixTimestamp64Milli(`timestamp`)/43200000)",
 			`SELECT floor("bytes" / 200.000000) * 200.000000, ` +
 				`count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE "bytes">=1000 AND "bytes"<2000 ` +
-				`GROUP BY (floor("bytes" / 200.000000) * 200.000000) ` +
-				`ORDER BY (floor("bytes" / 200.000000) * 200.000000)`,
+				`GROUP BY floor("bytes" / 200.000000) * 200.000000 ` +
+				`ORDER BY floor("bytes" / 200.000000) * 200.000000`,
 			`SELECT count(if("bytes">=0 AND "bytes"<1000, 1, NULL)), ` +
 				`count(if("bytes">=1000 AND "bytes"<2000, 1, NULL)), ` +
 				`count() ` +

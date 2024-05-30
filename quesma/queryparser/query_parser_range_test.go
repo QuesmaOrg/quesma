@@ -29,7 +29,7 @@ var parseRangeTests = []parseRangeTest{
 		`CREATE TABLE ` + tableName + `
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
-		`"timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')`,
+		`("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
 	},
 	{
 		"parseDateTimeBestEffort",
@@ -43,7 +43,7 @@ var parseRangeTests = []parseRangeTest{
 		`CREATE TABLE ` + tableName + `
 		( "message" String, "timestamp" DateTime )
 		ENGINE = Memory`,
-		`"timestamp">=parseDateTimeBestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTimeBestEffort('2024-02-09T13:47:16.029Z')`,
+		`("timestamp">=parseDateTimeBestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTimeBestEffort('2024-02-09T13:47:16.029Z'))`,
 	},
 	{
 		"numeric range",
@@ -69,7 +69,7 @@ var parseRangeTests = []parseRangeTest{
 		`CREATE TABLE ` + tableName + `
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
-		`"timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16')`,
+		`("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16'))`,
 	},
 }
 
@@ -84,8 +84,8 @@ func Test_parseRange(t *testing.T) {
 			lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{})
 			cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 
-			whereClause := cw.parseRange(test.rangePartOfQuery).Sql.Stmt
-			assert.Equal(t, test.expectedWhere, whereClause)
+			simpleQuery := cw.parseRange(test.rangePartOfQuery)
+			assert.Equal(t, test.expectedWhere, simpleQuery.WhereClauseAsString())
 		})
 	}
 }

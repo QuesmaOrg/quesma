@@ -475,8 +475,8 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 	}
 	for _, query := range queries {
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}
-		for _, field := range query.NonSchemaFields {
-			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field, Value: "not-important"})
+		for _, field := range query.Columns {
+			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field.Alias, Value: "not-important"})
 		}
 		_, err := cw.MakeSearchResponse([]model.QueryResultRow{resultRow}, model.Query{QueryInfo: model.SearchQueryInfo{Typ: model.Normal}, Highlighter: NewEmptyHighlighter()})
 		assert.NoError(t, err)
@@ -501,12 +501,12 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 	types := []model.SearchQueryType{model.ListAllFields, model.ListByField}
 	for i, query := range queries {
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}
-		for j, field := range query.NonSchemaFields {
+		for j, field := range query.Columns {
 			var value interface{} = "not-important"
 			if j == model.ResultColDocCountIndex {
 				value = uint64(5)
 			}
-			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field, Value: value})
+			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field.Alias, Value: value})
 		}
 		_, err := cw.MakeAsyncSearchResponse([]model.QueryResultRow{resultRow}, model.Query{QueryInfo: model.SearchQueryInfo{Typ: types[i]}, Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
 		assert.NoError(t, err)

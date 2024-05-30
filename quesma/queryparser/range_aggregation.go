@@ -46,6 +46,7 @@ func (cw *ClickhouseQueryTranslator) parseRangeAggregation(rangePart QueryMap) b
 	}
 	if keyedRaw, exists := rangePart["keyed"]; exists {
 		if keyed, ok := keyedRaw.(bool); ok {
+			// TODO we should not store Quoted field name in the range struct
 			return bucket_aggregations.NewRange(cw.Ctx, strconv.Quote(fieldName), intervals, keyed)
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("keyed is not a bool, but %T, value: %v", keyedRaw, keyedRaw)
@@ -59,10 +60,6 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 
 	// build this aggregation
 	for _, interval := range Range.Intervals {
-		currentAggr.NonSchemaFields = append(
-			currentAggr.NonSchemaFields,
-			interval.ToSQLSelectQuery(Range.QuotedFieldName),
-		)
 
 		// TODO XXXX
 		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: interval.ToSQLSelectQuery(Range.QuotedFieldName)}})
@@ -78,7 +75,6 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 		}
 	}
 	*aggregationsAccumulator = append(*aggregationsAccumulator, currentAggr.buildBucketAggregation(metadata))
-	currentAggr.NonSchemaFields = currentAggr.NonSchemaFields[:len(currentAggr.NonSchemaFields)-len(Range.Intervals)]
 	currentAggr.Columns = currentAggr.Columns[:len(currentAggr.Columns)-len(Range.Intervals)]
 
 	// build subaggregations
@@ -91,9 +87,16 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 	// Range aggregation with subaggregations should be a quite rare case, so I'm leaving that for later.
 	whereBeforeNesting := currentAggr.whereBuilder
 	for _, interval := range Range.Intervals {
+		var fieldName string
+		if f, err := strconv.Unquote(Range.QuotedFieldName); err != nil {
+			logger.Error().Msgf("Unquoting field name in range aggregation failed: %v", err) // fallback to what we have...
+			fieldName = Range.QuotedFieldName
+		} else {
+			fieldName = f
+		}
 		currentAggr.whereBuilder = model.CombineWheres(
 			cw.Ctx, currentAggr.whereBuilder,
-			model.NewSimpleQuery(model.NewSimpleStatement(interval.ToWhereClause(Range.QuotedFieldName)), true),
+			model.NewSimpleQuery(interval.ToWhereClause(fieldName), true),
 		)
 		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(interval.String()))
 		aggsCopy, err := deepcopy.Anything(aggs)

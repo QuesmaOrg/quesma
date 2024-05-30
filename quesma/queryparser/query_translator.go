@@ -486,17 +486,16 @@ func (cw *ClickhouseQueryTranslator) addMetadataIfNeeded(query model.Query, resu
 }
 
 func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []model.Query, ResultSets [][]model.QueryResultRow) model.JsonMap {
-	const aggregation_start_index = 1
 	aggregations := model.JsonMap{}
-	if len(queries) <= aggregation_start_index {
+	if len(queries) == 0 {
 		return aggregations
 	}
 	cw.postprocessPipelineAggregations(queries, ResultSets)
-	for i, query := range queries[aggregation_start_index:] {
-		if len(ResultSets) <= i+1 {
+	for i, query := range queries {
+		if i >= len(ResultSets) {
 			continue
 		}
-		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i+1], 0, 0)
+		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
 		if len(aggregation) != 0 {
 			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0]) // result of root node is always a single map, thus [0]
 		}
@@ -516,12 +515,15 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 
 	var totalCount uint64
 	if len(ResultSets) > 0 && len(ResultSets[0]) > 0 && len(ResultSets[0][0].Cols) > 0 {
+		// TODO: Eventually we should detect whether first column is actual hits
 		// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
 		if val, ok := ResultSets[0][0].Cols[0].Value.(uint64); ok {
 			totalCount = val
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets[0])
 		}
+		queries = queries[1:]
+		ResultSets = ResultSets[1:]
 	} else {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets)
 		totalCount = 0
@@ -590,11 +592,10 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []m
 
 func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause string) *model.Query {
 	return &model.Query{
-		Columns:         []model.SelectColumn{{Expression: aexp.Count()}},
-		NonSchemaFields: []string{"count()"},
-		WhereClause:     whereClause,
-		FromClause:      cw.Table.FullTableName(),
-		CanParse:        true,
+		Columns:     []model.SelectColumn{{Expression: aexp.Count()}},
+		WhereClause: whereClause,
+		FromClause:  cw.Table.FullTableName(),
+		CanParse:    true,
 	}
 }
 
@@ -608,14 +609,12 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, whereClau
 		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(limit))
 	}
 	return &model.Query{
-		IsDistinct:      true,
-		Fields:          []string{fieldName},
-		Columns:         []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
-		NonSchemaFields: []string{},
-		WhereClause:     whereClause,
-		SuffixClauses:   suffixClauses,
-		FromClause:      cw.Table.FullTableName(),
-		CanParse:        true,
+		IsDistinct:    true,
+		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		WhereClause:   whereClause,
+		SuffixClauses: suffixClauses,
+		FromClause:    cw.Table.FullTableName(),
+		CanParse:      true,
 	}
 }
 
@@ -631,20 +630,17 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(limit))
 	}
 	return &model.Query{
-		Fields:          []string{fieldName},
-		Columns:         []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
-		NonSchemaFields: []string{},
-		WhereClause:     whereClause,
-		SuffixClauses:   suffixClauses,
-		FromClause:      cw.Table.FullTableName(),
-		CanParse:        true,
+		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		WhereClause:   whereClause,
+		SuffixClauses: suffixClauses,
+		FromClause:    cw.Table.FullTableName(),
+		CanParse:      true,
 	}
 }
 
 func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, whereClause string) *model.Query {
 	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
 	innerQuery := model.Query{
-		Fields:        []string{fieldName},
 		WhereClause:   whereClause,
 		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
 		SuffixClauses: []string{"LIMIT " + facetsSampleSize},
@@ -652,12 +648,10 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, whereCla
 		CanParse:      true,
 	}
 	return &model.Query{
-		Fields:          []string{fieldName},
-		Columns:         []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
-		NonSchemaFields: []string{"count()"},
-		SuffixClauses:   suffixClauses,
-		FromClause:      "(" + innerQuery.String() + ")",
-		CanParse:        true,
+		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
+		SuffixClauses: suffixClauses,
+		FromClause:    "(" + innerQuery.String() + ")",
+		CanParse:      true,
 	}
 }
 
@@ -672,7 +666,6 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName, whe
 	}
 	suffixClauses := []string{orderBy, "LIMIT 1"}
 	return &model.Query{
-		Fields:        []string{timestampFieldName},
 		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(timestampFieldName)}},
 		WhereClause:   whereClause,
 		SuffixClauses: suffixClauses,

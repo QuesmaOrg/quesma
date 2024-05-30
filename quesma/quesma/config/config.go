@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog"
 	"log"
 	"mitmproxy/quesma/buildinfo"
+	"mitmproxy/quesma/elasticsearch/elasticsearch_field_types"
 	"mitmproxy/quesma/index"
 	"mitmproxy/quesma/network"
 	"os"
@@ -50,14 +51,6 @@ type LoggingConfiguration struct {
 	FileLogging       bool          `koanf:"fileLogging"`
 }
 
-type ElasticsearchConfiguration struct {
-	Url      *Url   `koanf:"url"`
-	User     string `koanf:"user"`
-	Password string `koanf:"password"`
-	Call     bool   `koanf:"call"`
-	AdminUrl *Url   `koanf:"adminUrl"`
-}
-
 type RelationalDbConfiguration struct {
 	Url      *Url   `koanf:"url"`
 	User     string `koanf:"user"`
@@ -77,58 +70,6 @@ func (c *RelationalDbConfiguration) IsNonEmpty() bool {
 type FieldAlias struct {
 	TargetFieldName string `koanf:"target"`
 	SourceFieldName string `koanf:"source"`
-}
-
-type IndexConfiguration struct {
-	Name           string                `koanf:"name"`
-	Enabled        bool                  `koanf:"enabled"`
-	FullTextFields []string              `koanf:"fullTextFields"`
-	Aliases        map[string]FieldAlias `koanf:"aliases"`
-	IgnoredFields  map[string]bool       `koanf:"ignoredFields"`
-	TimestampField *string               `koanf:"timestampField"`
-}
-
-func (c IndexConfiguration) Matches(indexName string) bool {
-	return c.Name == indexName
-}
-
-func (c IndexConfiguration) HasFullTextField(fieldName string) bool {
-	return slices.Contains(c.FullTextFields, fieldName)
-}
-
-func (c IndexConfiguration) String() string {
-	var extraString string
-	extraString = ""
-	if len(c.Aliases) > 0 {
-		extraString += "; aliases: "
-		var aliases []string
-		for _, alias := range c.Aliases {
-			aliases = append(aliases, fmt.Sprintf("%s <- %s", alias.SourceFieldName, alias.TargetFieldName))
-		}
-		extraString += strings.Join(aliases, ", ")
-	}
-	if len(c.IgnoredFields) > 0 {
-		extraString += "; ignored fields: "
-		var fields []string
-		for field := range c.IgnoredFields {
-			fields = append(fields, field)
-		}
-		extraString += strings.Join(fields, ", ")
-	}
-	var str = fmt.Sprintf("\n\t\t%s, enabled: %t",
-		c.Name,
-		c.Enabled,
-	)
-
-	if len(c.FullTextFields) > 0 {
-		str = fmt.Sprintf("%s, fullTextFields: %s", str, strings.Join(c.FullTextFields, ", "))
-	}
-
-	if c.TimestampField != nil {
-		return fmt.Sprintf("%s, timestampField: %s", str, *c.TimestampField)
-	} else {
-		return str
-	}
 }
 
 func (c *QuesmaConfiguration) IsFullTextMatchField(indexName, fieldName string) bool {
@@ -169,10 +110,15 @@ func Load() QuesmaConfiguration {
 	if err := k.Unmarshal("", &config); err != nil {
 		log.Fatalf("error unmarshalling config: %v", err)
 	}
-	// TODO remove once when code does not depend on Name property
 	for name, idxConfig := range config.IndexConfig {
 		idxConfig.Name = name
 		config.IndexConfig[name] = idxConfig
+		if idxConfig.SchemaConfiguration != nil {
+			for fieldName, configuration := range idxConfig.SchemaConfiguration.Fields {
+				configuration.Name = fieldName
+				idxConfig.SchemaConfiguration.Fields[fieldName] = configuration
+			}
+		}
 	}
 	config.configureLicenseKey()
 	return config
@@ -214,15 +160,42 @@ func (c *QuesmaConfiguration) Validate() error {
 	if c.Mode == "" {
 		result = multierror.Append(result, fmt.Errorf("quesma operating mode is required"))
 	}
-	for indexName := range c.IndexConfig {
-		if strings.Contains(indexName, "*") || indexName == "_all" {
-			result = multierror.Append(result, fmt.Errorf("wildcard patterns are not allowed in index configuration: %s", indexName))
-		}
+	for indexName, indexConfig := range c.IndexConfig {
+		result = c.validateIndexName(indexName, result)
+		// TODO enable when rolling out schema configuration
+		//result = c.validateDeprecated(indexConfig, result)
+		result = c.validateSchemaConfiguration(indexConfig, result)
 	}
 	if c.Hydrolix.IsNonEmpty() {
 		// At this moment we share the code between ClickHouse and Hydrolix which use only different names
 		// for the same configuration object.
 		c.ClickHouse = c.Hydrolix
+	}
+	return result
+}
+
+// TODO remove ignore when rolling out schema configuration
+//
+//lint:ignore U1000 Ignore unused function temporarily for debugging
+func (c *QuesmaConfiguration) validateDeprecated(indexName IndexConfiguration, result error) error {
+	if len(indexName.FullTextFields) > 0 {
+		fmt.Printf("index configuration %s contains deprecated field 'fullTextFields'", indexName.Name)
+	}
+	if len(indexName.Aliases) > 0 {
+		fmt.Printf("index configuration %s contains deprecated field 'aliases'", indexName.Name)
+	}
+	if len(indexName.IgnoredFields) > 0 {
+		fmt.Printf("index configuration %s contains deprecated field 'ignoredFields'", indexName.Name)
+	}
+	if indexName.TimestampField != nil {
+		fmt.Printf("index configuration %s contains deprecated field 'timestampField'", indexName.Name)
+	}
+	return result
+}
+
+func (c *QuesmaConfiguration) validateIndexName(indexName string, result error) error {
+	if strings.Contains(indexName, "*") || indexName == "_all" {
+		result = multierror.Append(result, fmt.Errorf("wildcard patterns are not allowed in index configuration: %s", indexName))
 	}
 	return result
 }
@@ -332,4 +305,43 @@ Quesma Configuration:
 		c.IngestStatistics,
 		quesmaInternalTelemetryUrl,
 	)
+}
+
+func (c *QuesmaConfiguration) validateSchemaConfiguration(config IndexConfiguration, err error) error {
+	if config.SchemaConfiguration == nil {
+		return err
+	}
+
+	fmt.Println("schema configuration is not yet in use!")
+
+	for fieldName, fieldConfig := range config.SchemaConfiguration.Fields {
+		if fieldConfig.Type == "" {
+			err = multierror.Append(err, fmt.Errorf("field %s in index %s has no type", fieldName, config.Name))
+		} else if !elasticsearch_field_types.IsValid(fieldConfig.Type.AsString()) {
+			err = multierror.Append(err, fmt.Errorf("field %s in index %s has invalid type %s", fieldName, config.Name, fieldConfig.Type))
+		}
+
+		if slices.Contains(config.SchemaConfiguration.Ignored, fieldName.AsString()) {
+			err = multierror.Append(err, fmt.Errorf("field %s in index %s is both enabled and ignored", fieldName, config.Name))
+		}
+
+		if field, found := config.SchemaConfiguration.Fields[fieldName]; found && field.Type.AsString() == elasticsearch_field_types.FieldTypeAlias && field.AliasedField == "" {
+			err = multierror.Append(err, fmt.Errorf("field %s in index %s is aliased to an empty field", fieldName, config.Name))
+		}
+
+		if countPrimaryKeys(config) > 1 {
+			err = multierror.Append(err, fmt.Errorf("index %s has more than one primary key", config.Name))
+		}
+	}
+
+	return err
+}
+
+func countPrimaryKeys(config IndexConfiguration) (count int) {
+	for _, configuration := range config.SchemaConfiguration.Fields {
+		if configuration.IsPrimaryKey {
+			count++
+		}
+	}
+	return count
 }

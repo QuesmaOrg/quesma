@@ -8,7 +8,7 @@ import (
 	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
-	"sort"
+	"mitmproxy/quesma/queryparser/aexp"
 	"strings"
 	"time"
 )
@@ -42,29 +42,42 @@ func (lm *LogManager) GetAllColumns(table *Table, query *model.Query) []string {
 // TODO query param should be type safe Query representing all parts of
 // sql statement that were already parsed and not string from which
 // we have to extract again different parts like where clause and columns to build a proper result
-func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *model.Query, columns []string) ([]model.QueryResultRow, error) {
+func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
 	if query.NoDBQuery {
 		return make([]model.QueryResultRow, 0), nil
 	}
-	colNames, err := table.extractColumns(query, false)
-	if query.IsWildcard() {
-		sort.Strings(colNames)
-	}
-	if columns == nil {
-		columns = lm.GetAllColumns(table, query)
-		// We should sort only if columns are not provided
-		// Caller is responsible for providing columns in the right order
-		if query.IsWildcard() {
-			sort.Strings(columns)
+
+	table.applyTableSchema(query)
+
+	rowToScan := make([]interface{}, len(query.Columns))
+	columns := make([]string, 0, len(query.Columns))
+
+	for count, col := range query.Columns {
+		var colName string
+
+		switch col.Expression.(type) {
+
+		// this is a compensation for the fact we don't have columns named in the query
+		case aexp.TableColumnExp:
+			if col.Alias == "" {
+				colName = col.Expression.(aexp.TableColumnExp).ColumnName
+			} else {
+				colName = col.Alias
+			}
+
+		default:
+			colName = col.Alias
+			if colName == "" {
+				colName = fmt.Sprintf("column_%d", count)
+			}
 		}
-	}
-	rowToScan := make([]interface{}, len(colNames)+len(query.NonSchemaFields))
-	if err != nil {
-		return nil, err
+
+		columns = append(columns, colName)
+
 	}
 
-	// will become: rows, err := executeQuery(ctx, lm, query.StringFromColumns(colNames, true), columns, rowToScan)
-	rows, err := executeQuery(ctx, lm, query.StringFromColumns(colNames), columns, rowToScan)
+	rows, err := executeQuery(ctx, lm, query.String(), columns, rowToScan)
+
 	if err == nil {
 		for _, row := range rows {
 			row.Index = table.Name
@@ -135,6 +148,9 @@ func executeQuery(ctx context.Context, lm *LogManager, queryAsString string, fie
 // 'selectFields' are all values that we return from the query, both columns and non-schema fields,
 // like e.g. count(), or toInt8(boolField)
 func read(rows *sql.Rows, selectFields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
+
+	// read selected fields from the metadata
+
 	rowDb := make([]interface{}, 0, len(rowToScan))
 	for i := range rowToScan {
 		rowDb = append(rowDb, &rowToScan[i])

@@ -3,9 +3,9 @@ module mitmproxy/quesma
 go 1.22.0
 
 require (
-	github.com/ClickHouse/clickhouse-go/v2 v2.24.0
+	github.com/ClickHouse/clickhouse-go/v2 v2.25.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/DataDog/go-sqllexer v0.0.11
+	github.com/DataDog/go-sqllexer v0.0.12
 	github.com/barkimedes/go-deepcopy v0.0.0-20220514131651-17c30cfc62df
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/uuid v1.6.0
@@ -17,9 +17,11 @@ require (
 	github.com/knadh/koanf/providers/env v0.1.0
 	github.com/knadh/koanf/providers/file v0.1.0
 	github.com/knadh/koanf/v2 v2.1.1
+	github.com/relvacode/iso8601 v1.4.0
 	github.com/rs/zerolog v1.33.0
 	github.com/shirou/gopsutil/v3 v3.24.4
 	github.com/stretchr/testify v1.9.0
+	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
 	github.com/ucarion/urlpath v0.0.0-20200424170820-7ccc79b76bbb
 )
 
@@ -32,8 +34,6 @@ require (
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/relvacode/iso8601 v1.4.0 // indirect
-	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a // indirect
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842 // indirect
 )
 
