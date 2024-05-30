@@ -5,7 +5,7 @@ go 1.22.0
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.25.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/DataDog/go-sqllexer v0.0.11
+	github.com/DataDog/go-sqllexer v0.0.12
 	github.com/barkimedes/go-deepcopy v0.0.0-20220514131651-17c30cfc62df
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/uuid v1.6.0
