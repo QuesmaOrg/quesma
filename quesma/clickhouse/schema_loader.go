@@ -12,9 +12,10 @@ import (
 )
 
 type schemaLoader struct {
-	cfg              config.QuesmaConfiguration
-	SchemaManagement *SchemaManagement
-	tableDefinitions *atomic.Pointer[TableMap]
+	cfg               config.QuesmaConfiguration
+	SchemaManagement  *SchemaManagement
+	tableDefinitions  *atomic.Pointer[TableMap]
+	ReloadTablesError error
 }
 
 func (sl *schemaLoader) ReloadTables() {
@@ -33,7 +34,8 @@ func (sl *schemaLoader) ReloadTables() {
 		} else {
 			logger.Error().Msgf("could not describe tables: %v", err)
 		}
-
+		sl.ReloadTablesError = err
+		sl.tableDefinitions.Store(NewTableMap())
 		return
 	} else {
 		for table, columns := range tables {
@@ -61,7 +63,7 @@ func (sl *schemaLoader) ReloadTables() {
 		strings.Join(notConfiguredTables, ","),
 		strings.Join(explicitlyDisabledTables, ","),
 	)
-
+	sl.ReloadTablesError = nil
 	sl.populateTableDefinitions(configuredTables, databaseName, sl.cfg)
 }
 
