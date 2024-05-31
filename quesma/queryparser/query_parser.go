@@ -44,7 +44,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]model.Query,
 
 	if simpleQuery.CanParse {
 		canParse = true
-		if query_util.IsNonAggregationQuery(queryInfo, body) {
+		if query_util.IsNonAggregationQuery(queryInfo.Typ, body) {
 			query = cw.makeBasicQuery(simpleQuery, queryInfo, highlighter)
 			switch queryInfo.Typ {
 			// current facets never return hits, so we don't need this info.
@@ -105,7 +105,7 @@ func (cw *ClickhouseQueryTranslator) makeBasicQuery(
 	case model.Normal:
 		fullQuery = cw.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
 	}
-	fullQuery.QueryInfo = queryInfo
+	fullQuery.QueryInfoType = queryInfo.Typ
 	fullQuery.Highlighter = highlighter
 	return fullQuery
 }

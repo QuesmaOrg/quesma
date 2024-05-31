@@ -33,14 +33,17 @@ type (
 		WhereClause string         // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
 		Limit       int            // LIMIT clause, noLimit (0) means no limit
 
-		FromClause  string // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
-		CanParse    bool   // true <=> query is valid
-		QueryInfo   SearchQueryInfo
+		FromClause string // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
+		CanParse   bool   // true <=> query is valid
+
+		// Eventually we should merge this two
+		QueryInfoType SearchQueryType
+		Type          QueryType
+
 		Highlighter Highlighter
 		NoDBQuery   bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
 		Parent      string       // parent aggregation name, used in some pipeline aggregations
 		Aggregators []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
-		Type        QueryType
 		SubSelect   string
 
 		// dictionary to add as 'meta' field in the response.
@@ -355,7 +358,6 @@ type SearchQueryInfo struct {
 	RequestedFields []string
 	// deprecated
 	FieldName string
-	Interval  string
 	I1        int
 	I2        int
 	Size      int // how many hits to return

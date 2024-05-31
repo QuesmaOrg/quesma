@@ -123,13 +123,13 @@ func EmptyAsyncSearchResponse(id string, isPartial bool, completionStatus int) (
 }
 
 func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, query model.Query) (*model.SearchResp, error) {
-	switch query.QueryInfo.Typ {
+	switch query.QueryInfoType {
 	case model.Facets, model.FacetsNumeric:
-		return cw.makeSearchResponseFacets(ResultSet, query.QueryInfo.Typ), nil
+		return cw.makeSearchResponseFacets(ResultSet, query.QueryInfoType), nil
 	case model.ListByField, model.ListAllFields, model.Normal:
-		return cw.makeSearchResponseList(ResultSet, query.QueryInfo.Typ, query.Highlighter, query.OrderByFieldNames()), nil
+		return cw.makeSearchResponseList(ResultSet, query.QueryInfoType, query.Highlighter, query.OrderByFieldNames()), nil
 	default:
-		return nil, fmt.Errorf("unknown SearchQueryType: %v", query.QueryInfo.Typ)
+		return nil, fmt.Errorf("unknown SearchQueryType: %v", query.QueryInfoType)
 	}
 }
 
