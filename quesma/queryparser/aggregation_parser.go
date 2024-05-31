@@ -306,7 +306,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]mo
 				logger.WarnWithCtx(cw.Ctx).Msgf("aggr is not a map, but %T, aggr: %v. Skipping", aggrRaw, aggrRaw)
 				continue
 			}
-			currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(aggrName))
+			currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregator(aggrName))
 			err := cw.parseAggregation(&currentAggr, aggr, &aggregations)
 			if err != nil {
 				return nil, err
@@ -351,7 +351,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQuer
 	for k, v := range queryMap {
 		// I assume it's new aggregator name
 		logger.DebugWithCtx(cw.Ctx).Msgf("names += %s", k)
-		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(k))
+		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregator(k))
 		if subAggregation, ok := v.(QueryMap); ok {
 			err = cw.parseAggregation(currentAggr, subAggregation, resultAccumulator)
 			if err != nil {
@@ -436,9 +436,9 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	if err != nil {
 		return err
 	}
-	if columnsAdded > 0 {
+	if groupByFieldsAdded > 0 {
 		if len(currentAggr.Aggregators) > 0 {
-			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Empty = false
+			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].SplitOverHowManyFields = groupByFieldsAdded
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("columnsAdded > 0, but no aggregators present")
 		}
@@ -857,6 +857,14 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			if sqlSelect, selectNeeded := interval.EndTimestampToSQL(); selectNeeded {
 				currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: sqlSelect}})
 			}
+		}
+
+		// TODO after https://github.com/QuesmaOrg/quesma/pull/99 it should be only in 1 of 2 cases (keyed or not), just like in range aggregation
+		if len(currentAggr.Aggregators) > 0 {
+			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].SplitOverHowManyFields = 1
+			fmt.Println("WTFFF")
+		} else {
+			logger.ErrorWithCtx(cw.Ctx).Msg("no aggregators in currentAggr")
 		}
 
 		delete(queryMap, "date_range")

@@ -69,7 +69,7 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 		// there's a difference in output structure whether the range is keyed or not
 		// it can be easily modeled in our code via setting last aggregator's .Empty to true/false
 		if len(currentAggr.Aggregators) > 0 {
-			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Empty = false
+			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].SplitOverHowManyFields = 1
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msg("no aggregators in currentAggr")
 		}
@@ -98,7 +98,7 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 			cw.Ctx, currentAggr.whereBuilder,
 			model.NewSimpleQuery(interval.ToWhereClause(fieldName), true),
 		)
-		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(interval.String()))
+		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregator(interval.String()))
 		aggsCopy, err := deepcopy.Anything(aggs)
 		if err == nil {
 			currentAggr.Type = model.NewUnknownAggregationType(cw.Ctx)
