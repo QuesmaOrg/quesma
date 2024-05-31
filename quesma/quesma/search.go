@@ -486,9 +486,7 @@ func (q *QueryRunner) findNonexistingProperties(query model.Query, table *clickh
 			allReferencedFields = append(allReferencedFields, c.ColumnName)
 		}
 	}
-	for _, field := range query.OrderByFieldNames() {
-		allReferencedFields = append(allReferencedFields, field)
-	}
+	allReferencedFields = append(allReferencedFields, query.OrderByFieldNames()...)
 
 	for _, property := range allReferencedFields {
 		if property != "*" && !table.HasColumn(q.executionCtx, property) {
