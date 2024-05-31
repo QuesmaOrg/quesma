@@ -13,6 +13,9 @@ type AExp interface {
 func RenderSQL(exp AExp) string {
 	return exp.Accept(&renderer{}).(string)
 }
+func GetUsedColumns(exp AExp) []TableColumnExp {
+	return exp.Accept(&used_columns{}).([]TableColumnExp)
+}
 
 type TableColumnExp struct {
 	TableAlias string

@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
+	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
@@ -202,7 +203,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		if canParse {
 			if query_util.IsNonAggregationQuery(queries[0].QueryInfoType, body) {
-				if properties := q.findNonexistingProperties(queries[0].QueryInfo, queries[0].SortFields, table); len(properties) > 0 {
+				if properties := q.findNonexistingProperties(queries[0], table); len(properties) > 0 {
 					logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
 					if elasticsearch.IsIndexPattern(indexPattern) {
 						return queryparser.EmptySearchResponse(ctx), nil
@@ -466,11 +467,16 @@ func (q *QueryRunner) Close() {
 	logger.Info().Msg("queryRunner Stopped")
 }
 
-func (q *QueryRunner) findNonexistingProperties(queryInfo model.SearchQueryInfo, sortFields []model.SortField, table *clickhouse.Table) []string {
+func (q *QueryRunner) findNonexistingProperties(query model.Query, table *clickhouse.Table) []string {
+	// this is not fully correct, but we keep it backward compatible
 	var results = make([]string, 0)
 	var allReferencedFields = make([]string, 0)
-	allReferencedFields = append(allReferencedFields, queryInfo.RequestedFields...)
-	for _, field := range sortFields {
+	for _, col := range query.Columns {
+		for _, c := range aexp.GetUsedColumns(col.Expression) {
+			allReferencedFields = append(allReferencedFields, c.ColumnName)
+		}
+	}
+	for _, field := range query.SortFields {
 		allReferencedFields = append(allReferencedFields, field.Field)
 	}
 
