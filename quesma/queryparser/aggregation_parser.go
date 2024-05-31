@@ -38,6 +38,10 @@ type metricsAggregation struct {
 	sigma               float64                 // only for standard deviation
 }
 
+func (m metricsAggregation) sortByExists() bool {
+	return len(m.SortBy) > 0
+}
+
 const metricsAggregationDefaultFieldType = clickhouse.Invalid
 
 /* code from my previous approach to this issue. Let's keep for now, 95% it'll be not needed, I'll remove it then.
@@ -172,10 +176,16 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			)
 			query.WhereClause = query.WhereClause + fmt.Sprintf(" AND %s <= %d", model.RowNumberColumnName, metricsAggr.Size)
 		} else {
-
-			query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.TableColumn(metricsAggr.SortBy)})
+			for _, f := range metricsAggr.FieldNames {
+				query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.TableColumn(f)})
+			}
+			orderBy := ""
+			if metricsAggr.sortByExists() {
+				query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.TableColumn(metricsAggr.SortBy)})
+				orderBy = fmt.Sprintf("ORDER BY %s %s ", strconv.Quote(metricsAggr.SortBy), metricsAggr.Order)
+			}
 			query.SuffixClauses = append(query.SuffixClauses,
-				fmt.Sprintf(`ORDER BY %s %s LIMIT %d`, metricsAggr.SortBy, metricsAggr.Order, metricsAggr.Size))
+				fmt.Sprintf(`%sLIMIT %d`, orderBy, metricsAggr.Size))
 		}
 	case "percentile_ranks":
 		for _, cutValueAsString := range metricsAggr.FieldNames[1:] {
@@ -230,7 +240,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "top_hits":
 		query.Type = metrics_aggregations.NewTopHits(b.ctx)
 	case "top_metrics":
-		query.Type = metrics_aggregations.NewTopMetrics(b.ctx)
+		query.Type = metrics_aggregations.NewTopMetrics(b.ctx, metricsAggr.sortByExists())
 	case "value_count":
 		query.Type = metrics_aggregations.NewValueCount(b.ctx)
 	case "percentile_ranks":
