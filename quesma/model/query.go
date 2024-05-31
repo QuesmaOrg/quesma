@@ -30,15 +30,17 @@ type (
 		GroupBy       []SelectColumn // if not empty, we do GROUP BY GroupBy...
 		SuffixClauses []string       // ORDER BY, etc.
 
-		CanParse      bool // true <=> query is valid
+		CanParse bool // true <=> query is valid
+
+		// Eventually we should merge this two
 		QueryInfoType SearchQueryType
+		Type          QueryType
 
 		Highlighter Highlighter
 		NoDBQuery   bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
 		Parent      string       // parent aggregation name, used in some pipeline aggregations
 		Aggregators []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
-		Type        QueryType
-		SortFields  SortFields // fields to sort by
+		SortFields  SortFields   // fields to sort by
 		SubSelect   string
 
 		// dictionary to add as 'meta' field in the response.
