@@ -5,7 +5,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
+	"mitmproxy/quesma/elasticsearch/elasticsearch_field_types"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/util"
 	"strconv"
 	"testing"
@@ -87,7 +89,66 @@ func TestFieldCaps(t *testing.T) {
 }
 `)
 	tableMap := concurrent.NewMapWith("logs-generic-default", table)
-	resp, err := handleFieldCapsIndex(ctx, []string{"logs-generic-default"}, *tableMap)
+	resp, err := handleFieldCapsIndex(ctx, config.QuesmaConfiguration{}, []string{"logs-generic-default"}, *tableMap)
+	assert.NoError(t, err)
+	expectedResp, err := json.MarshalIndent(expected, "", "  ")
+	assert.NoError(t, err)
+	err = json.Unmarshal(expectedResp, &expectedResp)
+	assert.NoError(t, err)
+
+	difference1, difference2, err := util.JsonDifference(
+		string(resp),
+		string(expectedResp),
+	)
+
+	assert.NoError(t, err)
+	assert.Empty(t, difference1)
+	assert.Empty(t, difference2)
+}
+
+func TestFieldCapsWithStaticSchema(t *testing.T) {
+	table := &clickhouse.Table{
+		Name: tableName,
+		Cols: map[string]*clickhouse.Column{
+			"service.name": {Name: "service.name", Type: clickhouse.BaseType{Name: "String"}},
+		},
+	}
+	expected := []byte(`{
+  "fields": {
+    "QUESMA_CLICKHOUSE_RESPONSE": {
+      "text": {
+        "aggregatable": false,
+        "metadata_field": false,
+        "searchable": true,
+        "type": "text",
+		"indices": ["logs-generic-default"]
+      }
+    },
+    "service.name": {
+      "match_only_text": {
+        "aggregatable": true,
+        "searchable": true,
+        "metadata_field": false,
+        "type": "match_only_text",
+		"indices": ["logs-generic-default"]
+      }
+    }
+  },
+  "indices": [
+    "logs-generic-default"
+  ]
+}
+`)
+	tableMap := concurrent.NewMapWith("logs-generic-default", table)
+	resp, err := handleFieldCapsIndex(ctx, config.QuesmaConfiguration{
+		IndexConfig: map[string]config.IndexConfiguration{
+			"logs-generic-default": {
+				TypeMappings: map[string]string{
+					"service.name": elasticsearch_field_types.FieldTypeMatchOnlyText,
+				},
+			},
+		},
+	}, []string{"logs-generic-default"}, *tableMap)
 	assert.NoError(t, err)
 	expectedResp, err := json.MarshalIndent(expected, "", "  ")
 	assert.NoError(t, err)
@@ -118,7 +179,7 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
 			"foo.bar2": {Name: "foo.bar2", Type: clickhouse.BaseType{Name: "String"}},
 		},
 	})
-	resp, err := handleFieldCapsIndex(ctx, []string{"logs-1", "logs-2"}, *tableMap)
+	resp, err := handleFieldCapsIndex(ctx, config.QuesmaConfiguration{}, []string{"logs-1", "logs-2"}, *tableMap)
 	assert.NoError(t, err)
 	expectedResp, err := json.MarshalIndent([]byte(`{
   "fields": {
@@ -188,7 +249,7 @@ func TestFieldCapsMultipleIndexesConflictingEntries(t *testing.T) {
 			"foo.bar": {Name: "foo.bar", Type: clickhouse.BaseType{Name: "Boolean"}},
 		},
 	})
-	resp, err := handleFieldCapsIndex(ctx, []string{"logs-1", "logs-2", "logs-3"}, *tableMap)
+	resp, err := handleFieldCapsIndex(ctx, config.QuesmaConfiguration{}, []string{"logs-1", "logs-2", "logs-3"}, *tableMap)
 	assert.NoError(t, err)
 	expectedResp, err := json.MarshalIndent([]byte(`{
   "fields": {

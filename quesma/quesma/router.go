@@ -262,7 +262,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 
 	router.Register(routes.FieldCapsPath, and(method("GET", "POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
-		responseBody, err := handleFieldCaps(ctx, req.Params["index"], lm)
+		responseBody, err := handleFieldCaps(ctx, cfg, req.Params["index"], lm)
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
 				if req.QueryParams.Get("allow_no_indices") == "true" || req.QueryParams.Get("ignore_unavailable") == "true" {
