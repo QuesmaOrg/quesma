@@ -24,6 +24,10 @@ func TableColumn(columnName string) TableColumnExp {
 	return TableColumnExp{ColumnName: columnName}
 }
 
+func String(value string) StringExp {
+	return StringExp{Value: value}
+}
+
 func Literal(value any) LiteralExp {
 	return LiteralExp{Value: value}
 }

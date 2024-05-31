@@ -208,7 +208,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		if canParse {
 			if query_util.IsNonAggregationQuery(queries[0].QueryInfo, body) {
-				if properties := q.findNonexistingProperties(queries[0].QueryInfo, queries[0].SortFields, table); len(properties) > 0 {
+				if properties := q.findNonexistingProperties(queries[0].QueryInfo, queries[0].OrderBy, table); len(properties) > 0 {
 					logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
 					if elasticsearch.IsIndexPattern(indexPattern) {
 						return queryparser.EmptySearchResponse(ctx), nil
@@ -256,7 +256,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		} else {
 			queriesBody := ""
 			for _, query := range queries {
-				queriesBody += query.String() + "\n"
+				queriesBody += query.String(ctx) + "\n"
 			}
 			responseBody = []byte(fmt.Sprintf("Invalid Queries: %s, err: %v", queriesBody, err))
 			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBody)
@@ -425,8 +425,9 @@ LOOP:
 		if query.NoDBQuery {
 			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
 		} else {
-			logger.InfoWithCtx(ctx).Msgf("SQL: %s", query.String())
-			sqls += query.String() + "\n"
+			sql := query.String(ctx)
+			logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
+			sqls += sql + "\n"
 		}
 
 		// This is a HACK
@@ -475,13 +476,14 @@ func (q *QueryRunner) Close() {
 	logger.Info().Msg("queryRunner Stopped")
 }
 
-func (q *QueryRunner) findNonexistingProperties(queryInfo model.SearchQueryInfo, sortFields []model.SortField, table *clickhouse.Table) []string {
+func (q *QueryRunner) findNonexistingProperties(queryInfo model.SearchQueryInfo, sortFields []model.SelectColumn, table *clickhouse.Table) []string {
 	var results = make([]string, 0)
 	var allReferencedFields = make([]string, 0)
 	allReferencedFields = append(allReferencedFields, queryInfo.RequestedFields...)
-	for _, field := range sortFields {
-		allReferencedFields = append(allReferencedFields, field.Field)
-	}
+
+	// adds fields from 'sortFields'
+	temporarySlightlyHackishQuery := &model.Query{OrderBy: sortFields}
+	allReferencedFields = append(allReferencedFields, temporarySlightlyHackishQuery.OrderByFieldNames()...)
 
 	for _, property := range allReferencedFields {
 		if property != "*" && !table.HasColumn(q.executionCtx, property) {

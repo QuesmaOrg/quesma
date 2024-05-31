@@ -75,6 +75,20 @@ func (e LiteralExp) Accept(v AExpVisitor) interface{} {
 	return v.VisitLiteral(e)
 }
 
+// StringExp is just like LiteralExp with string Value, but when rendering we don't quote it.
+// Used e.g. for representing ASC/DESC, or tablename
+type StringExp struct {
+	Value string
+}
+
+func (e StringExp) String() string {
+	return fmt.Sprintf("(string %s)", e.Value)
+}
+
+func (e StringExp) Accept(v AExpVisitor) interface{} {
+	return v.VisitString(e)
+}
+
 // Space separated expressions
 type CompositeExp struct {
 	Expressions []AExp
@@ -127,6 +141,7 @@ type AExpVisitor interface {
 	VisitFunction(e FunctionExp) interface{}
 	VisitMultiFunction(e MultiFunctionExp) interface{}
 	VisitLiteral(l LiteralExp) interface{}
+	VisitString(l StringExp) interface{}
 	VisitComposite(e CompositeExp) interface{}
 	VisitInfix(e InfixExp) interface{}
 	VisitSQL(s SQL) interface{}
