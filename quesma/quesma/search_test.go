@@ -75,7 +75,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 	for i, tt := range testdata.TestsAsyncSearch {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
 			queryMatcher := sqlmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
-				fmt.Printf("actu SQL: %s\n", actualSQL)
+				fmt.Printf("actual SQL: %s\n", actualSQL)
 				return sqlmock.QueryMatcherRegexp.Match(expectedSQL, actualSQL)
 			})
 			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(queryMatcher))

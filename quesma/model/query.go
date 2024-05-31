@@ -31,7 +31,7 @@ type (
 		GroupBy     []SelectColumn // if not empty, we do GROUP BY GroupBy...
 		OrderBy     []SelectColumn // if not empty, we do ORDER BY OrderBy...
 		WhereClause string         // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
-		Limit       int            // LIMIT clause, noLimit (-1) means no limit
+		Limit       int            // LIMIT clause, noLimit (0) means no limit
 
 		FromClause  string // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
 		CanParse    bool   // true <=> query is valid

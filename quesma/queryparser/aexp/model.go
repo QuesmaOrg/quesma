@@ -75,6 +75,8 @@ func (e LiteralExp) Accept(v AExpVisitor) interface{} {
 	return v.VisitLiteral(e)
 }
 
+// StringExp is just like LiteralExp with string Value, but when rendering we don't quote it.
+// Used e.g. for representing ASC/DESC, or tablename
 type StringExp struct {
 	Value string
 }

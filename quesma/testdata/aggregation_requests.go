@@ -6318,8 +6318,8 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + QuotedTableName,
-			`SELECT "message", "timestamp" FROM ` + QuotedTableName + ` ORDER BY "timestamp" desc LIMIT 1`,
-			`SELECT "message", "timestamp" FROM ` + QuotedTableName + ` ORDER BY "timestamp" desc LIMIT 1`,
+			`SELECT "message", "timestamp" FROM ` + QuotedTableName + ` ORDER BY "timestamp" DESC LIMIT 1`,
+			`SELECT "message", "timestamp" FROM ` + QuotedTableName + ` ORDER BY "timestamp" DESC LIMIT 1`,
 		},
 	},
 }

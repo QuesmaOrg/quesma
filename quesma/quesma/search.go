@@ -425,8 +425,9 @@ LOOP:
 		if query.NoDBQuery {
 			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
 		} else {
-			logger.InfoWithCtx(ctx).Msgf("SQL: %s", query.String(ctx))
-			sqls += query.String(ctx) + "\n"
+			sql := query.String(ctx)
+			logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
+			sqls += sql + "\n"
 		}
 
 		// This is a HACK
