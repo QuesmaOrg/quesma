@@ -88,7 +88,10 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 				return &mux.Result{StatusCode: 404}, nil
 			}
 
-			definitions := lm.GetTableDefinitions()
+			definitions, err := lm.GetTableDefinitions()
+			if err != nil {
+				return nil, err
+			}
 			sources.Indices = slices.DeleteFunc(sources.Indices, func(i elasticsearch.Index) bool {
 				return definitions.Has(i.Name)
 			})
@@ -111,7 +114,11 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 			return resolveIndexResult(sources), nil
 		} else {
 			if config.MatchName(elasticsearch.NormalizePattern(pattern), pattern) {
-				definitions := lm.GetTableDefinitions()
+				definitions, err := lm.GetTableDefinitions()
+				if err != nil {
+					return nil, err
+				}
+
 				if definitions.Has(pattern) {
 					return resolveIndexResult(elasticsearch.Sources{
 						Indices: []elasticsearch.Index{},
