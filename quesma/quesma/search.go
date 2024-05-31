@@ -365,11 +365,9 @@ func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) (
 	}
 	if result, ok := q.AsyncRequestStorage.Load(id); ok {
 		if result.err != nil {
-			q.AsyncRequestStorage.Delete(id)
 			logger.ErrorWithCtx(ctx).Msgf("error processing async query: %v", result.err)
 			return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 		}
-		q.AsyncRequestStorage.Delete(id)
 		// We use zstd to conserve memory, as we have a lot of async queries
 		if result.isCompressed {
 			buf, err := util.Decompress(result.responseBody)
