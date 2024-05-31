@@ -74,7 +74,10 @@ func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id str
 
 // returns -1 when table name could not be resolved
 func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int64, error) {
-	indexes := q.logManager.ResolveIndexes(ctx, indexPattern)
+	indexes, err := q.logManager.ResolveIndexes(ctx, indexPattern)
+	if err != nil {
+		return 0, err
+	}
 	if len(indexes) == 0 {
 		if elasticsearch.IsIndexPattern(indexPattern) {
 			return 0, nil
@@ -185,7 +188,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 	}
 
-	tables := q.logManager.GetTableDefinitions()
+	tables, err := q.logManager.GetTableDefinitions()
+	if err != nil {
+		return nil, err
+	}
 
 	for _, resolvedTableName := range sourcesClickhouse {
 		var err error

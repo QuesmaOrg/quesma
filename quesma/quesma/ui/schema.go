@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/util"
 	"sort"
 	"strings"
@@ -28,11 +30,23 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 	buffer.Write(generateTopNavigation("schema"))
 	buffer.Html(`<main id="schema">`)
 
+	var schema clickhouse.TableMap
+	var hasSchema bool
+	var err error
+	var schemaError error
 	if qmc.logManager != nil {
+		schema, err = qmc.logManager.GetTableDefinitions()
+		if err != nil {
+			schemaError = err
+		} else {
+			hasSchema = true
+		}
+	}
+
+	if hasSchema {
 
 		// Not sure if we should read directly from the TableMap or we should use the Snapshot of it.
 		// Let's leave it as is for now.
-		schema := qmc.logManager.GetTableDefinitions()
 
 		tableNames := schema.Keys()
 		sort.Strings(tableNames)
@@ -215,7 +229,22 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 		buffer.Html("\n</table>")
 
 	} else {
-		buffer.Html(`<p>Schema is not available</p>`)
+		details := ""
+		if schemaError != nil {
+
+			var endUserError *end_user_errors.EndUserError
+			if errors.As(err, &endUserError) {
+				details = fmt.Sprintf("Error: %s", endUserError.EndUserErrorMessage())
+			}
+			buffer.Html(`<p>Schema is not available.</p>`)
+			if details != "" {
+				buffer.Html(`<p>`)
+				buffer.Text(details)
+				buffer.Html(`</p>`)
+			}
+		} else {
+			buffer.Html(`<p>Schema is not available</p>`)
+		}
 	}
 
 	buffer.Html("\n<table>")

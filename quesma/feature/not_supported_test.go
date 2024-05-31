@@ -31,11 +31,11 @@ func TestNewUnsupportedFeature_index(t *testing.T) {
 
 	ctx := context.Background()
 
-	indexNameResolver := func(_ context.Context, pattern string) []string {
+	indexNameResolver := func(_ context.Context, pattern string) ([]string, error) {
 		if pattern == "foo" {
-			return []string{"foo"}
+			return []string{"foo"}, nil
 		}
-		return []string{}
+		return []string{}, nil
 	}
 
 	for _, tt := range tests {

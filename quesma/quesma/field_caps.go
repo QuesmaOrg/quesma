@@ -203,13 +203,23 @@ func isInternalColumn(col *clickhouse.Column) bool {
 }
 
 func handleFieldCaps(ctx context.Context, index string, lm *clickhouse.LogManager) ([]byte, error) {
-	indexes := lm.ResolveIndexes(ctx, index)
+	indexes, err := lm.ResolveIndexes(ctx, index)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(indexes) == 0 {
 		if !elasticsearch.IsIndexPattern(index) {
 			return nil, errIndexNotExists
 		}
 	}
-	return handleFieldCapsIndex(ctx, indexes, lm.GetTableDefinitions())
+
+	tables, err := lm.GetTableDefinitions()
+	if err != nil {
+		return nil, err
+	}
+
+	return handleFieldCapsIndex(ctx, indexes, tables)
 }
 
 func merge(cap1, cap2 model.FieldCapability) (model.FieldCapability, bool) {
