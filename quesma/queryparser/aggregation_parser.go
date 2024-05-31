@@ -781,15 +781,15 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			logger.WarnWithCtx(cw.Ctx).Msgf("multi_terms is not a map, but %T, value: %v", multiTermsRaw, multiTermsRaw)
 		}
 
+		orderByAdded := false
 		isEmptyGroupBy := len(currentAggr.GroupBy) == 0
 		const defaultSize = 10
 		size := cw.parseIntField(multiTerms, "size", defaultSize)
 		if _, exists := queryMap["aggs"]; isEmptyGroupBy && !exists { // we can do limit only it terms are not nested
-			currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, "ORDER BY count() DESC")
-			currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, fmt.Sprintf("LIMIT %d", size))
+			currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewSortByCountColumn(true))
+			currentAggr.Limit = size
+			orderByAdded = true
 		}
-
-		// TODO: "order" field
 
 		var fieldsNr int
 		if termsRaw, exists := multiTerms["terms"]; exists {
@@ -800,12 +800,17 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			fieldsNr = len(terms)
 			for _, term := range terms {
 				fieldName := cw.parseFieldField(term, "multi_terms")
-				currentAggr.Columns = append(currentAggr.GroupBy, model.SelectColumn{Expression: aexp.TableColumn(fieldName)})
-				currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: aexp.TableColumn(fieldName)})
+				column := model.SelectColumn{Expression: aexp.TableColumn(fieldName)}
+				currentAggr.Columns = append(currentAggr.GroupBy, column)
+				currentAggr.GroupBy = append(currentAggr.GroupBy, column)
+				if !orderByAdded {
+					currentAggr.OrderBy = append(currentAggr.OrderBy, column)
+				}
 			}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msg("no terms in multi_terms")
 		}
+
 		currentAggr.Type = bucket_aggregations.NewMultiTerms(cw.Ctx, fieldsNr)
 		if len(currentAggr.Aggregators) > 0 {
 			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].SplitOverHowManyFields = fieldsNr
