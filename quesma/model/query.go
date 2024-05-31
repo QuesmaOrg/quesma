@@ -249,7 +249,6 @@ type SearchQueryInfo struct {
 	RequestedFields []string
 	// deprecated
 	FieldName string
-	Interval  string
 	I1        int
 	I2        int
 	Size      int // how many hits to return
