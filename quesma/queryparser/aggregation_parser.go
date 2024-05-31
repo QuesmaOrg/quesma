@@ -791,30 +791,30 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 
 		// TODO: "order" field
 
-		var fields []string
+		var fieldsNr int
 		if termsRaw, exists := multiTerms["terms"]; exists {
 			terms, ok := termsRaw.([]any)
 			if !ok {
 				logger.WarnWithCtx(cw.Ctx).Msgf("terms is not an array, but %T, value: %v. Using empty array", termsRaw, termsRaw)
 			}
+			fieldsNr = len(terms)
 			for _, term := range terms {
 				fieldName := cw.parseFieldField(term, "multi_terms")
-				fields = append(fields, fieldName)
 				currentAggr.Columns = append(currentAggr.GroupBy, model.SelectColumn{Expression: aexp.TableColumn(fieldName)})
 				currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: aexp.TableColumn(fieldName)})
 			}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msg("no terms in multi_terms")
 		}
-		currentAggr.Type = bucket_aggregations.NewMultiTerms(cw.Ctx, fields, size)
+		currentAggr.Type = bucket_aggregations.NewMultiTerms(cw.Ctx, fieldsNr)
 		if len(currentAggr.Aggregators) > 0 {
-			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].SplitOverHowManyFields = len(fields)
+			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].SplitOverHowManyFields = fieldsNr
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("empty aggregators, should be impossible. currentAggr: %+v", currentAggr)
 		}
 
 		delete(queryMap, "multi_terms")
-		return success, len(fields), len(fields), nil
+		return success, fieldsNr, fieldsNr, nil
 	}
 	if rangeRaw, ok := queryMap["range"]; ok {
 		rangeMap, ok := rangeRaw.(QueryMap)

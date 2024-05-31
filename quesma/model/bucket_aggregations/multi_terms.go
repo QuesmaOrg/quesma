@@ -8,13 +8,12 @@ import (
 )
 
 type MultiTerms struct {
-	ctx    context.Context
-	fields []string
-	size   int
+	ctx      context.Context
+	fieldsNr int // over how many fields we split into buckets
 }
 
-func NewMultiTerms(ctx context.Context, fields []string, size int) MultiTerms {
-	return MultiTerms{ctx: ctx, fields: fields, size: size}
+func NewMultiTerms(ctx context.Context, fieldsNr int) MultiTerms {
+	return MultiTerms{ctx: ctx, fieldsNr: fieldsNr}
 }
 
 func (query MultiTerms) IsBucketAggregation() bool {
@@ -23,19 +22,23 @@ func (query MultiTerms) IsBucketAggregation() bool {
 
 func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	var response []model.JsonMap
-	fieldsNr := len(query.fields)
-	expectedColNrLowerBound := fieldsNr + 1 // +1 for doc_count
-	if len(rows) > 0 && len(rows[0].Cols) < expectedColNrLowerBound {
+	minimumExpectedColNr := query.fieldsNr + 1 // +1 for doc_count. Can be more, if this MultiTerms has parent aggregations, but never fewer.
+	if len(rows) > 0 && len(rows[0].Cols) < minimumExpectedColNr {
 		logger.ErrorWithCtx(query.ctx).Msgf(
-			"unexpected number of columns in terms aggregation response, len: %d, expected (at least): %d, rows[0]: %v", len(rows[0].Cols), expectedColNrLowerBound, rows[0])
+			"unexpected number of columns in terms aggregation response, len: %d, expected (at least): %d, rows[0]: %v", len(rows[0].Cols), minimumExpectedColNr, rows[0])
 	}
 	const delimiter = '|' // between keys in key_as_string
 	for _, row := range rows {
 		docCount := row.Cols[len(row.Cols)-1].Value
 
-		keys := make([]any, 0, fieldsNr)
+		keys := make([]any, 0, query.fieldsNr)
 		var keyAsString string
-		keyColumns := row.Cols[len(row.Cols)-expectedColNrLowerBound : len(row.Cols)-1]
+		startIndex := len(row.Cols) - query.fieldsNr - 1
+		if startIndex < 0 {
+			logger.WarnWithCtx(query.ctx).Msgf("startIndex < 0 - too few columns. row: %+v", row)
+			startIndex = 0
+		}
+		keyColumns := row.Cols[startIndex : len(row.Cols)-1] // last col isn't a key, it's doc_count
 		for _, col := range keyColumns {
 			keys = append(keys, col.Value)
 			keyAsString += fmt.Sprintf("%v%c", col.Value, delimiter)
@@ -55,7 +58,7 @@ func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 }
 
 func (query MultiTerms) String() string {
-	return fmt.Sprintf("multi_terms(fields: %v, size: %d)", query.fields, query.size)
+	return fmt.Sprintf("multi_terms(fieldsNr: %d)", query.fieldsNr)
 }
 
 func (query MultiTerms) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
