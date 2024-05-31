@@ -4,6 +4,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/pipeline_aggregations"
+	"mitmproxy/quesma/queryparser/aexp"
 )
 
 // CAUTION: maybe "return" everywhere isn't corrent, as maybe there can be multiple pipeline aggregations at one level.
@@ -226,7 +227,7 @@ func (b *aggrQueryBuilder) finishBuildingAggregationPipeline(aggregationType mod
 	query.Type = aggregationType
 	switch aggrType := aggregationType.(type) {
 	case pipeline_aggregations.BucketScript:
-		query.NonSchemaFields = append(query.NonSchemaFields, "count()")
+		query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Count()})
 	case pipeline_aggregations.CumulativeSum:
 		query.NoDBQuery = true
 		if aggrType.IsCount {
@@ -240,7 +241,7 @@ func (b *aggrQueryBuilder) finishBuildingAggregationPipeline(aggregationType mod
 	case pipeline_aggregations.Derivative:
 		query.NoDBQuery = true
 		if aggrType.IsCount {
-			query.NonSchemaFields = append(query.NonSchemaFields, "count()")
+			query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Count()})
 			if len(query.Aggregators) < 2 {
 				logger.WarnWithCtx(b.ctx).Msg("derivative with count as parent, but no parent aggregation found")
 			}
@@ -251,7 +252,7 @@ func (b *aggrQueryBuilder) finishBuildingAggregationPipeline(aggregationType mod
 	case pipeline_aggregations.SerialDiff:
 		query.NoDBQuery = true
 		if aggrType.IsCount {
-			query.NonSchemaFields = append(query.NonSchemaFields, "count()")
+			query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Count()})
 			if len(query.Aggregators) < 2 {
 				logger.WarnWithCtx(b.ctx).Msg("serial diff with count as parent, but no parent aggregation found")
 			}

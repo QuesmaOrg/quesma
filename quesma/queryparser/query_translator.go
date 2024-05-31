@@ -94,43 +94,6 @@ func (cw *ClickhouseQueryTranslator) addAndHighlightHit(hit *model.SearchHit, hi
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) makeSearchResponseNormal(ResultSet []model.QueryResultRow, highlighter model.Highlighter, sortProperties []string) *model.SearchResp {
-	hits := make([]model.SearchHit, len(ResultSet))
-	for i, row := range ResultSet {
-		hits[i] = model.SearchHit{
-			Index:     row.Index,
-			Source:    []byte(row.String(cw.Ctx)),
-			Fields:    make(map[string][]interface{}),
-			Highlight: make(map[string][]string),
-			Sort:      []any{},
-		}
-		cw.addAndHighlightHit(&hits[i], highlighter, ResultSet[i])
-		hits[i].ID = cw.computeIdForDocument(hits[i], strconv.Itoa(i+1))
-		for _, property := range sortProperties {
-			if val, ok := hits[i].Fields[property]; ok {
-				hits[i].Sort = append(hits[i].Sort, elasticsearch.FormatSortValue(val[0]))
-			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("property %s not found in fields", property)
-			}
-		}
-	}
-
-	return &model.SearchResp{
-		Hits: model.SearchHits{
-			Hits: hits,
-			Total: &model.Total{
-				Value:    len(ResultSet),
-				Relation: "eq",
-			},
-		},
-		Shards: model.ResponseShards{
-			Total:      1,
-			Successful: 1,
-			Failed:     0,
-		},
-	}
-}
-
 func emptySearchResponse() model.SearchResp {
 	return model.SearchResp{
 		Hits: model.SearchHits{
@@ -161,12 +124,9 @@ func EmptyAsyncSearchResponse(id string, isPartial bool, completionStatus int) (
 
 func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, query model.Query) (*model.SearchResp, error) {
 	switch query.QueryInfo.Typ {
-	case model.Normal:
-		return cw.makeSearchResponseNormal(ResultSet, query.Highlighter, query.SortFields.Properties()), nil
 	case model.Facets, model.FacetsNumeric:
 		return cw.makeSearchResponseFacets(ResultSet, query.QueryInfo.Typ), nil
-	case model.ListByField, model.ListAllFields:
-
+	case model.ListByField, model.ListAllFields, model.Normal:
 		return cw.makeSearchResponseList(ResultSet, query.QueryInfo.Typ, query.Highlighter, query.SortFields.Properties()), nil
 	default:
 		return nil, fmt.Errorf("unknown SearchQueryType: %v", query.QueryInfo.Typ)
@@ -322,11 +282,13 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 	for i := range ResultSet {
 		hits[i].Fields = make(map[string][]interface{})
 		hits[i].Highlight = make(map[string][]string)
+		hits[i].Index = cw.Table.Name
 		if typ == model.ListAllFields {
-			hits[i].ID = strconv.Itoa(i + 1)
-			hits[i].Index = cw.Table.Name
 			hits[i].Score = 1
 			hits[i].Version = 1
+		}
+		if typ == model.Normal {
+			hits[i].Source = []byte(ResultSet[i].String(cw.Ctx))
 		}
 		cw.addAndHighlightHit(&hits[i], highlighter, ResultSet[i])
 		hits[i].ID = cw.computeIdForDocument(hits[i], strconv.Itoa(i+1))
@@ -507,7 +469,7 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 	hits := []model.SearchHit{}
 	// Process hits as last aggregation
 	if len(queries) > 0 && len(ResultSets) > 0 && queries[len(queries)-1].IsWildcard() {
-		response := cw.makeSearchResponseNormal(ResultSets[len(ResultSets)-1], queries[len(queries)-1].Highlighter, queries[len(queries)-1].SortFields.Properties())
+		response := cw.makeSearchResponseList(ResultSets[len(ResultSets)-1], model.Normal, queries[len(queries)-1].Highlighter, queries[len(queries)-1].SortFields.Properties())
 		hits = response.Hits.Hits
 		queries = queries[:len(queries)-1]
 		ResultSets = ResultSets[:len(ResultSets)-1]
@@ -592,11 +554,10 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []m
 
 func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause string) *model.Query {
 	return &model.Query{
-		Columns:         []model.SelectColumn{{Expression: aexp.Count()}},
-		NonSchemaFields: []string{"count()"},
-		WhereClause:     whereClause,
-		FromClause:      cw.Table.FullTableName(),
-		CanParse:        true,
+		Columns:     []model.SelectColumn{{Expression: aexp.Count()}},
+		WhereClause: whereClause,
+		FromClause:  cw.Table.FullTableName(),
+		CanParse:    true,
 	}
 }
 
@@ -610,14 +571,12 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, whereClau
 		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(limit))
 	}
 	return &model.Query{
-		IsDistinct:      true,
-		Fields:          []string{fieldName},
-		Columns:         []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
-		NonSchemaFields: []string{},
-		WhereClause:     whereClause,
-		SuffixClauses:   suffixClauses,
-		FromClause:      cw.Table.FullTableName(),
-		CanParse:        true,
+		IsDistinct:    true,
+		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		WhereClause:   whereClause,
+		SuffixClauses: suffixClauses,
+		FromClause:    cw.Table.FullTableName(),
+		CanParse:      true,
 	}
 }
 
@@ -633,20 +592,17 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(limit))
 	}
 	return &model.Query{
-		Fields:          []string{fieldName},
-		Columns:         []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
-		NonSchemaFields: []string{},
-		WhereClause:     whereClause,
-		SuffixClauses:   suffixClauses,
-		FromClause:      cw.Table.FullTableName(),
-		CanParse:        true,
+		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		WhereClause:   whereClause,
+		SuffixClauses: suffixClauses,
+		FromClause:    cw.Table.FullTableName(),
+		CanParse:      true,
 	}
 }
 
 func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, whereClause string) *model.Query {
 	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
 	innerQuery := model.Query{
-		Fields:        []string{fieldName},
 		WhereClause:   whereClause,
 		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
 		SuffixClauses: []string{"LIMIT " + facetsSampleSize},
@@ -654,12 +610,10 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, whereCla
 		CanParse:      true,
 	}
 	return &model.Query{
-		Fields:          []string{fieldName},
-		Columns:         []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
-		NonSchemaFields: []string{"count()"},
-		SuffixClauses:   suffixClauses,
-		FromClause:      "(" + innerQuery.String(cw.Ctx) + ")",
-		CanParse:        true,
+		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
+		SuffixClauses: suffixClauses,
+		FromClause:    "(" + innerQuery.String() + ")",
+		CanParse:      true,
 	}
 }
 
@@ -674,7 +628,6 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName, whe
 	}
 	suffixClauses := []string{orderBy, "LIMIT 1"}
 	return &model.Query{
-		Fields:        []string{timestampFieldName},
 		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(timestampFieldName)}},
 		WhereClause:   whereClause,
 		SuffixClauses: suffixClauses,

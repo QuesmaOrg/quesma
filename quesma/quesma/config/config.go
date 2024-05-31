@@ -118,10 +118,6 @@ func Load() QuesmaConfiguration {
 				configuration.Name = fieldName
 				idxConfig.SchemaConfiguration.Fields[fieldName] = configuration
 			}
-			for fieldName, configuration := range idxConfig.SchemaConfiguration.Aliases {
-				configuration.AliasName = fieldName
-				idxConfig.SchemaConfiguration.Aliases[fieldName] = configuration
-			}
 		}
 	}
 	config.configureLicenseKey()
@@ -329,11 +325,7 @@ func (c *QuesmaConfiguration) validateSchemaConfiguration(config IndexConfigurat
 			err = multierror.Append(err, fmt.Errorf("field %s in index %s is both enabled and ignored", fieldName, config.Name))
 		}
 
-		if alias, found := config.SchemaConfiguration.Aliases[fieldName]; found {
-			err = multierror.Append(err, fmt.Errorf("field %s in index %s is both enabled and aliased to %s", fieldName, config.Name, alias.TargetFieldName))
-		}
-
-		if alias, found := config.SchemaConfiguration.Aliases[fieldName]; found && alias.TargetFieldName == "" {
+		if field, found := config.SchemaConfiguration.Fields[fieldName]; found && field.Type.AsString() == elasticsearch_field_types.FieldTypeAlias && field.AliasedField == "" {
 			err = multierror.Append(err, fmt.Errorf("field %s in index %s is aliased to an empty field", fieldName, config.Name))
 		}
 

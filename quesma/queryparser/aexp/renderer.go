@@ -63,3 +63,7 @@ func (v *renderer) VisitMultiFunction(f MultiFunctionExp) interface{} {
 	}
 	return f.Name + strings.Join(args, "")
 }
+
+func (v *renderer) VisitInfix(e InfixExp) interface{} {
+	return fmt.Sprintf("%s %s %s", e.Left.Accept(v), e.Op, e.Right.Accept(v))
+}
