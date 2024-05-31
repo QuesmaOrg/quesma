@@ -218,7 +218,12 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						doneCh <- AsyncSearchWithError{err: err}
 					})
 
-					translatedQueryBody, hitsSlice := q.searchWorker(ctx, queries, table, doneCh, optAsync)
+					translatedQueryBody, hitsSlice, err := q.searchWorker(ctx, queries, table, doneCh, optAsync)
+					if err != nil {
+						doneCh <- AsyncSearchWithError{err: err}
+						return
+					}
+
 					if len(hitsSlice) == 0 {
 						logger.ErrorWithCtx(ctx).Msgf("no hits, queryInfo: %d", translatedQueryBody)
 						doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
@@ -236,9 +241,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						doneCh <- AsyncSearchWithError{err: err}
 					})
 
-					translatedQueryBody, aggregationResults := q.searchWorker(ctx, queries, table, doneCh, optAsync)
+					translatedQueryBody, aggregationResults, err := q.searchWorker(ctx, queries, table, doneCh, optAsync)
+
 					searchResponse := queryTranslator.MakeResponseAggregation(queries, aggregationResults)
-					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody}
+					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
 				}()
 			}
 		} else {
@@ -402,8 +408,10 @@ func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.C
 func (q *QueryRunner) searchWorkerCommon(
 	ctx context.Context,
 	queries []model.Query,
-	table *clickhouse.Table) (translatedQueryBody []byte, hits [][]model.QueryResultRow) {
+	table *clickhouse.Table) (translatedQueryBody []byte, hits [][]model.QueryResultRow, err error) {
 	sqls := ""
+
+LOOP:
 	for _, query := range queries {
 		if query.NoDBQuery {
 			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
@@ -411,11 +419,22 @@ func (q *QueryRunner) searchWorkerCommon(
 			logger.InfoWithCtx(ctx).Msgf("SQL: %s", query.String())
 			sqls += query.String() + "\n"
 		}
+
+		// This is a HACK
+		// This should be removed when we have a schema resolver working.
+		// It ignores queries against data_stream fields. These queries are kibana internal ones.
+		for _, column := range query.Columns {
+			if strings.Contains(column.SQL(), "data_stream.") {
+				continue LOOP
+			}
+		}
 		rows, err := q.logManager.ProcessQuery(ctx, table, &query)
+
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
-			continue
+			return nil, nil, err
 		}
+
 		if query.Type != nil {
 			rows = query.Type.PostprocessResults(rows)
 		}
@@ -429,7 +448,7 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 	aggregations []model.Query,
 	table *clickhouse.Table,
 	doneCh chan<- AsyncSearchWithError,
-	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
+	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow, err error) {
 	if optAsync != nil {
 		if q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, doneCh) {
 			return
