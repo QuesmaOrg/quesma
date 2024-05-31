@@ -98,7 +98,7 @@ func (cw *ClickhouseQueryTranslator) makeBasicQuery(
 	case model.Normal:
 		fullQuery = cw.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
 	}
-	fullQuery.QueryInfo = queryInfo
+	fullQuery.QueryInfoType = queryInfo.Typ
 	fullQuery.Highlighter = highlighter
 	return fullQuery
 }

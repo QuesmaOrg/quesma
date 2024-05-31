@@ -33,7 +33,7 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 		hits[i].Fields = make(map[string][]interface{})
 		hits[i].Highlight = make(map[string][]string)
 		hits[i].Source = []byte(resultRow.String(cw.Ctx))
-		if query.QueryInfo.Typ == model.ListAllFields {
+		if query.QueryInfoType == model.ListAllFields {
 			hits[i].ID = strconv.Itoa(i + 1)
 			hits[i].Index = cw.Table.Name
 			hits[i].Score = 1
@@ -80,7 +80,7 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) ([]model.Que
 	if simpleQuery.CanParse {
 		canParse = true
 		query = query_util.BuildNRowsQuery(cw.Ctx, cw.Table.Name, "*", simpleQuery, queryInfo.I2)
-		query.QueryInfo = queryInfo
+		query.QueryInfoType = queryInfo.Typ
 		query.Highlighter = highlighter
 		query.SortFields = simpleQuery.SortFields
 		queries = append(queries, *query)

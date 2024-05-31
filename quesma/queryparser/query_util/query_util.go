@@ -10,15 +10,15 @@ import (
 	"strings"
 )
 
-func IsNonAggregationQuery(queryInfo model.SearchQueryInfo, body types.JSON) bool {
+func IsNonAggregationQuery(queryInfoType model.SearchQueryType, body types.JSON) bool {
 	_, hasAggs := body["aggs"]
-	return ((queryInfo.Typ == model.ListByField ||
-		queryInfo.Typ == model.ListAllFields ||
-		queryInfo.Typ == model.Normal) &&
+	return ((queryInfoType == model.ListByField ||
+		queryInfoType == model.ListAllFields ||
+		queryInfoType == model.Normal) &&
 		!hasAggs) ||
-		queryInfo.Typ == model.Facets ||
-		queryInfo.Typ == model.FacetsNumeric ||
-		queryInfo.Typ == model.CountAsync
+		queryInfoType == model.Facets ||
+		queryInfoType == model.FacetsNumeric ||
+		queryInfoType == model.CountAsync
 }
 
 func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, query model.SimpleQuery, limit int) *model.Query {

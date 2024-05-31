@@ -30,8 +30,10 @@ type (
 		GroupBy       []SelectColumn // if not empty, we do GROUP BY GroupBy...
 		SuffixClauses []string       // ORDER BY, etc.
 
-		CanParse    bool // true <=> query is valid
-		QueryInfo   SearchQueryInfo
+		CanParse      bool // true <=> query is valid
+		QueryInfo     SearchQueryInfo
+		QueryInfoType SearchQueryType
+
 		Highlighter Highlighter
 		NoDBQuery   bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
 		Parent      string       // parent aggregation name, used in some pipeline aggregations

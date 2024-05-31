@@ -201,7 +201,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		queries, isAggregation, canParse, err := queryTranslator.ParseQuery(body)
 
 		if canParse {
-			if query_util.IsNonAggregationQuery(queries[0].QueryInfo, body) {
+			if query_util.IsNonAggregationQuery(queries[0].QueryInfoType, body) {
 				if properties := q.findNonexistingProperties(queries[0].QueryInfo, queries[0].SortFields, table); len(properties) > 0 {
 					logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
 					if elasticsearch.IsIndexPattern(indexPattern) {
@@ -231,7 +231,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					}
 					searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], queries[0])
 					if err != nil {
-						logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queries[0].QueryInfo, hitsSlice[0])
+						logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfoType: %+v, rows: %v", err, queries[0].QueryInfoType, hitsSlice[0])
 					}
 					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
 				}()
@@ -264,7 +264,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			response := <-doneCh
 			if response.err != nil {
 				err = response.err
-				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v", err, queries[0].QueryInfo)
+				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, QueryInfoType: %+v", err, queries[0].QueryInfoType)
 			} else {
 				responseBody, err = response.response.Marshal()
 			}
