@@ -257,7 +257,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		} else {
 			queriesBody := ""
 			for _, query := range queries {
-				queriesBody += query.String() + "\n"
+				queriesBody += query.String(ctx) + "\n"
 			}
 			responseBody = []byte(fmt.Sprintf("Invalid Queries: %s, err: %v", queriesBody, err))
 			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBody)
@@ -426,8 +426,9 @@ LOOP:
 		if query.NoDBQuery {
 			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
 		} else {
-			logger.InfoWithCtx(ctx).Msgf("SQL: %s", query.String())
-			sqls += query.String() + "\n"
+			sql := query.String(ctx)
+			logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
+			sqls += sql + "\n"
 		}
 
 		// This is a HACK
@@ -485,8 +486,8 @@ func (q *QueryRunner) findNonexistingProperties(query model.Query, table *clickh
 			allReferencedFields = append(allReferencedFields, c.ColumnName)
 		}
 	}
-	for _, field := range query.SortFields {
-		allReferencedFields = append(allReferencedFields, field.Field)
+	for _, field := range query.OrderByFieldNames() {
+		allReferencedFields = append(allReferencedFields, field)
 	}
 
 	for _, property := range allReferencedFields {

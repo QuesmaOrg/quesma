@@ -59,3 +59,7 @@ func (v *used_columns) VisitInfix(e InfixExp) interface{} {
 	}
 	return res
 }
+
+func (v *used_columns) VisitString(e StringExp) interface{} {
+	return make([]TableColumnExp, 0)
+}

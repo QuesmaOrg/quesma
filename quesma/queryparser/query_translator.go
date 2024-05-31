@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-const facetsSampleSize = "20000"
+const facetsSampleSize = 20000
 
 type JsonMap = map[string]interface{}
 
@@ -127,7 +127,7 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryR
 	case model.Facets, model.FacetsNumeric:
 		return cw.makeSearchResponseFacets(ResultSet, query.QueryInfoType), nil
 	case model.ListByField, model.ListAllFields, model.Normal:
-		return cw.makeSearchResponseList(ResultSet, query.QueryInfoType, query.Highlighter, query.SortFields.Properties()), nil
+		return cw.makeSearchResponseList(ResultSet, query.QueryInfoType, query.Highlighter, query.OrderByFieldNames()), nil
 	default:
 		return nil, fmt.Errorf("unknown SearchQueryType: %v", query.QueryInfoType)
 	}
@@ -277,7 +277,7 @@ func (cw *ClickhouseQueryTranslator) computeIdForDocument(doc model.SearchHit, d
 	return pseudoUniqueId
 }
 
-func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter, sortProperties []string) *model.SearchResp {
+func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter, sortFieldNames []string) *model.SearchResp {
 	hits := make([]model.SearchHit, len(ResultSet))
 	for i := range ResultSet {
 		hits[i].Fields = make(map[string][]interface{})
@@ -292,11 +292,11 @@ func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.Qu
 		}
 		cw.addAndHighlightHit(&hits[i], highlighter, ResultSet[i])
 		hits[i].ID = cw.computeIdForDocument(hits[i], strconv.Itoa(i+1))
-		for _, property := range sortProperties {
-			if val, ok := hits[i].Fields[property]; ok {
+		for _, fieldName := range sortFieldNames {
+			if val, ok := hits[i].Fields[fieldName]; ok {
 				hits[i].Sort = append(hits[i].Sort, elasticsearch.FormatSortValue(val[0]))
 			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("property %s not found in fields", property)
+				logger.WarnWithCtx(cw.Ctx).Msgf("field %s not found in fields", fieldName)
 			}
 		}
 	}
@@ -469,7 +469,7 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 	hits := []model.SearchHit{}
 	// Process hits as last aggregation
 	if len(queries) > 0 && len(ResultSets) > 0 && queries[len(queries)-1].IsWildcard() {
-		response := cw.makeSearchResponseList(ResultSets[len(ResultSets)-1], model.Normal, queries[len(queries)-1].Highlighter, queries[len(queries)-1].SortFields.Properties())
+		response := cw.makeSearchResponseList(ResultSets[len(ResultSets)-1], model.Normal, queries[len(queries)-1].Highlighter, queries[len(queries)-1].OrderByFieldNames())
 		hits = response.Hits.Hits
 		queries = queries[:len(queries)-1]
 		ResultSets = ResultSets[:len(ResultSets)-1]
@@ -566,17 +566,13 @@ func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query mod
 }
 
 func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, whereClause string, limit int) *model.Query {
-	suffixClauses := make([]string, 0)
-	if limit > 0 {
-		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(limit))
-	}
 	return &model.Query{
-		IsDistinct:    true,
-		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
-		WhereClause:   whereClause,
-		SuffixClauses: suffixClauses,
-		FromClause:    cw.Table.FullTableName(),
-		CanParse:      true,
+		IsDistinct:  true,
+		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		WhereClause: whereClause,
+		Limit:       limit,
+		FromClause:  cw.Table.FullTableName(),
+		CanParse:    true,
 	}
 }
 
@@ -587,52 +583,43 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 		whereClause = strconv.Quote(fieldName) + " iLIKE '" + prefix + "%'"
 		cw.AddTokenToHighlight(prefix)
 	}
-	suffixClauses := make([]string, 0)
-	if limit > 0 {
-		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(limit))
-	}
 	return &model.Query{
-		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
-		WhereClause:   whereClause,
-		SuffixClauses: suffixClauses,
-		FromClause:    cw.Table.FullTableName(),
-		CanParse:      true,
+		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		WhereClause: whereClause,
+		Limit:       limit,
+		FromClause:  cw.Table.FullTableName(),
+		CanParse:    true,
 	}
 }
 
 func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, whereClause string) *model.Query {
-	suffixClauses := []string{"GROUP BY " + strconv.Quote(fieldName), "ORDER BY count() DESC"}
 	innerQuery := model.Query{
-		WhereClause:   whereClause,
-		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
-		SuffixClauses: []string{"LIMIT " + facetsSampleSize},
-		FromClause:    cw.Table.FullTableName(),
-		CanParse:      true,
+		WhereClause: whereClause,
+		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		Limit:       facetsSampleSize,
+		FromClause:  cw.Table.FullTableName(),
+		CanParse:    true,
 	}
+
 	return &model.Query{
-		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
-		SuffixClauses: suffixClauses,
-		FromClause:    "(" + innerQuery.String() + ")",
-		CanParse:      true,
+		Columns:    []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
+		GroupBy:    []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		OrderBy:    []model.SelectColumn{model.NewSortByCountColumn(true)},
+		FromClause: "(" + innerQuery.String(cw.Ctx) + ")",
+		CanParse:   true,
 	}
 }
 
 // earliest == true  <==> we want earliest timestamp
 // earliest == false <==> we want latest timestamp
 func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName, whereClause string, earliest bool) *model.Query {
-	var orderBy string
-	if earliest {
-		orderBy = "ORDER BY `" + timestampFieldName + "` ASC"
-	} else {
-		orderBy = "ORDER BY `" + timestampFieldName + "` DESC"
-	}
-	suffixClauses := []string{orderBy, "LIMIT 1"}
 	return &model.Query{
-		Columns:       []model.SelectColumn{{Expression: aexp.TableColumn(timestampFieldName)}},
-		WhereClause:   whereClause,
-		SuffixClauses: suffixClauses,
-		FromClause:    cw.Table.FullTableName(),
-		CanParse:      true,
+		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(timestampFieldName)}},
+		WhereClause: whereClause,
+		OrderBy:     []model.SelectColumn{model.NewSortColumn(timestampFieldName, !earliest)},
+		Limit:       1,
+		FromClause:  cw.Table.FullTableName(),
+		CanParse:    true,
 	}
 }
 

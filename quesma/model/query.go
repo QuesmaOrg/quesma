@@ -6,12 +6,15 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/queryparser/aexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
 const (
 	RowNumberColumnName = "row_number"
-	EmptyFieldSelection = "''" // we can query SELECT '', that's why such quotes
+	noLimit             = 0
+	Desc                = "DESC"
+	Asc                 = "ASC"
 )
 
 type (
@@ -24,13 +27,14 @@ type (
 		IsDistinct bool // true <=> query is SELECT DISTINCT
 
 		// This is SELECT query. These fields should be extracted to separate struct.
-		Columns       []SelectColumn // Columns to select, including aliases
-		FromClause    string         // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
-		WhereClause   string         // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
-		GroupBy       []SelectColumn // if not empty, we do GROUP BY GroupBy...
-		SuffixClauses []string       // ORDER BY, etc.
+		Columns     []SelectColumn // Columns to select, including aliases
+		GroupBy     []SelectColumn // if not empty, we do GROUP BY GroupBy...
+		OrderBy     []SelectColumn // if not empty, we do ORDER BY OrderBy...
+		WhereClause string         // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
+		Limit       int            // LIMIT clause, noLimit (0) means no limit
 
-		CanParse bool // true <=> query is valid
+		FromClause string // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
+		CanParse   bool   // true <=> query is valid
 
 		// Eventually we should merge this two
 		QueryInfoType SearchQueryType
@@ -40,7 +44,6 @@ type (
 		NoDBQuery   bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
 		Parent      string       // parent aggregation name, used in some pipeline aggregations
 		Aggregators []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
-		SortFields  SortFields   // fields to sort by
 		SubSelect   string
 
 		// dictionary to add as 'meta' field in the response.
@@ -69,12 +72,27 @@ type (
 		PreTags  []string
 		PostTags []string
 	}
-	SortFields []SortField
-	SortField  struct {
-		Field string
-		Desc  bool
-	}
 )
+
+func NewSortColumn(field string, desc bool) SelectColumn {
+	var order string
+	if desc {
+		order = Desc
+	} else {
+		order = Asc
+	}
+	return SelectColumn{Expression: aexp.NewComposite(aexp.TableColumn(field), aexp.String(order))}
+}
+
+func NewSortByCountColumn(desc bool) SelectColumn {
+	var order string
+	if desc {
+		order = Desc
+	} else {
+		order = Asc
+	}
+	return SelectColumn{Expression: aexp.NewComposite(aexp.Count(), aexp.String(order))}
+}
 
 func (c SelectColumn) SQL() string {
 
@@ -103,18 +121,10 @@ func (c SelectColumn) String() string {
 	return fmt.Sprintf("SelectColumn(Alias: '%s', expression: '%v')", c.Alias, c.Expression)
 }
 
-func (sf SortFields) Properties() []string {
-	properties := make([]string, 0)
-	for _, sortField := range sf {
-		properties = append(properties, sortField.Field)
-	}
-	return properties
-}
-
 var NoMetadataField JsonMap = nil
 
 // returns string with SQL query
-func (q *Query) String() string {
+func (q *Query) String(ctx context.Context) string {
 
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
@@ -154,16 +164,84 @@ func (q *Query) String() string {
 	if len(groupBy) > 0 {
 		sb.WriteString(" GROUP BY ")
 		sb.WriteString(strings.Join(groupBy, ", "))
+	}
 
-		if len(q.SuffixClauses) == 0 {
-			sb.WriteString(" ORDER BY ")
-			sb.WriteString(strings.Join(groupBy, ", "))
+	orderBy := make([]string, 0, len(q.OrderBy))
+	for _, col := range q.OrderBy {
+		if col.Expression == nil {
+			logger.WarnWithCtx(ctx).Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
+		} else {
+			orderBy = append(orderBy, col.SQL())
+		}
+	}
+	if len(orderBy) > 0 {
+		sb.WriteString(" ORDER BY ")
+		sb.WriteString(strings.Join(orderBy, ", "))
+	}
+
+	if q.Limit != noLimit {
+		sb.WriteString(fmt.Sprintf(" LIMIT %d", q.Limit))
+	}
+
+	return sb.String()
+}
+
+// returns string with SQL query
+// colNames - list of columns (schema fields) for SELECT
+func (q *Query) StringFromColumnsOld(ctx context.Context, colNames []string) string {
+	var sb strings.Builder
+	sb.WriteString("SELECT ")
+	if q.IsDistinct {
+		sb.WriteString("DISTINCT ")
+	}
+
+	for i, field := range colNames {
+		if field == "*" {
+			sb.WriteString(field)
+		} else {
+			sb.WriteString(strconv.Quote(field))
+		}
+		if i < len(colNames)-1 {
+			sb.WriteString(", ")
 		}
 	}
 
-	if len(q.SuffixClauses) > 0 {
-		sb.WriteString(" " + strings.Join(q.SuffixClauses, " "))
+	where := " WHERE "
+	if len(q.WhereClause) == 0 {
+		where = ""
 	}
+	sb.WriteString(" FROM " + q.FromClause + where + q.WhereClause)
+
+	groupBy := make([]string, 0, len(q.GroupBy))
+	for _, col := range q.GroupBy {
+		if col.Expression == nil {
+			logger.WarnWithCtx(ctx).Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
+		} else {
+			groupBy = append(groupBy, col.SQL())
+		}
+	}
+	if len(groupBy) > 0 {
+		sb.WriteString(" GROUP BY ")
+		sb.WriteString(strings.Join(groupBy, ", "))
+	}
+
+	orderBy := make([]string, 0, len(q.OrderBy))
+	for _, col := range q.OrderBy {
+		if col.Expression == nil {
+			logger.WarnWithCtx(ctx).Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
+		} else {
+			orderBy = append(orderBy, col.SQL())
+		}
+	}
+	if len(orderBy) > 0 {
+		sb.WriteString(" ORDER BY ")
+		sb.WriteString(strings.Join(orderBy, ", "))
+	}
+
+	if q.Limit != noLimit {
+		sb.WriteString(fmt.Sprintf(" LIMIT %d", q.Limit))
+	}
+
 	return sb.String()
 }
 
@@ -194,6 +272,34 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 // In future probably handle it in a better way
 func (q *Query) TrimKeywordFromFields() {
 
+}
+
+// somewhat hacky, can be improved
+// only returns Order By columns, which are "tableColumn ASC/DESC",
+// won't return complex ones, like e.g. toInt(int_field / 5).
+// but it was like that before the refactor
+func (q *Query) OrderByFieldNames() (fieldNames []string) {
+	for _, col := range q.OrderBy {
+		compositeExp, ok := col.Expression.(*aexp.CompositeExp)
+		if !ok {
+			continue
+		}
+		if len(compositeExp.Expressions) != 2 {
+			continue
+		}
+		orderExp, ok := compositeExp.Expressions[1].(aexp.StringExp)
+		if !ok || (orderExp.Value != Asc && orderExp.Value != Desc) {
+			continue
+		}
+
+		tableColExp, ok := compositeExp.Expressions[0].(aexp.TableColumnExp)
+		if !ok {
+			continue
+		}
+
+		fieldNames = append(fieldNames, tableColExp.ColumnName)
+	}
+	return fieldNames
 }
 
 // Name returns the name of this aggregation (specifically, the last aggregator)
