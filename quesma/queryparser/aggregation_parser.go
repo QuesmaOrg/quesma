@@ -440,7 +440,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		if len(currentAggr.Aggregators) > 0 {
 			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].SplitOverHowManyFields = groupByFieldsAdded
 		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("columnsAdded > 0, but no aggregators present")
+			logger.ErrorWithCtx(cw.Ctx).Msgf("groupByFieldsAdded > 0, but no aggregators present")
 		}
 	}
 
@@ -497,8 +497,10 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		if len(currentAggr.GroupBy) >= groupByFieldsAdded {
 			currentAggr.GroupBy = currentAggr.GroupBy[:len(currentAggr.GroupBy)-groupByFieldsAdded]
 		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("groupByFieldsAddec > currentAggr.GroupBy length -> should be impossible")
+			logger.ErrorWithCtx(cw.Ctx).Msgf("groupByFieldsAdded > currentAggr.GroupBy length -> should be impossible")
 		}
+	}
+	if orderByFieldsAdded > 0 {
 		if len(currentAggr.OrderBy) >= orderByFieldsAdded {
 			currentAggr.OrderBy = currentAggr.GroupBy[:len(currentAggr.OrderBy)-orderByFieldsAdded]
 		} else {
@@ -862,7 +864,6 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		// TODO after https://github.com/QuesmaOrg/quesma/pull/99 it should be only in 1 of 2 cases (keyed or not), just like in range aggregation
 		if len(currentAggr.Aggregators) > 0 {
 			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].SplitOverHowManyFields = 1
-			fmt.Println("WTFFF")
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msg("no aggregators in currentAggr")
 		}

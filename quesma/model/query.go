@@ -282,10 +282,8 @@ func (q *Query) ApplyAliases(cfg map[string]config.IndexConfiguration, resolvedT
 // Aggregator is always initialized as "empty", so with SplitOverHowManyFields == 0, Keyed == false, Filters == false.
 // It's updated after construction, during further processing of aggregations.
 type Aggregator struct {
-	Name string
-	// SplitOverHowManyFields: normally 1, currently only multi_terms have > 1, as we split over multiple fields on one level.
-	// Empty is more important, empty always means we split over 0 fields
-	SplitOverHowManyFields int
+	Name                   string
+	SplitOverHowManyFields int  // normally 0 or 1, currently only multi_terms have > 1, as we split over multiple fields on one level.
 	Keyed                  bool // determines how results are returned in response's JSON
 	Filters                bool // if true, this aggregator is a filters aggregator
 }
