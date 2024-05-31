@@ -31,7 +31,6 @@ type (
 		SuffixClauses []string       // ORDER BY, etc.
 
 		CanParse      bool // true <=> query is valid
-		QueryInfo     SearchQueryInfo
 		QueryInfoType SearchQueryType
 
 		Highlighter Highlighter
