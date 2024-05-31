@@ -36,19 +36,19 @@ func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 			continue
 		}
 
-		var lastIndex int
 		var sortVal []any
+		var valuesForMetrics []model.QueryResultCol
 		if query.isSortFieldPresent {
 			// per convention, we know that value we sorted by is in the last column (if it exists)
-			lastIndex = len(row.Cols) - 1 // last column is the sort column, we don't return it
+			lastIndex := len(row.Cols) - 1 // last column is the sort column, we don't return it
 			sortVal = append(sortVal, row.Cols[lastIndex].Value)
+			valuesForMetrics = row.Cols[level:lastIndex]
 		} else {
-			lastIndex = len(row.Cols)
+			valuesForMetrics = row.Cols[level:]
 		}
 
 		metrics := make(model.JsonMap)
-		valuesForMetrics := row.Cols[:lastIndex]
-		for _, col := range valuesForMetrics[level:] {
+		for _, col := range valuesForMetrics {
 			var withoutQuotes string
 			if unquoted, err := strconv.Unquote(col.ColName); err == nil {
 				withoutQuotes = unquoted
