@@ -1,0 +1,8 @@
+POST http://localhost:8080/kibana_sample_data_logs/_field_caps
+Content-Type: application/json
+
+{
+    "fields": [
+        "*"
+    ]
+}

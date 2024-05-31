@@ -40,14 +40,16 @@ func (qmc *QuesmaManagementConsole) generateDatasources() []byte {
 		tableNames = append(tableNames, tableName)
 	}
 	slices.Sort(tableNames)
-	tables := qmc.logManager.GetTableDefinitions()
-	slices.Sort(tableNames)
-	for _, tableName := range tableNames {
-		buffer.Html(`<li>`).Text(tableName)
-		if _, exist := tables.Load(tableName); exist {
-			buffer.Html(` (table exists)`)
+	tables, err := qmc.logManager.GetTableDefinitions()
+	if err == nil {
+		slices.Sort(tableNames)
+		for _, tableName := range tableNames {
+			buffer.Html(`<li>`).Text(tableName)
+			if _, exist := tables.Load(tableName); exist {
+				buffer.Html(` (table exists)`)
+			}
+			buffer.Html(`</li>`)
 		}
-		buffer.Html(`</li>`)
 	}
 	buffer.Html(`</ul>`)
 

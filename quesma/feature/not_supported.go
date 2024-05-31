@@ -30,7 +30,7 @@ func logMessage(message string, args ...interface{}) {
 	NotSupportedLogger.Log(fmt.Sprintf(message, args...))
 }
 
-func AnalyzeUnsupportedCalls(ctx context.Context, method, path string, indexResolver func(ctx context.Context, pattern string) (indexes []string)) (result bool) {
+func AnalyzeUnsupportedCalls(ctx context.Context, method, path string, indexResolver func(ctx context.Context, pattern string) (indexes []string, err error)) (result bool) {
 	return checkSearchTemplate(ctx, method, path) || checkSearchTemplateWithIndex(ctx, method, path, indexResolver) || checkIfOurIndex(ctx, method, path, indexResolver)
 }
 
@@ -46,14 +46,19 @@ func checkSearchTemplate(ctx context.Context, method string, path string) bool {
 	return false
 }
 
-func checkSearchTemplateWithIndex(ctx context.Context, method string, path string, indexResolver func(context.Context, string) []string) bool {
+func checkSearchTemplateWithIndex(ctx context.Context, method string, path string, indexResolver func(context.Context, string) ([]string, error)) bool {
 
 	for _, rx := range searchTemplatePathWithIndexRegexps {
 		if rx.MatchString(path) {
 
 			match := rx.FindStringSubmatch(path)
 			if len(match) > 1 {
-				for _, indexName := range indexResolver(ctx, match[1]) {
+				indexes, err := indexResolver(ctx, match[1])
+				if err != nil {
+					logMessage("Error resolving index: %v", err)
+					return false
+				}
+				for _, indexName := range indexes {
 					logMessage("Not supported feature detected.  index: %v, request: '%v %v'", indexName, method, path)
 				}
 				return true
@@ -63,7 +68,7 @@ func checkSearchTemplateWithIndex(ctx context.Context, method string, path strin
 	return false
 }
 
-func checkIfOurIndex(ctx context.Context, method string, path string, indexResolver func(context.Context, string) []string) bool {
+func checkIfOurIndex(ctx context.Context, method string, path string, indexResolver func(context.Context, string) ([]string, error)) bool {
 
 	// Check if the request matches /:index/:whatever pattern
 	// We assume here that the first part is the index (indexes)
@@ -73,7 +78,12 @@ func checkIfOurIndex(ctx context.Context, method string, path string, indexResol
 	if len(match) > 1 {
 		indexNamePart := match[1]
 		var matched bool
-		for _, indexName := range indexResolver(ctx, indexNamePart) {
+		indexes, err := indexResolver(ctx, indexNamePart)
+		if err != nil {
+			logMessage("Error resolving index: %v", err)
+			return false
+		}
+		for _, indexName := range indexes {
 			matched = true
 			logMessage("Not supported feature detected.  index: '%s' request: '%s %s''", indexName, method, path)
 		}

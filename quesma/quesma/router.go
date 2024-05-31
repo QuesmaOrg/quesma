@@ -88,7 +88,10 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 				return &mux.Result{StatusCode: 404}, nil
 			}
 
-			definitions := lm.GetTableDefinitions()
+			definitions, err := lm.GetTableDefinitions()
+			if err != nil {
+				return nil, err
+			}
 			sources.Indices = slices.DeleteFunc(sources.Indices, func(i elasticsearch.Index) bool {
 				return definitions.Has(i.Name)
 			})
@@ -111,7 +114,11 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 			return resolveIndexResult(sources), nil
 		} else {
 			if config.MatchName(elasticsearch.NormalizePattern(pattern), pattern) {
-				definitions := lm.GetTableDefinitions()
+				definitions, err := lm.GetTableDefinitions()
+				if err != nil {
+					return nil, err
+				}
+
 				if definitions.Has(pattern) {
 					return resolveIndexResult(elasticsearch.Sources{
 						Indices: []elasticsearch.Index{},
@@ -255,7 +262,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 
 	router.Register(routes.FieldCapsPath, and(method("GET", "POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
-		responseBody, err := handleFieldCaps(ctx, req.Params["index"], lm)
+		responseBody, err := handleFieldCaps(ctx, cfg, req.Params["index"], lm)
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
 				if req.QueryParams.Get("allow_no_indices") == "true" || req.QueryParams.Get("ignore_unavailable") == "true" {

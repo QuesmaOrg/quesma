@@ -75,7 +75,10 @@ func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id str
 
 // returns -1 when table name could not be resolved
 func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int64, error) {
-	indexes := q.logManager.ResolveIndexes(ctx, indexPattern)
+	indexes, err := q.logManager.ResolveIndexes(ctx, indexPattern)
+	if err != nil {
+		return 0, err
+	}
 	if len(indexes) == 0 {
 		if elasticsearch.IsIndexPattern(indexPattern) {
 			return 0, nil
@@ -186,7 +189,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 	}
 
-	tables := q.logManager.GetTableDefinitions()
+	tables, err := q.logManager.GetTableDefinitions()
+	if err != nil {
+		return nil, err
+	}
 
 	for _, resolvedTableName := range sourcesClickhouse {
 		var err error
@@ -277,11 +283,12 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				go func() { // Async search takes longer. Return partial results and wait for
 					recovery.LogPanicWithCtx(ctx)
 					res := <-doneCh
-					q.storeAsyncSearch(ctx, q.quesmaManagementConsole, path, body, res, *optAsync)
+					q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res, true)
 				}()
 				return q.handlePartialAsyncSearch(ctx, optAsync.asyncRequestIdStr)
 			case res := <-doneCh:
-				responseBody, err = q.storeAsyncSearch(ctx, q.quesmaManagementConsole, path, body, res, *optAsync)
+				responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res,
+					optAsync.keepOnCompletion)
 
 				return responseBody, err
 			}
@@ -291,17 +298,15 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	return responseBody, nil
 }
 
-func (q *QueryRunner) storeAsyncSearch(ctx context.Context, qmc *ui.QuesmaManagementConsole,
-	path string, body types.JSON, result AsyncSearchWithError, optAsync AsyncQuery) (responseBody []byte, err error) {
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
-	took := time.Since(optAsync.startTime)
+func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncRequestIdStr string,
+	startTime time.Time, path string, body types.JSON, result AsyncSearchWithError, keep bool) (responseBody []byte, err error) {
+	took := time.Since(startTime)
 	if result.err != nil {
-		logger.MarkTraceEndWithCtx(ctx).Msgf("Async query id : %s ended successfully in %d ms", id, took.Milliseconds())
-		if optAsync.keepOnCompletion {
-			q.AsyncRequestStorage.Store(optAsync.asyncRequestIdStr, AsyncRequestResult{err: result.err, added: time.Now(),
+		if keep {
+			q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: result.err, added: time.Now(),
 				isCompressed: false})
 		}
-		responseBody, _ = queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 503)
+		responseBody, _ = queryparser.EmptyAsyncSearchResponse(asyncRequestIdStr, false, 503)
 		err = result.err
 		bodyAsBytes, _ := body.Bytes()
 		qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
@@ -313,10 +318,8 @@ func (q *QueryRunner) storeAsyncSearch(ctx context.Context, qmc *ui.QuesmaManage
 			SecondaryTook:          took,
 		})
 		return
-	} else {
-		logger.MarkTraceEndWithCtx(ctx).Msgf("Async query id : %s failed after %d ms", id, took.Milliseconds())
 	}
-	asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, optAsync.asyncRequestIdStr, false, 200)
+	asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, asyncRequestIdStr, false, 200)
 	responseBody, err = asyncResponse.Marshal()
 	bodyAsBytes, _ := body.Bytes()
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
@@ -327,7 +330,7 @@ func (q *QueryRunner) storeAsyncSearch(ctx context.Context, qmc *ui.QuesmaManage
 		QueryTranslatedResults: responseBody,
 		SecondaryTook:          took,
 	})
-	if optAsync.keepOnCompletion {
+	if keep {
 		compressedBody := responseBody
 		isCompressed := false
 		if err == nil {
@@ -336,7 +339,7 @@ func (q *QueryRunner) storeAsyncSearch(ctx context.Context, qmc *ui.QuesmaManage
 				isCompressed = true
 			}
 		}
-		q.AsyncRequestStorage.Store(optAsync.asyncRequestIdStr,
+		q.AsyncRequestStorage.Store(asyncRequestIdStr,
 			AsyncRequestResult{responseBody: compressedBody, added: time.Now(), err: err, isCompressed: isCompressed})
 	}
 	return
@@ -366,16 +369,22 @@ func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) (
 			logger.ErrorWithCtx(ctx).Msgf("error processing async query: %v", result.err)
 			return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 		}
-		q.AsyncRequestStorage.Delete(id) // probably a bug
+		q.AsyncRequestStorage.Delete(id)
 		// We use zstd to conserve memory, as we have a lot of async queries
 		if result.isCompressed {
 			buf, err := util.Decompress(result.responseBody)
 			if err == nil {
+				// Mark trace end is called only when the async query is fully processed
+				// which means that isPartial is false
+				logger.MarkTraceEndWithCtx(ctx).Msgf("Async query id : %s ended successfully", id)
 				return buf, nil
 			} else {
 				return nil, err
 			}
 		}
+		// Mark trace end is called only when the async query is fully processed
+		// which means that isPartial is false
+		logger.MarkTraceEndWithCtx(ctx).Msgf("Async query id : %s ended successfully", id)
 		return result.responseBody, nil
 	} else {
 		const isPartial = true
