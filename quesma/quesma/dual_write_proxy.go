@@ -20,15 +20,17 @@ import (
 )
 
 type simultaneousClientsLimiter struct {
-	counter atomic.Int64
-	handler http.Handler
-	limit   int64
+	counter   atomic.Int64
+	handler   http.Handler
+	softLimit int64
+	hardLimit int64
 }
 
-func newSimultaneousClientsLimiter(handler http.Handler, limit int64) *simultaneousClientsLimiter {
+func newSimultaneousClientsLimiter(handler http.Handler, softLimit, hardLimit int64) *simultaneousClientsLimiter {
 	return &simultaneousClientsLimiter{
-		handler: handler,
-		limit:   limit,
+		handler:   handler,
+		hardLimit: hardLimit,
+		softLimit: softLimit,
 	}
 }
 
@@ -36,10 +38,33 @@ func (c *simultaneousClientsLimiter) ServeHTTP(w http.ResponseWriter, r *http.Re
 
 	current := c.counter.Load()
 	// this is hard limit, we should not allow to go over it
-	if current >= c.limit {
-		logger.ErrorWithCtx(r.Context()).Msgf("Too many requests. current: %d, limit: %d", current, c.limit)
+	if current >= c.hardLimit {
+		logger.ErrorWithCtx(r.Context()).Msgf("Too many requests. current: %d, hard limit: %d", current, c.hardLimit)
 		http.Error(w, "Too many requests", http.StatusTooManyRequests)
 		return
+	}
+
+	if current >= c.softLimit {
+		var tries = []int64{1, 2, 5}
+		var shouldPass bool
+		for _, wait := range tries {
+			logger.DebugWithCtx(r.Context()).Msgf("Too many requests. current: %d, soft limit: %d, waiting %d s", current, c.softLimit, wait)
+			time.Sleep(time.Duration(wait) * time.Second)
+
+			current = c.counter.Load()
+			if current < c.softLimit {
+				shouldPass = true
+				break
+			}
+		}
+
+		if !shouldPass {
+			logger.ErrorWithCtx(r.Context()).Msgf("Too many requests. Waiting didn't help. current: %d, soft limit: %d", current, c.softLimit)
+			http.Error(w, "Too many requests", http.StatusTooManyRequests)
+			return
+		} else {
+			logger.DebugWithCtx(r.Context()).Msgf("Too many requests. current: %d, soft limit: %d, waiting did help", current, c.softLimit)
+		}
 	}
 
 	c.counter.Add(1)
@@ -90,7 +115,7 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, indexManager elasticse
 		routerInstance.reroute(withTracing(req), w, req, reqBody, pathRouter, logManager)
 	})
 
-	limitedHandler := newSimultaneousClientsLimiter(handler, 50) // FIXME this should be configurable
+	limitedHandler := newSimultaneousClientsLimiter(handler, 50, 100) // FIXME this should be configurable
 
 	return &dualWriteHttpProxy{
 		elasticRouter: pathRouter,
