@@ -14,6 +14,10 @@ const (
 	TraceEndCtxKey  ContextKey = "TraceEnd"
 )
 
+func (c ContextKey) AsString() string {
+	return string(c)
+}
+
 func GetRequestId() string {
 	return uuid.New().String()
 }

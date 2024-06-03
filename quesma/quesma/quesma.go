@@ -31,13 +31,13 @@ import (
 
 type (
 	Quesma struct {
-		processor               requestProcessor
+		processor               engine
 		publicTcpPort           network.Port
 		quesmaManagementConsole *ui.QuesmaManagementConsole
 		config                  config.QuesmaConfiguration
 		telemetryAgent          telemetry.PhoneHomeAgent
 	}
-	requestProcessor interface {
+	engine interface {
 		Ingest()
 		Stop(ctx context.Context)
 	}
@@ -135,10 +135,15 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 
 type router struct {
 	config                  config.QuesmaConfiguration
+	requestPreprocessors    processorChain
 	quesmaManagementConsole *ui.QuesmaManagementConsole
 	phoneHomeAgent          telemetry.PhoneHomeAgent
 	httpClient              *http.Client
 	failedRequests          atomic.Int64
+}
+
+func (r *router) registerPreprocessor(preprocessor RequestPreprocessor) {
+	r.requestPreprocessors = append(r.requestPreprocessors, preprocessor)
 }
 
 func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.Request, reqBody []byte, router *mux.PathRouter, logManager *clickhouse.LogManager) {
@@ -147,19 +152,18 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
 	})
 
-	quesmaRequest := &mux.Request{
+	quesmaRequest, ctx := r.preprocessRequest(ctx, &mux.Request{
 		Method:      req.Method,
 		Path:        strings.TrimSuffix(req.URL.Path, "/"),
 		Params:      map[string]string{},
 		Headers:     req.Header,
 		QueryParams: req.URL.Query(),
 		Body:        string(reqBody),
-	}
+	})
 
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
 
 	handler, found := router.Matches(quesmaRequest)
-
 	if found {
 
 		var elkResponseChan = make(chan elasticResult)
@@ -170,7 +174,6 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 
 		quesmaResponse, err := recordRequestToClickhouse(req.URL.Path, r.quesmaManagementConsole, func() (*mux.Result, error) {
 			return handler(ctx, quesmaRequest)
-
 		})
 		var elkRawResponse elasticResult
 		var elkResponse *http.Response
@@ -258,6 +261,16 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 			}
 		}
 	}
+}
+
+func (r *router) preprocessRequest(ctx context.Context, quesmaRequest *mux.Request) (*mux.Request, context.Context) {
+	var processedRequest = quesmaRequest
+	for _, preprocessor := range r.requestPreprocessors {
+		if preprocessor.Applies(processedRequest) {
+			ctx, processedRequest = preprocessor.PreprocessRequest(ctx, processedRequest)
+		}
+	}
+	return processedRequest, ctx
 }
 
 type elasticResult struct {
@@ -354,16 +367,6 @@ func copyHeaders(w http.ResponseWriter, elkResponse *http.Response) {
 			}
 		}
 	}
-}
-
-func withTracing(r *http.Request) context.Context {
-	rid := tracing.GetRequestId()
-	r.Header.Add("RequestId", rid)
-	ctx := r.Context()
-	ctx = context.WithValue(ctx, tracing.RequestIdCtxKey, rid)
-	ctx = context.WithValue(ctx, tracing.RequestPath, r.URL.Path)
-
-	return ctx
 }
 
 func (q *Quesma) Close(ctx context.Context) {

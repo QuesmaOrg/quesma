@@ -70,7 +70,9 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, indexManager elasticse
 		Transport: tr,
 		Timeout:   time.Minute, // should be more configurable, 30s is Kibana default timeout
 	}
-	routerInstance := router{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client}
+	routerInstance := router{phoneHomeAgent: agent, config: config, quesmaManagementConsole: quesmaManagementConsole, httpClient: client, requestPreprocessors: processorChain{}}
+	routerInstance.
+		registerPreprocessor(NewTraceIdPreprocessor())
 
 	agent.FailedRequestsCollector(func() int64 {
 		return routerInstance.failedRequests.Load()
@@ -87,7 +89,7 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, indexManager elasticse
 		ua := req.Header.Get("User-Agent")
 		agent.UserAgentCounters().Add(ua, 1)
 
-		routerInstance.reroute(withTracing(req), w, req, reqBody, pathRouter, logManager)
+		routerInstance.reroute(req.Context(), w, req, reqBody, pathRouter, logManager)
 	})
 
 	limitedHandler := newSimultaneousClientsLimiter(handler, 50) // FIXME this should be configurable
