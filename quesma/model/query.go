@@ -7,7 +7,6 @@ import (
 	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/queryparser/where_clause"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -158,67 +157,6 @@ func (q *Query) String(ctx context.Context) string {
 	for _, col := range q.GroupBy {
 		if col.Expression == nil {
 			logger.Warn().Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
-		} else {
-			groupBy = append(groupBy, col.SQL())
-		}
-	}
-	if len(groupBy) > 0 {
-		sb.WriteString(" GROUP BY ")
-		sb.WriteString(strings.Join(groupBy, ", "))
-	}
-
-	orderBy := make([]string, 0, len(q.OrderBy))
-	for _, col := range q.OrderBy {
-		if col.Expression == nil {
-			logger.WarnWithCtx(ctx).Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
-		} else {
-			orderBy = append(orderBy, col.SQL())
-		}
-	}
-	if len(orderBy) > 0 {
-		sb.WriteString(" ORDER BY ")
-		sb.WriteString(strings.Join(orderBy, ", "))
-	}
-
-	if q.Limit != noLimit {
-		sb.WriteString(fmt.Sprintf(" LIMIT %d", q.Limit))
-	}
-
-	return sb.String()
-}
-
-// returns string with SQL query
-// colNames - list of columns (schema fields) for SELECT
-func (q *Query) StringFromColumnsOld(ctx context.Context, colNames []string) string {
-	var sb strings.Builder
-	sb.WriteString("SELECT ")
-	if q.IsDistinct {
-		sb.WriteString("DISTINCT ")
-	}
-
-	for i, field := range colNames {
-		if field == "*" {
-			sb.WriteString(field)
-		} else {
-			sb.WriteString(strconv.Quote(field))
-		}
-		if i < len(colNames)-1 {
-			sb.WriteString(", ")
-		}
-	}
-
-	where := " WHERE "
-	if q.WhereClause == nil {
-		where = ""
-	} else {
-		where = where + q.WhereClause.Accept(&asString).(string)
-	}
-	sb.WriteString(" FROM " + q.FromClause + where)
-
-	groupBy := make([]string, 0, len(q.GroupBy))
-	for _, col := range q.GroupBy {
-		if col.Expression == nil {
-			logger.WarnWithCtx(ctx).Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
 		} else {
 			groupBy = append(groupBy, col.SQL())
 		}
