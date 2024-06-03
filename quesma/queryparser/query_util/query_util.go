@@ -29,7 +29,7 @@ func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, qu
 
 	return &model.Query{
 		Columns:     []model.SelectColumn{col},
-		WhereClause: query.WhereClauseAsString(),
+		WhereClause: query.WhereClause,
 		OrderBy:     query.OrderBy,
 		Limit:       applySizeLimit(ctx, limit),
 		FromClause:  tableName,
