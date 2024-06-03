@@ -1984,8 +1984,8 @@ var AggregationTests = []AggregationTestCase{
 				`ORDER BY "order_date" asc) AS row_number FROM ` + QuotedTableName + " " +
 				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
 				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250')) ` +
-				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
-				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250') AND row_number <= 10 ` +
+				`WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
+				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250') AND "row_number"<=10) ` +
 				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
 				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)",
 			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), " + `maxOrNull("taxful_total_price") AS "windowed_taxful_total_price", ` +
@@ -1995,8 +1995,8 @@ var AggregationTests = []AggregationTestCase{
 				`ORDER BY "order_date" asc) AS row_number FROM ` + QuotedTableName + " " +
 				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
 				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250')) ` +
-				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
-				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250') AND row_number <= 10 ` +
+				`WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
+				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250') AND "row_number"<=10) ` +
 				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
 				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)",
 			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), count() FROM " + QuotedTableName + " " +
@@ -5369,8 +5369,8 @@ var AggregationTests = []AggregationTestCase{
 				`AS row_number ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE "message" IS NOT NULL) ` +
-				`WHERE "message" IS NOT NULL ` +
-				`AND row_number <= 1 ` +
+				`WHERE ("message" IS NOT NULL ` +
+				`AND "row_number"<=1) ` +
 				"GROUP BY toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000) " +
 				"ORDER BY toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000)",
 			"SELECT toInt64(toUnixTimestamp64Milli(`@timestamp`)/86400000), " +
