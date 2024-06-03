@@ -1,9 +1,11 @@
 #!/bin/bash
-
-echo $DASHBOARD_URL
+echo "$@"
+DASHBOARD_URL="$1"
 if [ -z "$DASHBOARD_URL" ]; then
   DASHBOARD_URL="http://kibana:5601"
 fi
+
+echo $DASHBOARD_URL
 
 if [ -z "$XSRF_HEADER" ]; then
   XSRF_HEADER="kbn-xsrf: true"
