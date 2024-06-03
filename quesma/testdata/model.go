@@ -7,8 +7,8 @@ type SearchTestCase struct {
 	QueryJson       string
 	WantedSql       []string // array because of non-determinism
 	WantedQueryType model.SearchQueryType
-	WantedQuery     []model.Query // array because of non-determinism
-	WantedRegexes   []string      // regexes saying what SELECT queries to CH should look like (in order). A lot of '.' here because of non-determinism.
+	//WantedQuery     []model.Query // array because of non-determinism
+	WantedRegexes []string // regexes saying what SELECT queries to CH should look like (in order). A lot of '.' here because of non-determinism.
 }
 
 type AsyncSearchTestCase struct {

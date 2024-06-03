@@ -75,17 +75,16 @@ func (cw *ClickhouseQueryTranslator) makeBasicQuery(
 	simpleQuery model.SimpleQuery, queryInfo model.SearchQueryInfo, highlighter model.Highlighter) *model.Query {
 	var fullQuery *model.Query
 
-	whereClause := simpleQuery.WhereClauseAsString()
 	switch queryInfo.Typ {
 	case model.CountAsync:
-		fullQuery = cw.BuildSimpleCountQuery(whereClause)
+		fullQuery = cw.BuildSimpleCountQuery(simpleQuery.WhereClause)
 		if len(fullQuery.Columns) > 0 {
 			fullQuery.Columns[0].Alias = "doc_count"
 		}
 
 	case model.Facets, model.FacetsNumeric:
 		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
-		fullQuery = cw.BuildFacetsQuery(queryInfo.FieldName, whereClause)
+		fullQuery = cw.BuildFacetsQuery(queryInfo.FieldName, simpleQuery.WhereClause)
 
 		if len(fullQuery.Columns) > 0 {
 			fullQuery.Columns[0].Alias = "key"
@@ -395,7 +394,6 @@ func (cw *ClickhouseQueryTranslator) parseQueryMapArray(queryMaps []interface{})
 		if vAsMap, ok := v.(QueryMap); ok {
 			query := cw.parseQueryMap(vAsMap)
 			stmts[i] = query.WhereClause
-			//stmts[i].FieldName = query.FieldName // TODO WE'RE LOSING THIS INFORMATION HERE
 			if !query.CanParse {
 				canParse = false
 			}

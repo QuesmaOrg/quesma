@@ -9,11 +9,8 @@ import (
 type SimpleQuery struct {
 	WhereClause where_clause.Statement
 	OrderBy     []SelectColumn
-	// deprecated
-	//TODO FIND ALL INSTANCES OF THIS AND REPLACE WITH WHERECLAUSE
-	Sql       Statement // This will be removed as soon as WhereClause is used everywhere
-	CanParse  bool
-	FieldName string
+	CanParse    bool
+	FieldName   string
 }
 
 var asString = where_clause.StringRenderer{}
@@ -31,15 +28,6 @@ func NewSimpleQuery(whereClause where_clause.Statement, canParse bool) SimpleQue
 
 func NewSimpleQueryWithFieldName(whereClause where_clause.Statement, canParse bool, fieldName string) SimpleQuery {
 	return SimpleQuery{WhereClause: whereClause, CanParse: canParse, FieldName: fieldName}
-}
-
-// deprecated
-type Statement struct {
-	// deprecated
-	Stmt           string                 // We're moving to the new WhereStatement which should also remove the need for IsCompound and FieldName
-	WhereStatement where_clause.Statement // New, better and bold version
-	IsCompound     bool                   // "a" -> not compound, "a AND b" -> compound. Used to not make unnecessary brackets (not always, but usually)
-	FieldName      string
 }
 
 func And(andStmts []where_clause.Statement) where_clause.Statement {

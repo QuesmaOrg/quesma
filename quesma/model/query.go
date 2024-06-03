@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/queryparser/aexp"
+	"mitmproxy/quesma/queryparser/where_clause"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -27,11 +27,11 @@ type (
 		IsDistinct bool // true <=> query is SELECT DISTINCT
 
 		// This is SELECT query. These fields should be extracted to separate struct.
-		Columns     []SelectColumn // Columns to select, including aliases
-		GroupBy     []SelectColumn // if not empty, we do GROUP BY GroupBy...
-		OrderBy     []SelectColumn // if not empty, we do ORDER BY OrderBy...
-		WhereClause string         // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
-		Limit       int            // LIMIT clause, noLimit (0) means no limit
+		Columns     []SelectColumn         // Columns to select, including aliases
+		GroupBy     []SelectColumn         // if not empty, we do GROUP BY GroupBy...
+		OrderBy     []SelectColumn         // if not empty, we do ORDER BY OrderBy...
+		WhereClause where_clause.Statement // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
+		Limit       int                    // LIMIT clause, noLimit (0) means no limit
 
 		FromClause string // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
 		CanParse   bool   // true <=> query is valid
@@ -148,74 +148,15 @@ func (q *Query) String(ctx context.Context) string {
 	sb.WriteString(" FROM ")
 	sb.WriteString(q.FromClause)
 
-	if len(q.WhereClause) > 0 {
+	if q.WhereClause != nil {
 		sb.WriteString(" WHERE ")
-		sb.WriteString(q.WhereClause)
+		sb.WriteString(q.WhereClause.Accept(&asString).(string))
 	}
 
 	groupBy := make([]string, 0, len(q.GroupBy))
 	for _, col := range q.GroupBy {
 		if col.Expression == nil {
 			logger.Warn().Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
-		} else {
-			groupBy = append(groupBy, col.SQL())
-		}
-	}
-	if len(groupBy) > 0 {
-		sb.WriteString(" GROUP BY ")
-		sb.WriteString(strings.Join(groupBy, ", "))
-	}
-
-	orderBy := make([]string, 0, len(q.OrderBy))
-	for _, col := range q.OrderBy {
-		if col.Expression == nil {
-			logger.WarnWithCtx(ctx).Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
-		} else {
-			orderBy = append(orderBy, col.SQL())
-		}
-	}
-	if len(orderBy) > 0 {
-		sb.WriteString(" ORDER BY ")
-		sb.WriteString(strings.Join(orderBy, ", "))
-	}
-
-	if q.Limit != noLimit {
-		sb.WriteString(fmt.Sprintf(" LIMIT %d", q.Limit))
-	}
-
-	return sb.String()
-}
-
-// returns string with SQL query
-// colNames - list of columns (schema fields) for SELECT
-func (q *Query) StringFromColumnsOld(ctx context.Context, colNames []string) string {
-	var sb strings.Builder
-	sb.WriteString("SELECT ")
-	if q.IsDistinct {
-		sb.WriteString("DISTINCT ")
-	}
-
-	for i, field := range colNames {
-		if field == "*" {
-			sb.WriteString(field)
-		} else {
-			sb.WriteString(strconv.Quote(field))
-		}
-		if i < len(colNames)-1 {
-			sb.WriteString(", ")
-		}
-	}
-
-	where := " WHERE "
-	if len(q.WhereClause) == 0 {
-		where = ""
-	}
-	sb.WriteString(" FROM " + q.FromClause + where + q.WhereClause)
-
-	groupBy := make([]string, 0, len(q.GroupBy))
-	for _, col := range q.GroupBy {
-		if col.Expression == nil {
-			logger.WarnWithCtx(ctx).Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
 		} else {
 			groupBy = append(groupBy, col.SQL())
 		}
