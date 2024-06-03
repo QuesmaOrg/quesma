@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -247,6 +248,13 @@ where active
 	rows, err := a.clickHouseDb.QueryContext(ctx, totalSummaryQuery)
 
 	if err != nil {
+
+		// code: 60 means system.parts table is not found
+		// Hydrolix does not support system.parts table.
+		if strings.Contains(err.Error(), "code: 60") {
+			return
+		}
+
 		logger.WarnWithCtxAndReason(ctx, "No clickhouse stats").Err(err).Msg("Error getting stats from clickhouse.")
 		return
 	}
