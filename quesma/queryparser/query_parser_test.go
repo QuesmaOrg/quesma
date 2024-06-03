@@ -5,6 +5,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/telemetry"
@@ -64,6 +65,9 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			for _, wantedSQL := range tt.WantedSql {
 				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
 			}
+			assert.True(t, query.CanParse, "can parse")
+			assert.Equal(t, strconv.Quote(testdata.TableName), query.FromClause)
+			assert.Equal(t, []model.SelectColumn{{Expression: aexp.Wildcard}}, query.Columns)
 		})
 	}
 }
@@ -97,6 +101,9 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 			for _, wantedSQL := range tt.WantedSql {
 				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
 			}
+			assert.True(t, query.CanParse, "can parse")
+			assert.Equal(t, strconv.Quote(testdata.TableName), query.FromClause)
+			assert.Equal(t, []model.SelectColumn{{Expression: aexp.Wildcard}}, query.Columns)
 		})
 	}
 }
@@ -129,6 +136,9 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			for _, wantedSQL := range tt.WantedSql {
 				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
 			}
+			assert.True(t, query.CanParse, "can parse")
+			assert.Equal(t, strconv.Quote(testdata.TableName), query.FromClause)
+			assert.Equal(t, []model.SelectColumn{{Expression: aexp.Wildcard}}, query.Columns)
 		})
 	}
 }
