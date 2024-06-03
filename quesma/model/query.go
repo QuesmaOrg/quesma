@@ -150,6 +150,7 @@ func (q *Query) String(ctx context.Context) string {
 	sb.WriteString(q.FromClause)
 
 	if q.WhereClause != nil {
+		sb.WriteString(" WHERE ")
 		sb.WriteString(q.WhereClause.Accept(&asString).(string))
 	}
 
