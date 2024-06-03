@@ -80,7 +80,6 @@ var OpensearchSearchTests = []SearchTestCase{
 			`("-@timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z') AND "-@timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))`,
 		},
 		WantedQueryType: model.Normal,
-		WantedQuery:     []model.Query{}, // not needed
 		WantedRegexes: []string{
 			"SELECT count() FROM " + QuotedTableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +
@@ -172,7 +171,6 @@ var OpensearchSearchTests = []SearchTestCase{
 			`("-@timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z') AND "-@timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))`,
 		},
 		WantedQueryType: model.Normal,
-		WantedQuery:     []model.Query{}, // not needed
 		WantedRegexes: []string{
 			"SELECT count() FROM " + QuotedTableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +

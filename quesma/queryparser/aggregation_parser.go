@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/model/bucket_aggregations"
 	"mitmproxy/quesma/model/metrics_aggregations"
 	"mitmproxy/quesma/queryparser/aexp"
+	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/util"
 	"regexp"
@@ -58,7 +59,7 @@ func (b *aggrQueryBuilder) applyTermsSubSelect(terms bucket_aggregations.Terms) 
 
 func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.Query {
 	query := b.Query
-	query.WhereClause = b.whereBuilder.WhereClauseAsString()
+	query.WhereClause = b.whereBuilder.WhereClause
 
 	// Need to copy, as we might be proceeding to modify 'b' pointer
 	query.CopyAggregationFields(b.Query)
@@ -174,7 +175,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				strconv.Quote(metricsAggr.SortBy), metricsAggr.Order,
 				model.RowNumberColumnName, query.FromClause, b.whereBuilder.WhereClauseAsString(),
 			)
-			query.WhereClause = query.WhereClause + fmt.Sprintf(" AND %s <= %d", model.RowNumberColumnName, metricsAggr.Size)
+			query.WhereClause = model.And([]where_clause.Statement{query.WhereClause, where_clause.NewInfixOp(where_clause.NewColumnRef(model.RowNumberColumnName), "<=", where_clause.NewLiteral(strconv.Itoa(metricsAggr.Size)))})
 		} else {
 			query.Limit = metricsAggr.Size
 			for _, f := range metricsAggr.FieldNames {

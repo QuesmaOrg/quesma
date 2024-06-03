@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/model/bucket_aggregations"
 	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/queryparser/query_util"
+	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/queryprocessor"
 	"mitmproxy/quesma/util"
 	"strconv"
@@ -552,7 +553,7 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []m
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause string) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause where_clause.Statement) *model.Query {
 	return &model.Query{
 		Columns:     []model.SelectColumn{{Expression: aexp.Count()}},
 		WhereClause: whereClause,
@@ -565,7 +566,7 @@ func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query mod
 	return query_util.BuildNRowsQuery(cw.Ctx, cw.Table.FullTableName(), fieldName, query, limit)
 }
 
-func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, whereClause string, limit int) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, whereClause where_clause.Statement, limit int) *model.Query {
 	return &model.Query{
 		IsDistinct:  true,
 		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
@@ -578,9 +579,10 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName, whereClau
 
 //lint:ignore U1000 Not used yet
 func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName string, prefix string, limit int) *model.Query {
-	whereClause := ""
+	var whereClause where_clause.Statement
 	if len(prefix) > 0 {
-		whereClause = strconv.Quote(fieldName) + " iLIKE '" + prefix + "%'"
+		//whereClause = strconv.Quote(fieldName) + " iLIKE '" + prefix + "%'"
+		whereClause = where_clause.NewInfixOp(where_clause.NewColumnRef(fieldName), "iLIKE", where_clause.NewLiteral(prefix+"%"))
 		cw.AddTokenToHighlight(prefix)
 	}
 	return &model.Query{
@@ -592,7 +594,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, whereClause string) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, whereClause where_clause.Statement) *model.Query {
 	innerQuery := model.Query{
 		WhereClause: whereClause,
 		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
@@ -612,7 +614,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, whereCla
 
 // earliest == true  <==> we want earliest timestamp
 // earliest == false <==> we want latest timestamp
-func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName, whereClause string, earliest bool) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName string, whereClause where_clause.Statement, earliest bool) *model.Query {
 	return &model.Query{
 		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(timestampFieldName)}},
 		WhereClause: whereClause,

@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/aexp"
+	"mitmproxy/quesma/queryparser/where_clause"
 	"slices"
 	"strconv"
 	"testing"
@@ -51,7 +52,7 @@ var queries = []struct {
 		[]string{"all", "count()"},
 	},
 	{
-		&model.Query{Columns: []model.SelectColumn{{Expression: aexp.Wildcard}, {Expression: aexp.Count()}}, WhereClause: "message = 'hello'"}, // select fields + where clause
+		&model.Query{Columns: []model.SelectColumn{{Expression: aexp.Wildcard}, {Expression: aexp.Count()}}, WhereClause: where_clause.NewInfixOp(where_clause.NewColumnRef("message"), "=", where_clause.NewLiteral("hello"))}, // select fields + where clause
 		[]string{"all", "count()"},
 	},
 	{
