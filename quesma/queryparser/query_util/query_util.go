@@ -6,30 +6,20 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/quesma/types"
-	"strconv"
-	"strings"
 )
 
-func IsNonAggregationQuery(queryInfo model.SearchQueryInfo, body types.JSON) bool {
+func IsNonAggregationQuery(queryInfoType model.SearchQueryType, body types.JSON) bool {
 	_, hasAggs := body["aggs"]
-	return ((queryInfo.Typ == model.ListByField ||
-		queryInfo.Typ == model.ListAllFields ||
-		queryInfo.Typ == model.Normal) &&
+	return ((queryInfoType == model.ListByField ||
+		queryInfoType == model.ListAllFields ||
+		queryInfoType == model.Normal) &&
 		!hasAggs) ||
-		queryInfo.Typ == model.Facets ||
-		queryInfo.Typ == model.FacetsNumeric ||
-		queryInfo.Typ == model.CountAsync
+		queryInfoType == model.Facets ||
+		queryInfoType == model.FacetsNumeric ||
+		queryInfoType == model.CountAsync
 }
 
 func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, query model.SimpleQuery, limit int) *model.Query {
-	suffixClauses := make([]string, 0)
-	if len(query.SortFields) > 0 {
-		suffixClauses = append(suffixClauses, "ORDER BY "+AsQueryString(query.SortFields))
-	}
-	if limit > 0 {
-		suffixClauses = append(suffixClauses, "LIMIT "+strconv.Itoa(applySizeLimit(ctx, limit)))
-	}
-
 	var col model.SelectColumn
 	if fieldName == "*" {
 		col = model.SelectColumn{Expression: aexp.Wildcard}
@@ -38,28 +28,13 @@ func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, qu
 	}
 
 	return &model.Query{
-		Columns:       []model.SelectColumn{col},
-		WhereClause:   query.WhereClauseAsString(),
-		SuffixClauses: suffixClauses,
-		FromClause:    tableName,
-		CanParse:      true,
+		Columns:     []model.SelectColumn{col},
+		WhereClause: query.WhereClauseAsString(),
+		OrderBy:     query.OrderBy,
+		Limit:       applySizeLimit(ctx, limit),
+		FromClause:  tableName,
+		CanParse:    true,
 	}
-}
-
-func AsQueryString(sortFields []model.SortField) string {
-	if len(sortFields) == 0 {
-		return ""
-	}
-	sortStrings := make([]string, 0, len(sortFields))
-	for _, sortField := range sortFields {
-		query := strings.Builder{}
-		query.WriteString(strconv.Quote(sortField.Field))
-		if sortField.Desc {
-			query.WriteString(" desc")
-		}
-		sortStrings = append(sortStrings, query.String())
-	}
-	return strings.Join(sortStrings, ", ")
 }
 
 func applySizeLimit(ctx context.Context, size int) int {

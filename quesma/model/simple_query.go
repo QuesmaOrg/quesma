@@ -8,12 +8,12 @@ import (
 
 type SimpleQuery struct {
 	WhereClause where_clause.Statement
+	OrderBy     []SelectColumn
 	// deprecated
 	//TODO FIND ALL INSTANCES OF THIS AND REPLACE WITH WHERECLAUSE
-	Sql        Statement // This will be removed as soon as WhereClause is used everywhere
-	CanParse   bool
-	FieldName  string
-	SortFields []SortField
+	Sql       Statement // This will be removed as soon as WhereClause is used everywhere
+	CanParse  bool
+	FieldName string
 }
 
 var asString = where_clause.StringRenderer{}

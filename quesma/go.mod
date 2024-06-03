@@ -19,7 +19,7 @@ require (
 	github.com/knadh/koanf/v2 v2.1.1
 	github.com/relvacode/iso8601 v1.4.0
 	github.com/rs/zerolog v1.33.0
-	github.com/shirou/gopsutil/v3 v3.24.4
+	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/stretchr/testify v1.9.0
 	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a
 	github.com/ucarion/urlpath v0.0.0-20200424170820-7ccc79b76bbb
@@ -63,6 +63,6 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/otel v1.26.0 // indirect
 	go.opentelemetry.io/otel/trace v1.26.0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1
 )

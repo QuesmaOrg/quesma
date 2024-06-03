@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
+	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
@@ -74,7 +75,10 @@ func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id str
 
 // returns -1 when table name could not be resolved
 func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int64, error) {
-	indexes := q.logManager.ResolveIndexes(ctx, indexPattern)
+	indexes, err := q.logManager.ResolveIndexes(ctx, indexPattern)
+	if err != nil {
+		return 0, err
+	}
 	if len(indexes) == 0 {
 		if elasticsearch.IsIndexPattern(indexPattern) {
 			return 0, nil
@@ -185,7 +189,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 	}
 
-	tables := q.logManager.GetTableDefinitions()
+	tables, err := q.logManager.GetTableDefinitions()
+	if err != nil {
+		return nil, err
+	}
 
 	for _, resolvedTableName := range sourcesClickhouse {
 		var err error
@@ -201,8 +208,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		queries, isAggregation, canParse, err := queryTranslator.ParseQuery(body)
 
 		if canParse {
-			if query_util.IsNonAggregationQuery(queries[0].QueryInfo, body) {
-				if properties := q.findNonexistingProperties(queries[0].QueryInfo, queries[0].SortFields, table); len(properties) > 0 {
+			if query_util.IsNonAggregationQuery(queries[0].QueryInfoType, body) {
+				if properties := q.findNonexistingProperties(queries[0], table); len(properties) > 0 {
 					logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
 					if elasticsearch.IsIndexPattern(indexPattern) {
 						return queryparser.EmptySearchResponse(ctx), nil
@@ -218,7 +225,12 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						doneCh <- AsyncSearchWithError{err: err}
 					})
 
-					translatedQueryBody, hitsSlice := q.searchWorker(ctx, queries, table, doneCh, optAsync)
+					translatedQueryBody, hitsSlice, err := q.searchWorker(ctx, queries, table, doneCh, optAsync)
+					if err != nil {
+						doneCh <- AsyncSearchWithError{err: err}
+						return
+					}
+
 					if len(hitsSlice) == 0 {
 						logger.ErrorWithCtx(ctx).Msgf("no hits, queryInfo: %d", translatedQueryBody)
 						doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
@@ -226,7 +238,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					}
 					searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], queries[0])
 					if err != nil {
-						logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v, rows: %v", err, queries[0].QueryInfo, hitsSlice[0])
+						logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfoType: %+v, rows: %v", err, queries[0].QueryInfoType, hitsSlice[0])
 					}
 					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
 				}()
@@ -236,15 +248,16 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						doneCh <- AsyncSearchWithError{err: err}
 					})
 
-					translatedQueryBody, aggregationResults := q.searchWorker(ctx, queries, table, doneCh, optAsync)
+					translatedQueryBody, aggregationResults, err := q.searchWorker(ctx, queries, table, doneCh, optAsync)
+
 					searchResponse := queryTranslator.MakeResponseAggregation(queries, aggregationResults)
-					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody}
+					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
 				}()
 			}
 		} else {
 			queriesBody := ""
 			for _, query := range queries {
-				queriesBody += query.String() + "\n"
+				queriesBody += query.String(ctx) + "\n"
 			}
 			responseBody = []byte(fmt.Sprintf("Invalid Queries: %s, err: %v", queriesBody, err))
 			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBody)
@@ -258,7 +271,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			response := <-doneCh
 			if response.err != nil {
 				err = response.err
-				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfo: %+v", err, queries[0].QueryInfo)
+				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, QueryInfoType: %+v", err, queries[0].QueryInfoType)
 			} else {
 				responseBody, err = response.response.Marshal()
 			}
@@ -270,11 +283,12 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				go func() { // Async search takes longer. Return partial results and wait for
 					recovery.LogPanicWithCtx(ctx)
 					res := <-doneCh
-					q.storeAsyncSearch(ctx, q.quesmaManagementConsole, path, body, res, *optAsync)
+					q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res, true)
 				}()
 				return q.handlePartialAsyncSearch(ctx, optAsync.asyncRequestIdStr)
 			case res := <-doneCh:
-				responseBody, err = q.storeAsyncSearch(ctx, q.quesmaManagementConsole, path, body, res, *optAsync)
+				responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res,
+					optAsync.keepOnCompletion)
 
 				return responseBody, err
 			}
@@ -284,17 +298,15 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	return responseBody, nil
 }
 
-func (q *QueryRunner) storeAsyncSearch(ctx context.Context, qmc *ui.QuesmaManagementConsole,
-	path string, body types.JSON, result AsyncSearchWithError, optAsync AsyncQuery) (responseBody []byte, err error) {
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
-	took := time.Since(optAsync.startTime)
+func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncRequestIdStr string,
+	startTime time.Time, path string, body types.JSON, result AsyncSearchWithError, keep bool) (responseBody []byte, err error) {
+	took := time.Since(startTime)
 	if result.err != nil {
-		logger.MarkTraceEndWithCtx(ctx).Msgf("Async query id : %s ended successfully in %d ms", id, took.Milliseconds())
-		if optAsync.keepOnCompletion {
-			q.AsyncRequestStorage.Store(optAsync.asyncRequestIdStr, AsyncRequestResult{err: result.err, added: time.Now(),
+		if keep {
+			q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: result.err, added: time.Now(),
 				isCompressed: false})
 		}
-		responseBody, _ = queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 503)
+		responseBody, _ = queryparser.EmptyAsyncSearchResponse(asyncRequestIdStr, false, 503)
 		err = result.err
 		bodyAsBytes, _ := body.Bytes()
 		qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
@@ -306,10 +318,8 @@ func (q *QueryRunner) storeAsyncSearch(ctx context.Context, qmc *ui.QuesmaManage
 			SecondaryTook:          took,
 		})
 		return
-	} else {
-		logger.MarkTraceEndWithCtx(ctx).Msgf("Async query id : %s failed after %d ms", id, took.Milliseconds())
 	}
-	asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, optAsync.asyncRequestIdStr, false, 200)
+	asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, asyncRequestIdStr, false, 200)
 	responseBody, err = asyncResponse.Marshal()
 	bodyAsBytes, _ := body.Bytes()
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
@@ -320,7 +330,7 @@ func (q *QueryRunner) storeAsyncSearch(ctx context.Context, qmc *ui.QuesmaManage
 		QueryTranslatedResults: responseBody,
 		SecondaryTook:          took,
 	})
-	if optAsync.keepOnCompletion {
+	if keep {
 		compressedBody := responseBody
 		isCompressed := false
 		if err == nil {
@@ -329,7 +339,7 @@ func (q *QueryRunner) storeAsyncSearch(ctx context.Context, qmc *ui.QuesmaManage
 				isCompressed = true
 			}
 		}
-		q.AsyncRequestStorage.Store(optAsync.asyncRequestIdStr,
+		q.AsyncRequestStorage.Store(asyncRequestIdStr,
 			AsyncRequestResult{responseBody: compressedBody, added: time.Now(), err: err, isCompressed: isCompressed})
 	}
 	return
@@ -359,16 +369,22 @@ func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) (
 			logger.ErrorWithCtx(ctx).Msgf("error processing async query: %v", result.err)
 			return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 		}
-		q.AsyncRequestStorage.Delete(id) // probably a bug
+		q.AsyncRequestStorage.Delete(id)
 		// We use zstd to conserve memory, as we have a lot of async queries
 		if result.isCompressed {
 			buf, err := util.Decompress(result.responseBody)
 			if err == nil {
+				// Mark trace end is called only when the async query is fully processed
+				// which means that isPartial is false
+				logger.MarkTraceEndWithCtx(ctx).Msgf("Async query id : %s ended successfully", id)
 				return buf, nil
 			} else {
 				return nil, err
 			}
 		}
+		// Mark trace end is called only when the async query is fully processed
+		// which means that isPartial is false
+		logger.MarkTraceEndWithCtx(ctx).Msgf("Async query id : %s ended successfully", id)
 		return result.responseBody, nil
 	} else {
 		const isPartial = true
@@ -402,20 +418,34 @@ func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.C
 func (q *QueryRunner) searchWorkerCommon(
 	ctx context.Context,
 	queries []model.Query,
-	table *clickhouse.Table) (translatedQueryBody []byte, hits [][]model.QueryResultRow) {
+	table *clickhouse.Table) (translatedQueryBody []byte, hits [][]model.QueryResultRow, err error) {
 	sqls := ""
+
+LOOP:
 	for _, query := range queries {
 		if query.NoDBQuery {
 			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
 		} else {
-			logger.InfoWithCtx(ctx).Msgf("SQL: %s", query.String())
-			sqls += query.String() + "\n"
+			sql := query.String(ctx)
+			logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
+			sqls += sql + "\n"
+		}
+
+		// This is a HACK
+		// This should be removed when we have a schema resolver working.
+		// It ignores queries against data_stream fields. These queries are kibana internal ones.
+		for _, column := range query.Columns {
+			if strings.Contains(column.SQL(), "data_stream.") {
+				continue LOOP
+			}
 		}
 		rows, err := q.logManager.ProcessQuery(ctx, table, &query)
+
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msg(err.Error())
-			continue
+			return nil, nil, err
 		}
+
 		if query.Type != nil {
 			rows = query.Type.PostprocessResults(rows)
 		}
@@ -429,12 +459,13 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 	aggregations []model.Query,
 	table *clickhouse.Table,
 	doneCh chan<- AsyncSearchWithError,
-	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow) {
+	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow, err error) {
 	if optAsync != nil {
 		if q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, doneCh) {
 			return
 		}
-		dbQueryCtx, dbCancel := context.WithCancel(context.Background())
+		// We need different ctx as our cancel is no longer tied to HTTP request, but to overall timeout.
+		dbQueryCtx, dbCancel := context.WithCancel(tracing.NewContextWithRequest(ctx))
 		q.addAsyncQueryContext(dbQueryCtx, dbCancel, optAsync.asyncRequestIdStr)
 		ctx = dbQueryCtx
 	}
@@ -447,13 +478,16 @@ func (q *QueryRunner) Close() {
 	logger.Info().Msg("queryRunner Stopped")
 }
 
-func (q *QueryRunner) findNonexistingProperties(queryInfo model.SearchQueryInfo, sortFields []model.SortField, table *clickhouse.Table) []string {
+func (q *QueryRunner) findNonexistingProperties(query model.Query, table *clickhouse.Table) []string {
+	// this is not fully correct, but we keep it backward compatible
 	var results = make([]string, 0)
 	var allReferencedFields = make([]string, 0)
-	allReferencedFields = append(allReferencedFields, queryInfo.RequestedFields...)
-	for _, field := range sortFields {
-		allReferencedFields = append(allReferencedFields, field.Field)
+	for _, col := range query.Columns {
+		for _, c := range aexp.GetUsedColumns(col.Expression) {
+			allReferencedFields = append(allReferencedFields, c.ColumnName)
+		}
 	}
+	allReferencedFields = append(allReferencedFields, query.OrderByFieldNames()...)
 
 	for _, property := range allReferencedFields {
 		if property != "*" && !table.HasColumn(q.executionCtx, property) {

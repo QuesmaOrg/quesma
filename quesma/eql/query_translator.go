@@ -33,17 +33,17 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 		hits[i].Fields = make(map[string][]interface{})
 		hits[i].Highlight = make(map[string][]string)
 		hits[i].Source = []byte(resultRow.String(cw.Ctx))
-		if query.QueryInfo.Typ == model.ListAllFields {
+		if query.QueryInfoType == model.ListAllFields {
 			hits[i].ID = strconv.Itoa(i + 1)
 			hits[i].Index = cw.Table.Name
 			hits[i].Score = 1
 			hits[i].Version = 1
 		}
-		for _, property := range query.SortFields.Properties() {
-			if val, ok := hits[i].Fields[property]; ok {
+		for _, fieldName := range query.OrderByFieldNames() {
+			if val, ok := hits[i].Fields[fieldName]; ok {
 				hits[i].Sort = append(hits[i].Sort, elasticsearch.FormatSortValue(val[0]))
 			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("property %s not found in fields", property)
+				logger.WarnWithCtx(cw.Ctx).Msgf("field %s not found in fields", fieldName)
 			}
 		}
 	}
@@ -80,9 +80,9 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) ([]model.Que
 	if simpleQuery.CanParse {
 		canParse = true
 		query = query_util.BuildNRowsQuery(cw.Ctx, cw.Table.Name, "*", simpleQuery, queryInfo.I2)
-		query.QueryInfo = queryInfo
+		query.QueryInfoType = queryInfo.Typ
 		query.Highlighter = highlighter
-		query.SortFields = simpleQuery.SortFields
+		query.OrderBy = simpleQuery.OrderBy
 		queries = append(queries, *query)
 		isAggregation = false
 		return queries, isAggregation, canParse, nil
@@ -134,7 +134,7 @@ func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query
 
 	query.Sql.Stmt = where
 	query.CanParse = true
-	query.SortFields = []model.SortField{{Field: "@timestamp"}}
+	query.OrderBy = []model.SelectColumn{model.NewSortColumn("@timestamp", true)}
 
 	return query, searchQueryInfo, highlighter, nil
 }

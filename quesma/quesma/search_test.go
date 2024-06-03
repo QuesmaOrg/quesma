@@ -39,7 +39,7 @@ func TestNoAsciiTableName(t *testing.T) {
 	const Limit = 1000
 	query := queryTranslator.BuildNRowsQuery("*", simpleQuery, Limit)
 	assert.True(t, query.CanParse)
-	assert.Equal(t, fmt.Sprintf(`SELECT * FROM "%s" LIMIT %d`, tableName, Limit), query.String())
+	assert.Equal(t, fmt.Sprintf(`SELECT * FROM "%s" LIMIT %d`, tableName, Limit), query.String(ctx))
 }
 
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.GetRequestId())
@@ -74,7 +74,11 @@ func TestAsyncSearchHandler(t *testing.T) {
 	})
 	for i, tt := range testdata.TestsAsyncSearch {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
-			db, mock, err := sqlmock.New()
+			queryMatcher := sqlmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
+				fmt.Printf("actual SQL: %s\n", actualSQL)
+				return sqlmock.QueryMatcherRegexp.Match(expectedSQL, actualSQL)
+			})
+			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(queryMatcher))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -302,10 +306,16 @@ func TestHandlingDateTimeFields(t *testing.T) {
 	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())
 
 	for _, fieldName := range []string{dateTimeTimestampField, dateTime64TimestampField, dateTime64OurTimestampField} {
+
 		mock.ExpectQuery(testdata.EscapeBrackets(`SELECT count() FROM "logs-generic-default" WHERE `)).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}))
+
 		mock.ExpectQuery(testdata.EscapeBrackets(expectedSelectStatementRegex[fieldName])).
 			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))
+
+		mock.ExpectQuery(testdata.EscapeBrackets(`SELECT "timestamp", "timestamp64" FROM "logs-generic-default" WHERE`)).
+			WillReturnRows(sqlmock.NewRows([]string{"timestamp", "timestamp64"}))
+
 		// .AddRow(1000, uint64(10)).AddRow(1001, uint64(20))) // here rows should be added if uint64 were supported
 		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
 		response, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(query(fieldName)), defaultAsyncSearchTimeout, true)
