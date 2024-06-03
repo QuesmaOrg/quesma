@@ -1016,7 +1016,6 @@ var TestsSearch = []SearchTestCase{
 			}
 		}`,
 		[]string{
-			`((("user.id"='kimchy' AND "tags"='production') AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age"<=20 AND "age">=10)))`,
 			`((("user.id"='kimchy' AND "tags"='production') AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age">=10 AND "age"<=20)))`,
 		},
 		model.Normal,

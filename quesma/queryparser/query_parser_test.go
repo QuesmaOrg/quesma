@@ -59,9 +59,11 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			if queryInfo.Size != 0 {
 				size = queryInfo.Size
 			}
-			_ = cw.BuildNRowsQuery("*", simpleQuery, size)
-			//query.WhereClause = nil
-			//assert.Contains(t, tt.WantedQuery, *query)
+			query := cw.BuildNRowsQuery("*", simpleQuery, size)
+
+			for _, wantedSQL := range tt.WantedSql {
+				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
+			}
 		})
 	}
 }
@@ -90,9 +92,11 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 			whereStmt := simpleQuery.WhereClauseAsString()
 			assert.Contains(t, tt.WantedSql, whereStmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
-			_ = cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
-			//query.WhereClause = nil
-			//assert.Contains(t, tt.WantedQuery, *query)
+
+			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
+			for _, wantedSQL := range tt.WantedSql {
+				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
+			}
 		})
 	}
 }
@@ -120,10 +124,11 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			assert.Contains(t, tt.WantedSql, whereStmt)
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ)
 
-			_ = cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
+			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
 
-			//query.WhereClause = nil
-			//assert.Contains(t, tt.WantedQuery, *query)
+			for _, wantedSQL := range tt.WantedSql {
+				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
+			}
 		})
 	}
 }
