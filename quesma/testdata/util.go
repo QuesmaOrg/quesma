@@ -1,7 +1,6 @@
 package testdata
 
 import (
-	"context"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/aexp"
 	"strconv"
@@ -54,22 +53,13 @@ func newSimplestQuery() model.Query {
 	}
 }
 
-// qToStr is a simple helper function to help fill out test cases
-func qToStr(query model.Query) string {
-	return strings.Replace(query.String(context.Background()), "*", `"message"`, 1)
-}
-
-// justWhere is a simple helper function to help fill out test cases
-func justSimplestWhere(whereClause string) model.Query {
-	query := newSimplestQuery()
-	query.WhereClause = whereClause
-	return query
-}
-
-func withLimit(query model.Query, limit int) model.Query {
-	query.Limit = limit
-	return query
-}
+//// justWhere is a simple helper function to help fill out test cases
+//func justSimplestWhere(whereClause string) model.Query {
+//	query := newSimplestQuery()
+//	query.WhereClause = nil
+//	return query
+//}
+//
 
 // EscapeBrackets is a simple helper function used in sqlmock's tests.
 // Example usage: sqlmock.ExpectQuery(EscapeBrackets(`SELECT count() FROM "logs-generic-default" WHERE `))
