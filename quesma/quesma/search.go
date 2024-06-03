@@ -464,7 +464,8 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 		if q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, doneCh) {
 			return
 		}
-		dbQueryCtx, dbCancel := context.WithCancel(context.Background())
+		// We need different ctx as our cancel is no longer tied to HTTP request, but to overall timeout.
+		dbQueryCtx, dbCancel := context.WithCancel(tracing.NewContextWithRequest(ctx))
 		q.addAsyncQueryContext(dbQueryCtx, dbCancel, optAsync.asyncRequestIdStr)
 		ctx = dbQueryCtx
 	}
