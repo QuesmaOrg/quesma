@@ -38,6 +38,10 @@ func GuessClickhouseErrorType(err error) *EndUserError {
 			return ErrDatabaseTLS.New(originalErr)
 		}
 
+		if strings.Contains(s, "tls: failed to verify certificate:") {
+			return ErrDatabaseTLSVerify.New(originalErr)
+		}
+
 		err = errors.Unwrap(err)
 		if err == nil {
 			break
