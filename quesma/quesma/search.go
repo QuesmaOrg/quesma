@@ -21,6 +21,7 @@ import (
 	"mitmproxy/quesma/util"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -415,13 +416,84 @@ func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.C
 	q.AsyncQueriesContexts.Store(asyncRequestIdStr, NewAsyncQueryContext(ctx, cancel, asyncRequestIdStr))
 }
 
+func (q *QueryRunner) isInternalKibanaQuery(query model.Query) bool {
+	for _, column := range query.Columns {
+		if strings.Contains(column.SQL(), "data_stream.") {
+			return true
+		}
+	}
+	return false
+}
+
+type QueryJob func() ([]model.QueryResultRow, error)
+
+func runQueryJobsSequence(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, time.Duration, error) {
+	var results = make([][]model.QueryResultRow, 0)
+
+	start := time.Now()
+
+	for _, job := range jobs {
+		rows, err := job()
+		if err != nil {
+			return nil, time.Since(start), err
+		}
+		results = append(results, rows)
+	}
+
+	logger.InfoWithCtx(ctx).Msgf("XXX SEQ %d %v", len(jobs), time.Since(start))
+
+	return results, time.Since(start), nil
+}
+
+func runQueryJobsParallel(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, time.Duration, error) {
+	var results = make([][]model.QueryResultRow, len(jobs))
+	var errs = make([]error, len(jobs))
+
+	var wg sync.WaitGroup
+
+	start := time.Now()
+
+	for n, job := range jobs {
+		wg.Add(1)
+
+		go func(number int, j QueryJob) {
+
+			defer wg.Done()
+			rows, err := j()
+			if err != nil {
+				errs[number] = err
+				return
+			}
+			results[number] = rows
+
+		}(n, job)
+
+	}
+
+	wg.Wait()
+
+	for _, err := range errs {
+		if err != nil {
+			return nil, time.Since(start), err
+		}
+	}
+
+	logger.InfoWithCtx(ctx).Msgf("XXX PAR %d %v", len(jobs), time.Since(start))
+
+	return results, time.Since(start), nil
+}
+
 func (q *QueryRunner) searchWorkerCommon(
 	ctx context.Context,
 	queries []model.Query,
 	table *clickhouse.Table) (translatedQueryBody []byte, hits [][]model.QueryResultRow, err error) {
 	sqls := ""
 
-LOOP:
+	var sum int64
+	var times []int64
+
+	var jobs []QueryJob
+
 	for _, query := range queries {
 		if query.NoDBQuery {
 			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
@@ -434,23 +506,45 @@ LOOP:
 		// This is a HACK
 		// This should be removed when we have a schema resolver working.
 		// It ignores queries against data_stream fields. These queries are kibana internal ones.
-		for _, column := range query.Columns {
-			if strings.Contains(column.SQL(), "data_stream.") {
-				continue LOOP
+		if q.isInternalKibanaQuery(query) {
+			continue
+		}
+
+		t := time.Now().UnixMilli()
+
+		job := func() ([]model.QueryResultRow, error) {
+
+			rows, err := q.logManager.ProcessQuery(ctx, table, &query)
+
+			if err != nil {
+				logger.ErrorWithCtx(ctx).Msg(err.Error())
+				return nil, err
 			}
-		}
-		rows, err := q.logManager.ProcessQuery(ctx, table, &query)
 
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msg(err.Error())
-			return nil, nil, err
+			if query.Type != nil {
+				rows = query.Type.PostprocessResults(rows)
+			}
+
+			return rows, nil
 		}
 
-		if query.Type != nil {
-			rows = query.Type.PostprocessResults(rows)
-		}
-		hits = append(hits, rows)
+		jobs = append(jobs, job)
+
+		elapsed := time.Now().UnixMilli() - t
+		times = append(times, elapsed)
+		sum += elapsed
 	}
+	fmt.Println("XXX RUN SEQ", len(jobs))
+	hits2, t2, err2 := runQueryJobsSequence(ctx, jobs)
+	time.Sleep(2 * time.Second)
+	fmt.Println("XXXX RUN PARALLEL", len(jobs))
+	hits1, t1, err1 := runQueryJobsParallel(ctx, jobs)
+
+	fmt.Println("XXX ", len(jobs), " SEQUENCE RES", t2, len(hits2), err2, "PARALLEL", t1, len(hits1), err1)
+
+	hits = hits1
+	err = err1
+
 	translatedQueryBody = []byte(sqls)
 	return
 }
