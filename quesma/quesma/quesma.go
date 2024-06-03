@@ -152,7 +152,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		w.Write(queryparser.InternalQuesmaError("Unknown Quesma error"))
 	})
 
-	quesmaRequest, ctx := r.preprocessRequest(ctx, &mux.Request{
+	quesmaRequest, ctx, err := r.preprocessRequest(ctx, &mux.Request{
 		Method:      req.Method,
 		Path:        strings.TrimSuffix(req.URL.Path, "/"),
 		Params:      map[string]string{},
@@ -160,6 +160,10 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		QueryParams: req.URL.Query(),
 		Body:        string(reqBody),
 	})
+
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("Error preprocessing request: %v", err)
+	}
 
 	quesmaRequest.ParsedBody = types.ParseRequestBody(quesmaRequest.Body)
 
@@ -263,14 +267,18 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 	}
 }
 
-func (r *router) preprocessRequest(ctx context.Context, quesmaRequest *mux.Request) (*mux.Request, context.Context) {
+func (r *router) preprocessRequest(ctx context.Context, quesmaRequest *mux.Request) (*mux.Request, context.Context, error) {
+	var err error
 	var processedRequest = quesmaRequest
 	for _, preprocessor := range r.requestPreprocessors {
 		if preprocessor.Applies(processedRequest) {
-			ctx, processedRequest = preprocessor.PreprocessRequest(ctx, processedRequest)
+			ctx, processedRequest, err = preprocessor.PreprocessRequest(ctx, processedRequest)
+			if err != nil {
+				return nil, nil, err
+			}
 		}
 	}
-	return processedRequest, ctx
+	return processedRequest, ctx, nil
 }
 
 type elasticResult struct {

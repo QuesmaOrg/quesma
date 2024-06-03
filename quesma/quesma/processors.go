@@ -9,7 +9,7 @@ import (
 type (
 	RequestPreprocessor interface {
 		Applies(req *mux.Request) bool
-		PreprocessRequest(ctx context.Context, req *mux.Request) (context.Context, *mux.Request)
+		PreprocessRequest(ctx context.Context, req *mux.Request) (context.Context, *mux.Request, error)
 	}
 
 	processorChain []RequestPreprocessor
@@ -34,12 +34,12 @@ func (t TraceIdPreprocessor) Applies(*mux.Request) bool {
 	return true
 }
 
-func (t TraceIdPreprocessor) PreprocessRequest(ctx context.Context, req *mux.Request) (context.Context, *mux.Request) {
+func (t TraceIdPreprocessor) PreprocessRequest(ctx context.Context, req *mux.Request) (context.Context, *mux.Request, error) {
 	rid := t.RequestIdGenerator()
 	req.Headers.Add(tracing.RequestIdCtxKey.AsString(), rid)
 	ctx = context.WithValue(ctx, tracing.RequestIdCtxKey, rid)
 	ctx = context.WithValue(ctx, tracing.RequestPath, req.Path)
-	return ctx, req
+	return ctx, req, nil
 }
 
 var _ RequestPreprocessor = TraceIdPreprocessor{}
