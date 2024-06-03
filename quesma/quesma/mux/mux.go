@@ -80,7 +80,6 @@ func (p *PathRouter) Register(pattern string, predicate RequestMatcher, handler 
 }
 
 func (p *PathRouter) Matches(req *Request) (Handler, bool) {
-
 	handler, found := p.findHandler(req)
 	if found {
 		routerStatistics.addMatched(req.Path)

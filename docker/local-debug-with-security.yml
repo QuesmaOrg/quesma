@@ -16,7 +16,10 @@ services:
       - QUESMA_elasticsearch_password=quesmaquesma
       - QUESMA_port=8080
       - QUESMA_logging_path=/var/quesma/logs
-      - QUESMA_clickhouse_url=clickhouse://clickhouse:9000
+      - QUESMA_clickhouse_url=clickhouse://clickhouse:9440
+      - QUESMA_clickhouse_user=default
+      - QUESMA_clickhouse_password=
+      - QUESMA_clickhouse_database=default
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -27,7 +30,7 @@ services:
       - "8080:8080"
     volumes:
       - ./quesma/logs/:/var/quesma/logs
-      - ./security/ca/ca.crt:/etc/ssl/certs/local-elastic-ca.pem
+      - ./security/ca/ca.crt:/etc/ssl/certs/quesma-ca.crt # Quesma will use following certs to verify the clickhouse and elasticsearch
       - ./quesma/config:/config # mount local config for indices
     restart: unless-stopped
   setup-ssl: # one-off container to set the password for kibana_system user once Elastic's up&running
@@ -142,8 +145,17 @@ services:
     ports:
       - "8123:8123"
       - "9000:9000"
+      - "9440:9440"
+    volumes:
+      - ./clickhouse/config-with-ssl.xml:/etc/clickhouse-server/config.xml
+      - ./security/ca/ca.crt:/etc/clickhouse-server/quesma-ca.crt
+      - ./security/clickhouse/clickhouse.crt:/etc/clickhouse-server/quesma-clickhouse.crt
+      - ./security/clickhouse/clickhouse.key:/etc/clickhouse-server/quesma-clickhouse.key
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
       interval: 1s
       timeout: 1s
       start_period: 1m
+    depends_on:
+      setup-ssl:
+        condition: service_completed_successfully
