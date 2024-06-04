@@ -2,42 +2,12 @@ package clickhouse
 
 import (
 	"fmt"
-	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/util"
 	"slices"
 	"strings"
 )
 
 const NestedSeparator = "::"
-
-func JsonToTableSchema(jsonn, tableName string, config *ChTableConfig) (*Table, error) {
-	m, err := types.ParseJSON(jsonn)
-	if err != nil {
-		return nil, err
-	}
-
-	cols := make(map[string]*Column)
-	for name, value := range m {
-		// TODO make fields private and add constructor?
-		cols[name] = &Column{Name: name, Type: NewType(value), Codec: Codec{Name: ""}} // TODO codec not supported
-	}
-
-	// add others
-	if _, ok := cols[othersFieldName]; config.hasOthers && !ok {
-		cols[othersFieldName] = &Column{Name: othersFieldName, Type: NewType(SchemaMap{}), Codec: Codec{Name: ""}} // TODO codec not supported
-	}
-	// add attributes
-	for _, a := range config.attributes {
-		if _, ok := cols[a.KeysArrayName]; !ok {
-			cols[a.KeysArrayName] = &Column{Name: a.KeysArrayName, Type: NewType(""), Codec: Codec{Name: ""}} // TODO codec not supported
-		}
-		if _, ok := cols[a.ValuesArrayName]; !ok {
-			cols[a.ValuesArrayName] = &Column{Name: a.ValuesArrayName, Type: a.Type, Codec: Codec{Name: ""}} // TODO codec not supported
-		}
-	}
-
-	return &Table{Name: tableName, Config: config, Cols: cols}, nil
-}
 
 // m: unmarshalled json from HTTP request
 // Returns nicely formatted string for CREATE TABLE command
