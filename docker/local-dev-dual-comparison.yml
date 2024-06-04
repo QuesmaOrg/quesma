@@ -7,7 +7,7 @@ services:
       # and contain QUESMA_licenseKey with your personal license key
       - .env
     environment:
-      - QUESMA_elasticsearch_url=http://elasticsearch_quesma:9200
+      - QUESMA_elasticsearch_url=http://elasticsearch-quesma:9200
       - QUESMA_port=8080
       - QUESMA_logging_path=/var/quesma/logs
       - QUESMA_mode=dual-write-query-clickhouse
@@ -16,7 +16,7 @@ services:
     depends_on:
       clean-clickhouse:
         condition: service_completed_successfully
-      elasticsearch_quesma:
+      elasticsearch-quesma:
         condition: service_healthy
     ports:
       - "9999:9999"
@@ -29,9 +29,9 @@ services:
           limits:
             memory: 512M
     restart: unless-stopped
-  elasticsearch_quesma:
+  elasticsearch-quesma:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
-    container_name: elasticsearch_quesma
+    container_name: elasticsearch-quesma
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -40,7 +40,7 @@ services:
       - "9201:9200"
       - "9300:9300"
     healthcheck:
-      test: curl -s http://elasticsearch_quesma:9200 >/dev/null || exit 1
+      test: curl -s http://elasticsearch-quesma:9200 >/dev/null || exit 1
       start_period: 1m
       interval: 1s
       timeout: 1s
@@ -78,7 +78,7 @@ services:
         condition: service_completed_successfully
       quesma:
         condition: service_healthy
-      elasticsearch_quesma:
+      elasticsearch-quesma:
         condition: service_healthy
     ports:
       - "5601:5601"
