@@ -10,9 +10,9 @@ type TransformationPipeline struct {
 	transformers []Transformer
 }
 
-func (o *TransformationPipeline) Transform(query []model.Query) ([]model.Query, error) {
+func (o *TransformationPipeline) Transform(queries []model.Query) ([]model.Query, error) {
 	for _, transformer := range o.transformers {
-		query, _ = transformer.Transform(query)
+		queries, _ = transformer.Transform(queries)
 	}
-	return query, nil
+	return queries, nil
 }

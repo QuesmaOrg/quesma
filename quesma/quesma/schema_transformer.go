@@ -5,6 +5,6 @@ import "mitmproxy/quesma/model"
 type SchemaCheckPass struct {
 }
 
-func (s *SchemaCheckPass) Transform(query []model.Query) ([]model.Query, error) {
-	return query, nil
+func (s *SchemaCheckPass) Transform(queries []model.Query) ([]model.Query, error) {
+	return queries, nil
 }
