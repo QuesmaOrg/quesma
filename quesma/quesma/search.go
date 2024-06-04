@@ -19,6 +19,7 @@ import (
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
 	"mitmproxy/quesma/util"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -157,6 +158,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 	case sourceClickhouse:
 		logger.Debug().Msgf("index pattern [%s] resolved to clickhouse tables: [%s]", indexPattern, sourcesClickhouse)
+		if elasticsearch.IsIndexPattern(indexPattern) {
+			sourcesClickhouse = q.removeNotExistingTables(sourcesClickhouse)
+		}
 	case sourceElasticsearch:
 		return nil, end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to elasticsearch indices: [%s]", indexPattern, sourcesElastic))
 	}
@@ -296,6 +300,14 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 
 	return responseBody, nil
+}
+
+func (q *QueryRunner) removeNotExistingTables(sourcesClickhouse []string) []string {
+	allKnownTables, _ := q.logManager.GetTableDefinitions()
+	return slices.DeleteFunc(sourcesClickhouse, func(s string) bool {
+		_, exists := allKnownTables.Load(s)
+		return !exists
+	})
 }
 
 func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncRequestIdStr string,
