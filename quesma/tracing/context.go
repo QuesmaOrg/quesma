@@ -15,6 +15,10 @@ const (
 	TraceEndCtxKey  ContextKey = "TraceEnd"
 )
 
+func (c ContextKey) AsString() string {
+	return string(c)
+}
+
 // NewContextWithRequest creates a new context with the request id and async id from the existing context.
 // This is useful for async operations, where we want different cancel functions.
 func NewContextWithRequest(existingCtx context.Context) context.Context {

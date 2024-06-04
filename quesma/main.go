@@ -43,8 +43,6 @@ func main() {
 		log.Fatalf("error validating configuration: %v", err)
 	}
 
-	var connectionPool = clickhouse.InitDBConnectionPool(cfg)
-
 	asyncQueryTraceLogger := &tracing.AsyncTraceLogger{AsyncQueryTrace: concurrent.NewMap[string, tracing.TraceCtx]()}
 
 	qmcLogChannel := logger.InitLogger(cfg, sig, doneCh, asyncQueryTraceLogger)
@@ -53,6 +51,8 @@ func main() {
 
 	asyncQueryTraceEvictor := quesma.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
 	asyncQueryTraceEvictor.Start()
+
+	var connectionPool = clickhouse.InitDBConnectionPool(cfg)
 
 	phoneHomeAgent := telemetry.NewPhoneHomeAgent(cfg, connectionPool)
 	phoneHomeAgent.Start()
