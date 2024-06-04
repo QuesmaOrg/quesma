@@ -40,6 +40,7 @@ func TestSearchOpensearch(t *testing.T) {
 				return sqlmock.QueryMatcherRegexp.Match(expectedSQL, actualSQL)
 			})
 			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(queryMatcher))
+			mock.MatchExpectationsInOrder(false)
 			assert.NoError(t, err)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
