@@ -62,12 +62,20 @@ type QueryRunner struct {
 	// configuration
 
 	// this is passed to the QueryTranslator to render date math expressions
-	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	DateMathRenderer       string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	transformationPipeline TransformationPipeline
 }
 
 func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole) *QueryRunner {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc, executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult](), AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext]()}
+	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc,
+		executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult](),
+		AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext](),
+		transformationPipeline: TransformationPipeline{
+			transformers: []Transformer{
+				&SchemaCheckPass{},
+			},
+		}}
 }
 
 func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id string) *AsyncQueryContext {
@@ -210,6 +218,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
 
 		queries, isAggregation, canParse, err := queryTranslator.ParseQuery(body)
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("parsing error: %v", err)
+		}
+		queries, err = q.transformationPipeline.Transform(queries)
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
+		}
 
 		if canParse {
 			if query_util.IsNonAggregationQuery(queries[0].QueryInfoType, body) {
