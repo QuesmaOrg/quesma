@@ -62,7 +62,8 @@ type QueryRunner struct {
 	// configuration
 
 	// this is passed to the QueryTranslator to render date math expressions
-	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	DateMathRenderer         string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	currentParallelQueryJobs atomic.Int64
 }
 
 func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole) *QueryRunner {
@@ -427,37 +428,28 @@ func (q *QueryRunner) isInternalKibanaQuery(query model.Query) bool {
 
 type QueryJob func() ([]model.QueryResultRow, error)
 
-func runQueryJobsSequence(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, time.Duration, error) {
+func (q *QueryRunner) runQueryJobsSequence(jobs []QueryJob) ([][]model.QueryResultRow, error) {
 	var results = make([][]model.QueryResultRow, 0)
-
-	start := time.Now()
 
 	for _, job := range jobs {
 		rows, err := job()
 		if err != nil {
-			return nil, time.Since(start), err
+			return nil, err
 		}
 		results = append(results, rows)
 	}
-
-	logger.InfoWithCtx(ctx).Msgf("XXX SEQ %d %v", len(jobs), time.Since(start))
-
-	return results, time.Since(start), nil
+	return results, nil
 }
 
-func runQueryJobsParallel(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, time.Duration, error) {
+func (q *QueryRunner) runQueryJobsParallel(jobs []QueryJob) ([][]model.QueryResultRow, error) {
+
 	var results = make([][]model.QueryResultRow, len(jobs))
 	var errs = make([]error, len(jobs))
-
 	var wg sync.WaitGroup
-
-	start := time.Now()
 
 	for n, job := range jobs {
 		wg.Add(1)
-
 		go func(number int, j QueryJob) {
-
 			defer wg.Done()
 			rows, err := j()
 			if err != nil {
@@ -465,22 +457,46 @@ func runQueryJobsParallel(ctx context.Context, jobs []QueryJob) ([][]model.Query
 				return
 			}
 			results[number] = rows
-
 		}(n, job)
-
 	}
-
 	wg.Wait()
 
 	for _, err := range errs {
 		if err != nil {
-			return nil, time.Since(start), err
+			return nil, err
 		}
 	}
+	return results, nil
+}
 
-	logger.InfoWithCtx(ctx).Msgf("XXX PAR %d %v", len(jobs), time.Since(start))
+func (q *QueryRunner) runQueryJobs(jobs []QueryJob) ([][]model.QueryResultRow, error) {
+	const maxParallelQueries = 20 // this is arbitrary value
 
-	return results, time.Since(start), nil
+	numberOfJobs := len(jobs)
+
+	// here we decide if we run queries in parallel or in sequence
+	// if we have only one query, we run it in sequence
+
+	// Decision should be based on query durations. Maybe we should run first nth
+	// queries in parallel and in sequence and decide which one is faster.
+	//
+	// Parallel can be slower when we have a fast network connection.
+	//
+	if numberOfJobs == 1 {
+		return q.runQueryJobsSequence(jobs)
+	} else {
+
+		current := q.currentParallelQueryJobs.Add(int64(numberOfJobs))
+
+		if current > maxParallelQueries {
+			q.currentParallelQueryJobs.Add(int64(-numberOfJobs))
+			return q.runQueryJobsSequence(jobs)
+		}
+
+		defer q.currentParallelQueryJobs.Add(int64(-numberOfJobs))
+
+		return q.runQueryJobsParallel(jobs)
+	}
 }
 
 func (q *QueryRunner) searchWorkerCommon(
@@ -488,9 +504,6 @@ func (q *QueryRunner) searchWorkerCommon(
 	queries []model.Query,
 	table *clickhouse.Table) (translatedQueryBody []byte, hits [][]model.QueryResultRow, err error) {
 	sqls := ""
-
-	var sum int64
-	var times []int64
 
 	var jobs []QueryJob
 
@@ -510,10 +523,7 @@ func (q *QueryRunner) searchWorkerCommon(
 			continue
 		}
 
-		t := time.Now().UnixMilli()
-
 		job := func() ([]model.QueryResultRow, error) {
-
 			rows, err := q.logManager.ProcessQuery(ctx, table, &query)
 
 			if err != nil {
@@ -527,23 +537,10 @@ func (q *QueryRunner) searchWorkerCommon(
 
 			return rows, nil
 		}
-
 		jobs = append(jobs, job)
-
-		elapsed := time.Now().UnixMilli() - t
-		times = append(times, elapsed)
-		sum += elapsed
 	}
-	fmt.Println("XXX RUN SEQ", len(jobs))
-	hits2, t2, err2 := runQueryJobsSequence(ctx, jobs)
-	time.Sleep(2 * time.Second)
-	fmt.Println("XXXX RUN PARALLEL", len(jobs))
-	hits1, t1, err1 := runQueryJobsParallel(ctx, jobs)
 
-	fmt.Println("XXX ", len(jobs), " SEQUENCE RES", t2, len(hits2), err2, "PARALLEL", t1, len(hits1), err1)
-
-	hits = hits1
-	err = err1
+	hits, err = q.runQueryJobs(jobs)
 
 	translatedQueryBody = []byte(sqls)
 	return
