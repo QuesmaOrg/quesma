@@ -19,13 +19,6 @@ import (
 
 type JsonMap = map[string]interface{}
 
-func Truncate(body string) string {
-	if len(body) < 70 {
-		return body
-	}
-	return body[:70]
-}
-
 func prettify(jsonStr string) string {
 	data := []byte(jsonStr)
 	empty := []byte{}
