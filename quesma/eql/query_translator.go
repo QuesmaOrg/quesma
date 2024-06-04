@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/queryparser/query_util"
+	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/types"
 	"strconv"
 	"strings"
@@ -128,11 +129,10 @@ func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Err(err).Msgf("error transforming EQL query: '%s'", eqlQuery)
 		query.CanParse = false
-		query.Sql.Stmt = "Invalid EQL query"
 		return query, model.NewSearchQueryInfoNone(), highlighter, err
 	}
 
-	query.Sql.Stmt = where
+	query.WhereClause = where_clause.NewLiteral(where) // @TODO that's to be fixed
 	query.CanParse = true
 	query.OrderBy = []model.SelectColumn{model.NewSortColumn("@timestamp", true)}
 

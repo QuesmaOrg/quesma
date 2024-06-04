@@ -100,3 +100,4 @@ var ErrDatabaseAuthenticationError = errorType(3005, "Error authenticating with 
 var ErrDatabaseOtherError = errorType(3006, "Unspecified database error.")
 var ErrDatabaseInvalidProtocol = errorType(3007, "Invalid database protocol. Check your connection settings. ")
 var ErrDatabaseTLS = errorType(3008, "Error establishing TLS connection with database. Check your connection settings.")
+var ErrDatabaseTLSVerify = errorType(3009, "Error verifying TLS certificate with database. Check your connection settings.")

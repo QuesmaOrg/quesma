@@ -5,6 +5,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/telemetry"
@@ -61,7 +62,12 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			}
 			query := cw.BuildNRowsQuery("*", simpleQuery, size)
 
-			assert.Contains(t, tt.WantedQuery, *query)
+			for _, wantedSQL := range tt.WantedSql {
+				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
+			}
+			assert.True(t, query.CanParse, "can parse")
+			assert.Equal(t, strconv.Quote(testdata.TableName), query.FromClause)
+			assert.Equal(t, []model.SelectColumn{{Expression: aexp.Wildcard}}, query.Columns)
 		})
 	}
 }
@@ -90,8 +96,14 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 			whereStmt := simpleQuery.WhereClauseAsString()
 			assert.Contains(t, tt.WantedSql, whereStmt, "contains wanted sql")
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
+
 			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
-			assert.Contains(t, tt.WantedQuery, *query)
+			for _, wantedSQL := range tt.WantedSql {
+				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
+			}
+			assert.True(t, query.CanParse, "can parse")
+			assert.Equal(t, strconv.Quote(testdata.TableName), query.FromClause)
+			assert.Equal(t, []model.SelectColumn{{Expression: aexp.Wildcard}}, query.Columns)
 		})
 	}
 }
@@ -120,7 +132,13 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ)
 
 			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
-			assert.Contains(t, tt.WantedQuery, *query)
+
+			for _, wantedSQL := range tt.WantedSql {
+				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
+			}
+			assert.True(t, query.CanParse, "can parse")
+			assert.Equal(t, strconv.Quote(testdata.TableName), query.FromClause)
+			assert.Equal(t, []model.SelectColumn{{Expression: aexp.Wildcard}}, query.Columns)
 		})
 	}
 }
