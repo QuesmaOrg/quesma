@@ -30,31 +30,6 @@ func NewSimpleQueryWithFieldName(whereClause where_clause.Statement, canParse bo
 	return SimpleQuery{WhereClause: whereClause, CanParse: canParse, FieldName: fieldName}
 }
 
-func And(andStmts []where_clause.Statement) where_clause.Statement {
-	return combineStatements(andStmts, "AND")
-}
-
-func Or(orStmts []where_clause.Statement) where_clause.Statement {
-	return combineStatements(orStmts, "OR")
-}
-
-// operator = "AND" or "OR"
-func combineStatements(stmtsToCombine []where_clause.Statement, operator string) where_clause.Statement {
-	stmts := FilterOutEmptyStatements(stmtsToCombine)
-	var newWhereStatement where_clause.Statement
-	if len(stmts) > 1 {
-		newWhereStatement = stmts[0]
-		for _, stmt := range stmts[1:] {
-			newWhereStatement = where_clause.NewInfixOp(newWhereStatement, operator, stmt)
-		}
-		return newWhereStatement
-	}
-	if len(stmts) == 1 {
-		return stmts[0]
-	}
-	return nil
-}
-
 func CombineWheres(ctx context.Context, where1, where2 SimpleQuery) SimpleQuery {
 	var combinedWhereClause where_clause.Statement
 	if where1.WhereClause != nil && where2.WhereClause != nil {
@@ -77,14 +52,4 @@ func CombineWheres(ctx context.Context, where1, where2 SimpleQuery) SimpleQuery 
 		combined.FieldName = where2.FieldName
 	}
 	return combined
-}
-
-func FilterOutEmptyStatements(stmts []where_clause.Statement) []where_clause.Statement {
-	var nonEmptyStmts []where_clause.Statement
-	for _, stmt := range stmts {
-		if stmt != nil {
-			nonEmptyStmts = append(nonEmptyStmts, stmt)
-		}
-	}
-	return nonEmptyStmts
 }

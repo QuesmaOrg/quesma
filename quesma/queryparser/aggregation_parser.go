@@ -138,6 +138,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		fieldsAsString := strings.Join(metricsAggr.FieldNames, ", ")
 
 		// TODO add/restore tests for top_hits. E.g. we missed WHERE in FROM below, so the SQL might not be correct
+		// FIXME line below doesn't work if 1) we have "row_number" field in schema (doesn't seem that unlikely) 2) with > 1 (top_metrics + top_hits) in 1 aggregation
 		query.FromClause = fmt.Sprintf(
 			"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s) AS %s FROM %s WHERE %s)",
 			fieldsAsString, fieldsAsString, model.RowNumberColumnName, query.FromClause, b.whereBuilder.WhereClauseAsString(),
@@ -176,7 +177,8 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				strconv.Quote(metricsAggr.SortBy), metricsAggr.Order,
 				model.RowNumberColumnName, query.FromClause, b.whereBuilder.WhereClauseAsString(),
 			)
-			query.WhereClause = model.And([]where_clause.Statement{query.WhereClause, where_clause.NewInfixOp(where_clause.NewColumnRef(model.RowNumberColumnName), "<=", where_clause.NewLiteral(strconv.Itoa(metricsAggr.Size)))})
+			// FIXME line below doesn't work if 1) we have "row_number" field in schema (doesn't seem that unlikely) 2) with > 1 (top_metrics + top_hits) in 1 aggregation
+			query.WhereClause = where_clause.And([]where_clause.Statement{query.WhereClause, where_clause.NewInfixOp(where_clause.NewColumnRef(model.RowNumberColumnName), "<=", where_clause.NewLiteral(strconv.Itoa(metricsAggr.Size)))})
 		} else {
 			query.Limit = metricsAggr.Size
 			for _, f := range metricsAggr.FieldNames {
