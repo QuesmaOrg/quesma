@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0/")/.."
 source bin/lib.sh
 
-docker compose  -f "$QUESMA_COMPOSE_FILE" build ${DOCKER_COMPOSE_BUILD_ARGS} && docker compose -f "$QUESMA_COMPOSE_FILE" up -d
+docker compose  -f "$QUESMA_COMPOSE_FILE" build --build-arg QUESMA_BUILD_DATE="$QUESMA_BUILD_DATE" --build-arg QUESMA_VERSION="$QUESMA_VERSION" --build-arg QUESMA_BUILD_SHA="$QUESMA_BUILD_SHA" && docker compose -f "$QUESMA_COMPOSE_FILE" up -d
 
 cat <<"EOF"
                ________
