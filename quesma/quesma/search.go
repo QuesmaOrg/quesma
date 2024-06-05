@@ -428,6 +428,12 @@ func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.C
 	q.AsyncQueriesContexts.Store(asyncRequestIdStr, NewAsyncQueryContext(ctx, cancel, asyncRequestIdStr))
 }
 
+// This is a HACK
+// This should be removed when we have a schema resolver working.
+// It ignores queries against data_stream fields. These queries are kibana internal ones.
+// Especially kibana searches indexes using 'namespace' field.
+// This will be moved to the router.
+// TODO remove this and move to the router  https://github.com/QuesmaOrg/quesma/pull/260#discussion_r1627290579
 func (q *QueryRunner) isInternalKibanaQuery(query model.Query) bool {
 	for _, column := range query.Columns {
 		if strings.Contains(column.SQL(), "data_stream.") {
@@ -540,9 +546,6 @@ func (q *QueryRunner) searchWorkerCommon(
 			sqls += sql + "\n"
 		}
 
-		// This is a HACK
-		// This should be removed when we have a schema resolver working.
-		// It ignores queries against data_stream fields. These queries are kibana internal ones.
 		if q.isInternalKibanaQuery(query) {
 			continue
 		}
