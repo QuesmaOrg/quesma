@@ -66,6 +66,7 @@ type PhoneHomeStats struct {
 	Hostname       string `json:"hostname"`
 	QuesmaVersion  string `json:"quesma_version"`
 	BuildHash      string `json:"build_hash"`
+	BuildDate      string `json:"build_date"`
 	InstanceID     string `json:"instanceId"`
 
 	// add more stats here about running
@@ -470,6 +471,7 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 	stats.TakenAt = time.Now().Unix()
 	stats.QuesmaVersion = buildinfo.Version
 	stats.BuildHash = buildinfo.BuildHash
+	stats.BuildDate = buildinfo.BuildDate
 	stats.NumberOfPanics = recovery.PanicCounter.Load()
 	stats.InstanceID = a.instanceId
 

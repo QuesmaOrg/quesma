@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS "phone_home_data"
     "config_mode" Nullable(String),
     "top_errors"  Array(String),
     "build_hash" Nullable(String),
+    "build_date" Nullable(DateTime64(3)),
     "number_of_failed_requests" Nullable(Int64),
 
     )
