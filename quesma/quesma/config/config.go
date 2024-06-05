@@ -70,7 +70,7 @@ func (c *RelationalDbConfiguration) IsNonEmpty() bool {
 type FieldAlias struct {
 	// TargetFieldName is the field name in the ClickHouse Table
 	TargetFieldName string `koanf:"target"`
-	// SourceFieldName is the field name in sent to Quesma in ES Query
+	// SourceFieldName is the field name in received in the ES Query
 	SourceFieldName string `koanf:"source"`
 }
 
