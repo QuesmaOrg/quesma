@@ -53,7 +53,7 @@ func (v *AliasResolver) VisitArrayAccess(e *ArrayAccess) interface{} {
 // resolveFieldName takes a field name and returns the corresponding alias based on the configuration
 func (v *AliasResolver) resolveFieldName(fieldName string) string {
 	for _, alias := range v.IndexCfg.Aliases {
-		if alias.SourceFieldName == fieldName {
+		if fieldName == alias.SourceFieldName {
 			logger.Debug().Msgf("Resolving field alias [Config: target=%s,source=%s], swapping [%s] with [%s]", alias.TargetFieldName, alias.SourceFieldName, fieldName, alias.TargetFieldName)
 			return alias.TargetFieldName
 		}
