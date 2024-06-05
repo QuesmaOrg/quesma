@@ -22,7 +22,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -457,27 +456,40 @@ func (q *QueryRunner) runQueryJobsParallel(jobs []QueryJob) ([][]model.QueryResu
 
 	var results = make([][]model.QueryResultRow, len(jobs))
 	var errs = make([]error, len(jobs))
-	var wg sync.WaitGroup
+
+	type result struct {
+		rows  []model.QueryResultRow
+		err   error
+		jobId int
+	}
+
+	collector := make(chan result, len(jobs))
 
 	for n, job := range jobs {
-		wg.Add(1)
-		go func(number int, j QueryJob) {
-			defer wg.Done()
+		// produce
+		go func(jobId int, j QueryJob) {
+			defer recovery.LogAndHandlePanic(q.executionCtx, func(err error) {
+				collector <- result{err: err, jobId: jobId}
+			})
+
 			rows, err := j()
-			if err != nil {
-				errs[number] = err
-				return
-			}
-			results[number] = rows
+			collector <- result{rows: rows, err: err, jobId: jobId}
 		}(n, job)
 	}
-	wg.Wait()
+	// consume
+	for range len(jobs) {
+		res := <-collector
+		results[res.jobId] = res.rows
+		errs[res.jobId] = res.err
+	}
 
+	// check for errors
 	for _, err := range errs {
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	return results, nil
 }
 
@@ -496,19 +508,19 @@ func (q *QueryRunner) runQueryJobs(jobs []QueryJob) ([][]model.QueryResultRow, e
 	//
 	if numberOfJobs == 1 {
 		return q.runQueryJobsSequence(jobs)
-	} else {
-
-		current := q.currentParallelQueryJobs.Add(int64(numberOfJobs))
-
-		if current > maxParallelQueries {
-			q.currentParallelQueryJobs.Add(int64(-numberOfJobs))
-			return q.runQueryJobsSequence(jobs)
-		}
-
-		defer q.currentParallelQueryJobs.Add(int64(-numberOfJobs))
-
-		return q.runQueryJobsParallel(jobs)
 	}
+
+	current := q.currentParallelQueryJobs.Add(int64(numberOfJobs))
+
+	if current > maxParallelQueries {
+		q.currentParallelQueryJobs.Add(int64(-numberOfJobs))
+		return q.runQueryJobsSequence(jobs)
+	}
+
+	defer q.currentParallelQueryJobs.Add(int64(-numberOfJobs))
+
+	return q.runQueryJobsParallel(jobs)
+
 }
 
 func (q *QueryRunner) searchWorkerCommon(
