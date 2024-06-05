@@ -10,7 +10,7 @@ import (
 type AliasResolver struct {
 
 	//Deprecated
-	IndexCfg *config.IndexConfiguration // we should use the new schema config (*config.SchemaConfiguration) which is not ready yet
+	IndexCfg config.IndexConfiguration // we should use the new schema config (*config.SchemaConfiguration) which is not ready yet
 }
 
 func (v *AliasResolver) VisitLiteral(e *Literal) interface{} {
@@ -54,7 +54,7 @@ func (v *AliasResolver) VisitArrayAccess(e *ArrayAccess) interface{} {
 func (v *AliasResolver) resolveFieldName(fieldName string) string {
 	for _, alias := range v.IndexCfg.Aliases {
 		if alias.SourceFieldName == fieldName {
-			logger.Info().Msgf("PRZEMYSLAW RESOLVES ALIAS [CFG target=%s,source=%s], so swapping [%s] with [%s]", alias.TargetFieldName, alias.SourceFieldName, fieldName, alias.TargetFieldName)
+			logger.Debug().Msgf("Resolving field alias [Config: target=%s,source=%s], swapping [%s] with [%s]", alias.TargetFieldName, alias.SourceFieldName, fieldName, alias.TargetFieldName)
 			return alias.TargetFieldName
 		}
 	}
