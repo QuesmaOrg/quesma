@@ -3,11 +3,11 @@ name: Build Quesma container image for customers and prospects (private beta rep
 on:
   workflow_dispatch:
     inputs:
-      GIT_REF:
-        description: 'Commit hash to use for the release (can be a branch name or tag)'
+      RELEASE_TAG:
+        description: 'Tag to use for the release. This tag will be show as version in telemetry.'
         required: true
       VERSION_TAG:
-        description: 'Version tag for the released Docker image'
+        description: 'Version tag for the released Docker image. This tag will be used to pull the image.'
         required: true
       LICENSE_KEY:
         description: 'License key - when empty, development key will be used'
@@ -23,7 +23,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.GIT_REF }}
+          ref: ${{ github.event.inputs.RELEASE_TAG }}
+
+      - name: Set build date
+        run: echo QUESMA_BUILD_DATE=$(git --no-pager log -1 --date=format:'%Y-%m-%d' --format="%ad")  >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -43,6 +46,7 @@ jobs:
           push: ${{ github.event_name == 'workflow_dispatch' }}
           build-args: |
             QUESMA_BUILD_SHA=${{ github.sha }}
-            QUESMA_VERSION=${{ github.event.inputs.VERSION_TAG }}
+            QUESMA_VERSION=${{ github.event.inputs.RELEASE_TAG }}
             QUESMA_LICENSE_KEY=${{ github.event.inputs.LICENSE_KEY }}
+            QUESMA_BUILD_DATE=${{ env.QUESMA_BUILD_DATE }}
           platforms: linux/amd64,linux/arm64

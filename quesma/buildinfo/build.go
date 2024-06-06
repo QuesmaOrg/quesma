@@ -6,4 +6,5 @@ const (
 
 var Version = "development"
 var BuildHash = ""
+var BuildDate = ""
 var LicenseKey = DevelopmentLicenseKey
