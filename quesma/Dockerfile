@@ -12,6 +12,7 @@ ENV GOCACHE=/root/.cache/go-build
 ARG QUESMA_BUILD_SHA
 ARG QUESMA_VERSION
 ARG QUESMA_LICENSE_KEY
+ARG QUESMA_BUILD_DATE
 
 COPY util/healthcheck util/healthcheck
 
@@ -31,6 +32,9 @@ RUN --mount=type=cache,target="/root/.cache/go-build" \
     -X 'buildinfo.Version=$QUESMA_VERSION'  \
     -X 'mitmproxy/quesma/buildinfo.LicenseKey=$QUESMA_LICENSE_KEY'  \
     -X 'buildinfo.LicenseKey=$QUESMA_LICENSE_KEY' \
+    -X 'mitmproxy/quesma/buildinfo.BuildDate=$QUESMA_BUILD_DATE'  \
+    -X 'buildinfo.BuildDate=$QUESMA_BUILD_DATE' \
+
     " \
     -o bin
 

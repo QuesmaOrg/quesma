@@ -14,14 +14,15 @@ import (
 )
 
 type Table struct {
-	Name             string
-	DatabaseName     string `default:""`
-	Cluster          string `default:""`
-	Cols             map[string]*Column
-	Config           *ChTableConfig
-	Created          bool // do we need to create it during first insert
-	indexes          []IndexStatement
-	aliases          map[string]string
+	Name         string
+	DatabaseName string `default:""`
+	Cluster      string `default:""`
+	Cols         map[string]*Column
+	Config       *ChTableConfig
+	Created      bool // do we need to create it during first insert
+	indexes      []IndexStatement
+	aliases      map[string]string //deprecated
+	// we should use aliases directly from configuration, not store them here
 	Comment          string // this human-readable comment
 	CreateTableQuery string
 	TimestampColumn  *string
@@ -204,7 +205,9 @@ func (t *Table) applyIndexConfig(configuration config.QuesmaConfiguration) {
 
 }
 
+// deprecated
 func (t *Table) ResolveField(ctx context.Context, fieldName string) (field string) {
+	// Alias resolution should occur *after* the query is parsed, not during the parsing
 	field = fieldName
 	if t.aliases != nil {
 		if alias, ok := t.aliases[fieldName]; ok {
