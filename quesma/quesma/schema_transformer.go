@@ -3,6 +3,7 @@ package quesma
 import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/where_clause"
+	"mitmproxy/quesma/quesma/config"
 	"strconv"
 )
 
@@ -48,6 +49,7 @@ func (v *WhereVisitor) VisitArrayAccess(*where_clause.ArrayAccess) interface{} {
 }
 
 type SchemaCheckPass struct {
+	cfg map[string]config.IndexConfiguration
 }
 
 func (s *SchemaCheckPass) Transform(queries []model.Query) ([]model.Query, error) {
