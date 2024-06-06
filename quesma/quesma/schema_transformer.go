@@ -1,6 +1,7 @@
 package quesma
 
 import (
+	"errors"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/config"
@@ -53,36 +54,48 @@ type SchemaCheckPass struct {
 	cfg map[string]config.IndexConfiguration
 }
 
-func (s *SchemaCheckPass) Transform(queries []model.Query) ([]model.Query, error) {
+func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query, error) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
 	const CASTPrimitive = "CAST"
 	const StringLiteral = "'String'"
 
-	for k, query := range queries {
-		if query.WhereClause == nil {
-			continue
-		}
-		whereVisitor := &WhereVisitor{}
-		query.WhereClause.Accept(whereVisitor)
-		fromTable := strings.Trim(query.FromClause, "\"")
-		mappedType := s.cfg[fromTable].TypeMappings[strings.Trim(whereVisitor.lhs, "\"")]
-		if mappedType != "ip" {
-			continue
-		}
-		transformedWhereClause := &where_clause.Function{
-			Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
-			Args: []where_clause.Statement{
-				&where_clause.Function{
-					Name: where_clause.Literal{Name: CASTPrimitive},
-					Args: []where_clause.Statement{
-						&where_clause.Literal{Name: whereVisitor.lhs},
-						&where_clause.Literal{Name: StringLiteral},
-					},
+	if query.WhereClause == nil {
+		return query, nil
+	}
+	whereVisitor := &WhereVisitor{}
+	query.WhereClause.Accept(whereVisitor)
+	fromTable := strings.Trim(query.FromClause, "\"")
+	mappedType := s.cfg[fromTable].TypeMappings[strings.Trim(whereVisitor.lhs, "\"")]
+	if mappedType != "ip" {
+		return query, nil
+	}
+	if len(whereVisitor.lhs) == 0 || len(whereVisitor.rhs) == 0 {
+		return query, errors.New("schema transformation failed, lhs or rhs is empty")
+	}
+	transformedWhereClause := &where_clause.Function{
+		Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
+		Args: []where_clause.Statement{
+			&where_clause.Function{
+				Name: where_clause.Literal{Name: CASTPrimitive},
+				Args: []where_clause.Statement{
+					&where_clause.Literal{Name: whereVisitor.lhs},
+					&where_clause.Literal{Name: StringLiteral},
 				},
-				&where_clause.Literal{Name: whereVisitor.rhs},
 			},
+			&where_clause.Literal{Name: whereVisitor.rhs},
+		},
+	}
+	query.WhereClause = transformedWhereClause
+	return query, nil
+}
+
+func (s *SchemaCheckPass) Transform(queries []model.Query) ([]model.Query, error) {
+	for k, query := range queries {
+		var err error
+		query, err = s.applyIpTransformations(query)
+		if err != nil {
+			return nil, err
 		}
-		query.WhereClause = transformedWhereClause
 		queries[k] = query
 	}
 	return queries, nil
