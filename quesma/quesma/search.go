@@ -14,6 +14,7 @@ import (
 	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/query_transformers"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/quesma/ui"
@@ -74,6 +75,7 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, i
 		transformationPipeline: TransformationPipeline{
 			transformers: []Transformer{
 				&SchemaCheckPass{},
+				query_transformers.NewAliasResolver(cfg.IndexConfig),
 			},
 		}}
 }

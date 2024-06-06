@@ -3,7 +3,7 @@ package quesma
 import "mitmproxy/quesma/model"
 
 type Transformer interface {
-	Transform(query []model.Query) ([]model.Query, error)
+	Transform(queries []model.Query) ([]model.Query, error)
 }
 
 type TransformationPipeline struct {
