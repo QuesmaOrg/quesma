@@ -2,6 +2,7 @@ package quesma
 
 import (
 	"errors"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/config"
@@ -12,6 +13,7 @@ import (
 type WhereVisitor struct {
 	lhs string
 	rhs string
+	op  string
 }
 
 func (v *WhereVisitor) VisitLiteral(e *where_clause.Literal) interface{} {
@@ -27,6 +29,7 @@ func (v *WhereVisitor) VisitInfixOp(e *where_clause.InfixOp) interface{} {
 		rhs := e.Right.Accept(v)
 		v.rhs = rhs.(string)
 	}
+	v.op = e.Op
 	return ""
 }
 
@@ -85,6 +88,10 @@ func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query
 	}
 	if len(whereVisitor.lhs) == 0 || len(whereVisitor.rhs) == 0 {
 		return query, errors.New("schema transformation failed, lhs or rhs is empty")
+	}
+	if whereVisitor.op != "=" {
+		logger.Warn().Msg("ip transformation omitted, operator is not =")
+		return query, nil
 	}
 	transformedWhereClause := &where_clause.Function{
 		Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
