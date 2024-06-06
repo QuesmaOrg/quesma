@@ -19,6 +19,7 @@ import (
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
 	"mitmproxy/quesma/util"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -61,12 +62,20 @@ type QueryRunner struct {
 	// configuration
 
 	// this is passed to the QueryTranslator to render date math expressions
-	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	DateMathRenderer       string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	transformationPipeline TransformationPipeline
 }
 
 func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole) *QueryRunner {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc, executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult](), AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext]()}
+	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc,
+		executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult](),
+		AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext](),
+		transformationPipeline: TransformationPipeline{
+			transformers: []Transformer{
+				&SchemaCheckPass{},
+			},
+		}}
 }
 
 func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id string) *AsyncQueryContext {
@@ -157,6 +166,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		}
 	case sourceClickhouse:
 		logger.Debug().Msgf("index pattern [%s] resolved to clickhouse tables: [%s]", indexPattern, sourcesClickhouse)
+		if elasticsearch.IsIndexPattern(indexPattern) {
+			sourcesClickhouse = q.removeNotExistingTables(sourcesClickhouse)
+		}
 	case sourceElasticsearch:
 		return nil, end_user_errors.ErrSearchCondition.New(fmt.Errorf("index pattern [%s] resolved to elasticsearch indices: [%s]", indexPattern, sourcesElastic))
 	}
@@ -206,6 +218,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
 
 		queries, isAggregation, canParse, err := queryTranslator.ParseQuery(body)
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("parsing error: %v", err)
+		}
+		queries, err = q.transformationPipeline.Transform(queries)
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
+		}
 
 		//for _, query := range queries {
 		//	query.ApplyAliases(q.cfg.IndexConfig, resolvedTableName)
@@ -300,6 +319,14 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 
 	return responseBody, nil
+}
+
+func (q *QueryRunner) removeNotExistingTables(sourcesClickhouse []string) []string {
+	allKnownTables, _ := q.logManager.GetTableDefinitions()
+	return slices.DeleteFunc(sourcesClickhouse, func(s string) bool {
+		_, exists := allKnownTables.Load(s)
+		return !exists
+	})
 }
 
 func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncRequestIdStr string,
