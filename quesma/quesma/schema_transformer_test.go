@@ -2,7 +2,6 @@ package quesma
 
 import (
 	"context"
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/aexp"
@@ -28,42 +27,72 @@ func Test_ipRangeTransform(t *testing.T) {
 	}
 	transform := &SchemaCheckPass{cfg: indexConfig}
 
-	expectedQuery := model.Query{
-		FromClause: "kibana_sample_data_logs",
-		Columns: []model.SelectColumn{{
-			Expression: aexp.Wildcard,
-		},
-		},
-		WhereClause: &where_clause.Function{
-			Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
-			Args: []where_clause.Statement{
-				&where_clause.Function{
-					Name: where_clause.Literal{Name: CASTPrimitive},
-					Args: []where_clause.Statement{
-						&where_clause.Literal{Name: IpFieldName},
-						&where_clause.Literal{Name: StringLiteral},
+	expectedQueries := []model.Query{
+		{
+			FromClause: "kibana_sample_data_logs",
+			Columns: []model.SelectColumn{{
+				Expression: aexp.Wildcard,
+			},
+			},
+			WhereClause: &where_clause.Function{
+				Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
+				Args: []where_clause.Statement{
+					&where_clause.Function{
+						Name: where_clause.Literal{Name: CASTPrimitive},
+						Args: []where_clause.Statement{
+							&where_clause.Literal{Name: IpFieldName},
+							&where_clause.Literal{Name: StringLiteral},
+						},
 					},
+					&where_clause.Literal{Name: IpFieldContent},
 				},
-				&where_clause.Literal{Name: IpFieldContent},
 			},
 		},
-	}
-	queries := []model.Query{
-		{FromClause: "kibana_sample_data_logs",
+		{
+			FromClause: "kibana_sample_data_logs",
 			Columns: []model.SelectColumn{{
 				Expression: aexp.Wildcard,
 			},
 			},
 			WhereClause: &where_clause.InfixOp{
 				Left:  &where_clause.Literal{Name: IpFieldName},
-				Op:    "=",
+				Op:    "<",
 				Right: &where_clause.Literal{Name: IpFieldContent},
 			},
 		},
 	}
+	queries := [][]model.Query{
+		{
+			{FromClause: "kibana_sample_data_logs",
+				Columns: []model.SelectColumn{{
+					Expression: aexp.Wildcard,
+				},
+				},
+				WhereClause: &where_clause.InfixOp{
+					Left:  &where_clause.Literal{Name: IpFieldName},
+					Op:    "=",
+					Right: &where_clause.Literal{Name: IpFieldContent},
+				},
+			},
+		},
+		{
+			{FromClause: "kibana_sample_data_logs",
+				Columns: []model.SelectColumn{{
+					Expression: aexp.Wildcard,
+				},
+				},
+				WhereClause: &where_clause.InfixOp{
+					Left:  &where_clause.Literal{Name: IpFieldName},
+					Op:    "<",
+					Right: &where_clause.Literal{Name: IpFieldContent},
+				},
+			},
+		},
+	}
 
-	fmt.Println(queries[0].String(context.Background()))
-	resultQuery, err := transform.Transform(queries)
-	assert.NoError(t, err)
-	assert.Equal(t, expectedQuery.String(context.Background()), resultQuery[0].String(context.Background()))
+	for k := range queries {
+		resultQueries, err := transform.Transform(queries[k])
+		assert.NoError(t, err)
+		assert.Equal(t, expectedQueries[k].String(context.Background()), resultQueries[0].String(context.Background()))
+	}
 }
