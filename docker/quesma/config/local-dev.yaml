@@ -60,3 +60,5 @@ indexes:
     enabled: true
   type_logs:
     enabled: true
+  all_logs:
+    enabled: true
