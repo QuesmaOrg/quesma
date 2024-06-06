@@ -62,8 +62,9 @@ type QueryRunner struct {
 	// configuration
 
 	// this is passed to the QueryTranslator to render date math expressions
-	DateMathRenderer       string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
-	transformationPipeline TransformationPipeline
+	DateMathRenderer         string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	currentParallelQueryJobs atomic.Int64
+	transformationPipeline   TransformationPipeline
 }
 
 func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole) *QueryRunner {
@@ -446,42 +447,170 @@ func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.C
 	q.AsyncQueriesContexts.Store(asyncRequestIdStr, NewAsyncQueryContext(ctx, cancel, asyncRequestIdStr))
 }
 
+// This is a HACK
+// This should be removed when we have a schema resolver working.
+// It ignores queries against data_stream fields. These queries are kibana internal ones.
+// Especially kibana searches indexes using 'namespace' field.
+// This will be moved to the router.
+// TODO remove this and move to the router  https://github.com/QuesmaOrg/quesma/pull/260#discussion_r1627290579
+func (q *QueryRunner) isInternalKibanaQuery(query model.Query) bool {
+	for _, column := range query.Columns {
+		if strings.Contains(column.SQL(), "data_stream.") {
+			return true
+		}
+	}
+	return false
+}
+
+type QueryJob func(ctx context.Context) ([]model.QueryResultRow, error)
+
+func (q *QueryRunner) runQueryJobsSequence(jobs []QueryJob) ([][]model.QueryResultRow, error) {
+	var results = make([][]model.QueryResultRow, 0)
+
+	for _, job := range jobs {
+		rows, err := job(q.executionCtx)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, rows)
+	}
+	return results, nil
+}
+
+func (q *QueryRunner) runQueryJobsParallel(jobs []QueryJob) ([][]model.QueryResultRow, error) {
+
+	var results = make([][]model.QueryResultRow, len(jobs))
+
+	type result struct {
+		rows  []model.QueryResultRow
+		err   error
+		jobId int
+	}
+
+	// this is our context to control the execution of the jobs
+
+	// cancellation is done by the parent context
+	// or by the first goroutine that returns an error
+	ctx, cancel := context.WithCancel(q.executionCtx)
+	// clean up on return
+	defer cancel()
+
+	collector := make(chan result, len(jobs))
+
+	for n, job := range jobs {
+		// produce
+		go func(ctx context.Context, jobId int, j QueryJob) {
+			defer recovery.LogAndHandlePanic(ctx, func(err error) {
+				collector <- result{err: err, jobId: jobId}
+			})
+			start := time.Now()
+			rows, err := j(ctx)
+			logger.DebugWithCtx(ctx).Msgf("parallel job %d finished in %v", jobId, time.Since(start))
+			collector <- result{rows: rows, err: err, jobId: jobId}
+		}(ctx, n, job)
+	}
+
+	// consume
+	for range len(jobs) {
+		res := <-collector
+		if res.err == nil {
+			results[res.jobId] = res.rows
+		} else {
+			return nil, res.err
+		}
+	}
+
+	return results, nil
+}
+
+func (q *QueryRunner) runQueryJobs(jobs []QueryJob) ([][]model.QueryResultRow, error) {
+	const maxParallelQueries = 25 // this is arbitrary value
+
+	numberOfJobs := len(jobs)
+
+	// here we decide if we run queries in parallel or in sequence
+	// if we have only one query, we run it in sequence
+
+	// Decision should be based on query durations. Maybe we should run first nth
+	// queries in parallel and in sequence and decide which one is faster.
+	//
+	// Parallel can be slower when we have a fast network connection.
+	//
+	if numberOfJobs == 1 {
+		return q.runQueryJobsSequence(jobs)
+	}
+
+	current := q.currentParallelQueryJobs.Add(int64(numberOfJobs))
+
+	if current > maxParallelQueries {
+		q.currentParallelQueryJobs.Add(int64(-numberOfJobs))
+		return q.runQueryJobsSequence(jobs)
+	}
+
+	defer q.currentParallelQueryJobs.Add(int64(-numberOfJobs))
+
+	return q.runQueryJobsParallel(jobs)
+
+}
+
 func (q *QueryRunner) searchWorkerCommon(
 	ctx context.Context,
 	queries []model.Query,
 	table *clickhouse.Table) (translatedQueryBody []byte, hits [][]model.QueryResultRow, err error) {
 	sqls := ""
 
-LOOP:
-	for _, query := range queries {
+	hits = make([][]model.QueryResultRow, len(queries))
+
+	var jobs []QueryJob
+	var jobHitsPosition []int // it keeps the position of the hits array for each job
+
+	for i, query := range queries {
+
 		if query.NoDBQuery {
 			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
-		} else {
-			sql := query.String(ctx)
-			logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
-			sqls += sql + "\n"
+			hits[i] = make([]model.QueryResultRow, 0)
+			continue
 		}
 
-		// This is a HACK
-		// This should be removed when we have a schema resolver working.
-		// It ignores queries against data_stream fields. These queries are kibana internal ones.
-		for _, column := range query.Columns {
-			if strings.Contains(column.SQL(), "data_stream.") {
-				continue LOOP
+		sql := query.String(ctx)
+		logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
+		sqls += sql + "\n"
+
+		if q.isInternalKibanaQuery(query) {
+			hits[i] = make([]model.QueryResultRow, 0)
+			continue
+		}
+
+		job := func(ctx context.Context) ([]model.QueryResultRow, error) {
+			var err error
+			rows, err := q.logManager.ProcessQuery(ctx, table, &query)
+
+			if err != nil {
+				logger.ErrorWithCtx(ctx).Msg(err.Error())
+				return nil, err
 			}
-		}
-		rows, err := q.logManager.ProcessQuery(ctx, table, &query)
 
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msg(err.Error())
-			return nil, nil, err
-		}
+			if query.Type != nil {
+				rows = query.Type.PostprocessResults(rows)
+			}
 
-		if query.Type != nil {
-			rows = query.Type.PostprocessResults(rows)
+			return rows, nil
 		}
-		hits = append(hits, rows)
+		jobs = append(jobs, job)
+		jobHitsPosition = append(jobHitsPosition, i)
 	}
+
+	dbHits, err := q.runQueryJobs(jobs)
+	if err != nil {
+		return
+	}
+
+	// fill the hits array with the results in the order of the database queries
+	for jobId := range jobHitsPosition {
+		hitsPosition := jobHitsPosition[jobId]
+		hits[hitsPosition] = dbHits[jobId]
+	}
+
 	translatedQueryBody = []byte(sqls)
 	return
 }

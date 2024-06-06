@@ -79,6 +79,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 				return sqlmock.QueryMatcherRegexp.Match(expectedSQL, actualSQL)
 			})
 			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(queryMatcher))
+			mock.MatchExpectationsInOrder(false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -128,6 +129,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 	for i, tt := range testdata.AggregationTestsWithSpecialCharactersInFieldNames {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			db, mock, err := sqlmock.New()
+			mock.MatchExpectationsInOrder(false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -226,6 +228,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 	for _, tt := range testdata.TestSearchFilter {
 		t.Run(tt.Name, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
+			mock.MatchExpectationsInOrder(false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -298,6 +301,10 @@ func TestHandlingDateTimeFields(t *testing.T) {
 	}
 
 	db, mock, err := sqlmock.New()
+
+	// queries can be run in parallel
+
+	mock.MatchExpectationsInOrder(false)
 	if err != nil {
 		t.Fatal(err)
 	}
