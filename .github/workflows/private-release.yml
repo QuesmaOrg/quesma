@@ -26,7 +26,7 @@ jobs:
           ref: ${{ github.event.inputs.RELEASE_TAG }}
 
       - name: Set build date
-        run: echo QUESMA_BUILD_DATE=$(git --no-pager log -1 --format="%ai")  >> $GITHUB_ENV
+        run: echo QUESMA_BUILD_DATE=$(git --no-pager log -1 --date=format:'%Y-%m-%d' --format="%ad")  >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
