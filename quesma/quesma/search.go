@@ -443,13 +443,13 @@ func (q *QueryRunner) isInternalKibanaQuery(query model.Query) bool {
 	return false
 }
 
-type QueryJob func() ([]model.QueryResultRow, error)
+type QueryJob func(ctx context.Context) ([]model.QueryResultRow, error)
 
 func (q *QueryRunner) runQueryJobsSequence(jobs []QueryJob) ([][]model.QueryResultRow, error) {
 	var results = make([][]model.QueryResultRow, 0)
 
 	for _, job := range jobs {
-		rows, err := job()
+		rows, err := job(q.executionCtx)
 		if err != nil {
 			return nil, err
 		}
@@ -461,7 +461,6 @@ func (q *QueryRunner) runQueryJobsSequence(jobs []QueryJob) ([][]model.QueryResu
 func (q *QueryRunner) runQueryJobsParallel(jobs []QueryJob) ([][]model.QueryResultRow, error) {
 
 	var results = make([][]model.QueryResultRow, len(jobs))
-	var errs = make([]error, len(jobs))
 
 	type result struct {
 		rows  []model.QueryResultRow
@@ -469,30 +468,36 @@ func (q *QueryRunner) runQueryJobsParallel(jobs []QueryJob) ([][]model.QueryResu
 		jobId int
 	}
 
+	// this is our context to control the execution of the jobs
+
+	// cancellation is done by the parent context
+	// or by the first goroutine that returns an error
+	ctx, cancel := context.WithCancel(q.executionCtx)
+	// clean up on return
+	defer cancel()
+
 	collector := make(chan result, len(jobs))
 
 	for n, job := range jobs {
 		// produce
-		go func(jobId int, j QueryJob) {
-			defer recovery.LogAndHandlePanic(q.executionCtx, func(err error) {
+		go func(ctx context.Context, jobId int, j QueryJob) {
+			defer recovery.LogAndHandlePanic(ctx, func(err error) {
 				collector <- result{err: err, jobId: jobId}
 			})
-
-			rows, err := j()
+			start := time.Now()
+			rows, err := j(ctx)
+			logger.DebugWithCtx(ctx).Msgf("parallel job %d finished in %v", jobId, time.Since(start))
 			collector <- result{rows: rows, err: err, jobId: jobId}
-		}(n, job)
+		}(ctx, n, job)
 	}
+
 	// consume
 	for range len(jobs) {
 		res := <-collector
-		results[res.jobId] = res.rows
-		errs[res.jobId] = res.err
-	}
-
-	// check for errors
-	for _, err := range errs {
-		if err != nil {
-			return nil, err
+		if res.err == nil {
+			results[res.jobId] = res.rows
+		} else {
+			return nil, res.err
 		}
 	}
 
@@ -500,7 +505,7 @@ func (q *QueryRunner) runQueryJobsParallel(jobs []QueryJob) ([][]model.QueryResu
 }
 
 func (q *QueryRunner) runQueryJobs(jobs []QueryJob) ([][]model.QueryResultRow, error) {
-	const maxParallelQueries = 20 // this is arbitrary value
+	const maxParallelQueries = 25 // this is arbitrary value
 
 	numberOfJobs := len(jobs)
 
@@ -550,7 +555,8 @@ func (q *QueryRunner) searchWorkerCommon(
 			continue
 		}
 
-		job := func() ([]model.QueryResultRow, error) {
+		job := func(ctx context.Context) ([]model.QueryResultRow, error) {
+			var err error
 			rows, err := q.logManager.ProcessQuery(ctx, table, &query)
 
 			if err != nil {
