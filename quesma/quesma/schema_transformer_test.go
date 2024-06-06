@@ -12,18 +12,22 @@ import (
 )
 
 func Test_ipRangeTransform(t *testing.T) {
+	const isIPAddressInRangePrimitive = "isIPAddressInRange"
+	const CASTPrimitive = "CAST"
+	const StringLiteral = "'String'"
+	const IpFieldContent = "111.42.223.209/16"
+	const IpFieldName = "clientip"
+
 	indexConfig := map[string]config.IndexConfiguration{
 		"kibana_sample_data_logs": {
 			Name:           "kibana_sample_data_logs",
 			Enabled:        true,
 			FullTextFields: []string{"message", "content"},
-			TypeMappings:   map[string]string{"clientip": "ip"},
+			TypeMappings:   map[string]string{IpFieldName: "ip"},
 		},
 	}
 	transform := &SchemaCheckPass{cfg: indexConfig}
-	const isIPAddressInRangePrimitive = "isIPAddressInRange"
-	const CASTPrimitive = "CAST"
-	const StringLiteral = "'String'"
+
 	expectedQuery := model.Query{
 		FromClause: "kibana_sample_data_logs",
 		Columns: []model.SelectColumn{{
@@ -36,24 +40,24 @@ func Test_ipRangeTransform(t *testing.T) {
 				&where_clause.Function{
 					Name: where_clause.Literal{Name: CASTPrimitive},
 					Args: []where_clause.Statement{
-						&where_clause.Literal{Name: "clientip"},
+						&where_clause.Literal{Name: IpFieldName},
 						&where_clause.Literal{Name: StringLiteral},
 					},
 				},
-				&where_clause.Literal{Name: "111.42.223.209/16"},
+				&where_clause.Literal{Name: IpFieldContent},
 			},
 		},
 	}
 	queries := []model.Query{
-		model.Query{FromClause: "kibana_sample_data_logs",
+		{FromClause: "kibana_sample_data_logs",
 			Columns: []model.SelectColumn{{
 				Expression: aexp.Wildcard,
 			},
 			},
 			WhereClause: &where_clause.InfixOp{
-				Left:  &where_clause.Literal{Name: "clientip"},
+				Left:  &where_clause.Literal{Name: IpFieldName},
 				Op:    "=",
-				Right: &where_clause.Literal{Name: "111.42.223.209/16"},
+				Right: &where_clause.Literal{Name: IpFieldContent},
 			},
 		},
 	}
