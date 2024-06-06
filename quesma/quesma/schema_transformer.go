@@ -5,6 +5,7 @@ import (
 	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/config"
 	"strconv"
+	"strings"
 )
 
 type WhereVisitor struct {
@@ -63,8 +64,9 @@ func (s *SchemaCheckPass) Transform(queries []model.Query) ([]model.Query, error
 		}
 		whereVisitor := &WhereVisitor{}
 		query.WhereClause.Accept(whereVisitor)
-		// TODO check this against the schema
-		if whereVisitor.lhs != "\"clientip\"" {
+		fromTable := strings.Trim(query.FromClause, "\"")
+		mappedType := s.cfg[fromTable].TypeMappings[strings.Trim(whereVisitor.lhs, "\"")]
+		if mappedType != "ip" {
 			continue
 		}
 		transformedWhereClause := &where_clause.Function{
