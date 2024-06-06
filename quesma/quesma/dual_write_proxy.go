@@ -92,7 +92,7 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, indexManager elasticse
 		routerInstance.reroute(req.Context(), w, req, reqBody, pathRouter, logManager)
 	})
 
-	limitedHandler := newSimultaneousClientsLimiter(handler, 50) // FIXME this should be configurable
+	limitedHandler := newSimultaneousClientsLimiter(handler, 100) // FIXME this should be configurable
 
 	return &dualWriteHttpProxy{
 		elasticRouter: pathRouter,
