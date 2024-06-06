@@ -82,11 +82,11 @@ func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query
 	whereVisitor := &WhereVisitor{}
 	query.WhereClause.Accept(whereVisitor)
 	// cut db name from table name if exists
-	var fromTable string
+	fromTable := query.FromClause
 	if idx := strings.IndexByte(fromTable, '.'); idx >= 0 {
-		fromTable = query.FromClause[:idx]
+		fromTable = fromTable[:idx]
 	}
-	fromTable = strings.Trim(query.FromClause, "\"")
+	fromTable = strings.Trim(fromTable, "\"")
 	mappedType := s.cfg[fromTable].TypeMappings[strings.Trim(whereVisitor.lhs, "\"")]
 	if mappedType != "ip" {
 		return query, nil
@@ -98,7 +98,7 @@ func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query
 		logger.Warn().Msg("ip transformation omitted, operator is not =")
 		return query, nil
 	}
-	whereVisitor.rhs = strings.Trim(whereVisitor.rhs, "%")
+	whereVisitor.rhs = strings.Replace(whereVisitor.rhs, "%", "", -1)
 	transformedWhereClause := &where_clause.Function{
 		Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
 		Args: []where_clause.Statement{
