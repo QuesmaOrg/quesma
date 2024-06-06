@@ -54,6 +54,20 @@ type SchemaCheckPass struct {
 	cfg map[string]config.IndexConfiguration
 }
 
+// Below function handles following elastic search query
+//
+//	{
+//	 "query": {
+//		"term": {
+//		  "clientip": "111.42.223.209/16"
+//		}
+//	 }
+//	}
+//
+// Internally, it converts following sql statement
+// SELECT * FROM "kibana_sample_data_logs" WHERE lhs = rhs
+// into
+// SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(lhs,'String'),rhs)
 func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query, error) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
 	const CASTPrimitive = "CAST"
