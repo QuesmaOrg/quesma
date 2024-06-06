@@ -559,18 +559,25 @@ func (q *QueryRunner) searchWorkerCommon(
 	table *clickhouse.Table) (translatedQueryBody []byte, hits [][]model.QueryResultRow, err error) {
 	sqls := ""
 
-	var jobs []QueryJob
+	hits = make([][]model.QueryResultRow, len(queries))
 
-	for _, query := range queries {
+	var jobs []QueryJob
+	var jobHitsPosition []int // it keeps the position of the hits array for each job
+
+	for i, query := range queries {
+
 		if query.NoDBQuery {
 			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
-		} else {
-			sql := query.String(ctx)
-			logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
-			sqls += sql + "\n"
+			hits[i] = make([]model.QueryResultRow, 0)
+			continue
 		}
 
+		sql := query.String(ctx)
+		logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
+		sqls += sql + "\n"
+
 		if q.isInternalKibanaQuery(query) {
+			hits[i] = make([]model.QueryResultRow, 0)
 			continue
 		}
 
@@ -590,9 +597,19 @@ func (q *QueryRunner) searchWorkerCommon(
 			return rows, nil
 		}
 		jobs = append(jobs, job)
+		jobHitsPosition = append(jobHitsPosition, i)
 	}
 
-	hits, err = q.runQueryJobs(jobs)
+	dbHits, err := q.runQueryJobs(jobs)
+	if err != nil {
+		return
+	}
+
+	// fill the hits array with the results in the order of the database queries
+	for jobId := range jobHitsPosition {
+		hitsPosition := jobHitsPosition[jobId]
+		hits[hitsPosition] = dbHits[jobId]
+	}
 
 	translatedQueryBody = []byte(sqls)
 	return
