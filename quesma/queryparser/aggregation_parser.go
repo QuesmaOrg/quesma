@@ -137,9 +137,10 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "top_hits":
 		fieldsAsString := strings.Join(metricsAggr.FieldNames, ", ")
 
+		// TODO add/restore tests for top_hits. E.g. we missed WHERE in FROM below, so the SQL might not be correct
 		query.FromClause = fmt.Sprintf(
-			"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s) AS %s FROM %s)",
-			fieldsAsString, fieldsAsString, model.RowNumberColumnName, query.FromClause,
+			"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s) AS %s FROM %s WHERE %s)",
+			fieldsAsString, fieldsAsString, model.RowNumberColumnName, query.FromClause, b.whereBuilder.WhereClauseAsString(),
 		)
 
 	case "top_metrics":
