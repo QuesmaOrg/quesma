@@ -3,6 +3,7 @@ package where_clause
 import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
+	"sort"
 )
 
 // AliasResolver is a visitor that takes all the columns referenced in a given where clause
@@ -52,7 +53,17 @@ func (v *AliasResolver) VisitArrayAccess(e *ArrayAccess) interface{} {
 
 // resolveFieldName takes a field name and returns the corresponding alias based on the configuration
 func (v *AliasResolver) resolveFieldName(fieldName string) string {
-	for _, alias := range v.IndexCfg.Aliases {
+	// Create a slice of the map keys (alias names)
+	// that's to ensure deterministic order when iterating over alias
+	//     (first alias with matching source field name will be used)
+	aliasesNames := make([]string, 0, len(v.IndexCfg.Aliases))
+	for k := range v.IndexCfg.Aliases {
+		aliasesNames = append(aliasesNames, k)
+	}
+	sort.Strings(aliasesNames)
+
+	for _, key := range aliasesNames {
+		alias := v.IndexCfg.Aliases[key]
 		if fieldName == alias.SourceFieldName {
 			logger.Debug().Msgf("Resolving field alias [Config: target=%s,source=%s], swapping [%s] with [%s]", alias.TargetFieldName, alias.SourceFieldName, fieldName, alias.TargetFieldName)
 			return alias.TargetFieldName
