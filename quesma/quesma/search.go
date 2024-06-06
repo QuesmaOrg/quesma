@@ -226,6 +226,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 		}
 
+		//for _, query := range queries {
+		//	query.ApplyAliases(q.cfg.IndexConfig, resolvedTableName)
+		//}
+
 		if canParse {
 			if query_util.IsNonAggregationQuery(queries[0].QueryInfoType, body) {
 				if properties := q.findNonexistingProperties(queries[0], table); len(properties) > 0 {
