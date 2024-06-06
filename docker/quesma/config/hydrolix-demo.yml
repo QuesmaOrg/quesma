@@ -15,6 +15,12 @@ indexes:
         source: "@timestamp"
         target: "reqTimeSec"
     fullTextFields: [ "city", "reqHost", "reqMethod", "reqPath",  "UA", "state", "rspContentType" ]
+    mappings:
+      "cliIP": "ip"
+    static-schema:
+      fields:
+        "cliIP":
+          type: "ip"
 
   siem:
     enabled: true
