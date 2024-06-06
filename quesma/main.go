@@ -12,6 +12,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/schema"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
 	"os"
@@ -57,7 +58,18 @@ func main() {
 	phoneHomeAgent := telemetry.NewPhoneHomeAgent(cfg, connectionPool)
 	phoneHomeAgent.Start()
 
-	lm := clickhouse.NewEmptyLogManager(cfg, connectionPool, phoneHomeAgent)
+	schemaManagement := clickhouse.NewSchemaManagement(connectionPool)
+	schemaLoader := clickhouse.NewSchemaLoader(cfg, schemaManagement)
+	schemaRegistry := schema.NewSchemaRegistry(schemaLoader, cfg)
+
+	go func() {
+		for {
+			<-time.After(5 * time.Second)
+			_ = schemaRegistry.Load()
+		}
+	}()
+
+	lm := clickhouse.NewEmptyLogManager(cfg, connectionPool, phoneHomeAgent, schemaLoader)
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())
