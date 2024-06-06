@@ -90,7 +90,7 @@ func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query
 		return query, errors.New("schema transformation failed, lhs or rhs is empty")
 	}
 	if whereVisitor.op != "=" {
-		logger.Info().Msg("ip transformation omitted, operator is not =")
+		logger.Warn().Msg("ip transformation omitted, operator is not =")
 		return query, nil
 	}
 	transformedWhereClause := &where_clause.Function{
