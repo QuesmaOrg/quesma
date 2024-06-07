@@ -75,7 +75,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 	})
 	for i, tt := range testdata.TestsAsyncSearch {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
-			db, mock, _ := util.InitSqlMockWithPrettyPrint(t)
+			db, mock := util.InitSqlMockWithPrettyPrint(t)
 			mock.MatchExpectationsInOrder(false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
@@ -121,7 +121,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 
 	for i, tt := range testdata.AggregationTestsWithSpecialCharactersInFieldNames {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			db, mock, _ := util.InitSqlMockWithPrettyPrint(t)
+			db, mock := util.InitSqlMockWithPrettyPrint(t)
 			mock.MatchExpectationsInOrder(false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
@@ -161,7 +161,7 @@ func TestSearchHandler(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
 	for _, tt := range testdata.TestsSearch {
 		t.Run(tt.Name, func(t *testing.T) {
-			db, mock, _ := util.InitSqlMockWithPrettyPrint(t)
+			db, mock := util.InitSqlMockWithPrettyPrint(t)
 			defer db.Close()
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
@@ -185,7 +185,7 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
-			db, mock, _ := util.InitSqlMockWithPrettyPrint(t)
+			db, mock := util.InitSqlMockWithPrettyPrint(t)
 			defer db.Close()
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
@@ -207,7 +207,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
 	for _, tt := range testdata.TestSearchFilter {
 		t.Run(tt.Name, func(t *testing.T) {
-			db, mock, _ := util.InitSqlMockWithPrettyPrint(t)
+			db, mock := util.InitSqlMockWithPrettyPrint(t)
 			mock.MatchExpectationsInOrder(false)
 			defer db.Close()
 
@@ -276,7 +276,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 		dateTime64OurTimestampField: `SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() FROM`,
 	}
 
-	db, mock, _ := util.InitSqlMockWithPrettyPrint(t)
+	db, mock := util.InitSqlMockWithPrettyPrint(t)
 
 	// queries can be run in parallel
 
@@ -335,7 +335,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 	for i, tt := range testdata.TestsNumericFacets {
 		for _, handlerName := range handlers {
 			t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
-				db, mock, _ := util.InitSqlMockWithPrettyPrint(t)
+				db, mock := util.InitSqlMockWithPrettyPrint(t)
 				defer db.Close()
 				lm := clickhouse.NewLogManagerWithConnection(db, table)
 				managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())

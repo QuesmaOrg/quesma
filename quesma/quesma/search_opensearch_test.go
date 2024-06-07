@@ -34,7 +34,7 @@ func TestSearchOpensearch(t *testing.T) {
 
 	for i, tt := range testdata.OpensearchSearchTests {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
-			db, mock, _ := util.InitSqlMockWithPrettyPrint(t)
+			db, mock := util.InitSqlMockWithPrettyPrint(t)
 			mock.MatchExpectationsInOrder(false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
@@ -168,7 +168,7 @@ func TestHighlighter(t *testing.T) {
 		Created: true,
 	}
 
-	db, mock, _ := util.InitSqlMockWithPrettyPrint(t)
+	db, mock := util.InitSqlMockWithPrettyPrint(t)
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
 	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())

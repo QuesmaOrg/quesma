@@ -182,8 +182,7 @@ func (t *Table) GetDateTimeType(ctx context.Context, fieldName string) DateTimeT
 }
 
 func (t *Table) GetDateTimeTypeFromSelectColumn(ctx context.Context, col model.SelectColumn) DateTimeType {
-	exp, ok := col.Expression.(aexp.TableColumnExp)
-	if ok {
+	if exp, ok := col.Expression.(aexp.TableColumnExp); ok {
 		return t.GetDateTimeType(ctx, exp.ColumnName)
 	}
 	return Invalid

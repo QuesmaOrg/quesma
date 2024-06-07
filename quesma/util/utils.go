@@ -656,7 +656,7 @@ func ExtractNumeric64Maybe(value any) (asFloat64 float64, success bool) {
 	return 0.0, false
 }
 
-func InitSqlMockWithPrettyPrint(t *testing.T) (*sql.DB, sqlmock.Sqlmock, error) {
+func InitSqlMockWithPrettyPrint(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
 	queryMatcher := sqlmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
 		matchErr := sqlmock.QueryMatcherRegexp.Match(expectedSQL, actualSQL)
 		if matchErr != nil {
@@ -671,5 +671,5 @@ func InitSqlMockWithPrettyPrint(t *testing.T) (*sql.DB, sqlmock.Sqlmock, error) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	return db, mock, err
+	return db, mock
 }
