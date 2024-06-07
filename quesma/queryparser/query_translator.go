@@ -234,27 +234,29 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 }
 
 func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results [][]model.QueryResultRow) (queriesWithoutHits []*model.Query, resultsWithoutHits [][]model.QueryResultRow, hit *model.SearchHits) {
-	var hitsQuery *model.Query
-	var hitsResultSet []model.QueryResultRow
+	hitsIndex := -1
+	for i, query := range queries {
+		if query.QueryInfoType == model.ListAllFields || query.QueryInfoType == model.ListByField {
+			if hitsIndex != -1 {
+				logger.WarnWithCtx(cw.Ctx).Msgf("multiple hits queries found in queries: %v", queries)
+			}
+			hitsIndex = i
+		} else {
+			queriesWithoutHits = append(queriesWithoutHits, query)
+			resultsWithoutHits = append(resultsWithoutHits, results[i])
+		}
+	}
 
-	// Process hits as last aggregation
-	if len(queries) > 0 && len(results) > 0 && query_util.IsNonAggregationQuery(queries[len(queries)-1]) {
-		hitsQuery = queries[len(queries)-1]
-		hitsResultSet = results[len(results)-1]
-
-		queries = queries[:len(queries)-1]
-		results = results[:len(results)-1]
-	} else {
+	if hitsIndex == -1 {
 		emptyHits := model.SearchHits{}
-		return queries, results, &emptyHits
+		return queriesWithoutHits, resultsWithoutHits, &emptyHits
 	}
 
-	var highlighter *model.Highlighter
-	var orderByFieldNames []string
-	if hitsQuery != nil {
-		highlighter = &hitsQuery.Highlighter
-		orderByFieldNames = hitsQuery.OrderByFieldNames()
-	}
+	hitsQuery := queries[hitsIndex]
+	hitsResultSet := results[hitsIndex]
+
+	highlighter := &hitsQuery.Highlighter
+	orderByFieldNames := hitsQuery.OrderByFieldNames()
 
 	// TODO it should be created during parsing, like aggregations
 	hits := typical_queries.NewHits(cw.Ctx, cw.Table, highlighter, orderByFieldNames, true, false, false)
