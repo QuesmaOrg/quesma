@@ -82,7 +82,7 @@ func (s *schemaRegistry) Load() error {
 	definitions := s.clickhouseSchemaLoader.TableDefinitions()
 	schemas := s.schemas.Snapshot()
 	definitions.Range(func(indexName string, value *clickhouse.Table) bool {
-		logger.Info().Msgf("loading schema for table %s", indexName)
+		logger.Debug().Msgf("loading schema for table %s", indexName)
 		fields := make(map[FieldName]Field)
 		if schema, found := schemas[TableName(indexName)]; found {
 			fields = schema.Fields
@@ -90,7 +90,7 @@ func (s *schemaRegistry) Load() error {
 		for _, col := range value.Cols {
 			indexConfig := s.configuration.IndexConfig[indexName]
 			if explicitType, found := indexConfig.TypeMappings[col.Name]; found {
-				logger.Info().Msgf("found explicit type mapping for column %s: %s", col.Name, explicitType)
+				logger.Debug().Msgf("found explicit type mapping for column %s: %s", col.Name, explicitType)
 				fields[FieldName(col.Name)] = Field{
 					Name: FieldName(col.Name),
 					Type: Type(explicitType),
@@ -100,7 +100,7 @@ func (s *schemaRegistry) Load() error {
 			if _, exists := fields[FieldName(col.Name)]; !exists {
 				quesmaType, found := s.ClickhouseTypeAdapter.Adapt(col.Type.String())
 				if !found {
-					fmt.Printf("type %s not supported\n", col.Type.String())
+					logger.Error().Msgf("type %s not supported", col.Type.String())
 					continue
 				} else {
 					fields[FieldName(col.Name)] = Field{
