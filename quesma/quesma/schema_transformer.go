@@ -58,6 +58,9 @@ type SchemaCheckPass struct {
 	cfg map[string]config.IndexConfiguration
 }
 
+// This functions trims the db name from the table name if exists
+// We need to do this due to the way we are storing the schema in the config
+// TableMap is indexed by table name, not db.table name
 func getFromTable(fromTable string) string {
 	// cut db name from table name if exists
 	if idx := strings.IndexByte(fromTable, '.'); idx >= 0 {
@@ -67,18 +70,10 @@ func getFromTable(fromTable string) string {
 	return strings.Trim(fromTable, "\"")
 }
 
-// Below function handles following elastic search query
-//
-//	{
-//	 "query": {
-//		"term": {
-//		  "clientip": "111.42.223.209/16"
-//		}
-//	 }
-//	}
-//
-// Internally, it converts following sql statement
-// SELECT * FROM "kibana_sample_data_logs" WHERE lhs = rhs
+// Below function applies schema transformations to the query regarding ip addresses.
+// Internally, it converts sql statement like
+// SELECT * FROM "kibana_sample_data_logs" WHERE lhs op rhs
+// where op is '=' or 'iLIKE'
 // into
 // SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(lhs,'String'),rhs)
 func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query, error) {
