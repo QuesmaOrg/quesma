@@ -117,9 +117,9 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
-			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` GROUP BY ("OriginCityName")`,
-			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` WHERE "Cancelled" == true GROUP BY ("OriginCityName")`,
-			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` WHERE "FlightDelay" == true GROUP BY ("OriginCityName")`,
+			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` GROUP BY "OriginCityName" ORDER BY "OriginCityName"`,
+			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` WHERE "Cancelled"==true GROUP BY "OriginCityName" ORDER BY "OriginCityName"`,
+			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` WHERE "FlightDelay"==true GROUP BY "OriginCityName" ORDER BY "OriginCityName"`,
 		},
 	},
 	{ // [2]
@@ -154,8 +154,10 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
-			`SELECT "FlightDelayType", count() FROM ` + tableNameQuoted + ` GROUP BY ("FlightDelayType")`,
-			"SELECT \"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000), count() FROM " + tableNameQuoted + " GROUP BY (\"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000))",
+			`SELECT "FlightDelayType", count() FROM ` + tableNameQuoted + ` GROUP BY "FlightDelayType" ORDER BY "FlightDelayType"`,
+			"SELECT \"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000), count() FROM " + tableNameQuoted + " " +
+				"GROUP BY \"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000) " +
+				"ORDER BY \"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000)",
 		},
 	},
 	{ // [3]
@@ -227,8 +229,10 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
-			`SELECT count() FROM ` + tableNameQuoted + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') `,
-			`SELECT count() FROM ` + tableNameQuoted + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') `,
+			`SELECT count() FROM ` + tableNameQuoted + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
+			`SELECT count() FROM ` + tableNameQuoted + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z'))`,
 		},
 	},
 	{ // [5]
@@ -247,7 +251,7 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
-			`SELECT "FlightDelayMin", count() FROM ` + tableNameQuoted + ` GROUP BY ("FlightDelayMin")`,
+			`SELECT "FlightDelayMin", count() FROM ` + tableNameQuoted + ` GROUP BY "FlightDelayMin" ORDER BY "FlightDelayMin"`,
 		},
 	},
 	{ // [6]
@@ -296,10 +300,23 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
-			`SELECT "OriginAirportID", "DestAirportID", "DestLocation" FROM "(SELECT DestLocation, ROW_NUMBER() OVER (PARTITION BY DestLocation) AS row_number FROM ` + tableName + `)" GROUP BY ("OriginAirportID", "DestAirportID")`,
-			`SELECT "OriginAirportID", "DestAirportID", count() FROM ` + tableNameQuoted + ` GROUP BY ("OriginAirportID", "DestAirportID")`,
-			`SELECT "OriginAirportID", "OriginLocation", "Origin" FROM "(SELECT OriginLocation, Origin, ROW_NUMBER() OVER (PARTITION BY OriginLocation, Origin) AS row_number FROM ` + tableName + `)" GROUP BY ("OriginAirportID")`,
-			`SELECT "OriginAirportID", count() FROM ` + tableNameQuoted + ` GROUP BY ("OriginAirportID")`,
+			`SELECT "OriginAirportID", "DestAirportID", count() FROM ` + tableNameQuoted + ` ` +
+				`GROUP BY "OriginAirportID", "DestAirportID" ORDER BY "OriginAirportID", "DestAirportID"`,
+			`SELECT "OriginAirportID", "DestAirportID", "DestLocation" ` +
+				`FROM (SELECT "DestLocation", ROW_NUMBER() ` +
+				`OVER (PARTITION BY "OriginAirportID", "DestAirportID") AS row_number ` +
+				`FROM "logs-generic-default") ` +
+				`WHERE "row_number"<=1 ` +
+				`GROUP BY "OriginAirportID", "DestAirportID" ` +
+				`ORDER BY "OriginAirportID", "DestAirportID"`,
+			`SELECT "OriginAirportID", "OriginLocation", "Origin" ` +
+				`FROM (SELECT "OriginLocation", "Origin", ROW_NUMBER() ` +
+				`OVER (PARTITION BY "OriginAirportID") AS row_number ` +
+				`FROM "logs-generic-default") ` +
+				`WHERE "row_number"<=1 ` +
+				`GROUP BY "OriginAirportID" ` +
+				`ORDER BY "OriginAirportID"`,
+			`SELECT "OriginAirportID", count() FROM ` + tableNameQuoted + ` GROUP BY "OriginAirportID" ORDER BY "OriginAirportID"`,
 		},
 	},
 	{ // [7]
@@ -334,8 +351,10 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
-			`SELECT "category.keyword", "order_date", count() FROM ` + tableNameQuoted + ` GROUP BY ("category.keyword", "order_date")`,
-			`SELECT "category.keyword", count() FROM ` + tableNameQuoted + ` GROUP BY ("category.keyword")`,
+			`SELECT "category", ` + "toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), count() FROM " + tableNameQuoted + ` ` +
+				`GROUP BY "category", ` + "toInt64(toUnixTimestamp64Milli(`order_date`)/86400000) " +
+				`ORDER BY "category", ` + "toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)",
+			`SELECT "category", count() FROM ` + tableNameQuoted + ` GROUP BY "category" ORDER BY "category"`,
 		},
 	},
 	{ // [8]
@@ -372,7 +391,7 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
-			`SELECT quantile("taxful_total_price") FROM ` + tableNameQuoted,
+			`SELECT quantiles(0.500000)("taxful_total_price") AS "quantile_50" FROM ` + tableNameQuoted,
 		},
 	},
 	{ // [10]
@@ -455,9 +474,32 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
-			`SELECT count() FROM "logs-generic-default" WHERE taxful_total_price>250 `,
-			`SELECT "order_date" FROM "(SELECT order_date, ROW_NUMBER() OVER (PARTITION BY order_date) AS row_number FROM ` + tableName + `)" WHERE taxful_total_price>250 `,
-			`SELECT "taxful_total_price" FROM "(SELECT taxful_total_price, ROW_NUMBER() OVER (PARTITION BY taxful_total_price) AS row_number FROM ` + tableName + `)" WHERE taxful_total_price>250 `,
+			`SELECT count() FROM ` + tableNameQuoted + ` WHERE "taxful_total_price" > '250'`,
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), " +
+				`maxOrNull("order_date") AS "windowed_order_date", maxOrNull("order_date") AS "windowed_order_date" ` +
+				`FROM (SELECT "order_date", "order_date", ROW_NUMBER() OVER ` +
+				"(PARTITION BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
+				`ORDER BY "order_date" asc) AS row_number ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "taxful_total_price" > '250') ` +
+				`WHERE ("taxful_total_price" > '250' AND "row_number"<=10) ` +
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)",
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), " +
+				`maxOrNull("taxful_total_price") AS "windowed_taxful_total_price", maxOrNull("order_date") AS "windowed_order_date" ` +
+				`FROM (SELECT "taxful_total_price", "order_date", ROW_NUMBER() OVER ` +
+				"(PARTITION BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
+				`ORDER BY "order_date" asc) AS row_number ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "taxful_total_price" > '250') ` +
+				`WHERE ("taxful_total_price" > '250' AND "row_number"<=10) ` +
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)",
+			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), count() " +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "taxful_total_price" > '250' ` +
+				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
+				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)",
 		},
 	},
 	{ // [12]
@@ -483,7 +525,7 @@ var aggregationTests = []struct {
 			}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
-			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` GROUP BY ("OriginCityName")`,
+			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` GROUP BY "OriginCityName" ORDER BY count() DESC LIMIT 10`,
 			`SELECT count(DISTINCT "OriginCityName") FROM ` + tableNameQuoted,
 		},
 	},
@@ -518,6 +560,7 @@ var aggregationTests = []struct {
 
 // Simple unit test, testing only "aggs" part of the request json query
 func TestAggregationParser(t *testing.T) {
+	// logger.InitSimpleLoggerForTests() FIXME there are 2 warns if you enable them, might look into that
 	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
@@ -531,10 +574,6 @@ func TestAggregationParser(t *testing.T) {
 
 	for testIdx, test := range aggregationTests {
 		t.Run(strconv.Itoa(testIdx), func(t *testing.T) {
-			if testIdx == 1 || testIdx == 2 || testIdx == 4 || testIdx == 5 || testIdx == 6 || testIdx == 7 ||
-				testIdx == 9 || testIdx == 11 || testIdx == 12 {
-				t.Skip("We can't handle one hardest request properly yet") // Let's skip in this PR. Next one already fixes some of issues here.
-			}
 			body, parseErr := types.ParseJSON(test.aggregationJson)
 			assert.NoError(t, parseErr)
 			aggregations, err := cw.ParseAggregationJson(body)
