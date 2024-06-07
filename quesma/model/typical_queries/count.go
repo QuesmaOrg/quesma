@@ -5,8 +5,6 @@ import (
 	"mitmproxy/quesma/model"
 )
 
-// TODO so far doesn't do much, after "track_total_hits" will probably do small work
-
 type Count struct {
 	ctx context.Context
 }

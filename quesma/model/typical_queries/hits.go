@@ -35,8 +35,8 @@ func NewHits(ctx context.Context, table *clickhouse.Table, highlighter *model.Hi
 }
 
 const (
-	score   = 1 // if we add "score" field, it's always 1
-	version = 1 // if we  add "version" field, it's always 1
+	defaultScore   = 1 // if we add "score" field, it's always 1
+	defaultVersion = 1 // if we  add "version" field, it's always 1
 )
 
 func (query *Hits) IsBucketAggregation() bool {
@@ -48,10 +48,10 @@ func (query *Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 	for i, row := range rows {
 		hit := model.NewSearchHit(query.table.Name)
 		if query.addScore {
-			hit.Score = score
+			hit.Score = defaultScore
 		}
 		if query.addVersion {
-			hit.Version = version
+			hit.Version = defaultVersion
 		}
 		if query.addSource {
 			hit.Source = []byte(rows[i].String(query.ctx))
@@ -73,7 +73,7 @@ func (query *Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 		"hits": model.SearchHits{
 			Total: &model.Total{
 				Value:    len(rows),
-				Relation: "eq",
+				Relation: "eq", // TODO fix in next PR
 			},
 			Hits: hits,
 		},

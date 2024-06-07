@@ -6,7 +6,7 @@ import (
 	"mitmproxy/quesma/model"
 )
 
-func FacetsTranslateSqlResponseToJson(ctx context.Context, rows []model.QueryResultRow) model.JsonMap {
+func facetsTranslateSqlResponseToJson(ctx context.Context, rows []model.QueryResultRow) model.JsonMap {
 	const maxFacets = 10 // facets show only top 10 values
 	bucketsNr := min(len(rows), maxFacets)
 	buckets := make([]model.JsonMap, 0, bucketsNr)

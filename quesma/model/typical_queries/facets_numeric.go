@@ -36,7 +36,7 @@ func (query FacetsNumeric) IsBucketAggregation() bool {
 }
 
 func (query FacetsNumeric) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
-	aggregations := FacetsTranslateSqlResponseToJson(query.ctx, rows)
+	aggregations := facetsTranslateSqlResponseToJson(query.ctx, rows)
 
 	firstNotNullValueIndex := 0
 	for i, row := range rows {

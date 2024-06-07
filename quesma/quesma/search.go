@@ -219,17 +219,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
 
 		queries, canParse, err := queryTranslator.ParseQuery(body)
-		fmt.Println(len(queries))
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("parsing error: %v", err)
 		}
-		fmt.Println(len(queries))
 		queries, err = q.transformationPipeline.Transform(queries)
-		fmt.Println(len(queries))
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 		}
-		fmt.Println(len(queries))
 		//for _, query := range queries {
 		//	query.ApplyAliases(q.cfg.IndexConfig, resolvedTableName)
 		//}
@@ -245,14 +241,12 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					}
 				}
 			}
-			fmt.Println("a", len(queries))
 			go func() {
 				defer recovery.LogAndHandlePanic(ctx, func(err error) {
 					doneCh <- AsyncSearchWithError{err: err}
 				})
 
 				translatedQueryBody, results, err := q.searchWorker(ctx, queries, table, doneCh, optAsync)
-				fmt.Println("b", err, results)
 				if err != nil {
 					doneCh <- AsyncSearchWithError{err: err}
 					return
@@ -459,17 +453,13 @@ type QueryJob func(ctx context.Context) ([]model.QueryResultRow, error)
 
 func (q *QueryRunner) runQueryJobsSequence(jobs []QueryJob) ([][]model.QueryResultRow, error) {
 	var results = make([][]model.QueryResultRow, 0)
-	fmt.Println("6", len(jobs))
 	for _, job := range jobs {
 		rows, err := job(q.executionCtx)
-		fmt.Println("7", len(jobs))
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("7.5", len(jobs))
 		results = append(results, rows)
 	}
-	fmt.Println("8", len(results))
 	return results, nil
 }
 
@@ -492,7 +482,6 @@ func (q *QueryRunner) runQueryJobsParallel(jobs []QueryJob) ([][]model.QueryResu
 	defer cancel()
 
 	collector := make(chan result, len(jobs))
-	fmt.Println("9", len(jobs))
 	for n, job := range jobs {
 		// produce
 		go func(ctx context.Context, jobId int, j QueryJob) {
@@ -532,7 +521,6 @@ func (q *QueryRunner) runQueryJobs(jobs []QueryJob) ([][]model.QueryResultRow, e
 	//
 	// Parallel can be slower when we have a fast network connection.
 	//
-	fmt.Println("10", len(jobs))
 	if numberOfJobs == 1 {
 		return q.runQueryJobsSequence(jobs)
 	}
@@ -562,7 +550,6 @@ func (q *QueryRunner) searchWorkerCommon(
 	var jobHitsPosition []int // it keeps the position of the hits array for each job
 
 	for i, query := range queries {
-		fmt.Println("r", len(queries))
 		if query.NoDBQuery {
 			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
 			hits[i] = make([]model.QueryResultRow, 0)
@@ -596,7 +583,6 @@ func (q *QueryRunner) searchWorkerCommon(
 		jobs = append(jobs, job)
 		jobHitsPosition = append(jobHitsPosition, i)
 	}
-	fmt.Println(len(queries))
 	dbHits, err := q.runQueryJobs(jobs)
 	if err != nil {
 		return
@@ -617,9 +603,7 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 	table *clickhouse.Table,
 	doneCh chan<- AsyncSearchWithError,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow, err error) {
-	fmt.Println("opt", optAsync)
 	if optAsync != nil {
-		fmt.Println("q")
 		if q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, doneCh) {
 			return
 		}

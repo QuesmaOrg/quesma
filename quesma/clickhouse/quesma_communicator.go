@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"math/rand"
 	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/logger"
@@ -129,7 +128,6 @@ func (lm *LogManager) explainQuery(ctx context.Context, query string, elapsed ti
 func executeQuery(ctx context.Context, lm *LogManager, queryAsString string, fields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
 	span := lm.phoneHomeAgent.ClickHouseQueryDuration().Begin()
 
-	pp.Println("a", queryAsString)
 	rows, err := lm.Query(ctx, queryAsString)
 	if err != nil {
 		span.End(err)

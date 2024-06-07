@@ -1,7 +1,6 @@
 package queryparser
 
 import (
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -55,10 +54,6 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]*model.Query
 	}
 	if listQuery := cw.buildListQueryIfNeeded(simpleQuery, queryInfo, highlighter); listQuery != nil {
 		queries = append(queries, listQuery)
-	}
-
-	for _, q := range queries {
-		fmt.Println(q.String(context.Background()))
 	}
 
 	return queries, true, err

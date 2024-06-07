@@ -32,7 +32,7 @@ func (query Facets) IsBucketAggregation() bool {
 }
 
 func (query Facets) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
-	return []model.JsonMap{FacetsTranslateSqlResponseToJson(query.ctx, rows)}
+	return []model.JsonMap{facetsTranslateSqlResponseToJson(query.ctx, rows)}
 }
 
 func (query Facets) String() string {
