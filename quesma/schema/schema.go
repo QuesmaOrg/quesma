@@ -60,7 +60,7 @@ func (s *schemaRegistry) loadTypeMappingsFromConfiguration() {
 			continue
 		}
 		if indexConfiguration.SchemaConfiguration != nil {
-			logger.Info().Msgf("loading schema for index %s", indexConfiguration.Name)
+			logger.Debug().Msgf("loading schema for index %s", indexConfiguration.Name)
 			fields := make(map[FieldName]Field)
 			for _, field := range indexConfiguration.SchemaConfiguration.Fields {
 				fieldName := FieldName(field.Name)
