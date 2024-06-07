@@ -27,7 +27,7 @@ func Test_ipRangeTransform(t *testing.T) {
 	}
 	transform := &SchemaCheckPass{cfg: indexConfig}
 
-	expectedQueries := []model.Query{
+	expectedQueries := []*model.Query{
 		{
 			FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
 			TableName:  "kibana_sample_data_logs",
@@ -84,8 +84,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			},
 		},
 	}
-
-	queries := [][]model.Query{
+	queries := [][]*model.Query{
 		{
 			{
 				FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),

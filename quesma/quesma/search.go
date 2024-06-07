@@ -218,7 +218,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
 
-		queries, isAggregation, canParse, err := queryTranslator.ParseQuery(body)
+		queries, canParse, err := queryTranslator.ParseQuery(body)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("parsing error: %v", err)
 		}
@@ -226,13 +226,12 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 		}
-
 		//for _, query := range queries {
 		//	query.ApplyAliases(q.cfg.IndexConfig, resolvedTableName)
 		//}
 
 		if canParse {
-			if query_util.IsNonAggregationQuery(queries[0].QueryInfoType, body) {
+			if len(queries) > 0 && query_util.IsNonAggregationQuery(queries[0]) {
 				if properties := q.findNonexistingProperties(queries[0], table); len(properties) > 0 {
 					logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
 					if elasticsearch.IsIndexPattern(indexPattern) {
@@ -242,42 +241,26 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					}
 				}
 			}
+			go func() {
+				defer recovery.LogAndHandlePanic(ctx, func(err error) {
+					doneCh <- AsyncSearchWithError{err: err}
+				})
 
-			if !isAggregation {
-				go func() {
-					defer recovery.LogAndHandlePanic(ctx, func(err error) {
-						doneCh <- AsyncSearchWithError{err: err}
-					})
+				translatedQueryBody, results, err := q.searchWorker(ctx, queries, table, doneCh, optAsync)
+				if err != nil {
+					doneCh <- AsyncSearchWithError{err: err}
+					return
+				}
 
-					translatedQueryBody, hitsSlice, err := q.searchWorker(ctx, queries, table, doneCh, optAsync)
-					if err != nil {
-						doneCh <- AsyncSearchWithError{err: err}
-						return
-					}
+				if len(results) == 0 {
+					logger.ErrorWithCtx(ctx).Msgf("no hits, queryInfo: %d", translatedQueryBody)
+					doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
+					return
+				}
+				searchResponse := queryTranslator.MakeSearchResponse(queries, results)
+				doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
+			}()
 
-					if len(hitsSlice) == 0 {
-						logger.ErrorWithCtx(ctx).Msgf("no hits, queryInfo: %d", translatedQueryBody)
-						doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
-						return
-					}
-					searchResponse, err := queryTranslator.MakeSearchResponse(hitsSlice[0], queries[0])
-					if err != nil {
-						logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queryInfoType: %+v, rows: %v", err, queries[0].QueryInfoType, hitsSlice[0])
-					}
-					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
-				}()
-			} else {
-				go func() {
-					defer recovery.LogAndHandlePanic(ctx, func(err error) {
-						doneCh <- AsyncSearchWithError{err: err}
-					})
-
-					translatedQueryBody, aggregationResults, err := q.searchWorker(ctx, queries, table, doneCh, optAsync)
-
-					searchResponse := queryTranslator.MakeResponseAggregation(queries, aggregationResults)
-					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
-				}()
-			}
 		} else {
 			queriesBody := ""
 			for _, query := range queries {
@@ -295,7 +278,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			response := <-doneCh
 			if response.err != nil {
 				err = response.err
-				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, QueryInfoType: %+v", err, queries[0].QueryInfoType)
+				if len(queries) > 0 {
+					logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queries[0]: %+v", err, queries[0])
+				} else {
+					logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queries empty", err)
+				}
 			} else {
 				responseBody, err = response.response.Marshal()
 			}
@@ -453,7 +440,7 @@ func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.C
 // Especially kibana searches indexes using 'namespace' field.
 // This will be moved to the router.
 // TODO remove this and move to the router  https://github.com/QuesmaOrg/quesma/pull/260#discussion_r1627290579
-func (q *QueryRunner) isInternalKibanaQuery(query model.Query) bool {
+func (q *QueryRunner) isInternalKibanaQuery(query *model.Query) bool {
 	for _, column := range query.Columns {
 		if strings.Contains(column.SQL(), "data_stream.") {
 			return true
@@ -466,7 +453,6 @@ type QueryJob func(ctx context.Context) ([]model.QueryResultRow, error)
 
 func (q *QueryRunner) runQueryJobsSequence(jobs []QueryJob) ([][]model.QueryResultRow, error) {
 	var results = make([][]model.QueryResultRow, 0)
-
 	for _, job := range jobs {
 		rows, err := job(q.executionCtx)
 		if err != nil {
@@ -496,7 +482,6 @@ func (q *QueryRunner) runQueryJobsParallel(jobs []QueryJob) ([][]model.QueryResu
 	defer cancel()
 
 	collector := make(chan result, len(jobs))
-
 	for n, job := range jobs {
 		// produce
 		go func(ctx context.Context, jobId int, j QueryJob) {
@@ -555,7 +540,7 @@ func (q *QueryRunner) runQueryJobs(jobs []QueryJob) ([][]model.QueryResultRow, e
 
 func (q *QueryRunner) searchWorkerCommon(
 	ctx context.Context,
-	queries []model.Query,
+	queries []*model.Query,
 	table *clickhouse.Table) (translatedQueryBody []byte, hits [][]model.QueryResultRow, err error) {
 	sqls := ""
 
@@ -565,7 +550,6 @@ func (q *QueryRunner) searchWorkerCommon(
 	var jobHitsPosition []int // it keeps the position of the hits array for each job
 
 	for i, query := range queries {
-
 		if query.NoDBQuery {
 			logger.InfoWithCtx(ctx).Msgf("pipeline query: %+v", query)
 			hits[i] = make([]model.QueryResultRow, 0)
@@ -583,7 +567,7 @@ func (q *QueryRunner) searchWorkerCommon(
 
 		job := func(ctx context.Context) ([]model.QueryResultRow, error) {
 			var err error
-			rows, err := q.logManager.ProcessQuery(ctx, table, &query)
+			rows, err := q.logManager.ProcessQuery(ctx, table, query)
 
 			if err != nil {
 				logger.ErrorWithCtx(ctx).Msg(err.Error())
@@ -599,7 +583,6 @@ func (q *QueryRunner) searchWorkerCommon(
 		jobs = append(jobs, job)
 		jobHitsPosition = append(jobHitsPosition, i)
 	}
-
 	dbHits, err := q.runQueryJobs(jobs)
 	if err != nil {
 		return
@@ -616,7 +599,7 @@ func (q *QueryRunner) searchWorkerCommon(
 }
 
 func (q *QueryRunner) searchWorker(ctx context.Context,
-	aggregations []model.Query,
+	aggregations []*model.Query,
 	table *clickhouse.Table,
 	doneCh chan<- AsyncSearchWithError,
 	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow, err error) {
@@ -638,7 +621,7 @@ func (q *QueryRunner) Close() {
 	logger.Info().Msg("queryRunner Stopped")
 }
 
-func (q *QueryRunner) findNonexistingProperties(query model.Query, table *clickhouse.Table) []string {
+func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *clickhouse.Table) []string {
 	// this is not fully correct, but we keep it backward compatible
 	var results = make([]string, 0)
 	var allReferencedFields = make([]string, 0)

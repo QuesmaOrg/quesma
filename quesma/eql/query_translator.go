@@ -23,7 +23,15 @@ type ClickhouseEQLQueryTranslator struct {
 	Ctx          context.Context
 }
 
-func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, query model.Query) (*model.SearchResp, error) {
+func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
+	// for now len(queries) should be 1, len(ResultSets) should be 1
+	if len(queries) < 1 || len(ResultSets) < 1 {
+		logger.WarnWithCtx(cw.Ctx).Msgf("queries or ResultSets are empty, queries=%+v, ResultSets=%+v", queries, ResultSets)
+		return &model.SearchResp{}
+	}
+
+	query := queries[0]
+	ResultSet := ResultSets[0]
 
 	// This shares a lot of code with the ClickhouseQueryTranslator
 	//
@@ -62,34 +70,32 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(ResultSet []model.Que
 			Successful: 1,
 			Failed:     0,
 		},
-	}, nil
+	}
 }
 
-func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) ([]model.Query, bool, bool, error) {
+func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) ([]*model.Query, bool, error) {
 	simpleQuery, queryInfo, highlighter, err := cw.parseQuery(body)
 
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
-		return nil, false, false, err
+		return nil, false, err
 	}
 
 	var query *model.Query
-	var queries []model.Query
-	var isAggregation bool
+	var queries []*model.Query
 	canParse := false
 
 	if simpleQuery.CanParse {
 		canParse = true
-		query = query_util.BuildNRowsQuery(cw.Ctx, cw.Table.Name, "*", simpleQuery, queryInfo.I2)
+		query = query_util.BuildHitsQuery(cw.Ctx, cw.Table.Name, "*", &simpleQuery, queryInfo.I2)
 		query.QueryInfoType = queryInfo.Typ
 		query.Highlighter = highlighter
 		query.OrderBy = simpleQuery.OrderBy
-		queries = append(queries, *query)
-		isAggregation = false
-		return queries, isAggregation, canParse, nil
+		queries = append(queries, query)
+		return queries, canParse, nil
 	}
 
-	return nil, false, false, err
+	return nil, false, err
 }
 
 func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query model.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter model.Highlighter, err error) {
@@ -107,7 +113,7 @@ func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query
 
 	if eqlQuery == "" {
 		query.CanParse = false
-		return query, model.NewSearchQueryInfoNone(), highlighter, nil
+		return query, model.NewSearchQueryInfoNormal(), highlighter, nil
 	}
 
 	// FIXME this is a naive translation.
@@ -129,7 +135,7 @@ func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Err(err).Msgf("error transforming EQL query: '%s'", eqlQuery)
 		query.CanParse = false
-		return query, model.NewSearchQueryInfoNone(), highlighter, err
+		return query, model.NewSearchQueryInfoNormal(), highlighter, err
 	}
 
 	query.WhereClause = where_clause.NewLiteral(where) // @TODO that's to be fixed
@@ -141,6 +147,6 @@ func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query
 
 // These methods are not supported by EQL. They are here to satisfy the interface.
 
-func (cw *ClickhouseEQLQueryTranslator) MakeResponseAggregation(aggregations []model.Query, aggregationResults [][]model.QueryResultRow) *model.SearchResp {
+func (cw *ClickhouseEQLQueryTranslator) MakeResponseAggregation(aggregations []*model.Query, aggregationResults [][]model.QueryResultRow) *model.SearchResp {
 	panic("EQL does not support aggregations")
 }
