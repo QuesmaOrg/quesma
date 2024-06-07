@@ -495,7 +495,7 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	queries := []*model.Query{
 		cw.BuildAutocompleteSuggestionsQuery("@", "", 0),
-		cw.BuildFacetsQuery("@", nil),
+		cw.BuildFacetsQuery("@", model.SimpleQuery{}),
 		// queryTranslator.BuildTimestampQuery("@", "@", "", true), TODO uncomment when add unification for this query type
 	}
 	types := []model.SearchQueryType{model.ListAllFields, model.ListByField}

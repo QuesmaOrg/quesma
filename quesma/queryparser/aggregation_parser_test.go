@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/testdata"
@@ -715,26 +716,30 @@ func Test_parseFieldFromScriptField(t *testing.T) {
 	goodQueryMap := func(sourceField string) QueryMap {
 		return QueryMap{"script": QueryMap{"source": sourceField}}
 	}
+
+	empty := model.SelectColumn{}
 	testcases := []struct {
 		queryMap        QueryMap
-		expectedMatch   string
+		expectedMatch   model.SelectColumn
 		expectedSuccess bool
 	}{
-		{goodQueryMap("doc['field1'].value.getHour()"), "field1", true},
-		{goodQueryMap("doc['field1'].value.getHour() + doc['field2'].value.getHour()"), "", false},
-		{goodQueryMap("doc['field1'].value.hourOfDay"), "field1", true},
-		{goodQueryMap("doc['field1'].value"), "", false},
-		{goodQueryMap("value.getHour() + doc['field2'].value.getHour()"), "", false},
-		{QueryMap{}, "", false},
-		{QueryMap{"script": QueryMap{}}, "", false},
-		{QueryMap{"script": QueryMap{"source": ""}}, "", false},
-		{QueryMap{"script": "script"}, "", false},
-		{QueryMap{"script": QueryMap{"source": 1}}, "", false},
+		{goodQueryMap("doc['field1'].value.getHour()"),
+			model.SelectColumn{Expression: aexp.Function("toHour", aexp.TableColumnExp{ColumnName: "field1"})}, true},
+		{goodQueryMap("doc['field1'].value.getHour() + doc['field2'].value.getHour()"), empty, false},
+		{goodQueryMap("doc['field1'].value.hourOfDay"),
+			model.SelectColumn{Expression: aexp.Function("toHour", aexp.TableColumnExp{ColumnName: "field1"})}, true},
+		{goodQueryMap("doc['field1'].value"), empty, false},
+		{goodQueryMap("value.getHour() + doc['field2'].value.getHour()"), empty, false},
+		{QueryMap{}, empty, false},
+		{QueryMap{"script": QueryMap{}}, empty, false},
+		{QueryMap{"script": QueryMap{"source": empty}}, empty, false},
+		{QueryMap{"script": "script"}, empty, false},
+		{QueryMap{"script": QueryMap{"source": 1}}, empty, false},
 	}
 	cw := ClickhouseQueryTranslator{Ctx: context.Background()}
 	for _, tc := range testcases {
-		fieldName, success := cw.parseFieldFromScriptField(tc.queryMap)
+		field, success := cw.parseFieldFromScriptField(tc.queryMap)
 		assert.Equal(t, tc.expectedSuccess, success)
-		assert.Equal(t, tc.expectedMatch, fieldName)
+		assert.Equal(t, tc.expectedMatch, field)
 	}
 }

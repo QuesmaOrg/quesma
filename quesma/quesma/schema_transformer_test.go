@@ -29,7 +29,8 @@ func Test_ipRangeTransform(t *testing.T) {
 
 	expectedQueries := []model.Query{
 		{
-			FromClause: "kibana_sample_data_logs",
+			FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+			TableName:  "kibana_sample_data_logs",
 			Columns: []model.SelectColumn{{
 				Expression: aexp.Wildcard,
 			},
@@ -49,7 +50,8 @@ func Test_ipRangeTransform(t *testing.T) {
 			},
 		},
 		{
-			FromClause: "kibana_sample_data_logs",
+			FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+			TableName:  "kibana_sample_data_logs",
 			Columns: []model.SelectColumn{{
 				Expression: aexp.Wildcard,
 			},
@@ -61,9 +63,12 @@ func Test_ipRangeTransform(t *testing.T) {
 			},
 		},
 	}
+
 	queries := [][]model.Query{
 		{
-			{FromClause: "kibana_sample_data_logs",
+			{
+				FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+				TableName:  "kibana_sample_data_logs",
 				Columns: []model.SelectColumn{{
 					Expression: aexp.Wildcard,
 				},
@@ -76,7 +81,9 @@ func Test_ipRangeTransform(t *testing.T) {
 			},
 		},
 		{
-			{FromClause: "kibana_sample_data_logs",
+			{
+				FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+				TableName:  "kibana_sample_data_logs",
 				Columns: []model.SelectColumn{{
 					Expression: aexp.Wildcard,
 				},

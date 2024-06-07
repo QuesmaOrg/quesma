@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/types"
+	"mitmproxy/quesma/util"
 	"slices"
 	"strconv"
 	"strings"
@@ -204,8 +205,7 @@ func TestProcessInsertQuery(t *testing.T) {
 		for index2, config := range configs {
 			for index3, lm := range logManagers(config) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], logManager["+strconv.Itoa(index3)+"]", func(t *testing.T) {
-					db, mock, err := sqlmock.New()
-					assert.NoError(t, err)
+					db, mock, _ := util.InitSqlMockWithPrettyPrint(t)
 					lm.lm.chDb = db
 					defer db.Close()
 
@@ -224,7 +224,7 @@ func TestProcessInsertQuery(t *testing.T) {
 						mock.ExpectExec(expectedInserts[2*index1+1]).WillReturnResult(sqlmock.NewResult(1, 1))
 					}
 
-					err = lm.lm.ProcessInsertQuery(ctx, tableName, []types.JSON{types.MustJSON(tt.insertJson)})
+					err := lm.lm.ProcessInsertQuery(ctx, tableName, []types.JSON{types.MustJSON(tt.insertJson)})
 					assert.NoError(t, err)
 					if err := mock.ExpectationsWereMet(); err != nil {
 						t.Fatal("there were unfulfilled expections:", err)
@@ -247,8 +247,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 	// big integer as a schema field
 	for i, bigInt := range bigInts {
 		t.Run("big integer schema field: "+bigInt, func(t *testing.T) {
-			db, mock, err := sqlmock.New()
-			assert.NoError(t, err)
+			db, mock, _ := util.InitSqlMockWithPrettyPrint(t)
 			lm := NewLogManagerEmpty()
 			lm.chDb = db
 			defer db.Close()
@@ -256,7 +255,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 			mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))
 			mock.ExpectExec(expectedInsertJsons[i]).WillReturnResult(sqlmock.NewResult(0, 0))
 
-			err = lm.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON(fmt.Sprintf(`{"severity":"sev","int": %s}`, bigInt))})
+			err := lm.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON(fmt.Sprintf(`{"severity":"sev","int": %s}`, bigInt))})
 			assert.NoError(t, err)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -274,8 +273,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 
 	for i, bigInt := range bigInts {
 		t.Run("big integer attribute field: "+bigInt, func(t *testing.T) {
-			db, mock, err := sqlmock.New()
-			assert.NoError(t, err)
+			db, mock, _ := util.InitSqlMockWithPrettyPrint(t)
 			lm := NewLogManagerEmpty()
 			lm.chDb = db
 			var ptr = atomic.Pointer[TableMap]{}
@@ -288,7 +286,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 
 			bigIntAsInt, _ := strconv.ParseInt(bigInt, 10, 64)
 			fmt.Printf(`{"severity":"sev","int": %d}\n`, bigIntAsInt)
-			err = lm.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON(fmt.Sprintf(`{"severity":"sev","int": %d}`, bigIntAsInt))})
+			err := lm.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON(fmt.Sprintf(`{"severity":"sev","int": %d}`, bigIntAsInt))})
 			assert.NoError(t, err)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)

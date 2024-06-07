@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/model"
 	"testing"
 )
 
@@ -13,8 +14,8 @@ func Test_parsePercentilesAggregationWithDefaultPercents(t *testing.T) {
 		"field": "custom_name",
 	}
 	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}, Ctx: context.Background()}
-	fieldName, _, userSpecifiedPercents := cw.parsePercentilesAggregation(payload)
-	assert.Equal(t, "custom_name", fieldName)
+	field, _, userSpecifiedPercents := cw.parsePercentilesAggregation(payload)
+	assert.Equal(t, model.NewSelectColumnTableField("custom_name"), field)
 	assert.Equal(t, defaultPercentiles, userSpecifiedPercents)
 }
 
@@ -43,7 +44,7 @@ func Test_parsePercentilesAggregationWithUserSpecifiedPercents(t *testing.T) {
 	}
 	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}, Ctx: context.Background()}
 	fieldName, _, parsedMap := cw.parsePercentilesAggregation(payload)
-	assert.Equal(t, "custom_name", fieldName)
+	assert.Equal(t, model.NewSelectColumnTableField("custom_name"), fieldName)
 
 	parsedMapKeys := make([]string, 0, len(parsedMap))
 	for k := range parsedMap {

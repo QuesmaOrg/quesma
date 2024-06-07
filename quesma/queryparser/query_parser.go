@@ -84,7 +84,7 @@ func (cw *ClickhouseQueryTranslator) makeBasicQuery(
 
 	case model.Facets, model.FacetsNumeric:
 		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
-		fullQuery = cw.BuildFacetsQuery(queryInfo.FieldName, simpleQuery.WhereClause)
+		fullQuery = cw.BuildFacetsQuery(queryInfo.FieldName, simpleQuery)
 
 		if len(fullQuery.Columns) > 0 {
 			fullQuery.Columns[0].Alias = "key"

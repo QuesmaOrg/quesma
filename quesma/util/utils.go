@@ -3,8 +3,10 @@ package util
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/k0kubun/pp"
 	"io"
 	"log"
@@ -652,4 +654,22 @@ func ExtractNumeric64Maybe(value any) (asFloat64 float64, success bool) {
 		return float64(asInt64), true
 	}
 	return 0.0, false
+}
+
+func InitSqlMockWithPrettyPrint(t *testing.T) (*sql.DB, sqlmock.Sqlmock, error) {
+	queryMatcher := sqlmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
+		matchErr := sqlmock.QueryMatcherRegexp.Match(expectedSQL, actualSQL)
+		if matchErr != nil {
+			pp.Println("-- Expected:")
+			fmt.Printf("%s\n", SqlPrettyPrint([]byte(expectedSQL)))
+			pp.Println("---- Actual:")
+			fmt.Printf("%s\n", SqlPrettyPrint([]byte(actualSQL)))
+		}
+		return matchErr
+	})
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(queryMatcher))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return db, mock, err
 }

@@ -66,7 +66,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
 			}
 			assert.True(t, query.CanParse, "can parse")
-			assert.Equal(t, strconv.Quote(testdata.TableName), query.FromClause)
+			assert.Equal(t, model.NewSelectColumnString(strconv.Quote(testdata.TableName)), query.FromClause)
 			assert.Equal(t, []model.SelectColumn{{Expression: aexp.Wildcard}}, query.Columns)
 		})
 	}
@@ -102,7 +102,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
 			}
 			assert.True(t, query.CanParse, "can parse")
-			assert.Equal(t, strconv.Quote(testdata.TableName), query.FromClause)
+			assert.Equal(t, model.NewSelectColumnString(strconv.Quote(testdata.TableName)), query.FromClause)
 			assert.Equal(t, []model.SelectColumn{{Expression: aexp.Wildcard}}, query.Columns)
 		})
 	}
@@ -137,7 +137,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
 			}
 			assert.True(t, query.CanParse, "can parse")
-			assert.Equal(t, strconv.Quote(testdata.TableName), query.FromClause)
+			assert.Equal(t, model.NewSelectColumnString(strconv.Quote(testdata.TableName)), query.FromClause)
 			assert.Equal(t, []model.SelectColumn{{Expression: aexp.Wildcard}}, query.Columns)
 		})
 	}

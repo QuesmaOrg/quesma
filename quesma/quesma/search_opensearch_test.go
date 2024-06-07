@@ -2,7 +2,6 @@ package quesma
 
 import (
 	"context"
-	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
@@ -35,13 +34,8 @@ func TestSearchOpensearch(t *testing.T) {
 
 	for i, tt := range testdata.OpensearchSearchTests {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
-			queryMatcher := sqlmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
-				fmt.Printf("actual SQL: %s\n", actualSQL)
-				return sqlmock.QueryMatcherRegexp.Match(expectedSQL, actualSQL)
-			})
-			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(queryMatcher))
+			db, mock, _ := util.InitSqlMockWithPrettyPrint(t)
 			mock.MatchExpectationsInOrder(false)
-			assert.NoError(t, err)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
 			managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())
@@ -59,7 +53,7 @@ func TestSearchOpensearch(t *testing.T) {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
-			_, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
+			_, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 			assert.NoError(t, err)
 
 			if err = mock.ExpectationsWereMet(); err != nil {
@@ -174,8 +168,7 @@ func TestHighlighter(t *testing.T) {
 		Created: true,
 	}
 
-	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	db, mock, _ := util.InitSqlMockWithPrettyPrint(t)
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
 	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())

@@ -3,10 +3,11 @@ package queryparser
 import (
 	"context"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/model"
 )
 
 func (cw *ClickhouseQueryTranslator) ParseTopMetricsAggregation(queryMap QueryMap) metricsAggregation {
-	var fieldNames []string
+	var fields []model.SelectColumn
 	metrics, exists := queryMap["metrics"]
 	if exists {
 		var fieldList []interface{}
@@ -15,7 +16,7 @@ func (cw *ClickhouseQueryTranslator) ParseTopMetricsAggregation(queryMap QueryMa
 		} else {
 			fieldList = append(fieldList, metrics)
 		}
-		fieldNames = cw.getFieldNames(fieldList)
+		fields = cw.getFieldNames(fieldList)
 	} else {
 		logger.WarnWithCtx(cw.Ctx).Msg("no metrics field found in query")
 	}
@@ -43,12 +44,12 @@ func (cw *ClickhouseQueryTranslator) ParseTopMetricsAggregation(queryMap QueryMa
 		size = defaultSize
 	}
 	return metricsAggregation{
-		AggrType:   "top_metrics",
-		FieldNames: fieldNames,
-		FieldType:  metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
-		SortBy:     sortBy,
-		Size:       size,
-		Order:      order,
+		AggrType:  "top_metrics",
+		Fields:    fields,
+		FieldType: metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
+		SortBy:    sortBy,
+		Size:      size,
+		Order:     order,
 	}
 }
 
@@ -63,16 +64,15 @@ func getFirstKeyValue(ctx context.Context, queryMap QueryMap) (string, string) {
 	return "", ""
 }
 
-func (cw *ClickhouseQueryTranslator) getFieldNames(fields []interface{}) []string {
-	var fieldNames []string
+func (cw *ClickhouseQueryTranslator) getFieldNames(fields []interface{}) (cols []model.SelectColumn) {
 	for _, field := range fields {
 		if fName, ok := field.(QueryMap)["field"]; ok {
 			if fieldName, ok := fName.(string); ok {
-				fieldNames = append(fieldNames, cw.Table.ResolveField(cw.Ctx, fieldName))
+				cols = append(cols, model.NewSelectColumnTableField(cw.Table.ResolveField(cw.Ctx, fieldName)))
 			} else {
 				logger.WarnWithCtx(cw.Ctx).Msgf("field %v is not a string (type: %T). Might be correct, might not. Check it out.", fName, fName)
 			}
 		}
 	}
-	return fieldNames
+	return cols
 }

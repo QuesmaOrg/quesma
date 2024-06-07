@@ -81,7 +81,7 @@ func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query
 	}
 	whereVisitor := &WhereVisitor{}
 	query.WhereClause.Accept(whereVisitor)
-	fromTable := strings.Trim(query.FromClause, "\"")
+	fromTable := strings.Trim(query.TableName, "\"")
 	mappedType := s.cfg[fromTable].TypeMappings[strings.Trim(whereVisitor.lhs, "\"")]
 	if mappedType != "ip" {
 		return query, nil

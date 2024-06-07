@@ -557,7 +557,8 @@ func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause where_cla
 	return &model.Query{
 		Columns:     []model.SelectColumn{{Expression: aexp.Count()}},
 		WhereClause: whereClause,
-		FromClause:  cw.Table.FullTableName(),
+		FromClause:  model.NewSelectColumnString(cw.Table.FullTableName()),
+		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}
 }
@@ -572,7 +573,8 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, wh
 		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
 		WhereClause: whereClause,
 		Limit:       limit,
-		FromClause:  cw.Table.FullTableName(),
+		FromClause:  model.NewSelectColumnString(cw.Table.FullTableName()),
+		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}
 }
@@ -589,26 +591,26 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
 		WhereClause: whereClause,
 		Limit:       limit,
-		FromClause:  cw.Table.FullTableName(),
+		FromClause:  model.NewSelectColumnString(cw.Table.FullTableName()),
+		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, whereClause where_clause.Statement) *model.Query {
-	innerQuery := model.Query{
-		WhereClause: whereClause,
-		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
-		Limit:       facetsSampleSize,
-		FromClause:  cw.Table.FullTableName(),
-		CanParse:    true,
-	}
-
+func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQuery model.SimpleQuery) *model.Query {
+	// FromClause: (SELECT fieldName FROM table WHERE whereClause LIMIT facetsSampleSize)
 	return &model.Query{
-		Columns:    []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
-		GroupBy:    []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
-		OrderBy:    []model.SelectColumn{model.NewSortByCountColumn(true)},
-		FromClause: "(" + innerQuery.String(cw.Ctx) + ")",
-		CanParse:   true,
+		Columns: []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
+		GroupBy: []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		OrderBy: []model.SelectColumn{model.NewSortByCountColumn(true)},
+		FromClause: model.SelectColumn{Expression: aexp.NewComposite(
+			aexp.String("(SELECT"), aexp.TableColumn(fieldName),
+			aexp.SQL{Query: "FROM " + cw.Table.FullTableName()},
+			aexp.SQL{Query: "WHERE " + simpleQuery.WhereClauseAsString()},
+			aexp.String("LIMIT"), aexp.Literal(facetsSampleSize),
+			aexp.String(")"))},
+		TableName: cw.Table.FullTableName(),
+		CanParse:  true,
 	}
 }
 
@@ -620,24 +622,25 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName stri
 		WhereClause: whereClause,
 		OrderBy:     []model.SelectColumn{model.NewSortColumn(timestampFieldName, !earliest)},
 		Limit:       1,
-		FromClause:  cw.Table.FullTableName(),
+		FromClause:  model.NewSelectColumnString(cw.Table.FullTableName()),
+		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMap) string {
+func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMap) aexp.AExp {
 	const defaultDateTimeType = clickhouse.DateTime64
-	fieldName := cw.parseFieldField(queryMap, "histogram")
+	field := cw.parseFieldField(queryMap, "histogram")
 	interval, err := kibana.ParseInterval(cw.extractInterval(queryMap))
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Msg(err.Error())
 	}
-	dateTimeType := cw.Table.GetDateTimeType(cw.Ctx, fieldName)
+	dateTimeType := cw.Table.GetDateTimeTypeFromSelectColumn(cw.Ctx, field)
 	if dateTimeType == clickhouse.Invalid {
-		logger.ErrorWithCtx(cw.Ctx).Msgf("invalid date type for field %v. Using DateTime64 as default.", fieldName)
+		logger.ErrorWithCtx(cw.Ctx).Msgf("invalid date type for field %+v. Using DateTime64 as default.", field)
 		dateTimeType = defaultDateTimeType
 	}
-	return clickhouse.TimestampGroupBy(fieldName, dateTimeType, interval)
+	return clickhouse.TimestampGroupBy(field, dateTimeType, interval)
 }
 
 // sortInTopologicalOrder sorts all our queries to DB, which we send to calculate response for a single query request.

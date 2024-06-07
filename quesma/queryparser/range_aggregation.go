@@ -5,12 +5,10 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
-	"mitmproxy/quesma/queryparser/aexp"
-	"strconv"
 )
 
 func (cw *ClickhouseQueryTranslator) parseRangeAggregation(rangePart QueryMap) bucket_aggregations.Range {
-	fieldName := cw.parseFieldField(rangePart, "range")
+	field := cw.parseFieldField(rangePart, "range")
 	var ranges []any
 	if rangesRaw, ok := rangePart["ranges"]; ok {
 		ranges, ok = rangesRaw.([]any)
@@ -46,13 +44,12 @@ func (cw *ClickhouseQueryTranslator) parseRangeAggregation(rangePart QueryMap) b
 	}
 	if keyedRaw, exists := rangePart["keyed"]; exists {
 		if keyed, ok := keyedRaw.(bool); ok {
-			// TODO we should not store Quoted field name in the range struct
-			return bucket_aggregations.NewRange(cw.Ctx, strconv.Quote(fieldName), intervals, keyed)
+			return bucket_aggregations.NewRange(cw.Ctx, field, intervals, keyed)
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("keyed is not a bool, but %T, value: %v", keyedRaw, keyedRaw)
 		}
 	}
-	return bucket_aggregations.NewRangeWithDefaultKeyed(cw.Ctx, strconv.Quote(fieldName), intervals)
+	return bucket_aggregations.NewRangeWithDefaultKeyed(cw.Ctx, field, intervals)
 }
 
 func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQueryBuilder, Range bucket_aggregations.Range,
@@ -60,10 +57,7 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 
 	// build this aggregation
 	for _, interval := range Range.Intervals {
-
-		// TODO XXXX
-		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: interval.ToSQLSelectQuery(Range.QuotedFieldName)}})
-
+		currentAggr.Columns = append(currentAggr.Columns, interval.ToSQLSelectQuery(Range.Col))
 	}
 	if !Range.Keyed {
 		// there's a difference in output structure whether the range is keyed or not
@@ -87,16 +81,9 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 	// Range aggregation with subaggregations should be a quite rare case, so I'm leaving that for later.
 	whereBeforeNesting := currentAggr.whereBuilder
 	for _, interval := range Range.Intervals {
-		var fieldName string
-		if f, err := strconv.Unquote(Range.QuotedFieldName); err != nil {
-			logger.Error().Msgf("Unquoting field name in range aggregation failed: %v", err) // fallback to what we have...
-			fieldName = Range.QuotedFieldName
-		} else {
-			fieldName = f
-		}
 		currentAggr.whereBuilder = model.CombineWheres(
 			cw.Ctx, currentAggr.whereBuilder,
-			model.NewSimpleQuery(interval.ToWhereClause(fieldName), true),
+			model.NewSimpleQuery(interval.ToWhereClause(Range.Col), true),
 		)
 		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(interval.String()))
 		aggsCopy, err := deepcopy.Anything(aggs)
