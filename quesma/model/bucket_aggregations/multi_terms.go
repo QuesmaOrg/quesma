@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"strings"
 )
 
 type MultiTerms struct {
@@ -20,8 +21,7 @@ func (query MultiTerms) IsBucketAggregation() bool {
 	return true
 }
 
-func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
-	var response []model.JsonMap
+func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) (response []model.JsonMap) {
 	minimumExpectedColNr := query.fieldsNr + 1 // +1 for doc_count. Can be more, if this MultiTerms has parent aggregations, but never fewer.
 	if len(rows) > 0 && len(rows[0].Cols) < minimumExpectedColNr {
 		logger.ErrorWithCtx(query.ctx).Msgf(
@@ -29,32 +29,31 @@ func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 	}
 	const delimiter = '|' // between keys in key_as_string
 	for _, row := range rows {
-		docCount := row.Cols[len(row.Cols)-1].Value
-
-		keys := make([]any, 0, query.fieldsNr)
-		var keyAsString string
 		startIndex := len(row.Cols) - query.fieldsNr - 1
 		if startIndex < 0 {
 			logger.WarnWithCtx(query.ctx).Msgf("startIndex < 0 - too few columns. row: %+v", row)
 			startIndex = 0
 		}
 		keyColumns := row.Cols[startIndex : len(row.Cols)-1] // last col isn't a key, it's doc_count
-		for _, col := range keyColumns {
+		keys := make([]any, 0, query.fieldsNr)
+		var keyAsString strings.Builder
+		for i, col := range keyColumns {
 			keys = append(keys, col.Value)
-			keyAsString += fmt.Sprintf("%v%c", col.Value, delimiter)
-		}
-		if len(keyAsString) > 0 {
-			keyAsString = keyAsString[:len(keyAsString)-1] // remove trailing delimiter
+			if i > 0 {
+				keyAsString.WriteRune(delimiter)
+			}
+			keyAsString.WriteString(fmt.Sprintf("%v", col.Value))
 		}
 
+		docCount := row.Cols[len(row.Cols)-1].Value
 		bucket := model.JsonMap{
 			"key":           keys,
-			"key_as_string": keyAsString,
+			"key_as_string": keyAsString.String(),
 			"doc_count":     docCount,
 		}
 		response = append(response, bucket)
 	}
-	return response
+	return
 }
 
 func (query MultiTerms) String() string {
