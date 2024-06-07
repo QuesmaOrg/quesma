@@ -2,7 +2,6 @@ package queryparser
 
 import (
 	"context"
-	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/kibana"
 	"mitmproxy/quesma/logger"
@@ -216,7 +215,6 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 		if i >= len(ResultSets) || query_util.IsNonAggregationQuery(query) {
 			continue
 		}
-		fmt.Println(i, query.Type, query)
 		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
 		if len(aggregation) != 0 {
 			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0]) // result of root node is always a single map, thus [0]
