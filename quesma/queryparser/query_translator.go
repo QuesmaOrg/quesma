@@ -100,14 +100,6 @@ func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.Q
 	return &response, nil
 }
 
-func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponseMarshalled(ResultSet []model.QueryResultRow, query *model.Query, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
-	response, err := cw.MakeAsyncSearchResponse(ResultSet, query, asyncRequestIdStr, isPartial)
-	if err != nil {
-		return nil, err
-	}
-	return response.Marshal()
-}
-
 func (cw *ClickhouseQueryTranslator) finishMakeResponse(query *model.Query, ResultSet []model.QueryResultRow, level int) []model.JsonMap {
 	// fmt.Println("FinishMakeResponse", query, ResultSet, level, query.Type.String())
 	if query.Type.IsBucketAggregation() {

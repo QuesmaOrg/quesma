@@ -60,8 +60,10 @@ const (
 func TestSearchResponse(t *testing.T) {
 	row := []model.QueryResultRow{{}}
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
-	searchRespBuf, err := cw.MakeAsyncSearchResponseMarshalled(row, &model.Query{QueryInfoType: model.ListAllFields, Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
+	searchResp, err := cw.MakeAsyncSearchResponse(row, &model.Query{QueryInfoType: model.ListAllFields, Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
 	require.NoError(t, err)
+	searchRespBuf, err2 := searchResp.Marshal()
+	require.NoError(t, err2)
 	var searchResponseResult model.SearchResp
 	err = json.Unmarshal(searchRespBuf, &searchResponseResult)
 	require.NoError(t, err)
@@ -447,10 +449,12 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 			if i != 0 {
 				t.Skip()
 			}
-			ourResponse, err := cw.MakeAsyncSearchResponseMarshalled(args[i].ourQueryResult, tt.query, asyncRequestIdStr, false)
+			ourResponse, err := cw.MakeAsyncSearchResponse(args[i].ourQueryResult, tt.query, asyncRequestIdStr, false)
 			assert.NoError(t, err)
+			ourResponseBuf, err2 := ourResponse.Marshal()
+			assert.NoError(t, err2)
 
-			actualMinusExpected, expectedMinusActual, err := util.JsonDifference(string(ourResponse), args[i].elasticResponseJson)
+			actualMinusExpected, expectedMinusActual, err := util.JsonDifference(string(ourResponseBuf), args[i].elasticResponseJson)
 			pp.Println(actualMinusExpected, expectedMinusActual)
 			assert.NoError(t, err)
 
