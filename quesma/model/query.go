@@ -46,7 +46,6 @@ type (
 		NoDBQuery   bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
 		Parent      string       // parent aggregation name, used in some pipeline aggregations
 		Aggregators []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
-		SubSelect   string
 
 		// dictionary to add as 'meta' field in the response.
 		// WARNING: it's probably not passed everywhere where it's needed, just in one place.

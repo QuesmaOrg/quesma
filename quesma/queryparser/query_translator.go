@@ -233,19 +233,20 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 	return aggregations
 }
 
-func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
+func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results [][]model.QueryResultRow) (queriesWithoutHits []*model.Query, resultsWithoutHits [][]model.QueryResultRow, hit *model.SearchHits) {
 	var hitsQuery *model.Query
 	var hitsResultSet []model.QueryResultRow
 
 	// Process hits as last aggregation
-	if len(queries) > 0 && len(ResultSets) > 0 && query_util.IsNonAggregationQuery(queries[len(queries)-1]) {
+	if len(queries) > 0 && len(results) > 0 && query_util.IsNonAggregationQuery(queries[len(queries)-1]) {
 		hitsQuery = queries[len(queries)-1]
-		hitsResultSet = ResultSets[len(ResultSets)-1]
+		hitsResultSet = results[len(results)-1]
 
 		queries = queries[:len(queries)-1]
-		ResultSets = ResultSets[:len(ResultSets)-1]
+		results = results[:len(results)-1]
 	} else {
-		hitsResultSet = make([]model.QueryResultRow, 0)
+		emptyHits := model.SearchHits{}
+		return queries, results, &emptyHits
 	}
 
 	var highlighter *model.Highlighter
@@ -259,7 +260,15 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 	hits := typical_queries.NewHits(cw.Ctx, cw.Table, highlighter, orderByFieldNames, true, false, false)
 	hitsPartOfResponse := hits.TranslateSqlResponseToJson(hitsResultSet, 0)
 
-	// process count:
+	hitsResponse := hitsPartOfResponse[0]["hits"].(model.SearchHits)
+	return queries, results, &hitsResponse
+}
+
+func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
+	var hits *model.SearchHits
+	queries, ResultSets, hits = cw.makeHits(queries, ResultSets)
+
+	// TODO: process count:
 	// a) we have count query -> we're done
 	// b) we have hits or facets -> we're done
 	// c) we don't have above: we return len(biggest resultset(all aggregations))
@@ -293,8 +302,8 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 			Failed:     0,
 		},
 	}
-	if hitsTyped, ok := hitsPartOfResponse[0]["hits"].(model.SearchHits); ok {
-		response.Hits = hitsTyped
+	if hits != nil {
+		response.Hits = *hits
 		response.Hits.Total = &model.Total{
 			Value:    int(totalCount),
 			Relation: "eq",
