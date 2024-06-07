@@ -254,12 +254,11 @@ func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results []
 	hitsQuery := queries[hitsIndex]
 	hitsResultSet := results[hitsIndex]
 
-	highlighter := &hitsQuery.Highlighter
-	orderByFieldNames := hitsQuery.OrderByFieldNames()
-
-	// TODO it should be created during parsing, like aggregations
-	hits := typical_queries.NewHits(cw.Ctx, cw.Table, highlighter, orderByFieldNames, true, false, false)
-	hitsPartOfResponse := hits.TranslateSqlResponseToJson(hitsResultSet, 0)
+	if hitsQuery.Type == nil {
+		logger.ErrorWithCtx(cw.Ctx).Msgf("hits query type is nil: %v", hitsQuery)
+		return queriesWithoutHits, resultsWithoutHits, nil
+	}
+	hitsPartOfResponse := hitsQuery.Type.TranslateSqlResponseToJson(hitsResultSet, 0)
 
 	hitsResponse := hitsPartOfResponse[0]["hits"].(model.SearchHits)
 	return queriesWithoutHits, resultsWithoutHits, &hitsResponse
@@ -267,7 +266,7 @@ func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results []
 
 func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
 	var hits *model.SearchHits
-	queries, ResultSets, hits = cw.makeHits(queries, ResultSets)
+	queries, ResultSets, hits = cw.makeHits(queries, ResultSets) // get hits and remove it from queries
 
 	// TODO: process count:
 	// a) we have count query -> we're done
