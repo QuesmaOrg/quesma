@@ -27,7 +27,7 @@ func (sl *schemaLoader) ReloadTables() {
 		databaseName = sl.cfg.ClickHouse.Database
 	}
 
-	err := createAllLogsView(sl.SchemaManagement.chDb)
+	err := createAllLogs1View(sl.SchemaManagement.chDb)
 	if err != nil {
 		logger.Warn().Msgf("could not create all_logs view: %v", err)
 	}

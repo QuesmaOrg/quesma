@@ -8,7 +8,14 @@ import (
 	"strings"
 )
 
-func createAllLogsView(db *sql.DB) error {
+func unionAll(db *sql.DB) (string, error) {
+
+	// tableMultiplication := 5
+	// make query to big and raises error:
+	// NULL AS "day_of_we. Max query size exceeded: '"customer_gender"'
+	// the default is 256KB (https://clickhouse.com/docs/en/operations/settings/settings#max_query_size)
+
+	tableMultiplication := 1
 
 	allColumns := make(map[string]int)
 
@@ -23,7 +30,7 @@ func createAllLogsView(db *sql.DB) error {
 		var columnName, tableName string
 		err = rows.Scan(&columnName, &tableName)
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		allColumns[columnName] = 1
@@ -37,7 +44,7 @@ func createAllLogsView(db *sql.DB) error {
 	}
 
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	var columnsInOrder []string
@@ -80,55 +87,67 @@ func createAllLogsView(db *sql.DB) error {
 		subQueries = append(subQueries, q)
 	}
 
-	for _, tableName := range tablesInOrder {
-		var subQueryColumns []string
+	for i := range tableMultiplication {
+		for _, tableName := range tablesInOrder {
+			var subQueryColumns []string
 
-		if _, ok := columns[tableName]["@timestamp"]; ok {
-			subQueryColumns = append(subQueryColumns, `toDateTime("@timestamp")`)
-		} else {
-			switch tableName {
-			case "device_logs":
-				continue
-				//  Cannot parse string '2024-06-06 15:53:30.000' as DateTime: syntax error at position 19 (parsed just '2024-06-06 15:53:30'): while executing 'FUNCTION toDateTime(toString(epoch_time) :: 3) -> toDateTime(toString(epoch_time)) DateTime
-				//subQueryColumns = append(subQueryColumns, `toDateTime(epoch_time) AS "@timestamp"`)
-
-			case "kibana_sample_data_logs":
-				subQueryColumns = append(subQueryColumns, `toDateTime(timestamp) AS "@timestamp"`)
-
-			case "kibana_sample_ecommerce":
-				subQueryColumns = append(subQueryColumns, `toDateTime(order_date) AS "@timestamp"`)
-
-			default:
-				logger.Warn().Msgf("table %s does not have @timestamp column", tableName)
-				// FAKE field for @timestamp
-				subQueryColumns = append(subQueryColumns, "toDateTime('2000-01-01 00:00:00')"+` AS "@timestamp"`)
-			}
-		}
-
-		subQueryColumns = append(subQueryColumns, "'"+tableName+"'"+` AS "xxx_table_name"`)
-
-		for _, columnName := range columnsInOrder {
-			name := `"` + columnName + `"`
-
-			if _, ok := columns[tableName][columnName]; ok {
-				subQueryColumns = append(subQueryColumns, "toString("+name+") AS "+name)
+			if _, ok := columns[tableName]["@timestamp"]; ok {
+				subQueryColumns = append(subQueryColumns, `toDateTime("@timestamp")`)
 			} else {
-				subQueryColumns = append(subQueryColumns, "NULL AS "+name)
+				switch tableName {
+				case "device_logs":
+					continue
+					//  Cannot parse string '2024-06-06 15:53:30.000' as DateTime: syntax error at position 19 (parsed just '2024-06-06 15:53:30'): while executing 'FUNCTION toDateTime(toString(epoch_time) :: 3) -> toDateTime(toString(epoch_time)) DateTime
+					//subQueryColumns = append(subQueryColumns, `toDateTime(epoch_time) AS "@timestamp"`)
+
+				case "kibana_sample_data_logs":
+					subQueryColumns = append(subQueryColumns, `toDateTime(timestamp) AS "@timestamp"`)
+
+				case "kibana_sample_ecommerce":
+					subQueryColumns = append(subQueryColumns, `toDateTime(order_date) AS "@timestamp"`)
+
+				default:
+					logger.Warn().Msgf("table %s does not have @timestamp column", tableName)
+					// FAKE field for @timestamp
+					subQueryColumns = append(subQueryColumns, "toDateTime('2000-01-01 00:00:00')"+` AS "@timestamp"`)
+				}
 			}
+
+			subQueryColumns = append(subQueryColumns, fmt.Sprintf(`'%s_%d' AS "QUESMA_UNION_TABLE_NAME"`, tableName, i))
+
+			for _, columnName := range columnsInOrder {
+				name := `"` + columnName + `"`
+
+				if _, ok := columns[tableName][columnName]; ok {
+					subQueryColumns = append(subQueryColumns, "toString("+name+") AS "+name)
+				} else {
+					subQueryColumns = append(subQueryColumns, "NULL AS "+name)
+				}
+			}
+
+			q := `SELECT ` + strings.Join(subQueryColumns, ",\n") + ` FROM "` + tableName + `"` + "\n"
+			subQueries = append(subQueries, q)
 		}
-
-		q := `SELECT ` + strings.Join(subQueryColumns, ",\n") + ` FROM "` + tableName + `"` + "\n"
-		subQueries = append(subQueries, q)
 	}
-	createQuery := "CREATE VIEW all_logs AS  \n"
-	createQuery += strings.Join(subQueries, "\n       UNION ALL    \n\n")
+	return strings.Join(subQueries, "\n       UNION ALL    \n\n"), nil
+}
 
-	_, err = db.Exec("DROP VIEW IF EXISTS all_logs")
+func createAllLogs1View(db *sql.DB) error {
+
+	union, err := unionAll(db)
+
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("Creating view all_logs", createQuery)
+	createQuery := "CREATE VIEW all_logs_1 AS  \n" + union
+
+	_, err = db.Exec("DROP VIEW IF EXISTS all_logs_1")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Creating view all_logs_1", createQuery)
 	_, err = db.Exec(createQuery)
 	if err != nil {
 		return err
