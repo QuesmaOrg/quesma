@@ -44,7 +44,7 @@ func (cw *ClickhouseQueryTranslator) parseFilters(queryMap QueryMap) (success bo
 }
 
 func (cw *ClickhouseQueryTranslator) processFiltersAggregation(aggrBuilder *aggrQueryBuilder,
-	aggr bucket_aggregations.Filters, queryMap QueryMap, resultAccumulator *[]model.Query) error {
+	aggr bucket_aggregations.Filters, queryMap QueryMap, resultAccumulator *[]*model.Query) error {
 	whereBeforeNesting := aggrBuilder.whereBuilder
 	aggrBuilder.Aggregators[len(aggrBuilder.Aggregators)-1].Filters = true
 	for _, filter := range aggr.Filters {

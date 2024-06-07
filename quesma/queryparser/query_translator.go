@@ -4,18 +4,16 @@ import (
 	"context"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/kibana"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
+	"mitmproxy/quesma/model/typical_queries"
 	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/queryprocessor"
 	"mitmproxy/quesma/util"
-	"strconv"
-	"time"
 )
 
 const facetsSampleSize = 20000
@@ -54,45 +52,8 @@ func (cw *ClickhouseQueryTranslator) AddTokenToHighlight(token any) {
 
 }
 
-func (cw *ClickhouseQueryTranslator) GetTimestampFieldName() (string, error) {
-	if cw.Table.TimestampColumn != nil {
-		return *cw.Table.TimestampColumn, nil
-	} else {
-		return "", fmt.Errorf("no timestamp field configured for table %s", cw.Table.Name)
-	}
-}
-
 func (cw *ClickhouseQueryTranslator) ClearTokensToHighlight() {
 	cw.tokensToHighlight = []string{}
-}
-
-func (cw *ClickhouseQueryTranslator) addAndHighlightHit(hit *model.SearchHit, highlighter model.Highlighter, resultRow model.QueryResultRow) {
-	for _, col := range resultRow.Cols {
-		if col.Value == nil {
-			continue // We don't return empty value
-		}
-		hit.Fields[col.ColName] = []interface{}{col.Value}
-		if highlighter.ShouldHighlight(col.ColName) {
-			// check if we have a string here and if so, highlight it
-			switch valueAsString := col.Value.(type) {
-			case string:
-				hit.Highlight[col.ColName] = highlighter.HighlightValue(valueAsString)
-			case *string:
-				if valueAsString != nil {
-					hit.Highlight[col.ColName] = highlighter.HighlightValue(*valueAsString)
-				}
-			default:
-				logger.WarnWithCtx(cw.Ctx).Msgf("unknown type for hit highlighting: %T, value: %v", col.Value, col.Value)
-			}
-		}
-	}
-
-	// TODO: highlight and field checks
-	for _, alias := range cw.Table.AliasList() {
-		if v, ok := hit.Fields[alias.TargetFieldName]; ok {
-			hit.Fields[alias.SourceFieldName] = v
-		}
-	}
 }
 
 func emptySearchResponse() model.SearchResp {
@@ -123,206 +84,8 @@ func EmptyAsyncSearchResponse(id string, isPartial bool, completionStatus int) (
 	return asyncSearchResp.Marshal() // error should never ever happen here
 }
 
-func (cw *ClickhouseQueryTranslator) MakeSearchResponse(ResultSet []model.QueryResultRow, query model.Query) (*model.SearchResp, error) {
-	switch query.QueryInfoType {
-	case model.Facets, model.FacetsNumeric:
-		return cw.makeSearchResponseFacets(ResultSet, query.QueryInfoType), nil
-	case model.ListByField, model.ListAllFields, model.Normal:
-		return cw.makeSearchResponseList(ResultSet, query.QueryInfoType, query.Highlighter, query.OrderByFieldNames()), nil
-	default:
-		return nil, fmt.Errorf("unknown SearchQueryType: %v", query.QueryInfoType)
-	}
-}
-
-func (cw *ClickhouseQueryTranslator) makeSearchResponseFacets(ResultSet []model.QueryResultRow, typ model.SearchQueryType) *model.SearchResp {
-	const maxFacets = 10 // facets show only top 10 values
-	bucketsNr := min(len(ResultSet), maxFacets)
-	buckets := make([]JsonMap, 0, bucketsNr)
-	returnedRowsNr := 0
-	var sampleCount uint64
-
-	// Let's make the following branching only for tests' sake. In production, we always have uint64,
-	// but go-sqlmock can only return int64, so let's keep it like this for now.
-	// Normally, only 'uint64' case would be needed.
-
-	// Not checking for cast errors here, they may be a lot of them, and error should never happen.
-	// One of the better place to allow panic, I think.
-	if bucketsNr > 0 {
-		switch ResultSet[0].Cols[model.ResultColDocCountIndex].Value.(type) {
-		case int64:
-			for i, row := range ResultSet[:bucketsNr] {
-				buckets = append(buckets, make(JsonMap))
-				for _, col := range row.Cols {
-					buckets[i][col.ColName] = col.Value
-				}
-				returnedRowsNr += int(row.Cols[model.ResultColDocCountIndex].Value.(int64))
-			}
-			for _, row := range ResultSet {
-				sampleCount += uint64(row.Cols[model.ResultColDocCountIndex].Value.(int64))
-			}
-		case uint64:
-			for i, row := range ResultSet[:bucketsNr] {
-				buckets = append(buckets, make(JsonMap))
-				for _, col := range row.Cols {
-					buckets[i][col.ColName] = col.Value
-				}
-				returnedRowsNr += int(row.Cols[model.ResultColDocCountIndex].Value.(uint64))
-			}
-			for _, row := range ResultSet {
-				sampleCount += row.Cols[model.ResultColDocCountIndex].Value.(uint64)
-			}
-		default:
-			logger.WarnWithCtx(cw.Ctx).Msgf("unknown type for facets doc_count: %T, value: %v",
-				ResultSet[0].Cols[model.ResultColDocCountIndex].Value, ResultSet[0].Cols[model.ResultColDocCountIndex].Value)
-		}
-	}
-
-	aggregations := JsonMap{
-		"sample": JsonMap{
-			"doc_count": int(sampleCount),
-			"sample_count": JsonMap{
-				"value": int(sampleCount),
-			},
-			"top_values": JsonMap{
-				"buckets":                     buckets,
-				"sum_other_doc_count":         int(sampleCount) - returnedRowsNr,
-				"doc_count_error_upper_bound": 0,
-			},
-		},
-	}
-
-	if typ == model.FacetsNumeric {
-		firstNotNullValueIndex := 0
-		for i, row := range ResultSet {
-			if row.Cols[model.ResultColKeyIndex].Value != nil {
-				firstNotNullValueIndex = i
-				break
-			}
-		}
-		if firstNotNullValueIndex == len(ResultSet) {
-			aggregations["sample"].(JsonMap)["min_value"] = nil
-			aggregations["sample"].(JsonMap)["max_value"] = nil
-		} else {
-			// Loops below might be a bit slow, as we check types in every iteration.
-			// If we see performance issues, we might do separate loop for each type, but it'll be a lot of copy-paste.
-			switch ResultSet[firstNotNullValueIndex].Cols[model.ResultColKeyIndex].Value.(type) {
-			case int64, uint64, *int64, *uint64, int8, uint8, *int8, *uint8, int16, uint16, *int16, *uint16, int32, uint32, *int32, *uint32:
-				firstNotNullValue := util.ExtractInt64(ResultSet[firstNotNullValueIndex].Cols[model.ResultColKeyIndex].Value)
-				minValue, maxValue := firstNotNullValue, firstNotNullValue
-				for _, row := range ResultSet[firstNotNullValueIndex+1:] {
-					if row.Cols[model.ResultColKeyIndex].Value != nil {
-						value := util.ExtractInt64(row.Cols[model.ResultColKeyIndex].Value)
-						maxValue = max(maxValue, value)
-						minValue = min(minValue, value)
-					}
-				}
-				aggregations["sample"].(JsonMap)["min_value"] = JsonMap{"value": minValue}
-				aggregations["sample"].(JsonMap)["max_value"] = JsonMap{"value": maxValue}
-			case float64, *float64, float32, *float32:
-				firstNotNullValue := util.ExtractFloat64(ResultSet[firstNotNullValueIndex].Cols[model.ResultColKeyIndex].Value)
-				minValue, maxValue := firstNotNullValue, firstNotNullValue
-				for _, row := range ResultSet[firstNotNullValueIndex+1:] {
-					if row.Cols[model.ResultColKeyIndex].Value != nil {
-						value := util.ExtractFloat64(row.Cols[model.ResultColKeyIndex].Value)
-						maxValue = max(maxValue, value)
-						minValue = min(minValue, value)
-					}
-				}
-				aggregations["sample"].(JsonMap)["min_value"] = JsonMap{"value": minValue}
-				aggregations["sample"].(JsonMap)["max_value"] = JsonMap{"value": maxValue}
-			default:
-				logger.WarnWithCtx(cw.Ctx).Msgf("unknown type for numeric facet: %T, value: %v",
-					ResultSet[0].Cols[model.ResultColKeyIndex].Value, ResultSet[0].Cols[model.ResultColKeyIndex].Value)
-				aggregations["sample"].(JsonMap)["min_value"] = JsonMap{"value": nil}
-				aggregations["sample"].(JsonMap)["max_value"] = JsonMap{"value": nil}
-			}
-		}
-	}
-
-	return &model.SearchResp{
-		Aggregations: aggregations,
-		Hits: model.SearchHits{
-			Hits: []model.SearchHit{}, // seems redundant, but can't remove this, created JSON won't match
-			Total: &model.Total{
-				Value:    int(sampleCount),
-				Relation: "eq",
-			},
-		},
-		Shards: model.ResponseShards{
-			Total:      1,
-			Successful: 1,
-			Failed:     0,
-		},
-	}
-}
-
-func (cw *ClickhouseQueryTranslator) computeIdForDocument(doc model.SearchHit, defaultID string) string {
-	tsFieldName, err := cw.GetTimestampFieldName()
-	if err != nil {
-		return defaultID
-	}
-
-	var pseudoUniqueId string
-
-	if v, ok := doc.Fields[tsFieldName]; ok {
-		if vv, okk := v[0].(time.Time); okk {
-			// At database level we only compare timestamps with millisecond precision
-			// However in search results we append `q` plus generated digits (we use q because it's not in hex)
-			// so that kibana can iterate over documents in UI
-			pseudoUniqueId = fmt.Sprintf("%xq%s", vv, defaultID)
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("failed to convert timestamp field [%v] to time.Time", v[0])
-			return defaultID
-		}
-	}
-	return pseudoUniqueId
-}
-
-func (cw *ClickhouseQueryTranslator) makeSearchResponseList(ResultSet []model.QueryResultRow, typ model.SearchQueryType, highlighter model.Highlighter, sortFieldNames []string) *model.SearchResp {
-	hits := make([]model.SearchHit, len(ResultSet))
-	for i := range ResultSet {
-		hits[i].Fields = make(map[string][]interface{})
-		hits[i].Highlight = make(map[string][]string)
-		hits[i].Index = cw.Table.Name
-		if typ == model.ListAllFields {
-			hits[i].Score = 1
-			hits[i].Version = 1
-		}
-		if typ == model.Normal {
-			hits[i].Source = []byte(ResultSet[i].String(cw.Ctx))
-		}
-		cw.addAndHighlightHit(&hits[i], highlighter, ResultSet[i])
-		hits[i].ID = cw.computeIdForDocument(hits[i], strconv.Itoa(i+1))
-		for _, fieldName := range sortFieldNames {
-			if val, ok := hits[i].Fields[fieldName]; ok {
-				hits[i].Sort = append(hits[i].Sort, elasticsearch.FormatSortValue(val[0]))
-			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("field %s not found in fields", fieldName)
-			}
-		}
-	}
-
-	return &model.SearchResp{
-		Hits: model.SearchHits{
-			Total: &model.Total{
-				Value:    len(ResultSet),
-				Relation: "eq",
-			},
-			Hits: hits,
-		},
-		Shards: model.ResponseShards{
-			Total:      1,
-			Successful: 1,
-			Failed:     0,
-		},
-	}
-}
-
-func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.QueryResultRow, query model.Query, asyncRequestIdStr string, isPartial bool) (*model.AsyncSearchEntireResp, error) {
-	searchResponse, err := cw.MakeSearchResponse(ResultSet, query)
-	if err != nil {
-		return nil, err
-	}
+func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.QueryResultRow, query *model.Query, asyncRequestIdStr string, isPartial bool) (*model.AsyncSearchEntireResp, error) {
+	searchResponse := cw.MakeSearchResponse([]*model.Query{query}, [][]model.QueryResultRow{ResultSet})
 	id := new(string)
 	*id = asyncRequestIdStr
 	response := model.AsyncSearchEntireResp{
@@ -337,7 +100,7 @@ func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.Q
 	return &response, nil
 }
 
-func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponseMarshalled(ResultSet []model.QueryResultRow, query model.Query, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
+func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponseMarshalled(ResultSet []model.QueryResultRow, query *model.Query, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
 	response, err := cw.MakeAsyncSearchResponse(ResultSet, query, asyncRequestIdStr, isPartial)
 	if err != nil {
 		return nil, err
@@ -345,7 +108,7 @@ func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponseMarshalled(ResultSet
 	return response.Marshal()
 }
 
-func (cw *ClickhouseQueryTranslator) finishMakeResponse(query model.Query, ResultSet []model.QueryResultRow, level int) []model.JsonMap {
+func (cw *ClickhouseQueryTranslator) finishMakeResponse(query *model.Query, ResultSet []model.QueryResultRow, level int) []model.JsonMap {
 	// fmt.Println("FinishMakeResponse", query, ResultSet, level, query.Type.String())
 	if query.Type.IsBucketAggregation() {
 		return query.Type.TranslateSqlResponseToJson(ResultSet, level)
@@ -362,7 +125,7 @@ func (cw *ClickhouseQueryTranslator) finishMakeResponse(query model.Query, Resul
 // DFS algorithm
 // 'aggregatorsLevel' - index saying which (sub)aggregation we're handling
 // 'selectLevel' - which field from select we're grouping by at current level (or not grouping by, if query.Aggregators[aggregatorsLevel].Empty == true)
-func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query model.Query,
+func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *model.Query,
 	ResultSet []model.QueryResultRow, aggregatorsLevel, selectLevel int) []model.JsonMap {
 
 	if len(ResultSet) == 0 {
@@ -435,7 +198,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 }
 
 // addMetadataIfNeeded adds metadata to the `result` dictionary, if needed.
-func (cw *ClickhouseQueryTranslator) addMetadataIfNeeded(query model.Query, result model.JsonMap, aggregatorsLevel int) (added bool) {
+func (cw *ClickhouseQueryTranslator) addMetadataIfNeeded(query *model.Query, result model.JsonMap, aggregatorsLevel int) (added bool) {
 	if query.Metadata == nil {
 		return false
 	}
@@ -451,16 +214,17 @@ func (cw *ClickhouseQueryTranslator) addMetadataIfNeeded(query model.Query, resu
 	return false
 }
 
-func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []model.Query, ResultSets [][]model.QueryResultRow) model.JsonMap {
+func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) model.JsonMap {
 	aggregations := model.JsonMap{}
 	if len(queries) == 0 {
 		return aggregations
 	}
 	cw.postprocessPipelineAggregations(queries, ResultSets)
 	for i, query := range queries {
-		if i >= len(ResultSets) {
+		if i >= len(ResultSets) || query_util.IsNonAggregationQuery(query) {
 			continue
 		}
+		fmt.Println(i, query.Type, query)
 		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
 		if len(aggregation) != 0 {
 			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0]) // result of root node is always a single map, thus [0]
@@ -469,18 +233,44 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []mod
 	return aggregations
 }
 
-func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
-	hits := []model.SearchHit{}
+func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
+	var hitsQuery *model.Query
+	var hitsResultSet []model.QueryResultRow
+
 	// Process hits as last aggregation
-	if len(queries) > 0 && len(ResultSets) > 0 && queries[len(queries)-1].IsWildcard() {
-		response := cw.makeSearchResponseList(ResultSets[len(ResultSets)-1], model.Normal, queries[len(queries)-1].Highlighter, queries[len(queries)-1].OrderByFieldNames())
-		hits = response.Hits.Hits
+	if len(queries) > 0 && len(ResultSets) > 0 && query_util.IsNonAggregationQuery(queries[len(queries)-1]) {
+		hitsQuery = queries[len(queries)-1]
+		hitsResultSet = ResultSets[len(ResultSets)-1]
+
 		queries = queries[:len(queries)-1]
 		ResultSets = ResultSets[:len(ResultSets)-1]
+	} else {
+		hitsResultSet = make([]model.QueryResultRow, 0)
 	}
 
+	var highlighter *model.Highlighter
+	var orderByFieldNames []string
+	if hitsQuery != nil {
+		highlighter = &hitsQuery.Highlighter
+		orderByFieldNames = hitsQuery.OrderByFieldNames()
+	}
+
+	// TODO it should be created during parsing, like aggregations
+	hits := typical_queries.NewHits(cw.Ctx, cw.Table, highlighter, orderByFieldNames, true, false, false)
+	hitsPartOfResponse := hits.TranslateSqlResponseToJson(hitsResultSet, 0)
+
+	// process count:
+	// a) we have count query -> we're done
+	// b) we have hits or facets -> we're done
+	// c) we don't have above: we return len(biggest resultset(all aggregations))
+
 	var totalCount uint64
-	if len(ResultSets) > 0 && len(ResultSets[0]) > 0 && len(ResultSets[0][0].Cols) > 0 {
+
+	isCount := false
+	if len(queries) > 0 {
+		_, isCount = queries[0].Type.(typical_queries.Count)
+	}
+	if isCount && len(ResultSets) > 0 && len(ResultSets[0]) > 0 && len(ResultSets[0][0].Cols) > 0 { // TODO change for if type == non_aggregation.Count()
 		// TODO: Eventually we should detect whether first column is actual hits
 		// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
 		if val, ok := ResultSets[0][0].Cols[0].Value.(uint64); ok {
@@ -494,26 +284,23 @@ func (cw *ClickhouseQueryTranslator) MakeResponseAggregation(queries []model.Que
 		logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets)
 		totalCount = 0
 	}
-	return &model.SearchResp{
+
+	response := &model.SearchResp{
 		Aggregations: cw.MakeAggregationPartOfResponse(queries, ResultSets),
-		Hits: model.SearchHits{
-			Hits: hits,
-			Total: &model.Total{
-				Value:    int(totalCount), // TODO just change this to uint64? It works now.
-				Relation: "eq",
-			},
-		},
 		Shards: model.ResponseShards{
 			Total:      1,
 			Successful: 1,
 			Failed:     0,
 		},
 	}
-}
-
-func (cw *ClickhouseQueryTranslator) MakeResponseAggregationMarshalled(queries []model.Query, ResultSets [][]model.QueryResultRow) ([]byte, error) {
-	response := cw.MakeResponseAggregation(queries, ResultSets)
-	return response.Marshal()
+	if hitsTyped, ok := hitsPartOfResponse[0]["hits"].(model.SearchHits); ok {
+		response.Hits = hitsTyped
+		response.Hits.Total = &model.Total{
+			Value:    int(totalCount),
+			Relation: "eq",
+		}
+	}
+	return response
 }
 
 func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncRequestIdStr string, isPartial bool, completionStatus int) *model.AsyncSearchEntireResp {
@@ -530,7 +317,7 @@ func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncRequestI
 	return &response
 }
 
-func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []model.Query, ResultSets [][]model.QueryResultRow) {
+func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []*model.Query, ResultSets [][]model.QueryResultRow) {
 	queryIterationOrder := cw.sortInTopologicalOrder(queries)
 	// fmt.Println("qwerty", queryIterationOrder) let's remove all prints in this function after all pipeline aggregations are merged
 	for _, queryIndex := range queryIterationOrder {
@@ -552,7 +339,7 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []m
 			logger.WarnWithCtx(cw.Ctx).Msgf("parent index not found for query %v", query)
 			continue
 		}
-		ResultSets[queryIndex] = pipelineQueryType.CalculateResultWhenMissing(&query, ResultSets[parentIndex])
+		ResultSets[queryIndex] = pipelineQueryType.CalculateResultWhenMissing(query, ResultSets[parentIndex])
 	}
 }
 
@@ -563,11 +350,18 @@ func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause where_cla
 		FromClause:  model.NewSelectColumnString(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
+		Type:        typical_queries.NewCount(cw.Ctx),
 	}
+	/* TODO
+	if limit, weNeedLimit := query.LimitForCount(); weNeedLimit {
+		fullQuery.Limit = limit
+	}
+	return fullQuery
+	*/
 }
 
-func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query model.SimpleQuery, limit int) *model.Query {
-	return query_util.BuildNRowsQuery(cw.Ctx, cw.Table.FullTableName(), fieldName, query, limit)
+func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query *model.SimpleQuery, limit int) *model.Query {
+	return query_util.BuildHitsQuery(cw.Ctx, cw.Table.FullTableName(), fieldName, query, limit)
 }
 
 func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, whereClause where_clause.Statement, limit int) *model.Query {
@@ -600,8 +394,15 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQuery model.SimpleQuery) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQuery *model.SimpleQuery, isNumeric bool) *model.Query {
 	// FromClause: (SELECT fieldName FROM table WHERE whereClause LIMIT facetsSampleSize)
+	var typ model.QueryType
+	if isNumeric {
+		typ = typical_queries.NewFacetsNumeric(cw.Ctx)
+	} else {
+		typ = typical_queries.NewFacets(cw.Ctx)
+	}
+
 	return &model.Query{
 		Columns: []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
 		GroupBy: []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
@@ -614,6 +415,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 			aexp.String(")"))},
 		TableName: cw.Table.FullTableName(),
 		CanParse:  true,
+		Type:      typ,
 	}
 }
 
@@ -653,7 +455,7 @@ func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMa
 // Probably you can create a query with loops in pipeline aggregations, but you can't do it in Kibana from Visualize view,
 // so I don't handle it here. We won't panic in such case, only log a warning/error + return non-full results, which is expected,
 // as you can't really compute cycled pipeline aggregations.
-func (cw *ClickhouseQueryTranslator) sortInTopologicalOrder(queries []model.Query) []int {
+func (cw *ClickhouseQueryTranslator) sortInTopologicalOrder(queries []*model.Query) []int {
 	nameToIndex := make(map[string]int, len(queries))
 	for i, query := range queries {
 		nameToIndex[query.Name()] = i

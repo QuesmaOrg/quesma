@@ -37,6 +37,10 @@ type SearchHit struct {
 	Sort []any  `json:"sort,omitempty"`
 }
 
+func NewSearchHit(index string) SearchHit {
+	return SearchHit{Index: index, Fields: make(map[string][]interface{}), Highlight: make(map[string][]string)}
+}
+
 type SearchHits struct {
 	Total    *Total      `json:"total,omitempty"`
 	MaxScore *float32    `json:"max_score"`

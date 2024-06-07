@@ -101,7 +101,7 @@ var TestsSearchNoFullTextFields = []SearchTestCase{
 		WantedSql: []string{
 			`(((((false AND false) OR (false AND false)) OR false) AND NOT (false)) AND ("timestamp">='2024-03-26T09:56:02.241Z' AND "timestamp"<='2024-04-10T08:56:02.241Z'))`,
 		},
-		WantedQueryType: model.Normal,
+		WantedQueryType: model.ListAllFields,
 		//WantedQuery: []model.Query{
 		//	justSimplestWhere(`(((((false AND false) OR (false AND false)) OR false) AND NOT (false)) AND ("timestamp">='2024-03-26T09:56:02.241Z' AND "timestamp"<='2024-04-10T08:56:02.241Z'))`),
 		//},
