@@ -90,7 +90,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			return metricsAggr.Fields[0]
 		}
 		logger.ErrorWithCtx(b.ctx).Msg("No field names in metrics aggregation. Using empty.")
-		return model.NewSelectColumnEmpty()
+		return model.SelectColumn{}
 	}
 	getFirstExpression := func() aexp.AExp {
 		return getFirstField().Expression
@@ -843,7 +843,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldField(shouldBeMap any, aggregatio
 	Map, ok := shouldBeMap.(QueryMap)
 	if !ok {
 		logger.WarnWithCtx(cw.Ctx).Msgf("%s aggregation is not a map, but %T, value: %v", aggregationType, shouldBeMap, shouldBeMap)
-		return model.NewSelectColumnEmpty()
+		return model.SelectColumn{}
 	}
 	if fieldRaw, ok := Map["field"]; ok {
 		if field, ok := fieldRaw.(string); ok {
@@ -854,7 +854,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldField(shouldBeMap any, aggregatio
 	} else {
 		logger.WarnWithCtx(cw.Ctx).Msgf("field not found in %s aggregation: %v", aggregationType, Map)
 	}
-	return model.NewSelectColumnEmpty()
+	return model.SelectColumn{}
 }
 
 // parseFieldFieldMaybeScript is basically almost a copy of parseFieldField above, but it also handles a basic script, if "field" is missing.

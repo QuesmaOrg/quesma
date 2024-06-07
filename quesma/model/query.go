@@ -96,10 +96,6 @@ func NewSortByCountColumn(desc bool) SelectColumn {
 	return SelectColumn{Expression: aexp.NewComposite(aexp.Count(), aexp.String(order))}
 }
 
-func NewSelectColumnEmpty() SelectColumn {
-	return SelectColumn{Expression: aexp.Literal("")}
-}
-
 func NewSelectColumnTableField(fieldName string) SelectColumn {
 	return SelectColumn{Expression: aexp.TableColumn(fieldName)}
 }
@@ -295,6 +291,7 @@ func (q *Query) ApplyAliases(cfg map[string]config.IndexConfiguration, resolvedT
 func (q *Query) NewSelectColumnSubselectWithRowNumber(selectFields []SelectColumn, groupByFields []SelectColumn,
 	whereClause string, orderByField string, orderByDesc bool) SelectColumn {
 
+	const additionalArrayLength = 6
 	/* used to be as string:
 	fromSelect := fmt.Sprintf(
 		"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s %s) AS %s FROM %s WHERE %s)",
@@ -303,7 +300,7 @@ func (q *Query) NewSelectColumnSubselectWithRowNumber(selectFields []SelectColum
 	)
 	*/
 
-	fromSelect := make([]aexp.AExp, 0, 2*len(selectFields)+2*len(groupByFields)+6) // +6 without ORDER BY, +8 with ORDER BY
+	fromSelect := make([]aexp.AExp, 0, 2*(len(selectFields)+len(groupByFields))+additionalArrayLength) // +6 without ORDER BY, +8 with ORDER BY
 	fromSelect = append(fromSelect, aexp.String("SELECT"))
 	for _, field := range selectFields {
 		fromSelect = append(fromSelect, field.Expression)
