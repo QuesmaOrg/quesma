@@ -396,12 +396,15 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 	// or we need to go deeper
 	qp := queryprocessor.NewQueryProcessor(cw.Ctx)
 	var bucketsReturnMap []model.JsonMap
-	if query.Aggregators[aggregatorsLevel].Empty {
+	if query.Aggregators[aggregatorsLevel].SplitOverHowManyFields == 0 {
 		bucketsReturnMap = append(bucketsReturnMap, cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel)...)
 	} else {
-		buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+1)
+		// normally it's just 1. It used to be just 1 before multi_terms aggregation, where we usually split over > 1 field
+		weSplitOverHowManyFields := query.Aggregators[aggregatorsLevel].SplitOverHowManyFields
+		buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+weSplitOverHowManyFields)
 		for _, bucket := range buckets {
-			bucketsReturnMap = append(bucketsReturnMap, cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+1)...)
+			bucketsReturnMap = append(bucketsReturnMap,
+				cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)...)
 		}
 	}
 
@@ -419,7 +422,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query mode
 		subResult["buckets"] = bucketsReturnMap[0]
 	} else if query.Aggregators[aggregatorsLevel].Keyed {
 		subResult["buckets"] = bucketsReturnMap[0]
-	} else if query.Aggregators[aggregatorsLevel].Empty {
+	} else if query.Aggregators[aggregatorsLevel].SplitOverHowManyFields == 0 {
 		subResult = bucketsReturnMap[0]
 	} else {
 		subResult["buckets"] = bucketsReturnMap

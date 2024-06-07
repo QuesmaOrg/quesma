@@ -1,6 +1,7 @@
 package quesma
 
 import (
+	"context"
 	"errors"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
@@ -57,31 +58,36 @@ type SchemaCheckPass struct {
 	cfg map[string]config.IndexConfiguration
 }
 
-// Below function handles following elastic search query
-//
-//	{
-//	 "query": {
-//		"term": {
-//		  "clientip": "111.42.223.209/16"
-//		}
-//	 }
-//	}
-//
-// Internally, it converts following sql statement
-// SELECT * FROM "kibana_sample_data_logs" WHERE lhs = rhs
+// This functions trims the db name from the table name if exists
+// We need to do this due to the way we are storing the schema in the config
+// TableMap is indexed by table name, not db.table name
+func getFromTable(fromTable string) string {
+	// cut db name from table name if exists
+	if idx := strings.IndexByte(fromTable, '.'); idx >= 0 {
+		fromTable = fromTable[idx:]
+		fromTable = strings.Trim(fromTable, ".")
+	}
+	return strings.Trim(fromTable, "\"")
+}
+
+// Below function applies schema transformations to the query regarding ip addresses.
+// Internally, it converts sql statement like
+// SELECT * FROM "kibana_sample_data_logs" WHERE lhs op rhs
+// where op is '=' or 'iLIKE'
 // into
 // SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(lhs,'String'),rhs)
 func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query, error) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
 	const CASTPrimitive = "CAST"
 	const StringLiteral = "'String'"
-
 	if query.WhereClause == nil {
 		return query, nil
 	}
 	whereVisitor := &WhereVisitor{}
 	query.WhereClause.Accept(whereVisitor)
-	fromTable := strings.Trim(query.TableName, "\"")
+
+	fromTable := getFromTable(query.TableName)
+
 	mappedType := s.cfg[fromTable].TypeMappings[strings.Trim(whereVisitor.lhs, "\"")]
 	if mappedType != "ip" {
 		return query, nil
@@ -89,10 +95,11 @@ func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query
 	if len(whereVisitor.lhs) == 0 || len(whereVisitor.rhs) == 0 {
 		return query, errors.New("schema transformation failed, lhs or rhs is empty")
 	}
-	if whereVisitor.op != "=" {
+	if whereVisitor.op != "=" && whereVisitor.op != "iLIKE" {
 		logger.Warn().Msg("ip transformation omitted, operator is not =")
 		return query, nil
 	}
+	whereVisitor.rhs = strings.Replace(whereVisitor.rhs, "%", "", -1)
 	transformedWhereClause := &where_clause.Function{
 		Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
 		Args: []where_clause.Statement{
@@ -113,7 +120,9 @@ func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query
 func (s *SchemaCheckPass) Transform(queries []model.Query) ([]model.Query, error) {
 	for k, query := range queries {
 		var err error
+		logger.Info().Msgf("IpTransformation input query: %s", query.String(context.Background()))
 		query, err = s.applyIpTransformations(query)
+		logger.Info().Msgf("IpTransformation output query: %s", query.String(context.Background()))
 		if err != nil {
 			return nil, err
 		}

@@ -62,6 +62,27 @@ func Test_ipRangeTransform(t *testing.T) {
 				Right: &where_clause.Literal{Name: IpFieldContent},
 			},
 		},
+		{
+			FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+			TableName:  "kibana_sample_data_logs",
+			Columns: []model.SelectColumn{{
+				Expression: aexp.Wildcard,
+			},
+			},
+			WhereClause: &where_clause.Function{
+				Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
+				Args: []where_clause.Statement{
+					&where_clause.Function{
+						Name: where_clause.Literal{Name: CASTPrimitive},
+						Args: []where_clause.Statement{
+							&where_clause.Literal{Name: IpFieldName},
+							&where_clause.Literal{Name: StringLiteral},
+						},
+					},
+					&where_clause.Literal{Name: IpFieldContent},
+				},
+			},
+		},
 	}
 
 	queries := [][]model.Query{
@@ -91,6 +112,21 @@ func Test_ipRangeTransform(t *testing.T) {
 				WhereClause: &where_clause.InfixOp{
 					Left:  &where_clause.Literal{Name: IpFieldName},
 					Op:    "<",
+					Right: &where_clause.Literal{Name: IpFieldContent},
+				},
+			},
+		},
+		{
+			{
+				FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+				TableName:  "kibana_sample_data_logs",
+				Columns: []model.SelectColumn{{
+					Expression: aexp.Wildcard,
+				},
+				},
+				WhereClause: &where_clause.InfixOp{
+					Left:  &where_clause.Literal{Name: IpFieldName},
+					Op:    "iLIKE",
 					Right: &where_clause.Literal{Name: IpFieldContent},
 				},
 			},

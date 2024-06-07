@@ -332,15 +332,19 @@ func (q *Query) NewSelectColumnSubselectWithRowNumber(selectFields []SelectColum
 	return SelectColumn{Expression: aexp.Function("", aexp.NewComposite(fromSelect...))}
 }
 
+// Aggregator is always initialized as "empty", so with SplitOverHowManyFields == 0, Keyed == false, Filters == false.
+// It's updated after construction, during further processing of aggregations.
 type Aggregator struct {
-	Name    string
-	Empty   bool // is this aggregator empty, so no buckets
-	Keyed   bool // determines how results are returned in response's JSON
-	Filters bool // if true, this aggregator is a filters aggregator
+	Name                   string
+	SplitOverHowManyFields int  // normally 0 or 1, currently only multi_terms have > 1, as we split over multiple fields on one level.
+	Keyed                  bool // determines how results are returned in response's JSON
+	Filters                bool // if true, this aggregator is a filters aggregator
 }
 
-func NewAggregatorEmpty(name string) Aggregator {
-	return Aggregator{Name: name, Empty: true}
+// NewAggregator (the only constructor) initializes Aggregator as "empty", so with SplitOverHowManyFields == 0, Keyed == false, Filters == false.
+// It's updated after construction, during further processing of aggregations.
+func NewAggregator(name string) Aggregator {
+	return Aggregator{Name: name}
 }
 
 type SearchQueryType int
