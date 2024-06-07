@@ -157,6 +157,20 @@ do_silent_http_post "api/data_views/data_view" '{
 }'
 
 
+
+echo -n "Adding data view All Logs... "
+do_silent_http_post "api/data_views/data_view" '{
+    "data_view": {
+       "name": "All Logs #2",
+       "title": "all_logs_2",
+       "id": "all_logs_2",
+       "timeFieldName": "@timestamp",
+       "allowNoIndex": true
+    },
+    "override": true
+}'
+
+
 echo ""
 
 echo ""

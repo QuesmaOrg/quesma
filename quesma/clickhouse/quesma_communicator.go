@@ -76,7 +76,25 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 
 	}
 
-	rows, err := executeQuery(ctx, lm, query.String(ctx), columns, rowToScan)
+	var selectQuery string
+
+	if table.Name == "all_logs_2" {
+
+		selectQuery = "WITH all_logs_2 AS ("
+		selectQuery = selectQuery + AllLogsUnionSQL
+		selectQuery = selectQuery + ")\n\n"
+
+		innerQuery := query.String(ctx)
+
+		innerQuery = strings.ReplaceAll(innerQuery, `"default"."all_logs_2"`, `all_logs_2`)
+
+		selectQuery = selectQuery + innerQuery
+
+	} else {
+		selectQuery = query.String(ctx)
+	}
+
+	rows, err := executeQuery(ctx, lm, selectQuery, columns, rowToScan)
 
 	if err == nil {
 		for _, row := range rows {

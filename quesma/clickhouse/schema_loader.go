@@ -55,6 +55,11 @@ func (sl *schemaLoader) ReloadTables() {
 					comment := sl.SchemaManagement.tableComment(databaseName, table)
 					createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
 					configuredTables[table] = discoveredTable{columns, indexConfig, comment, createTableQuery}
+
+					if table == "all_logs_1" {
+						configuredTables["all_logs_2"] = discoveredTable{columns, indexConfig, "inline stitched table ", "n/a"}
+					}
+
 				} else {
 					explicitlyDisabledTables = append(explicitlyDisabledTables, table)
 				}

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func unionAll(db *sql.DB) (string, error) {
+func unionAll(db *sql.DB) (string, []string, error) {
 
 	// tableMultiplication := 5
 	// make query to big and raises error:
@@ -22,7 +22,7 @@ func unionAll(db *sql.DB) (string, error) {
 	columns := make(map[string]map[string]int)
 	columnType := make(map[string]map[string]string)
 
-	query := `select column_name, table_name from information_schema.columns where table_schema = 'default' and table_name <> 'all_logs'`
+	query := `select column_name, table_name from information_schema.columns where table_schema = 'default' and table_name <> 'all_logs_1'`
 
 	rows, err := db.Query(query)
 	for rows.Next() {
@@ -30,7 +30,7 @@ func unionAll(db *sql.DB) (string, error) {
 		var columnName, tableName string
 		err = rows.Scan(&columnName, &tableName)
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
 
 		allColumns[columnName] = 1
@@ -44,7 +44,7 @@ func unionAll(db *sql.DB) (string, error) {
 	}
 
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	var columnsInOrder []string
@@ -76,7 +76,7 @@ func unionAll(db *sql.DB) (string, error) {
 
 		var subQueryColumns []string
 		subQueryColumns = append(subQueryColumns, "toDateTime('2000-01-01 00:00:00')"+` AS "@timestamp"`)
-		subQueryColumns = append(subQueryColumns, "'fake'"+` AS "xxx_table_name"`)
+		subQueryColumns = append(subQueryColumns, "'fake'"+` AS QUESMA_UNION_TABLE_NAME`)
 
 		for _, columnName := range columnsInOrder {
 			name := `"` + columnName + `"`
@@ -113,7 +113,7 @@ func unionAll(db *sql.DB) (string, error) {
 				}
 			}
 
-			subQueryColumns = append(subQueryColumns, fmt.Sprintf(`'%s_%d' AS "QUESMA_UNION_TABLE_NAME"`, tableName, i))
+			subQueryColumns = append(subQueryColumns, fmt.Sprintf(`'%s_%d' AS QUESMA_UNION_TABLE_NAME`, tableName, i))
 
 			for _, columnName := range columnsInOrder {
 				name := `"` + columnName + `"`
@@ -129,16 +129,23 @@ func unionAll(db *sql.DB) (string, error) {
 			subQueries = append(subQueries, q)
 		}
 	}
-	return strings.Join(subQueries, "\n       UNION ALL    \n\n"), nil
+	return strings.Join(subQueries, "\n       UNION ALL    \n\n"), columnsInOrder, nil
 }
+
+var AllLogsUnionSQL = ""
+
+var AllLogsColumns []string
 
 func createAllLogs1View(db *sql.DB) error {
 
-	union, err := unionAll(db)
+	union, columns, err := unionAll(db)
 
 	if err != nil {
 		return err
 	}
+
+	AllLogsUnionSQL = union
+	AllLogsColumns = columns
 
 	createQuery := "CREATE VIEW all_logs_1 AS  \n" + union
 
