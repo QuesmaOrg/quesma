@@ -1,6 +1,7 @@
 package quesma
 
 import (
+	"context"
 	"errors"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
@@ -57,6 +58,15 @@ type SchemaCheckPass struct {
 	cfg map[string]config.IndexConfiguration
 }
 
+func getFromTable(fromTable string) string {
+	// cut db name from table name if exists
+	if idx := strings.IndexByte(fromTable, '.'); idx >= 0 {
+		fromTable = fromTable[idx:]
+		fromTable = strings.Trim(fromTable, ".")
+	}
+	return strings.Trim(fromTable, "\"")
+}
+
 // Below function handles following elastic search query
 //
 //	{
@@ -75,19 +85,13 @@ func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
 	const CASTPrimitive = "CAST"
 	const StringLiteral = "'String'"
-
 	if query.WhereClause == nil {
 		return query, nil
 	}
 	whereVisitor := &WhereVisitor{}
 	query.WhereClause.Accept(whereVisitor)
-	// cut db name from table name if exists
-	fromTable := query.FromClause
-	if idx := strings.IndexByte(fromTable, '.'); idx >= 0 {
-		fromTable = fromTable[idx:]
-		fromTable = strings.Trim(fromTable, ".")
-	}
-	fromTable = strings.Trim(fromTable, "\"")
+
+	fromTable := getFromTable(query.FromClause)
 
 	mappedType := s.cfg[fromTable].TypeMappings[strings.Trim(whereVisitor.lhs, "\"")]
 	if mappedType != "ip" {
@@ -121,7 +125,9 @@ func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query
 func (s *SchemaCheckPass) Transform(queries []model.Query) ([]model.Query, error) {
 	for k, query := range queries {
 		var err error
+		logger.Info().Msgf("IpTransformation input query: %s", query.String(context.Background()))
 		query, err = s.applyIpTransformations(query)
+		logger.Info().Msgf("IpTransformation output query: %s", query.String(context.Background()))
 		if err != nil {
 			return nil, err
 		}
