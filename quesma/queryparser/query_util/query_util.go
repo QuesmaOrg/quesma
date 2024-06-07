@@ -26,13 +26,13 @@ func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, qu
 	} else {
 		col = model.SelectColumn{Expression: aexp.TableColumn(fieldName)}
 	}
-
 	return &model.Query{
 		Columns:     []model.SelectColumn{col},
 		WhereClause: query.WhereClause,
 		OrderBy:     query.OrderBy,
 		Limit:       applySizeLimit(ctx, limit),
-		FromClause:  tableName,
+		FromClause:  model.NewSelectColumnString(tableName),
+		TableName:   tableName,
 		CanParse:    true,
 	}
 }

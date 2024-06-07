@@ -8,7 +8,6 @@ package quesma
 
 import (
 	"context"
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"mitmproxy/quesma/clickhouse"
@@ -21,6 +20,7 @@ import (
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/testdata"
 	"mitmproxy/quesma/tracing"
+	"mitmproxy/quesma/util"
 	"testing"
 	"time"
 )
@@ -34,12 +34,8 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			if tt.QueryType == "script" {
 				t.Skip("Only 1 test. We can't deal with scripts inside queries yet. It fails very early, during JSON unmarshalling, so we can't even know the type of aggregation.")
 			}
-			db, _, err := sqlmock.New()
-			if err != nil {
-				t.Fatal(err)
-			}
+			db, _ := util.InitSqlMockWithPrettyPrint(t)
 			defer db.Close()
-			assert.NoError(t, err)
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
 			cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
@@ -89,12 +85,8 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 		testCounts[randInt]++
 	}
 
-	db, _, err := sqlmock.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	db, _ := util.InitSqlMockWithPrettyPrint(t)
 	defer db.Close()
-	assert.NoError(t, err)
 
 	lm := clickhouse.NewLogManagerWithConnection(db, table)
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}

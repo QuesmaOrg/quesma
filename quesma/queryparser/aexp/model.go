@@ -144,7 +144,7 @@ type AExpVisitor interface {
 	VisitFunction(e FunctionExp) interface{}
 	VisitMultiFunction(e MultiFunctionExp) interface{}
 	VisitLiteral(l LiteralExp) interface{}
-	VisitString(l StringExp) interface{}
+	VisitString(e StringExp) interface{}
 	VisitComposite(e CompositeExp) interface{}
 	VisitInfix(e InfixExp) interface{}
 	VisitSQL(s SQL) interface{}

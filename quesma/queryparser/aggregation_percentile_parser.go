@@ -3,6 +3,7 @@ package queryparser
 import (
 	"fmt"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/model"
 )
 
 const maxPrecision = 0.999999
@@ -19,8 +20,8 @@ var defaultPercentiles = map[string]float64{
 
 const keyedDefaultValue = true
 
-func (cw *ClickhouseQueryTranslator) parsePercentilesAggregation(queryMap QueryMap) (fieldName string, keyed bool, percentiles map[string]float64) {
-	fieldName = cw.parseFieldField(queryMap, "percentile")
+func (cw *ClickhouseQueryTranslator) parsePercentilesAggregation(queryMap QueryMap) (field model.SelectColumn, keyed bool, percentiles map[string]float64) {
+	field = cw.parseFieldField(queryMap, "percentile")
 	if keyedQueryMap, ok := queryMap["keyed"]; ok {
 		if keyed, ok = keyedQueryMap.(bool); !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("keyed specified for percentiles aggregation is not a boolean. Querymap: %v", queryMap)
@@ -32,12 +33,12 @@ func (cw *ClickhouseQueryTranslator) parsePercentilesAggregation(queryMap QueryM
 
 	percents, ok := queryMap["percents"]
 	if !ok {
-		return fieldName, keyed, defaultPercentiles
+		return field, keyed, defaultPercentiles
 	}
 	userInput, ok := percents.([]interface{})
 	if !ok {
 		logger.WarnWithCtx(cw.Ctx).Msgf("percents specified for percentiles aggregation is not an array. Querymap: %v", queryMap)
-		return fieldName, keyed, defaultPercentiles
+		return field, keyed, defaultPercentiles
 	}
 	userSpecifiedPercents := make(map[string]float64, len(userInput))
 	for _, p := range userInput {
@@ -53,5 +54,5 @@ func (cw *ClickhouseQueryTranslator) parsePercentilesAggregation(queryMap QueryM
 		}
 		userSpecifiedPercents[asString] = asFloat
 	}
-	return fieldName, keyed, userSpecifiedPercents
+	return field, keyed, userSpecifiedPercents
 }

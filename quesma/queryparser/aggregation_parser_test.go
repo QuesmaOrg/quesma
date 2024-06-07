@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/testdata"
@@ -156,9 +157,10 @@ var aggregationTests = []struct {
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
 			`SELECT "FlightDelayType", count() FROM ` + tableNameQuoted + ` GROUP BY "FlightDelayType" ORDER BY "FlightDelayType"`,
-			"SELECT \"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000), count() FROM " + tableNameQuoted + " " +
-				"GROUP BY \"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000) " +
-				"ORDER BY \"FlightDelayType\", toInt64(toUnixTimestamp64Milli(`timestamp`)/10800000)",
+			`SELECT "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000), count() ` +
+				`FROM ` + tableNameQuoted + " " +
+				`GROUP BY "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000) ` +
+				`ORDER BY "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000)`,
 		},
 	},
 	{ // [3]
@@ -304,15 +306,15 @@ var aggregationTests = []struct {
 			`SELECT "OriginAirportID", "DestAirportID", count() FROM ` + tableNameQuoted + ` ` +
 				`GROUP BY "OriginAirportID", "DestAirportID" ORDER BY "OriginAirportID", "DestAirportID"`,
 			`SELECT "OriginAirportID", "DestAirportID", "DestLocation" ` +
-				`FROM (SELECT "DestLocation", ROW_NUMBER() ` +
-				`OVER (PARTITION BY "OriginAirportID", "DestAirportID") AS row_number ` +
+				`FROM (SELECT "DestLocation" , ROW_NUMBER() ` +
+				`OVER (PARTITION BY "OriginAirportID" , "DestAirportID" ) AS 'row_number' ` +
 				`FROM "logs-generic-default") ` +
 				`WHERE "row_number"<=1 ` +
 				`GROUP BY "OriginAirportID", "DestAirportID" ` +
 				`ORDER BY "OriginAirportID", "DestAirportID"`,
 			`SELECT "OriginAirportID", "OriginLocation", "Origin" ` +
-				`FROM (SELECT "OriginLocation", "Origin", ROW_NUMBER() ` +
-				`OVER (PARTITION BY "OriginAirportID") AS row_number ` +
+				`FROM (SELECT "OriginLocation" , "Origin" , ROW_NUMBER() ` +
+				`OVER (PARTITION BY "OriginAirportID" ) AS 'row_number' ` +
 				`FROM "logs-generic-default") ` +
 				`WHERE "row_number"<=1 ` +
 				`GROUP BY "OriginAirportID" ` +
@@ -352,9 +354,10 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
-			`SELECT "category", ` + "toInt64(toUnixTimestamp64Milli(`order_date`)/86400000), count() FROM " + tableNameQuoted + ` ` +
-				`GROUP BY "category", ` + "toInt64(toUnixTimestamp64Milli(`order_date`)/86400000) " +
-				`ORDER BY "category", ` + "toInt64(toUnixTimestamp64Milli(`order_date`)/86400000)",
+			`SELECT "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000), count() ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`GROUP BY "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000) ` +
+				`ORDER BY "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000)`,
 			`SELECT "category", count() FROM ` + tableNameQuoted + ` GROUP BY "category" ORDER BY "category"`,
 		},
 	},
@@ -476,31 +479,31 @@ var aggregationTests = []struct {
 		[]string{
 			`SELECT count() FROM ` + tableNameQuoted,
 			`SELECT count() FROM ` + tableNameQuoted + ` WHERE "taxful_total_price" > '250'`,
-			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), " +
+			`SELECT toInt64(toUnixTimestamp64Milli("order_date") / 43200000), ` +
 				`maxOrNull("order_date") AS "windowed_order_date", maxOrNull("order_date") AS "windowed_order_date" ` +
-				`FROM (SELECT "order_date", "order_date", ROW_NUMBER() OVER ` +
-				"(PARTITION BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
-				`ORDER BY "order_date" asc) AS row_number ` +
+				`FROM (SELECT "order_date" , "order_date" , ROW_NUMBER() OVER ` +
+				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
+				`ORDER BY "order_date" ASC ) AS 'row_number' ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`WHERE "taxful_total_price" > '250') ` +
 				`WHERE ("taxful_total_price" > '250' AND "row_number"<=10) ` +
-				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
-				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)",
-			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), " +
+				`GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
+				`ORDER BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000)`,
+			`SELECT toInt64(toUnixTimestamp64Milli("order_date") / 43200000), ` +
 				`maxOrNull("taxful_total_price") AS "windowed_taxful_total_price", maxOrNull("order_date") AS "windowed_order_date" ` +
-				`FROM (SELECT "taxful_total_price", "order_date", ROW_NUMBER() OVER ` +
-				"(PARTITION BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
-				`ORDER BY "order_date" asc) AS row_number ` +
+				`FROM (SELECT "taxful_total_price" , "order_date" , ROW_NUMBER() OVER ` +
+				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
+				`ORDER BY "order_date" ASC ) AS 'row_number' ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`WHERE "taxful_total_price" > '250') ` +
 				`WHERE ("taxful_total_price" > '250' AND "row_number"<=10) ` +
-				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
-				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)",
-			"SELECT toInt64(toUnixTimestamp64Milli(`order_date`)/43200000), count() " +
+				`GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
+				`ORDER BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000)`,
+			`SELECT toInt64(toUnixTimestamp64Milli("order_date") / 43200000), count() ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`WHERE "taxful_total_price" > '250' ` +
-				"GROUP BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000) " +
-				"ORDER BY toInt64(toUnixTimestamp64Milli(`order_date`)/43200000)",
+				`GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
+				`ORDER BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000)`,
 		},
 	},
 	{ // [12]
@@ -717,26 +720,30 @@ func Test_parseFieldFromScriptField(t *testing.T) {
 	goodQueryMap := func(sourceField string) QueryMap {
 		return QueryMap{"script": QueryMap{"source": sourceField}}
 	}
+
+	empty := model.SelectColumn{}
 	testcases := []struct {
 		queryMap        QueryMap
-		expectedMatch   string
+		expectedMatch   model.SelectColumn
 		expectedSuccess bool
 	}{
-		{goodQueryMap("doc['field1'].value.getHour()"), "field1", true},
-		{goodQueryMap("doc['field1'].value.getHour() + doc['field2'].value.getHour()"), "", false},
-		{goodQueryMap("doc['field1'].value.hourOfDay"), "field1", true},
-		{goodQueryMap("doc['field1'].value"), "", false},
-		{goodQueryMap("value.getHour() + doc['field2'].value.getHour()"), "", false},
-		{QueryMap{}, "", false},
-		{QueryMap{"script": QueryMap{}}, "", false},
-		{QueryMap{"script": QueryMap{"source": ""}}, "", false},
-		{QueryMap{"script": "script"}, "", false},
-		{QueryMap{"script": QueryMap{"source": 1}}, "", false},
+		{goodQueryMap("doc['field1'].value.getHour()"),
+			model.SelectColumn{Expression: aexp.Function("toHour", aexp.TableColumnExp{ColumnName: "field1"})}, true},
+		{goodQueryMap("doc['field1'].value.getHour() + doc['field2'].value.getHour()"), empty, false},
+		{goodQueryMap("doc['field1'].value.hourOfDay"),
+			model.SelectColumn{Expression: aexp.Function("toHour", aexp.TableColumnExp{ColumnName: "field1"})}, true},
+		{goodQueryMap("doc['field1'].value"), empty, false},
+		{goodQueryMap("value.getHour() + doc['field2'].value.getHour()"), empty, false},
+		{QueryMap{}, empty, false},
+		{QueryMap{"script": QueryMap{}}, empty, false},
+		{QueryMap{"script": QueryMap{"source": empty}}, empty, false},
+		{QueryMap{"script": "script"}, empty, false},
+		{QueryMap{"script": QueryMap{"source": 1}}, empty, false},
 	}
 	cw := ClickhouseQueryTranslator{Ctx: context.Background()}
 	for _, tc := range testcases {
-		fieldName, success := cw.parseFieldFromScriptField(tc.queryMap)
+		field, success := cw.parseFieldFromScriptField(tc.queryMap)
 		assert.Equal(t, tc.expectedSuccess, success)
-		assert.Equal(t, tc.expectedMatch, fieldName)
+		assert.Equal(t, tc.expectedMatch, field)
 	}
 }

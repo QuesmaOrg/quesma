@@ -31,15 +31,16 @@ type (
 		Columns     []SelectColumn         // Columns to select, including aliases
 		GroupBy     []SelectColumn         // if not empty, we do GROUP BY GroupBy...
 		OrderBy     []SelectColumn         // if not empty, we do ORDER BY OrderBy...
+		FromClause  SelectColumn           // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
 		WhereClause where_clause.Statement // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
 		Limit       int                    // LIMIT clause, noLimit (0) means no limit
 
-		FromClause string // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
-		CanParse   bool   // true <=> query is valid
+		CanParse bool // true <=> query is valid
 
 		// Eventually we should merge this two
 		QueryInfoType SearchQueryType
 		Type          QueryType
+		TableName     string
 
 		Highlighter Highlighter
 		NoDBQuery   bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
@@ -95,6 +96,14 @@ func NewSortByCountColumn(desc bool) SelectColumn {
 	return SelectColumn{Expression: aexp.NewComposite(aexp.Count(), aexp.String(order))}
 }
 
+func NewSelectColumnTableField(fieldName string) SelectColumn {
+	return SelectColumn{Expression: aexp.TableColumn(fieldName)}
+}
+
+func NewSelectColumnString(s string) SelectColumn {
+	return SelectColumn{Expression: aexp.StringExp{Value: s}}
+}
+
 func (c SelectColumn) SQL() string {
 
 	if c.Expression == nil {
@@ -126,7 +135,6 @@ var NoMetadataField JsonMap = nil
 
 // returns string with SQL query
 func (q *Query) String(ctx context.Context) string {
-
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
 	if q.IsDistinct {
@@ -147,7 +155,7 @@ func (q *Query) String(ctx context.Context) string {
 	sb.WriteString(strings.Join(columns, ", "))
 
 	sb.WriteString(" FROM ")
-	sb.WriteString(q.FromClause)
+	sb.WriteString(q.FromClause.SQL())
 
 	if q.WhereClause != nil {
 		sb.WriteString(" WHERE ")
@@ -277,6 +285,51 @@ func (q *Query) ApplyAliases(cfg map[string]config.IndexConfiguration, resolvedT
 	} else { // no aliases for fields this table configured
 		return
 	}
+}
+
+// TODO change whereClause type string -> some typed
+func (q *Query) NewSelectColumnSubselectWithRowNumber(selectFields []SelectColumn, groupByFields []SelectColumn,
+	whereClause string, orderByField string, orderByDesc bool) SelectColumn {
+
+	const additionalArrayLength = 6
+	/* used to be as string:
+	fromSelect := fmt.Sprintf(
+		"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s %s) AS %s FROM %s WHERE %s)",
+			fieldsAsString, fieldsAsString, orderField, asc/desc,
+			model.RowNumberColumnName, query.FromClause, b.whereBuilder.WhereClauseAsString(),
+	)
+	*/
+
+	fromSelect := make([]aexp.AExp, 0, 2*(len(selectFields)+len(groupByFields))+additionalArrayLength) // +6 without ORDER BY, +8 with ORDER BY
+	fromSelect = append(fromSelect, aexp.String("SELECT"))
+	for _, field := range selectFields {
+		fromSelect = append(fromSelect, field.Expression)
+		fromSelect = append(fromSelect, aexp.String(","))
+	}
+
+	// Maybe keep this ROW_NUMBER as SelectColumn? It'd introduce some problems, because it's not in schema.
+	// Sticking to simpler solution now.
+	fromSelect = append(fromSelect, aexp.String("ROW_NUMBER() OVER (PARTITION BY"))
+	for i, field := range groupByFields {
+		fromSelect = append(fromSelect, field.Expression)
+		if i != len(groupByFields)-1 {
+			fromSelect = append(fromSelect, aexp.String(","))
+		}
+	}
+	if orderByField != "" {
+		fromSelect = append(fromSelect, aexp.String("ORDER BY"))
+		fromSelect = append(fromSelect, NewSortColumn(orderByField, orderByDesc).Expression)
+	}
+	fromSelect = append(fromSelect, aexp.String(") AS"))
+	fromSelect = append(fromSelect, aexp.Literal(RowNumberColumnName))
+	fromSelect = append(fromSelect, aexp.String("FROM"))
+	fromSelect = append(fromSelect, q.FromClause.Expression)
+
+	if whereClause != "" {
+		fromSelect = append(fromSelect, aexp.String("WHERE "+whereClause))
+	}
+
+	return SelectColumn{Expression: aexp.Function("", aexp.NewComposite(fromSelect...))}
 }
 
 // Aggregator is always initialized as "empty", so with SplitOverHowManyFields == 0, Keyed == false, Filters == false.

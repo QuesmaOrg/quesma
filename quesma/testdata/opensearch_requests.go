@@ -84,12 +84,12 @@ var OpensearchSearchTests = []SearchTestCase{
 			"SELECT count() FROM " + QuotedTableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +
 				`AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z'))`,
-			"SELECT toInt64(toUnixTimestamp64Milli(`-@timestamp`)/30000), count() " +
+			`SELECT toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000), count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +
 				`AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z')) ` +
-				"GROUP BY toInt64(toUnixTimestamp64Milli(`-@timestamp`)/30000) " +
-				"ORDER BY toInt64(toUnixTimestamp64Milli(`-@timestamp`)/30000)",
+				`GROUP BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000) ` +
+				`ORDER BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000)`,
 			`SELECT.*"-@bytes".*FROM ` + QuotedTableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +
 				`AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z')) ` +
@@ -175,11 +175,11 @@ var OpensearchSearchTests = []SearchTestCase{
 			"SELECT count() FROM " + QuotedTableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +
 				`AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z'))`,
-			"SELECT toInt64(toUnixTimestamp64Milli(`-@timestamp`)/30000), count() FROM " + QuotedTableName + ` ` +
+			`SELECT toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000), count() FROM ` + QuotedTableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +
 				`AND "-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z')) ` +
-				"GROUP BY toInt64(toUnixTimestamp64Milli(`-@timestamp`)/30000) " +
-				"ORDER BY toInt64(toUnixTimestamp64Milli(`-@timestamp`)/30000)",
+				`GROUP BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000) ` +
+				`ORDER BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 30000)`,
 		},
 	},
 }

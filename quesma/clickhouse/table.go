@@ -181,6 +181,13 @@ func (t *Table) GetDateTimeType(ctx context.Context, fieldName string) DateTimeT
 	return Invalid
 }
 
+func (t *Table) GetDateTimeTypeFromSelectColumn(ctx context.Context, col model.SelectColumn) DateTimeType {
+	if exp, ok := col.Expression.(aexp.TableColumnExp); ok {
+		return t.GetDateTimeType(ctx, exp.ColumnName)
+	}
+	return Invalid
+}
+
 // applyIndexConfig applies full text search and alias configuration to the table
 func (t *Table) applyIndexConfig(configuration config.QuesmaConfiguration) {
 	for _, c := range t.Cols {

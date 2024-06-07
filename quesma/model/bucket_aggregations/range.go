@@ -6,6 +6,7 @@ import (
 	"math"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/queryparser/aexp"
 	wc "mitmproxy/quesma/queryparser/where_clause"
 	"strconv"
 	"strings"
@@ -30,28 +31,34 @@ func (interval Interval) String() string {
 }
 
 // ToSQLSelectQuery returns count(...) where ... is a condition for the interval, just like we want it in SQL's SELECT
-func (interval Interval) ToSQLSelectQuery(quotedFieldName string) string {
-	var sqlLeft, sqlRight, sql string
+func (interval Interval) ToSQLSelectQuery(col model.SelectColumn) model.SelectColumn {
+	var sqlLeft, sqlRight, sql aexp.AExp
 	if !interval.IsOpeningBoundInfinite() {
-		sqlLeft = quotedFieldName + ">=" + strconv.FormatFloat(interval.Begin, 'f', -1, 64)
+		sqlLeft = aexp.Infix(col.Expression, ">=", aexp.Literal(interval.Begin))
 	}
 	if !interval.IsClosingBoundInfinite() {
-		sqlRight = quotedFieldName + "<" + strconv.FormatFloat(interval.End, 'f', -1, 64)
+		sqlRight = aexp.Infix(col.Expression, "<", aexp.Literal(interval.End))
 	}
 	switch {
-	case sqlLeft != "" && sqlRight != "":
-		sql = sqlLeft + " AND " + sqlRight
-	case sqlLeft != "":
+	case sqlLeft != nil && sqlRight != nil:
+		sql = aexp.Infix(sqlLeft, "AND", sqlRight)
+	case sqlLeft != nil:
 		sql = sqlLeft
-	case sqlRight != "":
+	case sqlRight != nil:
 		sql = sqlRight
 	default:
-		return "count()"
+		return model.SelectColumn{Expression: aexp.Function("count")}
 	}
-	return "count(if(" + sql + ", 1, NULL))"
+	// count(if(sql, 1, NULL))
+	return model.SelectColumn{Expression: aexp.Function("count", aexp.Function("if", sql, aexp.Literal(1), aexp.String("NULL")))}
 }
 
-func (interval Interval) ToWhereClause(fieldName string) wc.Statement { // returns a condition for the interval, just like we want it in SQL's WHERE
+func (interval Interval) ToWhereClause(field model.SelectColumn) wc.Statement { // returns a condition for the interval, just like we want it in SQL's WHERE
+	fieldName := field.SQL() // TODO a) this should be improved b) unify SelectColumn and ColumnRef?
+	if unquoted, err := strconv.Unquote(fieldName); err == nil {
+		fieldName = unquoted
+	}
+
 	var sqlLeft, sqlRight wc.Statement
 	if !interval.IsOpeningBoundInfinite() {
 		sqlLeft = wc.NewInfixOp(wc.NewColumnRef(fieldName), ">=", wc.NewLiteral(strconv.FormatFloat(interval.Begin, 'f', -1, 64)))
@@ -100,20 +107,20 @@ func (interval Interval) floatToString(number float64) string {
 }
 
 type Range struct {
-	ctx             context.Context
-	QuotedFieldName string
-	Intervals       []Interval
+	ctx       context.Context
+	Col       model.SelectColumn
+	Intervals []Interval
 	// defines what response should look like
 	// https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-range-aggregation.html#_keyed_response_4
 	Keyed bool
 }
 
-func NewRange(ctx context.Context, quotedFieldName string, intervals []Interval, keyed bool) Range {
-	return Range{ctx, quotedFieldName, intervals, keyed}
+func NewRange(ctx context.Context, col model.SelectColumn, intervals []Interval, keyed bool) Range {
+	return Range{ctx, col, intervals, keyed}
 }
 
-func NewRangeWithDefaultKeyed(ctx context.Context, quotedFieldName string, intervals []Interval) Range {
-	return Range{ctx, quotedFieldName, intervals, keyedDefaultValue}
+func NewRangeWithDefaultKeyed(ctx context.Context, col model.SelectColumn, intervals []Interval) Range {
+	return Range{ctx, col, intervals, keyedDefaultValue}
 }
 
 func (query Range) IsBucketAggregation() bool {
