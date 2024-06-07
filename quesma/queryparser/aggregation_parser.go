@@ -135,12 +135,34 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			model.SelectColumn{Expression: aexp.Function("sumOrNull", aexp.TableColumn(fieldName))})
 
 	case "top_hits":
-		fieldsAsString := strings.Join(metricsAggr.FieldNames, ", ")
-
 		// TODO add/restore tests for top_hits. E.g. we missed WHERE in FROM below, so the SQL might not be correct
+		for _, field := range metricsAggr.FieldNames {
+			query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.TableColumn(field)})
+		}
+
+		partitionByArr := make([]string, 0, len(b.Query.GroupBy))
+		for _, groupByField := range b.Query.GroupBy {
+			partitionByArr = append(partitionByArr, groupByField.SQL())
+		}
+		partitionBy := strings.Join(partitionByArr, ", ")
+		innerFields := strings.Join(quoteArray(metricsAggr.FieldNames), ", ") // need those fields in the inner clause
+
+		whereString := ""
+		if b.whereBuilder.WhereClause != nil {
+			whereString = " WHERE " + b.whereBuilder.WhereClauseAsString()
+		}
+
 		query.FromClause = fmt.Sprintf(
-			"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s) AS %s FROM %s WHERE %s)",
-			fieldsAsString, fieldsAsString, model.RowNumberColumnName, query.FromClause, b.whereBuilder.WhereClauseAsString(),
+			"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s) AS %s FROM %s%s)",
+			innerFields, partitionBy, model.RowNumberColumnName, query.FromClause, whereString,
+		)
+		query.WhereClause = model.And([]where_clause.Statement{
+			query.WhereClause,
+			where_clause.NewInfixOp(
+				where_clause.NewColumnRef(model.RowNumberColumnName),
+				"<=",
+				where_clause.NewLiteral(strconv.Itoa(metricsAggr.Size)),
+			)},
 		)
 
 	case "top_metrics":
@@ -547,10 +569,19 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 				logger.WarnWithCtx(cw.Ctx).Msgf("field %d in top_hits is not a string. Field's type: %T, value: %v. Skipping.", i, v, v)
 			}
 		}
+
+		const defaultSize = 1
+		size := defaultSize
+		if mapTyped, ok := topHits.(QueryMap); ok {
+			size = cw.parseSize(mapTyped, defaultSize)
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("top_hits is not a map, but %T, value: %v. Using default size.", topHits, topHits)
+		}
 		return metricsAggregation{
 			AggrType:   "top_hits",
 			FieldNames: fieldsAsStrings,
 			FieldType:  metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
+			Size:       size,
 		}, true
 	}
 
