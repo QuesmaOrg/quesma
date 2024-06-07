@@ -131,3 +131,38 @@ type StatementVisitor interface {
 	VisitNestedProperty(e *NestedProperty) interface{}
 	VisitArrayAccess(e *ArrayAccess) interface{}
 }
+
+func And(andStmts []Statement) Statement {
+	return combineStatements(andStmts, "AND")
+}
+
+func Or(orStmts []Statement) Statement {
+	return combineStatements(orStmts, "OR")
+}
+
+// operator = "AND" or "OR"
+func combineStatements(stmtsToCombine []Statement, operator string) Statement {
+	stmts := filterOutEmptyStatements(stmtsToCombine)
+	var newWhereStatement Statement
+	if len(stmts) > 1 {
+		newWhereStatement = stmts[0]
+		for _, stmt := range stmts[1:] {
+			newWhereStatement = NewInfixOp(newWhereStatement, operator, stmt)
+		}
+		return newWhereStatement
+	}
+	if len(stmts) == 1 {
+		return stmts[0]
+	}
+	return nil
+}
+
+func filterOutEmptyStatements(stmts []Statement) []Statement {
+	var nonEmptyStmts []Statement
+	for _, stmt := range stmts {
+		if stmt != nil {
+			nonEmptyStmts = append(nonEmptyStmts, stmt)
+		}
+	}
+	return nonEmptyStmts
+}

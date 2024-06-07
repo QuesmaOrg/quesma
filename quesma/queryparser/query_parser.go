@@ -258,7 +258,7 @@ func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fi
 		stmt := wc.NewInfixOp(wc.NewColumnRef(fieldName), like, wc.NewLiteral("'"+*prefix+"%'"))
 		stmts = append(stmts, stmt)
 	}
-	return model.NewSimpleQuery(model.And(stmts), canParse)
+	return model.NewSimpleQuery(wc.And(stmts), canParse)
 }
 
 func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) model.SimpleQuery {
@@ -429,7 +429,7 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) model.SimpleQu
 			canParse = canParse && canParseThis
 		}
 	}
-	sql := model.And(andStmts)
+	sql := wc.And(andStmts)
 
 	minimumShouldMatch := 0
 	if v, ok := queryMap["minimum_should_match"]; ok {
@@ -448,12 +448,12 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) model.SimpleQu
 	}
 	if queries, ok := queryMap["should"]; ok && minimumShouldMatch == 1 {
 		orSqls, canParseThis := cw.iterateListOrDictAndParse(queries)
-		orSql := model.Or(orSqls)
+		orSql := wc.Or(orSqls)
 		canParse = canParse && canParseThis
 		if len(andStmts) == 0 {
 			sql = orSql
 		} else if orSql != nil {
-			sql = model.And([]wc.Statement{sql, orSql})
+			sql = wc.And([]wc.Statement{sql, orSql})
 		}
 	}
 
@@ -466,8 +466,8 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) model.SimpleQu
 					sqlNots[i] = wc.NewPrefixOp("NOT", []wc.Statement{stmt})
 				}
 			}
-			orSql := model.Or(sqlNots)
-			sql = model.And([]wc.Statement{sql, orSql})
+			orSql := wc.Or(sqlNots)
+			sql = wc.And([]wc.Statement{sql, orSql})
 		}
 	}
 	return model.NewSimpleQuery(sql, canParse)
@@ -575,7 +575,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 					statements = append(statements, simpleStat)
 				}
 			}
-			return model.NewSimpleQuery(model.Or(statements), true)
+			return model.NewSimpleQuery(wc.Or(statements), true)
 		}
 
 		cw.AddTokenToHighlight(vUnNested)
@@ -647,7 +647,7 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) model.Si
 			i++
 		}
 	}
-	return model.NewSimpleQuery(model.Or(sqls), true)
+	return model.NewSimpleQuery(wc.Or(sqls), true)
 }
 
 // prefix works only on strings
@@ -872,7 +872,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 				logger.WarnWithCtx(cw.Ctx).Msgf("invalid range operator: %s", op)
 			}
 		}
-		return model.NewSimpleQueryWithFieldName(model.And(stmts), true, field)
+		return model.NewSimpleQueryWithFieldName(wc.And(stmts), true, field)
 	}
 
 	// unreachable unless something really weird happens
@@ -928,7 +928,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 				compoundStatementNoFieldName := wc.NewInfixOp(hasFunc, "AND", isNotNull)
 				stmts[i] = compoundStatementNoFieldName
 			}
-			sql = model.Or(stmts)
+			sql = wc.Or(stmts)
 		default:
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T for exists: %s", cw.Table.GetFieldInfo(cw.Ctx, fieldName), fieldName)
 		}
