@@ -248,8 +248,7 @@ func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results []
 	}
 
 	if hitsIndex == -1 {
-		emptyHits := model.SearchHits{}
-		return queriesWithoutHits, resultsWithoutHits, &emptyHits
+		return queriesWithoutHits, resultsWithoutHits, nil
 	}
 
 	hitsQuery := queries[hitsIndex]
@@ -263,7 +262,7 @@ func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results []
 	hitsPartOfResponse := hits.TranslateSqlResponseToJson(hitsResultSet, 0)
 
 	hitsResponse := hitsPartOfResponse[0]["hits"].(model.SearchHits)
-	return queries, results, &hitsResponse
+	return queriesWithoutHits, resultsWithoutHits, &hitsResponse
 }
 
 func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
@@ -306,10 +305,12 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 	}
 	if hits != nil {
 		response.Hits = *hits
-		response.Hits.Total = &model.Total{
-			Value:    int(totalCount),
-			Relation: "eq",
-		}
+	} else {
+		response.Hits = model.SearchHits{}
+	}
+	response.Hits.Total = &model.Total{
+		Value:    int(totalCount),
+		Relation: "eq",
 	}
 	return response
 }
