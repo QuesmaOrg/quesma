@@ -83,7 +83,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 		},
 		Created: true,
 	}
-	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent())
+	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), nil)
 	lm.AddTableIfDoesntExist(&table)
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
 
