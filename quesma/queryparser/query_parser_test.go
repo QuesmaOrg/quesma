@@ -42,7 +42,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	cfg.IndexConfig[indexConfig.Name] = indexConfig
 
-	lm := clickhouse.NewEmptyLogManager(cfg, nil, telemetry.NewPhoneHomeEmptyAgent())
+	lm := clickhouse.NewEmptyLogManager(cfg, nil, telemetry.NewPhoneHomeEmptyAgent(), nil)
 	lm.AddTableIfDoesntExist(table)
 
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
