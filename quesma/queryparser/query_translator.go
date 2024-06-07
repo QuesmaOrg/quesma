@@ -99,14 +99,6 @@ func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.Q
 	return &response, nil
 }
 
-func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponseMarshalled(ResultSet []model.QueryResultRow, query *model.Query, asyncRequestIdStr string, isPartial bool) ([]byte, error) {
-	response, err := cw.MakeAsyncSearchResponse(ResultSet, query, asyncRequestIdStr, isPartial)
-	if err != nil {
-		return nil, err
-	}
-	return response.Marshal()
-}
-
 func (cw *ClickhouseQueryTranslator) finishMakeResponse(query *model.Query, ResultSet []model.QueryResultRow, level int) []model.JsonMap {
 	// fmt.Println("FinishMakeResponse", query, ResultSet, level, query.Type.String())
 	if query.Type.IsBucketAggregation() {
@@ -231,33 +223,42 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 	return aggregations
 }
 
+func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results [][]model.QueryResultRow) (queriesWithoutHits []*model.Query, resultsWithoutHits [][]model.QueryResultRow, hit *model.SearchHits) {
+	hitsIndex := -1
+	for i, query := range queries {
+		if query.QueryInfoType == model.ListAllFields || query.QueryInfoType == model.ListByField {
+			if hitsIndex != -1 {
+				logger.WarnWithCtx(cw.Ctx).Msgf("multiple hits queries found in queries: %v", queries)
+			}
+			hitsIndex = i
+		} else {
+			queriesWithoutHits = append(queriesWithoutHits, query)
+			resultsWithoutHits = append(resultsWithoutHits, results[i])
+		}
+	}
+
+	if hitsIndex == -1 {
+		return queriesWithoutHits, resultsWithoutHits, nil
+	}
+
+	hitsQuery := queries[hitsIndex]
+	hitsResultSet := results[hitsIndex]
+
+	if hitsQuery.Type == nil {
+		logger.ErrorWithCtx(cw.Ctx).Msgf("hits query type is nil: %v", hitsQuery)
+		return queriesWithoutHits, resultsWithoutHits, nil
+	}
+	hitsPartOfResponse := hitsQuery.Type.TranslateSqlResponseToJson(hitsResultSet, 0)
+
+	hitsResponse := hitsPartOfResponse[0]["hits"].(model.SearchHits)
+	return queriesWithoutHits, resultsWithoutHits, &hitsResponse
+}
+
 func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
-	var hitsQuery *model.Query
-	var hitsResultSet []model.QueryResultRow
+	var hits *model.SearchHits
+	queries, ResultSets, hits = cw.makeHits(queries, ResultSets) // get hits and remove it from queries
 
-	// Process hits as last aggregation
-	if len(queries) > 0 && len(ResultSets) > 0 && query_util.IsNonAggregationQuery(queries[len(queries)-1]) {
-		hitsQuery = queries[len(queries)-1]
-		hitsResultSet = ResultSets[len(ResultSets)-1]
-
-		queries = queries[:len(queries)-1]
-		ResultSets = ResultSets[:len(ResultSets)-1]
-	} else {
-		hitsResultSet = make([]model.QueryResultRow, 0)
-	}
-
-	var highlighter *model.Highlighter
-	var orderByFieldNames []string
-	if hitsQuery != nil {
-		highlighter = &hitsQuery.Highlighter
-		orderByFieldNames = hitsQuery.OrderByFieldNames()
-	}
-
-	// TODO it should be created during parsing, like aggregations
-	hits := typical_queries.NewHits(cw.Ctx, cw.Table, highlighter, orderByFieldNames, true, false, false)
-	hitsPartOfResponse := hits.TranslateSqlResponseToJson(hitsResultSet, 0)
-
-	// process count:
+	// TODO: process count:
 	// a) we have count query -> we're done
 	// b) we have hits or facets -> we're done
 	// c) we don't have above: we return len(biggest resultset(all aggregations))
@@ -291,12 +292,14 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 			Failed:     0,
 		},
 	}
-	if hitsTyped, ok := hitsPartOfResponse[0]["hits"].(model.SearchHits); ok {
-		response.Hits = hitsTyped
-		response.Hits.Total = &model.Total{
-			Value:    int(totalCount),
-			Relation: "eq",
-		}
+	if hits != nil {
+		response.Hits = *hits
+	} else {
+		response.Hits = model.SearchHits{}
+	}
+	response.Hits.Total = &model.Total{
+		Value:    int(totalCount),
+		Relation: "eq",
 	}
 	return response
 }
