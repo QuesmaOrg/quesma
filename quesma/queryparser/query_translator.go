@@ -254,35 +254,86 @@ func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results []
 	return queriesWithoutHits, resultsWithoutHits, &hitsResponse
 }
 
-func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
-	var hits *model.SearchHits
-	queries, ResultSets, hits = cw.makeHits(queries, ResultSets) // get hits and remove it from queries
-
-	// TODO: process count:
+func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, results [][]model.QueryResultRow) (queriesWithoutCount []*model.Query, resultsWithoutCount [][]model.QueryResultRow, total *model.Total) {
+	// process count:
 	// a) we have count query -> we're done
 	// b) we have hits or facets -> we're done
 	// c) we don't have above: we return len(biggest resultset(all aggregations))
-
-	var totalCount uint64
-
-	isCount := false
-	if len(queries) > 0 {
-		_, isCount = queries[0].Type.(typical_queries.Count)
-	}
-	if isCount && len(ResultSets) > 0 && len(ResultSets[0]) > 0 && len(ResultSets[0][0].Cols) > 0 { // TODO change for if type == non_aggregation.Count()
-		// TODO: Eventually we should detect whether first column is actual hits
-		// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
-		if val, ok := ResultSets[0][0].Cols[0].Value.(uint64); ok {
-			totalCount = val
-		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets[0])
+	totalCount := -1
+	for i, query := range queries {
+		if query.Type != nil {
+			if _, isCount := query.Type.(typical_queries.Count); isCount {
+				if len(results[i]) > 0 && len(results[i][0].Cols) > 0 {
+					if val, ok := results[i][0].Cols[0].Value.(uint64); ok {
+						totalCount = int(val)
+					} else {
+						logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", results[i])
+					}
+				} else {
+					logger.ErrorWithCtx(cw.Ctx).Msgf("no results for Count value SQL query result [%v]", results[i])
+				}
+				continue
+			}
 		}
-		queries = queries[1:]
-		ResultSets = ResultSets[1:]
-	} else {
-		logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets)
-		totalCount = 0
+
+		queriesWithoutCount = append(queriesWithoutCount, query)
+		resultsWithoutCount = append(resultsWithoutCount, results[i])
 	}
+
+	if totalCount != -1 {
+		total = &model.Total{
+			Value:    totalCount,
+			Relation: "eq", // likely wrong
+		}
+		return
+	}
+	for i, query := range queries {
+		if query.QueryInfoType == model.Facets || query.QueryInfoType == model.FacetsNumeric {
+			totalCount = 0
+			for _, row := range results[i] {
+				if len(row.Cols) > 0 {
+					if val, ok := row.Cols[len(row.Cols)-1].Value.(uint64); ok {
+						totalCount += int(val)
+					} else if val2, ok2 := row.Cols[len(row.Cols)-1].Value.(int); ok2 {
+						totalCount += val2
+					} else {
+						logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v", row.Cols[len(row.Cols)-1].Value)
+					}
+				}
+			}
+			total = &model.Total{
+				Value:    totalCount,
+				Relation: "eq", // likely wrong
+			}
+			return
+		}
+	}
+
+	for i, query := range queries {
+		if query.QueryInfoType == model.ListAllFields || query.QueryInfoType == model.ListByField {
+			totalCount = len(results[i])
+			relation := "eq"
+			if query.Limit != 0 && totalCount == query.Limit {
+				relation = "gte"
+			}
+			total = &model.Total{
+				Value:    totalCount,
+				Relation: relation,
+			}
+			return
+		}
+	}
+
+	// TODO: Look for biggest aggregation
+
+	return
+}
+
+func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
+	var hits *model.SearchHits
+	var total *model.Total
+	queries, ResultSets, total = cw.makeTotalCount(queries, ResultSets) // get hits and remove it from queries
+	queries, ResultSets, hits = cw.makeHits(queries, ResultSets)        // get hits and remove it from queries
 
 	response := &model.SearchResp{
 		Aggregations: cw.MakeAggregationPartOfResponse(queries, ResultSets),
@@ -297,9 +348,13 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 	} else {
 		response.Hits = model.SearchHits{}
 	}
-	response.Hits.Total = &model.Total{
-		Value:    int(totalCount),
-		Relation: "eq",
+	if total != nil {
+		response.Hits.Total = total
+	} else {
+		response.Hits.Total = &model.Total{
+			Value:    0,
+			Relation: "gte",
+		}
 	}
 	return response
 }
