@@ -269,7 +269,7 @@ func (q *Query) HasParentAggregation() bool {
 }
 
 // IsChild returns true <=> this aggregation is a child of maybeParent (so maybeParent is its parent).
-func (q *Query) IsChild(maybeParent Query) bool {
+func (q *Query) IsChild(maybeParent *Query) bool {
 	return q.HasParentAggregation() && q.Parent == maybeParent.Name()
 }
 
@@ -347,22 +347,24 @@ func NewAggregator(name string) Aggregator {
 	return Aggregator{Name: name}
 }
 
-type SearchQueryType int
+type SearchQueryType int // TODO/warning: right now difference between ListByField/ListAllFields/Normal is not very clear. It probably should be merged into 1 type.
 
 const (
 	Facets SearchQueryType = iota
 	FacetsNumeric
 	ListByField
 	ListAllFields
-	CountAsync
 	Normal
-	None
 )
 
-const DefaultSizeListQuery = 1000 // we use LIMIT 1000 in some simple list queries (SELECT ...)
+const (
+	DefaultSizeListQuery = 10 // we use LIMIT 10 in some simple list queries (SELECT ...)
+	TrackTotalHitsTrue   = -1
+	TrackTotalHitsFalse  = -2
+)
 
 func (queryType SearchQueryType) String() string {
-	return []string{"Facets", "FacetsNumeric", "ListByField", "ListAllFields", "CountAsync", "Normal", "None"}[queryType]
+	return []string{"Facets", "FacetsNumeric", "ListByField", "ListAllFields", "Normal"}[queryType]
 }
 
 type SearchQueryInfo struct {
@@ -370,14 +372,15 @@ type SearchQueryInfo struct {
 	// to be used as replacement for FieldName
 	RequestedFields []string
 	// deprecated
-	FieldName string
-	I1        int
-	I2        int
-	Size      int // how many hits to return
+	FieldName      string
+	I1             int
+	I2             int
+	Size           int // how many hits to return
+	TrackTotalHits int // >= 0: we want this nr of total hits, TrackTotalHitsTrue: it was "true", TrackTotalHitsFalse: it was "false", in the request
 }
 
-func NewSearchQueryInfoNone() SearchQueryInfo {
-	return SearchQueryInfo{Typ: None}
+func NewSearchQueryInfoNormal() SearchQueryInfo {
+	return SearchQueryInfo{Typ: Normal}
 }
 
 func (h *Highlighter) ShouldHighlight(columnName string) bool {

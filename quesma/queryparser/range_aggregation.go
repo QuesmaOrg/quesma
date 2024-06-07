@@ -53,7 +53,7 @@ func (cw *ClickhouseQueryTranslator) parseRangeAggregation(rangePart QueryMap) b
 }
 
 func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQueryBuilder, Range bucket_aggregations.Range,
-	queryCurrentLevel QueryMap, aggregationsAccumulator *[]model.Query, metadata JsonMap) {
+	queryCurrentLevel QueryMap, aggregationsAccumulator *[]*model.Query, metadata JsonMap) {
 
 	// build this aggregation
 	for _, interval := range Range.Intervals {

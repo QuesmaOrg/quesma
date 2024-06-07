@@ -47,8 +47,8 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 
-	for _, tt := range testdata.TestsSearch {
-		t.Run(tt.Name, func(t *testing.T) {
+	for i, tt := range testdata.TestsSearch {
+		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
 			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(body)

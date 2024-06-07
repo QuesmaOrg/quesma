@@ -14,6 +14,7 @@ func groupBySQL(fieldName string, typ clickhouse.DateTimeType, groupByInterval t
 	return aexp.RenderSQL(clickhouse.TimestampGroupBy(model.NewSelectColumnTableField(fieldName), typ, groupByInterval))
 }
 
+// TODO change some tests to size > 0, and track_total_hits different values
 var AggregationTests = []AggregationTestCase{
 	{ // [0]
 		"simple max/min aggregation as 2 siblings",
@@ -214,7 +215,7 @@ var AggregationTests = []AggregationTestCase{
 			"stored_fields": [
 				"*"
 			],
-			"track_total_hits": true
+			"track_total_hits": false
 		}`,
 		`{
 			"completion_time_in_millis": 1707486436408,
@@ -281,7 +282,6 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1707486436403
 		}`,
 		[][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2200))}}},
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("OriginCityName", "Abu Dhabi"),
@@ -326,9 +326,6 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z'))`,
 			`SELECT "OriginCityName", count() FROM ` + QuotedTableName + ` ` +
 				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
@@ -416,7 +413,7 @@ var AggregationTests = []AggregationTestCase{
 			"stored_fields": [
 				"*"
 			],
-			"track_total_hits": true
+			"track_total_hits": 12
 		}`,
 		`{
 			"completion_time_in_millis": 1707486436412,
@@ -597,11 +594,11 @@ var AggregationTests = []AggregationTestCase{
 			},
 			"runtime_mappings": {},
 			"script_fields": {},
-			"size": 0,
+			"size": 2,
 			"stored_fields": [
 				"*"
 			],
-			"track_total_hits": true
+			"track_total_hits": 1
 		}`,
 		`{
 			"completion_time_in_millis": 1707818398420,
@@ -639,8 +636,14 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", 76631.67578125)}}},
 		},
 		[]string{
-			`SELECT count() FROM "` + TableName + `" WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z'))`,
-			`SELECT sumOrNull("taxful_total_price") FROM "` + TableName + `" WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z'))`,
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z'))`,
+			`SELECT sumOrNull("taxful_total_price") ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z'))`,
 		},
 	},
 	{ // [4]
@@ -753,16 +756,19 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", 143)}}},
 		},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
-			`SELECT "OriginCityName", count() FROM ` + QuotedTableName + ` ` +
+			`SELECT "OriginCityName", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
 				`GROUP BY "OriginCityName" ` +
 				`ORDER BY count() DESC ` +
 				`LIMIT 10`,
-			`SELECT count(DISTINCT "OriginCityName") FROM ` + QuotedTableName + ` ` +
+			`SELECT count(DISTINCT "OriginCityName") ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
 		},
@@ -832,10 +838,9 @@ var AggregationTests = []AggregationTestCase{
 			},
 			"script_fields": {},
 			"size": 0,
-			"stored_xfields": [
+			"stored_fields": [
 				"*"
-			],
-			"track_total_hits": true
+			]
 		}`,
 		`{
 			"completion_time_in_millis": 1707486436416,
@@ -873,8 +878,15 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", uint64(553))}}},
 		},
 		[]string{
-			`SELECT count() FROM "` + TableName + `" WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
-			`SELECT count() FROM "` + TableName + `" WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) AND "FlightDelay"==true)`,
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
+				`AND "FlightDelay"==true)`,
 		},
 	},
 	{ // [6]
@@ -1096,7 +1108,7 @@ var AggregationTests = []AggregationTestCase{
 				}
 			},
 			"size": 0,
-			"track_total_hits": true
+			"track_total_hits": false
 		}`,
 		`{
 			"completion_time_in_millis": 1707486436538,
@@ -1354,7 +1366,8 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		[]string{
-			`SELECT count() FROM "` + TableName + `"`,
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` `,
 			``,
 			``,
 			``,
@@ -1420,7 +1433,7 @@ var AggregationTests = []AggregationTestCase{
 			"stored_fields": [
 				"*"
 			],
-			"track_total_hits": true
+			"track_total_hits": false
 		}`,
 		`{
 			"completion_time_in_millis": 1707486436932,
@@ -1461,9 +1474,9 @@ var AggregationTests = []AggregationTestCase{
 					"hits": [],
 					"max_score": null,
 					"total": {
-					"relation": "eq",
-					"value": 553
-				}
+						"relation": "eq",
+						"value": 553
+					}
 				},
 				"timed_out": false,
 				"took": 2
@@ -1471,7 +1484,6 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1707486436930
 		}`,
 		[][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(553))}}},
 			{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 15.0), model.NewQueryResultCol("doc_count", 21)}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", 30.0), model.NewQueryResultCol("doc_count", 22)}},
@@ -1480,11 +1492,8 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
-				`AND NOT ("FlightDelayMin"==0))`,
-			`SELECT "FlightDelayMin", count() FROM ` + QuotedTableName + ` ` +
+			`SELECT "FlightDelayMin", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
 				`AND NOT ("FlightDelayMin"==0)) ` +
@@ -1695,17 +1704,20 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("host.name" iLIKE '%prometheus%' ` +
 				`AND ("@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z') ` +
 				`AND "@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z')))`,
-			`SELECT "severity", toInt64(toUnixTimestamp64Milli("@timestamp") / 10800000), count() FROM ` + QuotedTableName + ` ` +
+			`SELECT "severity", toInt64(toUnixTimestamp64Milli("@timestamp") / 10800000), count() ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("host.name" iLIKE '%prometheus%' ` +
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))) ` +
 				`GROUP BY "severity", toInt64(toUnixTimestamp64Milli("@timestamp") / 10800000)` + ` ` +
 				`ORDER BY "severity", toInt64(toUnixTimestamp64Milli("@timestamp") / 10800000)`,
-			`SELECT "severity", count() FROM ` + QuotedTableName + ` ` +
+			`SELECT "severity", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("host.name" iLIKE '%prometheus%' ` +
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))) ` +
@@ -1815,7 +1827,7 @@ var AggregationTests = []AggregationTestCase{
 			"stored_fields": [
 				"*"
 			],
-			"track_total_hits": true
+			"track_total_hits": false
 		}`,
 		`{
 			"completion_time_in_millis": 1707818398410,
@@ -1960,7 +1972,6 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1707818398408
 		}`,
 		[][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1043))}}},
 			{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1707480000000/1000/60/60/12)), model.NewQueryResultCol("order_date", "2024-02-09T17:16:48.000Z"), model.NewQueryResultCol("order_date", "2024-02-09T17:16:48.000Z")}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1707480000000/1000/60/60/12)), model.NewQueryResultCol("order_date", "2024-02-09T21:34:34.000Z"), model.NewQueryResultCol("order_date", "2024-02-09T21:34:34.000Z")}},
@@ -1981,8 +1992,6 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4))}}},
 		},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE ("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z'))`,
 			`SELECT toInt64(toUnixTimestamp64Milli("order_date") / 43200000), maxOrNull("order_date") AS "windowed_order_date", ` +
 				`maxOrNull("order_date") AS "windowed_order_date" FROM ` +
 				`(SELECT "order_date" , "order_date" , ROW_NUMBER() OVER ` +
@@ -2071,8 +2080,8 @@ var AggregationTests = []AggregationTestCase{
 				}
 			},
 			"runtime_mappings": {},
-			"size": 0,
-			"track_total_hits": true
+			"size": 2,
+			"track_total_hits": 3
 		}`,
 		`{
 			"completion_time_in_millis": 1706010201967,
@@ -2088,9 +2097,9 @@ var AggregationTests = []AggregationTestCase{
 				},
 				"aggregations": {
 					"sample": {
-						"doc_count": 442,
+						"doc_count": 262,
 						"sample_count": {
-							"value": 442
+							"value": 262
 						},
 						"top_values": {
 							"buckets": [
@@ -2106,7 +2115,7 @@ var AggregationTests = []AggregationTestCase{
 								{"doc_count": 21, "key": "persephone"}
 							],
 							"doc_count_error_upper_bound": 0,
-							"sum_other_doc_count": 192
+							"sum_other_doc_count": 12
 						}
 					}
 				},
@@ -2115,7 +2124,7 @@ var AggregationTests = []AggregationTestCase{
 					"max_score": null,
 					"total": {
 						"relation": "eq",
-						"value": 442
+						"value": 262
 					}
 				},
 				"timed_out": false,
@@ -2124,41 +2133,35 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1706010201964
 		}`,
 		[][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(442))}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 442)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(262))}}},
 			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "hephaestus"), model.NewQueryResultCol("doc_count", 30)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "poseidon"), model.NewQueryResultCol("doc_count", 29)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "jupiter"), model.NewQueryResultCol("doc_count", 28)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "selen"), model.NewQueryResultCol("doc_count", 26)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "demeter"), model.NewQueryResultCol("doc_count", 24)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "iris"), model.NewQueryResultCol("doc_count", 24)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "pan"), model.NewQueryResultCol("doc_count", 24)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "hades"), model.NewQueryResultCol("doc_count", 22)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "hermes"), model.NewQueryResultCol("doc_count", 22)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "persephone"), model.NewQueryResultCol("doc_count", 21)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "hephaestus"), model.NewQueryResultCol("doc_count", uint64(30))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "poseidon"), model.NewQueryResultCol("doc_count", uint64(29))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "jupiter"), model.NewQueryResultCol("doc_count", uint64(28))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "selen"), model.NewQueryResultCol("doc_count", uint64(26))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "demeter"), model.NewQueryResultCol("doc_count", uint64(24))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "iris"), model.NewQueryResultCol("doc_count", uint64(24))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "pan"), model.NewQueryResultCol("doc_count", uint64(24))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "hades"), model.NewQueryResultCol("doc_count", uint64(22))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "hermes"), model.NewQueryResultCol("doc_count", uint64(22))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "persephone"), model.NewQueryResultCol("doc_count", uint64(21))}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "below-top-10"), model.NewQueryResultCol("doc_count", uint64(12))}},
 			},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 442)}}},
 		},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
 				`AND "message" iLIKE '%user%')`,
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
-				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
-				`AND "message" iLIKE '%user%')`,
-			`SELECT "host.name", count() FROM ` + QuotedTableName + ` ` +
+			`SELECT "host.name" AS "key", count() AS "doc_count" ` +
+				`FROM (SELECT "host.name" FROM ` + QuotedTableName + ` ` +
 				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
 				`AND "message" iLIKE '%user%') ` +
+				`LIMIT 20000 ) ` +
 				`GROUP BY "host.name" ` +
-				`ORDER BY count() DESC LIMIT 10`,
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
-				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
-				`AND "message" iLIKE '%user%')`,
+				`ORDER BY count() DESC`,
 		},
 	},
 	{ // [12], "old" test, also can be found in testdata/requests.go TestAsyncSearch[3]
@@ -2211,7 +2214,7 @@ var AggregationTests = []AggregationTestCase{
 			},
 			"runtime_mappings": {},
 			"script_fields": {},
-			"size": 0,
+			"size": 5,
 			"stored_fields": [
 				"*"
 			],
@@ -2259,6 +2262,7 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		[][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(97))}}},
+			{}, // TODO non-aggregation query, maybe fill in results later: now we don't check them
 			{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021670000/30000)), model.NewQueryResultCol("doc_count", 2)}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021700000/30000)), model.NewQueryResultCol("doc_count", 13)}},
@@ -2271,11 +2275,18 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("message" iLIKE '%user%' ` +
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z')))`,
-			`SELECT ` + timestampGroupByClause + `, count() FROM ` + QuotedTableName + ` ` +
+			`SELECT "@timestamp" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))) ` +
+				`LIMIT 5`,
+			`SELECT ` + timestampGroupByClause + `, count() ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("message" iLIKE '%user%' ` +
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))) ` +
@@ -2288,7 +2299,6 @@ var AggregationTests = []AggregationTestCase{
 		TestName: "terms with date_histogram as subaggregation: regression test",
 		QueryRequestJson: `
 		{
-			"size": 0,
 			"query": {
 				"range": {
 					"@timestamp": {
@@ -2315,7 +2325,8 @@ var AggregationTests = []AggregationTestCase{
 					}
 				}
 			},
-			"track_total_hits": true
+			"size": 0,
+			"track_total_hits": false
 		}`,
 		ExpectedResponse: `
 		{
@@ -2376,7 +2387,6 @@ var AggregationTests = []AggregationTestCase{
 			}
 		}`,
 		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4675))}}},
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("event.dataset", "27"),
@@ -2400,9 +2410,6 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') ` +
-				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z'))`,
 			`SELECT "event.dataset", toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z')) ` +
@@ -2463,7 +2470,7 @@ var AggregationTests = []AggregationTestCase{
 				}
 			},
 			"size": 0,
-			"track_total_hits": true
+			"track_total_hits": false
 		}`,
 		`{
 			"completion_time_in_millis": 1706551812667,
@@ -2502,16 +2509,20 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1706551812665
 		}`,
 		[][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(0))}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`minOrNull("@timestamp")`, nil)}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("@timestamp")`, nil)}}},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("@timestamp")`, nil)}}},
 		},
 		[]string{
-			`SELECT count() FROM "` + TableName + `" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
-			`SELECT avgOrNull("@timestamp") FROM "` + TableName + `" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
-			`SELECT minOrNull("@timestamp") FROM "` + TableName + `" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
-			`SELECT maxOrNull("@timestamp") FROM "` + TableName + `" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
+			`SELECT avgOrNull("@timestamp") ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
+			`SELECT minOrNull("@timestamp") ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
+			`SELECT maxOrNull("@timestamp") ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
 		},
 	},
 	{ // [15]
@@ -2570,11 +2581,11 @@ var AggregationTests = []AggregationTestCase{
 			},
 			"runtime_mappings": {},
 			"script_fields": {},
-			"size": 0,
+			"size": 2,
 			"stored_fields": [
 				"*"
 			],
-			"track_total_hits": true
+			"track_total_hits": 5
 		}`,
 		`{
 			"completion_time_in_millis": 1708969258827,
@@ -2625,9 +2636,8 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1708969258819
 		}`,
 		[][]model.QueryResultRow{
-			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", uint64(1049))}},
-			},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", uint64(1049))}}},
+			{}, // TODO non-aggregation, but we can fill in results
 			{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19772)), model.NewQueryResultCol("1", 2221.5625)}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(19773)), model.NewQueryResultCol("1", 11116.45703125)}},
@@ -2638,9 +2648,15 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z'))`,
+			`SELECT * ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z')) ` +
+				`LIMIT 2`,
 			`SELECT ` + groupBySQL("order_date", clickhouse.DateTime64, 24*time.Hour) + `, ` +
 				`sumOrNull("taxful_total_price") ` +
 				`FROM ` + QuotedTableName + ` ` +
@@ -2675,12 +2691,6 @@ var AggregationTests = []AggregationTestCase{
 					}
 				}
 			},
-			"fields": [
-				{
-					"field": "timestamp",
-					"format": "date_time"
-				}
-			],
 			"query": {
 				"bool": {
 					"filter": [
@@ -2701,11 +2711,11 @@ var AggregationTests = []AggregationTestCase{
 			},
 			"runtime_mappings": {},
 			"script_fields": {},
-			"size": 0,
+			"size": 5,
 			"stored_fields": [
 				"*"
 			],
-			"track_total_hits": true
+			"track_total_hits": 2
 		}`,
 		ExpectedResponse: `
 		{
@@ -2746,6 +2756,7 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		ExpectedResults: [][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(15750))}}},
+			{}, // TODO non-aggregation query
 			{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "User created"), model.NewQueryResultCol("doc_count", uint64(1700))}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "User deleted"), model.NewQueryResultCol("doc_count", uint64(1781))}},
@@ -2753,10 +2764,17 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z'))`,
-			`SELECT "message", count() FROM ` + QuotedTableName + ` ` +
+			`SELECT * ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z')) ` +
+				`LIMIT 5`,
+			`SELECT "message", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z')) ` +
 				`GROUP BY "message" ` +
@@ -2806,17 +2824,7 @@ var AggregationTests = []AggregationTestCase{
 					}
 				}
 			},
-			"size": 0,
-			"fields": [
-				{
-					"field": "@timestamp",
-					"format": "date_time"
-				},
-				{
-					"field": "order_date",
-					"format": "date_time"
-				}
-			],
+			"size": 2,
 			"script_fields": {},
 			"stored_fields": [
 				"*"
@@ -2912,6 +2920,7 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		[][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1051))}}},
+			{},
 			{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(39551)), model.NewQueryResultCol("1-metric", 0.0)}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(39552)), model.NewQueryResultCol("1-metric", 1222.65625)}},
@@ -2929,9 +2938,15 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-22T18:47:34.149Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T18:47:34.149Z'))`,
+			`SELECT * ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-22T18:47:34.149Z') ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T18:47:34.149Z')) ` +
+				`LIMIT 2`,
 			`SELECT ` + groupBySQL("order_date", clickhouse.DateTime64, 12*time.Hour) + `, ` +
 				`sumOrNull("taxful_total_price") ` +
 				`FROM ` + QuotedTableName + ` ` +
@@ -3008,20 +3023,6 @@ var AggregationTests = []AggregationTestCase{
             }
         }
     },
-    "fields": [
-        {
-            "field": "customer_birth_date",
-            "format": "date_time"
-        },
-        {
-            "field": "order_date",
-            "format": "date_time"
-        },
-        {
-            "field": "products.created_on",
-            "format": "date_time"
-        }
-    ],
     "query": {
         "bool": {
             "filter": [
@@ -3070,11 +3071,11 @@ var AggregationTests = []AggregationTestCase{
     },
     "runtime_mappings": {},
     "script_fields": {},
-    "size": 0,
+    "size": 3,
     "stored_fields": [
         "*"
     ],
-    "track_total_hits": true
+    "track_total_hits": false
 }`,
 		`{
 			"completion_time_in_millis": 1709243857589,
@@ -3176,11 +3177,13 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1026))}}},
 		},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
+			`SELECT * ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-29T21:57:36.376Z')) ` +
 				`OR ("order_date">=parseDateTime64BestEffort('2024-02-15T21:57:36.376Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z')))`,
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z'))) ` +
+				`LIMIT 3`,
 			`SELECT toInt64(toUnixTimestamp64Milli("order_date") / 86400000), sumOrNull("taxful_total_price") ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-22T21:57:36.376Z') ` +
@@ -3358,7 +3361,6 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1709817695884
 		}`,
 		[][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(15))}}},
 			{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1709816790000/15000)), model.NewQueryResultCol("doc_count", uint64(0))}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1709816805000/15000)), model.NewQueryResultCol("doc_count", uint64(0))}},
@@ -3366,9 +3368,6 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", uint64(15))}}},
 		},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
-				`WHERE (toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 ` +
-				`AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12)`,
 			`SELECT ` + groupBySQL("@timestamp", clickhouse.DateTime64, 15*time.Second) + `, count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE (toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 ` +
@@ -3639,13 +3638,33 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(1634))}}},
 		},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12 AND toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12`,
-			"SELECT count(`bytes_gauge`), minOrNull(`bytes_gauge`), maxOrNull(`bytes_gauge`), avgOrNull(`bytes_gauge`), sumOrNull(`bytes_gauge`) FROM " + QuotedTableName + ` WHERE (toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 AND toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12) AND "bytes_gauge" IS NOT NULL`,
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE (toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 AND toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12) AND "bytes_gauge" IS NOT NULL`,
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12 ` +
+				`AND toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12`,
+			"SELECT count(`bytes_gauge`), minOrNull(`bytes_gauge`), maxOrNull(`bytes_gauge`), " +
+				"avgOrNull(`bytes_gauge`), sumOrNull(`bytes_gauge`) " +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE (toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 ` +
+				`AND toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12) ` +
+				`AND "bytes_gauge" IS NOT NULL`,
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE (toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 ` +
+				`AND toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12) ` +
+				`AND "bytes_gauge" IS NOT NULL`,
 			"TODO", // too tiresome to implement the check, so for now this SQL for quantiles isn't tested
 			"TODO", // too tiresome to implement the check, so for now this SQL for quantiles isn't tested
-			`SELECT "bytes_gauge", count() FROM ` + QuotedTableName + ` WHERE toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12 AND toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 GROUP BY "bytes_gauge") ORDER BY "bytes_gauge")`,
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 AND toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12`,
+			`SELECT "bytes_gauge", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12 ` +
+				`AND toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 ` +
+				`GROUP BY "bytes_gauge" ` +
+				`ORDER BY "bytes_gauge"`,
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE toUnixTimestamp64Milli("timestamp")>=1.709932426749e+12 ` +
+				`AND toUnixTimestamp64Milli("timestamp")<=1.711228426749e+12`,
 		},
 	},
 	{ // [21]
@@ -3844,7 +3863,9 @@ var AggregationTests = []AggregationTestCase{
 			}}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') ` +
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z'))`,
 			`SELECT count(if("bytes_gauge" >= 0.000000 AND "bytes_gauge" < 1000.000000, 1, NULL)), ` +
 				`count(if("bytes_gauge" >= 1000.000000 AND "bytes_gauge" < 2000.000000, 1, NULL)), ` +
@@ -3994,7 +4015,9 @@ var AggregationTests = []AggregationTestCase{
 			}}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z') ` +
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z'))`,
 			`SELECT count(if("timestamp" < now(), 1, NULL)), toInt64(toUnixTimestamp(now())), ` +
 				`count(if("timestamp" >= toStartOfDay(subDate(now(), INTERVAL 3 week)) AND "timestamp" < now(), 1, NULL)), ` +
@@ -4101,8 +4124,13 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName,
-			`SELECT "message", count() FROM ` + QuotedTableName + ` GROUP BY "message" ORDER BY count() DESC LIMIT 4`,
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName,
+			`SELECT "message", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`GROUP BY "message" ` +
+				`ORDER BY count() DESC ` +
+				`LIMIT 4`,
 		},
 	},
 	{ // [24]
@@ -4332,7 +4360,8 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))`,
 			`SELECT floor("bytes" / 100.000000) * 100.000000, count() ` +
@@ -4473,7 +4502,8 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T14:29:02.900Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:44:02.900Z'))`,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 30000), count() ` +
@@ -4635,7 +4665,8 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName,
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName,
 			`SELECT floor("rspContentLen" / 2000.000000) * 2000.000000, "message", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`GROUP BY floor("rspContentLen" / 2000.000000) * 2000.000000, "message" ` +
@@ -4743,7 +4774,7 @@ var AggregationTests = []AggregationTestCase{
 			"stored_fields": [
 				"*"
 			],
-			"track_total_hits": true
+			"track_total_hits": false
 		}`,
 		ExpectedResponse: `
 		{
@@ -4823,7 +4854,8 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName,
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName,
 			`SELECT "OriginCityName", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE "FlightDelay" == true ` +
@@ -5007,7 +5039,10 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-03-23T07:32:06.246Z') AND "timestamp"<=parseDateTime64BestEffort('2024-03-30T07:32:06.246Z')`,
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-03-23T07:32:06.246Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-03-30T07:32:06.246Z')`,
 			``,
 			``,
 			``,
@@ -5164,7 +5199,10 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE "timestamp">=parseDateTime64BestEffort('2024-03-23T07:32:06.246Z') AND "timestamp"<=parseDateTime64BestEffort('2024-03-30T07:32:06.246Z')`,
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "timestamp">=parseDateTime64BestEffort('2024-03-23T07:32:06.246Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-03-30T07:32:06.246Z')`,
 			``,
 			``,
 			``,
@@ -5879,19 +5917,15 @@ var AggregationTests = []AggregationTestCase{
 			"stored_fields": [
 				"*"
 			],
-			"track_total_hits": true
+			"track_total_hits": false
 		}`,
 		ExpectedResponse: `{"response": {"aggregations":{}}}`,
 		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(122))}}},
 			{},
 			{},
 			{},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))`,
 			`SELECT "host.name", "message", "message", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
@@ -6067,7 +6101,7 @@ var AggregationTests = []AggregationTestCase{
 			"stored_fields": [
 				"*"
 			],
-			"track_total_hits": true
+			"track_total_hits": false
 		}`,
 		ExpectedResponse: `
 		{
@@ -6085,14 +6119,10 @@ var AggregationTests = []AggregationTestCase{
 			}
 		}`,
 		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(122))}}},
 			{},
 			{},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))`,
 			`SELECT "host.name", "FlightDelayMin", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
@@ -6176,18 +6206,14 @@ var AggregationTests = []AggregationTestCase{
 			"stored_fields": [
 				"*"
 			],
-			"track_total_hits": true
+			"track_total_hits": false
 		}`,
 		ExpectedResponse: `{"response": {"aggregations":{}}}`,
 		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(122))}}},
 			{},
 			{},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))`,
 			`SELECT "host.name", "FlightDelayMin", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
@@ -6256,9 +6282,14 @@ var AggregationTests = []AggregationTestCase{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("message", "User updated")}}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName,
-			`SELECT "message" FROM ` + QuotedTableName + ` LIMIT 1`,
-			`SELECT "message" FROM ` + QuotedTableName + ` LIMIT 2`,
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName,
+			`SELECT "message" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`LIMIT 1`,
+			`SELECT "message" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`LIMIT 2`,
 		},
 	},
 	{ // [39]
@@ -6323,9 +6354,16 @@ var AggregationTests = []AggregationTestCase{
 			}}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName,
-			`SELECT "message", "timestamp" FROM ` + QuotedTableName + ` ORDER BY "timestamp" DESC LIMIT 1`,
-			`SELECT "message", "timestamp" FROM ` + QuotedTableName + ` ORDER BY "timestamp" DESC LIMIT 1`,
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName,
+			`SELECT "message", "timestamp" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`ORDER BY "timestamp" DESC ` +
+				`LIMIT 1`,
+			`SELECT "message", "timestamp" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`ORDER BY "timestamp" DESC ` +
+				`LIMIT 1`,
 		},
 	},
 }

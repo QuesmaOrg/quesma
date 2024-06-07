@@ -79,7 +79,7 @@ var OpensearchSearchTests = []SearchTestCase{
 		WantedSql: []string{
 			`("-@timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z') AND "-@timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))`,
 		},
-		WantedQueryType: model.Normal,
+		WantedQueryType: model.ListAllFields,
 		WantedRegexes: []string{
 			"SELECT count() FROM " + QuotedTableName + ` ` +
 				`WHERE ("-@timestamp".=parseDateTime64BestEffort('2024-04-04T13:..:18.149Z') ` +

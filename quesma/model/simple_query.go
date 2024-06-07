@@ -11,7 +11,16 @@ type SimpleQuery struct {
 	OrderBy     []SelectColumn
 	CanParse    bool
 	FieldName   string
+	// NeedCountWithLimit > 0 means we need count(*) LIMIT NeedCountWithLimit
+	// NeedCountWithLimit 0 (WeNeedUnlimitedCount) means we need count(*) (unlimited)
+	// NeedCountWithLimit -1 (WeDontNeedCount) means we don't need a count(*) query
+	NeedCountWithLimit int
 }
+
+const (
+	WeNeedUnlimitedCount = -1
+	WeDontNeedCount      = 0
+)
 
 var asString = where_clause.StringRenderer{}
 
@@ -28,6 +37,12 @@ func NewSimpleQuery(whereClause where_clause.Statement, canParse bool) SimpleQue
 
 func NewSimpleQueryWithFieldName(whereClause where_clause.Statement, canParse bool, fieldName string) SimpleQuery {
 	return SimpleQuery{WhereClause: whereClause, CanParse: canParse, FieldName: fieldName}
+}
+
+// LimitForCount returns (limit, true) if we need count(*) with limit,
+// (not-important, false) if we don't need count/limit
+func (s *SimpleQuery) LimitForCount() (limit int, doWeNeedLimit bool) {
+	return s.NeedCountWithLimit, s.NeedCountWithLimit != WeDontNeedCount && s.NeedCountWithLimit != WeNeedUnlimitedCount
 }
 
 func And(andStmts []where_clause.Statement) where_clause.Statement {

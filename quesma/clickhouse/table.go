@@ -282,3 +282,11 @@ func (t *Table) GetFieldInfo(ctx context.Context, fieldName string) FieldInfo {
 	}
 	return ExistsAndIsBaseType
 }
+
+func (t *Table) GetTimestampFieldName() (string, error) {
+	if t.TimestampColumn != nil {
+		return *t.TimestampColumn, nil
+	} else {
+		return "", fmt.Errorf("no timestamp field configured for table %s", t.Name)
+	}
+}
