@@ -63,8 +63,9 @@ func (s *schemaRegistry) loadTypeMappingsFromConfiguration() {
 			logger.Info().Msgf("loading schema for index %s", indexConfiguration.Name)
 			fields := make(map[FieldName]Field)
 			for _, field := range indexConfiguration.SchemaConfiguration.Fields {
-				fields[FieldName(field.Name)] = Field{
-					Name: FieldName(field.Name),
+				fieldName := FieldName(field.Name)
+				fields[fieldName] = Field{
+					Name: fieldName,
 					// TODO check if type is valid
 					Type: Type(field.Type),
 				}
@@ -79,9 +80,13 @@ func (s *schemaRegistry) Load() error {
 		return fmt.Errorf("schema registry not started")
 	}
 	definitions := s.clickhouseSchemaLoader.TableDefinitions()
+	schemas := s.schemas.Snapshot()
 	definitions.Range(func(indexName string, value *clickhouse.Table) bool {
 		logger.Info().Msgf("loading schema for table %s", indexName)
 		fields := make(map[FieldName]Field)
+		if schema, found := schemas[TableName(indexName)]; found {
+			fields = schema.Fields
+		}
 		for _, col := range value.Cols {
 			indexConfig := s.configuration.IndexConfig[indexName]
 			if explicitType, found := indexConfig.TypeMappings[col.Name]; found {
@@ -92,14 +97,16 @@ func (s *schemaRegistry) Load() error {
 				}
 				continue
 			}
-			quesmaType, found := s.ClickhouseTypeAdapter.Adapt(col.Type.String())
-			if !found {
-				fmt.Printf("type %s not supported\n", col.Type.String())
-				continue
-			} else {
-				fields[FieldName(col.Name)] = Field{
-					Name: FieldName(col.Name),
-					Type: quesmaType, // TODO convert to our type
+			if _, exists := fields[FieldName(col.Name)]; !exists {
+				quesmaType, found := s.ClickhouseTypeAdapter.Adapt(col.Type.String())
+				if !found {
+					fmt.Printf("type %s not supported\n", col.Type.String())
+					continue
+				} else {
+					fields[FieldName(col.Name)] = Field{
+						Name: FieldName(col.Name),
+						Type: quesmaType, // TODO convert to our type
+					}
 				}
 			}
 		}
