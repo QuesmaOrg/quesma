@@ -1355,7 +1355,10 @@ var TestsSearch = []SearchTestCase{
 		[]string{""},
 		model.ListAllFields,
 		//[]model.Query{newSimplestQuery()},
-		[]string{`SELECT "message" FROM ` + QuotedTableName},
+		[]string{
+			`SELECT count() FROM ` + QuotedTableName,
+			`SELECT "message" FROM ` + QuotedTableName,
+		},
 	},
 	{ // [16]
 		"Simplest 'match_phrase'",
@@ -1931,7 +1934,10 @@ var TestsSearch = []SearchTestCase{
 		[]string{""},
 		model.ListByField,
 		//[]model.Query{withLimit(newSimplestQuery(), 500)},
-		[]string{`SELECT "message" FROM ` + QuotedTableName + ` LIMIT 500`},
+		[]string{
+			`SELECT count() FROM ` + QuotedTableName,
+			`SELECT "message" FROM ` + QuotedTableName + ` LIMIT 500`,
+		},
 	},
 	{ // [26]
 		"Empty must",
@@ -2001,7 +2007,10 @@ var TestsSearch = []SearchTestCase{
 		[]string{``},
 		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(``)},
-		[]string{`SELECT "message" FROM ` + QuotedTableName},
+		[]string{
+			`SELECT count() FROM ` + QuotedTableName,
+			`SELECT "message" FROM ` + QuotedTableName,
+		},
 	},
 	{ // [30]
 		"Some bools empty, some not",
@@ -2043,7 +2052,10 @@ var TestsSearch = []SearchTestCase{
 		[]string{""},
 		model.ListAllFields,
 		//[]model.Query{newSimplestQuery()},
-		[]string{`SELECT "message" FROM ` + QuotedTableName},
+		[]string{
+			`SELECT count() FROM ` + QuotedTableName,
+			`SELECT "message" FROM ` + QuotedTableName,
+		},
 	},
 	{ // [32]
 		"Constant score query",
