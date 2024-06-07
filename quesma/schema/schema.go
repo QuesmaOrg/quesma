@@ -24,7 +24,7 @@ type (
 )
 
 type (
-	SchemaRegistry interface {
+	Registry interface {
 		AllSchemas() map[TableName]Schema
 		FindSchema(name TableName) (Schema, bool)
 		Load() error
@@ -133,7 +133,7 @@ func (s *schemaRegistry) FindSchema(name TableName) (Schema, bool) {
 	return schema, found
 }
 
-func NewSchemaRegistry(schemaManagement *clickhouse.SchemaLoader, configuration config.QuesmaConfiguration) SchemaRegistry {
+func NewSchemaRegistry(schemaManagement *clickhouse.SchemaLoader, configuration config.QuesmaConfiguration) Registry {
 	return &schemaRegistry{
 		schemas:                concurrent.NewMap[TableName, Schema](),
 		started:                atomic.Bool{},

@@ -84,7 +84,7 @@ func main() {
 
 }
 
-func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, im elasticsearch.IndexManagement, schemaRegistry schema.SchemaRegistry, phoneHomeAgent telemetry.PhoneHomeAgent, logChan <-chan tracing.LogWithLevel) *quesma.Quesma {
+func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, logChan <-chan tracing.LogWithLevel) *quesma.Quesma {
 
 	switch cfg.Mode {
 	case config.Proxy:

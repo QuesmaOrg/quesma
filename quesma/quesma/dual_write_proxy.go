@@ -57,14 +57,14 @@ type dualWriteHttpProxy struct {
 	publicPort          network.Port
 	asyncQueriesEvictor *AsyncQueriesEvictor
 	queryRunner         *QueryRunner
-	schemaRegistry      schema.SchemaRegistry
+	schemaRegistry      schema.Registry
 }
 
 func (q *dualWriteHttpProxy) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
-func newDualWriteProxy(logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.SchemaRegistry, config config.QuesmaConfiguration, pathRouter *mux.PathRouter, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *dualWriteHttpProxy {
+func newDualWriteProxy(logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.Registry, config config.QuesmaConfiguration, pathRouter *mux.PathRouter, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *dualWriteHttpProxy {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
