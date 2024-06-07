@@ -7,6 +7,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/model/typical_queries"
 	"mitmproxy/quesma/queryparser/lucene"
 	wc "mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/types"
@@ -75,6 +76,9 @@ func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	}
 	if fullQuery != nil {
 		fullQuery.QueryInfoType = queryInfo.Typ
+		// TODO: pass right arguments
+		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, fullQuery.OrderByFieldNames(), true, false, false)
+		fullQuery.Type = &queryType
 		fullQuery.Highlighter = highlighter
 	}
 
