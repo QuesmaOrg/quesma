@@ -13,7 +13,7 @@ import (
 
 type WhereVisitor struct {
 	lhs string
-	rhs string
+	rhs []string
 	op  string
 }
 
@@ -28,7 +28,7 @@ func (v *WhereVisitor) VisitInfixOp(e *where_clause.InfixOp) interface{} {
 	}
 	if e.Right != nil {
 		rhs := e.Right.Accept(v)
-		v.rhs = rhs.(string)
+		v.rhs = append(v.rhs, rhs.(string))
 	}
 	v.op = e.Op
 	return ""
@@ -95,24 +95,37 @@ func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query
 	if len(whereVisitor.lhs) == 0 || len(whereVisitor.rhs) == 0 {
 		return query, errors.New("schema transformation failed, lhs or rhs is empty")
 	}
-	if whereVisitor.op != "=" && whereVisitor.op != "iLIKE" {
+	if whereVisitor.op != "=" && whereVisitor.op != "iLIKE" && whereVisitor.op != "IN" {
 		logger.Warn().Msg("ip transformation omitted, operator is not =")
 		return query, nil
 	}
-	whereVisitor.rhs = strings.Replace(whereVisitor.rhs, "%", "", -1)
-	transformedWhereClause := &where_clause.Function{
-		Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
-		Args: []where_clause.Statement{
-			&where_clause.Function{
-				Name: where_clause.Literal{Name: CASTPrimitive},
-				Args: []where_clause.Statement{
-					&where_clause.Literal{Name: whereVisitor.lhs},
-					&where_clause.Literal{Name: StringLiteral},
-				},
-			},
-			&where_clause.Literal{Name: whereVisitor.rhs},
-		},
+	for i, rhs := range whereVisitor.rhs {
+		rhs = strings.Replace(rhs, "%", "", -1)
+		whereVisitor.rhs[i] = rhs
 	}
+
+	var transformedWhereClause where_clause.Statement
+
+	switch whereVisitor.op {
+	case "IN":
+		transformedWhereClause = query.WhereClause
+	default:
+		transformedWhereClause = &where_clause.Function{
+			Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
+			Args: []where_clause.Statement{
+				&where_clause.Function{
+					Name: where_clause.Literal{Name: CASTPrimitive},
+					Args: []where_clause.Statement{
+						&where_clause.Literal{Name: whereVisitor.lhs},
+						&where_clause.Literal{Name: StringLiteral},
+					},
+				},
+				&where_clause.Literal{Name: whereVisitor.rhs[0]},
+			},
+		}
+
+	}
+
 	query.WhereClause = transformedWhereClause
 	return query, nil
 }
