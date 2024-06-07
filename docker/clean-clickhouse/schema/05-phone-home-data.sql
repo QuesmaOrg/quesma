@@ -13,6 +13,10 @@ CREATE TABLE IF NOT EXISTS "phone_home_data"
     "instanceId" Nullable(String),
     "runtime::memory_used" Nullable(Int64),
     "runtime::memory_available" Nullable(Int64),
+    "runtime::number_of_goroutines" Nullable(Int64),
+    "runtime::number_of_cpus" Nullable(Int64),
+    "runtime::number_of_gc" Nullable(Int64),
+
     "taken_at" Nullable(Int64),
     "report_type" Nullable(String),
 

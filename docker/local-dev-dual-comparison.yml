@@ -56,7 +56,6 @@ services:
       - xpack.security.enabled=false
       - "ES_JAVA_OPTS=-Xmx2G"
     ports:
-      - "9202:9200"
       - "9301:9300"
     healthcheck:
       test: curl -s http://elasticsearch_direct:9200 >/dev/null || exit 1
@@ -88,10 +87,31 @@ services:
       start_period: 2m
       interval: 1s
       timeout: 1s
+  mitmproxy_direct:
+    image: mitmproxy/mitmproxy:10.1.5
+    tty: true
+    ports:
+      - "9202:8080"
+      - "8082:8081"
+    command: >
+      mitmweb --set termlog_verbosity=warn --no-web-open-browser --web-host 0.0.0.0 --mode reverse:http://elasticsearch_direct:9200/
+    # -s /var/mitmproxy/request.py
+    # Uncomment above, if you would like to log requests using mitmproxy/request.py
+    #   The files will be available in mitmproxy/{query,requests}/*.txt
+    depends_on:
+      elasticsearch_direct:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      # No curl/wget, going old school
+      test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/8080' || exit 1
+      interval: 1s
+      start_period: 1m
+      timeout: 1s
   kibana_direct:
     image: docker.elastic.co/kibana/kibana:8.11.1
     environment:
-      ELASTICSEARCH_HOSTS: '["http://elasticsearch_direct:9200"]'
+      ELASTICSEARCH_HOSTS: '["http://mitmproxy_direct:8080"]'
       XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: 'QUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMAQUESMA' # Just to get rid of annoying ERROR in logs
     #      LOGGING_ROOT_LEVEL: 'debug'
     depends_on:

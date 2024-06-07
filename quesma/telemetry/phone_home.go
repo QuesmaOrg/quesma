@@ -57,8 +57,11 @@ type ElasticStats struct {
 }
 
 type RuntimeStats struct {
-	MemoryUsed      uint64 `json:"memory_used"`
-	MemoryAvailable uint64 `json:"memory_available"`
+	MemoryUsed         uint64 `json:"memory_used"`
+	MemoryAvailable    uint64 `json:"memory_available"`
+	NumberOfGoroutines int    `json:"number_of_goroutines"`
+	NumberOfCPUs       int    `json:"number_of_cpus"`
+	NumberOfGC         uint32 `json:"number_of_gc"`
 }
 
 type PhoneHomeStats struct {
@@ -458,6 +461,10 @@ func (a *agent) runtimeStats() (stats RuntimeStats) {
 	if v, errV := mem.VirtualMemory(); errV == nil {
 		stats.MemoryAvailable = v.Total
 	}
+
+	stats.NumberOfCPUs = runtime.NumCPU()
+	stats.NumberOfGoroutines = runtime.NumGoroutine()
+	stats.NumberOfGC = m.NumGC
 
 	return stats
 }
