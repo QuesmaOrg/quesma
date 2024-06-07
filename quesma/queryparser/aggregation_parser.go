@@ -306,7 +306,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]mo
 				logger.WarnWithCtx(cw.Ctx).Msgf("aggr is not a map, but %T, aggr: %v. Skipping", aggrRaw, aggrRaw)
 				continue
 			}
-			currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(aggrName))
+			currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregator(aggrName))
 			err := cw.parseAggregation(&currentAggr, aggr, &aggregations)
 			if err != nil {
 				return nil, err
@@ -351,7 +351,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQuer
 	for k, v := range queryMap {
 		// I assume it's new aggregator name
 		logger.DebugWithCtx(cw.Ctx).Msgf("names += %s", k)
-		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregatorEmpty(k))
+		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregator(k))
 		if subAggregation, ok := v.(QueryMap); ok {
 			err = cw.parseAggregation(currentAggr, subAggregation, resultAccumulator)
 			if err != nil {
@@ -432,15 +432,15 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	}
 
 	// 4. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
-	bucketAggrPresent, nonSchemaFieldsAddedCount, groupByFieldsAddedCount, err := cw.tryBucketAggregation(currentAggr, queryMap)
+	bucketAggrPresent, columnsAdded, groupByFieldsAdded, orderByFieldsAdded, err := cw.tryBucketAggregation(currentAggr, queryMap)
 	if err != nil {
 		return err
 	}
-	if nonSchemaFieldsAddedCount > 0 {
+	if groupByFieldsAdded > 0 {
 		if len(currentAggr.Aggregators) > 0 {
-			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Empty = false
+			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].SplitOverHowManyFields = groupByFieldsAdded
 		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("nonSchemaFieldsAddedCount > 0, but no aggregators present")
+			logger.ErrorWithCtx(cw.Ctx).Msgf("groupByFieldsAdded > 0, but no aggregators present")
 		}
 	}
 
@@ -484,25 +484,27 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	if filterOnThisLevel {
 		currentAggr.whereBuilder = whereBeforeNesting
 	}
-	if nonSchemaFieldsAddedCount > 0 {
+	if columnsAdded > 0 {
 
-		if len(currentAggr.Columns) >= nonSchemaFieldsAddedCount {
-			currentAggr.Columns = currentAggr.Columns[:len(currentAggr.Columns)-nonSchemaFieldsAddedCount]
+		if len(currentAggr.Columns) >= columnsAdded {
+			currentAggr.Columns = currentAggr.Columns[:len(currentAggr.Columns)-columnsAdded]
 		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("nonSchemaFieldsAddedCount > currentAggr.Columns length -> should be impossible")
+			logger.ErrorWithCtx(cw.Ctx).Msgf("columnsAdded > currentAggr.Columns length -> should be impossible")
 		}
 
 	}
-	if groupByFieldsAddedCount > 0 {
-		if len(currentAggr.GroupBy) >= groupByFieldsAddedCount {
-			currentAggr.GroupBy = currentAggr.GroupBy[:len(currentAggr.GroupBy)-groupByFieldsAddedCount]
+	if groupByFieldsAdded > 0 {
+		if len(currentAggr.GroupBy) >= groupByFieldsAdded {
+			currentAggr.GroupBy = currentAggr.GroupBy[:len(currentAggr.GroupBy)-groupByFieldsAdded]
 		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("groupByFieldsAddecCount > currentAggr.GroupByFields length -> should be impossible")
+			logger.ErrorWithCtx(cw.Ctx).Msgf("groupByFieldsAdded > currentAggr.GroupBy length -> should be impossible")
 		}
-		if len(currentAggr.OrderBy) >= groupByFieldsAddedCount {
-			currentAggr.OrderBy = currentAggr.GroupBy[:len(currentAggr.OrderBy)-groupByFieldsAddedCount]
+	}
+	if orderByFieldsAdded > 0 {
+		if len(currentAggr.OrderBy) >= orderByFieldsAdded {
+			currentAggr.OrderBy = currentAggr.GroupBy[:len(currentAggr.OrderBy)-orderByFieldsAdded]
 		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("groupByFieldsAddecCount > currentAggr.OrderBy length -> should be impossible")
+			logger.ErrorWithCtx(cw.Ctx).Msgf("orderByFieldsAdded > currentAggr.OrderBy length -> should be impossible")
 		}
 	}
 	currentAggr.Type = queryTypeBeforeNesting
@@ -655,7 +657,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 // * 'success': was it bucket aggreggation?
 // * 'nonSchemaFieldAdded': did we add a non-schema field to 'currentAggr', if it turned out to be bucket aggregation? If we did, we need to know, to remove it later.
 func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQueryBuilder, queryMap QueryMap) (
-	success bool, nonSchemaFieldsAddedCount, groupByFieldsAddedCount int, err error) {
+	success bool, columnsAdded, groupByFieldsAdded, orderByFieldsAdded int, err error) {
 
 	success = true // returned in most cases
 	if histogramRaw, ok := queryMap["histogram"]; ok {
@@ -706,7 +708,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: groupByStr}})
 
 		delete(queryMap, "histogram")
-		return success, 1, 1, nil
+		return success, 1, 1, 1, nil
 	}
 	if dateHistogramRaw, ok := queryMap["date_histogram"]; ok {
 		dateHistogram, ok := dateHistogramRaw.(QueryMap)
@@ -723,7 +725,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: histogramPartOfQuery}})
 
 		delete(queryMap, "date_histogram")
-		return success, 1, 1, nil
+		return success, 1, 1, 1, nil
 	}
 	for _, termsType := range []string{"terms", "significant_terms"} {
 		if terms, ok := queryMap[termsType]; ok {
@@ -754,7 +756,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			if !orderByAdded {
 				currentAggr.OrderBy = append(currentAggr.OrderBy, model.SelectColumn{Expression: aexp.TableColumn(cw.parseFieldField(terms, termsType))})
 			}
-			return success, 1, 1, nil
+			return success, 1, 1, 1, nil
 			/* will remove later
 			var size int
 			if sizeRaw, exists := terms.(QueryMap)["size"]; exists {
@@ -775,6 +777,54 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			*/
 		}
 	}
+	if multiTermsRaw, exists := queryMap["multi_terms"]; exists {
+		multiTerms, ok := multiTermsRaw.(QueryMap)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("multi_terms is not a map, but %T, value: %v", multiTermsRaw, multiTermsRaw)
+		}
+
+		orderByAdded := false
+		isEmptyGroupBy := len(currentAggr.GroupBy) == 0
+		const defaultSize = 10
+		size := cw.parseIntField(multiTerms, "size", defaultSize)
+		if _, exists := queryMap["aggs"]; isEmptyGroupBy && !exists { // we can do limit only it terms are not nested
+			currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewSortByCountColumn(true))
+			currentAggr.Limit = size
+			orderByAdded = true
+			orderByFieldsAdded = 1
+		}
+
+		var fieldsNr int
+		if termsRaw, exists := multiTerms["terms"]; exists {
+			terms, ok := termsRaw.([]any)
+			if !ok {
+				logger.WarnWithCtx(cw.Ctx).Msgf("terms is not an array, but %T, value: %v. Using empty array", termsRaw, termsRaw)
+			}
+			fieldsNr = len(terms)
+			for _, term := range terms {
+				fieldName := cw.parseFieldField(term, "multi_terms")
+				column := model.SelectColumn{Expression: aexp.TableColumn(fieldName)}
+				currentAggr.Columns = append(currentAggr.GroupBy, column)
+				currentAggr.GroupBy = append(currentAggr.GroupBy, column)
+				if !orderByAdded {
+					currentAggr.OrderBy = append(currentAggr.OrderBy, column)
+					orderByFieldsAdded++
+				}
+			}
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msg("no terms in multi_terms")
+		}
+
+		currentAggr.Type = bucket_aggregations.NewMultiTerms(cw.Ctx, fieldsNr)
+		if len(currentAggr.Aggregators) > 0 {
+			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].SplitOverHowManyFields = fieldsNr
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("empty aggregators, should be impossible. currentAggr: %+v", currentAggr)
+		}
+
+		delete(queryMap, "multi_terms")
+		return success, fieldsNr, fieldsNr, orderByFieldsAdded, nil
+	}
 	if rangeRaw, ok := queryMap["range"]; ok {
 		rangeMap, ok := rangeRaw.(QueryMap)
 		if !ok {
@@ -786,7 +836,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Keyed = true
 		}
 		delete(queryMap, "range")
-		return success, 0, 0, nil
+		return success, 0, 0, 0, nil
 	}
 	if dateRangeRaw, ok := queryMap["date_range"]; ok {
 		dateRange, ok := dateRangeRaw.(QueryMap)
@@ -796,7 +846,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		dateRangeParsed, err := cw.parseDateRangeAggregation(dateRange)
 		if err != nil {
 			logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("failed to parse date_range aggregation")
-			return false, 0, 0, err
+			return false, 0, 0, 0, err
 		}
 		currentAggr.Type = dateRangeParsed
 		for _, interval := range dateRangeParsed.Intervals {
@@ -811,8 +861,15 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			}
 		}
 
+		// TODO after https://github.com/QuesmaOrg/quesma/pull/99 it should be only in 1 of 2 cases (keyed or not), just like in range aggregation
+		if len(currentAggr.Aggregators) > 0 {
+			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].SplitOverHowManyFields = 1
+		} else {
+			logger.ErrorWithCtx(cw.Ctx).Msg("no aggregators in currentAggr")
+		}
+
 		delete(queryMap, "date_range")
-		return success, dateRangeParsed.SelectColumnsNr, 0, nil
+		return success, dateRangeParsed.SelectColumnsNr, 0, 0, nil
 	}
 	if _, ok := queryMap["sampler"]; ok {
 		currentAggr.Type = metrics_aggregations.NewCount(cw.Ctx)
@@ -861,6 +918,16 @@ func (cw *ClickhouseQueryTranslator) parseFieldField(shouldBeMap any, aggregatio
 		logger.WarnWithCtx(cw.Ctx).Msgf("field not found in %s aggregation: %v", aggregationType, Map)
 	}
 	return ""
+}
+
+func (cw *ClickhouseQueryTranslator) parseIntField(queryMap QueryMap, fieldName string, defaultValue int) int {
+	if valueRaw, exists := queryMap[fieldName]; exists {
+		if asFloat, ok := valueRaw.(float64); ok {
+			return int(asFloat)
+		}
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not an float64, but %T, value: %v. Using default", fieldName, valueRaw, valueRaw)
+	}
+	return defaultValue
 }
 
 // parseFieldFieldMaybeScript is basically almost a copy of parseFieldField above, but it also handles a basic script, if "field" is missing.

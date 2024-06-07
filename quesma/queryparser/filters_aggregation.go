@@ -54,7 +54,7 @@ func (cw *ClickhouseQueryTranslator) processFiltersAggregation(aggrBuilder *aggr
 		// newBuilder.Aggregators = append(aggrBuilder.Aggregators, model.NewAggregatorEmpty(filter.Name))
 		aggrBuilder.Type = aggr
 		aggrBuilder.whereBuilder = model.CombineWheres(cw.Ctx, aggrBuilder.whereBuilder, filter.Sql)
-		aggrBuilder.Aggregators = append(aggrBuilder.Aggregators, model.NewAggregatorEmpty(filter.Name))
+		aggrBuilder.Aggregators = append(aggrBuilder.Aggregators, model.NewAggregator(filter.Name))
 		*resultAccumulator = append(*resultAccumulator, aggrBuilder.buildBucketAggregation(nil)) // nil for now, will be changed
 		if aggs, ok := queryMap["aggs"].(QueryMap); ok {
 			aggsCopy, errAggs := deepcopy.Anything(aggs)

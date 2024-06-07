@@ -292,23 +292,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [15]
-		TestName:  "bucket aggregation: multi_terms",
-		QueryType: "multi_terms",
-		QueryRequestJson: `
-		{
-			"aggs": {
-				"genres_and_products": {
-					"multi_terms": {
-						"terms": [
-							{ "field": "genre" },
-							{ "field": "product" }
-						]
-					}
-				}
-			}
-		}`,
-	},
 	{ // [16]
 		TestName:  "bucket aggregation: nested",
 		QueryType: "nested",
