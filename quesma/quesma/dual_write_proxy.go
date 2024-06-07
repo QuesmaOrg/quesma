@@ -12,6 +12,7 @@ import (
 	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/ui"
+	"mitmproxy/quesma/schema"
 	"mitmproxy/quesma/telemetry"
 	"net/http"
 	"strconv"
@@ -56,13 +57,14 @@ type dualWriteHttpProxy struct {
 	publicPort          network.Port
 	asyncQueriesEvictor *AsyncQueriesEvictor
 	queryRunner         *QueryRunner
+	schemaRegistry      schema.SchemaRegistry
 }
 
 func (q *dualWriteHttpProxy) Stop(ctx context.Context) {
 	q.Close(ctx)
 }
 
-func newDualWriteProxy(logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, config config.QuesmaConfiguration, pathRouter *mux.PathRouter, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *dualWriteHttpProxy {
+func newDualWriteProxy(logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, registry schema.SchemaRegistry, config config.QuesmaConfiguration, pathRouter *mux.PathRouter, quesmaManagementConsole *ui.QuesmaManagementConsole, agent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *dualWriteHttpProxy {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -95,7 +97,8 @@ func newDualWriteProxy(logManager *clickhouse.LogManager, indexManager elasticse
 	limitedHandler := newSimultaneousClientsLimiter(handler, 100) // FIXME this should be configurable
 
 	return &dualWriteHttpProxy{
-		elasticRouter: pathRouter,
+		elasticRouter:  pathRouter,
+		schemaRegistry: registry,
 		routingHttpServer: &http.Server{
 			Addr:    ":" + strconv.Itoa(int(config.PublicTcpPort)),
 			Handler: limitedHandler,
@@ -124,6 +127,7 @@ func (q *dualWriteHttpProxy) Close(ctx context.Context) {
 }
 
 func (q *dualWriteHttpProxy) Ingest() {
+	q.schemaRegistry.Start()
 	q.logManager.Start()
 	q.indexManagement.Start()
 	go q.asyncQueriesEvictor.asyncQueriesGC()

@@ -62,19 +62,12 @@ func main() {
 	schemaLoader := clickhouse.NewSchemaLoader(cfg, schemaManagement)
 	schemaRegistry := schema.NewSchemaRegistry(schemaLoader, cfg)
 
-	go func() {
-		for {
-			<-time.After(5 * time.Second)
-			_ = schemaRegistry.Load()
-		}
-	}()
-
 	lm := clickhouse.NewEmptyLogManager(cfg, connectionPool, phoneHomeAgent, schemaLoader)
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())
 
-	instance := constructQuesma(cfg, lm, im, phoneHomeAgent, qmcLogChannel)
+	instance := constructQuesma(cfg, lm, im, schemaRegistry, phoneHomeAgent, qmcLogChannel)
 	instance.Start()
 
 	<-doneCh
@@ -91,7 +84,7 @@ func main() {
 
 }
 
-func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, im elasticsearch.IndexManagement, phoneHomeAgent telemetry.PhoneHomeAgent, logChan <-chan tracing.LogWithLevel) *quesma.Quesma {
+func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, im elasticsearch.IndexManagement, schemaRegistry schema.SchemaRegistry, phoneHomeAgent telemetry.PhoneHomeAgent, logChan <-chan tracing.LogWithLevel) *quesma.Quesma {
 
 	switch cfg.Mode {
 	case config.Proxy:
@@ -99,7 +92,7 @@ func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	case config.ProxyInspect:
 		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, logChan, true)
 	case config.DualWriteQueryElastic, config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
-		return quesma.NewHttpProxy(phoneHomeAgent, lm, im, cfg, logChan)
+		return quesma.NewHttpProxy(phoneHomeAgent, lm, im, schemaRegistry, cfg, logChan)
 	}
 	logger.Panic().Msgf("unknown operation mode: %s", cfg.Mode.String())
 	panic("unreachable")

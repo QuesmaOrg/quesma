@@ -6,6 +6,8 @@ import (
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
+	"sync/atomic"
+	"time"
 )
 
 type (
@@ -26,8 +28,10 @@ type (
 		AllSchemas() map[TableName]Schema
 		FindSchema(name TableName) (Schema, bool)
 		Load() error
+		Start()
 	}
 	schemaRegistry struct {
+		started                atomic.Bool
 		schemas                *concurrent.Map[TableName, Schema]
 		configuration          config.QuesmaConfiguration
 		clickhouseSchemaLoader *clickhouse.SchemaLoader
@@ -35,7 +39,45 @@ type (
 	}
 )
 
+func (s *schemaRegistry) Start() {
+	s.loadTypeMappingsFromConfiguration()
+
+	// TODO: implement this method
+	s.started.Store(true)
+
+	// TODO remove
+	go func() {
+		for {
+			<-time.After(5 * time.Second)
+			_ = s.Load()
+		}
+	}()
+}
+
+func (s *schemaRegistry) loadTypeMappingsFromConfiguration() {
+	for _, indexConfiguration := range s.configuration.IndexConfig {
+		if !indexConfiguration.Enabled {
+			continue
+		}
+		if indexConfiguration.SchemaConfiguration != nil {
+			logger.Info().Msgf("loading schema for index %s", indexConfiguration.Name)
+			fields := make(map[FieldName]Field)
+			for _, field := range indexConfiguration.SchemaConfiguration.Fields {
+				fields[FieldName(field.Name)] = Field{
+					Name: FieldName(field.Name),
+					// TODO check if type is valid
+					Type: Type(field.Type),
+				}
+			}
+			s.schemas.Store(TableName(indexConfiguration.Name), Schema{Fields: fields})
+		}
+	}
+}
+
 func (s *schemaRegistry) Load() error {
+	if !s.started.Load() {
+		return fmt.Errorf("schema registry not started")
+	}
 	definitions := s.clickhouseSchemaLoader.TableDefinitions()
 	definitions.Range(func(indexName string, value *clickhouse.Table) bool {
 		logger.Info().Msgf("loading schema for table %s", indexName)
@@ -70,6 +112,7 @@ func (s *schemaRegistry) Load() error {
 			fmt.Printf("\tfield: %s, type: %s\n", fieldName, field.Type)
 		}
 
+		break
 	}
 	return nil
 }
@@ -86,6 +129,7 @@ func (s *schemaRegistry) FindSchema(name TableName) (Schema, bool) {
 func NewSchemaRegistry(schemaManagement *clickhouse.SchemaLoader, configuration config.QuesmaConfiguration) SchemaRegistry {
 	return &schemaRegistry{
 		schemas:                concurrent.NewMap[TableName, Schema](),
+		started:                atomic.Bool{},
 		configuration:          configuration,
 		clickhouseSchemaLoader: schemaManagement,
 		ClickhouseTypeAdapter:  NewClickhouseTypeAdapter(),
