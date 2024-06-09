@@ -7,51 +7,54 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/config"
-	"strconv"
 	"strings"
 )
 
 type WhereVisitor struct {
 	lhs string
-	rhs []string
+	rhs string
 	op  string
 }
 
 func (v *WhereVisitor) VisitLiteral(e *where_clause.Literal) interface{} {
-	return e.Name
+	return where_clause.NewLiteral(e.Name)
 }
 
 func (v *WhereVisitor) VisitInfixOp(e *where_clause.InfixOp) interface{} {
-	if e.Left != nil {
-		lhs := e.Left.Accept(v)
-		v.lhs = lhs.(string)
+	lhs := e.Left.Accept(v).(where_clause.Statement)
+	rhs := e.Right.Accept(v).(where_clause.Statement)
+	if lhs != nil {
+		if lhsLiteral, ok := lhs.(*where_clause.Literal); ok {
+			v.lhs = lhsLiteral.Name
+		}
 	}
-	if e.Right != nil {
-		rhs := e.Right.Accept(v)
-		v.rhs = append(v.rhs, rhs.(string))
+	if rhs != nil {
+		if rhsLiteral, ok := rhs.(*where_clause.Literal); ok {
+			v.rhs = rhsLiteral.Name
+		}
 	}
 	v.op = e.Op
-	return ""
+	return where_clause.NewInfixOp(lhs, e.Op, rhs)
 }
 
-func (v *WhereVisitor) VisitPrefixOp(*where_clause.PrefixOp) interface{} {
-	return ""
+func (v *WhereVisitor) VisitPrefixOp(e *where_clause.PrefixOp) interface{} {
+	return where_clause.NewPrefixOp(e.Op, e.Args)
 }
 
-func (v *WhereVisitor) VisitFunction(*where_clause.Function) interface{} {
-	return ""
+func (v *WhereVisitor) VisitFunction(e *where_clause.Function) interface{} {
+	return where_clause.NewFunction(e.Name.Name, e.Args...)
 }
 
 func (v *WhereVisitor) VisitColumnRef(e *where_clause.ColumnRef) interface{} {
-	return strconv.Quote(e.ColumnName)
+	return where_clause.NewColumnRef(e.ColumnName)
 }
 
-func (v *WhereVisitor) VisitNestedProperty(*where_clause.NestedProperty) interface{} {
-	return ""
+func (v *WhereVisitor) VisitNestedProperty(e *where_clause.NestedProperty) interface{} {
+	return where_clause.NewNestedProperty(e.ColumnRef, e.PropertyName)
 }
 
-func (v *WhereVisitor) VisitArrayAccess(*where_clause.ArrayAccess) interface{} {
-	return ""
+func (v *WhereVisitor) VisitArrayAccess(e *where_clause.ArrayAccess) interface{} {
+	return where_clause.NewArrayAccess(e.ColumnRef, e.Index)
 }
 
 type SchemaCheckPass struct {
@@ -99,10 +102,7 @@ func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query
 		logger.Warn().Msg("ip transformation omitted, operator is not =")
 		return query, nil
 	}
-	for i, rhs := range whereVisitor.rhs {
-		rhs = strings.Replace(rhs, "%", "", -1)
-		whereVisitor.rhs[i] = rhs
-	}
+	whereVisitor.rhs = strings.Replace(whereVisitor.rhs, "%", "", -1)
 
 	var transformedWhereClause where_clause.Statement
 
@@ -120,7 +120,7 @@ func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query
 						&where_clause.Literal{Name: StringLiteral},
 					},
 				},
-				&where_clause.Literal{Name: whereVisitor.rhs[0]},
+				&where_clause.Literal{Name: whereVisitor.rhs},
 			},
 		}
 
