@@ -25,29 +25,38 @@ func (v *WhereVisitor) VisitInfixOp(e *where_clause.InfixOp) interface{} {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
 	const CASTPrimitive = "CAST"
 	const StringLiteral = "'String'"
-	lhs := e.Left.Accept(v).(where_clause.Statement)
-	rhs := e.Right.Accept(v).(where_clause.Statement)
-	if lhs != nil {
-		if lhsLiteral, ok := lhs.(*where_clause.Literal); ok {
-			v.lhs = lhsLiteral.Name
+	var lhs, rhs interface{}
+	if e.Left != nil {
+		lhs = e.Left.Accept(v)
+		if lhs != nil {
+			if lhsLiteral, ok := lhs.(*where_clause.Literal); ok {
+				v.lhs = lhsLiteral.Name
+			} else if lhsColumnRef, ok := lhs.(*where_clause.ColumnRef); ok {
+				v.lhs = lhsColumnRef.ColumnName
+			}
 		}
 	}
-	if rhs != nil {
-		if rhsLiteral, ok := rhs.(*where_clause.Literal); ok {
-			v.rhs = rhsLiteral.Name
+	if e.Right != nil {
+		rhs = e.Right.Accept(v)
+		if rhs != nil {
+			if rhsLiteral, ok := rhs.(*where_clause.Literal); ok {
+				v.rhs = rhsLiteral.Name
+			} else if rhsColumnRef, ok := rhs.(*where_clause.ColumnRef); ok {
+				v.lhs = rhsColumnRef.ColumnName
+			}
 		}
 	}
 	v.op = e.Op
-	mappedType := v.cfg[v.tableName].TypeMappings[strings.Trim(v.lhs, "\"")]
+	mappedType := v.cfg[v.tableName].TypeMappings[v.lhs]
 	if mappedType != "ip" {
-		return where_clause.NewInfixOp(lhs, e.Op, rhs)
+		return where_clause.NewInfixOp(lhs.(where_clause.Statement), e.Op, rhs.(where_clause.Statement))
 	}
 	if len(v.lhs) == 0 || len(v.rhs) == 0 {
-		return where_clause.NewInfixOp(lhs, e.Op, rhs)
+		return where_clause.NewInfixOp(lhs.(where_clause.Statement), e.Op, rhs.(where_clause.Statement))
 	}
 	if v.op != "=" && v.op != "iLIKE" {
 		logger.Warn().Msg("ip transformation omitted, operator is not =")
-		return where_clause.NewInfixOp(lhs, e.Op, rhs)
+		return where_clause.NewInfixOp(lhs.(where_clause.Statement), e.Op, rhs.(where_clause.Statement))
 
 	}
 	v.rhs = strings.Replace(v.rhs, "%", "", -1)
@@ -68,10 +77,20 @@ func (v *WhereVisitor) VisitInfixOp(e *where_clause.InfixOp) interface{} {
 }
 
 func (v *WhereVisitor) VisitPrefixOp(e *where_clause.PrefixOp) interface{} {
+	for _, arg := range e.Args {
+		if arg != nil {
+			arg.Accept(v)
+		}
+	}
 	return where_clause.NewPrefixOp(e.Op, e.Args)
 }
 
 func (v *WhereVisitor) VisitFunction(e *where_clause.Function) interface{} {
+	for _, arg := range e.Args {
+		if arg != nil {
+			arg.Accept(v)
+		}
+	}
 	return where_clause.NewFunction(e.Name.Name, e.Args...)
 }
 
@@ -80,10 +99,14 @@ func (v *WhereVisitor) VisitColumnRef(e *where_clause.ColumnRef) interface{} {
 }
 
 func (v *WhereVisitor) VisitNestedProperty(e *where_clause.NestedProperty) interface{} {
-	return where_clause.NewNestedProperty(e.ColumnRef, e.PropertyName)
+	ColumnRef := e.ColumnRef.Accept(v).(where_clause.ColumnRef)
+	Property := e.PropertyName.Accept(v).(where_clause.Literal)
+	return where_clause.NewNestedProperty(ColumnRef, Property)
 }
 
 func (v *WhereVisitor) VisitArrayAccess(e *where_clause.ArrayAccess) interface{} {
+	e.ColumnRef.Accept(v)
+	e.Index.Accept(v)
 	return where_clause.NewArrayAccess(e.ColumnRef, e.Index)
 }
 
@@ -117,7 +140,9 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 	whereVisitor := &WhereVisitor{tableName: fromTable, cfg: s.cfg}
 
 	transformedWhereClause := query.WhereClause.Accept(whereVisitor)
+
 	query.WhereClause = transformedWhereClause.(where_clause.Statement)
+
 	return query, nil
 }
 

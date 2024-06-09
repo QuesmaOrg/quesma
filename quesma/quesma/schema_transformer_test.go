@@ -14,8 +14,8 @@ func Test_ipRangeTransform(t *testing.T) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
 	const CASTPrimitive = "CAST"
 	const StringLiteral = "'String'"
-	const IpFieldContent = "111.42.223.209/16"
-	const IpFieldName = "clientip"
+	const IpFieldContent = "'111.42.223.209/16'"
+	const IpFieldName = "\"clientip\""
 
 	indexConfig := map[string]config.IndexConfiguration{
 		"kibana_sample_data_logs": {
