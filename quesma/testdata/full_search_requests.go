@@ -3,7 +3,7 @@ package testdata
 import "fmt"
 
 func selectCnt(limit int) string {
-	return fmt.Sprintf("SELECT count() FROM (SELECT \"message\" FROM %s LIMIT %d)", QuotedTableName, limit)
+	return fmt.Sprintf("SELECT count() FROM (SELECT 1 FROM %s LIMIT %d )", QuotedTableName, limit)
 }
 func selectTotalCnt() string {
 	return fmt.Sprintf("SELECT count() FROM %s", QuotedTableName)

@@ -75,7 +75,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -229,7 +230,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -409,7 +411,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -547,7 +550,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -691,7 +695,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: // erased "2": "bg_count": 14074, "doc_count": 2786 from the real response. It should be there in 'significant_terms' (not in 'terms'), but it seems to work without it.
 		`{
@@ -848,7 +853,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -1009,7 +1015,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -1182,7 +1189,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -1338,7 +1346,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -1434,7 +1443,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{

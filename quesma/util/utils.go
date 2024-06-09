@@ -664,6 +664,7 @@ func InitSqlMockWithPrettyPrint(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
 			fmt.Printf("%s\n", SqlPrettyPrint([]byte(expectedSQL)))
 			pp.Println("---- Actual:")
 			fmt.Printf("%s\n", SqlPrettyPrint([]byte(actualSQL)))
+			fmt.Printf("E: %s\nA: %s\n", expectedSQL, actualSQL)
 		}
 		return matchErr
 	})
