@@ -160,29 +160,22 @@ func (q *Query) String(ctx context.Context) string {
 		innerColumn := make([]string, 0)
 		for _, col := range q.Columns {
 			if _, ok := col.Expression.(aexp.TableColumnExp); ok {
-				innerColumn = append(innerColumn, aexp.RenderSQL(col.Expression)) // TOOD: Maybe need a chnage
+				innerColumn = append(innerColumn, aexp.RenderSQL(col.Expression)) // TOOD: Maybe need a change
 			}
 		}
 		if len(innerColumn) == 0 {
-			sb.WriteString("1")
-		} else {
-			sb.WriteString(strings.Join(innerColumn, ", "))
+			innerColumn = append(innerColumn, "1")
 		}
+		sb.WriteString(strings.Join(innerColumn, ", "))
 		sb.WriteString(" FROM ")
-		sb.WriteString(q.FromClause.SQL())
-		if q.WhereClause != nil {
-			sb.WriteString(" WHERE ")
-			sb.WriteString(q.WhereClause.Accept(&asString).(string))
-		}
-		sb.WriteString(" LIMIT ")
-		sb.WriteString(fmt.Sprintf("%d )", q.SampleLimit))
-	} else {
-		sb.WriteString(q.FromClause.SQL())
-
-		if q.WhereClause != nil {
-			sb.WriteString(" WHERE ")
-			sb.WriteString(q.WhereClause.Accept(&asString).(string))
-		}
+	}
+	sb.WriteString(q.FromClause.SQL())
+	if q.WhereClause != nil {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(q.WhereClause.Accept(&asString).(string))
+	}
+	if q.SampleLimit > 0 {
+		sb.WriteString(fmt.Sprintf(" LIMIT %d )", q.SampleLimit))
 	}
 
 	groupBy := make([]string, 0, len(q.GroupBy))
