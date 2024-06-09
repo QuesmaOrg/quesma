@@ -399,36 +399,12 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []*
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause where_clause.Statement) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause where_clause.Statement, sampleLimit int) *model.Query {
 	return &model.Query{
 		Columns:     []model.SelectColumn{{Expression: aexp.Count()}},
 		WhereClause: whereClause,
 		FromClause:  model.NewSelectColumnString(cw.Table.FullTableName()),
-		TableName:   cw.Table.FullTableName(),
-		CanParse:    true,
-		Type:        typical_queries.NewCount(cw.Ctx),
-	}
-}
-
-func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause where_clause.Statement, limit int) *model.Query {
-	var where aexp.AExp
-	if whereClause != nil {
-		// TODO: No rendering here
-		whereAsString := whereClause.Accept(&where_clause.StringRenderer{}).(string)
-		where = aexp.SQL{Query: "WHERE " + whereAsString}
-	} else {
-		where = aexp.String("")
-	}
-	fromClause := model.SelectColumn{Expression: aexp.NewComposite(
-		aexp.String("(SELECT 1"),
-		aexp.SQL{Query: "FROM " + cw.Table.FullTableName()},
-		where,
-		aexp.String("LIMIT"), aexp.Literal(limit),
-		aexp.String(")"))}
-	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: aexp.Count()}},
-		WhereClause: nil,
-		FromClause:  fromClause,
+		SampleLimit: sampleLimit,
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 		Type:        typical_queries.NewCount(cw.Ctx),
@@ -479,18 +455,15 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 	}
 
 	return &model.Query{
-		Columns: []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
-		GroupBy: []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
-		OrderBy: []model.SelectColumn{model.NewSortByCountColumn(true)},
-		FromClause: model.SelectColumn{Expression: aexp.NewComposite(
-			aexp.String("(SELECT"), aexp.TableColumn(fieldName),
-			aexp.SQL{Query: "FROM " + cw.Table.FullTableName()},
-			aexp.SQL{Query: "WHERE " + simpleQuery.WhereClauseAsString()},
-			aexp.String("LIMIT"), aexp.Literal(facetsSampleSize),
-			aexp.String(")"))},
-		TableName: cw.Table.FullTableName(),
-		CanParse:  true,
-		Type:      typ,
+		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
+		GroupBy:     []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		OrderBy:     []model.SelectColumn{model.NewSortByCountColumn(true)},
+		FromClause:  model.NewSelectColumnString(cw.Table.FullTableName()),
+		WhereClause: simpleQuery.WhereClause,
+		SampleLimit: facetsSampleSize,
+		TableName:   cw.Table.FullTableName(),
+		CanParse:    true,
+		Type:        typ,
 	}
 }
 

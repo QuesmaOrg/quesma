@@ -34,6 +34,7 @@ type (
 		FromClause  SelectColumn           // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
 		WhereClause where_clause.Statement // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
 		Limit       int                    // LIMIT clause, noLimit (0) means no limit
+		SampleLimit int                    // LIMIT, but before grouping, 0 means no limit
 
 		CanParse bool // true <=> query is valid
 
@@ -154,11 +155,34 @@ func (q *Query) String(ctx context.Context) string {
 	sb.WriteString(strings.Join(columns, ", "))
 
 	sb.WriteString(" FROM ")
-	sb.WriteString(q.FromClause.SQL())
+	if q.SampleLimit > 0 {
+		sb.WriteString("(SELECT ")
+		innerColumn := make([]string, 0)
+		for _, col := range q.Columns {
+			if _, ok := col.Expression.(aexp.TableColumnExp); ok {
+				innerColumn = append(innerColumn, aexp.RenderSQL(col.Expression)) // TOOD: Maybe need a chnage
+			}
+		}
+		if len(innerColumn) == 0 {
+			sb.WriteString("1")
+		} else {
+			sb.WriteString(strings.Join(innerColumn, ", "))
+		}
+		sb.WriteString(" FROM ")
+		sb.WriteString(q.FromClause.SQL())
+		if q.WhereClause != nil {
+			sb.WriteString(" WHERE ")
+			sb.WriteString(q.WhereClause.Accept(&asString).(string))
+		}
+		sb.WriteString(" LIMIT ")
+		sb.WriteString(fmt.Sprintf("%d )", q.SampleLimit))
+	} else {
+		sb.WriteString(q.FromClause.SQL())
 
-	if q.WhereClause != nil {
-		sb.WriteString(" WHERE ")
-		sb.WriteString(q.WhereClause.Accept(&asString).(string))
+		if q.WhereClause != nil {
+			sb.WriteString(" WHERE ")
+			sb.WriteString(q.WhereClause.Accept(&asString).(string))
+		}
 	}
 
 	groupBy := make([]string, 0, len(q.GroupBy))
