@@ -11,9 +11,10 @@ import (
 )
 
 type WhereVisitor struct {
-	lhs string
-	rhs string
-	op  string
+	lhs       string
+	rhs       string
+	op        string
+	tableName string
 }
 
 func (v *WhereVisitor) VisitLiteral(e *where_clause.Literal) interface{} {
@@ -86,10 +87,10 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 	if query.WhereClause == nil {
 		return query, nil
 	}
-	whereVisitor := &WhereVisitor{}
-	query.WhereClause.Accept(whereVisitor)
-
 	fromTable := getFromTable(query.TableName)
+	whereVisitor := &WhereVisitor{tableName: fromTable}
+
+	query.WhereClause.Accept(whereVisitor)
 
 	mappedType := s.cfg[fromTable].TypeMappings[strings.Trim(whereVisitor.lhs, "\"")]
 	if mappedType != "ip" {
