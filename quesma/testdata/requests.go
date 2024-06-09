@@ -147,7 +147,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 }`,
 		"no comment yet",
 		model.SearchQueryInfo{Typ: model.Facets, FieldName: "host.name", I1: 10, I2: 5000},
-		[]string{`SELECT "host.name" AS "key", count() AS "doc_count" FROM (SELECT "host.name" FROM "logs-generic-default"  WHERE (("@timestamp".=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%') LIMIT ` + queryparserFacetsSampleSize + ` ) GROUP BY "host.name" ORDER BY count() DESC`},
+		[]string{`SELECT "host.name" AS "key", count() AS "doc_count" FROM (SELECT "host.name" FROM "logs-generic-default"  WHERE (("@timestamp".=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%') LIMIT ` + queryparserFacetsSampleSize + `) GROUP BY "host.name" ORDER BY count() DESC`},
 		true,
 	},
 	{ // [1]
@@ -672,7 +672,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))) ` +
-				`LIMIT 1000 )`,
+				`LIMIT 1000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000), count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("message" iLIKE '%user%' ` +
@@ -821,7 +821,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		model.SearchQueryInfo{Typ: model.Normal},
 		[]string{
 			`SELECT count() FROM (SELECT 1 FROM "logs-generic-default" ` +
-				`WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%') LIMIT 1 )`,
+				`WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%') LIMIT 1)`,
 			`SELECT m..OrNull("@timestamp") FROM "logs-generic-default" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
 			`SELECT m..OrNull("@timestamp") FROM "logs-generic-default" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
 		},
@@ -2061,7 +2061,7 @@ var TestsSearch = []SearchTestCase{
 		model.ListAllFields,
 		//[]model.Query{newSimplestQuery()},
 		[]string{
-			`SELECT count() FROM (SELECT 1 FROM ` + QuotedTableName + ` LIMIT 10000 )`,
+			`SELECT count() FROM (SELECT 1 FROM ` + QuotedTableName + ` LIMIT 10000)`,
 			`SELECT "message" FROM ` + QuotedTableName,
 		},
 	},

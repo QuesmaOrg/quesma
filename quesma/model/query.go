@@ -175,7 +175,7 @@ func (q *Query) String(ctx context.Context) string {
 		sb.WriteString(q.WhereClause.Accept(&asString).(string))
 	}
 	if q.SampleLimit > 0 {
-		sb.WriteString(fmt.Sprintf(" LIMIT %d )", q.SampleLimit))
+		sb.WriteString(fmt.Sprintf(" LIMIT %d)", q.SampleLimit))
 	}
 
 	groupBy := make([]string, 0, len(q.GroupBy))
