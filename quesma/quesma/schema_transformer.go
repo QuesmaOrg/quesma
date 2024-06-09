@@ -2,7 +2,6 @@ package quesma
 
 import (
 	"context"
-	"errors"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/where_clause"
@@ -15,6 +14,7 @@ type WhereVisitor struct {
 	rhs       string
 	op        string
 	tableName string
+	cfg       map[string]config.IndexConfiguration
 }
 
 func (v *WhereVisitor) VisitLiteral(e *where_clause.Literal) interface{} {
@@ -22,6 +22,9 @@ func (v *WhereVisitor) VisitLiteral(e *where_clause.Literal) interface{} {
 }
 
 func (v *WhereVisitor) VisitInfixOp(e *where_clause.InfixOp) interface{} {
+	const isIPAddressInRangePrimitive = "isIPAddressInRange"
+	const CASTPrimitive = "CAST"
+	const StringLiteral = "'String'"
 	lhs := e.Left.Accept(v).(where_clause.Statement)
 	rhs := e.Right.Accept(v).(where_clause.Statement)
 	if lhs != nil {
@@ -35,7 +38,33 @@ func (v *WhereVisitor) VisitInfixOp(e *where_clause.InfixOp) interface{} {
 		}
 	}
 	v.op = e.Op
-	return where_clause.NewInfixOp(lhs, e.Op, rhs)
+	mappedType := v.cfg[v.tableName].TypeMappings[strings.Trim(v.lhs, "\"")]
+	if mappedType != "ip" {
+		return where_clause.NewInfixOp(lhs, e.Op, rhs)
+	}
+	if len(v.lhs) == 0 || len(v.rhs) == 0 {
+		return where_clause.NewInfixOp(lhs, e.Op, rhs)
+	}
+	if v.op != "=" && v.op != "iLIKE" {
+		logger.Warn().Msg("ip transformation omitted, operator is not =")
+		return where_clause.NewInfixOp(lhs, e.Op, rhs)
+
+	}
+	v.rhs = strings.Replace(v.rhs, "%", "", -1)
+	transformedWhereClause := &where_clause.Function{
+		Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
+		Args: []where_clause.Statement{
+			&where_clause.Function{
+				Name: where_clause.Literal{Name: CASTPrimitive},
+				Args: []where_clause.Statement{
+					&where_clause.Literal{Name: v.lhs},
+					&where_clause.Literal{Name: StringLiteral},
+				},
+			},
+			&where_clause.Literal{Name: v.rhs},
+		},
+	}
+	return transformedWhereClause
 }
 
 func (v *WhereVisitor) VisitPrefixOp(e *where_clause.PrefixOp) interface{} {
@@ -81,43 +110,14 @@ func getFromTable(fromTable string) string {
 // into
 // SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(lhs,'String'),rhs)
 func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Query, error) {
-	const isIPAddressInRangePrimitive = "isIPAddressInRange"
-	const CASTPrimitive = "CAST"
-	const StringLiteral = "'String'"
 	if query.WhereClause == nil {
 		return query, nil
 	}
 	fromTable := getFromTable(query.TableName)
-	whereVisitor := &WhereVisitor{tableName: fromTable}
+	whereVisitor := &WhereVisitor{tableName: fromTable, cfg: s.cfg}
 
-	query.WhereClause.Accept(whereVisitor)
-
-	mappedType := s.cfg[fromTable].TypeMappings[strings.Trim(whereVisitor.lhs, "\"")]
-	if mappedType != "ip" {
-		return query, nil
-	}
-	if len(whereVisitor.lhs) == 0 || len(whereVisitor.rhs) == 0 {
-		return query, errors.New("schema transformation failed, lhs or rhs is empty")
-	}
-	if whereVisitor.op != "=" && whereVisitor.op != "iLIKE" {
-		logger.Warn().Msg("ip transformation omitted, operator is not =")
-		return query, nil
-	}
-	whereVisitor.rhs = strings.Replace(whereVisitor.rhs, "%", "", -1)
-	transformedWhereClause := &where_clause.Function{
-		Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
-		Args: []where_clause.Statement{
-			&where_clause.Function{
-				Name: where_clause.Literal{Name: CASTPrimitive},
-				Args: []where_clause.Statement{
-					&where_clause.Literal{Name: whereVisitor.lhs},
-					&where_clause.Literal{Name: StringLiteral},
-				},
-			},
-			&where_clause.Literal{Name: whereVisitor.rhs},
-		},
-	}
-	query.WhereClause = transformedWhereClause
+	transformedWhereClause := query.WhereClause.Accept(whereVisitor)
+	query.WhereClause = transformedWhereClause.(where_clause.Statement)
 	return query, nil
 }
 
