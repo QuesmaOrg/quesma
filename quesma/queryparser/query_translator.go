@@ -408,12 +408,31 @@ func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause where_cla
 		CanParse:    true,
 		Type:        typical_queries.NewCount(cw.Ctx),
 	}
-	/* TODO
-	if limit, weNeedLimit := query.LimitForCount(); weNeedLimit {
-		fullQuery.Limit = limit
+}
+
+func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause where_clause.Statement, limit int) *model.Query {
+	var where aexp.AExp
+	if whereClause != nil {
+		// TODO: No rendering here
+		whereAsString := whereClause.Accept(&where_clause.StringRenderer{}).(string)
+		where = aexp.SQL{Query: "WHERE " + whereAsString}
+	} else {
+		where = aexp.String("")
 	}
-	return fullQuery
-	*/
+	fromClause := model.SelectColumn{Expression: aexp.NewComposite(
+		aexp.String("(SELECT 1"),
+		aexp.SQL{Query: "FROM " + cw.Table.FullTableName()},
+		where,
+		aexp.String("LIMIT"), aexp.Literal(limit),
+		aexp.String(")"))}
+	return &model.Query{
+		Columns:     []model.SelectColumn{{Expression: aexp.Count()}},
+		WhereClause: nil,
+		FromClause:  fromClause,
+		TableName:   cw.Table.FullTableName(),
+		CanParse:    true,
+		Type:        typical_queries.NewCount(cw.Ctx),
+	}
 }
 
 func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query *model.SimpleQuery, limit int) *model.Query {
