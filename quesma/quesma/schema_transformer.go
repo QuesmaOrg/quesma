@@ -7,7 +7,6 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/config"
-	"strconv"
 	"strings"
 )
 
@@ -18,40 +17,44 @@ type WhereVisitor struct {
 }
 
 func (v *WhereVisitor) VisitLiteral(e *where_clause.Literal) interface{} {
-	return e.Name
+	return where_clause.NewLiteral(e.Name)
 }
 
 func (v *WhereVisitor) VisitInfixOp(e *where_clause.InfixOp) interface{} {
-	if e.Left != nil {
-		lhs := e.Left.Accept(v)
-		v.lhs = lhs.(string)
+	lhs := e.Left.Accept(v).(where_clause.Statement)
+	rhs := e.Right.Accept(v).(where_clause.Statement)
+	if lhs != nil {
+		if lhsLiteral, ok := lhs.(*where_clause.Literal); ok {
+			v.lhs = lhsLiteral.Name
+		}
 	}
-	if e.Right != nil {
-		rhs := e.Right.Accept(v)
-		v.rhs = rhs.(string)
+	if rhs != nil {
+		if rhsLiteral, ok := rhs.(*where_clause.Literal); ok {
+			v.rhs = rhsLiteral.Name
+		}
 	}
 	v.op = e.Op
-	return ""
+	return where_clause.NewInfixOp(lhs, e.Op, rhs)
 }
 
-func (v *WhereVisitor) VisitPrefixOp(*where_clause.PrefixOp) interface{} {
-	return ""
+func (v *WhereVisitor) VisitPrefixOp(e *where_clause.PrefixOp) interface{} {
+	return where_clause.NewPrefixOp(e.Op, e.Args)
 }
 
-func (v *WhereVisitor) VisitFunction(*where_clause.Function) interface{} {
-	return ""
+func (v *WhereVisitor) VisitFunction(e *where_clause.Function) interface{} {
+	return where_clause.NewFunction(e.Name.Name, e.Args...)
 }
 
 func (v *WhereVisitor) VisitColumnRef(e *where_clause.ColumnRef) interface{} {
-	return strconv.Quote(e.ColumnName)
+	return where_clause.NewColumnRef(e.ColumnName)
 }
 
-func (v *WhereVisitor) VisitNestedProperty(*where_clause.NestedProperty) interface{} {
-	return ""
+func (v *WhereVisitor) VisitNestedProperty(e *where_clause.NestedProperty) interface{} {
+	return where_clause.NewNestedProperty(e.ColumnRef, e.PropertyName)
 }
 
-func (v *WhereVisitor) VisitArrayAccess(*where_clause.ArrayAccess) interface{} {
-	return ""
+func (v *WhereVisitor) VisitArrayAccess(e *where_clause.ArrayAccess) interface{} {
+	return where_clause.NewArrayAccess(e.ColumnRef, e.Index)
 }
 
 type SchemaCheckPass struct {
