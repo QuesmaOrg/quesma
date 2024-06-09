@@ -3,10 +3,13 @@ package testdata
 import "fmt"
 
 func selectCnt(limit int) string {
-	return fmt.Sprintf("SELECT COUNT(*) FROM %s LIMIT %d", QuotedTableName, limit)
+	return fmt.Sprintf("SELECT count() FROM (SELECT \"message\" FROM %s LIMIT %d)", QuotedTableName, limit)
+}
+func selectTotalCnt() string {
+	return fmt.Sprintf("SELECT count() FROM %s", QuotedTableName)
 }
 func selectStar(limit int) string {
-	return fmt.Sprintf("SELECT * FROM %s LIMIT %d", QuotedTableName, limit)
+	return fmt.Sprintf("SELECT \"message\" FROM %s LIMIT %d", QuotedTableName, limit)
 }
 
 var FullSearchRequests = []FullSearchTestCase{
@@ -50,7 +53,6 @@ var FullSearchRequests = []FullSearchTestCase{
 			"size": 1,
 			"track_total_hits": 1
 		}`,
-		// TODO make hits smaller
 		ExpectedResponse: `
 		{
 			"took": 10,
@@ -80,18 +82,6 @@ var FullSearchRequests = []FullSearchTestCase{
 							"service.name": "auth",
 							"message": "User password reset"
 							}
-						},
-						{
-						"_index": ".ds-logs-generic-default-2024.05.30-000001",
-						"_id": "8N9yyo8B5yxeSrtV_w0C",
-						"_score": 1,
-						"_source": {
-							"severity": "debug",
-							"@timestamp": "2024-05-30T17:01:25.118Z",
-							"host.name": "hestia",
-							"source": "coreos",
-							"service.name": "service",
-							"message": "User password changed"
 						}
 					}
 				]
@@ -101,12 +91,14 @@ var FullSearchRequests = []FullSearchTestCase{
 	},
 	{ // [2]
 		Name: "We can deduct hits count from the rows list, we shouldn't any count(*) request, we should return gte 1",
+		// TODO: Not sure if we should return 1 gte or 2 gte
 		QueryRequestJson: `
 		{
 			"runtime_mappings": {},
 			"size": 2,
 			"track_total_hits": 1
 		}`,
+		ExpectedSQLs: []string{selectStar(2)},
 	},
 	{ // [3] here our LIMIT 2 request returns 1 row
 		Name: "We can deduct hits count from the rows list, we shouldn't any count(*) request, we should return eq 1",
@@ -116,6 +108,7 @@ var FullSearchRequests = []FullSearchTestCase{
 			"size": 2,
 			"track_total_hits": 1
 		}`,
+		ExpectedSQLs: []string{selectStar(2)},
 	},
 	{ // [4]
 		Name: "track_total_hits: false",
@@ -125,6 +118,7 @@ var FullSearchRequests = []FullSearchTestCase{
 			"size": 2,
 			"track_total_hits": false
 		}`,
+		ExpectedSQLs: []string{selectStar(2)},
 	},
 	{ // [5]
 		Name: "track_total_hits: true, size >= count(*)",
@@ -134,6 +128,7 @@ var FullSearchRequests = []FullSearchTestCase{
 			"size": 2,
 			"track_total_hits": true
 		}`,
+		ExpectedSQLs: []string{selectStar(2), selectTotalCnt()},
 	},
 	{ // [6]
 		Name: "track_total_hits: true, size < count(*)",
@@ -143,6 +138,7 @@ var FullSearchRequests = []FullSearchTestCase{
 			"size": 1,
 			"track_total_hits": true
 		}`,
+		ExpectedSQLs: []string{selectStar(1), selectTotalCnt()},
 	},
 
 	// SearchQueryType == ...

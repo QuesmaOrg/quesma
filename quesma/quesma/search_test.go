@@ -392,13 +392,9 @@ func TestNumericFacetsQueries(t *testing.T) {
 func TestSearchAllTypes(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
 
-	test := func(handlerName string, testcase testdata.FullSearchTestCase) {
-		db, mock, err := sqlmock.New() // change to Jacek's version
-		if err != nil {
-			t.Fatal(err)
-		}
+	test := func(t *testing.T, handlerName string, testcase testdata.FullSearchTestCase) {
+		db, mock := util.InitSqlMockWithPrettyPrint(t)
 		defer db.Close()
-		assert.NoError(t, err)
 		lm := clickhouse.NewLogManagerWithConnection(db, table)
 		managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())
 
@@ -414,6 +410,7 @@ func TestSearchAllTypes(t *testing.T) {
 		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
 
 		var response []byte
+		var err error
 		if handlerName == "handleSearch" {
 			response, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(testcase.QueryRequestJson))
 		} else if handlerName == "handleAsyncSearch" {
@@ -423,11 +420,14 @@ func TestSearchAllTypes(t *testing.T) {
 		assert.NoError(t, err)
 
 		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Fatal("there were unfulfilled expections:", err)
+			assert.NoError(t, err, "there were unfulfilled expections:")
 		}
 
 		var responseMap model.JsonMap
 		err = json.Unmarshal(response, &responseMap)
+		if err != nil {
+			pp.Println("Response", string(response))
+		}
 		assert.NoError(t, err, "error unmarshalling search API response:")
 
 		var responsePart model.JsonMap
@@ -443,10 +443,8 @@ func TestSearchAllTypes(t *testing.T) {
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
 	for i, tt := range testdata.FullSearchRequests {
 		for _, handlerName := range handlers[:1] {
-			t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
-				if i == 1 {
-					test(handlerName, tt)
-				}
+			t.Run(strconv.Itoa(i)+" "+tt.Name, func(t *testing.T) {
+				test(t, handlerName, tt)
 			})
 		}
 	}
