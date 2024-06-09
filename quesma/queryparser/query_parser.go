@@ -92,7 +92,10 @@ func (cw *ClickhouseQueryTranslator) buildCountQueryIfNeeded(simpleQuery *model.
 	if queryInfo.TrackTotalHits == model.TrackTotalHitsTrue {
 		return cw.BuildSimpleCountQuery(simpleQuery.WhereClause)
 	}
-	return cw.BuildCountQuery(simpleQuery.WhereClause, queryInfo.TrackTotalHits)
+	if queryInfo.TrackTotalHits > queryInfo.Size {
+		return cw.BuildCountQuery(simpleQuery.WhereClause, queryInfo.TrackTotalHits)
+	}
+	return nil
 }
 
 func (cw *ClickhouseQueryTranslator) buildFacetsQueryIfNeeded(

@@ -389,7 +389,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 	}
 }
 
-func TestSearchAllTypes(t *testing.T) {
+func TestSearchTrackTotalCount(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
 
 	test := func(t *testing.T, handlerName string, testcase testdata.FullSearchTestCase) {
@@ -405,7 +405,9 @@ func TestSearchAllTypes(t *testing.T) {
 			}
 		*/
 
-		mock.ExpectQuery(testdata.EscapeBrackets(testcase.ExpectedSQLs[0])).WillReturnRows(returnedBuckets)
+		for _, sqls := range testcase.ExpectedSQLs {
+			mock.ExpectQuery(testdata.EscapeBrackets(sqls)).WillReturnRows(returnedBuckets)
+		}
 
 		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
 

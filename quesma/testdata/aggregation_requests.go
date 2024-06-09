@@ -2759,7 +2759,6 @@ var AggregationTests = []AggregationTestCase{
 			}
 		}`,
 		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(15750))}}},
 			{}, // TODO non-aggregation query
 			{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "User created"), model.NewQueryResultCol("doc_count", uint64(1700))}},
@@ -2768,11 +2767,6 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM (SELECT 1 ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z')) ` +
-				`LIMIT 2 )`,
 			`SELECT * ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z') ` +
