@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
@@ -383,6 +384,69 @@ func TestNumericFacetsQueries(t *testing.T) {
 				// assert.Equal(t, tt.CountExpected, responsePart["hits"].(model.JsonMap)["total"].(model.JsonMap)["value"].(float64))
 				// check sum_other_doc_count (sum of all doc_counts that are not in top 10 facets)
 				assert.Equal(t, tt.SumOtherDocCountExpected, responsePart["aggregations"].(model.JsonMap)["sample"].(model.JsonMap)["top_values"].(model.JsonMap)["sum_other_doc_count"].(float64))
+			})
+		}
+	}
+}
+
+func TestSearchAllTypes(t *testing.T) {
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+
+	test := func(handlerName string, testcase testdata.FullSearchTestCase) {
+		db, mock, err := sqlmock.New() // change to Jacek's version
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer db.Close()
+		assert.NoError(t, err)
+		lm := clickhouse.NewLogManagerWithConnection(db, table)
+		managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())
+
+		returnedBuckets := sqlmock.NewRows([]string{"", ""})
+		/*
+			for _, row := range testcase.ResultRows {
+				returnedBuckets.AddRow(row[0], row[1])
+			}
+		*/
+
+		mock.ExpectQuery(testdata.EscapeBrackets(testcase.ExpectedSQLs[0])).WillReturnRows(returnedBuckets)
+
+		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
+
+		var response []byte
+		if handlerName == "handleSearch" {
+			response, err = queryRunner.handleSearch(ctx, tableName, types.MustJSON(testcase.QueryRequestJson))
+		} else if handlerName == "handleAsyncSearch" {
+			response, err = queryRunner.handleAsyncSearch(
+				ctx, tableName, types.MustJSON(testcase.QueryRequestJson), defaultAsyncSearchTimeout, true)
+		}
+		assert.NoError(t, err)
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatal("there were unfulfilled expections:", err)
+		}
+
+		var responseMap model.JsonMap
+		err = json.Unmarshal(response, &responseMap)
+		assert.NoError(t, err, "error unmarshalling search API response:")
+
+		var responsePart model.JsonMap
+		if handlerName == "handleSearch" {
+			responsePart = responseMap
+		} else {
+			responsePart = responseMap["response"].(model.JsonMap)
+		}
+
+		pp.Println(responsePart)
+	}
+
+	handlers := []string{"handleSearch", "handleAsyncSearch"}
+	for i, tt := range testdata.FullSearchRequests {
+		for _, handlerName := range handlers[:1] {
+			t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
+				if i == 1 {
+					test(handlerName, tt)
+				}
 			})
 		}
 	}
