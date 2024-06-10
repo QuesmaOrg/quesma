@@ -55,8 +55,8 @@ func (e StringExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitString(e)
 }
 
-// Space separated expressions
-type CompositeExpr struct {
+// deprecated
+type CompositeExpr struct { // Space separated expressions, we should figure out something better
 	Expressions []Expr
 }
 
