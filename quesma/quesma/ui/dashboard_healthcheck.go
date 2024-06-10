@@ -72,6 +72,7 @@ func (qmc *QuesmaManagementConsole) checkClickhouseHealth() healthCheckStatus {
 
 func (qmc *QuesmaManagementConsole) checkIfElasticsearchDiskIsFull() (isFull bool, reason string) {
 	const catAllocationPath = "/_cat/allocation?format=json"
+	const maxDiskPercent = 90
 
 	resp, err := http.Get(qmc.cfg.Elasticsearch.Url.String() + catAllocationPath)
 	if err != nil {
@@ -92,8 +93,8 @@ func (qmc *QuesmaManagementConsole) checkIfElasticsearchDiskIsFull() (isFull boo
 		if diskPercentRaw, exists := shards["disk.percent"]; exists && diskPercentRaw != nil {
 			if diskPercentStr, isStr := diskPercentRaw.(string); isStr {
 				if diskPercentInt, err := strconv.Atoi(diskPercentStr); err == nil {
-					if diskPercentInt >= 90 {
-						return true, fmt.Sprintf("Not enough space on disk %d%% >= 90%%", diskPercentInt)
+					if diskPercentInt >= maxDiskPercent {
+						return true, fmt.Sprintf("Not enough space on disk %d%% >= %d%%", diskPercentInt, maxDiskPercent)
 					}
 				} else {
 					logger.Error().Msgf("Can't parse disk.percent as int '%s'", diskPercentStr)
