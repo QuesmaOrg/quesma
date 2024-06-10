@@ -71,19 +71,21 @@ func (qmc *QuesmaManagementConsole) checkClickhouseHealth() healthCheckStatus {
 }
 
 func (qmc *QuesmaManagementConsole) checkIfElasticsearchDiskIsFull() (isFull bool, reason string) {
-	resp, err := http.Get(qmc.cfg.Elasticsearch.Url.String() + "/_cat/allocation?format=json")
+	const catAllocationPath = "/_cat/allocation?format=json"
+
+	resp, err := http.Get(qmc.cfg.Elasticsearch.Url.String() + catAllocationPath)
 	if err != nil {
 		return
 	}
 	defer resp.Body.Close()
-	body, err2 := io.ReadAll(resp.Body)
-	if err2 != nil {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return
 	}
 	var parsed []map[string]interface{}
 	err = json.Unmarshal(body, &parsed)
 	if err != nil {
-		logger.Error().Err(err).Msg("Can't parse json /_cat/allocation?format=json response")
+		logger.Error().Err(err).Msgf("Can't parse json '%s'' response", catAllocationPath)
 		return
 	}
 	for _, shards := range parsed {
@@ -107,24 +109,28 @@ func (qmc *QuesmaManagementConsole) checkIfElasticsearchDiskIsFull() (isFull boo
 }
 
 func (qmc *QuesmaManagementConsole) checkElasticsearch() healthCheckStatus {
+	const elasticsearchHealthPath = "/_cluster/health/*"
+
 	if !qmc.cfg.WritesToElasticsearch() && !qmc.cfg.ReadsFromElasticsearch() {
 		return healthCheckStatus{"grey", "N/A (not writing)", ""}
 	}
 
 	return qmc.elasticStatusCache.check(func() healthCheckStatus {
-		resp, err := http.Get(qmc.cfg.Elasticsearch.Url.String() + "/_cluster/health/*")
+		resp, err := http.Get(qmc.cfg.Elasticsearch.Url.String() + elasticsearchHealthPath)
 		if err != nil {
 			return healthCheckStatus{"red", "Ping failed", err.Error()}
 		}
 		defer resp.Body.Close()
-		body, err2 := io.ReadAll(resp.Body)
-		if err2 != nil {
-			return healthCheckStatus{"red", "Can't read /_cluster/health/* response", err2.Error()}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return healthCheckStatus{"red",
+				fmt.Sprintf("Can't read '%s' response", elasticsearchHealthPath), err.Error()}
 		}
 		var parsed map[string]interface{}
 		err = json.Unmarshal(body, &parsed)
 		if err != nil {
-			return healthCheckStatus{"red", "Can't parse json /_cluster/health/* response", err.Error() + " " + string(body)}
+			return healthCheckStatus{"red",
+				fmt.Sprintf("Can't parse json '%s' response", elasticsearchHealthPath), err.Error() + " " + string(body)}
 		}
 		if parsed["status"] == "red" {
 			message := "Cluster status is red"
