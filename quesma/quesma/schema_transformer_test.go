@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/config"
 	"strconv"
 	"testing"
@@ -35,17 +34,17 @@ func Test_ipRangeTransform(t *testing.T) {
 				Expression: model.NewWildcardExpr,
 			},
 			},
-			WhereClause: &where_clause.Function{
-				Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
-				Args: []where_clause.Statement{
-					&where_clause.Function{
-						Name: where_clause.Literal{Name: CASTPrimitive},
-						Args: []where_clause.Statement{
-							&where_clause.Literal{Name: IpFieldName},
-							&where_clause.Literal{Name: StringLiteral},
+			WhereClause: &model.FunctionExpr{
+				Name: isIPAddressInRangePrimitive,
+				Args: []model.Expr{
+					&model.FunctionExpr{
+						Name: CASTPrimitive,
+						Args: []model.Expr{
+							&model.LiteralExpr{Value: IpFieldName},
+							&model.LiteralExpr{Value: StringLiteral},
 						},
 					},
-					&where_clause.Literal{Name: IpFieldContent},
+					&model.LiteralExpr{Value: IpFieldContent},
 				},
 			},
 		},
@@ -56,10 +55,10 @@ func Test_ipRangeTransform(t *testing.T) {
 				Expression: model.NewWildcardExpr,
 			},
 			},
-			WhereClause: &where_clause.InfixOp{
-				Left:  &where_clause.Literal{Name: IpFieldName},
+			WhereClause: &model.InfixExpr{
+				Left:  &model.LiteralExpr{Value: IpFieldName},
 				Op:    "<",
-				Right: &where_clause.Literal{Name: IpFieldContent},
+				Right: &model.LiteralExpr{Value: IpFieldContent},
 			},
 		},
 		{
@@ -69,17 +68,17 @@ func Test_ipRangeTransform(t *testing.T) {
 				Expression: model.NewWildcardExpr,
 			},
 			},
-			WhereClause: &where_clause.Function{
-				Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
-				Args: []where_clause.Statement{
-					&where_clause.Function{
-						Name: where_clause.Literal{Name: CASTPrimitive},
-						Args: []where_clause.Statement{
-							&where_clause.Literal{Name: IpFieldName},
-							&where_clause.Literal{Name: StringLiteral},
+			WhereClause: &model.FunctionExpr{
+				Name: isIPAddressInRangePrimitive,
+				Args: []model.Expr{
+					&model.FunctionExpr{
+						Name: CASTPrimitive,
+						Args: []model.Expr{
+							&model.LiteralExpr{Value: IpFieldName},
+							&model.LiteralExpr{Value: StringLiteral},
 						},
 					},
-					&where_clause.Literal{Name: IpFieldContent},
+					&model.LiteralExpr{Value: IpFieldContent},
 				},
 			},
 		},
@@ -94,36 +93,36 @@ func Test_ipRangeTransform(t *testing.T) {
 				Expression: model.NewWildcardExpr,
 			},
 			},
-			WhereClause: &where_clause.InfixOp{
-				Left: &where_clause.InfixOp{
-					Left: &where_clause.InfixOp{
-						Left: &where_clause.Literal{Name: strconv.Quote("@timestamp")},
+			WhereClause: &model.InfixExpr{
+				Left: &model.InfixExpr{
+					Left: &model.InfixExpr{
+						Left: &model.LiteralExpr{Value: strconv.Quote("@timestamp")},
 						Op:   ">=",
-						Right: &where_clause.Function{
-							Name: where_clause.Literal{Name: "parseDateTime64BestEffort"},
-							Args: []where_clause.Statement{&where_clause.Literal{Name: "'2024-06-06T09:58:50.387Z'"}}},
+						Right: &model.FunctionExpr{
+							Name: "parseDateTime64BestEffort",
+							Args: []model.Expr{&model.LiteralExpr{Value: "'2024-06-06T09:58:50.387Z'"}}},
 					},
 					Op: "AND",
-					Right: &where_clause.InfixOp{
-						Left: &where_clause.Literal{Name: strconv.Quote("@timestamp")},
+					Right: &model.InfixExpr{
+						Left: &model.LiteralExpr{Value: strconv.Quote("@timestamp")},
 						Op:   "<=",
-						Right: &where_clause.Function{
-							Name: where_clause.Literal{Name: "parseDateTime64BestEffort"},
-							Args: []where_clause.Statement{&where_clause.Literal{Name: "'2024-06-10T09:58:50.387Z'"}}},
+						Right: &model.FunctionExpr{
+							Name: "parseDateTime64BestEffort",
+							Args: []model.Expr{&model.LiteralExpr{Value: "'2024-06-10T09:58:50.387Z'"}}},
 					},
 				},
 				Op: "AND",
-				Right: &where_clause.Function{
-					Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
-					Args: []where_clause.Statement{
-						&where_clause.Function{
-							Name: where_clause.Literal{Name: CASTPrimitive},
-							Args: []where_clause.Statement{
-								&where_clause.Literal{Name: IpFieldName},
-								&where_clause.Literal{Name: StringLiteral},
+				Right: &model.FunctionExpr{
+					Name: isIPAddressInRangePrimitive,
+					Args: []model.Expr{
+						&model.FunctionExpr{
+							Name: CASTPrimitive,
+							Args: []model.Expr{
+								&model.LiteralExpr{Value: IpFieldName},
+								&model.LiteralExpr{Value: StringLiteral},
 							},
 						},
-						&where_clause.Literal{Name: IpFieldContent},
+						&model.LiteralExpr{Value: IpFieldContent},
 					},
 				},
 			},
@@ -138,10 +137,10 @@ func Test_ipRangeTransform(t *testing.T) {
 					Expression: model.NewWildcardExpr,
 				},
 				},
-				WhereClause: &where_clause.InfixOp{
-					Left:  &where_clause.Literal{Name: IpFieldName},
+				WhereClause: &model.InfixExpr{
+					Left:  &model.LiteralExpr{Value: IpFieldName},
 					Op:    "=",
-					Right: &where_clause.Literal{Name: IpFieldContent},
+					Right: &model.LiteralExpr{Value: IpFieldContent},
 				},
 			},
 		},
@@ -153,10 +152,10 @@ func Test_ipRangeTransform(t *testing.T) {
 					Expression: model.NewWildcardExpr,
 				},
 				},
-				WhereClause: &where_clause.InfixOp{
-					Left:  &where_clause.Literal{Name: IpFieldName},
+				WhereClause: &model.InfixExpr{
+					Left:  &model.LiteralExpr{Value: IpFieldName},
 					Op:    "<",
-					Right: &where_clause.Literal{Name: IpFieldContent},
+					Right: &model.LiteralExpr{Value: IpFieldContent},
 				},
 			},
 		},
@@ -168,10 +167,10 @@ func Test_ipRangeTransform(t *testing.T) {
 					Expression: model.NewWildcardExpr,
 				},
 				},
-				WhereClause: &where_clause.InfixOp{
-					Left:  &where_clause.Literal{Name: IpFieldName},
+				WhereClause: &model.InfixExpr{
+					Left:  &model.LiteralExpr{Value: IpFieldName},
 					Op:    "iLIKE",
-					Right: &where_clause.Literal{Name: IpFieldContent},
+					Right: &model.LiteralExpr{Value: IpFieldContent},
 				},
 			},
 		},
@@ -187,29 +186,29 @@ func Test_ipRangeTransform(t *testing.T) {
 					Expression: model.NewWildcardExpr,
 				},
 				},
-				WhereClause: &where_clause.InfixOp{
-					Left: &where_clause.InfixOp{
-						Left: &where_clause.InfixOp{
-							Left: &where_clause.Literal{Name: strconv.Quote("@timestamp")},
+				WhereClause: &model.InfixExpr{
+					Left: &model.InfixExpr{
+						Left: &model.InfixExpr{
+							Left: &model.LiteralExpr{Value: strconv.Quote("@timestamp")},
 							Op:   ">=",
-							Right: &where_clause.Function{
-								Name: where_clause.Literal{Name: "parseDateTime64BestEffort"},
-								Args: []where_clause.Statement{&where_clause.Literal{Name: "'2024-06-06T09:58:50.387Z'"}}},
+							Right: &model.FunctionExpr{
+								Name: "parseDateTime64BestEffort",
+								Args: []model.Expr{&model.LiteralExpr{Value: "'2024-06-06T09:58:50.387Z'"}}},
 						},
 						Op: "AND",
-						Right: &where_clause.InfixOp{
-							Left: &where_clause.Literal{Name: strconv.Quote("@timestamp")},
+						Right: &model.InfixExpr{
+							Left: &model.LiteralExpr{Value: strconv.Quote("@timestamp")},
 							Op:   "<=",
-							Right: &where_clause.Function{
-								Name: where_clause.Literal{Name: "parseDateTime64BestEffort"},
-								Args: []where_clause.Statement{&where_clause.Literal{Name: "'2024-06-10T09:58:50.387Z'"}}},
+							Right: &model.FunctionExpr{
+								Name: "parseDateTime64BestEffort",
+								Args: []model.Expr{&model.LiteralExpr{Value: "'2024-06-10T09:58:50.387Z'"}}},
 						},
 					},
 					Op: "AND",
-					Right: &where_clause.InfixOp{
-						Left:  &where_clause.Literal{Name: strconv.Quote("clientip")},
+					Right: &model.InfixExpr{
+						Left:  &model.LiteralExpr{Value: strconv.Quote("clientip")},
 						Op:    "iLIKE",
-						Right: &where_clause.Literal{Name: IpFieldContent},
+						Right: &model.LiteralExpr{Value: IpFieldContent},
 					},
 				},
 			},

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/config"
 	"sort"
 	"strings"
@@ -27,13 +26,13 @@ type (
 		IsDistinct bool // true <=> query is SELECT DISTINCT
 
 		// This is SELECT query. These fields should be extracted to separate struct.
-		Columns     []SelectColumn         // Columns to select, including aliases
-		GroupBy     []SelectColumn         // if not empty, we do GROUP BY GroupBy...
-		OrderBy     []SelectColumn         // if not empty, we do ORDER BY OrderBy...
-		FromClause  SelectColumn           // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
-		WhereClause where_clause.Statement // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
-		Limit       int                    // LIMIT clause, noLimit (0) means no limit
-		SampleLimit int                    // LIMIT, but before grouping, 0 means no limit
+		Columns     []SelectColumn // Columns to select, including aliases
+		GroupBy     []SelectColumn // if not empty, we do GROUP BY GroupBy...
+		OrderBy     []SelectColumn // if not empty, we do ORDER BY OrderBy...
+		FromClause  SelectColumn   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
+		WhereClause Expr           // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
+		Limit       int            // LIMIT clause, noLimit (0) means no limit
+		SampleLimit int            // LIMIT, but before grouping, 0 means no limit
 
 		CanParse bool // true <=> query is valid
 
@@ -118,7 +117,7 @@ func (c SelectColumn) SQL() string {
 	// if alias is the same as column name, we don't need to add it
 	switch exp := c.Expression.(type) {
 	case TableColumnExpr:
-		if exp.ColumnName == c.Alias {
+		if exp.ColumnRef.ColumnName == c.Alias {
 			return exprAsString
 		}
 	}
@@ -171,7 +170,7 @@ func (q *Query) String(ctx context.Context) string {
 	sb.WriteString(q.FromClause.SQL())
 	if q.WhereClause != nil {
 		sb.WriteString(" WHERE ")
-		sb.WriteString(q.WhereClause.Accept(&asString).(string))
+		sb.WriteString(AsString(q.WhereClause))
 	}
 	if q.SampleLimit > 0 {
 		sb.WriteString(fmt.Sprintf(" LIMIT %d)", q.SampleLimit))
@@ -262,7 +261,7 @@ func (q *Query) OrderByFieldNames() (fieldNames []string) {
 			continue
 		}
 
-		fieldNames = append(fieldNames, tableColExp.ColumnName)
+		fieldNames = append(fieldNames, tableColExp.ColumnRef.ColumnName)
 	}
 	return fieldNames
 }
@@ -290,16 +289,16 @@ func (q *Query) IsChild(maybeParent *Query) bool {
 
 // ApplyAliases is effectively a no-op at this point as all the aliasing is resolved during parsing byt Table.ResolveField()
 func (q *Query) ApplyAliases(cfg map[string]config.IndexConfiguration, resolvedTableName string) {
-	if q.WhereClause == nil {
-		return
-	}
-
-	if indexCfg, ok := cfg[resolvedTableName]; ok {
-		resolver := &where_clause.AliasResolver{IndexCfg: indexCfg}
-		q.WhereClause.Accept(resolver)
-	} else { // no aliases for fields this table configured
-		return
-	}
+	//if q.WhereClause == nil {
+	//	return
+	//}
+	//
+	//if indexCfg, ok := cfg[resolvedTableName]; ok {
+	//	resolver := &where_clause.AliasResolver{IndexCfg: indexCfg}
+	//	q.WhereClause.Accept(resolver)
+	//} else { // no aliases for fields this table configured
+	//	return
+	//}
 }
 
 // TODO change whereClause type string -> some typed

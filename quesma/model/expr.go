@@ -4,18 +4,73 @@ import (
 	"strings"
 )
 
+// Expr is a generic representation of an expression which is a part of the SQL query.
 type Expr interface {
 	Accept(v ExprVisitor) interface{}
 }
 
+// ColumnRef is a reference to a column in a table, we can enrich it with more information (e.g. type used) as we go
+type ColumnRef struct {
+	ColumnName string
+}
+
+func NewColumnRef(name string) ColumnRef {
+	return ColumnRef{ColumnName: name}
+}
+
+func (e ColumnRef) Accept(v ExprVisitor) interface{} {
+	return v.VisitColumnRef(e)
+}
+
+type PrefixExpr struct {
+	Op   string
+	Args []Expr
+}
+
+func NewPrefixExpr(op string, args []Expr) PrefixExpr {
+	return PrefixExpr{
+		Op:   op,
+		Args: args,
+	}
+}
+
+func (e PrefixExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitPrefixExpr(e)
+}
+
+// TableColumnExpr is a little questionable at this point
 type TableColumnExpr struct {
 	TableAlias string
-	ColumnName string
+	ColumnRef  ColumnRef
 }
 
 func (e TableColumnExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitTableColumnExpr(e)
 }
+
+// NestedProperty for nested objects, e.g. `columnName.propertyName`
+type NestedProperty struct {
+	ColumnRef    ColumnRef
+	PropertyName LiteralExpr
+}
+
+func NewNestedProperty(columnRef ColumnRef, propertyName LiteralExpr) NestedProperty {
+	return NestedProperty{ColumnRef: columnRef, PropertyName: propertyName}
+}
+
+func (e NestedProperty) Accept(v ExprVisitor) interface{} { return v.VisitNestedProperty(e) }
+
+// ArrayAccess for array accessing, e.g. `columnName[0]`
+type ArrayAccess struct {
+	ColumnRef ColumnRef
+	Index     Expr
+}
+
+func NewArrayAccess(columnRef ColumnRef, index Expr) ArrayAccess {
+	return ArrayAccess{ColumnRef: columnRef, Index: index}
+}
+
+func (e ArrayAccess) Accept(v ExprVisitor) interface{} { return v.VisitArrayAccess(e) }
 
 type FunctionExpr struct {
 	Name string
@@ -103,7 +158,7 @@ func Symbol(s string) LiteralExpr {
 
 func NewTableColumnExpr(columnName string) TableColumnExpr {
 	columnName = strings.TrimSuffix(columnName, ".keyword")
-	return TableColumnExpr{ColumnName: columnName}
+	return TableColumnExpr{ColumnRef: NewColumnRef(columnName)}
 }
 
 func NewStringExpr(value string) StringExpr {
@@ -131,4 +186,8 @@ type ExprVisitor interface {
 	VisitComposite(e CompositeExpr) interface{}
 	VisitInfix(e InfixExpr) interface{}
 	VisitSQL(s SQL) interface{}
+	VisitColumnRef(e ColumnRef) interface{}
+	VisitPrefixExpr(e PrefixExpr) interface{}
+	VisitNestedProperty(e NestedProperty) interface{}
+	VisitArrayAccess(e ArrayAccess) interface{}
 }

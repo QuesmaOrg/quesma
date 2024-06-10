@@ -540,9 +540,9 @@ var aggregationTests = []struct {
 				  "size": 0
 			}`,
 		[]string{
-			`SELECT floor("bytes" / 1782.000000) * 1782.000000, count() FROM ` + tableNameQuoted + ` ` +
-				`GROUP BY floor("bytes" / 1782.000000) * 1782.000000 ` +
-				`ORDER BY floor("bytes" / 1782.000000) * 1782.000000`,
+			`SELECT floor("bytes"/1782.000000)*1782.000000, count() FROM ` + tableNameQuoted + ` ` +
+				`GROUP BY floor("bytes"/1782.000000)*1782.000000 ` +
+				`ORDER BY floor("bytes"/1782.000000)*1782.000000`,
 			`SELECT count() FROM ` + tableNameQuoted,
 		},
 	},
@@ -726,10 +726,10 @@ func Test_parseFieldFromScriptField(t *testing.T) {
 		expectedSuccess bool
 	}{
 		{goodQueryMap("doc['field1'].value.getHour()"),
-			model.SelectColumn{Expression: model.NewFunction("toHour", model.TableColumnExpr{ColumnName: "field1"})}, true},
+			model.SelectColumn{Expression: model.NewFunction("toHour", model.NewTableColumnExpr("field1"))}, true},
 		{goodQueryMap("doc['field1'].value.getHour() + doc['field2'].value.getHour()"), empty, false},
 		{goodQueryMap("doc['field1'].value.hourOfDay"),
-			model.SelectColumn{Expression: model.NewFunction("toHour", model.TableColumnExpr{ColumnName: "field1"})}, true},
+			model.SelectColumn{Expression: model.NewFunction("toHour", model.NewTableColumnExpr("field1"))}, true},
 		{goodQueryMap("doc['field1'].value"), empty, false},
 		{goodQueryMap("value.getHour() + doc['field2'].value.getHour()"), empty, false},
 		{QueryMap{}, empty, false},

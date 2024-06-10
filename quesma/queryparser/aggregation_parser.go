@@ -9,7 +9,6 @@ import (
 	"mitmproxy/quesma/model/bucket_aggregations"
 	"mitmproxy/quesma/model/metrics_aggregations"
 
-	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/util"
 	"regexp"
@@ -143,12 +142,12 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		*/
 		query.FromClause = query.NewSelectColumnSubselectWithRowNumber(
 			metricsAggr.Fields, b.GroupBy, b.whereBuilder.WhereClauseAsString(), "", true)
-		query.WhereClause = model.And([]where_clause.Statement{
+		query.WhereClause = model.And([]model.Expr{
 			query.WhereClause,
-			where_clause.NewInfixOp(
-				where_clause.NewColumnRef(model.RowNumberColumnName),
+			model.NewInfixExpr(
+				model.NewColumnRef(model.RowNumberColumnName),
 				"<=",
-				where_clause.NewLiteral(strconv.Itoa(metricsAggr.Size)),
+				model.NewLiteral(strconv.Itoa(metricsAggr.Size)),
 			)},
 		)
 
@@ -179,8 +178,8 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				innerFields, b.Query.GroupBy, b.whereBuilder.WhereClauseAsString(),
 				metricsAggr.SortBy, strings.ToLower(metricsAggr.Order) == "desc",
 			)
-			query.WhereClause = model.And([]where_clause.Statement{query.WhereClause,
-				where_clause.NewInfixOp(where_clause.NewColumnRef(model.RowNumberColumnName), "<=", where_clause.NewLiteral(strconv.Itoa(metricsAggr.Size)))})
+			query.WhereClause = model.And([]model.Expr{query.WhereClause,
+				model.NewInfixExpr(model.NewColumnRef(model.RowNumberColumnName), "<=", model.NewLiteral(strconv.Itoa(metricsAggr.Size)))})
 		} else {
 			query.Limit = metricsAggr.Size
 			query.Columns = append(query.Columns, metricsAggr.Fields...)

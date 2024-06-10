@@ -134,7 +134,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`WHERE (("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z') AND "ftd_session_time"<1000)`,
 			`SELECT count(DISTINCT "ftd_session_time") FROM "logs-generic-default" ` +
 				`WHERE (("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z') AND "ftd_session_time">=-100)`,
-			`SELECT count(if("ftd_session_time" < 1000.000000, 1, NULL)), count(if("ftd_session_time" >= -100.000000, 1, NULL)), count() ` +
+			`SELECT count(if("ftd_session_time"<1000.000000,1,NULL)), count(if("ftd_session_time">=-100.000000,1,NULL)), count() ` +
 				`FROM "logs-generic-default" WHERE ("epoch_time">='2024-04-27T14:25:59.383Z' AND "epoch_time"<='2024-04-27T14:40:59.383Z')`,
 		},
 	},
@@ -474,8 +474,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			`SELECT sumOrNull("properties.entry_time") FROM "logs-generic-default" ` +
 				`WHERE (("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z') ` +
 				`AND "epoch_time_original">=1000)`,
-			`SELECT count(if("epoch_time_original" >= 0.000000 AND "epoch_time_original" < 1000.000000, 1, NULL)), ` +
-				`count(if("epoch_time_original" >= 1000.000000, 1, NULL)), count() FROM "logs-generic-default" ` +
+			`SELECT count(if(("epoch_time_original">=0.000000 AND "epoch_time_original"<1000.000000),1,NULL)), ` +
+				`count(if("epoch_time_original">=1000.000000,1,NULL)), count() FROM "logs-generic-default" ` +
 				`WHERE ("epoch_time">='2024-04-28T14:34:22.674Z' AND "epoch_time"<='2024-04-28T14:49:22.674Z')`,
 		},
 	},
@@ -619,8 +619,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE (("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z') ` +
 				`AND ("properties::exoestimation_connection_speedinkbps">=1000 AND "properties::exoestimation_connection_speedinkbps"<2000))`,
-			`SELECT count(if("properties::exoestimation_connection_speedinkbps" >= 0.000000 AND "properties::exoestimation_connection_speedinkbps" < 1000.000000, 1, NULL)), ` +
-				`count(if("properties::exoestimation_connection_speedinkbps" >= 1000.000000 AND "properties::exoestimation_connection_speedinkbps" < 2000.000000, 1, NULL)), ` +
+			`SELECT count(if(("properties::exoestimation_connection_speedinkbps">=0.000000 AND "properties::exoestimation_connection_speedinkbps"<1000.000000),1,NULL)), ` +
+				`count(if(("properties::exoestimation_connection_speedinkbps">=1000.000000 AND "properties::exoestimation_connection_speedinkbps"<2000.000000),1,NULL)), ` +
 				`count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("epoch_time">='2024-04-18T04:40:12.252Z' AND "epoch_time"<='2024-05-03T04:40:12.252Z')`,
@@ -1273,8 +1273,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 3600000), ` +
-				`count(if("AvgTicketPrice" <= 0.000000, 1, NULL)) / count(*) * 100, ` +
-				`count(if("AvgTicketPrice" <= 50000.000000, 1, NULL)) / count(*) * 100 ` +
+				`count(if("AvgTicketPrice"<=0.000000,1,NULL))/count(*)*100, ` +
+				`count(if("AvgTicketPrice"<=50000.000000,1,NULL))/count(*)*100 ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000)`,
