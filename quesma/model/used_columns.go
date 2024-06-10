@@ -6,7 +6,7 @@ func GetUsedColumns(expr Expr) []TableColumnExpr {
 	return expr.Accept(&usedColumns{}).([]TableColumnExpr)
 }
 
-func (v *usedColumns) VisitNewTableColumnExpr(e TableColumnExpr) interface{} {
+func (v *usedColumns) VisitTableColumnExpr(e TableColumnExpr) interface{} {
 	return []TableColumnExpr{e}
 }
 

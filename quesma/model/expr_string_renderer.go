@@ -7,11 +7,12 @@ import (
 
 type renderer struct{}
 
-func RenderSQL(expr Expr) string {
+// AsString renders the given expression to string which can be used to build SQL query
+func AsString(expr Expr) string {
 	return expr.Accept(&renderer{}).(string)
 }
 
-func (v *renderer) VisitNewTableColumnExpr(e TableColumnExpr) interface{} {
+func (v *renderer) VisitTableColumnExpr(e TableColumnExpr) interface{} {
 
 	var res string
 

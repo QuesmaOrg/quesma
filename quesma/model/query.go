@@ -108,7 +108,7 @@ func (c SelectColumn) SQL() string {
 		panic("SelectColumn expression is nil")
 	}
 
-	exprAsString := RenderSQL(c.Expression)
+	exprAsString := AsString(c.Expression)
 
 	if c.Alias == "" {
 		return exprAsString

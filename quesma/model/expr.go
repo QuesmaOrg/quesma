@@ -1,13 +1,11 @@
 package model
 
 import (
-	"fmt"
 	"strings"
 )
 
 type Expr interface {
 	Accept(v ExprVisitor) interface{}
-	String() string
 }
 
 type TableColumnExpr struct {
@@ -15,24 +13,13 @@ type TableColumnExpr struct {
 	ColumnName string
 }
 
-func (e TableColumnExpr) String() string {
-	return fmt.Sprintf("(tablecolumn '%s' . '%s') ", e.TableAlias, e.ColumnName)
-}
 func (e TableColumnExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitNewTableColumnExpr(e)
+	return v.VisitTableColumnExpr(e)
 }
 
 type FunctionExpr struct {
 	Name string
 	Args []Expr
-}
-
-func (e FunctionExpr) String() string {
-	var args []string
-	for _, arg := range e.Args {
-		args = append(args, arg.String())
-	}
-	return fmt.Sprintf("(function %s %s)", e.Name, strings.Join(args, " "))
 }
 
 func (e FunctionExpr) Accept(v ExprVisitor) interface{} {
@@ -46,24 +33,12 @@ type MultiFunctionExpr struct {
 	Args []Expr
 }
 
-func (e MultiFunctionExpr) String() string {
-	var args []string
-	for _, arg := range e.Args {
-		args = append(args, arg.String())
-	}
-	return fmt.Sprintf("(multifunction %s %s)", e.Name, strings.Join(args, " "))
-}
-
 func (e MultiFunctionExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitMultiFunction(e)
 }
 
 type LiteralExpr struct {
 	Value any
-}
-
-func (e LiteralExpr) String() string {
-	return fmt.Sprintf("(literal %s)", e.Value)
 }
 
 func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
@@ -74,10 +49,6 @@ func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
 // Used e.g. for representing ASC/DESC, or tablename
 type StringExpr struct {
 	Value string
-}
-
-func (e StringExpr) String() string {
-	return fmt.Sprintf("(string %s)", e.Value)
 }
 
 func (e StringExpr) Accept(v ExprVisitor) interface{} {
@@ -107,22 +78,6 @@ func (e InfixExpr) Accept(v ExprVisitor) interface{} {
 // It can be named as TODO.
 type SQL struct {
 	Query string
-}
-
-func (s SQL) String() string {
-	return fmt.Sprintf("(sql '%s')", s.Query)
-}
-
-func (e InfixExpr) String() string {
-	return fmt.Sprintf("(infix %s %s %s)", e.Left, e.Op, e.Right)
-}
-
-func (e CompositeExpr) String() string {
-	var exprs []string
-	for _, expr := range e.Expressions {
-		exprs = append(exprs, expr.String())
-	}
-	return fmt.Sprintf("(composite %s)", strings.Join(exprs, " "))
 }
 
 func (s SQL) Accept(v ExprVisitor) interface{} {
@@ -168,7 +123,7 @@ func NewInfixExpr(lhs Expr, operator string, rhs Expr) InfixExpr {
 }
 
 type ExprVisitor interface {
-	VisitNewTableColumnExpr(e TableColumnExpr) interface{}
+	VisitTableColumnExpr(e TableColumnExpr) interface{}
 	VisitFunction(e FunctionExpr) interface{}
 	VisitMultiFunction(e MultiFunctionExpr) interface{}
 	VisitLiteral(l LiteralExpr) interface{}
