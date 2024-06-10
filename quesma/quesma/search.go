@@ -11,7 +11,6 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
-	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
@@ -643,7 +642,7 @@ func (q *QueryRunner) findNonexistingProperties(query model.Query, table *clickh
 	var results = make([]string, 0)
 	var allReferencedFields = make([]string, 0)
 	for _, col := range query.Columns {
-		for _, c := range aexp.GetUsedColumns(col.Expression) {
+		for _, c := range model.GetUsedColumns(col.Expression) {
 			allReferencedFields = append(allReferencedFields, c.ColumnName)
 		}
 	}

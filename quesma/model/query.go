@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/config"
 	"sort"
@@ -21,7 +20,7 @@ const (
 type (
 	SelectColumn struct {
 		Alias      string
-		Expression aexp.AExp
+		Expression Expr
 	}
 
 	Query struct {
@@ -83,7 +82,7 @@ func NewSortColumn(field string, desc bool) SelectColumn {
 	} else {
 		order = Asc
 	}
-	return SelectColumn{Expression: aexp.NewComposite(aexp.TableColumn(field), aexp.String(order))}
+	return SelectColumn{Expression: NewComposite(NewTableColumnExpr(field), NewStringExpr(order))}
 }
 
 func NewSortByCountColumn(desc bool) SelectColumn {
@@ -93,15 +92,15 @@ func NewSortByCountColumn(desc bool) SelectColumn {
 	} else {
 		order = Asc
 	}
-	return SelectColumn{Expression: aexp.NewComposite(aexp.Count(), aexp.String(order))}
+	return SelectColumn{Expression: NewComposite(NewCountFunc(), NewStringExpr(order))}
 }
 
 func NewSelectColumnTableField(fieldName string) SelectColumn {
-	return SelectColumn{Expression: aexp.TableColumn(fieldName)}
+	return SelectColumn{Expression: NewTableColumnExpr(fieldName)}
 }
 
-func NewSelectColumnString(s string) SelectColumn {
-	return SelectColumn{Expression: aexp.StringExp{Value: s}}
+func NewSelectColumnNewStringExpr(s string) SelectColumn {
+	return SelectColumn{Expression: StringExpr{Value: s}}
 }
 
 func (c SelectColumn) SQL() string {
@@ -110,7 +109,7 @@ func (c SelectColumn) SQL() string {
 		panic("SelectColumn expression is nil")
 	}
 
-	exprAsString := aexp.RenderSQL(c.Expression)
+	exprAsString := RenderSQL(c.Expression)
 
 	if c.Alias == "" {
 		return exprAsString
@@ -118,7 +117,7 @@ func (c SelectColumn) SQL() string {
 
 	// if alias is the same as column name, we don't need to add it
 	switch exp := c.Expression.(type) {
-	case aexp.TableColumnExp:
+	case TableColumnExpr:
 		if exp.ColumnName == c.Alias {
 			return exprAsString
 		}
@@ -198,7 +197,7 @@ func (q *Query) String(ctx context.Context) string {
 func (q *Query) IsWildcard() bool {
 
 	for _, col := range q.Columns {
-		if col.Expression == aexp.Wildcard {
+		if col.Expression == NewWildcardExpr {
 			return true
 		}
 	}
@@ -230,19 +229,19 @@ func (q *Query) TrimKeywordFromFields() {
 // but it was like that before the refactor
 func (q *Query) OrderByFieldNames() (fieldNames []string) {
 	for _, col := range q.OrderBy {
-		compositeExp, ok := col.Expression.(*aexp.CompositeExp)
+		compositeExp, ok := col.Expression.(*CompositeExpr)
 		if !ok {
 			continue
 		}
 		if len(compositeExp.Expressions) != 2 {
 			continue
 		}
-		orderExp, ok := compositeExp.Expressions[1].(aexp.StringExp)
+		orderExp, ok := compositeExp.Expressions[1].(StringExpr)
 		if !ok || (orderExp.Value != Asc && orderExp.Value != Desc) {
 			continue
 		}
 
-		tableColExp, ok := compositeExp.Expressions[0].(aexp.TableColumnExp)
+		tableColExp, ok := compositeExp.Expressions[0].(TableColumnExpr)
 		if !ok {
 			continue
 		}
@@ -296,40 +295,40 @@ func (q *Query) NewSelectColumnSubselectWithRowNumber(selectFields []SelectColum
 	fromSelect := fmt.Sprintf(
 		"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s %s) AS %s FROM %s WHERE %s)",
 			fieldsAsString, fieldsAsString, orderField, asc/desc,
-			model.RowNumberColumnName, query.FromClause, b.whereBuilder.WhereClauseAsString(),
+			model.RowNumberColumnName, query.FromClause, b.whereBuilder.WhereClauseAsNewStringExpr(),
 	)
 	*/
 
-	fromSelect := make([]aexp.AExp, 0, 2*(len(selectFields)+len(groupByFields))+additionalArrayLength) // +6 without ORDER BY, +8 with ORDER BY
-	fromSelect = append(fromSelect, aexp.String("SELECT"))
+	fromSelect := make([]Expr, 0, 2*(len(selectFields)+len(groupByFields))+additionalArrayLength) // +6 without ORDER BY, +8 with ORDER BY
+	fromSelect = append(fromSelect, NewStringExpr("SELECT"))
 	for _, field := range selectFields {
 		fromSelect = append(fromSelect, field.Expression)
-		fromSelect = append(fromSelect, aexp.String(","))
+		fromSelect = append(fromSelect, NewStringExpr(","))
 	}
 
 	// Maybe keep this ROW_NUMBER as SelectColumn? It'd introduce some problems, because it's not in schema.
 	// Sticking to simpler solution now.
-	fromSelect = append(fromSelect, aexp.String("ROW_NUMBER() OVER (PARTITION BY"))
+	fromSelect = append(fromSelect, NewStringExpr("ROW_NUMBER() OVER (PARTITION BY"))
 	for i, field := range groupByFields {
 		fromSelect = append(fromSelect, field.Expression)
 		if i != len(groupByFields)-1 {
-			fromSelect = append(fromSelect, aexp.String(","))
+			fromSelect = append(fromSelect, NewStringExpr(","))
 		}
 	}
 	if orderByField != "" {
-		fromSelect = append(fromSelect, aexp.String("ORDER BY"))
+		fromSelect = append(fromSelect, NewStringExpr("ORDER BY"))
 		fromSelect = append(fromSelect, NewSortColumn(orderByField, orderByDesc).Expression)
 	}
-	fromSelect = append(fromSelect, aexp.String(") AS"))
-	fromSelect = append(fromSelect, aexp.Literal(RowNumberColumnName))
-	fromSelect = append(fromSelect, aexp.String("FROM"))
+	fromSelect = append(fromSelect, NewStringExpr(") AS"))
+	fromSelect = append(fromSelect, NewLiteral(RowNumberColumnName))
+	fromSelect = append(fromSelect, NewStringExpr("FROM"))
 	fromSelect = append(fromSelect, q.FromClause.Expression)
 
 	if whereClause != "" {
-		fromSelect = append(fromSelect, aexp.String("WHERE "+whereClause))
+		fromSelect = append(fromSelect, NewStringExpr("WHERE "+whereClause))
 	}
 
-	return SelectColumn{Expression: aexp.Function("", aexp.NewComposite(fromSelect...))}
+	return SelectColumn{Expression: NewFunction("", NewComposite(fromSelect...))}
 }
 
 // Aggregator is always initialized as "empty", so with SplitOverHowManyFields == 0, Keyed == false, Filters == false.

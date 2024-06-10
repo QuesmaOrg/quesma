@@ -9,7 +9,6 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
-	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/queryprocessor"
@@ -558,9 +557,9 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []m
 
 func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause where_clause.Statement) *model.Query {
 	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: aexp.Count()}},
+		Columns:     []model.SelectColumn{{Expression: model.NewCountFunc()}},
 		WhereClause: whereClause,
-		FromClause:  model.NewSelectColumnString(cw.Table.FullTableName()),
+		FromClause:  model.NewSelectColumnNewStringExpr(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}
@@ -573,10 +572,10 @@ func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query mod
 func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, whereClause where_clause.Statement, limit int) *model.Query {
 	return &model.Query{
 		IsDistinct:  true,
-		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}},
 		WhereClause: whereClause,
 		Limit:       limit,
-		FromClause:  model.NewSelectColumnString(cw.Table.FullTableName()),
+		FromClause:  model.NewSelectColumnNewStringExpr(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}
@@ -591,10 +590,10 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 		cw.AddTokenToHighlight(prefix)
 	}
 	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}},
 		WhereClause: whereClause,
 		Limit:       limit,
-		FromClause:  model.NewSelectColumnString(cw.Table.FullTableName()),
+		FromClause:  model.NewSelectColumnNewStringExpr(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}
@@ -603,15 +602,15 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQuery model.SimpleQuery) *model.Query {
 	// FromClause: (SELECT fieldName FROM table WHERE whereClause LIMIT facetsSampleSize)
 	return &model.Query{
-		Columns: []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
-		GroupBy: []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		Columns: []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}, {Expression: model.NewCountFunc()}},
+		GroupBy: []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}},
 		OrderBy: []model.SelectColumn{model.NewSortByCountColumn(true)},
-		FromClause: model.SelectColumn{Expression: aexp.NewComposite(
-			aexp.String("(SELECT"), aexp.TableColumn(fieldName),
-			aexp.SQL{Query: "FROM " + cw.Table.FullTableName()},
-			aexp.SQL{Query: "WHERE " + simpleQuery.WhereClauseAsString()},
-			aexp.String("LIMIT"), aexp.Literal(facetsSampleSize),
-			aexp.String(")"))},
+		FromClause: model.SelectColumn{Expression: model.NewComposite(
+			model.NewStringExpr("(SELECT"), model.NewTableColumnExpr(fieldName),
+			model.SQL{Query: "FROM " + cw.Table.FullTableName()},
+			model.SQL{Query: "WHERE " + simpleQuery.WhereClauseAsString()},
+			model.NewStringExpr("LIMIT"), model.NewLiteral(facetsSampleSize),
+			model.NewStringExpr(")"))},
 		TableName: cw.Table.FullTableName(),
 		CanParse:  true,
 	}
@@ -621,17 +620,17 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 // earliest == false <==> we want latest timestamp
 func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName string, whereClause where_clause.Statement, earliest bool) *model.Query {
 	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(timestampFieldName)}},
+		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(timestampFieldName)}},
 		WhereClause: whereClause,
 		OrderBy:     []model.SelectColumn{model.NewSortColumn(timestampFieldName, !earliest)},
 		Limit:       1,
-		FromClause:  model.NewSelectColumnString(cw.Table.FullTableName()),
+		FromClause:  model.NewSelectColumnNewStringExpr(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMap) aexp.AExp {
+func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMap) model.Expr {
 	const defaultDateTimeType = clickhouse.DateTime64
 	field := cw.parseFieldField(queryMap, "histogram")
 	interval, err := kibana.ParseInterval(cw.extractInterval(queryMap))

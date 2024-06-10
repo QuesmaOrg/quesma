@@ -3,15 +3,14 @@ package testdata
 import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser/aexp"
 	"time"
 )
 
-var timestampGroupByClause = aexp.RenderSQL(clickhouse.TimestampGroupBy(
+var timestampGroupByClause = model.RenderSQL(clickhouse.TimestampGroupBy(
 	model.NewSelectColumnTableField("@timestamp"), clickhouse.DateTime64, 30*time.Second))
 
 func groupBySQL(fieldName string, typ clickhouse.DateTimeType, groupByInterval time.Duration) string {
-	return aexp.RenderSQL(clickhouse.TimestampGroupBy(model.NewSelectColumnTableField(fieldName), typ, groupByInterval))
+	return model.RenderSQL(clickhouse.TimestampGroupBy(model.NewSelectColumnTableField(fieldName), typ, groupByInterval))
 }
 
 var AggregationTests = []AggregationTestCase{

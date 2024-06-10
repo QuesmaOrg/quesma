@@ -8,7 +8,6 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/testdata"
@@ -728,10 +727,10 @@ func Test_parseFieldFromScriptField(t *testing.T) {
 		expectedSuccess bool
 	}{
 		{goodQueryMap("doc['field1'].value.getHour()"),
-			model.SelectColumn{Expression: aexp.Function("toHour", aexp.TableColumnExp{ColumnName: "field1"})}, true},
+			model.SelectColumn{Expression: model.NewFunction("toHour", model.TableColumnExpr{ColumnName: "field1"})}, true},
 		{goodQueryMap("doc['field1'].value.getHour() + doc['field2'].value.getHour()"), empty, false},
 		{goodQueryMap("doc['field1'].value.hourOfDay"),
-			model.SelectColumn{Expression: aexp.Function("toHour", aexp.TableColumnExp{ColumnName: "field1"})}, true},
+			model.SelectColumn{Expression: model.NewFunction("toHour", model.TableColumnExpr{ColumnName: "field1"})}, true},
 		{goodQueryMap("doc['field1'].value"), empty, false},
 		{goodQueryMap("value.getHour() + doc['field2'].value.getHour()"), empty, false},
 		{QueryMap{}, empty, false},

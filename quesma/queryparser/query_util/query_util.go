@@ -4,7 +4,7 @@ import (
 	"context"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser/aexp"
+
 	"mitmproxy/quesma/quesma/types"
 )
 
@@ -22,16 +22,16 @@ func IsNonAggregationQuery(queryInfoType model.SearchQueryType, body types.JSON)
 func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, query model.SimpleQuery, limit int) *model.Query {
 	var col model.SelectColumn
 	if fieldName == "*" {
-		col = model.SelectColumn{Expression: aexp.Wildcard}
+		col = model.SelectColumn{Expression: model.NewWildcardExpr}
 	} else {
-		col = model.SelectColumn{Expression: aexp.TableColumn(fieldName)}
+		col = model.SelectColumn{Expression: model.NewTableColumnExpr(fieldName)}
 	}
 	return &model.Query{
 		Columns:     []model.SelectColumn{col},
 		WhereClause: query.WhereClause,
 		OrderBy:     query.OrderBy,
 		Limit:       applySizeLimit(ctx, limit),
-		FromClause:  model.NewSelectColumnString(tableName),
+		FromClause:  model.NewSelectColumnNewStringExpr(tableName),
 		TableName:   tableName,
 		CanParse:    true,
 	}

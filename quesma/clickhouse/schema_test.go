@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/queryparser/where_clause"
 	"slices"
 	"strconv"
@@ -44,31 +43,31 @@ var queries = []struct {
 		[]string{},
 	},
 	{
-		&model.Query{Columns: []model.SelectColumn{{Expression: aexp.Wildcard}}},
+		&model.Query{Columns: []model.SelectColumn{{Expression: model.NewWildcardExpr}}},
 		[]string{"all"},
 	},
 	{
-		&model.Query{Columns: []model.SelectColumn{{Expression: aexp.Wildcard}, {Expression: aexp.Count()}}},
+		&model.Query{Columns: []model.SelectColumn{{Expression: model.NewWildcardExpr}, {Expression: model.NewCountFunc()}}},
 		[]string{"all", "count()"},
 	},
 	{
-		&model.Query{Columns: []model.SelectColumn{{Expression: aexp.Wildcard}, {Expression: aexp.Count()}}, WhereClause: where_clause.NewInfixOp(where_clause.NewColumnRef("message"), "=", where_clause.NewLiteral("hello"))}, // select fields + where clause
+		&model.Query{Columns: []model.SelectColumn{{Expression: model.NewWildcardExpr}, {Expression: model.NewCountFunc()}}, WhereClause: where_clause.NewInfixOp(where_clause.NewColumnRef("message"), "=", where_clause.NewLiteral("hello"))}, // select fields + where clause
 		[]string{"all", "count()"},
 	},
 	{
-		&model.Query{Columns: []model.SelectColumn{{Expression: aexp.TableColumn("message")}, {Expression: aexp.TableColumn("timestamp")}}},
+		&model.Query{Columns: []model.SelectColumn{{Expression: model.NewTableColumnExpr("message")}, {Expression: model.NewTableColumnExpr("timestamp")}}},
 		[]string{"message", "timestamp"},
 	},
 	{
-		&model.Query{Columns: []model.SelectColumn{{Expression: aexp.TableColumn("message")}, {Expression: aexp.TableColumn("non-existent")}}},
+		&model.Query{Columns: []model.SelectColumn{{Expression: model.NewTableColumnExpr("message")}, {Expression: model.NewTableColumnExpr("non-existent")}}},
 		[]string{"message"},
 	},
 	{
-		&model.Query{Columns: []model.SelectColumn{{Expression: aexp.TableColumn("non-existent")}}},
+		&model.Query{Columns: []model.SelectColumn{{Expression: model.NewTableColumnExpr("non-existent")}}},
 		[]string{},
 	},
 	{
-		&model.Query{Columns: []model.SelectColumn{{Expression: aexp.TableColumn("message")}, {Expression: aexp.TableColumn("timestamp")}}},
+		&model.Query{Columns: []model.SelectColumn{{Expression: model.NewTableColumnExpr("message")}, {Expression: model.NewTableColumnExpr("timestamp")}}},
 		[]string{"message", "timestamp"},
 	},
 	//{ // we don't support such a query. Supporting it would slow down query's code, and this query seems pointless
@@ -116,7 +115,7 @@ func Test_extractColumns(t *testing.T) {
 			for j, q := range queries {
 				t.Run("Test_extractColumns, case config["+strconv.Itoa(configIdx)+"], createTableStr["+strconv.Itoa(i)+"], queries["+strconv.Itoa(j)+"]", func(t *testing.T) {
 					colNames, err := table.extractColumns(q.query, false)
-					if slices.Contains(q.query.Columns, model.SelectColumn{Expression: aexp.TableColumn("non-existent")}) {
+					if slices.Contains(q.query.Columns, model.SelectColumn{Expression: model.NewTableColumnExpr("non-existent")}) {
 						assert.Error(t, err)
 						return
 					} else {
