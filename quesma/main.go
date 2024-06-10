@@ -12,6 +12,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/schema"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
 	"os"
@@ -57,12 +58,16 @@ func main() {
 	phoneHomeAgent := telemetry.NewPhoneHomeAgent(cfg, connectionPool)
 	phoneHomeAgent.Start()
 
-	lm := clickhouse.NewEmptyLogManager(cfg, connectionPool, phoneHomeAgent)
+	schemaManagement := clickhouse.NewSchemaManagement(connectionPool)
+	schemaLoader := clickhouse.NewSchemaLoader(cfg, schemaManagement)
+	schemaRegistry := schema.NewSchemaRegistry(schemaLoader, cfg)
+
+	lm := clickhouse.NewEmptyLogManager(cfg, connectionPool, phoneHomeAgent, schemaLoader)
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())
 
-	instance := constructQuesma(cfg, lm, im, phoneHomeAgent, qmcLogChannel)
+	instance := constructQuesma(cfg, schemaLoader, lm, im, schemaRegistry, phoneHomeAgent, qmcLogChannel)
 	instance.Start()
 
 	<-doneCh
@@ -79,7 +84,7 @@ func main() {
 
 }
 
-func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, im elasticsearch.IndexManagement, phoneHomeAgent telemetry.PhoneHomeAgent, logChan <-chan tracing.LogWithLevel) *quesma.Quesma {
+func constructQuesma(cfg config.QuesmaConfiguration, sl *clickhouse.SchemaLoader, lm *clickhouse.LogManager, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, logChan <-chan tracing.LogWithLevel) *quesma.Quesma {
 
 	switch cfg.Mode {
 	case config.Proxy:
@@ -87,7 +92,7 @@ func constructQuesma(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	case config.ProxyInspect:
 		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, logChan, true)
 	case config.DualWriteQueryElastic, config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
-		return quesma.NewHttpProxy(phoneHomeAgent, lm, im, cfg, logChan)
+		return quesma.NewHttpProxy(phoneHomeAgent, lm, sl, im, schemaRegistry, cfg, logChan)
 	}
 	logger.Panic().Msgf("unknown operation mode: %s", cfg.Mode.String())
 	panic("unreachable")

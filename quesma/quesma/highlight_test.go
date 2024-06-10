@@ -105,7 +105,7 @@ func TestParseHighLight(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 
-	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent())
+	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), nil)
 
 	cw := queryparser.ClickhouseQueryTranslator{
 		ClickhouseLM: lm,
