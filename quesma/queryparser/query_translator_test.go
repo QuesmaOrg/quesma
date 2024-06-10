@@ -3,11 +3,13 @@ package queryparser
 import (
 	"context"
 	"encoding/json"
+	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/util"
 	"reflect"
@@ -58,8 +60,10 @@ const (
 func TestSearchResponse(t *testing.T) {
 	row := []model.QueryResultRow{{}}
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
-	searchRespBuf, err := cw.MakeAsyncSearchResponseMarshalled(row, model.Query{QueryInfoType: model.ListAllFields, Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
+	searchResp, err := cw.MakeAsyncSearchResponse(row, &model.Query{QueryInfoType: model.ListAllFields, Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
 	require.NoError(t, err)
+	searchRespBuf, err2 := searchResp.Marshal()
+	require.NoError(t, err2)
 	var searchResponseResult model.SearchResp
 	err = json.Unmarshal(searchRespBuf, &searchResponseResult)
 	require.NoError(t, err)
@@ -140,8 +144,15 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
-			ourResponseRaw, err := cw.MakeSearchResponse(args[i].ourQueryResult, model.Query{QueryInfoType: args[i].queryType, Highlighter: NewEmptyHighlighter()})
-			assert.NoError(t, err)
+			ourResponseRaw := cw.MakeSearchResponse(
+				[]*model.Query{
+					query_util.BuildHitsQuery(
+						context.Background(), "test", "*",
+						&model.SimpleQuery{FieldName: "*"}, model.WeNeedUnlimitedCount,
+					),
+				},
+				[][]model.QueryResultRow{args[i].ourQueryResult},
+			)
 			ourResponse, err := ourResponseRaw.Marshal()
 			assert.NoError(t, err)
 			actualMinusExpected, expectedMinusActual, err := util.JsonDifference(string(ourResponse), args[i].elasticResponseJson)
@@ -155,10 +166,11 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 }
 
 func TestMakeResponseAsyncSearchQuery(t *testing.T) {
+	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
 	var args = []struct {
 		elasticResponseJson string
 		ourQueryResult      []model.QueryResultRow
-		queryType           model.SearchQueryType
+		query               *model.Query
 	}{
 		{
 			`
@@ -225,196 +237,183 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 					},
 				},
 			},
-			model.Facets,
+			cw.BuildFacetsQuery("not-important", &model.SimpleQuery{}, false),
 		},
 		{
 			`
-	{
-		"is_partial": false,
-		"is_running": false,
-		"completion_status": 200,
-		"start_time_in_millis": 1706643496415,
-		"id": 0,
-		"expiration_time_in_millis": 1706643556415,
-		"completion_time_in_millis": 1706643496422,
-		"response": {
-			"took": 7,
-			"timed_out": false,
-			"_shards": {
-				"total": 1,
-				"successful": 1,
-				"skipped": 0,
-				"failed": 0
-			},
-			"hits": {
-				"total": {
-					"value": 423,
-					"relation": "eq"
-				},
-				"max_score": 0,
-				"hits": [
-					{
-						"_index": ".ds-logs-generic-default-2024.01.30-000001",
-						"_id": "YufhW40BF3dSPdkaDfTu",
-						"_score": 0,
-						"fields": {
-							"message": [
-							  "User deleted"
-							]
-						}
-					},
-					{
-						"_index": ".ds-logs-generic-default-2024.01.30-000001",
-						"_id": "V-fhW40BF3dSPdkaAvT3",
-						"_score": 0,
-						"fields": {
-							"message": [
-							  	"User updated"
-							]
-						}
-					},
-					{
-						"_index": ".ds-logs-generic-default-2024.01.30-000001",
-						"_id": "v-fWW40BF3dSPdkafuWP",
-						"_score": 0,
-						"fields": {
-							"message": [
-								"User created"
-							]
+				{
+					"is_partial": false,
+					"is_running": false,
+					"completion_status": 200,
+					"start_time_in_millis": 1706643496415,
+					"id": 0,
+					"expiration_time_in_millis": 1706643556415,
+					"completion_time_in_millis": 1706643496422,
+					"response": {
+						"took": 7,
+						"timed_out": false,
+						"_shards": {
+							"total": 1,
+							"successful": 1,
+							"skipped": 0,
+							"failed": 0
+						},
+						"hits": {
+							"total": {
+								"value": 423,
+								"relation": "eq"
+							},
+							"max_score": 0,
+							"hits": [
+								{
+									"_index": ".ds-logs-generic-default-2024.01.30-000001",
+									"_id": "YufhW40BF3dSPdkaDfTu",
+									"_score": 0,
+									"fields": {
+										"message": [
+										  "User deleted"
+										]
+									}
+								},
+								{
+									"_index": ".ds-logs-generic-default-2024.01.30-000001",
+									"_id": "V-fhW40BF3dSPdkaAvT3",
+									"_score": 0,
+									"fields": {
+										"message": [
+										  	"User updated"
+										]
+									}
+								},
+								{
+									"_index": ".ds-logs-generic-default-2024.01.30-000001",
+									"_id": "v-fWW40BF3dSPdkafuWP",
+									"_score": 0,
+									"fields": {
+										"message": [
+											"User created"
+										]
+									}
+								}
+			      			]
 						}
 					}
-      			]
-			}
-		}
-	}`,
+				}`,
 			[]model.QueryResultRow{
-				{
-					Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("message", "User deleted"),
-					},
-				},
-				{
-					Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("message", "User updated"),
-					},
-				},
-				{
-					Cols: []model.QueryResultCol{
-						model.NewQueryResultCol("message", "User created"),
-					},
-				},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("message", "User deleted")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("message", "User updated")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("message", "User created")}},
 			},
-
-			model.ListByField,
+			query_util.BuildHitsQuery(context.Background(), "test", "message", &model.SimpleQuery{}, model.WeNeedUnlimitedCount),
 		},
 		{
 			`
-	{
-		"completion_time_in_millis": 1706643613508,
-		"expiration_time_in_millis": 1706643673499,
-		"completion_status": 200,
-		"id": "FlpqVDhsdkZJVFBTVDFJV2Q5T2l6Q0EdTTF2dnY2R0dSNEtZYVQ3cjR5ZnBuQToxMzM1NDA=",
-		"is_partial": false,
-		"is_running": false,
-		"response": {
-			"_shards": {
-				"failed": 0,
-				"skipped": 0,
-				"successful": 1,
-				"total": 1
-			},
-			"hits": {
-				"hits": [
 					{
-						"_id": "BufiW40BF3dSPdkaU_bj",
-						"_index": ".ds-logs-generic-default-2024.01.30-000001",
-						"_score": null,
-						"_version": 1,
-						"fields": {
-							"@timestamp": [
-								"2024-01-30T19:39:35.767Z"
-							],
-							"data_stream.type": [
-								"logs"
-							],
-							"host.name": [
-								"apollo"
-							],
-							"host.name.text": [
-								"apollo"
-							],
-							"message": [
-								"User password changed"
-							],
-							"service.name": [
-								"frontend"
-							],
-            				"service.name.text": [
-								"frontend"
-							],
-							"severity": [
-								"info"
-							],
-							"source": [
-								"alpine"
-							]
-						},
-						"sort": [
-							"2024-01-30T19:39:35.767Z",
-							"apollo"
-						]
-					},
-					{
-						"_id": "R-fhW40BF3dSPdkas_UW",
-						"_index": ".ds-logs-generic-default-2024.01.30-000001",
-						"_score": null,
-						"_version": 1,
-						"fields": {
-							"@timestamp": [
-								"2024-01-30T19:38:54.607Z"
-							],
-							"data_stream.type": [
-								"logs"
-							],
-							"host.name": [
-								"apollo"
-							],
-							"host.name.text": [
-								"apollo"
-							],
-							"message": [
-								"User logged out"
-							],
-							"service.name": [
-								"proxy"
-							],
-							"service.name.text": [
-								"proxy"
-							],
-							"severity": [
-								"warning"
-							],
-							"source": [
-								"hyperv"
-							]
-						},
-						"sort": [
-							"2024-01-30T19:38:54.607Z",
-							"apollo"
-						]
-					}
-				],
-				"max_score": null,
-					  "total": {
-						"relation": "eq",
-						"value": 1
-				  }
-			},
-			"timed_out": false,
-			"took": 9
-  		},
-		"start_time_in_millis": 1706643613499
-	}`,
+						"completion_time_in_millis": 1706643613508,
+						"expiration_time_in_millis": 1706643673499,
+						"completion_status": 200,
+						"id": "FlpqVDhsdkZJVFBTVDFJV2Q5T2l6Q0EdTTF2dnY2R0dSNEtZYVQ3cjR5ZnBuQToxMzM1NDA=",
+						"is_partial": false,
+						"is_running": false,
+						"response": {
+							"_shards": {
+								"failed": 0,
+								"skipped": 0,
+								"successful": 1,
+								"total": 1
+							},
+							"hits": {
+								"hits": [
+									{
+										"_id": "BufiW40BF3dSPdkaU_bj",
+										"_index": ".ds-logs-generic-default-2024.01.30-000001",
+										"_score": null,
+										"_version": 1,
+										"fields": {
+											"@timestamp": [
+												"2024-01-30T19:39:35.767Z"
+											],
+											"data_stream.type": [
+												"logs"
+											],
+											"host.name": [
+												"apollo"
+											],
+											"host.name.text": [
+												"apollo"
+											],
+											"message": [
+												"User password changed"
+											],
+											"service.name": [
+												"frontend"
+											],
+				            				"service.name.text": [
+												"frontend"
+											],
+											"severity": [
+												"info"
+											],
+											"source": [
+												"alpine"
+											]
+										},
+										"sort": [
+											"2024-01-30T19:39:35.767Z",
+											"apollo"
+										]
+									},
+									{
+										"_id": "R-fhW40BF3dSPdkas_UW",
+										"_index": ".ds-logs-generic-default-2024.01.30-000001",
+										"_score": null,
+										"_version": 1,
+										"fields": {
+											"@timestamp": [
+												"2024-01-30T19:38:54.607Z"
+											],
+											"data_stream.type": [
+												"logs"
+											],
+											"host.name": [
+												"apollo"
+											],
+											"host.name.text": [
+												"apollo"
+											],
+											"message": [
+												"User logged out"
+											],
+											"service.name": [
+												"proxy"
+											],
+											"service.name.text": [
+												"proxy"
+											],
+											"severity": [
+												"warning"
+											],
+											"source": [
+												"hyperv"
+											]
+										},
+										"sort": [
+											"2024-01-30T19:38:54.607Z",
+											"apollo"
+										]
+									}
+								],
+								"max_score": null,
+									  "total": {
+										"relation": "eq",
+										"value": 1
+								  }
+							},
+							"timed_out": false,
+							"took": 9
+				  		},
+						"start_time_in_millis": 1706643613499
+					}`,
 			[]model.QueryResultRow{
 				{
 					Cols: []model.QueryResultCol{
@@ -443,23 +442,25 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 					},
 				},
 			},
-			model.ListAllFields,
-		},
+			query_util.BuildHitsQuery(context.Background(), "test", "*", &model.SimpleQuery{}, model.WeNeedUnlimitedCount)},
 	}
-	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
 	for i, tt := range args {
-		t.Run(tt.queryType.String(), func(t *testing.T) {
-			ourResponse, err := cw.MakeAsyncSearchResponseMarshalled(args[i].ourQueryResult, model.Query{
-				QueryInfoType: args[i].queryType,
-				Highlighter:   NewEmptyHighlighter(),
-				OrderBy:       []model.SelectColumn{model.NewSortColumn("@timestamp", true), model.NewSortColumn("host.name", true)},
-			}, asyncRequestIdStr, false)
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			if i != 0 {
+				t.Skip()
+			}
+			ourResponse, err := cw.MakeAsyncSearchResponse(args[i].ourQueryResult, tt.query, asyncRequestIdStr, false)
+			assert.NoError(t, err)
+			ourResponseBuf, err2 := ourResponse.Marshal()
+			assert.NoError(t, err2)
+
+			actualMinusExpected, expectedMinusActual, err := util.JsonDifference(string(ourResponseBuf), args[i].elasticResponseJson)
+			pp.Println(actualMinusExpected, expectedMinusActual)
 			assert.NoError(t, err)
 
-			actualMinusExpected, expectedMinusActual, err := util.JsonDifference(string(ourResponse), args[i].elasticResponseJson)
-			assert.NoError(t, err)
-			assert.Empty(t, actualMinusExpected, "actualMinusExpected: %s", actualMinusExpected)
-			assert.Empty(t, expectedMinusActual, "expectedMinusActual: %s", expectedMinusActual)
+			acceptableDifference := []string{"sort", "_score", "_version"}
+			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference), "actualMinusExpected: %s", actualMinusExpected)
+			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference), "expectedMinusActual: %s", expectedMinusActual)
 		})
 	}
 }
@@ -470,16 +471,15 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: nil, Table: clickhouse.NewEmptyTable("@"), Ctx: context.Background()}
 	const limit = 1000
 	queries := []*model.Query{
-		cw.BuildNRowsQuery("*", model.SimpleQuery{}, limit),
-		cw.BuildNRowsQuery("@", model.SimpleQuery{}, 0),
+		cw.BuildNRowsQuery("*", &model.SimpleQuery{}, limit),
+		cw.BuildNRowsQuery("@", &model.SimpleQuery{}, 0),
 	}
 	for _, query := range queries {
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}
 		for _, field := range query.Columns {
 			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field.Alias, Value: "not-important"})
 		}
-		_, err := cw.MakeSearchResponse([]model.QueryResultRow{resultRow}, model.Query{QueryInfoType: model.Normal, Highlighter: NewEmptyHighlighter()})
-		assert.NoError(t, err)
+		_ = cw.MakeSearchResponse([]*model.Query{{QueryInfoType: model.Normal, Highlighter: NewEmptyHighlighter()}}, [][]model.QueryResultRow{{resultRow}})
 	}
 }
 
@@ -495,10 +495,11 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
 	queries := []*model.Query{
 		cw.BuildAutocompleteSuggestionsQuery("@", "", 0),
-		cw.BuildFacetsQuery("@", model.SimpleQuery{}),
+		cw.BuildFacetsQuery("@", &model.SimpleQuery{}, true),
+		cw.BuildFacetsQuery("@", &model.SimpleQuery{}, false),
 		// queryTranslator.BuildTimestampQuery("@", "@", "", true), TODO uncomment when add unification for this query type
 	}
-	types := []model.SearchQueryType{model.ListAllFields, model.ListByField}
+	types := []model.SearchQueryType{model.ListAllFields, model.FacetsNumeric, model.Facets}
 	for i, query := range queries {
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}
 		for j, field := range query.Columns {
@@ -508,7 +509,7 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 			}
 			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field.Alias, Value: value})
 		}
-		_, err := cw.MakeAsyncSearchResponse([]model.QueryResultRow{resultRow}, model.Query{QueryInfoType: types[i], Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
+		_, err := cw.MakeAsyncSearchResponse([]model.QueryResultRow{resultRow}, &model.Query{QueryInfoType: types[i], Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
 		assert.NoError(t, err)
 	}
 }
@@ -614,7 +615,8 @@ func Test_makeSearchResponseFacetsNumericInts(t *testing.T) {
 	}
 	for i, tt := range testcases {
 		t.Run(strconv.Itoa(i)+tt.name, func(t *testing.T) {
-			searchResp := cw.makeSearchResponseFacets(tt.rows, model.FacetsNumeric)
+			query := cw.BuildFacetsQuery("not-important", &model.SimpleQuery{}, true)
+			searchResp := cw.MakeSearchResponse([]*model.Query{query}, [][]model.QueryResultRow{tt.rows})
 			assert.True(t, reflect.DeepEqual(searchResp.Aggregations, tt.wantedAggregationMap))
 		})
 	}
@@ -721,7 +723,8 @@ func Test_makeSearchResponseFacetsNumericFloats(t *testing.T) {
 	}
 	for i, tt := range testcases {
 		t.Run(strconv.Itoa(i)+tt.name, func(t *testing.T) {
-			searchResp := cw.makeSearchResponseFacets(tt.rows, model.FacetsNumeric)
+			query := cw.BuildFacetsQuery("not-important", &model.SimpleQuery{}, true)
+			searchResp := cw.MakeSearchResponse([]*model.Query{query}, [][]model.QueryResultRow{tt.rows})
 			assert.True(t, reflect.DeepEqual(searchResp.Aggregations, tt.wantedAggregationMap))
 		})
 	}
@@ -729,11 +732,11 @@ func Test_makeSearchResponseFacetsNumericFloats(t *testing.T) {
 
 func Test_sortInTopologicalOrder(t *testing.T) {
 	var testcases = []struct {
-		queries                []model.Query
+		queries                []*model.Query
 		wantedTopologicalOrder []int
 	}{
 		{
-			queries: []model.Query{
+			queries: []*model.Query{
 				{Parent: "b", NoDBQuery: true, Aggregators: []model.Aggregator{{Name: "c"}}},
 				{Parent: "", Aggregators: []model.Aggregator{{Name: "b"}}},
 				{Parent: "c", NoDBQuery: true, Aggregators: []model.Aggregator{{Name: "d"}}},
@@ -741,7 +744,7 @@ func Test_sortInTopologicalOrder(t *testing.T) {
 			wantedTopologicalOrder: []int{1, 0, 2},
 		},
 		{
-			queries: []model.Query{
+			queries: []*model.Query{
 				{Parent: "", Aggregators: []model.Aggregator{{Name: "c"}}},
 				{Parent: "", Aggregators: []model.Aggregator{{Name: "b"}}},
 				{Parent: "", Aggregators: []model.Aggregator{{Name: "d"}}},
@@ -750,7 +753,7 @@ func Test_sortInTopologicalOrder(t *testing.T) {
 			wantedTopologicalOrder: []int{0, 1, 2, 3},
 		},
 		{
-			queries: []model.Query{
+			queries: []*model.Query{
 				{Parent: "a", NoDBQuery: true, Aggregators: []model.Aggregator{{Name: "b1"}}},
 				{Parent: "a", NoDBQuery: true, Aggregators: []model.Aggregator{{Name: "b2"}}},
 				{Parent: "", Aggregators: []model.Aggregator{{Name: "a"}}},

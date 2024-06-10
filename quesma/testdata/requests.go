@@ -64,7 +64,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
     },
     "runtime_mappings": {},
     "size": 0,
-    "track_total_hits": true
+    "track_total_hits": false
 }`,
 		`{
     "completion_time_in_millis": 1706010201967,
@@ -287,7 +287,14 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 }
 `, "there should be 97 results, I truncated most of them",
 		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"message"}, FieldName: "message", I1: 0, I2: 100},
-		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE ((("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) AND "message" iLIKE '%user%') AND "message" IS NOT NULL) ORDER BY "@timestamp" DESC LIMIT 100`},
+		[]string{
+			`SELECT count() FROM "logs-generic-default" WHERE ((("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z')) AND "message" iLIKE '%user%') AND "message" IS NOT NULL)`,
+			`SELECT "message" FROM ` + QuotedTableName + ` WHERE ((("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') ` +
+				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')) AND "message" iLIKE '%user%') ` +
+				`AND "message" IS NOT NULL) ` +
+				`ORDER BY "@timestamp" DESC ` +
+				`LIMIT 100`},
 		false,
 	},
 	{ // [2]
@@ -579,11 +586,11 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
     },
     "runtime_mappings": {},
     "script_fields": {},
-    "size": 0,
+    "size": 100,
     "stored_fields": [
         "*"
     ],
-    "track_total_hits": true
+    "track_total_hits": 1000
 }
 `, `{
     "completion_time_in_millis": 1706021899595,
@@ -659,9 +666,13 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 }
 `,
 		"no comment yet",
-		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"@timestamp"}, FieldName: "@timestamp"},
+		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"@timestamp"}, FieldName: "@timestamp", I2: 100},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE ("message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z')))`,
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z')))`,
+			// FIXME add ` LIMIT 1000` after track_total_hits issue,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000), count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("message" iLIKE '%user%' ` +
@@ -669,6 +680,12 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T14:..:19.481Z'))) ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000)`,
+			`SELECT "@timestamp" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("message" iLIKE '%user%' ` +
+				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))) ` +
+				`LIMIT 100`,
 		},
 		true,
 	},
@@ -702,13 +719,12 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 			}
 		}
 	},
-	"track_total_hits":true
+	"track_total_hits":false
 }`,
 		`{}`,
 		"no comment yet",
 		model.SearchQueryInfo{Typ: model.Normal},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` WHERE ("@timestamp".*parseDateTime64BestEffort('2024-01-25T..:..:59.033Z') AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T..:..:59.033Z'))`,
 			`SELECT "event.dataset", ` +
 				groupBySQL("@timestamp", clickhouse.DateTime64, time.Minute) +
 				`, count() FROM ` + QuotedTableName + ` ` +
@@ -766,7 +782,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 				}
 			},
 			"size": 0,
-			"track_total_hits": true
+			"track_total_hits": 1
 		}`,
 		`{
 			"completion_time_in_millis": 1706551812667,
@@ -804,7 +820,9 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.SearchQueryInfo{Typ: model.Normal},
 		[]string{
-			`SELECT count() FROM "logs-generic-default" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
+			`SELECT count() FROM "logs-generic-default" ` +
+				`WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
+			// FIXME add LIMIT 1 after track_total_hits
 			`SELECT m..OrNull("@timestamp") FROM "logs-generic-default" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
 			`SELECT m..OrNull("@timestamp") FROM "logs-generic-default" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
 		},
@@ -817,7 +835,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 				"*"
 			],
 			"size": 50,
-			"track_total_hits": true
+			"track_total_hits": false
 		}`,
 		``,
 		"no comment yet",
@@ -879,12 +897,20 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 				}
 			},
 			"size": 100,
-			"track_total_hits": true
+			"track_total_hits": false
 		}`,
 		``,
 		"happens e.g. in Explorer > Field Statistics view",
 		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"properties::isreg"}, FieldName: "properties::isreg", I1: 0, I2: 100},
-		[]string{`SELECT "properties::isreg" FROM "logs-generic-default" WHERE (((toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12 AND toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12) AND (toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12 AND toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12)) AND "properties::isreg" IS NOT NULL) LIMIT 100`},
+		[]string{
+			`SELECT "properties::isreg" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE (((toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12 ` +
+				`AND toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12) ` +
+				`AND (toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12 ` +
+				`AND toUnixTimestamp64Milli("epoch_time").=1.71017.......e.12)) ` +
+				`AND "properties::isreg" IS NOT NULL) LIMIT 100`,
+		},
 		false,
 	},
 }
@@ -899,9 +925,11 @@ var TestsSearch = []SearchTestCase{
 			}
 		}`,
 		[]string{""},
-		model.Normal,
+		model.ListAllFields,
 		////[]model.Query{newSimplestQuery()},
-		[]string{`SELECT "message" FROM "logs-generic-default"`},
+		[]string{
+			`SELECT "message" FROM ` + QuotedTableName + ` LIMIT 10`,
+		},
 	},
 	{ // [1]
 		"Term as dictionary",
@@ -919,9 +947,12 @@ var TestsSearch = []SearchTestCase{
 			}
 		}`,
 		[]string{`"type"='task'`},
-		model.Normal,
+		model.ListAllFields,
 		////[]model.Query{justSimplestWhere(`"type"='task'`)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "type"='task'`},
+		[]string{
+			`SELECT "message" FROM ` + QuotedTableName + ` WHERE "type"='task' LIMIT 10`,
+			`SELECT count() FROM ` + QuotedTableName,
+		},
 	},
 	{ // [2]
 		"Term as array",
@@ -945,11 +976,14 @@ var TestsSearch = []SearchTestCase{
 			}
 		}`,
 		[]string{`("type"='task' AND "task.enabled" IN (true,54))`},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{
 		//	justSimplestWhere(`("type"='task' AND "task.enabled" IN (true,54))`),
 		//},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ("type"='task' AND "task.enabled" IN (true,54))`},
+		[]string{
+			`SELECT "message" FROM ` + QuotedTableName + ` WHERE ("type"='task' AND "task.enabled" IN (true,54)) LIMIT 10`,
+			`SELECT count() FROM ` + QuotedTableName,
+		},
 	},
 	{ // [3]
 		"Sample log query",
@@ -983,11 +1017,17 @@ var TestsSearch = []SearchTestCase{
 		[]string{
 			`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z')))`,
 		},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{
 		//	justSimplestWhere(`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-17T10:28:18.815Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-17T10:43:18.815Z')))`),
 		//},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ("message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-17T10:..:18.815Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-17T10:..:18.815Z')))`},
+		[]string{
+			`SELECT "message" FROM ` + QuotedTableName + ` WHERE ("message" iLIKE '%user%' ` +
+				`AND ("@timestamp".=parseDateTime64BestEffort('2024-01-17T10:..:18.815Z') ` +
+				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-17T10:..:18.815Z'))) ` +
+				`LIMIT 10`,
+			`SELECT count() FROM ` + QuotedTableName,
+		},
 	},
 	{ // [4]
 		"Multiple bool query",
@@ -1018,12 +1058,19 @@ var TestsSearch = []SearchTestCase{
 		[]string{
 			`((("user.id"='kimchy' AND "tags"='production') AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age">=10 AND "age"<=20)))`,
 		},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{
 		//	justSimplestWhere(`((("user.id"='kimchy' AND "tags"='production') AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age">=10 AND "age"<=20)))`),
 		//	justSimplestWhere(`((("user.id"='kimchy' AND "tags"='production') AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age">=10 AND "age"<=20)))`),
 		//},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ((("user.id"='kimchy' AND "tags"='production') AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age".=.0 AND "age".=.0))`},
+		[]string{
+			`SELECT "message" FROM ` + QuotedTableName + ` WHERE ((("user.id"='kimchy' AND "tags"='production') ` +
+				`AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age".=.0 AND "age".=.0))) ` +
+				`LIMIT 10`,
+			`SELECT count() FROM ` + QuotedTableName + ` ` +
+				`WHERE ((("user.id"='kimchy' AND "tags"='production') ` +
+				`AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age".=.0 AND "age".=.0)))`,
+		},
 	},
 	{ // [5]
 		"Match phrase",
@@ -1048,12 +1095,13 @@ var TestsSearch = []SearchTestCase{
 						}
 					]
 				}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{`"host_name.keyword" iLIKE '%prometheus%'`},
-		model.Normal,
+		model.ListAllFields,
 		////[]model.Query{justSimplestWhere(`"host_name.keyword" iLIKE '%prometheus%'`)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "host_name.keyword" iLIKE '%prometheus%'`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE "host_name.keyword" iLIKE '%prometheus%' LIMIT 10`},
 	},
 	{ // [6]
 		"Match",
@@ -1063,12 +1111,18 @@ var TestsSearch = []SearchTestCase{
 				"match": {
 					"message": "this is a test"
 				}
-			}
+			},
+			"size": 100,
+			"track_total_hits": false
 		}`,
 		[]string{`((("message" iLIKE '%this%' OR "message" iLIKE '%is%') OR "message" iLIKE '%a%') OR "message" iLIKE '%test%')`},
-		model.Normal,
+		model.ListAllFields,
 		////[]model.Query{justSimplestWhere(`((("message" iLIKE '%this%' OR "message" iLIKE '%is%') OR "message" iLIKE '%a%') OR "message" iLIKE '%test%')`)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ((("message" iLIKE '%this%' OR "message" iLIKE '%is%') OR "message" iLIKE '%a%') OR "message" iLIKE '%test%')`},
+		[]string{
+			`SELECT "message" FROM ` + QuotedTableName + ` WHERE ((("message" iLIKE '%this%' OR "message" iLIKE '%is%') ` +
+				`OR "message" iLIKE '%a%') OR "message" iLIKE '%test%') ` +
+				`LIMIT 100`,
+		},
 	},
 	{ // [7]
 		"Terms",
@@ -1084,12 +1138,13 @@ var TestsSearch = []SearchTestCase{
 						}
 					]
 				}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{`"status"='pending'`},
-		model.Normal,
+		model.ListAllFields,
 		////[]model.Query{justSimplestWhere(`"status"='pending'`)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "status"='pending'`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE "status"='pending'`},
 	},
 	{ // [8]
 		"Exists",
@@ -1130,14 +1185,23 @@ var TestsSearch = []SearchTestCase{
 						}
 					]
 				}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{`("type"='upgrade-assistant-reindex-operation' AND (NOT ((has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL)) OR NOT ((has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))))`},
-		model.Normal,
+		model.ListAllFields,
 		////[]model.Query{
 		//	justSimplestWhere(`("type"='upgrade-assistant-reindex-operation' AND (NOT ((has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL)) OR NOT ((has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))))`),
 		//},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ("type"='upgrade-assistant-reindex-operation' AND (NOT ((has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL)) OR NOT ((has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))))`},
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("type"='upgrade-assistant-reindex-operation' ` +
+				`AND (NOT ((has("attributes_string_key","namespace") ` +
+				`AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL)) ` +
+				`OR NOT ((has("attributes_string_key","namespaces") ` +
+				`AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))))`,
+		},
 	},
 	{ // [9]
 		"Simple query string",
@@ -1157,12 +1221,13 @@ var TestsSearch = []SearchTestCase{
 						}
 					]
 				}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{`"exception-list-agnostic.list_id" = 'endpoint_event_filters'`},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(`"exception-list-agnostic.list_id" = 'endpoint_event_filters'`)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "exception-list-agnostic.list_id" = 'endpoint_event_filters'`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE "exception-list-agnostic.list_id" = 'endpoint_event_filters'`},
 	},
 	{ // [10]
 		"Simple query string wildcard",
@@ -1183,12 +1248,13 @@ var TestsSearch = []SearchTestCase{
 						}
 					]
 				}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{`"message" = 'ingest-agent-policies'`},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(`"message" = 'ingest-agent-policies'`)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "message" = 'ingest-agent-policies'`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE "message" = 'ingest-agent-policies'`},
 	},
 	{ // [11]
 		"Simple wildcard",
@@ -1206,12 +1272,13 @@ var TestsSearch = []SearchTestCase{
 						}
 					]
 				}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{`"task.taskType" iLIKE 'alerting:%'`},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(`"task.taskType" iLIKE 'alerting:%'`)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "task.taskType" iLIKE 'alerting:%'`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE "task.taskType" iLIKE 'alerting:%'`},
 	},
 	{ // [12]
 		"Simple prefix ver1",
@@ -1229,12 +1296,13 @@ var TestsSearch = []SearchTestCase{
 						}
 					]
 				}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{`"alert.actions.actionRef" iLIKE 'preconfigured:%'`},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(`"alert.actions.actionRef" iLIKE 'preconfigured:%'`)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "alert.actions.actionRef" iLIKE 'preconfigured:%'`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE "alert.actions.actionRef" iLIKE 'preconfigured:%'`},
 	},
 	{ // [13]
 		"Simple prefix ver2",
@@ -1242,12 +1310,14 @@ var TestsSearch = []SearchTestCase{
 		{
 			"query": {
 				"prefix" : { "user" : "ki" }
-			}
+			},
+			"track_total_hits": false,
+			"size": 10
 		}`,
 		[]string{`"user" iLIKE 'ki%'`},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(`"user" iLIKE 'ki%'`)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "user" iLIKE 'ki%'`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE "user" iLIKE 'ki%'`},
 	},
 	{ // [14]
 		"Query string, wildcards don't work properly",
@@ -1260,12 +1330,14 @@ var TestsSearch = []SearchTestCase{
 					],
 					"query": "\"* logged\""
 				}
-			}
+			},
+			"track_total_hits": false,
+			"size": 1
 		}`,
 		[]string{`"message" ILIKE '% logged'`},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(`"message" ILIKE '% logged'`)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "message" ILIKE '% logged'`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE "message" ILIKE '% logged'`},
 	},
 	{ // [15]
 		"Empty bool",
@@ -1281,9 +1353,12 @@ var TestsSearch = []SearchTestCase{
 			}
 		}`,
 		[]string{""},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{newSimplestQuery()},
-		[]string{`SELECT "message" FROM "logs-generic-default"`},
+		[]string{
+			`SELECT count() FROM ` + QuotedTableName,
+			`SELECT "message" FROM ` + QuotedTableName,
+		},
 	},
 	{ // [16]
 		"Simplest 'match_phrase'",
@@ -1292,12 +1367,13 @@ var TestsSearch = []SearchTestCase{
 				"match_phrase": {
 					"message": "this is a test"
 				}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{`"message" iLIKE '%this is a test%'`},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(`"message" iLIKE '%this is a test%'`)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "message" iLIKE '%this is a test%'`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE "message" iLIKE '%this is a test%'`},
 	},
 	{ // [17]
 		"More nested 'match_phrase'",
@@ -1309,12 +1385,13 @@ var TestsSearch = []SearchTestCase{
 						"analyzer": "my_analyzer"
 					}
 				}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{`"message" iLIKE '%this is a test%'`},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(`"message" iLIKE '%this is a test%'`)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "message" iLIKE '%this is a test%'`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE "message" iLIKE '%this is a test%'`},
 	},
 	{ // [18]
 		"Simple nested",
@@ -1341,12 +1418,13 @@ var TestsSearch = []SearchTestCase{
 						}
 					]
 				}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{`"references.type"='tag'`},
-		model.Normal,
+		model.ListAllFields,
 		////[]model.Query{justSimplestWhere(`"references.type"='tag'`)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "references.type"='tag'`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE "references.type"='tag'`},
 	},
 	{ // [19]
 		"random simple test",
@@ -1413,13 +1491,20 @@ var TestsSearch = []SearchTestCase{
 		////[]model.Query{
 		//	justSimplestWhere(`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`),
 		//},
-		[]string{`SELECT count() FROM "logs-generic-default" WHERE ("message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z')))`},
+		[]string{
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("message" iLIKE '%user%' ` +
+				`AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z') ` +
+				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z')))`,
+		},
 	},
 	{ // [20]
 		"termWithCompoundValue",
 		`
 		{
 			"size": 0,
+			"track_total_hits": false,
 			"timeout": "1000ms",
 			"terminate_after": 100000,
 			"query": {
@@ -1464,7 +1549,7 @@ var TestsSearch = []SearchTestCase{
 			  "suggestions": {
 				"terms": {
 				  "size": 10,
-				  "field": "data_stream.namespace",
+				  "field": "namespace",
 				  "shard_size": 10,
 				  "order": {
 					"_count": "desc"
@@ -1473,7 +1558,7 @@ var TestsSearch = []SearchTestCase{
 			  },
 			  "unique_terms": {
 				"cardinality": {
-				  "field": "data_stream.namespace"
+				  "field": "namespace"
 				}
 			  }
 			},
@@ -1487,7 +1572,21 @@ var TestsSearch = []SearchTestCase{
 		////[]model.Query{
 		//	justSimplestWhere(`("service.name"='admin' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z')))`),
 		//},
-		[]string{`SELECT count() FROM "logs-generic-default" WHERE ("service.name"='admin' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z')))`},
+		[]string{
+			`SELECT "namespace", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("service.name"='admin' ` +
+				`AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z') ` +
+				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z'))) ` +
+				`GROUP BY "namespace" ` +
+				`ORDER BY count() DESC ` +
+				`LIMIT 10`,
+			`SELECT count(DISTINCT "namespace") ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("service.name"='admin' ` +
+				`AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z') ` +
+				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z')))`,
+		},
 	},
 	{ // [21]
 		"count() as /_search query. With filter", // response should be just ["hits"]["total"]["value"] == result of count()
@@ -1553,7 +1652,13 @@ var TestsSearch = []SearchTestCase{
 		////[]model.Query{
 		//	justSimplestWhere(`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`),
 		//},
-		[]string{`SELECT count() FROM "logs-generic-default" WHERE (("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') AND ("@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z')))`},
+		[]string{
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE (("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') ` +
+				`AND ("@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z') ` +
+				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-29T1.:..:36.491Z')))`,
+		},
 	},
 	{ // [22]
 		"count() as /_search or /logs-*-/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count()
@@ -1561,7 +1666,7 @@ var TestsSearch = []SearchTestCase{
 			"aggs": {
 				"suggestions": {
 					"terms": {
-						"field": "data_stream.namespace",
+						"field": "namespace",
 						"order": {
 							"_count": "desc"
 						},
@@ -1571,7 +1676,7 @@ var TestsSearch = []SearchTestCase{
 				},
 				"unique_terms": {
 					"cardinality": {
-						"field": "data_stream.namespace"
+						"field": "namespace"
 					}
 				}
 			},
@@ -1608,6 +1713,7 @@ var TestsSearch = []SearchTestCase{
 			},
 			"runtime_mappings": {},
 			"size": 0,
+			"track_total_hits": false,
 			"terminate_after": 100000,
 			"timeout": "1000ms"
 		}`,
@@ -1616,7 +1722,21 @@ var TestsSearch = []SearchTestCase{
 		////[]model.Query{
 		//	justSimplestWhere(`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`),
 		//},
-		[]string{`SELECT count() FROM "logs-generic-default" WHERE ("message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`},
+		[]string{
+			`SELECT "namespace", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("message" iLIKE '%user%' ` +
+				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
+				`GROUP BY "namespace" ` +
+				`ORDER BY count() DESC ` +
+				`LIMIT 10`,
+			`SELECT count(DISTINCT "namespace") ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("message" iLIKE '%user%' ` +
+				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`,
+		},
 	},
 	{ // [23]
 		"count() as /_search query. With filter", // response should be just ["hits"]["total"]["value"] == result of count()
@@ -1624,7 +1744,7 @@ var TestsSearch = []SearchTestCase{
 		"aggs": {
 			"suggestions": {
 				"terms": {
-					"field": "data_stream.namespace",
+					"field": "namespace",
 					"order": {
 						"_count": "desc"
 					},
@@ -1634,7 +1754,7 @@ var TestsSearch = []SearchTestCase{
 			},
 			"unique_terms": {
 				"cardinality": {
-					"field": "data_stream.namespace"
+					"field": "namespace"
 				}
 			}
 		},
@@ -1674,6 +1794,7 @@ var TestsSearch = []SearchTestCase{
 		},
 		"runtime_mappings": {},
 		"size": 0,
+		"track_total_hits": false,
 		"terminate_after": 100000,
 		"timeout": "1000ms"
 	}`,
@@ -1682,7 +1803,21 @@ var TestsSearch = []SearchTestCase{
 		////[]model.Query{
 		//	justSimplestWhere(`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`),
 		//},
-		[]string{`SELECT count() FROM "logs-generic-default" WHERE (("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') AND ("@timestamp".=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`},
+		[]string{
+			`SELECT "namespace", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE (("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') ` +
+				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))) ` +
+				`GROUP BY "namespace" ` +
+				`ORDER BY count() DESC ` +
+				`LIMIT 10`,
+			`SELECT count(DISTINCT "namespace") ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE (("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') ` +
+				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`,
+		},
 	},
 	{ // [24]
 		"count() as /_search or /logs-*-/_search query. Without filter", // response should be just ["hits"]["total"]["value"] == result of count()
@@ -1690,7 +1825,7 @@ var TestsSearch = []SearchTestCase{
 			"aggs": {
 				"suggestions": {
 					"terms": {
-						"field": "data_stream.namespace",
+						"field": "namespace",
 						"order": {
 							"_count": "desc"
 						},
@@ -1700,7 +1835,7 @@ var TestsSearch = []SearchTestCase{
 				},
 				"unique_terms": {
 					"cardinality": {
-						"field": "data_stream.namespace"
+						"field": "namespace"
 					}
 				}
 			},
@@ -1737,6 +1872,7 @@ var TestsSearch = []SearchTestCase{
 			},
 			"runtime_mappings": {},
 			"size": 0,
+			"track_total_hits": false,
 			"terminate_after": 100000,
 			"timeout": "1000ms"
 		}`,
@@ -1745,7 +1881,21 @@ var TestsSearch = []SearchTestCase{
 		////[]model.Query{
 		//	justSimplestWhere(`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`),
 		//},
-		[]string{`SELECT count() FROM "logs-generic-default" WHERE ("message" iLIKE '%user%' AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`},
+		[]string{
+			`SELECT "namespace", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("message" iLIKE '%user%' ` +
+				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
+				`GROUP BY "namespace" ` +
+				`ORDER BY count() DESC ` +
+				`LIMIT 10`,
+			`SELECT count(DISTINCT "namespace") ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("message" iLIKE '%user%' ` +
+				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`,
+		},
 	},
 	{ // [25]
 		"_search, only one so far with fields, we're not sure if SELECT * is correct, or should be SELECT @timestamp",
@@ -1774,6 +1924,7 @@ var TestsSearch = []SearchTestCase{
 			"runtime_mappings": {},
 			"script_fields": {},
 			"size": 500,
+			"track_total_hits": false,
 			"stored_fields": [
 				"*"
 			],
@@ -1783,7 +1934,10 @@ var TestsSearch = []SearchTestCase{
 		[]string{""},
 		model.ListByField,
 		//[]model.Query{withLimit(newSimplestQuery(), 500)},
-		[]string{`SELECT "message" FROM "logs-generic-default" LIMIT 500`},
+		[]string{
+			`SELECT count() FROM ` + QuotedTableName,
+			`SELECT "message" FROM ` + QuotedTableName + ` LIMIT 500`,
+		},
 	},
 	{ // [26]
 		"Empty must",
@@ -1796,9 +1950,12 @@ var TestsSearch = []SearchTestCase{
 			}
 		}`,
 		[]string{``},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(``)},
-		[]string{`SELECT "message" FROM "logs-generic-default" LIMIT 1000`},
+		[]string{
+			`SELECT count() FROM ` + QuotedTableName,
+			`SELECT "message" FROM ` + QuotedTableName + ` LIMIT 10`,
+		},
 	},
 	{ // [27]
 		"Empty must not",
@@ -1808,12 +1965,15 @@ var TestsSearch = []SearchTestCase{
 				"bool": {
 					"must_not": {}
 				}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{``},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(``)},
-		[]string{`SELECT "message" FROM "logs-generic-default" LIMIT 1000`},
+		[]string{
+			`SELECT "message" FROM ` + QuotedTableName + ` LIMIT 10`,
+		},
 	},
 	{ // [28]
 		"Empty should",
@@ -1823,12 +1983,13 @@ var TestsSearch = []SearchTestCase{
 				"bool": {
 					"should": {}
 				}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{``},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(``)},
-		[]string{`SELECT "message" FROM "logs-generic-default"`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName},
 	},
 	{ // [29]
 		"Empty all bools",
@@ -1844,9 +2005,12 @@ var TestsSearch = []SearchTestCase{
 			}
 		}`,
 		[]string{``},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(``)},
-		[]string{`SELECT "message" FROM "logs-generic-default"`},
+		[]string{
+			`SELECT count() FROM ` + QuotedTableName,
+			`SELECT "message" FROM ` + QuotedTableName,
+		},
 	},
 	{ // [30]
 		"Some bools empty, some not",
@@ -1869,20 +2033,29 @@ var TestsSearch = []SearchTestCase{
 						}
 					]
 				}
-			}
+			},
+			"track_total_hits": false,
+			"size": 12
 		}`,
 		[]string{`("message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%')`},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(`("message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%')`)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ("message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%')`},
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("message" iLIKE '%User logged out%' AND "message" iLIKE '%User logged out%')`,
+		},
 	},
 	{ // [31]
 		"Match all (empty query)",
 		`{}`,
 		[]string{""},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{newSimplestQuery()},
-		[]string{`SELECT "message" FROM "logs-generic-default"`},
+		[]string{
+			`SELECT count() FROM ` + QuotedTableName,
+			`SELECT "message" FROM ` + QuotedTableName,
+		},
 	},
 	{ // [32]
 		"Constant score query",
@@ -1894,12 +2067,13 @@ var TestsSearch = []SearchTestCase{
  					},
  					"boost": 1.2
  				}
- 			}
+ 			},
+			"track_total_hits": false
 		}`,
 		[]string{`"user.id"='kimchy'`},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(`"user.id"='kimchy'`)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "user.id"='kimchy'`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE "user.id"='kimchy'`},
 	},
 	{ // [33] this is a snowflake case as `_id` is a special field in ES and in clickhouse we compute
 		"Match phrase using _id field",
@@ -1922,18 +2096,19 @@ var TestsSearch = []SearchTestCase{
 					}
 				  ]
 				}
-			  }
+			  },
+			  "track_total_hits": false
 			}`,
 		[]string{
 			`("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3))`,
 		},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{
 		//	justSimplestWhere(`("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp" = toDateTime64('2024-05-24 13:32:47.307',3))`),
 		//},
 		// TestSearchHandler is pretty blunt with config loading so the test below can't be used.
 		// We will probably refactor it as we move forwards with schema which will get even more side-effecting
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z')`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE "@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z')`},
 	},
 	{ // [34] Comments in queries
 		"Comments in filter",
@@ -1944,12 +2119,13 @@ var TestsSearch = []SearchTestCase{
  						"term": { "user.id": "kimchy" } // One comment
                      }
 				}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{`"user.id"='kimchy'`},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{justSimplestWhere(`"user.id"='kimchy'`)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE "user.id"='kimchy'`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE "user.id"='kimchy'`},
 	},
 	{ // [35] terms with range
 		"Terms with range",
@@ -1977,12 +2153,20 @@ var TestsSearch = []SearchTestCase{
 				}
 			  ]
 			}
-		  }
+		  },
+		  "track_total_hits": false
 		}`,
 		[]string{`("cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59')))`},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{withLimit(justSimplestWhere(`("cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59')))`), 1)},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ("cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))) LIMIT`},
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("cliIP" IN ('2601:204:c503:c240:9c41:5531:ad94:4d90','50.116.43.98','75.246.0.64') ` +
+				`AND ("@timestamp">=parseDateTime64BestEffort('2024-05-16T00:00:00') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-05-17T23:59:59'))) ` +
+				`LIMIT 1`,
+		},
 	},
 }
 
@@ -2018,16 +2202,24 @@ var TestsSearchNoAttrs = []SearchTestCase{
 					}
 				  ]
 				}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{
 			`("@timestamp">=parseDateTime64BestEffort('2024-01-25T13:22:45.968Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T13:37:45.968Z'))`,
 		},
-		model.Normal,
+		model.ListAllFields,
 		//[]model.Query{
 		//	justSimplestWhere(`("@timestamp">=parseDateTime64BestEffort('2024-01-25T13:22:45.968Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T13:37:45.968Z'))`),
 		//},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE ((("@timestamp".=parseDateTime64BestEffort('2024-01-25T13:22:45.968Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-25T13:37:45.968Z')) AND (has("attributes_string_key","summary") AND "attributes_string_value"[indexOf("attributes_string_key","summary")] IS NOT NULL)) AND NOT ((has("attributes_string_key","run_once") AND "attributes_string_value"[indexOf("attributes_string_key","run_once")] IS NOT NULL)))`},
+		[]string{
+			`SELECT "message" FROM ` + QuotedTableName + ` ` +
+				`WHERE ((("@timestamp".=parseDateTime64BestEffort('2024-01-25T13:22:45.968Z') ` +
+				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-25T13:37:45.968Z')) ` +
+				`AND (has("attributes_string_key","summary") AND "attributes_string_value"[indexOf("attributes_string_key","summary")] IS NOT NULL)) ` +
+				`AND NOT ((has("attributes_string_key","run_once") AND "attributes_string_value"[indexOf("attributes_string_key","run_once")] IS NOT NULL))) ` +
+				`LIMIT 10`,
+		},
 	},
 }
 
@@ -2066,10 +2258,10 @@ var TestSearchFilter = []SearchTestCase{
 			  "runtime_mappings": {},
 			  "script_fields": {},
 			  "size": 0,
+			  "track_total_hits": false,
 			  "stored_fields": [
 				"*"
-			  ],
-			  "track_total_hits": true
+			  ]
 			}`,
 		[]string{
 			``,
@@ -2081,7 +2273,6 @@ var TestSearchFilter = []SearchTestCase{
 		//	justSimplestWhere(``),
 		//},
 		[]string{
-			"SELECT count() FROM " + QuotedTableName,
 			"SELECT " + groupBySQL("@timestamp", clickhouse.DateTime64, 30*time.Second) + ", count() " +
 				"FROM " + QuotedTableName + " " +
 				"GROUP BY " + groupBySQL("@timestamp", clickhouse.DateTime64, 30*time.Second) + " " +
@@ -2160,12 +2351,13 @@ var TestSearchFilter = []SearchTestCase{
 				"bool": {
 					"filter": {}
 				}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{``},
 		model.Normal,
 		//[]model.Query{justSimplestWhere(``)},
-		[]string{`SELECT "message" FROM "logs-generic-default"`},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` LIMIT 10`},
 	},
 	{ // [3]
 		"Empty filter with other clauses",
@@ -2189,7 +2381,8 @@ var TestSearchFilter = []SearchTestCase{
 					"minimum_should_match" : 1,
 					"boost" : 1.0
 				}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{
 			`("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age"<=20 AND "age">=10)`,
@@ -2200,6 +2393,11 @@ var TestSearchFilter = []SearchTestCase{
 		//	justSimplestWhere(`("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age"<=20 AND "age">=10)`),
 		//	justSimplestWhere(`("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) AND NOT ("age">=10 AND "age"<=20)`),
 		//},
-		[]string{`SELECT "message" FROM "logs-generic-default" WHERE (("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) AND NOT (("age".=10 AND "age".=20)))`},
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE (("user.id"='kimchy' AND ("tags"='env1' OR "tags"='deployed')) ` +
+				`AND NOT (("age".=10 AND "age".=20)))`,
+		},
 	},
 }

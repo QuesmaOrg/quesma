@@ -57,7 +57,7 @@ func (b *aggrQueryBuilder) applyTermsSubSelect(terms bucket_aggregations.Terms) 
 }
 */
 
-func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.Query {
+func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) *model.Query {
 	query := b.Query
 	query.WhereClause = b.whereBuilder.WhereClause
 
@@ -67,10 +67,10 @@ func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) model.
 	query.TrimKeywordFromFields()
 
 	query.Metadata = metadata
-	return query
+	return &query
 }
 
-func (b *aggrQueryBuilder) buildCountAggregation(metadata model.JsonMap) model.Query {
+func (b *aggrQueryBuilder) buildCountAggregation(metadata model.JsonMap) *model.Query {
 	query := b.buildAggregationCommon(metadata)
 	query.Type = metrics_aggregations.NewCount(b.ctx)
 
@@ -78,13 +78,14 @@ func (b *aggrQueryBuilder) buildCountAggregation(metadata model.JsonMap) model.Q
 	return query
 }
 
-func (b *aggrQueryBuilder) buildBucketAggregation(metadata model.JsonMap) model.Query {
+func (b *aggrQueryBuilder) buildBucketAggregation(metadata model.JsonMap) *model.Query {
 	query := b.buildAggregationCommon(metadata)
 
 	query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewCountFunc()})
 	return query
 }
-func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregation, metadata model.JsonMap) model.Query {
+
+func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregation, metadata model.JsonMap) *model.Query {
 	getFirstField := func() model.SelectColumn {
 		if len(metricsAggr.Fields) > 0 {
 			return metricsAggr.Fields[0]
@@ -265,7 +266,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 
 // ParseAggregationJson parses JSON with aggregation query and returns array of queries with aggregations.
 // If there are no aggregations, returns nil.
-func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]model.Query, error) {
+func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*model.Query, error) {
 	queryAsMap := body.Clone()
 	currentAggr := aggrQueryBuilder{}
 	currentAggr.FromClause = model.NewSelectColumnNewStringExpr(cw.Table.FullTableName())
@@ -279,9 +280,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]mo
 		}
 	}
 
-	// count(*) is needed for every request. We should change it and don't duplicate it, as some
-	// requests also ask for that themselves, but let's leave it for later.
-	aggregations := []model.Query{currentAggr.buildCountAggregation(model.NoMetadataField)}
+	aggregations := make([]*model.Query, 0)
 
 	if aggsRaw, ok := queryAsMap["aggs"]; ok {
 		aggs, ok := aggsRaw.(QueryMap)
@@ -310,16 +309,6 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]mo
 		return nil, fmt.Errorf("no aggs -> request is not an aggregation query")
 	}
 
-	const defaultSearchSize = 10
-	size := cw.parseSize(queryAsMap, defaultSearchSize)
-	if size > 0 {
-		simpleQuery := currentAggr.whereBuilder
-		if sort, ok := queryAsMap["sort"]; ok {
-			simpleQuery.OrderBy = cw.parseSortFields(sort)
-		}
-		hitQuery := cw.BuildNRowsQuery("*", simpleQuery, size)
-		aggregations = append(aggregations, *hitQuery)
-	}
 	return aggregations, nil
 }
 
@@ -339,7 +328,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]mo
 // On 1, 3, ... level of nesting we have names of aggregations, which can be any arbitrary strings.
 // This function is called on those 1, 3, ... levels, and parses and saves those aggregation names.
 
-func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQueryBuilder, queryMap QueryMap, resultAccumulator *[]model.Query) (err error) {
+func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQueryBuilder, queryMap QueryMap, resultAccumulator *[]*model.Query) (err error) {
 	// We process subaggregations, introduced via (k, v), meaning 'aggregation_name': { dict }
 	for k, v := range queryMap {
 		// I assume it's new aggregator name
@@ -379,7 +368,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQuer
 // Notice that on 0, 2, ..., level of nesting we have "aggs" key or aggregation type.
 // On 1, 3, ... level of nesting we have names of aggregations, which can be any arbitrary strings.
 // This function is called on those 0, 2, ... levels, and parses the actual aggregations.
-func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuilder, queryMap QueryMap, resultAccumulator *[]model.Query) error {
+func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuilder, queryMap QueryMap, resultAccumulator *[]*model.Query) error {
 	if len(queryMap) == 0 {
 		return nil
 	}

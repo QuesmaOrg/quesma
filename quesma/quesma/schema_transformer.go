@@ -76,7 +76,7 @@ func getFromTable(fromTable string) string {
 // where op is '=' or 'iLIKE'
 // into
 // SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(lhs,'String'),rhs)
-func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query, error) {
+func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Query, error) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
 	const CASTPrimitive = "CAST"
 	const StringLiteral = "'String'"
@@ -117,7 +117,7 @@ func (s *SchemaCheckPass) applyIpTransformations(query model.Query) (model.Query
 	return query, nil
 }
 
-func (s *SchemaCheckPass) Transform(queries []model.Query) ([]model.Query, error) {
+func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 	for k, query := range queries {
 		var err error
 		logger.Info().Msgf("IpTransformation input query: %s", query.String(context.Background()))

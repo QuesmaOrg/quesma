@@ -7,8 +7,8 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/model/typical_queries"
 	"mitmproxy/quesma/queryparser/lucene"
-	"mitmproxy/quesma/queryparser/query_util"
 	wc "mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/util"
@@ -29,87 +29,87 @@ func NewEmptyHighlighter() model.Highlighter {
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]model.Query, bool, bool, error) {
+func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]*model.Query, bool, error) {
 	simpleQuery, queryInfo, highlighter, err := cw.ParseQueryInternal(body)
-
-	if err != nil {
-		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
-		return nil, false, false, err
+	if err != nil || !simpleQuery.CanParse {
+		logger.WarnWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
+		return nil, false, err
 	}
 
-	var query *model.Query
-	var queries []model.Query
-	var isAggregation bool
-	canParse := false
+	var queries []*model.Query
 
-	if simpleQuery.CanParse {
-		canParse = true
-		if query_util.IsNonAggregationQuery(queryInfo.Typ, body) {
-			query = cw.makeBasicQuery(simpleQuery, queryInfo, highlighter)
-			switch queryInfo.Typ {
-			// current facets never return hits, so we don't need this info.
-			// Adding that would also interfere with current ORDER BY in facets
-			case model.Facets, model.FacetsNumeric:
-				break
-			default:
-				query.OrderBy = simpleQuery.OrderBy
-			}
-			queries = append(queries, *query)
-			isAggregation = false
-			return queries, isAggregation, canParse, nil
-		} else {
-			queries, err = cw.ParseAggregationJson(body)
-			if err != nil {
-				logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing aggregation: %v", err)
-				return nil, false, false, err
-			}
-			isAggregation = true
-			return queries, isAggregation, canParse, nil
+	if countQuery := cw.buildCountQueryIfNeeded(simpleQuery, queryInfo); countQuery != nil {
+		queries = append(queries, countQuery)
+	}
+	facetsQuery := cw.buildFacetsQueryIfNeeded(simpleQuery, queryInfo)
+	if facetsQuery != nil {
+		queries = append(queries, facetsQuery)
+	} else {
+		aggregationQueries, err := cw.ParseAggregationJson(body)
+		if err != nil {
+			logger.WarnWithCtx(cw.Ctx).Msgf("error parsing aggregation: %v", err)
+		}
+		if aggregationQueries != nil {
+			queries = append(queries, aggregationQueries...)
 		}
 	}
+	if listQuery := cw.buildListQueryIfNeeded(simpleQuery, queryInfo, highlighter); listQuery != nil {
+		queries = append(queries, listQuery)
+	}
 
-	return nil, false, false, err
+	return queries, true, err
 }
 
-func (cw *ClickhouseQueryTranslator) makeBasicQuery(
-	simpleQuery model.SimpleQuery, queryInfo model.SearchQueryInfo, highlighter model.Highlighter) *model.Query {
+func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
+	simpleQuery *model.SimpleQuery, queryInfo model.SearchQueryInfo, highlighter model.Highlighter) *model.Query {
 	var fullQuery *model.Query
-
 	switch queryInfo.Typ {
-	case model.CountAsync:
-		fullQuery = cw.BuildSimpleCountQuery(simpleQuery.WhereClause)
-		if len(fullQuery.Columns) > 0 {
-			fullQuery.Columns[0].Alias = "doc_count"
-		}
-
-	case model.Facets, model.FacetsNumeric:
-		// queryInfo = (Facets, fieldName, Limit results, Limit last rows to look into)
-		fullQuery = cw.BuildFacetsQuery(queryInfo.FieldName, simpleQuery)
-
-		if len(fullQuery.Columns) > 0 {
-			fullQuery.Columns[0].Alias = "key"
-			fullQuery.Columns[1].Alias = "doc_count"
-		}
-
 	case model.ListByField:
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)
 		fullQuery = cw.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
 		if len(fullQuery.Columns) > 0 {
 			fullQuery.Columns[0].Alias = queryInfo.FieldName
 		}
-
 	case model.ListAllFields:
-		// queryInfo = (ListAllFields, "*", 0, LIMIT)
 		fullQuery = cw.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
-	case model.Normal:
-		fullQuery = cw.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
+	default:
 	}
-	fullQuery.QueryInfoType = queryInfo.Typ
-	fullQuery.Highlighter = highlighter
+	if fullQuery != nil {
+		fullQuery.QueryInfoType = queryInfo.Typ
+		// TODO: pass right arguments
+		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, fullQuery.OrderByFieldNames(), true, false, false)
+		fullQuery.Type = &queryType
+		fullQuery.Highlighter = highlighter
+	}
+
 	return fullQuery
 }
 
-func (cw *ClickhouseQueryTranslator) ParseQueryInternal(body types.JSON) (model.SimpleQuery, model.SearchQueryInfo, model.Highlighter, error) {
+func (cw *ClickhouseQueryTranslator) buildCountQueryIfNeeded(simpleQuery *model.SimpleQuery, queryInfo model.SearchQueryInfo) *model.Query {
+	if queryInfo.TrackTotalHits >= model.TrackTotalHitsTrue { // TODO prettify
+		return cw.BuildSimpleCountQuery(simpleQuery.WhereClause)
+	}
+	return nil
+}
+
+func (cw *ClickhouseQueryTranslator) buildFacetsQueryIfNeeded(
+	simpleQuery *model.SimpleQuery, queryInfo model.SearchQueryInfo) *model.Query {
+
+	if queryInfo.Typ != model.Facets && queryInfo.Typ != model.FacetsNumeric {
+		return nil
+	}
+
+	query := cw.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.Typ == model.FacetsNumeric)
+	if len(query.Columns) >= 2 {
+		query.Columns[0].Alias = "key"
+		query.Columns[1].Alias = "doc_count"
+	} else {
+		logger.WarnWithCtx(cw.Ctx).Msgf("facets query has < 2 columns. query: %+v", query)
+	}
+	return query
+}
+
+func (cw *ClickhouseQueryTranslator) ParseQueryInternal(body types.JSON) (*model.SimpleQuery, model.SearchQueryInfo, model.Highlighter, error) {
 	queryAsMap := body.Clone()
 	cw.ClearTokensToHighlight()
 
@@ -126,7 +126,7 @@ func (cw *ClickhouseQueryTranslator) ParseQueryInternal(body types.JSON) (model.
 	if sortPart, ok := queryAsMap["sort"]; ok {
 		parsedQuery.OrderBy = cw.parseSortFields(sortPart)
 	}
-	const defaultSize = 0
+	const defaultSize = 10
 	size := defaultSize
 	if sizeRaw, ok := queryAsMap["size"]; ok {
 		if sizeFloat, ok := sizeRaw.(float64); ok {
@@ -136,13 +136,32 @@ func (cw *ClickhouseQueryTranslator) ParseQueryInternal(body types.JSON) (model.
 		}
 	}
 
+	const defaultTrackTotalHits = 10000
+	trackTotalHits := defaultTrackTotalHits
+	if trackTotalHitsRaw, ok := queryAsMap["track_total_hits"]; ok {
+		switch trackTotalHitsTyped := trackTotalHitsRaw.(type) {
+		case bool:
+			if trackTotalHitsTyped {
+				trackTotalHits = model.TrackTotalHitsTrue
+			} else {
+				trackTotalHits = model.TrackTotalHitsFalse
+			}
+		case float64:
+			trackTotalHits = int(trackTotalHitsTyped)
+		default:
+			logger.WarnWithCtx(cw.Ctx).Msgf("unknown track_total_hits format, track_total_hits value: %v type: %T. Using default (%d)",
+				trackTotalHitsRaw, trackTotalHitsRaw, defaultTrackTotalHits)
+		}
+	}
+
 	queryInfo := cw.tryProcessSearchMetadata(queryAsMap)
 	queryInfo.Size = size
+	queryInfo.TrackTotalHits = trackTotalHits
 
 	highlighter.SetTokens(cw.tokensToHighlight)
 	cw.ClearTokensToHighlight()
 
-	return parsedQuery, queryInfo, highlighter, nil
+	return &parsedQuery, queryInfo, highlighter, nil
 }
 
 func (cw *ClickhouseQueryTranslator) ParseHighlighter(queryMap QueryMap) model.Highlighter {
@@ -194,7 +213,7 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 	queryAsMap, err := types.ParseJSON(queryAsJson)
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
-		return model.NewSimpleQuery(nil, false), model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
+		return model.NewSimpleQuery(nil, false), model.NewSearchQueryInfoNormal(), NewEmptyHighlighter()
 	}
 
 	// we must parse "highlights" here, because it is stripped from the queryAsMap later
@@ -205,7 +224,7 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 		queryMap, ok := query.(QueryMap)
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid query type: %T, value: %v", query, query)
-			return model.NewSimpleQuery(nil, false), model.NewSearchQueryInfoNone(), NewEmptyHighlighter()
+			return model.NewSimpleQuery(nil, false), model.NewSearchQueryInfoNormal(), NewEmptyHighlighter()
 		}
 		parsedQuery = cw.parseQueryMap(queryMap)
 	} else {
@@ -333,7 +352,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 	}
 	logger.Warn().Msgf("unsupported id query executed, requested ids of [%s]", strings.Join(ids, "','"))
 
-	timestampColumnName, err := cw.GetTimestampFieldName()
+	timestampColumnName, err := cw.Table.GetTimestampFieldName()
 	if err != nil {
 		logger.Warn().Msgf("id query executed, but not timestamp field configured")
 		return model.NewSimpleQuery(nil, true)
@@ -985,42 +1004,25 @@ func (cw *ClickhouseQueryTranslator) tryProcessSearchMetadata(queryMap QueryMap)
 		return queryInfo
 	}
 
-	// case 3: maybe it's a normal request
-	var queryMapNested QueryMap
-	var ok bool
-	size := cw.parseSize(metadata, model.DefaultSizeListQuery)
-	if queryMapNested, ok = queryMap["aggs"].(QueryMap); !ok {
-		return model.SearchQueryInfo{Typ: model.Normal, I2: size}
-	}
-	if queryMapNested, ok = queryMapNested["suggestions"].(QueryMap); !ok {
-		return model.SearchQueryInfo{Typ: model.Normal, I2: size}
-	}
-	if queryMapNested, ok = queryMapNested["terms"].(QueryMap); !ok {
-		return model.SearchQueryInfo{Typ: model.Normal, I2: size}
-	}
-	if _, ok = queryMapNested["field"]; !ok {
-		return model.SearchQueryInfo{Typ: model.Normal, I2: size}
-	}
-
 	// otherwise: None
-	return model.NewSearchQueryInfoNone()
+	return model.NewSearchQueryInfoNormal()
 }
 
 // 'queryMap' - metadata part of the JSON query
 // returns (info, true) if metadata shows it's Facets request
-// returns (model.NewSearchQueryInfoNone, false) if it's not Facets request
+// returns (model.NewSearchQueryInfoNormal, false) if it's not Facets request
 func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model.SearchQueryInfo, bool) {
 	queryMap, ok := queryMap["aggs"].(QueryMap)
 	if !ok {
-		return model.NewSearchQueryInfoNone(), false
+		return model.NewSearchQueryInfoNormal(), false
 	}
 	queryMap, ok = queryMap["sample"].(QueryMap)
 	if !ok {
-		return model.NewSearchQueryInfoNone(), false
+		return model.NewSearchQueryInfoNormal(), false
 	}
 	aggs, ok := queryMap["aggs"].(QueryMap)
 	if !ok {
-		return model.NewSearchQueryInfoNone(), false
+		return model.NewSearchQueryInfoNormal(), false
 	}
 
 	aggsNr := len(aggs)
@@ -1029,41 +1031,41 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 	// * aggsNr = 2 (or 4 and 'max_value', 'min_value', as remaining 2)
 	_, ok = aggs["sample_count"]
 	if !ok {
-		return model.NewSearchQueryInfoNone(), false
+		return model.NewSearchQueryInfoNormal(), false
 	}
 	firstNestingMap, ok := aggs["top_values"].(QueryMap)
 	if !ok {
-		return model.NewSearchQueryInfoNone(), false
+		return model.NewSearchQueryInfoNormal(), false
 	}
 
 	firstNestingMap, ok = firstNestingMap["terms"].(QueryMap)
 	if !ok {
-		return model.NewSearchQueryInfoNone(), false
+		return model.NewSearchQueryInfoNormal(), false
 	}
 
 	size, ok := cw.parseSizeExists(firstNestingMap)
 	if !ok {
-		return model.NewSearchQueryInfoNone(), false
+		return model.NewSearchQueryInfoNormal(), false
 	}
 	fieldNameRaw, ok := firstNestingMap["field"]
 	if !ok {
-		return model.NewSearchQueryInfoNone(), false
+		return model.NewSearchQueryInfoNormal(), false
 	}
 	fieldName, ok := fieldNameRaw.(string)
 	if !ok {
 		logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T, value: %v. Expected string", fieldNameRaw, fieldNameRaw)
-		return model.NewSearchQueryInfoNone(), false
+		return model.NewSearchQueryInfoNormal(), false
 	}
 	fieldName = strings.TrimSuffix(fieldName, ".keyword")
 	fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
 
 	secondNestingMap, ok := queryMap["sampler"].(QueryMap)
 	if !ok {
-		return model.NewSearchQueryInfoNone(), false
+		return model.NewSearchQueryInfoNormal(), false
 	}
 	shardSize, ok := secondNestingMap["shard_size"].(float64)
 	if !ok {
-		return model.NewSearchQueryInfoNone(), false
+		return model.NewSearchQueryInfoNormal(), false
 	}
 
 	if aggsNr == 2 {
@@ -1077,29 +1079,22 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 			return model.SearchQueryInfo{Typ: model.FacetsNumeric, FieldName: fieldName, I1: size, I2: int(shardSize)}, true
 		}
 	}
-	return model.NewSearchQueryInfoNone(), false
+	return model.NewSearchQueryInfoNormal(), false
 }
 
 // 'queryMap' - metadata part of the JSON query
 // returns (info, true) if metadata shows it's ListAllFields or ListByField request (used e.g. for listing all rows in Kibana)
-// returns (model.NewSearchQueryInfoNone, false) if it's not ListAllFields/ListByField request
+// returns (model.NewSearchQueryInfoNormal, false) if it's not ListAllFields/ListByField request
 func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.SearchQueryInfo, bool) {
 	// 1) case: very simple SELECT * kind of request
-	size, ok := cw.parseSizeExists(queryMap)
-	if !ok {
-		return model.NewSearchQueryInfoNone(), false
+	size := cw.parseSize(queryMap, model.DefaultSizeListQuery)
+	if size == 0 {
+		return model.NewSearchQueryInfoNormal(), false
 	}
 
-	_, okTrackTotalHits := queryMap["track_total_hits"]
-	if okTrackTotalHits && len(queryMap) == 2 {
-		// only ["size"] and ["track_total_hits"] are present
-		return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: size}, true
-	}
-
-	// 2) more general case:
 	fields, ok := queryMap["fields"].([]any)
 	if !ok {
-		return model.NewSearchQueryInfoNone(), false
+		return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: size}, true
 	}
 	if len(fields) > 1 {
 		fieldNames := make([]string, 0)
@@ -1117,18 +1112,21 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.S
 				}
 			} else {
 				logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T, value: %v. Expected QueryMap", field, field)
-				return model.NewSearchQueryInfoNone(), false
+				return model.NewSearchQueryInfoNormal(), false
 			}
 		}
 		logger.Debug().Msgf("requested more than one field %s, falling back to '*'", fieldNames)
 		// so far everywhere I've seen, > 1 field ==> "*" is one of them
 		return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: size}, true
 	} else if len(fields) == 0 {
-		isCount, ok := queryMap["track_total_hits"].(bool)
-		if ok && isCount {
-			return model.SearchQueryInfo{Typ: model.CountAsync, RequestedFields: make([]string, 0), FieldName: "", I1: 0, I2: 0}, true
-		}
-		return model.NewSearchQueryInfoNone(), false
+		// isCount, ok := queryMap["track_total_hits"].(bool)
+		// TODO make count separate!
+		/*
+			if ok && isCount {
+				return model.SearchQueryInfo{Typ: model.CountAsync, RequestedFields: make([]string, 0), FieldName: "", I1: 0, I2: 0}, true
+			}
+		*/
+		return model.NewSearchQueryInfoNormal(), false
 	} else {
 		// 2 cases are possible:
 		// a) just a string
@@ -1136,16 +1134,16 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.S
 		if !ok {
 			queryMap, ok = fields[0].(QueryMap)
 			if !ok {
-				return model.NewSearchQueryInfoNone(), false
+				return model.NewSearchQueryInfoNormal(), false
 			}
 			// b) {"field": fieldName}
 			if field, ok := queryMap["field"]; ok {
 				if fieldName, ok = field.(string); !ok {
 					logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T, value: %v. Expected string", field, field)
-					return model.NewSearchQueryInfoNone(), false
+					return model.NewSearchQueryInfoNormal(), false
 				}
 			} else {
-				return model.NewSearchQueryInfoNone(), false
+				return model.NewSearchQueryInfoNormal(), false
 			}
 		}
 

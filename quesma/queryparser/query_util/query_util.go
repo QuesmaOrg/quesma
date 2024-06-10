@@ -4,22 +4,31 @@ import (
 	"context"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
-
-	"mitmproxy/quesma/quesma/types"
+	"mitmproxy/quesma/model/typical_queries"
 )
 
-func IsNonAggregationQuery(queryInfoType model.SearchQueryType, body types.JSON) bool {
-	_, hasAggs := body["aggs"]
-	return ((queryInfoType == model.ListByField ||
-		queryInfoType == model.ListAllFields ||
-		queryInfoType == model.Normal) &&
-		!hasAggs) ||
-		queryInfoType == model.Facets ||
-		queryInfoType == model.FacetsNumeric ||
-		queryInfoType == model.CountAsync
+func IsNonAggregationQuery(query *model.Query) bool {
+	switch query.Type.(type) {
+	case typical_queries.Count, *typical_queries.Hits, nil: // FIXME erase nil, always have type non-empty, but it's not that completely easy, as it seems
+		return true
+	default:
+		return false
+	}
 }
 
-func BuildNRowsQuery(ctx context.Context, tableName string, fieldName string, query model.SimpleQuery, limit int) *model.Query {
+/* FIXME use this in MakeSearchResponse to stop relying on order of queries
+func FilterAggregationQueries(queries []*model.Query) []*model.Query {
+	filtered := make([]*model.Query, 0)
+	for _, query := range queries {
+		if IsNonAggregationQuery(query) {
+			filtered = append(filtered, query)
+		}
+	}
+	return filtered
+}
+*/
+
+func BuildHitsQuery(ctx context.Context, tableName string, fieldName string, query *model.SimpleQuery, limit int) *model.Query {
 	var col model.SelectColumn
 	if fieldName == "*" {
 		col = model.SelectColumn{Expression: model.NewWildcardExpr}

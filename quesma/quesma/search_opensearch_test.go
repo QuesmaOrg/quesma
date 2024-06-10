@@ -142,7 +142,8 @@ func TestHighlighter(t *testing.T) {
 			}
 		},
 		"script_fields": {},
-		"size": 0,
+		"size": 10,
+		"track_total_hits": false,
 		"sort": [
 			{
 				"@timestamp": {
