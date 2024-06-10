@@ -57,10 +57,13 @@ func (s *schemaRegistry) loadTypeMappingsFromConfiguration() {
 			fields := make(map[FieldName]Field)
 			for _, field := range indexConfiguration.SchemaConfiguration.Fields {
 				fieldName := FieldName(field.Name)
-				fields[fieldName] = Field{
-					Name: fieldName,
-					// TODO check if type is valid
-					Type: Type(field.Type),
+				if resolvedType, valid := IsValid(field.Type.AsString()); valid {
+					fields[fieldName] = Field{
+						Name: fieldName,
+						Type: resolvedType,
+					}
+				} else {
+					logger.Error().Msgf("invalid configuration: type %s not supported (should have been spotted when validating configuration)", field.Type)
 				}
 			}
 			s.schemas.Store(TableName(indexConfiguration.Name), Schema{Fields: fields})

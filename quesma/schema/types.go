@@ -22,6 +22,39 @@ const (
 	TypeStringArray Type = "string_array"
 )
 
+func IsValid(t string) (Type, bool) {
+	switch t {
+	case "text":
+		return TypeText, true
+	case "keyword":
+		return TypeKeyword, true
+	case "long":
+		return TypeLong, true
+	case "timestamp":
+		return TypeTimestamp, true
+	case "date":
+		return TypeDate, true
+	case "float":
+		return TypeFloat, true
+	case "bool":
+		return TypeBoolean, true
+	case "json":
+		return TypeJSON, true
+	case "array":
+		return TypeArray, true
+	case "map":
+		return TypeMap, true
+	case "ip":
+		return TypeIp, true
+	case "point":
+		return TypePoint, true
+	case "string_array":
+		return TypeStringArray, true
+	default:
+		return "", false
+	}
+}
+
 type ClickhouseTypeAdapter struct {
 }
 
