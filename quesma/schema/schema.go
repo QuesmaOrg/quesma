@@ -44,6 +44,13 @@ func (s *schemaRegistry) Start() {
 		if err := s.Load(); err != nil {
 			logger.Error().Msgf("error loading schemas: %v", err)
 		}
+
+		for name, schema := range s.schemas.Snapshot() {
+			logger.Debug().Msgf("schema: %s", name)
+			for fieldName, field := range schema.Fields {
+				logger.Debug().Msgf("field: %s, type: %s", fieldName, field.Type)
+			}
+		}
 	}
 }
 
