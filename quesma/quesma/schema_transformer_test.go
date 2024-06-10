@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/config"
 	"strconv"
@@ -30,10 +29,10 @@ func Test_ipRangeTransform(t *testing.T) {
 
 	expectedQueries := []*model.Query{
 		{
-			FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+			FromClause: model.NewSelectColumnFromString("kibana_sample_data_logs"),
 			TableName:  "kibana_sample_data_logs",
 			Columns: []model.SelectColumn{{
-				Expression: aexp.Wildcard,
+				Expression: model.NewWildcardExpr,
 			},
 			},
 			WhereClause: &where_clause.Function{
@@ -51,10 +50,10 @@ func Test_ipRangeTransform(t *testing.T) {
 			},
 		},
 		{
-			FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+			FromClause: model.NewSelectColumnFromString("kibana_sample_data_logs"),
 			TableName:  "kibana_sample_data_logs",
 			Columns: []model.SelectColumn{{
-				Expression: aexp.Wildcard,
+				Expression: model.NewWildcardExpr,
 			},
 			},
 			WhereClause: &where_clause.InfixOp{
@@ -64,10 +63,10 @@ func Test_ipRangeTransform(t *testing.T) {
 			},
 		},
 		{
-			FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+			FromClause: model.NewSelectColumnFromString("kibana_sample_data_logs"),
 			TableName:  "kibana_sample_data_logs",
 			Columns: []model.SelectColumn{{
-				Expression: aexp.Wildcard,
+				Expression: model.NewWildcardExpr,
 			},
 			},
 			WhereClause: &where_clause.Function{
@@ -89,10 +88,10 @@ func Test_ipRangeTransform(t *testing.T) {
 		//"@timestamp"<=parseDateTime64BestEffort('2024-06-10T09:58:50.387Z')) AND
 		//isIPAddressInRange(CAST(clientip,'String'),'32.208.36.11/16'))
 		{
-			FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+			FromClause: model.NewSelectColumnFromString("kibana_sample_data_logs"),
 			TableName:  "kibana_sample_data_logs",
 			Columns: []model.SelectColumn{{
-				Expression: aexp.Wildcard,
+				Expression: model.NewWildcardExpr,
 			},
 			},
 			WhereClause: &where_clause.InfixOp{
@@ -133,10 +132,10 @@ func Test_ipRangeTransform(t *testing.T) {
 	queries := [][]*model.Query{
 		{
 			{
-				FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+				FromClause: model.NewSelectColumnFromString("kibana_sample_data_logs"),
 				TableName:  "kibana_sample_data_logs",
 				Columns: []model.SelectColumn{{
-					Expression: aexp.Wildcard,
+					Expression: model.NewWildcardExpr,
 				},
 				},
 				WhereClause: &where_clause.InfixOp{
@@ -148,10 +147,10 @@ func Test_ipRangeTransform(t *testing.T) {
 		},
 		{
 			{
-				FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+				FromClause: model.NewSelectColumnFromString("kibana_sample_data_logs"),
 				TableName:  "kibana_sample_data_logs",
 				Columns: []model.SelectColumn{{
-					Expression: aexp.Wildcard,
+					Expression: model.NewWildcardExpr,
 				},
 				},
 				WhereClause: &where_clause.InfixOp{
@@ -163,10 +162,10 @@ func Test_ipRangeTransform(t *testing.T) {
 		},
 		{
 			{
-				FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+				FromClause: model.NewSelectColumnFromString("kibana_sample_data_logs"),
 				TableName:  "kibana_sample_data_logs",
 				Columns: []model.SelectColumn{{
-					Expression: aexp.Wildcard,
+					Expression: model.NewWildcardExpr,
 				},
 				},
 				WhereClause: &where_clause.InfixOp{
@@ -182,10 +181,10 @@ func Test_ipRangeTransform(t *testing.T) {
 		//"clientip" iLIKE '%32.208.36.11/16%')
 		{
 			{
-				FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+				FromClause: model.NewSelectColumnFromString("kibana_sample_data_logs"),
 				TableName:  "kibana_sample_data_logs",
 				Columns: []model.SelectColumn{{
-					Expression: aexp.Wildcard,
+					Expression: model.NewWildcardExpr,
 				},
 				},
 				WhereClause: &where_clause.InfixOp{

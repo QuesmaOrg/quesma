@@ -1,4 +1,4 @@
-package aexp
+package model
 
 import (
 	"fmt"
@@ -7,7 +7,12 @@ import (
 
 type renderer struct{}
 
-func (v *renderer) VisitTableColumn(e TableColumnExp) interface{} {
+// AsString renders the given expression to string which can be used to build SQL query
+func AsString(expr Expr) string {
+	return expr.Accept(&renderer{}).(string)
+}
+
+func (v *renderer) VisitTableColumnExpr(e TableColumnExpr) interface{} {
 
 	var res string
 
@@ -19,7 +24,7 @@ func (v *renderer) VisitTableColumn(e TableColumnExp) interface{} {
 	return "\"" + res + "\""
 }
 
-func (v *renderer) VisitFunction(e FunctionExp) interface{} {
+func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 	args := make([]string, 0)
 	for _, arg := range e.Args {
 		args = append(args, arg.Accept(v).(string))
@@ -27,9 +32,9 @@ func (v *renderer) VisitFunction(e FunctionExp) interface{} {
 	return e.Name + "(" + strings.Join(args, ", ") + ")"
 }
 
-func (v *renderer) VisitLiteral(l LiteralExp) interface{} {
+func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 
-	if l == Wildcard {
+	if l.Value == "*" {
 		return "*"
 	}
 
@@ -43,11 +48,11 @@ func (v *renderer) VisitLiteral(l LiteralExp) interface{} {
 	}
 }
 
-func (v *renderer) VisitString(e StringExp) interface{} {
+func (v *renderer) VisitString(e StringExpr) interface{} {
 	return e.Value
 }
 
-func (v *renderer) VisitComposite(e CompositeExp) interface{} {
+func (v *renderer) VisitComposite(e CompositeExpr) interface{} {
 	exps := make([]string, 0)
 	for _, exp := range e.Expressions {
 		exps = append(exps, exp.Accept(v).(string))
@@ -59,7 +64,7 @@ func (v *renderer) VisitSQL(s SQL) interface{} {
 	return s.Query
 }
 
-func (v *renderer) VisitMultiFunction(f MultiFunctionExp) interface{} {
+func (v *renderer) VisitMultiFunction(f MultiFunctionExpr) interface{} {
 	args := make([]string, 0)
 	for _, arg := range f.Args {
 		r := "(" + arg.Accept(v).(string) + ")"
@@ -68,6 +73,6 @@ func (v *renderer) VisitMultiFunction(f MultiFunctionExp) interface{} {
 	return f.Name + strings.Join(args, "")
 }
 
-func (v *renderer) VisitInfix(e InfixExp) interface{} {
+func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 	return fmt.Sprintf("%s %s %s", e.Left.Accept(v), e.Op, e.Right.Accept(v))
 }
