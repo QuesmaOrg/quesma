@@ -34,7 +34,7 @@ func NewTableDiscovery(cfg config.QuesmaConfiguration, schemaManagement *SchemaM
 	}
 }
 
-func NewTableDiscoveryWith(cfg config.QuesmaConfiguration, schemaManagement *SchemaManagement, tables TableMap) TableDiscovery {
+func newTableDiscoveryWith(cfg config.QuesmaConfiguration, schemaManagement *SchemaManagement, tables TableMap) TableDiscovery {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(&tables)
 	return &tableDiscovery{

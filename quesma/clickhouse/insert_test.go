@@ -275,7 +275,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 			lm := NewLogManagerEmpty()
 			lm.chDb = db
-			lm.schemaLoader = NewTableDiscoveryWith(config.QuesmaConfiguration{}, nil, *tableMapNoSchemaFields)
+			lm.schemaLoader = newTableDiscoveryWith(config.QuesmaConfiguration{}, nil, *tableMapNoSchemaFields)
 			defer db.Close()
 
 			mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))
