@@ -42,13 +42,18 @@ type (
 func (s *schemaRegistry) Start() {
 	if s.started.CompareAndSwap(false, true) {
 		s.loadTypeMappingsFromConfiguration()
+		if err := s.Load(); err != nil {
+			logger.Error().Msgf("error loading schemas: %v", err)
+		}
 	}
 
 	// TODO remove
 	go func() {
 		for {
 			<-time.After(5 * time.Second)
-			_ = s.Load()
+			if err := s.Load(); err != nil {
+				logger.Error().Msgf("error loading schemas: %v", err)
+			}
 		}
 	}()
 }
