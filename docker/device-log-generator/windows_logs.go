@@ -300,7 +300,7 @@ func windowsLogGeneratorRandom() {
 
 	// some future events
 
-	const futureEventsInterval = 10
+	const futureEventsInterval = 300
 	const futureEventsIntervalJitter = 40
 
 	for {
@@ -381,7 +381,7 @@ This is temporary and will be removed in the future.
 	fmt.Println("Sending logs to :", targetUrl, "\n", string(logBytes))
 	sendToWindowsLog(logBytes)
 
-	sleepDuration := time.Duration(5) * time.Second
+	sleepDuration := time.Duration(300) * time.Second
 
 	r := rand.NewSource(time.Now().UnixNano())
 	for {
