@@ -33,7 +33,7 @@ type (
 		started                atomic.Bool
 		schemas                *concurrent.Map[TableName, Schema]
 		configuration          config.QuesmaConfiguration
-		clickhouseSchemaLoader *clickhouse.SchemaLoader
+		clickhouseSchemaLoader clickhouse.TableDiscovery
 		ClickhouseTypeAdapter  ClickhouseTypeAdapter
 	}
 )
@@ -133,12 +133,12 @@ func (s *schemaRegistry) FindSchema(name TableName) (Schema, bool) {
 	return schema, found
 }
 
-func NewSchemaRegistry(schemaManagement *clickhouse.SchemaLoader, configuration config.QuesmaConfiguration) Registry {
+func NewSchemaRegistry(schemaLoader clickhouse.TableDiscovery, configuration config.QuesmaConfiguration) Registry {
 	return &schemaRegistry{
 		schemas:                concurrent.NewMap[TableName, Schema](),
 		started:                atomic.Bool{},
 		configuration:          configuration,
-		clickhouseSchemaLoader: schemaManagement,
+		clickhouseSchemaLoader: schemaLoader,
 		ClickhouseTypeAdapter:  NewClickhouseTypeAdapter(),
 	}
 }

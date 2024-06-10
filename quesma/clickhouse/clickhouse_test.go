@@ -916,7 +916,7 @@ func TestLogManager_ResolveIndexes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var tableDefinitions = atomic.Pointer[TableMap]{}
 			tableDefinitions.Store(tt.tables)
-			lm := &LogManager{schemaLoader: &SchemaLoader{tableDefinitions: &tableDefinitions}}
+			lm := &LogManager{schemaLoader: newTableDiscoveryWith(config.QuesmaConfiguration{}, nil, *tt.tables)}
 			indexes, err := lm.ResolveIndexes(context.Background(), tt.patterns)
 			assert.NoError(t, err)
 			assert.Equalf(t, tt.resolved, indexes, tt.patterns, "ResolveIndexes(%v)", tt.patterns)

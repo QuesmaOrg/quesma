@@ -33,7 +33,7 @@ type (
 		ctx            context.Context
 		cancel         context.CancelFunc
 		chDb           *sql.DB
-		schemaLoader   *SchemaLoader
+		schemaLoader   TableDiscovery
 		cfg            config.QuesmaConfiguration
 		phoneHomeAgent telemetry.PhoneHomeAgent
 	}
@@ -78,7 +78,7 @@ func (lm *LogManager) Start() {
 		logger.ErrorWithCtxAndReason(lm.ctx, endUserError.Reason()).Msgf("could not connect to clickhouse. error: %v", endUserError)
 	}
 
-	lm.schemaLoader.ReloadTables()
+	lm.schemaLoader.ReloadTableDefinitions()
 
 	logger.Info().Msgf("schemas loaded: %s", lm.schemaLoader.TableDefinitions().Keys())
 
@@ -90,7 +90,7 @@ func (lm *LogManager) Start() {
 				logger.Debug().Msg("closing log manager")
 				return
 			case <-time.After(1 * time.Minute): // TODO make it configurable
-				lm.schemaLoader.ReloadTables()
+				lm.schemaLoader.ReloadTableDefinitions()
 			}
 		}
 	}()
@@ -109,7 +109,7 @@ type discoveredTable struct {
 
 func (lm *LogManager) ReloadTables() {
 	logger.Info().Msg("reloading tables definitions")
-	lm.schemaLoader.ReloadTables()
+	lm.schemaLoader.ReloadTableDefinitions()
 }
 
 func (lm *LogManager) Close() {
@@ -136,9 +136,8 @@ func (lm *LogManager) ResolveTableName(index string) (result string) {
 // empty pattern means all indexes
 // "_all" index name means all indexes
 func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (results []string, err error) {
-
-	if lm.schemaLoader.ReloadTablesError != nil {
-		return nil, lm.schemaLoader.ReloadTablesError
+	if err = lm.schemaLoader.TableDefinitionsFetchError(); err != nil {
+		return nil, err
 	}
 
 	results = make([]string, 0)
@@ -465,9 +464,8 @@ func (lm *LogManager) FindTable(tableName string) (result *Table) {
 }
 
 func (lm *LogManager) GetTableDefinitions() (TableMap, error) {
-
-	if lm.schemaLoader.ReloadTablesError != nil {
-		return *lm.schemaLoader.TableDefinitions(), lm.schemaLoader.ReloadTablesError
+	if err := lm.schemaLoader.TableDefinitionsFetchError(); err != nil {
+		return *lm.schemaLoader.TableDefinitions(), err
 	}
 
 	return *lm.schemaLoader.TableDefinitions(), nil
@@ -493,7 +491,7 @@ func (lm *LogManager) Ping() error {
 	return lm.chDb.Ping()
 }
 
-func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader *SchemaLoader) *LogManager {
+func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader TableDiscovery) *LogManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, schemaLoader: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent}
 }
@@ -501,20 +499,18 @@ func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeA
 func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
-	return &LogManager{chDb: nil, schemaLoader: &SchemaLoader{tableDefinitions: &tableDefinitions}, cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{chDb: nil, schemaLoader: newTableDiscoveryWith(cfg, nil, *tables), cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 // right now only for tests purposes
 func NewLogManagerWithConnection(db *sql.DB, tables *TableMap) *LogManager {
-	var tableDefinitions = atomic.Pointer[TableMap]{}
-	tableDefinitions.Store(tables)
-	return &LogManager{chDb: db, schemaLoader: &SchemaLoader{tableDefinitions: &tableDefinitions, SchemaManagement: NewSchemaManagement(db)}, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{chDb: db, schemaLoader: newTableDiscoveryWith(config.QuesmaConfiguration{}, NewSchemaManagement(db), *tables), phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 func NewLogManagerEmpty() *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
-	return &LogManager{schemaLoader: &SchemaLoader{tableDefinitions: &tableDefinitions}, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{schemaLoader: NewTableDiscovery(config.QuesmaConfiguration{}, nil), phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 func NewOnlySchemaFieldsCHConfig() *ChTableConfig {
