@@ -6,7 +6,6 @@ import (
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -32,7 +31,7 @@ type (
 		Start()
 	}
 	schemaRegistry struct {
-		init                   sync.Once
+		started                atomic.Bool
 		schemas                *concurrent.Map[TableName, Schema]
 		configuration          config.QuesmaConfiguration
 		clickhouseSchemaLoader *clickhouse.SchemaLoader
@@ -41,9 +40,9 @@ type (
 )
 
 func (s *schemaRegistry) Start() {
-	s.init.Do(func() {
+	if s.started.CompareAndSwap(false, true) {
 		s.loadTypeMappingsFromConfiguration()
-	})
+	}
 
 	// TODO remove
 	go func() {
