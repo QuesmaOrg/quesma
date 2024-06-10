@@ -677,11 +677,12 @@ func InitSqlMockWithPrettyPrint(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
 	t.Cleanup(func() {
 		if t.Failed() {
 			for _, mismatch := range mismatchedSqls {
-				pp.Println("-- Expected:")
+				pp.Printf("-- %s Expected:\n", t.Name())
 				fmt.Printf("%s\n", SqlPrettyPrint([]byte(mismatch.expected)))
-				pp.Println("---- Actual:")
+				fmt.Printf("RAW: '%s'\n", mismatch.expected)
+				pp.Printf("---- %s Actual:\n", t.Name())
 				fmt.Printf("%s\n", SqlPrettyPrint([]byte(mismatch.actual)))
-				fmt.Printf("E: %s\nA: %s\n", mismatch.expected, mismatch.actual)
+				fmt.Printf("Raw: '%s'\n", mismatch.actual)
 			}
 		}
 	})
