@@ -92,15 +92,13 @@ func (s *schemaRegistry) Load() error {
 				continue
 			}
 			if _, exists := fields[FieldName(col.Name)]; !exists {
-				quesmaType, found := s.ClickhouseTypeAdapter.Adapt(col.Type.String())
-				if !found {
-					logger.Error().Msgf("type %s not supported", col.Type.String())
-					continue
-				} else {
+				if quesmaType, found := s.ClickhouseTypeAdapter.Adapt(col.Type.String()); found {
 					fields[FieldName(col.Name)] = Field{
 						Name: FieldName(col.Name),
-						Type: quesmaType, // TODO convert to our type
+						Type: quesmaType,
 					}
+				} else {
+					logger.Error().Msgf("type %s not supported", col.Type.String())
 				}
 			}
 		}
