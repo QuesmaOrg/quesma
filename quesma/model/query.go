@@ -158,8 +158,8 @@ func (q *Query) String(ctx context.Context) string {
 		sb.WriteString("(SELECT ")
 		innerColumn := make([]string, 0)
 		for _, col := range q.Columns {
-			if _, ok := col.Expression.(aexp.TableColumnExp); ok {
-				innerColumn = append(innerColumn, aexp.RenderSQL(col.Expression)) // TOOD: Maybe need a change
+			if _, ok := col.Expression.(TableColumnExpr); ok {
+				innerColumn = append(innerColumn, AsString(col.Expression)) // TOOD: Maybe need a change
 			}
 		}
 		if len(innerColumn) == 0 {
