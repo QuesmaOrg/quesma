@@ -120,8 +120,6 @@ func (s *schemaRegistry) Load() error {
 		for fieldName, field := range schema.Fields {
 			logger.Debug().Msgf("\tfield: %s, type: %s", fieldName, field.Type)
 		}
-
-		break
 	}
 	return nil
 }
