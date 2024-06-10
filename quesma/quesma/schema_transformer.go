@@ -10,9 +10,6 @@ import (
 )
 
 type WhereVisitor struct {
-	lhs       string
-	rhs       string
-	op        string
 	tableName string
 	cfg       map[string]config.IndexConfiguration
 }
@@ -26,18 +23,16 @@ func (v *WhereVisitor) VisitInfixOp(e *where_clause.InfixOp) interface{} {
 	const CASTPrimitive = "CAST"
 	const StringLiteral = "'String'"
 	var lhs, rhs interface{}
-	v.lhs = ""
-	v.lhs = ""
-	v.op = ""
+	lhsValue := ""
+	rhsValue := ""
+	opValue := ""
 	if e.Left != nil {
 		lhs = e.Left.Accept(v)
 		if lhs != nil {
 			if lhsLiteral, ok := lhs.(*where_clause.Literal); ok {
-				v.lhs = lhsLiteral.Name
+				lhsValue = lhsLiteral.Name
 			} else if lhsColumnRef, ok := lhs.(*where_clause.ColumnRef); ok {
-				v.lhs = lhsColumnRef.ColumnName
-			} else {
-				v.lhs = ""
+				lhsValue = lhsColumnRef.ColumnName
 			}
 		}
 	}
@@ -45,42 +40,40 @@ func (v *WhereVisitor) VisitInfixOp(e *where_clause.InfixOp) interface{} {
 		rhs = e.Right.Accept(v)
 		if rhs != nil {
 			if rhsLiteral, ok := rhs.(*where_clause.Literal); ok {
-				v.rhs = rhsLiteral.Name
+				rhsValue = rhsLiteral.Name
 			} else if rhsColumnRef, ok := rhs.(*where_clause.ColumnRef); ok {
-				v.rhs = rhsColumnRef.ColumnName
-			} else {
-				v.rhs = ""
+				rhsValue = rhsColumnRef.ColumnName
 			}
 		}
 	}
 	// skip transformation in the case of strict IP address
-	if !strings.Contains(v.rhs, "/") {
+	if !strings.Contains(rhsValue, "/") {
 		return where_clause.NewInfixOp(lhs.(where_clause.Statement), e.Op, rhs.(where_clause.Statement))
 	}
-	mappedType := v.cfg[v.tableName].TypeMappings[v.lhs]
+	mappedType := v.cfg[v.tableName].TypeMappings[lhsValue]
 	if mappedType != "ip" {
 		return where_clause.NewInfixOp(lhs.(where_clause.Statement), e.Op, rhs.(where_clause.Statement))
 	}
-	if len(v.lhs) == 0 || len(v.rhs) == 0 {
+	if len(lhsValue) == 0 || len(rhsValue) == 0 {
 		return where_clause.NewInfixOp(lhs.(where_clause.Statement), e.Op, rhs.(where_clause.Statement))
 	}
-	v.op = e.Op
-	if v.op != "=" && v.op != "iLIKE" {
-		logger.Warn().Msgf("ip transformation omitted, operator is not = or iLIKE: %s, lhs: %s, rhs: %s", v.op, v.lhs, v.rhs)
+	opValue = e.Op
+	if opValue != "=" && opValue != "iLIKE" {
+		logger.Warn().Msgf("ip transformation omitted, operator is not = or iLIKE: %s, lhs: %s, rhs: %s", opValue, lhsValue, rhsValue)
 		return where_clause.NewInfixOp(lhs.(where_clause.Statement), e.Op, rhs.(where_clause.Statement))
 	}
-	v.rhs = strings.Replace(v.rhs, "%", "", -1)
+	rhsValue = strings.Replace(rhsValue, "%", "", -1)
 	transformedWhereClause := &where_clause.Function{
 		Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
 		Args: []where_clause.Statement{
 			&where_clause.Function{
 				Name: where_clause.Literal{Name: CASTPrimitive},
 				Args: []where_clause.Statement{
-					&where_clause.Literal{Name: v.lhs},
+					&where_clause.Literal{Name: lhsValue},
 					&where_clause.Literal{Name: StringLiteral},
 				},
 			},
-			&where_clause.Literal{Name: v.rhs},
+			&where_clause.Literal{Name: rhsValue},
 		},
 	}
 	return transformedWhereClause
