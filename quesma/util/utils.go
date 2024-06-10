@@ -661,7 +661,7 @@ type sqlMockMismatchSql struct {
 	actual   string
 }
 
-func InitSqlMockWithPrettyPrint(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
+func InitSqlMockWithPrettyPrint(t *testing.T, matchExpectationsInOrder bool) (*sql.DB, sqlmock.Sqlmock) {
 	mismatchedSqls := make([]sqlMockMismatchSql, 0)
 	queryMatcher := sqlmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
 		matchErr := sqlmock.QueryMatcherRegexp.Match(expectedSQL, actualSQL)
@@ -686,5 +686,6 @@ func InitSqlMockWithPrettyPrint(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
 			}
 		}
 	})
+	mock.MatchExpectationsInOrder(matchExpectationsInOrder)
 	return db, mock
 }
