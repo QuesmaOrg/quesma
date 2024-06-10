@@ -252,7 +252,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				}
 
 				if len(results) == 0 {
-					logger.ErrorWithCtx(ctx).Msgf("no hits, queryInfo: %d", translatedQueryBody)
+					logger.ErrorWithCtx(ctx).Msgf("no hits, sqls: %s", translatedQueryBody)
 					doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
 					return
 				}
