@@ -26,6 +26,9 @@ func (v *WhereVisitor) VisitInfixOp(e *where_clause.InfixOp) interface{} {
 	const CASTPrimitive = "CAST"
 	const StringLiteral = "'String'"
 	var lhs, rhs interface{}
+	v.lhs = ""
+	v.lhs = ""
+	v.op = ""
 	if e.Left != nil {
 		lhs = e.Left.Accept(v)
 		if lhs != nil {
@@ -33,6 +36,8 @@ func (v *WhereVisitor) VisitInfixOp(e *where_clause.InfixOp) interface{} {
 				v.lhs = lhsLiteral.Name
 			} else if lhsColumnRef, ok := lhs.(*where_clause.ColumnRef); ok {
 				v.lhs = lhsColumnRef.ColumnName
+			} else {
+				v.lhs = ""
 			}
 		}
 	}
@@ -42,11 +47,12 @@ func (v *WhereVisitor) VisitInfixOp(e *where_clause.InfixOp) interface{} {
 			if rhsLiteral, ok := rhs.(*where_clause.Literal); ok {
 				v.rhs = rhsLiteral.Name
 			} else if rhsColumnRef, ok := rhs.(*where_clause.ColumnRef); ok {
-				v.lhs = rhsColumnRef.ColumnName
+				v.rhs = rhsColumnRef.ColumnName
+			} else {
+				v.rhs = ""
 			}
 		}
 	}
-	v.op = e.Op
 	// skip transformation in the case of strict IP address
 	if !strings.Contains(v.rhs, "/") {
 		return where_clause.NewInfixOp(lhs.(where_clause.Statement), e.Op, rhs.(where_clause.Statement))
@@ -58,10 +64,10 @@ func (v *WhereVisitor) VisitInfixOp(e *where_clause.InfixOp) interface{} {
 	if len(v.lhs) == 0 || len(v.rhs) == 0 {
 		return where_clause.NewInfixOp(lhs.(where_clause.Statement), e.Op, rhs.(where_clause.Statement))
 	}
+	v.op = e.Op
 	if v.op != "=" && v.op != "iLIKE" {
-		logger.Warn().Msg("ip transformation omitted, operator is not =")
+		logger.Warn().Msgf("ip transformation omitted, operator is not = or iLIKE: %s, lhs: %s, rhs: %s", v.op, v.lhs, v.rhs)
 		return where_clause.NewInfixOp(lhs.(where_clause.Statement), e.Op, rhs.(where_clause.Statement))
-
 	}
 	v.rhs = strings.Replace(v.rhs, "%", "", -1)
 	transformedWhereClause := &where_clause.Function{
