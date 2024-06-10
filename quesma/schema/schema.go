@@ -7,7 +7,6 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"sync/atomic"
-	"time"
 )
 
 type (
@@ -46,16 +45,6 @@ func (s *schemaRegistry) Start() {
 			logger.Error().Msgf("error loading schemas: %v", err)
 		}
 	}
-
-	// TODO remove
-	go func() {
-		for {
-			<-time.After(5 * time.Second)
-			if err := s.Load(); err != nil {
-				logger.Error().Msgf("error loading schemas: %v", err)
-			}
-		}
-	}()
 }
 
 func (s *schemaRegistry) loadTypeMappingsFromConfiguration() {
