@@ -118,9 +118,9 @@ func (s *schemaRegistry) Load() error {
 		return true
 	})
 	for name, schema := range s.schemas.Snapshot() {
-		fmt.Printf("schema: %s\n", name)
+		logger.Debug().Msgf("schema: %s", name)
 		for fieldName, field := range schema.Fields {
-			fmt.Printf("\tfield: %s, type: %s\n", fieldName, field.Type)
+			logger.Debug().Msgf("\tfield: %s, type: %s", fieldName, field.Type)
 		}
 
 		break
