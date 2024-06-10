@@ -99,7 +99,7 @@ func NewSelectColumnTableField(fieldName string) SelectColumn {
 	return SelectColumn{Expression: NewTableColumnExpr(fieldName)}
 }
 
-func NewSelectColumnNewStringExpr(s string) SelectColumn {
+func NewSelectColumnFromString(s string) SelectColumn {
 	return SelectColumn{Expression: StringExpr{Value: s}}
 }
 

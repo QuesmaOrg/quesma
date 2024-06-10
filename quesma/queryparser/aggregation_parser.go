@@ -269,7 +269,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*model.Query, error) {
 	queryAsMap := body.Clone()
 	currentAggr := aggrQueryBuilder{}
-	currentAggr.FromClause = model.NewSelectColumnNewStringExpr(cw.Table.FullTableName())
+	currentAggr.FromClause = model.NewSelectColumnFromString(cw.Table.FullTableName())
 	currentAggr.TableName = cw.Table.FullTableName()
 	currentAggr.ctx = cw.Ctx
 	if queryPartRaw, ok := queryAsMap["query"]; ok {
@@ -586,9 +586,9 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		for _, cutValue := range cutValues {
 			switch cutValueTyped := cutValue.(type) {
 			case float64:
-				fields = append(fields, model.NewSelectColumnNewStringExpr(strconv.FormatFloat(cutValueTyped, 'f', -1, 64)))
+				fields = append(fields, model.NewSelectColumnFromString(strconv.FormatFloat(cutValueTyped, 'f', -1, 64)))
 			case int64:
-				fields = append(fields, model.NewSelectColumnNewStringExpr(strconv.FormatInt(cutValueTyped, 10)))
+				fields = append(fields, model.NewSelectColumnFromString(strconv.FormatInt(cutValueTyped, 10)))
 			default:
 				logger.WarnWithCtx(cw.Ctx).Msgf("cutValue in percentile_ranks is not a number, but %T, value: %v. Skipping.", cutValue, cutValue)
 			}
