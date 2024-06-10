@@ -7,6 +7,7 @@ import (
 	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/config"
+	"strconv"
 	"testing"
 )
 
@@ -15,7 +16,7 @@ func Test_ipRangeTransform(t *testing.T) {
 	const CASTPrimitive = "CAST"
 	const StringLiteral = "'String'"
 	const IpFieldContent = "'111.42.223.209/16'"
-	const IpFieldName = "\"clientip\""
+	IpFieldName := strconv.Quote("clientip")
 
 	indexConfig := map[string]config.IndexConfiguration{
 		"kibana_sample_data_logs": {
