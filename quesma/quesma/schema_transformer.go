@@ -2,56 +2,115 @@ package quesma
 
 import (
 	"context"
-	"errors"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/config"
-	"strconv"
 	"strings"
 )
 
 type WhereVisitor struct {
-	lhs string
-	rhs string
-	op  string
+	tableName string
+	cfg       map[string]config.IndexConfiguration
 }
 
 func (v *WhereVisitor) VisitLiteral(e *where_clause.Literal) interface{} {
-	return e.Name
+	return where_clause.NewLiteral(e.Name)
 }
 
 func (v *WhereVisitor) VisitInfixOp(e *where_clause.InfixOp) interface{} {
+	const isIPAddressInRangePrimitive = "isIPAddressInRange"
+	const CASTPrimitive = "CAST"
+	const StringLiteral = "'String'"
+	var lhs, rhs interface{}
+	lhsValue := ""
+	rhsValue := ""
+	opValue := ""
 	if e.Left != nil {
-		lhs := e.Left.Accept(v)
-		v.lhs = lhs.(string)
+		lhs = e.Left.Accept(v)
+		if lhs != nil {
+			if lhsLiteral, ok := lhs.(*where_clause.Literal); ok {
+				lhsValue = lhsLiteral.Name
+			} else if lhsColumnRef, ok := lhs.(*where_clause.ColumnRef); ok {
+				lhsValue = lhsColumnRef.ColumnName
+			}
+		}
 	}
 	if e.Right != nil {
-		rhs := e.Right.Accept(v)
-		v.rhs = rhs.(string)
+		rhs = e.Right.Accept(v)
+		if rhs != nil {
+			if rhsLiteral, ok := rhs.(*where_clause.Literal); ok {
+				rhsValue = rhsLiteral.Name
+			} else if rhsColumnRef, ok := rhs.(*where_clause.ColumnRef); ok {
+				rhsValue = rhsColumnRef.ColumnName
+			}
+		}
 	}
-	v.op = e.Op
-	return ""
+	// skip transformation in the case of strict IP address
+	if !strings.Contains(rhsValue, "/") {
+		return where_clause.NewInfixOp(lhs.(where_clause.Statement), e.Op, rhs.(where_clause.Statement))
+	}
+	mappedType := v.cfg[v.tableName].TypeMappings[lhsValue]
+	if mappedType != "ip" {
+		return where_clause.NewInfixOp(lhs.(where_clause.Statement), e.Op, rhs.(where_clause.Statement))
+	}
+	if len(lhsValue) == 0 || len(rhsValue) == 0 {
+		return where_clause.NewInfixOp(lhs.(where_clause.Statement), e.Op, rhs.(where_clause.Statement))
+	}
+	opValue = e.Op
+	if opValue != "=" && opValue != "iLIKE" {
+		logger.Warn().Msgf("ip transformation omitted, operator is not = or iLIKE: %s, lhs: %s, rhs: %s", opValue, lhsValue, rhsValue)
+		return where_clause.NewInfixOp(lhs.(where_clause.Statement), e.Op, rhs.(where_clause.Statement))
+	}
+	rhsValue = strings.Replace(rhsValue, "%", "", -1)
+	transformedWhereClause := &where_clause.Function{
+		Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
+		Args: []where_clause.Statement{
+			&where_clause.Function{
+				Name: where_clause.Literal{Name: CASTPrimitive},
+				Args: []where_clause.Statement{
+					&where_clause.Literal{Name: lhsValue},
+					&where_clause.Literal{Name: StringLiteral},
+				},
+			},
+			&where_clause.Literal{Name: rhsValue},
+		},
+	}
+	return transformedWhereClause
 }
 
-func (v *WhereVisitor) VisitPrefixOp(*where_clause.PrefixOp) interface{} {
-	return ""
+func (v *WhereVisitor) VisitPrefixOp(e *where_clause.PrefixOp) interface{} {
+	for _, arg := range e.Args {
+		if arg != nil {
+			arg.Accept(v)
+		}
+	}
+	return where_clause.NewPrefixOp(e.Op, e.Args)
 }
 
-func (v *WhereVisitor) VisitFunction(*where_clause.Function) interface{} {
-	return ""
+func (v *WhereVisitor) VisitFunction(e *where_clause.Function) interface{} {
+	for _, arg := range e.Args {
+		if arg != nil {
+			arg.Accept(v)
+		}
+	}
+	return where_clause.NewFunction(e.Name.Name, e.Args...)
 }
 
 func (v *WhereVisitor) VisitColumnRef(e *where_clause.ColumnRef) interface{} {
-	return strconv.Quote(e.ColumnName)
+	return where_clause.NewColumnRef(e.ColumnName)
 }
 
-func (v *WhereVisitor) VisitNestedProperty(*where_clause.NestedProperty) interface{} {
-	return ""
+func (v *WhereVisitor) VisitNestedProperty(e *where_clause.NestedProperty) interface{} {
+	ColumnRef := e.ColumnRef.Accept(v).(where_clause.ColumnRef)
+	Property := e.PropertyName.Accept(v).(where_clause.Literal)
+	return where_clause.NewNestedProperty(ColumnRef, Property)
 }
 
-func (v *WhereVisitor) VisitArrayAccess(*where_clause.ArrayAccess) interface{} {
-	return ""
+func (v *WhereVisitor) VisitArrayAccess(e *where_clause.ArrayAccess) interface{} {
+	e.ColumnRef.Accept(v)
+	e.Index.Accept(v)
+	return where_clause.NewArrayAccess(e.ColumnRef, e.Index)
 }
 
 type SchemaCheckPass struct {
@@ -77,43 +136,16 @@ func getFromTable(fromTable string) string {
 // into
 // SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(lhs,'String'),rhs)
 func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Query, error) {
-	const isIPAddressInRangePrimitive = "isIPAddressInRange"
-	const CASTPrimitive = "CAST"
-	const StringLiteral = "'String'"
 	if query.WhereClause == nil {
 		return query, nil
 	}
-	whereVisitor := &WhereVisitor{}
-	query.WhereClause.Accept(whereVisitor)
-
 	fromTable := getFromTable(query.TableName)
+	whereVisitor := &WhereVisitor{tableName: fromTable, cfg: s.cfg}
 
-	mappedType := s.cfg[fromTable].TypeMappings[strings.Trim(whereVisitor.lhs, "\"")]
-	if mappedType != "ip" {
-		return query, nil
-	}
-	if len(whereVisitor.lhs) == 0 || len(whereVisitor.rhs) == 0 {
-		return query, errors.New("schema transformation failed, lhs or rhs is empty")
-	}
-	if whereVisitor.op != "=" && whereVisitor.op != "iLIKE" {
-		logger.Warn().Msg("ip transformation omitted, operator is not =")
-		return query, nil
-	}
-	whereVisitor.rhs = strings.Replace(whereVisitor.rhs, "%", "", -1)
-	transformedWhereClause := &where_clause.Function{
-		Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
-		Args: []where_clause.Statement{
-			&where_clause.Function{
-				Name: where_clause.Literal{Name: CASTPrimitive},
-				Args: []where_clause.Statement{
-					&where_clause.Literal{Name: whereVisitor.lhs},
-					&where_clause.Literal{Name: StringLiteral},
-				},
-			},
-			&where_clause.Literal{Name: whereVisitor.rhs},
-		},
-	}
-	query.WhereClause = transformedWhereClause
+	transformedWhereClause := query.WhereClause.Accept(whereVisitor)
+
+	query.WhereClause = transformedWhereClause.(where_clause.Statement)
+
 	return query, nil
 }
 
