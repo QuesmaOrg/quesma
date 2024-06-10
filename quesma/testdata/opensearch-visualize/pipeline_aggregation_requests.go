@@ -69,7 +69,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -194,7 +195,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -336,7 +338,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -471,7 +474,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -623,7 +627,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -767,7 +772,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				"size": 0,
 				"stored_fields": [
 					"*"
-				]
+				],
+				"track_total_hits": true
 			}`,
 		ExpectedResponse: `
 			{
@@ -978,7 +984,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: // I changed this a bit. Opensearch returns "1": {null} for 2nd, 3rd and 3 last buckets. I think it's not correct... I return 0, and it seems working too.
 		`{
@@ -1232,7 +1239,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -1385,7 +1393,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -1543,7 +1552,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				"size": 0,
 				"stored_fields": [
 					"*"
-				]
+				],
+				"track_total_hits": true
 			}`,
 		ExpectedResponse: `
 			{
@@ -1754,7 +1764,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: // I changed this a bit. Opensearch returns "1": {null} for 2nd, 3rd and 3 last buckets. I think it's not correct... I return 0, and it seems working too.
 		`{
@@ -2003,7 +2014,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -2138,7 +2150,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -2594,7 +2607,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -2781,7 +2795,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -2943,7 +2958,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -3155,7 +3171,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -3380,7 +3397,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -3711,7 +3729,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		// changed "5296.0" to 5296 in response, hope it works (check)
 		ExpectedResponse: ` 
@@ -4365,7 +4384,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -4520,7 +4540,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{

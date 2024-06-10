@@ -74,7 +74,8 @@ var OpensearchSearchTests = []SearchTestCase{
 			"stored_fields": [
 				"*"
 			],
-			"version": true
+			"version": true,
+			"track_total_hits": true
 		}`,
 		WantedSql: []string{
 			`("-@timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z') AND "-@timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))`,
@@ -165,7 +166,8 @@ var OpensearchSearchTests = []SearchTestCase{
 			"stored_fields": [
 				"*"
 			],
-			"version": true
+			"version": true,
+			"track_total_hits": true
 		}`,
 		WantedSql: []string{
 			`("-@timestamp">=parseDateTime64BestEffort('2024-04-04T13:18:18.149Z') AND "-@timestamp"<=parseDateTime64BestEffort('2024-04-04T13:33:18.149Z'))`,

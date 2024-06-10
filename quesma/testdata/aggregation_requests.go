@@ -531,9 +531,10 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		[]string{
-			`SELECT count() FROM ` + QuotedTableName + ` ` +
+			`SELECT count() FROM (SELECT 1 FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
-				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
+				`LIMIT 12)`,
 			`SELECT "FlightDelayType", ` + groupBySQL("timestamp", clickhouse.DateTime64, 3*time.Hour) + `, count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
@@ -700,7 +701,8 @@ var AggregationTests = []AggregationTestCase{
 			},
 			"size": 0,
 			"terminate_after": 100000,
-			"timeout": "1000ms"
+			"timeout": "1000ms",
+			"track_total_hits": true
 		}`, // missing entire response below, just "response" field.
 		`{
 			"response": {
@@ -840,7 +842,8 @@ var AggregationTests = []AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		`{
 			"completion_time_in_millis": 1707486436416,
@@ -2149,17 +2152,17 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		[]string{
-			`SELECT count() ` +
+			`SELECT count() FROM (SELECT 1 ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
-				`AND "message" iLIKE '%user%')`,
+				`AND "message" iLIKE '%user%') LIMIT 3)`,
 			`SELECT "host.name" AS "key", count() AS "doc_count" ` +
 				`FROM (SELECT "host.name" FROM ` + QuotedTableName + ` ` +
 				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
 				`AND "message" iLIKE '%user%') ` +
-				`LIMIT 20000 ) ` +
+				`LIMIT 20000) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY count() DESC`,
 		},
@@ -2648,10 +2651,11 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		[]string{
-			`SELECT count() ` +
+			`SELECT count() FROM (SELECT 1 ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') ` +
-				`AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z'))`,
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z')) ` +
+				`LIMIT 5)`,
 			`SELECT * ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') ` +
@@ -2755,7 +2759,6 @@ var AggregationTests = []AggregationTestCase{
 			}
 		}`,
 		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(15750))}}},
 			{}, // TODO non-aggregation query
 			{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "User created"), model.NewQueryResultCol("doc_count", uint64(1700))}},
@@ -2764,10 +2767,6 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z') ` +
-				`AND "timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z'))`,
 			`SELECT * ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z') ` +
@@ -3758,7 +3757,8 @@ var AggregationTests = []AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -3947,7 +3947,8 @@ var AggregationTests = []AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -4068,7 +4069,8 @@ var AggregationTests = []AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -4164,7 +4166,8 @@ var AggregationTests = []AggregationTestCase{
 				}
 			},
 			"size": 0,
-			"timeout": "30000ms"
+			"timeout": "30000ms",
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -4291,7 +4294,8 @@ var AggregationTests = []AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -4436,7 +4440,8 @@ var AggregationTests = []AggregationTestCase{
 			"size": 0,
 			"stored_fields": [
 				"*"
-			]
+			],
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -6243,7 +6248,8 @@ var AggregationTests = []AggregationTestCase{
 					}
 				}
 			},
-			"size": 0
+			"size": 0,
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
@@ -6310,7 +6316,8 @@ var AggregationTests = []AggregationTestCase{
 					}
 				}
 			},
-			"size": 0
+			"size": 0,
+			"track_total_hits": true
 		}`,
 		ExpectedResponse: `
 		{
