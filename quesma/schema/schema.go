@@ -72,6 +72,7 @@ func (s *schemaRegistry) Load() error {
 	if !s.started.Load() {
 		return fmt.Errorf("schema registry not started")
 	}
+	// refreshed periodically by LogManager
 	definitions := s.clickhouseSchemaLoader.TableDefinitions()
 	schemas := s.schemas.Snapshot()
 	definitions.Range(func(indexName string, value *clickhouse.Table) bool {
