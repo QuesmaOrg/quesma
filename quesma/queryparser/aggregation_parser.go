@@ -305,8 +305,6 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 			}
 			currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
 		}
-	} else {
-		return nil, fmt.Errorf("no aggs -> request is not an aggregation query")
 	}
 
 	return aggregations, nil
