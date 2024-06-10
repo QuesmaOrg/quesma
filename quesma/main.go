@@ -59,7 +59,7 @@ func main() {
 	phoneHomeAgent.Start()
 
 	schemaManagement := clickhouse.NewSchemaManagement(connectionPool)
-	schemaLoader := clickhouse.NewSchemaLoader(cfg, schemaManagement)
+	schemaLoader := clickhouse.NewTableDiscovery(cfg, schemaManagement)
 	schemaRegistry := schema.NewSchemaRegistry(schemaLoader, cfg)
 
 	lm := clickhouse.NewEmptyLogManager(cfg, connectionPool, phoneHomeAgent, schemaLoader)
@@ -84,7 +84,7 @@ func main() {
 
 }
 
-func constructQuesma(cfg config.QuesmaConfiguration, sl *clickhouse.SchemaLoader, lm *clickhouse.LogManager, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, logChan <-chan tracing.LogWithLevel) *quesma.Quesma {
+func constructQuesma(cfg config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, logChan <-chan tracing.LogWithLevel) *quesma.Quesma {
 
 	switch cfg.Mode {
 	case config.Proxy:

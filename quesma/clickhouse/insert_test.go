@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"testing"
 )
 
@@ -276,9 +275,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 			lm := NewLogManagerEmpty()
 			lm.chDb = db
-			var ptr = atomic.Pointer[TableMap]{}
-			ptr.Store(tableMapNoSchemaFields)
-			lm.schemaLoader.tableDefinitions = &ptr
+			lm.schemaLoader = NewTableDiscoveryWith(config.QuesmaConfiguration{}, nil, *tableMapNoSchemaFields)
 			defer db.Close()
 
 			mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))
