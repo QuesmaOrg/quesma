@@ -33,6 +33,14 @@ indexes:
     enabled: true
   logs-generic-default:
     enabled: true
+    static-schema:
+      fields:
+        message:
+          type: "text"
+        host.name:
+          type: "text"
+        severity:
+          type: "keyword"
     fullTextFields: [ "message", "host.name" ]
   device_logs:
     enabled: true

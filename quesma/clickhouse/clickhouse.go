@@ -33,7 +33,7 @@ type (
 		ctx            context.Context
 		cancel         context.CancelFunc
 		chDb           *sql.DB
-		schemaLoader   *schemaLoader
+		schemaLoader   *SchemaLoader
 		cfg            config.QuesmaConfiguration
 		phoneHomeAgent telemetry.PhoneHomeAgent
 	}
@@ -493,31 +493,28 @@ func (lm *LogManager) Ping() error {
 	return lm.chDb.Ping()
 }
 
-func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent) *LogManager {
+func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader *SchemaLoader) *LogManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	var schemaManagement = NewSchemaManagement(chDb)
-	var tableDefinitions = atomic.Pointer[TableMap]{}
-	tableDefinitions.Store(NewTableMap())
-	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, schemaLoader: &schemaLoader{SchemaManagement: schemaManagement, tableDefinitions: &tableDefinitions, cfg: cfg}, cfg: cfg, phoneHomeAgent: phoneHomeAgent}
+	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, schemaLoader: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent}
 }
 
 func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
-	return &LogManager{chDb: nil, schemaLoader: &schemaLoader{tableDefinitions: &tableDefinitions}, cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{chDb: nil, schemaLoader: &SchemaLoader{tableDefinitions: &tableDefinitions}, cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 // right now only for tests purposes
 func NewLogManagerWithConnection(db *sql.DB, tables *TableMap) *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
-	return &LogManager{chDb: db, schemaLoader: &schemaLoader{tableDefinitions: &tableDefinitions, SchemaManagement: NewSchemaManagement(db)}, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{chDb: db, schemaLoader: &SchemaLoader{tableDefinitions: &tableDefinitions, SchemaManagement: NewSchemaManagement(db)}, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 func NewLogManagerEmpty() *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
-	return &LogManager{schemaLoader: &schemaLoader{tableDefinitions: &tableDefinitions}, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{schemaLoader: &SchemaLoader{tableDefinitions: &tableDefinitions}, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 func NewOnlySchemaFieldsCHConfig() *ChTableConfig {

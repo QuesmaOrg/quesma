@@ -11,14 +11,24 @@ import (
 	"sync/atomic"
 )
 
-type schemaLoader struct {
+type SchemaLoader struct {
 	cfg               config.QuesmaConfiguration
 	SchemaManagement  *SchemaManagement
 	tableDefinitions  *atomic.Pointer[TableMap]
 	ReloadTablesError error
 }
 
-func (sl *schemaLoader) ReloadTables() {
+func NewSchemaLoader(cfg config.QuesmaConfiguration, schemaManagement *SchemaManagement) *SchemaLoader {
+	var tableDefinitions = atomic.Pointer[TableMap]{}
+	tableDefinitions.Store(NewTableMap())
+	return &SchemaLoader{
+		cfg:              cfg,
+		SchemaManagement: schemaManagement,
+		tableDefinitions: &tableDefinitions,
+	}
+}
+
+func (sl *SchemaLoader) ReloadTables() {
 	logger.Debug().Msg("reloading tables definitions")
 	configuredTables := make(map[string]discoveredTable)
 	var explicitlyDisabledTables, notConfiguredTables []string
@@ -67,7 +77,7 @@ func (sl *schemaLoader) ReloadTables() {
 	sl.populateTableDefinitions(configuredTables, databaseName, sl.cfg)
 }
 
-func (sl *schemaLoader) populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, cfg config.QuesmaConfiguration) {
+func (sl *SchemaLoader) populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, cfg config.QuesmaConfiguration) {
 	tableMap := NewTableMap()
 	for tableName, resTable := range configuredTables {
 		var columnsMap = make(map[string]*Column)
@@ -136,7 +146,7 @@ func (sl *schemaLoader) populateTableDefinitions(configuredTables map[string]dis
 	sl.tableDefinitions.Store(tableMap)
 }
 
-func (sl *schemaLoader) TableDefinitions() *TableMap {
+func (sl *SchemaLoader) TableDefinitions() *TableMap {
 	return sl.tableDefinitions.Load()
 }
 
