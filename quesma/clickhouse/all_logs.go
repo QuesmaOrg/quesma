@@ -3,12 +3,11 @@ package clickhouse
 import (
 	"database/sql"
 	"fmt"
-	"mitmproxy/quesma/logger"
 	"sort"
 	"strings"
 )
 
-func unionAll(db *sql.DB) (string, []string, error) {
+func unionAll(db *sql.DB) (query string, columnsInOrder []string, tablesInOrder []string, err error) {
 
 	// tableMultiplication := 5
 	// make query to big and raises error:
@@ -22,7 +21,7 @@ func unionAll(db *sql.DB) (string, []string, error) {
 	columns := make(map[string]map[string]int)
 	columnType := make(map[string]map[string]string)
 
-	query := `select column_name, table_name from information_schema.columns where table_schema = 'default' and table_name <> 'all_logs_1'`
+	query = `select column_name, table_name from information_schema.columns where table_schema = 'default' and table_name <> 'all_logs_1' and table_name <> 'device_logs'`
 
 	rows, err := db.Query(query)
 	for rows.Next() {
@@ -30,7 +29,7 @@ func unionAll(db *sql.DB) (string, []string, error) {
 		var columnName, tableName string
 		err = rows.Scan(&columnName, &tableName)
 		if err != nil {
-			return "", nil, err
+			return
 		}
 
 		allColumns[columnName] = 1
@@ -44,10 +43,9 @@ func unionAll(db *sql.DB) (string, []string, error) {
 	}
 
 	if err != nil {
-		return "", nil, err
+		return
 	}
 
-	var columnsInOrder []string
 	for k := range allColumns {
 
 		if k == "@timestamp" {
@@ -60,7 +58,6 @@ func unionAll(db *sql.DB) (string, []string, error) {
 
 	var subQueries []string
 
-	var tablesInOrder []string
 	for tableName := range columns {
 		tablesInOrder = append(tablesInOrder, tableName)
 	}
@@ -92,25 +89,9 @@ func unionAll(db *sql.DB) (string, []string, error) {
 			var subQueryColumns []string
 
 			if _, ok := columns[tableName]["@timestamp"]; ok {
-				subQueryColumns = append(subQueryColumns, `toDateTime("@timestamp")`)
+				subQueryColumns = append(subQueryColumns, `toDateTime("@timestamp") as "@timestamp"`)
 			} else {
-				switch tableName {
-				case "device_logs":
-					continue
-					//  Cannot parse string '2024-06-06 15:53:30.000' as DateTime: syntax error at position 19 (parsed just '2024-06-06 15:53:30'): while executing 'FUNCTION toDateTime(toString(epoch_time) :: 3) -> toDateTime(toString(epoch_time)) DateTime
-					//subQueryColumns = append(subQueryColumns, `toDateTime(epoch_time) AS "@timestamp"`)
-
-				case "kibana_sample_data_logs":
-					subQueryColumns = append(subQueryColumns, `toDateTime(timestamp) AS "@timestamp"`)
-
-				case "kibana_sample_ecommerce":
-					subQueryColumns = append(subQueryColumns, `toDateTime(order_date) AS "@timestamp"`)
-
-				default:
-					logger.Warn().Msgf("table %s does not have @timestamp column", tableName)
-					// FAKE field for @timestamp
-					subQueryColumns = append(subQueryColumns, "toDateTime('2000-01-01 00:00:00')"+` AS "@timestamp"`)
-				}
+				subQueryColumns = append(subQueryColumns, AllLogsTimestampField(tableName))
 			}
 
 			subQueryColumns = append(subQueryColumns, fmt.Sprintf(`'%s_%d' AS QUESMA_UNION_TABLE_NAME`, tableName, i))
@@ -129,8 +110,24 @@ func unionAll(db *sql.DB) (string, []string, error) {
 			subQueries = append(subQueries, q)
 		}
 	}
-	return strings.Join(subQueries, "\n       UNION ALL    \n\n"), columnsInOrder, nil
+	return strings.Join(subQueries, "\n       UNION ALL    \n\n"), columnsInOrder, tablesInOrder, nil
 }
+
+func AllLogsTimestampField(tableName string) string {
+	switch tableName {
+
+	case "kibana_sample_data_logs":
+		return `toDateTime(timestamp) AS "@timestamp"`
+
+	case "kibana_sample_ecommerce":
+		return `toDateTime(order_date) AS "@timestamp"`
+
+	default:
+		return "toDateTime('2000-01-01 00:00:00')" + ` AS "@timestamp"`
+	}
+}
+
+var AllLogsTables []string
 
 var AllLogsUnionSQL = ""
 
@@ -138,7 +135,7 @@ var AllLogsColumns []string
 
 func createAllLogs1View(db *sql.DB) error {
 
-	union, columns, err := unionAll(db)
+	union, columns, tables, err := unionAll(db)
 
 	if err != nil {
 		return err
@@ -146,6 +143,7 @@ func createAllLogs1View(db *sql.DB) error {
 
 	AllLogsUnionSQL = union
 	AllLogsColumns = columns
+	AllLogsTables = tables
 
 	createQuery := "CREATE VIEW all_logs_1 AS  \n" + union
 
@@ -154,7 +152,7 @@ func createAllLogs1View(db *sql.DB) error {
 		return err
 	}
 
-	fmt.Println("Creating view all_logs_1", createQuery)
+	fmt.Println("Creating view all_logs_1")
 	_, err = db.Exec(createQuery)
 	if err != nil {
 		return err

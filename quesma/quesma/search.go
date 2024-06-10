@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/mitchellh/copystructure"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/elasticsearch"
@@ -249,7 +250,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						doneCh <- AsyncSearchWithError{err: err}
 					})
 
-					translatedQueryBody, hitsSlice, err := q.searchWorker(ctx, queries, table, doneCh, optAsync)
+					translatedQueryBody, hitsSlice, err := q.searchWorker(ctx, queries, table, doneCh, optAsync, isAggregation)
 					if err != nil {
 						doneCh <- AsyncSearchWithError{err: err}
 						return
@@ -272,7 +273,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 						doneCh <- AsyncSearchWithError{err: err}
 					})
 
-					translatedQueryBody, aggregationResults, err := q.searchWorker(ctx, queries, table, doneCh, optAsync)
+					translatedQueryBody, aggregationResults, err := q.searchWorker(ctx, queries, table, doneCh, optAsync, isAggregation)
 
 					searchResponse := queryTranslator.MakeResponseAggregation(queries, aggregationResults)
 					doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
@@ -556,8 +557,75 @@ func (q *QueryRunner) runQueryJobs(jobs []QueryJob) ([][]model.QueryResultRow, e
 func (q *QueryRunner) searchWorkerCommon(
 	ctx context.Context,
 	queries []model.Query,
-	table *clickhouse.Table) (translatedQueryBody []byte, hits [][]model.QueryResultRow, err error) {
+	table *clickhouse.Table, isAggregation bool) (translatedQueryBody []byte, hits [][]model.QueryResultRow, err error) {
 	sqls := ""
+
+	var queryToTable []*clickhouse.Table
+
+	var newQueries []model.Query
+	for i, query := range queries {
+
+		if query.NoDBQuery {
+			newQueries = append(newQueries, query)
+		} else {
+
+			if table.Name == "all_logs_3" && !isAggregation {
+
+				fmt.Println("REWRITING QUERY: ", i, query.Type)
+
+				for _, t := range clickhouse.AllLogsTables {
+
+					newTable := q.logManager.FindTable(t)
+
+					newQ, err := copystructure.Copy(query)
+					if err != nil {
+						return nil, nil, err
+					}
+
+					newQuery := newQ.(model.Query)
+					//add the same columns as in the all_logs_3 table
+					// same order same name, same type
+
+					var newColumns []model.SelectColumn
+
+					// add the same columns set to every query
+					// our query execution relies on the order of the columns
+					//
+
+					if _, ok := newTable.Cols["@timestamp"]; ok {
+						newColumns = append(newColumns, model.SelectColumn{Expression: aexp.SQL{Query: `toDateTime("@timestamp")`}, Alias: "@timestamp"})
+
+					} else {
+						newColumns = append(newColumns, model.SelectColumn{Expression: aexp.SQL{Query: clickhouse.AllLogsTimestampField(newTable.Name)}, Alias: "@timestamp"})
+					}
+
+					newColumns = append(newColumns, model.SelectColumn{Expression: aexp.SQL{Query: fmt.Sprintf(`'%s'`, newTable.Name)}, Alias: "QUESMA_UNION_TABLE_NAME"})
+
+					for _, columnName := range clickhouse.AllLogsColumns {
+						name := `"` + columnName + `"`
+
+						if _, ok := newTable.Cols[columnName]; ok {
+							newColumns = append(newColumns, model.SelectColumn{Expression: aexp.SQL{Query: "toString(" + name + ")"}, Alias: columnName})
+						} else {
+							newColumns = append(newColumns, model.SelectColumn{Expression: aexp.SQL{Query: "NULL"}, Alias: columnName})
+						}
+					}
+					newQuery.Columns = newColumns
+					newQuery.FromClause = `"` + newTable.Name + `"`
+
+					queryToTable = append(queryToTable, newTable)
+					newQueries = append(newQueries, newQuery)
+				}
+
+				fmt.Println("REWRITTEN QUERIES: ", len(queries), " -> ", len(newQueries))
+			} else {
+				queryToTable = append(queryToTable, table)
+				newQueries = append(newQueries, query)
+			}
+		}
+	}
+
+	queries = newQueries
 
 	hits = make([][]model.QueryResultRow, len(queries))
 
@@ -582,8 +650,12 @@ func (q *QueryRunner) searchWorkerCommon(
 		}
 
 		job := func(ctx context.Context) ([]model.QueryResultRow, error) {
+
 			var err error
-			rows, err := q.logManager.ProcessQuery(ctx, table, &query)
+
+			t := queryToTable[i]
+
+			rows, err := q.logManager.ProcessQuery(ctx, t, &query)
 
 			if err != nil {
 				logger.ErrorWithCtx(ctx).Msg(err.Error())
@@ -619,7 +691,7 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 	aggregations []model.Query,
 	table *clickhouse.Table,
 	doneCh chan<- AsyncSearchWithError,
-	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow, err error) {
+	optAsync *AsyncQuery, isAggregation bool) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow, err error) {
 	if optAsync != nil {
 		if q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, doneCh) {
 			return
@@ -630,7 +702,7 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 		ctx = dbQueryCtx
 	}
 
-	return q.searchWorkerCommon(ctx, aggregations, table)
+	return q.searchWorkerCommon(ctx, aggregations, table, isAggregation)
 }
 
 func (q *QueryRunner) Close() {

@@ -57,7 +57,8 @@ func (sl *schemaLoader) ReloadTables() {
 					configuredTables[table] = discoveredTable{columns, indexConfig, comment, createTableQuery}
 
 					if table == "all_logs_1" {
-						configuredTables["all_logs_2"] = discoveredTable{columns, indexConfig, "inline stitched table ", "n/a"}
+						configuredTables["all_logs_2"] = discoveredTable{columns, indexConfig, "inline stitched tables ", "n/a"}
+						configuredTables["all_logs_3"] = discoveredTable{columns, indexConfig, "Hybrid. Results concatenation or inlined union", "n/a"}
 					}
 
 				} else {

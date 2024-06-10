@@ -78,18 +78,21 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 
 	var selectQuery string
 
-	if table.Name == "all_logs_2" {
-
-		selectQuery = "WITH all_logs_2 AS ("
-		selectQuery = selectQuery + AllLogsUnionSQL
-		selectQuery = selectQuery + ")\n\n"
+	inlineUnionQuery := func(original string, tableName string) string {
+		res := "WITH " + tableName + " AS ("
+		res = res + AllLogsUnionSQL
+		res = res + ")\n\n"
 
 		innerQuery := query.String(ctx)
 
-		innerQuery = strings.ReplaceAll(innerQuery, `"default"."all_logs_2"`, `all_logs_2`)
+		innerQuery = strings.ReplaceAll(innerQuery, `"default"."`+tableName+`"`, tableName)
 
-		selectQuery = selectQuery + innerQuery
+		res = res + innerQuery
+		return res
+	}
 
+	if table.Name == "all_logs_2" || table.Name == "all_logs_3" {
+		selectQuery = inlineUnionQuery(query.String(ctx), table.Name)
 	} else {
 		selectQuery = query.String(ctx)
 	}
