@@ -47,6 +47,10 @@ func (v *WhereVisitor) VisitInfixOp(e *where_clause.InfixOp) interface{} {
 		}
 	}
 	v.op = e.Op
+	// skip transformation in the case of strict IP address
+	if !strings.Contains(v.rhs, "/") {
+		return where_clause.NewInfixOp(lhs.(where_clause.Statement), e.Op, rhs.(where_clause.Statement))
+	}
 	mappedType := v.cfg[v.tableName].TypeMappings[v.lhs]
 	if mappedType != "ip" {
 		return where_clause.NewInfixOp(lhs.(where_clause.Statement), e.Op, rhs.(where_clause.Statement))
