@@ -22,6 +22,12 @@ type (
 	}
 
 	Query struct {
+		// New better struct designed to decommission fields listed below
+		// Command SelectCommand
+
+		/**** Deprecation warning ****/
+		// The following fields are deprecated,
+		// as they all get extracted into dedicated Command field.
 		IsDistinct bool // true <=> query is SELECT DISTINCT
 
 		// This is SELECT query. These fields should be extracted to separate struct.
@@ -32,6 +38,8 @@ type (
 		WhereClause Expr           // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
 		Limit       int            // LIMIT clause, noLimit (0) means no limit
 		SampleLimit int            // LIMIT, but before grouping, 0 means no limit
+		/********************************/
+		SelectCommand SelectCommand // This is the new struct that should be used instead of the deprecated fields above
 
 		CanParse bool // true <=> query is valid
 
