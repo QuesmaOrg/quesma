@@ -3866,16 +3866,16 @@ var AggregationTests = []AggregationTestCase{
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z'))`,
-			`SELECT count(if("bytes_gauge" >= 0.000000 AND "bytes_gauge" < 1000.000000, 1, NULL)), ` +
-				`count(if("bytes_gauge" >= 1000.000000 AND "bytes_gauge" < 2000.000000, 1, NULL)), ` +
-				`count(if("bytes_gauge" >= -5.500000, 1, NULL)), ` +
-				`count(if("bytes_gauge" < 6.555000, 1, NULL)), ` +
+			`SELECT count(if(("bytes_gauge">=0.000000 AND "bytes_gauge"<1000.000000),1,NULL)), ` +
+				`count(if(("bytes_gauge">=1000.000000 AND "bytes_gauge"<2000.000000),1,NULL)), ` +
+				`count(if("bytes_gauge">=-5.500000,1,NULL)), ` +
+				`count(if("bytes_gauge"<6.555000,1,NULL)), ` +
 				`count(), count() FROM ` + QuotedTableName + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z'))`,
-			`SELECT count(if("bytes_gauge" >= 0.000000 AND "bytes_gauge" < 1000.000000, 1, NULL)), ` +
-				`count(if("bytes_gauge" >= 1000.000000 AND "bytes_gauge" < 2000.000000, 1, NULL)), ` +
-				`count(if("bytes_gauge" >= -5.500000, 1, NULL)), ` +
-				`count(if("bytes_gauge" < 6.555000, 1, NULL)), ` +
+			`SELECT count(if(("bytes_gauge">=0.000000 AND "bytes_gauge"<1000.000000),1,NULL)), ` +
+				`count(if(("bytes_gauge">=1000.000000 AND "bytes_gauge"<2000.000000),1,NULL)), ` +
+				`count(if("bytes_gauge">=-5.500000,1,NULL)), ` +
+				`count(if("bytes_gauge"<6.555000,1,NULL)), ` +
 				`count(), count() FROM ` + QuotedTableName + ` WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-16T12:15:11.790Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T12:30:11.790Z'))`,
 		},
@@ -4367,12 +4367,12 @@ var AggregationTests = []AggregationTestCase{
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))`,
-			`SELECT floor("bytes" / 100.000000) * 100.000000, count() ` +
+			`SELECT floor("bytes"/100.000000)*100.000000, count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z')) ` +
-				`GROUP BY floor("bytes" / 100.000000) * 100.000000 ` +
-				`ORDER BY floor("bytes" / 100.000000) * 100.000000`,
+				`GROUP BY floor("bytes"/100.000000)*100.000000 ` +
+				`ORDER BY floor("bytes"/100.000000)*100.000000`,
 		},
 	},
 	{ // [26]
@@ -5716,7 +5716,7 @@ var AggregationTests = []AggregationTestCase{
 				`maxOrNull("bytes"), ` +
 				`avgOrNull("bytes"), ` +
 				`sumOrNull("bytes"), ` +
-				`sumOrNull("bytes" * "bytes"), ` +
+				`sumOrNull("bytes"*"bytes"), ` +
 				`varPop("bytes"), ` +
 				`varSamp("bytes"), ` +
 				`stddevPop("bytes"), ` +
@@ -5732,7 +5732,7 @@ var AggregationTests = []AggregationTestCase{
 				`maxOrNull("bytes"), ` +
 				`avgOrNull("bytes"), ` +
 				`sumOrNull("bytes"), ` +
-				`sumOrNull("bytes" * "bytes"), ` +
+				`sumOrNull("bytes"*"bytes"), ` +
 				`varPop("bytes"), ` +
 				`varSamp("bytes"), ` +
 				`stddevPop("bytes"), ` +

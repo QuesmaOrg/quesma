@@ -225,9 +225,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 		}
-		//for _, query := range queries {
-		//	query.ApplyAliases(q.cfg.IndexConfig, resolvedTableName)
-		//}
 
 		if canParse {
 			if len(queries) > 0 && query_util.IsNonAggregationQuery(queries[0]) {
@@ -626,7 +623,7 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 	var allReferencedFields = make([]string, 0)
 	for _, col := range query.Columns {
 		for _, c := range model.GetUsedColumns(col.Expression) {
-			allReferencedFields = append(allReferencedFields, c.ColumnName)
+			allReferencedFields = append(allReferencedFields, c.ColumnRef.ColumnName)
 		}
 	}
 	allReferencedFields = append(allReferencedFields, query.OrderByFieldNames()...)

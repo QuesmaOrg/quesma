@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -12,16 +13,40 @@ func AsString(expr Expr) string {
 	return expr.Accept(&renderer{}).(string)
 }
 
+func (v *renderer) VisitColumnRef(e ColumnRef) interface{} {
+	return strconv.Quote(e.ColumnName)
+}
+
+func (v *renderer) VisitPrefixExpr(e PrefixExpr) interface{} {
+	args := make([]string, len(e.Args))
+	for i, arg := range e.Args {
+		if arg != nil {
+			args[i] = arg.Accept(v).(string)
+		}
+	}
+
+	argsAsString := strings.Join(args, ", ")
+	return fmt.Sprintf("%v (%v)", e.Op, argsAsString)
+}
+
+func (v *renderer) VisitNestedProperty(e NestedProperty) interface{} {
+	return fmt.Sprintf("%v.%v", e.ColumnRef.Accept(v), e.PropertyName.Accept(v))
+}
+
+func (v *renderer) VisitArrayAccess(e ArrayAccess) interface{} {
+	return fmt.Sprintf("%v[%v]", e.ColumnRef.Accept(v), e.Index.Accept(v))
+}
+
 func (v *renderer) VisitTableColumnExpr(e TableColumnExpr) interface{} {
 
 	var res string
 
 	if e.TableAlias == "" {
-		res = e.ColumnName
+		res = v.VisitColumnRef(e.ColumnRef).(string)
 	} else {
-		res = e.TableAlias + "." + e.ColumnName
+		res = e.TableAlias + "." + v.VisitColumnRef(e.ColumnRef).(string)
 	}
-	return "\"" + res + "\""
+	return res
 }
 
 func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
@@ -29,7 +54,7 @@ func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 	for _, arg := range e.Args {
 		args = append(args, arg.Accept(v).(string))
 	}
-	return e.Name + "(" + strings.Join(args, ", ") + ")"
+	return e.Name + "(" + strings.Join(args, ",") + ")"
 }
 
 func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
@@ -40,7 +65,7 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 
 	switch l.Value.(type) {
 	case string:
-		return fmt.Sprintf("'%s'", l.Value)
+		return fmt.Sprintf("%s", l.Value)
 	case float64:
 		return fmt.Sprintf("%f", l.Value)
 	default:
@@ -74,5 +99,24 @@ func (v *renderer) VisitMultiFunction(f MultiFunctionExpr) interface{} {
 }
 
 func (v *renderer) VisitInfix(e InfixExpr) interface{} {
-	return fmt.Sprintf("%s %s %s", e.Left.Accept(v), e.Op, e.Right.Accept(v))
+	var lhs, rhs interface{} // TODO FOR NOW LITTLE PARANOID BUT HELPS ME NOT SEE MANY PANICS WHEN TESTING
+	if e.Left != nil {
+		lhs = e.Left.Accept(v)
+	} else {
+		lhs = "< LHS NIL >"
+	}
+	if e.Right != nil {
+		rhs = e.Right.Accept(v)
+	} else {
+		rhs = "< RHS NIL >"
+	}
+	// This might look like a strange heuristics to but is aligned with the way we are currently generating the statement
+	// I think in the future every infix op should be in braces.
+	if e.Op == "AND" || e.Op == "OR" {
+		return fmt.Sprintf("(%v %v %v)", lhs, e.Op, rhs)
+	} else if strings.Contains(e.Op, "LIKE") || e.Op == "IS" || e.Op == "IN" {
+		return fmt.Sprintf("%v %v %v", lhs, e.Op, rhs)
+	} else {
+		return fmt.Sprintf("%v%v%v", lhs, e.Op, rhs)
+	}
 }

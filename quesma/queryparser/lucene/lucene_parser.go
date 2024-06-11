@@ -4,7 +4,7 @@ import (
 	"context"
 	"math"
 	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/queryparser/where_clause"
+	"mitmproxy/quesma/model"
 	"slices"
 	"strconv"
 	"strings"
@@ -35,7 +35,7 @@ type luceneParser struct {
 	defaultFieldNames []string
 	// This is a little awkward, at some point we should remove `WhereStatement` and just return the statement from `BuildWhereStatement`
 	// However, given parsing implementation, it's easier to keep it for now.
-	WhereStatement where_clause.Statement
+	WhereStatement model.Expr
 }
 
 func newLuceneParser(ctx context.Context, defaultFieldNames []string) luceneParser {
@@ -65,12 +65,12 @@ var specialOperators = map[string]token{
 	string(rightParenthesis): rightParenthesisToken{},
 }
 
-func TranslateToSQL(ctx context.Context, query string, fields []string) where_clause.Statement {
+func TranslateToSQL(ctx context.Context, query string, fields []string) model.Expr {
 	parser := newLuceneParser(ctx, fields)
 	return parser.translateToSQL(query)
 }
 
-func (p *luceneParser) translateToSQL(query string) where_clause.Statement {
+func (p *luceneParser) translateToSQL(query string) model.Expr {
 	query = p.removeFuzzySearchOperator(query)
 	query = p.removeBoostingOperator(query)
 	p.tokenizeQuery(query)

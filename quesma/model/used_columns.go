@@ -1,9 +1,36 @@
 package model
 
+// TODO OKAY THIS NEEDS TO BE FIXED FOR THE NEW WHERE STATEMENT
 type usedColumns struct{}
 
 func GetUsedColumns(expr Expr) []TableColumnExpr {
 	return expr.Accept(&usedColumns{}).([]TableColumnExpr)
+}
+
+// TODO ugh this needs to be changed ...
+func (v *usedColumns) VisitColumnRef(e ColumnRef) interface{} {
+	res := make([]TableColumnExpr, 0)
+
+	return res
+}
+
+func (v *usedColumns) VisitPrefixExpr(e PrefixExpr) interface{} {
+	res := make([]TableColumnExpr, 0)
+	for _, arg := range e.Args {
+		v1 := arg.Accept(v)
+		if v2, ok := v1.([]TableColumnExpr); ok {
+			res = append(res, v2...)
+		}
+	}
+	return res
+}
+
+func (v *usedColumns) VisitNestedProperty(e NestedProperty) interface{} {
+	return nil
+}
+
+func (v *usedColumns) VisitArrayAccess(e ArrayAccess) interface{} {
+	return nil
 }
 
 func (v *usedColumns) VisitTableColumnExpr(e TableColumnExpr) interface{} {

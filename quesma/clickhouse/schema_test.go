@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser/where_clause"
 	"slices"
 	"strconv"
 	"testing"
@@ -51,7 +50,7 @@ var queries = []struct {
 		[]string{"all", "count()"},
 	},
 	{
-		&model.Query{Columns: []model.SelectColumn{{Expression: model.NewWildcardExpr}, {Expression: model.NewCountFunc()}}, WhereClause: where_clause.NewInfixOp(where_clause.NewColumnRef("message"), "=", where_clause.NewLiteral("hello"))}, // select fields + where clause
+		&model.Query{Columns: []model.SelectColumn{{Expression: model.NewWildcardExpr}, {Expression: model.NewCountFunc()}}, WhereClause: model.NewInfixExpr(model.NewColumnRef("message"), "=", model.NewLiteral("hello"))}, // select fields + where clause
 		[]string{"all", "count()"},
 	},
 	{

@@ -355,7 +355,7 @@ func AssertContainsSqlEqual(t *testing.T, expected []string, actual string) {
 			return
 		}
 	}
-	t.Errorf("Expected: %v, got: %s", expected, actual)
+	t.Errorf("Expected: %v\nActual: %s", expected, actual)
 }
 
 // Compares 2 strings for SQL-like equality, which is a bit looser than normal strings ==.

@@ -6,7 +6,6 @@ import (
 	"math"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
-	wc "mitmproxy/quesma/queryparser/where_clause"
 	"strconv"
 	"strings"
 )
@@ -52,28 +51,28 @@ func (interval Interval) ToSQLSelectQuery(col model.SelectColumn) model.SelectCo
 	return model.SelectColumn{Expression: model.NewFunction("count", model.NewFunction("if", sql, model.NewLiteral(1), model.NewStringExpr("NULL")))}
 }
 
-func (interval Interval) ToWhereClause(field model.SelectColumn) wc.Statement { // returns a condition for the interval, just like we want it in SQL's WHERE
+func (interval Interval) ToWhereClause(field model.SelectColumn) model.Expr { // returns a condition for the interval, just like we want it in SQL's WHERE
 	fieldName := field.SQL() // TODO a) this should be improved b) unify SelectColumn and ColumnRef?
 	if unquoted, err := strconv.Unquote(fieldName); err == nil {
 		fieldName = unquoted
 	}
 
-	var sqlLeft, sqlRight wc.Statement
+	var sqlLeft, sqlRight model.Expr
 	if !interval.IsOpeningBoundInfinite() {
-		sqlLeft = wc.NewInfixOp(wc.NewColumnRef(fieldName), ">=", wc.NewLiteral(strconv.FormatFloat(interval.Begin, 'f', -1, 64)))
+		sqlLeft = model.NewInfixExpr(model.NewColumnRef(fieldName), ">=", model.NewLiteral(strconv.FormatFloat(interval.Begin, 'f', -1, 64)))
 	}
 	if !interval.IsClosingBoundInfinite() {
-		sqlRight = wc.NewInfixOp(wc.NewColumnRef(fieldName), "<", wc.NewLiteral(strconv.FormatFloat(interval.End, 'f', -1, 64)))
+		sqlRight = model.NewInfixExpr(model.NewColumnRef(fieldName), "<", model.NewLiteral(strconv.FormatFloat(interval.End, 'f', -1, 64)))
 	}
 	switch {
 	case sqlLeft != nil && sqlRight != nil:
-		return wc.NewInfixOp(sqlLeft, "AND", sqlRight)
+		return model.NewInfixExpr(sqlLeft, "AND", sqlRight)
 	case sqlLeft != nil:
 		return sqlLeft
 	case sqlRight != nil:
 		return sqlRight
 	default:
-		return wc.NewInfixOp(wc.NewColumnRef(fieldName), "IS", wc.NewLiteral("NOT NULL"))
+		return model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
 	}
 }
 
