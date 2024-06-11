@@ -82,10 +82,6 @@ func (c ClickhouseTypeAdapter) Adapt(s string) (Type, bool) {
 	}
 }
 
-func NewClickhouseTypeAdapter() ClickhouseTypeAdapter {
-	return ClickhouseTypeAdapter{}
-}
-
 type ElasticsearchTypeAdapter struct {
 }
 
