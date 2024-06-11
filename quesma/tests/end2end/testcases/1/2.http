@@ -1,0 +1,62 @@
+/kibana_sample_data_logs/_async_search?batched_reduce_size=64&ccs_minimize_roundtrips=true&wait_for_completion_timeout=200ms&keep_on_completion=true&keep_alive=60000ms&ignore_unavailable=true&preference=1718144139001
+{
+    "aggs": {
+        "0": {
+            "date_histogram": {
+                "field": "timestamp",
+                "calendar_interval": "1d",
+                "time_zone": "Europe/Warsaw",
+                "min_doc_count": 1
+            }
+        }
+    },
+    "size": 0,
+    "fields": [
+        {
+            "field": "@timestamp",
+            "format": "date_time"
+        },
+        {
+            "field": "timestamp",
+            "format": "date_time"
+        },
+        {
+            "field": "utc_time",
+            "format": "date_time"
+        }
+    ],
+    "script_fields": {},
+    "stored_fields": [
+        "*"
+    ],
+    "runtime_mappings": {
+        "hour_of_day": {
+            "type": "long",
+            "script": {
+                "source": "emit(doc['timestamp'].value.getHour());"
+            }
+        }
+    },
+    "_source": {
+        "excludes": []
+    },
+    "query": {
+        "bool": {
+            "must": [],
+            "filter": [
+                {
+                    "range": {
+                        "timestamp": {
+                            "format": "strict_date_optional_time",
+                            "gte": "2024-02-27T23:15:49.450Z",
+                            "lte": "2024-06-11T22:15:49.450Z"
+                        }
+                    }
+                }
+            ],
+            "should": [],
+            "must_not": []
+        }
+    },
+    "track_total_hits": true
+}
