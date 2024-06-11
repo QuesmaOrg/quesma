@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -663,10 +664,13 @@ type sqlMockMismatchSql struct {
 
 func InitSqlMockWithPrettyPrint(t *testing.T, matchExpectationsInOrder bool) (*sql.DB, sqlmock.Sqlmock) {
 	mismatchedSqls := make([]sqlMockMismatchSql, 0)
+	lock := sync.Mutex{}
 	queryMatcher := sqlmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
 		matchErr := sqlmock.QueryMatcherRegexp.Match(expectedSQL, actualSQL)
 		if matchErr != nil {
+			lock.Lock()
 			mismatchedSqls = append(mismatchedSqls, sqlMockMismatchSql{expected: expectedSQL, actual: actualSQL})
+			lock.Unlock()
 		}
 		return matchErr
 	})
@@ -676,6 +680,8 @@ func InitSqlMockWithPrettyPrint(t *testing.T, matchExpectationsInOrder bool) (*s
 	}
 	t.Cleanup(func() {
 		if t.Failed() {
+			lock.Lock()
+			defer lock.Unlock()
 			for _, mismatch := range mismatchedSqls {
 				pp.Printf("-- %s Expected:\n", t.Name())
 				fmt.Printf("%s\n", SqlPrettyPrint([]byte(mismatch.expected)))
