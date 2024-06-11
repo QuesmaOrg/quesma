@@ -3,12 +3,9 @@ package lucene
 import (
 	"context"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser/where_clause"
 	"strconv"
 	"testing"
 )
-
-var asString = &where_clause.StringRenderer{}
 
 func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 	// logger.InitSimpleLoggerForTests()

@@ -83,7 +83,7 @@ func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) model.Expr {
 		return currentStatement
 	}
 	switch stmt := currentStatement.(type) {
-	case *model.PrefixExpr:
+	case model.PrefixExpr:
 		if stmt.Op == "NOT" {
 			return model.NewInfixExpr(p.WhereStatement, "AND", currentStatement)
 		} else {
