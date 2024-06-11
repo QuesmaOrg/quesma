@@ -3,7 +3,6 @@ package model
 import (
 	"context"
 	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/queryparser/where_clause"
 )
 
 type SimpleQuery struct {
@@ -21,8 +20,6 @@ const (
 	WeNeedUnlimitedCount = -1
 	WeDontNeedCount      = 0
 )
-
-var asString = where_clause.StringRenderer{}
 
 func (s *SimpleQuery) WhereClauseAsString() string {
 	if s.WhereClause == nil {
