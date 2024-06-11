@@ -23,6 +23,14 @@ func NewMapWith[K comparable, V any](k K, v V) *Map[K, V] {
 	return m
 }
 
+func NewMapFrom[K comparable, V any](initial map[K]V) *Map[K, V] {
+	m := NewMap[K, V]()
+	for k, v := range initial {
+		m.Store(k, v)
+	}
+	return m
+}
+
 func NewMapWithN[K comparable, V any](entries ...MapEntry[K, V]) *Map[K, V] {
 	m := NewMap[K, V]()
 	for _, entry := range entries {
