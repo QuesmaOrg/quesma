@@ -11,27 +11,27 @@ More info: https://www.elastic.co/guide/en/elasticsearch/reference/current/searc
 
  Metrics aggregation       |        Support         | Bucket aggregation           |      Support       | Pipeline aggregation   |      Support       |
 ---------------------------|:----------------------:|------------------------------|:------------------:|------------------------|:------------------:|
- Avg                       |   :white_check_mark:   | Adjacency matrix             |        :x:         | Average bucket         |        :x:         |
+ Avg                       |   :white_check_mark:   | Adjacency matrix             |        :x:         | Average bucket         | :white_check_mark: |
  Cardinality               |   :white_check_mark:   | Auto-interval date histogram |        :x:         | Bucket script          |        :x:         |
- Extended Stats            |          :x:           | Categorize text              |        :x:         | Bucket count K-S test  |        :x:         |
+ Extended Stats            | :white_check_mark:[^1] | Categorize text              |        :x:         | Bucket count K-S test  |        :x:         |
  Avg                       |   :white_check_mark:   | Children                     |        :x:         | Bucket correlation     |        :x:         |
  Boxplot                   |          :x:           | Composite                    |        :x:         | Bucket selector        |        :x:         |
  Cardinality               |   :white_check_mark:   | Date histogram               | :white_check_mark: | Bucket sort            |        :x:         |
  Extended stats            | :white_check_mark:[^1] | Date range                   | :white_check_mark: | Change point           |        :x:         |
  Geo-bounds                |          :x:           | Diversified sampler          |        :x:         | Cumulative cardinality |        :x:         |
  Geo-centroid              |          :x:           | Filter                       | :white_check_mark: | Cumulative sum         | :white_check_mark: |
- Geo-line                  |          :x:           | Filters                      | :white_check_mark: | Derivative             |        :x:         |
+ Geo-line                  |          :x:           | Filters                      | :white_check_mark: | Derivative             | :white_check_mark: |
  Cartesian-bounds          |          :x:           | Frequent item sets           |        :x:         | Extended stats bucket  |        :x:         |
  Cartesian-centroid        |          :x:           | Geo-distance                 |        :x:         | Inference bucket       |        :x:         |
- Matrix stats              |          :x:           | Geohash grid                 |        :x:         | Max bucket             |        :x:         |
- Max                       |   :white_check_mark:   | Geotile grid                 |        :x:         | Min bucket             |        :x:         |
- Median absolute deviation |          :x:           | Global                       |        :x:         | Moving function        |        :x:         |
+ Matrix stats              |          :x:           | Geohash grid                 |        :x:         | Max bucket             | :white_check_mark: |
+ Max                       |   :white_check_mark:   | Geotile grid                 |        :x:         | Min bucket             | :white_check_mark: |
+ Median absolute deviation |          :x:           | Global                       |        :x:         | Moving function        |    :wavy_dash:     |
  Min                       |   :white_check_mark:   | Histogram                    | :white_check_mark: | Moving percentiles     |        :x:         |
  Percentile ranks          |   :white_check_mark:   | IP prefix                    |        :x:         | Normalize              |        :x:         |
  Percentiles               |   :white_check_mark:   | IP range                     |        :x:         | Percentiles bucket     |        :x:         |
- Rate                      |          :x:           | Missing                      |        :x:         | Serial differencing    |        :x:         |
- Scripted metric           |          :x:           | Multi-terms                  |        :x:         | Stats bucket           |        :x:         |
- Stats                     |   :white_check_mark:   | Nested                       |        :x:         | Sum bucket             |        :x:         |
+ Rate                      |          :x:           | Missing                      |        :x:         | Serial differencing    | :white_check_mark: |
+ Scripted metric           |          :x:           | Multi-terms                  | :white_check_mark: | Stats bucket           |        :x:         |
+ Stats                     |   :white_check_mark:   | Nested                       |        :x:         | Sum bucket             | :white_check_mark: |
  String stats              |          :x:           | Parent                       |        :x:         |
  Sum                       |   :white_check_mark:   | Random sampler               |    :wavy_dash:     |
  T-test                    |          :x:           | Range                        | :white_check_mark: |
