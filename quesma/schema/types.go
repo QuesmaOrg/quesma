@@ -58,7 +58,7 @@ func IsValid(t string) (Type, bool) {
 type ClickhouseTypeAdapter struct {
 }
 
-func (c ClickhouseTypeAdapter) Adapt(s string) (Type, bool) {
+func (c ClickhouseTypeAdapter) Convert(s string) (Type, bool) {
 	if strings.HasPrefix(s, "Unknown") {
 		return TypeText, true // TODO
 	}
@@ -85,7 +85,7 @@ func (c ClickhouseTypeAdapter) Adapt(s string) (Type, bool) {
 type ElasticsearchTypeAdapter struct {
 }
 
-func (e ElasticsearchTypeAdapter) Adapt(s string) (Type, bool) {
+func (e ElasticsearchTypeAdapter) Convert(s string) (Type, bool) {
 	switch s {
 	case elasticsearch_field_types.FieldTypeText:
 		return TypeText, true

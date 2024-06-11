@@ -29,12 +29,15 @@ type (
 		Start()
 	}
 	schemaRegistry struct {
-		started            atomic.Bool
-		schemas            *concurrent.Map[TableName, Schema]
-		configuration      config.QuesmaConfiguration
-		chTableDiscovery   clickhouse.TableDiscovery
-		chTypeAdapter      ClickhouseTypeAdapter
-		elasticTypeAdapter ElasticsearchTypeAdapter
+		started               atomic.Bool
+		schemas               *concurrent.Map[TableName, Schema]
+		configuration         config.QuesmaConfiguration
+		chTableDiscovery      clickhouse.TableDiscovery
+		dataSourceTypeAdapter TypeAdapter
+		connectorTypeAdapter  TypeAdapter
+	}
+	TypeAdapter interface {
+		Convert(string) (Type, bool)
 	}
 )
 
@@ -99,7 +102,7 @@ func (s *schemaRegistry) Load() error {
 			indexConfig := s.configuration.IndexConfig[indexName]
 			// TODO replace with dedicated schema config
 			if explicitType, found := indexConfig.TypeMappings[col.Name]; found {
-				if resolvedQuesmaType, found := s.elasticTypeAdapter.Adapt(explicitType); found {
+				if resolvedQuesmaType, found := s.connectorTypeAdapter.Convert(explicitType); found {
 					logger.Debug().Msgf("found explicit type mapping for column %s: %s", col.Name, resolvedQuesmaType)
 					fields[FieldName(col.Name)] = Field{
 						Name: FieldName(col.Name),
@@ -112,7 +115,7 @@ func (s *schemaRegistry) Load() error {
 				}
 			}
 			if _, exists := fields[FieldName(col.Name)]; !exists {
-				if quesmaType, found := s.chTypeAdapter.Adapt(col.Type.String()); found {
+				if quesmaType, found := s.dataSourceTypeAdapter.Convert(col.Type.String()); found {
 					fields[FieldName(col.Name)] = Field{
 						Name: FieldName(col.Name),
 						Type: quesmaType,
@@ -145,11 +148,11 @@ func (s *schemaRegistry) FindSchema(name TableName) (Schema, bool) {
 
 func NewSchemaRegistry(chTableDiscovery clickhouse.TableDiscovery, configuration config.QuesmaConfiguration) Registry {
 	return &schemaRegistry{
-		schemas:            concurrent.NewMap[TableName, Schema](),
-		started:            atomic.Bool{},
-		configuration:      configuration,
-		chTableDiscovery:   chTableDiscovery,
-		chTypeAdapter:      ClickhouseTypeAdapter{},
-		elasticTypeAdapter: ElasticsearchTypeAdapter{},
+		schemas:               concurrent.NewMap[TableName, Schema](),
+		started:               atomic.Bool{},
+		configuration:         configuration,
+		chTableDiscovery:      chTableDiscovery,
+		dataSourceTypeAdapter: ClickhouseTypeAdapter{},
+		connectorTypeAdapter:  ElasticsearchTypeAdapter{},
 	}
 }
