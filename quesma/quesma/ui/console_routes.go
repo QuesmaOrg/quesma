@@ -45,13 +45,13 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 		_, _ = writer.Write(buf)
 	})
 
-	router.HandleFunc("/schema/reload", func(writer http.ResponseWriter, req *http.Request) {
+	router.HandleFunc("/tables/reload", func(writer http.ResponseWriter, req *http.Request) {
 		qmc.logManager.ReloadTables()
 		buf := qmc.generateSchema()
 		_, _ = writer.Write(buf)
 	}).Methods("POST")
 
-	router.HandleFunc("/schema", func(writer http.ResponseWriter, req *http.Request) {
+	router.HandleFunc("/tables", func(writer http.ResponseWriter, req *http.Request) {
 		buf := qmc.generateSchema()
 		_, _ = writer.Write(buf)
 	})
