@@ -20,7 +20,7 @@ var wildcards = map[rune]rune{
 var specialCharacters = []rune{'+', '-', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\'} // they can be escaped in query string
 
 type value interface {
-	toStatement(fieldName string) model.Expr
+	toExpression(fieldName string) model.Expr
 }
 
 type termValue struct {
@@ -31,7 +31,7 @@ func newTermValue(term string) termValue {
 	return termValue{term: term}
 }
 
-func (v termValue) toStatement(fieldName string) model.Expr {
+func (v termValue) toExpression(fieldName string) model.Expr {
 	termAsStringToClickhouse, wildcardsExist := v.transformSpecialCharacters()
 
 	if alreadyQuoted(v.term) {
@@ -110,7 +110,7 @@ func (v rangeValue) totallyUnbounded() bool {
 	return v.lowerBound == unbounded && v.upperBound == unbounded
 }
 
-func (v rangeValue) toStatement(fieldName string) model.Expr {
+func (v rangeValue) toExpression(fieldName string) model.Expr {
 	if v.totallyUnbounded() {
 		return model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
 	}
@@ -163,8 +163,8 @@ func newAndValue(left, right value) andValue {
 	return andValue{left: left, right: right}
 }
 
-func (v andValue) toStatement(fieldName string) model.Expr {
-	return model.NewInfixExpr(v.left.toStatement(fieldName), "AND", v.right.toStatement(fieldName))
+func (v andValue) toExpression(fieldName string) model.Expr {
+	return model.NewInfixExpr(v.left.toExpression(fieldName), "AND", v.right.toExpression(fieldName))
 }
 
 type orValue struct {
@@ -176,8 +176,8 @@ func newOrValue(left, right value) orValue {
 	return orValue{left: left, right: right}
 }
 
-func (v orValue) toStatement(fieldName string) model.Expr {
-	return model.NewInfixExpr(v.left.toStatement(fieldName), "OR", v.right.toStatement(fieldName))
+func (v orValue) toExpression(fieldName string) model.Expr {
+	return model.NewInfixExpr(v.left.toExpression(fieldName), "OR", v.right.toExpression(fieldName))
 }
 
 type notValue struct {
@@ -188,8 +188,8 @@ func newNotValue(value value) notValue {
 	return notValue{value: value}
 }
 
-func (v notValue) toStatement(fieldName string) model.Expr {
-	return model.NewPrefixExpr("NOT", []model.Expr{v.value.toStatement(fieldName)})
+func (v notValue) toExpression(fieldName string) model.Expr {
+	return model.NewPrefixExpr("NOT", []model.Expr{v.value.toExpression(fieldName)})
 }
 
 type invalidValue struct {
@@ -199,7 +199,7 @@ func newInvalidValue() invalidValue {
 	return invalidValue{}
 }
 
-func (v invalidValue) toStatement(fieldName string) model.Expr {
+func (v invalidValue) toExpression(fieldName string) model.Expr {
 	return model.NewLiteral("false")
 }
 

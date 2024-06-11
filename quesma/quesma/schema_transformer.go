@@ -112,7 +112,7 @@ func (v *WhereVisitor) VisitArrayAccess(e model.ArrayAccess) interface{} {
 	return model.NewArrayAccess(e.ColumnRef, e.Index)
 }
 
-// TODO this whole block is fake ... need to fix it
+// TODO this whole block is fake ... need to double chceck this
 func (v *WhereVisitor) MultiFunctionExpr(e model.MultiFunctionExpr) interface{}  { return e }
 func (v *WhereVisitor) VisitComposite(e model.CompositeExpr) interface{}         { return e }
 func (v *WhereVisitor) VisitMultiFunction(e model.MultiFunctionExpr) interface{} { return e }

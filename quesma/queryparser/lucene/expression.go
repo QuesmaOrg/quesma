@@ -25,13 +25,13 @@ func newLeafStatement(fieldNames []string, value value) model.Expr {
 
 	var newStatement model.Expr
 	if len(fieldNames) > 0 {
-		newStatement = value.toStatement(fieldNames[0])
+		newStatement = value.toExpression(fieldNames[0])
 		for _, fieldName := range fieldNames[1:] {
-			newStatement = model.NewInfixExpr(newStatement, "OR", value.toStatement(fieldName))
+			newStatement = model.NewInfixExpr(newStatement, "OR", value.toExpression(fieldName))
 		}
 	}
 	if len(fieldNames) == 1 {
-		return value.toStatement(fieldNames[0])
+		return value.toExpression(fieldNames[0])
 	}
 	return newStatement
 }

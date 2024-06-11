@@ -22,6 +22,7 @@ func (e ColumnRef) Accept(v ExprVisitor) interface{} {
 	return v.VisitColumnRef(e)
 }
 
+// PrefixExpr represents unary operators, e.g. NOT, - etc.
 type PrefixExpr struct {
 	Op   string
 	Args []Expr
@@ -48,7 +49,7 @@ func (e TableColumnExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitTableColumnExpr(e)
 }
 
-// NestedProperty for nested objects, e.g. `columnName.propertyName`
+// NestedProperty represents a call to nested property e.g. `columnName.propertyName`
 type NestedProperty struct {
 	ColumnRef    ColumnRef
 	PropertyName LiteralExpr
@@ -60,7 +61,7 @@ func NewNestedProperty(columnRef ColumnRef, propertyName LiteralExpr) NestedProp
 
 func (e NestedProperty) Accept(v ExprVisitor) interface{} { return v.VisitNestedProperty(e) }
 
-// ArrayAccess for array accessing, e.g. `columnName[0]`
+// ArrayAccess represents accessing array by index, e.g. `columnName[0]`
 type ArrayAccess struct {
 	ColumnRef ColumnRef
 	Index     Expr
@@ -81,8 +82,7 @@ func (e FunctionExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitFunction(e)
 }
 
-// It represents functions with multitple arguments list
-// like `quantile(level)(expr)
+// MultiFunctionExpr represents call of a function with multiple arguments lists, e.g. `quantile(level)(expr)`
 type MultiFunctionExpr struct {
 	Name string
 	Args []Expr
@@ -100,9 +100,10 @@ func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitLiteral(e)
 }
 
-// StringExpr is just like LiteralExpr with string Value, but when rendering we don't quote it.
-// Used e.g. for representing ASC/DESC, or tablename
+// Deprecated
 type StringExpr struct {
+	// StringExpr is just like LiteralExpr with string Value, but when rendering we don't quote it.
+	// Used e.g. for representing ASC/DESC, or tablename
 	Value string
 }
 
@@ -129,9 +130,8 @@ func (e InfixExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitInfix(e)
 }
 
-// ASIS expressions, this is workaroung for not supported expressions
-// It can be named as TODO.
-type SQL struct {
+// Deprecated
+type SQL struct { // this was "catch all" for raw SQL, but everything should be an expression
 	Query string
 }
 
