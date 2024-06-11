@@ -12,6 +12,7 @@ import (
 	"github.com/k0kubun/pp"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"quesma/logger"
 	"reflect"
@@ -102,6 +103,10 @@ func MapDifference(mActual, mExpected JsonMap, compareBaseTypes, compareFullArra
 			cur = cur[key].(JsonMap)
 		}
 		cur[name] = mapToAdd
+	}
+
+	if limitArrayIndices == -1 {
+		limitArrayIndices = math.MaxInt
 	}
 
 	var descendRec func(_, _, _, _ JsonMap, _ []string)
@@ -231,6 +236,10 @@ func MapDifference(mActual, mExpected JsonMap, compareBaseTypes, compareFullArra
 	return mDiffActualMinusExpected, mDiffExpectedMinusActual
 }
 
+func MapDifferenceCompareEverything(mActual, mExpected JsonMap) (JsonMap, JsonMap) {
+	return MapDifference(mActual, mExpected, true, true, math.MaxInt)
+}
+
 // returns pair of maps with fields that are present in one of input JSONs and not in the other
 // specifically (jsonActual - jsonExpected, jsonExpected - jsonActual, err)
 func JsonDifference(jsonActual, jsonExpected string, compareBaseTypes, compareFullArrays bool, limitArrayIndices int) (JsonMap, JsonMap, error) {
@@ -244,6 +253,14 @@ func JsonDifference(jsonActual, jsonExpected string, compareBaseTypes, compareFu
 	}
 	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected, compareBaseTypes, compareFullArrays, limitArrayIndices)
 	return actualMinusExpected, expectedMinusActual, nil
+}
+
+func JsonDifferenceCompareEverything(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
+	return JsonDifference(jsonActual, jsonExpected, true, true, math.MaxInt)
+}
+
+func JsonDifferenceWeak(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
+	return JsonDifference(jsonActual, jsonExpected, false, false, math.MaxInt)
 }
 
 // If there's type conflict, e.g. one map has {"a": map}, and second has {"a": array}, we log an error.

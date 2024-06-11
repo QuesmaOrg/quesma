@@ -101,7 +101,7 @@ func TestFieldCaps(t *testing.T) {
 	err = json.Unmarshal(expectedResp, &expectedResp)
 	assert.NoError(t, err)
 
-	difference1, difference2, err := util.JsonDifference(
+	difference1, difference2, err := util.JsonDifferenceWeak(
 		string(resp),
 		string(expectedResp),
 	)
@@ -157,7 +157,7 @@ func TestFieldCapsWithAliases(t *testing.T) {
 	err = json.Unmarshal(expectedResp, &expectedResp)
 	assert.NoError(t, err)
 
-	difference1, difference2, err := util.JsonDifference(
+	difference1, difference2, err := util.JsonDifferenceWeak(
 		string(resp),
 		string(expectedResp),
 	)
@@ -260,7 +260,7 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
 	err = json.Unmarshal(expectedResp, &expectedResp)
 	assert.NoError(t, err)
 
-	difference1, difference2, err := util.JsonDifference(
+	difference1, difference2, err := util.JsonDifferenceWeak(
 		string(resp),
 		string(expectedResp),
 	)
@@ -364,7 +364,7 @@ func TestFieldCapsMultipleIndexesConflictingEntries(t *testing.T) {
 	err = json.Unmarshal(expectedResp, &expectedResp)
 	assert.NoError(t, err)
 
-	difference1, difference2, err := util.JsonDifference(
+	difference1, difference2, err := util.JsonDifferenceWeak(
 		string(resp),
 		string(expectedResp),
 	)
