@@ -52,5 +52,5 @@ func (p *httpRequestParser) getSingleSuite(testSuite string) (tests []*singleE2E
 }
 
 func (p *httpRequestParser) getAllTestcases() {
-	
+
 }
