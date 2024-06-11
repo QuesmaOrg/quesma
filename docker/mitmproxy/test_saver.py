@@ -2,7 +2,7 @@ import glob
 import os
 import json
 from mitmproxy import http
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 from typing import BinaryIO
 
 from mitmproxy import http
@@ -57,7 +57,10 @@ def parse_json_body(index_name, method, body, ofile):
 def record_request(index_name, method, flow: http.HTTPFlow) -> None:
     with open(os.path.join(LOG_FILE_PREFIX, str(writer.req_nr) + '.http'), "ab") as ofile:
         writer.req_nr += 1 # TODO add atomic
-        ofile.write(flow.request.pretty_url.encode() + "\n".encode())
+        url = urlparse(flow.request.url)
+        trimmed_url = ParseResult('', '', *url[2:]).geturl()
+        print(trimmed_url)
+        ofile.write((trimmed_url + "\n").encode())
 
         body = flow.request.content.decode('utf-8')
         body_json = json.loads(body)
