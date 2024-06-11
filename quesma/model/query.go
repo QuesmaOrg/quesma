@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/quesma/config"
 	"sort"
 	"strings"
 )
@@ -285,20 +284,6 @@ func (q *Query) HasParentAggregation() bool {
 // IsChild returns true <=> this aggregation is a child of maybeParent (so maybeParent is its parent).
 func (q *Query) IsChild(maybeParent *Query) bool {
 	return q.HasParentAggregation() && q.Parent == maybeParent.Name()
-}
-
-// ApplyAliases is effectively a no-op at this point as all the aliasing is resolved during parsing byt Table.ResolveField()
-func (q *Query) ApplyAliases(cfg map[string]config.IndexConfiguration, resolvedTableName string) {
-	//if q.WhereClause == nil {
-	//	return
-	//}
-	//
-	//if indexCfg, ok := cfg[resolvedTableName]; ok {
-	//	resolver := &where_clause.AliasResolver{IndexCfg: indexCfg}
-	//	q.WhereClause.Accept(resolver)
-	//} else { // no aliases for fields this table configured
-	//	return
-	//}
 }
 
 // TODO change whereClause type string -> some typed

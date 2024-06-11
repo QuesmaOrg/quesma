@@ -225,9 +225,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 		}
-		//for _, query := range queries {
-		//	query.ApplyAliases(q.cfg.IndexConfig, resolvedTableName)
-		//}
 
 		if canParse {
 			if len(queries) > 0 && query_util.IsNonAggregationQuery(queries[0]) {
