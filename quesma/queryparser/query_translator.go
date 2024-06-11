@@ -454,7 +454,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 
 	return &model.Query{
 		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}, {Expression: model.NewCountFunc()}},
-		GroupBy:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}},
+		GroupBy:     []model.Expr{model.NewTableColumnExpr(fieldName)},
 		OrderBy:     []model.SelectColumn{model.NewSortByCountColumn(true)},
 		FromClause:  model.NewSelectColumnFromString(cw.Table.FullTableName()),
 		WhereClause: simpleQuery.WhereClause,

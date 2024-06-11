@@ -26,7 +26,7 @@ type (
 
 		// This is SELECT query. These fields should be extracted to separate struct.
 		Columns     []SelectColumn // Columns to select, including aliases
-		GroupBy     []SelectColumn // if not empty, we do GROUP BY GroupBy...
+		GroupBy     []Expr         // if not empty, we do GROUP BY GroupBy...
 		OrderBy     []SelectColumn // if not empty, we do ORDER BY OrderBy...
 		FromClause  SelectColumn   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
 		WhereClause Expr           // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
@@ -177,10 +177,10 @@ func (q *Query) String(ctx context.Context) string {
 
 	groupBy := make([]string, 0, len(q.GroupBy))
 	for _, col := range q.GroupBy {
-		if col.Expression == nil {
+		if len(q.GroupBy) < 1 {
 			logger.Warn().Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
 		} else {
-			groupBy = append(groupBy, col.SQL())
+			groupBy = append(groupBy, AsString(col))
 		}
 	}
 	if len(groupBy) > 0 {
@@ -221,7 +221,7 @@ func (q *Query) IsWildcard() bool {
 
 // CopyAggregationFields copies all aggregation fields from qwa to q
 func (q *Query) CopyAggregationFields(qwa Query) {
-	q.GroupBy = make([]SelectColumn, len(qwa.GroupBy))
+	q.GroupBy = make([]Expr, len(qwa.GroupBy))
 	copy(q.GroupBy, qwa.GroupBy)
 
 	q.Columns = make([]SelectColumn, len(qwa.Columns))
@@ -287,7 +287,7 @@ func (q *Query) IsChild(maybeParent *Query) bool {
 }
 
 // TODO change whereClause type string -> some typed
-func (q *Query) NewSelectColumnSubselectWithRowNumber(selectFields []SelectColumn, groupByFields []SelectColumn,
+func (q *Query) NewSelectColumnSubselectWithRowNumber(selectFields []SelectColumn, groupByFields []Expr,
 	whereClause string, orderByField string, orderByDesc bool) SelectColumn {
 
 	const additionalArrayLength = 6
@@ -310,7 +310,7 @@ func (q *Query) NewSelectColumnSubselectWithRowNumber(selectFields []SelectColum
 	// Sticking to simpler solution now.
 	fromSelect = append(fromSelect, NewStringExpr("ROW_NUMBER() OVER (PARTITION BY"))
 	for i, field := range groupByFields {
-		fromSelect = append(fromSelect, field.Expression)
+		fromSelect = append(fromSelect, field)
 		if i != len(groupByFields)-1 {
 			fromSelect = append(fromSelect, NewStringExpr(","))
 		}

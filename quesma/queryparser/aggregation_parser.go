@@ -685,7 +685,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		}
 
 		currentAggr.Columns = append(currentAggr.Columns, col)
-		currentAggr.GroupBy = append(currentAggr.GroupBy, col)
+		currentAggr.GroupBy = append(currentAggr.GroupBy, col.Expression)
 		currentAggr.OrderBy = append(currentAggr.OrderBy, col)
 
 		delete(queryMap, "histogram")
@@ -701,7 +701,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		histogramPartOfQuery := cw.createHistogramPartOfQuery(dateHistogram)
 
 		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: histogramPartOfQuery})
-		currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: histogramPartOfQuery})
+		currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: histogramPartOfQuery}.Expression)
 		currentAggr.OrderBy = append(currentAggr.OrderBy, model.SelectColumn{Expression: histogramPartOfQuery})
 
 		delete(queryMap, "date_histogram")
@@ -713,7 +713,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 
 			isEmptyGroupBy := len(currentAggr.GroupBy) == 0
 
-			currentAggr.GroupBy = append(currentAggr.GroupBy, cw.parseFieldField(terms, termsType))
+			currentAggr.GroupBy = append(currentAggr.GroupBy, cw.parseFieldField(terms, termsType).Expression)
 			currentAggr.Columns = append(currentAggr.Columns, cw.parseFieldField(terms, termsType))
 
 			orderByAdded := false
@@ -783,8 +783,8 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			fieldsNr = len(terms)
 			for _, term := range terms {
 				column := cw.parseFieldField(term, "multi_terms")
-				currentAggr.Columns = append(currentAggr.GroupBy, column)
-				currentAggr.GroupBy = append(currentAggr.GroupBy, column)
+				currentAggr.Columns = append(currentAggr.Columns, column)
+				currentAggr.GroupBy = append(currentAggr.GroupBy, column.Expression)
 				if !orderByAdded {
 					currentAggr.OrderBy = append(currentAggr.OrderBy, column)
 					orderByFieldsAdded++
