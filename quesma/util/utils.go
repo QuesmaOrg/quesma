@@ -656,15 +656,17 @@ func ExtractNumeric64Maybe(value any) (asFloat64 float64, success bool) {
 	return 0.0, false
 }
 
-func InitSqlMockWithPrettyPrint(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
+type sqlMockMismatchSql struct {
+	expected string
+	actual   string
+}
+
+func InitSqlMockWithPrettyPrint(t *testing.T, matchExpectationsInOrder bool) (*sql.DB, sqlmock.Sqlmock) {
+	mismatchedSqls := make([]sqlMockMismatchSql, 0)
 	queryMatcher := sqlmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
 		matchErr := sqlmock.QueryMatcherRegexp.Match(expectedSQL, actualSQL)
 		if matchErr != nil {
-			pp.Println("-- Expected:")
-			fmt.Printf("%s\n", SqlPrettyPrint([]byte(expectedSQL)))
-			pp.Println("---- Actual:")
-			fmt.Printf("%s\n", SqlPrettyPrint([]byte(actualSQL)))
-			fmt.Printf("E: %s\nA: %s\n", expectedSQL, actualSQL)
+			mismatchedSqls = append(mismatchedSqls, sqlMockMismatchSql{expected: expectedSQL, actual: actualSQL})
 		}
 		return matchErr
 	})
@@ -672,5 +674,18 @@ func InitSqlMockWithPrettyPrint(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		if t.Failed() {
+			for _, mismatch := range mismatchedSqls {
+				pp.Printf("-- %s Expected:\n", t.Name())
+				fmt.Printf("%s\n", SqlPrettyPrint([]byte(mismatch.expected)))
+				fmt.Printf("RAW: '%s'\n", mismatch.expected)
+				pp.Printf("---- %s Actual:\n", t.Name())
+				fmt.Printf("%s\n", SqlPrettyPrint([]byte(mismatch.actual)))
+				fmt.Printf("Raw: '%s'\n", mismatch.actual)
+			}
+		}
+	})
+	mock.MatchExpectationsInOrder(matchExpectationsInOrder)
 	return db, mock
 }

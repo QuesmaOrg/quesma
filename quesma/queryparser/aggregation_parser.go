@@ -304,8 +304,6 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 			}
 			currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
 		}
-	} else {
-		return nil, fmt.Errorf("no aggs -> request is not an aggregation query")
 	}
 
 	return aggregations, nil
@@ -483,7 +481,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	}
 	if orderByFieldsAdded > 0 {
 		if len(currentAggr.OrderBy) >= orderByFieldsAdded {
-			currentAggr.OrderBy = currentAggr.GroupBy[:len(currentAggr.OrderBy)-orderByFieldsAdded]
+			currentAggr.OrderBy = currentAggr.OrderBy[:len(currentAggr.OrderBy)-orderByFieldsAdded]
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("orderByFieldsAdded > currentAggr.OrderBy length -> should be impossible")
 		}
