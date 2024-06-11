@@ -30,11 +30,11 @@ type (
 		Start()
 	}
 	schemaRegistry struct {
-		started                atomic.Bool
-		schemas                *concurrent.Map[TableName, Schema]
-		configuration          config.QuesmaConfiguration
-		clickhouseSchemaLoader clickhouse.TableDiscovery
-		ClickhouseTypeAdapter  ClickhouseTypeAdapter
+		started          atomic.Bool
+		schemas          *concurrent.Map[TableName, Schema]
+		configuration    config.QuesmaConfiguration
+		chTableDiscovery clickhouse.TableDiscovery
+		chTypeAdapter    ClickhouseTypeAdapter
 	}
 )
 
@@ -83,7 +83,7 @@ func (s *schemaRegistry) Load() error {
 		return fmt.Errorf("schema registry not started")
 	}
 	// refreshed periodically by LogManager
-	definitions := s.clickhouseSchemaLoader.TableDefinitions()
+	definitions := s.chTableDiscovery.TableDefinitions()
 	schemas := s.schemas.Snapshot()
 	definitions.Range(func(indexName string, value *clickhouse.Table) bool {
 		logger.Debug().Msgf("loading schema for table %s", indexName)
@@ -93,6 +93,7 @@ func (s *schemaRegistry) Load() error {
 		}
 		for _, col := range value.Cols {
 			indexConfig := s.configuration.IndexConfig[indexName]
+			// TODO replace with dedicated schema config
 			if explicitType, found := indexConfig.TypeMappings[col.Name]; found {
 				logger.Debug().Msgf("found explicit type mapping for column %s: %s", col.Name, explicitType)
 				fields[FieldName(col.Name)] = Field{
@@ -102,7 +103,7 @@ func (s *schemaRegistry) Load() error {
 				continue
 			}
 			if _, exists := fields[FieldName(col.Name)]; !exists {
-				if quesmaType, found := s.ClickhouseTypeAdapter.Adapt(col.Type.String()); found {
+				if quesmaType, found := s.chTypeAdapter.Adapt(col.Type.String()); found {
 					fields[FieldName(col.Name)] = Field{
 						Name: FieldName(col.Name),
 						Type: quesmaType,
@@ -133,12 +134,12 @@ func (s *schemaRegistry) FindSchema(name TableName) (Schema, bool) {
 	return schema, found
 }
 
-func NewSchemaRegistry(schemaLoader clickhouse.TableDiscovery, configuration config.QuesmaConfiguration) Registry {
+func NewSchemaRegistry(chTableDiscovery clickhouse.TableDiscovery, configuration config.QuesmaConfiguration) Registry {
 	return &schemaRegistry{
-		schemas:                concurrent.NewMap[TableName, Schema](),
-		started:                atomic.Bool{},
-		configuration:          configuration,
-		clickhouseSchemaLoader: schemaLoader,
-		ClickhouseTypeAdapter:  NewClickhouseTypeAdapter(),
+		schemas:          concurrent.NewMap[TableName, Schema](),
+		started:          atomic.Bool{},
+		configuration:    configuration,
+		chTableDiscovery: chTableDiscovery,
+		chTypeAdapter:    NewClickhouseTypeAdapter(),
 	}
 }
