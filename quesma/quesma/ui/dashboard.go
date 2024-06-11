@@ -21,17 +21,19 @@ func (qmc *QuesmaManagementConsole) generateDashboard() []byte {
 	buffer.Html(`<main id="dashboard-main">` + "\n")
 
 	// Unfortunately, we need tiny bit of javascript to pause the animation.
-	buffer.Html(`<script type="text/javascript">`)
-	buffer.Html(`var checkbox = document.getElementById("autorefresh");`)
-	buffer.Html(`var dashboard = document.getElementById("dashboard-main");`)
-	buffer.Html(`checkbox.addEventListener('change', function() {`)
-	buffer.Html(`if (this.checked) {`)
-	buffer.Html(`dashboard.classList.remove("paused");`)
-	buffer.Html(`} else {`)
-	buffer.Html(`dashboard.classList.add("paused");`)
-	buffer.Html(`}`)
-	buffer.Html(`});`)
-	buffer.Html(`</script>` + "\n")
+	buffer.Html(`
+		<script type="text/javascript">
+		var checkbox = document.getElementById("autorefresh");
+		var dashboard = document.getElementById("dashboard-main");
+		checkbox.addEventListener('change', function() {
+			if (this.checked) {
+				dashboard.classList.remove("paused");
+			} else {
+				dashboard.classList.add("paused");
+			}
+		});
+		</script>
+	`)
 
 	buffer.Html(`<div id="svg-container">`)
 	buffer.Html(`<svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="none">` + "\n")
