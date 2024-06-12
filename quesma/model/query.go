@@ -11,8 +11,6 @@ import (
 const (
 	RowNumberColumnName = "row_number"
 	noLimit             = 0
-	Desc                = "DESC"
-	Asc                 = "ASC"
 )
 
 type (
