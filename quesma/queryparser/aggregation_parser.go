@@ -117,7 +117,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		}
 	case "cardinality":
 		query.Columns = append(query.Columns,
-			model.SelectColumn{Expression: model.NewCountFunc(model.NewDistinctExpr([]model.Expr{getFirstExpression()}))})
+			model.SelectColumn{Expression: model.NewCountFunc(model.NewDistinctExpr(getFirstExpression()))})
 
 	case "value_count":
 		query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewCountFunc()})
@@ -193,7 +193,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			query.Columns = append(query.Columns, innerFieldsAsSelect...)
 			if metricsAggr.sortByExists() {
 				query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewTableColumnExpr(metricsAggr.SortBy)})
-				query.OrderBy = slices.Concat(query.OrderBy, model.NewSortColumn(metricsAggr.SortBy, strings.ToLower(metricsAggr.Order) == "desc"))
+				query.OrderBy = append(query.OrderBy, model.NewSortColumn(metricsAggr.SortBy, strings.ToLower(metricsAggr.Order) == "desc"))
 			}
 		}
 	case "percentile_ranks":
@@ -516,7 +516,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			return metricsAggregation{
 				AggrType:            k,
 				Fields:              []model.Expr{field},
-				FieldType:           cw.Table.GetDateTimeTypeFromSelectColumn(cw.Ctx, field),
+				FieldType:           cw.Table.GetDateTimeTypeFromSelectClause(cw.Ctx, field),
 				IsFieldNameCompound: isFromScript,
 			}, true
 		}
@@ -531,7 +531,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		return metricsAggregation{
 			AggrType:    "quantile",
 			Fields:      []model.Expr{field},
-			FieldType:   cw.Table.GetDateTimeTypeFromSelectColumn(cw.Ctx, field),
+			FieldType:   cw.Table.GetDateTimeTypeFromSelectClause(cw.Ctx, field),
 			Percentiles: percentiles,
 			Keyed:       keyed,
 		}, true
@@ -693,7 +693,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 
 		currentAggr.Columns = append(currentAggr.Columns, col)
 		currentAggr.GroupBy = append(currentAggr.GroupBy, col.Expression)
-		currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewOrderByExprWithoutOrder([]model.Expr{col.Expression}))
+		currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewOrderByExprWithoutOrder(col.Expression))
 
 		delete(queryMap, "histogram")
 		return success, 1, 1, 1, nil
@@ -709,7 +709,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 
 		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: histogramPartOfQuery})
 		currentAggr.GroupBy = append(currentAggr.GroupBy, histogramPartOfQuery)
-		currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewOrderByExprWithoutOrder([]model.Expr{histogramPartOfQuery}))
+		currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewOrderByExprWithoutOrder(histogramPartOfQuery))
 
 		delete(queryMap, "date_histogram")
 		return success, 1, 1, 1, nil
@@ -736,12 +736,12 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 					}
 				}
 				currentAggr.Limit = size
-				currentAggr.OrderBy = slices.Concat(currentAggr.OrderBy, model.NewSortByCountColumn(true))
+				currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewSortByCountColumn(true))
 				orderByAdded = true
 			}
 			delete(queryMap, termsType)
 			if !orderByAdded {
-				currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewOrderByExprWithoutOrder([]model.Expr{cw.parseFieldField(terms, termsType)}))
+				currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewOrderByExprWithoutOrder(cw.parseFieldField(terms, termsType)))
 			}
 			return success, 1, 1, 1, nil
 			/* will remove later
@@ -775,7 +775,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		const defaultSize = 10
 		size := cw.parseIntField(multiTerms, "size", defaultSize)
 		if _, exists := queryMap["aggs"]; isEmptyGroupBy && !exists { // we can do limit only it terms are not nested
-			currentAggr.OrderBy = slices.Concat(currentAggr.OrderBy, model.NewSortByCountColumn(true))
+			currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewSortByCountColumn(true))
 			currentAggr.Limit = size
 			orderByAdded = true
 			orderByFieldsAdded = 1
@@ -793,7 +793,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 				currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: column})
 				currentAggr.GroupBy = append(currentAggr.GroupBy, column)
 				if !orderByAdded {
-					currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewOrderByExprWithoutOrder([]model.Expr{column}))
+					currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewOrderByExprWithoutOrder(column))
 					orderByFieldsAdded++
 				}
 			}

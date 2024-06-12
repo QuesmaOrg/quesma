@@ -724,7 +724,7 @@ func Test_parseFieldFromScriptField(t *testing.T) {
 		expectedMatch   model.Expr
 		expectedSuccess bool
 	}{
-		{goodQueryMap("doc['field1'].value.getHour()"), model.FunctionExpr{Name: "toHour", Args: []model.Expr{model.NewTableColumnExpr("field1")}}, true},
+		{goodQueryMap("doc['field1'].value.getHour()"), model.NewFunction("toHour", model.NewTableColumnExpr("field1")), true},
 		{goodQueryMap("doc['field1'].value.getHour() + doc['field2'].value.getHour()"), nil, false},
 		{goodQueryMap("doc['field1'].value.hourOfDay"), model.NewFunction("toHour", model.NewTableColumnExpr("field1")), true},
 		{goodQueryMap("doc['field1'].value"), nil, false},

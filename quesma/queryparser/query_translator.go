@@ -455,7 +455,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 	return &model.Query{
 		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}, {Expression: model.NewCountFunc()}},
 		GroupBy:     []model.Expr{model.NewTableColumnExpr(fieldName)},
-		OrderBy:     model.NewSortByCountColumn(true),
+		OrderBy:     []model.OrderByExpr{model.NewSortByCountColumn(true)},
 		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		WhereClause: simpleQuery.WhereClause,
 		SampleLimit: facetsSampleSize,
@@ -471,7 +471,7 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName stri
 	return &model.Query{
 		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(timestampFieldName)}},
 		WhereClause: whereClause,
-		OrderBy:     model.NewSortColumn(timestampFieldName, !earliest),
+		OrderBy:     []model.OrderByExpr{model.NewSortColumn(timestampFieldName, !earliest)},
 		Limit:       1,
 		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),
@@ -486,7 +486,7 @@ func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMa
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Msg(err.Error())
 	}
-	dateTimeType := cw.Table.GetDateTimeTypeFromSelectColumn(cw.Ctx, field)
+	dateTimeType := cw.Table.GetDateTimeTypeFromSelectClause(cw.Ctx, field)
 	if dateTimeType == clickhouse.Invalid {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("invalid date type for field %+v. Using DateTime64 as default.", field)
 		dateTimeType = defaultDateTimeType

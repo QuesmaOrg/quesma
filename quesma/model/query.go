@@ -3,7 +3,6 @@ package model
 import (
 	"context"
 	"fmt"
-	"mitmproxy/quesma/logger"
 	"sort"
 	"strings"
 )
@@ -71,19 +70,19 @@ type (
 	}
 )
 
-func NewSortColumn(field string, desc bool) []OrderByExpr {
+func NewSortColumn(field string, desc bool) OrderByExpr {
 	if desc {
-		return []OrderByExpr{NewOrderByExpr([]Expr{NewColumnRef(field)}, DescOrder)}
+		return NewOrderByExpr([]Expr{NewColumnRef(field)}, DescOrder)
 	} else {
-		return []OrderByExpr{NewOrderByExpr([]Expr{NewColumnRef(field)}, AscOrder)}
+		return NewOrderByExpr([]Expr{NewColumnRef(field)}, AscOrder)
 	}
 }
 
-func NewSortByCountColumn(desc bool) []OrderByExpr {
+func NewSortByCountColumn(desc bool) OrderByExpr {
 	if desc {
-		return []OrderByExpr{NewOrderByExpr([]Expr{NewCountFunc()}, DescOrder)}
+		return NewOrderByExpr([]Expr{NewCountFunc()}, DescOrder)
 	} else {
-		return []OrderByExpr{NewOrderByExpr([]Expr{NewCountFunc()}, AscOrder)}
+		return NewOrderByExpr([]Expr{NewCountFunc()}, AscOrder)
 	}
 }
 
@@ -173,11 +172,7 @@ func (q *Query) String(ctx context.Context) string {
 
 	groupBy := make([]string, 0, len(q.GroupBy))
 	for _, col := range q.GroupBy {
-		if len(q.GroupBy) < 1 {
-			logger.Warn().Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
-		} else {
-			groupBy = append(groupBy, AsString(col))
-		}
+		groupBy = append(groupBy, AsString(col))
 	}
 	if len(groupBy) > 0 {
 		sb.WriteString(" GROUP BY ")
@@ -186,11 +181,7 @@ func (q *Query) String(ctx context.Context) string {
 
 	orderBy := make([]string, 0, len(q.OrderBy))
 	for _, col := range q.OrderBy {
-		if len(q.OrderBy) < 1 {
-			logger.WarnWithCtx(ctx).Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
-		} else {
-			orderBy = append(orderBy, AsString(col))
-		}
+		orderBy = append(orderBy, AsString(col))
 	}
 	if len(orderBy) > 0 {
 		sb.WriteString(" ORDER BY ")

@@ -11,7 +11,6 @@ import (
 	"mitmproxy/quesma/queryparser/lucene"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/util"
-	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -1210,7 +1209,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 						if orderAsString, ok := order.(string); ok {
 							orderAsString = strings.ToLower(orderAsString)
 							if orderAsString == "asc" || orderAsString == "desc" {
-								sortColumns = slices.Concat(sortColumns, model.NewSortColumn(fieldName, orderAsString == "desc"))
+								sortColumns = append(sortColumns, model.NewSortColumn(fieldName, orderAsString == "desc"))
 							} else {
 								logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", orderAsString)
 							}
@@ -1218,12 +1217,12 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 							logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order type: %T, value: %v. Skipping", order, order)
 						}
 					} else {
-						sortColumns = slices.Concat(sortColumns, model.NewSortColumn(fieldName, false))
+						sortColumns = append(sortColumns, model.NewSortColumn(fieldName, false))
 					}
 				case string:
 					v = strings.ToLower(v)
 					if v == "asc" || v == "desc" {
-						sortColumns = slices.Concat(sortColumns, model.NewSortColumn(fieldName, v == "desc"))
+						sortColumns = append(sortColumns, model.NewSortColumn(fieldName, v == "desc"))
 					} else {
 						logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", v)
 					}
@@ -1242,7 +1241,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 			if fieldValue, ok := fieldValue.(string); ok {
 				fieldValue = strings.ToLower(fieldValue)
 				if fieldValue == "asc" || fieldValue == "desc" {
-					sortColumns = slices.Concat(sortColumns, model.NewSortColumn(fieldName, fieldValue == "desc"))
+					sortColumns = append(sortColumns, model.NewSortColumn(fieldName, fieldValue == "desc"))
 				} else {
 					logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", fieldValue)
 				}
@@ -1259,7 +1258,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 			}
 			fieldValue = strings.ToLower(fieldValue)
 			if fieldValue == "asc" || fieldValue == "desc" {
-				sortColumns = slices.Concat(sortColumns, model.NewSortColumn(fieldName, fieldValue == "desc"))
+				sortColumns = append(sortColumns, model.NewSortColumn(fieldName, fieldValue == "desc"))
 			} else {
 				logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", fieldValue)
 			}

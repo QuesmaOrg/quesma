@@ -9,7 +9,6 @@ import (
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/testdata"
-	"slices"
 	"strconv"
 	"testing"
 
@@ -345,12 +344,12 @@ func Test_parseSortFields(t *testing.T) {
 				QueryMap{"_table_field_with_underscore": QueryMap{"order": "asc", "unmapped_type": "boolean"}}, // this should be accepted, as it exists in the table
 				QueryMap{"_doc": QueryMap{"order": "desc", "unmapped_type": "boolean"}},                        // this should be discarded, as it doesn't exist in the table
 			},
-			sortColumns: slices.Concat(
+			sortColumns: []model.OrderByExpr{
 				model.NewSortColumn("@timestamp", true),
 				model.NewSortColumn("service.name", false),
 				model.NewSortColumn("no_order_field", false),
 				model.NewSortColumn("_table_field_with_underscore", false),
-			),
+			},
 		},
 		{
 			name:        "empty",
@@ -363,7 +362,7 @@ func Test_parseSortFields(t *testing.T) {
 				"timestamp": "desc",
 				"_doc":      "desc",
 			},
-			sortColumns: model.NewSortColumn("timestamp", true),
+			sortColumns: []model.OrderByExpr{model.NewSortColumn("timestamp", true)},
 		},
 		{
 			name: "map[string]interface{}",
@@ -371,14 +370,14 @@ func Test_parseSortFields(t *testing.T) {
 				"timestamp": "desc",
 				"_doc":      "desc",
 			},
-			sortColumns: model.NewSortColumn("timestamp", true),
+			sortColumns: []model.OrderByExpr{model.NewSortColumn("timestamp", true)},
 		}, {
 			name: "[]map[string]string",
 			sortMap: []any{
 				QueryMap{"@timestamp": "asc"},
 				QueryMap{"_doc": "asc"},
 			},
-			sortColumns: model.NewSortColumn("@timestamp", false),
+			sortColumns: []model.OrderByExpr{model.NewSortColumn("@timestamp", false)},
 		},
 	}
 	table, _ := clickhouse.NewTable(`CREATE TABLE `+tableName+`

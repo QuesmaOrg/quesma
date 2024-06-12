@@ -57,7 +57,7 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 
 	// build this aggregation
 	for _, interval := range Range.Intervals {
-		stmt := model.SelectColumn{Expression: Range.Col}
+		stmt := model.SelectColumn{Expression: Range.Expr}
 		currentAggr.Columns = append(currentAggr.Columns, interval.ToSQLSelectQuery(stmt))
 	}
 	if !Range.Keyed {
@@ -82,7 +82,7 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 	// Range aggregation with subaggregations should be a quite rare case, so I'm leaving that for later.
 	whereBeforeNesting := currentAggr.whereBuilder
 	for _, interval := range Range.Intervals {
-		stmt := model.SelectColumn{Expression: Range.Col}
+		stmt := model.SelectColumn{Expression: Range.Expr}
 		currentAggr.whereBuilder = model.CombineWheres(
 			cw.Ctx, currentAggr.whereBuilder,
 			model.NewSimpleQuery(interval.ToWhereClause(stmt), true),

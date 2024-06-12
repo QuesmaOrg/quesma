@@ -64,15 +64,15 @@ func getFirstKeyValue(ctx context.Context, queryMap QueryMap) (string, string) {
 	return "", ""
 }
 
-func (cw *ClickhouseQueryTranslator) getFieldNames(fields []interface{}) (cols []model.Expr) {
+func (cw *ClickhouseQueryTranslator) getFieldNames(fields []interface{}) (exprs []model.Expr) {
 	for _, field := range fields {
 		if fName, ok := field.(QueryMap)["field"]; ok {
 			if fieldName, ok := fName.(string); ok {
-				cols = append(cols, model.NewColumnRef(cw.Table.ResolveField(cw.Ctx, fieldName)))
+				exprs = append(exprs, model.NewColumnRef(cw.Table.ResolveField(cw.Ctx, fieldName)))
 			} else {
 				logger.WarnWithCtx(cw.Ctx).Msgf("field %v is not a string (type: %T). Might be correct, might not. Check it out.", fName, fName)
 			}
 		}
 	}
-	return cols
+	return exprs
 }

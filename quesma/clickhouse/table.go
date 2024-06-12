@@ -180,11 +180,11 @@ func (t *Table) GetDateTimeType(ctx context.Context, fieldName string) DateTimeT
 	return Invalid
 }
 
-func (t *Table) GetDateTimeTypeFromSelectColumn(ctx context.Context, col model.Expr) DateTimeType {
-	if exp, ok := col.(model.TableColumnExpr); ok {
+func (t *Table) GetDateTimeTypeFromSelectClause(ctx context.Context, expr model.Expr) DateTimeType {
+	if exp, ok := expr.(model.TableColumnExpr); ok {
 		return t.GetDateTimeType(ctx, exp.ColumnRef.ColumnName)
 	}
-	if ref, ok := col.(model.ColumnRef); ok {
+	if ref, ok := expr.(model.ColumnRef); ok {
 		return t.GetDateTimeType(ctx, ref.ColumnName)
 	}
 	return Invalid

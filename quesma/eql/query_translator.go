@@ -139,7 +139,7 @@ func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query
 
 	query.WhereClause = model.NewLiteral(where) // @TODO that's to be fixed
 	query.CanParse = true
-	query.OrderBy = model.NewSortColumn("@timestamp", true)
+	query.OrderBy = []model.OrderByExpr{model.NewSortColumn("@timestamp", true)}
 
 	return query, searchQueryInfo, highlighter, nil
 }
