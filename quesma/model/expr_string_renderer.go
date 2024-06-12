@@ -135,3 +135,12 @@ func (v *renderer) VisitOrderByExpr(e OrderByExpr) interface{} {
 	}
 	return allExprs
 }
+
+func (v *renderer) VisitDistinctExpr(e DistinctExpr) interface{} {
+	var exprsAsStr []string
+	for _, expr := range e.Exprs {
+		exprsAsStr = append(exprsAsStr, expr.Accept(v).(string))
+	}
+	allExprs := strings.Join(exprsAsStr, ", ")
+	return fmt.Sprintf("DISTINCT %s", allExprs)
+}

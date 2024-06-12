@@ -117,7 +117,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		}
 	case "cardinality":
 		query.Columns = append(query.Columns,
-			model.SelectColumn{Expression: model.NewCountFunc(model.NewComposite(model.Symbol("DISTINCT"), getFirstExpression()))})
+			model.SelectColumn{Expression: model.NewCountFunc(model.NewDistinctExpr([]model.Expr{getFirstExpression()}))})
 
 	case "value_count":
 		query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewCountFunc()})

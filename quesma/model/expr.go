@@ -173,6 +173,19 @@ func NewComposite(Exprressions ...Expr) *CompositeExpr {
 	return &CompositeExpr{Expressions: Exprressions}
 }
 
+// DistinctExpr is a representation of DISTINCT keyword in SQL, e.g. `SELECT DISTINCT` ... or `SELECT COUNT(DISTINCT ...)`
+type DistinctExpr struct {
+	Exprs []Expr
+}
+
+func NewDistinctExpr(exprs []Expr) DistinctExpr {
+	return DistinctExpr{Exprs: exprs}
+}
+
+func (s DistinctExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitDistinctExpr(s)
+}
+
 type OrderByDirection int8
 
 const (
@@ -215,4 +228,5 @@ type ExprVisitor interface {
 	VisitNestedProperty(e NestedProperty) interface{}
 	VisitArrayAccess(e ArrayAccess) interface{}
 	VisitOrderByExpr(e OrderByExpr) interface{}
+	VisitDistinctExpr(e DistinctExpr) interface{}
 }
