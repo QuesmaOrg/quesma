@@ -103,7 +103,6 @@ func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
 // Deprecated
 type StringExpr struct {
 	// StringExpr is just like LiteralExpr with string Value, but when rendering we don't quote it.
-	// Used e.g. for representing ASC/DESC, or tablename
 	Value string
 }
 
