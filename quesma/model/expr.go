@@ -176,7 +176,7 @@ func NewComposite(Exprressions ...Expr) *CompositeExpr {
 type OrderByDirection int8
 
 const (
-	DefaultOrder OrderByDirection = iota // DEFAULT just defers to whatever DBMS default is
+	DefaultOrder OrderByDirection = iota // DEFAULT means leaving ordering unspecified and deferring to whatever DBMS default is
 	AscOrder
 	DescOrder
 )
