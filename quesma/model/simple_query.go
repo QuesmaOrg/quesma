@@ -3,11 +3,10 @@ package model
 import (
 	"context"
 	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/queryparser/where_clause"
 )
 
 type SimpleQuery struct {
-	WhereClause where_clause.Statement
+	WhereClause Expr
 	OrderBy     []SelectColumn
 	CanParse    bool
 	FieldName   string
@@ -22,20 +21,18 @@ const (
 	WeDontNeedCount      = 0
 )
 
-var asString = where_clause.StringRenderer{}
-
 func (s *SimpleQuery) WhereClauseAsString() string {
 	if s.WhereClause == nil {
 		return ""
 	}
-	return (s.WhereClause).Accept(&asString).(string)
+	return AsString(s.WhereClause)
 }
 
-func NewSimpleQuery(whereClause where_clause.Statement, canParse bool) SimpleQuery {
+func NewSimpleQuery(whereClause Expr, canParse bool) SimpleQuery {
 	return SimpleQuery{WhereClause: whereClause, CanParse: canParse}
 }
 
-func NewSimpleQueryWithFieldName(whereClause where_clause.Statement, canParse bool, fieldName string) SimpleQuery {
+func NewSimpleQueryWithFieldName(whereClause Expr, canParse bool, fieldName string) SimpleQuery {
 	return SimpleQuery{WhereClause: whereClause, CanParse: canParse, FieldName: fieldName}
 }
 
@@ -45,22 +42,22 @@ func (s *SimpleQuery) LimitForCount() (limit int, doWeNeedLimit bool) {
 	return s.NeedCountWithLimit, s.NeedCountWithLimit != WeDontNeedCount && s.NeedCountWithLimit != WeNeedUnlimitedCount
 }
 
-func And(andStmts []where_clause.Statement) where_clause.Statement {
+func And(andStmts []Expr) Expr {
 	return combineStatements(andStmts, "AND")
 }
 
-func Or(orStmts []where_clause.Statement) where_clause.Statement {
+func Or(orStmts []Expr) Expr {
 	return combineStatements(orStmts, "OR")
 }
 
 // operator = "AND" or "OR"
-func combineStatements(stmtsToCombine []where_clause.Statement, operator string) where_clause.Statement {
+func combineStatements(stmtsToCombine []Expr, operator string) Expr {
 	stmts := FilterOutEmptyStatements(stmtsToCombine)
-	var newWhereStatement where_clause.Statement
+	var newWhereStatement Expr
 	if len(stmts) > 1 {
 		newWhereStatement = stmts[0]
 		for _, stmt := range stmts[1:] {
-			newWhereStatement = where_clause.NewInfixOp(newWhereStatement, operator, stmt)
+			newWhereStatement = NewInfixExpr(newWhereStatement, operator, stmt)
 		}
 		return newWhereStatement
 	}
@@ -71,9 +68,9 @@ func combineStatements(stmtsToCombine []where_clause.Statement, operator string)
 }
 
 func CombineWheres(ctx context.Context, where1, where2 SimpleQuery) SimpleQuery {
-	var combinedWhereClause where_clause.Statement
+	var combinedWhereClause Expr
 	if where1.WhereClause != nil && where2.WhereClause != nil {
-		combinedWhereClause = where_clause.NewInfixOp(where1.WhereClause, "AND", where2.WhereClause)
+		combinedWhereClause = NewInfixExpr(where1.WhereClause, "AND", where2.WhereClause)
 	} else if where1.WhereClause != nil {
 		combinedWhereClause = where1.WhereClause
 	} else if where2.WhereClause != nil {
@@ -94,8 +91,8 @@ func CombineWheres(ctx context.Context, where1, where2 SimpleQuery) SimpleQuery 
 	return combined
 }
 
-func FilterOutEmptyStatements(stmts []where_clause.Statement) []where_clause.Statement {
-	var nonEmptyStmts []where_clause.Statement
+func FilterOutEmptyStatements(stmts []Expr) []Expr {
+	var nonEmptyStmts []Expr
 	for _, stmt := range stmts {
 		if stmt != nil {
 			nonEmptyStmts = append(nonEmptyStmts, stmt)

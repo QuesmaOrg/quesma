@@ -1,16 +1,23 @@
 package elasticsearch_field_types
 
+import "slices"
+
 // https://opensearch.org/docs/latest/field-types/supported-field-types/index/
 
 // Common types
 const (
 	FieldTypeBinary           string = "binary"
 	FieldTypeBoolean          string = "boolean"
+	FieldTypeByte             string = "byte"
 	FieldTypeKeyword          string = "keyword"
 	FieldTypeConstantKeyword  string = "constant_keyword"
 	FieldTypeConstantWildcard string = "wildcard"
 	FieldTypeLong             string = "long"
+	FieldTypeUnsignedLong     string = "unsigned_long"
+	FieldTypeInteger          string = "integer"
+	FieldTypeShort            string = "short"
 	FieldTypeDouble           string = "double"
+	FieldTypeFloat            string = "float"
 	FieldTypeDate             string = "date"
 	FieldTypeDateNanos        string = "date_nanos"
 	FieldTypeAlias            string = "alias"
@@ -30,7 +37,7 @@ const (
 	FieldTypeDoubleRange string = "double_range"
 	FieldTypeDateRange   string = "date_range"
 	FieldTypeIpRange     string = "ip_range"
-	FieldTypeTypeIp      string = "ip"
+	FieldTypeIp          string = "ip"
 	FieldTypeTypeVersion string = "version"
 	FieldTypeTypeMurMur3 string = "murmur3"
 )
@@ -75,10 +82,15 @@ const (
 var AllTypes = map[string]bool{
 	FieldTypeBinary:                true,
 	FieldTypeBoolean:               true,
+	FieldTypeByte:                  true,
+	FieldTypeShort:                 true,
+	FieldTypeInteger:               true,
+	FieldTypeFloat:                 true,
 	FieldTypeKeyword:               true,
 	FieldTypeConstantKeyword:       true,
 	FieldTypeConstantWildcard:      true,
 	FieldTypeLong:                  true,
+	FieldTypeUnsignedLong:          true,
 	FieldTypeDouble:                true,
 	FieldTypeDate:                  true,
 	FieldTypeDateNanos:             true,
@@ -91,7 +103,7 @@ var AllTypes = map[string]bool{
 	FieldTypeDoubleRange:           true,
 	FieldTypeDateRange:             true,
 	FieldTypeIpRange:               true,
-	FieldTypeTypeIp:                true,
+	FieldTypeIp:                    true,
 	FieldTypeTypeVersion:           true,
 	FieldTypeTypeMurMur3:           true,
 	FieldTypeAggregateMetricDouble: true,
@@ -115,4 +127,21 @@ var AllTypes = map[string]bool{
 
 func IsValid(fieldType string) bool {
 	return AllTypes[fieldType]
+}
+
+func IsAggregatable(typeName string) bool {
+	return slices.Contains([]string{
+		FieldTypeDate,
+		FieldTypeByte,
+		FieldTypeShort,
+		FieldTypeInteger,
+		FieldTypeLong,
+		FieldTypeFloat,
+		FieldTypeUnsignedLong,
+		FieldTypeDouble,
+		FieldTypeIp,
+		FieldTypeIpRange,
+		FieldTypeKeyword,
+		FieldTypeGeoPoint,
+	}, typeName)
 }

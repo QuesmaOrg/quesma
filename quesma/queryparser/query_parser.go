@@ -9,7 +9,6 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/typical_queries"
 	"mitmproxy/quesma/queryparser/lucene"
-	wc "mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/util"
 	"strconv"
@@ -86,8 +85,14 @@ func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 }
 
 func (cw *ClickhouseQueryTranslator) buildCountQueryIfNeeded(simpleQuery *model.SimpleQuery, queryInfo model.SearchQueryInfo) *model.Query {
-	if queryInfo.TrackTotalHits >= model.TrackTotalHitsTrue { // TODO prettify
-		return cw.BuildSimpleCountQuery(simpleQuery.WhereClause)
+	if queryInfo.TrackTotalHits == model.TrackTotalHitsFalse {
+		return nil
+	}
+	if queryInfo.TrackTotalHits == model.TrackTotalHitsTrue {
+		return cw.BuildCountQuery(simpleQuery.WhereClause, 0)
+	}
+	if queryInfo.TrackTotalHits > queryInfo.Size {
+		return cw.BuildCountQuery(simpleQuery.WhereClause, queryInfo.TrackTotalHits)
 	}
 	return nil
 }
@@ -259,7 +264,7 @@ func (cw *ClickhouseQueryTranslator) parseMetadata(queryMap QueryMap) QueryMap {
 func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fieldName string, prefix *string, caseIns bool) model.SimpleQuery {
 	fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
 	canParse := true
-	stmts := make([]wc.Statement, 0)
+	stmts := make([]model.Expr, 0)
 	if indexFilter != nil {
 		res := cw.parseQueryMap(*indexFilter)
 		canParse = res.CanParse
@@ -274,7 +279,7 @@ func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fi
 			like = "LIKE"
 		}
 		cw.AddTokenToHighlight(*prefix)
-		stmt := wc.NewInfixOp(wc.NewColumnRef(fieldName), like, wc.NewLiteral("'"+*prefix+"%'"))
+		stmt := model.NewInfixExpr(model.NewColumnRef(fieldName), like, model.NewLiteral("'"+*prefix+"%'"))
 		stmts = append(stmts, stmt)
 	}
 	return model.NewSimpleQuery(model.And(stmts), canParse)
@@ -376,7 +381,7 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 		}
 	}
 
-	var whereStmt wc.Statement
+	var whereStmt model.Expr
 	if v, ok := cw.Table.Cols[timestampColumnName]; ok {
 		switch v.Type.String() {
 		case clickhouse.DateTime64.String():
@@ -384,18 +389,18 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 				finalIds = append(finalIds, fmt.Sprintf("toDateTime64(%s,3)", id))
 			}
 			if len(finalIds) == 1 {
-				whereStmt = wc.NewInfixOp(wc.NewColumnRef(timestampColumnName), " = ", wc.NewFunction("toDateTime64", wc.NewLiteral(ids[0]), wc.NewLiteral("3")))
+				whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " = ", model.NewFunction("toDateTime64", model.NewLiteral(ids[0]), model.NewLiteral("3")))
 			} else {
-				whereStmt = wc.NewInfixOp(wc.NewColumnRef(timestampColumnName), " IN ", wc.NewFunction("toDateTime64", wc.NewLiteral(strings.Join(ids, ",")), wc.NewLiteral("3")))
+				whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " IN ", model.NewFunction("toDateTime64", model.NewLiteral(strings.Join(ids, ",")), model.NewLiteral("3")))
 			}
 		case clickhouse.DateTime.String():
 			for _, id := range ids {
 				finalIds = append(finalIds, fmt.Sprintf("toDateTime(%s)", id))
 			}
 			if len(finalIds) == 1 {
-				whereStmt = wc.NewInfixOp(wc.NewColumnRef(timestampColumnName), " = ", wc.NewFunction("toDateTime", wc.NewLiteral(finalIds[0])))
+				whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " = ", model.NewFunction("toDateTime", model.NewLiteral(finalIds[0])))
 			} else {
-				whereStmt = wc.NewInfixOp(wc.NewColumnRef(timestampColumnName), " IN ", wc.NewFunction("toDateTime", wc.NewLiteral(strings.Join(ids, ","))))
+				whereStmt = model.NewInfixExpr(model.NewColumnRef(timestampColumnName), " IN ", model.NewFunction("toDateTime", model.NewLiteral(strings.Join(ids, ","))))
 			}
 		default:
 			logger.Warn().Msgf("timestamp field of unsupported type %s", v.Type.String())
@@ -406,8 +411,8 @@ func (cw *ClickhouseQueryTranslator) parseIds(queryMap QueryMap) model.SimpleQue
 }
 
 // Parses each model.SimpleQuery separately, returns list of translated SQLs
-func (cw *ClickhouseQueryTranslator) parseQueryMapArray(queryMaps []interface{}) (stmts []wc.Statement, canParse bool) {
-	stmts = make([]wc.Statement, len(queryMaps))
+func (cw *ClickhouseQueryTranslator) parseQueryMapArray(queryMaps []interface{}) (stmts []model.Expr, canParse bool) {
+	stmts = make([]model.Expr, len(queryMaps))
 	canParse = true
 	for i, v := range queryMaps {
 		if vAsMap, ok := v.(QueryMap); ok {
@@ -424,22 +429,22 @@ func (cw *ClickhouseQueryTranslator) parseQueryMapArray(queryMaps []interface{})
 	return stmts, canParse
 }
 
-func (cw *ClickhouseQueryTranslator) iterateListOrDictAndParse(queryMaps interface{}) (stmts []wc.Statement, canParse bool) {
+func (cw *ClickhouseQueryTranslator) iterateListOrDictAndParse(queryMaps interface{}) (stmts []model.Expr, canParse bool) {
 	switch queryMapsTyped := queryMaps.(type) {
 	case []interface{}:
 		return cw.parseQueryMapArray(queryMapsTyped)
 	case QueryMap:
 		simpleQuery := cw.parseQueryMap(queryMapsTyped)
-		return []wc.Statement{simpleQuery.WhereClause}, simpleQuery.CanParse
+		return []model.Expr{simpleQuery.WhereClause}, simpleQuery.CanParse
 	default:
 		logger.WarnWithCtx(cw.Ctx).Msgf("Invalid query type: %T, value: %v", queryMapsTyped, queryMapsTyped)
-		return []wc.Statement{}, false
+		return []model.Expr{}, false
 	}
 }
 
 // TODO: minimum_should_match parameter. Now only ints supported and >1 changed into 1
 func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) model.SimpleQuery {
-	var andStmts []wc.Statement
+	var andStmts []model.Expr
 	canParse := true // will stay true only if all subqueries can be parsed
 	for _, andPhrase := range []string{"must", "filter"} {
 		if queries, ok := queryMap[andPhrase]; ok {
@@ -472,7 +477,7 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) model.SimpleQu
 		if len(andStmts) == 0 {
 			sql = orSql
 		} else if orSql != nil {
-			sql = model.And([]wc.Statement{sql, orSql})
+			sql = model.And([]model.Expr{sql, orSql})
 		}
 	}
 
@@ -482,27 +487,27 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) model.SimpleQu
 		if len(sqlNots) > 0 {
 			for i, stmt := range sqlNots {
 				if stmt != nil {
-					sqlNots[i] = wc.NewPrefixOp("NOT", []wc.Statement{stmt})
+					sqlNots[i] = model.NewPrefixExpr("NOT", []model.Expr{stmt})
 				}
 			}
 			orSql := model.Or(sqlNots)
-			sql = model.And([]wc.Statement{sql, orSql})
+			sql = model.And([]model.Expr{sql, orSql})
 		}
 	}
 	return model.NewSimpleQuery(sql, canParse)
 }
 
 func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) model.SimpleQuery {
-	var whereClause wc.Statement
+	var whereClause model.Expr
 	if len(queryMap) == 1 {
 		for k, v := range queryMap {
 			cw.AddTokenToHighlight(v)
 			if k == "_index" { // index is a table name, already taken from URI and moved to FROM clause
 				logger.Warn().Msgf("term %s=%v in query body, ignoring in result SQL", k, v)
-				whereClause = wc.NewInfixOp(wc.NewLiteral("0"), "=", wc.NewLiteral("0 /* "+k+"="+sprint(v)+" */"))
+				whereClause = model.NewInfixExpr(model.NewLiteral("0"), "=", model.NewLiteral("0 /* "+k+"="+sprint(v)+" */"))
 				return model.NewSimpleQuery(whereClause, true)
 			}
-			whereClause = wc.NewInfixOp(wc.NewColumnRef(k), "=", wc.NewLiteral(sprint(v)))
+			whereClause = model.NewInfixExpr(model.NewColumnRef(k), "=", model.NewLiteral(sprint(v)))
 			return model.NewSimpleQuery(whereClause, true)
 		}
 	}
@@ -529,7 +534,7 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 			return model.NewSimpleQuery(nil, false)
 		}
 		if len(vAsArray) == 1 {
-			simpleStatement := wc.NewInfixOp(wc.NewColumnRef(k), "=", wc.NewLiteral(sprint(vAsArray[0])))
+			simpleStatement := model.NewInfixExpr(model.NewColumnRef(k), "=", model.NewLiteral(sprint(vAsArray[0])))
 			return model.NewSimpleQuery(simpleStatement, true)
 		}
 		values := make([]string, len(vAsArray))
@@ -538,7 +543,7 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 			values[i] = sprint(v)
 		}
 		combinedValues := "(" + strings.Join(values, ",") + ")"
-		compoundStatement := wc.NewInfixOp(wc.NewColumnRef(k), "IN", wc.NewLiteral(combinedValues))
+		compoundStatement := model.NewInfixExpr(model.NewColumnRef(k), "IN", model.NewLiteral(combinedValues))
 		return model.NewSimpleQuery(compoundStatement, true)
 	}
 
@@ -582,7 +587,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 			} else {
 				subQueries = strings.Split(vAsString, " ")
 			}
-			statements := make([]wc.Statement, 0, len(subQueries))
+			statements := make([]model.Expr, 0, len(subQueries))
 			cw.AddTokenToHighlight(vAsString)
 			for _, subQuery := range subQueries {
 				cw.AddTokenToHighlight(subQuery)
@@ -590,7 +595,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 					computedIdMatchingQuery := cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
 					statements = append(statements, computedIdMatchingQuery.WhereClause)
 				} else {
-					simpleStat := wc.NewInfixOp(wc.NewColumnRef(fieldName), "iLIKE", wc.NewLiteral("'%"+subQuery+"%'"))
+					simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral("'%"+subQuery+"%'"))
 					statements = append(statements, simpleStat)
 				}
 			}
@@ -600,7 +605,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 		cw.AddTokenToHighlight(vUnNested)
 
 		// so far we assume that only strings can be ORed here
-		statement := wc.NewInfixOp(wc.NewColumnRef(fieldName), "==", wc.NewLiteral(sprint(vUnNested)))
+		statement := model.NewInfixExpr(model.NewColumnRef(fieldName), "==", model.NewLiteral(sprint(vUnNested)))
 		return model.NewSimpleQuery(statement, true)
 	}
 
@@ -622,7 +627,7 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) model.Si
 	} else {
 		fields = cw.Table.GetFulltextFields()
 	}
-	alwaysFalseStmt := wc.NewLiteral("false")
+	alwaysFalseStmt := model.NewLiteral("false")
 	if len(fields) == 0 {
 		return model.NewSimpleQuery(alwaysFalseStmt, true)
 	}
@@ -657,11 +662,11 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) model.Si
 		cw.AddTokenToHighlight(subQ)
 	}
 
-	sqls := make([]wc.Statement, len(fields)*len(subQueries))
+	sqls := make([]model.Expr, len(fields)*len(subQueries))
 	i := 0
 	for _, field := range fields {
 		for _, subQ := range subQueries {
-			simpleStat := wc.NewInfixOp(wc.NewColumnRef(field), "iLIKE", wc.NewLiteral("'%"+subQ+"%'"))
+			simpleStat := model.NewInfixExpr(model.NewColumnRef(field), "iLIKE", model.NewLiteral("'%"+subQ+"%'"))
 			sqls[i] = simpleStat
 			i++
 		}
@@ -681,12 +686,12 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) model.Simple
 		switch vCasted := v.(type) {
 		case string:
 			cw.AddTokenToHighlight(vCasted)
-			simpleStat := wc.NewInfixOp(wc.NewColumnRef(fieldName), "iLIKE", wc.NewLiteral("'"+vCasted+"%'"))
+			simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral("'"+vCasted+"%'"))
 			return model.NewSimpleQuery(simpleStat, true)
 		case QueryMap:
 			token := vCasted["value"].(string)
 			cw.AddTokenToHighlight(token)
-			simpleStat := wc.NewInfixOp(wc.NewColumnRef(fieldName), "iLIKE", wc.NewLiteral("'"+token+"%'"))
+			simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral("'"+token+"%'"))
 			return model.NewSimpleQuery(simpleStat, true)
 		default:
 			logger.WarnWithCtx(cw.Ctx).Msgf("unsupported prefix type: %T, value: %v", v, v)
@@ -714,7 +719,7 @@ func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) model.Simp
 			if value, ok := vAsMap["value"]; ok {
 				if valueAsString, ok := value.(string); ok {
 					cw.AddTokenToHighlight(valueAsString)
-					whereStatement := wc.NewInfixOp(wc.NewColumnRef(fieldName), "iLIKE", wc.NewLiteral("'"+strings.ReplaceAll(valueAsString, "*", "%")+"'"))
+					whereStatement := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral("'"+strings.ReplaceAll(valueAsString, "*", "%")+"'"))
 					return model.NewSimpleQuery(whereStatement, true)
 				} else {
 					logger.WarnWithCtx(cw.Ctx).Msgf("invalid value type: %T, value: %v", value, value)
@@ -808,7 +813,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 
 	for field, v := range queryMap {
 		field = cw.Table.ResolveField(cw.Ctx, field)
-		stmts := make([]wc.Statement, 0)
+		stmts := make([]model.Expr, 0)
 		if _, ok := v.(QueryMap); !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid range type: %T, value: %v", v, v)
 			continue
@@ -822,14 +827,14 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 		for _, op := range keysSorted {
 			v := v.(QueryMap)[op]
 			var timeFormatFuncName string
-			var finalLHS, valueToCompare wc.Statement
+			var finalLHS, valueToCompare model.Expr
 			fieldType := cw.Table.GetDateTimeType(cw.Ctx, field)
 			vToPrint := sprint(v)
-			valueToCompare = wc.NewLiteral(vToPrint)
-			finalLHS = wc.NewColumnRef(field)
+			valueToCompare = model.NewLiteral(vToPrint)
+			finalLHS = model.NewColumnRef(field)
 			if !isDatetimeInDefaultFormat {
 				timeFormatFuncName = "toUnixTimestamp64Milli"
-				finalLHS = wc.NewFunction(timeFormatFuncName, wc.NewColumnRef(field))
+				finalLHS = model.NewFunction(timeFormatFuncName, model.NewColumnRef(field))
 			} else {
 				switch fieldType {
 				case clickhouse.DateTime64, clickhouse.DateTime:
@@ -839,10 +844,10 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 						if _, err := iso8601.ParseString(dateTime); err == nil {
 							_, timeFormatFuncName = cw.parseDateTimeString(cw.Table, field, dateTime)
 							// TODO Investigate the quotation below
-							valueToCompare = wc.NewFunction(timeFormatFuncName, wc.NewLiteral(fmt.Sprintf("'%s'", dateTime)))
+							valueToCompare = model.NewFunction(timeFormatFuncName, model.NewLiteral(fmt.Sprintf("'%s'", dateTime)))
 						} else if op == "gte" || op == "lte" || op == "gt" || op == "lt" {
 							vToPrint, err = cw.parseDateMathExpression(vToPrint)
-							valueToCompare = wc.NewLiteral(vToPrint)
+							valueToCompare = model.NewLiteral(vToPrint)
 							if err != nil {
 								logger.WarnWithCtx(cw.Ctx).Msgf("error parsing date math expression: %s", vToPrint)
 								return model.NewSimpleQuery(nil, false)
@@ -850,7 +855,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 						}
 					} else if v == nil {
 						vToPrint = "NULL"
-						valueToCompare = wc.NewLiteral("NULL")
+						valueToCompare = model.NewLiteral("NULL")
 					}
 				case clickhouse.Invalid: // assumes it is number that does not need formatting
 					if len(vToPrint) > 2 && vToPrint[0] == '\'' && vToPrint[len(vToPrint)-1] == '\'' {
@@ -865,7 +870,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 						} else {
 							logger.WarnWithCtx(cw.Ctx).Msgf("we use range with unknown literal %s, field %s", vToPrint, field)
 						}
-						valueToCompare = wc.NewLiteral(vToPrint)
+						valueToCompare = model.NewLiteral(vToPrint)
 					}
 				default:
 					logger.WarnWithCtx(cw.Ctx).Msgf("invalid DateTime type for field: %s, parsed dateTime value: %s", field, vToPrint)
@@ -874,16 +879,16 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 
 			switch op {
 			case "gte":
-				stmt := wc.NewInfixOp(finalLHS, ">=", valueToCompare)
+				stmt := model.NewInfixExpr(finalLHS, ">=", valueToCompare)
 				stmts = append(stmts, stmt)
 			case "lte":
-				stmt := wc.NewInfixOp(finalLHS, "<=", valueToCompare)
+				stmt := model.NewInfixExpr(finalLHS, "<=", valueToCompare)
 				stmts = append(stmts, stmt)
 			case "gt":
-				stmt := wc.NewInfixOp(finalLHS, ">", valueToCompare)
+				stmt := model.NewInfixExpr(finalLHS, ">", valueToCompare)
 				stmts = append(stmts, stmt)
 			case "lt":
-				stmt := wc.NewInfixOp(finalLHS, "<", valueToCompare)
+				stmt := model.NewInfixExpr(finalLHS, "<", valueToCompare)
 				stmts = append(stmts, stmt)
 			case "format":
 				// ignored
@@ -919,7 +924,7 @@ func (cw *ClickhouseQueryTranslator) parseDateTimeString(table *clickhouse.Table
 // - The field value was malformed and ignore_malformed was defined in the mapping
 func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.SimpleQuery {
 	//sql := model.NewSimpleStatement("")
-	var sql wc.Statement
+	var sql model.Expr
 	for _, v := range queryMap {
 		fieldName, ok := v.(string)
 		if !ok {
@@ -931,20 +936,20 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 
 		switch cw.Table.GetFieldInfo(cw.Ctx, fieldName) {
 		case clickhouse.ExistsAndIsBaseType:
-			sql = wc.NewInfixOp(wc.NewColumnRef(fieldName), "IS", wc.NewLiteral("NOT NULL"))
+			sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
 		case clickhouse.ExistsAndIsArray:
-			sql = wc.NewInfixOp(wc.NewNestedProperty(
-				*wc.NewColumnRef(fieldNameQuoted),
-				*wc.NewLiteral("size0"),
-			), "=", wc.NewLiteral("0"))
+			sql = model.NewInfixExpr(model.NewNestedProperty(
+				model.NewColumnRef(fieldNameQuoted),
+				model.NewLiteral("size0"),
+			), "=", model.NewLiteral("0"))
 		case clickhouse.NotExists:
 			attrs := cw.Table.GetAttributesList()
-			stmts := make([]wc.Statement, len(attrs))
+			stmts := make([]model.Expr, len(attrs))
 			for i, a := range attrs {
-				hasFunc := wc.NewFunction("has", []wc.Statement{wc.NewColumnRef(a.KeysArrayName), wc.NewColumnRef(fieldName)}...)
-				arrayAccess := wc.NewArrayAccess(*wc.NewColumnRef(a.ValuesArrayName), wc.NewFunction("indexOf", []wc.Statement{wc.NewColumnRef(a.KeysArrayName), wc.NewLiteral(fieldNameQuoted)}...))
-				isNotNull := wc.NewInfixOp(arrayAccess, "IS", wc.NewLiteral("NOT NULL"))
-				compoundStatementNoFieldName := wc.NewInfixOp(hasFunc, "AND", isNotNull)
+				hasFunc := model.NewFunction("has", []model.Expr{model.NewColumnRef(a.KeysArrayName), model.NewColumnRef(fieldName)}...)
+				arrayAccess := model.NewArrayAccess(model.NewColumnRef(a.ValuesArrayName), model.NewFunction("indexOf", []model.Expr{model.NewColumnRef(a.KeysArrayName), model.NewLiteral(fieldNameQuoted)}...))
+				isNotNull := model.NewInfixExpr(arrayAccess, "IS", model.NewLiteral("NOT NULL"))
+				compoundStatementNoFieldName := model.NewInfixExpr(hasFunc, "AND", isNotNull)
 				stmts[i] = compoundStatementNoFieldName
 			}
 			sql = model.Or(stmts)

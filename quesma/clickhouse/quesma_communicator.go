@@ -8,7 +8,6 @@ import (
 	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser/aexp"
 	"strings"
 	"time"
 )
@@ -58,9 +57,9 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 		switch col.Expression.(type) {
 
 		// this is a compensation for the fact we don't have columns named in the query
-		case aexp.TableColumnExp:
+		case model.TableColumnExpr:
 			if col.Alias == "" {
-				colName = col.Expression.(aexp.TableColumnExp).ColumnName
+				colName = col.Expression.(model.TableColumnExpr).ColumnRef.ColumnName
 			} else {
 				colName = col.Alias
 			}

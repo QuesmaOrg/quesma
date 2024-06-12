@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func (qmc *QuesmaManagementConsole) generateSchema() []byte {
+func (qmc *QuesmaManagementConsole) generateTables() []byte {
 	type menuEntry struct {
 		label  string
 		target string
@@ -27,8 +27,8 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 	}
 
 	buffer := newBufferWithHead()
-	buffer.Write(generateTopNavigation("schema"))
-	buffer.Html(`<main id="schema">`)
+	buffer.Write(generateTopNavigation("tables"))
+	buffer.Html(`<main id="tables">`)
 
 	var schema clickhouse.TableMap
 	var hasSchema bool
@@ -297,7 +297,7 @@ func (qmc *QuesmaManagementConsole) generateSchema() []byte {
 	buffer.Html(`<h3>Admin actions</h3>`)
 	buffer.Html(`<ul>`)
 
-	buffer.Html(`<li><button hx-post="/schema/reload" hx-target="body">Reload Schemas</button></li>`)
+	buffer.Html(`<li><button hx-post="/tables/reload" hx-target="body">Reload Tables</button></li>`)
 
 	buffer.Html(`</ul>`)
 

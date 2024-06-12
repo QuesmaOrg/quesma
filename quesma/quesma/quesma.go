@@ -21,6 +21,7 @@ import (
 	"mitmproxy/quesma/quesma/routes"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/quesma/ui"
+	"mitmproxy/quesma/schema"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
 	"net/http"
@@ -105,7 +106,7 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, elkResponse elasticResu
 }
 
 func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.QuesmaConfiguration, logChan <-chan tracing.LogWithLevel, inspect bool) *Quesma {
-	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, nil, nil, logChan, phoneHomeAgent)
+	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, nil, nil, logChan, phoneHomeAgent, emptySchemasProvider{})
 	return &Quesma{
 		processor:               proxy.NewTcpProxy(config.PublicTcpPort, config.Elasticsearch.Url.Host, inspect),
 		publicTcpPort:           config.PublicTcpPort,
@@ -114,8 +115,8 @@ func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.Qu
 	}
 }
 
-func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, config config.QuesmaConfiguration, logChan <-chan tracing.LogWithLevel) *Quesma {
-	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logManager, indexManager, logChan, phoneHomeAgent)
+func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, schemaLoader clickhouse.TableDiscovery, indexManager elasticsearch.IndexManagement, schemaRegistry schema.Registry, config config.QuesmaConfiguration, logChan <-chan tracing.LogWithLevel) *Quesma {
+	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logManager, indexManager, logChan, phoneHomeAgent, schemaRegistry)
 	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole)
 
 	// not sure how we should configure our query translator ???
@@ -126,7 +127,7 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 	router := configureRouter(config, logManager, quesmaManagementConsole, phoneHomeAgent, queryRunner)
 	return &Quesma{
 		telemetryAgent:          phoneHomeAgent,
-		processor:               newDualWriteProxy(logManager, indexManager, config, router, quesmaManagementConsole, phoneHomeAgent, queryRunner),
+		processor:               newDualWriteProxy(schemaLoader, logManager, indexManager, schemaRegistry, config, router, quesmaManagementConsole, phoneHomeAgent, queryRunner),
 		publicTcpPort:           config.PublicTcpPort,
 		quesmaManagementConsole: quesmaManagementConsole,
 		config:                  config,
@@ -384,6 +385,7 @@ func (q *Quesma) Close(ctx context.Context) {
 func (q *Quesma) Start() {
 	defer recovery.LogPanic()
 	logger.Info().Msgf("starting quesma in the mode: %v", q.config.Mode)
+
 	go q.processor.Ingest()
 	go q.quesmaManagementConsole.Run()
 }
@@ -406,4 +408,10 @@ func (r *router) sendHttpRequest(ctx context.Context, address string, originalRe
 	}
 
 	return resp, nil
+}
+
+type emptySchemasProvider struct{}
+
+func (e emptySchemasProvider) AllSchemas() map[schema.TableName]schema.Schema {
+	return map[schema.TableName]schema.Schema{}
 }

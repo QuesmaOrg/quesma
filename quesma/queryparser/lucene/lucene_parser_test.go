@@ -2,12 +2,10 @@ package lucene
 
 import (
 	"context"
-	"mitmproxy/quesma/queryparser/where_clause"
+	"mitmproxy/quesma/model"
 	"strconv"
 	"testing"
 )
-
-var asString = &where_clause.StringRenderer{}
 
 func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 	// logger.InitSimpleLoggerForTests()
@@ -86,7 +84,7 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 	for i, tt := range append(properQueries, randomQueriesWithPossiblyIncorrectInput...) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			parser := newLuceneParser(context.Background(), defaultFieldNames)
-			got := parser.translateToSQL(tt.query).Accept(asString).(string)
+			got := model.AsString(parser.translateToSQL(tt.query))
 			if got != tt.want {
 				t.Errorf("\ngot  [%q]\nwant [%q]", got, tt.want)
 			}

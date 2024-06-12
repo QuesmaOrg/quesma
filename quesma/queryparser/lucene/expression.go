@@ -2,49 +2,50 @@ package lucene
 
 import (
 	"mitmproxy/quesma/logger"
-	wc "mitmproxy/quesma/queryparser/where_clause"
+	"mitmproxy/quesma/model"
+	//wc "mitmproxy/quesma/queryparser/where_clause"
 )
 
-func (p *luceneParser) BuildWhereStatement() wc.Statement {
+func (p *luceneParser) BuildWhereStatement() model.Expr {
 	for len(p.tokens) > 0 {
 		p.WhereStatement = p.buildWhereStatement(true)
 	}
 	if p.WhereStatement == nil {
-		p.WhereStatement = wc.NewLiteral("true")
+		p.WhereStatement = model.NewLiteral("true")
 	}
 	return p.WhereStatement
 }
 
 // LeafStatement is a smallest part of a query that can be translated into SQL,
 // e.g. "title:abc", or "abc", or "title:(abc OR def)".
-func newLeafStatement(fieldNames []string, value value) wc.Statement {
+func newLeafStatement(fieldNames []string, value value) model.Expr {
 	if len(fieldNames) == 0 {
-		return wc.NewLiteral("false")
+		return model.NewLiteral("false")
 	}
 
-	var newStatement wc.Statement
+	var newStatement model.Expr
 	if len(fieldNames) > 0 {
-		newStatement = value.toStatement(fieldNames[0])
+		newStatement = value.toExpression(fieldNames[0])
 		for _, fieldName := range fieldNames[1:] {
-			newStatement = wc.NewInfixOp(newStatement, "OR", value.toStatement(fieldName))
+			newStatement = model.NewInfixExpr(newStatement, "OR", value.toExpression(fieldName))
 		}
 	}
 	if len(fieldNames) == 1 {
-		return value.toStatement(fieldNames[0])
+		return value.toExpression(fieldNames[0])
 	}
 	return newStatement
 }
 
-var invalidStatement = wc.NewLiteral("false")
+var invalidStatement = model.NewLiteral("false")
 
 // buildWhereStatement builds a WHERE statement from the tokens.
 // During parsing, we only keep one expression, because we're combining leafExpressions into
 // a tree of expressions. We keep the lastExpression to combine it with the next one.
 // E.g. "title:abc AND text:def" is parsed into andExpression(title:abc, text:def)".
-func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) wc.Statement {
+func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) model.Expr {
 	tok := p.tokens[0]
 	p.tokens = p.tokens[1:]
-	var currentStatement wc.Statement
+	var currentStatement model.Expr
 	switch currentToken := tok.(type) {
 	case fieldNameToken:
 		if len(p.tokens) <= 1 {
@@ -66,12 +67,12 @@ func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) wc.Statement
 	case termToken:
 		currentStatement = newLeafStatement(p.defaultFieldNames, newTermValue(currentToken.term))
 	case andToken:
-		return wc.NewInfixOp(p.WhereStatement, "AND", p.buildWhereStatement(false))
+		return model.NewInfixExpr(p.WhereStatement, "AND", p.buildWhereStatement(false))
 	case orToken:
-		return wc.NewInfixOp(p.WhereStatement, "OR", p.buildWhereStatement(false))
+		return model.NewInfixExpr(p.WhereStatement, "OR", p.buildWhereStatement(false))
 	case notToken:
 		latterExp := p.buildWhereStatement(false)
-		currentStatement = wc.NewPrefixOp("NOT", []wc.Statement{latterExp})
+		currentStatement = model.NewPrefixExpr("NOT", []model.Expr{latterExp})
 	case leftParenthesisToken:
 		currentStatement = newLeafStatement(p.defaultFieldNames, p.buildValue([]value{}, 1))
 	default:
@@ -82,13 +83,13 @@ func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) wc.Statement
 		return currentStatement
 	}
 	switch stmt := currentStatement.(type) {
-	case *wc.PrefixOp:
+	case model.PrefixExpr:
 		if stmt.Op == "NOT" {
-			return wc.NewInfixOp(p.WhereStatement, "AND", currentStatement)
+			return model.NewInfixExpr(p.WhereStatement, "AND", currentStatement)
 		} else {
-			return wc.NewInfixOp(p.WhereStatement, "OR", currentStatement)
+			return model.NewInfixExpr(p.WhereStatement, "OR", currentStatement)
 		}
 	default:
-		return wc.NewInfixOp(p.WhereStatement, "OR", currentStatement)
+		return model.NewInfixExpr(p.WhereStatement, "OR", currentStatement)
 	}
 }

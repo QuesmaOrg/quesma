@@ -6,8 +6,6 @@ import (
 	"math"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser/aexp"
-	wc "mitmproxy/quesma/queryparser/where_clause"
 	"strconv"
 	"strings"
 )
@@ -32,49 +30,49 @@ func (interval Interval) String() string {
 
 // ToSQLSelectQuery returns count(...) where ... is a condition for the interval, just like we want it in SQL's SELECT
 func (interval Interval) ToSQLSelectQuery(col model.SelectColumn) model.SelectColumn {
-	var sqlLeft, sqlRight, sql aexp.AExp
+	var sqlLeft, sqlRight, sql model.Expr
 	if !interval.IsOpeningBoundInfinite() {
-		sqlLeft = aexp.Infix(col.Expression, ">=", aexp.Literal(interval.Begin))
+		sqlLeft = model.NewInfixExpr(col.Expression, ">=", model.NewLiteral(interval.Begin))
 	}
 	if !interval.IsClosingBoundInfinite() {
-		sqlRight = aexp.Infix(col.Expression, "<", aexp.Literal(interval.End))
+		sqlRight = model.NewInfixExpr(col.Expression, "<", model.NewLiteral(interval.End))
 	}
 	switch {
 	case sqlLeft != nil && sqlRight != nil:
-		sql = aexp.Infix(sqlLeft, "AND", sqlRight)
+		sql = model.NewInfixExpr(sqlLeft, "AND", sqlRight)
 	case sqlLeft != nil:
 		sql = sqlLeft
 	case sqlRight != nil:
 		sql = sqlRight
 	default:
-		return model.SelectColumn{Expression: aexp.Function("count")}
+		return model.SelectColumn{Expression: model.NewFunction("count")}
 	}
 	// count(if(sql, 1, NULL))
-	return model.SelectColumn{Expression: aexp.Function("count", aexp.Function("if", sql, aexp.Literal(1), aexp.String("NULL")))}
+	return model.SelectColumn{Expression: model.NewFunction("count", model.NewFunction("if", sql, model.NewLiteral(1), model.NewStringExpr("NULL")))}
 }
 
-func (interval Interval) ToWhereClause(field model.SelectColumn) wc.Statement { // returns a condition for the interval, just like we want it in SQL's WHERE
+func (interval Interval) ToWhereClause(field model.SelectColumn) model.Expr { // returns a condition for the interval, just like we want it in SQL's WHERE
 	fieldName := field.SQL() // TODO a) this should be improved b) unify SelectColumn and ColumnRef?
 	if unquoted, err := strconv.Unquote(fieldName); err == nil {
 		fieldName = unquoted
 	}
 
-	var sqlLeft, sqlRight wc.Statement
+	var sqlLeft, sqlRight model.Expr
 	if !interval.IsOpeningBoundInfinite() {
-		sqlLeft = wc.NewInfixOp(wc.NewColumnRef(fieldName), ">=", wc.NewLiteral(strconv.FormatFloat(interval.Begin, 'f', -1, 64)))
+		sqlLeft = model.NewInfixExpr(model.NewColumnRef(fieldName), ">=", model.NewLiteral(strconv.FormatFloat(interval.Begin, 'f', -1, 64)))
 	}
 	if !interval.IsClosingBoundInfinite() {
-		sqlRight = wc.NewInfixOp(wc.NewColumnRef(fieldName), "<", wc.NewLiteral(strconv.FormatFloat(interval.End, 'f', -1, 64)))
+		sqlRight = model.NewInfixExpr(model.NewColumnRef(fieldName), "<", model.NewLiteral(strconv.FormatFloat(interval.End, 'f', -1, 64)))
 	}
 	switch {
 	case sqlLeft != nil && sqlRight != nil:
-		return wc.NewInfixOp(sqlLeft, "AND", sqlRight)
+		return model.NewInfixExpr(sqlLeft, "AND", sqlRight)
 	case sqlLeft != nil:
 		return sqlLeft
 	case sqlRight != nil:
 		return sqlRight
 	default:
-		return wc.NewInfixOp(wc.NewColumnRef(fieldName), "IS", wc.NewLiteral("NOT NULL"))
+		return model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
 	}
 }
 
