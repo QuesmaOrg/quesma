@@ -94,3 +94,7 @@ func (v *usedColumns) VisitInfix(e InfixExpr) interface{} {
 func (v *usedColumns) VisitString(e StringExpr) interface{} {
 	return make([]TableColumnExpr, 0)
 }
+
+func (v *usedColumns) VisitOrderByExpr(e OrderByExpr) interface{} {
+	return make([]TableColumnExpr, 0) //TODO
+}

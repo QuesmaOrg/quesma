@@ -455,7 +455,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 	return &model.Query{
 		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}, {Expression: model.NewCountFunc()}},
 		GroupBy:     []model.Expr{model.NewTableColumnExpr(fieldName)},
-		OrderBy:     []model.SelectColumn{model.NewSortByCountColumn(true)},
+		OrderBy:     model.NewSortByCountColumn(true),
 		FromClause:  model.NewSelectColumnFromString(cw.Table.FullTableName()),
 		WhereClause: simpleQuery.WhereClause,
 		SampleLimit: facetsSampleSize,
@@ -471,7 +471,7 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName stri
 	return &model.Query{
 		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(timestampFieldName)}},
 		WhereClause: whereClause,
-		OrderBy:     []model.SelectColumn{model.NewSortColumn(timestampFieldName, !earliest)},
+		OrderBy:     model.NewSortColumn(timestampFieldName, !earliest),
 		Limit:       1,
 		FromClause:  model.NewSelectColumnFromString(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),

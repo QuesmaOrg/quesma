@@ -1101,10 +1101,10 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`"host_name.keyword" iLIKE '%prometheus%'`},
+		[]string{`"host_name" iLIKE '%prometheus%'`},
 		model.ListAllFields,
-		////[]model.Query{justSimplestWhere(`"host_name.keyword" iLIKE '%prometheus%'`)},
-		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE "host_name.keyword" iLIKE '%prometheus%' LIMIT 10`},
+		////[]model.Query{justSimplestWhere(`"host_name" iLIKE '%prometheus%'`)},
+		[]string{`SELECT "message" FROM ` + QuotedTableName + ` WHERE "host_name" iLIKE '%prometheus%' LIMIT 10`},
 	},
 	{ // [6]
 		"Match",

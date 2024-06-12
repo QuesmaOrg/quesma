@@ -719,24 +719,21 @@ func Test_parseFieldFromScriptField(t *testing.T) {
 		return QueryMap{"script": QueryMap{"source": sourceField}}
 	}
 
-	empty := model.SelectColumn{}
 	testcases := []struct {
 		queryMap        QueryMap
-		expectedMatch   model.SelectColumn
+		expectedMatch   model.Expr
 		expectedSuccess bool
 	}{
-		{goodQueryMap("doc['field1'].value.getHour()"),
-			model.SelectColumn{Expression: model.NewFunction("toHour", model.NewTableColumnExpr("field1"))}, true},
-		{goodQueryMap("doc['field1'].value.getHour() + doc['field2'].value.getHour()"), empty, false},
-		{goodQueryMap("doc['field1'].value.hourOfDay"),
-			model.SelectColumn{Expression: model.NewFunction("toHour", model.NewTableColumnExpr("field1"))}, true},
-		{goodQueryMap("doc['field1'].value"), empty, false},
-		{goodQueryMap("value.getHour() + doc['field2'].value.getHour()"), empty, false},
-		{QueryMap{}, empty, false},
-		{QueryMap{"script": QueryMap{}}, empty, false},
-		{QueryMap{"script": QueryMap{"source": empty}}, empty, false},
-		{QueryMap{"script": "script"}, empty, false},
-		{QueryMap{"script": QueryMap{"source": 1}}, empty, false},
+		{goodQueryMap("doc['field1'].value.getHour()"), model.FunctionExpr{Name: "toHour", Args: []model.Expr{model.NewTableColumnExpr("field1")}}, true},
+		{goodQueryMap("doc['field1'].value.getHour() + doc['field2'].value.getHour()"), nil, false},
+		{goodQueryMap("doc['field1'].value.hourOfDay"), model.NewFunction("toHour", model.NewTableColumnExpr("field1")), true},
+		{goodQueryMap("doc['field1'].value"), nil, false},
+		{goodQueryMap("value.getHour() + doc['field2'].value.getHour()"), nil, false},
+		{QueryMap{}, nil, false},
+		{QueryMap{"script": QueryMap{}}, nil, false},
+		{QueryMap{"script": QueryMap{"source": nil}}, nil, false},
+		{QueryMap{"script": "script"}, nil, false},
+		{QueryMap{"script": QueryMap{"source": 1}}, nil, false},
 	}
 	cw := ClickhouseQueryTranslator{Ctx: context.Background()}
 	for _, tc := range testcases {

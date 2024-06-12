@@ -173,6 +173,30 @@ func NewComposite(Exprressions ...Expr) *CompositeExpr {
 	return &CompositeExpr{Expressions: Exprressions}
 }
 
+type OrderByDirection int8
+
+const (
+	DefaultOrder OrderByDirection = iota // DEFAULT just defers to whatever DBMS default is
+	AscOrder
+	DescOrder
+)
+
+type OrderByExpr struct {
+	Exprs     []Expr
+	Direction OrderByDirection
+}
+
+func (o OrderByExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitOrderByExpr(o)
+}
+
+func NewOrderByExpr(exprs []Expr, direction OrderByDirection) OrderByExpr {
+	return OrderByExpr{Exprs: exprs, Direction: direction}
+}
+func NewOrderByExprWithoutOrder(exprs []Expr) OrderByExpr {
+	return OrderByExpr{Exprs: exprs, Direction: DefaultOrder}
+}
+
 func NewInfixExpr(lhs Expr, operator string, rhs Expr) InfixExpr {
 	return InfixExpr{lhs, operator, rhs}
 }
@@ -190,4 +214,5 @@ type ExprVisitor interface {
 	VisitPrefixExpr(e PrefixExpr) interface{}
 	VisitNestedProperty(e NestedProperty) interface{}
 	VisitArrayAccess(e ArrayAccess) interface{}
+	VisitOrderByExpr(e OrderByExpr) interface{}
 }

@@ -27,7 +27,7 @@ type (
 		// This is SELECT query. These fields should be extracted to separate struct.
 		Columns     []SelectColumn // Columns to select, including aliases
 		GroupBy     []Expr         // if not empty, we do GROUP BY GroupBy...
-		OrderBy     []SelectColumn // if not empty, we do ORDER BY OrderBy...
+		OrderBy     []OrderByExpr  // if not empty, we do ORDER BY OrderBy...
 		FromClause  SelectColumn   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
 		WhereClause Expr           // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
 		Limit       int            // LIMIT clause, noLimit (0) means no limit
@@ -73,24 +73,20 @@ type (
 	}
 )
 
-func NewSortColumn(field string, desc bool) SelectColumn {
-	var order string
+func NewSortColumn(field string, desc bool) []OrderByExpr {
 	if desc {
-		order = Desc
+		return []OrderByExpr{NewOrderByExpr([]Expr{NewColumnRef(field)}, DescOrder)}
 	} else {
-		order = Asc
+		return []OrderByExpr{NewOrderByExpr([]Expr{NewColumnRef(field)}, AscOrder)}
 	}
-	return SelectColumn{Expression: NewComposite(NewTableColumnExpr(field), NewStringExpr(order))}
 }
 
-func NewSortByCountColumn(desc bool) SelectColumn {
-	var order string
+func NewSortByCountColumn(desc bool) []OrderByExpr {
 	if desc {
-		order = Desc
+		return []OrderByExpr{NewOrderByExpr([]Expr{NewCountFunc()}, DescOrder)}
 	} else {
-		order = Asc
+		return []OrderByExpr{NewOrderByExpr([]Expr{NewCountFunc()}, AscOrder)}
 	}
-	return SelectColumn{Expression: NewComposite(NewCountFunc(), NewStringExpr(order))}
 }
 
 func NewSelectColumnTableField(fieldName string) SelectColumn {
@@ -190,10 +186,10 @@ func (q *Query) String(ctx context.Context) string {
 
 	orderBy := make([]string, 0, len(q.OrderBy))
 	for _, col := range q.OrderBy {
-		if col.Expression == nil {
+		if len(q.OrderBy) < 1 {
 			logger.WarnWithCtx(ctx).Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
 		} else {
-			orderBy = append(orderBy, col.SQL())
+			orderBy = append(orderBy, AsString(col))
 		}
 	}
 	if len(orderBy) > 0 {
@@ -242,26 +238,23 @@ func (q *Query) TrimKeywordFromFields() {
 // won't return complex ones, like e.g. toInt(int_field / 5).
 // but it was like that before the refactor
 func (q *Query) OrderByFieldNames() (fieldNames []string) {
-	for _, col := range q.OrderBy {
-		compositeExp, ok := col.Expression.(*CompositeExpr)
-		if !ok {
-			continue
-		}
-		if len(compositeExp.Expressions) != 2 {
-			continue
-		}
-		orderExp, ok := compositeExp.Expressions[1].(StringExpr)
-		if !ok || (orderExp.Value != Asc && orderExp.Value != Desc) {
-			continue
-		}
-
-		tableColExp, ok := compositeExp.Expressions[0].(TableColumnExpr)
-		if !ok {
-			continue
-		}
-
-		fieldNames = append(fieldNames, tableColExp.ColumnRef.ColumnName)
+	for _, expr := range q.OrderBy {
+		GetUsedColumns(expr)
 	}
+	// TODO
+	//	compositeExp, ok := col.Expression.(*CompositeExpr)
+	//	if !ok {
+	//		continue
+	//	}
+	//	if len(compositeExp.Expressions) != 2 {
+	//		continue
+	//	}
+	//	for i := 0; i < len(q.OrderBy)-1; i++ {
+	//		fieldNames = append(fieldNames, AsString(q.OrderBy[i]))
+	//	}
+	//
+	//	fieldNames = append(fieldNames, tableColExp.ColumnRef.ColumnName)
+	//}
 	return fieldNames
 }
 
@@ -317,7 +310,11 @@ func (q *Query) NewSelectColumnSubselectWithRowNumber(selectFields []SelectColum
 	}
 	if orderByField != "" {
 		fromSelect = append(fromSelect, NewStringExpr("ORDER BY"))
-		fromSelect = append(fromSelect, NewSortColumn(orderByField, orderByDesc).Expression)
+		if orderByDesc {
+			fromSelect = append(fromSelect, NewOrderByExpr([]Expr{NewColumnRef(orderByField)}, DescOrder))
+		} else {
+			fromSelect = append(fromSelect, NewOrderByExpr([]Expr{NewColumnRef(orderByField)}, AscOrder))
+		}
 	}
 	fromSelect = append(fromSelect, NewStringExpr(") AS"))
 	// TODO this formatting below is only to match the existing test cases,

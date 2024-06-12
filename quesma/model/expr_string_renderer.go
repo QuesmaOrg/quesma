@@ -14,7 +14,7 @@ func AsString(expr Expr) string {
 }
 
 func (v *renderer) VisitColumnRef(e ColumnRef) interface{} {
-	return strconv.Quote(e.ColumnName)
+	return strconv.Quote(strings.TrimSuffix(e.ColumnName, ".keyword"))
 }
 
 func (v *renderer) VisitPrefixExpr(e PrefixExpr) interface{} {
@@ -119,4 +119,19 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 	} else {
 		return fmt.Sprintf("%v%v%v", lhs, e.Op, rhs)
 	}
+}
+
+func (v *renderer) VisitOrderByExpr(e OrderByExpr) interface{} {
+	var exprsAsStr []string
+	for _, expr := range e.Exprs {
+		exprsAsStr = append(exprsAsStr, expr.Accept(v).(string))
+	}
+	allExprs := strings.Join(exprsAsStr, ", ")
+	if e.Direction == DescOrder {
+		return fmt.Sprintf("%s %s", allExprs, "DESC")
+	}
+	if e.Direction == AscOrder {
+		return fmt.Sprintf("%s %s", allExprs, "ASC")
+	}
+	return allExprs
 }

@@ -7,7 +7,7 @@ import (
 
 type SimpleQuery struct {
 	WhereClause Expr
-	OrderBy     []SelectColumn
+	OrderBy     []OrderByExpr
 	CanParse    bool
 	FieldName   string
 	// NeedCountWithLimit > 0 means we need count(*) LIMIT NeedCountWithLimit

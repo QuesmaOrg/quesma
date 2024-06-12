@@ -114,11 +114,11 @@ func PrettyJson(jsonStr string) string {
 // e.g.
 // - timestampGroupBy("@timestamp", DateTime64, 30 seconds) --> toInt64(toUnixTimestamp64Milli(`@timestamp`)/30000)
 // - timestampGroupBy("@timestamp", DateTime, 30 seconds)   --> toInt64(toUnixTimestamp(`@timestamp`)/30)
-func TimestampGroupBy(timestampField model.SelectColumn, typ DateTimeType, groupByInterval time.Duration) model.Expr {
+func TimestampGroupBy(timestampField model.Expr, typ DateTimeType, groupByInterval time.Duration) model.Expr {
 
 	createAExp := func(innerFuncName string, interval int64) model.Expr {
 		return model.NewFunction("toInt64", model.NewComposite(
-			model.NewFunction(innerFuncName, timestampField.Expression),
+			model.NewFunction(innerFuncName, timestampField),
 			model.NewStringExpr("/"),
 			model.NewLiteral(interval),
 		))
