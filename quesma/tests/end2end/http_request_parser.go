@@ -2,12 +2,18 @@ package end2end
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 	"strings"
 )
 
-type httpRequestParser struct{}
+type (
+	httpRequestParser struct{}
+	singleE2ETest     struct {
+		name        string
+		requestBody string
+		urlSuffix   string // without "http://name:port", so /index-pattern/...
+	}
+)
 
 const testCasesDir = "testcases/"
 
@@ -16,7 +22,6 @@ func (p *httpRequestParser) getSingleTest(testSuite, testNr string) (*singleE2ET
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(file.Name(), err)
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
@@ -46,6 +51,9 @@ func (p *httpRequestParser) getSingleTestSuite(testSuite string) (tests []*singl
 		test, err := p.getSingleTest(testSuite, testNr)
 		if err == nil {
 			tests = append(tests, test)
+		} else {
+			// to be on the safe side, we shouldn't have any errors here
+			return nil, err
 		}
 	}
 	return
