@@ -322,7 +322,7 @@ func (q *Query) NewSelectColumnSubselectWithRowNumber(selectFields []SelectColum
 	fromSelect = append(fromSelect, NewStringExpr(") AS"))
 	// TODO this formatting below is only to match the existing test cases,
 	// window functions formatting (as everything else) should be systematically formatted at the printing stage
-	fromSelect = append(fromSelect, NewLiteral(fmt.Sprintf("'%s'", RowNumberColumnName)))
+	fromSelect = append(fromSelect, NewLiteral(fmt.Sprintf("%s", RowNumberColumnName)))
 	fromSelect = append(fromSelect, NewStringExpr("FROM"))
 	fromSelect = append(fromSelect, q.FromClause.Expression)
 
