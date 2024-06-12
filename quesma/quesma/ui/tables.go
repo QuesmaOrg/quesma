@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func (qmc *QuesmaManagementConsole) generateSchema() []byte {
+func (qmc *QuesmaManagementConsole) generateTables() []byte {
 	type menuEntry struct {
 		label  string
 		target string
