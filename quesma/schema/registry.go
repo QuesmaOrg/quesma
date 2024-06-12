@@ -26,17 +26,32 @@ type (
 	Registry interface {
 		AllSchemas() map[TableName]Schema
 		FindSchema(name TableName) (Schema, bool)
-		Load() error
 		Start()
 	}
 	schemaRegistry struct {
-		started          atomic.Bool
-		schemas          *concurrent.Map[TableName, Schema]
-		configuration    config.QuesmaConfiguration
-		chTableDiscovery clickhouse.TableDiscovery
-		chTypeAdapter    ClickhouseTypeAdapter
+		started               atomic.Bool
+		schemas               *concurrent.Map[TableName, Schema]
+		configuration         config.QuesmaConfiguration
+		chTableDiscovery      clickhouse.TableDiscovery
+		dataSourceTypeAdapter TypeAdapter
+		connectorTypeAdapter  TypeAdapter
+	}
+	TypeAdapter interface {
+		Convert(string) (Type, bool)
 	}
 )
+
+func (t FieldName) AsString() string {
+	return string(t)
+}
+
+func (t TableName) AsString() string {
+	return string(t)
+}
+
+func (t Type) AsString() string {
+	return string(t)
+}
 
 func (s *schemaRegistry) Start() {
 	if s.started.CompareAndSwap(false, true) {
@@ -95,15 +110,20 @@ func (s *schemaRegistry) Load() error {
 			indexConfig := s.configuration.IndexConfig[indexName]
 			// TODO replace with dedicated schema config
 			if explicitType, found := indexConfig.TypeMappings[col.Name]; found {
-				logger.Debug().Msgf("found explicit type mapping for column %s: %s", col.Name, explicitType)
-				fields[FieldName(col.Name)] = Field{
-					Name: FieldName(col.Name),
-					Type: Type(explicitType),
+				if resolvedQuesmaType, found := s.connectorTypeAdapter.Convert(explicitType); found {
+					logger.Debug().Msgf("found explicit type mapping for column %s: %s", col.Name, resolvedQuesmaType)
+					fields[FieldName(col.Name)] = Field{
+						Name: FieldName(col.Name),
+						Type: resolvedQuesmaType,
+					}
+					continue
+				} else {
+					// TODO those will need to be validated at config stage
+					logger.Error().Msgf("type %s not supported", explicitType)
 				}
-				continue
 			}
 			if _, exists := fields[FieldName(col.Name)]; !exists {
-				if quesmaType, found := s.chTypeAdapter.Adapt(col.Type.String()); found {
+				if quesmaType, found := s.dataSourceTypeAdapter.Convert(col.Type.String()); found {
 					fields[FieldName(col.Name)] = Field{
 						Name: FieldName(col.Name),
 						Type: quesmaType,
@@ -134,12 +154,13 @@ func (s *schemaRegistry) FindSchema(name TableName) (Schema, bool) {
 	return schema, found
 }
 
-func NewSchemaRegistry(chTableDiscovery clickhouse.TableDiscovery, configuration config.QuesmaConfiguration) Registry {
+func NewSchemaRegistry(chTableDiscovery clickhouse.TableDiscovery, configuration config.QuesmaConfiguration, dataSourceTypeAdapter, connectorTypeAdapter TypeAdapter) Registry {
 	return &schemaRegistry{
-		schemas:          concurrent.NewMap[TableName, Schema](),
-		started:          atomic.Bool{},
-		configuration:    configuration,
-		chTableDiscovery: chTableDiscovery,
-		chTypeAdapter:    NewClickhouseTypeAdapter(),
+		schemas:               concurrent.NewMap[TableName, Schema](),
+		started:               atomic.Bool{},
+		configuration:         configuration,
+		chTableDiscovery:      chTableDiscovery,
+		dataSourceTypeAdapter: dataSourceTypeAdapter,
+		connectorTypeAdapter:  connectorTypeAdapter,
 	}
 }

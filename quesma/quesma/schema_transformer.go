@@ -161,9 +161,12 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 	for k, query := range queries {
 		var err error
-		logger.Info().Msgf("IpTransformation input query: %s", query.String(context.Background()))
+		inputQuery := query.String(context.Background())
 		query, err = s.applyIpTransformations(query)
-		logger.Info().Msgf("IpTransformation output query: %s", query.String(context.Background()))
+		if query.String(context.Background()) != inputQuery {
+			logger.Info().Msgf("IpTransformation triggered, input query: %s", inputQuery)
+			logger.Info().Msgf("IpTransformation triggered, output query: %s", query.String(context.Background()))
+		}
 		if err != nil {
 			return nil, err
 		}

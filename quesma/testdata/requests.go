@@ -921,7 +921,8 @@ var TestsSearch = []SearchTestCase{
 		{
 			"query": {
 				"match_all": {}
-			}
+			},
+			"track_total_hits": false
 		}`,
 		[]string{""},
 		model.ListAllFields,

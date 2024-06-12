@@ -7,19 +7,19 @@ import (
 
 const (
 	// TODO add more and review existing
-	TypeText        Type = "text"
-	TypeKeyword     Type = "keyword"
-	TypeLong        Type = "long"
-	TypeTimestamp   Type = "timestamp"
-	TypeDate        Type = "date"
-	TypeFloat       Type = "float"
-	TypeBoolean     Type = "bool"
-	TypeJSON        Type = "json"
-	TypeArray       Type = "array"
-	TypeMap         Type = "map"
-	TypeIp          Type = "ip"
-	TypePoint       Type = "point"
-	TypeStringArray Type = "string_array"
+	TypeText         Type = "text"
+	TypeKeyword      Type = "keyword"
+	TypeLong         Type = "long"
+	TypeUnsignedLong Type = "unsigned_long"
+	TypeTimestamp    Type = "timestamp"
+	TypeDate         Type = "date"
+	TypeFloat        Type = "float"
+	TypeBoolean      Type = "bool"
+	TypeJSON         Type = "json"
+	TypeArray        Type = "array"
+	TypeMap          Type = "map"
+	TypeIp           Type = "ip"
+	TypePoint        Type = "point"
 )
 
 func IsValid(t string) (Type, bool) {
@@ -48,8 +48,6 @@ func IsValid(t string) (Type, bool) {
 		return TypeIp, true
 	case "point":
 		return TypePoint, true
-	case "string_array":
-		return TypeStringArray, true
 	default:
 		return "", false
 	}
@@ -58,38 +56,34 @@ func IsValid(t string) (Type, bool) {
 type ClickhouseTypeAdapter struct {
 }
 
-func (c ClickhouseTypeAdapter) Adapt(s string) (Type, bool) {
+func (c ClickhouseTypeAdapter) Convert(s string) (Type, bool) {
 	if strings.HasPrefix(s, "Unknown") {
 		return TypeText, true // TODO
 	}
 	switch s {
 	case "String", "LowCardinality(String)":
 		return TypeText, true
-	case "Int64", "Int":
+	case "Int", "Int8", "Int16", "Int32", "Int64":
 		return TypeLong, true
+	case "Uint8", "Uint16", "Uint32", "Uint64", "Uint128", "Uint256":
+		return TypeUnsignedLong, true
 	case "Bool":
 		return TypeBoolean, true
-	case "Float64", "Float32":
+	case "Float32", "Float64":
 		return TypeFloat, true
 	case "DateTime", "DateTime64":
 		return TypeTimestamp, true
 	case "Date":
 		return TypeDate, true
-	case "Array(String)":
-		return TypeStringArray, true
 	default:
 		return "", false
 	}
 }
 
-func NewClickhouseTypeAdapter() ClickhouseTypeAdapter {
-	return ClickhouseTypeAdapter{}
-}
-
 type ElasticsearchTypeAdapter struct {
 }
 
-func (e ElasticsearchTypeAdapter) Adapt(s string) (Type, bool) {
+func (e ElasticsearchTypeAdapter) Convert(s string) (Type, bool) {
 	switch s {
 	case elasticsearch_field_types.FieldTypeText:
 		return TypeText, true
@@ -105,7 +99,7 @@ func (e ElasticsearchTypeAdapter) Adapt(s string) (Type, bool) {
 		return TypeFloat, true
 	case elasticsearch_field_types.FieldTypeBoolean:
 		return TypeBoolean, true
-	case elasticsearch_field_types.FieldTypeTypeIp:
+	case elasticsearch_field_types.FieldTypeIp:
 		return TypeIp, true
 	default:
 		return "", false
