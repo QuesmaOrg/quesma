@@ -22,36 +22,20 @@ func TestE2ESingleRequest(t *testing.T) {
 	const testSuite = "1"
 	const testNr = "87"
 	t.Skip("It fails now, there are differences in output for every testcase")
-	runSingleTest(t, testSuite, testNr)
+	e2eRunSingleTest(t, testSuite, testNr)
 }
 
 // useful if you want to debug one single test suite
 func TestE2ESingleSuite(t *testing.T) {
 	const testSuite = "1"
-	parser := httpRequestParser{}
-
-	tests, err := parser.getSingleSuite(testSuite)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(tests) == 0 {
-		t.Error("no tests found")
-	}
-
 	t.Skip("It fails now, there are differences in output for every testcase")
-	for _, test := range tests {
-		t.Run(testSuite+"/"+test.name, func(t *testing.T) {
-			fmt.Println("running test", test.name)
-			runSingleTest(t, testSuite, test.name)
-		})
-	}
+	e2eRunSingleSuite(t, testSuite)
 }
 
 // all tests
 func TestE2EAll(t *testing.T) {
 	parser := httpRequestParser{}
-	/* TODO need implementation, easy to do
-	testSuites, err := parser.getAllTestcases()
+	testSuites, err := parser.getAllTestSuites()
 	if err != nil {
 		t.Error(err)
 	}
@@ -59,26 +43,11 @@ func TestE2EAll(t *testing.T) {
 		t.Error("no test suites found")
 	}
 	for _, testSuite := range testSuites {
-		t.Run(testSuite, func(t *testing.T) {
-			tests, err := parser.getSingleSuite(testSuite)
-			if err != nil {
-				t.Error(err)
-			}
-			if len(tests) == 0 {
-				t.Error("no tests found")
-			}
-			for _, test := range tests {
-				t.Run(testSuite+"/"+test.name, func(t *testing.T) {
-					fmt.Println("running test", test.name)
-					runSingleTest(t, testSuite, test.name)
-				})
-			}
-		})
+		e2eRunSingleSuite(t, testSuite)
 	}
-	*/
 }
 
-func runSingleTest(t *testing.T, testSuite, testNr string) {
+func e2eRunSingleTest(t *testing.T, testSuite, testNr string) {
 	parser := httpRequestParser{}
 	test, err := parser.getSingleTest(testSuite, testNr)
 	if err != nil {
@@ -120,5 +89,25 @@ func runSingleTest(t *testing.T, testSuite, testNr string) {
 	if len(elasticMinusQuesma) != 0 || len(quesmaMinusElastic) != 0 {
 		t.Error("elasticMinusQuesma or quesmaMinusElastic not empty, len(elasticMinusQuesma):",
 			len(elasticMinusQuesma), "len(quesmaMinusElastic):", len(quesmaMinusElastic))
+	}
+}
+
+func e2eRunSingleSuite(t *testing.T, testSuite string) {
+	parser := httpRequestParser{}
+
+	tests, err := parser.getSingleTestSuite(testSuite)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(tests) == 0 {
+		t.Error("no tests found")
+	}
+
+	t.Skip("It fails now, there are differences in output for every testcase")
+	for _, test := range tests {
+		t.Run(testSuite+"/"+test.name, func(t *testing.T) {
+			fmt.Println("running test", test.name)
+			e2eRunSingleTest(t, testSuite, test.name)
+		})
 	}
 }
