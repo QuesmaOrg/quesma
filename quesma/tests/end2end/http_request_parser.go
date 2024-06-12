@@ -9,10 +9,10 @@ import (
 
 type httpRequestParser struct{}
 
-const dir = "testcases/"
+const testCasesDir = "testcases/"
 
 func (p *httpRequestParser) getSingleTest(testSuite, testNr string) (*singleE2ETest, error) {
-	file, err := os.Open(dir + testSuite + "/" + testNr + ".http")
+	file, err := os.Open(testCasesDir + testSuite + "/" + testNr + ".http")
 	if err != nil {
 		return nil, err
 	}
@@ -32,9 +32,9 @@ func (p *httpRequestParser) getSingleTest(testSuite, testNr string) (*singleE2ET
 	return &singleE2ETest{urlSuffix: urlSuffix, requestBody: bodyBuilder.String(), name: testNr}, nil
 }
 
-func (p *httpRequestParser) getSingleSuite(testSuite string) (tests []*singleE2ETest, err error) {
+func (p *httpRequestParser) getSingleTestSuite(testSuite string) (tests []*singleE2ETest, err error) {
 	var files []os.DirEntry
-	files, err = os.ReadDir(dir + testSuite)
+	files, err = os.ReadDir(testCasesDir + testSuite)
 	if err != nil {
 		return
 	}
@@ -51,6 +51,18 @@ func (p *httpRequestParser) getSingleSuite(testSuite string) (tests []*singleE2E
 	return
 }
 
-func (p *httpRequestParser) getAllTestcases() {
-
+// getAllTestSuites returns all test suites in the testcases directory.
+// So if in testcases/ there are directories 1, 3, and files 2.http, 4.http, it'll return ["1", "3"]
+func (p *httpRequestParser) getAllTestSuites() (suiteNames []string, err error) {
+	var files []os.DirEntry
+	files, err = os.ReadDir(testCasesDir)
+	if err != nil {
+		return
+	}
+	for _, file := range files {
+		if file.Type().IsDir() {
+			suiteNames = append(suiteNames, file.Name())
+		}
+	}
+	return
 }
