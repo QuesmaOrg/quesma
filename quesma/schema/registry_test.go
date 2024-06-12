@@ -95,7 +95,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewSchemaRegistry(tt.tableDiscovery, tt.cfg)
+			s := NewSchemaRegistry(tt.tableDiscovery, tt.cfg, ClickhouseTypeAdapter{}, ElasticsearchTypeAdapter{})
 			s.Start()
 			got, got1 := s.FindSchema(tt.tableName)
 			if got1 != tt.exists {

@@ -72,19 +72,10 @@ func mapClickhouseToElasticType(col *clickhouse.Column) string {
 	return "unknown"
 }
 
-var aggregatableTypes = []string{
-	"date", "byte", "short", "integer", "long", "unsigned_long", "float", "double",
-	"ip", "ip_range", "keyword", "geo_point",
-}
-
-func IsAggregatable(typeName string) bool {
-	return slices.Contains(aggregatableTypes, typeName)
-}
-
 func BuildFieldCapability(indexName, typeName string) model.FieldCapability {
 	capability := model.FieldCapability{
 		Type:         typeName,
-		Aggregatable: IsAggregatable(typeName),
+		Aggregatable: elasticsearch_field_types.IsAggregatable(typeName),
 		Searchable:   true,
 		Indices:      []string{indexName},
 	}
