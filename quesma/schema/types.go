@@ -7,19 +7,18 @@ import (
 
 const (
 	// TODO add more and review existing
-	TypeText        Type = "text"
-	TypeKeyword     Type = "keyword"
-	TypeLong        Type = "long"
-	TypeTimestamp   Type = "timestamp"
-	TypeDate        Type = "date"
-	TypeFloat       Type = "float"
-	TypeBoolean     Type = "bool"
-	TypeJSON        Type = "json"
-	TypeArray       Type = "array"
-	TypeMap         Type = "map"
-	TypeIp          Type = "ip"
-	TypePoint       Type = "point"
-	TypeStringArray Type = "string_array"
+	TypeText      Type = "text"
+	TypeKeyword   Type = "keyword"
+	TypeLong      Type = "long"
+	TypeTimestamp Type = "timestamp"
+	TypeDate      Type = "date"
+	TypeFloat     Type = "float"
+	TypeBoolean   Type = "bool"
+	TypeJSON      Type = "json"
+	TypeArray     Type = "array"
+	TypeMap       Type = "map"
+	TypeIp        Type = "ip"
+	TypePoint     Type = "point"
 )
 
 func IsValid(t string) (Type, bool) {
@@ -48,8 +47,6 @@ func IsValid(t string) (Type, bool) {
 		return TypeIp, true
 	case "point":
 		return TypePoint, true
-	case "string_array":
-		return TypeStringArray, true
 	default:
 		return "", false
 	}
@@ -75,8 +72,6 @@ func (c ClickhouseTypeAdapter) Convert(s string) (Type, bool) {
 		return TypeTimestamp, true
 	case "Date":
 		return TypeDate, true
-	case "Array(String)":
-		return TypeStringArray, true
 	default:
 		return "", false
 	}
