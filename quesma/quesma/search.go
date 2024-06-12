@@ -253,7 +253,28 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
 					return
 				}
+
+				// Postprocess results here
+				if len(queries) != len(results) {
+					logger.ErrorWithCtx(ctx).Msgf("queries and results length mismatch: %d != %d", len(queries), len(results))
+					doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("queries and results length mismatch")}
+					return
+				}
+				newResults := make([][]model.QueryResultRow, len(results))
+				for i := range queries {
+
+					newResults[i], err = q.postProcessResults(table, queries[i], results[i])
+					if err != nil {
+						doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
+					}
+
+				}
+				results = newResults
+
 				searchResponse := queryTranslator.MakeSearchResponse(queries, results)
+
+				// or here
+
 				doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
 			}()
 
@@ -634,6 +655,23 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 		}
 	}
 	return results
+}
+
+func (q *QueryRunner) postProcessResults(table *clickhouse.Table, query *model.Query, rows []model.QueryResultRow) ([]model.QueryResultRow, error) {
+
+	var processor ResultProcessor
+
+	// TODO read configuration here
+
+	if strings.HasPrefix(table.Name, "kibana") {
+		processor = FindResultProcessor("to_elasticsearch_field_names")
+	}
+
+	if processor == nil {
+		return rows, nil
+	}
+
+	return processor.Process(*query, rows)
 }
 
 func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, Path string, IncomingQueryBody, QueryBodyTranslated, QueryTranslatedResults []byte, startTime time.Time) {
