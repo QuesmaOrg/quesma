@@ -140,13 +140,6 @@ func NewCountFunc(args ...Expr) FunctionExpr {
 
 var NewWildcardExpr = LiteralExpr{Value: "*"}
 
-// it will render as IS
-type symbol string
-
-func Symbol(s string) LiteralExpr {
-	return NewLiteral(symbol(s))
-}
-
 func NewTableColumnExpr(columnName string) TableColumnExpr {
 	columnName = strings.TrimSuffix(columnName, ".keyword")
 	return TableColumnExpr{ColumnRef: NewColumnRef(columnName)}
