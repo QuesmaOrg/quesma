@@ -682,12 +682,10 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		var col model.SelectColumn
 		if interval != 1.0 {
 			// col as string is: fmt.Sprintf("floor(%s / %f) * %f", fieldNameProperlyQuoted, interval, interval)
-			col = model.SelectColumn{Expression: model.NewComposite(
-				model.NewInfixExpr(
-					model.NewFunction("floor", model.NewInfixExpr(field, "/", model.NewLiteral(interval))),
-					"*",
-					model.NewLiteral(interval),
-				),
+			col = model.SelectColumn{Expression: model.NewInfixExpr(
+				model.NewFunction("floor", model.NewInfixExpr(field, "/", model.NewLiteral(interval))),
+				"*",
+				model.NewLiteral(interval),
 			)}
 		} else {
 			col = model.SelectColumn{Expression: field}

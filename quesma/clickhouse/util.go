@@ -117,11 +117,11 @@ func PrettyJson(jsonStr string) string {
 func TimestampGroupBy(timestampField model.Expr, typ DateTimeType, groupByInterval time.Duration) model.Expr {
 
 	createAExp := func(innerFuncName string, interval int64) model.Expr {
-		return model.NewFunction("toInt64", model.NewComposite(
+		toUnixTsFunc := model.NewInfixExpr(
 			model.NewFunction(innerFuncName, timestampField),
-			model.NewStringExpr("/"),
-			model.NewLiteral(interval),
-		))
+			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
+			model.NewLiteral(interval))
+		return model.NewFunction("toInt64", toUnixTsFunc)
 	}
 
 	switch typ {
