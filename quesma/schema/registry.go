@@ -146,13 +146,13 @@ func (s *schemaRegistry) FindSchema(name TableName) (Schema, bool) {
 	return schema, found
 }
 
-func NewSchemaRegistry(chTableDiscovery clickhouse.TableDiscovery, configuration config.QuesmaConfiguration) Registry {
+func NewSchemaRegistry(chTableDiscovery clickhouse.TableDiscovery, configuration config.QuesmaConfiguration, dataSourceTypeAdapter, connectorTypeAdapter TypeAdapter) Registry {
 	return &schemaRegistry{
 		schemas:               concurrent.NewMap[TableName, Schema](),
 		started:               atomic.Bool{},
 		configuration:         configuration,
 		chTableDiscovery:      chTableDiscovery,
-		dataSourceTypeAdapter: ClickhouseTypeAdapter{},
-		connectorTypeAdapter:  ElasticsearchTypeAdapter{},
+		dataSourceTypeAdapter: dataSourceTypeAdapter,
+		connectorTypeAdapter:  connectorTypeAdapter,
 	}
 }
