@@ -85,15 +85,12 @@ func (b *aggrQueryBuilder) buildBucketAggregation(metadata model.JsonMap) *model
 }
 
 func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregation, metadata model.JsonMap) *model.Query {
-	getFirstField := func() model.Expr {
+	getFirstExpression := func() model.Expr {
 		if len(metricsAggr.Fields) > 0 {
 			return metricsAggr.Fields[0]
 		}
 		logger.ErrorWithCtx(b.ctx).Msg("No field names in metrics aggregation. Using empty.")
 		return nil
-	}
-	getFirstExpression := func() model.Expr {
-		return getFirstField()
 	}
 
 	query := b.buildAggregationCommon(metadata)
@@ -551,10 +548,10 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("can't parse top_hits' fields. top_hits type: %T, value: %v. Using empty fields.", topHits, topHits)
 		}
-		cols := make([]model.Expr, 0, len(fields))
+		exprs := make([]model.Expr, 0, len(fields))
 		for i, fieldNameRaw := range fields {
 			if fieldName, ok := fieldNameRaw.(string); ok {
-				cols = append(cols, model.NewColumnRef(fieldName))
+				exprs = append(exprs, model.NewColumnRef(fieldName))
 			} else {
 				logger.WarnWithCtx(cw.Ctx).Msgf("field %d in top_hits is not a string. Field's type: %T, value: %v. Skipping.",
 					i, fieldNameRaw, fieldNameRaw)
@@ -570,7 +567,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		}
 		return metricsAggregation{
 			AggrType:  "top_hits",
-			Fields:    cols,
+			Fields:    exprs,
 			FieldType: metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
 			Size:      size,
 		}, true
