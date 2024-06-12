@@ -129,7 +129,7 @@ func (v *renderer) VisitOrderByExpr(e OrderByExpr) interface{} {
 }
 
 func (v *renderer) VisitDistinctExpr(e DistinctExpr) interface{} {
-	return fmt.Sprintf("DISTINCT %s", e.Accept(v).(string))
+	return fmt.Sprintf("DISTINCT %s", e.Expr.Accept(v).(string))
 }
 
 func (v *renderer) VisitTableRef(e TableRef) interface{} {

@@ -162,11 +162,11 @@ func NewLiteral(value any) LiteralExpr {
 
 // DistinctExpr is a representation of DISTINCT keyword in SQL, e.g. `SELECT DISTINCT` ... or `SELECT COUNT(DISTINCT ...)`
 type DistinctExpr struct {
-	Exprs Expr
+	Expr Expr
 }
 
 func NewDistinctExpr(expr Expr) DistinctExpr {
-	return DistinctExpr{Exprs: expr}
+	return DistinctExpr{Expr: expr}
 }
 
 func (s DistinctExpr) Accept(v ExprVisitor) interface{} {
