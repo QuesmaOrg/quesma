@@ -111,15 +111,6 @@ func (e StringExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitString(e)
 }
 
-// deprecated
-type CompositeExpr struct { // Space separated expressions, we should figure out something better
-	Expressions []Expr
-}
-
-func (e CompositeExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitComposite(e)
-}
-
 type InfixExpr struct {
 	Left  Expr
 	Op    string
@@ -231,7 +222,6 @@ type ExprVisitor interface {
 	VisitMultiFunction(e MultiFunctionExpr) interface{}
 	VisitLiteral(l LiteralExpr) interface{}
 	VisitString(e StringExpr) interface{}
-	VisitComposite(e CompositeExpr) interface{}
 	VisitInfix(e InfixExpr) interface{}
 	VisitSQL(s SQL) interface{}
 	VisitColumnRef(e ColumnRef) interface{}

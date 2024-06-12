@@ -52,17 +52,6 @@ func (v *usedColumns) VisitLiteral(l LiteralExpr) interface{} {
 	return make([]TableColumnExpr, 0)
 }
 
-func (v *usedColumns) VisitComposite(e CompositeExpr) interface{} {
-	res := make([]TableColumnExpr, 0)
-	for _, arg := range e.Expressions {
-		v1 := arg.Accept(v)
-		if v2, ok := v1.([]TableColumnExpr); ok {
-			res = append(res, v2...)
-		}
-	}
-	return res
-}
-
 func (v *usedColumns) VisitSQL(s SQL) interface{} {
 	return make([]TableColumnExpr, 0)
 }

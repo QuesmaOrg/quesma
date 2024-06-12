@@ -114,7 +114,6 @@ func (v *WhereVisitor) VisitArrayAccess(e model.ArrayAccess) interface{} {
 
 // TODO this whole block is fake ... need to double chceck this
 func (v *WhereVisitor) MultiFunctionExpr(e model.MultiFunctionExpr) interface{}  { return e }
-func (v *WhereVisitor) VisitComposite(e model.CompositeExpr) interface{}         { return e }
 func (v *WhereVisitor) VisitMultiFunction(e model.MultiFunctionExpr) interface{} { return e }
 func (v *WhereVisitor) VisitString(e model.StringExpr) interface{}               { return e }
 func (v *WhereVisitor) VisitSQL(e model.SQL) interface{}                         { return e }

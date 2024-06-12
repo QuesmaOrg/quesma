@@ -77,14 +77,6 @@ func (v *renderer) VisitString(e StringExpr) interface{} {
 	return e.Value
 }
 
-func (v *renderer) VisitComposite(e CompositeExpr) interface{} {
-	exps := make([]string, 0)
-	for _, exp := range e.Expressions {
-		exps = append(exps, exp.Accept(v).(string))
-	}
-	return strings.Join(exps, " ")
-}
-
 func (v *renderer) VisitSQL(s SQL) interface{} {
 	return s.Query
 }
