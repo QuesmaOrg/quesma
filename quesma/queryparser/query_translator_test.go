@@ -3,10 +3,8 @@ package queryparser
 import (
 	"context"
 	"encoding/json"
-	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"math"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
@@ -156,7 +154,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 			)
 			ourResponse, err := ourResponseRaw.Marshal()
 			assert.NoError(t, err)
-			actualMinusExpected, expectedMinusActual, err := util.JsonDifference(string(ourResponse), args[i].elasticResponseJson, false, false, math.MaxInt)
+			actualMinusExpected, expectedMinusActual, err := util.JsonDifferenceWeak(string(ourResponse), args[i].elasticResponseJson)
 			if err != nil {
 				t.Error(err)
 			}
@@ -455,8 +453,7 @@ func TestMakeResponseAsyncSearchQuery(t *testing.T) {
 			ourResponseBuf, err2 := ourResponse.Marshal()
 			assert.NoError(t, err2)
 
-			actualMinusExpected, expectedMinusActual, err := util.JsonDifference(string(ourResponseBuf), args[i].elasticResponseJson, false, false, math.MaxInt)
-			pp.Println(actualMinusExpected, expectedMinusActual)
+			actualMinusExpected, expectedMinusActual, err := util.JsonDifferenceWeak(string(ourResponseBuf), args[i].elasticResponseJson)
 			assert.NoError(t, err)
 
 			acceptableDifference := []string{"sort", "_score", "_version"}
