@@ -61,9 +61,9 @@ func TestHtmlPages(t *testing.T) {
 		assert.NotContains(t, response, xss)
 	})
 
-	// generateSchema relies on the LogManager instance, which is not initialized in this test
+	// generateTables relies on the LogManager instance, which is not initialized in this test
 	t.Run("schema got no XSS and no panic", func(t *testing.T) {
-		response := string(qmc.generateSchema())
+		response := string(qmc.generateTables())
 		assert.NotContains(t, response, xss)
 	})
 }
@@ -103,7 +103,7 @@ func TestHtmlSchemaPage(t *testing.T) {
 	qmc := NewQuesmaManagementConsole(cfg, logManager, nil, logChan, telemetry.NewPhoneHomeEmptyAgent())
 
 	t.Run("schema got no XSS and no panic", func(t *testing.T) {
-		response := string(qmc.generateSchema())
+		response := string(qmc.generateTables())
 		assert.NotContains(t, response, xss)
 	})
 }

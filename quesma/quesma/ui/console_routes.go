@@ -47,12 +47,12 @@ func (qmc *QuesmaManagementConsole) createRouting() *mux.Router {
 
 	router.HandleFunc("/tables/reload", func(writer http.ResponseWriter, req *http.Request) {
 		qmc.logManager.ReloadTables()
-		buf := qmc.generateSchema()
+		buf := qmc.generateTables()
 		_, _ = writer.Write(buf)
 	}).Methods("POST")
 
 	router.HandleFunc("/tables", func(writer http.ResponseWriter, req *http.Request) {
-		buf := qmc.generateSchema()
+		buf := qmc.generateTables()
 		_, _ = writer.Write(buf)
 	})
 
