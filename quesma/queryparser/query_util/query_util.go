@@ -40,7 +40,7 @@ func BuildHitsQuery(ctx context.Context, tableName string, fieldName string, que
 		WhereClause: query.WhereClause,
 		OrderBy:     query.OrderBy,
 		Limit:       applySizeLimit(ctx, limit),
-		FromClause:  model.NewSelectColumnFromString(tableName),
+		FromClause:  model.NewTableRef(tableName),
 		TableName:   tableName,
 		CanParse:    true,
 	}

@@ -102,3 +102,7 @@ func (v *usedColumns) VisitOrderByExpr(e OrderByExpr) interface{} {
 func (v *usedColumns) VisitDistinctExpr(e DistinctExpr) interface{} {
 	return make([]TableColumnExpr, 0) //TODO
 }
+
+func (v *usedColumns) VisitTableRef(e TableRef) interface{} {
+	return make([]TableColumnExpr, 0)
+}

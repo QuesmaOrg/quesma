@@ -169,10 +169,6 @@ func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value}
 }
 
-func NewComposite(Exprressions ...Expr) *CompositeExpr {
-	return &CompositeExpr{Expressions: Exprressions}
-}
-
 // DistinctExpr is a representation of DISTINCT keyword in SQL, e.g. `SELECT DISTINCT` ... or `SELECT COUNT(DISTINCT ...)`
 type DistinctExpr struct {
 	Exprs []Expr
@@ -184,6 +180,21 @@ func NewDistinctExpr(exprs []Expr) DistinctExpr {
 
 func (s DistinctExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitDistinctExpr(s)
+}
+
+// TableRef is an explicit reference to a table in a query
+type TableRef struct {
+	Name string
+	// to be considered - alias (e.g. FROM tableName AS t)
+	// to be considered - database prefix (e.g. FROM databaseName.tableName)
+}
+
+func NewTableRef(name string) TableRef {
+	return TableRef{Name: name}
+}
+
+func (t TableRef) Accept(v ExprVisitor) interface{} {
+	return v.VisitTableRef(t)
 }
 
 type OrderByDirection int8
@@ -229,4 +240,5 @@ type ExprVisitor interface {
 	VisitArrayAccess(e ArrayAccess) interface{}
 	VisitOrderByExpr(e OrderByExpr) interface{}
 	VisitDistinctExpr(e DistinctExpr) interface{}
+	VisitTableRef(e TableRef) interface{}
 }

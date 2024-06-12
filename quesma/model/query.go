@@ -26,7 +26,7 @@ type (
 		Columns     []SelectColumn // Columns to select, including aliases
 		GroupBy     []Expr         // if not empty, we do GROUP BY GroupBy...
 		OrderBy     []OrderByExpr  // if not empty, we do ORDER BY OrderBy...
-		FromClause  SelectColumn   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
+		FromClause  Expr           // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
 		WhereClause Expr           // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
 		Limit       int            // LIMIT clause, noLimit (0) means no limit
 		SampleLimit int            // LIMIT, but before grouping, 0 means no limit
@@ -160,7 +160,9 @@ func (q *Query) String(ctx context.Context) string {
 		sb.WriteString(strings.Join(innerColumn, ", "))
 		sb.WriteString(" FROM ")
 	}
-	sb.WriteString(q.FromClause.SQL())
+	if q.FromClause != nil {
+		sb.WriteString(AsString(q.FromClause))
+	}
 	if q.WhereClause != nil {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(AsString(q.WhereClause))
@@ -279,7 +281,7 @@ func (q *Query) IsChild(maybeParent *Query) bool {
 
 // TODO change whereClause type string -> some typed
 func (q *Query) NewSelectColumnSubselectWithRowNumber(selectFields []SelectColumn, groupByFields []Expr,
-	whereClause string, orderByField string, orderByDesc bool) SelectColumn {
+	whereClause string, orderByField string, orderByDesc bool) Expr {
 
 	const additionalArrayLength = 6
 	/* used to be as string:
@@ -319,13 +321,19 @@ func (q *Query) NewSelectColumnSubselectWithRowNumber(selectFields []SelectColum
 	// window functions formatting (as everything else) should be systematically formatted at the printing stage
 	fromSelect = append(fromSelect, NewLiteral(fmt.Sprintf("'%s'", RowNumberColumnName)))
 	fromSelect = append(fromSelect, NewStringExpr("FROM"))
-	fromSelect = append(fromSelect, q.FromClause.Expression)
+	fromSelect = append(fromSelect, q.FromClause)
 
 	if whereClause != "" {
 		fromSelect = append(fromSelect, NewStringExpr("WHERE "+whereClause))
 	}
-
-	return SelectColumn{Expression: NewFunction("", NewComposite(fromSelect...))}
+	fullQueryStr := strings.Join(func() []string {
+		var finalStr []string
+		for _, expr := range fromSelect {
+			finalStr = append(finalStr, AsString(expr))
+		}
+		return finalStr
+	}(), " ")
+	return SQL{Query: fmt.Sprintf("(%s)", fullQueryStr)}
 }
 
 // Aggregator is always initialized as "empty", so with SplitOverHowManyFields == 0, Keyed == false, Filters == false.

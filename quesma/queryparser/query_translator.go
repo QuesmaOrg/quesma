@@ -401,7 +401,7 @@ func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sam
 	return &model.Query{
 		Columns:     []model.SelectColumn{{Expression: model.NewCountFunc()}},
 		WhereClause: whereClause,
-		FromClause:  model.NewSelectColumnFromString(cw.Table.FullTableName()),
+		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		SampleLimit: sampleLimit,
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
@@ -419,7 +419,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, wh
 		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}},
 		WhereClause: whereClause,
 		Limit:       limit,
-		FromClause:  model.NewSelectColumnFromString(cw.Table.FullTableName()),
+		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}
@@ -437,7 +437,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}},
 		WhereClause: whereClause,
 		Limit:       limit,
-		FromClause:  model.NewSelectColumnFromString(cw.Table.FullTableName()),
+		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}
@@ -456,7 +456,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}, {Expression: model.NewCountFunc()}},
 		GroupBy:     []model.Expr{model.NewTableColumnExpr(fieldName)},
 		OrderBy:     model.NewSortByCountColumn(true),
-		FromClause:  model.NewSelectColumnFromString(cw.Table.FullTableName()),
+		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		WhereClause: simpleQuery.WhereClause,
 		SampleLimit: facetsSampleSize,
 		TableName:   cw.Table.FullTableName(),
@@ -473,7 +473,7 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName stri
 		WhereClause: whereClause,
 		OrderBy:     model.NewSortColumn(timestampFieldName, !earliest),
 		Limit:       1,
-		FromClause:  model.NewSelectColumnFromString(cw.Table.FullTableName()),
+		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}

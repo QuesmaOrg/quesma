@@ -144,3 +144,7 @@ func (v *renderer) VisitDistinctExpr(e DistinctExpr) interface{} {
 	allExprs := strings.Join(exprsAsStr, ", ")
 	return fmt.Sprintf("DISTINCT %s", allExprs)
 }
+
+func (v *renderer) VisitTableRef(e TableRef) interface{} {
+	return e.Name
+}

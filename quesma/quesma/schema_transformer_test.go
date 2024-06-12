@@ -28,7 +28,7 @@ func Test_ipRangeTransform(t *testing.T) {
 
 	expectedQueries := []*model.Query{
 		{
-			FromClause: model.NewSelectColumnFromString("kibana_sample_data_logs"),
+			FromClause: model.NewTableRef("kibana_sample_data_logs"),
 			TableName:  "kibana_sample_data_logs",
 			Columns: []model.SelectColumn{{
 				Expression: model.NewWildcardExpr,
@@ -49,7 +49,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			},
 		},
 		{
-			FromClause: model.NewSelectColumnFromString("kibana_sample_data_logs"),
+			FromClause: model.NewTableRef("kibana_sample_data_logs"),
 			TableName:  "kibana_sample_data_logs",
 			Columns: []model.SelectColumn{{
 				Expression: model.NewWildcardExpr,
@@ -62,7 +62,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			},
 		},
 		{
-			FromClause: model.NewSelectColumnFromString("kibana_sample_data_logs"),
+			FromClause: model.NewTableRef("kibana_sample_data_logs"),
 			TableName:  "kibana_sample_data_logs",
 			Columns: []model.SelectColumn{{
 				Expression: model.NewWildcardExpr,
@@ -87,7 +87,7 @@ func Test_ipRangeTransform(t *testing.T) {
 		//"@timestamp"<=parseDateTime64BestEffort('2024-06-10T09:58:50.387Z')) AND
 		//isIPAddressInRange(CAST(clientip,'String'),'32.208.36.11/16'))
 		{
-			FromClause: model.NewSelectColumnFromString("kibana_sample_data_logs"),
+			FromClause: model.NewTableRef("kibana_sample_data_logs"),
 			TableName:  "kibana_sample_data_logs",
 			Columns: []model.SelectColumn{{
 				Expression: model.NewWildcardExpr,
@@ -131,7 +131,7 @@ func Test_ipRangeTransform(t *testing.T) {
 	queries := [][]*model.Query{
 		{
 			{
-				FromClause: model.NewSelectColumnFromString("kibana_sample_data_logs"),
+				FromClause: model.NewTableRef("kibana_sample_data_logs"),
 				TableName:  "kibana_sample_data_logs",
 				Columns: []model.SelectColumn{{
 					Expression: model.NewWildcardExpr,
@@ -146,7 +146,7 @@ func Test_ipRangeTransform(t *testing.T) {
 		},
 		{
 			{
-				FromClause: model.NewSelectColumnFromString("kibana_sample_data_logs"),
+				FromClause: model.NewTableRef("kibana_sample_data_logs"),
 				TableName:  "kibana_sample_data_logs",
 				Columns: []model.SelectColumn{{
 					Expression: model.NewWildcardExpr,
@@ -161,7 +161,7 @@ func Test_ipRangeTransform(t *testing.T) {
 		},
 		{
 			{
-				FromClause: model.NewSelectColumnFromString("kibana_sample_data_logs"),
+				FromClause: model.NewTableRef("kibana_sample_data_logs"),
 				TableName:  "kibana_sample_data_logs",
 				Columns: []model.SelectColumn{{
 					Expression: model.NewWildcardExpr,
@@ -180,7 +180,7 @@ func Test_ipRangeTransform(t *testing.T) {
 		//"clientip" iLIKE '%32.208.36.11/16%')
 		{
 			{
-				FromClause: model.NewSelectColumnFromString("kibana_sample_data_logs"),
+				FromClause: model.NewTableRef("kibana_sample_data_logs"),
 				TableName:  "kibana_sample_data_logs",
 				Columns: []model.SelectColumn{{
 					Expression: model.NewWildcardExpr,
