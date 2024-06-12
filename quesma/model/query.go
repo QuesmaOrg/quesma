@@ -86,14 +86,6 @@ func NewSortByCountColumn(desc bool) OrderByExpr {
 	}
 }
 
-func NewSelectColumnTableField(fieldName string) SelectColumn {
-	return SelectColumn{Expression: NewTableColumnExpr(fieldName)}
-}
-
-func NewSelectColumnFromString(s string) SelectColumn {
-	return SelectColumn{Expression: StringExpr{Value: s}}
-}
-
 func (c SelectColumn) SQL() string {
 
 	if c.Expression == nil {
@@ -108,8 +100,8 @@ func (c SelectColumn) SQL() string {
 
 	// if alias is the same as column name, we don't need to add it
 	switch exp := c.Expression.(type) {
-	case TableColumnExpr:
-		if exp.ColumnRef.ColumnName == c.Alias {
+	case ColumnRef:
+		if exp.ColumnName == c.Alias {
 			return exprAsString
 		}
 	}
@@ -149,7 +141,7 @@ func (q *Query) String(ctx context.Context) string {
 		sb.WriteString("(SELECT ")
 		innerColumn := make([]string, 0)
 		for _, col := range q.Columns {
-			if _, ok := col.Expression.(TableColumnExpr); ok {
+			if _, ok := col.Expression.(ColumnRef); ok {
 				innerColumn = append(innerColumn, AsString(col.Expression)) // TOOD: Maybe need a change
 			}
 		}
@@ -230,22 +222,10 @@ func (q *Query) TrimKeywordFromFields() {
 // but it was like that before the refactor
 func (q *Query) OrderByFieldNames() (fieldNames []string) {
 	for _, expr := range q.OrderBy {
-		GetUsedColumns(expr)
+		for _, colRefs := range GetUsedColumns(expr) {
+			fieldNames = append(fieldNames, colRefs.ColumnName)
+		}
 	}
-	// TODO
-	//	compositeExp, ok := col.Expression.(*CompositeExpr)
-	//	if !ok {
-	//		continue
-	//	}
-	//	if len(compositeExp.Expressions) != 2 {
-	//		continue
-	//	}
-	//	for i := 0; i < len(q.OrderBy)-1; i++ {
-	//		fieldNames = append(fieldNames, AsString(q.OrderBy[i]))
-	//	}
-	//
-	//	fieldNames = append(fieldNames, tableColExp.ColumnRef.ColumnName)
-	//}
 	return fieldNames
 }
 

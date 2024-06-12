@@ -33,7 +33,7 @@ func BuildHitsQuery(ctx context.Context, tableName string, fieldName string, que
 	if fieldName == "*" {
 		col = model.SelectColumn{Expression: model.NewWildcardExpr}
 	} else {
-		col = model.SelectColumn{Expression: model.NewTableColumnExpr(fieldName)}
+		col = model.SelectColumn{Expression: model.NewColumnRef(fieldName)}
 	}
 	return &model.Query{
 		Columns:     []model.SelectColumn{col},

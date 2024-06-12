@@ -37,18 +37,6 @@ func (v *renderer) VisitArrayAccess(e ArrayAccess) interface{} {
 	return fmt.Sprintf("%v[%v]", e.ColumnRef.Accept(v), e.Index.Accept(v))
 }
 
-func (v *renderer) VisitTableColumnExpr(e TableColumnExpr) interface{} {
-
-	var res string
-
-	if e.TableAlias == "" {
-		res = v.VisitColumnRef(e.ColumnRef).(string)
-	} else {
-		res = e.TableAlias + "." + v.VisitColumnRef(e.ColumnRef).(string)
-	}
-	return res
-}
-
 func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
 	args := make([]string, 0)
 	for _, arg := range e.Args {

@@ -189,7 +189,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			query.Limit = metricsAggr.Size
 			query.Columns = append(query.Columns, innerFieldsAsSelect...)
 			if metricsAggr.sortByExists() {
-				query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewTableColumnExpr(metricsAggr.SortBy)})
+				query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewColumnRef(metricsAggr.SortBy)})
 				query.OrderBy = append(query.OrderBy, model.NewSortColumn(metricsAggr.SortBy, strings.ToLower(metricsAggr.Order) == "desc"))
 			}
 		}
@@ -962,7 +962,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldFromScriptField(queryMap QueryMap
 	wantedRegex := regexp.MustCompile(`^doc\['(\w+)']\.value\.(?:getHour\(\)|hourOfDay)$`)
 	matches := wantedRegex.FindStringSubmatch(source)
 	if len(matches) == 2 {
-		return model.NewFunction("toHour", model.NewTableColumnExpr(matches[1])), true
+		return model.NewFunction("toHour", model.NewColumnRef(matches[1])), true
 	}
 	return
 }

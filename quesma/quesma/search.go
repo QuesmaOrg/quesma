@@ -623,7 +623,7 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 	var allReferencedFields = make([]string, 0)
 	for _, col := range query.Columns {
 		for _, c := range model.GetUsedColumns(col.Expression) {
-			allReferencedFields = append(allReferencedFields, c.ColumnRef.ColumnName)
+			allReferencedFields = append(allReferencedFields, c.ColumnName)
 		}
 	}
 	allReferencedFields = append(allReferencedFields, query.OrderByFieldNames()...)

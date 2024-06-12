@@ -1,9 +1,5 @@
 package model
 
-import (
-	"strings"
-)
-
 // Expr is a generic representation of an expression which is a part of the SQL query.
 type Expr interface {
 	Accept(v ExprVisitor) interface{}
@@ -37,16 +33,6 @@ func NewPrefixExpr(op string, args []Expr) PrefixExpr {
 
 func (e PrefixExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitPrefixExpr(e)
-}
-
-// TableColumnExpr is a little questionable at this point
-type TableColumnExpr struct {
-	TableAlias string
-	ColumnRef  ColumnRef
-}
-
-func (e TableColumnExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitTableColumnExpr(e)
 }
 
 // NestedProperty represents a call to nested property e.g. `columnName.propertyName`
@@ -139,11 +125,6 @@ func NewCountFunc(args ...Expr) FunctionExpr {
 
 var NewWildcardExpr = LiteralExpr{Value: "*"}
 
-func NewTableColumnExpr(columnName string) TableColumnExpr {
-	columnName = strings.TrimSuffix(columnName, ".keyword")
-	return TableColumnExpr{ColumnRef: NewColumnRef(columnName)}
-}
-
 func NewStringExpr(value string) StringExpr {
 	return StringExpr{Value: value}
 }
@@ -209,7 +190,6 @@ func NewInfixExpr(lhs Expr, operator string, rhs Expr) InfixExpr {
 }
 
 type ExprVisitor interface {
-	VisitTableColumnExpr(e TableColumnExpr) interface{}
 	VisitFunction(e FunctionExpr) interface{}
 	VisitMultiFunction(e MultiFunctionExpr) interface{}
 	VisitLiteral(l LiteralExpr) interface{}

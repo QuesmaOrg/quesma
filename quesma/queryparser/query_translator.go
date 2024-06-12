@@ -416,7 +416,7 @@ func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query *mo
 func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, whereClause model.Expr, limit int) *model.Query {
 	return &model.Query{
 		IsDistinct:  true,
-		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}},
+		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(fieldName)}},
 		WhereClause: whereClause,
 		Limit:       limit,
 		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
@@ -434,7 +434,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 		cw.AddTokenToHighlight(prefix)
 	}
 	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}},
+		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(fieldName)}},
 		WhereClause: whereClause,
 		Limit:       limit,
 		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
@@ -453,8 +453,8 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 	}
 
 	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}, {Expression: model.NewCountFunc()}},
-		GroupBy:     []model.Expr{model.NewTableColumnExpr(fieldName)},
+		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(fieldName)}, {Expression: model.NewCountFunc()}},
+		GroupBy:     []model.Expr{model.NewColumnRef(fieldName)},
 		OrderBy:     []model.OrderByExpr{model.NewSortByCountColumn(true)},
 		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		WhereClause: simpleQuery.WhereClause,
@@ -469,7 +469,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 // earliest == false <==> we want latest timestamp
 func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName string, whereClause model.Expr, earliest bool) *model.Query {
 	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(timestampFieldName)}},
+		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(timestampFieldName)}},
 		WhereClause: whereClause,
 		OrderBy:     []model.OrderByExpr{model.NewSortColumn(timestampFieldName, !earliest)},
 		Limit:       1,

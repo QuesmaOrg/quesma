@@ -57,9 +57,9 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 		switch col.Expression.(type) {
 
 		// this is a compensation for the fact we don't have columns named in the query
-		case model.TableColumnExpr:
+		case model.ColumnRef:
 			if col.Alias == "" {
-				colName = col.Expression.(model.TableColumnExpr).ColumnRef.ColumnName
+				colName = col.Expression.(model.ColumnRef).ColumnName
 			} else {
 				colName = col.Alias
 			}
