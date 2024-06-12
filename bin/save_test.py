@@ -3,6 +3,10 @@ import argparse
 import os
 import shutil
 
+# Usage: usually just run this script without any arguments, it will save all requests
+# If you want to save only some requests, use flags: -f, -l, -s, -e
+# More info about flags: ./bin/save_test.py -h
+
 TESTS_SRC_DIR = "docker/mitmproxy/requests/"
 TESTS_DST_DIR = "quesma/tests/end2end/testcases/"
 
@@ -32,7 +36,7 @@ def save_test(test_nrs: list[str]):
         cur_dst_nr += 1
         copied_test_nrs += [int(cur_src_nr)]
 
-    print(f"Tests {copied_test_nrs} saved in {suite_dir}/")
+    print(f"Requests {copied_test_nrs} saved in {suite_dir}/")
 
 
 def get_requests_to_save(requests_available: list[int], args: dict[str, any]) -> list[str]:
@@ -66,14 +70,10 @@ def parse_arguments():
     return vars(ap.parse_args())
 
 
-def main():
+if __name__ == "__main__":
     args = parse_arguments()
     requests_available = sorted([int(file.name[:-5])
                                  for file in os.scandir(TESTS_SRC_DIR)
                                  if file.is_file() and file.name.endswith(".http") and file.name[:-5].isdigit()])
-    print("Available tests:", requests_available, "\n")
+    print("Available test requests:", requests_available, "\n")
     save_test(get_requests_to_save(requests_available, args))
-
-
-if __name__ == "__main__":
-    main()
