@@ -41,6 +41,14 @@ type (
 	}
 )
 
+func (t FieldName) AsString() string {
+	return string(t)
+}
+
+func (t TableName) AsString() string {
+	return string(t)
+}
+
 func (t Type) AsString() string {
 	return string(t)
 }
