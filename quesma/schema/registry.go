@@ -10,18 +10,6 @@ import (
 )
 
 type (
-	Schema struct {
-		Fields map[FieldName]Field
-	}
-	Field struct {
-		Name FieldName
-		Type Type
-	}
-	TableName string
-	FieldName string
-)
-
-type (
 	Registry interface {
 		AllSchemas() map[TableName]Schema
 		FindSchema(name TableName) (Schema, bool)
@@ -39,14 +27,6 @@ type (
 		Convert(string) (Type, bool)
 	}
 )
-
-func (t FieldName) AsString() string {
-	return string(t)
-}
-
-func (t TableName) AsString() string {
-	return string(t)
-}
 
 func (s *schemaRegistry) Start() {
 	if s.started.CompareAndSwap(false, true) {
@@ -79,8 +59,8 @@ func (s *schemaRegistry) loadTypeMappingsFromConfiguration() {
 						Name: fieldName,
 						Type: resolvedType,
 					}
-				} else {
-					logger.Error().Msgf("invalid configuration: type %s not supported (should have been spotted when validating configuration)", field.Type)
+				} else if field.Type.AsString() != config.TypeAlias {
+					logger.Warn().Msgf("invalid configuration: type %s not supported (should have been spotted when validating configuration)", field.Type)
 				}
 			}
 			s.schemas.Store(TableName(indexConfiguration.Name), Schema{Fields: fields})
@@ -98,25 +78,46 @@ func (s *schemaRegistry) Load() error {
 	definitions.Range(func(indexName string, value *clickhouse.Table) bool {
 		logger.Debug().Msgf("loading schema for table %s", indexName)
 		fields := make(map[FieldName]Field)
+		aliases := make(map[FieldName]FieldName)
 		if schema, found := schemas[TableName(indexName)]; found {
 			fields = schema.Fields
 		}
 		for _, col := range value.Cols {
 			indexConfig := s.configuration.IndexConfig[indexName]
+
 			// TODO replace with dedicated schema config
-			if explicitType, found := indexConfig.TypeMappings[col.Name]; found {
-				if resolvedQuesmaType, found := s.connectorTypeAdapter.Convert(explicitType); found {
-					logger.Debug().Msgf("found explicit type mapping for column %s: %s", col.Name, resolvedQuesmaType)
-					fields[FieldName(col.Name)] = Field{
-						Name: FieldName(col.Name),
-						Type: resolvedQuesmaType,
+			if indexConfig.SchemaConfiguration == nil {
+				logger.Debug().Msgf("using deprecated type mappings for index %s", indexName)
+				if explicitType, found := indexConfig.TypeMappings[col.Name]; found {
+					if resolvedQuesmaType, found := s.connectorTypeAdapter.Convert(explicitType); found {
+						logger.Debug().Msgf("found explicit type mapping for column %s: %s", col.Name, resolvedQuesmaType)
+						fields[FieldName(col.Name)] = Field{
+							Name: FieldName(col.Name),
+							Type: resolvedQuesmaType,
+						}
+						continue
+					} else {
+						// TODO those will need to be validated at config stage
+						logger.Error().Msgf("type %s not supported", explicitType)
 					}
-					continue
-				} else {
-					// TODO those will need to be validated at config stage
-					logger.Error().Msgf("type %s not supported", explicitType)
+				}
+			} else {
+				logger.Debug().Msgf("using schema configuration for index %s", indexName)
+				if fieldConfiguration, found := indexConfig.SchemaConfiguration.Fields[config.FieldName(col.Name)]; found {
+					if resolvedQuesmaType, found := s.connectorTypeAdapter.Convert(fieldConfiguration.Type.AsString()); found {
+						logger.Debug().Msgf("found explicit type mapping for column %s: %s", col.Name, resolvedQuesmaType)
+						fields[FieldName(col.Name)] = Field{
+							Name: FieldName(col.Name),
+							Type: resolvedQuesmaType,
+						}
+						continue
+					} else {
+						// TODO those will need to be validated at config stage
+						logger.Error().Msgf("type %s not supported", fieldConfiguration)
+					}
 				}
 			}
+
 			if _, exists := fields[FieldName(col.Name)]; !exists {
 				if quesmaType, found := s.dataSourceTypeAdapter.Convert(col.Type.String()); found {
 					fields[FieldName(col.Name)] = Field{
@@ -124,11 +125,33 @@ func (s *schemaRegistry) Load() error {
 						Type: quesmaType,
 					}
 				} else {
-					logger.Error().Msgf("type %s not supported", col.Type.String())
+					logger.Debug().Msgf("type %s not supported, falling back to text", col.Type.String())
+					fields[FieldName(col.Name)] = Field{
+						Name: FieldName(col.Name),
+						Type: TypeText,
+					}
 				}
 			}
 		}
-		s.schemas.Store(TableName(indexName), Schema{Fields: fields})
+
+		for _, indexConfiguration := range s.configuration.IndexConfig {
+			if !indexConfiguration.Enabled {
+				continue
+			}
+			if indexConfiguration.SchemaConfiguration != nil {
+				for _, field := range indexConfiguration.SchemaConfiguration.Fields {
+					if field.Type.AsString() == config.TypeAlias {
+						if _, exists := fields[FieldName(field.AliasedField)]; exists {
+							aliases[FieldName(field.Name)] = FieldName(field.AliasedField)
+						} else {
+							logger.Debug().Msgf("alias field %s not found, possibly not yet loaded", field.AliasedField)
+						}
+					}
+				}
+			}
+		}
+
+		s.schemas.Store(TableName(indexName), Schema{Fields: fields, Aliases: aliases})
 		return true
 	})
 	for name, schema := range s.schemas.Snapshot() {

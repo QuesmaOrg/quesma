@@ -46,6 +46,18 @@ func (qmc *QuesmaManagementConsole) generateSchemas() []byte {
 			buffer.Html(`</td>`)
 			buffer.Html(`</tr>`)
 		}
+
+		for _, aliasFieldName := range util.MapKeysSorted(schema.Aliases) {
+			targetFieldName := schema.Aliases[aliasFieldName]
+			buffer.Html(`<tr>`)
+			buffer.Html(`<td>`)
+			buffer.Text(fmt.Sprintf("%s->%s", aliasFieldName.AsString(), targetFieldName.AsString()))
+			buffer.Html(`</td>`)
+			buffer.Html(`<td>`)
+			field := schema.Fields[targetFieldName]
+			buffer.Text(fmt.Sprintf("%s %s", field.Type.Name, field.Type.Properties))
+			buffer.Html(`</td>`)
+		}
 	}
 
 	buffer.Html("\n</body>")
