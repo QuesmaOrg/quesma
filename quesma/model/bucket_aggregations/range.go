@@ -106,19 +106,19 @@ func (interval Interval) floatToString(number float64) string {
 
 type Range struct {
 	ctx       context.Context
-	Col       model.SelectColumn
+	Expr      model.Expr
 	Intervals []Interval
 	// defines what response should look like
 	// https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-range-aggregation.html#_keyed_response_4
 	Keyed bool
 }
 
-func NewRange(ctx context.Context, col model.SelectColumn, intervals []Interval, keyed bool) Range {
-	return Range{ctx, col, intervals, keyed}
+func NewRange(ctx context.Context, expr model.Expr, intervals []Interval, keyed bool) Range {
+	return Range{ctx, expr, intervals, keyed}
 }
 
-func NewRangeWithDefaultKeyed(ctx context.Context, col model.SelectColumn, intervals []Interval) Range {
-	return Range{ctx, col, intervals, keyedDefaultValue}
+func NewRangeWithDefaultKeyed(ctx context.Context, expr model.Expr, intervals []Interval) Range {
+	return Range{ctx, expr, intervals, keyedDefaultValue}
 }
 
 func (query Range) IsBucketAggregation() bool {

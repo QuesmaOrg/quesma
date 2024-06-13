@@ -19,7 +19,6 @@ type (
 	}
 	TableName string
 	FieldName string
-	Type      string
 )
 
 type (
@@ -41,7 +40,11 @@ type (
 	}
 )
 
-func (t Type) AsString() string {
+func (t FieldName) AsString() string {
+	return string(t)
+}
+
+func (t TableName) AsString() string {
 	return string(t)
 }
 

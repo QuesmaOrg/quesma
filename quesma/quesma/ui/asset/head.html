@@ -386,6 +386,10 @@
             color: green;
         }
 
+        #dashboard-main #dashboard .status {
+            padding: 0 5px;
+        }
+
         #dashboard-kibana, #dashboard-ingest, #dashboard-elasticsearch, #dashboard-clickhouse {
             width: 19%;
             height: 40%;
@@ -482,6 +486,58 @@
         }
 
         #tables tr:hover {
+            background-color: #dddddd;
+        }
+
+        #schemas table {
+            border-collapse: collapse;
+            table-layout: fixed;
+            width: 80%;
+            word-wrap: break-word;
+        }
+
+        #schemas .tableName {
+            font-size: larger;
+            font-weight: bold;
+        }
+
+        #schemas th,
+        #schemas td {
+            text-align: left;
+            padding: 0 3px;
+            border: 1px solid black;
+            font-family: Courier;
+            font-size: small;
+        }
+
+        #schemas .columnName {
+            margin: auto;
+            width: 50%;
+        }
+
+        #schemas .columnType {
+            margin: auto;
+            width: 50%;
+        }
+
+        #schemas .columnAttribute  {
+            font-style: italic;
+        }
+
+        #schemas .columnWarning {
+            background-color: yellow;
+        }
+
+        #schemas .columnWarningText {
+            color: red;
+            font-weight: bold;
+        }
+
+        #schemas .create-table-query {
+            padding: 1em;
+        }
+
+        #schemas tr:hover {
             background-color: #dddddd;
         }
 

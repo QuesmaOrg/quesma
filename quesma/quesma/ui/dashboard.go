@@ -5,6 +5,7 @@ import (
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
+	"html"
 	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"mitmproxy/quesma/stats/errorstats"
@@ -122,7 +123,8 @@ func secondsToTerseString(second uint64) string {
 }
 
 func statusToDiv(s healthCheckStatus) string {
-	return fmt.Sprintf(`<span class="status %s" title="%s">%s</span>`, s.status, s.tooltip, s.message)
+	return fmt.Sprintf(`<span class="status %s" title="%s">%s</span>`, html.EscapeString(s.status),
+		html.EscapeString(s.tooltip), html.EscapeString(s.message))
 }
 
 func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {

@@ -1185,8 +1185,8 @@ func (cw *ClickhouseQueryTranslator) extractInterval(queryMap QueryMap) string {
 
 // parseSortFields parses sort fields from the query
 // We're skipping ELK internal fields, like "_doc", "_id", etc. (we only accept field starting with "_" if it exists in our table)
-func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns []model.SelectColumn) {
-	sortColumns = make([]model.SelectColumn, 0)
+func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns []model.OrderByExpr) {
+	sortColumns = make([]model.OrderByExpr, 0)
 	switch sortMaps := sortMaps.(type) {
 	case []any:
 		for _, sortMapAsAny := range sortMaps {
@@ -1207,24 +1207,22 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 				case QueryMap:
 					if order, ok := v["order"]; ok {
 						if orderAsString, ok := order.(string); ok {
-							orderAsString = strings.ToLower(orderAsString)
-							if orderAsString == "asc" || orderAsString == "desc" {
-								sortColumns = append(sortColumns, model.NewSortColumn(fieldName, orderAsString == "desc"))
+							if col, err := createSortColumn(fieldName, orderAsString); err == nil {
+								sortColumns = append(sortColumns, col)
 							} else {
-								logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", orderAsString)
+								logger.WarnWithCtx(cw.Ctx).Msg(err.Error())
 							}
 						} else {
 							logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order type: %T, value: %v. Skipping", order, order)
 						}
 					} else {
-						sortColumns = append(sortColumns, model.NewSortColumn(fieldName, false))
+						sortColumns = append(sortColumns, model.NewSortColumn(fieldName, model.AscOrder))
 					}
 				case string:
-					v = strings.ToLower(v)
-					if v == "asc" || v == "desc" {
-						sortColumns = append(sortColumns, model.NewSortColumn(fieldName, v == "desc"))
+					if col, err := createSortColumn(fieldName, v); err == nil {
+						sortColumns = append(sortColumns, col)
 					} else {
-						logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", v)
+						logger.WarnWithCtx(cw.Ctx).Msg(err.Error())
 					}
 				default:
 					logger.WarnWithCtx(cw.Ctx).Msgf("unexpected 'sort' value's type: %T (key, value): (%s, %v). Skipping", v, k, v)
@@ -1239,11 +1237,10 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 				continue
 			}
 			if fieldValue, ok := fieldValue.(string); ok {
-				fieldValue = strings.ToLower(fieldValue)
-				if fieldValue == "asc" || fieldValue == "desc" {
-					sortColumns = append(sortColumns, model.NewSortColumn(fieldName, fieldValue == "desc"))
+				if col, err := createSortColumn(fieldName, fieldValue); err == nil {
+					sortColumns = append(sortColumns, col)
 				} else {
-					logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", fieldValue)
+					logger.WarnWithCtx(cw.Ctx).Msg(err.Error())
 				}
 			}
 		}
@@ -1256,18 +1253,29 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 				// TODO Elastic internal fields will need to be supported in the future
 				continue
 			}
-			fieldValue = strings.ToLower(fieldValue)
-			if fieldValue == "asc" || fieldValue == "desc" {
-				sortColumns = append(sortColumns, model.NewSortColumn(fieldName, fieldValue == "desc"))
+			if col, err := createSortColumn(fieldName, fieldValue); err == nil {
+				sortColumns = append(sortColumns, col)
 			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("unexpected order value: %s. Skipping", fieldValue)
+				logger.WarnWithCtx(cw.Ctx).Msg(err.Error())
 			}
 		}
 
 		return sortColumns
 	default:
 		logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of sortMaps: %T, value: %v", sortMaps, sortMaps)
-		return []model.SelectColumn{}
+		return []model.OrderByExpr{}
+	}
+}
+
+func createSortColumn(fieldName, ordering string) (model.OrderByExpr, error) {
+	ordering = strings.ToLower(ordering)
+	switch ordering {
+	case "asc":
+		return model.NewSortColumn(fieldName, model.AscOrder), nil
+	case "desc":
+		return model.NewSortColumn(fieldName, model.DescOrder), nil
+	default:
+		return model.OrderByExpr{}, fmt.Errorf("unexpected order value: [%s] for field [%s] Skipping", ordering, fieldName)
 	}
 }
 

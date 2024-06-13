@@ -1,9 +1,5 @@
 package model
 
-import (
-	"strings"
-)
-
 // Expr is a generic representation of an expression which is a part of the SQL query.
 type Expr interface {
 	Accept(v ExprVisitor) interface{}
@@ -37,16 +33,6 @@ func NewPrefixExpr(op string, args []Expr) PrefixExpr {
 
 func (e PrefixExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitPrefixExpr(e)
-}
-
-// TableColumnExpr is a little questionable at this point
-type TableColumnExpr struct {
-	TableAlias string
-	ColumnRef  ColumnRef
-}
-
-func (e TableColumnExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitTableColumnExpr(e)
 }
 
 // NestedProperty represents a call to nested property e.g. `columnName.propertyName`
@@ -103,21 +89,11 @@ func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
 // Deprecated
 type StringExpr struct {
 	// StringExpr is just like LiteralExpr with string Value, but when rendering we don't quote it.
-	// Used e.g. for representing ASC/DESC, or tablename
 	Value string
 }
 
 func (e StringExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitString(e)
-}
-
-// deprecated
-type CompositeExpr struct { // Space separated expressions, we should figure out something better
-	Expressions []Expr
-}
-
-func (e CompositeExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitComposite(e)
 }
 
 type InfixExpr struct {
@@ -149,18 +125,6 @@ func NewCountFunc(args ...Expr) FunctionExpr {
 
 var NewWildcardExpr = LiteralExpr{Value: "*"}
 
-// it will render as IS
-type symbol string
-
-func Symbol(s string) LiteralExpr {
-	return NewLiteral(symbol(s))
-}
-
-func NewTableColumnExpr(columnName string) TableColumnExpr {
-	columnName = strings.TrimSuffix(columnName, ".keyword")
-	return TableColumnExpr{ColumnRef: NewColumnRef(columnName)}
-}
-
 func NewStringExpr(value string) StringExpr {
 	return StringExpr{Value: value}
 }
@@ -169,8 +133,56 @@ func NewLiteral(value any) LiteralExpr {
 	return LiteralExpr{Value: value}
 }
 
-func NewComposite(Exprressions ...Expr) *CompositeExpr {
-	return &CompositeExpr{Expressions: Exprressions}
+// DistinctExpr is a representation of DISTINCT keyword in SQL, e.g. `SELECT DISTINCT` ... or `SELECT COUNT(DISTINCT ...)`
+type DistinctExpr struct {
+	Expr Expr
+}
+
+func NewDistinctExpr(expr Expr) DistinctExpr {
+	return DistinctExpr{Expr: expr}
+}
+
+func (s DistinctExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitDistinctExpr(s)
+}
+
+// TableRef is an explicit reference to a table in a query
+type TableRef struct {
+	Name string
+	// to be considered - alias (e.g. FROM tableName AS t)
+	// to be considered - database prefix (e.g. FROM databaseName.tableName)
+}
+
+func NewTableRef(name string) TableRef {
+	return TableRef{Name: name}
+}
+
+func (t TableRef) Accept(v ExprVisitor) interface{} {
+	return v.VisitTableRef(t)
+}
+
+type OrderByDirection int8
+
+const (
+	DefaultOrder OrderByDirection = iota // DEFAULT means leaving ordering unspecified and deferring to whatever DBMS default is
+	AscOrder
+	DescOrder
+)
+
+type OrderByExpr struct {
+	Exprs     []Expr
+	Direction OrderByDirection
+}
+
+func (o OrderByExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitOrderByExpr(o)
+}
+
+func NewOrderByExpr(exprs []Expr, direction OrderByDirection) OrderByExpr {
+	return OrderByExpr{Exprs: exprs, Direction: direction}
+}
+func NewOrderByExprWithoutOrder(exprs ...Expr) OrderByExpr {
+	return OrderByExpr{Exprs: exprs, Direction: DefaultOrder}
 }
 
 func NewInfixExpr(lhs Expr, operator string, rhs Expr) InfixExpr {
@@ -178,16 +190,17 @@ func NewInfixExpr(lhs Expr, operator string, rhs Expr) InfixExpr {
 }
 
 type ExprVisitor interface {
-	VisitTableColumnExpr(e TableColumnExpr) interface{}
 	VisitFunction(e FunctionExpr) interface{}
 	VisitMultiFunction(e MultiFunctionExpr) interface{}
 	VisitLiteral(l LiteralExpr) interface{}
 	VisitString(e StringExpr) interface{}
-	VisitComposite(e CompositeExpr) interface{}
 	VisitInfix(e InfixExpr) interface{}
 	VisitSQL(s SQL) interface{}
 	VisitColumnRef(e ColumnRef) interface{}
 	VisitPrefixExpr(e PrefixExpr) interface{}
 	VisitNestedProperty(e NestedProperty) interface{}
 	VisitArrayAccess(e ArrayAccess) interface{}
+	VisitOrderByExpr(e OrderByExpr) interface{}
+	VisitDistinctExpr(e DistinctExpr) interface{}
+	VisitTableRef(e TableRef) interface{}
 }

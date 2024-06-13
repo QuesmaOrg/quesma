@@ -3,7 +3,6 @@ package model
 import (
 	"context"
 	"fmt"
-	"mitmproxy/quesma/logger"
 	"sort"
 	"strings"
 )
@@ -11,8 +10,6 @@ import (
 const (
 	RowNumberColumnName = "row_number"
 	noLimit             = 0
-	Desc                = "DESC"
-	Asc                 = "ASC"
 )
 
 type (
@@ -26,9 +23,9 @@ type (
 
 		// This is SELECT query. These fields should be extracted to separate struct.
 		Columns     []SelectColumn // Columns to select, including aliases
-		GroupBy     []SelectColumn // if not empty, we do GROUP BY GroupBy...
-		OrderBy     []SelectColumn // if not empty, we do ORDER BY OrderBy...
-		FromClause  SelectColumn   // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
+		GroupBy     []Expr         // if not empty, we do GROUP BY GroupBy...
+		OrderBy     []OrderByExpr  // if not empty, we do ORDER BY OrderBy...
+		FromClause  Expr           // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
 		WhereClause Expr           // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
 		Limit       int            // LIMIT clause, noLimit (0) means no limit
 		SampleLimit int            // LIMIT, but before grouping, 0 means no limit
@@ -73,32 +70,12 @@ type (
 	}
 )
 
-func NewSortColumn(field string, desc bool) SelectColumn {
-	var order string
-	if desc {
-		order = Desc
-	} else {
-		order = Asc
-	}
-	return SelectColumn{Expression: NewComposite(NewTableColumnExpr(field), NewStringExpr(order))}
+func NewSortColumn(field string, direction OrderByDirection) OrderByExpr {
+	return NewOrderByExpr([]Expr{NewColumnRef(field)}, direction)
 }
 
-func NewSortByCountColumn(desc bool) SelectColumn {
-	var order string
-	if desc {
-		order = Desc
-	} else {
-		order = Asc
-	}
-	return SelectColumn{Expression: NewComposite(NewCountFunc(), NewStringExpr(order))}
-}
-
-func NewSelectColumnTableField(fieldName string) SelectColumn {
-	return SelectColumn{Expression: NewTableColumnExpr(fieldName)}
-}
-
-func NewSelectColumnFromString(s string) SelectColumn {
-	return SelectColumn{Expression: StringExpr{Value: s}}
+func NewSortByCountColumn(direction OrderByDirection) OrderByExpr {
+	return NewOrderByExpr([]Expr{NewCountFunc()}, direction)
 }
 
 func (c SelectColumn) SQL() string {
@@ -115,8 +92,8 @@ func (c SelectColumn) SQL() string {
 
 	// if alias is the same as column name, we don't need to add it
 	switch exp := c.Expression.(type) {
-	case TableColumnExpr:
-		if exp.ColumnRef.ColumnName == c.Alias {
+	case ColumnRef:
+		if exp.ColumnName == c.Alias {
 			return exprAsString
 		}
 	}
@@ -156,7 +133,7 @@ func (q *Query) String(ctx context.Context) string {
 		sb.WriteString("(SELECT ")
 		innerColumn := make([]string, 0)
 		for _, col := range q.Columns {
-			if _, ok := col.Expression.(TableColumnExpr); ok {
+			if _, ok := col.Expression.(ColumnRef); ok {
 				innerColumn = append(innerColumn, AsString(col.Expression)) // TOOD: Maybe need a change
 			}
 		}
@@ -166,7 +143,9 @@ func (q *Query) String(ctx context.Context) string {
 		sb.WriteString(strings.Join(innerColumn, ", "))
 		sb.WriteString(" FROM ")
 	}
-	sb.WriteString(q.FromClause.SQL())
+	if q.FromClause != nil {
+		sb.WriteString(AsString(q.FromClause))
+	}
 	if q.WhereClause != nil {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(AsString(q.WhereClause))
@@ -177,11 +156,7 @@ func (q *Query) String(ctx context.Context) string {
 
 	groupBy := make([]string, 0, len(q.GroupBy))
 	for _, col := range q.GroupBy {
-		if col.Expression == nil {
-			logger.Warn().Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
-		} else {
-			groupBy = append(groupBy, col.SQL())
-		}
+		groupBy = append(groupBy, AsString(col))
 	}
 	if len(groupBy) > 0 {
 		sb.WriteString(" GROUP BY ")
@@ -190,11 +165,7 @@ func (q *Query) String(ctx context.Context) string {
 
 	orderBy := make([]string, 0, len(q.OrderBy))
 	for _, col := range q.OrderBy {
-		if col.Expression == nil {
-			logger.WarnWithCtx(ctx).Msgf("GroupBy column expression is nil, skipping. Column: %+v", col)
-		} else {
-			orderBy = append(orderBy, col.SQL())
-		}
+		orderBy = append(orderBy, AsString(col))
 	}
 	if len(orderBy) > 0 {
 		sb.WriteString(" ORDER BY ")
@@ -221,7 +192,7 @@ func (q *Query) IsWildcard() bool {
 
 // CopyAggregationFields copies all aggregation fields from qwa to q
 func (q *Query) CopyAggregationFields(qwa Query) {
-	q.GroupBy = make([]SelectColumn, len(qwa.GroupBy))
+	q.GroupBy = make([]Expr, len(qwa.GroupBy))
 	copy(q.GroupBy, qwa.GroupBy)
 
 	q.Columns = make([]SelectColumn, len(qwa.Columns))
@@ -242,25 +213,10 @@ func (q *Query) TrimKeywordFromFields() {
 // won't return complex ones, like e.g. toInt(int_field / 5).
 // but it was like that before the refactor
 func (q *Query) OrderByFieldNames() (fieldNames []string) {
-	for _, col := range q.OrderBy {
-		compositeExp, ok := col.Expression.(*CompositeExpr)
-		if !ok {
-			continue
+	for _, expr := range q.OrderBy {
+		for _, colRefs := range GetUsedColumns(expr) {
+			fieldNames = append(fieldNames, colRefs.ColumnName)
 		}
-		if len(compositeExp.Expressions) != 2 {
-			continue
-		}
-		orderExp, ok := compositeExp.Expressions[1].(StringExpr)
-		if !ok || (orderExp.Value != Asc && orderExp.Value != Desc) {
-			continue
-		}
-
-		tableColExp, ok := compositeExp.Expressions[0].(TableColumnExpr)
-		if !ok {
-			continue
-		}
-
-		fieldNames = append(fieldNames, tableColExp.ColumnRef.ColumnName)
 	}
 	return fieldNames
 }
@@ -287,8 +243,8 @@ func (q *Query) IsChild(maybeParent *Query) bool {
 }
 
 // TODO change whereClause type string -> some typed
-func (q *Query) NewSelectColumnSubselectWithRowNumber(selectFields []SelectColumn, groupByFields []SelectColumn,
-	whereClause string, orderByField string, orderByDesc bool) SelectColumn {
+func (q *Query) NewSelectExprWithRowNumber(selectFields []SelectColumn, groupByFields []Expr,
+	whereClause string, orderByField string, orderByDesc bool) Expr {
 
 	const additionalArrayLength = 6
 	/* used to be as string:
@@ -310,27 +266,37 @@ func (q *Query) NewSelectColumnSubselectWithRowNumber(selectFields []SelectColum
 	// Sticking to simpler solution now.
 	fromSelect = append(fromSelect, NewStringExpr("ROW_NUMBER() OVER (PARTITION BY"))
 	for i, field := range groupByFields {
-		fromSelect = append(fromSelect, field.Expression)
+		fromSelect = append(fromSelect, field)
 		if i != len(groupByFields)-1 {
 			fromSelect = append(fromSelect, NewStringExpr(","))
 		}
 	}
 	if orderByField != "" {
 		fromSelect = append(fromSelect, NewStringExpr("ORDER BY"))
-		fromSelect = append(fromSelect, NewSortColumn(orderByField, orderByDesc).Expression)
+		if orderByDesc {
+			fromSelect = append(fromSelect, NewOrderByExpr([]Expr{NewColumnRef(orderByField)}, DescOrder))
+		} else {
+			fromSelect = append(fromSelect, NewOrderByExpr([]Expr{NewColumnRef(orderByField)}, AscOrder))
+		}
 	}
 	fromSelect = append(fromSelect, NewStringExpr(") AS"))
 	// TODO this formatting below is only to match the existing test cases,
 	// window functions formatting (as everything else) should be systematically formatted at the printing stage
-	fromSelect = append(fromSelect, NewLiteral(fmt.Sprintf("'%s'", RowNumberColumnName)))
+	fromSelect = append(fromSelect, NewLiteral(RowNumberColumnName))
 	fromSelect = append(fromSelect, NewStringExpr("FROM"))
-	fromSelect = append(fromSelect, q.FromClause.Expression)
+	fromSelect = append(fromSelect, q.FromClause)
 
 	if whereClause != "" {
 		fromSelect = append(fromSelect, NewStringExpr("WHERE "+whereClause))
 	}
-
-	return SelectColumn{Expression: NewFunction("", NewComposite(fromSelect...))}
+	fullQueryStr := strings.Join(func() []string {
+		var finalStr []string
+		for _, expr := range fromSelect {
+			finalStr = append(finalStr, AsString(expr))
+		}
+		return finalStr
+	}(), " ")
+	return SQL{Query: fmt.Sprintf("(%s)", fullQueryStr)}
 }
 
 // Aggregator is always initialized as "empty", so with SplitOverHowManyFields == 0, Keyed == false, Filters == false.

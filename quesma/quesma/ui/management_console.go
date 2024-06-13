@@ -3,6 +3,7 @@ package ui
 import (
 	"github.com/rs/zerolog"
 	"mitmproxy/quesma/elasticsearch"
+	"mitmproxy/quesma/schema"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
 	"mitmproxy/quesma/util"
@@ -70,28 +71,34 @@ type recordRequests struct {
 	error    bool
 }
 
-type QuesmaManagementConsole struct {
-	queryDebugPrimarySource   chan *QueryDebugPrimarySource
-	queryDebugSecondarySource chan *QueryDebugSecondarySource
-	queryDebugLogs            <-chan tracing.LogWithLevel
-	ui                        *http.Server
-	mutex                     sync.Mutex
-	debugInfoMessages         map[string]queryDebugInfo
-	debugLastMessages         []string
-	responseMatcherChannel    chan queryDebugInfo
-	cfg                       config.QuesmaConfiguration
-	requestsStore             *stats.RequestStatisticStore
-	requestsSource            chan *recordRequests
-	startedAt                 time.Time
-	clickhouseStatusCache     healthCheckStatusCache
-	elasticStatusCache        healthCheckStatusCache
-	logManager                *clickhouse.LogManager
-	indexManagement           elasticsearch.IndexManagement
-	phoneHomeAgent            telemetry.PhoneHomeAgent
-	totalUnsupportedQueries   int
-}
+type (
+	QuesmaManagementConsole struct {
+		queryDebugPrimarySource   chan *QueryDebugPrimarySource
+		queryDebugSecondarySource chan *QueryDebugSecondarySource
+		queryDebugLogs            <-chan tracing.LogWithLevel
+		ui                        *http.Server
+		mutex                     sync.Mutex
+		debugInfoMessages         map[string]queryDebugInfo
+		debugLastMessages         []string
+		responseMatcherChannel    chan queryDebugInfo
+		cfg                       config.QuesmaConfiguration
+		requestsStore             *stats.RequestStatisticStore
+		requestsSource            chan *recordRequests
+		startedAt                 time.Time
+		clickhouseStatusCache     healthCheckStatusCache
+		elasticStatusCache        healthCheckStatusCache
+		logManager                *clickhouse.LogManager
+		indexManagement           elasticsearch.IndexManagement
+		phoneHomeAgent            telemetry.PhoneHomeAgent
+		schemasProvider           SchemasProvider
+		totalUnsupportedQueries   int
+	}
+	SchemasProvider interface {
+		AllSchemas() map[schema.TableName]schema.Schema
+	}
+)
 
-func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, logChan <-chan tracing.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent) *QuesmaManagementConsole {
+func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, logChan <-chan tracing.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent, schemasProvider SchemasProvider) *QuesmaManagementConsole {
 	return &QuesmaManagementConsole{
 		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 10),
 		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 10),
@@ -108,6 +115,7 @@ func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *c
 		logManager:                logManager,
 		indexManagement:           indexManager,
 		phoneHomeAgent:            phoneHomeAgent,
+		schemasProvider:           schemasProvider,
 	}
 }
 

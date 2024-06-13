@@ -95,7 +95,7 @@ func (t *Table) applyTableSchema(query *model.Query) {
 		sort.Strings(cols)
 
 		for _, col := range cols {
-			newColumns = append(newColumns, model.SelectColumn{Expression: model.NewTableColumnExpr(col)})
+			newColumns = append(newColumns, model.SelectColumn{Expression: model.NewColumnRef(col)})
 		}
 	}
 
@@ -118,8 +118,8 @@ func (t *Table) extractColumns(query *model.Query, addNonSchemaFields bool) ([]s
 
 			switch selectColumn.Expression.(type) {
 
-			case model.TableColumnExpr:
-				colName := selectColumn.Expression.(model.TableColumnExpr).ColumnRef.ColumnName
+			case model.ColumnRef:
+				colName := selectColumn.Expression.(model.ColumnRef).ColumnName
 				_, ok := t.Cols[colName]
 				if !ok {
 					return nil, fmt.Errorf("column %s not found in table %s", selectColumn, t.Name)
@@ -180,9 +180,9 @@ func (t *Table) GetDateTimeType(ctx context.Context, fieldName string) DateTimeT
 	return Invalid
 }
 
-func (t *Table) GetDateTimeTypeFromSelectColumn(ctx context.Context, col model.SelectColumn) DateTimeType {
-	if exp, ok := col.Expression.(model.TableColumnExpr); ok {
-		return t.GetDateTimeType(ctx, exp.ColumnRef.ColumnName)
+func (t *Table) GetDateTimeTypeFromSelectClause(ctx context.Context, expr model.Expr) DateTimeType {
+	if ref, ok := expr.(model.ColumnRef); ok {
+		return t.GetDateTimeType(ctx, ref.ColumnName)
 	}
 	return Invalid
 }

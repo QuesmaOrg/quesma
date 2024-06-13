@@ -401,7 +401,7 @@ func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sam
 	return &model.Query{
 		Columns:     []model.SelectColumn{{Expression: model.NewCountFunc()}},
 		WhereClause: whereClause,
-		FromClause:  model.NewSelectColumnFromString(cw.Table.FullTableName()),
+		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		SampleLimit: sampleLimit,
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
@@ -416,10 +416,10 @@ func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query *mo
 func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, whereClause model.Expr, limit int) *model.Query {
 	return &model.Query{
 		IsDistinct:  true,
-		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}},
+		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(fieldName)}},
 		WhereClause: whereClause,
 		Limit:       limit,
-		FromClause:  model.NewSelectColumnFromString(cw.Table.FullTableName()),
+		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}
@@ -434,10 +434,10 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 		cw.AddTokenToHighlight(prefix)
 	}
 	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}},
+		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(fieldName)}},
 		WhereClause: whereClause,
 		Limit:       limit,
-		FromClause:  model.NewSelectColumnFromString(cw.Table.FullTableName()),
+		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}
@@ -453,10 +453,10 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 	}
 
 	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}, {Expression: model.NewCountFunc()}},
-		GroupBy:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(fieldName)}},
-		OrderBy:     []model.SelectColumn{model.NewSortByCountColumn(true)},
-		FromClause:  model.NewSelectColumnFromString(cw.Table.FullTableName()),
+		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(fieldName)}, {Expression: model.NewCountFunc()}},
+		GroupBy:     []model.Expr{model.NewColumnRef(fieldName)},
+		OrderBy:     []model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)},
+		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		WhereClause: simpleQuery.WhereClause,
 		SampleLimit: facetsSampleSize,
 		TableName:   cw.Table.FullTableName(),
@@ -468,12 +468,19 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 // earliest == true  <==> we want earliest timestamp
 // earliest == false <==> we want latest timestamp
 func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName string, whereClause model.Expr, earliest bool) *model.Query {
+	var ordering model.OrderByDirection
+	if earliest {
+		ordering = model.DescOrder
+	} else {
+		ordering = model.AscOrder
+	}
+
 	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: model.NewTableColumnExpr(timestampFieldName)}},
+		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(timestampFieldName)}},
 		WhereClause: whereClause,
-		OrderBy:     []model.SelectColumn{model.NewSortColumn(timestampFieldName, !earliest)},
+		OrderBy:     []model.OrderByExpr{model.NewSortColumn(timestampFieldName, ordering)},
 		Limit:       1,
-		FromClause:  model.NewSelectColumnFromString(cw.Table.FullTableName()),
+		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}
@@ -486,7 +493,7 @@ func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMa
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Msg(err.Error())
 	}
-	dateTimeType := cw.Table.GetDateTimeTypeFromSelectColumn(cw.Ctx, field)
+	dateTimeType := cw.Table.GetDateTimeTypeFromSelectClause(cw.Ctx, field)
 	if dateTimeType == clickhouse.Invalid {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("invalid date type for field %+v. Using DateTime64 as default.", field)
 		dateTimeType = defaultDateTimeType

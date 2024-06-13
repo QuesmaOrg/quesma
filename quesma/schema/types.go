@@ -5,21 +5,36 @@ import (
 	"strings"
 )
 
-const (
+var (
 	// TODO add more and review existing
-	TypeText         Type = "text"
-	TypeKeyword      Type = "keyword"
-	TypeLong         Type = "long"
-	TypeUnsignedLong Type = "unsigned_long"
-	TypeTimestamp    Type = "timestamp"
-	TypeDate         Type = "date"
-	TypeFloat        Type = "float"
-	TypeBoolean      Type = "bool"
-	TypeJSON         Type = "json"
-	TypeArray        Type = "array"
-	TypeMap          Type = "map"
-	TypeIp           Type = "ip"
-	TypePoint        Type = "point"
+	TypeText         = Type{Name: "text", Properties: []TypeProperty{Searchable, FullText}}
+	TypeKeyword      = Type{Name: "keyword", Properties: []TypeProperty{Searchable, Aggregatable}}
+	TypeLong         = Type{Name: "long", Properties: []TypeProperty{Searchable, Aggregatable}}
+	TypeUnsignedLong = Type{Name: "unsigned_long", Properties: []TypeProperty{Searchable, Aggregatable}}
+	TypeTimestamp    = Type{Name: "timestamp", Properties: []TypeProperty{Searchable}}
+	TypeDate         = Type{Name: "date", Properties: []TypeProperty{Searchable, Aggregatable}}
+	TypeFloat        = Type{Name: "float", Properties: []TypeProperty{Searchable, Aggregatable}}
+	TypeBoolean      = Type{Name: "boolean", Properties: []TypeProperty{Searchable, Aggregatable}}
+	TypeJSON         = Type{Name: "json", Properties: []TypeProperty{Searchable}}
+	TypeArray        = Type{Name: "array", Properties: []TypeProperty{Searchable}}
+	TypeMap          = Type{Name: "map", Properties: []TypeProperty{Searchable}}
+	TypeIp           = Type{Name: "ip", Properties: []TypeProperty{Searchable}}
+	TypePoint        = Type{Name: "point", Properties: []TypeProperty{Searchable, Aggregatable}}
+	TypeUnknown      = Type{Name: "unknown", Properties: []TypeProperty{Searchable}}
+)
+
+const (
+	Aggregatable TypeProperty = "aggregatable"
+	Searchable   TypeProperty = "searchable"
+	FullText     TypeProperty = "full_text"
+)
+
+type (
+	Type struct {
+		Name       string
+		Properties []TypeProperty
+	}
+	TypeProperty string
 )
 
 func IsValid(t string) (Type, bool) {
@@ -49,7 +64,7 @@ func IsValid(t string) (Type, bool) {
 	case "point":
 		return TypePoint, true
 	default:
-		return "", false
+		return TypeUnknown, false
 	}
 }
 
@@ -76,7 +91,7 @@ func (c ClickhouseTypeAdapter) Convert(s string) (Type, bool) {
 	case "Date":
 		return TypeDate, true
 	default:
-		return "", false
+		return TypeUnknown, false
 	}
 }
 
@@ -102,6 +117,6 @@ func (e ElasticsearchTypeAdapter) Convert(s string) (Type, bool) {
 	case elasticsearch_field_types.FieldTypeIp:
 		return TypeIp, true
 	default:
-		return "", false
+		return TypeUnknown, false
 	}
 }
