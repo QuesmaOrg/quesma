@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS "phone_home_data"
     "elasticsearch::number_of_docs" Nullable(Int64),
     "elasticsearch::size" Nullable(Int64),
     "elasticsearch::server_version" Nullable(String),
-    "elasticsearch::cluster_status" Nullable(String),
+    "elasticsearch::health_status" Nullable(String),
 
 
     "elastic_read_requests::count" Nullable(Int64),
