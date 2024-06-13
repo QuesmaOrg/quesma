@@ -7,6 +7,7 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 	"html"
 	"mitmproxy/quesma/buildinfo"
+	"mitmproxy/quesma/health"
 	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"mitmproxy/quesma/stats/errorstats"
 	"net/url"
@@ -122,9 +123,9 @@ func secondsToTerseString(second uint64) string {
 	return (time.Duration(second) * time.Second).String()
 }
 
-func statusToDiv(s healthCheckStatus) string {
-	return fmt.Sprintf(`<span class="status %s" title="%s">%s</span>`, html.EscapeString(s.status),
-		html.EscapeString(s.tooltip), html.EscapeString(s.message))
+func statusToDiv(s health.Status) string {
+	return fmt.Sprintf(`<span class="status %s" title="%s">%s</span>`, html.EscapeString(s.Status),
+		html.EscapeString(s.Tooltip), html.EscapeString(s.Message))
 }
 
 func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {

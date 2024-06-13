@@ -10,6 +10,7 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 	"io"
 	"mitmproxy/quesma/buildinfo"
+	"mitmproxy/quesma/health"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
@@ -54,7 +55,7 @@ type ElasticStats struct {
 	NumberOfDocs  int64  `json:"number_of_docs"`
 	Size          int64  `json:"size"`
 	ServerVersion string `json:"server_version"`
-	ClusterStatus string `json:"cluster_status"`
+	HealthStatus  string `json:"health_status"`
 }
 
 type RuntimeStats struct {
@@ -346,10 +347,6 @@ type elasticVersionResponse struct {
 	}
 }
 
-type elasticVersionClusterStatusResponse struct {
-	Status string `json:"status"`
-}
-
 func (a *agent) callElastic(ctx context.Context, url *url.URL, response interface{}) (err error) {
 
 	ctx, cancel := context.WithTimeout(ctx, elasticTimeout)
@@ -429,19 +426,11 @@ func (a *agent) collectElasticVersion(ctx context.Context, stats *ElasticStats) 
 	return nil
 }
 
-func (a *agent) collectElasticClusterStatus(ctx context.Context, stats *ElasticStats) (err error) {
+func (a *agent) collectElasticHealthStatus(ctx context.Context, stats *ElasticStats) (err error) {
 
-	elasticUrl := a.config.Elasticsearch.Url
+	healthChecker := health.NewElasticHealthChecker(a.config)
 
-	statsUrl := elasticUrl.JoinPath("/_cluster/health/*")
-	response := &elasticVersionClusterStatusResponse{}
-	err = a.callElastic(ctx, statsUrl, &response)
-
-	if err != nil {
-		return err
-	}
-
-	stats.ClusterStatus = response.Status
+	stats.HealthStatus = healthChecker.CheckHealth().String()
 
 	return nil
 }
@@ -449,19 +438,19 @@ func (a *agent) collectElasticClusterStatus(ctx context.Context, stats *ElasticS
 func (a *agent) CollectElastic(ctx context.Context) (stats ElasticStats) {
 
 	stats.Status = statusNotOk
-	stats.ClusterStatus = "n/a"
+	stats.HealthStatus = "n/a"
 
-	err := a.collectElasticVersion(ctx, &stats)
+	err := a.collectElasticHealthStatus(ctx, &stats)
+	if err != nil {
+		return stats
+	}
+
+	err = a.collectElasticVersion(ctx, &stats)
 	if err != nil {
 		return stats
 	}
 
 	err = a.collectElasticUsage(ctx, &stats)
-	if err != nil {
-		return stats
-	}
-
-	err = a.collectElasticClusterStatus(ctx, &stats)
 	if err != nil {
 		return stats
 	}
