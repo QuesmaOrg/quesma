@@ -648,9 +648,7 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 
 func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
-	var processor plugins.ResultTransformer
-
-	processor = registry.DefaultPlugin.ResultTransformer()
+	processor := registry.DefaultPlugin.ResultTransformer()
 
 	if processor == nil {
 		return results, nil

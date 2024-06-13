@@ -10,7 +10,6 @@ import (
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/index"
-	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/plugins/registry"
 	"mitmproxy/quesma/quesma/config"
@@ -618,8 +617,4 @@ func NewChTableConfigTimestampStringAttr() *ChTableConfig {
 
 func (c *ChTableConfig) GetAttributes() []Attribute {
 	return c.attributes
-}
-
-func preprocess(data types.JSON, nestedSeparator string) types.JSON {
-	return jsonprocessor.FlattenMap(data, nestedSeparator)
 }

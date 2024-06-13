@@ -33,17 +33,13 @@ func sqlNative2Dot(intput string) string {
 	return strings.ReplaceAll(intput, sqlNative, dot)
 }
 
-func identity(input string) string {
-	return input
-}
-
 type resultTransformer struct {
 	translate translateFunc
 }
 
 func (t *resultTransformer) Transform(rows []model.QueryResultRow) ([]model.QueryResultRow, error) {
 	for i, row := range rows {
-		for j, _ := range row.Cols {
+		for j := range row.Cols {
 			rows[i].Cols[j].ColName = t.translate(row.Cols[j].ColName)
 		}
 	}
@@ -126,7 +122,7 @@ func (v *exprColumnNameReplaceVisitor) VisitMultiFunction(e model.MultiFunctionE
 			newArgs = append(newArgs, arg.Accept(v).(model.Expr))
 		}
 	}
-	return model.MultiFunctionExpr{Name: e.Name, Args: e.Args}
+	return model.MultiFunctionExpr{Name: e.Name, Args: newArgs}
 }
 
 func (v *exprColumnNameReplaceVisitor) VisitString(e model.StringExpr) interface{} { return e }
