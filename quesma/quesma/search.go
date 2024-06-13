@@ -10,6 +10,8 @@ import (
 	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/plugins"
+	"mitmproxy/quesma/plugins/registry"
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/quesma/config"
@@ -72,8 +74,9 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, i
 		executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult](),
 		AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext](),
 		transformationPipeline: TransformationPipeline{
-			transformers: []Transformer{
-				&SchemaCheckPass{cfg: cfg.IndexConfig},
+			transformers: []plugins.QueryTransformer{
+				registry.DefaultPlugin.QueryTransformer(),
+				&SchemaCheckPass{cfg: cfg.IndexConfig}, // this can be a part of another plugin
 			},
 		}}
 }
@@ -254,26 +257,12 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					return
 				}
 
-				// Postprocess results here
-				if len(queries) != len(results) {
-					logger.ErrorWithCtx(ctx).Msgf("queries and results length mismatch: %d != %d", len(queries), len(results))
-					doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("queries and results length mismatch")}
-					return
+				results, err = q.postProcessResults(table, results)
+				if err != nil {
+					doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 				}
-				newResults := make([][]model.QueryResultRow, len(results))
-				for i := range queries {
-
-					newResults[i], err = q.postProcessResults(table, queries[i], results[i])
-					if err != nil {
-						doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
-					}
-
-				}
-				results = newResults
 
 				searchResponse := queryTranslator.MakeSearchResponse(queries, results)
-
-				// or here
 
 				doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
 			}()
@@ -657,21 +646,26 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 	return results
 }
 
-func (q *QueryRunner) postProcessResults(table *clickhouse.Table, query *model.Query, rows []model.QueryResultRow) ([]model.QueryResultRow, error) {
+func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
-	var processor ResultProcessor
+	var processor plugins.ResultTransformer
 
-	// TODO read configuration here
-
-	if strings.HasPrefix(table.Name, "kibana") {
-		processor = FindResultProcessor("to_elasticsearch_field_names")
-	}
+	processor = registry.DefaultPlugin.ResultTransformer()
 
 	if processor == nil {
-		return rows, nil
+		return results, nil
 	}
 
-	return processor.Process(*query, rows)
+	newResults := make([][]model.QueryResultRow, len(results))
+	for i := range results {
+		res, err := processor.Transform(results[i])
+		if err != nil {
+			return nil, err
+		}
+		newResults[i] = res
+	}
+
+	return newResults, nil
 }
 
 func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, Path string, IncomingQueryBody, QueryBodyTranslated, QueryTranslatedResults []byte, startTime time.Time) {
