@@ -42,7 +42,7 @@ func (qmc *QuesmaManagementConsole) generateSchemas() []byte {
 			buffer.Text(fieldName.AsString())
 			buffer.Html(`</td>`)
 			buffer.Html(`<td>`)
-			buffer.Text(field.Type.AsString())
+			buffer.Text(fmt.Sprintf("%s %s", field.Type.Name, field.Type.Properties))
 			buffer.Html(`</td>`)
 			buffer.Html(`</tr>`)
 		}
