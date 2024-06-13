@@ -14,7 +14,7 @@ func AsString(expr Expr) string {
 }
 
 func (v *renderer) VisitColumnRef(e ColumnRef) interface{} {
-	return strconv.Quote(e.ColumnName)
+	return strconv.Quote(strings.TrimSuffix(e.ColumnName, ".keyword"))
 }
 
 func (v *renderer) VisitPrefixExpr(e PrefixExpr) interface{} {
@@ -35,18 +35,6 @@ func (v *renderer) VisitNestedProperty(e NestedProperty) interface{} {
 
 func (v *renderer) VisitArrayAccess(e ArrayAccess) interface{} {
 	return fmt.Sprintf("%v[%v]", e.ColumnRef.Accept(v), e.Index.Accept(v))
-}
-
-func (v *renderer) VisitTableColumnExpr(e TableColumnExpr) interface{} {
-
-	var res string
-
-	if e.TableAlias == "" {
-		res = v.VisitColumnRef(e.ColumnRef).(string)
-	} else {
-		res = e.TableAlias + "." + v.VisitColumnRef(e.ColumnRef).(string)
-	}
-	return res
 }
 
 func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
@@ -75,14 +63,6 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 
 func (v *renderer) VisitString(e StringExpr) interface{} {
 	return e.Value
-}
-
-func (v *renderer) VisitComposite(e CompositeExpr) interface{} {
-	exps := make([]string, 0)
-	for _, exp := range e.Expressions {
-		exps = append(exps, exp.Accept(v).(string))
-	}
-	return strings.Join(exps, " ")
 }
 
 func (v *renderer) VisitSQL(s SQL) interface{} {
@@ -119,4 +99,27 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 	} else {
 		return fmt.Sprintf("%v%v%v", lhs, e.Op, rhs)
 	}
+}
+
+func (v *renderer) VisitOrderByExpr(e OrderByExpr) interface{} {
+	var exprsAsStr []string
+	for _, expr := range e.Exprs {
+		exprsAsStr = append(exprsAsStr, expr.Accept(v).(string))
+	}
+	allExprs := strings.Join(exprsAsStr, ", ")
+	if e.Direction == DescOrder {
+		return fmt.Sprintf("%s %s", allExprs, "DESC")
+	}
+	if e.Direction == AscOrder {
+		return fmt.Sprintf("%s %s", allExprs, "ASC")
+	}
+	return allExprs
+}
+
+func (v *renderer) VisitDistinctExpr(e DistinctExpr) interface{} {
+	return fmt.Sprintf("DISTINCT %s", e.Expr.Accept(v).(string))
+}
+
+func (v *renderer) VisitTableRef(e TableRef) interface{} {
+	return e.Name
 }

@@ -20,7 +20,7 @@ var defaultPercentiles = map[string]float64{
 
 const keyedDefaultValue = true
 
-func (cw *ClickhouseQueryTranslator) parsePercentilesAggregation(queryMap QueryMap) (field model.SelectColumn, keyed bool, percentiles map[string]float64) {
+func (cw *ClickhouseQueryTranslator) parsePercentilesAggregation(queryMap QueryMap) (field model.Expr, keyed bool, percentiles map[string]float64) {
 	field = cw.parseFieldField(queryMap, "percentile")
 	if keyedQueryMap, ok := queryMap["keyed"]; ok {
 		if keyed, ok = keyedQueryMap.(bool); !ok {

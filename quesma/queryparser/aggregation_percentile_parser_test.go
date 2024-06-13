@@ -15,7 +15,7 @@ func Test_parsePercentilesAggregationWithDefaultPercents(t *testing.T) {
 	}
 	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}, Ctx: context.Background()}
 	field, _, userSpecifiedPercents := cw.parsePercentilesAggregation(payload)
-	assert.Equal(t, model.NewSelectColumnTableField("custom_name"), field)
+	assert.Equal(t, model.NewColumnRef("custom_name"), field)
 	assert.Equal(t, defaultPercentiles, userSpecifiedPercents)
 }
 
@@ -44,7 +44,7 @@ func Test_parsePercentilesAggregationWithUserSpecifiedPercents(t *testing.T) {
 	}
 	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}, Ctx: context.Background()}
 	fieldName, _, parsedMap := cw.parsePercentilesAggregation(payload)
-	assert.Equal(t, model.NewSelectColumnTableField("custom_name"), fieldName)
+	assert.Equal(t, model.NewColumnRef("custom_name"), fieldName)
 
 	parsedMapKeys := make([]string, 0, len(parsedMap))
 	for k := range parsedMap {

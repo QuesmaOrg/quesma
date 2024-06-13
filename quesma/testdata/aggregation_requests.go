@@ -7,10 +7,10 @@ import (
 )
 
 var timestampGroupByClause = model.AsString(clickhouse.TimestampGroupBy(
-	model.NewSelectColumnTableField("@timestamp"), clickhouse.DateTime64, 30*time.Second))
+	model.NewColumnRef("@timestamp"), clickhouse.DateTime64, 30*time.Second))
 
 func groupBySQL(fieldName string, typ clickhouse.DateTimeType, groupByInterval time.Duration) string {
-	return model.AsString(clickhouse.TimestampGroupBy(model.NewSelectColumnTableField(fieldName), typ, groupByInterval))
+	return model.AsString(clickhouse.TimestampGroupBy(model.NewColumnRef(fieldName), typ, groupByInterval))
 }
 
 // TODO change some tests to size > 0, and track_total_hits different values

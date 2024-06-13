@@ -36,7 +36,7 @@ func TestApplyWildCard(t *testing.T) {
 				})
 			} else {
 				res = append(res, model.SelectColumn{
-					Expression: model.NewTableColumnExpr(col),
+					Expression: model.NewColumnRef(col),
 				})
 			}
 		}
