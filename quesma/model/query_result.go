@@ -14,8 +14,9 @@ import (
 type FieldAtIndex = int // for facets/histogram what Cols[i] means
 
 type QueryResultCol struct {
-	ColName string // quoted, e.g. `"message"`
-	Value   interface{}
+	ColName          string // quoted, e.g. `"message"`
+	OverridenColName string // quoted, e.g. `"message"`
+	Value            interface{}
 }
 
 func NewQueryResultCol(colName string, value interface{}) QueryResultCol {

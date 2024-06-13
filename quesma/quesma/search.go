@@ -76,7 +76,7 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, i
 		AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext](),
 		transformationPipeline: TransformationPipeline{
 			transformers: []plugins.QueryTransformer{
-				&SchemaCheckPass{cfg: cfg.IndexConfig}, // this can be a part of another plugin
+				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry}, // this can be a part of another plugin
 			},
 		}, schemaRegistry: schemaRegistry}
 
@@ -661,7 +661,10 @@ func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]mo
 	if err != nil {
 		return nil, err
 	}
-	return res, nil
+
+	// TODO this should be created in different place
+	geoIpTransformer := GeoIpResultTransformer{}
+	return geoIpTransformer.Transform(res)
 }
 
 func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, Path string, IncomingQueryBody, QueryBodyTranslated, QueryTranslatedResults []byte, startTime time.Time) {

@@ -11,8 +11,8 @@ var registeredPlugins []plugins.Plugin
 
 func init() {
 	registeredPlugins = []plugins.Plugin{
-		&elastic_clickhouse_fields.Dot2DoubleColons2Dot{},
-		&elastic_clickhouse_fields.Dot2DoubleUnderscores2Dot{},
+		//&elastic_clickhouse_fields.Dot2DoubleColons2Dot{},
+		//&elastic_clickhouse_fields.Dot2DoubleUnderscores2Dot{},
 		&elastic_clickhouse_fields.Dot2DoubleColons{}}
 }
 

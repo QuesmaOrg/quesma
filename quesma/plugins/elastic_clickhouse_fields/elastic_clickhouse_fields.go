@@ -209,7 +209,9 @@ func (t *columNameFormatter) Format(namespace, columnName string) string {
 type Dot2DoubleColons struct{}
 
 func (p *Dot2DoubleColons) matches(table string) bool {
-	return !strings.HasPrefix(table, "kibana_")
+	// TODO this breaks geo stuff
+	//return !strings.HasPrefix(table, "kibana_")
+	return true
 }
 
 func (p *Dot2DoubleColons) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
@@ -243,7 +245,8 @@ func (p *Dot2DoubleColons) GetTableColumnFormatter(table string, cfg config.Ques
 type Dot2DoubleColons2Dot struct{}
 
 func (*Dot2DoubleColons2Dot) matches(table string) bool {
-	return strings.HasPrefix(table, "kibana_")
+	//return strings.HasPrefix(table, "kibana_")
+	return false
 }
 
 func (*Dot2DoubleColons2Dot) IngestTransformer() plugins.IngestTransformer {
