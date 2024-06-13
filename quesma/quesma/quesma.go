@@ -124,7 +124,7 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 
 	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
 
-	router := configureRouter(config, logManager, quesmaManagementConsole, phoneHomeAgent, queryRunner)
+	router := configureRouter(config, schemaRegistry, logManager, quesmaManagementConsole, phoneHomeAgent, queryRunner)
 	return &Quesma{
 		telemetryAgent:          phoneHomeAgent,
 		processor:               newDualWriteProxy(schemaLoader, logManager, indexManager, schemaRegistry, config, router, quesmaManagementConsole, phoneHomeAgent, queryRunner),

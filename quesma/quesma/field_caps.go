@@ -10,6 +10,7 @@ import (
 	"mitmproxy/quesma/elasticsearch/elasticsearch_field_types"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/schema"
 	"mitmproxy/quesma/util"
 	"slices"
 )
@@ -151,7 +152,7 @@ func addNewKeywordFieldCapability(fields map[string]map[string]model.FieldCapabi
 	}
 }
 
-func handleFieldCapsIndex(ctx context.Context, cfg config.QuesmaConfiguration, indexes []string, tables clickhouse.TableMap) ([]byte, error) {
+func handleFieldCapsIndex(ctx context.Context, cfg config.QuesmaConfiguration, schemaRegistry schema.Registry, indexes []string, tables clickhouse.TableMap) ([]byte, error) {
 	fields := make(map[string]map[string]model.FieldCapability)
 	for _, resolvedIndex := range indexes {
 		if len(resolvedIndex) == 0 {
@@ -221,7 +222,7 @@ func isInternalColumn(col *clickhouse.Column) bool {
 	return col.Name == clickhouse.AttributesKeyColumn || col.Name == clickhouse.AttributesValueColumn
 }
 
-func handleFieldCaps(ctx context.Context, cfg config.QuesmaConfiguration, index string, lm *clickhouse.LogManager) ([]byte, error) {
+func handleFieldCaps(ctx context.Context, cfg config.QuesmaConfiguration, schemaRegistry schema.Registry, index string, lm *clickhouse.LogManager) ([]byte, error) {
 	indexes, err := lm.ResolveIndexes(ctx, index)
 	if err != nil {
 		return nil, err
@@ -238,7 +239,7 @@ func handleFieldCaps(ctx context.Context, cfg config.QuesmaConfiguration, index 
 		return nil, err
 	}
 
-	return handleFieldCapsIndex(ctx, cfg, indexes, tables)
+	return handleFieldCapsIndex(ctx, cfg, schemaRegistry, indexes, tables)
 }
 
 func merge(cap1, cap2 model.FieldCapability) (model.FieldCapability, bool) {

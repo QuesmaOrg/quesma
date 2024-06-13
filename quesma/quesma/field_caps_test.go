@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/elasticsearch/elasticsearch_field_types"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/schema"
 	"mitmproxy/quesma/util"
 	"strconv"
 	"testing"
@@ -89,7 +90,7 @@ func TestFieldCaps(t *testing.T) {
 }
 `)
 	tableMap := concurrent.NewMapWith("logs-generic-default", table)
-	resp, err := handleFieldCapsIndex(ctx, config.QuesmaConfiguration{}, []string{"logs-generic-default"}, *tableMap)
+	resp, err := handleFieldCapsIndex(ctx, config.QuesmaConfiguration{}, emptyRegistry{}, []string{"logs-generic-default"}, *tableMap)
 	assert.NoError(t, err)
 	expectedResp, err := json.MarshalIndent(expected, "", "  ")
 	assert.NoError(t, err)
@@ -148,7 +149,7 @@ func TestFieldCapsWithStaticSchema(t *testing.T) {
 				},
 			},
 		},
-	}, []string{"logs-generic-default"}, *tableMap)
+	}, emptyRegistry{}, []string{"logs-generic-default"}, *tableMap)
 	assert.NoError(t, err)
 	expectedResp, err := json.MarshalIndent(expected, "", "  ")
 	assert.NoError(t, err)
@@ -179,7 +180,7 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
 			"foo.bar2": {Name: "foo.bar2", Type: clickhouse.BaseType{Name: "String"}},
 		},
 	})
-	resp, err := handleFieldCapsIndex(ctx, config.QuesmaConfiguration{}, []string{"logs-1", "logs-2"}, *tableMap)
+	resp, err := handleFieldCapsIndex(ctx, config.QuesmaConfiguration{}, emptyRegistry{}, []string{"logs-1", "logs-2"}, *tableMap)
 	assert.NoError(t, err)
 	expectedResp, err := json.MarshalIndent([]byte(`{
   "fields": {
@@ -249,7 +250,7 @@ func TestFieldCapsMultipleIndexesConflictingEntries(t *testing.T) {
 			"foo.bar": {Name: "foo.bar", Type: clickhouse.BaseType{Name: "Boolean"}},
 		},
 	})
-	resp, err := handleFieldCapsIndex(ctx, config.QuesmaConfiguration{}, []string{"logs-1", "logs-2", "logs-3"}, *tableMap)
+	resp, err := handleFieldCapsIndex(ctx, config.QuesmaConfiguration{}, emptyRegistry{}, []string{"logs-1", "logs-2", "logs-3"}, *tableMap)
 	assert.NoError(t, err)
 	expectedResp, err := json.MarshalIndent([]byte(`{
   "fields": {
@@ -366,4 +367,18 @@ func Test_merge(t *testing.T) {
 			assert.Equalf(t, tt.merged, got1, "merge(%v, %v)", tt.args.cap1, tt.args.cap2)
 		})
 	}
+}
+
+type emptyRegistry struct {
+}
+
+func (e emptyRegistry) AllSchemas() map[schema.TableName]schema.Schema {
+	return map[schema.TableName]schema.Schema{}
+}
+
+func (e emptyRegistry) FindSchema(schema.TableName) (schema.Schema, bool) {
+	return schema.Schema{}, false
+}
+
+func (e emptyRegistry) Start() {
 }

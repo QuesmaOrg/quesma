@@ -14,6 +14,7 @@ import (
 	"mitmproxy/quesma/quesma/termsenum"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/quesma/ui"
+	"mitmproxy/quesma/schema"
 	"mitmproxy/quesma/telemetry"
 	"mitmproxy/quesma/tracing"
 	"regexp"
@@ -27,7 +28,7 @@ const (
 	quesmaAsyncIdPrefix = "quesma_async_search_id_"
 )
 
-func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *mux.PathRouter {
+func configureRouter(cfg config.QuesmaConfiguration, schemaRegistry schema.Registry, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *mux.PathRouter {
 
 	// some syntactic sugar
 	method := mux.IsHTTPMethod
@@ -261,8 +262,7 @@ func configureRouter(cfg config.QuesmaConfiguration, lm *clickhouse.LogManager, 
 	})
 
 	router.Register(routes.FieldCapsPath, and(method("GET", "POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
-
-		responseBody, err := handleFieldCaps(ctx, cfg, req.Params["index"], lm)
+		responseBody, err := handleFieldCaps(ctx, cfg, schemaRegistry, req.Params["index"], lm)
 		if err != nil {
 			if errors.Is(errIndexNotExists, err) {
 				if req.QueryParams.Get("allow_no_indices") == "true" || req.QueryParams.Get("ignore_unavailable") == "true" {
