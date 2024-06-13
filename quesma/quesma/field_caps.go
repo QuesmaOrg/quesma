@@ -3,7 +3,6 @@ package quesma
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/elasticsearch"
@@ -98,19 +97,20 @@ func BuildFieldCapability(indexName, typeName string) model.FieldCapability {
 }
 
 func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.FieldCapability, colName string, fieldType schema.Type, index string) {
+	fieldTypeName := schema.ElasticsearchTypeAdapter{}.ConvertFrom(fieldType)
 	fieldCapability := BuildFieldCapFromSchema(fieldType, index)
 
 	if _, exists := fields[colName]; !exists {
 		fields[colName] = make(map[string]model.FieldCapability)
 	}
 
-	if existing, exists := fields[colName][fieldType.Name]; exists {
+	if existing, exists := fields[colName][fieldTypeName]; exists {
 		merged, ok := merge(existing, fieldCapability)
 		if ok {
-			fields[colName][fieldType.Name] = merged
+			fields[colName][fieldTypeName] = merged
 		}
 	} else {
-		fields[colName][fieldType.Name] = fieldCapability
+		fields[colName][fieldTypeName] = fieldCapability
 	}
 }
 
@@ -199,46 +199,18 @@ func handleFieldCapsIndex(ctx context.Context, cfg config.QuesmaConfiguration, s
 			logger.Info().Msgf("no schema found for index %s", resolvedIndex)
 		}
 
-		if false {
-			if table, ok := tables.Load(resolvedIndex); ok {
-
-				if table == nil {
-					return nil, errors.New("could not find table for index : " + resolvedIndex)
+		if table, ok := tables.Load(resolvedIndex); ok {
+			for _, alias := range table.AliasFields(ctx) {
+				if alias == nil {
+					continue
 				}
 
-				for colName, col := range table.Cols {
-
-					if col == nil {
-						continue
-					}
-
-					if isInternalColumn(col) {
-						continue
-					}
-
-					customTypeName, configuredExplicitly := isConfiguredExplicitly(resolvedIndex, config.FieldName(colName), cfg)
-					if configuredExplicitly {
-						addFieldCapabilityFromStaticSchema(fields, colName, customTypeName, resolvedIndex)
-					} else if canBeKeywordField(col) {
-						addNewKeywordFieldCapability(fields, col, resolvedIndex)
-					} else {
-						addNewDefaultFieldCapability(fields, col, resolvedIndex)
-					}
-				}
-
-				for _, alias := range table.AliasFields(ctx) {
-					if alias == nil {
-						continue
-					}
-
-					if canBeKeywordField(alias) {
-						addNewKeywordFieldCapability(fields, alias, resolvedIndex)
-					} else {
-						addNewDefaultFieldCapability(fields, alias, resolvedIndex)
-					}
+				if canBeKeywordField(alias) {
+					addNewKeywordFieldCapability(fields, alias, resolvedIndex)
+				} else {
+					addNewDefaultFieldCapability(fields, alias, resolvedIndex)
 				}
 			}
-
 		}
 	}
 

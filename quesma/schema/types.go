@@ -12,7 +12,7 @@ var (
 	TypeKeyword      = Type{Name: "keyword", Properties: []TypeProperty{Searchable, Aggregatable}}
 	TypeLong         = Type{Name: "long", Properties: []TypeProperty{Searchable, Aggregatable}}
 	TypeUnsignedLong = Type{Name: "unsigned_long", Properties: []TypeProperty{Searchable, Aggregatable}}
-	TypeTimestamp    = Type{Name: "timestamp", Properties: []TypeProperty{Searchable}}
+	TypeTimestamp    = Type{Name: "timestamp", Properties: []TypeProperty{Searchable, Aggregatable}}
 	TypeDate         = Type{Name: "date", Properties: []TypeProperty{Searchable, Aggregatable}}
 	TypeFloat        = Type{Name: "float", Properties: []TypeProperty{Searchable, Aggregatable}}
 	TypeBoolean      = Type{Name: "boolean", Properties: []TypeProperty{Searchable, Aggregatable}}
@@ -138,6 +138,8 @@ func (e ElasticsearchTypeAdapter) ConvertFrom(t Type) string {
 	switch t.Name {
 	case TypeText.Name:
 		return elasticsearch_field_types.FieldTypeText
+	case TypeTimestamp.Name:
+		return elasticsearch_field_types.FieldTypeDate
 	case TypeKeyword.Name:
 		return elasticsearch_field_types.FieldTypeKeyword
 	case TypeLong.Name:
