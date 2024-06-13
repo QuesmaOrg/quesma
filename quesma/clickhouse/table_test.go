@@ -28,16 +28,12 @@ func TestApplyWildCard(t *testing.T) {
 		},
 	}
 
-	toSelectColumn := func(cols []string) (res []model.SelectColumn) {
+	toSelectColumn := func(cols []string) (res []model.Expr) {
 		for _, col := range cols {
 			if col == "*" {
-				res = append(res, model.SelectColumn{
-					Expression: model.NewWildcardExpr,
-				})
+				res = append(res, model.NewWildcardExpr)
 			} else {
-				res = append(res, model.SelectColumn{
-					Expression: model.NewColumnRef(col),
-				})
+				res = append(res, model.NewColumnRef(col))
 			}
 		}
 		return res

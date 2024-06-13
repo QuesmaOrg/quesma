@@ -66,7 +66,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			}
 			assert.True(t, query.CanParse, "can parse")
 			assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), query.FromClause)
-			assert.Equal(t, []model.SelectColumn{{Expression: model.NewWildcardExpr}}, query.Columns)
+			assert.Equal(t, []model.Expr{model.NewWildcardExpr}, query.Columns)
 		})
 	}
 }
@@ -102,7 +102,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 			}
 			assert.True(t, query.CanParse, "can parse")
 			assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), query.FromClause)
-			assert.Equal(t, []model.SelectColumn{{Expression: model.NewWildcardExpr}}, query.Columns)
+			assert.Equal(t, []model.Expr{model.NewWildcardExpr}, query.Columns)
 		})
 	}
 }
@@ -137,7 +137,7 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			}
 			assert.True(t, query.CanParse, "can parse")
 			assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), query.FromClause)
-			assert.Equal(t, []model.SelectColumn{{Expression: model.NewWildcardExpr}}, query.Columns)
+			assert.Equal(t, []model.Expr{model.NewWildcardExpr}, query.Columns)
 		})
 	}
 }

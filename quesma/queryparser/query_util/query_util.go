@@ -29,14 +29,14 @@ func FilterAggregationQueries(queries []*model.Query) []*model.Query {
 */
 
 func BuildHitsQuery(ctx context.Context, tableName string, fieldName string, query *model.SimpleQuery, limit int) *model.Query {
-	var col model.SelectColumn
+	var col model.Expr
 	if fieldName == "*" {
-		col = model.SelectColumn{Expression: model.NewWildcardExpr}
+		col = model.NewWildcardExpr
 	} else {
-		col = model.SelectColumn{Expression: model.NewColumnRef(fieldName)}
+		col = model.NewColumnRef(fieldName)
 	}
 	return &model.Query{
-		Columns:     []model.SelectColumn{col},
+		Columns:     []model.Expr{col},
 		WhereClause: query.WhereClause,
 		OrderBy:     query.OrderBy,
 		Limit:       applySizeLimit(ctx, limit),

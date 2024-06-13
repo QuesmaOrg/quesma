@@ -73,14 +73,14 @@ func (b *aggrQueryBuilder) buildCountAggregation(metadata model.JsonMap) *model.
 	query := b.buildAggregationCommon(metadata)
 	query.Type = metrics_aggregations.NewCount(b.ctx)
 
-	query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewCountFunc()})
+	query.Columns = append(query.Columns, model.NewCountFunc())
 	return query
 }
 
 func (b *aggrQueryBuilder) buildBucketAggregation(metadata model.JsonMap) *model.Query {
 	query := b.buildAggregationCommon(metadata)
 
-	query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewCountFunc()})
+	query.Columns = append(query.Columns, model.NewCountFunc())
 	return query
 }
 
@@ -97,43 +97,40 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 
 	switch metricsAggr.AggrType {
 	case "sum", "min", "max", "avg":
-		query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewFunction(metricsAggr.AggrType+"OrNull", getFirstExpression())})
+		query.Columns = append(query.Columns, model.NewFunction(metricsAggr.AggrType+"OrNull", getFirstExpression()))
 	case "quantile":
 		// Sorting here useful mostly for determinism in tests.
 		// It wasn't there before, and everything worked fine. We could safely remove it, if needed.
 		usersPercents := util.MapKeysSortedByValue(metricsAggr.Percentiles)
 		for _, usersPercent := range usersPercents {
 			percentAsFloat := metricsAggr.Percentiles[usersPercent]
-
-			query.Columns = append(query.Columns, model.SelectColumn{
-				Expression: model.MultiFunctionExpr{
+			query.Columns = append(query.Columns, model.NewAliasedExpr(
+				model.MultiFunctionExpr{
 					Name: "quantiles",
 					Args: []model.Expr{model.NewLiteral(percentAsFloat), getFirstExpression()}},
-				Alias: fmt.Sprintf("quantile_%s", usersPercent),
-			})
+				fmt.Sprintf("quantile_%s", usersPercent),
+			))
+
 		}
 	case "cardinality":
-		query.Columns = append(query.Columns,
-			model.SelectColumn{Expression: model.NewCountFunc(model.NewDistinctExpr(getFirstExpression()))})
+		query.Columns = append(query.Columns, model.NewCountFunc(model.NewDistinctExpr(getFirstExpression())))
 
 	case "value_count":
-		query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewCountFunc()})
+		query.Columns = append(query.Columns, model.NewCountFunc())
 
 	case "stats":
 		expr := getFirstExpression()
 
-		query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewCountFunc(expr)},
-			model.SelectColumn{Expression: model.NewFunction("minOrNull", expr)},
-			model.SelectColumn{Expression: model.NewFunction("maxOrNull", expr)},
-			model.SelectColumn{Expression: model.NewFunction("avgOrNull", expr)},
-			model.SelectColumn{Expression: model.NewFunction("sumOrNull", expr)})
+		query.Columns = append(query.Columns, model.NewCountFunc(expr),
+			model.NewFunction("minOrNull", expr),
+			model.NewFunction("maxOrNull", expr),
+			model.NewFunction("avgOrNull", expr),
+			model.NewFunction("sumOrNull", expr))
 
 	case "top_hits":
 		// TODO add/restore tests for top_hits. E.g. we missed WHERE in FROM below, so the SQL might not be correct
-		innerFieldsAsSelect := make([]model.SelectColumn, len(metricsAggr.Fields))
-		for i, field := range metricsAggr.Fields {
-			innerFieldsAsSelect[i] = model.SelectColumn{Expression: field}
-		}
+		innerFieldsAsSelect := make([]model.Expr, len(metricsAggr.Fields))
+		copy(innerFieldsAsSelect, metricsAggr.Fields)
 		query.Columns = append(query.Columns, innerFieldsAsSelect...)
 		/*
 			query.FromClause = fmt.Sprintf(
@@ -168,13 +165,11 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			for _, field := range innerFields {
 				fieldName, _ := strconv.Unquote(model.AsString(field))
 				query.Columns = append(query.Columns,
-					model.SelectColumn{Expression: model.NewFunction(ordFunc, field), Alias: fmt.Sprintf("windowed_%s", fieldName)})
+					model.NewAliasedExpr(model.NewFunction(ordFunc, field), fmt.Sprintf("windowed_%s", fieldName)))
 			}
 
-			innerFieldsAsSelect := make([]model.SelectColumn, len(innerFields))
-			for i, field := range innerFields {
-				innerFieldsAsSelect[i] = model.SelectColumn{Expression: field}
-			}
+			innerFieldsAsSelect := make([]model.Expr, len(innerFields))
+			copy(innerFieldsAsSelect, innerFields)
 			query.FromClause = query.NewSelectExprWithRowNumber(
 				innerFieldsAsSelect, b.Query.GroupBy, b.whereBuilder.WhereClauseAsString(),
 				metricsAggr.SortBy, strings.ToLower(metricsAggr.Order) == "desc",
@@ -182,14 +177,12 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			query.WhereClause = model.And([]model.Expr{query.WhereClause,
 				model.NewInfixExpr(model.NewColumnRef(model.RowNumberColumnName), "<=", model.NewLiteral(strconv.Itoa(metricsAggr.Size)))})
 		} else {
-			innerFieldsAsSelect := make([]model.SelectColumn, len(metricsAggr.Fields))
-			for i, field := range metricsAggr.Fields {
-				innerFieldsAsSelect[i] = model.SelectColumn{Expression: field}
-			}
+			innerFieldsAsSelect := make([]model.Expr, len(metricsAggr.Fields))
+			copy(innerFieldsAsSelect, metricsAggr.Fields)
 			query.Limit = metricsAggr.Size
 			query.Columns = append(query.Columns, innerFieldsAsSelect...)
 			if metricsAggr.sortByExists() {
-				query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewColumnRef(metricsAggr.SortBy)})
+				query.Columns = append(query.Columns, model.NewColumnRef(metricsAggr.SortBy))
 				if strings.ToLower(metricsAggr.Order) == "desc" {
 					query.OrderBy = append(query.OrderBy, model.NewSortColumn(metricsAggr.SortBy, model.DescOrder))
 				} else {
@@ -215,9 +208,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			firstCountExp := model.NewFunction("count", ifExp)
 			twoCountsExp := model.NewInfixExpr(firstCountExp, "/", model.NewCountFunc(model.NewWildcardExpr))
 
-			query.Columns = append(query.Columns, model.SelectColumn{
-				Expression: model.NewInfixExpr(twoCountsExp, "*", model.NewLiteral(100)),
-			})
+			query.Columns = append(query.Columns, model.NewInfixExpr(twoCountsExp, "*", model.NewLiteral(100)))
 		}
 	case "extended_stats":
 
@@ -225,7 +216,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 
 		// add column with fn applied to field
 		addColumn := func(funcName string) {
-			query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewFunction(funcName, expr)})
+			query.Columns = append(query.Columns, model.NewFunction(funcName, expr))
 		}
 
 		addColumn("count")
@@ -234,7 +225,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		addColumn("avgOrNull")
 		addColumn("sumOrNull")
 
-		query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewFunction("sumOrNull", model.NewInfixExpr(expr, "*", expr))})
+		query.Columns = append(query.Columns, model.NewFunction("sumOrNull", model.NewInfixExpr(expr, "*", expr)))
 
 		addColumn("varPop")
 		addColumn("varSamp")
@@ -681,21 +672,21 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.Type = bucket_aggregations.NewHistogram(cw.Ctx, interval, minDocCount)
 
 		field, _ := cw.parseFieldFieldMaybeScript(histogram, "histogram")
-		var col model.SelectColumn
+		var col model.Expr
 		if interval != 1.0 {
 			// col as string is: fmt.Sprintf("floor(%s / %f) * %f", fieldNameProperlyQuoted, interval, interval)
-			col = model.SelectColumn{Expression: model.NewInfixExpr(
+			col = model.NewInfixExpr(
 				model.NewFunction("floor", model.NewInfixExpr(field, "/", model.NewLiteral(interval))),
 				"*",
 				model.NewLiteral(interval),
-			)}
+			)
 		} else {
-			col = model.SelectColumn{Expression: field}
+			col = field
 		}
 
 		currentAggr.Columns = append(currentAggr.Columns, col)
-		currentAggr.GroupBy = append(currentAggr.GroupBy, col.Expression)
-		currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewOrderByExprWithoutOrder(col.Expression))
+		currentAggr.GroupBy = append(currentAggr.GroupBy, col)
+		currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewOrderByExprWithoutOrder(col))
 
 		delete(queryMap, "histogram")
 		return success, 1, 1, 1, nil
@@ -709,7 +700,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.Type = bucket_aggregations.NewDateHistogram(cw.Ctx, minDocCount, cw.extractInterval(dateHistogram))
 		histogramPartOfQuery := cw.createHistogramPartOfQuery(dateHistogram)
 
-		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: histogramPartOfQuery})
+		currentAggr.Columns = append(currentAggr.Columns, histogramPartOfQuery)
 		currentAggr.GroupBy = append(currentAggr.GroupBy, histogramPartOfQuery)
 		currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewOrderByExprWithoutOrder(histogramPartOfQuery))
 
@@ -723,7 +714,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			isEmptyGroupBy := len(currentAggr.GroupBy) == 0
 
 			currentAggr.GroupBy = append(currentAggr.GroupBy, cw.parseFieldField(terms, termsType))
-			currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: cw.parseFieldField(terms, termsType)})
+			currentAggr.Columns = append(currentAggr.Columns, cw.parseFieldField(terms, termsType))
 
 			orderByAdded := false
 			size := 10
@@ -792,7 +783,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			fieldsNr = len(terms)
 			for _, term := range terms {
 				column := cw.parseFieldField(term, "multi_terms")
-				currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: column})
+				currentAggr.Columns = append(currentAggr.Columns, column)
 				currentAggr.GroupBy = append(currentAggr.GroupBy, column)
 				if !orderByAdded {
 					currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewOrderByExprWithoutOrder(column))
@@ -839,13 +830,13 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.Type = dateRangeParsed
 		for _, interval := range dateRangeParsed.Intervals {
 
-			currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: model.SQL{Query: interval.ToSQLSelectQuery(dateRangeParsed.FieldName)}})
+			currentAggr.Columns = append(currentAggr.Columns, model.SQL{Query: interval.ToSQLSelectQuery(dateRangeParsed.FieldName)})
 
 			if sqlSelect, selectNeeded := interval.BeginTimestampToSQL(); selectNeeded {
-				currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: model.SQL{Query: sqlSelect}})
+				currentAggr.Columns = append(currentAggr.Columns, model.SQL{Query: sqlSelect})
 			}
 			if sqlSelect, selectNeeded := interval.EndTimestampToSQL(); selectNeeded {
-				currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: model.SQL{Query: sqlSelect}})
+				currentAggr.Columns = append(currentAggr.Columns, model.SQL{Query: sqlSelect})
 			}
 		}
 

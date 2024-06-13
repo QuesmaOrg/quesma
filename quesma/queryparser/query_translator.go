@@ -399,7 +399,7 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []*
 
 func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sampleLimit int) *model.Query {
 	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: model.NewCountFunc()}},
+		Columns:     []model.Expr{model.NewCountFunc()},
 		WhereClause: whereClause,
 		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		SampleLimit: sampleLimit,
@@ -416,7 +416,7 @@ func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query *mo
 func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, whereClause model.Expr, limit int) *model.Query {
 	return &model.Query{
 		IsDistinct:  true,
-		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(fieldName)}},
+		Columns:     []model.Expr{model.NewColumnRef(fieldName)},
 		WhereClause: whereClause,
 		Limit:       limit,
 		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
@@ -434,7 +434,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 		cw.AddTokenToHighlight(prefix)
 	}
 	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(fieldName)}},
+		Columns:     []model.Expr{model.NewColumnRef(fieldName)},
 		WhereClause: whereClause,
 		Limit:       limit,
 		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
@@ -453,7 +453,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 	}
 
 	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(fieldName)}, {Expression: model.NewCountFunc()}},
+		Columns:     []model.Expr{model.NewColumnRef(fieldName), model.NewCountFunc()},
 		GroupBy:     []model.Expr{model.NewColumnRef(fieldName)},
 		OrderBy:     []model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)},
 		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
@@ -476,7 +476,7 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName stri
 	}
 
 	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(timestampFieldName)}},
+		Columns:     []model.Expr{model.NewColumnRef(timestampFieldName)},
 		WhereClause: whereClause,
 		OrderBy:     []model.OrderByExpr{model.NewSortColumn(timestampFieldName, ordering)},
 		Limit:       1,

@@ -13,22 +13,17 @@ const (
 )
 
 type (
-	SelectColumn struct {
-		Alias      string
-		Expression Expr
-	}
-
 	Query struct {
 		IsDistinct bool // true <=> query is SELECT DISTINCT
 
 		// This is SELECT query. These fields should be extracted to separate struct.
-		Columns     []SelectColumn // Columns to select, including aliases
-		GroupBy     []Expr         // if not empty, we do GROUP BY GroupBy...
-		OrderBy     []OrderByExpr  // if not empty, we do ORDER BY OrderBy...
-		FromClause  Expr           // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
-		WhereClause Expr           // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
-		Limit       int            // LIMIT clause, noLimit (0) means no limit
-		SampleLimit int            // LIMIT, but before grouping, 0 means no limit
+		Columns     []Expr        // Columns to select
+		GroupBy     []Expr        // if not empty, we do GROUP BY GroupBy...
+		OrderBy     []OrderByExpr // if not empty, we do ORDER BY OrderBy...
+		FromClause  Expr          // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
+		WhereClause Expr          // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
+		Limit       int           // LIMIT clause, noLimit (0) means no limit
+		SampleLimit int           // LIMIT, but before grouping, 0 means no limit
 
 		CanParse bool // true <=> query is valid
 
@@ -78,33 +73,6 @@ func NewSortByCountColumn(direction OrderByDirection) OrderByExpr {
 	return NewOrderByExpr([]Expr{NewCountFunc()}, direction)
 }
 
-func (c SelectColumn) SQL() string {
-
-	if c.Expression == nil {
-		panic("SelectColumn expression is nil")
-	}
-
-	exprAsString := AsString(c.Expression)
-
-	if c.Alias == "" {
-		return exprAsString
-	}
-
-	// if alias is the same as column name, we don't need to add it
-	switch exp := c.Expression.(type) {
-	case ColumnRef:
-		if exp.ColumnName == c.Alias {
-			return exprAsString
-		}
-	}
-
-	return fmt.Sprintf("%s AS \"%s\"", exprAsString, c.Alias)
-}
-
-func (c SelectColumn) String() string {
-	return fmt.Sprintf("SelectColumn(Alias: '%s', expression: '%v')", c.Alias, c.Expression)
-}
-
 var NoMetadataField JsonMap = nil
 
 // returns string with SQL query
@@ -118,12 +86,7 @@ func (q *Query) String(ctx context.Context) string {
 	columns := make([]string, 0)
 
 	for _, col := range q.Columns {
-		if col.Expression == nil {
-			// this is paraonoid check, it should never happen
-			panic("SelectColumn expression is nil")
-		} else {
-			columns = append(columns, col.SQL())
-		}
+		columns = append(columns, AsString(col))
 	}
 
 	sb.WriteString(strings.Join(columns, ", "))
@@ -133,8 +96,13 @@ func (q *Query) String(ctx context.Context) string {
 		sb.WriteString("(SELECT ")
 		innerColumn := make([]string, 0)
 		for _, col := range q.Columns {
-			if _, ok := col.Expression.(ColumnRef); ok {
-				innerColumn = append(innerColumn, AsString(col.Expression)) // TOOD: Maybe need a change
+			if _, ok := col.(ColumnRef); ok {
+				innerColumn = append(innerColumn, AsString(col))
+			}
+			if aliased, ok := col.(AliasedExpr); ok {
+				if v, ok := aliased.Expr.(ColumnRef); ok {
+					innerColumn = append(innerColumn, AsString(v))
+				}
 			}
 		}
 		if len(innerColumn) == 0 {
@@ -180,13 +148,11 @@ func (q *Query) String(ctx context.Context) string {
 }
 
 func (q *Query) IsWildcard() bool {
-
 	for _, col := range q.Columns {
-		if col.Expression == NewWildcardExpr {
+		if col == NewWildcardExpr {
 			return true
 		}
 	}
-
 	return false
 }
 
@@ -195,7 +161,7 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 	q.GroupBy = make([]Expr, len(qwa.GroupBy))
 	copy(q.GroupBy, qwa.GroupBy)
 
-	q.Columns = make([]SelectColumn, len(qwa.Columns))
+	q.Columns = make([]Expr, len(qwa.Columns))
 	copy(q.Columns, qwa.Columns)
 
 	q.Aggregators = make([]Aggregator, len(qwa.Aggregators))
@@ -243,7 +209,7 @@ func (q *Query) IsChild(maybeParent *Query) bool {
 }
 
 // TODO change whereClause type string -> some typed
-func (q *Query) NewSelectExprWithRowNumber(selectFields []SelectColumn, groupByFields []Expr,
+func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []Expr,
 	whereClause string, orderByField string, orderByDesc bool) Expr {
 
 	const additionalArrayLength = 6
@@ -258,7 +224,7 @@ func (q *Query) NewSelectExprWithRowNumber(selectFields []SelectColumn, groupByF
 	fromSelect := make([]Expr, 0, 2*(len(selectFields)+len(groupByFields))+additionalArrayLength) // +6 without ORDER BY, +8 with ORDER BY
 	fromSelect = append(fromSelect, NewStringExpr("SELECT"))
 	for _, field := range selectFields {
-		fromSelect = append(fromSelect, field.Expression)
+		fromSelect = append(fromSelect, field)
 		fromSelect = append(fromSelect, NewStringExpr(","))
 	}
 

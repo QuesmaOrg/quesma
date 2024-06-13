@@ -54,18 +54,12 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 	for count, col := range query.Columns {
 		var colName string
 
-		switch col.Expression.(type) {
-
-		// this is a compensation for the fact we don't have columns named in the query
+		switch col := col.(type) {
 		case model.ColumnRef:
-			if col.Alias == "" {
-				colName = col.Expression.(model.ColumnRef).ColumnName
-			} else {
-				colName = col.Alias
-			}
-
-		default:
+			colName = col.ColumnName
+		case model.AliasedExpr:
 			colName = col.Alias
+		default:
 			if colName == "" {
 				colName = fmt.Sprintf("column_%d", count)
 			}

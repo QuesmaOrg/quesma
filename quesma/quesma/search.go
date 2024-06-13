@@ -438,7 +438,7 @@ func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.C
 // TODO remove this and move to the router  https://github.com/QuesmaOrg/quesma/pull/260#discussion_r1627290579
 func (q *QueryRunner) isInternalKibanaQuery(query *model.Query) bool {
 	for _, column := range query.Columns {
-		if strings.Contains(column.SQL(), "data_stream.") {
+		if strings.Contains(model.AsString(column), "data_stream.") {
 			return true
 		}
 	}
@@ -622,7 +622,7 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 	var results = make([]string, 0)
 	var allReferencedFields = make([]string, 0)
 	for _, col := range query.Columns {
-		for _, c := range model.GetUsedColumns(col.Expression) {
+		for _, c := range model.GetUsedColumns(col) {
 			allReferencedFields = append(allReferencedFields, c.ColumnName)
 		}
 	}

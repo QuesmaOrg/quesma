@@ -189,6 +189,18 @@ func NewInfixExpr(lhs Expr, operator string, rhs Expr) InfixExpr {
 	return InfixExpr{lhs, operator, rhs}
 }
 
+// AliasedExpr is an expression with an alias, e.g. `columnName AS alias` or `COUNT(x) AS sum_of_xs`
+type AliasedExpr struct {
+	Expr  Expr
+	Alias string
+}
+
+func NewAliasedExpr(expr Expr, alias string) AliasedExpr {
+	return AliasedExpr{Expr: expr, Alias: alias}
+}
+
+func (a AliasedExpr) Accept(v ExprVisitor) interface{} { return v.VisitAliasedExpr(a) }
+
 type ExprVisitor interface {
 	VisitFunction(e FunctionExpr) interface{}
 	VisitMultiFunction(e MultiFunctionExpr) interface{}
@@ -203,4 +215,5 @@ type ExprVisitor interface {
 	VisitOrderByExpr(e OrderByExpr) interface{}
 	VisitDistinctExpr(e DistinctExpr) interface{}
 	VisitTableRef(e TableRef) interface{}
+	VisitAliasedExpr(e AliasedExpr) interface{}
 }

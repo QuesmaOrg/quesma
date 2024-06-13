@@ -477,7 +477,8 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 	for _, query := range queries {
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}
 		for _, field := range query.Columns {
-			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field.Alias, Value: "not-important"})
+			//TODO
+			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: model.AsString(field), Value: "not-important"})
 		}
 		_ = cw.MakeSearchResponse([]*model.Query{{QueryInfoType: model.Normal, Highlighter: NewEmptyHighlighter()}}, [][]model.QueryResultRow{{resultRow}})
 	}
@@ -507,7 +508,8 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 			if j == model.ResultColDocCountIndex {
 				value = uint64(5)
 			}
-			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: field.Alias, Value: value})
+			//TODO
+			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: model.AsString(field), Value: value})
 		}
 		_, err := cw.MakeAsyncSearchResponse([]model.QueryResultRow{resultRow}, &model.Query{QueryInfoType: types[i], Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
 		assert.NoError(t, err)

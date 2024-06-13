@@ -123,3 +123,7 @@ func (v *renderer) VisitDistinctExpr(e DistinctExpr) interface{} {
 func (v *renderer) VisitTableRef(e TableRef) interface{} {
 	return e.Name
 }
+
+func (v *renderer) VisitAliasedExpr(e AliasedExpr) interface{} {
+	return fmt.Sprintf("%s AS %s", e.Expr.Accept(v).(string), strconv.Quote(e.Alias))
+}

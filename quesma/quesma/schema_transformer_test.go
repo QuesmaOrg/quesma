@@ -30,10 +30,7 @@ func Test_ipRangeTransform(t *testing.T) {
 		{
 			FromClause: model.NewTableRef("kibana_sample_data_logs"),
 			TableName:  "kibana_sample_data_logs",
-			Columns: []model.SelectColumn{{
-				Expression: model.NewWildcardExpr,
-			},
-			},
+			Columns:    []model.Expr{model.NewWildcardExpr},
 			WhereClause: &model.FunctionExpr{
 				Name: isIPAddressInRangePrimitive,
 				Args: []model.Expr{
@@ -51,10 +48,7 @@ func Test_ipRangeTransform(t *testing.T) {
 		{
 			FromClause: model.NewTableRef("kibana_sample_data_logs"),
 			TableName:  "kibana_sample_data_logs",
-			Columns: []model.SelectColumn{{
-				Expression: model.NewWildcardExpr,
-			},
-			},
+			Columns:    []model.Expr{model.NewWildcardExpr},
 			WhereClause: &model.InfixExpr{
 				Left:  &model.LiteralExpr{Value: IpFieldName},
 				Op:    "<",
@@ -64,10 +58,7 @@ func Test_ipRangeTransform(t *testing.T) {
 		{
 			FromClause: model.NewTableRef("kibana_sample_data_logs"),
 			TableName:  "kibana_sample_data_logs",
-			Columns: []model.SelectColumn{{
-				Expression: model.NewWildcardExpr,
-			},
-			},
+			Columns:    []model.Expr{model.NewWildcardExpr},
 			WhereClause: &model.FunctionExpr{
 				Name: isIPAddressInRangePrimitive,
 				Args: []model.Expr{
@@ -89,10 +80,7 @@ func Test_ipRangeTransform(t *testing.T) {
 		{
 			FromClause: model.NewTableRef("kibana_sample_data_logs"),
 			TableName:  "kibana_sample_data_logs",
-			Columns: []model.SelectColumn{{
-				Expression: model.NewWildcardExpr,
-			},
-			},
+			Columns:    []model.Expr{model.NewWildcardExpr},
 			WhereClause: &model.InfixExpr{
 				Left: &model.InfixExpr{
 					Left: &model.InfixExpr{
@@ -133,10 +121,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			{
 				FromClause: model.NewTableRef("kibana_sample_data_logs"),
 				TableName:  "kibana_sample_data_logs",
-				Columns: []model.SelectColumn{{
-					Expression: model.NewWildcardExpr,
-				},
-				},
+				Columns:    []model.Expr{model.NewWildcardExpr},
 				WhereClause: &model.InfixExpr{
 					Left:  &model.LiteralExpr{Value: IpFieldName},
 					Op:    "=",
@@ -148,10 +133,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			{
 				FromClause: model.NewTableRef("kibana_sample_data_logs"),
 				TableName:  "kibana_sample_data_logs",
-				Columns: []model.SelectColumn{{
-					Expression: model.NewWildcardExpr,
-				},
-				},
+				Columns:    []model.Expr{model.NewWildcardExpr},
 				WhereClause: &model.InfixExpr{
 					Left:  &model.LiteralExpr{Value: IpFieldName},
 					Op:    "<",
@@ -163,10 +145,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			{
 				FromClause: model.NewTableRef("kibana_sample_data_logs"),
 				TableName:  "kibana_sample_data_logs",
-				Columns: []model.SelectColumn{{
-					Expression: model.NewWildcardExpr,
-				},
-				},
+				Columns:    []model.Expr{model.NewWildcardExpr},
 				WhereClause: &model.InfixExpr{
 					Left:  &model.LiteralExpr{Value: IpFieldName},
 					Op:    "iLIKE",
@@ -182,10 +161,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			{
 				FromClause: model.NewTableRef("kibana_sample_data_logs"),
 				TableName:  "kibana_sample_data_logs",
-				Columns: []model.SelectColumn{{
-					Expression: model.NewWildcardExpr,
-				},
-				},
+				Columns:    []model.Expr{model.NewWildcardExpr},
 				WhereClause: &model.InfixExpr{
 					Left: &model.InfixExpr{
 						Left: &model.InfixExpr{
