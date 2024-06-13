@@ -299,15 +299,15 @@ var aggregationTests = []struct {
 			`SELECT "OriginAirportID", "DestAirportID", count() FROM ` + tableNameQuoted + ` ` +
 				`GROUP BY "OriginAirportID", "DestAirportID" ORDER BY "OriginAirportID", "DestAirportID"`,
 			`SELECT "OriginAirportID", "DestAirportID", "DestLocation" ` +
-				`FROM (SELECT "DestLocation" , ROW_NUMBER() ` +
-				`OVER (PARTITION BY "OriginAirportID" , "DestAirportID" ) AS row_number ` +
+				`FROM (SELECT "DestLocation", ROW_NUMBER() ` +
+				`OVER (PARTITION BY "OriginAirportID", "DestAirportID"  ) AS row_number ` +
 				`FROM "logs-generic-default") ` +
 				`WHERE "row_number"<=1 ` +
 				`GROUP BY "OriginAirportID", "DestAirportID" ` +
 				`ORDER BY "OriginAirportID", "DestAirportID"`,
 			`SELECT "OriginAirportID", "OriginLocation", "Origin" ` +
-				`FROM (SELECT "OriginLocation" , "Origin" , ROW_NUMBER() ` +
-				`OVER (PARTITION BY "OriginAirportID" ) AS row_number ` +
+				`FROM (SELECT "OriginLocation", "Origin", ROW_NUMBER() ` +
+				`OVER (PARTITION BY "OriginAirportID"  ) AS row_number ` +
 				`FROM "logs-generic-default") ` +
 				`WHERE "row_number"<=1 ` +
 				`GROUP BY "OriginAirportID" ` +
@@ -469,7 +469,7 @@ var aggregationTests = []struct {
 			`SELECT count() FROM ` + tableNameQuoted + ` WHERE "taxful_total_price" > '250'`,
 			`SELECT toInt64(toUnixTimestamp64Milli("order_date") / 43200000), ` +
 				`maxOrNull("order_date") AS "windowed_order_date", maxOrNull("order_date") AS "windowed_order_date" ` +
-				`FROM (SELECT "order_date" , "order_date" , ROW_NUMBER() OVER ` +
+				`FROM (SELECT "order_date", "order_date", ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
 				`ORDER BY "order_date" ASC ) AS row_number ` +
 				`FROM ` + tableNameQuoted + ` ` +
@@ -479,7 +479,7 @@ var aggregationTests = []struct {
 				`ORDER BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("order_date") / 43200000), ` +
 				`maxOrNull("taxful_total_price") AS "windowed_taxful_total_price", maxOrNull("order_date") AS "windowed_order_date" ` +
-				`FROM (SELECT "taxful_total_price" , "order_date" , ROW_NUMBER() OVER ` +
+				`FROM (SELECT "taxful_total_price", "order_date", ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
 				`ORDER BY "order_date" ASC ) AS row_number ` +
 				`FROM ` + tableNameQuoted + ` ` +

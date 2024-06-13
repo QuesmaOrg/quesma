@@ -127,3 +127,94 @@ func (v *renderer) VisitTableRef(e TableRef) interface{} {
 func (v *renderer) VisitAliasedExpr(e AliasedExpr) interface{} {
 	return fmt.Sprintf("%s AS %s", e.Expr.Accept(v).(string), strconv.Quote(e.Alias))
 }
+
+func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
+	// THIS SHOULD PRODUCE QUERY IN  BRACES
+	var sb strings.Builder
+	sb.WriteString("SELECT ")
+	if c.IsDistinct {
+		sb.WriteString("DISTINCT ")
+	}
+
+	columns := make([]string, 0)
+
+	for _, col := range c.Columns {
+		columns = append(columns, AsString(col))
+	}
+
+	sb.WriteString(strings.Join(columns, ", "))
+
+	sb.WriteString(" FROM ")
+	/* HACK ALERT BEGIN */
+	// There are some aggregations that look like they are nested queries, but they aren't properly built as such
+	// Instead these are printed out in a smart way, handled by the logic below
+	// Example of such query is
+	//=== RUN   Test2AggregationParserExternalTestcases/date_histogram(2)
+	//SELECT count()
+	//FROM (
+	//  SELECT 1
+	//  FROM "logs-generic-default"
+	//  WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND
+	//    "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))
+	//  LIMIT 12)
+	if c.SampleLimit > 0 {
+		sb.WriteString("(SELECT ")
+		innerColumn := make([]string, 0)
+		for _, col := range c.Columns {
+			if _, ok := col.(ColumnRef); ok {
+				innerColumn = append(innerColumn, AsString(col))
+			}
+			if aliased, ok := col.(AliasedExpr); ok {
+				if v, ok := aliased.Expr.(ColumnRef); ok {
+					innerColumn = append(innerColumn, AsString(v))
+				}
+			}
+		}
+		if len(innerColumn) == 0 {
+			innerColumn = append(innerColumn, "1")
+		}
+		sb.WriteString(strings.Join(innerColumn, ", "))
+		sb.WriteString(" FROM ")
+	}
+	/* HACK ALERT END */
+	if c.FromClause != nil { // here we have to handle nested
+		if nestedCmd, isNested := c.FromClause.(SelectCommand); isNested {
+			sb.WriteString("(")
+			sb.WriteString(AsString(nestedCmd))
+			sb.WriteString(")")
+		} else {
+			sb.WriteString(AsString(c.FromClause))
+		}
+	}
+	if c.WhereClause != nil {
+		sb.WriteString(" WHERE ")
+		sb.WriteString(AsString(c.WhereClause))
+	}
+	if c.SampleLimit > 0 {
+		sb.WriteString(fmt.Sprintf(" LIMIT %d)", c.SampleLimit))
+	}
+
+	groupBy := make([]string, 0, len(c.GroupBy))
+	for _, col := range c.GroupBy {
+		groupBy = append(groupBy, AsString(col))
+	}
+	if len(groupBy) > 0 {
+		sb.WriteString(" GROUP BY ")
+		sb.WriteString(strings.Join(groupBy, ", "))
+	}
+
+	orderBy := make([]string, 0, len(c.OrderBy))
+	for _, col := range c.OrderBy {
+		orderBy = append(orderBy, AsString(col))
+	}
+	if len(orderBy) > 0 {
+		sb.WriteString(" ORDER BY ")
+		sb.WriteString(strings.Join(orderBy, ", "))
+	}
+
+	if c.Limit != noLimit {
+		sb.WriteString(fmt.Sprintf(" LIMIT %d", c.Limit))
+	}
+
+	return sb.String()
+}

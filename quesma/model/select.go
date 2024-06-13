@@ -1,10 +1,5 @@
 package model
 
-import (
-	"fmt"
-	"strings"
-)
-
 type SelectCommand struct {
 	IsDistinct bool // true <=> query is SELECT DISTINCT
 
@@ -32,75 +27,16 @@ func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, wher
 	}
 }
 
-func (c *SelectCommand) String() string {
-	var sb strings.Builder
-	sb.WriteString("SELECT ")
-	if c.IsDistinct {
-		sb.WriteString("DISTINCT ")
-	}
+// Accept implements the Visitor interface for SelectCommand,
+func (c SelectCommand) Accept(v ExprVisitor) interface{} {
+	// This is handy because it enables representing nested queries (e.g. `SELECT * FROM (SELECT * FROM table1) AS t1 WHERE ...`)
+	return v.VisitSelectCommand(c)
+}
 
-	columns := make([]string, 0)
-
-	for _, col := range c.Columns {
-		columns = append(columns, AsString(col))
-	}
-
-	sb.WriteString(strings.Join(columns, ", "))
-
-	sb.WriteString(" FROM ")
-	if c.SampleLimit > 0 {
-		sb.WriteString("(SELECT ")
-		innerColumn := make([]string, 0)
-		for _, col := range c.Columns {
-			if _, ok := col.(ColumnRef); ok {
-				innerColumn = append(innerColumn, AsString(col))
-			}
-			if aliased, ok := col.(AliasedExpr); ok {
-				if v, ok := aliased.Expr.(ColumnRef); ok {
-					innerColumn = append(innerColumn, AsString(v))
-				}
-			}
-		}
-		if len(innerColumn) == 0 {
-			innerColumn = append(innerColumn, "1")
-		}
-		sb.WriteString(strings.Join(innerColumn, ", "))
-		sb.WriteString(" FROM ")
-	}
-	if c.FromClause != nil {
-		sb.WriteString(AsString(c.FromClause))
-	}
-	if c.WhereClause != nil {
-		sb.WriteString(" WHERE ")
-		sb.WriteString(AsString(c.WhereClause))
-	}
-	if c.SampleLimit > 0 {
-		sb.WriteString(fmt.Sprintf(" LIMIT %d)", c.SampleLimit))
-	}
-
-	groupBy := make([]string, 0, len(c.GroupBy))
-	for _, col := range c.GroupBy {
-		groupBy = append(groupBy, AsString(col))
-	}
-	if len(groupBy) > 0 {
-		sb.WriteString(" GROUP BY ")
-		sb.WriteString(strings.Join(groupBy, ", "))
-	}
-
-	orderBy := make([]string, 0, len(c.OrderBy))
-	for _, col := range c.OrderBy {
-		orderBy = append(orderBy, AsString(col))
-	}
-	if len(orderBy) > 0 {
-		sb.WriteString(" ORDER BY ")
-		sb.WriteString(strings.Join(orderBy, ", "))
-	}
-
-	if c.Limit != noLimit {
-		sb.WriteString(fmt.Sprintf(" LIMIT %d", c.Limit))
-	}
-
-	return sb.String()
+func (c SelectCommand) String() string {
+	// PRZEMYSLAW -  to be determined
+	// THIS should remove the ( and ) from the query because it is not nested here
+	return AsString(c)
 }
 
 func (c *SelectCommand) IsWildcard() bool {

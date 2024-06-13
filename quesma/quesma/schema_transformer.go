@@ -120,6 +120,7 @@ func (v *WhereVisitor) VisitOrderByExpr(e model.OrderByExpr) interface{}        
 func (v *WhereVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{}       { return e }
 func (v *WhereVisitor) VisitTableRef(e model.TableRef) interface{}               { return e }
 func (v *WhereVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{}         { return e }
+func (v *WhereVisitor) VisitSelectCommand(e model.SelectCommand) interface{}     { return e }
 
 type SchemaCheckPass struct {
 	cfg map[string]config.IndexConfiguration

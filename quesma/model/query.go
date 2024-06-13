@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -100,9 +101,7 @@ func (q *Query) IsChild(maybeParent *Query) bool {
 
 // TODO change whereClause type string -> some typed
 func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []Expr,
-	whereClause string, orderByField string, orderByDesc bool) Expr {
-
-	const additionalArrayLength = 6
+	whereClause string, orderByField string, orderByDesc bool) SelectCommand {
 	/* used to be as string:
 	fromSelect := fmt.Sprintf(
 		"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s %s) AS %s FROM %s WHERE %s)",
@@ -110,49 +109,28 @@ func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []
 			model.RowNumberColumnName, query.FromClause, b.whereBuilder.WhereClauseAsNewStringExpr(),
 	)
 	*/
-
-	fromSelect := make([]Expr, 0, 2*(len(selectFields)+len(groupByFields))+additionalArrayLength) // +6 without ORDER BY, +8 with ORDER BY
-	fromSelect = append(fromSelect, NewStringExpr("SELECT"))
-	for _, field := range selectFields {
-		fromSelect = append(fromSelect, field)
-		fromSelect = append(fromSelect, NewStringExpr(","))
-	}
-
-	// Maybe keep this ROW_NUMBER as SelectColumn? It'd introduce some problems, because it's not in schema.
-	// Sticking to simpler solution now.
-	fromSelect = append(fromSelect, NewStringExpr("ROW_NUMBER() OVER (PARTITION BY"))
-	for i, field := range groupByFields {
-		fromSelect = append(fromSelect, field)
-		if i != len(groupByFields)-1 {
-			fromSelect = append(fromSelect, NewStringExpr(","))
-		}
-	}
+	var order string
 	if orderByField != "" {
-		fromSelect = append(fromSelect, NewStringExpr("ORDER BY"))
 		if orderByDesc {
-			fromSelect = append(fromSelect, NewOrderByExpr([]Expr{NewColumnRef(orderByField)}, DescOrder))
+			order = fmt.Sprintf("ORDER BY %s DESC", strconv.Quote(orderByField))
 		} else {
-			fromSelect = append(fromSelect, NewOrderByExpr([]Expr{NewColumnRef(orderByField)}, AscOrder))
+			order = fmt.Sprintf("ORDER BY %s ASC", strconv.Quote(orderByField))
 		}
 	}
-	fromSelect = append(fromSelect, NewStringExpr(") AS"))
-	// TODO this formatting below is only to match the existing test cases,
-	// window functions formatting (as everything else) should be systematically formatted at the printing stage
-	fromSelect = append(fromSelect, NewLiteral(RowNumberColumnName))
-	fromSelect = append(fromSelect, NewStringExpr("FROM"))
-	fromSelect = append(fromSelect, q.SelectCommand.FromClause)
+	// TODO that SQL below is a hack I don't like and it won't work with visitors (e.g. for resolving aliases), but it's a start
+	// we should introduce a proper expression for window functions
+	var groupByStr []string
+	for _, groupByField := range groupByFields {
+		groupByStr = append(groupByStr, AsString(groupByField))
+	}
+	selectFields = append(selectFields,
+		SQL{Query: fmt.Sprintf("ROW_NUMBER() OVER (PARTITION BY %s %s ) AS %s", strings.Join(groupByStr, ", "), order, RowNumberColumnName)})
 
-	if whereClause != "" {
-		fromSelect = append(fromSelect, NewStringExpr("WHERE "+whereClause))
+	if whereClause == "" {
+		return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, nil, 0, 0, false)
+	} else {
+		return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, SQL{Query: whereClause}, 0, 0, false)
 	}
-	fullQueryStr := strings.Join(func() []string {
-		var finalStr []string
-		for _, expr := range fromSelect {
-			finalStr = append(finalStr, AsString(expr))
-		}
-		return finalStr
-	}(), " ")
-	return SQL{Query: fmt.Sprintf("(%s)", fullQueryStr)}
 }
 
 // Aggregator is always initialized as "empty", so with SplitOverHowManyFields == 0, Keyed == false, Filters == false.

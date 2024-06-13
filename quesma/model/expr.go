@@ -216,4 +216,5 @@ type ExprVisitor interface {
 	VisitDistinctExpr(e DistinctExpr) interface{}
 	VisitTableRef(e TableRef) interface{}
 	VisitAliasedExpr(e AliasedExpr) interface{}
+	VisitSelectCommand(e SelectCommand) interface{}
 }

@@ -98,3 +98,6 @@ func (v *usedColumns) VisitAliasedExpr(e AliasedExpr) interface{} {
 	res := e.Expr.Accept(v)
 	return res
 }
+func (v *usedColumns) VisitSelectCommand(c SelectCommand) interface{} {
+	return nil
+}
