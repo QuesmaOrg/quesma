@@ -70,20 +70,12 @@ type (
 	}
 )
 
-func NewSortColumn(field string, desc bool) OrderByExpr {
-	if desc {
-		return NewOrderByExpr([]Expr{NewColumnRef(field)}, DescOrder)
-	} else {
-		return NewOrderByExpr([]Expr{NewColumnRef(field)}, AscOrder)
-	}
+func NewSortColumn(field string, direction OrderByDirection) OrderByExpr {
+	return NewOrderByExpr([]Expr{NewColumnRef(field)}, direction)
 }
 
-func NewSortByCountColumn(desc bool) OrderByExpr {
-	if desc {
-		return NewOrderByExpr([]Expr{NewCountFunc()}, DescOrder)
-	} else {
-		return NewOrderByExpr([]Expr{NewCountFunc()}, AscOrder)
-	}
+func NewSortByCountColumn(direction OrderByDirection) OrderByExpr {
+	return NewOrderByExpr([]Expr{NewCountFunc()}, direction)
 }
 
 func (c SelectColumn) SQL() string {
@@ -251,7 +243,7 @@ func (q *Query) IsChild(maybeParent *Query) bool {
 }
 
 // TODO change whereClause type string -> some typed
-func (q *Query) NewSelectColumnSubselectWithRowNumber(selectFields []SelectColumn, groupByFields []Expr,
+func (q *Query) NewSelectExprWithRowNumber(selectFields []SelectColumn, groupByFields []Expr,
 	whereClause string, orderByField string, orderByDesc bool) Expr {
 
 	const additionalArrayLength = 6

@@ -455,7 +455,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 	return &model.Query{
 		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(fieldName)}, {Expression: model.NewCountFunc()}},
 		GroupBy:     []model.Expr{model.NewColumnRef(fieldName)},
-		OrderBy:     []model.OrderByExpr{model.NewSortByCountColumn(true)},
+		OrderBy:     []model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)},
 		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		WhereClause: simpleQuery.WhereClause,
 		SampleLimit: facetsSampleSize,
@@ -468,10 +468,17 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 // earliest == true  <==> we want earliest timestamp
 // earliest == false <==> we want latest timestamp
 func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName string, whereClause model.Expr, earliest bool) *model.Query {
+	var ordering model.OrderByDirection
+	if earliest {
+		ordering = model.DescOrder
+	} else {
+		ordering = model.AscOrder
+	}
+
 	return &model.Query{
 		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(timestampFieldName)}},
 		WhereClause: whereClause,
-		OrderBy:     []model.OrderByExpr{model.NewSortColumn(timestampFieldName, !earliest)},
+		OrderBy:     []model.OrderByExpr{model.NewSortColumn(timestampFieldName, ordering)},
 		Limit:       1,
 		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),

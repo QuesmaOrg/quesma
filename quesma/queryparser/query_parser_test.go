@@ -345,10 +345,10 @@ func Test_parseSortFields(t *testing.T) {
 				QueryMap{"_doc": QueryMap{"order": "desc", "unmapped_type": "boolean"}},                        // this should be discarded, as it doesn't exist in the table
 			},
 			sortColumns: []model.OrderByExpr{
-				model.NewSortColumn("@timestamp", true),
-				model.NewSortColumn("service.name", false),
-				model.NewSortColumn("no_order_field", false),
-				model.NewSortColumn("_table_field_with_underscore", false),
+				model.NewSortColumn("@timestamp", model.DescOrder),
+				model.NewSortColumn("service.name", model.AscOrder),
+				model.NewSortColumn("no_order_field", model.AscOrder),
+				model.NewSortColumn("_table_field_with_underscore", model.AscOrder),
 			},
 		},
 		{
@@ -362,7 +362,7 @@ func Test_parseSortFields(t *testing.T) {
 				"timestamp": "desc",
 				"_doc":      "desc",
 			},
-			sortColumns: []model.OrderByExpr{model.NewSortColumn("timestamp", true)},
+			sortColumns: []model.OrderByExpr{model.NewSortColumn("timestamp", model.DescOrder)},
 		},
 		{
 			name: "map[string]interface{}",
@@ -370,14 +370,14 @@ func Test_parseSortFields(t *testing.T) {
 				"timestamp": "desc",
 				"_doc":      "desc",
 			},
-			sortColumns: []model.OrderByExpr{model.NewSortColumn("timestamp", true)},
+			sortColumns: []model.OrderByExpr{model.NewSortColumn("timestamp", model.DescOrder)},
 		}, {
 			name: "[]map[string]string",
 			sortMap: []any{
 				QueryMap{"@timestamp": "asc"},
 				QueryMap{"_doc": "asc"},
 			},
-			sortColumns: []model.OrderByExpr{model.NewSortColumn("@timestamp", false)},
+			sortColumns: []model.OrderByExpr{model.NewSortColumn("@timestamp", model.AscOrder)},
 		},
 	}
 	table, _ := clickhouse.NewTable(`CREATE TABLE `+tableName+`

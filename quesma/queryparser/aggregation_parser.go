@@ -141,7 +141,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				metricsAggr.Fields, partitionBy, model.RowNumberColumnName, query.FromClause, whereString,
 			)
 		*/
-		query.FromClause = query.NewSelectColumnSubselectWithRowNumber(
+		query.FromClause = query.NewSelectExprWithRowNumber(
 			innerFieldsAsSelect, b.GroupBy, b.whereBuilder.WhereClauseAsString(), "", true)
 		query.WhereClause = model.And([]model.Expr{
 			query.WhereClause,
@@ -175,7 +175,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			for i, field := range innerFields {
 				innerFieldsAsSelect[i] = model.SelectColumn{Expression: field}
 			}
-			query.FromClause = query.NewSelectColumnSubselectWithRowNumber(
+			query.FromClause = query.NewSelectExprWithRowNumber(
 				innerFieldsAsSelect, b.Query.GroupBy, b.whereBuilder.WhereClauseAsString(),
 				metricsAggr.SortBy, strings.ToLower(metricsAggr.Order) == "desc",
 			)
@@ -190,7 +190,12 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			query.Columns = append(query.Columns, innerFieldsAsSelect...)
 			if metricsAggr.sortByExists() {
 				query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewColumnRef(metricsAggr.SortBy)})
-				query.OrderBy = append(query.OrderBy, model.NewSortColumn(metricsAggr.SortBy, strings.ToLower(metricsAggr.Order) == "desc"))
+				if strings.ToLower(metricsAggr.Order) == "desc" {
+					query.OrderBy = append(query.OrderBy, model.NewSortColumn(metricsAggr.SortBy, model.DescOrder))
+				} else {
+					query.OrderBy = append(query.OrderBy, model.NewSortColumn(metricsAggr.SortBy, model.AscOrder))
+				}
+
 			}
 		}
 	case "percentile_ranks":
@@ -733,7 +738,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 					}
 				}
 				currentAggr.Limit = size
-				currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewSortByCountColumn(true))
+				currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewSortByCountColumn(model.DescOrder))
 				orderByAdded = true
 			}
 			delete(queryMap, termsType)
@@ -772,7 +777,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		const defaultSize = 10
 		size := cw.parseIntField(multiTerms, "size", defaultSize)
 		if _, exists := queryMap["aggs"]; isEmptyGroupBy && !exists { // we can do limit only it terms are not nested
-			currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewSortByCountColumn(true))
+			currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewSortByCountColumn(model.DescOrder))
 			currentAggr.Limit = size
 			orderByAdded = true
 			orderByFieldsAdded = 1
