@@ -74,12 +74,13 @@ func mapClickhouseToElasticType(col *clickhouse.Column) string {
 	return "unknown"
 }
 
-func BuildFieldCapFromSchema(fieldType schema.Type) model.FieldCapability {
+func BuildFieldCapFromSchema(fieldType schema.Type, indexName string) model.FieldCapability {
 	return model.FieldCapability{
 		// TODO adapter needs to be moved to elasticsearch
 		Type:         schema.ElasticsearchTypeAdapter{}.ConvertFrom(fieldType),
 		Aggregatable: fieldType.IsAggregatable(),
 		Searchable:   fieldType.IsSearchable(),
+		Indices:      []string{indexName},
 	}
 }
 
@@ -96,20 +97,20 @@ func BuildFieldCapability(indexName, typeName string) model.FieldCapability {
 	return capability
 }
 
-func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.FieldCapability, colName string, typeName string, index string) {
-	fieldCapability := BuildFieldCapability(index, typeName)
+func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.FieldCapability, colName string, fieldType schema.Type, index string) {
+	fieldCapability := BuildFieldCapFromSchema(fieldType, index)
 
 	if _, exists := fields[colName]; !exists {
 		fields[colName] = make(map[string]model.FieldCapability)
 	}
 
-	if existing, exists := fields[colName][typeName]; exists {
+	if existing, exists := fields[colName][fieldType.Name]; exists {
 		merged, ok := merge(existing, fieldCapability)
 		if ok {
-			fields[colName][typeName] = merged
+			fields[colName][fieldType.Name] = merged
 		}
 	} else {
-		fields[colName][typeName] = fieldCapability
+		fields[colName][fieldType.Name] = fieldCapability
 	}
 }
 
@@ -191,52 +192,54 @@ func handleFieldCapsIndex(ctx context.Context, cfg config.QuesmaConfiguration, s
 
 			for fieldName, field := range schema.Fields {
 				logger.Info().Msgf("field: %s, type: %s", fieldName, field.Type)
+
+				addFieldCapabilityFromSchemaRegistry(fields, fieldName.AsString(), field.Type, resolvedIndex)
 			}
 		} else {
 			logger.Info().Msgf("no schema found for index %s", resolvedIndex)
 		}
 
-		if table, ok := tables.Load(resolvedIndex); ok {
+		if false {
+			if table, ok := tables.Load(resolvedIndex); ok {
 
-			if table == nil {
-				return nil, errors.New("could not find table for index : " + resolvedIndex)
+				if table == nil {
+					return nil, errors.New("could not find table for index : " + resolvedIndex)
+				}
+
+				for colName, col := range table.Cols {
+
+					if col == nil {
+						continue
+					}
+
+					if isInternalColumn(col) {
+						continue
+					}
+
+					customTypeName, configuredExplicitly := isConfiguredExplicitly(resolvedIndex, config.FieldName(colName), cfg)
+					if configuredExplicitly {
+						addFieldCapabilityFromStaticSchema(fields, colName, customTypeName, resolvedIndex)
+					} else if canBeKeywordField(col) {
+						addNewKeywordFieldCapability(fields, col, resolvedIndex)
+					} else {
+						addNewDefaultFieldCapability(fields, col, resolvedIndex)
+					}
+				}
+
+				for _, alias := range table.AliasFields(ctx) {
+					if alias == nil {
+						continue
+					}
+
+					if canBeKeywordField(alias) {
+						addNewKeywordFieldCapability(fields, alias, resolvedIndex)
+					} else {
+						addNewDefaultFieldCapability(fields, alias, resolvedIndex)
+					}
+				}
 			}
 
-			for colName, col := range table.Cols {
-
-				if col == nil {
-					continue
-				}
-
-				if isInternalColumn(col) {
-					continue
-				}
-
-				customTypeName, configuredExplicitly := isConfiguredExplicitly(resolvedIndex, config.FieldName(colName), cfg)
-				if configuredExplicitly {
-					addFieldCapabilityFromStaticSchema(fields, colName, customTypeName, resolvedIndex)
-				} else if canBeKeywordField(col) {
-					addNewKeywordFieldCapability(fields, col, resolvedIndex)
-				} else {
-					addNewDefaultFieldCapability(fields, col, resolvedIndex)
-				}
-			}
-
-			for _, alias := range table.AliasFields(ctx) {
-				if alias == nil {
-					continue
-				}
-
-				if canBeKeywordField(alias) {
-					addNewKeywordFieldCapability(fields, alias, resolvedIndex)
-				} else {
-					addNewDefaultFieldCapability(fields, alias, resolvedIndex)
-				}
-			}
 		}
-
-		quesmaCol := &clickhouse.Column{Name: quesmaDebuggingFieldName, Type: clickhouse.BaseType{Name: "String"}}
-		addNewDefaultFieldCapability(fields, quesmaCol, resolvedIndex)
 	}
 
 	fieldCapsResponse := model.FieldCapsResponse{Fields: fields}
