@@ -77,7 +77,7 @@ func (t *Table) applyTableSchema(query *model.Query) {
 	var newColumns []model.Expr
 	var hasWildcard bool
 
-	for _, selectColumn := range query.Columns {
+	for _, selectColumn := range query.SelectCommand.Columns {
 
 		if selectColumn == model.NewWildcardExpr {
 			hasWildcard = true
@@ -99,22 +99,22 @@ func (t *Table) applyTableSchema(query *model.Query) {
 		}
 	}
 
-	query.Columns = newColumns
+	query.SelectCommand.Columns = newColumns
 }
 
 func (t *Table) extractColumns(query *model.Query, addNonSchemaFields bool) ([]string, error) {
 
-	N := len(query.Columns)
-	if query.IsWildcard() {
+	N := len(query.SelectCommand.Columns)
+	if query.SelectCommand.IsWildcard() {
 		N = len(t.Cols)
 	}
 	cols := make([]string, 0, N)
-	if query.IsWildcard() {
+	if query.SelectCommand.IsWildcard() {
 		for _, col := range t.Cols {
 			cols = append(cols, col.Name)
 		}
 	} else {
-		for _, selectColumn := range query.Columns {
+		for _, selectColumn := range query.SelectCommand.Columns {
 			switch selectCol := selectColumn.(type) {
 			case model.ColumnRef:
 				colName := selectCol.ColumnName

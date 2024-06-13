@@ -42,14 +42,16 @@ func TestApplyWildCard(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			query := &model.Query{
-				Columns: toSelectColumn(tt.input),
+				SelectCommand: model.SelectCommand{
+					Columns: toSelectColumn(tt.input),
+				},
 			}
 
 			table.applyTableSchema(query)
 
 			expectedColumns := toSelectColumn(tt.expected)
 
-			assert.Equal(t, expectedColumns, query.Columns)
+			assert.Equal(t, expectedColumns, query.SelectCommand.Columns)
 		})
 	}
 }

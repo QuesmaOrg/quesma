@@ -37,39 +37,39 @@ var queries = []struct {
 	answer []string
 }{
 	{
-		&model.Query{}, // empty query
+		&model.Query{SelectCommand: model.SelectCommand{}}, // empty query
 		[]string{},
 	},
 	{
-		&model.Query{Columns: []model.Expr{model.NewWildcardExpr}},
+		&model.Query{SelectCommand: model.SelectCommand{Columns: []model.Expr{model.NewWildcardExpr}}},
 		[]string{"all"},
 	},
 	{
-		&model.Query{Columns: []model.Expr{model.NewWildcardExpr, model.NewCountFunc()}},
+		&model.Query{SelectCommand: model.SelectCommand{Columns: []model.Expr{model.NewWildcardExpr, model.NewCountFunc()}}},
 		[]string{"all", "count()"},
 	},
 	{
-		&model.Query{Columns: []model.Expr{model.NewWildcardExpr, model.NewCountFunc(), model.NewInfixExpr(model.NewColumnRef("message"), "=", model.NewLiteral("hello"))}}, // select fields + where clause
+		&model.Query{SelectCommand: model.SelectCommand{Columns: []model.Expr{model.NewWildcardExpr, model.NewCountFunc(), model.NewInfixExpr(model.NewColumnRef("message"), "=", model.NewLiteral("hello"))}}}, // select fields + where clause
 		[]string{"all", "count()"},
 	},
 	{
-		&model.Query{Columns: []model.Expr{model.NewColumnRef("message"), model.NewColumnRef("timestamp")}},
+		&model.Query{SelectCommand: model.SelectCommand{Columns: []model.Expr{model.NewColumnRef("message"), model.NewColumnRef("timestamp")}}},
 		[]string{"message", "timestamp"},
 	},
 	{
-		&model.Query{Columns: []model.Expr{model.NewColumnRef("message"), model.NewColumnRef("non-existent")}},
+		&model.Query{SelectCommand: model.SelectCommand{Columns: []model.Expr{model.NewColumnRef("message"), model.NewColumnRef("non-existent")}}},
 		[]string{"message"},
 	},
 	{
-		&model.Query{Columns: []model.Expr{model.NewColumnRef("non-existent")}},
+		&model.Query{SelectCommand: model.SelectCommand{Columns: []model.Expr{model.NewColumnRef("non-existent")}}},
 		[]string{},
 	},
 	{
-		&model.Query{Columns: []model.Expr{model.NewColumnRef("message"), model.NewColumnRef("timestamp")}},
+		&model.Query{SelectCommand: model.SelectCommand{Columns: []model.Expr{model.NewColumnRef("message"), model.NewColumnRef("timestamp")}}},
 		[]string{"message", "timestamp"},
 	},
 	//{ // we don't support such a query. Supporting it would slow down query's code, and this query seems pointless
-	//	&model.Query{Fields: []string{"*", "message"}},
+	//	&model.Query{SelectCommand: model.SelectCommand{Columns: []string{"*", "message"}}},
 	//	[]string{"all"},
 	//},
 }
@@ -114,7 +114,7 @@ func Test_extractColumns(t *testing.T) {
 				t.Run("Test_extractColumns, case config["+strconv.Itoa(configIdx)+"], createTableStr["+strconv.Itoa(i)+"], queries["+strconv.Itoa(j)+"]", func(t *testing.T) {
 					colNames, err := table.extractColumns(q.query, false)
 					var containsNonExistent bool
-					for _, expr := range q.query.Columns {
+					for _, expr := range q.query.SelectCommand.Columns {
 						if expr == model.NewColumnRef("non-existent") {
 							containsNonExistent = true
 						}

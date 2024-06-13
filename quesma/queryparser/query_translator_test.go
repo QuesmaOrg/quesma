@@ -476,7 +476,7 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 	}
 	for _, query := range queries {
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}
-		for _, field := range query.Columns {
+		for _, field := range query.SelectCommand.Columns {
 			//TODO
 			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: model.AsString(field), Value: "not-important"})
 		}
@@ -503,7 +503,7 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 	types := []model.SearchQueryType{model.ListAllFields, model.FacetsNumeric, model.Facets}
 	for i, query := range queries {
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}
-		for j, field := range query.Columns {
+		for j, field := range query.SelectCommand.Columns {
 			var value interface{} = "not-important"
 			if j == model.ResultColDocCountIndex {
 				value = uint64(5)

@@ -311,7 +311,7 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 		if query.QueryInfoType == model.ListAllFields || query.QueryInfoType == model.ListByField {
 			totalCount = len(results[i])
 			relation := "eq"
-			if query.Limit != 0 && totalCount == query.Limit {
+			if query.SelectCommand.Limit != 0 && totalCount == query.SelectCommand.Limit {
 				relation = "gte"
 			}
 			total = &model.Total{
@@ -399,13 +399,19 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []*
 
 func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sampleLimit int) *model.Query {
 	return &model.Query{
-		Columns:     []model.Expr{model.NewCountFunc()},
-		WhereClause: whereClause,
-		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
-		SampleLimit: sampleLimit,
-		TableName:   cw.Table.FullTableName(),
-		CanParse:    true,
-		Type:        typical_queries.NewCount(cw.Ctx),
+		SelectCommand: *model.NewSelectCommand(
+			[]model.Expr{model.NewCountFunc()},
+			nil,
+			nil,
+			model.NewTableRef(cw.Table.FullTableName()),
+			whereClause,
+			0,
+			sampleLimit,
+			false,
+		),
+		TableName: cw.Table.FullTableName(),
+		CanParse:  true,
+		Type:      typical_queries.NewCount(cw.Ctx),
 	}
 }
 
@@ -415,13 +421,18 @@ func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query *mo
 
 func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, whereClause model.Expr, limit int) *model.Query {
 	return &model.Query{
-		IsDistinct:  true,
-		Columns:     []model.Expr{model.NewColumnRef(fieldName)},
-		WhereClause: whereClause,
-		Limit:       limit,
-		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
-		TableName:   cw.Table.FullTableName(),
-		CanParse:    true,
+		SelectCommand: *model.NewSelectCommand(
+			[]model.Expr{model.NewColumnRef(fieldName)},
+			nil,
+			nil,
+			model.NewTableRef(cw.Table.FullTableName()),
+			whereClause,
+			limit,
+			0,
+			true,
+		),
+		TableName: cw.Table.FullTableName(),
+		CanParse:  true,
 	}
 }
 
@@ -434,12 +445,18 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 		cw.AddTokenToHighlight(prefix)
 	}
 	return &model.Query{
-		Columns:     []model.Expr{model.NewColumnRef(fieldName)},
-		WhereClause: whereClause,
-		Limit:       limit,
-		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
-		TableName:   cw.Table.FullTableName(),
-		CanParse:    true,
+		SelectCommand: *model.NewSelectCommand(
+			[]model.Expr{model.NewColumnRef(fieldName)},
+			nil,
+			nil,
+			model.NewTableRef(cw.Table.FullTableName()),
+			whereClause,
+			limit,
+			0,
+			false,
+		),
+		TableName: cw.Table.FullTableName(),
+		CanParse:  true,
 	}
 }
 
@@ -453,15 +470,19 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 	}
 
 	return &model.Query{
-		Columns:     []model.Expr{model.NewColumnRef(fieldName), model.NewCountFunc()},
-		GroupBy:     []model.Expr{model.NewColumnRef(fieldName)},
-		OrderBy:     []model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)},
-		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
-		WhereClause: simpleQuery.WhereClause,
-		SampleLimit: facetsSampleSize,
-		TableName:   cw.Table.FullTableName(),
-		CanParse:    true,
-		Type:        typ,
+		SelectCommand: *model.NewSelectCommand(
+			[]model.Expr{model.NewColumnRef(fieldName), model.NewCountFunc()},
+			[]model.Expr{model.NewColumnRef(fieldName)},
+			[]model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)},
+			model.NewTableRef(cw.Table.FullTableName()),
+			simpleQuery.WhereClause,
+			0,
+			facetsSampleSize,
+			false,
+		),
+		TableName: cw.Table.FullTableName(),
+		CanParse:  true,
+		Type:      typ,
 	}
 }
 
@@ -476,13 +497,18 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName stri
 	}
 
 	return &model.Query{
-		Columns:     []model.Expr{model.NewColumnRef(timestampFieldName)},
-		WhereClause: whereClause,
-		OrderBy:     []model.OrderByExpr{model.NewSortColumn(timestampFieldName, ordering)},
-		Limit:       1,
-		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
-		TableName:   cw.Table.FullTableName(),
-		CanParse:    true,
+		SelectCommand: *model.NewSelectCommand(
+			[]model.Expr{model.NewColumnRef(timestampFieldName)},
+			nil,
+			[]model.OrderByExpr{model.NewSortColumn(timestampFieldName, ordering)},
+			model.NewTableRef(cw.Table.FullTableName()),
+			whereClause,
+			1,
+			0,
+			false,
+		),
+		TableName: cw.Table.FullTableName(),
+		CanParse:  true,
 	}
 }
 

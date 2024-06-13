@@ -36,13 +36,9 @@ func BuildHitsQuery(ctx context.Context, tableName string, fieldName string, que
 		col = model.NewColumnRef(fieldName)
 	}
 	return &model.Query{
-		Columns:     []model.Expr{col},
-		WhereClause: query.WhereClause,
-		OrderBy:     query.OrderBy,
-		Limit:       applySizeLimit(ctx, limit),
-		FromClause:  model.NewTableRef(tableName),
-		TableName:   tableName,
-		CanParse:    true,
+		SelectCommand: *model.NewSelectCommand([]model.Expr{col}, nil, query.OrderBy, model.NewTableRef(tableName), query.WhereClause, applySizeLimit(ctx, limit), 0, false),
+		TableName:     tableName,
+		CanParse:      true,
 	}
 }
 

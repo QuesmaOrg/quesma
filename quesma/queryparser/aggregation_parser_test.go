@@ -570,7 +570,7 @@ func TestAggregationParser(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, len(test.translatedSqls), len(aggregations))
 			for _, aggregation := range aggregations {
-				util.AssertContainsSqlEqual(t, test.translatedSqls, aggregation.String(context.Background()))
+				util.AssertContainsSqlEqual(t, test.translatedSqls, aggregation.SelectCommand.String())
 			}
 		})
 	}
@@ -655,7 +655,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			for j, query := range queries {
 				// fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\n", j, query, query.String(context.Background()))
 				if test.ExpectedSQLs[j] != "NoDBQuery" {
-					util.AssertSqlEqual(t, test.ExpectedSQLs[j], query.String(context.Background()))
+					util.AssertSqlEqual(t, test.ExpectedSQLs[j], query.SelectCommand.String())
 				}
 				if query_util.IsNonAggregationQuery(query) {
 					continue

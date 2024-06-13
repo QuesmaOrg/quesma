@@ -58,7 +58,7 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 	// build this aggregation
 	for _, interval := range Range.Intervals {
 		stmt := Range.Expr
-		currentAggr.Columns = append(currentAggr.Columns, interval.ToSQLSelectQuery(stmt))
+		currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, interval.ToSQLSelectQuery(stmt))
 	}
 	if !Range.Keyed {
 		// there's a difference in output structure whether the range is keyed or not
@@ -70,7 +70,7 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 		}
 	}
 	*aggregationsAccumulator = append(*aggregationsAccumulator, currentAggr.buildBucketAggregation(metadata))
-	currentAggr.Columns = currentAggr.Columns[:len(currentAggr.Columns)-len(Range.Intervals)]
+	currentAggr.SelectCommand.Columns = currentAggr.SelectCommand.Columns[:len(currentAggr.SelectCommand.Columns)-len(Range.Intervals)]
 
 	// build subaggregations
 	aggs, hasAggs := queryCurrentLevel["aggs"].(QueryMap)

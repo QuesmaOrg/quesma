@@ -14,18 +14,8 @@ const (
 
 type (
 	Query struct {
-		IsDistinct bool // true <=> query is SELECT DISTINCT
-
-		// This is SELECT query. These fields should be extracted to separate struct.
-		Columns     []Expr        // Columns to select
-		GroupBy     []Expr        // if not empty, we do GROUP BY GroupBy...
-		OrderBy     []OrderByExpr // if not empty, we do ORDER BY OrderBy...
-		FromClause  Expr          // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
-		WhereClause Expr          // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
-		Limit       int           // LIMIT clause, noLimit (0) means no limit
-		SampleLimit int           // LIMIT, but before grouping, 0 means no limit
-
-		CanParse bool // true <=> query is valid
+		SelectCommand SelectCommand // The representation of SELECT query
+		CanParse      bool          // true <=> query is valid
 
 		// Eventually we should merge this two
 		QueryInfoType SearchQueryType
@@ -75,116 +65,16 @@ func NewSortByCountColumn(direction OrderByDirection) OrderByExpr {
 
 var NoMetadataField JsonMap = nil
 
-// returns string with SQL query
-func (q *Query) String(ctx context.Context) string {
-	var sb strings.Builder
-	sb.WriteString("SELECT ")
-	if q.IsDistinct {
-		sb.WriteString("DISTINCT ")
-	}
-
-	columns := make([]string, 0)
-
-	for _, col := range q.Columns {
-		columns = append(columns, AsString(col))
-	}
-
-	sb.WriteString(strings.Join(columns, ", "))
-
-	sb.WriteString(" FROM ")
-	if q.SampleLimit > 0 {
-		sb.WriteString("(SELECT ")
-		innerColumn := make([]string, 0)
-		for _, col := range q.Columns {
-			if _, ok := col.(ColumnRef); ok {
-				innerColumn = append(innerColumn, AsString(col))
-			}
-			if aliased, ok := col.(AliasedExpr); ok {
-				if v, ok := aliased.Expr.(ColumnRef); ok {
-					innerColumn = append(innerColumn, AsString(v))
-				}
-			}
-		}
-		if len(innerColumn) == 0 {
-			innerColumn = append(innerColumn, "1")
-		}
-		sb.WriteString(strings.Join(innerColumn, ", "))
-		sb.WriteString(" FROM ")
-	}
-	if q.FromClause != nil {
-		sb.WriteString(AsString(q.FromClause))
-	}
-	if q.WhereClause != nil {
-		sb.WriteString(" WHERE ")
-		sb.WriteString(AsString(q.WhereClause))
-	}
-	if q.SampleLimit > 0 {
-		sb.WriteString(fmt.Sprintf(" LIMIT %d)", q.SampleLimit))
-	}
-
-	groupBy := make([]string, 0, len(q.GroupBy))
-	for _, col := range q.GroupBy {
-		groupBy = append(groupBy, AsString(col))
-	}
-	if len(groupBy) > 0 {
-		sb.WriteString(" GROUP BY ")
-		sb.WriteString(strings.Join(groupBy, ", "))
-	}
-
-	orderBy := make([]string, 0, len(q.OrderBy))
-	for _, col := range q.OrderBy {
-		orderBy = append(orderBy, AsString(col))
-	}
-	if len(orderBy) > 0 {
-		sb.WriteString(" ORDER BY ")
-		sb.WriteString(strings.Join(orderBy, ", "))
-	}
-
-	if q.Limit != noLimit {
-		sb.WriteString(fmt.Sprintf(" LIMIT %d", q.Limit))
-	}
-
-	return sb.String()
-}
-
-func (q *Query) IsWildcard() bool {
-	for _, col := range q.Columns {
-		if col == NewWildcardExpr {
-			return true
-		}
-	}
-	return false
-}
-
 // CopyAggregationFields copies all aggregation fields from qwa to q
 func (q *Query) CopyAggregationFields(qwa Query) {
-	q.GroupBy = make([]Expr, len(qwa.GroupBy))
-	copy(q.GroupBy, qwa.GroupBy)
+	q.SelectCommand.GroupBy = make([]Expr, len(qwa.SelectCommand.GroupBy))
+	copy(q.SelectCommand.GroupBy, qwa.SelectCommand.GroupBy)
 
-	q.Columns = make([]Expr, len(qwa.Columns))
-	copy(q.Columns, qwa.Columns)
+	q.SelectCommand.Columns = make([]Expr, len(qwa.SelectCommand.Columns))
+	copy(q.SelectCommand.Columns, qwa.SelectCommand.Columns)
 
 	q.Aggregators = make([]Aggregator, len(qwa.Aggregators))
 	copy(q.Aggregators, qwa.Aggregators)
-}
-
-// TrimKeywordFromFields trims .keyword from fields and group by fields
-// In future probably handle it in a better way
-func (q *Query) TrimKeywordFromFields() {
-
-}
-
-// somewhat hacky, can be improved
-// only returns Order By columns, which are "tableColumn ASC/DESC",
-// won't return complex ones, like e.g. toInt(int_field / 5).
-// but it was like that before the refactor
-func (q *Query) OrderByFieldNames() (fieldNames []string) {
-	for _, expr := range q.OrderBy {
-		for _, colRefs := range GetUsedColumns(expr) {
-			fieldNames = append(fieldNames, colRefs.ColumnName)
-		}
-	}
-	return fieldNames
 }
 
 // Name returns the name of this aggregation (specifically, the last aggregator)
@@ -250,7 +140,7 @@ func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []
 	// window functions formatting (as everything else) should be systematically formatted at the printing stage
 	fromSelect = append(fromSelect, NewLiteral(RowNumberColumnName))
 	fromSelect = append(fromSelect, NewStringExpr("FROM"))
-	fromSelect = append(fromSelect, q.FromClause)
+	fromSelect = append(fromSelect, q.SelectCommand.FromClause)
 
 	if whereClause != "" {
 		fromSelect = append(fromSelect, NewStringExpr("WHERE "+whereClause))
