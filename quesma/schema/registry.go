@@ -36,7 +36,7 @@ type (
 		connectorTypeAdapter  TypeAdapter
 	}
 	TypeAdapter interface {
-		Convert(string) (Type, bool)
+		ConvertToQuesma(string) (Type, bool)
 	}
 )
 
@@ -105,7 +105,7 @@ func (s *schemaRegistry) Load() error {
 			indexConfig := s.configuration.IndexConfig[indexName]
 			// TODO replace with dedicated schema config
 			if explicitType, found := indexConfig.TypeMappings[col.Name]; found {
-				if resolvedQuesmaType, found := s.connectorTypeAdapter.Convert(explicitType); found {
+				if resolvedQuesmaType, found := s.connectorTypeAdapter.ConvertToQuesma(explicitType); found {
 					logger.Debug().Msgf("found explicit type mapping for column %s: %s", col.Name, resolvedQuesmaType)
 					fields[FieldName(col.Name)] = Field{
 						Name: FieldName(col.Name),
@@ -118,7 +118,7 @@ func (s *schemaRegistry) Load() error {
 				}
 			}
 			if _, exists := fields[FieldName(col.Name)]; !exists {
-				if quesmaType, found := s.dataSourceTypeAdapter.Convert(col.Type.String()); found {
+				if quesmaType, found := s.dataSourceTypeAdapter.ConvertToQuesma(col.Type.String()); found {
 					fields[FieldName(col.Name)] = Field{
 						Name: FieldName(col.Name),
 						Type: quesmaType,

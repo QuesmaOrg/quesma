@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/elasticsearch/elasticsearch_field_types"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/schema"
@@ -73,6 +74,15 @@ func mapClickhouseToElasticType(col *clickhouse.Column) string {
 	return "unknown"
 }
 
+func BuildFieldCapFromSchema(fieldType schema.Type) model.FieldCapability {
+	return model.FieldCapability{
+		// TODO adapter needs to be moved to elasticsearch
+		Type:         schema.ElasticsearchTypeAdapter{}.ConvertFrom(fieldType),
+		Aggregatable: fieldType.IsAggregatable(),
+		Searchable:   fieldType.IsSearchable(),
+	}
+}
+
 func BuildFieldCapability(indexName, typeName string) model.FieldCapability {
 	capability := model.FieldCapability{
 		Type:         typeName,
@@ -84,6 +94,23 @@ func BuildFieldCapability(indexName, typeName string) model.FieldCapability {
 		capability.MetadataField = util.Pointer(false)
 	}
 	return capability
+}
+
+func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.FieldCapability, colName string, typeName string, index string) {
+	fieldCapability := BuildFieldCapability(index, typeName)
+
+	if _, exists := fields[colName]; !exists {
+		fields[colName] = make(map[string]model.FieldCapability)
+	}
+
+	if existing, exists := fields[colName][typeName]; exists {
+		merged, ok := merge(existing, fieldCapability)
+		if ok {
+			fields[colName][typeName] = merged
+		}
+	} else {
+		fields[colName][typeName] = fieldCapability
+	}
 }
 
 func addFieldCapabilityFromStaticSchema(fields map[string]map[string]model.FieldCapability, colName string, typeName string, index string) {
@@ -159,7 +186,18 @@ func handleFieldCapsIndex(ctx context.Context, cfg config.QuesmaConfiguration, s
 			continue
 		}
 
+		if schema, found := schemaRegistry.FindSchema(schema.TableName(resolvedIndex)); found {
+			logger.Info().Msgf("found schema for index %s", resolvedIndex)
+
+			for fieldName, field := range schema.Fields {
+				logger.Info().Msgf("field: %s, type: %s", fieldName, field.Type)
+			}
+		} else {
+			logger.Info().Msgf("no schema found for index %s", resolvedIndex)
+		}
+
 		if table, ok := tables.Load(resolvedIndex); ok {
+
 			if table == nil {
 				return nil, errors.New("could not find table for index : " + resolvedIndex)
 			}

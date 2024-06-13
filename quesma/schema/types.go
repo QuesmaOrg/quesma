@@ -2,6 +2,7 @@ package schema
 
 import (
 	"mitmproxy/quesma/elasticsearch/elasticsearch_field_types"
+	"slices"
 	"strings"
 )
 
@@ -37,6 +38,18 @@ type (
 	TypeProperty string
 )
 
+func (t Type) IsAggregatable() bool {
+	return slices.Contains(t.Properties, Aggregatable)
+}
+
+func (t Type) IsSearchable() bool {
+	return slices.Contains(t.Properties, Searchable)
+}
+
+func (t Type) IsFullText() bool {
+	return slices.Contains(t.Properties, FullText)
+}
+
 func IsValid(t string) (Type, bool) {
 	switch t {
 	case "text":
@@ -71,7 +84,7 @@ func IsValid(t string) (Type, bool) {
 type ClickhouseTypeAdapter struct {
 }
 
-func (c ClickhouseTypeAdapter) Convert(s string) (Type, bool) {
+func (c ClickhouseTypeAdapter) ConvertToQuesma(s string) (Type, bool) {
 	if strings.HasPrefix(s, "Unknown") {
 		return TypeText, true // TODO
 	}
@@ -98,7 +111,7 @@ func (c ClickhouseTypeAdapter) Convert(s string) (Type, bool) {
 type ElasticsearchTypeAdapter struct {
 }
 
-func (e ElasticsearchTypeAdapter) Convert(s string) (Type, bool) {
+func (e ElasticsearchTypeAdapter) ConvertToQuesma(s string) (Type, bool) {
 	switch s {
 	case elasticsearch_field_types.FieldTypeText:
 		return TypeText, true
@@ -118,5 +131,26 @@ func (e ElasticsearchTypeAdapter) Convert(s string) (Type, bool) {
 		return TypeIp, true
 	default:
 		return TypeUnknown, false
+	}
+}
+
+func (e ElasticsearchTypeAdapter) ConvertFrom(t Type) string {
+	switch t.Name {
+	case TypeText.Name:
+		return elasticsearch_field_types.FieldTypeText
+	case TypeKeyword.Name:
+		return elasticsearch_field_types.FieldTypeKeyword
+	case TypeLong.Name:
+		return elasticsearch_field_types.FieldTypeLong
+	case TypeDate.Name:
+		return elasticsearch_field_types.FieldTypeDate
+	case TypeFloat.Name:
+		return elasticsearch_field_types.FieldTypeDouble
+	case TypeBoolean.Name:
+		return elasticsearch_field_types.FieldTypeBoolean
+	case TypeIp.Name:
+		return elasticsearch_field_types.FieldTypeIp
+	default:
+		return elasticsearch_field_types.FieldTypeText
 	}
 }
