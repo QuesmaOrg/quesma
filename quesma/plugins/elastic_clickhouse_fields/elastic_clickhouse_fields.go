@@ -84,21 +84,23 @@ func (v *exprColumnNameReplaceVisitor) VisitInfix(e model.InfixExpr) interface{}
 }
 
 func (v *exprColumnNameReplaceVisitor) VisitPrefixExpr(e model.PrefixExpr) interface{} {
+	var newArgs []model.Expr
 	for _, arg := range e.Args {
 		if arg != nil {
-			arg.Accept(v)
+			newArgs = append(newArgs, arg.Accept(v).(model.Expr))
 		}
 	}
-	return model.NewPrefixExpr(e.Op, e.Args)
+	return model.NewPrefixExpr(e.Op, newArgs)
 }
 
 func (v *exprColumnNameReplaceVisitor) VisitFunction(e model.FunctionExpr) interface{} {
+	var newArgs []model.Expr
 	for _, arg := range e.Args {
 		if arg != nil {
-			arg.Accept(v)
+			newArgs = append(newArgs, arg.Accept(v).(model.Expr))
 		}
 	}
-	return model.NewFunction(e.Name, e.Args...)
+	return model.NewFunction(e.Name, newArgs...)
 }
 
 func (v *exprColumnNameReplaceVisitor) VisitColumnRef(e model.ColumnRef) interface{} {
@@ -112,17 +114,16 @@ func (v *exprColumnNameReplaceVisitor) VisitNestedProperty(e model.NestedPropert
 }
 
 func (v *exprColumnNameReplaceVisitor) VisitArrayAccess(e model.ArrayAccess) interface{} {
-	e.ColumnRef.Accept(v)
-	e.Index.Accept(v)
-	return model.NewArrayAccess(e.ColumnRef, e.Index)
+	columnRef := e.ColumnRef.Accept(v).(model.ColumnRef)
+	index := e.Index.Accept(v).(model.Expr)
+	return model.NewArrayAccess(columnRef, index)
 }
 
-// TODO this whole block is fake ... need to double chceck this
-func (v *exprColumnNameReplaceVisitor) VisitComposite(e model.CompositeExpr) interface{} { return e }
 func (v *exprColumnNameReplaceVisitor) VisitMultiFunction(e model.MultiFunctionExpr) interface{} {
+	var newArgs []model.Expr
 	for _, arg := range e.Args {
 		if arg != nil {
-			arg.Accept(v)
+			newArgs = append(newArgs, arg.Accept(v).(model.Expr))
 		}
 	}
 	return model.MultiFunctionExpr{Name: e.Name, Args: e.Args}
@@ -130,11 +131,23 @@ func (v *exprColumnNameReplaceVisitor) VisitMultiFunction(e model.MultiFunctionE
 
 func (v *exprColumnNameReplaceVisitor) VisitString(e model.StringExpr) interface{} { return e }
 func (v *exprColumnNameReplaceVisitor) VisitSQL(e model.SQL) interface{}           { return e }
-func (v *exprColumnNameReplaceVisitor) VisitTableColumnExpr(e model.TableColumnExpr) interface{} {
 
-	columnRef := e.ColumnRef.Accept(v).(model.ColumnRef)
+func (v *exprColumnNameReplaceVisitor) VisitTableRef(e model.TableRef) interface{} {
+	return e
+}
 
-	return model.TableColumnExpr{TableAlias: e.TableAlias, ColumnRef: columnRef}
+func (v *exprColumnNameReplaceVisitor) VisitOrderByExpr(e model.OrderByExpr) interface{} {
+	var newArgs []model.Expr
+	for _, arg := range e.Exprs {
+		if arg != nil {
+			newArgs = append(newArgs, arg.Accept(v).(model.Expr))
+		}
+	}
+	return model.OrderByExpr{Exprs: newArgs, Direction: e.Direction}
+}
+
+func (v *exprColumnNameReplaceVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{} {
+	return model.DistinctExpr{e.Expr.Accept(v).(model.Expr)}
 }
 
 type queryTransformer struct {
@@ -154,7 +167,7 @@ func (t *queryTransformer) Transform(queries []*model.Query) ([]*model.Query, er
 		}
 
 		for i, group := range query.GroupBy {
-			query.GroupBy[i].Expression = group.Expression.Accept(visitor).(model.Expr)
+			query.GroupBy[i] = group.Accept(visitor).(model.Expr)
 		}
 
 		for i, column := range query.Columns {
@@ -162,7 +175,7 @@ func (t *queryTransformer) Transform(queries []*model.Query) ([]*model.Query, er
 		}
 
 		for i, order := range query.OrderBy {
-			query.OrderBy[i].Expression = order.Expression.Accept(visitor).(model.Expr)
+			query.OrderBy[i].Exprs[i] = order.Exprs[i].Accept(visitor).(model.Expr)
 		}
 	}
 
