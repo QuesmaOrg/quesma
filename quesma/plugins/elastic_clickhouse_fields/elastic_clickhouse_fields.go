@@ -175,7 +175,9 @@ func (t *queryTransformer) Transform(queries []*model.Query) ([]*model.Query, er
 		}
 
 		for i, order := range query.OrderBy {
-			query.OrderBy[i].Exprs[i] = order.Exprs[i].Accept(visitor).(model.Expr)
+			for j := range order.Exprs {
+				query.OrderBy[i].Exprs[j] = order.Exprs[j].Accept(visitor).(model.Expr)
+			}
 		}
 	}
 
