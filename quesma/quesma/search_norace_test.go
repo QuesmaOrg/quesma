@@ -34,13 +34,13 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			if tt.QueryType == "script" {
 				t.Skip("Only 1 test. We can't deal with scripts inside queries yet. It fails very early, during JSON unmarshalling, so we can't even know the type of aggregation.")
 			}
-			db, _ := util.InitSqlMockWithPrettyPrint(t)
+			db, _ := util.InitSqlMockWithPrettyPrint(t, false)
 			defer db.Close()
 
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
 			cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
 			logChan := logger.InitOnlyChannelLoggerForTests(cfg, &tracing.AsyncTraceLogger{AsyncQueryTrace: concurrent.NewMap[string, tracing.TraceCtx]()})
-			managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent())
+			managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
 			go managementConsole.RunOnlyChannelProcessor()
 
 			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
@@ -85,13 +85,13 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 		testCounts[randInt]++
 	}
 
-	db, _ := util.InitSqlMockWithPrettyPrint(t)
+	db, _ := util.InitSqlMockWithPrettyPrint(t, false)
 	defer db.Close()
 
 	lm := clickhouse.NewLogManagerWithConnection(db, table)
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
 	logChan := logger.InitOnlyChannelLoggerForTests(cfg, &tracing.AsyncTraceLogger{AsyncQueryTrace: concurrent.NewMap[string, tracing.TraceCtx]()})
-	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent())
+	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
 	go managementConsole.RunOnlyChannelProcessor()
 
 	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)

@@ -5,7 +5,6 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/typical_queries"
-	"mitmproxy/quesma/queryparser/aexp"
 )
 
 func IsNonAggregationQuery(query *model.Query) bool {
@@ -32,16 +31,16 @@ func FilterAggregationQueries(queries []*model.Query) []*model.Query {
 func BuildHitsQuery(ctx context.Context, tableName string, fieldName string, query *model.SimpleQuery, limit int) *model.Query {
 	var col model.SelectColumn
 	if fieldName == "*" {
-		col = model.SelectColumn{Expression: aexp.Wildcard}
+		col = model.SelectColumn{Expression: model.NewWildcardExpr}
 	} else {
-		col = model.SelectColumn{Expression: aexp.TableColumn(fieldName)}
+		col = model.SelectColumn{Expression: model.NewColumnRef(fieldName)}
 	}
 	return &model.Query{
 		Columns:     []model.SelectColumn{col},
 		WhereClause: query.WhereClause,
 		OrderBy:     query.OrderBy,
 		Limit:       applySizeLimit(ctx, limit),
-		FromClause:  model.NewSelectColumnString(tableName),
+		FromClause:  model.NewTableRef(tableName),
 		TableName:   tableName,
 		CanParse:    true,
 	}

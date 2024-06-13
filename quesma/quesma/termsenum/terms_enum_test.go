@@ -76,8 +76,8 @@ func TestHandleTermsEnumRequest(t *testing.T) {
 		Created: true,
 	}
 
-	managementConsole := ui.NewQuesmaManagementConsole(config.QuesmaConfiguration{}, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent())
-	db, mock := util.InitSqlMockWithPrettyPrint(t)
+	managementConsole := ui.NewQuesmaManagementConsole(config.QuesmaConfiguration{}, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
+	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(testTableName, table))
 	qt := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}

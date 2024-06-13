@@ -3,7 +3,6 @@ package clickhouse
 import (
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser/aexp"
 	"testing"
 )
 
@@ -33,11 +32,11 @@ func TestApplyWildCard(t *testing.T) {
 		for _, col := range cols {
 			if col == "*" {
 				res = append(res, model.SelectColumn{
-					Expression: aexp.Wildcard,
+					Expression: model.NewWildcardExpr,
 				})
 			} else {
 				res = append(res, model.SelectColumn{
-					Expression: aexp.TableColumn(col),
+					Expression: model.NewColumnRef(col),
 				})
 			}
 		}

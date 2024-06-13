@@ -5,7 +5,6 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/telemetry"
@@ -42,7 +41,7 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	cfg.IndexConfig[indexConfig.Name] = indexConfig
 
-	lm := clickhouse.NewEmptyLogManager(cfg, nil, telemetry.NewPhoneHomeEmptyAgent())
+	lm := clickhouse.NewEmptyLogManager(cfg, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(config.QuesmaConfiguration{}, nil))
 	lm.AddTableIfDoesntExist(table)
 
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
@@ -66,8 +65,8 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
 			}
 			assert.True(t, query.CanParse, "can parse")
-			assert.Equal(t, model.NewSelectColumnString(strconv.Quote(testdata.TableName)), query.FromClause)
-			assert.Equal(t, []model.SelectColumn{{Expression: aexp.Wildcard}}, query.Columns)
+			assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), query.FromClause)
+			assert.Equal(t, []model.SelectColumn{{Expression: model.NewWildcardExpr}}, query.Columns)
 		})
 	}
 }
@@ -83,7 +82,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 		},
 		Created: true,
 	}
-	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent())
+	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(config.QuesmaConfiguration{}, nil))
 	lm.AddTableIfDoesntExist(&table)
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
 
@@ -102,8 +101,8 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
 			}
 			assert.True(t, query.CanParse, "can parse")
-			assert.Equal(t, model.NewSelectColumnString(strconv.Quote(testdata.TableName)), query.FromClause)
-			assert.Equal(t, []model.SelectColumn{{Expression: aexp.Wildcard}}, query.Columns)
+			assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), query.FromClause)
+			assert.Equal(t, []model.SelectColumn{{Expression: model.NewWildcardExpr}}, query.Columns)
 		})
 	}
 }
@@ -137,8 +136,8 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
 			}
 			assert.True(t, query.CanParse, "can parse")
-			assert.Equal(t, model.NewSelectColumnString(strconv.Quote(testdata.TableName)), query.FromClause)
-			assert.Equal(t, []model.SelectColumn{{Expression: aexp.Wildcard}}, query.Columns)
+			assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), query.FromClause)
+			assert.Equal(t, []model.SelectColumn{{Expression: model.NewWildcardExpr}}, query.Columns)
 		})
 	}
 }
@@ -334,7 +333,7 @@ func Test_parseSortFields(t *testing.T) {
 	tests := []struct {
 		name        string
 		sortMap     any
-		sortColumns []model.SelectColumn
+		sortColumns []model.OrderByExpr
 	}{
 		{
 			name: "compound",
@@ -345,17 +344,17 @@ func Test_parseSortFields(t *testing.T) {
 				QueryMap{"_table_field_with_underscore": QueryMap{"order": "asc", "unmapped_type": "boolean"}}, // this should be accepted, as it exists in the table
 				QueryMap{"_doc": QueryMap{"order": "desc", "unmapped_type": "boolean"}},                        // this should be discarded, as it doesn't exist in the table
 			},
-			sortColumns: []model.SelectColumn{
-				model.NewSortColumn("@timestamp", true),
-				model.NewSortColumn("service.name", false),
-				model.NewSortColumn("no_order_field", false),
-				model.NewSortColumn("_table_field_with_underscore", false),
+			sortColumns: []model.OrderByExpr{
+				model.NewSortColumn("@timestamp", model.DescOrder),
+				model.NewSortColumn("service.name", model.AscOrder),
+				model.NewSortColumn("no_order_field", model.AscOrder),
+				model.NewSortColumn("_table_field_with_underscore", model.AscOrder),
 			},
 		},
 		{
 			name:        "empty",
 			sortMap:     []any{},
-			sortColumns: []model.SelectColumn{},
+			sortColumns: []model.OrderByExpr{},
 		},
 		{
 			name: "map[string]string",
@@ -363,9 +362,7 @@ func Test_parseSortFields(t *testing.T) {
 				"timestamp": "desc",
 				"_doc":      "desc",
 			},
-			sortColumns: []model.SelectColumn{
-				model.NewSortColumn("timestamp", true),
-			},
+			sortColumns: []model.OrderByExpr{model.NewSortColumn("timestamp", model.DescOrder)},
 		},
 		{
 			name: "map[string]interface{}",
@@ -373,18 +370,14 @@ func Test_parseSortFields(t *testing.T) {
 				"timestamp": "desc",
 				"_doc":      "desc",
 			},
-			sortColumns: []model.SelectColumn{
-				model.NewSortColumn("timestamp", true),
-			},
+			sortColumns: []model.OrderByExpr{model.NewSortColumn("timestamp", model.DescOrder)},
 		}, {
 			name: "[]map[string]string",
 			sortMap: []any{
 				QueryMap{"@timestamp": "asc"},
 				QueryMap{"_doc": "asc"},
 			},
-			sortColumns: []model.SelectColumn{
-				model.NewSortColumn("@timestamp", false),
-			},
+			sortColumns: []model.OrderByExpr{model.NewSortColumn("@timestamp", model.AscOrder)},
 		},
 	}
 	table, _ := clickhouse.NewTable(`CREATE TABLE `+tableName+`

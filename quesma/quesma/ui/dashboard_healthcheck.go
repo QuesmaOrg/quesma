@@ -1,8 +1,13 @@
 package ui
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
 	"mitmproxy/quesma/end_user_errors"
+	"mitmproxy/quesma/logger"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -65,17 +70,76 @@ func (qmc *QuesmaManagementConsole) checkClickhouseHealth() healthCheckStatus {
 	})
 }
 
+func (qmc *QuesmaManagementConsole) checkIfElasticsearchDiskIsFull() (isFull bool, reason string) {
+	const catAllocationPath = "/_cat/allocation?format=json"
+	const maxDiskPercent = 90
+
+	resp, err := http.Get(qmc.cfg.Elasticsearch.Url.String() + catAllocationPath)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+	var parsed []map[string]interface{}
+	err = json.Unmarshal(body, &parsed)
+	if err != nil {
+		logger.Error().Err(err).Msgf("Can't parse json '%s'' response", catAllocationPath)
+		return
+	}
+	for _, shards := range parsed {
+		if diskPercentRaw, exists := shards["disk.percent"]; exists && diskPercentRaw != nil {
+			if diskPercentStr, isStr := diskPercentRaw.(string); isStr {
+				if diskPercentInt, err := strconv.Atoi(diskPercentStr); err == nil {
+					if diskPercentInt >= maxDiskPercent {
+						return true, fmt.Sprintf("Not enough space on disk %d%% >= %d%%", diskPercentInt, maxDiskPercent)
+					}
+				} else {
+					logger.Error().Msgf("Can't parse disk.percent as int '%s'", diskPercentStr)
+				}
+			} else {
+				logger.Error().Msgf("Can't parse disk.percent as string, '%v'", diskPercentRaw)
+			}
+		} else {
+			logger.Error().Msg("Can't find disk.percent in response")
+		}
+	}
+	return
+}
+
 func (qmc *QuesmaManagementConsole) checkElasticsearch() healthCheckStatus {
+	const elasticsearchHealthPath = "/_cluster/health/*"
+
 	if !qmc.cfg.WritesToElasticsearch() && !qmc.cfg.ReadsFromElasticsearch() {
 		return healthCheckStatus{"grey", "N/A (not writing)", ""}
 	}
 
 	return qmc.elasticStatusCache.check(func() healthCheckStatus {
-		resp, err := http.Get(qmc.cfg.Elasticsearch.Url.String())
+		resp, err := http.Get(qmc.cfg.Elasticsearch.Url.String() + elasticsearchHealthPath)
 		if err != nil {
 			return healthCheckStatus{"red", "Ping failed", err.Error()}
 		}
 		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return healthCheckStatus{"red",
+				fmt.Sprintf("Can't read '%s' response", elasticsearchHealthPath), err.Error()}
+		}
+		var parsed map[string]interface{}
+		err = json.Unmarshal(body, &parsed)
+		if err != nil {
+			return healthCheckStatus{"red",
+				fmt.Sprintf("Can't parse json '%s' response", elasticsearchHealthPath), err.Error() + " " + string(body)}
+		}
+		if parsed["status"] == "red" {
+			message := "Cluster status is red"
+			if isFull, addMsg := qmc.checkIfElasticsearchDiskIsFull(); isFull {
+				message += ", " + addMsg
+			}
+			return healthCheckStatus{"red", message, string(body)}
+		}
 		if resp.StatusCode == 200 {
 			return healthCheckStatus{"green", "Healthy", ""}
 		} else {

@@ -8,7 +8,6 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/types"
@@ -301,14 +300,14 @@ var aggregationTests = []struct {
 				`GROUP BY "OriginAirportID", "DestAirportID" ORDER BY "OriginAirportID", "DestAirportID"`,
 			`SELECT "OriginAirportID", "DestAirportID", "DestLocation" ` +
 				`FROM (SELECT "DestLocation" , ROW_NUMBER() ` +
-				`OVER (PARTITION BY "OriginAirportID" , "DestAirportID" ) AS 'row_number' ` +
+				`OVER (PARTITION BY "OriginAirportID" , "DestAirportID" ) AS row_number ` +
 				`FROM "logs-generic-default") ` +
 				`WHERE "row_number"<=1 ` +
 				`GROUP BY "OriginAirportID", "DestAirportID" ` +
 				`ORDER BY "OriginAirportID", "DestAirportID"`,
 			`SELECT "OriginAirportID", "OriginLocation", "Origin" ` +
 				`FROM (SELECT "OriginLocation" , "Origin" , ROW_NUMBER() ` +
-				`OVER (PARTITION BY "OriginAirportID" ) AS 'row_number' ` +
+				`OVER (PARTITION BY "OriginAirportID" ) AS row_number ` +
 				`FROM "logs-generic-default") ` +
 				`WHERE "row_number"<=1 ` +
 				`GROUP BY "OriginAirportID" ` +
@@ -472,7 +471,7 @@ var aggregationTests = []struct {
 				`maxOrNull("order_date") AS "windowed_order_date", maxOrNull("order_date") AS "windowed_order_date" ` +
 				`FROM (SELECT "order_date" , "order_date" , ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
-				`ORDER BY "order_date" ASC ) AS 'row_number' ` +
+				`ORDER BY "order_date" ASC ) AS row_number ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`WHERE "taxful_total_price" > '250') ` +
 				`WHERE ("taxful_total_price" > '250' AND "row_number"<=10) ` +
@@ -482,7 +481,7 @@ var aggregationTests = []struct {
 				`maxOrNull("taxful_total_price") AS "windowed_taxful_total_price", maxOrNull("order_date") AS "windowed_order_date" ` +
 				`FROM (SELECT "taxful_total_price" , "order_date" , ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
-				`ORDER BY "order_date" ASC ) AS 'row_number' ` +
+				`ORDER BY "order_date" ASC ) AS row_number ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`WHERE "taxful_total_price" > '250') ` +
 				`WHERE ("taxful_total_price" > '250' AND "row_number"<=10) ` +
@@ -541,9 +540,9 @@ var aggregationTests = []struct {
 				  "size": 0
 			}`,
 		[]string{
-			`SELECT floor("bytes" / 1782.000000) * 1782.000000, count() FROM ` + tableNameQuoted + ` ` +
-				`GROUP BY floor("bytes" / 1782.000000) * 1782.000000 ` +
-				`ORDER BY floor("bytes" / 1782.000000) * 1782.000000`,
+			`SELECT floor("bytes"/1782.000000)*1782.000000, count() FROM ` + tableNameQuoted + ` ` +
+				`GROUP BY floor("bytes"/1782.000000)*1782.000000 ` +
+				`ORDER BY floor("bytes"/1782.000000)*1782.000000`,
 			`SELECT count() FROM ` + tableNameQuoted,
 		},
 	},
@@ -720,24 +719,21 @@ func Test_parseFieldFromScriptField(t *testing.T) {
 		return QueryMap{"script": QueryMap{"source": sourceField}}
 	}
 
-	empty := model.SelectColumn{}
 	testcases := []struct {
 		queryMap        QueryMap
-		expectedMatch   model.SelectColumn
+		expectedMatch   model.Expr
 		expectedSuccess bool
 	}{
-		{goodQueryMap("doc['field1'].value.getHour()"),
-			model.SelectColumn{Expression: aexp.Function("toHour", aexp.TableColumnExp{ColumnName: "field1"})}, true},
-		{goodQueryMap("doc['field1'].value.getHour() + doc['field2'].value.getHour()"), empty, false},
-		{goodQueryMap("doc['field1'].value.hourOfDay"),
-			model.SelectColumn{Expression: aexp.Function("toHour", aexp.TableColumnExp{ColumnName: "field1"})}, true},
-		{goodQueryMap("doc['field1'].value"), empty, false},
-		{goodQueryMap("value.getHour() + doc['field2'].value.getHour()"), empty, false},
-		{QueryMap{}, empty, false},
-		{QueryMap{"script": QueryMap{}}, empty, false},
-		{QueryMap{"script": QueryMap{"source": empty}}, empty, false},
-		{QueryMap{"script": "script"}, empty, false},
-		{QueryMap{"script": QueryMap{"source": 1}}, empty, false},
+		{goodQueryMap("doc['field1'].value.getHour()"), model.NewFunction("toHour", model.NewColumnRef("field1")), true},
+		{goodQueryMap("doc['field1'].value.getHour() + doc['field2'].value.getHour()"), nil, false},
+		{goodQueryMap("doc['field1'].value.hourOfDay"), model.NewFunction("toHour", model.NewColumnRef("field1")), true},
+		{goodQueryMap("doc['field1'].value"), nil, false},
+		{goodQueryMap("value.getHour() + doc['field2'].value.getHour()"), nil, false},
+		{QueryMap{}, nil, false},
+		{QueryMap{"script": QueryMap{}}, nil, false},
+		{QueryMap{"script": QueryMap{"source": nil}}, nil, false},
+		{QueryMap{"script": "script"}, nil, false},
+		{QueryMap{"script": QueryMap{"source": 1}}, nil, false},
 	}
 	cw := ClickhouseQueryTranslator{Ctx: context.Background()}
 	for _, tc := range testcases {

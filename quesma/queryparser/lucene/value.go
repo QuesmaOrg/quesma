@@ -3,7 +3,7 @@ package lucene
 import (
 	"fmt"
 	"mitmproxy/quesma/logger"
-	wc "mitmproxy/quesma/queryparser/where_clause"
+	"mitmproxy/quesma/model"
 	"slices"
 	"strings"
 )
@@ -20,7 +20,7 @@ var wildcards = map[rune]rune{
 var specialCharacters = []rune{'+', '-', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\'} // they can be escaped in query string
 
 type value interface {
-	toStatement(fieldName string) wc.Statement
+	toExpression(fieldName string) model.Expr
 }
 
 type termValue struct {
@@ -31,16 +31,16 @@ func newTermValue(term string) termValue {
 	return termValue{term: term}
 }
 
-func (v termValue) toStatement(fieldName string) wc.Statement {
+func (v termValue) toExpression(fieldName string) model.Expr {
 	termAsStringToClickhouse, wildcardsExist := v.transformSpecialCharacters()
 
 	if alreadyQuoted(v.term) {
 		termAsStringToClickhouse = termAsStringToClickhouse[1 : len(termAsStringToClickhouse)-1]
 	}
 	if wildcardsExist {
-		return wc.NewInfixOp(wc.NewColumnRef(fieldName), "ILIKE", wc.NewLiteral(fmt.Sprintf("'%s'", termAsStringToClickhouse)))
+		return model.NewInfixExpr(model.NewColumnRef(fieldName), "ILIKE", model.NewLiteral(fmt.Sprintf("'%s'", termAsStringToClickhouse)))
 	} else {
-		return wc.NewInfixOp(wc.NewColumnRef(fieldName), " = ", wc.NewLiteral(fmt.Sprintf("'%s'", termAsStringToClickhouse)))
+		return model.NewInfixExpr(model.NewColumnRef(fieldName), " = ", model.NewLiteral(fmt.Sprintf("'%s'", termAsStringToClickhouse)))
 	}
 }
 
@@ -110,12 +110,12 @@ func (v rangeValue) totallyUnbounded() bool {
 	return v.lowerBound == unbounded && v.upperBound == unbounded
 }
 
-func (v rangeValue) toStatement(fieldName string) wc.Statement {
+func (v rangeValue) toExpression(fieldName string) model.Expr {
 	if v.totallyUnbounded() {
-		return wc.NewInfixOp(wc.NewColumnRef(fieldName), "IS", wc.NewLiteral("NOT NULL"))
+		return model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
 	}
 
-	var left, right wc.Statement
+	var left, right model.Expr
 	var operator string
 	if v.lowerBound != unbounded {
 		if v.lowerBoundInclusive {
@@ -123,10 +123,10 @@ func (v rangeValue) toStatement(fieldName string) wc.Statement {
 		} else {
 			operator = " > "
 		}
-		if exp, ok := v.lowerBound.(wc.Statement); ok {
-			left = wc.NewInfixOp(wc.NewColumnRef(fieldName), operator, exp)
+		if exp, ok := v.lowerBound.(model.Expr); ok {
+			left = model.NewInfixExpr(model.NewColumnRef(fieldName), operator, exp)
 		} else {
-			left = wc.NewInfixOp(wc.NewColumnRef(fieldName), operator, wc.NewLiteral(fmt.Sprintf("'%v'", v.lowerBound)))
+			left = model.NewInfixExpr(model.NewColumnRef(fieldName), operator, model.NewLiteral(fmt.Sprintf("'%v'", v.lowerBound)))
 		}
 	}
 	if v.upperBound != unbounded {
@@ -135,14 +135,14 @@ func (v rangeValue) toStatement(fieldName string) wc.Statement {
 		} else {
 			operator = " < "
 		}
-		if exp, ok := v.upperBound.(wc.Statement); ok {
-			right = wc.NewInfixOp(wc.NewColumnRef(fieldName), operator, exp)
+		if exp, ok := v.upperBound.(model.Expr); ok {
+			right = model.NewInfixExpr(model.NewColumnRef(fieldName), operator, exp)
 		} else {
-			right = wc.NewInfixOp(wc.NewColumnRef(fieldName), operator, wc.NewLiteral(fmt.Sprintf("'%v'", v.upperBound)))
+			right = model.NewInfixExpr(model.NewColumnRef(fieldName), operator, model.NewLiteral(fmt.Sprintf("'%v'", v.upperBound)))
 		}
 	}
 	if left != nil && right != nil {
-		return wc.NewInfixOp(left, "AND", right)
+		return model.NewInfixExpr(left, "AND", right)
 	}
 	if left != nil {
 		return left
@@ -150,7 +150,7 @@ func (v rangeValue) toStatement(fieldName string) wc.Statement {
 	if right != nil {
 		return right
 	}
-	return wc.NewLiteral("<SOMETHING MESSED UP HERE>")
+	return model.NewLiteral("<SOMETHING MESSED UP HERE>")
 
 }
 
@@ -163,8 +163,8 @@ func newAndValue(left, right value) andValue {
 	return andValue{left: left, right: right}
 }
 
-func (v andValue) toStatement(fieldName string) wc.Statement {
-	return wc.NewInfixOp(v.left.toStatement(fieldName), "AND", v.right.toStatement(fieldName))
+func (v andValue) toExpression(fieldName string) model.Expr {
+	return model.NewInfixExpr(v.left.toExpression(fieldName), "AND", v.right.toExpression(fieldName))
 }
 
 type orValue struct {
@@ -176,8 +176,8 @@ func newOrValue(left, right value) orValue {
 	return orValue{left: left, right: right}
 }
 
-func (v orValue) toStatement(fieldName string) wc.Statement {
-	return wc.NewInfixOp(v.left.toStatement(fieldName), "OR", v.right.toStatement(fieldName))
+func (v orValue) toExpression(fieldName string) model.Expr {
+	return model.NewInfixExpr(v.left.toExpression(fieldName), "OR", v.right.toExpression(fieldName))
 }
 
 type notValue struct {
@@ -188,8 +188,8 @@ func newNotValue(value value) notValue {
 	return notValue{value: value}
 }
 
-func (v notValue) toStatement(fieldName string) wc.Statement {
-	return wc.NewPrefixOp("NOT", []wc.Statement{v.value.toStatement(fieldName)})
+func (v notValue) toExpression(fieldName string) model.Expr {
+	return model.NewPrefixExpr("NOT", []model.Expr{v.value.toExpression(fieldName)})
 }
 
 type invalidValue struct {
@@ -199,8 +199,8 @@ func newInvalidValue() invalidValue {
 	return invalidValue{}
 }
 
-func (v invalidValue) toStatement(fieldName string) wc.Statement {
-	return wc.NewLiteral("false")
+func (v invalidValue) toExpression(fieldName string) model.Expr {
+	return model.NewLiteral("false")
 }
 
 // buildValue builds a value from p.tokens

@@ -8,8 +8,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
 	"mitmproxy/quesma/model/metrics_aggregations"
-	"mitmproxy/quesma/queryparser/aexp"
-	"mitmproxy/quesma/queryparser/where_clause"
+
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/util"
 	"regexp"
@@ -28,7 +27,7 @@ type aggrQueryBuilder struct {
 
 type metricsAggregation struct {
 	AggrType            string
-	Fields              []model.SelectColumn    // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
+	Fields              []model.Expr            // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
 	FieldType           clickhouse.DateTimeType // field type of FieldNames[0]. If it's a date field, a slightly different response is needed
 	Percentiles         map[string]float64      // Only for percentiles aggregation
 	Keyed               bool                    // Only for percentiles aggregation
@@ -74,34 +73,31 @@ func (b *aggrQueryBuilder) buildCountAggregation(metadata model.JsonMap) *model.
 	query := b.buildAggregationCommon(metadata)
 	query.Type = metrics_aggregations.NewCount(b.ctx)
 
-	query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Count()})
+	query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewCountFunc()})
 	return query
 }
 
 func (b *aggrQueryBuilder) buildBucketAggregation(metadata model.JsonMap) *model.Query {
 	query := b.buildAggregationCommon(metadata)
 
-	query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Count()})
+	query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewCountFunc()})
 	return query
 }
 
 func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregation, metadata model.JsonMap) *model.Query {
-	getFirstField := func() model.SelectColumn {
+	getFirstExpression := func() model.Expr {
 		if len(metricsAggr.Fields) > 0 {
 			return metricsAggr.Fields[0]
 		}
 		logger.ErrorWithCtx(b.ctx).Msg("No field names in metrics aggregation. Using empty.")
-		return model.SelectColumn{}
-	}
-	getFirstExpression := func() aexp.AExp {
-		return getFirstField().Expression
+		return nil
 	}
 
 	query := b.buildAggregationCommon(metadata)
 
 	switch metricsAggr.AggrType {
 	case "sum", "min", "max", "avg":
-		query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Function(metricsAggr.AggrType+"OrNull", getFirstExpression())})
+		query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewFunction(metricsAggr.AggrType+"OrNull", getFirstExpression())})
 	case "quantile":
 		// Sorting here useful mostly for determinism in tests.
 		// It wasn't there before, and everything worked fine. We could safely remove it, if needed.
@@ -110,45 +106,49 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			percentAsFloat := metricsAggr.Percentiles[usersPercent]
 
 			query.Columns = append(query.Columns, model.SelectColumn{
-				Expression: aexp.MultiFunctionExp{
+				Expression: model.MultiFunctionExpr{
 					Name: "quantiles",
-					Args: []aexp.AExp{aexp.Literal(percentAsFloat), getFirstExpression()}},
+					Args: []model.Expr{model.NewLiteral(percentAsFloat), getFirstExpression()}},
 				Alias: fmt.Sprintf("quantile_%s", usersPercent),
 			})
 		}
 	case "cardinality":
 		query.Columns = append(query.Columns,
-			model.SelectColumn{Expression: aexp.Count(aexp.NewComposite(aexp.Symbol("DISTINCT"), getFirstExpression()))})
+			model.SelectColumn{Expression: model.NewCountFunc(model.NewDistinctExpr(getFirstExpression()))})
 
 	case "value_count":
-		query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Count()})
+		query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewCountFunc()})
 
 	case "stats":
 		expr := getFirstExpression()
 
-		query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Count(expr)},
-			model.SelectColumn{Expression: aexp.Function("minOrNull", expr)},
-			model.SelectColumn{Expression: aexp.Function("maxOrNull", expr)},
-			model.SelectColumn{Expression: aexp.Function("avgOrNull", expr)},
-			model.SelectColumn{Expression: aexp.Function("sumOrNull", expr)})
+		query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewCountFunc(expr)},
+			model.SelectColumn{Expression: model.NewFunction("minOrNull", expr)},
+			model.SelectColumn{Expression: model.NewFunction("maxOrNull", expr)},
+			model.SelectColumn{Expression: model.NewFunction("avgOrNull", expr)},
+			model.SelectColumn{Expression: model.NewFunction("sumOrNull", expr)})
 
 	case "top_hits":
 		// TODO add/restore tests for top_hits. E.g. we missed WHERE in FROM below, so the SQL might not be correct
-		query.Columns = append(query.Columns, metricsAggr.Fields...)
+		innerFieldsAsSelect := make([]model.SelectColumn, len(metricsAggr.Fields))
+		for i, field := range metricsAggr.Fields {
+			innerFieldsAsSelect[i] = model.SelectColumn{Expression: field}
+		}
+		query.Columns = append(query.Columns, innerFieldsAsSelect...)
 		/*
 			query.FromClause = fmt.Sprintf(
 				"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s) AS %s FROM %s%s)",
 				metricsAggr.Fields, partitionBy, model.RowNumberColumnName, query.FromClause, whereString,
 			)
 		*/
-		query.FromClause = query.NewSelectColumnSubselectWithRowNumber(
-			metricsAggr.Fields, b.GroupBy, b.whereBuilder.WhereClauseAsString(), "", true)
-		query.WhereClause = model.And([]where_clause.Statement{
+		query.FromClause = query.NewSelectExprWithRowNumber(
+			innerFieldsAsSelect, b.GroupBy, b.whereBuilder.WhereClauseAsString(), "", true)
+		query.WhereClause = model.And([]model.Expr{
 			query.WhereClause,
-			where_clause.NewInfixOp(
-				where_clause.NewColumnRef(model.RowNumberColumnName),
+			model.NewInfixExpr(
+				model.NewColumnRef(model.RowNumberColumnName),
 				"<=",
-				where_clause.NewLiteral(strconv.Itoa(metricsAggr.Size)),
+				model.NewLiteral(strconv.Itoa(metricsAggr.Size)),
 			)},
 		)
 
@@ -164,49 +164,59 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				ordFunc = `minOrNull`
 			}
 
-			innerFields := append(metricsAggr.Fields, model.NewSelectColumnTableField(metricsAggr.SortBy))
+			innerFields := append(metricsAggr.Fields, model.NewColumnRef(metricsAggr.SortBy))
 			for _, field := range innerFields {
-				// as string: fmt.Sprintf(`%s("%s") AS "windowed_%s"`, ordFunc, field, field))
-				fieldName := field.SQL()
-				if unquoted, err := strconv.Unquote(fieldName); err == nil {
-					fieldName = unquoted
-				}
+				fieldName, _ := strconv.Unquote(model.AsString(field))
 				query.Columns = append(query.Columns,
-					model.SelectColumn{Expression: aexp.Function(ordFunc, field.Expression), Alias: "windowed_" + fieldName})
+					model.SelectColumn{Expression: model.NewFunction(ordFunc, field), Alias: fmt.Sprintf("windowed_%s", fieldName)})
 			}
 
-			query.FromClause = query.NewSelectColumnSubselectWithRowNumber(
-				innerFields, b.Query.GroupBy, b.whereBuilder.WhereClauseAsString(),
+			innerFieldsAsSelect := make([]model.SelectColumn, len(innerFields))
+			for i, field := range innerFields {
+				innerFieldsAsSelect[i] = model.SelectColumn{Expression: field}
+			}
+			query.FromClause = query.NewSelectExprWithRowNumber(
+				innerFieldsAsSelect, b.Query.GroupBy, b.whereBuilder.WhereClauseAsString(),
 				metricsAggr.SortBy, strings.ToLower(metricsAggr.Order) == "desc",
 			)
-			query.WhereClause = model.And([]where_clause.Statement{query.WhereClause,
-				where_clause.NewInfixOp(where_clause.NewColumnRef(model.RowNumberColumnName), "<=", where_clause.NewLiteral(strconv.Itoa(metricsAggr.Size)))})
+			query.WhereClause = model.And([]model.Expr{query.WhereClause,
+				model.NewInfixExpr(model.NewColumnRef(model.RowNumberColumnName), "<=", model.NewLiteral(strconv.Itoa(metricsAggr.Size)))})
 		} else {
+			innerFieldsAsSelect := make([]model.SelectColumn, len(metricsAggr.Fields))
+			for i, field := range metricsAggr.Fields {
+				innerFieldsAsSelect[i] = model.SelectColumn{Expression: field}
+			}
 			query.Limit = metricsAggr.Size
-			query.Columns = append(query.Columns, metricsAggr.Fields...)
+			query.Columns = append(query.Columns, innerFieldsAsSelect...)
 			if metricsAggr.sortByExists() {
-				query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.TableColumn(metricsAggr.SortBy)})
-				query.OrderBy = append(query.OrderBy, model.NewSortColumn(metricsAggr.SortBy, strings.ToLower(metricsAggr.Order) == "desc"))
+				query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewColumnRef(metricsAggr.SortBy)})
+				if strings.ToLower(metricsAggr.Order) == "desc" {
+					query.OrderBy = append(query.OrderBy, model.NewSortColumn(metricsAggr.SortBy, model.DescOrder))
+				} else {
+					query.OrderBy = append(query.OrderBy, model.NewSortColumn(metricsAggr.SortBy, model.AscOrder))
+				}
+
 			}
 		}
 	case "percentile_ranks":
 		for _, cutValueAsString := range metricsAggr.Fields[1:] {
-			cutValue, _ := strconv.ParseFloat(cutValueAsString.SQL(), 64)
+			unquoted, _ := strconv.Unquote(model.AsString(cutValueAsString))
+			cutValue, _ := strconv.ParseFloat(unquoted, 64)
 
 			// full exp we create below looks like this:
 			// fmt.Sprintf("count(if(%s<=%f, 1, NULL))/count(*)*100", strconv.Quote(getFirstFieldName()), cutValue)
 
-			ifExp := aexp.Function(
+			ifExp := model.NewFunction(
 				"if",
-				aexp.Infix(getFirstExpression(), "<=", aexp.Literal(cutValue)),
-				aexp.Literal(1),
-				aexp.String("NULL"),
+				model.NewInfixExpr(getFirstExpression(), "<=", model.NewLiteral(cutValue)),
+				model.NewLiteral(1),
+				model.NewStringExpr("NULL"),
 			)
-			firstCountExp := aexp.Function("count", ifExp)
-			twoCountsExp := aexp.Infix(firstCountExp, "/", aexp.Count(aexp.Wildcard))
+			firstCountExp := model.NewFunction("count", ifExp)
+			twoCountsExp := model.NewInfixExpr(firstCountExp, "/", model.NewCountFunc(model.NewWildcardExpr))
 
 			query.Columns = append(query.Columns, model.SelectColumn{
-				Expression: aexp.Infix(twoCountsExp, "*", aexp.Literal(100)),
+				Expression: model.NewInfixExpr(twoCountsExp, "*", model.NewLiteral(100)),
 			})
 		}
 	case "extended_stats":
@@ -215,7 +225,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 
 		// add column with fn applied to field
 		addColumn := func(funcName string) {
-			query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Function(funcName, expr)})
+			query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewFunction(funcName, expr)})
 		}
 
 		addColumn("count")
@@ -224,7 +234,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		addColumn("avgOrNull")
 		addColumn("sumOrNull")
 
-		query.Columns = append(query.Columns, model.SelectColumn{Expression: aexp.Function("sumOrNull", aexp.Infix(expr, "*", expr))})
+		query.Columns = append(query.Columns, model.SelectColumn{Expression: model.NewFunction("sumOrNull", model.NewInfixExpr(expr, "*", expr))})
 
 		addColumn("varPop")
 		addColumn("varSamp")
@@ -269,7 +279,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*model.Query, error) {
 	queryAsMap := body.Clone()
 	currentAggr := aggrQueryBuilder{}
-	currentAggr.FromClause = model.NewSelectColumnString(cw.Table.FullTableName())
+	currentAggr.FromClause = model.NewTableRef(cw.Table.FullTableName())
 	currentAggr.TableName = cw.Table.FullTableName()
 	currentAggr.ctx = cw.Ctx
 	if queryPartRaw, ok := queryAsMap["query"]; ok {
@@ -305,8 +315,6 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 			}
 			currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
 		}
-	} else {
-		return nil, fmt.Errorf("no aggs -> request is not an aggregation query")
 	}
 
 	return aggregations, nil
@@ -484,7 +492,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	}
 	if orderByFieldsAdded > 0 {
 		if len(currentAggr.OrderBy) >= orderByFieldsAdded {
-			currentAggr.OrderBy = currentAggr.GroupBy[:len(currentAggr.OrderBy)-orderByFieldsAdded]
+			currentAggr.OrderBy = currentAggr.OrderBy[:len(currentAggr.OrderBy)-orderByFieldsAdded]
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("orderByFieldsAdded > currentAggr.OrderBy length -> should be impossible")
 		}
@@ -509,8 +517,8 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			field, isFromScript := cw.parseFieldFieldMaybeScript(v, k)
 			return metricsAggregation{
 				AggrType:            k,
-				Fields:              []model.SelectColumn{field},
-				FieldType:           cw.Table.GetDateTimeTypeFromSelectColumn(cw.Ctx, field),
+				Fields:              []model.Expr{field},
+				FieldType:           cw.Table.GetDateTimeTypeFromSelectClause(cw.Ctx, field),
 				IsFieldNameCompound: isFromScript,
 			}, true
 		}
@@ -524,8 +532,8 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		field, keyed, percentiles := cw.parsePercentilesAggregation(percentileMap)
 		return metricsAggregation{
 			AggrType:    "quantile",
-			Fields:      []model.SelectColumn{field},
-			FieldType:   cw.Table.GetDateTimeTypeFromSelectColumn(cw.Ctx, field),
+			Fields:      []model.Expr{field},
+			FieldType:   cw.Table.GetDateTimeTypeFromSelectClause(cw.Ctx, field),
 			Percentiles: percentiles,
 			Keyed:       keyed,
 		}, true
@@ -545,10 +553,10 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("can't parse top_hits' fields. top_hits type: %T, value: %v. Using empty fields.", topHits, topHits)
 		}
-		cols := make([]model.SelectColumn, 0, len(fields))
+		exprs := make([]model.Expr, 0, len(fields))
 		for i, fieldNameRaw := range fields {
 			if fieldName, ok := fieldNameRaw.(string); ok {
-				cols = append(cols, model.NewSelectColumnTableField(fieldName))
+				exprs = append(exprs, model.NewColumnRef(fieldName))
 			} else {
 				logger.WarnWithCtx(cw.Ctx).Msgf("field %d in top_hits is not a string. Field's type: %T, value: %v. Skipping.",
 					i, fieldNameRaw, fieldNameRaw)
@@ -564,7 +572,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		}
 		return metricsAggregation{
 			AggrType:  "top_hits",
-			Fields:    cols,
+			Fields:    exprs,
 			FieldType: metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
 			Size:      size,
 		}, true
@@ -573,7 +581,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 	// Shortcut here. Percentile_ranks has "field" and a list of "values"
 	// I'm keeping all of them in `fieldNames' array for "simplicity".
 	if percentileRanks, ok := queryMap["percentile_ranks"]; ok {
-		fields := []model.SelectColumn{cw.parseFieldField(percentileRanks, "percentile_ranks")}
+		fields := []model.Expr{cw.parseFieldField(percentileRanks, "percentile_ranks")}
 		var cutValues []any
 		if values, exists := percentileRanks.(QueryMap)["values"]; exists {
 			cutValues, ok = values.([]any)
@@ -586,9 +594,9 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		for _, cutValue := range cutValues {
 			switch cutValueTyped := cutValue.(type) {
 			case float64:
-				fields = append(fields, model.NewSelectColumnString(strconv.FormatFloat(cutValueTyped, 'f', -1, 64)))
+				fields = append(fields, model.NewColumnRef(strconv.FormatFloat(cutValueTyped, 'f', -1, 64)))
 			case int64:
-				fields = append(fields, model.NewSelectColumnString(strconv.FormatInt(cutValueTyped, 10)))
+				fields = append(fields, model.NewColumnRef(strconv.FormatInt(cutValueTyped, 10)))
 			default:
 				logger.WarnWithCtx(cw.Ctx).Msgf("cutValue in percentile_ranks is not a number, but %T, value: %v. Skipping.", cutValue, cutValue)
 			}
@@ -627,7 +635,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		}
 		return metricsAggregation{
 			AggrType: "extended_stats",
-			Fields:   []model.SelectColumn{cw.parseFieldField(extendedStats, "extended_stats")},
+			Fields:   []model.Expr{cw.parseFieldField(extendedStats, "extended_stats")},
 			sigma:    sigma,
 		}, true
 	}
@@ -676,20 +684,18 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		var col model.SelectColumn
 		if interval != 1.0 {
 			// col as string is: fmt.Sprintf("floor(%s / %f) * %f", fieldNameProperlyQuoted, interval, interval)
-			col = model.SelectColumn{Expression: aexp.NewComposite(
-				aexp.Infix(
-					aexp.Function("floor", aexp.Infix(field.Expression, "/", aexp.Literal(interval))),
-					"*",
-					aexp.Literal(interval),
-				),
+			col = model.SelectColumn{Expression: model.NewInfixExpr(
+				model.NewFunction("floor", model.NewInfixExpr(field, "/", model.NewLiteral(interval))),
+				"*",
+				model.NewLiteral(interval),
 			)}
 		} else {
-			col = field
+			col = model.SelectColumn{Expression: field}
 		}
 
 		currentAggr.Columns = append(currentAggr.Columns, col)
-		currentAggr.GroupBy = append(currentAggr.GroupBy, col)
-		currentAggr.OrderBy = append(currentAggr.OrderBy, col)
+		currentAggr.GroupBy = append(currentAggr.GroupBy, col.Expression)
+		currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewOrderByExprWithoutOrder(col.Expression))
 
 		delete(queryMap, "histogram")
 		return success, 1, 1, 1, nil
@@ -704,8 +710,8 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		histogramPartOfQuery := cw.createHistogramPartOfQuery(dateHistogram)
 
 		currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: histogramPartOfQuery})
-		currentAggr.GroupBy = append(currentAggr.GroupBy, model.SelectColumn{Expression: histogramPartOfQuery})
-		currentAggr.OrderBy = append(currentAggr.OrderBy, model.SelectColumn{Expression: histogramPartOfQuery})
+		currentAggr.GroupBy = append(currentAggr.GroupBy, histogramPartOfQuery)
+		currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewOrderByExprWithoutOrder(histogramPartOfQuery))
 
 		delete(queryMap, "date_histogram")
 		return success, 1, 1, 1, nil
@@ -717,7 +723,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			isEmptyGroupBy := len(currentAggr.GroupBy) == 0
 
 			currentAggr.GroupBy = append(currentAggr.GroupBy, cw.parseFieldField(terms, termsType))
-			currentAggr.Columns = append(currentAggr.Columns, cw.parseFieldField(terms, termsType))
+			currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: cw.parseFieldField(terms, termsType)})
 
 			orderByAdded := false
 			size := 10
@@ -732,12 +738,12 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 					}
 				}
 				currentAggr.Limit = size
-				currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewSortByCountColumn(true))
+				currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewSortByCountColumn(model.DescOrder))
 				orderByAdded = true
 			}
 			delete(queryMap, termsType)
 			if !orderByAdded {
-				currentAggr.OrderBy = append(currentAggr.OrderBy, cw.parseFieldField(terms, termsType))
+				currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewOrderByExprWithoutOrder(cw.parseFieldField(terms, termsType)))
 			}
 			return success, 1, 1, 1, nil
 			/* will remove later
@@ -771,7 +777,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		const defaultSize = 10
 		size := cw.parseIntField(multiTerms, "size", defaultSize)
 		if _, exists := queryMap["aggs"]; isEmptyGroupBy && !exists { // we can do limit only it terms are not nested
-			currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewSortByCountColumn(true))
+			currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewSortByCountColumn(model.DescOrder))
 			currentAggr.Limit = size
 			orderByAdded = true
 			orderByFieldsAdded = 1
@@ -786,10 +792,10 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			fieldsNr = len(terms)
 			for _, term := range terms {
 				column := cw.parseFieldField(term, "multi_terms")
-				currentAggr.Columns = append(currentAggr.GroupBy, column)
+				currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: column})
 				currentAggr.GroupBy = append(currentAggr.GroupBy, column)
 				if !orderByAdded {
-					currentAggr.OrderBy = append(currentAggr.OrderBy, column)
+					currentAggr.OrderBy = append(currentAggr.OrderBy, model.NewOrderByExprWithoutOrder(column))
 					orderByFieldsAdded++
 				}
 			}
@@ -833,13 +839,13 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.Type = dateRangeParsed
 		for _, interval := range dateRangeParsed.Intervals {
 
-			currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: interval.ToSQLSelectQuery(dateRangeParsed.FieldName)}})
+			currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: model.SQL{Query: interval.ToSQLSelectQuery(dateRangeParsed.FieldName)}})
 
 			if sqlSelect, selectNeeded := interval.BeginTimestampToSQL(); selectNeeded {
-				currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: sqlSelect}})
+				currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: model.SQL{Query: sqlSelect}})
 			}
 			if sqlSelect, selectNeeded := interval.EndTimestampToSQL(); selectNeeded {
-				currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: aexp.SQL{Query: sqlSelect}})
+				currentAggr.Columns = append(currentAggr.Columns, model.SelectColumn{Expression: model.SQL{Query: sqlSelect}})
 			}
 		}
 
@@ -884,22 +890,22 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 }
 
 // parseFieldField returns field 'field' from shouldBeMap, which should be a string. Logs some warnings in case of errors, and returns "" then
-func (cw *ClickhouseQueryTranslator) parseFieldField(shouldBeMap any, aggregationType string) model.SelectColumn {
+func (cw *ClickhouseQueryTranslator) parseFieldField(shouldBeMap any, aggregationType string) model.Expr {
 	Map, ok := shouldBeMap.(QueryMap)
 	if !ok {
 		logger.WarnWithCtx(cw.Ctx).Msgf("%s aggregation is not a map, but %T, value: %v", aggregationType, shouldBeMap, shouldBeMap)
-		return model.SelectColumn{}
+		return nil
 	}
 	if fieldRaw, ok := Map["field"]; ok {
 		if field, ok := fieldRaw.(string); ok {
-			return model.NewSelectColumnTableField(cw.Table.ResolveField(cw.Ctx, field)) // remove this resolve? we do all transforms after parsing is done?
+			return model.NewColumnRef(cw.Table.ResolveField(cw.Ctx, field)) // model.NewSelectColumnTableField(cw.Table.ResolveField(cw.Ctx, field)) // remove this resolve? we do all transforms after parsing is done?
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
 		}
 	} else {
 		logger.WarnWithCtx(cw.Ctx).Msgf("field not found in %s aggregation: %v", aggregationType, Map)
 	}
-	return model.SelectColumn{}
+	return nil
 }
 
 func (cw *ClickhouseQueryTranslator) parseIntField(queryMap QueryMap, fieldName string, defaultValue int) int {
@@ -913,7 +919,7 @@ func (cw *ClickhouseQueryTranslator) parseIntField(queryMap QueryMap, fieldName 
 }
 
 // parseFieldFieldMaybeScript is basically almost a copy of parseFieldField above, but it also handles a basic script, if "field" is missing.
-func (cw *ClickhouseQueryTranslator) parseFieldFieldMaybeScript(shouldBeMap any, aggregationType string) (field model.SelectColumn, isFromScript bool) {
+func (cw *ClickhouseQueryTranslator) parseFieldFieldMaybeScript(shouldBeMap any, aggregationType string) (field model.Expr, isFromScript bool) {
 	Map, ok := shouldBeMap.(QueryMap)
 	if !ok {
 		logger.WarnWithCtx(cw.Ctx).Msgf("%s aggregation is not a map, but %T, value: %v", aggregationType, shouldBeMap, shouldBeMap)
@@ -922,7 +928,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldFieldMaybeScript(shouldBeMap any,
 	// maybe "field" field
 	if fieldRaw, ok := Map["field"]; ok {
 		if field, ok := fieldRaw.(string); ok {
-			return model.NewSelectColumnTableField(cw.Table.ResolveField(cw.Ctx, field)), true // remove this resolve? we do all transforms after parsing is done?
+			return model.NewColumnRef(cw.Table.ResolveField(cw.Ctx, field)), true // remove this resolve? we do all transforms after parsing is done?
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
 		}
@@ -936,7 +942,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldFieldMaybeScript(shouldBeMap any,
 }
 
 // parseFieldFromScriptField returns (field, true) if parsing succeeded, (model.SelectColumn{}, false) otherwise.
-func (cw *ClickhouseQueryTranslator) parseFieldFromScriptField(queryMap QueryMap) (field model.SelectColumn, success bool) {
+func (cw *ClickhouseQueryTranslator) parseFieldFromScriptField(queryMap QueryMap) (field model.Expr, success bool) {
 	scriptRaw, exists := queryMap["script"]
 	if !exists {
 		return
@@ -961,7 +967,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldFromScriptField(queryMap QueryMap
 	wantedRegex := regexp.MustCompile(`^doc\['(\w+)']\.value\.(?:getHour\(\)|hourOfDay)$`)
 	matches := wantedRegex.FindStringSubmatch(source)
 	if len(matches) == 2 {
-		return model.SelectColumn{Expression: aexp.Function("toHour", aexp.TableColumn(matches[1]))}, true
+		return model.NewFunction("toHour", model.NewColumnRef(matches[1])), true
 	}
 	return
 }

@@ -4,9 +4,8 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser/aexp"
-	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/config"
+	"strconv"
 	"testing"
 )
 
@@ -14,8 +13,8 @@ func Test_ipRangeTransform(t *testing.T) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
 	const CASTPrimitive = "CAST"
 	const StringLiteral = "'String'"
-	const IpFieldContent = "111.42.223.209/16"
-	const IpFieldName = "clientip"
+	const IpFieldContent = "'111.42.223.209/16'"
+	IpFieldName := strconv.Quote("clientip")
 
 	indexConfig := map[string]config.IndexConfiguration{
 		"kibana_sample_data_logs": {
@@ -29,57 +28,102 @@ func Test_ipRangeTransform(t *testing.T) {
 
 	expectedQueries := []*model.Query{
 		{
-			FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+			FromClause: model.NewTableRef("kibana_sample_data_logs"),
 			TableName:  "kibana_sample_data_logs",
 			Columns: []model.SelectColumn{{
-				Expression: aexp.Wildcard,
+				Expression: model.NewWildcardExpr,
 			},
 			},
-			WhereClause: &where_clause.Function{
-				Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
-				Args: []where_clause.Statement{
-					&where_clause.Function{
-						Name: where_clause.Literal{Name: CASTPrimitive},
-						Args: []where_clause.Statement{
-							&where_clause.Literal{Name: IpFieldName},
-							&where_clause.Literal{Name: StringLiteral},
+			WhereClause: &model.FunctionExpr{
+				Name: isIPAddressInRangePrimitive,
+				Args: []model.Expr{
+					&model.FunctionExpr{
+						Name: CASTPrimitive,
+						Args: []model.Expr{
+							&model.LiteralExpr{Value: IpFieldName},
+							&model.LiteralExpr{Value: StringLiteral},
 						},
 					},
-					&where_clause.Literal{Name: IpFieldContent},
+					&model.LiteralExpr{Value: IpFieldContent},
 				},
 			},
 		},
 		{
-			FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+			FromClause: model.NewTableRef("kibana_sample_data_logs"),
 			TableName:  "kibana_sample_data_logs",
 			Columns: []model.SelectColumn{{
-				Expression: aexp.Wildcard,
+				Expression: model.NewWildcardExpr,
 			},
 			},
-			WhereClause: &where_clause.InfixOp{
-				Left:  &where_clause.Literal{Name: IpFieldName},
+			WhereClause: &model.InfixExpr{
+				Left:  &model.LiteralExpr{Value: IpFieldName},
 				Op:    "<",
-				Right: &where_clause.Literal{Name: IpFieldContent},
+				Right: &model.LiteralExpr{Value: IpFieldContent},
 			},
 		},
 		{
-			FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+			FromClause: model.NewTableRef("kibana_sample_data_logs"),
 			TableName:  "kibana_sample_data_logs",
 			Columns: []model.SelectColumn{{
-				Expression: aexp.Wildcard,
+				Expression: model.NewWildcardExpr,
 			},
 			},
-			WhereClause: &where_clause.Function{
-				Name: where_clause.Literal{Name: isIPAddressInRangePrimitive},
-				Args: []where_clause.Statement{
-					&where_clause.Function{
-						Name: where_clause.Literal{Name: CASTPrimitive},
-						Args: []where_clause.Statement{
-							&where_clause.Literal{Name: IpFieldName},
-							&where_clause.Literal{Name: StringLiteral},
+			WhereClause: &model.FunctionExpr{
+				Name: isIPAddressInRangePrimitive,
+				Args: []model.Expr{
+					&model.FunctionExpr{
+						Name: CASTPrimitive,
+						Args: []model.Expr{
+							&model.LiteralExpr{Value: IpFieldName},
+							&model.LiteralExpr{Value: StringLiteral},
 						},
 					},
-					&where_clause.Literal{Name: IpFieldContent},
+					&model.LiteralExpr{Value: IpFieldContent},
+				},
+			},
+		},
+		//SELECT * FROM "default"."kibana_sample_data_logs" WHERE
+		//(("@timestamp">=parseDateTime64BestEffort('2024-06-06T09:58:50.387Z') AND
+		//"@timestamp"<=parseDateTime64BestEffort('2024-06-10T09:58:50.387Z')) AND
+		//isIPAddressInRange(CAST(clientip,'String'),'32.208.36.11/16'))
+		{
+			FromClause: model.NewTableRef("kibana_sample_data_logs"),
+			TableName:  "kibana_sample_data_logs",
+			Columns: []model.SelectColumn{{
+				Expression: model.NewWildcardExpr,
+			},
+			},
+			WhereClause: &model.InfixExpr{
+				Left: &model.InfixExpr{
+					Left: &model.InfixExpr{
+						Left: &model.LiteralExpr{Value: strconv.Quote("@timestamp")},
+						Op:   ">=",
+						Right: &model.FunctionExpr{
+							Name: "parseDateTime64BestEffort",
+							Args: []model.Expr{&model.LiteralExpr{Value: "'2024-06-06T09:58:50.387Z'"}}},
+					},
+					Op: "AND",
+					Right: &model.InfixExpr{
+						Left: &model.LiteralExpr{Value: strconv.Quote("@timestamp")},
+						Op:   "<=",
+						Right: &model.FunctionExpr{
+							Name: "parseDateTime64BestEffort",
+							Args: []model.Expr{&model.LiteralExpr{Value: "'2024-06-10T09:58:50.387Z'"}}},
+					},
+				},
+				Op: "AND",
+				Right: &model.FunctionExpr{
+					Name: isIPAddressInRangePrimitive,
+					Args: []model.Expr{
+						&model.FunctionExpr{
+							Name: CASTPrimitive,
+							Args: []model.Expr{
+								&model.LiteralExpr{Value: IpFieldName},
+								&model.LiteralExpr{Value: StringLiteral},
+							},
+						},
+						&model.LiteralExpr{Value: IpFieldContent},
+					},
 				},
 			},
 		},
@@ -87,51 +131,89 @@ func Test_ipRangeTransform(t *testing.T) {
 	queries := [][]*model.Query{
 		{
 			{
-				FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+				FromClause: model.NewTableRef("kibana_sample_data_logs"),
 				TableName:  "kibana_sample_data_logs",
 				Columns: []model.SelectColumn{{
-					Expression: aexp.Wildcard,
+					Expression: model.NewWildcardExpr,
 				},
 				},
-				WhereClause: &where_clause.InfixOp{
-					Left:  &where_clause.Literal{Name: IpFieldName},
+				WhereClause: &model.InfixExpr{
+					Left:  &model.LiteralExpr{Value: IpFieldName},
 					Op:    "=",
-					Right: &where_clause.Literal{Name: IpFieldContent},
+					Right: &model.LiteralExpr{Value: IpFieldContent},
 				},
 			},
 		},
 		{
 			{
-				FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+				FromClause: model.NewTableRef("kibana_sample_data_logs"),
 				TableName:  "kibana_sample_data_logs",
 				Columns: []model.SelectColumn{{
-					Expression: aexp.Wildcard,
+					Expression: model.NewWildcardExpr,
 				},
 				},
-				WhereClause: &where_clause.InfixOp{
-					Left:  &where_clause.Literal{Name: IpFieldName},
+				WhereClause: &model.InfixExpr{
+					Left:  &model.LiteralExpr{Value: IpFieldName},
 					Op:    "<",
-					Right: &where_clause.Literal{Name: IpFieldContent},
+					Right: &model.LiteralExpr{Value: IpFieldContent},
 				},
 			},
 		},
 		{
 			{
-				FromClause: model.NewSelectColumnString("kibana_sample_data_logs"),
+				FromClause: model.NewTableRef("kibana_sample_data_logs"),
 				TableName:  "kibana_sample_data_logs",
 				Columns: []model.SelectColumn{{
-					Expression: aexp.Wildcard,
+					Expression: model.NewWildcardExpr,
 				},
 				},
-				WhereClause: &where_clause.InfixOp{
-					Left:  &where_clause.Literal{Name: IpFieldName},
+				WhereClause: &model.InfixExpr{
+					Left:  &model.LiteralExpr{Value: IpFieldName},
 					Op:    "iLIKE",
-					Right: &where_clause.Literal{Name: IpFieldContent},
+					Right: &model.LiteralExpr{Value: IpFieldContent},
+				},
+			},
+		},
+		//SELECT * FROM "default"."kibana_sample_data_logs" WHERE
+		//(("@timestamp">=parseDateTime64BestEffort('2024-06-06T09:58:50.387Z') AND
+		//"@timestamp"<=parseDateTime64BestEffort('2024-06-10T09:58:50.387Z')) AND
+		//"clientip" iLIKE '%32.208.36.11/16%')
+		{
+			{
+				FromClause: model.NewTableRef("kibana_sample_data_logs"),
+				TableName:  "kibana_sample_data_logs",
+				Columns: []model.SelectColumn{{
+					Expression: model.NewWildcardExpr,
+				},
+				},
+				WhereClause: &model.InfixExpr{
+					Left: &model.InfixExpr{
+						Left: &model.InfixExpr{
+							Left: &model.LiteralExpr{Value: strconv.Quote("@timestamp")},
+							Op:   ">=",
+							Right: &model.FunctionExpr{
+								Name: "parseDateTime64BestEffort",
+								Args: []model.Expr{&model.LiteralExpr{Value: "'2024-06-06T09:58:50.387Z'"}}},
+						},
+						Op: "AND",
+						Right: &model.InfixExpr{
+							Left: &model.LiteralExpr{Value: strconv.Quote("@timestamp")},
+							Op:   "<=",
+							Right: &model.FunctionExpr{
+								Name: "parseDateTime64BestEffort",
+								Args: []model.Expr{&model.LiteralExpr{Value: "'2024-06-10T09:58:50.387Z'"}}},
+						},
+					},
+					Op: "AND",
+					Right: &model.InfixExpr{
+						Left:  &model.LiteralExpr{Value: strconv.Quote("clientip")},
+						Op:    "iLIKE",
+						Right: &model.LiteralExpr{Value: IpFieldContent},
+					},
 				},
 			},
 		},
 	}
-
 	for k := range queries {
 		resultQueries, err := transform.Transform(queries[k])
 		assert.NoError(t, err)

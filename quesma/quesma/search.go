@@ -11,7 +11,6 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
-	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
@@ -226,9 +225,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 		}
-		//for _, query := range queries {
-		//	query.ApplyAliases(q.cfg.IndexConfig, resolvedTableName)
-		//}
 
 		if canParse {
 			if len(queries) > 0 && query_util.IsNonAggregationQuery(queries[0]) {
@@ -253,7 +249,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				}
 
 				if len(results) == 0 {
-					logger.ErrorWithCtx(ctx).Msgf("no hits, queryInfo: %d", translatedQueryBody)
+					logger.ErrorWithCtx(ctx).Msgf("no hits, sqls: %s", translatedQueryBody)
 					doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
 					return
 				}
@@ -626,7 +622,7 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 	var results = make([]string, 0)
 	var allReferencedFields = make([]string, 0)
 	for _, col := range query.Columns {
-		for _, c := range aexp.GetUsedColumns(col.Expression) {
+		for _, c := range model.GetUsedColumns(col.Expression) {
 			allReferencedFields = append(allReferencedFields, c.ColumnName)
 		}
 	}

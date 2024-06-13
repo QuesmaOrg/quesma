@@ -9,7 +9,6 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/queryparser/query_util"
-	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/quesma/types"
 	"strconv"
 	"strings"
@@ -138,9 +137,9 @@ func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query
 		return query, model.NewSearchQueryInfoNormal(), highlighter, err
 	}
 
-	query.WhereClause = where_clause.NewLiteral(where) // @TODO that's to be fixed
+	query.WhereClause = model.NewLiteral(where) // @TODO that's to be fixed
 	query.CanParse = true
-	query.OrderBy = []model.SelectColumn{model.NewSortColumn("@timestamp", true)}
+	query.OrderBy = []model.OrderByExpr{model.NewSortColumn("@timestamp", model.DescOrder)}
 
 	return query, searchQueryInfo, highlighter, nil
 }

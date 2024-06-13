@@ -8,9 +8,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
 	"mitmproxy/quesma/model/typical_queries"
-	"mitmproxy/quesma/queryparser/aexp"
 	"mitmproxy/quesma/queryparser/query_util"
-	"mitmproxy/quesma/queryparser/where_clause"
 	"mitmproxy/quesma/queryprocessor"
 	"mitmproxy/quesma/util"
 )
@@ -254,35 +252,86 @@ func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results []
 	return queriesWithoutHits, resultsWithoutHits, &hitsResponse
 }
 
-func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
-	var hits *model.SearchHits
-	queries, ResultSets, hits = cw.makeHits(queries, ResultSets) // get hits and remove it from queries
-
-	// TODO: process count:
+func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, results [][]model.QueryResultRow) (queriesWithoutCount []*model.Query, resultsWithoutCount [][]model.QueryResultRow, total *model.Total) {
+	// process count:
 	// a) we have count query -> we're done
 	// b) we have hits or facets -> we're done
 	// c) we don't have above: we return len(biggest resultset(all aggregations))
-
-	var totalCount uint64
-
-	isCount := false
-	if len(queries) > 0 {
-		_, isCount = queries[0].Type.(typical_queries.Count)
-	}
-	if isCount && len(ResultSets) > 0 && len(ResultSets[0]) > 0 && len(ResultSets[0][0].Cols) > 0 { // TODO change for if type == non_aggregation.Count()
-		// TODO: Eventually we should detect whether first column is actual hits
-		// This if: doesn't hurt much, but mostly for tests, never seen need for this on "production".
-		if val, ok := ResultSets[0][0].Cols[0].Value.(uint64); ok {
-			totalCount = val
-		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets[0])
+	totalCount := -1
+	for i, query := range queries {
+		if query.Type != nil {
+			if _, isCount := query.Type.(typical_queries.Count); isCount {
+				if len(results[i]) > 0 && len(results[i][0].Cols) > 0 {
+					if val, ok := results[i][0].Cols[0].Value.(uint64); ok {
+						totalCount = int(val)
+					} else {
+						logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", results[i])
+					}
+				} else {
+					logger.ErrorWithCtx(cw.Ctx).Msgf("no results for Count value SQL query result [%v]", results[i])
+				}
+				continue
+			}
 		}
-		queries = queries[1:]
-		ResultSets = ResultSets[1:]
-	} else {
-		logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", ResultSets)
-		totalCount = 0
+
+		queriesWithoutCount = append(queriesWithoutCount, query)
+		resultsWithoutCount = append(resultsWithoutCount, results[i])
 	}
+
+	if totalCount != -1 {
+		total = &model.Total{
+			Value:    totalCount,
+			Relation: "eq", // likely wrong
+		}
+		return
+	}
+	for i, query := range queries {
+		if query.QueryInfoType == model.Facets || query.QueryInfoType == model.FacetsNumeric {
+			totalCount = 0
+			for _, row := range results[i] {
+				if len(row.Cols) > 0 {
+					if val, ok := row.Cols[len(row.Cols)-1].Value.(uint64); ok {
+						totalCount += int(val)
+					} else if val2, ok2 := row.Cols[len(row.Cols)-1].Value.(int); ok2 {
+						totalCount += val2
+					} else {
+						logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v", row.Cols[len(row.Cols)-1].Value)
+					}
+				}
+			}
+			total = &model.Total{
+				Value:    totalCount,
+				Relation: "eq", // likely wrong
+			}
+			return
+		}
+	}
+
+	for i, query := range queries {
+		if query.QueryInfoType == model.ListAllFields || query.QueryInfoType == model.ListByField {
+			totalCount = len(results[i])
+			relation := "eq"
+			if query.Limit != 0 && totalCount == query.Limit {
+				relation = "gte"
+			}
+			total = &model.Total{
+				Value:    totalCount,
+				Relation: relation,
+			}
+			return
+		}
+	}
+
+	// TODO: Look for biggest aggregation
+
+	return
+}
+
+func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp {
+	var hits *model.SearchHits
+	var total *model.Total
+	queries, ResultSets, total = cw.makeTotalCount(queries, ResultSets) // get hits and remove it from queries
+	queries, ResultSets, hits = cw.makeHits(queries, ResultSets)        // get hits and remove it from queries
 
 	response := &model.SearchResp{
 		Aggregations: cw.MakeAggregationPartOfResponse(queries, ResultSets),
@@ -297,9 +346,13 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 	} else {
 		response.Hits = model.SearchHits{}
 	}
-	response.Hits.Total = &model.Total{
-		Value:    int(totalCount),
-		Relation: "eq",
+	if total != nil {
+		response.Hits.Total = total
+	} else {
+		response.Hits.Total = &model.Total{
+			Value:    0,
+			Relation: "gte",
+		}
 	}
 	return response
 }
@@ -344,34 +397,29 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []*
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) BuildSimpleCountQuery(whereClause where_clause.Statement) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sampleLimit int) *model.Query {
 	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: aexp.Count()}},
+		Columns:     []model.SelectColumn{{Expression: model.NewCountFunc()}},
 		WhereClause: whereClause,
-		FromClause:  model.NewSelectColumnString(cw.Table.FullTableName()),
+		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
+		SampleLimit: sampleLimit,
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 		Type:        typical_queries.NewCount(cw.Ctx),
 	}
-	/* TODO
-	if limit, weNeedLimit := query.LimitForCount(); weNeedLimit {
-		fullQuery.Limit = limit
-	}
-	return fullQuery
-	*/
 }
 
 func (cw *ClickhouseQueryTranslator) BuildNRowsQuery(fieldName string, query *model.SimpleQuery, limit int) *model.Query {
 	return query_util.BuildHitsQuery(cw.Ctx, cw.Table.FullTableName(), fieldName, query, limit)
 }
 
-func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, whereClause where_clause.Statement, limit int) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, whereClause model.Expr, limit int) *model.Query {
 	return &model.Query{
 		IsDistinct:  true,
-		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(fieldName)}},
 		WhereClause: whereClause,
 		Limit:       limit,
-		FromClause:  model.NewSelectColumnString(cw.Table.FullTableName()),
+		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}
@@ -379,17 +427,17 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, wh
 
 //lint:ignore U1000 Not used yet
 func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName string, prefix string, limit int) *model.Query {
-	var whereClause where_clause.Statement
+	var whereClause model.Expr
 	if len(prefix) > 0 {
 		//whereClause = strconv.Quote(fieldName) + " iLIKE '" + prefix + "%'"
-		whereClause = where_clause.NewInfixOp(where_clause.NewColumnRef(fieldName), "iLIKE", where_clause.NewLiteral(prefix+"%"))
+		whereClause = model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral(prefix+"%"))
 		cw.AddTokenToHighlight(prefix)
 	}
 	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
+		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(fieldName)}},
 		WhereClause: whereClause,
 		Limit:       limit,
-		FromClause:  model.NewSelectColumnString(cw.Table.FullTableName()),
+		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}
@@ -405,43 +453,47 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 	}
 
 	return &model.Query{
-		Columns: []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}, {Expression: aexp.Count()}},
-		GroupBy: []model.SelectColumn{{Expression: aexp.TableColumn(fieldName)}},
-		OrderBy: []model.SelectColumn{model.NewSortByCountColumn(true)},
-		FromClause: model.SelectColumn{Expression: aexp.NewComposite(
-			aexp.String("(SELECT"), aexp.TableColumn(fieldName),
-			aexp.SQL{Query: "FROM " + cw.Table.FullTableName()},
-			aexp.SQL{Query: "WHERE " + simpleQuery.WhereClauseAsString()},
-			aexp.String("LIMIT"), aexp.Literal(facetsSampleSize),
-			aexp.String(")"))},
-		TableName: cw.Table.FullTableName(),
-		CanParse:  true,
-		Type:      typ,
+		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(fieldName)}, {Expression: model.NewCountFunc()}},
+		GroupBy:     []model.Expr{model.NewColumnRef(fieldName)},
+		OrderBy:     []model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)},
+		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
+		WhereClause: simpleQuery.WhereClause,
+		SampleLimit: facetsSampleSize,
+		TableName:   cw.Table.FullTableName(),
+		CanParse:    true,
+		Type:        typ,
 	}
 }
 
 // earliest == true  <==> we want earliest timestamp
 // earliest == false <==> we want latest timestamp
-func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName string, whereClause where_clause.Statement, earliest bool) *model.Query {
+func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName string, whereClause model.Expr, earliest bool) *model.Query {
+	var ordering model.OrderByDirection
+	if earliest {
+		ordering = model.DescOrder
+	} else {
+		ordering = model.AscOrder
+	}
+
 	return &model.Query{
-		Columns:     []model.SelectColumn{{Expression: aexp.TableColumn(timestampFieldName)}},
+		Columns:     []model.SelectColumn{{Expression: model.NewColumnRef(timestampFieldName)}},
 		WhereClause: whereClause,
-		OrderBy:     []model.SelectColumn{model.NewSortColumn(timestampFieldName, !earliest)},
+		OrderBy:     []model.OrderByExpr{model.NewSortColumn(timestampFieldName, ordering)},
 		Limit:       1,
-		FromClause:  model.NewSelectColumnString(cw.Table.FullTableName()),
+		FromClause:  model.NewTableRef(cw.Table.FullTableName()),
 		TableName:   cw.Table.FullTableName(),
 		CanParse:    true,
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMap) aexp.AExp {
+func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMap) model.Expr {
 	const defaultDateTimeType = clickhouse.DateTime64
 	field := cw.parseFieldField(queryMap, "histogram")
 	interval, err := kibana.ParseInterval(cw.extractInterval(queryMap))
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Msg(err.Error())
 	}
-	dateTimeType := cw.Table.GetDateTimeTypeFromSelectColumn(cw.Ctx, field)
+	dateTimeType := cw.Table.GetDateTimeTypeFromSelectClause(cw.Ctx, field)
 	if dateTimeType == clickhouse.Invalid {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("invalid date type for field %+v. Using DateTime64 as default.", field)
 		dateTimeType = defaultDateTimeType
