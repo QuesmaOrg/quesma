@@ -1,0 +1,33 @@
+package clickhouse
+
+import (
+	"mitmproxy/quesma/schema"
+	"strings"
+)
+
+type SchemaTypeAdapter struct {
+}
+
+func (c SchemaTypeAdapter) Convert(s string) (schema.Type, bool) {
+	if strings.HasPrefix(s, "Unknown") {
+		return schema.TypeText, true // TODO
+	}
+	switch s {
+	case "String", "LowCardinality(String)":
+		return schema.TypeText, true
+	case "Int", "Int8", "Int16", "Int32", "Int64":
+		return schema.TypeLong, true
+	case "Uint8", "Uint16", "Uint32", "Uint64", "Uint128", "Uint256":
+		return schema.TypeUnsignedLong, true
+	case "Bool":
+		return schema.TypeBoolean, true
+	case "Float32", "Float64":
+		return schema.TypeFloat, true
+	case "DateTime", "DateTime64":
+		return schema.TypeTimestamp, true
+	case "Date":
+		return schema.TypeDate, true
+	default:
+		return schema.TypeUnknown, false
+	}
+}
