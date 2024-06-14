@@ -124,7 +124,7 @@ func (s *schemaRegistry) Load() error {
 						Type: quesmaType,
 					}
 				} else {
-					logger.Debug().Msgf("type %s not supported, falling back to text", col.Type.String())
+					logger.Debug().Msgf("type %s not supported, falling back to text", col.Type)
 					fields[FieldName(col.Name)] = Field{
 						Name: FieldName(col.Name),
 						Type: TypeText,
