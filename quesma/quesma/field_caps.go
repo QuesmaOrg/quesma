@@ -204,7 +204,11 @@ func handleFieldCapsIndex(ctx context.Context, cfg config.QuesmaConfiguration, i
 	fieldCapsResponse := model.FieldCapsResponse{Fields: fields}
 	fieldCapsResponse.Indices = append(fieldCapsResponse.Indices, indexes...)
 
-	fieldCapsResponse, err := registry.DefaultPlugin.FieldCapsTransformer().Transform(fieldCapsResponse)
+	// This is tricky
+	transformer := registry.FieldCapsTransformerFor("TODO", cfg)
+
+	fieldCapsResponse, err := transformer.Transform(fieldCapsResponse)
+
 	if err != nil {
 		return nil, err
 	}

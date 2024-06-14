@@ -1,19 +1,103 @@
 package registry
 
 import (
+	"fmt"
 	"mitmproxy/quesma/plugins"
 	"mitmproxy/quesma/plugins/elastic_clickhouse_fields"
+	"mitmproxy/quesma/quesma/config"
 )
 
-// TODO plugins registry
-// TODO plugins finder
+var registeredPlugins []plugins.Plugin
 
-// legacy, tests are passing with this
-var DefaultPlugin plugins.Plugin = &elastic_clickhouse_fields.LegacyClickhouseDoubleColonsPlugin{}
+func init() {
+	registeredPlugins = []plugins.Plugin{
+		&elastic_clickhouse_fields.Dot2DoubleColons2Dot{},
+		&elastic_clickhouse_fields.Dot2DoubleUnderscores2Dot{},
+		&elastic_clickhouse_fields.Dot2DoubleColons{}}
+}
 
-// we return fields in the format of elastic
-// it may require fixing the tests, but kibana works with this
-//var DefaultPlugin plugins.Plugin = &elastic_clickhouse_fields.ClickhouseDoubleColonsElasticDotsPlugin{}
+func QueryTransformerFor(table string, cfg config.QuesmaConfiguration) plugins.QueryTransformer {
 
-// ultimate future
-//var DefaultPlugin plugins.Plugin = &elastic_clickhouse_fields.ClickhouseSQLNativeLElasticDotsPlugin{}
+	var transformers []plugins.QueryTransformer
+
+	for _, plugin := range registeredPlugins {
+		transformers = plugin.ApplyQueryTransformers(table, cfg, transformers)
+	}
+
+	if len(transformers) == 0 {
+		return &plugins.NopQueryTransformer{}
+	}
+
+	return plugins.QueryTransformerPipeline(transformers)
+}
+
+///
+
+func ResultTransformerFor(table string, cfg config.QuesmaConfiguration) plugins.ResultTransformer {
+
+	var transformers []plugins.ResultTransformer
+
+	for _, plugin := range registeredPlugins {
+		transformers = plugin.ApplyResultTransformers(table, cfg, transformers)
+	}
+
+	if len(transformers) == 0 {
+		return &plugins.NopResultTransformer{}
+	}
+
+	return plugins.ResultTransformerPipeline(transformers)
+}
+
+///
+
+func FieldCapsTransformerFor(table string, cfg config.QuesmaConfiguration) plugins.FieldCapsTransformer {
+
+	var transformers []plugins.FieldCapsTransformer
+
+	for _, plugin := range registeredPlugins {
+		transformers = plugin.ApplyFieldCapsTransformers(table, cfg, transformers)
+	}
+
+	if len(transformers) == 0 {
+		return &plugins.NopFieldCapsTransformer{}
+	}
+
+	return plugins.FieldCapsTransformerPipeline(transformers)
+}
+
+func TableColumNameFormatterFor(table string, cfg config.QuesmaConfiguration) (plugins.TableColumNameFormatter, error) {
+
+	var transformers []plugins.TableColumNameFormatter
+
+	for _, plugin := range registeredPlugins {
+		t := plugin.GetTableColumnFormatter(table, cfg)
+		if t != nil {
+			transformers = append(transformers, t)
+		}
+	}
+
+	if len(transformers) == 0 {
+		return nil, fmt.Errorf("No table column name formatter found.")
+	}
+
+	if len(transformers) > 1 {
+		return nil, fmt.Errorf("Multiple table column name formatters are not supported")
+	}
+
+	return transformers[0], nil
+}
+
+func IngestTransformerFor(table string, cfg config.QuesmaConfiguration) plugins.IngestTransformer {
+
+	var transformers []plugins.IngestTransformer
+
+	for _, plugin := range registeredPlugins {
+		transformers = plugin.ApplyIngestTransformers(table, cfg, transformers)
+	}
+
+	if len(transformers) == 0 {
+		return &plugins.NopIngestTransformer{}
+	}
+
+	return plugins.IngestTransformerPipeline(transformers)
+}

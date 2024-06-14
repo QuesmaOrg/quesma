@@ -2,6 +2,7 @@ package plugins
 
 import (
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/types"
 )
 
@@ -34,9 +35,9 @@ type TableColumNameFormatter interface {
 
 // Plugin provides implementations of transformers
 type Plugin interface {
-	ResultTransformer() ResultTransformer
-	FieldCapsTransformer() FieldCapsTransformer
-	QueryTransformer() QueryTransformer
-	IngestTransformer() IngestTransformer
-	TableColumNameFormatter() TableColumNameFormatter
+	ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, transformers []IngestTransformer) []IngestTransformer
+	ApplyFieldCapsTransformers(table string, cfg config.QuesmaConfiguration, transformers []FieldCapsTransformer) []FieldCapsTransformer
+	ApplyQueryTransformers(table string, cfg config.QuesmaConfiguration, transformers []QueryTransformer) []QueryTransformer
+	ApplyResultTransformers(table string, cfg config.QuesmaConfiguration, transformers []ResultTransformer) []ResultTransformer
+	GetTableColumnFormatter(table string, cfg config.QuesmaConfiguration) TableColumNameFormatter
 }
