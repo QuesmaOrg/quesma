@@ -34,8 +34,7 @@ func (c SelectCommand) Accept(v ExprVisitor) interface{} {
 }
 
 func (c SelectCommand) String() string {
-	// PRZEMYSLAW -  to be determined
-	// THIS should remove the ( and ) from the query because it is not nested here
+	// TODO - we might need to verify queries nested N-times (N>=3), perhaps this should strip the outermost braces
 	return AsString(c)
 }
 
