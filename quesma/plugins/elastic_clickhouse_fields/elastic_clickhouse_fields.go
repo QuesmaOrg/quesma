@@ -71,6 +71,16 @@ type exprColumnNameReplaceVisitor struct {
 	translate translateFunc
 }
 
+func (v *exprColumnNameReplaceVisitor) visitChildren(args []model.Expr) []model.Expr {
+	var newArgs []model.Expr
+	for _, arg := range args {
+		if arg != nil {
+			newArgs = append(newArgs, arg.Accept(v).(model.Expr))
+		}
+	}
+	return newArgs
+}
+
 func (v *exprColumnNameReplaceVisitor) VisitLiteral(e model.LiteralExpr) interface{} {
 	return model.NewLiteral(e.Value)
 }
@@ -83,23 +93,11 @@ func (v *exprColumnNameReplaceVisitor) VisitInfix(e model.InfixExpr) interface{}
 }
 
 func (v *exprColumnNameReplaceVisitor) VisitPrefixExpr(e model.PrefixExpr) interface{} {
-	var newArgs []model.Expr
-	for _, arg := range e.Args {
-		if arg != nil {
-			newArgs = append(newArgs, arg.Accept(v).(model.Expr))
-		}
-	}
-	return model.NewPrefixExpr(e.Op, newArgs)
+	return model.NewPrefixExpr(e.Op, v.visitChildren(e.Args))
 }
 
 func (v *exprColumnNameReplaceVisitor) VisitFunction(e model.FunctionExpr) interface{} {
-	var newArgs []model.Expr
-	for _, arg := range e.Args {
-		if arg != nil {
-			newArgs = append(newArgs, arg.Accept(v).(model.Expr))
-		}
-	}
-	return model.NewFunction(e.Name, newArgs...)
+	return model.NewFunction(e.Name, v.visitChildren(e.Args)...)
 }
 
 func (v *exprColumnNameReplaceVisitor) VisitColumnRef(e model.ColumnRef) interface{} {
@@ -119,30 +117,17 @@ func (v *exprColumnNameReplaceVisitor) VisitArrayAccess(e model.ArrayAccess) int
 }
 
 func (v *exprColumnNameReplaceVisitor) VisitMultiFunction(e model.MultiFunctionExpr) interface{} {
-	var newArgs []model.Expr
-	for _, arg := range e.Args {
-		if arg != nil {
-			newArgs = append(newArgs, arg.Accept(v).(model.Expr))
-		}
-	}
-	return model.MultiFunctionExpr{Name: e.Name, Args: newArgs}
+	return model.MultiFunctionExpr{Name: e.Name, Args: v.visitChildren(e.Args)}
 }
 
 func (v *exprColumnNameReplaceVisitor) VisitString(e model.StringExpr) interface{} { return e }
-func (v *exprColumnNameReplaceVisitor) VisitSQL(e model.SQL) interface{}           { return e }
 
 func (v *exprColumnNameReplaceVisitor) VisitTableRef(e model.TableRef) interface{} {
 	return e
 }
 
 func (v *exprColumnNameReplaceVisitor) VisitOrderByExpr(e model.OrderByExpr) interface{} {
-	var newArgs []model.Expr
-	for _, arg := range e.Exprs {
-		if arg != nil {
-			newArgs = append(newArgs, arg.Accept(v).(model.Expr))
-		}
-	}
-	return model.OrderByExpr{Exprs: newArgs, Direction: e.Direction}
+	return model.OrderByExpr{Exprs: v.visitChildren(e.Exprs), Direction: e.Direction}
 }
 
 func (v *exprColumnNameReplaceVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{} {
@@ -150,8 +135,16 @@ func (v *exprColumnNameReplaceVisitor) VisitDistinctExpr(e model.DistinctExpr) i
 }
 
 func (v *exprColumnNameReplaceVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{} {
-
 	return model.NewAliasedExpr(e.Expr.Accept(v).(model.Expr), e.Alias)
+}
+
+func (v *exprColumnNameReplaceVisitor) VisitWindowFunction(f model.WindowFunction) interface{} {
+	return model.WindowFunction{
+		Name:        f.Name,
+		Args:        v.visitChildren(f.Args),
+		PartitionBy: v.visitChildren(f.PartitionBy),
+		OrderBy:     f.OrderBy.Accept(v).(model.OrderByExpr),
+	}
 }
 
 func (v *exprColumnNameReplaceVisitor) VisitSelectCommand(query model.SelectCommand) interface{} {
@@ -169,9 +162,7 @@ func (v *exprColumnNameReplaceVisitor) VisitSelectCommand(query model.SelectComm
 	}
 
 	for i, order := range query.OrderBy {
-		for j := range order.Exprs {
-			query.OrderBy[i].Exprs[j] = order.Exprs[j].Accept(v).(model.Expr)
-		}
+		query.OrderBy[i] = order.Accept(v).(model.OrderByExpr)
 	}
 
 	return query
