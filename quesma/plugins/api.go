@@ -8,7 +8,7 @@ import (
 // Interfaces
 
 type ResultTransformer interface {
-	Transform(rows []model.QueryResultRow) ([]model.QueryResultRow, error)
+	Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error)
 }
 
 type FieldCapsTransformer interface {
