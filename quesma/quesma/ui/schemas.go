@@ -48,6 +48,15 @@ func (qmc *QuesmaManagementConsole) generateSchemas() []byte {
 		}
 	}
 
+	buffer.Html("\n</main>\n\n")
+
+	buffer.Html(`<div class="menu">`)
+	buffer.Html("\n<h2>Menu</h2>")
+
+	buffer.Html(`<form action="/">&nbsp;<input class="btn" type="submit" value="Back to dashboard" /></form>`)
+
+	buffer.Html("\n</div>")
+
 	buffer.Html("\n</body>")
 	buffer.Html("\n</html>")
 	return buffer.Bytes()
