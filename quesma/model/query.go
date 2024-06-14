@@ -2,9 +2,7 @@ package model
 
 import (
 	"context"
-	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -99,38 +97,21 @@ func (q *Query) IsChild(maybeParent *Query) bool {
 	return q.HasParentAggregation() && q.Parent == maybeParent.Name()
 }
 
-// TODO change whereClause type string -> some typed
 func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []Expr,
-	whereClause string, orderByField string, orderByDesc bool) SelectCommand {
-	/* used to be as string:
-	fromSelect := fmt.Sprintf(
-		"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s %s) AS %s FROM %s WHERE %s)",
-			fieldsAsString, fieldsAsString, orderField, asc/desc,
-			model.RowNumberColumnName, query.FromClause, b.whereBuilder.WhereClauseAsNewStringExpr(),
-	)
-	*/
-	var order string
+	whereClause Expr, orderByField string, orderByDesc bool) SelectCommand {
+	var orderByExpr OrderByExpr
 	if orderByField != "" {
 		if orderByDesc {
-			order = fmt.Sprintf("ORDER BY %s DESC", strconv.Quote(orderByField))
+			orderByExpr = NewOrderByExpr([]Expr{NewColumnRef(orderByField)}, DescOrder)
 		} else {
-			order = fmt.Sprintf("ORDER BY %s ASC", strconv.Quote(orderByField))
+			orderByExpr = NewOrderByExpr([]Expr{NewColumnRef(orderByField)}, AscOrder)
 		}
 	}
-	// TODO that SQL below is a hack I don't like and it won't work with visitors (e.g. for resolving aliases), but it's a start
-	// we should introduce a proper expression for window functions
-	var groupByStr []string
-	for _, groupByField := range groupByFields {
-		groupByStr = append(groupByStr, AsString(groupByField))
-	}
-	selectFields = append(selectFields,
-		SQL{Query: fmt.Sprintf("ROW_NUMBER() OVER (PARTITION BY %s %s ) AS %s", strings.Join(groupByStr, ", "), order, RowNumberColumnName)})
+	selectFields = append(selectFields, NewAliasedExpr(NewWindowFunction(
+		"ROW_NUMBER", nil, groupByFields, orderByExpr,
+	), RowNumberColumnName))
 
-	if whereClause == "" {
-		return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, nil, 0, 0, false)
-	} else {
-		return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, SQL{Query: whereClause}, 0, 0, false)
-	}
+	return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, whereClause, 0, 0, false)
 }
 
 // Aggregator is always initialized as "empty", so with SplitOverHowManyFields == 0, Keyed == false, Filters == false.

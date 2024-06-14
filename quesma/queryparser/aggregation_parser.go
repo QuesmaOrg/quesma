@@ -137,7 +137,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			)
 		*/
 		query.SelectCommand.FromClause = query.NewSelectExprWithRowNumber(
-			innerFieldsAsSelect, b.SelectCommand.GroupBy, b.whereBuilder.WhereClauseAsString(), "", true)
+			innerFieldsAsSelect, b.SelectCommand.GroupBy, b.whereBuilder.WhereClause, "", true)
 		query.SelectCommand.WhereClause = model.And([]model.Expr{
 			query.SelectCommand.WhereClause,
 			model.NewInfixExpr(
@@ -169,7 +169,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			innerFieldsAsSelect := make([]model.Expr, len(innerFields))
 			copy(innerFieldsAsSelect, innerFields)
 			query.SelectCommand.FromClause = query.NewSelectExprWithRowNumber(
-				innerFieldsAsSelect, b.Query.SelectCommand.GroupBy, b.whereBuilder.WhereClauseAsString(),
+				innerFieldsAsSelect, b.Query.SelectCommand.GroupBy, b.whereBuilder.WhereClause,
 				metricsAggr.SortBy, strings.ToLower(metricsAggr.Order) == "desc",
 			)
 			query.SelectCommand.WhereClause = model.And([]model.Expr{query.SelectCommand.WhereClause,
@@ -828,13 +828,13 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.Type = dateRangeParsed
 		for _, interval := range dateRangeParsed.Intervals {
 
-			currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, model.SQL{Query: interval.ToSQLSelectQuery(dateRangeParsed.FieldName)})
+			currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, interval.ToSQLSelectQuery(dateRangeParsed.FieldName))
 
 			if sqlSelect, selectNeeded := interval.BeginTimestampToSQL(); selectNeeded {
-				currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, model.SQL{Query: sqlSelect})
+				currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, sqlSelect)
 			}
 			if sqlSelect, selectNeeded := interval.EndTimestampToSQL(); selectNeeded {
-				currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, model.SQL{Query: sqlSelect})
+				currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, sqlSelect)
 			}
 		}
 
