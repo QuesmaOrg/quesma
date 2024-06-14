@@ -10,6 +10,8 @@ import (
 	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/plugins"
+	"mitmproxy/quesma/plugins/registry"
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/quesma/config"
@@ -72,8 +74,9 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, i
 		executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult](),
 		AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext](),
 		transformationPipeline: TransformationPipeline{
-			transformers: []Transformer{
-				&SchemaCheckPass{cfg: cfg.IndexConfig},
+			transformers: []plugins.QueryTransformer{
+				registry.DefaultPlugin.QueryTransformer(),
+				&SchemaCheckPass{cfg: cfg.IndexConfig}, // this can be a part of another plugin
 			},
 		}}
 }
@@ -253,7 +256,14 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
 					return
 				}
+
+				results, err = q.postProcessResults(table, results)
+				if err != nil {
+					doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
+				}
+
 				searchResponse := queryTranslator.MakeSearchResponse(queries, results)
+
 				doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
 			}()
 
@@ -634,6 +644,17 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 		}
 	}
 	return results
+}
+
+func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+
+	processor := registry.DefaultPlugin.ResultTransformer()
+
+	res, err := processor.Transform(results)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, Path string, IncomingQueryBody, QueryBodyTranslated, QueryTranslatedResults []byte, startTime time.Time) {

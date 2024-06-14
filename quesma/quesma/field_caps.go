@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/elasticsearch/elasticsearch_field_types"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/plugins/registry"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/util"
 	"slices"
@@ -202,6 +203,12 @@ func handleFieldCapsIndex(ctx context.Context, cfg config.QuesmaConfiguration, i
 
 	fieldCapsResponse := model.FieldCapsResponse{Fields: fields}
 	fieldCapsResponse.Indices = append(fieldCapsResponse.Indices, indexes...)
+
+	fieldCapsResponse, err := registry.DefaultPlugin.FieldCapsTransformer().Transform(fieldCapsResponse)
+	if err != nil {
+		return nil, err
+	}
+
 	return json.Marshal(fieldCapsResponse)
 }
 

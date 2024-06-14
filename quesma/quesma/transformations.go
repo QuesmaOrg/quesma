@@ -1,13 +1,12 @@
 package quesma
 
-import "mitmproxy/quesma/model"
-
-type Transformer interface {
-	Transform(query []*model.Query) ([]*model.Query, error)
-}
+import (
+	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/plugins"
+)
 
 type TransformationPipeline struct {
-	transformers []Transformer
+	transformers []plugins.QueryTransformer
 }
 
 func (o *TransformationPipeline) Transform(queries []*model.Query) ([]*model.Query, error) {

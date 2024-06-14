@@ -10,8 +10,8 @@ import (
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/index"
-	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/plugins/registry"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/types"
@@ -424,7 +424,10 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
-		preprocessedJson := preprocess(jsonValue, NestedSeparator)
+		preprocessedJson, err := registry.DefaultPlugin.IngestTransformer().Transform(jsonValue)
+		if err != nil {
+			return fmt.Errorf("error IngestTransformer: %v", err)
+		}
 		insertJson, err := lm.BuildInsertJson(tableName, preprocessedJson, config)
 		if err != nil {
 			return fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)
@@ -614,8 +617,4 @@ func NewChTableConfigTimestampStringAttr() *ChTableConfig {
 
 func (c *ChTableConfig) GetAttributes() []Attribute {
 	return c.attributes
-}
-
-func preprocess(data types.JSON, nestedSeparator string) types.JSON {
-	return jsonprocessor.FlattenMap(data, nestedSeparator)
 }
