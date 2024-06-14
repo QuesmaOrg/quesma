@@ -63,7 +63,7 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparse
 		Id:                     ctx.Value(tracing.RequestIdCtxKey).(string),
 		Path:                   path,
 		IncomingQueryBody:      reqBody,
-		QueryBodyTranslated:    []byte(selectQuery.String(ctx)),
+		QueryBodyTranslated:    []byte(selectQuery.SelectCommand.String()),
 		QueryTranslatedResults: result,
 		SecondaryTook:          time.Since(startTime),
 	})

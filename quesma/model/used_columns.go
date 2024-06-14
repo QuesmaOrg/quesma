@@ -93,3 +93,11 @@ func (v *usedColumns) VisitDistinctExpr(e DistinctExpr) interface{} {
 func (v *usedColumns) VisitTableRef(e TableRef) interface{} {
 	return make([]ColumnRef, 0)
 }
+
+func (v *usedColumns) VisitAliasedExpr(e AliasedExpr) interface{} {
+	res := e.Expr.Accept(v)
+	return res
+}
+func (v *usedColumns) VisitSelectCommand(c SelectCommand) interface{} {
+	return nil
+}

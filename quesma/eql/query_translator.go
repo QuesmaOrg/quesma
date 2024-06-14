@@ -47,7 +47,7 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(queries []*model.Quer
 			hits[i].Score = 1
 			hits[i].Version = 1
 		}
-		for _, fieldName := range query.OrderByFieldNames() {
+		for _, fieldName := range query.SelectCommand.OrderByFieldNames() {
 			if val, ok := hits[i].Fields[fieldName]; ok {
 				hits[i].Sort = append(hits[i].Sort, elasticsearch.FormatSortValue(val[0]))
 			} else {
@@ -89,7 +89,7 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) ([]*model.Qu
 		query = query_util.BuildHitsQuery(cw.Ctx, cw.Table.Name, "*", &simpleQuery, queryInfo.I2)
 		query.QueryInfoType = queryInfo.Typ
 		query.Highlighter = highlighter
-		query.OrderBy = simpleQuery.OrderBy
+		query.SelectCommand.OrderBy = simpleQuery.OrderBy
 		queries = append(queries, query)
 		return queries, canParse, nil
 	}

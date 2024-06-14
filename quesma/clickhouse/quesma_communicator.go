@@ -48,24 +48,18 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 
 	table.applyTableSchema(query)
 
-	rowToScan := make([]interface{}, len(query.Columns))
-	columns := make([]string, 0, len(query.Columns))
+	rowToScan := make([]interface{}, len(query.SelectCommand.Columns))
+	columns := make([]string, 0, len(query.SelectCommand.Columns))
 
-	for count, col := range query.Columns {
+	for count, col := range query.SelectCommand.Columns {
 		var colName string
 
-		switch col.Expression.(type) {
-
-		// this is a compensation for the fact we don't have columns named in the query
+		switch col := col.(type) {
 		case model.ColumnRef:
-			if col.Alias == "" {
-				colName = col.Expression.(model.ColumnRef).ColumnName
-			} else {
-				colName = col.Alias
-			}
-
-		default:
+			colName = col.ColumnName
+		case model.AliasedExpr:
 			colName = col.Alias
+		default:
 			if colName == "" {
 				colName = fmt.Sprintf("column_%d", count)
 			}
@@ -75,7 +69,7 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 
 	}
 
-	rows, err := executeQuery(ctx, lm, query.String(ctx), columns, rowToScan)
+	rows, err := executeQuery(ctx, lm, query.SelectCommand.String(), columns, rowToScan)
 
 	if err == nil {
 		for _, row := range rows {

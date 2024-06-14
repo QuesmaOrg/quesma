@@ -260,7 +260,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		} else {
 			queriesBody := ""
 			for _, query := range queries {
-				queriesBody += query.String(ctx) + "\n"
+				queriesBody += query.SelectCommand.String() + "\n"
 			}
 			responseBody = []byte(fmt.Sprintf("Invalid Queries: %s, err: %v", queriesBody, err))
 			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBody)
@@ -437,8 +437,8 @@ func (q *QueryRunner) addAsyncQueryContext(ctx context.Context, cancel context.C
 // This will be moved to the router.
 // TODO remove this and move to the router  https://github.com/QuesmaOrg/quesma/pull/260#discussion_r1627290579
 func (q *QueryRunner) isInternalKibanaQuery(query *model.Query) bool {
-	for _, column := range query.Columns {
-		if strings.Contains(column.SQL(), "data_stream.") {
+	for _, column := range query.SelectCommand.Columns {
+		if strings.Contains(model.AsString(column), "data_stream.") {
 			return true
 		}
 	}
@@ -552,7 +552,7 @@ func (q *QueryRunner) searchWorkerCommon(
 			continue
 		}
 
-		sql := query.String(ctx)
+		sql := query.SelectCommand.String()
 		logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
 		sqls += sql + "\n"
 
@@ -621,12 +621,12 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 	// this is not fully correct, but we keep it backward compatible
 	var results = make([]string, 0)
 	var allReferencedFields = make([]string, 0)
-	for _, col := range query.Columns {
-		for _, c := range model.GetUsedColumns(col.Expression) {
+	for _, col := range query.SelectCommand.Columns {
+		for _, c := range model.GetUsedColumns(col) {
 			allReferencedFields = append(allReferencedFields, c.ColumnName)
 		}
 	}
-	allReferencedFields = append(allReferencedFields, query.OrderByFieldNames()...)
+	allReferencedFields = append(allReferencedFields, query.SelectCommand.OrderByFieldNames()...)
 
 	for _, property := range allReferencedFields {
 		if property != "*" && !table.HasColumn(q.executionCtx, property) {

@@ -66,9 +66,6 @@ func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	case model.ListByField:
 		// queryInfo = (ListByField, fieldName, 0, LIMIT)
 		fullQuery = cw.BuildNRowsQuery(queryInfo.FieldName, simpleQuery, queryInfo.I2)
-		if len(fullQuery.Columns) > 0 {
-			fullQuery.Columns[0].Alias = queryInfo.FieldName
-		}
 	case model.ListAllFields:
 		fullQuery = cw.BuildNRowsQuery("*", simpleQuery, queryInfo.I2)
 	default:
@@ -76,7 +73,7 @@ func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	if fullQuery != nil {
 		fullQuery.QueryInfoType = queryInfo.Typ
 		// TODO: pass right arguments
-		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, fullQuery.OrderByFieldNames(), true, false, false)
+		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, fullQuery.SelectCommand.OrderByFieldNames(), true, false, false)
 		fullQuery.Type = &queryType
 		fullQuery.Highlighter = highlighter
 	}
@@ -105,9 +102,9 @@ func (cw *ClickhouseQueryTranslator) buildFacetsQueryIfNeeded(
 	}
 
 	query := cw.BuildFacetsQuery(queryInfo.FieldName, simpleQuery, queryInfo.Typ == model.FacetsNumeric)
-	if len(query.Columns) >= 2 {
-		query.Columns[0].Alias = "key"
-		query.Columns[1].Alias = "doc_count"
+	if len(query.SelectCommand.Columns) >= 2 {
+		query.SelectCommand.Columns[0] = model.NewAliasedExpr(query.SelectCommand.Columns[0], "key")
+		query.SelectCommand.Columns[1] = model.NewAliasedExpr(query.SelectCommand.Columns[1], "doc_count")
 	} else {
 		logger.WarnWithCtx(cw.Ctx).Msgf("facets query has < 2 columns. query: %+v", query)
 	}

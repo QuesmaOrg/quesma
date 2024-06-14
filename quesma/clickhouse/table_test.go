@@ -28,16 +28,12 @@ func TestApplyWildCard(t *testing.T) {
 		},
 	}
 
-	toSelectColumn := func(cols []string) (res []model.SelectColumn) {
+	toSelectColumn := func(cols []string) (res []model.Expr) {
 		for _, col := range cols {
 			if col == "*" {
-				res = append(res, model.SelectColumn{
-					Expression: model.NewWildcardExpr,
-				})
+				res = append(res, model.NewWildcardExpr)
 			} else {
-				res = append(res, model.SelectColumn{
-					Expression: model.NewColumnRef(col),
-				})
+				res = append(res, model.NewColumnRef(col))
 			}
 		}
 		return res
@@ -46,14 +42,16 @@ func TestApplyWildCard(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			query := &model.Query{
-				Columns: toSelectColumn(tt.input),
+				SelectCommand: model.SelectCommand{
+					Columns: toSelectColumn(tt.input),
+				},
 			}
 
 			table.applyTableSchema(query)
 
 			expectedColumns := toSelectColumn(tt.expected)
 
-			assert.Equal(t, expectedColumns, query.Columns)
+			assert.Equal(t, expectedColumns, query.SelectCommand.Columns)
 		})
 	}
 }

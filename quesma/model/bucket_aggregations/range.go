@@ -29,13 +29,13 @@ func (interval Interval) String() string {
 }
 
 // ToSQLSelectQuery returns count(...) where ... is a condition for the interval, just like we want it in SQL's SELECT
-func (interval Interval) ToSQLSelectQuery(col model.SelectColumn) model.SelectColumn {
+func (interval Interval) ToSQLSelectQuery(columnExpr model.Expr) model.Expr {
 	var sqlLeft, sqlRight, sql model.Expr
 	if !interval.IsOpeningBoundInfinite() {
-		sqlLeft = model.NewInfixExpr(col.Expression, ">=", model.NewLiteral(interval.Begin))
+		sqlLeft = model.NewInfixExpr(columnExpr, ">=", model.NewLiteral(interval.Begin))
 	}
 	if !interval.IsClosingBoundInfinite() {
-		sqlRight = model.NewInfixExpr(col.Expression, "<", model.NewLiteral(interval.End))
+		sqlRight = model.NewInfixExpr(columnExpr, "<", model.NewLiteral(interval.End))
 	}
 	switch {
 	case sqlLeft != nil && sqlRight != nil:
@@ -45,24 +45,19 @@ func (interval Interval) ToSQLSelectQuery(col model.SelectColumn) model.SelectCo
 	case sqlRight != nil:
 		sql = sqlRight
 	default:
-		return model.SelectColumn{Expression: model.NewFunction("count")}
+		return model.NewFunction("count")
 	}
 	// count(if(sql, 1, NULL))
-	return model.SelectColumn{Expression: model.NewFunction("count", model.NewFunction("if", sql, model.NewLiteral(1), model.NewStringExpr("NULL")))}
+	return model.NewFunction("count", model.NewFunction("if", sql, model.NewLiteral(1), model.NewStringExpr("NULL")))
 }
 
-func (interval Interval) ToWhereClause(field model.SelectColumn) model.Expr { // returns a condition for the interval, just like we want it in SQL's WHERE
-	fieldName := field.SQL() // TODO a) this should be improved b) unify SelectColumn and ColumnRef?
-	if unquoted, err := strconv.Unquote(fieldName); err == nil {
-		fieldName = unquoted
-	}
-
+func (interval Interval) ToWhereClause(field model.Expr) model.Expr { // returns a condition for the interval, just like we want it in SQL's WHERE
 	var sqlLeft, sqlRight model.Expr
 	if !interval.IsOpeningBoundInfinite() {
-		sqlLeft = model.NewInfixExpr(model.NewColumnRef(fieldName), ">=", model.NewLiteral(strconv.FormatFloat(interval.Begin, 'f', -1, 64)))
+		sqlLeft = model.NewInfixExpr(field, ">=", model.NewLiteral(strconv.FormatFloat(interval.Begin, 'f', -1, 64)))
 	}
 	if !interval.IsClosingBoundInfinite() {
-		sqlRight = model.NewInfixExpr(model.NewColumnRef(fieldName), "<", model.NewLiteral(strconv.FormatFloat(interval.End, 'f', -1, 64)))
+		sqlRight = model.NewInfixExpr(field, "<", model.NewLiteral(strconv.FormatFloat(interval.End, 'f', -1, 64)))
 	}
 	switch {
 	case sqlLeft != nil && sqlRight != nil:
@@ -72,7 +67,7 @@ func (interval Interval) ToWhereClause(field model.SelectColumn) model.Expr { //
 	case sqlRight != nil:
 		return sqlRight
 	default:
-		return model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
+		return model.NewInfixExpr(field, "IS", model.NewLiteral("NOT NULL"))
 	}
 }
 

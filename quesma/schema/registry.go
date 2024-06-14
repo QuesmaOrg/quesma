@@ -2,7 +2,6 @@ package schema
 
 import (
 	"fmt"
-	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
@@ -16,12 +15,12 @@ type (
 		Start()
 	}
 	schemaRegistry struct {
-		started               atomic.Bool
-		schemas               *concurrent.Map[TableName, Schema]
-		configuration         config.QuesmaConfiguration
-		chTableDiscovery      clickhouse.TableDiscovery
-		dataSourceTypeAdapter TypeAdapter
-		connectorTypeAdapter  TypeAdapter
+		started                 atomic.Bool
+		schemas                 *concurrent.Map[TableName, Schema]
+		configuration           config.QuesmaConfiguration
+		dataSourceTableProvider TableProvider
+		dataSourceTypeAdapter   TypeAdapter
+		connectorTypeAdapter    TypeAdapter
 	}
 	TypeAdapter interface {
 		Convert(string) (Type, bool)
@@ -73,16 +72,16 @@ func (s *schemaRegistry) Load() error {
 		return fmt.Errorf("schema registry not started")
 	}
 	// refreshed periodically by LogManager
-	definitions := s.chTableDiscovery.TableDefinitions()
+	definitions := s.dataSourceTableProvider.TableDefinitions()
 	schemas := s.schemas.Snapshot()
-	definitions.Range(func(indexName string, value *clickhouse.Table) bool {
+	for indexName, value := range definitions {
 		logger.Debug().Msgf("loading schema for table %s", indexName)
 		fields := make(map[FieldName]Field)
 		aliases := make(map[FieldName]FieldName)
 		if schema, found := schemas[TableName(indexName)]; found {
 			fields = schema.Fields
 		}
-		for _, col := range value.Cols {
+		for _, col := range value.Columns {
 			indexConfig := s.configuration.IndexConfig[indexName]
 
 			// TODO replace with dedicated schema config
@@ -119,7 +118,7 @@ func (s *schemaRegistry) Load() error {
 			}
 
 			if _, exists := fields[FieldName(col.Name)]; !exists {
-				if quesmaType, found := s.dataSourceTypeAdapter.Convert(col.Type.String()); found {
+				if quesmaType, found := s.dataSourceTypeAdapter.Convert(col.Type); found {
 					fields[FieldName(col.Name)] = Field{
 						Name: FieldName(col.Name),
 						Type: quesmaType,
@@ -152,8 +151,7 @@ func (s *schemaRegistry) Load() error {
 		}
 
 		s.schemas.Store(TableName(indexName), Schema{Fields: fields, Aliases: aliases})
-		return true
-	})
+	}
 	for name, schema := range s.schemas.Snapshot() {
 		logger.Debug().Msgf("schema: %s", name)
 		for fieldName, field := range schema.Fields {
@@ -172,13 +170,13 @@ func (s *schemaRegistry) FindSchema(name TableName) (Schema, bool) {
 	return schema, found
 }
 
-func NewSchemaRegistry(chTableDiscovery clickhouse.TableDiscovery, configuration config.QuesmaConfiguration, dataSourceTypeAdapter, connectorTypeAdapter TypeAdapter) Registry {
+func NewSchemaRegistry(tableProvider TableProvider, configuration config.QuesmaConfiguration, dataSourceTypeAdapter, connectorTypeAdapter TypeAdapter) Registry {
 	return &schemaRegistry{
-		schemas:               concurrent.NewMap[TableName, Schema](),
-		started:               atomic.Bool{},
-		configuration:         configuration,
-		chTableDiscovery:      chTableDiscovery,
-		dataSourceTypeAdapter: dataSourceTypeAdapter,
-		connectorTypeAdapter:  connectorTypeAdapter,
+		schemas:                 concurrent.NewMap[TableName, Schema](),
+		started:                 atomic.Bool{},
+		configuration:           configuration,
+		dataSourceTableProvider: tableProvider,
+		dataSourceTypeAdapter:   dataSourceTypeAdapter,
+		connectorTypeAdapter:    connectorTypeAdapter,
 	}
 }
