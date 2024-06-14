@@ -226,6 +226,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 		}
 
+		for i, q := range queries {
+			logger.Info().Msgf("PRZEMYSLAW APPLIES ALIASES")
+			queries[i].SelectCommand = model.ApplyAliases(q.SelectCommand).(model.SelectCommand)
+		}
+
 		if canParse {
 			if len(queries) > 0 && query_util.IsNonAggregationQuery(queries[0]) {
 				if properties := q.findNonexistingProperties(queries[0], table); len(properties) > 0 {
