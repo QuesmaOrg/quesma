@@ -1996,7 +1996,7 @@ var AggregationTests = []AggregationTestCase{
 		[]string{
 			`SELECT toInt64(toUnixTimestamp64Milli("order_date") / 43200000), maxOrNull("order_date") AS "windowed_order_date", ` +
 				`maxOrNull("order_date") AS "windowed_order_date" FROM ` +
-				`(SELECT "order_date" , "order_date" , ROW_NUMBER() OVER ` +
+				`(SELECT "order_date", "order_date", ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
 				`ORDER BY "order_date" ASC ) AS row_number FROM ` + QuotedTableName + " " +
 				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
@@ -2007,7 +2007,7 @@ var AggregationTests = []AggregationTestCase{
 				`ORDER BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("order_date") / 43200000), maxOrNull("taxful_total_price") AS "windowed_taxful_total_price", ` +
 				`maxOrNull("order_date") AS "windowed_order_date" FROM ` +
-				`(SELECT "taxful_total_price" , "order_date" , ROW_NUMBER() OVER ` +
+				`(SELECT "taxful_total_price", "order_date", ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
 				`ORDER BY "order_date" ASC ) AS row_number FROM ` + QuotedTableName + " " +
 				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
@@ -5411,7 +5411,7 @@ var AggregationTests = []AggregationTestCase{
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000), ` +
 				`minOrNull("message") AS "windowed_message", ` +
 				`minOrNull("order_date") AS "windowed_order_date" ` +
-				`FROM (SELECT "message" , "order_date" , ROW_NUMBER() OVER ` +
+				`FROM (SELECT "message", "order_date", ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) ` +
 				`ORDER BY "order_date" DESC ) ` +
 				`AS row_number ` +

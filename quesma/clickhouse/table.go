@@ -74,12 +74,12 @@ func (t *Table) createTableOurFieldsString() []string {
 // we should rely on metadata from clickhouse
 // And we shouldn't use '*'. All columns should be explicitly defined.
 func (t *Table) applyTableSchema(query *model.Query) {
-	var newColumns []model.SelectColumn
+	var newColumns []model.Expr
 	var hasWildcard bool
 
-	for _, selectColumn := range query.Columns {
+	for _, selectColumn := range query.SelectCommand.Columns {
 
-		if selectColumn.Expression == model.NewWildcardExpr {
+		if selectColumn == model.NewWildcardExpr {
 			hasWildcard = true
 		} else {
 			newColumns = append(newColumns, selectColumn)
@@ -95,42 +95,38 @@ func (t *Table) applyTableSchema(query *model.Query) {
 		sort.Strings(cols)
 
 		for _, col := range cols {
-			newColumns = append(newColumns, model.SelectColumn{Expression: model.NewColumnRef(col)})
+			newColumns = append(newColumns, model.NewColumnRef(col))
 		}
 	}
 
-	query.Columns = newColumns
+	query.SelectCommand.Columns = newColumns
 }
 
 func (t *Table) extractColumns(query *model.Query, addNonSchemaFields bool) ([]string, error) {
 
-	N := len(query.Columns)
-	if query.IsWildcard() {
+	N := len(query.SelectCommand.Columns)
+	if query.SelectCommand.IsWildcard() {
 		N = len(t.Cols)
 	}
 	cols := make([]string, 0, N)
-	if query.IsWildcard() {
+	if query.SelectCommand.IsWildcard() {
 		for _, col := range t.Cols {
 			cols = append(cols, col.Name)
 		}
 	} else {
-		for _, selectColumn := range query.Columns {
-
-			switch selectColumn.Expression.(type) {
-
+		for _, selectColumn := range query.SelectCommand.Columns {
+			switch selectCol := selectColumn.(type) {
 			case model.ColumnRef:
-				colName := selectColumn.Expression.(model.ColumnRef).ColumnName
+				colName := selectCol.ColumnName
 				_, ok := t.Cols[colName]
 				if !ok {
-					return nil, fmt.Errorf("column %s not found in table %s", selectColumn, t.Name)
+					return nil, fmt.Errorf("column %s not found in table %s", selectCol, t.Name)
 				}
 
 				cols = append(cols, colName)
-
 			default:
-				cols = append(cols, selectColumn.Alias)
+				cols = append(cols, model.AsString(selectCol))
 			}
-
 		}
 	}
 	return cols, nil

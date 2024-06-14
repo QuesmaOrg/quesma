@@ -1,7 +1,6 @@
 package quesma
 
 import (
-	"context"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
@@ -120,6 +119,8 @@ func (v *WhereVisitor) VisitSQL(e model.SQL) interface{}                        
 func (v *WhereVisitor) VisitOrderByExpr(e model.OrderByExpr) interface{}         { return e }
 func (v *WhereVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{}       { return e }
 func (v *WhereVisitor) VisitTableRef(e model.TableRef) interface{}               { return e }
+func (v *WhereVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{}         { return e }
+func (v *WhereVisitor) VisitSelectCommand(e model.SelectCommand) interface{}     { return e }
 
 type SchemaCheckPass struct {
 	cfg map[string]config.IndexConfiguration
@@ -144,15 +145,15 @@ func getFromTable(fromTable string) string {
 // into
 // SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(lhs,'String'),rhs)
 func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Query, error) {
-	if query.WhereClause == nil {
+	if query.SelectCommand.WhereClause == nil {
 		return query, nil
 	}
 	fromTable := getFromTable(query.TableName)
 	whereVisitor := &WhereVisitor{tableName: fromTable, cfg: s.cfg}
 
-	transformedWhereClause := query.WhereClause.Accept(whereVisitor)
+	transformedWhereClause := query.SelectCommand.WhereClause.Accept(whereVisitor)
 
-	query.WhereClause = transformedWhereClause.(model.Expr)
+	query.SelectCommand.WhereClause = transformedWhereClause.(model.Expr)
 
 	return query, nil
 }
@@ -160,11 +161,11 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 	for k, query := range queries {
 		var err error
-		inputQuery := query.String(context.Background())
+		inputQuery := query.SelectCommand.String()
 		query, err = s.applyIpTransformations(query)
-		if query.String(context.Background()) != inputQuery {
+		if query.SelectCommand.String() != inputQuery {
 			logger.Info().Msgf("IpTransformation triggered, input query: %s", inputQuery)
-			logger.Info().Msgf("IpTransformation triggered, output query: %s", query.String(context.Background()))
+			logger.Info().Msgf("IpTransformation triggered, output query: %s", query.SelectCommand.String())
 		}
 		if err != nil {
 			return nil, err

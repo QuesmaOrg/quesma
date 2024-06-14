@@ -62,11 +62,11 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			query := cw.BuildNRowsQuery("*", simpleQuery, size)
 
 			for _, wantedSQL := range tt.WantedSql {
-				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
+				assert.Contains(t, query.SelectCommand.String(), wantedSQL, "query contains wanted sql")
 			}
 			assert.True(t, query.CanParse, "can parse")
-			assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), query.FromClause)
-			assert.Equal(t, []model.SelectColumn{{Expression: model.NewWildcardExpr}}, query.Columns)
+			assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), query.SelectCommand.FromClause)
+			assert.Equal(t, []model.Expr{model.NewWildcardExpr}, query.SelectCommand.Columns)
 		})
 	}
 }
@@ -98,11 +98,11 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 
 			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
 			for _, wantedSQL := range tt.WantedSql {
-				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
+				assert.Contains(t, query.SelectCommand.String(), wantedSQL, "query contains wanted sql")
 			}
 			assert.True(t, query.CanParse, "can parse")
-			assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), query.FromClause)
-			assert.Equal(t, []model.SelectColumn{{Expression: model.NewWildcardExpr}}, query.Columns)
+			assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), query.SelectCommand.FromClause)
+			assert.Equal(t, []model.Expr{model.NewWildcardExpr}, query.SelectCommand.Columns)
 		})
 	}
 }
@@ -133,11 +133,11 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
 
 			for _, wantedSQL := range tt.WantedSql {
-				assert.Contains(t, query.String(context.Background()), wantedSQL, "query contains wanted sql")
+				assert.Contains(t, query.SelectCommand.String(), wantedSQL, "query contains wanted sql")
 			}
 			assert.True(t, query.CanParse, "can parse")
-			assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), query.FromClause)
-			assert.Equal(t, []model.SelectColumn{{Expression: model.NewWildcardExpr}}, query.Columns)
+			assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), query.SelectCommand.FromClause)
+			assert.Equal(t, []model.Expr{model.NewWildcardExpr}, query.SelectCommand.Columns)
 		})
 	}
 }
