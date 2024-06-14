@@ -37,7 +37,7 @@ func (c *healthCheckStatusCache) check(updateFunc func() health.Status) health.S
 
 func newHealthCheckStatusCache() healthCheckStatusCache {
 	return healthCheckStatusCache{
-		lastStatus: health.Status{"grey", "N/A", "Have not run yet"},
+		lastStatus: health.NewStatus("grey", "N/A", "Have not run yet"),
 		scheduled:  false,
 		lastRun:    time.Unix(0, 0),
 	}
@@ -45,24 +45,24 @@ func newHealthCheckStatusCache() healthCheckStatusCache {
 
 func (qmc *QuesmaManagementConsole) checkClickhouseHealth() health.Status {
 	if !qmc.cfg.WritesToClickhouse() && !qmc.cfg.ReadsFromClickhouse() {
-		return health.Status{"grey", "N/A (not writing)", ""}
+		return health.NewStatus("grey", "N/A (not writing)", "")
 	}
 
 	return qmc.clickhouseStatusCache.check(func() health.Status {
 		err := qmc.logManager.Ping()
 		if err != nil {
 			endUserError := end_user_errors.GuessClickhouseErrorType(err)
-			return health.Status{"red", "Ping failed", endUserError.Reason()}
+			return health.NewStatus("red", "Ping failed", endUserError.Reason())
 
 		}
-		return health.Status{"green", "Healthy", ""}
+		return health.NewStatus("green", "Healthy", "")
 	})
 }
 
 func (qmc *QuesmaManagementConsole) checkElasticsearch() health.Status {
 
 	if !qmc.cfg.WritesToElasticsearch() && !qmc.cfg.ReadsFromElasticsearch() {
-		return health.Status{"grey", "N/A (not writing)", ""}
+		return health.NewStatus("grey", "N/A (not writing)", "")
 	}
 
 	healthCheck := health.NewElasticHealthChecker(qmc.cfg)
@@ -74,9 +74,9 @@ func (qmc *QuesmaManagementConsole) checkKibana() health.Status {
 	statA := qmc.requestsStore.GetRequestsStats(RequestStatisticKibana2Clickhouse)
 	statB := qmc.requestsStore.GetRequestsStats(RequestStatisticKibana2Elasticsearch)
 	if statA.RatePerMinute > 0 || statB.RatePerMinute > 0 {
-		return health.Status{"green", "Healthy", "We see requests from Kibana"}
+		return health.NewStatus("green", "Healthy", "We see requests from Kibana")
 	} else {
-		return health.Status{"grey", "N/A", "No requests from Kibana"}
+		return health.NewStatus("grey", "N/A", "No requests from Kibana")
 	}
 }
 
@@ -84,8 +84,8 @@ func (qmc *QuesmaManagementConsole) checkIngest() health.Status {
 	statA := qmc.requestsStore.GetRequestsStats(RequestStatisticIngest2Clickhouse)
 	statB := qmc.requestsStore.GetRequestsStats(RequestStatisticIngest2Elasticsearch)
 	if statA.RatePerMinute > 0 || statB.RatePerMinute > 0 {
-		return health.Status{"green", "Healthy", "We see ingest traffic"}
+		return health.NewStatus("green", "Healthy", "We see ingest traffic")
 	} else {
-		return health.Status{"grey", "N/A", "No ingest traffic"}
+		return health.NewStatus("grey", "N/A", "No ingest traffic")
 	}
 }

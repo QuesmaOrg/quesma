@@ -62,30 +62,30 @@ func (c *ElasticHealthChecker) CheckHealth() Status {
 
 	resp, err := http.Get(c.cfg.Elasticsearch.Url.String() + elasticsearchHealthPath)
 	if err != nil {
-		return Status{"red", "Ping failed", err.Error()}
+		return NewStatus("red", "Ping failed", err.Error())
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return Status{"red",
-			fmt.Sprintf("Can't read '%s' response", elasticsearchHealthPath), err.Error()}
+		return NewStatus("red",
+			fmt.Sprintf("Can't read '%s' response", elasticsearchHealthPath), err.Error())
 	}
 	var parsed map[string]interface{}
 	err = json.Unmarshal(body, &parsed)
 	if err != nil {
-		return Status{"red",
-			fmt.Sprintf("Can't parse json '%s' response", elasticsearchHealthPath), err.Error() + " " + string(body)}
+		return NewStatus("red",
+			fmt.Sprintf("Can't parse json '%s' response", elasticsearchHealthPath), err.Error()+" "+string(body))
 	}
 	if parsed["status"] == "red" {
 		message := "Cluster status is red"
 		if isFull, addMsg := c.checkIfElasticsearchDiskIsFull(); isFull {
 			message += ", " + addMsg
 		}
-		return Status{"red", message, string(body)}
+		return NewStatus("red", message, string(body))
 	}
 	if resp.StatusCode == 200 {
-		return Status{"green", "Healthy", ""}
+		return NewStatus("green", "Healthy", "")
 	} else {
-		return Status{"red", "Failed", resp.Status}
+		return NewStatus("red", "Failed", resp.Status)
 	}
 }
