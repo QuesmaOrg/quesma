@@ -12,7 +12,9 @@ LOG_DIR = "/var/mitmproxy/requests/"
 
 class Writer:
     def __init__(self) -> None:
-        self.w = io.FlowWriter()
+        filename = os.path.join(LOG_DIR, "requests.http")
+        self.f: BinaryIO = open(filename, "wb")
+        self.w = io.FlowWriter(self.f)
         self.req_nr = 0
         self.lock = Lock() # only for self.req_nr
         # clean requests on (re)start
@@ -21,6 +23,9 @@ class Writer:
 
     def response(self, flow: http.HTTPFlow) -> None:
         self.w.add(flow)
+
+    def done(self):
+        self.f.close()
 
 
 writer = Writer()
