@@ -108,11 +108,6 @@ func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []
 			orderByExpr = NewOrderByExpr([]Expr{NewColumnRef(orderByField)}, AscOrder)
 		}
 	}
-
-	var groupByStr []string
-	for _, groupByField := range groupByFields {
-		groupByStr = append(groupByStr, AsString(groupByField))
-	}
 	selectFields = append(selectFields, NewAliasedExpr(NewWindowFunction(
 		"ROW_NUMBER", nil, groupByFields, orderByExpr,
 	), RowNumberColumnName))
