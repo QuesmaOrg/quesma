@@ -45,10 +45,6 @@ func (v *usedColumns) VisitLiteral(l LiteralExpr) interface{} {
 	return make([]ColumnRef, 0)
 }
 
-func (v *usedColumns) VisitSQL(s SQL) interface{} {
-	return make([]ColumnRef, 0)
-}
-
 func (v *usedColumns) VisitMultiFunction(f MultiFunctionExpr) interface{} {
 	res := make([]ColumnRef, 0)
 	for _, arg := range f.Args {
@@ -100,4 +96,18 @@ func (v *usedColumns) VisitAliasedExpr(e AliasedExpr) interface{} {
 }
 func (v *usedColumns) VisitSelectCommand(c SelectCommand) interface{} {
 	return nil
+}
+
+func (v *usedColumns) VisitWindowFunction(f WindowFunction) interface{} {
+	res := make([]ColumnRef, 0)
+	for _, expr := range f.Args {
+		cur := expr.Accept(v)
+		res = append(res, cur.([]ColumnRef)...)
+	}
+	res = append(res, f.OrderBy.Accept(v).([]ColumnRef)...)
+	for _, expr := range f.PartitionBy {
+		cur := expr.Accept(v)
+		res = append(res, cur.([]ColumnRef)...)
+	}
+	return res
 }

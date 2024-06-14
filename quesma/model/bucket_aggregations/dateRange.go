@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
-	"strconv"
 	"time"
 )
 
@@ -28,36 +27,43 @@ func NewDateTimeInterval(begin, end string) DateTimeInterval {
 
 // ToSQLSelectQuery returns count(...) where ... is a condition for the interval, just like we want it in SQL's SELECT
 // from elastic docs: Note that this aggregation includes the from value and excludes the to value for each range.
-func (interval DateTimeInterval) ToSQLSelectQuery(fieldName string) string {
+func (interval DateTimeInterval) ToSQLSelectQuery(fieldName string) model.Expr {
 	if interval.Begin != UnboundedInterval && interval.End != UnboundedInterval {
-		return fmt.Sprintf("count(if(%s >= %s AND %s < %s, 1, NULL))",
-			strconv.Quote(fieldName), interval.Begin, strconv.Quote(fieldName), interval.End)
+		return model.NewCountFunc(model.NewFunction("if",
+			model.NewInfixExpr(
+				model.NewInfixExpr(model.NewColumnRef(fieldName), " >= ", model.NewStringExpr(interval.Begin)),
+				"AND",
+				model.NewInfixExpr(model.NewColumnRef(fieldName), " < ", model.NewStringExpr(interval.End)),
+			),
+			model.NewLiteral(1), model.NewLiteral("NULL")))
 	} else if interval.Begin != UnboundedInterval {
-		return fmt.Sprintf("count(if(%s >= %s, 1, NULL))", strconv.Quote(fieldName), interval.Begin)
+		return model.NewCountFunc(model.NewFunction("if",
+			model.NewInfixExpr(model.NewColumnRef(fieldName), " >= ", model.NewStringExpr(interval.Begin)), model.NewLiteral(1), model.NewLiteral("NULL")))
 	} else if interval.End != UnboundedInterval {
-		return fmt.Sprintf("count(if(%s < %s, 1, NULL))", strconv.Quote(fieldName), interval.End)
+		return model.NewCountFunc(model.NewFunction("if",
+			model.NewInfixExpr(model.NewColumnRef(fieldName), " < ", model.NewStringExpr(interval.End)), model.NewLiteral(1), model.NewLiteral("NULL")))
 	}
-	return "count()"
+	return model.NewCountFunc()
 }
 
 // BeginTimestampToSQL returns SQL select for the begin timestamp, and a boolean indicating if the select is needed
 // We query Clickhouse for this timestamp, as it's defined in Clickhouse's format, e.g. now()-1d.
 // It's only 1 more field to our SELECT query, so it shouldn't be a performance issue.
-func (interval DateTimeInterval) BeginTimestampToSQL() (sqlSelect string, selectNeeded bool) {
+func (interval DateTimeInterval) BeginTimestampToSQL() (sqlSelect model.Expr, selectNeeded bool) {
 	if interval.Begin != UnboundedInterval {
-		return "toInt64(toUnixTimestamp(" + interval.Begin + "))", true
+		return model.NewFunction("toInt64", model.NewFunction("toUnixTimestamp", model.NewStringExpr(interval.Begin))), true
 	}
-	return "", false
+	return nil, false
 }
 
 // EndTimestampToSQL returns SQL select for the end timestamp, and a boolean indicating if the select is needed
 // We query Clickhouse for this timestamp, as it's defined in Clickhouse's format, e.g. now()-1d.
 // It's only 1 more field to our SELECT query, so it isn't a performance issue.
-func (interval DateTimeInterval) EndTimestampToSQL() (sqlSelect string, selectNeeded bool) {
+func (interval DateTimeInterval) EndTimestampToSQL() (sqlSelect model.Expr, selectNeeded bool) {
 	if interval.End != UnboundedInterval {
-		return "toInt64(toUnixTimestamp(" + interval.End + "))", true
+		return model.NewFunction("toInt64", model.NewFunction("toUnixTimestamp", model.NewStringExpr(interval.End))), true
 	}
-	return "", false
+	return nil, false
 }
 
 type DateRange struct {

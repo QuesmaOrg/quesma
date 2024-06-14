@@ -5227,8 +5227,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol(`count(if("bytes">=0 AND "bytes"<1000, 1, NULL))`, 168),
-					model.NewQueryResultCol(`count(if("bytes">=1000 AND "bytes"<2000, 1, NULL))`, 94),
+					model.NewQueryResultCol(`count(if("bytes">=0 AND "bytes"<1000,1,NULL))`, 168),
+					model.NewQueryResultCol(`count(if("bytes">=1000 AND "bytes"<2000,1,NULL))`, 94),
 					model.NewQueryResultCol(`count()`, 1865),
 				}},
 			},
@@ -5278,8 +5278,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`WHERE "bytes">=1000 AND "bytes"<2000 ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000`,
-			`SELECT count(if("bytes">=0 AND "bytes"<1000, 1, NULL)), ` +
-				`count(if("bytes">=1000 AND "bytes"<2000, 1, NULL)), ` +
+			`SELECT count(if("bytes">=0 AND "bytes"<1000,1,NULL)), ` +
+				`count(if("bytes">=1000 AND "bytes"<2000,1,NULL)), ` +
 				`count() ` +
 				`FROM ` + testdata.QuotedTableName,
 		},
