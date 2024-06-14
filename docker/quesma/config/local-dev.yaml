@@ -41,6 +41,9 @@ indexes:
           type: "text"
         severity:
           type: "keyword"
+        severity_alias:
+          type: "alias"
+          aliased-field: "severity"
     fullTextFields: [ "message", "host.name" ]
   device_logs:
     enabled: true

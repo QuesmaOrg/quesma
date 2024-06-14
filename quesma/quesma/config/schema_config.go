@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const TypeAlias = "alias"
+
 type (
 	// not yet in use
 	SchemaConfiguration struct {

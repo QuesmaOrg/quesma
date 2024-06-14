@@ -38,11 +38,11 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				"message":    {Name: "message", Type: TypeText},
 				"event_date": {Name: "event_date", Type: TypeTimestamp},
 				"count":      {Name: "count", Type: TypeLong}},
-			},
+				Aliases: map[FieldName]FieldName{}},
 			exists: true,
 		},
 		{
-			name: "schema inferred, with type mappings",
+			name: "schema inferred, with type mappings (deprecated)",
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
 					"some_table": {Enabled: true, TypeMappings: map[string]string{"message": "keyword"}},
@@ -60,7 +60,62 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				"message":    {Name: "message", Type: TypeKeyword},
 				"event_date": {Name: "event_date", Type: TypeTimestamp},
 				"count":      {Name: "count", Type: TypeLong}},
+				Aliases: map[FieldName]FieldName{}},
+			exists: true,
+		},
+		{
+			name: "schema inferred, with mapping overrides",
+			cfg: config.QuesmaConfiguration{
+				IndexConfig: map[string]config.IndexConfiguration{
+					"some_table": {Enabled: true, SchemaConfiguration: &config.SchemaConfiguration{
+						Fields: map[config.FieldName]config.FieldConfiguration{
+							"message": {Name: "message", Type: "keyword"},
+						},
+					}},
+				},
 			},
+			tableDiscovery: fixedTableProvider{tables: map[string]Table{
+				"some_table": {Columns: map[string]Column{
+					"message":    {Name: "message", Type: "LowCardinality(String)"},
+					"event_date": {Name: "event_date", Type: "DateTime64"},
+					"count":      {Name: "count", Type: "Int64"},
+				},
+				}}},
+			tableName: "some_table",
+			want: Schema{Fields: map[FieldName]Field{
+				"message":    {Name: "message", Type: TypeKeyword},
+				"event_date": {Name: "event_date", Type: TypeTimestamp},
+				"count":      {Name: "count", Type: TypeLong}},
+				Aliases: map[FieldName]FieldName{}},
+			exists: true,
+		},
+		{
+			name: "schema inferred, with aliases",
+			cfg: config.QuesmaConfiguration{
+				IndexConfig: map[string]config.IndexConfiguration{
+					"some_table": {Enabled: true, SchemaConfiguration: &config.SchemaConfiguration{
+						Fields: map[config.FieldName]config.FieldConfiguration{
+							"message":       {Name: "message", Type: "keyword"},
+							"message_alias": {Name: "message_alias", Type: "alias", AliasedField: "message"},
+						},
+					}},
+				},
+			},
+			tableDiscovery: fixedTableProvider{tables: map[string]Table{
+				"some_table": {Columns: map[string]Column{
+					"message":    {Name: "message", Type: "LowCardinality(String)"},
+					"event_date": {Name: "event_date", Type: "DateTime64"},
+					"count":      {Name: "count", Type: "Int64"},
+				}},
+			}},
+			tableName: "some_table",
+			want: Schema{Fields: map[FieldName]Field{
+				"message":    {Name: "message", Type: TypeKeyword},
+				"event_date": {Name: "event_date", Type: TypeTimestamp},
+				"count":      {Name: "count", Type: TypeLong}},
+				Aliases: map[FieldName]FieldName{
+					"message_alias": "message",
+				}},
 			exists: true,
 		},
 		{
