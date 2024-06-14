@@ -300,14 +300,14 @@ var aggregationTests = []struct {
 				`GROUP BY "OriginAirportID", "DestAirportID" ORDER BY "OriginAirportID", "DestAirportID"`,
 			`SELECT "OriginAirportID", "DestAirportID", "DestLocation" ` +
 				`FROM (SELECT "DestLocation", ROW_NUMBER() ` +
-				`OVER (PARTITION BY "OriginAirportID", "DestAirportID"  ) AS row_number ` +
+				`OVER (PARTITION BY "OriginAirportID", "DestAirportID") AS "row_number" ` +
 				`FROM "logs-generic-default") ` +
 				`WHERE "row_number"<=1 ` +
 				`GROUP BY "OriginAirportID", "DestAirportID" ` +
 				`ORDER BY "OriginAirportID", "DestAirportID"`,
 			`SELECT "OriginAirportID", "OriginLocation", "Origin" ` +
 				`FROM (SELECT "OriginLocation", "Origin", ROW_NUMBER() ` +
-				`OVER (PARTITION BY "OriginAirportID"  ) AS row_number ` +
+				`OVER (PARTITION BY "OriginAirportID") AS "row_number" ` +
 				`FROM "logs-generic-default") ` +
 				`WHERE "row_number"<=1 ` +
 				`GROUP BY "OriginAirportID" ` +
@@ -471,7 +471,7 @@ var aggregationTests = []struct {
 				`maxOrNull("order_date") AS "windowed_order_date", maxOrNull("order_date") AS "windowed_order_date" ` +
 				`FROM (SELECT "order_date", "order_date", ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
-				`ORDER BY "order_date" ASC ) AS row_number ` +
+				`ORDER BY "order_date" ASC) AS "row_number" ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`WHERE "taxful_total_price" > '250') ` +
 				`WHERE ("taxful_total_price" > '250' AND "row_number"<=10) ` +
@@ -481,7 +481,7 @@ var aggregationTests = []struct {
 				`maxOrNull("taxful_total_price") AS "windowed_taxful_total_price", maxOrNull("order_date") AS "windowed_order_date" ` +
 				`FROM (SELECT "taxful_total_price", "order_date", ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
-				`ORDER BY "order_date" ASC ) AS row_number ` +
+				`ORDER BY "order_date" ASC) AS "row_number" ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`WHERE "taxful_total_price" > '250') ` +
 				`WHERE ("taxful_total_price" > '250' AND "row_number"<=10) ` +

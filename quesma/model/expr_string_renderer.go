@@ -218,3 +218,25 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 
 	return sb.String()
 }
+
+func (v *renderer) VisitWindowFunction(f WindowFunction) interface{} {
+	args := make([]string, 0)
+	for _, arg := range f.Args {
+		args = append(args, AsString(arg))
+	}
+	partitionBy := make([]string, 0)
+	for _, col := range f.PartitionBy {
+		partitionBy = append(partitionBy, AsString(col))
+	}
+
+	var sb strings.Builder
+	stmtWithoutOrderBy := fmt.Sprintf("%s(%s) OVER (PARTITION BY %s", f.Name, strings.Join(args, ", "), strings.Join(partitionBy, ", "))
+	sb.WriteString(stmtWithoutOrderBy)
+
+	if len(f.OrderBy.Exprs) != 0 {
+		sb.WriteString(" ORDER BY ")
+		sb.WriteString(AsString(f.OrderBy))
+	}
+	sb.WriteString(")")
+	return sb.String()
+}

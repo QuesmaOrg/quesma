@@ -2,9 +2,7 @@ package model
 
 import (
 	"context"
-	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -109,12 +107,12 @@ func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []
 			model.RowNumberColumnName, query.FromClause, b.whereBuilder.WhereClauseAsNewStringExpr(),
 	)
 	*/
-	var order string
+	var orderByExpr OrderByExpr
 	if orderByField != "" {
 		if orderByDesc {
-			order = fmt.Sprintf("ORDER BY %s DESC", strconv.Quote(orderByField))
+			orderByExpr = NewOrderByExpr([]Expr{NewColumnRef(orderByField)}, DescOrder) //fmt.Sprintf("ORDER BY %s DESC", strconv.Quote(orderByField))
 		} else {
-			order = fmt.Sprintf("ORDER BY %s ASC", strconv.Quote(orderByField))
+			orderByExpr = NewOrderByExpr([]Expr{NewColumnRef(orderByField)}, AscOrder) //fmt.Sprintf("ORDER BY %s DESC", strconv.Quote(orderByField))
 		}
 	}
 	// TODO that SQL below is a hack I don't like and it won't work with visitors (e.g. for resolving aliases), but it's a start
@@ -123,8 +121,9 @@ func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []
 	for _, groupByField := range groupByFields {
 		groupByStr = append(groupByStr, AsString(groupByField))
 	}
-	selectFields = append(selectFields,
-		SQL{Query: fmt.Sprintf("ROW_NUMBER() OVER (PARTITION BY %s %s ) AS %s", strings.Join(groupByStr, ", "), order, RowNumberColumnName)})
+	selectFields = append(selectFields, NewAliasedExpr(NewWindowFunction(
+		"ROW_NUMBER", nil, groupByFields, orderByExpr,
+	), RowNumberColumnName))
 
 	if whereClause == "" {
 		return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, nil, 0, 0, false)

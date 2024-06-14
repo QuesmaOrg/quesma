@@ -201,6 +201,20 @@ func NewAliasedExpr(expr Expr, alias string) AliasedExpr {
 
 func (a AliasedExpr) Accept(v ExprVisitor) interface{} { return v.VisitAliasedExpr(a) }
 
+// WindowFunction representation e.g. `SUM(x) OVER (PARTITION BY y ORDER BY z)`
+type WindowFunction struct {
+	Name        string
+	Args        []Expr
+	PartitionBy []Expr
+	OrderBy     OrderByExpr
+}
+
+func NewWindowFunction(name string, args, partitionBy []Expr, orderBy OrderByExpr) WindowFunction {
+	return WindowFunction{Name: name, Args: args, PartitionBy: partitionBy, OrderBy: orderBy}
+}
+
+func (f WindowFunction) Accept(v ExprVisitor) interface{} { return v.VisitWindowFunction(f) }
+
 type ExprVisitor interface {
 	VisitFunction(e FunctionExpr) interface{}
 	VisitMultiFunction(e MultiFunctionExpr) interface{}
@@ -217,4 +231,5 @@ type ExprVisitor interface {
 	VisitTableRef(e TableRef) interface{}
 	VisitAliasedExpr(e AliasedExpr) interface{}
 	VisitSelectCommand(e SelectCommand) interface{}
+	VisitWindowFunction(f WindowFunction) interface{}
 }
