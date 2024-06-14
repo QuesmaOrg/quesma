@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -13,24 +14,9 @@ const (
 )
 
 type (
-	SelectColumn struct {
-		Alias      string
-		Expression Expr
-	}
-
 	Query struct {
-		IsDistinct bool // true <=> query is SELECT DISTINCT
-
-		// This is SELECT query. These fields should be extracted to separate struct.
-		Columns     []SelectColumn // Columns to select, including aliases
-		GroupBy     []Expr         // if not empty, we do GROUP BY GroupBy...
-		OrderBy     []OrderByExpr  // if not empty, we do ORDER BY OrderBy...
-		FromClause  Expr           // usually just "tableName", or databaseName."tableName". Sometimes a subquery e.g. (SELECT ...)
-		WhereClause Expr           // "WHERE ..." until next clause like GROUP BY/ORDER BY, etc.
-		Limit       int            // LIMIT clause, noLimit (0) means no limit
-		SampleLimit int            // LIMIT, but before grouping, 0 means no limit
-
-		CanParse bool // true <=> query is valid
+		SelectCommand SelectCommand // The representation of SELECT query
+		CanParse      bool          // true <=> query is valid
 
 		// Eventually we should merge this two
 		QueryInfoType SearchQueryType
@@ -78,147 +64,18 @@ func NewSortByCountColumn(direction OrderByDirection) OrderByExpr {
 	return NewOrderByExpr([]Expr{NewCountFunc()}, direction)
 }
 
-func (c SelectColumn) SQL() string {
-
-	if c.Expression == nil {
-		panic("SelectColumn expression is nil")
-	}
-
-	exprAsString := AsString(c.Expression)
-
-	if c.Alias == "" {
-		return exprAsString
-	}
-
-	// if alias is the same as column name, we don't need to add it
-	switch exp := c.Expression.(type) {
-	case ColumnRef:
-		if exp.ColumnName == c.Alias {
-			return exprAsString
-		}
-	}
-
-	return fmt.Sprintf("%s AS \"%s\"", exprAsString, c.Alias)
-}
-
-func (c SelectColumn) String() string {
-	return fmt.Sprintf("SelectColumn(Alias: '%s', expression: '%v')", c.Alias, c.Expression)
-}
-
 var NoMetadataField JsonMap = nil
-
-// returns string with SQL query
-func (q *Query) String(ctx context.Context) string {
-	var sb strings.Builder
-	sb.WriteString("SELECT ")
-	if q.IsDistinct {
-		sb.WriteString("DISTINCT ")
-	}
-
-	columns := make([]string, 0)
-
-	for _, col := range q.Columns {
-		if col.Expression == nil {
-			// this is paraonoid check, it should never happen
-			panic("SelectColumn expression is nil")
-		} else {
-			columns = append(columns, col.SQL())
-		}
-	}
-
-	sb.WriteString(strings.Join(columns, ", "))
-
-	sb.WriteString(" FROM ")
-	if q.SampleLimit > 0 {
-		sb.WriteString("(SELECT ")
-		innerColumn := make([]string, 0)
-		for _, col := range q.Columns {
-			if _, ok := col.Expression.(ColumnRef); ok {
-				innerColumn = append(innerColumn, AsString(col.Expression)) // TOOD: Maybe need a change
-			}
-		}
-		if len(innerColumn) == 0 {
-			innerColumn = append(innerColumn, "1")
-		}
-		sb.WriteString(strings.Join(innerColumn, ", "))
-		sb.WriteString(" FROM ")
-	}
-	if q.FromClause != nil {
-		sb.WriteString(AsString(q.FromClause))
-	}
-	if q.WhereClause != nil {
-		sb.WriteString(" WHERE ")
-		sb.WriteString(AsString(q.WhereClause))
-	}
-	if q.SampleLimit > 0 {
-		sb.WriteString(fmt.Sprintf(" LIMIT %d)", q.SampleLimit))
-	}
-
-	groupBy := make([]string, 0, len(q.GroupBy))
-	for _, col := range q.GroupBy {
-		groupBy = append(groupBy, AsString(col))
-	}
-	if len(groupBy) > 0 {
-		sb.WriteString(" GROUP BY ")
-		sb.WriteString(strings.Join(groupBy, ", "))
-	}
-
-	orderBy := make([]string, 0, len(q.OrderBy))
-	for _, col := range q.OrderBy {
-		orderBy = append(orderBy, AsString(col))
-	}
-	if len(orderBy) > 0 {
-		sb.WriteString(" ORDER BY ")
-		sb.WriteString(strings.Join(orderBy, ", "))
-	}
-
-	if q.Limit != noLimit {
-		sb.WriteString(fmt.Sprintf(" LIMIT %d", q.Limit))
-	}
-
-	return sb.String()
-}
-
-func (q *Query) IsWildcard() bool {
-
-	for _, col := range q.Columns {
-		if col.Expression == NewWildcardExpr {
-			return true
-		}
-	}
-
-	return false
-}
 
 // CopyAggregationFields copies all aggregation fields from qwa to q
 func (q *Query) CopyAggregationFields(qwa Query) {
-	q.GroupBy = make([]Expr, len(qwa.GroupBy))
-	copy(q.GroupBy, qwa.GroupBy)
+	q.SelectCommand.GroupBy = make([]Expr, len(qwa.SelectCommand.GroupBy))
+	copy(q.SelectCommand.GroupBy, qwa.SelectCommand.GroupBy)
 
-	q.Columns = make([]SelectColumn, len(qwa.Columns))
-	copy(q.Columns, qwa.Columns)
+	q.SelectCommand.Columns = make([]Expr, len(qwa.SelectCommand.Columns))
+	copy(q.SelectCommand.Columns, qwa.SelectCommand.Columns)
 
 	q.Aggregators = make([]Aggregator, len(qwa.Aggregators))
 	copy(q.Aggregators, qwa.Aggregators)
-}
-
-// TrimKeywordFromFields trims .keyword from fields and group by fields
-// In future probably handle it in a better way
-func (q *Query) TrimKeywordFromFields() {
-
-}
-
-// somewhat hacky, can be improved
-// only returns Order By columns, which are "tableColumn ASC/DESC",
-// won't return complex ones, like e.g. toInt(int_field / 5).
-// but it was like that before the refactor
-func (q *Query) OrderByFieldNames() (fieldNames []string) {
-	for _, expr := range q.OrderBy {
-		for _, colRefs := range GetUsedColumns(expr) {
-			fieldNames = append(fieldNames, colRefs.ColumnName)
-		}
-	}
-	return fieldNames
 }
 
 // Name returns the name of this aggregation (specifically, the last aggregator)
@@ -243,10 +100,8 @@ func (q *Query) IsChild(maybeParent *Query) bool {
 }
 
 // TODO change whereClause type string -> some typed
-func (q *Query) NewSelectExprWithRowNumber(selectFields []SelectColumn, groupByFields []Expr,
-	whereClause string, orderByField string, orderByDesc bool) Expr {
-
-	const additionalArrayLength = 6
+func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []Expr,
+	whereClause string, orderByField string, orderByDesc bool) SelectCommand {
 	/* used to be as string:
 	fromSelect := fmt.Sprintf(
 		"(SELECT %s, ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s %s) AS %s FROM %s WHERE %s)",
@@ -254,49 +109,28 @@ func (q *Query) NewSelectExprWithRowNumber(selectFields []SelectColumn, groupByF
 			model.RowNumberColumnName, query.FromClause, b.whereBuilder.WhereClauseAsNewStringExpr(),
 	)
 	*/
-
-	fromSelect := make([]Expr, 0, 2*(len(selectFields)+len(groupByFields))+additionalArrayLength) // +6 without ORDER BY, +8 with ORDER BY
-	fromSelect = append(fromSelect, NewStringExpr("SELECT"))
-	for _, field := range selectFields {
-		fromSelect = append(fromSelect, field.Expression)
-		fromSelect = append(fromSelect, NewStringExpr(","))
-	}
-
-	// Maybe keep this ROW_NUMBER as SelectColumn? It'd introduce some problems, because it's not in schema.
-	// Sticking to simpler solution now.
-	fromSelect = append(fromSelect, NewStringExpr("ROW_NUMBER() OVER (PARTITION BY"))
-	for i, field := range groupByFields {
-		fromSelect = append(fromSelect, field)
-		if i != len(groupByFields)-1 {
-			fromSelect = append(fromSelect, NewStringExpr(","))
-		}
-	}
+	var order string
 	if orderByField != "" {
-		fromSelect = append(fromSelect, NewStringExpr("ORDER BY"))
 		if orderByDesc {
-			fromSelect = append(fromSelect, NewOrderByExpr([]Expr{NewColumnRef(orderByField)}, DescOrder))
+			order = fmt.Sprintf("ORDER BY %s DESC", strconv.Quote(orderByField))
 		} else {
-			fromSelect = append(fromSelect, NewOrderByExpr([]Expr{NewColumnRef(orderByField)}, AscOrder))
+			order = fmt.Sprintf("ORDER BY %s ASC", strconv.Quote(orderByField))
 		}
 	}
-	fromSelect = append(fromSelect, NewStringExpr(") AS"))
-	// TODO this formatting below is only to match the existing test cases,
-	// window functions formatting (as everything else) should be systematically formatted at the printing stage
-	fromSelect = append(fromSelect, NewLiteral(RowNumberColumnName))
-	fromSelect = append(fromSelect, NewStringExpr("FROM"))
-	fromSelect = append(fromSelect, q.FromClause)
+	// TODO that SQL below is a hack I don't like and it won't work with visitors (e.g. for resolving aliases), but it's a start
+	// we should introduce a proper expression for window functions
+	var groupByStr []string
+	for _, groupByField := range groupByFields {
+		groupByStr = append(groupByStr, AsString(groupByField))
+	}
+	selectFields = append(selectFields,
+		SQL{Query: fmt.Sprintf("ROW_NUMBER() OVER (PARTITION BY %s %s ) AS %s", strings.Join(groupByStr, ", "), order, RowNumberColumnName)})
 
-	if whereClause != "" {
-		fromSelect = append(fromSelect, NewStringExpr("WHERE "+whereClause))
+	if whereClause == "" {
+		return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, nil, 0, 0, false)
+	} else {
+		return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, SQL{Query: whereClause}, 0, 0, false)
 	}
-	fullQueryStr := strings.Join(func() []string {
-		var finalStr []string
-		for _, expr := range fromSelect {
-			finalStr = append(finalStr, AsString(expr))
-		}
-		return finalStr
-	}(), " ")
-	return SQL{Query: fmt.Sprintf("(%s)", fullQueryStr)}
 }
 
 // Aggregator is always initialized as "empty", so with SplitOverHowManyFields == 0, Keyed == false, Filters == false.

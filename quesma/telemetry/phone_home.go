@@ -10,6 +10,7 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 	"io"
 	"mitmproxy/quesma/buildinfo"
+	"mitmproxy/quesma/health"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/recovery"
@@ -54,6 +55,7 @@ type ElasticStats struct {
 	NumberOfDocs  int64  `json:"number_of_docs"`
 	Size          int64  `json:"size"`
 	ServerVersion string `json:"server_version"`
+	HealthStatus  string `json:"health_status"`
 }
 
 type RuntimeStats struct {
@@ -424,11 +426,26 @@ func (a *agent) collectElasticVersion(ctx context.Context, stats *ElasticStats) 
 	return nil
 }
 
+func (a *agent) collectElasticHealthStatus(ctx context.Context, stats *ElasticStats) (err error) {
+
+	healthChecker := health.NewElasticHealthChecker(a.config)
+
+	stats.HealthStatus = healthChecker.CheckHealth().String()
+
+	return nil
+}
+
 func (a *agent) CollectElastic(ctx context.Context) (stats ElasticStats) {
 
 	stats.Status = statusNotOk
+	stats.HealthStatus = "n/a"
 
-	err := a.collectElasticVersion(ctx, &stats)
+	err := a.collectElasticHealthStatus(ctx, &stats)
+	if err != nil {
+		return stats
+	}
+
+	err = a.collectElasticVersion(ctx, &stats)
 	if err != nil {
 		return stats
 	}

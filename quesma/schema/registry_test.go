@@ -1,8 +1,6 @@
 package schema
 
 import (
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/quesma/config"
 	"reflect"
 	"testing"
@@ -12,7 +10,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 	tests := []struct {
 		name           string
 		cfg            config.QuesmaConfiguration
-		tableDiscovery clickhouse.TableDiscovery
+		tableDiscovery TableProvider
 		tableName      TableName
 		want           Schema
 		exists         bool
@@ -20,7 +18,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 		{
 			name:           "schema not found",
 			cfg:            config.QuesmaConfiguration{},
-			tableDiscovery: fakeTableDiscovery{map[string]*clickhouse.Table{}},
+			tableDiscovery: fixedTableProvider{tables: map[string]Table{}},
 			tableName:      "nonexistent",
 			want:           Schema{},
 			exists:         false,
@@ -28,15 +26,12 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 		{
 			name: "schema inferred, no mappings",
 			cfg:  config.QuesmaConfiguration{},
-			tableDiscovery: fakeTableDiscovery{map[string]*clickhouse.Table{
-				"some_table": {
-					Name: "some_table",
-					Cols: map[string]*clickhouse.Column{
-						"message":    {Name: "message", Type: clickhouse.NewBaseType("LowCardinality(String)")},
-						"event_date": {Name: "event_date", Type: clickhouse.NewBaseType("DateTime64")},
-						"count":      {Name: "count", Type: clickhouse.NewBaseType("Int64")},
-					},
-				},
+			tableDiscovery: fixedTableProvider{tables: map[string]Table{
+				"some_table": {Columns: map[string]Column{
+					"message":    {Name: "message", Type: "String"},
+					"event_date": {Name: "event_date", Type: "DateTime64"},
+					"count":      {Name: "count", Type: "Int64"},
+				}},
 			}},
 			tableName: "some_table",
 			want: Schema{Fields: map[FieldName]Field{
@@ -53,15 +48,12 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 					"some_table": {Enabled: true, TypeMappings: map[string]string{"message": "keyword"}},
 				},
 			},
-			tableDiscovery: fakeTableDiscovery{map[string]*clickhouse.Table{
-				"some_table": {
-					Name: "some_table",
-					Cols: map[string]*clickhouse.Column{
-						"message":    {Name: "message", Type: clickhouse.NewBaseType("LowCardinality(String)")},
-						"event_date": {Name: "event_date", Type: clickhouse.NewBaseType("DateTime64")},
-						"count":      {Name: "count", Type: clickhouse.NewBaseType("Int64")},
-					},
-				},
+			tableDiscovery: fixedTableProvider{tables: map[string]Table{
+				"some_table": {Columns: map[string]Column{
+					"message":    {Name: "message", Type: "LowCardinality(String)"},
+					"event_date": {Name: "event_date", Type: "DateTime64"},
+					"count":      {Name: "count", Type: "Int64"},
+				}},
 			}},
 			tableName: "some_table",
 			want: Schema{Fields: map[FieldName]Field{
@@ -78,15 +70,12 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 					"some_table": {Enabled: true, TypeMappings: map[string]string{"message": "keyword"}},
 				},
 			},
-			tableDiscovery: fakeTableDiscovery{map[string]*clickhouse.Table{
-				"some_table": {
-					Name: "some_table",
-					Cols: map[string]*clickhouse.Column{
-						"message":    {Name: "message", Type: clickhouse.NewBaseType("LowCardinality(String)")},
-						"event_date": {Name: "event_date", Type: clickhouse.NewBaseType("DateTime64")},
-						"count":      {Name: "count", Type: clickhouse.NewBaseType("Int64")},
-					},
-				},
+			tableDiscovery: fixedTableProvider{tables: map[string]Table{
+				"some_table": {Columns: map[string]Column{
+					"message":    {Name: "message", Type: "LowCardinality(String)"},
+					"event_date": {Name: "event_date", Type: "DateTime64"},
+					"count":      {Name: "count", Type: "Int64"},
+				}},
 			}},
 			tableName: "foo",
 			want:      Schema{},
@@ -108,18 +97,10 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 	}
 }
 
-type fakeTableDiscovery struct {
-	tables map[string]*clickhouse.Table
+type fixedTableProvider struct {
+	tables map[string]Table
 }
 
-func (f fakeTableDiscovery) ReloadTableDefinitions() {
-	// no-op
-}
-
-func (f fakeTableDiscovery) TableDefinitions() *clickhouse.TableMap {
-	return concurrent.NewMapFrom(f.tables)
-}
-
-func (f fakeTableDiscovery) TableDefinitionsFetchError() error {
-	return nil
+func (f fixedTableProvider) TableDefinitions() map[string]Table {
+	return f.tables
 }

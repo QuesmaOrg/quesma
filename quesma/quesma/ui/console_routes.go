@@ -206,13 +206,13 @@ func panicRecovery(h http.Handler) http.Handler {
 
 func (qmc *QuesmaManagementConsole) checkHealth(writer http.ResponseWriter, _ *http.Request) {
 	health := qmc.checkElasticsearch()
-	if health.status != "red" {
+	if health.Status != "red" {
 		writer.WriteHeader(200)
 		writer.Header().Set("Content-Type", "application/json")
 		_, _ = writer.Write([]byte(`{"cluster_name": "quesma"}`))
 	} else {
 		writer.WriteHeader(503)
-		_, _ = writer.Write([]byte(`Elastic search is unavailable: ` + health.message))
+		_, _ = writer.Write([]byte(`Elastic search is unavailable: ` + health.Message))
 	}
 }
 
