@@ -63,6 +63,7 @@ type QueryRunner struct {
 	// this is passed to the QueryTranslator to render date math expressions
 	DateMathRenderer         string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 	currentParallelQueryJobs atomic.Int64
+	EnableParallelQueries    bool
 	transformationPipeline   TransformationPipeline
 }
 
@@ -517,7 +518,7 @@ func (q *QueryRunner) runQueryJobs(jobs []QueryJob) ([][]model.QueryResultRow, e
 	//
 	// Parallel can be slower when we have a fast network connection.
 	//
-	if numberOfJobs == 1 {
+	if numberOfJobs == 1 || !q.EnableParallelQueries {
 		return q.runQueryJobsSequence(jobs)
 	}
 
@@ -529,9 +530,7 @@ func (q *QueryRunner) runQueryJobs(jobs []QueryJob) ([][]model.QueryResultRow, e
 	}
 
 	defer q.currentParallelQueryJobs.Add(int64(-numberOfJobs))
-
 	return q.runQueryJobsParallel(jobs)
-
 }
 
 func (q *QueryRunner) searchWorkerCommon(

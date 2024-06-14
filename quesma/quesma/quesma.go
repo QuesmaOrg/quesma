@@ -123,6 +123,8 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 	// is this a config option??
 
 	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
+	queryRunner.EnableParallelQueries = true
+
 
 	router := configureRouter(config, logManager, quesmaManagementConsole, phoneHomeAgent, queryRunner)
 	return &Quesma{
