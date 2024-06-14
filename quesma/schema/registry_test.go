@@ -1,7 +1,10 @@
-package schema
+package schema_test
 
 import (
+	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/schema"
 	"reflect"
 	"testing"
 )
@@ -10,34 +13,34 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 	tests := []struct {
 		name           string
 		cfg            config.QuesmaConfiguration
-		tableDiscovery TableProvider
-		tableName      TableName
-		want           Schema
+		tableDiscovery schema.TableProvider
+		tableName      schema.TableName
+		want           schema.Schema
 		exists         bool
 	}{
 		{
 			name:           "schema not found",
 			cfg:            config.QuesmaConfiguration{},
-			tableDiscovery: fixedTableProvider{tables: map[string]Table{}},
+			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{}},
 			tableName:      "nonexistent",
-			want:           Schema{},
+			want:           schema.Schema{},
 			exists:         false,
 		},
 		{
 			name: "schema inferred, no mappings",
 			cfg:  config.QuesmaConfiguration{},
-			tableDiscovery: fixedTableProvider{tables: map[string]Table{
-				"some_table": {Columns: map[string]Column{
+			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
+				"some_table": {Columns: map[string]schema.Column{
 					"message":    {Name: "message", Type: "String"},
 					"event_date": {Name: "event_date", Type: "DateTime64"},
 					"count":      {Name: "count", Type: "Int64"},
 				}},
 			}},
 			tableName: "some_table",
-			want: Schema{Fields: map[FieldName]Field{
-				"message":    {Name: "message", Type: TypeText},
-				"event_date": {Name: "event_date", Type: TypeTimestamp},
-				"count":      {Name: "count", Type: TypeLong}},
+			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
+				"message":    {Name: "message", Type: schema.TypeText},
+				"event_date": {Name: "event_date", Type: schema.TypeTimestamp},
+				"count":      {Name: "count", Type: schema.TypeLong}},
 			},
 			exists: true,
 		},
@@ -48,18 +51,18 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 					"some_table": {Enabled: true, TypeMappings: map[string]string{"message": "keyword"}},
 				},
 			},
-			tableDiscovery: fixedTableProvider{tables: map[string]Table{
-				"some_table": {Columns: map[string]Column{
+			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
+				"some_table": {Columns: map[string]schema.Column{
 					"message":    {Name: "message", Type: "LowCardinality(String)"},
 					"event_date": {Name: "event_date", Type: "DateTime64"},
 					"count":      {Name: "count", Type: "Int64"},
 				}},
 			}},
 			tableName: "some_table",
-			want: Schema{Fields: map[FieldName]Field{
-				"message":    {Name: "message", Type: TypeKeyword},
-				"event_date": {Name: "event_date", Type: TypeTimestamp},
-				"count":      {Name: "count", Type: TypeLong}},
+			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
+				"message":    {Name: "message", Type: schema.TypeKeyword},
+				"event_date": {Name: "event_date", Type: schema.TypeTimestamp},
+				"count":      {Name: "count", Type: schema.TypeLong}},
 			},
 			exists: true,
 		},
@@ -70,21 +73,21 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 					"some_table": {Enabled: true, TypeMappings: map[string]string{"message": "keyword"}},
 				},
 			},
-			tableDiscovery: fixedTableProvider{tables: map[string]Table{
-				"some_table": {Columns: map[string]Column{
+			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
+				"some_table": {Columns: map[string]schema.Column{
 					"message":    {Name: "message", Type: "LowCardinality(String)"},
 					"event_date": {Name: "event_date", Type: "DateTime64"},
 					"count":      {Name: "count", Type: "Int64"},
 				}},
 			}},
 			tableName: "foo",
-			want:      Schema{},
+			want:      schema.Schema{},
 			exists:    false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewSchemaRegistry(tt.tableDiscovery, tt.cfg, ClickhouseTypeAdapter{}, ElasticsearchTypeAdapter{})
+			s := schema.NewSchemaRegistry(tt.tableDiscovery, tt.cfg, clickhouse.SchemaTypeAdapter{}, elasticsearch.SchemaTypeAdapter{})
 			s.Start()
 			got, got1 := s.FindSchema(tt.tableName)
 			if got1 != tt.exists {
@@ -98,9 +101,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 }
 
 type fixedTableProvider struct {
-	tables map[string]Table
+	tables map[string]schema.Table
 }
 
-func (f fixedTableProvider) TableDefinitions() map[string]Table {
+func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
 	return f.tables
 }
