@@ -6,6 +6,7 @@ import (
 	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/schema"
 	"mitmproxy/quesma/util"
 	"strings"
 	"sync/atomic"
@@ -32,6 +33,27 @@ func NewTableDiscovery(cfg config.QuesmaConfiguration, schemaManagement *SchemaM
 		SchemaManagement: schemaManagement,
 		tableDefinitions: &tableDefinitions,
 	}
+}
+
+type TableDiscoveryTableProviderAdapter struct {
+	TableDiscovery
+}
+
+func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema.Table {
+	tableMap := t.TableDiscovery.TableDefinitions()
+	tables := make(map[string]schema.Table)
+	tableMap.Range(func(tableName string, value *Table) bool {
+		table := schema.Table{Columns: make(map[string]schema.Column)}
+		for _, column := range value.Cols {
+			table.Columns[column.Name] = schema.Column{
+				Name: column.Name,
+				Type: column.Type.String(),
+			}
+		}
+		tables[tableName] = table
+		return true
+	})
+	return tables
 }
 
 func newTableDiscoveryWith(cfg config.QuesmaConfiguration, schemaManagement *SchemaManagement, tables TableMap) TableDiscovery {
