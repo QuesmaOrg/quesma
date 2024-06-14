@@ -32,6 +32,10 @@ type (
 	TypeProperty string
 )
 
+func (t Type) String() string {
+	return t.Name
+}
+
 func IsValid(t string) (Type, bool) {
 	switch t {
 	case "text":
