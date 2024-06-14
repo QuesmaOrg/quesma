@@ -650,20 +650,11 @@ func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]mo
 
 	processor := registry.DefaultPlugin.ResultTransformer()
 
-	if processor == nil {
-		return results, nil
+	res, err := processor.Transform(results)
+	if err != nil {
+		return nil, err
 	}
-
-	newResults := make([][]model.QueryResultRow, len(results))
-	for i := range results {
-		res, err := processor.Transform(results[i])
-		if err != nil {
-			return nil, err
-		}
-		newResults[i] = res
-	}
-
-	return newResults, nil
+	return res, nil
 }
 
 func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, Path string, IncomingQueryBody, QueryBodyTranslated, QueryTranslatedResults []byte, startTime time.Time) {

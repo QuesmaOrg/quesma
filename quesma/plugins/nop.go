@@ -8,8 +8,8 @@ import (
 type NopResultTransformer struct {
 }
 
-func (*NopResultTransformer) Transform(rows []model.QueryResultRow) ([]model.QueryResultRow, error) {
-	return rows, nil
+func (*NopResultTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+	return result, nil
 }
 
 type NopFieldCapsTransformer struct {

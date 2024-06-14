@@ -37,13 +37,16 @@ type resultTransformer struct {
 	translate translateFunc
 }
 
-func (t *resultTransformer) Transform(rows []model.QueryResultRow) ([]model.QueryResultRow, error) {
-	for i, row := range rows {
-		for j := range row.Cols {
-			rows[i].Cols[j].ColName = t.translate(row.Cols[j].ColName)
+func (t *resultTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+
+	for _, rows := range result {
+		for i, row := range rows {
+			for j := range row.Cols {
+				rows[i].Cols[j].ColName = t.translate(row.Cols[j].ColName)
+			}
 		}
 	}
-	return rows, nil
+	return result, nil
 }
 
 type fieldCapsTransformer struct {
@@ -146,6 +149,34 @@ func (v *exprColumnNameReplaceVisitor) VisitDistinctExpr(e model.DistinctExpr) i
 	return model.DistinctExpr{Expr: e.Accept(v).(model.Expr)}
 }
 
+func (v *exprColumnNameReplaceVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{} {
+
+	return model.NewAliasedExpr(e.Expr.Accept(v).(model.Expr), e.Alias)
+}
+
+func (v *exprColumnNameReplaceVisitor) VisitSelectCommand(query model.SelectCommand) interface{} {
+
+	if query.WhereClause != nil {
+		query.WhereClause = query.WhereClause.Accept(v).(model.Expr)
+	}
+
+	for i, group := range query.GroupBy {
+		query.GroupBy[i] = group.Accept(v).(model.Expr)
+	}
+
+	for i, column := range query.Columns {
+		query.Columns[i] = column.Accept(v).(model.Expr)
+	}
+
+	for i, order := range query.OrderBy {
+		for j := range order.Exprs {
+			query.OrderBy[i].Exprs[j] = order.Exprs[j].Accept(v).(model.Expr)
+		}
+	}
+
+	return query
+}
+
 type queryTransformer struct {
 	translate translateFunc
 }
@@ -155,26 +186,7 @@ func (t *queryTransformer) Transform(queries []*model.Query) ([]*model.Query, er
 	visitor := &exprColumnNameReplaceVisitor{translate: t.translate}
 
 	for _, query := range queries {
-
-		//  waiting for a  "select query visitor"
-
-		if query.WhereClause != nil {
-			query.WhereClause = query.WhereClause.Accept(visitor).(model.Expr)
-		}
-
-		for i, group := range query.GroupBy {
-			query.GroupBy[i] = group.Accept(visitor).(model.Expr)
-		}
-
-		for i, column := range query.Columns {
-			query.Columns[i].Expression = column.Expression.Accept(visitor).(model.Expr)
-		}
-
-		for i, order := range query.OrderBy {
-			for j := range order.Exprs {
-				query.OrderBy[i].Exprs[j] = order.Exprs[j].Accept(visitor).(model.Expr)
-			}
-		}
+		query.SelectCommand = query.SelectCommand.Accept(visitor).(model.SelectCommand)
 	}
 
 	return queries, nil
