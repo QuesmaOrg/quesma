@@ -178,6 +178,10 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 			sb.WriteString("(")
 			sb.WriteString(AsString(nestedCmd))
 			sb.WriteString(")")
+		} else if nestedCmd, ok := c.FromClause.(*SelectCommand); ok {
+			sb.WriteString("(")
+			sb.WriteString(AsString(nestedCmd))
+			sb.WriteString(")")
 		} else {
 			sb.WriteString(AsString(c.FromClause))
 		}
