@@ -106,15 +106,6 @@ func (e InfixExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitInfix(e)
 }
 
-// Deprecated
-type SQL struct { // this was "catch all" for raw SQL, but everything should be an expression
-	Query string
-}
-
-func (s SQL) Accept(v ExprVisitor) interface{} {
-	return v.VisitSQL(s)
-}
-
 func NewFunction(name string, args ...Expr) FunctionExpr {
 	return FunctionExpr{Name: name, Args: args}
 }
@@ -221,7 +212,6 @@ type ExprVisitor interface {
 	VisitLiteral(l LiteralExpr) interface{}
 	VisitString(e StringExpr) interface{}
 	VisitInfix(e InfixExpr) interface{}
-	VisitSQL(s SQL) interface{}
 	VisitColumnRef(e ColumnRef) interface{}
 	VisitPrefixExpr(e PrefixExpr) interface{}
 	VisitNestedProperty(e NestedProperty) interface{}

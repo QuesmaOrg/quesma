@@ -45,10 +45,6 @@ func (v *usedColumns) VisitLiteral(l LiteralExpr) interface{} {
 	return make([]ColumnRef, 0)
 }
 
-func (v *usedColumns) VisitSQL(s SQL) interface{} {
-	return make([]ColumnRef, 0)
-}
-
 func (v *usedColumns) VisitMultiFunction(f MultiFunctionExpr) interface{} {
 	res := make([]ColumnRef, 0)
 	for _, arg := range f.Args {
