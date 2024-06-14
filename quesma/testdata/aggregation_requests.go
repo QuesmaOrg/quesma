@@ -1998,7 +1998,7 @@ var AggregationTests = []AggregationTestCase{
 				`maxOrNull("order_date") AS "windowed_order_date" FROM ` +
 				`(SELECT "order_date", "order_date", ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
-				`ORDER BY "order_date" ASC ) AS row_number FROM ` + QuotedTableName + " " +
+				`ORDER BY "order_date" ASC) AS "row_number" FROM ` + QuotedTableName + " " +
 				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
 				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250')) ` +
 				`WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
@@ -2009,7 +2009,7 @@ var AggregationTests = []AggregationTestCase{
 				`maxOrNull("order_date") AS "windowed_order_date" FROM ` +
 				`(SELECT "taxful_total_price", "order_date", ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
-				`ORDER BY "order_date" ASC ) AS row_number FROM ` + QuotedTableName + " " +
+				`ORDER BY "order_date" ASC) AS "row_number" FROM ` + QuotedTableName + " " +
 				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
 				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250')) ` +
 				`WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
@@ -4019,10 +4019,10 @@ var AggregationTests = []AggregationTestCase{
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z'))`,
-			`SELECT count(if("timestamp" < now(), 1, NULL)), toInt64(toUnixTimestamp(now())), ` +
-				`count(if("timestamp" >= toStartOfDay(subDate(now(), INTERVAL 3 week)) AND "timestamp" < now(), 1, NULL)), ` +
+			`SELECT count(if("timestamp" < now(),1,NULL)), toInt64(toUnixTimestamp(now())), ` +
+				`count(if(("timestamp" >= toStartOfDay(subDate(now(), INTERVAL 3 week)) AND "timestamp" < now()),1,NULL)), ` +
 				`toInt64(toUnixTimestamp(toStartOfDay(subDate(now(), INTERVAL 3 week)))), ` +
-				`toInt64(toUnixTimestamp(now())), count(if("timestamp" >= '2024-04-14', 1, NULL)), toInt64(toUnixTimestamp('2024-04-14')), ` +
+				`toInt64(toUnixTimestamp(now())), count(if("timestamp" >= '2024-04-14',1,NULL)), toInt64(toUnixTimestamp('2024-04-14')), ` +
 				`count() FROM "logs-generic-default" WHERE ("timestamp"<=parseDateTime64BestEffort('2024-04-16T17:28:50.059Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-04-06T07:28:50.059Z'))`,
 		},
@@ -5413,8 +5413,8 @@ var AggregationTests = []AggregationTestCase{
 				`minOrNull("order_date") AS "windowed_order_date" ` +
 				`FROM (SELECT "message", "order_date", ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) ` +
-				`ORDER BY "order_date" DESC ) ` +
-				`AS row_number ` +
+				`ORDER BY "order_date" DESC) ` +
+				`AS "row_number" ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE "message" IS NOT NULL) ` +
 				`WHERE ("message" IS NOT NULL ` +
