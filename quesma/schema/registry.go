@@ -19,7 +19,6 @@ type (
 	}
 	TableName string
 	FieldName string
-	Type      string
 )
 
 type (
@@ -46,10 +45,6 @@ func (t FieldName) AsString() string {
 }
 
 func (t TableName) AsString() string {
-	return string(t)
-}
-
-func (t Type) AsString() string {
 	return string(t)
 }
 
