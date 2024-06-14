@@ -97,7 +97,6 @@ func (q *Query) IsChild(maybeParent *Query) bool {
 	return q.HasParentAggregation() && q.Parent == maybeParent.Name()
 }
 
-// TODO change whereClause type string -> some typed
 func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []Expr,
 	whereClause Expr, orderByField string, orderByDesc bool) SelectCommand {
 	var orderByExpr OrderByExpr
