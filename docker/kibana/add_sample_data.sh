@@ -14,6 +14,21 @@ else
     add_sample_dataset "flights"
 fi
 
+if [ "$ADD_E2E_VIEW" == "true" ]; then
+    echo -n "Adding e2e_table_1 data view... "
+    do_silent_http_post "api/data_views/data_view" '{
+        "data_view": {
+           "name": "e2e_table_1",
+           "title": "e2e_table_1",
+           "id": "e2e_table_1",
+           "timeFieldName": "timestamp",
+           "allowNoIndex": true
+        },
+        "override": true
+    }'
+    echo ""
+fi
+
 echo -n "Adding data view logs-generic... "
 do_silent_http_post "api/data_views/data_view" '{
     "data_view": {

@@ -130,6 +130,8 @@ services:
   kibana-sidecar:
     image: docker.elastic.co/kibana/kibana:8.11.1
     restart: "no"
+    environment:
+      - ADD_E2E_VIEW=true
     depends_on:
       kibana:
         condition: service_healthy
@@ -139,6 +141,8 @@ services:
   kibana-sidecar_direct:
     image: docker.elastic.co/kibana/kibana:8.11.1
     restart: "no"
+    environment:
+      - ADD_E2E_VIEW=true
     depends_on:
       kibana_direct:
         condition: service_healthy
@@ -194,3 +198,11 @@ services:
     restart: "no"
     volumes:
       - ./mitmproxy:/var/mitmproxy
+  e2e-data-generator:
+    build: e2e-data-generator
+    depends_on:
+      clean-clickhouse:
+        condition: service_completed_successfully
+      elasticsearch_direct:
+        condition: service_healthy
+    restart: "no"
