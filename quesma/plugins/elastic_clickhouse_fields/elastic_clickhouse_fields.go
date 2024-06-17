@@ -132,7 +132,7 @@ func (v *exprColumnNameReplaceVisitor) VisitOrderByExpr(e model.OrderByExpr) int
 }
 
 func (v *exprColumnNameReplaceVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{} {
-	return model.DistinctExpr{Expr: e.Accept(v).(model.Expr)}
+	return model.DistinctExpr{Expr: e.Expr.Accept(v).(model.Expr)}
 }
 
 func (v *exprColumnNameReplaceVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{} {
