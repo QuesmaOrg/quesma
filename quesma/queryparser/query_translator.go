@@ -7,6 +7,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
+	"mitmproxy/quesma/model/metrics_aggregations"
 	"mitmproxy/quesma/model/typical_queries"
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/queryprocessor"
@@ -103,11 +104,17 @@ func (cw *ClickhouseQueryTranslator) finishMakeResponse(query *model.Query, Resu
 		return query.Type.TranslateSqlResponseToJson(ResultSet, level)
 	} else { // metrics
 		lastAggregator := query.Aggregators[len(query.Aggregators)-1].Name
-		return []model.JsonMap{
-			{
-				lastAggregator: query.Type.TranslateSqlResponseToJson(ResultSet, level)[0],
-			},
+		result := query.Type.TranslateSqlResponseToJson(ResultSet, level)[0]
+		if _, ok := query.Type.(metrics_aggregations.TopHits); ok {
+			return []model.JsonMap{{
+				lastAggregator: model.JsonMap{
+					"hits:": result,
+				},
+			}}
 		}
+		return []model.JsonMap{{
+			lastAggregator: query.Type.TranslateSqlResponseToJson(ResultSet, level)[0],
+		}}
 	}
 }
 
