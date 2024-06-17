@@ -286,21 +286,20 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 				return mergedArray
 			}
 
-			// TODO keys may be ints
 			i, j := 0, 0
 			for i < i1Len && j < i2Len {
 				var key1, key2 string
-				key1, ok = i1Typed[i]["key"].(string)
+				key1, ok = i1Typed[i]["key"].(string) // TODO keys may be ints
 				if !ok {
-					if key1, ok = i1Typed[i][keyAddedByQuesma].(string); !ok {
+					if key1, ok = i1Typed[i][keyAddedByQuesma].(string); !ok { // TODO keys may be ints
 						logger.ErrorWithCtx(ctx).Msgf("mergeAny: key not found in i1: %v", i1Typed[i])
 						i += 1
 						continue
 					}
 				}
-				key2, ok = i2Typed[j].(JsonMap)["key"].(string)
+				key2, ok = i2Typed[j].(JsonMap)["key"].(string) // TODO keys may be ints
 				if !ok {
-					if key2, ok = i2Typed[j].(JsonMap)[keyAddedByQuesma].(string); !ok {
+					if key2, ok = i2Typed[j].(JsonMap)[keyAddedByQuesma].(string); !ok { // TODO keys may be ints
 						logger.ErrorWithCtx(ctx).Msgf("mergeAny: key not found in i2: %v", i2Typed[j])
 						j += 1
 						continue
