@@ -424,7 +424,17 @@ func TestSearchTrackTotalCount(t *testing.T) {
 			responsePart = responseMap["response"].(model.JsonMap)
 		}
 
-		pp.Println(responsePart)
+		assert.NotNil(t, testcase.ExpectedResponse, "ExpectedResponse is nil")
+		expectedResponseMap, err := util.JsonToMap(testcase.ExpectedResponse)
+		assert.NoError(t, err, "error unmarshalling expected response:")
+
+		actualMinusExpected, expectedMinusActual := util.MapDifference(responsePart, expectedResponseMap, true, true)
+		acceptableDifference := []string{"took", "_shards"}
+		pp.Println("JM: ACTUAL", actualMinusExpected)
+		pp.Println("JM: EXPECTED", expectedMinusActual)
+
+		assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
+		assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
 	}
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}
