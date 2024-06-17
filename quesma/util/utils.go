@@ -248,7 +248,7 @@ func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
 // but none of them works for nested maps, so needed to write our own.
 // * mActual - uses JsonMap fully: values are []JsonMap, or JsonMap, or base types
 // * mExpected - value can also be []any, because it's generated from Golang's json.Unmarshal
-func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
+func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma string) JsonMap {
 	var mergeMapsRec func(m1, m2 JsonMap) JsonMap
 	// merges 'i1' and 'i2' in 3 cases: both are JsonMap, both are []JsonMap, or both are some base type
 	mergeAny := func(i1, i2 any) any {
@@ -274,16 +274,62 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap) JsonMap {
 				}
 			}
 
-			// lengths should be always equal in our usage of this function, maybe that'll change
-			if len(i1Typed) != len(i2Typed) {
-				logger.ErrorWithCtx(ctx).Msgf(pp.Sprintf("mergeAny: i1 and i2 are slices, but have different lengths. len(i1): %d, len(i2): %d, i1: %v, i2: %v", len(i1Typed), len(i2Typed), i1, i2))
-				return []JsonMap{}
+			i1Len, i2Len := len(i1Typed), len(i2Typed)
+			mergedArray := make([]JsonMap, 0, max(i1Len, i2Len))
+
+			// CARE: keeps the old implementation for now, which seemed to work fine everywhere,
+			// until one `sample_flights` dashboard. It's not perfect. TODO improve it.
+			if i1Len == i2Len {
+				for i := 0; i < i1Len; i++ {
+					mergedArray = append(mergedArray, mergeMapsRec(i1Typed[i], i2Typed[i].(JsonMap)))
+				}
+				return mergedArray
 			}
-			mergedArray := make([]JsonMap, len(i1Typed))
-			for i := range i1Typed {
-				mergedArray[i] = mergeMapsRec(i1Typed[i], i2Typed[i].(JsonMap))
+
+			// TODO keys may be ints
+			i, j := 0, 0
+			for i < i1Len && j < i2Len {
+				var key1, key2 string
+				key1, ok = i1Typed[i]["key"].(string)
+				if !ok {
+					if key1, ok = i1Typed[i][keyAddedByQuesma].(string); !ok {
+						logger.ErrorWithCtx(ctx).Msgf("mergeAny: key not found in i1: %v", i1Typed[i])
+						i += 1
+						continue
+					}
+				}
+				key2, ok = i2Typed[j].(JsonMap)["key"].(string)
+				if !ok {
+					if key2, ok = i2Typed[j].(JsonMap)[keyAddedByQuesma].(string); !ok {
+						logger.ErrorWithCtx(ctx).Msgf("mergeAny: key not found in i2: %v", i2Typed[j])
+						j += 1
+						continue
+					}
+				}
+
+				if key1 == key2 {
+					mergedArray = append(mergedArray, mergeMapsRec(i1Typed[i], i2Typed[j].(JsonMap)))
+					i += 1
+					j += 1
+				} else if key1 < key2 {
+					mergedArray = append(mergedArray, i1Typed[i])
+					i += 1
+				} else {
+					mergedArray = append(mergedArray, i2Typed[j].(JsonMap))
+					j += 1
+				}
 			}
+			for i < i1Len {
+				mergedArray = append(mergedArray, i1Typed[i])
+				i += 1
+			}
+			for j < i2Len {
+				mergedArray = append(mergedArray, i2Typed[j].(JsonMap))
+				j += 1
+			}
+
 			return mergedArray
+
 		default:
 			return i1
 		}
