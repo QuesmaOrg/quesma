@@ -30,3 +30,28 @@ func (e SchemaTypeAdapter) Convert(s string) (schema.Type, bool) {
 		return schema.TypeUnknown, false
 	}
 }
+
+func (e SchemaTypeAdapter) ConvertFrom(t schema.Type) string {
+	switch t.Name {
+	case schema.TypeText.Name:
+		return elasticsearch_field_types.FieldTypeText
+	case schema.TypeTimestamp.Name:
+		return elasticsearch_field_types.FieldTypeDate
+	case schema.TypeKeyword.Name:
+		return elasticsearch_field_types.FieldTypeKeyword
+	case schema.TypeLong.Name:
+		return elasticsearch_field_types.FieldTypeLong
+	case schema.TypeDate.Name:
+		return elasticsearch_field_types.FieldTypeDate
+	case schema.TypeFloat.Name:
+		return elasticsearch_field_types.FieldTypeDouble
+	case schema.TypeBoolean.Name:
+		return elasticsearch_field_types.FieldTypeBoolean
+	case schema.TypeIp.Name:
+		return elasticsearch_field_types.FieldTypeIp
+	case schema.TypeObject.Name:
+		return elasticsearch_field_types.FieldTypeObject
+	default:
+		return elasticsearch_field_types.FieldTypeText
+	}
+}
