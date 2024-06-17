@@ -8,6 +8,11 @@ import (
 
 // Highlighter is a struct that holds information about highlighted fields.
 //
+// An instance of highlighter is created for each query and is a result of query parsing process,
+// so that Fields, PreTags, PostTags are set.
+// Once Query is parsed, highlighter visitor is used to traverse the AST and extract tokens
+// which should be highlighted.
+//
 // You can read more in:
 //   - https://www.elastic.co/guide/en/elasticsearch/reference/current/highlighting.html
 //   - https://medium.com/@andre.luiz1987/using-highlighting-elasticsearch-9ccd698f08
