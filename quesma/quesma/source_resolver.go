@@ -4,6 +4,7 @@ import (
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/util"
 	"slices"
 	"strings"
 )
@@ -33,10 +34,9 @@ func ResolveSources(indexPattern string, cfg config.QuesmaConfiguration, im elas
 				}
 			}
 		}
-		slices.Sort(matchesElastic)
-		slices.Sort(matchesClickhouse)
-		matchesElastic = slices.Compact(matchesElastic)
-		matchesClickhouse = slices.Compact(matchesClickhouse)
+		matchesElastic = util.Distinct(matchesElastic)
+		matchesClickhouse = util.Distinct(matchesClickhouse)
+
 		matchesElastic = slices.DeleteFunc(matchesElastic, func(s string) bool {
 			return slices.Contains(matchesClickhouse, s)
 		})
