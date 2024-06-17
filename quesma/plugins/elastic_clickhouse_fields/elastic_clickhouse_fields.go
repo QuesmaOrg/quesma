@@ -236,7 +236,6 @@ func (p *Dot2DoubleColons) GetTableColumnFormatter(table string, cfg config.Ques
 		return &columNameFormatter{separator: doubleColons}
 	}
 	return nil
-
 }
 
 // temporary solution for indexes stored with "::" separator
@@ -291,21 +290,17 @@ func (p *Dot2DoubleColons2Dot) ApplyFieldCapsTransformers(table string, cfg conf
 type Dot2DoubleUnderscores2Dot struct{}
 
 func (p *Dot2DoubleUnderscores2Dot) matches(table string) bool {
-
 	return strings.HasPrefix(table, "kibana_")
 }
 
 func (p *Dot2DoubleUnderscores2Dot) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
-
 	if p.matches(table) {
 		transformers = append(transformers, &ingestTransformer{separator: doubleColons})
 	}
-
 	return transformers
 }
 
 func (p *Dot2DoubleUnderscores2Dot) GetTableColumnFormatter(table string, cfg config.QuesmaConfiguration) plugins.TableColumNameFormatter {
-
 	if p.matches(table) {
 		return &columNameFormatter{separator: sqlNative}
 	}
