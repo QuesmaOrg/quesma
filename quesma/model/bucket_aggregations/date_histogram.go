@@ -130,7 +130,8 @@ func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
 
 func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {
 	exprForBiggerIntervals := func(toIntervalStartFuncName string) model.Expr {
-		// returned expr as string: "1000 * toInt64(toUnixTimestamp(toStartOf[Week|Month|Quarter|Year](timestamp)))"
+		// returned expr as string:
+		// "1000 * toInt64(toUnixTimestamp(toStartOf[Week|Month|Quarter|Year](timestamp)))"
 		toStartOf := model.NewFunction(toIntervalStartFuncName, query.field)
 		toUnixTimestamp := model.NewFunction("toUnixTimestamp", toStartOf)
 		toInt64 := model.NewFunction("toInt64", toUnixTimestamp)

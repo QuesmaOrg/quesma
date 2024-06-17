@@ -746,12 +746,9 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.Type = dateHistogramAggr
 
 		sqlQuery := dateHistogramAggr.GenerateSQL()
-		fmt.Println("aaaa", sqlQuery)
-		currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, dateHistogramAggr.GenerateSQL())
-		currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, dateHistogramAggr.GenerateSQL())
-		fmt.Println("Gr: ", currentAggr.SelectCommand.GroupBy)
-		currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, dateHistogramAggr.GenerateSQL())
-		fmt.Println("Or: ", currentAggr.SelectCommand.OrderBy)
+		currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, sqlQuery)
+		currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, sqlQuery)
+		currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(sqlQuery))
 
 		delete(queryMap, "date_histogram")
 		return success, 1, nil
