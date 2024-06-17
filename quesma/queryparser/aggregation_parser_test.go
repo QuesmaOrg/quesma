@@ -669,6 +669,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	}
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
 	allTests := testdata.AggregationTests
+	allTests = append(allTests, testdata.AggregationTests2...)
 	allTests = append(allTests, opensearch_visualize.AggregationTests...)
 	allTests = append(allTests, dashboard_1.AggregationTests...)
 	allTests = append(allTests, testdata.PipelineAggregationTests...)

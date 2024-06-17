@@ -4150,7 +4150,7 @@ var AggregationTests = []AggregationTestCase{
 						}
 					},
 					"date_histogram": {
-						"calendar_interval": "22h",
+						"fixed_interval": "22h",
 						"field": "@timestamp"
 					},
 					"meta": {

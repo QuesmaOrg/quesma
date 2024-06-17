@@ -62,6 +62,9 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 	q.SelectCommand.Columns = make([]Expr, len(qwa.SelectCommand.Columns))
 	copy(q.SelectCommand.Columns, qwa.SelectCommand.Columns)
 
+	q.SelectCommand.OrderBy = make([]OrderByExpr, len(qwa.SelectCommand.OrderBy))
+	copy(q.SelectCommand.OrderBy, qwa.SelectCommand.OrderBy)
+
 	q.Aggregators = make([]Aggregator, len(qwa.Aggregators))
 	copy(q.Aggregators, qwa.Aggregators)
 }

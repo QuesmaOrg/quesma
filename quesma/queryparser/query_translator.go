@@ -493,7 +493,8 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMap) model.Expr {
 	const defaultDateTimeType = clickhouse.DateTime64
 	field := cw.parseFieldField(queryMap, "histogram")
-	interval, err := kibana.ParseInterval(cw.extractInterval(queryMap))
+	intervalAsString, _ := cw.extractInterval(queryMap)
+	interval, err := kibana.ParseInterval(intervalAsString)
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Msg(err.Error())
 	}
