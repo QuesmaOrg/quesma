@@ -9,9 +9,16 @@ type SchemaTypeAdapter struct {
 }
 
 func (c SchemaTypeAdapter) Convert(s string) (schema.Type, bool) {
-	if strings.HasPrefix(s, "Unknown") {
-		return schema.TypeText, true // TODO
+	for isArray(s) {
+		s = arrayType(s)
 	}
+	switch {
+	case strings.HasPrefix(s, "Unknown"):
+		return schema.TypeText, true // TODO
+	case strings.HasPrefix(s, "Tuple"):
+		return schema.TypeObject, true
+	}
+
 	switch s {
 	case "String", "LowCardinality(String)":
 		return schema.TypeText, true
@@ -30,4 +37,12 @@ func (c SchemaTypeAdapter) Convert(s string) (schema.Type, bool) {
 	default:
 		return schema.TypeUnknown, false
 	}
+}
+
+func isArray(s string) bool {
+	return strings.HasPrefix(s, "Array(") && strings.HasSuffix(s, ")")
+}
+
+func arrayType(s string) string {
+	return s[6 : len(s)-1]
 }
