@@ -62,7 +62,7 @@ func (v *highlighter) VisitMultiFunction(f MultiFunctionExpr) interface{} {
 
 func (v *highlighter) VisitInfix(e InfixExpr) interface{} {
 	switch e.Op {
-	case "iLIKE", "LIKE", "IN", "=":
+	case "iLIKE", "LIKE": //, "IN", "=": TODO I need to like triple check if it doesn't produce any false positives
 		if literal, isLiteral := e.Right.(LiteralExpr); isLiteral {
 			switch literalAsString := literal.Value.(type) {
 			case string:
