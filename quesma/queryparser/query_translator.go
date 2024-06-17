@@ -258,6 +258,7 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 	// b) we have hits or facets -> we're done
 	// c) we don't have above: we return len(biggest resultset(all aggregations))
 	totalCount := -1
+	relationCount := "eq"
 	for i, query := range queries {
 		if query.Type != nil {
 			if _, isCount := query.Type.(typical_queries.Count); isCount {
@@ -268,6 +269,9 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 						totalCount = int(val2)
 					} else {
 						logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", results[i])
+					}
+					if query.SelectCommand.Limit != 0 && totalCount == query.SelectCommand.SampleLimit {
+						relationCount = "gte"
 					}
 				} else {
 					logger.ErrorWithCtx(cw.Ctx).Msgf("no results for Count value SQL query result [%v]", results[i])
@@ -283,7 +287,7 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 	if totalCount != -1 {
 		total = &model.Total{
 			Value:    totalCount,
-			Relation: "eq", // likely wrong
+			Relation: relationCount,
 		}
 		return
 	}
@@ -346,7 +350,8 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 	if hits != nil {
 		response.Hits = *hits
 	} else {
-		response.Hits = model.SearchHits{}
+		//response.Hits = model.SearchHits{Hits: make([]model.SearchHit, 0)}
+		response.Hits = model.SearchHits{Hits: []model.SearchHit{}}
 	}
 	if total != nil {
 		response.Hits.Total = total

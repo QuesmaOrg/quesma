@@ -9,6 +9,7 @@ import (
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/model"
+	"mitmproxy/quesma/model/typical_queries"
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/util"
@@ -137,20 +138,23 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 					model.NewQueryResultCol("@timestamp", "2024-01-30T14:48:19.761Z"),
 				}},
 			},
-			model.Normal,
+			model.ListByField,
 		},
 	}
 
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
+			hitQuery := query_util.BuildHitsQuery(
+				context.Background(), "test", "*",
+				&model.SimpleQuery{FieldName: "*"}, model.WeNeedUnlimitedCount,
+			)
+			highlighter := NewEmptyHighlighter()
+			queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, hitQuery.SelectCommand.OrderByFieldNames(), true, false, false)
+			hitQuery.Type = &queryType
+			hitQuery.QueryInfoType = model.ListByField
 			ourResponseRaw := cw.MakeSearchResponse(
-				[]*model.Query{
-					query_util.BuildHitsQuery(
-						context.Background(), "test", "*",
-						&model.SimpleQuery{FieldName: "*"}, model.WeNeedUnlimitedCount,
-					),
-				},
+				[]*model.Query{hitQuery},
 				[][]model.QueryResultRow{args[i].ourQueryResult},
 			)
 			ourResponse, err := ourResponseRaw.Marshal()
