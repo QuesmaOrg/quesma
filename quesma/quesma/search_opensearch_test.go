@@ -51,7 +51,7 @@ func TestSearchOpensearch(t *testing.T) {
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
 			_, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 			assert.NoError(t, err)
 
@@ -180,7 +180,7 @@ func TestHighlighter(t *testing.T) {
 															AddRow("text-to-highlight", "text-to-highlight", "text-to-highlight").
 															AddRow("text", "text", "text"))
 
-	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
+	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
 	response, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(query))
 	assert.NoError(t, err)
 	if err != nil {
