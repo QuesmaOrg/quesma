@@ -15,7 +15,7 @@ func (*NopResultTransformer) Transform(result [][]model.QueryResultRow) ([][]mod
 type NopFieldCapsTransformer struct {
 }
 
-func (*NopFieldCapsTransformer) Transform(fieldCaps model.FieldCapsResponse) (model.FieldCapsResponse, error) {
+func (*NopFieldCapsTransformer) Transform(fieldCaps map[string]map[string]model.FieldCapability) (map[string]map[string]model.FieldCapability, error) {
 	return fieldCaps, nil
 }
 

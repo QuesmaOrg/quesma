@@ -77,8 +77,7 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, i
 		AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext](),
 		transformationPipeline: TransformationPipeline{
 			transformers: []plugins.QueryTransformer{
-				registry.DefaultPlugin.QueryTransformer(),
-				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry}, // this can be a part of another plugin
+				&SchemaCheckPass{cfg: cfg.IndexConfig}, // this can be a part of another plugin
 			},
 		}, schemaRegistry: schemaRegistry}
 
@@ -228,6 +227,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			logger.ErrorWithCtx(ctx).Msgf("parsing error: %v", err)
 		}
 		queries, err = q.transformationPipeline.Transform(queries)
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
+		}
+
+		queries, err = registry.QueryTransformerFor(table.Name, q.cfg).Transform(queries)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 		}
@@ -651,9 +655,10 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 
 func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
-	processor := registry.DefaultPlugin.ResultTransformer()
+	transformer := registry.ResultTransformerFor(table.Name, q.cfg)
 
-	res, err := processor.Transform(results)
+	res, err := transformer.Transform(results)
+
 	if err != nil {
 		return nil, err
 	}

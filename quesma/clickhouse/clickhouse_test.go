@@ -105,7 +105,7 @@ func TestInsertNonSchemaFields_2(t *testing.T) {
 */
 
 func TestAddTimestamp(t *testing.T) {
-	config := &ChTableConfig{
+	tableConfig := &ChTableConfig{
 		hasTimestamp:                          true,
 		timestampDefaultsNow:                  true,
 		engine:                                "MergeTree",
@@ -118,7 +118,7 @@ func TestAddTimestamp(t *testing.T) {
 		castUnsupportedAttrValueTypesToString: false,
 		preferCastingToOthers:                 false,
 	}
-	query, err := buildCreateTableQueryNoOurFields(context.Background(), "tableName", types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`), config)
+	query, err := buildCreateTableQueryNoOurFields(context.Background(), "tableName", types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`), tableConfig, config.QuesmaConfiguration{})
 	assert.NoError(t, err)
 	assert.True(t, strings.Contains(query, timestampFieldName))
 }
