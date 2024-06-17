@@ -105,7 +105,7 @@ func (cw *ClickhouseQueryTranslator) finishMakeResponse(query *model.Query, Resu
 	} else { // metrics
 		lastAggregator := query.Aggregators[len(query.Aggregators)-1].Name
 		result := query.Type.TranslateSqlResponseToJson(ResultSet, level)[0]
-		if _, ok := query.Type.(metrics_aggregations.TopHits); ok {
+		if _, isTopHits := query.Type.(metrics_aggregations.TopHits); isTopHits {
 			return []model.JsonMap{{
 				lastAggregator: model.JsonMap{
 					"hits:": result,
@@ -113,7 +113,7 @@ func (cw *ClickhouseQueryTranslator) finishMakeResponse(query *model.Query, Resu
 			}}
 		}
 		return []model.JsonMap{{
-			lastAggregator: query.Type.TranslateSqlResponseToJson(ResultSet, level)[0],
+			lastAggregator: result,
 		}}
 	}
 }
