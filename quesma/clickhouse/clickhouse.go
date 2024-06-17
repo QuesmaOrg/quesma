@@ -432,6 +432,7 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
 		preprocessedJson, err := transformer.Transform(jsonValue)
+
 		if err != nil {
 			return fmt.Errorf("error IngestTransformer: %v", err)
 		}

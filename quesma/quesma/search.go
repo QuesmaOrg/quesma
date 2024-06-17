@@ -655,6 +655,7 @@ func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]mo
 	transformer := registry.ResultTransformerFor(table.Name, q.cfg)
 
 	res, err := transformer.Transform(results)
+
 	if err != nil {
 		return nil, err
 	}

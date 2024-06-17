@@ -34,8 +34,6 @@ func sqlNative2Dot(intput string) string {
 	return strings.ReplaceAll(intput, sqlNative, dot)
 }
 
-//
-
 type resultTransformer struct {
 	translate translateFunc
 }
@@ -52,7 +50,6 @@ func (t *resultTransformer) Transform(result [][]model.QueryResultRow) ([][]mode
 	return result, nil
 }
 
-//
 type fieldCapsTransformer struct {
 	translate translateFunc
 }
@@ -239,6 +236,7 @@ func (p *Dot2DoubleColons) GetTableColumnFormatter(table string, cfg config.Ques
 		return &columNameFormatter{separator: doubleColons}
 	}
 	return nil
+
 }
 
 // temporary solution for indexes stored with "::" separator
