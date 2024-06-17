@@ -2,8 +2,6 @@ package model
 
 import (
 	"context"
-	"sort"
-	"strings"
 )
 
 const (
@@ -44,13 +42,6 @@ type (
 		// if false, it's a metrics aggregation and result from 'MakeResponse' will be a single bucket
 		IsBucketAggregation() bool
 		String() string
-	}
-	Highlighter struct {
-		Tokens map[string]struct{}
-		Fields map[string]bool
-
-		PreTags  []string
-		PostTags []string
 	}
 )
 
@@ -163,85 +154,6 @@ type SearchQueryInfo struct {
 
 func NewSearchQueryInfoNormal() SearchQueryInfo {
 	return SearchQueryInfo{Typ: Normal}
-}
-
-func (h *Highlighter) ShouldHighlight(columnName string) bool {
-	_, ok := h.Fields[columnName]
-	return ok
-}
-
-func (h *Highlighter) HighlightValue(value string) []string {
-
-	//https://www.elastic.co/guide/en/elasticsearch/reference/current/highlighting.html
-	// https://medium.com/@andre.luiz1987/using-highlighting-elasticsearch-9ccd698f08
-
-	// paranoia check for empty tags
-	if len(h.PreTags) < 1 && len(h.PostTags) < 1 {
-		return []string{}
-	}
-
-	type match struct {
-		start int
-		end   int
-	}
-
-	var matches []match
-
-	lowerValue := strings.ToLower(value)
-	length := len(lowerValue)
-
-	// find all matches
-	for token, _ := range h.Tokens {
-
-		if token == "" {
-			continue
-		}
-
-		pos := 0
-		for pos < length {
-			// token are lower cased already
-			idx := strings.Index(lowerValue[pos:], token)
-			if idx == -1 {
-				break
-			}
-
-			start := pos + idx
-			end := start + len(token)
-
-			matches = append(matches, match{start, end})
-			pos = end
-		}
-	}
-
-	if len(matches) == 0 {
-		return []string{}
-	}
-
-	// sort matches by start position
-	sort.Slice(matches, func(i, j int) bool {
-		return matches[i].start < matches[j].start
-	})
-
-	var mergedMatches []match
-
-	// merge overlapping matches
-	for i := 0; i < len(matches); i++ {
-		lastMerged := len(mergedMatches) - 1
-
-		if len(mergedMatches) > 0 && matches[i].start <= mergedMatches[len(mergedMatches)-1].end {
-			mergedMatches[lastMerged].end = max(matches[i].end, mergedMatches[lastMerged].end)
-		} else {
-			mergedMatches = append(mergedMatches, matches[i])
-		}
-	}
-
-	// populate highlights
-	var highlights []string
-	for _, m := range mergedMatches {
-		highlights = append(highlights, h.PreTags[0]+value[m.start:m.end]+h.PostTags[0])
-	}
-
-	return highlights
 }
 
 // UnknownAggregationType is a placeholder for an aggregation type that'll be determined in the future,

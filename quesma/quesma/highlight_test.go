@@ -120,7 +120,6 @@ func TestParseHighLight(t *testing.T) {
 
 	highlighter := cw.ParseHighlighter(queryAsMap)
 	tokens := []string{"User deleted", "User", "deleted"}
-	//highlighter.SetTokens(tokens)
 	assert.NotNil(t, highlighter, "Error parsing highlight %v", highlighter)
 
 	assert.Equal(t, 1, len(highlighter.PreTags))
