@@ -113,7 +113,7 @@ func (v *ExprPlaceholderRewriter) VisitOrderByExpr(e OrderByExpr) interface{} {
 }
 
 func (v *ExprPlaceholderRewriter) VisitDistinctExpr(e DistinctExpr) interface{} {
-	return DistinctExpr{Expr: e.Accept(v).(Expr)}
+	return DistinctExpr{Expr: e.Expr.Accept(v).(Expr)}
 }
 
 func (v *ExprPlaceholderRewriter) VisitAliasedExpr(e AliasedExpr) interface{} {
