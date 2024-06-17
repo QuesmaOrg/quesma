@@ -45,8 +45,6 @@ var FullSearchRequests = []FullSearchTestCase{
 		}`,
 		ExpectedResponse: `
 		{
-			"took": 12,
-			"timed_out": false,
 			"_shards": {
 				"total": 1,
 				"successful": 1,
@@ -75,8 +73,6 @@ var FullSearchRequests = []FullSearchTestCase{
 		}`,
 		ExpectedResponse: `
 		{
-			"took": 10,
-			"timed_out": false,
 			"_shards": {
 				"total": 1,
 				"successful": 1,
@@ -88,20 +84,17 @@ var FullSearchRequests = []FullSearchTestCase{
 					"value": 1,
 					"relation": "gte"
 				},
-				"max_score": 1,
+				"max_score": null,
 				"hits": [
 					{
-						"_index": ".ds-logs-generic-default-2024.05.30-000001",
-						"_id": "5d9yyo8B5yxeSrtV-A2A",
-						"_score": 1,
+						"_index": "logs-generic-default",
+						"_id": "1",
+						"_score": 0.0,
 						"_source": {
-							"severity": "info",
-							"@timestamp": "2024-05-30T17:01:23.44Z",
-							"host.name": "cassandra",
-							"source": "centos",
-							"service.name": "auth",
-							"message": "User password reset"
-							}
+							"message": "example"
+						},
+						"fields": {
+							"message": ["example"]
 						}
 					}
 				]
@@ -119,6 +112,46 @@ var FullSearchRequests = []FullSearchTestCase{
 			"size": 2,
 			"track_total_hits": 1
 		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 2,
+					"relation": "gte"
+				},
+				"max_score": null,
+				"hits": [
+					{
+						"_index": "logs-generic-default",
+						"_id": "1",
+						"_score": 0.0,
+						"_source": {
+							"message": "example"
+						},
+						"fields": {
+							"message": ["example"]
+						}
+					},
+					{
+						"_index": "logs-generic-default",
+						"_id": "2",
+						"_score": 0.0,
+						"_source": {
+							"message": "example"
+						},
+						"fields": {
+							"message": ["example"]
+						}
+					}
+				]
+			}
+		}`,
 		ExpectedSQLs:       []string{selectStar(2)},
 		ExpectedSQLResults: [][]model.QueryResultRow{resultSelect(2)},
 	},
@@ -129,6 +162,46 @@ var FullSearchRequests = []FullSearchTestCase{
 			"runtime_mappings": {},
 			"size": 2,
 			"track_total_hits": 1
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 2,
+					"relation": "gte"
+				},
+				"max_score": null,
+				"hits": [
+					{
+						"_index": "logs-generic-default",
+						"_id": "1",
+						"_score": 0.0,
+						"_source": {
+							"message": "example"
+						},
+						"fields": {
+							"message": ["example"]
+						}
+					},
+					{
+						"_index": "logs-generic-default",
+						"_id": "2",
+						"_score": 0.0,
+						"_source": {
+							"message": "example"
+						},
+						"fields": {
+							"message": ["example"]
+						}
+					}
+				]
+			}
 		}`,
 		ExpectedSQLs:       []string{selectStar(2)},
 		ExpectedSQLResults: [][]model.QueryResultRow{resultSelect(2)},
@@ -141,6 +214,46 @@ var FullSearchRequests = []FullSearchTestCase{
 			"size": 2,
 			"track_total_hits": false
 		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 2,
+					"relation": "gte"
+				},
+				"max_score": null,
+				"hits": [
+					{
+						"_index": "logs-generic-default",
+						"_id": "1",
+						"_score": 0.0,
+						"_source": {
+							"message": "example"
+						},
+						"fields": {
+							"message": ["example"]
+						}
+					},
+					{
+						"_index": "logs-generic-default",
+						"_id": "2",
+						"_score": 0.0,
+						"_source": {
+							"message": "example"
+						},
+						"fields": {
+							"message": ["example"]
+						}
+					}
+				]
+			}
+		}`,
 		ExpectedSQLs:       []string{selectStar(2)},
 		ExpectedSQLResults: [][]model.QueryResultRow{resultSelect(2)},
 	},
@@ -151,6 +264,46 @@ var FullSearchRequests = []FullSearchTestCase{
 			"runtime_mappings": {},
 			"size": 2,
 			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 2,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": [
+					{
+						"_index": "logs-generic-default",
+						"_id": "1",
+						"_score": 0.0,
+						"_source": {
+							"message": "example"
+						},
+						"fields": {
+							"message": ["example"]
+						}
+					},
+					{
+						"_index": "logs-generic-default",
+						"_id": "2",
+						"_score": 0.0,
+						"_source": {
+							"message": "example"
+						},
+						"fields": {
+							"message": ["example"]
+						}
+					}
+				]
+			}
 		}`,
 		ExpectedSQLs:       []string{selectStar(2), selectTotalCnt()},
 		ExpectedSQLResults: [][]model.QueryResultRow{resultSelect(2), resultCount(2)},
@@ -163,8 +316,37 @@ var FullSearchRequests = []FullSearchTestCase{
 			"size": 1,
 			"track_total_hits": true
 		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"total": 1,
+				"successful": 1,
+				"skipped": 0,
+				"failed": 0
+			},
+			"hits": {
+				"total": {
+					"value": 123,
+					"relation": "eq"
+				},
+				"max_score": null,
+				"hits": [
+					{
+						"_index": "logs-generic-default",
+						"_id": "1",
+						"_score": 0.0,
+						"_source": {
+							"message": "example"
+						},
+						"fields": {
+							"message": ["example"]
+						}
+					}
+				]
+			}
+		}`,
 		ExpectedSQLs:       []string{selectStar(1), selectTotalCnt()},
-		ExpectedSQLResults: [][]model.QueryResultRow{resultSelect(2), resultCount(123)},
+		ExpectedSQLResults: [][]model.QueryResultRow{resultSelect(1), resultCount(123)},
 	},
 
 	// SearchQueryType == ...

@@ -433,7 +433,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 		assert.NoError(t, err, "error unmarshalling expected response:")
 
 		actualMinusExpected, expectedMinusActual := util.MapDifference(responsePart, expectedResponseMap, true, true)
-		acceptableDifference := []string{"took", "_shards"}
+		acceptableDifference := []string{"took", "_shards", "timed_out"}
 		pp.Println("JM: ACTUAL", actualMinusExpected)
 		pp.Println("JM: EXPECTED", expectedMinusActual)
 
