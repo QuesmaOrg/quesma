@@ -108,7 +108,7 @@ func (cw *ClickhouseQueryTranslator) finishMakeResponse(query *model.Query, Resu
 		if _, isTopHits := query.Type.(metrics_aggregations.TopHits); isTopHits {
 			return []model.JsonMap{{
 				lastAggregator: model.JsonMap{
-					"hits:": result,
+					"hits": result,
 				},
 			}}
 		}
