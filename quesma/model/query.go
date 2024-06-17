@@ -46,7 +46,7 @@ type (
 		String() string
 	}
 	Highlighter struct {
-		Tokens []string
+		Tokens map[string]struct{}
 		Fields map[string]bool
 
 		PreTags  []string
@@ -191,7 +191,7 @@ func (h *Highlighter) HighlightValue(value string) []string {
 	length := len(lowerValue)
 
 	// find all matches
-	for _, token := range h.Tokens {
+	for token, _ := range h.Tokens {
 
 		if token == "" {
 			continue
@@ -242,24 +242,6 @@ func (h *Highlighter) HighlightValue(value string) []string {
 	}
 
 	return highlights
-}
-
-func (h *Highlighter) SetTokens(tokens []string) {
-
-	uniqueTokens := make(map[string]bool)
-	for _, token := range tokens {
-		uniqueTokens[strings.ToLower(token)] = true
-	}
-
-	h.Tokens = make([]string, 0, len(uniqueTokens))
-	for token := range uniqueTokens {
-		h.Tokens = append(h.Tokens, token)
-	}
-
-	// longer tokens firsts
-	sort.Slice(h.Tokens, func(i, j int) bool {
-		return len(h.Tokens[i]) > len(h.Tokens[j])
-	})
 }
 
 // UnknownAggregationType is a placeholder for an aggregation type that'll be determined in the future,
