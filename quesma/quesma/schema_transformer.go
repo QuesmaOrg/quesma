@@ -4,6 +4,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/schema"
 	"strings"
 )
 
@@ -123,7 +124,8 @@ func (v *WhereVisitor) VisitSelectCommand(e model.SelectCommand) interface{}    
 func (v *WhereVisitor) VisitWindowFunction(e model.WindowFunction) interface{}   { return e }
 
 type SchemaCheckPass struct {
-	cfg map[string]config.IndexConfiguration
+	cfg            map[string]config.IndexConfiguration
+	schemaRegistry schema.Registry
 }
 
 // This functions trims the db name from the table name if exists
