@@ -390,8 +390,12 @@ func TestSearchTrackTotalCount(t *testing.T) {
 		lm := clickhouse.NewLogManagerWithConnection(db, table)
 		managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 
-		for _, sql := range testcase.ExpectedSQLs {
-			mock.ExpectQuery(testdata.EscapeBrackets(sql)).WillReturnRows(sqlmock.NewRows([]string{"", ""}))
+		for i, sql := range testcase.ExpectedSQLs {
+			rows := sqlmock.NewRows([]string{testcase.ExpectedSQLResults[i][0].Cols[0].ColName})
+			for _, row := range testcase.ExpectedSQLResults[i] {
+				rows.AddRow(row.Cols[0].Value)
+			}
+			mock.ExpectQuery(testdata.EscapeBrackets(sql)).WillReturnRows(rows)
 		}
 
 		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)

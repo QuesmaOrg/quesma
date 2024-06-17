@@ -264,6 +264,8 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 				if len(results[i]) > 0 && len(results[i][0].Cols) > 0 {
 					if val, ok := results[i][0].Cols[0].Value.(uint64); ok {
 						totalCount = int(val)
+					} else if val2, ok2 := results[i][0].Cols[0].Value.(int64); ok2 {
+						totalCount = int(val2)
 					} else {
 						logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", results[i])
 					}
