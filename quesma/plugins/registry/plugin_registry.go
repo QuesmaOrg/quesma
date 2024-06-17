@@ -77,11 +77,11 @@ func TableColumNameFormatterFor(table string, cfg config.QuesmaConfiguration) (p
 	}
 
 	if len(transformers) == 0 {
-		return nil, fmt.Errorf("No table column name formatter found.")
+		return nil, fmt.Errorf("no table column name formatter found for table %s", table)
 	}
 
 	if len(transformers) > 1 {
-		return nil, fmt.Errorf("Multiple table column name formatters are not supported")
+		return nil, fmt.Errorf("multiple table column name formatters are not supported, table %s", table)
 	}
 
 	return transformers[0], nil
