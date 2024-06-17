@@ -74,6 +74,7 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, i
 		transformationPipeline: TransformationPipeline{
 			transformers: []Transformer{
 				&SchemaCheckPass{cfg: cfg.IndexConfig},
+				&model.AliasResolver{Cfg: cfg.IndexConfig},
 			},
 		}}
 }
@@ -224,11 +225,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		queries, err = q.transformationPipeline.Transform(queries)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
-		}
-
-		for i, q := range queries {
-			logger.Info().Msgf("PRZEMYSLAW APPLIES ALIASES")
-			queries[i].SelectCommand = model.ApplyAliases(q.SelectCommand).(model.SelectCommand)
 		}
 
 		if canParse {

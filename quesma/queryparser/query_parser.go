@@ -809,7 +809,10 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 	}
 
 	for field, v := range queryMap {
-		field = cw.Table.ResolveField(cw.Ctx, field)
+		// TODO PRZEMYSLAW resolution logic
+		logger.Info().Msgf("field before %s", field)
+		//field = cw.Table.ResolveField(cw.Ctx, field)
+		logger.Info().Msgf("field after %s", field)
 		stmts := make([]model.Expr, 0)
 		if _, ok := v.(QueryMap); !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid range type: %T, value: %v", v, v)
@@ -877,6 +880,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			switch op {
 			case "gte":
 				stmt := model.NewInfixExpr(finalLHS, ">=", valueToCompare)
+				//stmt := model.NewInfixExpr(finalLHS, ">=", model.DateTimeString())
 				stmts = append(stmts, stmt)
 			case "lte":
 				stmt := model.NewInfixExpr(finalLHS, "<=", valueToCompare)
@@ -934,11 +938,14 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 		switch cw.Table.GetFieldInfo(cw.Ctx, fieldName) {
 		case clickhouse.ExistsAndIsBaseType:
 			sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
+			// XXX IS NOT NULL
 		case clickhouse.ExistsAndIsArray:
 			sql = model.NewInfixExpr(model.NewNestedProperty(
 				model.NewColumnRef(fieldNameQuoted),
 				model.NewLiteral("size0"),
 			), "=", model.NewLiteral("0"))
+
+			//  COLUMNREF.size0 = 0
 		case clickhouse.NotExists:
 			attrs := cw.Table.GetAttributesList()
 			stmts := make([]model.Expr, len(attrs))
@@ -948,6 +955,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 				isNotNull := model.NewInfixExpr(arrayAccess, "IS", model.NewLiteral("NOT NULL"))
 				compoundStatementNoFieldName := model.NewInfixExpr(hasFunc, "AND", isNotNull)
 				stmts[i] = compoundStatementNoFieldName
+				// has(a.keys, 'fieldName') AND a.values[indexOf(a.keys, 'fieldName')] IS NOT NULL
 			}
 			sql = model.Or(stmts)
 		default:
