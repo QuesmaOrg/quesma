@@ -270,7 +270,7 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 					} else {
 						logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", results[i])
 					}
-					if query.SelectCommand.Limit != 0 && totalCount == query.SelectCommand.SampleLimit {
+					if query.SelectCommand.SampleLimit != 0 && totalCount == query.SelectCommand.SampleLimit {
 						relationCount = "gte"
 					}
 				} else {
@@ -305,9 +305,13 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 					}
 				}
 			}
+			relation := "eq"
+			if query.SelectCommand.SampleLimit != 0 && totalCount == query.SelectCommand.SampleLimit {
+				relation = "gte"
+			}
 			total = &model.Total{
 				Value:    totalCount,
-				Relation: "eq", // likely wrong
+				Relation: relation,
 			}
 			return
 		}
