@@ -86,7 +86,6 @@ func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitLiteral(e)
 }
 
-// Deprecated
 type StringExpr struct {
 	// StringExpr is just like LiteralExpr with string Value, but when rendering we don't quote it.
 	Value string

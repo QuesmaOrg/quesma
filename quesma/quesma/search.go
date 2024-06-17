@@ -563,6 +563,7 @@ func (q *QueryRunner) searchWorkerCommon(
 		}
 
 		sql := query.SelectCommand.String()
+
 		logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
 		sqls += sql + "\n"
 

@@ -66,10 +66,12 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 		}
 
 		columns = append(columns, colName)
-
 	}
 
-	rows, err := executeQuery(ctx, lm, query.SelectCommand.String(), columns, rowToScan)
+	placeholderRewriter := model.NewExprPlaceholderRewrite()
+	processed, parameters := placeholderRewriter.Rewrite(query.SelectCommand)
+
+	rows, err := executeQuery(ctx, lm, processed.String(), parameters, columns, rowToScan)
 
 	if err == nil {
 		for _, row := range rows {
@@ -118,10 +120,17 @@ func (lm *LogManager) explainQuery(ctx context.Context, query string, elapsed ti
 	}
 }
 
-func executeQuery(ctx context.Context, lm *LogManager, queryAsString string, fields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
+func executeQuery(ctx context.Context, lm *LogManager, queryAsString string, parameters map[string]interface{}, fields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
 	span := lm.phoneHomeAgent.ClickHouseQueryDuration().Begin()
 
-	rows, err := lm.Query(ctx, queryAsString)
+	//	https://github.com/ClickHouse/clickhouse-go/blob/main/examples/std/query_parameters.go
+
+	var namedParams []any
+	for name, value := range parameters {
+		namedParams = append(namedParams, sql.Named(name, value))
+	}
+
+	rows, err := lm.chDb.QueryContext(ctx, queryAsString, namedParams...)
 	if err != nil {
 		span.End(err)
 		return nil, end_user_errors.GuessClickhouseErrorType(err).InternalDetails("clickhouse: query failed. err: %v, query: %v", err, queryAsString)
