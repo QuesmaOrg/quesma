@@ -195,6 +195,15 @@ func handleFieldCapsIndex(ctx context.Context, cfg config.QuesmaConfiguration, i
 					addNewDefaultFieldCapability(fields, alias, resolvedIndex)
 				}
 			}
+
+			transformer := registry.FieldCapsTransformerFor(table.Name, cfg)
+			var err error
+			fields, err = transformer.Transform(fields)
+
+			if err != nil {
+				return nil, err
+			}
+
 		}
 
 		quesmaCol := &clickhouse.Column{Name: quesmaDebuggingFieldName, Type: clickhouse.BaseType{Name: "String"}}
@@ -203,15 +212,6 @@ func handleFieldCapsIndex(ctx context.Context, cfg config.QuesmaConfiguration, i
 
 	fieldCapsResponse := model.FieldCapsResponse{Fields: fields}
 	fieldCapsResponse.Indices = append(fieldCapsResponse.Indices, indexes...)
-
-	// This is tricky
-	transformer := registry.FieldCapsTransformerFor("TODO", cfg)
-
-	fieldCapsResponse, err := transformer.Transform(fieldCapsResponse)
-
-	if err != nil {
-		return nil, err
-	}
 
 	return json.Marshal(fieldCapsResponse)
 }

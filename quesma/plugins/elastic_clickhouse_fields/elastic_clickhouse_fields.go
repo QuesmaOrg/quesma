@@ -54,13 +54,13 @@ type fieldCapsTransformer struct {
 	translate translateFunc
 }
 
-func (t *fieldCapsTransformer) Transform(fieldCaps model.FieldCapsResponse) (model.FieldCapsResponse, error) {
-	for name, fields := range fieldCaps.Fields {
+func (t *fieldCapsTransformer) Transform(fieldCaps map[string]map[string]model.FieldCapability) (map[string]map[string]model.FieldCapability, error) {
+	for name, fields := range fieldCaps {
 		newName := t.translate(name)
 
-		if _, ok := fieldCaps.Fields[newName]; !ok {
-			fieldCaps.Fields[newName] = fields
-			delete(fieldCaps.Fields, name)
+		if _, ok := fieldCaps[newName]; !ok {
+			fieldCaps[newName] = fields
+			delete(fieldCaps, name)
 		}
 	}
 	return fieldCaps, nil
@@ -209,7 +209,7 @@ func (t *columNameFormatter) Format(namespace, columnName string) string {
 type Dot2DoubleColons struct{}
 
 func (p *Dot2DoubleColons) matches(table string) bool {
-	return true
+	return false
 }
 
 func (p *Dot2DoubleColons) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
@@ -291,7 +291,7 @@ func (p *Dot2DoubleColons2Dot) ApplyFieldCapsTransformers(table string, cfg conf
 type Dot2DoubleUnderscores2Dot struct{}
 
 func (p *Dot2DoubleUnderscores2Dot) matches(table string) bool {
-	return false
+	return true
 }
 
 func (p *Dot2DoubleUnderscores2Dot) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {

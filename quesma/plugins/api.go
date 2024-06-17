@@ -6,14 +6,10 @@ import (
 	"mitmproxy/quesma/quesma/types"
 )
 
-// Interfaces
+// Legit Interfaces
 
 type ResultTransformer interface {
 	Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error)
-}
-
-type FieldCapsTransformer interface {
-	Transform(fieldCaps model.FieldCapsResponse) (model.FieldCapsResponse, error)
 }
 
 type QueryTransformer interface {
@@ -22,6 +18,12 @@ type QueryTransformer interface {
 
 type IngestTransformer interface {
 	Transform(document types.JSON) (types.JSON, error)
+}
+
+// not so legit API
+
+type FieldCapsTransformer interface {
+	Transform(fieldCaps map[string]map[string]model.FieldCapability) (map[string]map[string]model.FieldCapability, error)
 }
 
 // this one is used to format column names on table creation
@@ -33,7 +35,7 @@ type TableColumNameFormatter interface {
 
 ///
 
-// Plugin provides implementations of transformers
+// Plugin changes the behavior of Quesma by changing the pipeline of transformers
 type Plugin interface {
 	ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, transformers []IngestTransformer) []IngestTransformer
 	ApplyFieldCapsTransformers(table string, cfg config.QuesmaConfiguration, transformers []FieldCapsTransformer) []FieldCapsTransformer
