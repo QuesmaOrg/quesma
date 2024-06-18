@@ -17,7 +17,7 @@ import (
 //   - https://www.elastic.co/guide/en/elasticsearch/reference/current/highlighting.html
 //   - https://medium.com/@andre.luiz1987/using-highlighting-elasticsearch-9ccd698f08
 type Highlighter struct {
-	tokens map[string]struct{} // tokens represent a 'set' of tokens
+	Tokens map[string]struct{} // tokens represent a 'set' of tokens
 	Fields map[string]bool
 
 	PreTags  []string
@@ -26,9 +26,9 @@ type Highlighter struct {
 
 // Tokens returns a length-wise sorted list of tokens,
 // so that TODO SAY PRECISELY WHY
-func (h *Highlighter) Tokens() []string {
+func (h *Highlighter) GetSortedTokens() []string {
 	var tokensList []string
-	for token := range h.tokens {
+	for token := range h.Tokens {
 		tokensList = append(tokensList, token)
 	}
 	sort.Slice(tokensList, func(i, j int) bool {
@@ -46,7 +46,7 @@ func (h *Highlighter) ShouldHighlight(columnName string) bool {
 func (h *Highlighter) SetTokensToHighlight(selectCmd SelectCommand) {
 	highlighterVisitor := NewHighlighter()
 	selectCmd.Accept(highlighterVisitor)
-	h.tokens = highlighterVisitor.TokensToHighlight
+	h.Tokens = highlighterVisitor.TokensToHighlight
 }
 
 // HighlightValue takes a value and returns the part of it that should be highlighted, wrapped in tags.
@@ -70,7 +70,7 @@ func (h *Highlighter) HighlightValue(value string) []string {
 	length := len(lowerValue)
 
 	// find all matches
-	for _, token := range h.Tokens() {
+	for _, token := range h.GetSortedTokens() {
 		if token == "" {
 			continue
 		}
@@ -217,6 +217,8 @@ func (v *highlighter) VisitAliasedExpr(e AliasedExpr) interface{} {
 func (v *highlighter) VisitSelectCommand(c SelectCommand) interface{} {
 	var columns, groupBy []Expr
 	var orderBy []OrderByExpr
+	from := c.FromClause
+	where := c.WhereClause
 	for _, expr := range c.Columns {
 		columns = append(columns, expr.Accept(v).(Expr))
 	}
@@ -226,7 +228,13 @@ func (v *highlighter) VisitSelectCommand(c SelectCommand) interface{} {
 	for _, expr := range c.OrderBy {
 		orderBy = append(orderBy, expr.Accept(v).(OrderByExpr))
 	}
-	return *NewSelectCommand(columns, groupBy, orderBy, c.FromClause.Accept(v).(Expr), c.WhereClause.Accept(v).(Expr), c.Limit, c.SampleLimit, c.IsDistinct)
+	if c.FromClause != nil {
+		from = c.FromClause.Accept(v).(Expr)
+	}
+	if c.WhereClause != nil {
+		where = c.WhereClause.Accept(v).(Expr)
+	}
+	return *NewSelectCommand(columns, groupBy, orderBy, from, where, c.Limit, c.SampleLimit, c.IsDistinct)
 }
 
 func (v *highlighter) VisitWindowFunction(f WindowFunction) interface{} {
