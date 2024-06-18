@@ -89,6 +89,8 @@ jobs:
 #
       - name: Print PR number
         run: echo $(gh pr list --search ${{ github.sha }})
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Add a comment to the PR
         run: |
