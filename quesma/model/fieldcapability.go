@@ -54,9 +54,21 @@ func (c1 FieldCapability) Concat(c2 FieldCapability) (FieldCapability, bool) {
 		Type:          c1.Type,
 		Aggregatable:  c1.Aggregatable && c2.Aggregatable,
 		Searchable:    c1.Searchable && c2.Searchable,
-		MetadataField: util.Pointer(orFalse(c1.MetadataField) && orFalse(c2.MetadataField)),
+		MetadataField: resolveMetadataField(c1, c2),
 		Indices:       indices,
 	}, true
+}
+
+func resolveMetadataField(c1, c2 FieldCapability) *bool {
+	switch {
+	case c1.MetadataField == nil && c2.MetadataField == nil:
+		return nil
+	case c1.MetadataField == nil:
+		return c2.MetadataField
+	case c2.MetadataField == nil:
+		return c1.MetadataField
+	}
+	return util.Pointer(orFalse(c1.MetadataField) && orFalse(c2.MetadataField))
 }
 
 func orFalse(b *bool) bool {
