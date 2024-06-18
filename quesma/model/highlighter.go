@@ -52,7 +52,7 @@ func (h *Highlighter) SetTokensToHighlight(selectCmd SelectCommand) {
 // HighlightValue takes a value and returns the part of it that should be highlighted, wrapped in tags.
 //
 // E.g. when value is `Mozilla/5.0 (X11; Linux x86_64; rv:6.0a1) Gecko/20110421 Firefox/6.0a1
-// and we search for `Firefo` in Kibana it's going to produce `@kibana-highlighted-field@Firefo@/kibana-highlighted-field@` fr
+// and we search for `Firefo` in Kibana it's going to produce `@kibana-highlighted-field@Firefo@/kibana-highlighted-field@`
 func (h *Highlighter) HighlightValue(value string) []string {
 	// paranoia check for empty tags
 	if len(h.PreTags) < 1 && len(h.PostTags) < 1 {
