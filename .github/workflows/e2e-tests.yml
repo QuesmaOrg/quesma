@@ -109,12 +109,16 @@ jobs:
         run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:8080)" = "200" ]; do sleep 3; done
 
       - name: Run e2e tests
+        id: run_tests
         working-directory: quesma
         #run: go test -race --tags=integration  -v ./...
-        run: go test -race -v ./...
+        run: |
+          go test -race -v ./...
+          echo "$?" >> $GITHUB_OUTPUT
 
       - name: Add after-test comment to the PR
         run: |
+          echo ${{ steps.run_tests.outputs }}
           msg="\"e2e tests finished, status: :white_check_mark: [(Run summary)](${TEST_URL})\""
           curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                -X POST \
