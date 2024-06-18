@@ -18,7 +18,7 @@ import (
 //   - https://medium.com/@andre.luiz1987/using-highlighting-elasticsearch-9ccd698f08
 
 type Highlighter struct {
-	// Tokens represents a map of field/column name to a set of tokens that should be highlighted.
+	// Tokens is a map of field/column name to a set of tokens which should be highlighted.
 	Tokens map[string]Tokens
 
 	PreTags  []string
