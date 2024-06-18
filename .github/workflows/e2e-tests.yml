@@ -4,12 +4,8 @@ on: # @TODO TBD WHEN WE RUN
   push:
     branches: [ "main" ]
   workflow_dispatch:
-    inputs:
-      GIT_REF:
-        description: 'Commit hash to run the tests'
-        required: true
-jobs:
 
+jobs:
   build-quesma-docker-image:
     strategy:
       matrix:
@@ -17,8 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: ## @TODO REMOVE
-          ref: ${{ github.event.inputs.GIT_REF }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -93,3 +87,12 @@ jobs:
         working-directory: quesma
         run: go test -race --tags=integration  -v ./...
 
+      - name: Print PR number
+        run: echo "Triggered for PR #${{ github.event.inputs.pr_number }}"
+
+      - name: Add a comment to the PR
+        run: |
+          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -X POST \
+               -d '{"body": "Manual workflow triggered."}' \
+               https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.number }}/comments
