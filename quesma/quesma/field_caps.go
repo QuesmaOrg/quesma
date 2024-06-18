@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/elasticsearch"
+	"mitmproxy/quesma/elasticsearch/elasticsearch_field_types"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/plugins/registry"
@@ -16,7 +17,7 @@ import (
 
 func BuildFieldCapFromSchema(fieldType schema.Type, indexName string) model.FieldCapability {
 	return model.FieldCapability{
-		Type:          elasticsearch.SchemaTypeAdapter{}.ConvertFrom(fieldType),
+		Type:          asElasticType(fieldType),
 		Aggregatable:  fieldType.IsAggregatable(),
 		Searchable:    fieldType.IsSearchable(),
 		Indices:       []string{indexName},
@@ -25,7 +26,7 @@ func BuildFieldCapFromSchema(fieldType schema.Type, indexName string) model.Fiel
 }
 
 func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.FieldCapability, colName string, fieldType schema.Type, index string) {
-	fieldTypeName := elasticsearch.SchemaTypeAdapter{}.ConvertFrom(fieldType)
+	fieldTypeName := asElasticType(fieldType)
 	fieldCapability := BuildFieldCapFromSchema(fieldType, index)
 
 	if _, exists := fields[colName]; !exists {
@@ -116,4 +117,29 @@ func handleFieldCaps(ctx context.Context, cfg config.QuesmaConfiguration, schema
 	}
 
 	return handleFieldCapsIndex(cfg, schemaRegistry, indexes)
+}
+
+func asElasticType(t schema.Type) string {
+	switch t.Name {
+	case schema.TypeText.Name:
+		return elasticsearch_field_types.FieldTypeText
+	case schema.TypeTimestamp.Name:
+		return elasticsearch_field_types.FieldTypeDate
+	case schema.TypeKeyword.Name:
+		return elasticsearch_field_types.FieldTypeKeyword
+	case schema.TypeLong.Name:
+		return elasticsearch_field_types.FieldTypeLong
+	case schema.TypeDate.Name:
+		return elasticsearch_field_types.FieldTypeDate
+	case schema.TypeFloat.Name:
+		return elasticsearch_field_types.FieldTypeDouble
+	case schema.TypeBoolean.Name:
+		return elasticsearch_field_types.FieldTypeBoolean
+	case schema.TypeIp.Name:
+		return elasticsearch_field_types.FieldTypeIp
+	case schema.TypeObject.Name:
+		return elasticsearch_field_types.FieldTypeObject
+	default:
+		return elasticsearch_field_types.FieldTypeText
+	}
 }
