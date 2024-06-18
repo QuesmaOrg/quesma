@@ -43,7 +43,8 @@ jobs:
 
   e2e-test-run:
     runs-on: ubuntu-latest
-    #permissions: write-all # todo change
+    permissions:
+      issues: write # todo change
     #needs: [build-quesma-docker-image]
     env:
       PR_NUMBER: $(echo gh pr list --search ${{ github.sha }} | awk '{print $1}')
@@ -106,7 +107,7 @@ jobs:
           echo $b
           curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                -X POST \
-               -d '{"body": "Manual workflow triggered."}' $b
+               -d '{"body": "Manual workflow triggered. ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' $b
         #https://api.github.com/repos/${{ github.repository }}/issues/${a}/comments
         env:
           PR_NUMBER: ${{ github.event.number }}
