@@ -37,3 +37,5 @@ jobs:
           tags: europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.sha }}
           # Pushes to GCR only for `main` branch builds
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        env:
+          DOCKER_BUILD_NO_SUMMARY: true
