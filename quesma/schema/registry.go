@@ -25,6 +25,16 @@ type (
 	typeAdapter interface {
 		Convert(string) (Type, bool)
 	}
+	TableProvider interface {
+		TableDefinitions() map[string]Table
+	}
+	Table struct {
+		Columns map[string]Column
+	}
+	Column struct {
+		Name string
+		Type string
+	}
 )
 
 func (s *schemaRegistry) Start() {
