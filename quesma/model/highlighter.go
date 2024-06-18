@@ -24,8 +24,8 @@ type Highlighter struct {
 	PostTags []string
 }
 
-// Tokens returns a length-wise sorted list of tokens,
-// so that TODO SAY PRECISELY WHY
+// GetSortedTokens returns a length-wise sorted list of tokens,
+// so that highlight results are deterministic and larger chunks are highlighted first.
 func (h *Highlighter) GetSortedTokens() []string {
 	var tokensList []string
 	for token := range h.Tokens {
