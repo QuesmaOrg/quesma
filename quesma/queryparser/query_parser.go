@@ -809,10 +809,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 	}
 
 	for field, v := range queryMap {
-		// TODO PRZEMYSLAW resolution logic
-		logger.Info().Msgf("field before %s", field)
-		//field = cw.Table.ResolveField(cw.Ctx, field)
-		logger.Info().Msgf("field after %s", field)
+		field = cw.Table.ResolveField(cw.Ctx, field)
 		stmts := make([]model.Expr, 0)
 		if _, ok := v.(QueryMap); !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid range type: %T, value: %v", v, v)
@@ -880,7 +877,6 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			switch op {
 			case "gte":
 				stmt := model.NewInfixExpr(finalLHS, ">=", valueToCompare)
-				//stmt := model.NewInfixExpr(finalLHS, ">=", model.DateTimeString())
 				stmts = append(stmts, stmt)
 			case "lte":
 				stmt := model.NewInfixExpr(finalLHS, "<=", valueToCompare)
