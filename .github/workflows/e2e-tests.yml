@@ -88,7 +88,7 @@ jobs:
 #        run: go test -race --tags=integration  -v ./...
 #
       - name: Print PR number
-        run: echo Triggered for PR ${{ toJson(github) }}
+        run: echo Triggered for PR ${{ toJSON(github) }}
 
       - name: Add a comment to the PR
         run: |
