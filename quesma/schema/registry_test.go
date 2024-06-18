@@ -38,7 +38,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			}},
 			tableName: "some_table",
 			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
-				"message":    {Name: "message", Type: schema.TypeText},
+				"message":    {Name: "message", Type: schema.TypeKeyword},
 				"event_date": {Name: "event_date", Type: schema.TypeTimestamp},
 				"count":      {Name: "count", Type: schema.TypeLong}},
 				Aliases: map[schema.FieldName]schema.FieldName{}},
