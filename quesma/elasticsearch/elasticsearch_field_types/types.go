@@ -1,7 +1,5 @@
 package elasticsearch_field_types
 
-import "slices"
-
 // https://opensearch.org/docs/latest/field-types/supported-field-types/index/
 
 // Common types
@@ -127,21 +125,4 @@ var AllTypes = map[string]bool{
 
 func IsValid(fieldType string) bool {
 	return AllTypes[fieldType]
-}
-
-func IsAggregatable(typeName string) bool {
-	return slices.Contains([]string{
-		FieldTypeDate,
-		FieldTypeByte,
-		FieldTypeShort,
-		FieldTypeInteger,
-		FieldTypeLong,
-		FieldTypeFloat,
-		FieldTypeUnsignedLong,
-		FieldTypeDouble,
-		FieldTypeIp,
-		FieldTypeIpRange,
-		FieldTypeKeyword,
-		FieldTypeGeoPoint,
-	}, typeName)
 }
