@@ -31,7 +31,7 @@ jobs:
           password: ${{ secrets.GCR_SERVICE_ACCOUNT_PRIVATE_KEY }}
 
       - name: Build and export
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.module }}/.
           tags: europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.sha }}
