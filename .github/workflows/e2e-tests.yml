@@ -49,7 +49,7 @@ jobs:
 
   e2e-test-run:
     runs-on: ubuntu-latest
-    permissions: # it's the smallest set of necessary permissions to run the steps
+    permissions: # manually checked that it's the smallest set of necessary permissions to run all the steps
       contents: read
       id-token: write
       pull-requests: write
