@@ -904,7 +904,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 
 		switch cw.Table.GetFieldInfo(cw.Ctx, fieldName) {
 		case clickhouse.ExistsAndIsBaseType:
-			sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewPrefixExpr("NOT", []model.Expr{model.NewLiteral("NULL")}))
+			sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
 		case clickhouse.ExistsAndIsArray:
 			sql = model.NewInfixExpr(model.NewNestedProperty(
 				model.NewColumnRef(fieldNameQuoted),
@@ -916,7 +916,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			for i, a := range attrs {
 				hasFunc := model.NewFunction("has", []model.Expr{model.NewColumnRef(a.KeysArrayName), model.NewColumnRef(fieldName)}...)
 				arrayAccess := model.NewArrayAccess(model.NewColumnRef(a.ValuesArrayName), model.NewFunction("indexOf", []model.Expr{model.NewColumnRef(a.KeysArrayName), model.NewLiteral(fieldNameQuoted)}...))
-				isNotNull := model.NewInfixExpr(arrayAccess, "IS", model.NewPrefixExpr("NOT", []model.Expr{model.NewLiteral("NULL")}))
+				isNotNull := model.NewInfixExpr(arrayAccess, "IS", model.NewLiteral("NOT NULL"))
 				compoundStatementNoFieldName := model.NewInfixExpr(hasFunc, "AND", isNotNull)
 				stmts[i] = compoundStatementNoFieldName
 			}

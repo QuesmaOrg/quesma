@@ -67,7 +67,7 @@ func (interval Interval) ToWhereClause(field model.Expr) model.Expr { // returns
 	case sqlRight != nil:
 		return sqlRight
 	default:
-		return model.NewInfixExpr(field, "IS", model.NewPrefixExpr("NOT", []model.Expr{model.NewLiteral("NULL")}))
+		return model.NewInfixExpr(field, "IS", model.NewLiteral("NOT NULL"))
 	}
 }
 
