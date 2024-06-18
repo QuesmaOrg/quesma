@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/plugins/registry"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/errors"
 	"mitmproxy/quesma/schema"
 	"mitmproxy/quesma/util"
 )
@@ -112,7 +113,7 @@ func handleFieldCaps(ctx context.Context, cfg config.QuesmaConfiguration, schema
 
 	if len(indexes) == 0 {
 		if !elasticsearch.IsIndexPattern(index) {
-			return nil, errIndexNotExists
+			return nil, quesma_errors.ErrIndexNotExists()
 		}
 	}
 
