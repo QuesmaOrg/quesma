@@ -108,3 +108,4 @@ jobs:
                https://api.github.com/repos/${{ github.repository }}/issues/$(echo gh pr list --search ${{ github.sha }} | awk '{print $1}')/comments
         env:
           PR_NUMBER: ${{ github.event.number }}
+          GH_TOKEN: ${{ github.token }}
