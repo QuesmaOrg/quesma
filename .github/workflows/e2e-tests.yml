@@ -46,12 +46,14 @@ jobs:
     permissions: read-all # todo change
     #needs: [build-quesma-docker-image]
     env:
-      PR_NUMBER: $(gh pr list --search ${{ github.sha }} | awk '{print $1}')
+      PR_NUMBER: $(echo gh pr list --search ${{ github.sha }} | awk '{print $1}')
     steps:
       - uses: actions/checkout@v4
         with:     ## @TODO REMOVE
           ref: ${{ github.event.inputs.GIT_REF }}
-#
+
+      - name: Set env PR number
+        run: echo "PR_NUMBER=500" >> $GITHUB_ENV
 #      - name: Set up Go
 #        uses: actions/setup-go@v5
 #        with:
