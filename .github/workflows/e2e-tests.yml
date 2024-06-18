@@ -45,6 +45,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions: read-all # todo change
     #needs: [build-quesma-docker-image]
+    env:
+      PR_NUMBER: echo "$(gh pr list --search ${{ github.sha }}) | awk '{print $1}'"
     steps:
       - uses: actions/checkout@v4
         with:     ## @TODO REMOVE
@@ -89,7 +91,7 @@ jobs:
 #        run: go test -race --tags=integration  -v ./...
 #
       - name: Print PR number
-        run: echo $(gh pr list --search ${{ github.sha }})
+        run: echo $(gh pr list --search ${{ github.sha }}) $PR_NUMBER
         env:
           GH_TOKEN: ${{ github.token }}
 
