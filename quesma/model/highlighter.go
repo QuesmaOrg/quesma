@@ -193,7 +193,10 @@ func (v *highlighter) VisitInfix(e InfixExpr) interface{} {
 				literalAsString = strings.TrimPrefix(literalAsString, "%")
 				literalAsString = strings.TrimSuffix(literalAsString, "'")
 				literalAsString = strings.TrimSuffix(literalAsString, "%")
-				v.Tokens[lhs.ColumnName] = map[string]struct{}{strings.ToLower(literalAsString): {}}
+				if v.Tokens[lhs.ColumnName] == nil {
+					v.Tokens[lhs.ColumnName] = make(Tokens)
+				}
+				v.Tokens[lhs.ColumnName][strings.ToLower(literalAsString)] = struct{}{}
 			default:
 				logger.Info().Msgf("Value is of an unexpected type: %T\n", literalAsString)
 			}
