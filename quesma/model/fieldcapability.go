@@ -1,5 +1,10 @@
 package model
 
+import (
+	"mitmproxy/quesma/util"
+	"slices"
+)
+
 // Content of this file is a copy of
 // https://github.com/elastic/go-elasticsearch/blob/main/typedapi/types/fieldcapability.go
 // with the exception of two properties that are currently
@@ -33,4 +38,42 @@ type FieldCapability struct {
 	// TimeSeriesDimension Whether this field is used as a time series dimension.
 	TimeSeriesDimension *bool  `json:"time_series_dimension,omitempty"`
 	Type                string `json:"type"`
+}
+
+func (c1 FieldCapability) Concat(c2 FieldCapability) (FieldCapability, bool) {
+	if c1.Type != c2.Type {
+		return FieldCapability{}, false
+	}
+	var indices []string
+	indices = append(indices, c1.Indices...)
+	indices = append(indices, c2.Indices...)
+	slices.Sort(indices)
+	indices = slices.Compact(indices)
+
+	return FieldCapability{
+		Type:          c1.Type,
+		Aggregatable:  c1.Aggregatable && c2.Aggregatable,
+		Searchable:    c1.Searchable && c2.Searchable,
+		MetadataField: resolveMetadataField(c1, c2),
+		Indices:       indices,
+	}, true
+}
+
+func resolveMetadataField(c1, c2 FieldCapability) *bool {
+	switch {
+	case c1.MetadataField == nil && c2.MetadataField == nil:
+		return nil
+	case c1.MetadataField == nil:
+		return c2.MetadataField
+	case c2.MetadataField == nil:
+		return c1.MetadataField
+	}
+	return util.Pointer(orFalse(c1.MetadataField) && orFalse(c2.MetadataField))
+}
+
+func orFalse(b *bool) bool {
+	if b == nil {
+		return false
+	}
+	return *b
 }

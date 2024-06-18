@@ -12,7 +12,6 @@ import (
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/schema"
 	"mitmproxy/quesma/util"
-	"slices"
 )
 
 func BuildFieldCapFromSchema(fieldType schema.Type, indexName string) model.FieldCapability {
@@ -34,7 +33,7 @@ func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.Fie
 	}
 
 	if existing, exists := fields[colName][fieldTypeName]; exists {
-		merged, ok := merge(existing, fieldCapability)
+		merged, ok := existing.Concat(fieldCapability)
 		if ok {
 			fields[colName][fieldTypeName] = merged
 		}
@@ -117,30 +116,4 @@ func handleFieldCaps(ctx context.Context, cfg config.QuesmaConfiguration, schema
 	}
 
 	return handleFieldCapsIndex(cfg, schemaRegistry, indexes)
-}
-
-func merge(cap1, cap2 model.FieldCapability) (model.FieldCapability, bool) {
-	if cap1.Type != cap2.Type {
-		return model.FieldCapability{}, false
-	}
-	var indices []string
-	indices = append(indices, cap1.Indices...)
-	indices = append(indices, cap2.Indices...)
-	slices.Sort(indices)
-	indices = slices.Compact(indices)
-
-	return model.FieldCapability{
-		Type:          cap1.Type,
-		Aggregatable:  cap1.Aggregatable && cap2.Aggregatable,
-		Searchable:    cap1.Searchable && cap2.Searchable,
-		MetadataField: util.Pointer(orFalse(cap1.MetadataField) && orFalse(cap2.MetadataField)),
-		Indices:       indices,
-	}, true
-}
-
-func orFalse(b *bool) bool {
-	if b == nil {
-		return false
-	}
-	return *b
 }
