@@ -44,8 +44,20 @@ jobs:
   e2e-test-run:
     runs-on: ubuntu-latest
     permissions:
-      issues: write # todo change
-    #needs: [build-quesma-docker-image]
+      actions: read
+      checks: read
+      contents: read
+      deployments: read
+      id-token: read
+      issues: write
+      discussions: read
+      packages: read
+      pages: read
+      pull-requests: read
+      repository-projects: read
+      security-events: read
+      statuses: read
+    needs: [build-quesma-docker-image]
     env:
       PR_NUMBER: $(echo gh pr list --search ${{ github.sha }} | awk '{print $1}')
     steps:
