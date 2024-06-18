@@ -1,9 +1,15 @@
 name: E2E tests
 
-on: # @TODO TBD WHEN WE RUN
-  push:
-    branches: [ "main", "e2e-github-workflow" ]
-  workflow_dispatch:
+on:
+  workflow_dispatch: # this enables manual triggering of the test
+  schedule:
+    - cron: '0 0 * * *' # everyday 00:00 UTC (02:00 in Poland, summer time)
+    - cron: '0 8 * * MON-FRI'    # 08:00 UTC (10:00 in Poland, summer time)
+    - cron: '0 11 * * MON-FRI'   # 11:00 UTC (13:00 in Poland, summer time)
+    - cron: '0 14 * * MON-FRI'   # 14:00 UTC (16:00 in Poland, summer time)
+    - cron: '30 16 * * MON-FRI'  # 16:30 UTC (18:30 in Poland, summer time)
+    - cron: '20 20 * * MON-FRI'  # TEST REMOVE18:00 UTC (20:00 in Poland, summer time)
+    - cron: '05 20 * * MON-FRI'  # TEST REMOVE 18:00 UTC (20:00 in Poland, summer time)
 
 jobs:
 #  build-quesma-docker-image:
