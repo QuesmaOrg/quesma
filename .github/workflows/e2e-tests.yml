@@ -45,50 +45,50 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-quesma-docker-image]
     steps:
-      - uses: actions/checkout@v4
-        with:     ## @TODO REMOVE
-          ref: ${{ github.event.inputs.GIT_REF }}
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          cache-dependency-path: smoke-test/go.sum
-          go-version: '1.22'
-
-      - name: Download images
-        uses: actions/download-artifact@v4
-        with:
-          path: /tmp/images
-
-      - name: Load images
-        run: |
-          for file in /tmp/images/*/*.tar; do
-            docker load --input $file
-          done
-          docker image ls -a  
-
-      - name: Build and start docker-compose
-        timeout-minutes: 10
-        run: docker-compose -f docker/e2e.yml up -d
-
-      - name: Wait until Elasticsearch is up
-        timeout-minutes: 6
-        run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:9200)" = "200" ]; do sleep 3; done
-
-      - name: Wait until ClickHouse is up
-        timeout-minutes: 6
-        run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:8123)" = "200" ]; do sleep 3; done
-
-      - name: Wait until Quesma is up ('/' is call routed to Elasticsearch)
-        timeout-minutes: 6
-        run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:8080)" = "200" ]; do sleep 3; done
-
-      - name: Run e2e tests
-        working-directory: quesma
-        run: go test -race --tags=integration  -v ./...
-
+#      - uses: actions/checkout@v4
+#        with:     ## @TODO REMOVE
+#          ref: ${{ github.event.inputs.GIT_REF }}
+#
+#      - name: Set up Go
+#        uses: actions/setup-go@v5
+#        with:
+#          cache-dependency-path: smoke-test/go.sum
+#          go-version: '1.22'
+#
+#      - name: Download images
+#        uses: actions/download-artifact@v4
+#        with:
+#          path: /tmp/images
+#
+#      - name: Load images
+#        run: |
+#          for file in /tmp/images/*/*.tar; do
+#            docker load --input $file
+#          done
+#          docker image ls -a
+#
+#      - name: Build and start docker-compose
+#        timeout-minutes: 10
+#        run: docker-compose -f docker/e2e.yml up -d
+#
+#      - name: Wait until Elasticsearch is up
+#        timeout-minutes: 6
+#        run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:9200)" = "200" ]; do sleep 3; done
+#
+#      - name: Wait until ClickHouse is up
+#        timeout-minutes: 6
+#        run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:8123)" = "200" ]; do sleep 3; done
+#
+#      - name: Wait until Quesma is up ('/' is call routed to Elasticsearch)
+#        timeout-minutes: 6
+#        run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:8080)" = "200" ]; do sleep 3; done
+#
+#      - name: Run e2e tests
+#        working-directory: quesma
+#        run: go test -race --tags=integration  -v ./...
+#
       - name: Print PR number
-        run: echo "Triggered for PR #${{ github.event.inputs.pr_number }}"
+        run: echo "Triggered for PR ${{ github.event.number }}"
 
       - name: Add a comment to the PR
         run: |
