@@ -66,6 +66,13 @@ jobs:
           echo "TEST_URL=$test_url" >> $GITHUB_ENV
         env:
           GH_TOKEN: ${{ github.token }}
+
+      - name: Add before-test comment to the PR
+        run: |
+          body="\"e2e tests started... [(Run)](${TEST_URL})\""
+          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -X POST \
+               -d "{\"body\": $body}" $PR_URL
 #      - name: Set up Go
 #        uses: actions/setup-go@v5
 #        with:
@@ -104,11 +111,9 @@ jobs:
 #        working-directory: quesma
 #        run: go test -race --tags=integration  -v ./...
 #
-      - name: Add a comment to the PR
+      - name: Add after-test comment to the PR
         run: |
           body="\"e2e status: :white_check_mark: [(Run summary)](${TEST_URL})\""
-          echo "{\"body\": $body}"
-          echo "\{\"body\": $body\}"
           curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                -X POST \
                -d "{\"body\": $body}" $PR_URL
