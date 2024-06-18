@@ -19,40 +19,14 @@ const facetsSampleSize = 20000
 type JsonMap = map[string]interface{}
 
 type ClickhouseQueryTranslator struct {
-	ClickhouseLM      *clickhouse.LogManager
-	Table             *clickhouse.Table
-	tokensToHighlight []string
-	Ctx               context.Context
+	ClickhouseLM *clickhouse.LogManager
+	Table        *clickhouse.Table
+	Ctx          context.Context
 
 	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()
-
-func (cw *ClickhouseQueryTranslator) AddTokenToHighlight(token any) {
-
-	if token == nil {
-		return
-	}
-
-	// this logic is taken from `sprint` function
-	switch token := token.(type) {
-	case string:
-		cw.tokensToHighlight = append(cw.tokensToHighlight, token)
-	case *string:
-		cw.tokensToHighlight = append(cw.tokensToHighlight, *token)
-	case QueryMap:
-		value := token["value"]
-		cw.AddTokenToHighlight(value)
-	default:
-		logger.WarnWithCtx(cw.Ctx).Msgf("unknown type for highlight token: %T, value: %v", token, token)
-	}
-
-}
-
-func (cw *ClickhouseQueryTranslator) ClearTokensToHighlight() {
-	cw.tokensToHighlight = []string{}
-}
 
 func emptySearchResponse() model.SearchResp {
 	return model.SearchResp{
@@ -452,7 +426,6 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 	if len(prefix) > 0 {
 		//whereClause = strconv.Quote(fieldName) + " iLIKE '" + prefix + "%'"
 		whereClause = model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral(prefix+"%"))
-		cw.AddTokenToHighlight(prefix)
 	}
 	return &model.Query{
 		SelectCommand: *model.NewSelectCommand(
