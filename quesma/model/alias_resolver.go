@@ -12,7 +12,6 @@ type AliasResolver struct {
 
 func (a *AliasResolver) Transform(queries []*Query) ([]*Query, error) {
 	for i, query := range queries {
-		logger.Info().Msgf("PRZEMYSLAW APPLIES ALIASES")
 		aliases := a.aliasesConfigured(query.TableName)
 		if len(aliases) == 0 {
 			queries[i] = query
