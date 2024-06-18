@@ -90,15 +90,16 @@ func (query *Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Que
 		if col.Value == nil {
 			continue // We don't return empty value
 		}
-		hit.Fields[col.ColName] = []interface{}{col.Value}
-		if query.highlighter.ShouldHighlight(col.ColName) {
+		columnName := col.ColName
+		hit.Fields[columnName] = []interface{}{col.Value}
+		if query.highlighter.ShouldHighlight(columnName) {
 			// check if we have a string here and if so, highlight it
 			switch valueAsString := col.Value.(type) {
 			case string:
-				hit.Highlight[col.ColName] = query.highlighter.HighlightValue(valueAsString)
+				hit.Highlight[columnName] = query.highlighter.HighlightValue(columnName, valueAsString)
 			case *string:
 				if valueAsString != nil {
-					hit.Highlight[col.ColName] = query.highlighter.HighlightValue(*valueAsString)
+					hit.Highlight[columnName] = query.highlighter.HighlightValue(columnName, *valueAsString)
 				}
 			default:
 				logger.WarnWithCtx(query.ctx).Msgf("unknown type for hit highlighting: %T, value: %v", col.Value, col.Value)

@@ -16,19 +16,25 @@ import (
 // You can read more in:
 //   - https://www.elastic.co/guide/en/elasticsearch/reference/current/highlighting.html
 //   - https://medium.com/@andre.luiz1987/using-highlighting-elasticsearch-9ccd698f08
+
 type Highlighter struct {
-	Tokens map[string]struct{} // tokens represent a 'set' of tokens
-	Fields map[string]bool
+	Tokens map[string]Tokens
 
 	PreTags  []string
 	PostTags []string
 }
 
+// TODOs:
+// -> highlighter needs to work for all fields, not only those marked as fulltext search
+// -> highlighter should only highlight content in field that it has been found in
+
+type Tokens map[string]struct{}
+
 // GetSortedTokens returns a length-wise sorted list of tokens,
 // so that highlight results are deterministic and larger chunks are highlighted first.
-func (h *Highlighter) GetSortedTokens() []string {
+func (h *Highlighter) GetSortedTokens(columnName string) []string {
 	var tokensList []string
-	for token := range h.Tokens {
+	for token := range h.Tokens[columnName] {
 		tokensList = append(tokensList, token)
 	}
 	sort.Slice(tokensList, func(i, j int) bool {
@@ -38,7 +44,7 @@ func (h *Highlighter) GetSortedTokens() []string {
 }
 
 func (h *Highlighter) ShouldHighlight(columnName string) bool {
-	_, ok := h.Fields[columnName]
+	_, ok := h.Tokens[columnName]
 	return ok
 }
 
@@ -46,14 +52,14 @@ func (h *Highlighter) ShouldHighlight(columnName string) bool {
 func (h *Highlighter) SetTokensToHighlight(selectCmd SelectCommand) {
 	highlighterVisitor := NewHighlighter()
 	selectCmd.Accept(highlighterVisitor)
-	h.Tokens = highlighterVisitor.TokensToHighlight
+	h.Tokens = highlighterVisitor.Tokens
 }
 
 // HighlightValue takes a value and returns the part of it that should be highlighted, wrapped in tags.
 //
 // E.g. when value is `Mozilla/5.0 (X11; Linux x86_64; rv:6.0a1) Gecko/20110421 Firefox/6.0a1
 // and we search for `Firefo` in Kibana it's going to produce `@kibana-highlighted-field@Firefo@/kibana-highlighted-field@`
-func (h *Highlighter) HighlightValue(value string) []string {
+func (h *Highlighter) HighlightValue(columnName, value string) []string {
 	// paranoia check for empty tags
 	if len(h.PreTags) < 1 && len(h.PostTags) < 1 {
 		return []string{}
@@ -70,7 +76,7 @@ func (h *Highlighter) HighlightValue(value string) []string {
 	length := len(lowerValue)
 
 	// find all matches
-	for _, token := range h.GetSortedTokens() {
+	for _, token := range h.GetSortedTokens(columnName) {
 		if token == "" {
 			continue
 		}
@@ -122,12 +128,12 @@ func (h *Highlighter) HighlightValue(value string) []string {
 // highlighter is a visitor that traverses the AST and collects tokens that should be highlighted.
 type highlighter struct {
 	// TokensToHighlight represents a set of tokens that should be highlighted in the query.
-	TokensToHighlight map[string]struct{}
+	Tokens map[string]Tokens
 }
 
 func NewHighlighter() *highlighter {
 	return &highlighter{
-		TokensToHighlight: make(map[string]struct{}),
+		Tokens: make(map[string]Tokens),
 	}
 }
 
@@ -178,14 +184,16 @@ func (v *highlighter) VisitMultiFunction(f MultiFunctionExpr) interface{} {
 func (v *highlighter) VisitInfix(e InfixExpr) interface{} {
 	switch e.Op {
 	case "iLIKE", "LIKE", "IN", "=":
-		if literal, isLiteral := e.Right.(LiteralExpr); isLiteral {
-			switch literalAsString := literal.Value.(type) {
+		lhs, isColumnRef := e.Left.(ColumnRef)
+		rhs, isLiteral := e.Right.(LiteralExpr)
+		if isLiteral && isColumnRef { // we only highlight in this case
+			switch literalAsString := rhs.Value.(type) {
 			case string:
 				literalAsString = strings.TrimPrefix(literalAsString, "'%")
 				literalAsString = strings.TrimPrefix(literalAsString, "%")
 				literalAsString = strings.TrimSuffix(literalAsString, "'")
 				literalAsString = strings.TrimSuffix(literalAsString, "%")
-				v.TokensToHighlight[strings.ToLower(literalAsString)] = struct{}{}
+				v.Tokens[lhs.ColumnName] = map[string]struct{}{strings.ToLower(literalAsString): {}}
 			default:
 				logger.Info().Msgf("Value is of an unexpected type: %T\n", literalAsString)
 			}
