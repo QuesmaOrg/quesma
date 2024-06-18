@@ -15,7 +15,7 @@ var httpClient = http.Client{}
 func TestE2ESingleRequest(t *testing.T) {
 	t.Skip("It fails now, there are differences in output for every testcase")
 	const testSuite = "1"
-	const testNr = "1"
+	const testNr = "2"
 	e2eRunSingleTest(t, testSuite, testNr)
 }
 
