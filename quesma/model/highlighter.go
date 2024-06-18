@@ -18,16 +18,14 @@ import (
 //   - https://medium.com/@andre.luiz1987/using-highlighting-elasticsearch-9ccd698f08
 
 type Highlighter struct {
+	// Tokens represents a map of field/column name to a set of tokens that should be highlighted.
 	Tokens map[string]Tokens
 
 	PreTags  []string
 	PostTags []string
 }
 
-// TODOs:
-// -> highlighter needs to work for all fields, not only those marked as fulltext search
-// -> highlighter should only highlight content in field that it has been found in
-
+// Tokens represents a set of tokens which should be highlighted.
 type Tokens map[string]struct{}
 
 // GetSortedTokens returns a length-wise sorted list of tokens,
