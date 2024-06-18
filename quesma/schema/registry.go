@@ -48,12 +48,14 @@ func (s *schemaRegistry) loadTypeMappingsFromConfiguration() {
 		if !indexConfiguration.Enabled {
 			continue
 		}
+
+		fields := make(map[FieldName]Field)
+
 		if indexConfiguration.SchemaConfiguration != nil {
 			logger.Debug().Msgf("loading schema for index %s", indexConfiguration.Name)
-			fields := make(map[FieldName]Field)
 			for _, field := range indexConfiguration.SchemaConfiguration.Fields {
 				fieldName := FieldName(field.Name)
-				if resolvedType, valid := IsValid(field.Type.AsString()); valid {
+				if resolvedType, valid := ParseType(field.Type.AsString()); valid {
 					fields[fieldName] = Field{
 						Name: fieldName,
 						Type: resolvedType,
@@ -63,6 +65,14 @@ func (s *schemaRegistry) loadTypeMappingsFromConfiguration() {
 				}
 			}
 			s.schemas.Store(TableName(indexConfiguration.Name), Schema{Fields: fields})
+		} else {
+			for fieldName, fieldType := range indexConfiguration.TypeMappings {
+				if resolvedType, valid := ParseType(fieldType); valid {
+					fields[FieldName(fieldName)] = Field{Name: FieldName(fieldName), Type: resolvedType}
+				} else {
+					logger.Warn().Msgf("invalid configuration: type %s not supported (should have been spotted when validating configuration)", fieldType)
+				}
+			}
 		}
 	}
 }
@@ -94,7 +104,6 @@ func (s *schemaRegistry) Load() error {
 							Name: FieldName(col.Name),
 							Type: resolvedQuesmaType,
 						}
-						continue
 					} else {
 						// TODO those will need to be validated at config stage
 						logger.Error().Msgf("type %s not supported", explicitType)
@@ -133,27 +142,42 @@ func (s *schemaRegistry) Load() error {
 			}
 		}
 
-		for _, indexConfiguration := range s.configuration.IndexConfig {
-			if !indexConfiguration.Enabled {
-				continue
+		indexConfiguration := s.configuration.IndexConfig[indexName]
+
+		if indexConfiguration.SchemaConfiguration != nil {
+			for _, field := range indexConfiguration.SchemaConfiguration.Fields {
+				if resolvedType, valid := ParseType(field.Type.AsString()); valid {
+					fields[FieldName(field.Name.AsString())] = Field{Name: FieldName(field.Name.AsString()), Type: resolvedType}
+				} else {
+					logger.Warn().Msgf("invalid configuration: type %s not supported (should have been spotted when validating configuration)", field.Type.AsString())
+				}
 			}
-			if indexConfiguration.SchemaConfiguration != nil {
-				for _, field := range indexConfiguration.SchemaConfiguration.Fields {
-					if field.Type.AsString() == config.TypeAlias {
-						if _, exists := fields[FieldName(field.AliasedField)]; exists {
-							aliases[FieldName(field.Name)] = FieldName(field.AliasedField)
-						} else {
-							logger.Debug().Msgf("alias field %s not found, possibly not yet loaded", field.AliasedField)
-						}
+		} else {
+			for fieldName, fieldType := range indexConfiguration.TypeMappings {
+				if resolvedType, valid := ParseType(fieldType); valid {
+					fields[FieldName(fieldName)] = Field{Name: FieldName(fieldName), Type: resolvedType}
+				} else {
+					logger.Warn().Msgf("invalid configuration: type %s not supported (should have been spotted when validating configuration)", fieldType)
+				}
+			}
+		}
+
+		if indexConfiguration.SchemaConfiguration != nil {
+			for _, field := range indexConfiguration.SchemaConfiguration.Fields {
+				if field.Type.AsString() == config.TypeAlias {
+					if _, exists := fields[FieldName(field.AliasedField)]; exists {
+						aliases[FieldName(field.Name)] = FieldName(field.AliasedField)
+					} else {
+						logger.Debug().Msgf("alias field %s not found, possibly not yet loaded", field.AliasedField)
 					}
 				}
-			} else {
-				for aliasName, aliasConfig := range indexConfiguration.Aliases {
-					if _, exists := fields[FieldName(aliasConfig.SourceFieldName)]; exists {
-						aliases[FieldName(aliasName)] = FieldName(aliasConfig.SourceFieldName)
-					} else {
-						logger.Debug().Msgf("alias field %s not found, possibly not yet loaded", aliasConfig.SourceFieldName)
-					}
+			}
+		} else {
+			for aliasName, aliasConfig := range indexConfiguration.Aliases {
+				if _, exists := fields[FieldName(aliasConfig.SourceFieldName)]; exists {
+					aliases[FieldName(aliasName)] = FieldName(aliasConfig.SourceFieldName)
+				} else {
+					logger.Debug().Msgf("alias field %s not found, possibly not yet loaded", aliasConfig.SourceFieldName)
 				}
 			}
 		}
@@ -170,6 +194,9 @@ func (s *schemaRegistry) Load() error {
 }
 
 func (s *schemaRegistry) AllSchemas() map[TableName]Schema {
+	if err := s.Load(); err != nil {
+		logger.Error().Msgf("error loading schemas: %v", err)
+	}
 	return s.schemas.Snapshot()
 }
 
