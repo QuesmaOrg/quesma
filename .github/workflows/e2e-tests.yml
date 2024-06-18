@@ -43,6 +43,7 @@ jobs:
 
   e2e-test-run:
     runs-on: ubuntu-latest
+    permissions: read-all # todo change
     #needs: [build-quesma-docker-image]
     steps:
       - uses: actions/checkout@v4
