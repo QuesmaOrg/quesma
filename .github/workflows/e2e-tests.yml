@@ -45,9 +45,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-quesma-docker-image]
     steps:
-#      - uses: actions/checkout@v4
-#        with:     ## @TODO REMOVE
-#          ref: ${{ github.event.inputs.GIT_REF }}
+      - uses: actions/checkout@v4
+        with:     ## @TODO REMOVE
+          ref: ${{ github.event.inputs.GIT_REF }}
 #
 #      - name: Set up Go
 #        uses: actions/setup-go@v5
