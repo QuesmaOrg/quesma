@@ -2,7 +2,6 @@ package model
 
 import (
 	"mitmproxy/quesma/util"
-	"slices"
 )
 
 // Content of this file is a copy of
@@ -47,8 +46,7 @@ func (c1 FieldCapability) Concat(c2 FieldCapability) (FieldCapability, bool) {
 	var indices []string
 	indices = append(indices, c1.Indices...)
 	indices = append(indices, c2.Indices...)
-	slices.Sort(indices)
-	indices = slices.Compact(indices)
+	indices = util.Distinct(indices)
 
 	return FieldCapability{
 		Type:          c1.Type,
