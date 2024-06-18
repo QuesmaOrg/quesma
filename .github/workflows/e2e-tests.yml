@@ -88,7 +88,7 @@ jobs:
 #        run: go test -race --tags=integration  -v ./...
 #
       - name: Print PR number
-        run: echo Triggered for PR $(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')
+        run: echo Triggered for PR $(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }') $(echo $GITHUB_REF)"
 
       - name: Add a comment to the PR
         run: |
