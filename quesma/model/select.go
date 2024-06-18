@@ -1,5 +1,7 @@
 package model
 
+import "context"
+
 type SelectCommand struct {
 	IsDistinct bool // true <=> query is SELECT DISTINCT
 
@@ -28,9 +30,9 @@ func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, wher
 }
 
 // Accept implements the Visitor interface for SelectCommand,
-func (c SelectCommand) Accept(v ExprVisitor) interface{} {
+func (c SelectCommand) Accept(ctx context.Context, v ExprVisitor) interface{} {
 	// This is handy because it enables representing nested queries (e.g. `SELECT * FROM (SELECT * FROM table1) AS t1 WHERE ...`)
-	return v.VisitSelectCommand(c)
+	return v.VisitSelectCommand(ctx, c)
 }
 
 func (c SelectCommand) String() string {

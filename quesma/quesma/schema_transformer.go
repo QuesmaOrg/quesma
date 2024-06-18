@@ -1,6 +1,7 @@
 package quesma
 
 import (
+	"context"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
@@ -12,11 +13,11 @@ type WhereVisitor struct {
 	cfg       map[string]config.IndexConfiguration
 }
 
-func (v *WhereVisitor) VisitLiteral(e model.LiteralExpr) interface{} {
+func (v *WhereVisitor) VisitLiteral(_ context.Context, e model.LiteralExpr) interface{} {
 	return model.NewLiteral(e.Value)
 }
 
-func (v *WhereVisitor) VisitInfix(e model.InfixExpr) interface{} {
+func (v *WhereVisitor) VisitInfix(ctx context.Context, e model.InfixExpr) interface{} {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
 	const CASTPrimitive = "CAST"
 	const StringLiteral = "'String'"
@@ -25,7 +26,7 @@ func (v *WhereVisitor) VisitInfix(e model.InfixExpr) interface{} {
 	rhsValue := ""
 	opValue := ""
 	if e.Left != nil {
-		lhs = e.Left.Accept(v)
+		lhs = e.Left.Accept(ctx, v)
 		if lhs != nil {
 			if lhsLiteral, ok := lhs.(model.LiteralExpr); ok {
 				lhsValue = lhsLiteral.Value.(string)
@@ -35,7 +36,7 @@ func (v *WhereVisitor) VisitInfix(e model.InfixExpr) interface{} {
 		}
 	}
 	if e.Right != nil {
-		rhs = e.Right.Accept(v)
+		rhs = e.Right.Accept(ctx, v)
 		if rhs != nil {
 			if rhsLiteral, ok := rhs.(model.LiteralExpr); ok {
 				rhsValue = rhsLiteral.Value.(string)
@@ -77,50 +78,60 @@ func (v *WhereVisitor) VisitInfix(e model.InfixExpr) interface{} {
 	return transformedWhereClause
 }
 
-func (v *WhereVisitor) VisitPrefixExpr(e model.PrefixExpr) interface{} {
+func (v *WhereVisitor) VisitPrefixExpr(ctx context.Context, e model.PrefixExpr) interface{} {
 	for _, arg := range e.Args {
 		if arg != nil {
-			arg.Accept(v)
+			arg.Accept(ctx, v)
 		}
 	}
 	return model.NewPrefixExpr(e.Op, e.Args)
 }
 
-func (v *WhereVisitor) VisitFunction(e model.FunctionExpr) interface{} {
+func (v *WhereVisitor) VisitFunction(ctx context.Context, e model.FunctionExpr) interface{} {
 	for _, arg := range e.Args {
 		if arg != nil {
-			arg.Accept(v)
+			arg.Accept(ctx, v)
 		}
 	}
 	return model.NewFunction(e.Name, e.Args...)
 }
 
-func (v *WhereVisitor) VisitColumnRef(e model.ColumnRef) interface{} {
+func (v *WhereVisitor) VisitColumnRef(_ context.Context, e model.ColumnRef) interface{} {
 	return model.NewColumnRef(e.ColumnName)
 }
 
-func (v *WhereVisitor) VisitNestedProperty(e model.NestedProperty) interface{} {
-	ColumnRef := e.ColumnRef.Accept(v).(model.ColumnRef)
-	Property := e.PropertyName.Accept(v).(model.LiteralExpr)
+func (v *WhereVisitor) VisitNestedProperty(ctx context.Context, e model.NestedProperty) interface{} {
+	ColumnRef := e.ColumnRef.Accept(ctx, v).(model.ColumnRef)
+	Property := e.PropertyName.Accept(ctx, v).(model.LiteralExpr)
 	return model.NewNestedProperty(ColumnRef, Property)
 }
 
-func (v *WhereVisitor) VisitArrayAccess(e model.ArrayAccess) interface{} {
-	e.ColumnRef.Accept(v)
-	e.Index.Accept(v)
+func (v *WhereVisitor) VisitArrayAccess(ctx context.Context, e model.ArrayAccess) interface{} {
+	e.ColumnRef.Accept(ctx, v)
+	e.Index.Accept(ctx, v)
 	return model.NewArrayAccess(e.ColumnRef, e.Index)
 }
 
 // TODO this whole block is fake ... need to double chceck this
-func (v *WhereVisitor) MultiFunctionExpr(e model.MultiFunctionExpr) interface{}  { return e }
-func (v *WhereVisitor) VisitMultiFunction(e model.MultiFunctionExpr) interface{} { return e }
-func (v *WhereVisitor) VisitString(e model.StringExpr) interface{}               { return e }
-func (v *WhereVisitor) VisitOrderByExpr(e model.OrderByExpr) interface{}         { return e }
-func (v *WhereVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{}       { return e }
-func (v *WhereVisitor) VisitTableRef(e model.TableRef) interface{}               { return e }
-func (v *WhereVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{}         { return e }
-func (v *WhereVisitor) VisitSelectCommand(e model.SelectCommand) interface{}     { return e }
-func (v *WhereVisitor) VisitWindowFunction(e model.WindowFunction) interface{}   { return e }
+func (v *WhereVisitor) MultiFunctionExpr(_ context.Context, e model.MultiFunctionExpr) interface{} {
+	return e
+}
+func (v *WhereVisitor) VisitMultiFunction(_ context.Context, e model.MultiFunctionExpr) interface{} {
+	return e
+}
+func (v *WhereVisitor) VisitString(_ context.Context, e model.StringExpr) interface{}       { return e }
+func (v *WhereVisitor) VisitOrderByExpr(_ context.Context, e model.OrderByExpr) interface{} { return e }
+func (v *WhereVisitor) VisitDistinctExpr(_ context.Context, e model.DistinctExpr) interface{} {
+	return e
+}
+func (v *WhereVisitor) VisitTableRef(_ context.Context, e model.TableRef) interface{}       { return e }
+func (v *WhereVisitor) VisitAliasedExpr(_ context.Context, e model.AliasedExpr) interface{} { return e }
+func (v *WhereVisitor) VisitSelectCommand(_ context.Context, e model.SelectCommand) interface{} {
+	return e
+}
+func (v *WhereVisitor) VisitWindowFunction(_ context.Context, e model.WindowFunction) interface{} {
+	return e
+}
 
 type SchemaCheckPass struct {
 	cfg map[string]config.IndexConfiguration
@@ -145,13 +156,14 @@ func getFromTable(fromTable string) string {
 // into
 // SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(lhs,'String'),rhs)
 func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Query, error) {
+	ctx := context.TODO()
 	if query.SelectCommand.WhereClause == nil {
 		return query, nil
 	}
 	fromTable := getFromTable(query.TableName)
 	whereVisitor := &WhereVisitor{tableName: fromTable, cfg: s.cfg}
 
-	transformedWhereClause := query.SelectCommand.WhereClause.Accept(whereVisitor)
+	transformedWhereClause := query.SelectCommand.WhereClause.Accept(ctx, whereVisitor)
 
 	query.SelectCommand.WhereClause = transformedWhereClause.(model.Expr)
 

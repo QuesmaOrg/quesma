@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,18 +11,19 @@ type renderer struct{}
 
 // AsString renders the given expression to string which can be used to build SQL query
 func AsString(expr Expr) string {
-	return expr.Accept(&renderer{}).(string)
+	ctx := context.TODO()
+	return expr.Accept(ctx, &renderer{}).(string)
 }
 
-func (v *renderer) VisitColumnRef(e ColumnRef) interface{} {
+func (v *renderer) VisitColumnRef(_ context.Context, e ColumnRef) interface{} {
 	return strconv.Quote(strings.TrimSuffix(e.ColumnName, ".keyword"))
 }
 
-func (v *renderer) VisitPrefixExpr(e PrefixExpr) interface{} {
+func (v *renderer) VisitPrefixExpr(ctx context.Context, e PrefixExpr) interface{} {
 	args := make([]string, len(e.Args))
 	for i, arg := range e.Args {
 		if arg != nil {
-			args[i] = arg.Accept(v).(string)
+			args[i] = arg.Accept(ctx, v).(string)
 		}
 	}
 
@@ -29,23 +31,23 @@ func (v *renderer) VisitPrefixExpr(e PrefixExpr) interface{} {
 	return fmt.Sprintf("%v (%v)", e.Op, argsAsString)
 }
 
-func (v *renderer) VisitNestedProperty(e NestedProperty) interface{} {
-	return fmt.Sprintf("%v.%v", e.ColumnRef.Accept(v), e.PropertyName.Accept(v))
+func (v *renderer) VisitNestedProperty(ctx context.Context, e NestedProperty) interface{} {
+	return fmt.Sprintf("%v.%v", e.ColumnRef.Accept(ctx, v), e.PropertyName.Accept(ctx, v))
 }
 
-func (v *renderer) VisitArrayAccess(e ArrayAccess) interface{} {
-	return fmt.Sprintf("%v[%v]", e.ColumnRef.Accept(v), e.Index.Accept(v))
+func (v *renderer) VisitArrayAccess(ctx context.Context, e ArrayAccess) interface{} {
+	return fmt.Sprintf("%v[%v]", e.ColumnRef.Accept(ctx, v), e.Index.Accept(ctx, v))
 }
 
-func (v *renderer) VisitFunction(e FunctionExpr) interface{} {
+func (v *renderer) VisitFunction(ctx context.Context, e FunctionExpr) interface{} {
 	args := make([]string, 0)
 	for _, arg := range e.Args {
-		args = append(args, arg.Accept(v).(string))
+		args = append(args, arg.Accept(ctx, v).(string))
 	}
 	return e.Name + "(" + strings.Join(args, ",") + ")"
 }
 
-func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
+func (v *renderer) VisitLiteral(_ context.Context, l LiteralExpr) interface{} {
 
 	if l.Value == "*" {
 		return "*"
@@ -61,28 +63,28 @@ func (v *renderer) VisitLiteral(l LiteralExpr) interface{} {
 	}
 }
 
-func (v *renderer) VisitString(e StringExpr) interface{} {
+func (v *renderer) VisitString(_ context.Context, e StringExpr) interface{} {
 	return e.Value
 }
 
-func (v *renderer) VisitMultiFunction(f MultiFunctionExpr) interface{} {
+func (v *renderer) VisitMultiFunction(ctx context.Context, f MultiFunctionExpr) interface{} {
 	args := make([]string, 0)
 	for _, arg := range f.Args {
-		r := "(" + arg.Accept(v).(string) + ")"
+		r := "(" + arg.Accept(ctx, v).(string) + ")"
 		args = append(args, r)
 	}
 	return f.Name + strings.Join(args, "")
 }
 
-func (v *renderer) VisitInfix(e InfixExpr) interface{} {
+func (v *renderer) VisitInfix(ctx context.Context, e InfixExpr) interface{} {
 	var lhs, rhs interface{} // TODO FOR NOW LITTLE PARANOID BUT HELPS ME NOT SEE MANY PANICS WHEN TESTING
 	if e.Left != nil {
-		lhs = e.Left.Accept(v)
+		lhs = e.Left.Accept(ctx, v)
 	} else {
 		lhs = "< LHS NIL >"
 	}
 	if e.Right != nil {
-		rhs = e.Right.Accept(v)
+		rhs = e.Right.Accept(ctx, v)
 	} else {
 		rhs = "< RHS NIL >"
 	}
@@ -97,10 +99,10 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 	}
 }
 
-func (v *renderer) VisitOrderByExpr(e OrderByExpr) interface{} {
+func (v *renderer) VisitOrderByExpr(ctx context.Context, e OrderByExpr) interface{} {
 	var exprsAsStr []string
 	for _, expr := range e.Exprs {
-		exprsAsStr = append(exprsAsStr, expr.Accept(v).(string))
+		exprsAsStr = append(exprsAsStr, expr.Accept(ctx, v).(string))
 	}
 	allExprs := strings.Join(exprsAsStr, ", ")
 	if e.Direction == DescOrder {
@@ -112,19 +114,19 @@ func (v *renderer) VisitOrderByExpr(e OrderByExpr) interface{} {
 	return allExprs
 }
 
-func (v *renderer) VisitDistinctExpr(e DistinctExpr) interface{} {
-	return fmt.Sprintf("DISTINCT %s", e.Expr.Accept(v).(string))
+func (v *renderer) VisitDistinctExpr(ctx context.Context, e DistinctExpr) interface{} {
+	return fmt.Sprintf("DISTINCT %s", e.Expr.Accept(ctx, v).(string))
 }
 
-func (v *renderer) VisitTableRef(e TableRef) interface{} {
+func (v *renderer) VisitTableRef(_ context.Context, e TableRef) interface{} {
 	return e.Name
 }
 
-func (v *renderer) VisitAliasedExpr(e AliasedExpr) interface{} {
-	return fmt.Sprintf("%s AS %s", e.Expr.Accept(v).(string), strconv.Quote(e.Alias))
+func (v *renderer) VisitAliasedExpr(ctx context.Context, e AliasedExpr) interface{} {
+	return fmt.Sprintf("%s AS %s", e.Expr.Accept(ctx, v).(string), strconv.Quote(e.Alias))
 }
 
-func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
+func (v *renderer) VisitSelectCommand(_ context.Context, c SelectCommand) interface{} {
 	// THIS SHOULD PRODUCE QUERY IN  BRACES
 	var sb strings.Builder
 	sb.WriteString("SELECT ")
@@ -215,7 +217,7 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	return sb.String()
 }
 
-func (v *renderer) VisitWindowFunction(f WindowFunction) interface{} {
+func (v *renderer) VisitWindowFunction(_ context.Context, f WindowFunction) interface{} {
 	args := make([]string, 0)
 	for _, arg := range f.Args {
 		args = append(args, AsString(arg))

@@ -1,8 +1,10 @@
 package model
 
+import "context"
+
 // Expr is a generic representation of an expression which is a part of the SQL query.
 type Expr interface {
-	Accept(v ExprVisitor) interface{}
+	Accept(ctx context.Context, v ExprVisitor) interface{}
 }
 
 // ColumnRef is a reference to a column in a table, we can enrich it with more information (e.g. type used) as we go
@@ -14,8 +16,8 @@ func NewColumnRef(name string) ColumnRef {
 	return ColumnRef{ColumnName: name}
 }
 
-func (e ColumnRef) Accept(v ExprVisitor) interface{} {
-	return v.VisitColumnRef(e)
+func (e ColumnRef) Accept(ctx context.Context, v ExprVisitor) interface{} {
+	return v.VisitColumnRef(ctx, e)
 }
 
 // PrefixExpr represents unary operators, e.g. NOT, - etc.
@@ -31,8 +33,8 @@ func NewPrefixExpr(op string, args []Expr) PrefixExpr {
 	}
 }
 
-func (e PrefixExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitPrefixExpr(e)
+func (e PrefixExpr) Accept(ctx context.Context, v ExprVisitor) interface{} {
+	return v.VisitPrefixExpr(ctx, e)
 }
 
 // NestedProperty represents a call to nested property e.g. `columnName.propertyName`
@@ -45,7 +47,9 @@ func NewNestedProperty(columnRef ColumnRef, propertyName LiteralExpr) NestedProp
 	return NestedProperty{ColumnRef: columnRef, PropertyName: propertyName}
 }
 
-func (e NestedProperty) Accept(v ExprVisitor) interface{} { return v.VisitNestedProperty(e) }
+func (e NestedProperty) Accept(ctx context.Context, v ExprVisitor) interface{} {
+	return v.VisitNestedProperty(ctx, e)
+}
 
 // ArrayAccess represents accessing array by index, e.g. `columnName[0]`
 type ArrayAccess struct {
@@ -57,15 +61,17 @@ func NewArrayAccess(columnRef ColumnRef, index Expr) ArrayAccess {
 	return ArrayAccess{ColumnRef: columnRef, Index: index}
 }
 
-func (e ArrayAccess) Accept(v ExprVisitor) interface{} { return v.VisitArrayAccess(e) }
+func (e ArrayAccess) Accept(ctx context.Context, v ExprVisitor) interface{} {
+	return v.VisitArrayAccess(ctx, e)
+}
 
 type FunctionExpr struct {
 	Name string
 	Args []Expr
 }
 
-func (e FunctionExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitFunction(e)
+func (e FunctionExpr) Accept(ctx context.Context, v ExprVisitor) interface{} {
+	return v.VisitFunction(ctx, e)
 }
 
 // MultiFunctionExpr represents call of a function with multiple arguments lists, e.g. `quantile(level)(expr)`
@@ -74,16 +80,16 @@ type MultiFunctionExpr struct {
 	Args []Expr
 }
 
-func (e MultiFunctionExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitMultiFunction(e)
+func (e MultiFunctionExpr) Accept(ctx context.Context, v ExprVisitor) interface{} {
+	return v.VisitMultiFunction(ctx, e)
 }
 
 type LiteralExpr struct {
 	Value any
 }
 
-func (e LiteralExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitLiteral(e)
+func (e LiteralExpr) Accept(ctx context.Context, v ExprVisitor) interface{} {
+	return v.VisitLiteral(ctx, e)
 }
 
 // Deprecated
@@ -92,8 +98,8 @@ type StringExpr struct {
 	Value string
 }
 
-func (e StringExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitString(e)
+func (e StringExpr) Accept(ctx context.Context, v ExprVisitor) interface{} {
+	return v.VisitString(ctx, e)
 }
 
 type InfixExpr struct {
@@ -102,8 +108,8 @@ type InfixExpr struct {
 	Right Expr
 }
 
-func (e InfixExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitInfix(e)
+func (e InfixExpr) Accept(ctx context.Context, v ExprVisitor) interface{} {
+	return v.VisitInfix(ctx, e)
 }
 
 func NewFunction(name string, args ...Expr) FunctionExpr {
@@ -133,8 +139,8 @@ func NewDistinctExpr(expr Expr) DistinctExpr {
 	return DistinctExpr{Expr: expr}
 }
 
-func (s DistinctExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitDistinctExpr(s)
+func (s DistinctExpr) Accept(ctx context.Context, v ExprVisitor) interface{} {
+	return v.VisitDistinctExpr(ctx, s)
 }
 
 // TableRef is an explicit reference to a table in a query
@@ -148,8 +154,8 @@ func NewTableRef(name string) TableRef {
 	return TableRef{Name: name}
 }
 
-func (t TableRef) Accept(v ExprVisitor) interface{} {
-	return v.VisitTableRef(t)
+func (t TableRef) Accept(ctx context.Context, v ExprVisitor) interface{} {
+	return v.VisitTableRef(ctx, t)
 }
 
 type OrderByDirection int8
@@ -165,8 +171,8 @@ type OrderByExpr struct {
 	Direction OrderByDirection
 }
 
-func (o OrderByExpr) Accept(v ExprVisitor) interface{} {
-	return v.VisitOrderByExpr(o)
+func (o OrderByExpr) Accept(ctx context.Context, v ExprVisitor) interface{} {
+	return v.VisitOrderByExpr(ctx, o)
 }
 
 func NewOrderByExpr(exprs []Expr, direction OrderByDirection) OrderByExpr {
@@ -190,7 +196,9 @@ func NewAliasedExpr(expr Expr, alias string) AliasedExpr {
 	return AliasedExpr{Expr: expr, Alias: alias}
 }
 
-func (a AliasedExpr) Accept(v ExprVisitor) interface{} { return v.VisitAliasedExpr(a) }
+func (a AliasedExpr) Accept(ctx context.Context, v ExprVisitor) interface{} {
+	return v.VisitAliasedExpr(ctx, a)
+}
 
 // WindowFunction representation e.g. `SUM(x) OVER (PARTITION BY y ORDER BY z)`
 type WindowFunction struct {
@@ -204,22 +212,24 @@ func NewWindowFunction(name string, args, partitionBy []Expr, orderBy OrderByExp
 	return WindowFunction{Name: name, Args: args, PartitionBy: partitionBy, OrderBy: orderBy}
 }
 
-func (f WindowFunction) Accept(v ExprVisitor) interface{} { return v.VisitWindowFunction(f) }
+func (f WindowFunction) Accept(ctx context.Context, v ExprVisitor) interface{} {
+	return v.VisitWindowFunction(ctx, f)
+}
 
 type ExprVisitor interface {
-	VisitFunction(e FunctionExpr) interface{}
-	VisitMultiFunction(e MultiFunctionExpr) interface{}
-	VisitLiteral(l LiteralExpr) interface{}
-	VisitString(e StringExpr) interface{}
-	VisitInfix(e InfixExpr) interface{}
-	VisitColumnRef(e ColumnRef) interface{}
-	VisitPrefixExpr(e PrefixExpr) interface{}
-	VisitNestedProperty(e NestedProperty) interface{}
-	VisitArrayAccess(e ArrayAccess) interface{}
-	VisitOrderByExpr(e OrderByExpr) interface{}
-	VisitDistinctExpr(e DistinctExpr) interface{}
-	VisitTableRef(e TableRef) interface{}
-	VisitAliasedExpr(e AliasedExpr) interface{}
-	VisitSelectCommand(e SelectCommand) interface{}
-	VisitWindowFunction(f WindowFunction) interface{}
+	VisitFunction(ctx context.Context, e FunctionExpr) interface{}
+	VisitMultiFunction(ctx context.Context, e MultiFunctionExpr) interface{}
+	VisitLiteral(ctx context.Context, l LiteralExpr) interface{}
+	VisitString(ctx context.Context, e StringExpr) interface{}
+	VisitInfix(ctx context.Context, e InfixExpr) interface{}
+	VisitColumnRef(ctx context.Context, e ColumnRef) interface{}
+	VisitPrefixExpr(ctx context.Context, e PrefixExpr) interface{}
+	VisitNestedProperty(ctx context.Context, e NestedProperty) interface{}
+	VisitArrayAccess(ctx context.Context, e ArrayAccess) interface{}
+	VisitOrderByExpr(ctx context.Context, e OrderByExpr) interface{}
+	VisitDistinctExpr(ctx context.Context, e DistinctExpr) interface{}
+	VisitTableRef(ctx context.Context, e TableRef) interface{}
+	VisitAliasedExpr(ctx context.Context, e AliasedExpr) interface{}
+	VisitSelectCommand(ctx context.Context, e SelectCommand) interface{}
+	VisitWindowFunction(ctx context.Context, f WindowFunction) interface{}
 }
