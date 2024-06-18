@@ -1,4 +1,4 @@
-package quesma
+package field_capabilities
 
 import (
 	"encoding/json"
@@ -168,13 +168,13 @@ func TestFieldCapsWithAliases(t *testing.T) {
 func TestFieldCapsMultipleIndexes(t *testing.T) {
 	tableMap := clickhouse.NewTableMap()
 	tableMap.Store("logs-1", &clickhouse.Table{
-		Name: tableName,
+		Name: "logs-generic-default",
 		Cols: map[string]*clickhouse.Column{
 			"foo.bar1": {Name: "foo.bar1", Type: clickhouse.BaseType{Name: "String"}},
 		},
 	})
 	tableMap.Store("logs-2", &clickhouse.Table{
-		Name: tableName,
+		Name: "logs-generic-default",
 		Cols: map[string]*clickhouse.Column{
 			"foo.bar2": {Name: "foo.bar2", Type: clickhouse.BaseType{Name: "String"}},
 		},
