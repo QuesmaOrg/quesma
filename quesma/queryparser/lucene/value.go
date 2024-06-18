@@ -112,7 +112,7 @@ func (v rangeValue) totallyUnbounded() bool {
 
 func (v rangeValue) toExpression(fieldName string) model.Expr {
 	if v.totallyUnbounded() {
-		return model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewPrefixExpr("NOT", []model.Expr{model.NewLiteral("NULL")}))
+		return model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
 	}
 
 	var left, right model.Expr
