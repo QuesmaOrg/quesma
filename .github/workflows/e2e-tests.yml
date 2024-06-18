@@ -43,13 +43,12 @@ jobs:
 
   e2e-test-run:
     runs-on: ubuntu-latest
-    permissions:
+    permissions: # it's the smallest set of necessary permissions to run the steps
       actions: read
       checks: read
       contents: read
-      deployments: read
+      #deployments: read
       id-token: write
-      #issues: read
       pull-requests: write
     #needs: [build-quesma-docker-image]
     env:
