@@ -2,7 +2,7 @@ name: E2E tests
 
 on: # @TODO TBD WHEN WE RUN
   push:
-    branches: [ "main" ]
+    branches: [ "main", "e2e-github-workflow" ]
   workflow_dispatch:
 
 jobs:
@@ -90,7 +90,7 @@ jobs:
       - name: Print PR number
         run: echo Triggered for PR "$PR_NUMBER" "$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")"
         env:
-          PR_NUMBER: "$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")"
+          PR_NUMBER: $(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
 
       - name: Add a comment to the PR
         run: |
