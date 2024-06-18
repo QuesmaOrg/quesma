@@ -20,6 +20,8 @@ indexes:
     enabled: true
   kibana_sample_data_flights:
     enabled: true
+    mappings:
+      DestLocation: "geo_point"
   kibana_sample_data_logs:
     enabled: true
     mappings:
