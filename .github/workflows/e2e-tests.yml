@@ -44,10 +44,10 @@ jobs:
   e2e-test-run:
     runs-on: ubuntu-latest
     permissions:
-      #actions: read
+      actions: read
       checks: read
-      #contents: read
-      #deployments: read
+      contents: read
+      deployments: read
       id-token: write
       #issues: read
       pull-requests: write
