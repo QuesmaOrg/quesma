@@ -8,17 +8,15 @@ on:
     - cron: '0 11 * * MON-FRI'   # 11:00 UTC (13:00 in Poland, summer time)
     - cron: '0 14 * * MON-FRI'   # 14:00 UTC (16:00 in Poland, summer time)
     - cron: '30 16 * * MON-FRI'  # 16:30 UTC (18:30 in Poland, summer time)
-    - cron: '20 20 * * MON-FRI'  # TEST REMOVE18:00 UTC (20:00 in Poland, summer time)
-    - cron: '05 20 * * MON-FRI'  # TEST REMOVE 18:00 UTC (20:00 in Poland, summer time)
 
 jobs:
-#  build-quesma-docker-image:
-#    strategy:
-#      matrix:
-#        module: [ "quesma" ]
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v4
+  build-quesma-docker-image:
+    strategy:
+      matrix:
+        module: [ "quesma" ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -49,19 +47,15 @@ jobs:
 
   e2e-test-run:
     runs-on: ubuntu-latest
-    permissions: # manually checked that it's the smallest set of necessary permissions to run all the steps
+    permissions: # manually checked that those 3 are the smallest set of necessary permissions to run all the steps
       contents: read
-      id-token: write
+      id-token: write # write means read+write
       pull-requests: write
-    #needs: [build-quesma-docker-image]
-    env:
-      PR_NUMBER: $(echo gh pr list --search ${{ github.sha }} | awk '{print $1}')
+    needs: [build-quesma-docker-image]
     steps:
       - uses: actions/checkout@v4
-        with:     ## @TODO REMOVE
-          ref: ${{ github.event.inputs.GIT_REF }}
 
-      - name: Set env variables to write comments in the PR thread
+      - name: Set env variables needed to write comments in the PR thread
         run: |
           pr_nr="$(gh pr list --search ${{ github.sha }} | awk '{print $1}')"
           pr_url="https://api.github.com/repos/${{ github.repository }}/issues/${pr_nr}/comments"
@@ -75,51 +69,53 @@ jobs:
 
       - name: Add before-test comment to the PR
         run: |
-          body="\"e2e tests started... [(Run)](${TEST_URL})\""
+          msg="\"e2e tests started... [(Run)](${TEST_URL})\""
           curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                -X POST \
-               -d "{\"body\": $body}" $PR_URL
-#      - name: Set up Go
-#        uses: actions/setup-go@v5
-#        with:
-#          cache-dependency-path: smoke-test/go.sum
-#          go-version: '1.22'
-#
-#      - name: Download images
-#        uses: actions/download-artifact@v4
-#        with:
-#          path: /tmp/images
-#
-#      - name: Load images
-#        run: |
-#          for file in /tmp/images/*/*.tar; do
-#            docker load --input $file
-#          done
-#          docker image ls -a
-#
-#      - name: Build and start docker-compose
-#        timeout-minutes: 10
-#        run: docker-compose -f docker/e2e.yml up -d
-#
-#      - name: Wait until Elasticsearch is up
-#        timeout-minutes: 6
-#        run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:9200)" = "200" ]; do sleep 3; done
-#
-#      - name: Wait until ClickHouse is up
-#        timeout-minutes: 6
-#        run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:8123)" = "200" ]; do sleep 3; done
-#
-#      - name: Wait until Quesma is up ('/' is call routed to Elasticsearch)
-#        timeout-minutes: 6
-#        run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:8080)" = "200" ]; do sleep 3; done
-#
-#      - name: Run e2e tests
-#        working-directory: quesma
-#        run: go test -race --tags=integration  -v ./...
-#
+               -d "{\"body\": $msg}" $PR_URL
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          cache-dependency-path: smoke-test/go.sum
+          go-version: '1.22'
+
+      - name: Download images
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/images
+
+      - name: Load images
+        run: |
+          for file in /tmp/images/*/*.tar; do
+            docker load --input $file
+          done
+          docker image ls -a
+
+      - name: Build and start docker-compose
+        timeout-minutes: 10
+        run: docker-compose -f docker/e2e.yml up -d
+
+      - name: Wait until Elasticsearch is up
+        timeout-minutes: 6
+        run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:9200)" = "200" ]; do sleep 3; done
+
+      - name: Wait until ClickHouse is up
+        timeout-minutes: 6
+        run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:8123)" = "200" ]; do sleep 3; done
+
+      - name: Wait until Quesma is up ('/' is call routed to Elasticsearch)
+        timeout-minutes: 6
+        run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:8080)" = "200" ]; do sleep 3; done
+
+      - name: Run e2e tests
+        working-directory: quesma
+        #run: go test -race --tags=integration  -v ./...
+        run: go test -race -v ./...
+
       - name: Add after-test comment to the PR
         run: |
-          body="\"e2e tests finished, status: :white_check_mark: [(Run summary)](${TEST_URL})\""
+          msg="\"e2e tests finished, status: :white_check_mark: [(Run summary)](${TEST_URL})\""
           curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                -X POST \
-               -d "{\"body\": $body}" $PR_URL
+               -d "{\"body\": $msg}" $PR_URL
