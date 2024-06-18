@@ -102,9 +102,10 @@ jobs:
           echo $(gh pr list --search ${{ github.sha }} | awk '{print $1}')
           a=$(gh pr list --search ${{ github.sha }} | awk '{print $1}')
           echo $a
+          b="https://api.github.com/repos/${{ github.repository }}/issues/${a}/comments"
           curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                -X POST \
-               -d '{"body": "Manual workflow triggered."}' $a
+               -d '{"body": "Manual workflow triggered."}' $b
         #https://api.github.com/repos/${{ github.repository }}/issues/${a}/comments
         env:
           PR_NUMBER: ${{ github.event.number }}
