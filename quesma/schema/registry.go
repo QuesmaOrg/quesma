@@ -19,10 +19,10 @@ type (
 		schemas                 *concurrent.Map[TableName, Schema]
 		configuration           config.QuesmaConfiguration
 		dataSourceTableProvider TableProvider
-		dataSourceTypeAdapter   TypeAdapter
-		connectorTypeAdapter    TypeAdapter
+		dataSourceTypeAdapter   typeAdapter
+		connectorTypeAdapter    typeAdapter
 	}
-	TypeAdapter interface {
+	typeAdapter interface {
 		Convert(string) (Type, bool)
 	}
 )
@@ -181,7 +181,7 @@ func (s *schemaRegistry) FindSchema(name TableName) (Schema, bool) {
 	return schema, found
 }
 
-func NewSchemaRegistry(tableProvider TableProvider, configuration config.QuesmaConfiguration, dataSourceTypeAdapter, connectorTypeAdapter TypeAdapter) Registry {
+func NewSchemaRegistry(tableProvider TableProvider, configuration config.QuesmaConfiguration, dataSourceTypeAdapter, connectorTypeAdapter typeAdapter) Registry {
 	return &schemaRegistry{
 		schemas:                 concurrent.NewMap[TableName, Schema](),
 		started:                 atomic.Bool{},
