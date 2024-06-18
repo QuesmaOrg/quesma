@@ -88,9 +88,9 @@ jobs:
 #        run: go test -race --tags=integration  -v ./...
 #
       - name: Print PR number
-        run: echo "Triggered for PR $PR_NUMBER"
+        run: echo "Triggered for PR $PR_NUMBER $(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")"
         env:
-          PR_NUMBER: ${{ github.event.number }}
+          PR_NUMBER: $(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
 
       - name: Add a comment to the PR
         run: |
