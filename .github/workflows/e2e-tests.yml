@@ -46,8 +46,7 @@ jobs:
     permissions: # it's the smallest set of necessary permissions to run the steps
       actions: read
       checks: read
-      contents: read
-      #deployments: read
+      #contents: read
       id-token: write
       pull-requests: write
     #needs: [build-quesma-docker-image]
