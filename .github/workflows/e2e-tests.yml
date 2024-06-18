@@ -57,7 +57,7 @@ jobs:
       repository-projects: read
       security-events: read
       statuses: read
-    needs: [build-quesma-docker-image]
+    #needs: [build-quesma-docker-image]
     env:
       PR_NUMBER: $(echo gh pr list --search ${{ github.sha }} | awk '{print $1}')
     steps:
