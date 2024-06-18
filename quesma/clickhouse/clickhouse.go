@@ -171,8 +171,7 @@ func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (resu
 		}
 	}
 
-	slices.Sort(results)
-	return slices.Compact(results), nil
+	return util.Distinct(results), nil
 }
 
 // updates also Table TODO stop updating table here, find a better solution
@@ -275,7 +274,12 @@ func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string,
 	return lm.sendCreateTableQuery(ctx, addOurFieldsToCreateTableQuery(query, config, table))
 }
 
-func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jsonData types.JSON, config *ChTableConfig) (string, error) {
+func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jsonData types.JSON, tableConfig *ChTableConfig, cfg config.QuesmaConfiguration) (string, error) {
+
+	nameFormatter, err := registry.TableColumNameFormatterFor(tableName, cfg)
+	if err != nil {
+		return "", err
+	}
 
 	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
 (
@@ -283,8 +287,8 @@ func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jso
 )
 %s
 COMMENT 'created by Quesma'`,
-		tableName, FieldsMapToCreateTableString("", jsonData, 1, config)+Indexes(jsonData),
-		config.CreateTablePostFieldsString())
+		tableName, FieldsMapToCreateTableString("", jsonData, 1, tableConfig, nameFormatter)+Indexes(jsonData),
+		tableConfig.CreateTablePostFieldsString())
 	return createTableCmd, nil
 }
 
@@ -305,7 +309,7 @@ func Indexes(m SchemaMap) string {
 func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig) error {
 	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
 
-	query, err := buildCreateTableQueryNoOurFields(ctx, name, jsonData, config)
+	query, err := buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, lm.cfg)
 	if err != nil {
 		return err
 	}
@@ -422,9 +426,12 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, 
 
 func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON, config *ChTableConfig) error {
 
+	transformer := registry.IngestTransformerFor(tableName, lm.cfg)
+
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
-		preprocessedJson, err := registry.DefaultPlugin.IngestTransformer().Transform(jsonValue)
+		preprocessedJson, err := transformer.Transform(jsonValue)
+
 		if err != nil {
 			return fmt.Errorf("error IngestTransformer: %v", err)
 		}

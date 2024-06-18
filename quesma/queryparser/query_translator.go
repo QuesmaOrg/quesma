@@ -7,6 +7,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/model/bucket_aggregations"
+	"mitmproxy/quesma/model/metrics_aggregations"
 	"mitmproxy/quesma/model/typical_queries"
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/queryprocessor"
@@ -76,12 +77,21 @@ func (cw *ClickhouseQueryTranslator) finishMakeResponse(query *model.Query, Resu
 	if query.Type.IsBucketAggregation() {
 		return query.Type.TranslateSqlResponseToJson(ResultSet, level)
 	} else { // metrics
-		lastAggregator := query.Aggregators[len(query.Aggregators)-1].Name
-		return []model.JsonMap{
-			{
-				lastAggregator: query.Type.TranslateSqlResponseToJson(ResultSet, level)[0],
-			},
+		result := query.Type.TranslateSqlResponseToJson(ResultSet, level)[0]
+		if level > 0 && len(ResultSet) > 0 {
+			result[model.KeyAddedByQuesma] = ResultSet[0].Cols[level-1].Value
 		}
+		lastAggregator := query.Aggregators[len(query.Aggregators)-1].Name
+		if _, isTopHits := query.Type.(metrics_aggregations.TopHits); isTopHits {
+			return []model.JsonMap{{
+				lastAggregator: model.JsonMap{
+					"hits": result,
+				},
+			}}
+		}
+		return []model.JsonMap{{
+			lastAggregator: result,
+		}}
 	}
 }
 
@@ -189,7 +199,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 		}
 		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
 		if len(aggregation) != 0 {
-			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0]) // result of root node is always a single map, thus [0]
+			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0], model.KeyAddedByQuesma) // result of root node is always a single map, thus [0]
 		}
 	}
 	return aggregations

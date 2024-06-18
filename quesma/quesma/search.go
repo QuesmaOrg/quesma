@@ -15,9 +15,11 @@ import (
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/errors"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/quesma/ui"
+	"mitmproxy/quesma/schema"
 	"mitmproxy/quesma/tracing"
 	"mitmproxy/quesma/util"
 	"slices"
@@ -27,13 +29,11 @@ import (
 	"time"
 )
 
-const asyncQueriesLimit = 10000
-const asyncQueriesLimitBytes = 1024 * 1024 * 500 // 500MB
-
-var (
-	errIndexNotExists       = errors.New("table does not exist")
-	errCouldNotParseRequest = errors.New("parse exception")
+const (
+	asyncQueriesLimit      = 10000
+	asyncQueriesLimitBytes = 1024 * 1024 * 500 // 500MB
 )
+
 var asyncRequestId atomic.Int64
 
 type AsyncRequestResult struct {
@@ -66,19 +66,20 @@ type QueryRunner struct {
 	DateMathRenderer         string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 	currentParallelQueryJobs atomic.Int64
 	transformationPipeline   TransformationPipeline
+	schemaRegistry           schema.Registry
 }
 
-func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole) *QueryRunner {
+func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry) *QueryRunner {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc,
 		executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult](),
 		AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext](),
 		transformationPipeline: TransformationPipeline{
 			transformers: []plugins.QueryTransformer{
-				registry.DefaultPlugin.QueryTransformer(),
 				&SchemaCheckPass{cfg: cfg.IndexConfig}, // this can be a part of another plugin
 			},
-		}}
+		}, schemaRegistry: schemaRegistry}
+
 }
 
 func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id string) *AsyncQueryContext {
@@ -96,7 +97,7 @@ func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int
 			return 0, nil
 		} else {
 			logger.WarnWithCtx(ctx).Msgf("could not resolve table name for [%s]", indexPattern)
-			return -1, errIndexNotExists
+			return -1, quesma_errors.ErrIndexNotExists()
 		}
 	}
 
@@ -165,7 +166,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			}
 		} else {
 			logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
-			return nil, errIndexNotExists
+			return nil, quesma_errors.ErrIndexNotExists()
 		}
 	case sourceClickhouse:
 		logger.Debug().Msgf("index pattern [%s] resolved to clickhouse tables: [%s]", indexPattern, sourcesClickhouse)
@@ -186,7 +187,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			}
 		} else {
 			logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
-			return nil, errIndexNotExists
+			return nil, quesma_errors.ErrIndexNotExists()
 		}
 	} else if len(sourcesClickhouse) > 1 { // async search never worked for multiple indexes, TODO fix
 		logger.WarnWithCtx(ctx).Msgf("requires union of multiple tables [%s], not yet supported, picking just one", indexPattern)
@@ -225,6 +226,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			logger.ErrorWithCtx(ctx).Msgf("parsing error: %v", err)
 		}
 		queries, err = q.transformationPipeline.Transform(queries)
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
+		}
+
+		queries, err = registry.QueryTransformerFor(table.Name, q.cfg).Transform(queries)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 		}
@@ -648,9 +654,10 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 
 func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
-	processor := registry.DefaultPlugin.ResultTransformer()
+	transformer := registry.ResultTransformerFor(table.Name, q.cfg)
 
-	res, err := processor.Transform(results)
+	res, err := transformer.Transform(results)
+
 	if err != nil {
 		return nil, err
 	}

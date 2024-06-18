@@ -147,6 +147,14 @@ func (s *schemaRegistry) Load() error {
 						}
 					}
 				}
+			} else {
+				for aliasName, aliasConfig := range indexConfiguration.Aliases {
+					if _, exists := fields[FieldName(aliasConfig.SourceFieldName)]; exists {
+						aliases[FieldName(aliasName)] = FieldName(aliasConfig.SourceFieldName)
+					} else {
+						logger.Debug().Msgf("alias field %s not found, possibly not yet loaded", aliasConfig.SourceFieldName)
+					}
+				}
 			}
 		}
 
@@ -166,6 +174,9 @@ func (s *schemaRegistry) AllSchemas() map[TableName]Schema {
 }
 
 func (s *schemaRegistry) FindSchema(name TableName) (Schema, bool) {
+	if err := s.Load(); err != nil {
+		logger.Error().Msgf("error loading schemas: %v", err)
+	}
 	schema, found := s.schemas.Load(name)
 	return schema, found
 }

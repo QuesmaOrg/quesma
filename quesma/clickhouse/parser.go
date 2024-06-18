@@ -2,7 +2,7 @@ package clickhouse
 
 import (
 	"fmt"
-	"mitmproxy/quesma/plugins/registry"
+	"mitmproxy/quesma/plugins"
 	"mitmproxy/quesma/util"
 	"slices"
 	"strings"
@@ -12,9 +12,7 @@ const NestedSeparator = "::"
 
 // m: unmarshalled json from HTTP request
 // Returns nicely formatted string for CREATE TABLE command
-func FieldsMapToCreateTableString(namespace string, m SchemaMap, indentLvl int, config *ChTableConfig) string {
-
-	nameFormatter := registry.DefaultPlugin.TableColumNameFormatter()
+func FieldsMapToCreateTableString(namespace string, m SchemaMap, indentLvl int, config *ChTableConfig, nameFormatter plugins.TableColumNameFormatter) string {
 
 	var result strings.Builder
 	i := 0
@@ -31,9 +29,9 @@ func FieldsMapToCreateTableString(namespace string, m SchemaMap, indentLvl int, 
 		if (ok && nestedValue != nil && len(nestedValue) > 0) && !isListValue {
 			var nested []string
 			if namespace == "" {
-				nested = append(nested, FieldsMapToCreateTableString(name, nestedValue, indentLvl, config))
+				nested = append(nested, FieldsMapToCreateTableString(name, nestedValue, indentLvl, config, nameFormatter))
 			} else {
-				nested = append(nested, FieldsMapToCreateTableString(nameFormatter.Format(namespace, name), nestedValue, indentLvl, config))
+				nested = append(nested, FieldsMapToCreateTableString(nameFormatter.Format(namespace, name), nestedValue, indentLvl, config, nameFormatter))
 			}
 
 			result.WriteString(strings.Join(nested, ",\n"))
