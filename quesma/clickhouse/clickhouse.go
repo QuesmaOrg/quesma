@@ -171,8 +171,7 @@ func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (resu
 		}
 	}
 
-	slices.Sort(results)
-	return slices.Compact(results), nil
+	return util.Distinct(results), nil
 }
 
 // updates also Table TODO stop updating table here, find a better solution

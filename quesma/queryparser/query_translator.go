@@ -19,40 +19,14 @@ const facetsSampleSize = 20000
 type JsonMap = map[string]interface{}
 
 type ClickhouseQueryTranslator struct {
-	ClickhouseLM      *clickhouse.LogManager
-	Table             *clickhouse.Table
-	tokensToHighlight []string
-	Ctx               context.Context
+	ClickhouseLM *clickhouse.LogManager
+	Table        *clickhouse.Table
+	Ctx          context.Context
 
 	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()
-
-func (cw *ClickhouseQueryTranslator) AddTokenToHighlight(token any) {
-
-	if token == nil {
-		return
-	}
-
-	// this logic is taken from `sprint` function
-	switch token := token.(type) {
-	case string:
-		cw.tokensToHighlight = append(cw.tokensToHighlight, token)
-	case *string:
-		cw.tokensToHighlight = append(cw.tokensToHighlight, *token)
-	case QueryMap:
-		value := token["value"]
-		cw.AddTokenToHighlight(value)
-	default:
-		logger.WarnWithCtx(cw.Ctx).Msgf("unknown type for highlight token: %T, value: %v", token, token)
-	}
-
-}
-
-func (cw *ClickhouseQueryTranslator) ClearTokensToHighlight() {
-	cw.tokensToHighlight = []string{}
-}
 
 func emptySearchResponse() model.SearchResp {
 	return model.SearchResp{
@@ -103,8 +77,11 @@ func (cw *ClickhouseQueryTranslator) finishMakeResponse(query *model.Query, Resu
 	if query.Type.IsBucketAggregation() {
 		return query.Type.TranslateSqlResponseToJson(ResultSet, level)
 	} else { // metrics
-		lastAggregator := query.Aggregators[len(query.Aggregators)-1].Name
 		result := query.Type.TranslateSqlResponseToJson(ResultSet, level)[0]
+		if level > 0 && len(ResultSet) > 0 {
+			result[model.KeyAddedByQuesma] = ResultSet[0].Cols[level-1].Value
+		}
+		lastAggregator := query.Aggregators[len(query.Aggregators)-1].Name
 		if _, isTopHits := query.Type.(metrics_aggregations.TopHits); isTopHits {
 			return []model.JsonMap{{
 				lastAggregator: model.JsonMap{
@@ -222,7 +199,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 		}
 		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
 		if len(aggregation) != 0 {
-			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0]) // result of root node is always a single map, thus [0]
+			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0], model.KeyAddedByQuesma) // result of root node is always a single map, thus [0]
 		}
 	}
 	return aggregations
@@ -449,7 +426,6 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 	if len(prefix) > 0 {
 		//whereClause = strconv.Quote(fieldName) + " iLIKE '" + prefix + "%'"
 		whereClause = model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral(prefix+"%"))
-		cw.AddTokenToHighlight(prefix)
 	}
 	return &model.Query{
 		SelectCommand: *model.NewSelectCommand(

@@ -15,6 +15,7 @@ import (
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/queryparser/query_util"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/errors"
 	"mitmproxy/quesma/quesma/recovery"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/quesma/ui"
@@ -28,13 +29,11 @@ import (
 	"time"
 )
 
-const asyncQueriesLimit = 10000
-const asyncQueriesLimitBytes = 1024 * 1024 * 500 // 500MB
-
-var (
-	errIndexNotExists       = errors.New("table does not exist")
-	errCouldNotParseRequest = errors.New("parse exception")
+const (
+	asyncQueriesLimit      = 10000
+	asyncQueriesLimitBytes = 1024 * 1024 * 500 // 500MB
 )
+
 var asyncRequestId atomic.Int64
 
 type AsyncRequestResult struct {
@@ -98,7 +97,7 @@ func (q *QueryRunner) handleCount(ctx context.Context, indexPattern string) (int
 			return 0, nil
 		} else {
 			logger.WarnWithCtx(ctx).Msgf("could not resolve table name for [%s]", indexPattern)
-			return -1, errIndexNotExists
+			return -1, quesma_errors.ErrIndexNotExists()
 		}
 	}
 
@@ -167,7 +166,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			}
 		} else {
 			logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
-			return nil, errIndexNotExists
+			return nil, quesma_errors.ErrIndexNotExists()
 		}
 	case sourceClickhouse:
 		logger.Debug().Msgf("index pattern [%s] resolved to clickhouse tables: [%s]", indexPattern, sourcesClickhouse)
@@ -188,7 +187,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			}
 		} else {
 			logger.WarnWithCtx(ctx).Msgf("could not resolve any table name for [%s]", indexPattern)
-			return nil, errIndexNotExists
+			return nil, quesma_errors.ErrIndexNotExists()
 		}
 	} else if len(sourcesClickhouse) > 1 { // async search never worked for multiple indexes, TODO fix
 		logger.WarnWithCtx(ctx).Msgf("requires union of multiple tables [%s], not yet supported, picking just one", indexPattern)

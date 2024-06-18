@@ -119,21 +119,23 @@ func TestParseHighLight(t *testing.T) {
 	assert.Nil(t, err, "Error parsing query %v", err)
 
 	highlighter := cw.ParseHighlighter(queryAsMap)
-	tokens := []string{"User deleted", "User", "deleted"}
-	highlighter.SetTokens(tokens)
+	highlighter.Tokens = map[string]struct{}{
+		"user deleted": {}, "user": {}, "deleted": {},
+	}
 	assert.NotNil(t, highlighter, "Error parsing highlight %v", highlighter)
 
 	assert.Equal(t, 1, len(highlighter.PreTags))
 	assert.Equal(t, "@kibana-highlighted-field@", highlighter.PreTags[0])
 	assert.Equal(t, 1, len(highlighter.PostTags))
 	assert.Equal(t, "@/kibana-highlighted-field@", highlighter.PostTags[0])
-	assert.Equal(t, []string{"user deleted", "deleted", "user"}, highlighter.Tokens)
 }
 
 func TestHighLightResults(t *testing.T) {
 
 	highLighter := model.Highlighter{
-		Tokens:   []string{"user", "deleted"},
+		Tokens: map[string]struct{}{
+			"user": {}, "deleted": {},
+		},
 		PreTags:  []string{"<b>"},
 		PostTags: []string{"</b>"},
 		Fields:   make(map[string]bool),
@@ -142,7 +144,7 @@ func TestHighLightResults(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		tokens     []string
+		tokens     map[string]struct{}
 		field      string
 		highlight  bool
 		value      string
@@ -150,7 +152,7 @@ func TestHighLightResults(t *testing.T) {
 	}{
 		{
 			name:       "highlighted",
-			tokens:     []string{"user", "deleted"},
+			tokens:     map[string]struct{}{"user": {}, "deleted": {}},
 			field:      "message",
 			highlight:  true,
 			value:      "User logged",
@@ -158,7 +160,7 @@ func TestHighLightResults(t *testing.T) {
 		},
 		{
 			name:       "highlighted original case",
-			tokens:     []string{"user", "deleted"},
+			tokens:     map[string]struct{}{"user": {}, "deleted": {}},
 			field:      "message",
 			highlight:  true,
 			value:      "uSeR logged",
@@ -166,7 +168,7 @@ func TestHighLightResults(t *testing.T) {
 		},
 		{
 			name:       "highlighted both",
-			tokens:     []string{"user", "deleted"},
+			tokens:     map[string]struct{}{"user": {}, "deleted": {}},
 			field:      "message",
 			highlight:  true,
 			value:      "User  deleted",
@@ -174,7 +176,7 @@ func TestHighLightResults(t *testing.T) {
 		},
 		{
 			name:       "not highlighted",
-			tokens:     []string{"User", "deleted"},
+			tokens:     map[string]struct{}{"user": {}, "deleted": {}},
 			field:      "other_field",
 			highlight:  false,
 			value:      "User logged",
@@ -182,7 +184,7 @@ func TestHighLightResults(t *testing.T) {
 		},
 		{
 			name:       "multiple highlights",
-			tokens:     []string{"password"},
+			tokens:     map[string]struct{}{"password": {}},
 			field:      "message",
 			highlight:  true,
 			value:      "InvalidPassword: user provided invalid password",
@@ -190,7 +192,7 @@ func TestHighLightResults(t *testing.T) {
 		},
 		{
 			name:       "multiple highlights security team #1",
-			tokens:     []string{"invalidPassword", "password"},
+			tokens:     map[string]struct{}{"invalidpassword": {}, "password": {}},
 			field:      "message",
 			highlight:  true,
 			value:      "InvalidPassword: user provided invalid password",
@@ -198,7 +200,7 @@ func TestHighLightResults(t *testing.T) {
 		},
 		{
 			name:       "multiple highlights security team #2",
-			tokens:     []string{"password", "InvalidPassword"},
+			tokens:     map[string]struct{}{"password": {}, "invalidpassword": {}},
 			field:      "message",
 			highlight:  true,
 			value:      "InvalidPassword: user provided invalid password",
@@ -206,7 +208,7 @@ func TestHighLightResults(t *testing.T) {
 		},
 		{
 			name:       "merge highlights",
-			tokens:     []string{"password", "lidPass"},
+			tokens:     map[string]struct{}{"password": {}, "lidpass": {}},
 			field:      "message",
 			highlight:  true,
 			value:      "InvalidPassword: user provided invalid password",
@@ -214,7 +216,7 @@ func TestHighLightResults(t *testing.T) {
 		},
 		{
 			name:       "merge highlights",
-			tokens:     []string{"password", "pass"},
+			tokens:     map[string]struct{}{"password": {}, "pass": {}},
 			field:      "message",
 			highlight:  true,
 			value:      "InvalidPassword",
@@ -222,7 +224,7 @@ func TestHighLightResults(t *testing.T) {
 		},
 		{
 			name:       "no highlights",
-			tokens:     []string{""},
+			tokens:     map[string]struct{}{},
 			field:      "message",
 			highlight:  true,
 			value:      "InvalidPassword",
@@ -234,13 +236,12 @@ func TestHighLightResults(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			highLighter := model.Highlighter{
+				Tokens:   tt.tokens,
 				PreTags:  []string{"<b>"},
 				PostTags: []string{"</b>"},
 				Fields:   make(map[string]bool),
 			}
 			highLighter.Fields["message"] = true
-
-			highLighter.SetTokens(tt.tokens)
 
 			mustHighlighter := highLighter.ShouldHighlight(tt.field)
 

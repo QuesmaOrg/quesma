@@ -1,4 +1,4 @@
-package quesma
+package field_capabilities
 
 import (
 	"context"
@@ -6,27 +6,25 @@ import (
 	"fmt"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/elasticsearch"
+	"mitmproxy/quesma/elasticsearch/elasticsearch_field_types"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/plugins/registry"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/errors"
 	"mitmproxy/quesma/schema"
 	"mitmproxy/quesma/util"
 )
 
-func BuildFieldCapFromSchema(fieldType schema.Type, indexName string) model.FieldCapability {
-	return model.FieldCapability{
-		Type:          elasticsearch.SchemaTypeAdapter{}.ConvertFrom(fieldType),
+func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.FieldCapability, colName string, fieldType schema.Type, index string) {
+	fieldTypeName := asElasticType(fieldType)
+	fieldCapability := model.FieldCapability{
+		Type:          asElasticType(fieldType),
 		Aggregatable:  fieldType.IsAggregatable(),
 		Searchable:    fieldType.IsSearchable(),
-		Indices:       []string{indexName},
+		Indices:       []string{index},
 		MetadataField: util.Pointer(false),
 	}
-}
-
-func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.FieldCapability, colName string, fieldType schema.Type, index string) {
-	fieldTypeName := elasticsearch.SchemaTypeAdapter{}.ConvertFrom(fieldType)
-	fieldCapability := BuildFieldCapFromSchema(fieldType, index)
 
 	if _, exists := fields[colName]; !exists {
 		fields[colName] = make(map[string]model.FieldCapability)
@@ -103,7 +101,7 @@ func EmptyFieldCapsResponse() []byte {
 	}
 }
 
-func handleFieldCaps(ctx context.Context, cfg config.QuesmaConfiguration, schemaRegistry schema.Registry, index string, lm *clickhouse.LogManager) ([]byte, error) {
+func HandleFieldCaps(ctx context.Context, cfg config.QuesmaConfiguration, schemaRegistry schema.Registry, index string, lm *clickhouse.LogManager) ([]byte, error) {
 	indexes, err := lm.ResolveIndexes(ctx, index)
 	if err != nil {
 		return nil, err
@@ -111,9 +109,36 @@ func handleFieldCaps(ctx context.Context, cfg config.QuesmaConfiguration, schema
 
 	if len(indexes) == 0 {
 		if !elasticsearch.IsIndexPattern(index) {
-			return nil, errIndexNotExists
+			return nil, quesma_errors.ErrIndexNotExists()
 		}
 	}
 
 	return handleFieldCapsIndex(cfg, schemaRegistry, indexes)
+}
+
+func asElasticType(t schema.Type) string {
+	switch t.Name {
+	case schema.TypeText.Name:
+		return elasticsearch_field_types.FieldTypeText
+	case schema.TypeTimestamp.Name:
+		return elasticsearch_field_types.FieldTypeDate
+	case schema.TypeKeyword.Name:
+		return elasticsearch_field_types.FieldTypeKeyword
+	case schema.TypeLong.Name:
+		return elasticsearch_field_types.FieldTypeLong
+	case schema.TypeDate.Name:
+		return elasticsearch_field_types.FieldTypeDate
+	case schema.TypeFloat.Name:
+		return elasticsearch_field_types.FieldTypeDouble
+	case schema.TypeBoolean.Name:
+		return elasticsearch_field_types.FieldTypeBoolean
+	case schema.TypeIp.Name:
+		return elasticsearch_field_types.FieldTypeIp
+	case schema.TypeObject.Name:
+		return elasticsearch_field_types.FieldTypeObject
+	case schema.TypePoint.Name:
+		return elasticsearch_field_types.FieldTypeGeoPoint
+	default:
+		return elasticsearch_field_types.FieldTypeText
+	}
 }

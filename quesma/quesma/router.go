@@ -9,6 +9,8 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/quesma/errors"
+	"mitmproxy/quesma/quesma/field_capabilities"
 	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/routes"
 	"mitmproxy/quesma/quesma/termsenum"
@@ -152,7 +154,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 	router.Register(routes.IndexCountPath, and(method("GET"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		cnt, err := queryRunner.handleCount(ctx, req.Params["index"])
 		if err != nil {
-			if errors.Is(errIndexNotExists, err) {
+			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				return &mux.Result{StatusCode: 404}, nil
 			} else {
 				return nil, err
@@ -176,7 +178,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 		// TODO we should pass JSON here instead of []byte
 		responseBody, err := queryRunner.handleSearch(ctx, "*", body)
 		if err != nil {
-			if errors.Is(errIndexNotExists, err) {
+			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				return &mux.Result{StatusCode: 404}, nil
 			} else {
 				return nil, err
@@ -194,9 +196,9 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 
 		responseBody, err := queryRunner.handleSearch(ctx, req.Params["index"], body)
 		if err != nil {
-			if errors.Is(errIndexNotExists, err) {
+			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				return &mux.Result{StatusCode: 404}, nil
-			} else if errors.Is(err, errCouldNotParseRequest) {
+			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
 				return &mux.Result{
 					Body:       string(queryparser.BadRequestParseError(err)),
 					StatusCode: 400,
@@ -230,9 +232,9 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 
 		responseBody, err := queryRunner.handleAsyncSearch(ctx, req.Params["index"], body, waitForResultsMs, keepOnCompletion)
 		if err != nil {
-			if errors.Is(errIndexNotExists, err) {
+			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				return &mux.Result{StatusCode: 404}, nil
-			} else if errors.Is(err, errCouldNotParseRequest) {
+			} else if errors.Is(err, quesma_errors.ErrCouldNotParseRequest()) {
 				return &mux.Result{
 					Body:       string(queryparser.BadRequestParseError(err)),
 					StatusCode: 400,
@@ -263,11 +265,11 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 
 	router.Register(routes.FieldCapsPath, and(method("GET", "POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
-		responseBody, err := handleFieldCaps(ctx, cfg, sr, req.Params["index"], lm)
+		responseBody, err := field_capabilities.HandleFieldCaps(ctx, cfg, sr, req.Params["index"], lm)
 		if err != nil {
-			if errors.Is(errIndexNotExists, err) {
+			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				if req.QueryParams.Get("allow_no_indices") == "true" || req.QueryParams.Get("ignore_unavailable") == "true" {
-					return elasticsearchQueryResult(string(EmptyFieldCapsResponse()), httpOk), nil
+					return elasticsearchQueryResult(string(field_capabilities.EmptyFieldCapsResponse()), httpOk), nil
 				}
 				return &mux.Result{StatusCode: 404}, nil
 			} else {
@@ -306,7 +308,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 
 		responseBody, err := queryRunner.handleEQLSearch(ctx, req.Params["index"], body)
 		if err != nil {
-			if errors.Is(errIndexNotExists, err) {
+			if errors.Is(quesma_errors.ErrIndexNotExists(), err) {
 				return &mux.Result{StatusCode: 404}, nil
 			} else {
 				return nil, err

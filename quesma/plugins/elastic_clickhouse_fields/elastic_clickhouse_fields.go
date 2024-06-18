@@ -243,7 +243,7 @@ func (p *Dot2DoubleColons) GetTableColumnFormatter(table string, cfg config.Ques
 type Dot2DoubleColons2Dot struct{}
 
 func (*Dot2DoubleColons2Dot) matches(table string) bool {
-	return false
+	return strings.HasPrefix(table, "kibana_")
 }
 
 func (*Dot2DoubleColons2Dot) IngestTransformer() plugins.IngestTransformer {
@@ -290,7 +290,7 @@ func (p *Dot2DoubleColons2Dot) ApplyFieldCapsTransformers(table string, cfg conf
 type Dot2DoubleUnderscores2Dot struct{}
 
 func (p *Dot2DoubleUnderscores2Dot) matches(table string) bool {
-	return strings.HasPrefix(table, "kibana_")
+	return false
 }
 
 func (p *Dot2DoubleUnderscores2Dot) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
