@@ -4,6 +4,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/schema"
 	"strings"
 )
 
@@ -123,7 +124,8 @@ func (v *WhereVisitor) VisitSelectCommand(e model.SelectCommand) interface{}    
 func (v *WhereVisitor) VisitWindowFunction(e model.WindowFunction) interface{}   { return e }
 
 type SchemaCheckPass struct {
-	cfg map[string]config.IndexConfiguration
+	cfg            map[string]config.IndexConfiguration
+	schemaRegistry schema.Registry
 }
 
 // This functions trims the db name from the table name if exists
@@ -158,19 +160,136 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 	return query, nil
 }
 
+type GeoIpVisitor struct {
+	tableName      string
+	schemaRegistry schema.Registry
+}
+
+func (v *GeoIpVisitor) VisitLiteral(e model.LiteralExpr) interface{}   { return e }
+func (v *GeoIpVisitor) VisitInfix(e model.InfixExpr) interface{}       { return e }
+func (v *GeoIpVisitor) VisitPrefixExpr(e model.PrefixExpr) interface{} { return e }
+func (v *GeoIpVisitor) VisitFunction(e model.FunctionExpr) interface{} { return e }
+func (v *GeoIpVisitor) VisitColumnRef(e model.ColumnRef) interface{} {
+	schemaInstance, exists := v.schemaRegistry.FindSchema(schema.TableName(v.tableName))
+	if !exists {
+		return e
+	}
+	// TODO check this against schema
+	if schemaInstance.Fields[schema.FieldName(e.ColumnName)].Type.Name == schema.TypePoint.Name &&
+		!(strings.Contains(e.ColumnName, "::lat") ||
+			strings.Contains(e.ColumnName, "::lon")) {
+		name := e.ColumnName
+		return model.NewColumnRef(name + "::lat")
+	}
+	return e
+}
+func (v *GeoIpVisitor) VisitNestedProperty(e model.NestedProperty) interface{}   { return e }
+func (v *GeoIpVisitor) VisitArrayAccess(e model.ArrayAccess) interface{}         { return e }
+func (v *GeoIpVisitor) MultiFunctionExpr(e model.MultiFunctionExpr) interface{}  { return e }
+func (v *GeoIpVisitor) VisitMultiFunction(e model.MultiFunctionExpr) interface{} { return e }
+func (v *GeoIpVisitor) VisitString(e model.StringExpr) interface{}               { return e }
+func (v *GeoIpVisitor) VisitOrderByExpr(e model.OrderByExpr) interface{}         { return e }
+func (v *GeoIpVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{}       { return e }
+func (v *GeoIpVisitor) VisitTableRef(e model.TableRef) interface{} {
+	return model.NewTableRef(e.Name)
+}
+func (v *GeoIpVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{}       { return e }
+func (v *GeoIpVisitor) VisitWindowFunction(e model.WindowFunction) interface{} { return e }
+
+func (v *GeoIpVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
+	schemaInstance, exists := v.schemaRegistry.FindSchema(schema.TableName(v.tableName))
+	if !exists {
+		return e
+	}
+	var groupBy []model.Expr
+	for _, expr := range e.GroupBy {
+		groupBy = append(groupBy, expr.Accept(v).(model.Expr))
+	}
+	locationColumn := false
+	colName := ""
+	var columns []model.Expr
+	for _, expr := range e.Columns {
+		columns = append(columns, expr.Accept(v).(model.Expr))
+		if col, ok := expr.(model.ColumnRef); ok {
+			// TODO check this against schema
+			if schemaInstance.Fields[schema.FieldName(col.ColumnName)].Type.Name == schema.TypePoint.Name &&
+				!(strings.Contains(col.ColumnName, "::lat") ||
+					strings.Contains(col.ColumnName, "::lon")) {
+				locationColumn = true
+				colName = col.ColumnName
+			}
+		}
+	}
+	if locationColumn {
+		columns = append(columns, model.NewColumnRef(colName+"::lon"))
+		// check if groupBy clause is present
+		if len(groupBy) > 0 {
+			groupBy = append(groupBy, model.NewColumnRef(colName+"::lon"))
+		}
+	}
+	fromClause := e.FromClause.Accept(v)
+
+	return model.NewSelectCommand(columns, groupBy, e.OrderBy,
+		fromClause.(model.Expr), e.WhereClause, e.Limit, e.SampleLimit, e.IsDistinct)
+}
+
+func (s *SchemaCheckPass) applyGeoTransformations(query *model.Query) (*model.Query, error) {
+	if query.SelectCommand.WhereClause == nil {
+		return query, nil
+	}
+	fromTable := getFromTable(query.TableName)
+
+	geoIpVisitor := &GeoIpVisitor{tableName: fromTable, schemaRegistry: s.schemaRegistry}
+	query.SelectCommand = *query.SelectCommand.Accept(geoIpVisitor).(*model.SelectCommand)
+
+	return query, nil
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 	for k, query := range queries {
 		var err error
-		inputQuery := query.SelectCommand.String()
-		query, err = s.applyIpTransformations(query)
-		if query.SelectCommand.String() != inputQuery {
-			logger.Info().Msgf("IpTransformation triggered, input query: %s", inputQuery)
-			logger.Info().Msgf("IpTransformation triggered, output query: %s", query.SelectCommand.String())
+		transformationChain := []struct {
+			TransformationName string
+			Transformation     func(*model.Query) (*model.Query, error)
+		}{
+			{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
+			{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
 		}
-		if err != nil {
-			return nil, err
+		for _, transformation := range transformationChain {
+			inputQuery := query.SelectCommand.String()
+			query, err = transformation.Transformation(query)
+			if query.SelectCommand.String() != inputQuery {
+				logger.Info().Msgf(transformation.TransformationName+" triggered, input query: %s", inputQuery)
+				logger.Info().Msgf(transformation.TransformationName+" triggered, output query: %s", query.SelectCommand.String())
+			}
+			if err != nil {
+				return nil, err
+			}
 		}
 		queries[k] = query
 	}
 	return queries, nil
+}
+
+type GeoIpResultTransformer struct {
+}
+
+func (GeoIpResultTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+	for i, rows := range result {
+		for j, row := range rows {
+			for k, col := range row.Cols {
+				// TODO transform this according to schema
+				if strings.Contains(col.ColName, "Location::lat") {
+					result[i][j].Cols[k].ColName = "lat"
+					result[i][j].Cols[k].OverridenColName = strings.TrimSuffix(col.ColName, "::lat")
+				}
+				// TODO transform this according to schema
+				if strings.Contains(col.ColName, "Location::lon") {
+					result[i][j].Cols[k].ColName = "lon"
+					result[i][j].Cols[k].OverridenColName = strings.TrimSuffix(col.ColName, "::lon")
+				}
+			}
+		}
+	}
+	return result, nil
 }
