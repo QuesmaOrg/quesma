@@ -8,6 +8,7 @@ import (
 	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
+	"sort"
 	"strings"
 	"time"
 )
@@ -125,9 +126,16 @@ func executeQuery(ctx context.Context, lm *LogManager, queryAsString string, par
 
 	//	https://github.com/ClickHouse/clickhouse-go/blob/main/examples/std/query_parameters.go
 
+	// keep interation over parameters deterministic
+	var parameterNames []string
+	for k, _ := range parameters {
+		parameterNames = append(parameterNames, k)
+	}
+	sort.Strings(parameterNames)
+
 	var namedParams []any
-	for name, value := range parameters {
-		namedParams = append(namedParams, sql.Named(name, value))
+	for _, name := range parameterNames {
+		namedParams = append(namedParams, sql.Named(name, parameters[name]))
 	}
 
 	rows, err := lm.chDb.QueryContext(ctx, queryAsString, namedParams...)

@@ -58,7 +58,8 @@ func (v *ExprPlaceholderRewriter) VisitLiteral(e LiteralExpr) interface{} {
 		val = fmt.Sprintf("%v", e.Value)
 	}
 
-	parameterName := fmt.Sprintf("P_%d", v.count)
+	// we keep parameters names easy sortable
+	parameterName := fmt.Sprintf("P%03d", v.count)
 	placeholder := fmt.Sprintf("{%s:%s}", parameterName, typeName)
 	v.values[parameterName] = value
 
