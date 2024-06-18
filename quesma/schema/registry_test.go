@@ -67,6 +67,52 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			exists: true,
 		},
 		{
+			name: "schema inferred, with type mappings not backed by db (deprecated)",
+			cfg: config.QuesmaConfiguration{
+				IndexConfig: map[string]config.IndexConfiguration{
+					"some_table": {Enabled: true, TypeMappings: map[string]string{"message": "keyword"}},
+				},
+			},
+			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
+				"some_table": {Columns: map[string]schema.Column{
+					"event_date": {Name: "event_date", Type: "DateTime64"},
+					"count":      {Name: "count", Type: "Int64"},
+				}},
+			}},
+			tableName: "some_table",
+			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
+				"message":    {Name: "message", Type: schema.TypeKeyword},
+				"event_date": {Name: "event_date", Type: schema.TypeTimestamp},
+				"count":      {Name: "count", Type: schema.TypeLong}},
+				Aliases: map[schema.FieldName]schema.FieldName{}},
+			exists: true,
+		},
+		{
+			name: "schema inferred, with type mappings not backed by db",
+			cfg: config.QuesmaConfiguration{
+				IndexConfig: map[string]config.IndexConfiguration{
+					"some_table": {Enabled: true, SchemaConfiguration: &config.SchemaConfiguration{
+						Fields: map[config.FieldName]config.FieldConfiguration{
+							"message": {Name: "message", Type: "keyword"},
+						},
+					}},
+				},
+			},
+			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
+				"some_table": {Columns: map[string]schema.Column{
+					"event_date": {Name: "event_date", Type: "DateTime64"},
+					"count":      {Name: "count", Type: "Int64"},
+				}},
+			}},
+			tableName: "some_table",
+			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
+				"message":    {Name: "message", Type: schema.TypeKeyword},
+				"event_date": {Name: "event_date", Type: schema.TypeTimestamp},
+				"count":      {Name: "count", Type: schema.TypeLong}},
+				Aliases: map[schema.FieldName]schema.FieldName{}},
+			exists: true,
+		},
+		{
 			name: "schema inferred, with mapping overrides",
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{
