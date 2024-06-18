@@ -140,6 +140,8 @@ func asElasticType(t schema.Type) string {
 		return elasticsearch_field_types.FieldTypeIp
 	case schema.TypeObject.Name:
 		return elasticsearch_field_types.FieldTypeObject
+	case schema.TypePoint.Name:
+		return elasticsearch_field_types.FieldTypeGeoPoint
 	default:
 		return elasticsearch_field_types.FieldTypeText
 	}
