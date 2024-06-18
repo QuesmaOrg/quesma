@@ -222,7 +222,6 @@ func (t *Table) ResolveField(ctx context.Context, fieldName string) (field strin
 			logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in table '%s'", fieldName, t.Name)
 		}
 	}
-	//
 	return
 }
 
