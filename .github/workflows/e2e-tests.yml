@@ -49,11 +49,11 @@ jobs:
       contents: read
       deployments: read
       id-token: write
-      issues: write
+      issues: read
       discussions: read
       packages: read
       pages: read
-      pull-requests: read
+      pull-requests: write
       repository-projects: read
       security-events: read
       statuses: read
