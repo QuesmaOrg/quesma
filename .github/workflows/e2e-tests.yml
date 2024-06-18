@@ -50,13 +50,13 @@ jobs:
       deployments: read
       id-token: write
       issues: read
-      discussions: read
-      packages: read
-      pages: read
+      #discussions: read
+      #packages: read
+      #pages: read
       pull-requests: write
-      repository-projects: read
-      security-events: read
-      statuses: read
+      #repository-projects: read
+      #security-events: read
+      #statuses: read
     #needs: [build-quesma-docker-image]
     env:
       PR_NUMBER: $(echo gh pr list --search ${{ github.sha }} | awk '{print $1}')
@@ -105,12 +105,6 @@ jobs:
 #        working-directory: quesma
 #        run: go test -race --tags=integration  -v ./...
 #
-      - name: Print PR number
-        run: |
-          echo $(gh pr list --search ${{ github.sha }} | awk '{print $1}') $PR_NUMBER $PR_NUMBER_2
-        env:
-          GH_TOKEN: ${{ github.token }}
-
       - name: Add a comment to the PR
         run: |
           pr_nr="$(gh pr list --search ${{ github.sha }} | awk '{print $1}')"
