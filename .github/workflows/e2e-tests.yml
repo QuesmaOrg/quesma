@@ -63,6 +63,8 @@ jobs:
           echo "PR_NR=$pr_nr >> $GITHUB_ENV
           echo "PR_URL=$pr_url >> $GITHUB_ENV
           echo "TEST_URL=$test_url >> $GITHUB_ENV
+        env:
+          GH_TOKEN: ${{ github.token }}
 #      - name: Set up Go
 #        uses: actions/setup-go@v5
 #        with:
@@ -103,11 +105,9 @@ jobs:
 #
       - name: Add a comment to the PR
         run: |
-          body="\"e2e status: :white_check_mark: [(Run summary)](${TEST_URL}))\""
+          body="\"e2e status: :white_check_mark: [(Run summary)](${TEST_URL})\""
           echo "{\"body\": $body}"
           echo "\{\"body\": $body\}"
           curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                -X POST \
                -d "{\"body\": $body}" $PR_URL
-        env:
-          GH_TOKEN: ${{ github.token }}
