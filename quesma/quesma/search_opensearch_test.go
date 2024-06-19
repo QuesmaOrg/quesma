@@ -198,15 +198,15 @@ func TestHighlighter(t *testing.T) {
 		return responseAsMap["hits"].(model.JsonMap)["hits"].([]interface{})[i].(model.JsonMap)["highlight"].(model.JsonMap)
 	}
 
-	assert.Equal(t, model.JsonMap{"message$*%:;": []any{}}, getIthHighlight(0)) // no highlight
+	assert.Equal(t, model.JsonMap{"host.name": []any{}}, getIthHighlight(0)) // no highlight
 	assert.Equal(t, model.JsonMap{
-		"message$*%:;": []any{"@opensearch-dashboards-highlighted-field@text-to-highlight@/opensearch-dashboards-highlighted-field@"},
+		"host.name": []any{"@opensearch-dashboards-highlighted-field@text-to-highlight@/opensearch-dashboards-highlighted-field@"},
 	}, getIthHighlight(1))
 	assert.Equal(t, model.JsonMap{
-		"message$*%:;": []any{"@opensearch-dashboards-highlighted-field@text-to-highlight@/opensearch-dashboards-highlighted-field@"},
+		"host.name": []any{"@opensearch-dashboards-highlighted-field@text-to-highlight@/opensearch-dashboards-highlighted-field@"},
 	}, getIthHighlight(2))
 	assert.Equal(t, model.JsonMap{
-		"message$*%:;": []any{"@opensearch-dashboards-highlighted-field@text-to-highlight@/opensearch-dashboards-highlighted-field@"},
+		"host.name": []any{"@opensearch-dashboards-highlighted-field@text-to-highlight@/opensearch-dashboards-highlighted-field@"},
 	}, getIthHighlight(3))
-	assert.Equal(t, model.JsonMap{"message$*%:;": []any{}}, getIthHighlight(4)) // no highlight
+	assert.Equal(t, model.JsonMap{"host.name": []any{}}, getIthHighlight(4)) // no highlight
 }
