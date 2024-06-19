@@ -1,1 +1,1 @@
-GET http://localhost:8080/_resolve/index/logs-*
+GET http://localhost:9201/logs-generic-default/_mapping/
