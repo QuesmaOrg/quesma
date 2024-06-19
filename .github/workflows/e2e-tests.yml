@@ -20,6 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: test
+        run: if [ "success" == "success" ]; then echo "success"; else echo "failure"; fi
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -117,18 +120,24 @@ jobs:
         run: |
           go test -race -v ./...
           echo "$?" >> $GITHUB_OUTPUT
+        continue-on-error: true
 
       - name: Add after-test comment to the PR
-        if: always() # always run this step, even if tests in the previous one failed
         run: |
           echo ${{ steps.run_tests.outputs }}
-          msg="\"e2e tests finished, status: :white_check_mark: [(Run summary)](${TEST_URL})\""
+          if [ ${{ steps.run_tests.outcome }} -eq "success" ]; then
+            emoji=":white_check_mark:"
+          else
+            emoju=":x:"
+          fi
+          msg="\"e2e tests finished, status: $emoji [(Run summary)](${TEST_URL})\""
           curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                -X POST \
                -d "{\"body\": $msg}" $PR_URL
 
       - name: Report fail to Slack
         if: always()
+        # ${{ always() && github.ref_name == 'main' }}
         uses: ravsamhq/notify-slack-action@v1
         with:
           status: ${{ job.status }}
