@@ -263,11 +263,12 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 		if query.Type != nil {
 			if _, isCount := query.Type.(typical_queries.Count); isCount {
 				if len(results[i]) > 0 && len(results[i][0].Cols) > 0 {
-					if val, ok := results[i][0].Cols[0].Value.(uint64); ok {
-						totalCount = int(val)
-					} else if val2, ok2 := results[i][0].Cols[0].Value.(int64); ok2 {
-						totalCount = int(val2)
-					} else {
+					switch v := results[i][0].Cols[0].Value.(type) {
+					case uint64:
+						totalCount = int(v)
+					case int64:
+						totalCount = int(v)
+					default:
 						logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", results[i])
 					}
 					if query.SelectCommand.SampleLimit != 0 && totalCount == query.SelectCommand.SampleLimit {
@@ -296,12 +297,13 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 			totalCount = 0
 			for _, row := range results[i] {
 				if len(row.Cols) > 0 {
-					if val, ok := row.Cols[len(row.Cols)-1].Value.(uint64); ok {
-						totalCount += int(val)
-					} else if val2, ok2 := row.Cols[len(row.Cols)-1].Value.(int); ok2 {
-						totalCount += val2
-					} else {
-						logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v", row.Cols[len(row.Cols)-1].Value)
+					switch v := row.Cols[len(row.Cols)-1].Value.(type) {
+					case uint64:
+						totalCount += int(v)
+					case int:
+						totalCount += v
+					default:
+						logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v", v)
 					}
 				}
 			}
