@@ -252,7 +252,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "quantile":
 		query.Type = metrics_aggregations.NewQuantile(b.ctx, metricsAggr.Keyed, metricsAggr.FieldType)
 	case "top_hits":
-		query.Type = metrics_aggregations.NewTopHits(b.ctx, metricsAggr.sortByExists())
+		query.Type = metrics_aggregations.NewTopHits(b.ctx)
 	case "top_metrics":
 		query.Type = metrics_aggregations.NewTopMetrics(b.ctx, metricsAggr.sortByExists())
 	case "value_count":

@@ -170,17 +170,6 @@ func (v *GeoIpVisitor) VisitInfix(e model.InfixExpr) interface{}       { return 
 func (v *GeoIpVisitor) VisitPrefixExpr(e model.PrefixExpr) interface{} { return e }
 func (v *GeoIpVisitor) VisitFunction(e model.FunctionExpr) interface{} { return e }
 func (v *GeoIpVisitor) VisitColumnRef(e model.ColumnRef) interface{} {
-	schemaInstance, exists := v.schemaRegistry.FindSchema(schema.TableName(v.tableName))
-	if !exists {
-		return e
-	}
-	// TODO check this against schema
-	if schemaInstance.Fields[schema.FieldName(e.ColumnName)].Type.Name == schema.TypePoint.Name &&
-		!(strings.Contains(e.ColumnName, "::lat") ||
-			strings.Contains(e.ColumnName, "::lon")) {
-		name := e.ColumnName
-		return model.NewColumnRef(name + "::lat")
-	}
 	return e
 }
 func (v *GeoIpVisitor) VisitNestedProperty(e model.NestedProperty) interface{}   { return e }
@@ -197,34 +186,40 @@ func (v *GeoIpVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{}       {
 func (v *GeoIpVisitor) VisitWindowFunction(e model.WindowFunction) interface{} { return e }
 
 func (v *GeoIpVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
+	if v.schemaRegistry == nil {
+		return e
+	}
 	schemaInstance, exists := v.schemaRegistry.FindSchema(schema.TableName(v.tableName))
 	if !exists {
 		return e
 	}
 	var groupBy []model.Expr
 	for _, expr := range e.GroupBy {
-		groupBy = append(groupBy, expr.Accept(v).(model.Expr))
-	}
-	locationColumn := false
-	colName := ""
-	var columns []model.Expr
-	for _, expr := range e.Columns {
-		columns = append(columns, expr.Accept(v).(model.Expr))
+		groupByExpr := expr.Accept(v).(model.Expr)
 		if col, ok := expr.(model.ColumnRef); ok {
-			// TODO check this against schema
-			if schemaInstance.Fields[schema.FieldName(col.ColumnName)].Type.Name == schema.TypePoint.Name &&
-				!(strings.Contains(col.ColumnName, "::lat") ||
-					strings.Contains(col.ColumnName, "::lon")) {
-				locationColumn = true
-				colName = col.ColumnName
+			if schemaInstance.Fields[schema.FieldName(col.ColumnName)].Type.Name == schema.TypePoint.Name {
+				// TODO suffixes ::lat, ::lon are hardcoded for now
+				groupBy = append(groupBy, model.NewColumnRef(col.ColumnName+"::lat"))
+				groupBy = append(groupBy, model.NewColumnRef(col.ColumnName+"::lon"))
+			} else {
+				groupBy = append(groupBy, groupByExpr)
 			}
+		} else {
+			groupBy = append(groupBy, groupByExpr)
 		}
 	}
-	if locationColumn {
-		columns = append(columns, model.NewColumnRef(colName+"::lon"))
-		// check if groupBy clause is present
-		if len(groupBy) > 0 {
-			groupBy = append(groupBy, model.NewColumnRef(colName+"::lon"))
+	var columns []model.Expr
+	for _, expr := range e.Columns {
+		if col, ok := expr.(model.ColumnRef); ok {
+			if schemaInstance.Fields[schema.FieldName(col.ColumnName)].Type.Name == schema.TypePoint.Name {
+				// TODO suffixes ::lat, ::lon are hardcoded for now
+				columns = append(columns, model.NewColumnRef(col.ColumnName+"::lat"))
+				columns = append(columns, model.NewColumnRef(col.ColumnName+"::lon"))
+			} else {
+				columns = append(columns, expr.Accept(v).(model.Expr))
+			}
+		} else {
+			columns = append(columns, expr.Accept(v).(model.Expr))
 		}
 	}
 	fromClause := e.FromClause.Accept(v)
@@ -240,8 +235,10 @@ func (s *SchemaCheckPass) applyGeoTransformations(query *model.Query) (*model.Qu
 	fromTable := getFromTable(query.TableName)
 
 	geoIpVisitor := &GeoIpVisitor{tableName: fromTable, schemaRegistry: s.schemaRegistry}
-	query.SelectCommand = *query.SelectCommand.Accept(geoIpVisitor).(*model.SelectCommand)
-
+	expr := query.SelectCommand.Accept(geoIpVisitor)
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
 	return query, nil
 }
 
@@ -269,27 +266,4 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		queries[k] = query
 	}
 	return queries, nil
-}
-
-type GeoIpResultTransformer struct {
-}
-
-func (GeoIpResultTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
-	for i, rows := range result {
-		for j, row := range rows {
-			for k, col := range row.Cols {
-				// TODO transform this according to schema
-				if strings.Contains(col.ColName, "Location::lat") {
-					result[i][j].Cols[k].ColName = "lat"
-					result[i][j].Cols[k].OverridenColName = strings.TrimSuffix(col.ColName, "::lat")
-				}
-				// TODO transform this according to schema
-				if strings.Contains(col.ColName, "Location::lon") {
-					result[i][j].Cols[k].ColName = "lon"
-					result[i][j].Cols[k].OverridenColName = strings.TrimSuffix(col.ColName, "::lon")
-				}
-			}
-		}
-	}
-	return result, nil
 }
