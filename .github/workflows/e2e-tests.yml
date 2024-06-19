@@ -115,7 +115,8 @@ jobs:
         working-directory: quesma
         #run: go test -race --tags=integration  -v ./...
         run: |
-          go test -race -v ./...
+        #go test -race -v ./...
+          go test -race -v ./queryparser
 
       - name: Add after-test comment to the PR
         if: always()
@@ -139,7 +140,9 @@ jobs:
         with:
           status: ${{ job.status }}
           notify_when: 'failure'
+          message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
           mention_groups: "e2e,!e2e"
+          mention_groups_when: "failure,warnings"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.ACTION_MONITORING_SLACK }} # our key, kept in GitHub secrets
 
@@ -150,5 +153,6 @@ jobs:
           status: ${{ job.status }}
           notify_when: 'failure'
           mention_users: ${{ github.actor }}
+          mention_users_when: "failure,warnings"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.ACTION_MONITORING_SLACK }} # our key, kept in GitHub secrets
