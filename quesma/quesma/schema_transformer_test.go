@@ -53,7 +53,6 @@ func Test_ipRangeTransform(t *testing.T) {
 			}},
 		}}
 	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{}, elasticsearch.SchemaTypeAdapter{})
-	s.Start()
 	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
 
 	expectedQueries := []*model.Query{

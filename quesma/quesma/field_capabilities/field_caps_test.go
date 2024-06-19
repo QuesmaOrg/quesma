@@ -427,6 +427,3 @@ func (e staticRegistry) FindSchema(name schema.TableName) (schema.Schema, bool) 
 	s, found := e.tables[name]
 	return s, found
 }
-
-func (e staticRegistry) Start() {
-}
