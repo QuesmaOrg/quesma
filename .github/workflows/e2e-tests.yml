@@ -125,6 +125,7 @@ jobs:
           else
             emoji=":x:"
           fi
+          echo ${{ toJSON(github) }}
           echo "blabla"
           msg="\"e2e tests finished, status: ${emoji} [(Run summary)](${TEST_URL})\""
           curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
@@ -134,6 +135,16 @@ jobs:
       - name: Report fail to Slack (from cron)
         if: always()
         # ${{ always() && github.ref_name == 'main' }}
+        uses: ravsamhq/notify-slack-action@v2
+        with:
+          status: ${{ job.status }}
+          notify_when: 'failure'
+          mention_groups: "e2e,!channel,!e2e"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.ACTION_MONITORING_SLACK }} # our key, kept in GitHub secrets
+
+      - name: Report fail to Slack (manual trigger)
+        if: ${{ always() && github.ref_name == 'main' }}
         uses: ravsamhq/notify-slack-action@v2
         with:
           status: ${{ job.status }}
