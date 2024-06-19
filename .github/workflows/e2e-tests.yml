@@ -114,9 +114,8 @@ jobs:
         id: run_tests
         working-directory: quesma
         #run: go test -race --tags=integration  -v ./...
-        run: |
+        run: go test -race -v ./queryparser
         #go test -race -v ./...
-          go test -race -v ./queryparser
 
       - name: Add after-test comment to the PR
         if: always()
