@@ -110,3 +110,7 @@ func Test_DateMathExpressionAsLiteral(t *testing.T) {
 		})
 	}
 }
+
+func TestFailll(t *testing.T) {
+	t.Errorf("err")
+}
