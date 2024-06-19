@@ -28,7 +28,11 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 		},
 		{
 			name: "schema inferred, no mappings",
-			cfg:  config.QuesmaConfiguration{},
+			cfg: config.QuesmaConfiguration{
+				IndexConfig: map[string]config.IndexConfiguration{
+					"some_table": {Enabled: true},
+				},
+			},
 			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
 				"some_table": {Columns: map[string]schema.Column{
 					"message":    {Name: "message", Type: "String"},
@@ -109,6 +113,24 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				"message":    {Name: "message", Type: schema.TypeKeyword},
 				"event_date": {Name: "event_date", Type: schema.TypeTimestamp},
 				"count":      {Name: "count", Type: schema.TypeLong}},
+				Aliases: map[schema.FieldName]schema.FieldName{}},
+			exists: true,
+		},
+		{
+			name: "schema explicitly configured, nothing in db",
+			cfg: config.QuesmaConfiguration{
+				IndexConfig: map[string]config.IndexConfiguration{
+					"some_table": {Enabled: true, SchemaConfiguration: &config.SchemaConfiguration{
+						Fields: map[config.FieldName]config.FieldConfiguration{
+							"message": {Name: "message", Type: "keyword"},
+						},
+					}},
+				},
+			},
+			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{}},
+			tableName:      "some_table",
+			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
+				"message": {Name: "message", Type: schema.TypeKeyword}},
 				Aliases: map[schema.FieldName]schema.FieldName{}},
 			exists: true,
 		},
