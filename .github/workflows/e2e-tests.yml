@@ -144,11 +144,11 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.ACTION_MONITORING_SLACK }} # our key, kept in GitHub secrets
 
       - name: Report fail to Slack (manual trigger)
-        if: ${{ always() && github.ref_name == 'main' }}
+        if: ${{ always() && github.event_name != 'schedule' }}
         uses: ravsamhq/notify-slack-action@v2
         with:
           status: ${{ job.status }}
           notify_when: 'failure'
-          mention_groups: "e2e,!channel,!e2e"
+          mention_users: ${{ github.actor }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.ACTION_MONITORING_SLACK }} # our key, kept in GitHub secrets
