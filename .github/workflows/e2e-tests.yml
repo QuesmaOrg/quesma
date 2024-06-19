@@ -121,7 +121,6 @@ jobs:
       - name: Add after-test comment to the PR
         if: always()
         run: |
-          echo ${{ steps.run_tests.outcome }}
           if [ ${{ steps.run_tests.outcome }} == "success" ]; then
             emoji=":white_check_mark:"
           else
@@ -140,4 +139,4 @@ jobs:
           status: ${{ job.status }}
           notify_when: 'failure'
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} # our key, kept in GitHub secrets
+          SLACK_WEBHOOK_URL: ${{ secrets.ACTION_MONITORING_SLACK }} # our key, kept in GitHub secrets
