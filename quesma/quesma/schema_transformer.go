@@ -197,6 +197,8 @@ func (v *GeoIpVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
 	for _, expr := range e.GroupBy {
 		groupByExpr := expr.Accept(v).(model.Expr)
 		if col, ok := expr.(model.ColumnRef); ok {
+			// This checks if the column is of type point
+			// and if it is, it appends the lat and lon columns to the group by clause
 			if schemaInstance.Fields[schema.FieldName(col.ColumnName)].Type.Name == schema.TypePoint.Name {
 				// TODO suffixes ::lat, ::lon are hardcoded for now
 				groupBy = append(groupBy, model.NewColumnRef(col.ColumnName+"::lat"))
@@ -211,6 +213,8 @@ func (v *GeoIpVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
 	var columns []model.Expr
 	for _, expr := range e.Columns {
 		if col, ok := expr.(model.ColumnRef); ok {
+			// This checks if the column is of type point
+			// and if it is, it appends the lat and lon columns to the select clause
 			if schemaInstance.Fields[schema.FieldName(col.ColumnName)].Type.Name == schema.TypePoint.Name {
 				// TODO suffixes ::lat, ::lon are hardcoded for now
 				columns = append(columns, model.NewColumnRef(col.ColumnName+"::lat"))
