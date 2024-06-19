@@ -8,7 +8,8 @@ on:
     - cron: '0 11 * * MON-FRI'   # 11:00 UTC (13:00 in Poland, summer time)
     - cron: '0 14 * * MON-FRI'   # 14:00 UTC (16:00 in Poland, summer time)
     - cron: '30 16 * * MON-FRI'  # 16:30 UTC (18:30 in Poland, summer time)
-  push: ["e2e-github-workflow"] # TODO remove this, only for tests
+  push:
+    branches: ["e2e-github-workflow"] # TODO remove this, only for tests
 
 jobs:
   build-quesma-docker-image:
