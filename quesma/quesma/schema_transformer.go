@@ -226,10 +226,14 @@ func (v *GeoIpVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
 			columns = append(columns, expr.Accept(v).(model.Expr))
 		}
 	}
-	fromClause := e.FromClause.Accept(v)
+
+	var fromClause model.Expr
+	if e.FromClause != nil {
+		fromClause = e.FromClause.Accept(v).(model.Expr)
+	}
 
 	return model.NewSelectCommand(columns, groupBy, e.OrderBy,
-		fromClause.(model.Expr), e.WhereClause, e.Limit, e.SampleLimit, e.IsDistinct)
+		fromClause, e.WhereClause, e.Limit, e.SampleLimit, e.IsDistinct)
 }
 
 func (s *SchemaCheckPass) applyGeoTransformations(query *model.Query) (*model.Query, error) {
