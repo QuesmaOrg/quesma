@@ -139,7 +139,7 @@ jobs:
         with:
           status: ${{ job.status }}
           notify_when: 'failure'
-          mention_groups: "e2e,!channel,!e2e"
+          mention_groups: "e2e,!e2e"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.ACTION_MONITORING_SLACK }} # our key, kept in GitHub secrets
 
