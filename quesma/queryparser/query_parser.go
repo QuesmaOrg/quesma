@@ -24,7 +24,7 @@ type QueryMap = map[string]interface{}
 // NewEmptyHighlighter returns no-op for error branches and tests
 func NewEmptyHighlighter() model.Highlighter {
 	return model.Highlighter{
-		Fields: make(map[string]bool),
+		Tokens: make(map[string]model.Tokens),
 	}
 }
 
@@ -196,14 +196,6 @@ func (cw *ClickhouseQueryTranslator) ParseHighlighter(queryMap QueryMap) model.H
 	// TODO parse other fields:
 	// - fields
 	// - fragment_size
-
-	highlighter.Fields = make(map[string]bool)
-	for k, v := range cw.Table.Cols {
-		if v.IsFullTextMatch {
-			highlighter.Fields[k] = true
-		}
-	}
-
 	return highlighter
 }
 
