@@ -125,9 +125,9 @@ jobs:
           if [ ${{ steps.run_tests.outcome }} == "success" ]; then
             emoji=":white_check_mark:"
           else
-            emoju=":x:"
+            emoji=":x:"
           fi
-          msg="\"e2e tests finished, status: $emoji [(Run summary)](${TEST_URL})\""
+          msg="\"e2e tests finished, status: ${emoji} [(Run summary)](${TEST_URL})\""
           curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                -X POST \
                -d "{\"body\": $msg}" $PR_URL
