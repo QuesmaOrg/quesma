@@ -120,7 +120,6 @@ jobs:
       - name: Add after-test comment to the PR
         if: always()
         run: |
-          echo "${{ toJSON(github) }}"
           if [ ${{ steps.run_tests.outcome }} == "success" ]; then
             emoji=":white_check_mark:"
           else
