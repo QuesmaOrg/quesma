@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var TABLES = []table{tables.E2eTable1{}}
+var TABLES = []table{tables.E2e_001_kist{}}
 
 type table interface {
 	GenerateCreateTableString() string

@@ -1,3 +1,4 @@
+
 #!/bin/bash
 # Adds a data view to Kibana
 cd "$(dirname "$0")"

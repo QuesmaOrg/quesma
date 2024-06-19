@@ -68,6 +68,6 @@ indexes:
     enabled: true
   type_logs:
     enabled: true
-  e2e_table_1:
+  e2e_001_kist:
     enabled: true
     fullTextFields: [ "meme" ]

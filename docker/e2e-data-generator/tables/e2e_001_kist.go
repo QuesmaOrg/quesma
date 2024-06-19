@@ -5,19 +5,20 @@ import (
 	"math/rand"
 )
 
-type E2eTable1 struct{}
+// kist - Keep It Simple Table (Copilot), Keyword/Integer/String/Timestamp (Krzysiek)
+type E2e_001_kist struct{}
 
-func (t E2eTable1) Name() string {
-	return "e2e_table_1"
+func (t E2e_001_kist) Name() string {
+	return "e2e_001_kist"
 }
 
-func (t E2eTable1) RowsNr() int {
+func (t E2e_001_kist) RowsNr() int {
 	return 5
 }
 
 // 'meme' will be a full text field
 // 'keyword' - a keyword field
-func (t E2eTable1) GenerateCreateTableString() string {
+func (t E2e_001_kist) GenerateCreateTableString() string {
 	return fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			"meme" String CODEC(ZSTD(1)),
@@ -30,7 +31,7 @@ func (t E2eTable1) GenerateCreateTableString() string {
 }
 
 // using every r.Intn in a new line to be more sure I'll get exactly the same data with the same seed
-func (t E2eTable1) GenerateOneRow(r *rand.Rand) (clickhouse, elastic string) {
+func (t E2e_001_kist) GenerateOneRow(r *rand.Rand) (clickhouse, elastic string) {
 	memes := []string{"Distracted Boyfriend", "Mocking SpongeBob", "Two Buttons", "Expanding Brain", "Roll Safe",
 		"Is This a Pigeon?", "Drake Hotline Bling", "Surprised Pikachu", "Change My Mind", "Y Tho"}
 	keywords := []string{"funny", "meme", "lol", "haha", "comedy", "humor", "joke", "hilarious",
