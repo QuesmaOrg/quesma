@@ -11,6 +11,8 @@ var registeredPlugins []plugins.Plugin
 
 func init() {
 	registeredPlugins = []plugins.Plugin{
+		// TOOD below plugins are disabled due to some
+		// interferences with other components
 		//&elastic_clickhouse_fields.Dot2DoubleColons2Dot{},
 		//&elastic_clickhouse_fields.Dot2DoubleUnderscores2Dot{},
 		&elastic_clickhouse_fields.Dot2DoubleColons{}}
