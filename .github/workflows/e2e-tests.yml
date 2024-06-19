@@ -125,7 +125,7 @@ jobs:
           else
             emoji=":x:"
           fi
-          echo ${{ toJSON(github) }}
+          echo "${{ toJSON(github) }}"
           echo "blabla"
           msg="\"e2e tests finished, status: ${emoji} [(Run summary)](${TEST_URL})\""
           curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
