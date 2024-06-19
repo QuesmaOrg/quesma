@@ -1,4 +1,4 @@
-package quesma
+package field_capabilities
 
 import (
 	"context"
@@ -16,19 +16,15 @@ import (
 	"mitmproxy/quesma/util"
 )
 
-func BuildFieldCapFromSchema(fieldType schema.Type, indexName string) model.FieldCapability {
-	return model.FieldCapability{
+func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.FieldCapability, colName string, fieldType schema.Type, index string) {
+	fieldTypeName := asElasticType(fieldType)
+	fieldCapability := model.FieldCapability{
 		Type:          asElasticType(fieldType),
 		Aggregatable:  fieldType.IsAggregatable(),
 		Searchable:    fieldType.IsSearchable(),
-		Indices:       []string{indexName},
+		Indices:       []string{index},
 		MetadataField: util.Pointer(false),
 	}
-}
-
-func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.FieldCapability, colName string, fieldType schema.Type, index string) {
-	fieldTypeName := asElasticType(fieldType)
-	fieldCapability := BuildFieldCapFromSchema(fieldType, index)
 
 	if _, exists := fields[colName]; !exists {
 		fields[colName] = make(map[string]model.FieldCapability)
@@ -105,7 +101,7 @@ func EmptyFieldCapsResponse() []byte {
 	}
 }
 
-func handleFieldCaps(ctx context.Context, cfg config.QuesmaConfiguration, schemaRegistry schema.Registry, index string, lm *clickhouse.LogManager) ([]byte, error) {
+func HandleFieldCaps(ctx context.Context, cfg config.QuesmaConfiguration, schemaRegistry schema.Registry, index string, lm *clickhouse.LogManager) ([]byte, error) {
 	indexes, err := lm.ResolveIndexes(ctx, index)
 	if err != nil {
 		return nil, err
@@ -140,6 +136,8 @@ func asElasticType(t schema.Type) string {
 		return elasticsearch_field_types.FieldTypeIp
 	case schema.TypeObject.Name:
 		return elasticsearch_field_types.FieldTypeObject
+	case schema.TypePoint.Name:
+		return elasticsearch_field_types.FieldTypeGeoPoint
 	default:
 		return elasticsearch_field_types.FieldTypeText
 	}

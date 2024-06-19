@@ -39,7 +39,7 @@ jobs:
           password: ${{ secrets.GCR_SERVICE_ACCOUNT_PRIVATE_KEY }}
 
       - name: Build and export
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.module }}/.
           tags: europe-central2-docker.pkg.dev/metal-figure-407109/quesma-private-beta/quesma:${{ github.event.inputs.VERSION_TAG }}
@@ -50,3 +50,5 @@ jobs:
             QUESMA_LICENSE_KEY=${{ github.event.inputs.LICENSE_KEY }}
             QUESMA_BUILD_DATE=${{ env.QUESMA_BUILD_DATE }}
           platforms: linux/amd64,linux/arm64
+        env:
+          DOCKER_BUILD_NO_SUMMARY: true

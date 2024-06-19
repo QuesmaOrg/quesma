@@ -26,6 +26,8 @@ func (e SchemaTypeAdapter) Convert(s string) (schema.Type, bool) {
 		return schema.TypeBoolean, true
 	case elasticsearch_field_types.FieldTypeIp:
 		return schema.TypeIp, true
+	case elasticsearch_field_types.FieldTypeGeoPoint:
+		return schema.TypePoint, true
 	default:
 		return schema.TypeUnknown, false
 	}

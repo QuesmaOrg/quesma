@@ -31,9 +31,11 @@ jobs:
           password: ${{ secrets.GCR_SERVICE_ACCOUNT_PRIVATE_KEY }}
 
       - name: Build and export
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.module }}/.
           tags: europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.sha }}
           # Pushes to GCR only for `main` branch builds
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        env:
+          DOCKER_BUILD_NO_SUMMARY: true

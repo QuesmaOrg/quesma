@@ -21,7 +21,7 @@ func (c SchemaTypeAdapter) Convert(s string) (schema.Type, bool) {
 
 	switch s {
 	case "String", "LowCardinality(String)":
-		return schema.TypeText, true
+		return schema.TypeKeyword, true
 	case "Int", "Int8", "Int16", "Int32", "Int64":
 		return schema.TypeLong, true
 	case "Uint8", "Uint16", "Uint32", "Uint64", "Uint128", "Uint256":

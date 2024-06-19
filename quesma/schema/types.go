@@ -50,7 +50,7 @@ func (t Type) String() string {
 	return t.Name
 }
 
-func IsValid(t string) (Type, bool) {
+func ParseType(t string) (Type, bool) {
 	switch t {
 	case "text":
 		return TypeText, true
@@ -74,7 +74,7 @@ func IsValid(t string) (Type, bool) {
 		return TypeMap, true
 	case "ip":
 		return TypeIp, true
-	case "point":
+	case "point", "geo_point":
 		return TypePoint, true
 	default:
 		return TypeUnknown, false

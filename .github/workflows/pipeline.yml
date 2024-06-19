@@ -65,13 +65,15 @@ jobs:
           go-version: '1.22'
 
       - name: Build and export
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.module }}/.
           tags: ${{ matrix.module }}:latest
           outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max
+        env:
+          DOCKER_BUILD_NO_SUMMARY: true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -98,13 +100,15 @@ jobs:
           go-version: '1.22'
 
       - name: Build and export
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: docker/${{ matrix.module }}/.
           tags: ${{ matrix.module }}:latest
           outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max
+        env:
+          DOCKER_BUILD_NO_SUMMARY: true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
