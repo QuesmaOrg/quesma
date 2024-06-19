@@ -299,18 +299,18 @@ var aggregationTests = []struct {
 			`SELECT "OriginAirportID", "DestAirportID", count() FROM ` + tableNameQuoted + ` ` +
 				`GROUP BY "OriginAirportID", "DestAirportID" ORDER BY "OriginAirportID", "DestAirportID"`,
 			`SELECT "OriginAirportID", "DestAirportID", "DestLocation" ` +
-				`FROM (SELECT "DestLocation", ROW_NUMBER() ` +
+				`FROM (SELECT "OriginAirportID", "DestAirportID", "DestLocation", ROW_NUMBER() ` +
 				`OVER (PARTITION BY "OriginAirportID", "DestAirportID") AS "row_number" ` +
 				`FROM "logs-generic-default") ` +
 				`WHERE "row_number"<=1 ` +
-				`GROUP BY "OriginAirportID", "DestAirportID" ` +
+				`GROUP BY "OriginAirportID", "DestAirportID", "DestLocation" ` +
 				`ORDER BY "OriginAirportID", "DestAirportID"`,
 			`SELECT "OriginAirportID", "OriginLocation", "Origin" ` +
-				`FROM (SELECT "OriginLocation", "Origin", ROW_NUMBER() ` +
+				`FROM (SELECT "OriginAirportID", "OriginLocation", "Origin", ROW_NUMBER() ` +
 				`OVER (PARTITION BY "OriginAirportID") AS "row_number" ` +
 				`FROM "logs-generic-default") ` +
 				`WHERE "row_number"<=1 ` +
-				`GROUP BY "OriginAirportID" ` +
+				`GROUP BY "OriginAirportID", "OriginLocation", "Origin" ` +
 				`ORDER BY "OriginAirportID"`,
 			`SELECT "OriginAirportID", count() FROM ` + tableNameQuoted + ` GROUP BY "OriginAirportID" ORDER BY "OriginAirportID"`,
 		},

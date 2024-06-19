@@ -22,6 +22,7 @@ indexes:
     enabled: true
     mappings:
       DestLocation: "geo_point"
+      OriginLocation: "geo_point"
   kibana_sample_data_logs:
     enabled: true
     mappings:

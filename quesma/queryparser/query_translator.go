@@ -328,7 +328,7 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 	if hits != nil {
 		response.Hits = *hits
 	} else {
-		response.Hits = model.SearchHits{}
+		response.Hits = model.SearchHits{Hits: []model.SearchHit{}} // empty hits
 	}
 	if total != nil {
 		response.Hits.Total = total
