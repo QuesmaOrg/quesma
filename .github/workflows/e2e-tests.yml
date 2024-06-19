@@ -116,7 +116,6 @@ jobs:
         #run: go test -race --tags=integration  -v ./...
         run: |
           go test -race -v ./...
-          echo "$?" >> $GITHUB_OUTPUT
 
       - name: Add after-test comment to the PR
         if: always()
