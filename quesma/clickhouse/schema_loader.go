@@ -127,7 +127,7 @@ func (sl *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 		for col, colType := range resTable.columnTypes {
 
 			if _, isIgnored := resTable.config.IgnoredFields[col]; isIgnored {
-				logger.Debug().Msgf("table %s, column %s is ignored", tableName, col)
+				logger.Warn().Msgf("table %s, column %s is ignored", tableName, col)
 				continue
 			}
 			if col != AttributesKeyColumn && col != AttributesValueColumn {
@@ -135,7 +135,7 @@ func (sl *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 				if column != nil {
 					columnsMap[col] = column
 				} else {
-					logger.Debug().Msgf("column %s, %s not resolved", col, colType)
+					logger.Warn().Msgf("column '%s.%s' type: '%s' not resolved. table will be skipped", tableName, col, colType)
 					partiallyResolved = true
 				}
 			}

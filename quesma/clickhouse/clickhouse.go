@@ -10,6 +10,7 @@ import (
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/index"
+	"mitmproxy/quesma/jsonprocessor"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/plugins/registry"
 	"mitmproxy/quesma/quesma/config"
@@ -281,14 +282,17 @@ func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jso
 		return "", err
 	}
 
+	columns := FieldsMapToCreateTableString("", jsonData, 1, tableConfig, nameFormatter) + Indexes(jsonData)
+
 	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
 (
 	%s
 )
 %s
 COMMENT 'created by Quesma'`,
-		tableName, FieldsMapToCreateTableString("", jsonData, 1, tableConfig, nameFormatter)+Indexes(jsonData),
+		tableName, columns,
 		tableConfig.CreateTablePostFieldsString())
+
 	return createTableCmd, nil
 }
 
@@ -417,11 +421,24 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 }
 
 func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []types.JSON) error {
-	if config, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0]); err != nil {
-		return err
-	} else {
-		return lm.Insert(ctx, tableName, jsonData, config)
+	t := &jsonprocessor.RewriteArrayOfObject{}
+
+	var processed []types.JSON
+	for _, jsonValue := range jsonData {
+		x, err := t.Transform(jsonValue)
+		if err != nil {
+			return fmt.Errorf("error RewriteArrayOfObject: %v", err)
+		}
+		processed = append(processed, x)
 	}
+	jsonData = processed
+
+	tableConfig, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0])
+	if err != nil {
+		return err
+	}
+	return lm.Insert(ctx, tableName, jsonData, tableConfig)
+
 }
 
 func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON, config *ChTableConfig) error {
@@ -430,6 +447,7 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
+
 		preprocessedJson, err := transformer.Transform(jsonValue)
 
 		if err != nil {
