@@ -6,7 +6,6 @@ import (
 	"log"
 	"mitmproxy/quesma/buildinfo"
 	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/concurrent"
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/feature"
 	"mitmproxy/quesma/logger"
@@ -44,14 +43,18 @@ func main() {
 		log.Fatalf("error validating configuration: %v", err)
 	}
 
-	asyncQueryTraceLogger := &tracing.AsyncTraceLogger{AsyncQueryTrace: concurrent.NewMap[string, tracing.TraceCtx]()}
+	var asyncQueryTraceLogger *tracing.AsyncTraceLogger
+	//asyncQueryTraceLogger = &tracing.AsyncTraceLogger{AsyncQueryTrace: concurrent.NewMap[string, tracing.TraceCtx]()}
 
 	qmcLogChannel := logger.InitLogger(cfg, sig, doneCh, asyncQueryTraceLogger)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
 
-	asyncQueryTraceEvictor := quesma.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
-	asyncQueryTraceEvictor.Start()
+	if asyncQueryTraceLogger != nil {
+		asyncQueryTraceEvictor := quesma.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
+		asyncQueryTraceEvictor.Start()
+		defer asyncQueryTraceEvictor.Stop()
+	}
 
 	var connectionPool = clickhouse.InitDBConnectionPool(cfg)
 
@@ -79,7 +82,7 @@ func main() {
 	feature.NotSupportedLogger.Stop()
 	phoneHomeAgent.Stop(ctx)
 	lm.Stop()
-	asyncQueryTraceEvictor.Stop()
+
 	instance.Close(ctx)
 
 }
