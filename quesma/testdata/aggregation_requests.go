@@ -4845,29 +4845,28 @@ var AggregationTests = []AggregationTestCase{
 			}
 		}`,
 		ExpectedResults: [][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(2167))}}},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 1)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Baltimore"), model.NewQueryResultCol("doc_count", 2)}},
+			},
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 2)}},
+			},
 			{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 4)}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Atlanta"), model.NewQueryResultCol("doc_count", 5)}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Baltimore"), model.NewQueryResultCol("doc_count", 5)}},
 			},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 2)}}},
-			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Albuquerque"), model.NewQueryResultCol("doc_count", 1)}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "Baltimore"), model.NewQueryResultCol("doc_count", 2)}},
-			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() ` +
-				`FROM ` + QuotedTableName,
 			`SELECT "OriginCityName", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "FlightDelay" == true ` +
+				`WHERE "FlightDelay"==true ` +
 				`GROUP BY "OriginCityName" ` +
 				`ORDER BY "OriginCityName"`,
 			`SELECT "OriginCityName", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "Cancelled" == true ` +
+				`WHERE "Cancelled"==true ` +
 				`GROUP BY "OriginCityName" ` +
 				`ORDER BY "OriginCityName"`,
 			`SELECT "OriginCityName", count() ` +

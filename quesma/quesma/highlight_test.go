@@ -12,6 +12,8 @@ import (
 	"testing"
 )
 
+const columnName = "message"
+
 func TestParseHighLight(t *testing.T) {
 
 	query := `
@@ -91,13 +93,13 @@ func TestParseHighLight(t *testing.T) {
 
 `
 	col := clickhouse.Column{
-		Name:            "message",
+		Name:            columnName,
 		Type:            clickhouse.NewBaseType("String"),
 		IsFullTextMatch: true,
 	}
 
 	cols := make(map[string]*clickhouse.Column)
-	cols["message"] = &col
+	cols[columnName] = &col
 
 	table := clickhouse.Table{
 		Name:   "test",
@@ -119,111 +121,133 @@ func TestParseHighLight(t *testing.T) {
 	assert.Nil(t, err, "Error parsing query %v", err)
 
 	highlighter := cw.ParseHighlighter(queryAsMap)
-	tokens := []string{"User deleted", "User", "deleted"}
-	highlighter.SetTokens(tokens)
+	highlighter.Tokens = map[string]model.Tokens{
+		columnName: map[string]struct{}{
+			"user deleted": {}, "user": {}, "deleted": {},
+		},
+	}
 	assert.NotNil(t, highlighter, "Error parsing highlight %v", highlighter)
 
 	assert.Equal(t, 1, len(highlighter.PreTags))
 	assert.Equal(t, "@kibana-highlighted-field@", highlighter.PreTags[0])
 	assert.Equal(t, 1, len(highlighter.PostTags))
 	assert.Equal(t, "@/kibana-highlighted-field@", highlighter.PostTags[0])
-	assert.Equal(t, []string{"user deleted", "deleted", "user"}, highlighter.Tokens)
 }
 
 func TestHighLightResults(t *testing.T) {
 
-	highLighter := model.Highlighter{
-		Tokens:   []string{"user", "deleted"},
-		PreTags:  []string{"<b>"},
-		PostTags: []string{"</b>"},
-		Fields:   make(map[string]bool),
-	}
-	highLighter.Fields["message"] = true
-
 	tests := []struct {
 		name       string
-		tokens     []string
-		field      string
+		tokens     map[string]model.Tokens
 		highlight  bool
 		value      string
 		highlights []string
 	}{
 		{
-			name:       "highlighted",
-			tokens:     []string{"user", "deleted"},
-			field:      "message",
+			name: "highlighted",
+			tokens: map[string]model.Tokens{
+				columnName: map[string]struct{}{
+					"user": {}, "deleted": {},
+				},
+			},
 			highlight:  true,
 			value:      "User logged",
 			highlights: []string{"<b>User</b>"},
 		},
 		{
-			name:       "highlighted original case",
-			tokens:     []string{"user", "deleted"},
-			field:      "message",
+			name: "highlighted original case",
+			tokens: map[string]model.Tokens{
+				columnName: map[string]struct{}{
+					"user": {}, "deleted": {},
+				},
+			},
 			highlight:  true,
 			value:      "uSeR logged",
 			highlights: []string{"<b>uSeR</b>"},
 		},
 		{
-			name:       "highlighted both",
-			tokens:     []string{"user", "deleted"},
-			field:      "message",
+			name: "highlighted both",
+			tokens: map[string]model.Tokens{
+				columnName: map[string]struct{}{
+					"user": {}, "deleted": {},
+				},
+			},
 			highlight:  true,
 			value:      "User  deleted",
 			highlights: []string{"<b>User</b>", "<b>deleted</b>"},
 		},
 		{
-			name:       "not highlighted",
-			tokens:     []string{"User", "deleted"},
-			field:      "other_field",
+			name: "not highlighted",
+			tokens: map[string]model.Tokens{
+				"other_field": map[string]struct{}{
+					"user": {}, "deleted": {},
+				},
+			},
 			highlight:  false,
 			value:      "User logged",
 			highlights: nil,
 		},
 		{
-			name:       "multiple highlights",
-			tokens:     []string{"password"},
-			field:      "message",
+			name: "multiple highlights",
+			tokens: map[string]model.Tokens{
+				columnName: map[string]struct{}{
+					"password": {},
+				},
+			},
+
 			highlight:  true,
 			value:      "InvalidPassword: user provided invalid password",
 			highlights: []string{"<b>Password</b>", "<b>password</b>"},
 		},
 		{
-			name:       "multiple highlights security team #1",
-			tokens:     []string{"invalidPassword", "password"},
-			field:      "message",
+			name: "multiple highlights security team #1",
+			tokens: map[string]model.Tokens{
+				columnName: map[string]struct{}{
+					"invalidpassword": {}, "password": {},
+				},
+			},
 			highlight:  true,
 			value:      "InvalidPassword: user provided invalid password",
 			highlights: []string{"<b>InvalidPassword</b>", "<b>password</b>"},
 		},
 		{
-			name:       "multiple highlights security team #2",
-			tokens:     []string{"password", "InvalidPassword"},
-			field:      "message",
+			name: "multiple highlights security team #2",
+			tokens: map[string]model.Tokens{
+				columnName: map[string]struct{}{
+					"password": {}, "invalidpassword": {},
+				},
+			},
 			highlight:  true,
 			value:      "InvalidPassword: user provided invalid password",
 			highlights: []string{"<b>InvalidPassword</b>", "<b>password</b>"},
 		},
 		{
-			name:       "merge highlights",
-			tokens:     []string{"password", "lidPass"},
-			field:      "message",
+			name: "merge highlights",
+			tokens: map[string]model.Tokens{
+				columnName: map[string]struct{}{
+					"password": {}, "lidpass": {},
+				},
+			},
 			highlight:  true,
 			value:      "InvalidPassword: user provided invalid password",
 			highlights: []string{"<b>lidPassword</b>", "<b>password</b>"},
 		},
 		{
-			name:       "merge highlights",
-			tokens:     []string{"password", "pass"},
-			field:      "message",
+			name: "merge highlights",
+			tokens: map[string]model.Tokens{
+				columnName: map[string]struct{}{
+					"password": {}, "pass": {},
+				},
+			},
 			highlight:  true,
 			value:      "InvalidPassword",
 			highlights: []string{"<b>Password</b>"},
 		},
 		{
-			name:       "no highlights",
-			tokens:     []string{""},
-			field:      "message",
+			name: "no highlights",
+			tokens: map[string]model.Tokens{
+				columnName: map[string]struct{}{},
+			},
 			highlight:  true,
 			value:      "InvalidPassword",
 			highlights: []string{},
@@ -234,20 +258,17 @@ func TestHighLightResults(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			highLighter := model.Highlighter{
+				Tokens:   tt.tokens,
 				PreTags:  []string{"<b>"},
 				PostTags: []string{"</b>"},
-				Fields:   make(map[string]bool),
 			}
-			highLighter.Fields["message"] = true
 
-			highLighter.SetTokens(tt.tokens)
+			mustHighlighter := highLighter.ShouldHighlight(columnName)
 
-			mustHighlighter := highLighter.ShouldHighlight(tt.field)
-
-			assert.Equal(t, mustHighlighter, tt.highlight, "Field %s should be highlightable", tt.field)
+			assert.Equal(t, mustHighlighter, tt.highlight, "Field %s should be highlightable", columnName)
 
 			if mustHighlighter {
-				highlights := highLighter.HighlightValue(tt.value)
+				highlights := highLighter.HighlightValue(columnName, tt.value)
 				assert.Equal(t, tt.highlights, highlights)
 			}
 		})

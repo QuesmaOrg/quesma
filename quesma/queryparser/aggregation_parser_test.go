@@ -299,18 +299,18 @@ var aggregationTests = []struct {
 			`SELECT "OriginAirportID", "DestAirportID", count() FROM ` + tableNameQuoted + ` ` +
 				`GROUP BY "OriginAirportID", "DestAirportID" ORDER BY "OriginAirportID", "DestAirportID"`,
 			`SELECT "OriginAirportID", "DestAirportID", "DestLocation" ` +
-				`FROM (SELECT "DestLocation", ROW_NUMBER() ` +
+				`FROM (SELECT "OriginAirportID", "DestAirportID", "DestLocation", ROW_NUMBER() ` +
 				`OVER (PARTITION BY "OriginAirportID", "DestAirportID") AS "row_number" ` +
 				`FROM "logs-generic-default") ` +
 				`WHERE "row_number"<=1 ` +
-				`GROUP BY "OriginAirportID", "DestAirportID" ` +
+				`GROUP BY "OriginAirportID", "DestAirportID", "DestLocation" ` +
 				`ORDER BY "OriginAirportID", "DestAirportID"`,
 			`SELECT "OriginAirportID", "OriginLocation", "Origin" ` +
-				`FROM (SELECT "OriginLocation", "Origin", ROW_NUMBER() ` +
+				`FROM (SELECT "OriginAirportID", "OriginLocation", "Origin", ROW_NUMBER() ` +
 				`OVER (PARTITION BY "OriginAirportID") AS "row_number" ` +
 				`FROM "logs-generic-default") ` +
 				`WHERE "row_number"<=1 ` +
-				`GROUP BY "OriginAirportID" ` +
+				`GROUP BY "OriginAirportID", "OriginLocation", "Origin" ` +
 				`ORDER BY "OriginAirportID"`,
 			`SELECT "OriginAirportID", count() FROM ` + tableNameQuoted + ` GROUP BY "OriginAirportID" ORDER BY "OriginAirportID"`,
 		},
@@ -626,7 +626,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			if test.TestName == "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram" {
 				t.Skip("Waiting for fix. Now we handle only the case where pipeline agg is at the same nesting level as its parent. Should be quick to fix.")
 			}
-			if i > 26 && i <= 30 {
+			if i == 27 || i == 29 || i == 30 {
 				t.Skip("New tests, harder, failing for now. Fixes for them in 2 next PRs")
 			}
 			if strings.HasPrefix(test.TestName, "dashboard-1") {
@@ -685,7 +685,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			actualMinusExpected, expectedMinusActual := util.MapDifference(response.Aggregations, expectedAggregationsPart, true, true)
 
 			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
-			acceptableDifference := []string{"doc_count_error_upper_bound", "sum_other_doc_count", "probability", "seed", "bg_count", "doc_count"}
+			acceptableDifference := []string{"doc_count_error_upper_bound", "sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma}
 			// pp.Println("ACTUAL", actualMinusExpected)
 			// pp.Println("EXPECTED", expectedMinusActual)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))

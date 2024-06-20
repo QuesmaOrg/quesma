@@ -140,21 +140,22 @@ func logManagers(config *ChTableConfig) []logManagerHelper {
 }
 
 func TestAutomaticTableCreationAtInsert(t *testing.T) {
+	cfg := config.QuesmaConfiguration{}
 	for index1, tt := range insertTests {
-		for index2, config := range configs {
-			for index3, lm := range logManagers(config) {
+		for index2, tableConfig := range configs {
+			for index3, lm := range logManagers(tableConfig) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], logManager["+strconv.Itoa(index3)+"]", func(t *testing.T) {
 
-					query, err := buildCreateTableQueryNoOurFields(context.Background(), tableName, types.MustJSON(tt.insertJson), config)
+					query, err := buildCreateTableQueryNoOurFields(context.Background(), tableName, types.MustJSON(tt.insertJson), tableConfig, cfg)
 					assert.NoError(t, err)
-					table, err := NewTable(query, config)
+					table, err := NewTable(query, tableConfig)
 					assert.NoError(t, err)
-					query = addOurFieldsToCreateTableQuery(query, config, table)
+					query = addOurFieldsToCreateTableQuery(query, tableConfig, table)
 
 					// check if CREATE TABLE string is OK
 					queryByLine := strings.Split(query, "\n")
-					if len(config.attributes) > 0 {
-						assert.Equal(t, len(tt.createTableLines)+2*len(config.attributes)+1, len(queryByLine))
+					if len(tableConfig.attributes) > 0 {
+						assert.Equal(t, len(tt.createTableLines)+2*len(tableConfig.attributes)+1, len(queryByLine))
 						for _, line := range tt.createTableLines {
 							assert.True(t, slices.Contains(tt.createTableLines, line) || slices.Contains(tt.createTableLinesAttrs, line))
 						}
@@ -186,7 +187,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 					// and that schema in memory is what it should be (predefined, if it was predefined, new if it was new)
 					resolvedTable, _ := lm.lm.schemaLoader.TableDefinitions().Load(tableName)
 					if logManagerEmpty {
-						assert.Equal(t, 6+2*len(config.attributes), len(resolvedTable.Cols))
+						assert.Equal(t, 6+2*len(tableConfig.attributes), len(resolvedTable.Cols))
 					} else if lm.lm.schemaLoader.TableDefinitions().Size() > 0 {
 						assert.Equal(t, 4, len(resolvedTable.Cols))
 					} else {

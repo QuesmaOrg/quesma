@@ -4,6 +4,7 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/schema"
 	"strings"
 )
 
@@ -123,7 +124,8 @@ func (v *WhereVisitor) VisitSelectCommand(e model.SelectCommand) interface{}    
 func (v *WhereVisitor) VisitWindowFunction(e model.WindowFunction) interface{}   { return e }
 
 type SchemaCheckPass struct {
-	cfg map[string]config.IndexConfiguration
+	cfg            map[string]config.IndexConfiguration
+	schemaRegistry schema.Registry
 }
 
 // This functions trims the db name from the table name if exists
@@ -158,17 +160,115 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 	return query, nil
 }
 
+type GeoIpVisitor struct {
+	tableName      string
+	schemaRegistry schema.Registry
+}
+
+func (v *GeoIpVisitor) VisitLiteral(e model.LiteralExpr) interface{}   { return e }
+func (v *GeoIpVisitor) VisitInfix(e model.InfixExpr) interface{}       { return e }
+func (v *GeoIpVisitor) VisitPrefixExpr(e model.PrefixExpr) interface{} { return e }
+func (v *GeoIpVisitor) VisitFunction(e model.FunctionExpr) interface{} { return e }
+func (v *GeoIpVisitor) VisitColumnRef(e model.ColumnRef) interface{} {
+	return e
+}
+func (v *GeoIpVisitor) VisitNestedProperty(e model.NestedProperty) interface{}   { return e }
+func (v *GeoIpVisitor) VisitArrayAccess(e model.ArrayAccess) interface{}         { return e }
+func (v *GeoIpVisitor) MultiFunctionExpr(e model.MultiFunctionExpr) interface{}  { return e }
+func (v *GeoIpVisitor) VisitMultiFunction(e model.MultiFunctionExpr) interface{} { return e }
+func (v *GeoIpVisitor) VisitString(e model.StringExpr) interface{}               { return e }
+func (v *GeoIpVisitor) VisitOrderByExpr(e model.OrderByExpr) interface{}         { return e }
+func (v *GeoIpVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{}       { return e }
+func (v *GeoIpVisitor) VisitTableRef(e model.TableRef) interface{} {
+	return model.NewTableRef(e.Name)
+}
+func (v *GeoIpVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{}       { return e }
+func (v *GeoIpVisitor) VisitWindowFunction(e model.WindowFunction) interface{} { return e }
+
+func (v *GeoIpVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
+	if v.schemaRegistry == nil {
+		logger.Error().Msg("Schema registry is not set")
+		return e
+	}
+	schemaInstance, exists := v.schemaRegistry.FindSchema(schema.TableName(v.tableName))
+	if !exists {
+		logger.Error().Msgf("Schema fot table %s not found", v.tableName)
+		return e
+	}
+	var groupBy []model.Expr
+	for _, expr := range e.GroupBy {
+		groupByExpr := expr.Accept(v).(model.Expr)
+		if col, ok := expr.(model.ColumnRef); ok {
+			// This checks if the column is of type point
+			// and if it is, it appends the lat and lon columns to the group by clause
+			if schemaInstance.Fields[schema.FieldName(col.ColumnName)].Type.Name == schema.TypePoint.Name {
+				// TODO suffixes ::lat, ::lon are hardcoded for now
+				groupBy = append(groupBy, model.NewColumnRef(col.ColumnName+"::lat"))
+				groupBy = append(groupBy, model.NewColumnRef(col.ColumnName+"::lon"))
+			} else {
+				groupBy = append(groupBy, groupByExpr)
+			}
+		} else {
+			groupBy = append(groupBy, groupByExpr)
+		}
+	}
+	var columns []model.Expr
+	for _, expr := range e.Columns {
+		if col, ok := expr.(model.ColumnRef); ok {
+			// This checks if the column is of type point
+			// and if it is, it appends the lat and lon columns to the select clause
+			if schemaInstance.Fields[schema.FieldName(col.ColumnName)].Type.Name == schema.TypePoint.Name {
+				// TODO suffixes ::lat, ::lon are hardcoded for now
+				columns = append(columns, model.NewColumnRef(col.ColumnName+"::lat"))
+				columns = append(columns, model.NewColumnRef(col.ColumnName+"::lon"))
+			} else {
+				columns = append(columns, expr.Accept(v).(model.Expr))
+			}
+		} else {
+			columns = append(columns, expr.Accept(v).(model.Expr))
+		}
+	}
+
+	var fromClause model.Expr
+	if e.FromClause != nil {
+		fromClause = e.FromClause.Accept(v).(model.Expr)
+	}
+
+	return model.NewSelectCommand(columns, groupBy, e.OrderBy,
+		fromClause, e.WhereClause, e.Limit, e.SampleLimit, e.IsDistinct)
+}
+
+func (s *SchemaCheckPass) applyGeoTransformations(query *model.Query) (*model.Query, error) {
+	fromTable := getFromTable(query.TableName)
+
+	geoIpVisitor := &GeoIpVisitor{tableName: fromTable, schemaRegistry: s.schemaRegistry}
+	expr := query.SelectCommand.Accept(geoIpVisitor)
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 	for k, query := range queries {
 		var err error
-		inputQuery := query.SelectCommand.String()
-		query, err = s.applyIpTransformations(query)
-		if query.SelectCommand.String() != inputQuery {
-			logger.Info().Msgf("IpTransformation triggered, input query: %s", inputQuery)
-			logger.Info().Msgf("IpTransformation triggered, output query: %s", query.SelectCommand.String())
+		transformationChain := []struct {
+			TransformationName string
+			Transformation     func(*model.Query) (*model.Query, error)
+		}{
+			{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
+			{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
 		}
-		if err != nil {
-			return nil, err
+		for _, transformation := range transformationChain {
+			inputQuery := query.SelectCommand.String()
+			query, err = transformation.Transformation(query)
+			if query.SelectCommand.String() != inputQuery {
+				logger.Info().Msgf(transformation.TransformationName+" triggered, input query: %s", inputQuery)
+				logger.Info().Msgf(transformation.TransformationName+" triggered, output query: %s", query.SelectCommand.String())
+			}
+			if err != nil {
+				return nil, err
+			}
 		}
 		queries[k] = query
 	}

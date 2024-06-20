@@ -28,7 +28,11 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 		},
 		{
 			name: "schema inferred, no mappings",
-			cfg:  config.QuesmaConfiguration{},
+			cfg: config.QuesmaConfiguration{
+				IndexConfig: map[string]config.IndexConfiguration{
+					"some_table": {Enabled: true},
+				},
+			},
 			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
 				"some_table": {Columns: map[string]schema.Column{
 					"message":    {Name: "message", Type: "String"},
@@ -38,7 +42,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			}},
 			tableName: "some_table",
 			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
-				"message":    {Name: "message", Type: schema.TypeText},
+				"message":    {Name: "message", Type: schema.TypeKeyword},
 				"event_date": {Name: "event_date", Type: schema.TypeTimestamp},
 				"count":      {Name: "count", Type: schema.TypeLong}},
 				Aliases: map[schema.FieldName]schema.FieldName{}},
@@ -63,6 +67,70 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				"message":    {Name: "message", Type: schema.TypeKeyword},
 				"event_date": {Name: "event_date", Type: schema.TypeTimestamp},
 				"count":      {Name: "count", Type: schema.TypeLong}},
+				Aliases: map[schema.FieldName]schema.FieldName{}},
+			exists: true,
+		},
+		{
+			name: "schema inferred, with type mappings not backed by db (deprecated)",
+			cfg: config.QuesmaConfiguration{
+				IndexConfig: map[string]config.IndexConfiguration{
+					"some_table": {Enabled: true, TypeMappings: map[string]string{"message": "keyword"}},
+				},
+			},
+			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
+				"some_table": {Columns: map[string]schema.Column{
+					"event_date": {Name: "event_date", Type: "DateTime64"},
+					"count":      {Name: "count", Type: "Int64"},
+				}},
+			}},
+			tableName: "some_table",
+			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
+				"message":    {Name: "message", Type: schema.TypeKeyword},
+				"event_date": {Name: "event_date", Type: schema.TypeTimestamp},
+				"count":      {Name: "count", Type: schema.TypeLong}},
+				Aliases: map[schema.FieldName]schema.FieldName{}},
+			exists: true,
+		},
+		{
+			name: "schema inferred, with type mappings not backed by db",
+			cfg: config.QuesmaConfiguration{
+				IndexConfig: map[string]config.IndexConfiguration{
+					"some_table": {Enabled: true, SchemaConfiguration: &config.SchemaConfiguration{
+						Fields: map[config.FieldName]config.FieldConfiguration{
+							"message": {Name: "message", Type: "keyword"},
+						},
+					}},
+				},
+			},
+			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
+				"some_table": {Columns: map[string]schema.Column{
+					"event_date": {Name: "event_date", Type: "DateTime64"},
+					"count":      {Name: "count", Type: "Int64"},
+				}},
+			}},
+			tableName: "some_table",
+			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
+				"message":    {Name: "message", Type: schema.TypeKeyword},
+				"event_date": {Name: "event_date", Type: schema.TypeTimestamp},
+				"count":      {Name: "count", Type: schema.TypeLong}},
+				Aliases: map[schema.FieldName]schema.FieldName{}},
+			exists: true,
+		},
+		{
+			name: "schema explicitly configured, nothing in db",
+			cfg: config.QuesmaConfiguration{
+				IndexConfig: map[string]config.IndexConfiguration{
+					"some_table": {Enabled: true, SchemaConfiguration: &config.SchemaConfiguration{
+						Fields: map[config.FieldName]config.FieldConfiguration{
+							"message": {Name: "message", Type: "keyword"},
+						},
+					}},
+				},
+			},
+			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{}},
+			tableName:      "some_table",
+			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
+				"message": {Name: "message", Type: schema.TypeKeyword}},
 				Aliases: map[schema.FieldName]schema.FieldName{}},
 			exists: true,
 		},
@@ -143,13 +211,12 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := schema.NewSchemaRegistry(tt.tableDiscovery, tt.cfg, clickhouse.SchemaTypeAdapter{}, elasticsearch.SchemaTypeAdapter{})
-			s.Start()
-			got, got1 := s.FindSchema(tt.tableName)
-			if got1 != tt.exists {
-				t.Errorf("FindSchema() got1 = %v, want %v", got1, tt.exists)
+			resultSchema, resultFound := s.FindSchema(tt.tableName)
+			if resultFound != tt.exists {
+				t.Errorf("FindSchema() got1 = %v, want %v", resultFound, tt.exists)
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("FindSchema() got = %v, want %v", got, tt.want)
+			if !reflect.DeepEqual(resultSchema, tt.want) {
+				t.Errorf("FindSchema() got = %v, want %v", resultSchema, tt.want)
 			}
 		})
 	}

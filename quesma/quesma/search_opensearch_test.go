@@ -51,7 +51,7 @@ func TestSearchOpensearch(t *testing.T) {
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
 			_, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 			assert.NoError(t, err)
 
@@ -180,7 +180,7 @@ func TestHighlighter(t *testing.T) {
 															AddRow("text-to-highlight", "text-to-highlight", "text-to-highlight").
 															AddRow("text", "text", "text"))
 
-	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
+	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
 	response, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(query))
 	assert.NoError(t, err)
 	if err != nil {
@@ -198,15 +198,15 @@ func TestHighlighter(t *testing.T) {
 		return responseAsMap["hits"].(model.JsonMap)["hits"].([]interface{})[i].(model.JsonMap)["highlight"].(model.JsonMap)
 	}
 
-	assert.Equal(t, model.JsonMap{"message$*%:;": []any{}}, getIthHighlight(0)) // no highlight
+	assert.Equal(t, model.JsonMap{"host.name": []any{}}, getIthHighlight(0)) // no highlight
 	assert.Equal(t, model.JsonMap{
-		"message$*%:;": []any{"@opensearch-dashboards-highlighted-field@text-to-highlight@/opensearch-dashboards-highlighted-field@"},
+		"host.name": []any{"@opensearch-dashboards-highlighted-field@text-to-highlight@/opensearch-dashboards-highlighted-field@"},
 	}, getIthHighlight(1))
 	assert.Equal(t, model.JsonMap{
-		"message$*%:;": []any{"@opensearch-dashboards-highlighted-field@text-to-highlight@/opensearch-dashboards-highlighted-field@"},
+		"host.name": []any{"@opensearch-dashboards-highlighted-field@text-to-highlight@/opensearch-dashboards-highlighted-field@"},
 	}, getIthHighlight(2))
 	assert.Equal(t, model.JsonMap{
-		"message$*%:;": []any{"@opensearch-dashboards-highlighted-field@text-to-highlight@/opensearch-dashboards-highlighted-field@"},
+		"host.name": []any{"@opensearch-dashboards-highlighted-field@text-to-highlight@/opensearch-dashboards-highlighted-field@"},
 	}, getIthHighlight(3))
-	assert.Equal(t, model.JsonMap{"message$*%:;": []any{}}, getIthHighlight(4)) // no highlight
+	assert.Equal(t, model.JsonMap{"host.name": []any{}}, getIthHighlight(4)) // no highlight
 }

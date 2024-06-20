@@ -24,7 +24,7 @@ type QueryMap = map[string]interface{}
 // NewEmptyHighlighter returns no-op for error branches and tests
 func NewEmptyHighlighter() model.Highlighter {
 	return model.Highlighter{
-		Fields: make(map[string]bool),
+		Tokens: make(map[string]model.Tokens),
 	}
 }
 
@@ -71,6 +71,7 @@ func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	default:
 	}
 	if fullQuery != nil {
+		highlighter.SetTokensToHighlight(fullQuery.SelectCommand)
 		fullQuery.QueryInfoType = queryInfo.Typ
 		// TODO: pass right arguments
 		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, fullQuery.SelectCommand.OrderByFieldNames(), true, false, false)
@@ -113,7 +114,6 @@ func (cw *ClickhouseQueryTranslator) buildFacetsQueryIfNeeded(
 
 func (cw *ClickhouseQueryTranslator) ParseQueryInternal(body types.JSON) (*model.SimpleQuery, model.SearchQueryInfo, model.Highlighter, error) {
 	queryAsMap := body.Clone()
-	cw.ClearTokensToHighlight()
 
 	// we must parse "highlights" here, because it is stripped from the queryAsMap later
 	highlighter := cw.ParseHighlighter(queryAsMap)
@@ -160,9 +160,6 @@ func (cw *ClickhouseQueryTranslator) ParseQueryInternal(body types.JSON) (*model
 	queryInfo.Size = size
 	queryInfo.TrackTotalHits = trackTotalHits
 
-	highlighter.SetTokens(cw.tokensToHighlight)
-	cw.ClearTokensToHighlight()
-
 	return &parsedQuery, queryInfo, highlighter, nil
 }
 
@@ -199,19 +196,10 @@ func (cw *ClickhouseQueryTranslator) ParseHighlighter(queryMap QueryMap) model.H
 	// TODO parse other fields:
 	// - fields
 	// - fragment_size
-
-	highlighter.Fields = make(map[string]bool)
-	for k, v := range cw.Table.Cols {
-		if v.IsFullTextMatch {
-			highlighter.Fields[k] = true
-		}
-	}
-
 	return highlighter
 }
 
 func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (model.SimpleQuery, model.SearchQueryInfo, model.Highlighter) {
-	cw.ClearTokensToHighlight()
 	queryAsMap, err := types.ParseJSON(queryAsJson)
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("error parsing query request's JSON")
@@ -237,9 +225,6 @@ func (cw *ClickhouseQueryTranslator) ParseQueryAsyncSearch(queryAsJson string) (
 		parsedQuery.OrderBy = cw.parseSortFields(sort)
 	}
 	queryInfo := cw.tryProcessSearchMetadata(queryAsMap)
-
-	highlighter.SetTokens(cw.tokensToHighlight)
-	cw.ClearTokensToHighlight()
 
 	return parsedQuery, queryInfo, highlighter
 }
@@ -275,7 +260,6 @@ func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fi
 		} else {
 			like = "LIKE"
 		}
-		cw.AddTokenToHighlight(*prefix)
 		stmt := model.NewInfixExpr(model.NewColumnRef(fieldName), like, model.NewLiteral("'"+*prefix+"%'"))
 		stmts = append(stmts, stmt)
 	}
@@ -498,7 +482,6 @@ func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) model.SimpleQu
 	var whereClause model.Expr
 	if len(queryMap) == 1 {
 		for k, v := range queryMap {
-			cw.AddTokenToHighlight(v)
 			if k == "_index" { // index is a table name, already taken from URI and moved to FROM clause
 				logger.Warn().Msgf("term %s=%v in query body, ignoring in result SQL", k, v)
 				whereClause = model.NewInfixExpr(model.NewLiteral("0"), "=", model.NewLiteral("0 /* "+k+"="+sprint(v)+" */"))
@@ -536,7 +519,6 @@ func (cw *ClickhouseQueryTranslator) parseTerms(queryMap QueryMap) model.SimpleQ
 		}
 		values := make([]string, len(vAsArray))
 		for i, v := range vAsArray {
-			cw.AddTokenToHighlight(v)
 			values[i] = sprint(v)
 		}
 		combinedValues := "(" + strings.Join(values, ",") + ")"
@@ -585,9 +567,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 				subQueries = strings.Split(vAsString, " ")
 			}
 			statements := make([]model.Expr, 0, len(subQueries))
-			cw.AddTokenToHighlight(vAsString)
 			for _, subQuery := range subQueries {
-				cw.AddTokenToHighlight(subQuery)
 				if fieldName == "_id" { // We compute this field on the fly using our custom logic, so we have to parse it differently
 					computedIdMatchingQuery := cw.parseIds(QueryMap{"values": []interface{}{subQuery}})
 					statements = append(statements, computedIdMatchingQuery.WhereClause)
@@ -598,8 +578,6 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 			}
 			return model.NewSimpleQuery(model.Or(statements), true)
 		}
-
-		cw.AddTokenToHighlight(vUnNested)
 
 		// so far we assume that only strings can be ORed here
 		statement := model.NewInfixExpr(model.NewColumnRef(fieldName), "==", model.NewLiteral(sprint(vUnNested)))
@@ -654,11 +632,6 @@ func (cw *ClickhouseQueryTranslator) parseMultiMatch(queryMap QueryMap) model.Si
 		subQueries = strings.Split(queryAsString, " ")
 	}
 
-	cw.AddTokenToHighlight(queryAsString)
-	for _, subQ := range subQueries {
-		cw.AddTokenToHighlight(subQ)
-	}
-
 	sqls := make([]model.Expr, len(fields)*len(subQueries))
 	i := 0
 	for _, field := range fields {
@@ -682,12 +655,10 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) model.Simple
 		fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
 		switch vCasted := v.(type) {
 		case string:
-			cw.AddTokenToHighlight(vCasted)
 			simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral("'"+vCasted+"%'"))
 			return model.NewSimpleQuery(simpleStat, true)
 		case QueryMap:
 			token := vCasted["value"].(string)
-			cw.AddTokenToHighlight(token)
 			simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral("'"+token+"%'"))
 			return model.NewSimpleQuery(simpleStat, true)
 		default:
@@ -715,7 +686,6 @@ func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) model.Simp
 		if vAsMap, ok := v.(QueryMap); ok {
 			if value, ok := vAsMap["value"]; ok {
 				if valueAsString, ok := value.(string); ok {
-					cw.AddTokenToHighlight(valueAsString)
 					whereStatement := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral("'"+strings.ReplaceAll(valueAsString, "*", "%")+"'"))
 					return model.NewSimpleQuery(whereStatement, true)
 				} else {
@@ -748,13 +718,6 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) model.S
 	}
 
 	query := queryMap["query"].(string) // query: (Required, string)
-
-	// TODO This highlighting seems not that bad for the first version,
-	// but we probably should improve it, at least a bit
-	cw.AddTokenToHighlight(query)
-	for _, querySubstring := range strings.Split(query, " ") {
-		cw.AddTokenToHighlight(querySubstring)
-	}
 
 	// we always call `TranslateToSQL` - Lucene parser returns "false" in case of invalid query
 	whereStmtFromLucene := lucene.TranslateToSQL(cw.Ctx, query, fields)

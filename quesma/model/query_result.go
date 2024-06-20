@@ -31,6 +31,8 @@ func NewQueryResultRowEmpty(index string) QueryResultRow {
 	return QueryResultRow{Index: index}
 }
 
+const KeyAddedByQuesma = "Quesma_key_JR*#@(DF*GAsFfS!/LI" // created in a way that there shouldn't be a field of this name
+
 const (
 	ResultColKeyIndex         FieldAtIndex = iota // for facets/histogram Col[0] == Key
 	ResultColDocCountIndex                        // for facets/histogram Col[1] == DocCount

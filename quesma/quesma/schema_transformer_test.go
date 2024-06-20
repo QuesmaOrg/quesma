@@ -2,11 +2,22 @@ package quesma
 
 import (
 	"github.com/stretchr/testify/assert"
+	"mitmproxy/quesma/clickhouse"
+	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
+	"mitmproxy/quesma/schema"
 	"strconv"
 	"testing"
 )
+
+type fixedTableProvider struct {
+	tables map[string]schema.Table
+}
+
+func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
+	return f.tables
+}
 
 func Test_ipRangeTransform(t *testing.T) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
@@ -22,8 +33,27 @@ func Test_ipRangeTransform(t *testing.T) {
 			FullTextFields: []string{"message", "content"},
 			TypeMappings:   map[string]string{IpFieldName: "ip"},
 		},
+		"kibana_sample_data_flights": {
+			Name:           "kibana_sample_data_flights",
+			Enabled:        true,
+			FullTextFields: []string{"message", "content"},
+			TypeMappings: map[string]string{IpFieldName: "ip",
+				"DestLocation": "geo_point"},
+		},
 	}
-	transform := &SchemaCheckPass{cfg: indexConfig}
+	cfg := config.QuesmaConfiguration{
+		IndexConfig: indexConfig,
+	}
+
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{
+			"kibana_sample_data_flights": {Columns: map[string]schema.Column{
+				"DestLocation": {Name: "DestLocation", Type: "geo_point"},
+				"clientip":     {Name: "clientip", Type: "ip"},
+			}},
+		}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{}, elasticsearch.SchemaTypeAdapter{})
+	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
 
 	expectedQueries := []*model.Query{
 		{
@@ -121,6 +151,13 @@ func Test_ipRangeTransform(t *testing.T) {
 					},
 				},
 			}},
+		{
+			TableName: "kibana_sample_data_flights",
+			SelectCommand: model.SelectCommand{
+				FromClause: model.NewTableRef("kibana_sample_data_flights"),
+				Columns: []model.Expr{model.NewColumnRef("DestLocation::lat"),
+					model.NewColumnRef("DestLocation::lon")},
+			}},
 	}
 	queries := [][]*model.Query{
 		{
@@ -199,6 +236,14 @@ func Test_ipRangeTransform(t *testing.T) {
 							Right: &model.LiteralExpr{Value: IpFieldContent},
 						},
 					},
+				}},
+		},
+		{
+			{
+				TableName: "kibana_sample_data_flights",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_flights"),
+					Columns:    []model.Expr{model.NewColumnRef("DestLocation")},
 				}},
 		},
 	}

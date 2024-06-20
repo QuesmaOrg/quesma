@@ -137,7 +137,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			)
 		*/
 		query.SelectCommand.FromClause = query.NewSelectExprWithRowNumber(
-			innerFieldsAsSelect, b.SelectCommand.GroupBy, b.whereBuilder.WhereClause, "", true)
+			query.SelectCommand.Columns, b.SelectCommand.GroupBy, b.whereBuilder.WhereClause, "", true)
 		query.SelectCommand.WhereClause = model.And([]model.Expr{
 			query.SelectCommand.WhereClause,
 			model.NewInfixExpr(
@@ -146,7 +146,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				model.NewLiteral(strconv.Itoa(metricsAggr.Size)),
 			)},
 		)
-
+		query.SelectCommand.GroupBy = append(query.SelectCommand.GroupBy, innerFieldsAsSelect...)
 	case "top_metrics":
 		// This appending of `metricsAggr.SortBy` and having it duplicated in SELECT block
 		// is a way to pass value we're sorting by to the query.SelectCommand.result. In the future we might add SQL aliasing support, e.g. SELECT x AS 'sort_by' FROM ...

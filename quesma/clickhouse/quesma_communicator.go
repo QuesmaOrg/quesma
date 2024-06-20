@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"math/rand"
 	"mitmproxy/quesma/end_user_errors"
 	"mitmproxy/quesma/logger"
@@ -120,6 +121,17 @@ func (lm *LogManager) explainQuery(ctx context.Context, query string, elapsed ti
 
 func executeQuery(ctx context.Context, lm *LogManager, queryAsString string, fields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
 	span := lm.phoneHomeAgent.ClickHouseQueryDuration().Begin()
+
+	// We drop privileges for the query
+	//
+	// https://clickhouse.com/docs/en/operations/settings/permissions-for-queries
+	//
+
+	settings := make(clickhouse.Settings)
+	settings["readonly"] = "1"
+	settings["allow_ddl"] = "0"
+
+	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(settings))
 
 	rows, err := lm.Query(ctx, queryAsString)
 	if err != nil {

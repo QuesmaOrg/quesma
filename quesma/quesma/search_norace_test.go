@@ -43,7 +43,7 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
 			go managementConsole.RunOnlyChannelProcessor()
 
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
 			newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
 			_, _ = queryRunner.handleSearch(newCtx, tableName, types.MustJSON(tt.QueryRequestJson))
 
@@ -94,7 +94,7 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
 	go managementConsole.RunOnlyChannelProcessor()
 
-	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole)
+	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
 	for _, testNr := range testNrs {
 		newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
 		_, _ = queryRunner.handleSearch(newCtx, tableName, types.MustJSON(testdata.UnsupportedQueriesTests[testNr].QueryRequestJson))

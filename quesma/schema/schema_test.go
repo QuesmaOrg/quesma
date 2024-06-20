@@ -31,6 +31,17 @@ func TestSchema_ResolveField(t *testing.T) {
 			exists:        true,
 		},
 		{
+			name:      "should not resolve field",
+			fieldName: "foo",
+			schema: Schema{
+				Fields: map[FieldName]Field{
+					"message": {Name: "message", Type: TypeText},
+				},
+			},
+			resolvedField: Field{},
+			exists:        false,
+		},
+		{
 			name:      "should resolve aliased field",
 			fieldName: "message_alias",
 			schema: Schema{
@@ -39,6 +50,16 @@ func TestSchema_ResolveField(t *testing.T) {
 			},
 			resolvedField: Field{Name: "message", Type: TypeText},
 			exists:        true,
+		},
+		{
+			name:      "should not resolve aliased field",
+			fieldName: "message_alias",
+			schema: Schema{
+				Fields:  map[FieldName]Field{"message": {Name: "message", Type: TypeText}},
+				Aliases: map[FieldName]FieldName{"message_alias": "foo"},
+			},
+			resolvedField: Field{},
+			exists:        false,
 		},
 	}
 	for _, tt := range tests {

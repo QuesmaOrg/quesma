@@ -20,6 +20,9 @@ indexes:
     enabled: true
   kibana_sample_data_flights:
     enabled: true
+    mappings:
+      DestLocation: "geo_point"
+      OriginLocation: "geo_point"
   kibana_sample_data_logs:
     enabled: true
     mappings:
@@ -38,7 +41,11 @@ indexes:
         message:
           type: "text"
         host.name:
-          type: "text"
+          type: "keyword"
+        service.name:
+          type: "keyword"
+        source:
+          type: "keyword"
         severity:
           type: "keyword"
         severity_alias:
