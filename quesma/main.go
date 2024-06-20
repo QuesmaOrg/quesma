@@ -44,7 +44,6 @@ func main() {
 	}
 
 	var asyncQueryTraceLogger *tracing.AsyncTraceLogger
-	//asyncQueryTraceLogger = &tracing.AsyncTraceLogger{AsyncQueryTrace: concurrent.NewMap[string, tracing.TraceCtx]()}
 
 	qmcLogChannel := logger.InitLogger(cfg, sig, doneCh, asyncQueryTraceLogger)
 	defer logger.StdLogFile.Close()
