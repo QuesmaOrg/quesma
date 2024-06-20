@@ -38,8 +38,7 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 			continue
 		}
 
-		var valuesForHits []model.QueryResultCol
-		valuesForHits = row.Cols
+		valuesForHits := row.Cols
 		sourceMap := model.JsonMap{}
 
 		for _, col := range valuesForHits {
