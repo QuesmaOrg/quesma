@@ -392,7 +392,7 @@ func TestMatchAgainstKibanaAlerts(t *testing.T) {
 			req.ParsedBody = types.ParseRequestBody(test.body)
 
 			actual := matchAgainstKibanaInternal().Matches(req)
-			assert.Equal(t, test.expected, actual)
+			assert.Equal(tt, test.expected, actual)
 		})
 
 	}
