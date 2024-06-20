@@ -421,15 +421,19 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 }
 
 func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []types.JSON) error {
-	t := &jsonprocessor.RewriteArrayOfObject{}
+
+	// this is pre ingest transformer
+	// here we transform the data before it's structure evaluation and insertion
+	//
+	transformer := &jsonprocessor.RewriteArrayOfObject{}
 
 	var processed []types.JSON
 	for _, jsonValue := range jsonData {
-		x, err := t.Transform(jsonValue)
+		result, err := transformer.Transform(jsonValue)
 		if err != nil {
-			return fmt.Errorf("error RewriteArrayOfObject: %v", err)
+			return fmt.Errorf("error while rewriting json: %v", err)
 		}
-		processed = append(processed, x)
+		processed = append(processed, result)
 	}
 	jsonData = processed
 

@@ -28,7 +28,6 @@ func (t *RewriteArrayOfObject) rewrite(array []interface{}) (map[string]interfac
 
 	fields := make(map[string]interface{})
 	for i, el := range array {
-
 		if obj, ok := el.(map[string]interface{}); ok {
 			for key := range obj {
 				fields[key] = true
@@ -36,19 +35,15 @@ func (t *RewriteArrayOfObject) rewrite(array []interface{}) (map[string]interfac
 		} else {
 			return nil, fmt.Errorf("element %d of array is not an object", i)
 		}
-
 	}
 
 	result := make(map[string]interface{})
 
 	for field := range fields {
-
 		var fieldValue []interface{}
 
 		for i, element := range array {
-
 			if obj, ok := element.(map[string]interface{}); ok {
-
 				if _, ok := obj[field]; ok {
 					fieldValue = append(fieldValue, obj[field])
 				} else {
@@ -58,7 +53,6 @@ func (t *RewriteArrayOfObject) rewrite(array []interface{}) (map[string]interfac
 				return nil, fmt.Errorf("element %d of array is not an object", i)
 			}
 		}
-
 		result[field] = fieldValue
 	}
 
@@ -69,7 +63,6 @@ func (t *RewriteArrayOfObject) rewrite(array []interface{}) (map[string]interfac
 func (t *RewriteArrayOfObject) Transform(data map[string]interface{}) (map[string]interface{}, error) {
 
 	for k, v := range data {
-
 		switch val := v.(type) {
 
 		case map[string]interface{}:
@@ -88,7 +81,6 @@ func (t *RewriteArrayOfObject) Transform(data map[string]interface{}) (map[strin
 			}
 
 			first := val[0]
-
 			if _, ok := first.(map[string]interface{}); ok {
 				v, err := t.rewrite(val)
 				if err != nil {
@@ -97,7 +89,6 @@ func (t *RewriteArrayOfObject) Transform(data map[string]interface{}) (map[strin
 				data[k] = v
 
 			} else {
-
 				for i, item := range val {
 					switch itemVal := item.(type) {
 					case map[string]interface{}:
