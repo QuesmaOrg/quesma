@@ -96,7 +96,9 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 
 	globalError := errorstats.GlobalErrorHook{}
 	logger = logger.Hook(&globalError)
-	logger = logger.Hook(asyncQueryTraceLogger)
+	if asyncQueryTraceLogger != nil {
+		logger = logger.Hook(asyncQueryTraceLogger)
+	}
 
 	logger.Info().Msg("Logger initialized")
 	return logChannel
@@ -118,7 +120,7 @@ func InitSimpleLoggerForTests() {
 		Logger()
 }
 
-func InitOnlyChannelLoggerForTests(cfg config.QuesmaConfiguration, asyncQueryTraceLogger *tracing.AsyncTraceLogger) <-chan tracing.LogWithLevel {
+func InitOnlyChannelLoggerForTests(cfg config.QuesmaConfiguration) <-chan tracing.LogWithLevel {
 	zerolog.TimeFieldFormat = time.RFC3339Nano           // without this we don't have milliseconds timestamp precision
 	logChannel := make(chan tracing.LogWithLevel, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
 	chanWriter := channelWriter{ch: logChannel}
@@ -132,7 +134,6 @@ func InitOnlyChannelLoggerForTests(cfg config.QuesmaConfiguration, asyncQueryTra
 
 	globalError := errorstats.GlobalErrorHook{}
 	logger = logger.Hook(&globalError)
-	logger = logger.Hook(asyncQueryTraceLogger)
 	return logChannel
 }
 

@@ -242,14 +242,22 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 	// b) we have hits or facets -> we're done
 	// c) we don't have above: we return len(biggest resultset(all aggregations))
 	totalCount := -1
+	relationCount := "eq"
 	for i, query := range queries {
 		if query.Type != nil {
 			if _, isCount := query.Type.(typical_queries.Count); isCount {
 				if len(results[i]) > 0 && len(results[i][0].Cols) > 0 {
-					if val, ok := results[i][0].Cols[0].Value.(uint64); ok {
-						totalCount = int(val)
-					} else {
+					switch v := results[i][0].Cols[0].Value.(type) {
+					case uint64:
+						totalCount = int(v)
+					case int64:
+						totalCount = int(v)
+					default:
 						logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", results[i])
+					}
+					// if we have sample limit, we need to check if we hit it. If so, return there could be more results
+					if query.SelectCommand.SampleLimit != 0 && totalCount == query.SelectCommand.SampleLimit {
+						relationCount = "gte"
 					}
 				} else {
 					logger.ErrorWithCtx(cw.Ctx).Msgf("no results for Count value SQL query result [%v]", results[i])
@@ -265,7 +273,7 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 	if totalCount != -1 {
 		total = &model.Total{
 			Value:    totalCount,
-			Relation: "eq", // likely wrong
+			Relation: relationCount,
 		}
 		return
 	}
@@ -274,18 +282,25 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 			totalCount = 0
 			for _, row := range results[i] {
 				if len(row.Cols) > 0 {
-					if val, ok := row.Cols[len(row.Cols)-1].Value.(uint64); ok {
-						totalCount += int(val)
-					} else if val2, ok2 := row.Cols[len(row.Cols)-1].Value.(int); ok2 {
-						totalCount += val2
-					} else {
-						logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v", row.Cols[len(row.Cols)-1].Value)
+					switch v := row.Cols[len(row.Cols)-1].Value.(type) {
+					case uint64:
+						totalCount += int(v)
+					case int:
+						totalCount += v
+					default:
+						logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v", v)
 					}
 				}
 			}
+			// if we have sample limit, we need to check if we hit it. If so, return there could be more results.
+			// eq means exact count, gte means greater or equal
+			relation := "eq"
+			if query.SelectCommand.SampleLimit != 0 && totalCount == query.SelectCommand.SampleLimit {
+				relation = "gte"
+			}
 			total = &model.Total{
 				Value:    totalCount,
-				Relation: "eq", // likely wrong
+				Relation: relation,
 			}
 			return
 		}
