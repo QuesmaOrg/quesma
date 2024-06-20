@@ -16,16 +16,12 @@ func NewQueryProcessor(ctx context.Context) QueryProcessor {
 // Returns if row1 and row2 have the same values for the first level fields
 func (qp *QueryProcessor) sameGroupByFields(row1, row2 model.QueryResultRow, level int) bool {
 
-	if len(row1.Cols) < level || len(row2.Cols) < level {
-
-		for i := 0; i < level; i++ {
-			if row1.Cols[i].ExtractValue(qp.ctx) != row2.Cols[i].ExtractValue(qp.ctx) {
-				return false
-			}
+	for i := 0; i < level; i++ {
+		if row1.Cols[i].ExtractValue(qp.ctx) != row2.Cols[i].ExtractValue(qp.ctx) {
+			return false
 		}
-		return true
 	}
-	return false
+	return true
 }
 
 // Splits ResultSet into buckets, based on the first level fields
