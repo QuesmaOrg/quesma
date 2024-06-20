@@ -131,7 +131,6 @@ func (q *dualWriteHttpProxy) Close(ctx context.Context) {
 
 func (q *dualWriteHttpProxy) Ingest() {
 	q.schemaLoader.ReloadTableDefinitions()
-	q.schemaRegistry.Start()
 	q.logManager.Start()
 	q.indexManagement.Start()
 	go q.asyncQueriesEvictor.asyncQueriesGC()

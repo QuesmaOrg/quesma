@@ -211,13 +211,12 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := schema.NewSchemaRegistry(tt.tableDiscovery, tt.cfg, clickhouse.SchemaTypeAdapter{}, elasticsearch.SchemaTypeAdapter{})
-			s.Start()
-			got, got1 := s.FindSchema(tt.tableName)
-			if got1 != tt.exists {
-				t.Errorf("FindSchema() got1 = %v, want %v", got1, tt.exists)
+			resultSchema, resultFound := s.FindSchema(tt.tableName)
+			if resultFound != tt.exists {
+				t.Errorf("FindSchema() got1 = %v, want %v", resultFound, tt.exists)
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("FindSchema() got = %v, want %v", got, tt.want)
+			if !reflect.DeepEqual(resultSchema, tt.want) {
+				t.Errorf("FindSchema() got = %v, want %v", resultSchema, tt.want)
 			}
 		})
 	}
