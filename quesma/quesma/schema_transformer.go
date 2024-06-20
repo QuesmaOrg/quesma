@@ -277,21 +277,29 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 
 type GeoIpResultTransformer struct {
 	schemaRegistry schema.Registry
+	fromTable      string
 }
 
-func (GeoIpResultTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+func (g *GeoIpResultTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+	if g.schemaRegistry == nil {
+		logger.Error().Msg("Schema registry is not set")
+		return result, nil
+	}
+	schemaInstance, exists := g.schemaRegistry.FindSchema(schema.TableName(g.fromTable))
+	if !exists {
+		logger.Error().Msgf("Schema fot table %s not found", g.fromTable)
+		return result, nil
+	}
 	for i, rows := range result {
 		for j, row := range rows {
 			for k, col := range row.Cols {
-				// TODO transform this according to schema
-				if strings.Contains(col.ColName, "Location::lat") {
-					result[i][j].Cols[k].ColName = "lat"
-					//result[i][j].Cols[k].OverridenColName = strings.TrimSuffix(col.ColName, "::lat")
+				if strings.Contains(col.ColName, "::lat") {
+					colType := schemaInstance.Fields[schema.FieldName(strings.TrimSuffix(col.ColName, "::lat"))].Type
+					result[i][j].Cols[k].ColType = colType
 				}
-				// TODO transform this according to schema
-				if strings.Contains(col.ColName, "Location::lon") {
-					result[i][j].Cols[k].ColName = "lon"
-					//result[i][j].Cols[k].OverridenColName = strings.TrimSuffix(col.ColName, "::lon")
+				if strings.Contains(col.ColName, "::lon") {
+					colType := schemaInstance.Fields[schema.FieldName(strings.TrimSuffix(col.ColName, "::lon"))].Type
+					result[i][j].Cols[k].ColType = colType
 				}
 			}
 		}

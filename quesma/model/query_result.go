@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mitmproxy/quesma/logger"
+	"mitmproxy/quesma/schema"
 	"mitmproxy/quesma/util"
 	"reflect"
 	"strings"
@@ -16,6 +17,7 @@ type FieldAtIndex = int // for facets/histogram what Cols[i] means
 type QueryResultCol struct {
 	ColName string // quoted, e.g. `"message"`
 	Value   interface{}
+	ColType schema.Type
 }
 
 func NewQueryResultCol(colName string, value interface{}) QueryResultCol {

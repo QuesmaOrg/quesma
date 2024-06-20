@@ -663,7 +663,7 @@ func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]mo
 	}
 
 	// TODO this should be created in different place
-	geoIpTransformer := GeoIpResultTransformer{schemaRegistry: q.schemaRegistry}
+	geoIpTransformer := GeoIpResultTransformer{schemaRegistry: q.schemaRegistry, fromTable: table.Name}
 	return geoIpTransformer.Transform(res)
 }
 
