@@ -276,6 +276,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 }
 
 type GeoIpResultTransformer struct {
+	schemaRegistry schema.Registry
 }
 
 func (GeoIpResultTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
