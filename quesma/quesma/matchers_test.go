@@ -147,6 +147,231 @@ const nonKibanaAlerts = `
 
 `
 
+const migrationQuery = `{
+"query": {
+	"bool": {
+		"should": [
+			{
+				"bool": {
+					"must": [
+						{
+							"term": {
+								"type": "core-usage-stats"
+							}
+						},
+						{
+							"bool": {
+								"should": [
+									{
+										"bool": {
+											"must_not": [
+												{
+													"exists": {
+														"field": "typeMigrationVersion"
+													}
+												},
+												{
+													"exists": {
+														"field": "migrationVersion.core-usage-stats"
+													}
+												}
+											]
+										}
+									},
+									{
+										"bool": {
+											"must": {
+												"exists": {
+													"field": "migrationVersion"
+												}
+											},
+											"must_not": {
+												"term": {
+													"migrationVersion.core-usage-stats": "7.14.1"
+												}
+											}
+										}
+									},
+									{
+										"range": {
+											"typeMigrationVersion": {
+												"lt": "7.14.1"
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"bool": {
+					"must": [
+						{
+							"term": {
+								"type": "legacy-url-alias"
+							}
+						},
+						{
+							"bool": {
+								"should": [
+									{
+										"bool": {
+											"must_not": [
+												{
+													"exists": {
+														"field": "typeMigrationVersion"
+													}
+												},
+												{
+													"exists": {
+														"field": "migrationVersion.legacy-url-alias"
+													}
+												}
+											]
+										}
+									},
+									{
+										"bool": {
+											"must": {
+												"exists": {
+													"field": "migrationVersion"
+												}
+											},
+											"must_not": {
+												"term": {
+													"migrationVersion.legacy-url-alias": "8.2.0"
+												}
+											}
+										}
+									},
+									{
+										"range": {
+											"typeMigrationVersion": {
+												"lt": "8.2.0"
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"bool": {
+					"must": [
+						{
+							"term": {
+								"type": "config"
+							}
+						},
+						{
+							"bool": {
+								"should": [
+									{
+										"bool": {
+											"must_not": [
+												{
+													"exists": {
+														"field": "typeMigrationVersion"
+													}
+												},
+												{
+													"exists": {
+														"field": "migrationVersion.config"
+													}
+												}
+											]
+										}
+									},
+									{
+										"bool": {
+											"must": {
+												"exists": {
+													"field": "migrationVersion"
+												}
+											},
+											"must_not": {
+												"term": {
+													"migrationVersion.config": "8.9.0"
+												}
+											}
+										}
+									},
+									{
+										"range": {
+											"typeMigrationVersion": {
+												"lt": "8.9.0"
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"bool": {
+					"must": [
+						{
+							"term": {
+								"type": "task"
+							}
+						},
+						{
+							"bool": {
+								"should": [
+									{
+										"bool": {
+											"must_not": [
+												{
+													"exists": {
+														"field": "typeMigrationVersion"
+													}
+												},
+												{
+													"exists": {
+														"field": "migrationVersion.task"
+													}
+												}
+											]
+										}
+									},
+									{
+										"bool": {
+											"must": {
+												"exists": {
+													"field": "migrationVersion"
+												}
+											},
+											"must_not": {
+												"term": {
+													"migrationVersion.task": "8.8.0"
+												}
+											}
+										}
+									},
+									{
+										"range": {
+											"typeMigrationVersion": {
+												"lt": "8.8.0"
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			}
+		]
+	}
+}
+}`
+
 func TestMatchAgainstKibanaAlerts(t *testing.T) {
 
 	tests := []struct {
@@ -156,6 +381,7 @@ func TestMatchAgainstKibanaAlerts(t *testing.T) {
 	}{
 		{"{kibana alerts", kibanaAlerts, false},
 		{"non kibana alerts", nonKibanaAlerts, true},
+		{"migration", migrationQuery, false},
 	}
 
 	for _, test := range tests {
@@ -165,7 +391,7 @@ func TestMatchAgainstKibanaAlerts(t *testing.T) {
 
 			req.ParsedBody = types.ParseRequestBody(test.body)
 
-			actual := matchAgainstKibanaAlerts().Matches(req)
+			actual := matchAgainstKibanaInternal().Matches(req)
 			assert.Equal(t, test.expected, actual)
 		})
 

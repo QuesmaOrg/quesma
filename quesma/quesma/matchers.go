@@ -76,8 +76,9 @@ func matchedAgainstPattern(configuration config.QuesmaConfiguration) mux.Request
 	})
 }
 
-// Returns false if the body contains a Kibana alert related field.
-func matchAgainstKibanaAlerts() mux.RequestMatcher {
+// Returns false if the body contains a Kibana internal search.
+// Kibana does several /_search where you can identify it only by field
+func matchAgainstKibanaInternal() mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
 
 		var query types.JSON

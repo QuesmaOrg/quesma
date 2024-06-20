@@ -168,7 +168,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 		}
 	})
 
-	router.Register(routes.GlobalSearchPath, and(method("GET", "POST"), matchAgainstKibanaAlerts()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.GlobalSearchPath, and(method("GET", "POST"), matchAgainstKibanaInternal()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
