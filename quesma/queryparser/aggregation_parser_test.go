@@ -617,7 +617,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	allTests = append(allTests, kibana_visualize.AggregationTests...)
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if i == 0 || i == 3 {
+			if i == 3 {
 				t.Skip("Will work after track_total_hits")
 			}
 			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)" {
