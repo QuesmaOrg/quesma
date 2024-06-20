@@ -274,3 +274,26 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 	}
 	return queries, nil
 }
+
+type GeoIpResultTransformer struct {
+}
+
+func (GeoIpResultTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+	for i, rows := range result {
+		for j, row := range rows {
+			for k, col := range row.Cols {
+				// TODO transform this according to schema
+				if strings.Contains(col.ColName, "Location::lat") {
+					result[i][j].Cols[k].ColName = "lat"
+					//result[i][j].Cols[k].OverridenColName = strings.TrimSuffix(col.ColName, "::lat")
+				}
+				// TODO transform this according to schema
+				if strings.Contains(col.ColName, "Location::lon") {
+					result[i][j].Cols[k].ColName = "lon"
+					//result[i][j].Cols[k].OverridenColName = strings.TrimSuffix(col.ColName, "::lon")
+				}
+			}
+		}
+	}
+	return result, nil
+}
