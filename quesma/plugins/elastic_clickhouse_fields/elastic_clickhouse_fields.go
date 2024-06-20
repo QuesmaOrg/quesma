@@ -209,9 +209,9 @@ func (t *columNameFormatter) Format(namespace, columnName string) string {
 type Dot2DoubleColons struct{}
 
 func (p *Dot2DoubleColons) matches(table string) bool {
-	// TODO this breaks geo stuff
-	//return !strings.HasPrefix(table, "kibana_")
-	return true
+	// TODO this breaks geo stuff,
+	// so we disable it for e-commerce data
+	return !strings.HasPrefix(table, "kibana_sample_data_ecommerce")
 }
 
 func (p *Dot2DoubleColons) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
@@ -245,8 +245,8 @@ func (p *Dot2DoubleColons) GetTableColumnFormatter(table string, cfg config.Ques
 type Dot2DoubleColons2Dot struct{}
 
 func (*Dot2DoubleColons2Dot) matches(table string) bool {
-	//return strings.HasPrefix(table, "kibana_")
-	return false
+	// this is enabled for e-commerce data, it makes dashboard work
+	return strings.HasPrefix(table, "kibana_sample_data_ecommerce")
 }
 
 func (*Dot2DoubleColons2Dot) IngestTransformer() plugins.IngestTransformer {
