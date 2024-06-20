@@ -187,10 +187,12 @@ func (v *GeoIpVisitor) VisitWindowFunction(e model.WindowFunction) interface{} {
 
 func (v *GeoIpVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
 	if v.schemaRegistry == nil {
+		logger.Error().Msg("Schema registry is not set")
 		return e
 	}
 	schemaInstance, exists := v.schemaRegistry.FindSchema(schema.TableName(v.tableName))
 	if !exists {
+		logger.Error().Msgf("Schema fot table %s not found", v.tableName)
 		return e
 	}
 	var groupBy []model.Expr
@@ -237,9 +239,6 @@ func (v *GeoIpVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
 }
 
 func (s *SchemaCheckPass) applyGeoTransformations(query *model.Query) (*model.Query, error) {
-	if query.SelectCommand.WhereClause == nil {
-		return query, nil
-	}
 	fromTable := getFromTable(query.TableName)
 
 	geoIpVisitor := &GeoIpVisitor{tableName: fromTable, schemaRegistry: s.schemaRegistry}
