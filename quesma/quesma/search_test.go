@@ -434,8 +434,6 @@ func TestSearchTrackTotalCount(t *testing.T) {
 
 		actualMinusExpected, expectedMinusActual := util.MapDifference(responsePart, expectedResponseMap, true, true)
 		acceptableDifference := []string{"took", "_shards", "timed_out"}
-		pp.Println("JM: ACTUAL", actualMinusExpected)
-		pp.Println("JM: EXPECTED", expectedMinusActual)
 
 		assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 		assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))

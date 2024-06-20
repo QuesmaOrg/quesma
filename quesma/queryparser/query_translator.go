@@ -264,9 +264,7 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 			if _, isCount := query.Type.(typical_queries.Count); isCount {
 				if len(results[i]) > 0 && len(results[i][0].Cols) > 0 {
 					switch v := results[i][0].Cols[0].Value.(type) {
-					case uint64:
-						totalCount = int(v)
-					case int64:
+					case uint64, int64:
 						totalCount = int(v)
 					default:
 						logger.ErrorWithCtx(cw.Ctx).Msgf("failed extracting Count value SQL query result [%v]. Setting to 0", results[i])
@@ -298,10 +296,8 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 			for _, row := range results[i] {
 				if len(row.Cols) > 0 {
 					switch v := row.Cols[len(row.Cols)-1].Value.(type) {
-					case uint64:
+					case uint64, int:
 						totalCount += int(v)
-					case int:
-						totalCount += v
 					default:
 						logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v", v)
 					}
@@ -356,7 +352,6 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 	if hits != nil {
 		response.Hits = *hits
 	} else {
-		//response.Hits = model.SearchHits{Hits: make([]model.SearchHit, 0)}
 		response.Hits = model.SearchHits{Hits: []model.SearchHit{}}
 	}
 	if total != nil {
