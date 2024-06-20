@@ -62,7 +62,15 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 					hits["lat"] = col.ExtractValue(query.ctx)
 					colName = strings.TrimSuffix(col.ColName, "::lat")
 				}
-				sourceMap[colName] = hits
+				if _, ok := sourceMap[colName]; ok {
+					currentHits := sourceMap[colName].(model.JsonMap)
+					for k, v := range currentHits {
+						hits[k] = v
+					}
+					sourceMap[colName] = hits
+				} else {
+					sourceMap[colName] = hits
+				}
 
 			} else {
 				sourceMap[col.ColName] = col.ExtractValue(query.ctx)
