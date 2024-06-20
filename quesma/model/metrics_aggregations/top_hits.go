@@ -53,6 +53,7 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 			if col.ColType.Name == schema.TypePoint.Name {
 				colName := ""
 				hits := make(model.JsonMap)
+				// TODO merge both into one field
 				if strings.Contains(col.ColName, "::lon") {
 					hits["lon"] = col.ExtractValue(query.ctx)
 					colName = strings.TrimSuffix(col.ColName, "::lon")
