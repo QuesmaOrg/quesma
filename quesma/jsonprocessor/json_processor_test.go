@@ -96,8 +96,6 @@ func TestRewriteArrayOfObject_Transform(t *testing.T) {
 			gotJson := toJson(got)
 
 			assert.Equal(t, wantJson, gotJson)
-
 		})
 	}
-
 }
