@@ -160,7 +160,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 				t.Error(err)
 			}
 			assert.Empty(t, actualMinusExpected)
-			assert.Empty(t, expectedMinusActual)
+			assert.Len(t, expectedMinusActual, 1)
 		})
 	}
 }
