@@ -2,7 +2,6 @@ package metrics_aggregations
 
 import (
 	"context"
-	"fmt"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/schema"
@@ -49,11 +48,11 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 				withoutQuotes = col.ColName
 			}
 			colName, _ := strings.CutPrefix(withoutQuotes, `windowed_`)
-			fmt.Println(colName, col.ColName, col.Value, col.ColType.Name, schema.TypePoint.Name)
+
 			if col.ColType.Name == schema.TypePoint.Name {
-				colName := ""
 				hits := make(model.JsonMap)
-				// TODO merge both into one field
+				// TODO suffixes (::lat, ::lon) hardcoded for now
+				// due to insufficient information in the schema
 				if strings.Contains(col.ColName, "::lon") {
 					hits["lon"] = col.ExtractValue(query.ctx)
 					colName = strings.TrimSuffix(col.ColName, "::lon")
