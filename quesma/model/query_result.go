@@ -82,16 +82,6 @@ func (c QueryResultCol) ExtractValue(ctx context.Context) any {
 		return v.Elem().Interface()
 	}
 
-	if v.Kind() == reflect.Slice {
-		if v.Len() == 0 {
-			return nil
-		}
-		// TODO for now, just return the first element
-		// we should probably return a slice of interfaces
-		// or string representation of the slice
-		return v.Index(0).Interface()
-	}
-
 	return c.Value
 }
 
