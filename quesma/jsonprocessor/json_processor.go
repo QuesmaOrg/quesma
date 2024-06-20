@@ -30,7 +30,7 @@ func (t *RewriteArrayOfObject) rewrite(array []interface{}) (map[string]interfac
 	for i, el := range array {
 
 		if obj, ok := el.(map[string]interface{}); ok {
-			for key, _ := range obj {
+			for key := range obj {
 				fields[key] = true
 			}
 		} else {
