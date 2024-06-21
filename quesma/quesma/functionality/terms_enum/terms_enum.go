@@ -1,4 +1,4 @@
-package termsenum
+package terms_enum
 
 import (
 	"context"
