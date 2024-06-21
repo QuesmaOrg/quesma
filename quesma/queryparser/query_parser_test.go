@@ -66,11 +66,10 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 				}
 			}
 			assert.Contains(t, queryTypes, tt.WantedQueryType, "equals to wanted query type")
+			for _, wantedSQL := range tt.WantedSql {
+				assert.Contains(t, whereClause, wantedSQL, "query contains wanted sql")
+			}
 			if simpleListQuery != nil {
-				for _, wantedSQL := range tt.WantedSql {
-					assert.Contains(t, simpleListQuery.SelectCommand.String(), wantedSQL, "query contains wanted sql")
-				}
-				assert.True(t, simpleListQuery.CanParse, "can parse")
 				assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), simpleListQuery.SelectCommand.FromClause)
 				assert.Equal(t, []model.Expr{model.NewWildcardExpr}, simpleListQuery.SelectCommand.Columns)
 			}
@@ -118,7 +117,6 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 				assert.Contains(t, whereClause, wantedSQL, "query contains wanted sql")
 			}
 			if simpleListQuery != nil {
-				assert.True(t, simpleListQuery.CanParse, "can parse")
 				assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), simpleListQuery.SelectCommand.FromClause)
 				assert.Equal(t, []model.Expr{model.NewWildcardExpr}, simpleListQuery.SelectCommand.Columns)
 			}
@@ -162,7 +160,6 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			assert.Contains(t, queryTypes, tt.WantedQueryType)
 
 			if simpleListQuery != nil {
-				assert.True(t, simpleListQuery.CanParse, "can parse")
 				assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), simpleListQuery.SelectCommand.FromClause)
 				assert.Equal(t, []model.Expr{model.NewWildcardExpr}, simpleListQuery.SelectCommand.Columns)
 			}

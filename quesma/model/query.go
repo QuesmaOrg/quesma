@@ -12,7 +12,6 @@ const (
 type (
 	Query struct {
 		SelectCommand SelectCommand // The representation of SELECT query
-		CanParse      bool          // true <=> query is valid
 
 		// Eventually we should merge this two
 		QueryInfoType SearchQueryType
