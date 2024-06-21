@@ -3,7 +3,6 @@ package clickhouse
 import (
 	"fmt"
 	"math"
-	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/util"
 	"reflect"
 	"strings"
@@ -198,7 +197,7 @@ func ResolveType(clickHouseTypeName string) reflect.Type {
 	switch clickHouseTypeName {
 	case "String", "LowCardinality(String)", "UUID":
 		return reflect.TypeOf("")
-	case "DateTime64", "DateTime", "Date":
+	case "DateTime64", "DateTime", "Date", "DateTime64(3)":
 		return reflect.TypeOf(time.Time{})
 	case "UInt8", "UInt16", "UInt32", "UInt64":
 		return reflect.TypeOf(uint64(0))
@@ -256,8 +255,8 @@ func NewType(value any) Type {
 		}
 		return CompoundType{Name: "Array", BaseType: NewType(valueCasted[0])}
 	}
-	logger.Error().Msgf("unknown type for value: %v. Supposedly, should be unreachable.", value)
-	return nil // should be unreachable
+
+	panic(fmt.Sprintf("Unsupported type '%T' of value: %v.", value, value))
 }
 
 func NewTable(createTableQuery string, config *ChTableConfig) (*Table, error) {
