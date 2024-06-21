@@ -17,7 +17,9 @@ func AsString(expr Expr) string {
 }
 
 func (v *renderer) VisitColumnRef(e ColumnRef) interface{} {
-	return strconv.Quote(strings.TrimSuffix(e.ColumnName, ".keyword"))
+	name := strings.TrimSuffix(e.ColumnName, ".keyword")
+	name = strings.TrimSuffix(name, "::keyword") // Not sure if this is the best place to do this
+	return strconv.Quote(name)
 }
 
 func (v *renderer) VisitPrefixExpr(e PrefixExpr) interface{} {

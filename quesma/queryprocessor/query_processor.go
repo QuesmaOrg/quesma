@@ -3,6 +3,7 @@ package queryprocessor
 import (
 	"context"
 	"mitmproxy/quesma/model"
+	"reflect"
 )
 
 type QueryProcessor struct {
@@ -15,8 +16,28 @@ func NewQueryProcessor(ctx context.Context) QueryProcessor {
 
 // Returns if row1 and row2 have the same values for the first level fields
 func (qp *QueryProcessor) sameGroupByFields(row1, row2 model.QueryResultRow, level int) bool {
+
+	isArray := func(val interface{}) bool {
+		if val == nil {
+			return false
+		}
+		v := reflect.ValueOf(val)
+		return v.Kind() == reflect.Slice || v.Kind() == reflect.Array
+	}
+
 	for i := 0; i < level; i++ {
-		if row1.Cols[i].ExtractValue(qp.ctx) != row2.Cols[i].ExtractValue(qp.ctx) {
+		val1 := row1.Cols[i].Value
+		val2 := row2.Cols[i].Value
+		isArray1 := isArray(val1)
+		isArray2 := isArray(val2)
+
+		if !isArray1 && !isArray2 {
+			if row1.Cols[i].ExtractValue(qp.ctx) != row2.Cols[i].ExtractValue(qp.ctx) {
+				return false
+			}
+		} else if isArray1 && isArray2 {
+			return reflect.DeepEqual(val1, val2)
+		} else {
 			return false
 		}
 	}

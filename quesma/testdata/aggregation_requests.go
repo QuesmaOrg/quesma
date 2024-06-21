@@ -594,11 +594,11 @@ var AggregationTests = []AggregationTestCase{
 			},
 			"runtime_mappings": {},
 			"script_fields": {},
-			"size": 2,
+			"size": 0,
 			"stored_fields": [
 				"*"
 			],
-			"track_total_hits": 1
+			"track_total_hits": true
 		}`,
 		`{
 			"completion_time_in_millis": 1707818398420,
