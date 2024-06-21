@@ -77,6 +77,7 @@ func Test_resolveColumn(t *testing.T) {
 			args: args{colName: "tags", colType: "Array(DateTime64)"},
 			want: &Column{Name: "tags", Type: CompoundType{Name: "Array", BaseType: BaseType{Name: "DateTime64", goType: reflect.TypeOf(time.Time{})}}},
 		},
+
 		{
 			name: "Tuple",
 			args: args{colName: "tuple", colType: "Tuple(taxful_price Float64, product_id Int64, category String, created_on DateTime64(3), manufacturer String)"},
@@ -132,6 +133,11 @@ func Test_resolveColumn(t *testing.T) {
 					},
 				},
 			},
+		},
+		{
+			name: "Array(DateTime64(3))",
+			args: args{colName: "tags", colType: "Array(DateTime64(3))"},
+			want: &Column{Name: "tags", Type: CompoundType{Name: "Array", BaseType: BaseType{Name: "DateTime64(3)", goType: reflect.TypeOf(time.Time{})}}},
 		},
 	}
 
