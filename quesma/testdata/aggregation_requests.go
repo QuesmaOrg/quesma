@@ -2156,7 +2156,7 @@ var AggregationTests = []AggregationTestCase{
 				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
 				`AND "message" iLIKE '%user%') LIMIT 3)`,
-			`SELECT "host.name" AS "key", count() AS "doc_count" ` +
+			`SELECT "host.name", count() ` +
 				`FROM (SELECT "host.name" FROM ` + QuotedTableName + ` ` +
 				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +

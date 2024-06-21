@@ -540,10 +540,9 @@ var aggregationTests = []struct {
 				  "size": 0
 			}`,
 		[]string{
-			`SELECT floor("bytes"/1782.000000)*1782.000000, count() FROM ` + tableNameQuoted + ` ` +
+			`SELECT floor("bytes"/1782.000000)*1782.000000, count() FROM (SELECT 1 FROM ` + tableNameQuoted + ` LIMIT 20000) ` +
 				`GROUP BY floor("bytes"/1782.000000)*1782.000000 ` +
 				`ORDER BY floor("bytes"/1782.000000)*1782.000000`,
-			`SELECT count() FROM ` + tableNameQuoted,
 		},
 	},
 }
