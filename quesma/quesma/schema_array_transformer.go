@@ -168,6 +168,7 @@ func (v *ArrayTypeVisitor) VisitWindowFunction(e model.WindowFunction) interface
 }
 
 func (v *ArrayTypeVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
+
 	if v.schemaRegistry == nil {
 		logger.Error().Msg("Schema registry is not set")
 		return e
@@ -181,7 +182,36 @@ func (v *ArrayTypeVisitor) VisitSelectCommand(e model.SelectCommand) interface{}
 	v.schema = sch
 
 	table := v.logManager.FindTable(v.tableName)
+	if table == nil {
+		logger.Error().Msgf("Table %s not found", v.tableName)
+		return e
+	}
+
 	v.table = table
+
+	// check if the query has array columns
+
+	var allColumns []model.ColumnRef
+	for _, expr := range e.Columns {
+		allColumns = append(allColumns, model.GetUsedColumns(expr)...)
+	}
+	if e.WhereClause != nil {
+		allColumns = append(allColumns, model.GetUsedColumns(e.WhereClause)...)
+	}
+
+	hasArrayColumn := false
+	for _, col := range allColumns {
+		dbType := v.dbColumnType(col.ColumnName)
+		if strings.HasPrefix(dbType, "Array") {
+			hasArrayColumn = true
+			break
+		}
+	}
+	
+	// no array columns, no need to transform
+	if !hasArrayColumn {
+		return e
+	}
 
 	// transformation
 
