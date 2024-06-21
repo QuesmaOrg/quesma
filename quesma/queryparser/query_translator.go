@@ -409,7 +409,6 @@ func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sam
 			false,
 		),
 		TableName: cw.Table.FullTableName(),
-		CanParse:  true,
 		Type:      typical_queries.NewCount(cw.Ctx),
 	}
 }
@@ -431,7 +430,6 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, wh
 			true,
 		),
 		TableName: cw.Table.FullTableName(),
-		CanParse:  true,
 	}
 }
 
@@ -454,7 +452,6 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 			false,
 		),
 		TableName: cw.Table.FullTableName(),
-		CanParse:  true,
 	}
 }
 
@@ -479,7 +476,6 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 			false,
 		),
 		TableName: cw.Table.FullTableName(),
-		CanParse:  true,
 		Type:      typ,
 	}
 }
@@ -506,7 +502,6 @@ func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName stri
 			false,
 		),
 		TableName: cw.Table.FullTableName(),
-		CanParse:  true,
 	}
 }
 

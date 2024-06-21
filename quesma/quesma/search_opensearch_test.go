@@ -42,18 +42,25 @@ func TestSearchOpensearch(t *testing.T) {
 
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
-			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(body)
-			assert.True(t, simpleQuery.CanParse, "can parse")
-			whereClause := simpleQuery.WhereClauseAsString()
+			queries, canParse, err := cw.ParseQuery(body)
+			assert.True(t, canParse, "can parse")
+			assert.NoError(t, err, "no ParseQuery error")
+			assert.True(t, len(queries) > 0, "len queries > 0")
+			whereClause := model.AsString(queries[0].SelectCommand.WhereClause)
 			assert.Contains(t, tt.WantedSql, whereClause, "contains wanted sql")
-			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
+
+			queryTypes := make(map[model.SearchQueryType]interface{})
+			for _, query := range queries {
+				queryTypes[query.QueryInfoType] = true
+			}
+			assert.Contains(t, queryTypes, tt.WantedQueryType, "equals to wanted query type")
 
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
-			_, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
-			assert.NoError(t, err)
+			_, err2 := queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
+			assert.NoError(t, err2)
 
 			if err = mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)

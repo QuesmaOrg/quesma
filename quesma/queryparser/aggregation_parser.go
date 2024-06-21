@@ -232,7 +232,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 
 	default:
 		logger.WarnWithCtx(b.ctx).Msgf("unknown metrics aggregation: %s", metricsAggr.AggrType)
-		query.CanParse = false
+		return nil
 	}
 	switch metricsAggr.AggrType {
 	case "sum":
@@ -386,7 +386,10 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 
 	// 1. Metrics aggregation => always leaf
 	if metricsAggrResult, isMetrics := cw.tryMetricsAggregation(queryMap); isMetrics {
-		*resultAccumulator = append(*resultAccumulator, currentAggr.buildMetricsAggregation(metricsAggrResult, metadata))
+		metricAggr := currentAggr.buildMetricsAggregation(metricsAggrResult, metadata)
+		if metricAggr != nil {
+			*resultAccumulator = append(*resultAccumulator, metricAggr)
+		}
 		return nil
 	}
 

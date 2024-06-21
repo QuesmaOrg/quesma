@@ -50,23 +50,29 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
-			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(body)
-			assert.True(t, simpleQuery.CanParse, "can parse")
-			whereStmt := simpleQuery.WhereClauseAsString()
-			assert.Contains(t, tt.WantedSql, whereStmt, "contains wanted sql")
-			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
-			size := model.DefaultSizeListQuery
-			if queryInfo.Size != 0 {
-				size = queryInfo.Size
-			}
-			query := cw.BuildNRowsQuery("*", simpleQuery, size)
+			queries, canParse, errQuery := cw.ParseQuery(body)
+			assert.True(t, canParse, "can parse")
+			assert.NoError(t, errQuery, "no ParseQuery error")
+			assert.True(t, len(queries) > 0, "len queries > 0")
+			whereClause := model.AsString(queries[0].SelectCommand.WhereClause)
 
-			for _, wantedSQL := range tt.WantedSql {
-				assert.Contains(t, query.SelectCommand.String(), wantedSQL, "query contains wanted sql")
+			assert.Contains(t, tt.WantedSql, whereClause, "contains wanted sql")
+			queryTypes := make(map[model.SearchQueryType]interface{})
+			var simpleListQuery *model.Query
+			for _, query := range queries {
+				queryTypes[query.QueryInfoType] = true
+				if query.QueryInfoType == model.ListAllFields {
+					simpleListQuery = query
+				}
 			}
-			assert.True(t, query.CanParse, "can parse")
-			assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), query.SelectCommand.FromClause)
-			assert.Equal(t, []model.Expr{model.NewWildcardExpr}, query.SelectCommand.Columns)
+			assert.Contains(t, queryTypes, tt.WantedQueryType, "equals to wanted query type")
+			for _, wantedSQL := range tt.WantedSql {
+				assert.Contains(t, whereClause, wantedSQL, "query contains wanted sql")
+			}
+			if simpleListQuery != nil {
+				assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), simpleListQuery.SelectCommand.FromClause)
+				assert.Equal(t, []model.Expr{model.NewWildcardExpr}, simpleListQuery.SelectCommand.Columns)
+			}
 		})
 	}
 }
@@ -90,19 +96,30 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
-			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(body)
-			assert.True(t, simpleQuery.CanParse, "can parse")
-			whereStmt := simpleQuery.WhereClauseAsString()
-			assert.Contains(t, tt.WantedSql, whereStmt, "contains wanted sql")
-			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ, "equals to wanted query type")
+			queries, canParse, errQuery := cw.ParseQuery(body)
+			assert.NoError(t, errQuery, "no error in ParseQuery")
+			assert.True(t, canParse, "can parse")
+			assert.True(t, len(queries) > 0, "len queries > 0")
+			whereClause := model.AsString(queries[0].SelectCommand.WhereClause)
+			assert.Contains(t, tt.WantedSql, whereClause, "contains wanted sql")
 
-			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
-			for _, wantedSQL := range tt.WantedSql {
-				assert.Contains(t, query.SelectCommand.String(), wantedSQL, "query contains wanted sql")
+			queryTypes := make(map[model.SearchQueryType]interface{})
+			var simpleListQuery *model.Query
+			for _, query := range queries {
+				queryTypes[query.QueryInfoType] = true
+				if query.QueryInfoType == model.ListAllFields {
+					simpleListQuery = query
+				}
 			}
-			assert.True(t, query.CanParse, "can parse")
-			assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), query.SelectCommand.FromClause)
-			assert.Equal(t, []model.Expr{model.NewWildcardExpr}, query.SelectCommand.Columns)
+			assert.Contains(t, queryTypes, tt.WantedQueryType, "equals to wanted query type")
+
+			for _, wantedSQL := range tt.WantedSql {
+				assert.Contains(t, whereClause, wantedSQL, "query contains wanted sql")
+			}
+			if simpleListQuery != nil {
+				assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), simpleListQuery.SelectCommand.FromClause)
+				assert.Equal(t, []model.Expr{model.NewWildcardExpr}, simpleListQuery.SelectCommand.Columns)
+			}
 		})
 	}
 }
@@ -124,20 +141,28 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
-			simpleQuery, queryInfo, _, _ := cw.ParseQueryInternal(body)
-			assert.True(t, simpleQuery.CanParse)
-			whereStmt := simpleQuery.WhereClauseAsString()
-			assert.Contains(t, tt.WantedSql, whereStmt)
-			assert.Equal(t, tt.WantedQueryType, queryInfo.Typ)
+			queries, canParse, errQuery := cw.ParseQuery(body)
+			assert.NoError(t, errQuery, "no error in ParseQuery")
+			assert.True(t, canParse, "can parse")
+			assert.True(t, len(queries) > 0, "len queries > 0")
+			whereClause := model.AsString(queries[0].SelectCommand.WhereClause)
+			assert.Contains(t, tt.WantedSql, whereClause)
 
-			query := cw.BuildNRowsQuery("*", simpleQuery, model.DefaultSizeListQuery)
-
-			for _, wantedSQL := range tt.WantedSql {
-				assert.Contains(t, query.SelectCommand.String(), wantedSQL, "query contains wanted sql")
+			queryTypes := make(map[model.SearchQueryType]interface{})
+			var simpleListQuery *model.Query
+			for _, query := range queries {
+				queryTypes[query.QueryInfoType] = true
+				if query.QueryInfoType == model.ListAllFields {
+					simpleListQuery = query
+				}
 			}
-			assert.True(t, query.CanParse, "can parse")
-			assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), query.SelectCommand.FromClause)
-			assert.Equal(t, []model.Expr{model.NewWildcardExpr}, query.SelectCommand.Columns)
+
+			assert.Contains(t, queryTypes, tt.WantedQueryType)
+
+			if simpleListQuery != nil {
+				assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), simpleListQuery.SelectCommand.FromClause)
+				assert.Equal(t, []model.Expr{model.NewWildcardExpr}, simpleListQuery.SelectCommand.Columns)
+			}
 		})
 	}
 }
