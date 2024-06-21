@@ -1,4 +1,4 @@
-package quesma
+package bulk
 
 import (
 	"context"
@@ -21,7 +21,7 @@ type (
 	}
 )
 
-func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *clickhouse.LogManager,
+func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *clickhouse.LogManager,
 	cfg config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []WriteResult) {
 	defer recovery.LogPanic()
 
@@ -91,20 +91,6 @@ func dualWriteBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON,
 		})
 	}
 	return results
-}
-
-func dualWrite(ctx context.Context, tableName string, body types.JSON, lm *clickhouse.LogManager, cfg config.QuesmaConfiguration) error {
-	stats.GlobalStatistics.Process(cfg, tableName, body, clickhouse.NestedSeparator)
-
-	defer recovery.LogPanic()
-	if len(body) == 0 {
-		return nil
-	}
-
-	withConfiguration(ctx, cfg, tableName, body, func() error {
-		return lm.ProcessInsertQuery(ctx, tableName, types.NDJSON{body})
-	})
-	return nil
 }
 
 var insertCounter = atomic.Int32{}

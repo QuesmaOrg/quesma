@@ -10,6 +10,8 @@ import (
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/errors"
+	"mitmproxy/quesma/quesma/functionality/bulk"
+	"mitmproxy/quesma/quesma/functionality/doc"
 	"mitmproxy/quesma/quesma/functionality/field_capabilities"
 	"mitmproxy/quesma/quesma/functionality/terms_enum"
 	"mitmproxy/quesma/quesma/mux"
@@ -48,7 +50,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 			return nil, err
 		}
 
-		results := dualWriteBulk(ctx, nil, body, lm, cfg, phoneHomeAgent)
+		results := bulk.Write(ctx, nil, body, lm, cfg, phoneHomeAgent)
 		return bulkInsertResult(results), nil
 	})
 
@@ -63,7 +65,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 			return nil, err
 		}
 
-		err = dualWrite(ctx, req.Params["index"], body, lm, cfg)
+		err = doc.Write(ctx, req.Params["index"], body, lm, cfg)
 		return indexDocResult(req.Params["index"], httpOk), err
 	})
 
@@ -75,7 +77,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 			return nil, err
 		}
 
-		results := dualWriteBulk(ctx, &index, body, lm, cfg, phoneHomeAgent)
+		results := bulk.Write(ctx, &index, body, lm, cfg, phoneHomeAgent)
 		return bulkInsertResult(results), nil
 	})
 
@@ -376,7 +378,7 @@ func elasticsearchQueryResult(body string, statusCode int) *mux.Result {
 	}, StatusCode: statusCode}
 }
 
-func bulkInsertResult(ops []WriteResult) *mux.Result {
+func bulkInsertResult(ops []bulk.WriteResult) *mux.Result {
 	body, err := json.Marshal(bulkResponse{
 		Errors: false,
 		Items:  toBulkItems(ops),
@@ -489,7 +491,7 @@ type (
 	}
 )
 
-func toBulkItems(ops []WriteResult) []any {
+func toBulkItems(ops []bulk.WriteResult) []any {
 	var items []any
 	for _, op := range ops {
 		items = append(items, bulkSingleResult(op.Operation, op.Index))
