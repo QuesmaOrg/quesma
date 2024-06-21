@@ -162,7 +162,6 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 			if _, ok := col.(ColumnRef); ok {
 				innerColumn = append(innerColumn, AsString(col))
 			}
-
 			if aliased, ok := col.(AliasedExpr); ok {
 				if v, ok := aliased.Expr.(ColumnRef); ok {
 					innerColumn = append(innerColumn, AsString(v))

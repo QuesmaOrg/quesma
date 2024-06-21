@@ -52,7 +52,7 @@ func Test_ipRangeTransform(t *testing.T) {
 			}},
 		}}
 	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
-	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
+	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: clickhouse.NewLogManagerEmpty()}
 
 	expectedQueries := []*model.Query{
 		{
