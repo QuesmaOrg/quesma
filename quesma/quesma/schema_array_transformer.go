@@ -207,7 +207,6 @@ func (v *ArrayTypeVisitor) VisitSelectCommand(e model.SelectCommand) interface{}
 			break
 		}
 	}
-	
 	// no array columns, no need to transform
 	if !hasArrayColumn {
 		return e
