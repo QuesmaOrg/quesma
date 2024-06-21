@@ -18,6 +18,8 @@ logging:
 indexes:
   kibana_sample_data_ecommerce:
     enabled: true
+    mappings:
+      products.manufacturer: "text"
   kibana_sample_data_flights:
     enabled: true
     mappings:
