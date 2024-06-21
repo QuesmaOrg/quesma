@@ -40,7 +40,6 @@ func TestNoAsciiTableName(t *testing.T) {
 	assert.Equal(t, model.ListAllFields, queryInfo.Typ)
 	const Limit = 1000
 	query := queryTranslator.BuildNRowsQuery("*", &simpleQuery, Limit)
-	assert.True(t, query.CanParse)
 	assert.Equal(t, fmt.Sprintf(`SELECT * FROM "%s" LIMIT %d`, tableName, Limit), query.SelectCommand.String())
 }
 

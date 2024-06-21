@@ -10,6 +10,9 @@ type renderer struct{}
 
 // AsString renders the given expression to string which can be used to build SQL query
 func AsString(expr Expr) string {
+	if expr == nil {
+		return ""
+	}
 	return expr.Accept(&renderer{}).(string)
 }
 
