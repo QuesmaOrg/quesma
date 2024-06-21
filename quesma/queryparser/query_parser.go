@@ -40,17 +40,13 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]*model.Query
 	if countQuery := cw.buildCountQueryIfNeeded(simpleQuery, queryInfo); countQuery != nil {
 		queries = append(queries, countQuery)
 	}
-	facetsQuery := cw.buildFacetsQueryIfNeeded(simpleQuery, queryInfo)
-	if facetsQuery != nil {
-		queries = append(queries, facetsQuery)
-	} else {
-		aggregationQueries, err := cw.ParseAggregationJson(body)
-		if err != nil {
-			logger.WarnWithCtx(cw.Ctx).Msgf("error parsing aggregation: %v", err)
-		}
-		if aggregationQueries != nil {
-			queries = append(queries, aggregationQueries...)
-		}
+	//facetsQuery cw.buildFacetsQueryIfNeeded(simpleQuery, queryInfo)
+	aggregationQueries, err := cw.ParseAggregationJson(body)
+	if err != nil {
+		logger.WarnWithCtx(cw.Ctx).Msgf("error parsing aggregation: %v", err)
+	}
+	if aggregationQueries != nil {
+		queries = append(queries, aggregationQueries...)
 	}
 	if listQuery := cw.buildListQueryIfNeeded(simpleQuery, queryInfo, highlighter); listQuery != nil {
 		queries = append(queries, listQuery)

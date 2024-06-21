@@ -989,7 +989,7 @@ func (cw *ClickhouseQueryTranslator) parseSampler(sampler any) int {
 		logger.WarnWithCtx(cw.Ctx).Msgf("sampler is not a map, but %v", queryMap)
 		return 0
 	}
-	if shardCountRaw, exists := queryMap["shard_count"]; exists {
+	if shardCountRaw, exists := queryMap["shard_size"]; exists {
 		if shardCount, ok := shardCountRaw.(float64); ok {
 			if shardCount < 0 {
 				logger.WarnWithCtx(cw.Ctx).Msgf("shard_count is negative: %f. Skipping", shardCount)
