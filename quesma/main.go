@@ -62,7 +62,7 @@ func main() {
 
 	schemaManagement := clickhouse.NewSchemaManagement(connectionPool)
 	schemaLoader := clickhouse.NewTableDiscovery(cfg, schemaManagement)
-	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: schemaLoader}, cfg, clickhouse.SchemaTypeAdapter{}, elasticsearch.SchemaTypeAdapter{})
+	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: schemaLoader}, cfg, clickhouse.SchemaTypeAdapter{})
 
 	lm := clickhouse.NewEmptyLogManager(cfg, connectionPool, phoneHomeAgent, schemaLoader)
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())

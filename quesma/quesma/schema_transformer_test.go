@@ -3,7 +3,6 @@ package quesma
 import (
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/schema"
@@ -52,7 +51,7 @@ func Test_ipRangeTransform(t *testing.T) {
 				"clientip":     {Name: "clientip", Type: "ip"},
 			}},
 		}}
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{}, elasticsearch.SchemaTypeAdapter{})
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
 	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s}
 
 	expectedQueries := []*model.Query{
