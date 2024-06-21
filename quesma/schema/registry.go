@@ -14,7 +14,6 @@ type (
 		configuration           config.QuesmaConfiguration
 		dataSourceTableProvider TableProvider
 		dataSourceTypeAdapter   typeAdapter
-		connectorTypeAdapter    typeAdapter
 	}
 	typeAdapter interface {
 		Convert(string) (Type, bool)
@@ -71,12 +70,11 @@ func (s *schemaRegistry) FindSchema(name TableName) (Schema, bool) {
 	}
 }
 
-func NewSchemaRegistry(tableProvider TableProvider, configuration config.QuesmaConfiguration, dataSourceTypeAdapter, connectorTypeAdapter typeAdapter) Registry {
+func NewSchemaRegistry(tableProvider TableProvider, configuration config.QuesmaConfiguration, dataSourceTypeAdapter typeAdapter) Registry {
 	return &schemaRegistry{
 		configuration:           configuration,
 		dataSourceTableProvider: tableProvider,
 		dataSourceTypeAdapter:   dataSourceTypeAdapter,
-		connectorTypeAdapter:    connectorTypeAdapter,
 	}
 }
 
