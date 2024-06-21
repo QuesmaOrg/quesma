@@ -390,8 +390,12 @@ func TestSearchTrackTotalCount(t *testing.T) {
 		lm := clickhouse.NewLogManagerWithConnection(db, table)
 		managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan tracing.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
 
-		for _, sql := range testcase.ExpectedSQLs {
-			mock.ExpectQuery(testdata.EscapeBrackets(sql)).WillReturnRows(sqlmock.NewRows([]string{"", ""}))
+		for i, sql := range testcase.ExpectedSQLs {
+			rows := sqlmock.NewRows([]string{testcase.ExpectedSQLResults[i][0].Cols[0].ColName})
+			for _, row := range testcase.ExpectedSQLResults[i] {
+				rows.AddRow(row.Cols[0].Value)
+			}
+			mock.ExpectQuery(testdata.EscapeBrackets(sql)).WillReturnRows(rows)
 		}
 
 		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
@@ -424,7 +428,15 @@ func TestSearchTrackTotalCount(t *testing.T) {
 			responsePart = responseMap["response"].(model.JsonMap)
 		}
 
-		pp.Println(responsePart)
+		assert.NotNil(t, testcase.ExpectedResponse, "ExpectedResponse is nil")
+		expectedResponseMap, err := util.JsonToMap(testcase.ExpectedResponse)
+		assert.NoError(t, err, "error unmarshalling expected response:")
+
+		actualMinusExpected, expectedMinusActual := util.MapDifference(responsePart, expectedResponseMap, true, true)
+		acceptableDifference := []string{"took", "_shards", "timed_out"}
+
+		assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
+		assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
 	}
 
 	handlers := []string{"handleSearch", "handleAsyncSearch"}

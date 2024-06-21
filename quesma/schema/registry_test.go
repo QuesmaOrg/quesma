@@ -2,7 +2,6 @@ package schema_test
 
 import (
 	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/schema"
 	"reflect"
@@ -210,7 +209,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := schema.NewSchemaRegistry(tt.tableDiscovery, tt.cfg, clickhouse.SchemaTypeAdapter{}, elasticsearch.SchemaTypeAdapter{})
+			s := schema.NewSchemaRegistry(tt.tableDiscovery, tt.cfg, clickhouse.SchemaTypeAdapter{})
 			resultSchema, resultFound := s.FindSchema(tt.tableName)
 			if resultFound != tt.exists {
 				t.Errorf("FindSchema() got1 = %v, want %v", resultFound, tt.exists)

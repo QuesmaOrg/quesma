@@ -661,7 +661,10 @@ func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]mo
 	if err != nil {
 		return nil, err
 	}
-	return res, nil
+
+	// TODO this should be created in different place
+	geoIpTransformer := GeoIpResultTransformer{schemaRegistry: q.schemaRegistry, fromTable: table.Name}
+	return geoIpTransformer.Transform(res)
 }
 
 func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, Path string, IncomingQueryBody, QueryBodyTranslated, QueryTranslatedResults []byte, startTime time.Time) {

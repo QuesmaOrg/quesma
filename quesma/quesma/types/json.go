@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/barkimedes/go-deepcopy"
 	"github.com/tailscale/hujson"
 )
 
@@ -63,9 +64,9 @@ func (j JSON) ShortString() string {
 }
 
 func (j JSON) Clone() JSON {
-	clone := make(JSON)
-	for k, v := range j {
-		clone[k] = v
+	cloned, err := deepcopy.Anything(j)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to clone JSON, err: %v, json: %v", err, j))
 	}
-	return clone
+	return cloned.(JSON)
 }
