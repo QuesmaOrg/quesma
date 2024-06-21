@@ -71,12 +71,13 @@ type QueryRunner struct {
 
 func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry) *QueryRunner {
 	ctx, cancel := context.WithCancel(context.Background())
+
 	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc,
 		executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult](),
 		AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext](),
 		transformationPipeline: TransformationPipeline{
 			transformers: []plugins.QueryTransformer{
-				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry}, // this can be a part of another plugin
+				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry, logManager: lm}, // this can be a part of another plugin
 			},
 		}, schemaRegistry: schemaRegistry}
 

@@ -1,6 +1,7 @@
 package quesma
 
 import (
+	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/config"
@@ -126,6 +127,7 @@ func (v *WhereVisitor) VisitWindowFunction(e model.WindowFunction) interface{}  
 type SchemaCheckPass struct {
 	cfg            map[string]config.IndexConfiguration
 	schemaRegistry schema.Registry
+	logManager     *clickhouse.LogManager
 }
 
 // This functions trims the db name from the table name if exists
@@ -249,6 +251,17 @@ func (s *SchemaCheckPass) applyGeoTransformations(query *model.Query) (*model.Qu
 	return query, nil
 }
 
+func (s *SchemaCheckPass) applyArrayTransformations(query *model.Query) (*model.Query, error) {
+	fromTable := getFromTable(query.TableName)
+
+	visitor := &ArrayTypeVisitor{tableName: fromTable, schemaRegistry: s.schemaRegistry, logManager: s.logManager}
+	expr := query.SelectCommand.Accept(visitor)
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 	for k, query := range queries {
 		var err error
@@ -258,6 +271,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 		}{
 			{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
 			{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
+			{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
 		}
 		for _, transformation := range transformationChain {
 			inputQuery := query.SelectCommand.String()
