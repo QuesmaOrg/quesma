@@ -854,6 +854,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	if sampler, ok := queryMap["sampler"]; ok {
 		currentAggr.Type = metrics_aggregations.NewCount(cw.Ctx) // TODO: We don't need it always
 		currentAggr.SelectCommand.SampleLimit = cw.parseSampler(sampler)
+		success = false // we are not adding count for sampler
 		delete(queryMap, "sampler")
 		return
 	}
