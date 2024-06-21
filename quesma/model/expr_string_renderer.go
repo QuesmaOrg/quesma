@@ -167,13 +167,6 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 				if v, ok := aliased.Expr.(ColumnRef); ok {
 					innerColumn = append(innerColumn, AsString(v))
 				}
-
-				// this is a HACK^2 - while processing array types we replace fields with function calls
-				if v, ok := aliased.Expr.(FunctionExpr); ok {
-					if v.Name == "arrayJoin" {
-						innerColumn = append(innerColumn, AsString(v.Args[0]))
-					}
-				}
 			}
 		}
 		if len(innerColumn) == 0 {

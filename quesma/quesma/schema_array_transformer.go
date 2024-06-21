@@ -10,6 +10,13 @@ import (
 	"strings"
 )
 
+//
+//
+// Do not use `arrayJoin` here. It's considered harmful.
+//
+//
+//
+
 type ArrayTypeVisitor struct {
 	tableName string
 	table     *clickhouse.Table
@@ -57,17 +64,12 @@ func (v *ArrayTypeVisitor) VisitInfix(e model.InfixExpr) interface{} {
 		if strings.HasPrefix(dbType, "Array") {
 			switch {
 
-			case e.Op == "ILIKE" && dbType == "Array(String)":
+			case e.Op == "iLIKE" && dbType == "Array(String)":
 
-				// here we can use arrayJoin to "multiply" rows
+				// TODO replace with proper AST
+				lambda := fmt.Sprintf("tag -> tag %s %s", e.Op, model.AsString(e.Right))
 
-				// or use arrayFilter  and provide "LIKE" as a predicate
-				// it will require to support lambda expression in our AST
-
-				//https://clickhouse.com/docs/en/sql-reference/functions/array-functions#arrayfilterfunc-arr1-
-
-				wrapped := model.NewFunction("arrayJoin", e.Left)
-				return model.NewInfixExpr(wrapped, "LIKE", e.Right.Accept(v).(model.Expr))
+				return model.NewFunction("arrayExists", model.NewStringExpr(lambda), e.Left)
 
 			case e.Op == "=":
 				return model.NewFunction("has", e.Left, e.Right.Accept(v).(model.Expr))
@@ -100,9 +102,6 @@ func (v *ArrayTypeVisitor) VisitFunction(e model.FunctionExpr) interface{} {
 			dbType := v.dbColumnType(column.ColumnName)
 			if strings.HasPrefix(dbType, "Array") {
 				switch {
-
-				// this is how we can transform aggregation on array fields
-				// another option is to use rewrite query to arrayJoin
 
 				case e.Name == "sumOrNull" && dbType == "Array(Int64)":
 					fnName := model.LiteralExpr{Value: fmt.Sprintf("'%s'", e.Name)}
@@ -220,116 +219,29 @@ func (v *ArrayTypeVisitor) VisitSelectCommand(e model.SelectCommand) interface{}
 	table := v.logManager.FindTable(v.tableName)
 	v.table = table
 
-	// discovery
-
-	var groupByColumns []model.ColumnRef
-	for _, expr := range e.GroupBy {
-		groupByColumns = append(groupByColumns, model.GetUsedColumns(expr)...)
-	}
-
-	arrayColumnsInGroupBy := make(map[string]bool)
-	for _, col := range groupByColumns {
-		if strings.HasPrefix(v.dbColumnType(col.ColumnName), "Array") {
-			arrayColumnsInGroupBy[col.ColumnName] = true
-		}
-	}
-	isGroupBy := len(arrayColumnsInGroupBy) > 0
-
-	var hasTableNameInFromClause bool
-	if e.FromClause != nil {
-		if _, ok := e.FromClause.(model.TableRef); ok {
-			hasTableNameInFromClause = true
-		}
-	}
-
 	// transformation
 
-	switch {
-
-	case isGroupBy && hasTableNameInFromClause:
-
-		// We can rewrite aggregation query as follows.
-		// CTE could be more elegant but our AST does not support it.
-		//
-		// Not sure how clickhouses handles arrayJoin. What is a performance impact?
-		//
-		// FROM: select a, count() from table group by a
-		//   TO: select a, count() from (select arrayJoin(a) as a from table) group by a
-
-		var columnsToAdd []model.ColumnRef
-
-		// here we gather all columns that are used in the main query
-		for _, expr := range e.GroupBy {
-			columnsToAdd = append(columnsToAdd, model.GetUsedColumns(expr)...)
-		}
-		for _, expr := range e.Columns {
-			columnsToAdd = append(columnsToAdd, model.GetUsedColumns(expr)...)
-		}
-		for _, expr := range e.OrderBy {
-			columnsToAdd = append(columnsToAdd, model.GetUsedColumns(expr)...)
-		}
-		if e.WhereClause != nil {
-			columnsToAdd = append(columnsToAdd, model.GetUsedColumns(e.WhereClause)...)
-		}
-
-		// then add  them to the inner query
-		var columns []model.Expr
-
-		arrayColumns, otherColumns := v.splitIntoArrayAndNonArrayColumns(columnsToAdd)
-
-		for _, name := range otherColumns {
-			columns = append(columns, name)
-		}
-
-		for _, col := range arrayColumns {
-
-			// this is a HACK
-			dbColumName := strings.TrimSuffix(col.ColumnName, ".keyword")
-			dbColumName = strings.ReplaceAll(dbColumName, ".", "::")
-			dbColumName = fmt.Sprintf("%s", dbColumName)
-
-			columns = append(columns, model.NewAliasedExpr(model.NewFunction("arrayJoin", model.NewColumnRef(dbColumName)), dbColumName))
-		}
-
-		from := model.TableRef{Name: v.tableName}
-
-		subQuery := model.NewSelectCommand(columns, nil, nil,
-			from, nil, 0, 0, false)
-
-		subQuery.DisableHack = true
-
-		query := model.NewSelectCommand(e.Columns, e.GroupBy, e.OrderBy, subQuery, e.WhereClause, e.Limit, e.SampleLimit, e.IsDistinct)
-		query.DisableHack = true
-
-		return query
-
-	default:
-
-		// this is naive transformation, only for simple queries
-
-		var groupBy []model.Expr
-		for _, expr := range e.GroupBy {
-			groupBy = append(groupBy, expr.Accept(v).(model.Expr))
-		}
-
-		var columns []model.Expr
-		for _, expr := range e.Columns {
-			columns = append(columns, expr.Accept(v).(model.Expr))
-		}
-
-		var fromClause model.Expr
-		if e.FromClause != nil {
-			fromClause = e.FromClause.Accept(v).(model.Expr)
-		}
-
-		var whereClause model.Expr
-		if e.WhereClause != nil {
-			whereClause = e.WhereClause.Accept(v).(model.Expr)
-		}
-
-		return model.NewSelectCommand(columns, groupBy, e.OrderBy,
-			fromClause, whereClause, e.Limit, e.SampleLimit, e.IsDistinct)
-
+	var groupBy []model.Expr
+	for _, expr := range e.GroupBy {
+		groupBy = append(groupBy, expr.Accept(v).(model.Expr))
 	}
+
+	var columns []model.Expr
+	for _, expr := range e.Columns {
+		columns = append(columns, expr.Accept(v).(model.Expr))
+	}
+
+	var fromClause model.Expr
+	if e.FromClause != nil {
+		fromClause = e.FromClause.Accept(v).(model.Expr)
+	}
+
+	var whereClause model.Expr
+	if e.WhereClause != nil {
+		whereClause = e.WhereClause.Accept(v).(model.Expr)
+	}
+
+	return model.NewSelectCommand(columns, groupBy, e.OrderBy,
+		fromClause, whereClause, e.Limit, e.SampleLimit, e.IsDistinct)
 
 }
