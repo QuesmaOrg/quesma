@@ -11,6 +11,8 @@ type SelectCommand struct {
 
 	Limit       int // LIMIT clause, noLimit (0) means no limit
 	SampleLimit int // LIMIT, but before grouping, 0 means no limit
+
+	DisableHack bool // HACK ALERT: if true, the hacky code in AsString() will not be executed
 }
 
 func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, where Expr, limit, sampleLimit int, isDistinct bool) *SelectCommand {

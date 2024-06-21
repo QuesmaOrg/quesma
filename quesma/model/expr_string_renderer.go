@@ -155,7 +155,7 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	//  WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND
 	//    "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))
 	//  LIMIT 12)
-	if c.SampleLimit > 0 {
+	if c.SampleLimit > 0 && !c.DisableHack {
 		sb.WriteString("(SELECT ")
 		innerColumn := make([]string, 0)
 		for _, col := range c.Columns {
