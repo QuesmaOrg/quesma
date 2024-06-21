@@ -62,6 +62,33 @@ func TestRewriteArrayOfObject_Transform(t *testing.T) {
 			ingres: `{"key": 1, "array": [{"a": 1, "b": 2}, {"a": 3, "b": 4}]}`,
 			want:   `{"key": 1, "array": {"a": [1, 3], "b": [2, 4]}}`,
 		},
+		{
+			name:   "Rewrite array of objects. Keep array of non objects",
+			ingres: `{"key": 1, "array": [{"a": 1, "b": [3,4]}, {"a": 3, "b": [5,6]}]}`,
+			want:   `{"key": 1, "array": {"a": [1, 3], "b": [[3,4], [5,6]]}}`,
+		},
+
+		{
+			name:   "Do not touch array of non objects",
+			ingres: `{"a": [1,2]}`,
+			want:   `{"a": [1,2]}`,
+		},
+
+		{
+			name:   "Do not touch non-array objects",
+			ingres: `{"a": {"b": 2}}`,
+			want:   `{"a": {"b": 2}}`,
+		},
+		{
+			name:   "Do not touch nested objects",
+			ingres: `{"a": {"b": {"c": 2}}}`,
+			want:   `{"a": {"b": {"c": 2}}}`,
+		},
+		{
+			name:   "Rewrite array of objects. Known limitation. Nested arrays are not supported.",
+			ingres: `{"key": 1, "array": [{"a": 1, "b": [{"d": 1}, {"d": 2}]}, {"a": 3, "b": [{"d": 3}, {"d": 4}]}]}`,
+			want:   `{"key": 1, "array": {"a": [1, 3], "b": [[{"d": 1}, {"d": 2}], [{"d": 3}, {"d": 4}]]}}`,
+		},
 	}
 
 	toJson := func(data map[string]interface{}) string {

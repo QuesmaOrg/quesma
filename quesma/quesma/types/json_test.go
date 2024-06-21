@@ -46,5 +46,21 @@ func TestReMarshalJSON(t *testing.T) {
 
 	assert.Equal(t, "value1", destData.Key1)
 	assert.Equal(t, "value2", destData.Key2)
+}
 
+func TestJSONClone(t *testing.T) {
+	simpleJson := JSON{"key1": "value1", "key2": "value2"}
+	clonedA := simpleJson.Clone()
+	delete(simpleJson, "key1")
+	assert.Equal(t, "value1", clonedA["key1"])
+
+	deepJson := JSON{"key1": "value1", "key2": JSON{"key3": "value3"}}
+	clonedB := deepJson.Clone()
+	delete(deepJson["key2"].(JSON), "key3")
+	assert.Equal(t, "value3", clonedB["key2"].(JSON)["key3"])
+
+	arrayJson := JSON{"key1": "value1", "key2": []JSON{JSON{"key3": "value3"}, JSON{"key4": "value4"}}}
+	clonedC := arrayJson.Clone()
+	delete(arrayJson["key2"].([]JSON)[0], "key3")
+	assert.Equal(t, "value3", clonedC["key2"].([]JSON)[0]["key3"])
 }

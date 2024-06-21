@@ -288,3 +288,35 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 	}
 	return queries, nil
 }
+
+type GeoIpResultTransformer struct {
+	schemaRegistry schema.Registry
+	fromTable      string
+}
+
+func (g *GeoIpResultTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
+	if g.schemaRegistry == nil {
+		logger.Error().Msg("Schema registry is not set")
+		return result, nil
+	}
+	schemaInstance, exists := g.schemaRegistry.FindSchema(schema.TableName(g.fromTable))
+	if !exists {
+		logger.Error().Msgf("Schema fot table %s not found", g.fromTable)
+		return result, nil
+	}
+	for i, rows := range result {
+		for j, row := range rows {
+			for k, col := range row.Cols {
+				if strings.Contains(col.ColName, "::lat") {
+					colType := schemaInstance.Fields[schema.FieldName(strings.TrimSuffix(col.ColName, "::lat"))].Type
+					result[i][j].Cols[k].ColType = colType
+				}
+				if strings.Contains(col.ColName, "::lon") {
+					colType := schemaInstance.Fields[schema.FieldName(strings.TrimSuffix(col.ColName, "::lon"))].Type
+					result[i][j].Cols[k].ColType = colType
+				}
+			}
+		}
+	}
+	return result, nil
+}

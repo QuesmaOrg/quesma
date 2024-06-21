@@ -10,10 +10,10 @@ import (
 	"mitmproxy/quesma/queryparser"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/errors"
-	"mitmproxy/quesma/quesma/field_capabilities"
+	"mitmproxy/quesma/quesma/functionality/field_capabilities"
+	"mitmproxy/quesma/quesma/functionality/terms_enum"
 	"mitmproxy/quesma/quesma/mux"
 	"mitmproxy/quesma/quesma/routes"
-	"mitmproxy/quesma/quesma/termsenum"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/schema"
@@ -168,7 +168,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 		}
 	})
 
-	router.Register(routes.GlobalSearchPath, and(method("GET", "POST"), matchAgainstKibanaAlerts()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+	router.Register(routes.GlobalSearchPath, and(method("GET", "POST"), matchAgainstKibanaInternal()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
@@ -291,7 +291,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 				return nil, errors.New("invalid request body, expecting JSON")
 			}
 
-			if responseBody, err := termsenum.HandleTermsEnum(ctx, req.Params["index"], body, lm, console); err != nil {
+			if responseBody, err := terms_enum.HandleTermsEnum(ctx, req.Params["index"], body, lm, console); err != nil {
 				return nil, err
 			} else {
 				return elasticsearchQueryResult(string(responseBody), httpOk), nil
