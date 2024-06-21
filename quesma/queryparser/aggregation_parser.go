@@ -851,8 +851,9 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		delete(queryMap, "date_range")
 		return success, dateRangeParsed.SelectColumnsNr, 0, 0, nil
 	}
-	if _, ok := queryMap["sampler"]; ok {
-		currentAggr.Type = metrics_aggregations.NewCount(cw.Ctx)
+	if sampler, ok := queryMap["sampler"]; ok {
+		currentAggr.Type = metrics_aggregations.NewCount(cw.Ctx) // TODO: We don't need it always
+		currentAggr.SelectCommand.SampleLimit = cw.parseSampler(sampler)
 		delete(queryMap, "sampler")
 		return
 	}
@@ -978,6 +979,31 @@ func (cw *ClickhouseQueryTranslator) parseMinDocCount(queryMap QueryMap) int {
 		}
 	}
 	return bucket_aggregations.DefaultMinDocCount
+}
+
+func (cw *ClickhouseQueryTranslator) parseSampler(sampler any) int {
+	const defaultShardMultiplier = 4
+	var queryMap QueryMap
+	var rightType bool
+	if queryMap, rightType = sampler.(QueryMap); !rightType {
+		logger.WarnWithCtx(cw.Ctx).Msgf("sampler is not a map, but %v", queryMap)
+		return 0
+	}
+	if shardCountRaw, exists := queryMap["shard_count"]; exists {
+		if shardCount, ok := shardCountRaw.(float64); ok {
+			if shardCount < 0 {
+				logger.WarnWithCtx(cw.Ctx).Msgf("shard_count is negative: %f. Skipping", shardCount)
+				return 0
+			}
+			return int(shardCount) * defaultShardMultiplier
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("shard_count is not a number, but %T, value: %v. Skipping sampling",
+				shardCountRaw, shardCountRaw)
+		}
+	} else {
+		logger.WarnWithCtx(cw.Ctx).Msg("no shard_count specified. Skipping sampling")
+	}
+	return 0
 }
 
 // quoteArray returns a new array with the same elements, but quoted
