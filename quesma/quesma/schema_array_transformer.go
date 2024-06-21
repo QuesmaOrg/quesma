@@ -6,7 +6,6 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/schema"
-	"sort"
 	"strings"
 )
 
@@ -166,41 +165,6 @@ func (v *ArrayTypeVisitor) VisitWindowFunction(e model.WindowFunction) interface
 
 	return model.NewWindowFunction(e.Name, v.visitChildren(e.Args), v.visitChildren(e.PartitionBy), e.OrderBy.Accept(v).(model.OrderByExpr))
 
-}
-
-func (v *ArrayTypeVisitor) unique(columns []model.ColumnRef) []model.ColumnRef {
-	var result []model.ColumnRef
-	seen := make(map[string]bool)
-	for _, col := range columns {
-		if _, ok := seen[col.ColumnName]; !ok {
-			result = append(result, col)
-			seen[col.ColumnName] = true
-		}
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].ColumnName < result[j].ColumnName
-	})
-
-	return result
-}
-
-func (v *ArrayTypeVisitor) splitIntoArrayAndNonArrayColumns(exprs []model.ColumnRef) ([]model.ColumnRef, []model.ColumnRef) {
-	var arrayColumns []model.ColumnRef
-	var nonArrayColumns []model.ColumnRef
-
-	for _, expr := range exprs {
-		columns := model.GetUsedColumns(expr)
-		for _, col := range columns {
-			if strings.HasPrefix(v.dbColumnType(col.ColumnName), "Array") {
-				arrayColumns = append(arrayColumns, col)
-			} else {
-				nonArrayColumns = append(nonArrayColumns, col)
-			}
-		}
-	}
-
-	return v.unique(arrayColumns), v.unique(nonArrayColumns)
 }
 
 func (v *ArrayTypeVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
