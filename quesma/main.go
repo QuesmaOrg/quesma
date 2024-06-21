@@ -45,7 +45,15 @@ func main() {
 
 	var asyncQueryTraceLogger *tracing.AsyncTraceLogger
 
-	qmcLogChannel := logger.InitLogger(cfg, sig, doneCh, asyncQueryTraceLogger)
+	qmcLogChannel := logger.InitLogger(logger.Configuration{
+		FileLogging:       cfg.Logging.FileLogging,
+		Path:              cfg.Logging.Path,
+		RemoteLogDrainUrl: cfg.Logging.RemoteLogDrainUrl.ToUrl(),
+		Level:             cfg.Logging.Level,
+		LicenseKey:        cfg.LicenseKey,
+		RemoteLogHeader:   config.RemoteLogHeader,
+		LicenseHeader:     config.LicenseHeader,
+	}, sig, doneCh, asyncQueryTraceLogger)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
 

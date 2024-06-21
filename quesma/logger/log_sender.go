@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"mitmproxy/quesma/quesma/config"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -12,12 +11,14 @@ import (
 )
 
 type LogSender struct {
-	Url          *url.URL
-	LicenseKey   string
-	LogBuffer    []byte
-	LastSendTime time.Time
-	Interval     time.Duration
-	httpClient   *http.Client
+	Url             *url.URL
+	LicenseKey      string
+	LogBuffer       []byte
+	LastSendTime    time.Time
+	Interval        time.Duration
+	httpClient      *http.Client
+	remoteLogHeader string
+	licenseHeader   string
 }
 
 func (logSender *LogSender) EatLogMessage(msg []byte) struct {
@@ -86,8 +87,8 @@ func (logSender *LogSender) sendLogs() error {
 		return err
 	}
 	req.Header.Set("Content-Type", "text/plain")
-	req.Header.Set(config.RemoteLogHeader, "true") // value is arbitrary, just have to be non-empty
-	req.Header.Set(config.LicenseHeader, logSender.LicenseKey)
+	req.Header.Set(logSender.remoteLogHeader, "true") // value is arbitrary, just have to be non-empty
+	req.Header.Set(logSender.licenseHeader, logSender.LicenseKey)
 	resp, err := logSender.httpClient.Do(req)
 	if err != nil {
 		return err
