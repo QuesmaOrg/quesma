@@ -968,6 +968,7 @@ func (cw *ClickhouseQueryTranslator) parseRegexp(queryMap QueryMap) (result mode
 
 		var funcName string
 		if isPatternReallySimple(pattern) {
+			pattern = strings.ReplaceAll(pattern, "_", `\_`)
 			pattern = strings.ReplaceAll(pattern, ".*", "%")
 			pattern = strings.ReplaceAll(pattern, ".", "_")
 			funcName = "LIKE"

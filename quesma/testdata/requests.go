@@ -2205,6 +2205,33 @@ var TestsSearch = []SearchTestCase{
 		},
 	},
 	{ // [37]
+		"Simple regexp (can be simply transformed to one LIKE), with _, which needs to be escaped",
+		`{
+			"query": {
+				"bool": {
+					 "filter": [
+						{
+							"regexp": {
+								"field": {
+									"value": ".*_.."
+								}
+							}
+						}
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"field" LIKE '%\___'`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "field" LIKE '%\\___' ` +
+				`LIMIT 10`,
+		},
+	},
+	{ // [38]
 		"Complex regexp 1 (can't be transformed to LIKE)",
 		`{
 			"query": {
@@ -2231,7 +2258,7 @@ var TestsSearch = []SearchTestCase{
 				`LIMIT 10`,
 		},
 	},
-	{ // [38]
+	{ // [39]
 		"Complex regexp 2 (can't be transformed to LIKE)",
 		`{
 			"query": {
