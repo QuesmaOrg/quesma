@@ -930,9 +930,9 @@ func (cw *ClickhouseQueryTranslator) parseRegexp(queryMap QueryMap) (result mode
 		return
 	}
 
-	// check if regexp is really simple (only . and .* allowed from special characters)
+	// really simple == (out of all special characters, only . and .* may be present)
 	isPatternReallySimple := func(pattern string) bool {
-		// any special characters excluding . and * not allowed. Also * can't be first character.
+		// any special characters excluding . and * not allowed. Also (not the most important check) * can't be first character.
 		if strings.ContainsAny(pattern, `?+|{}[]()"\`) || (len(pattern) > 0 && pattern[0] == '*') {
 			return false
 		}

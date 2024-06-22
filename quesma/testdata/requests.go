@@ -2178,7 +2178,7 @@ var TestsSearch = []SearchTestCase{
 		},
 	},
 	{ // [36]
-		"Simple regexp",
+		"Simple regexp (can be simply transformed to one LIKE)",
 		`{
 			"query": {
 				"bool": {
@@ -2205,7 +2205,7 @@ var TestsSearch = []SearchTestCase{
 		},
 	},
 	{ // [37]
-		"Complex regexp 1",
+		"Complex regexp 1 (can't be transformed to LIKE)",
 		`{
 			"query": {
 				"bool": {
@@ -2232,7 +2232,7 @@ var TestsSearch = []SearchTestCase{
 		},
 	},
 	{ // [38]
-		"Complex regexp 2",
+		"Complex regexp 2 (can't be transformed to LIKE)",
 		`{
 			"query": {
 				"bool": {
