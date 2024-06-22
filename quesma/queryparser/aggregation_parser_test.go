@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"github.com/jinzhu/copier"
+	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
@@ -12,6 +13,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/testdata"
+	"quesma/testdata/clients/kunkka"
 	dashboard_1 "quesma/testdata/dashboard-1"
 	kibana_visualize "quesma/testdata/kibana-visualize"
 	opensearch_visualize "quesma/testdata/opensearch-visualize"
@@ -589,8 +591,8 @@ func sortAggregations(aggregations []*model.Query) {
 		if aLen == 0 || bLen == 0 {
 			return cmp.Compare(aLen, bLen)
 		}
-		// longer list is first, as we first go deeper when parsing aggregations
-		return cmp.Compare(bLen, aLen)
+		// shorter list is first
+		return cmp.Compare(aLen, bLen)
 	})
 }
 
@@ -615,6 +617,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	allTests = append(allTests, testdata.PipelineAggregationTests...)
 	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
 	allTests = append(allTests, kibana_visualize.AggregationTests...)
+	allTests = append(allTests, kunkka.KunkkaTests...)
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)" {
@@ -672,7 +675,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			// pp.Println("ACTUAL", response)
 			assert.NoError(t, marshalErr)
 
-			expectedResponseMap, _ := util.JsonToMap(test.ExpectedResponse)
+			expectedResponseMap, err := util.JsonToMap(test.ExpectedResponse)
 			var expectedAggregationsPart JsonMap
 			if responseSubMap, hasResponse := expectedResponseMap["response"]; hasResponse {
 				expectedAggregationsPart = responseSubMap.(JsonMap)["aggregations"].(JsonMap)
@@ -683,8 +686,8 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 
 			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
 			acceptableDifference := []string{"doc_count_error_upper_bound", "sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma}
-			// pp.Println("ACTUAL", actualMinusExpected)
-			// pp.Println("EXPECTED", expectedMinusActual)
+			pp.Println("ACTUAL", actualMinusExpected)
+			pp.Println("EXPECTED", expectedMinusActual)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
 			if body["track_total_hits"] == true { // FIXME some better check after track_total_hits

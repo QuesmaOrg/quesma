@@ -78,9 +78,6 @@ func (cw *ClickhouseQueryTranslator) finishMakeResponse(query *model.Query, Resu
 		return query.Type.TranslateSqlResponseToJson(ResultSet, level)
 	} else { // metrics
 		result := query.Type.TranslateSqlResponseToJson(ResultSet, level)[0]
-		if level > 0 && len(ResultSet) > 0 {
-			result[model.KeyAddedByQuesma] = ResultSet[0].Cols[level-1].Value
-		}
 		lastAggregator := query.Aggregators[len(query.Aggregators)-1].Name
 		if _, isTopHits := query.Type.(metrics_aggregations.TopHits); isTopHits {
 			return []model.JsonMap{{
@@ -138,10 +135,15 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 		// normally it's just 1. It used to be just 1 before multi_terms aggregation, where we usually split over > 1 field
 		weSplitOverHowManyFields := query.Aggregators[aggregatorsLevel].SplitOverHowManyFields
 		buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+weSplitOverHowManyFields)
+		// pp.Println("buckets:", buckets)
 		for _, bucket := range buckets {
-			bucketsReturnMap = append(bucketsReturnMap,
-				cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)...)
+			newBuckets := cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
+			for _, newBucket := range newBuckets {
+				newBucket[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
+			}
+			bucketsReturnMap = append(bucketsReturnMap, newBuckets...)
 		}
+		// pp.Println("bucketsReturnMap:", bucketsReturnMap)
 	}
 
 	result := make(model.JsonMap, 1)
@@ -198,8 +200,14 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 			continue
 		}
 		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
+		if i == 2 {
+			// pp.Println(aggregation)
+		}
 		if len(aggregation) != 0 {
 			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0], model.KeyAddedByQuesma) // result of root node is always a single map, thus [0]
+		}
+		if i >= 0 {
+			// pp.Println(i, aggregations)
 		}
 	}
 	return aggregations
