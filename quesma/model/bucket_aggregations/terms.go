@@ -9,10 +9,11 @@ import (
 type Terms struct {
 	ctx         context.Context
 	significant bool // true <=> significant_terms, false <=> terms
+	size        int
 }
 
-func NewTerms(ctx context.Context, significant bool) Terms {
-	return Terms{ctx: ctx, significant: significant}
+func NewTerms(ctx context.Context, significant bool, size int) Terms {
+	return Terms{ctx: ctx, significant: significant, size: size}
 }
 
 func (query Terms) IsBucketAggregation() bool {
@@ -25,7 +26,10 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in terms aggregation response, len: %d, rows[0]: %v", len(rows[0].Cols), rows[0])
 	}
-	for _, row := range rows {
+	for i, row := range rows {
+		if i >= query.size {
+			break
+		}
 		docCount := row.Cols[len(row.Cols)-1].Value
 		bucket := model.JsonMap{
 			"key":       row.Cols[len(row.Cols)-2].Value,
@@ -37,6 +41,7 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 		}
 		response = append(response, bucket)
 	}
+	// TODO: we should return 'doc_count_error_upper_bound' and too 'sum_other_doc_count' too
 	return response
 }
 

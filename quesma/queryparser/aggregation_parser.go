@@ -710,7 +710,6 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 	}
 	for _, termsType := range []string{"terms", "significant_terms"} {
 		if terms, ok := queryMap[termsType]; ok {
-			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms")
 
 			isEmptyGroupBy := len(currentAggr.SelectCommand.GroupBy) == 0
 
@@ -733,6 +732,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 				currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewSortByCountColumn(model.DescOrder))
 				orderByAdded = true
 			}
+			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms", size)
 			delete(queryMap, termsType)
 			if !orderByAdded {
 				currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(cw.parseFieldField(terms, termsType)))

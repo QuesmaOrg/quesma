@@ -2136,6 +2136,7 @@ var AggregationTests = []AggregationTestCase{
 		}`,
 		[][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(262))}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(262))}}},
 			{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "hephaestus"), model.NewQueryResultCol("doc_count", uint64(30))}},
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "poseidon"), model.NewQueryResultCol("doc_count", uint64(29))}},
@@ -2156,6 +2157,12 @@ var AggregationTests = []AggregationTestCase{
 				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
 				`AND "message" iLIKE '%user%') LIMIT 3)`,
+			`SELECT count() ` + // likely optimization would remove it
+				`FROM (SELECT 1 FROM ` + QuotedTableName + ` ` +
+				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
+				`AND "message" iLIKE '%user%') ` +
+				`LIMIT 20000)`,
 			`SELECT "host.name", count() ` +
 				`FROM (SELECT "host.name" FROM ` + QuotedTableName + ` ` +
 				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
@@ -2163,7 +2170,8 @@ var AggregationTests = []AggregationTestCase{
 				`AND "message" iLIKE '%user%') ` +
 				`LIMIT 20000) ` +
 				`GROUP BY "host.name" ` +
-				`ORDER BY count() DESC`,
+				`ORDER BY count() DESC ` +
+				`LIMIT 10`,
 		},
 	},
 	{ // [12], "old" test, also can be found in testdata/requests.go TestAsyncSearch[3]
