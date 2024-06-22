@@ -936,9 +936,9 @@ func (cw *ClickhouseQueryTranslator) parseRegexp(queryMap QueryMap) (result mode
 		if strings.ContainsAny(pattern, `?+|{}[]()"\`) || (len(pattern) > 0 && pattern[0] == '*') {
 			return false
 		}
-		// * only allowed just after .
-		for i := range pattern[1:] {
-			if pattern[i] == '*' && pattern[i-1] != '.' {
+		// .* allowed, but [any other char]* - not
+		for i, char := range pattern[1:] {
+			if char == '*' && pattern[i] != '.' {
 				return false
 			}
 		}
