@@ -160,21 +160,24 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	//  LIMIT 12)
 	if c.SampleLimit > 0 {
 		sb.WriteString("(SELECT ")
-		innerColumn := make([]string, 0)
+		innerColumn := make(map[string]ColumnRef)
 		for _, col := range c.Columns {
-			if _, ok := col.(ColumnRef); ok {
-				innerColumn = append(innerColumn, AsString(col))
-			}
-			if aliased, ok := col.(AliasedExpr); ok {
-				if v, ok := aliased.Expr.(ColumnRef); ok {
-					innerColumn = append(innerColumn, AsString(v))
-				}
+			for _, usedColumn := range GetUsedColumns(col) {
+				innerColumn[usedColumn.ColumnName] = usedColumn
 			}
 		}
 		if len(innerColumn) == 0 {
-			innerColumn = append(innerColumn, "1")
+			sb.WriteString("1")
+		} else {
+			i := 0
+			for _, v := range innerColumn {
+				if i > 0 {
+					sb.WriteString(", ")
+				}
+				sb.WriteString(AsString(v))
+				i++
+			}
 		}
-		sb.WriteString(strings.Join(innerColumn, ", "))
 		sb.WriteString(" FROM ")
 	}
 	/* HACK ALERT END */
