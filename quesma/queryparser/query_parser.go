@@ -289,6 +289,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) model.Simp
 		"wildcard":            cw.parseWildcard,
 		"query_string":        cw.parseQueryString,
 		"simple_query_string": cw.parseQueryString,
+		"regexp":              cw.parseRegexp,
 	}
 	for k, v := range queryMap {
 		if f, ok := parseMap[k]; ok {
@@ -918,6 +919,68 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 		}
 	}
 	return model.NewSimpleQuery(sql, true)
+}
+
+// https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-regexp-query.html
+// We don't look at any parameter other than "value" (which is required, and is a regex pattern)
+// We log warning if any other parameter arrives
+func (cw *ClickhouseQueryTranslator) parseRegexp(queryMap QueryMap) (result model.SimpleQuery) {
+	if len(queryMap) != 1 {
+		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 regexp, got: %d. value: %v", len(queryMap), queryMap)
+		return
+	}
+
+	// really simple == (out of all special characters, only . and .* may be present)
+	isPatternReallySimple := func(pattern string) bool {
+		// any special characters excluding . and * not allowed. Also (not the most important check) * can't be first character.
+		if strings.ContainsAny(pattern, `?+|{}[]()"\`) || (len(pattern) > 0 && pattern[0] == '*') {
+			return false
+		}
+		// .* allowed, but [any other char]* - not
+		for i, char := range pattern[1:] {
+			if char == '*' && pattern[i] != '.' {
+				return false
+			}
+		}
+		return true
+	}
+
+	for fieldName, parametersRaw := range queryMap {
+		parameters, ok := parametersRaw.(QueryMap)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid regexp parameters type: %T, value: %v", parametersRaw, parametersRaw)
+			return
+		}
+		patternRaw, exists := parameters["value"]
+		if !exists {
+			logger.WarnWithCtx(cw.Ctx).Msgf("no value in regexp query: %v", queryMap)
+			return
+		}
+		pattern, ok := patternRaw.(string)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid pattern type: %T, value: %v", patternRaw, patternRaw)
+			return
+		}
+
+		if len(parameters) > 1 {
+			logger.WarnWithCtx(cw.Ctx).Msgf("unsupported regexp parameters: %v", parameters)
+		}
+
+		var funcName string
+		if isPatternReallySimple(pattern) {
+			pattern = strings.ReplaceAll(pattern, "_", `\_`)
+			pattern = strings.ReplaceAll(pattern, ".*", "%")
+			pattern = strings.ReplaceAll(pattern, ".", "_")
+			funcName = "LIKE"
+		} else { // this Clickhouse function is much slower, so we use it only for complex regexps
+			funcName = "REGEXP"
+		}
+		return model.NewSimpleQuery(
+			model.NewInfixExpr(model.NewColumnRef(fieldName), funcName, model.NewLiteral("'"+pattern+"'")), true)
+	}
+
+	logger.ErrorWithCtx(cw.Ctx).Msg("parseRegexp: theoretically unreachable code")
+	return
 }
 
 func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []string {

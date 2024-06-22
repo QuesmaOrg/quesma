@@ -2177,6 +2177,114 @@ var TestsSearch = []SearchTestCase{
 				`LIMIT 1`,
 		},
 	},
+	{ // [36]
+		"Simple regexp (can be simply transformed to one LIKE)",
+		`{
+			"query": {
+				"bool": {
+					 "filter": [
+						{
+							"regexp": {
+								"field": {
+									"value": ".*-abb-all-li.mit.*s-5"
+								}
+							}
+						}
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"field" LIKE '%-abb-all-li_mit%s-5'`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "field" LIKE '%-abb-all-li_mit%s-5' ` +
+				`LIMIT 10`,
+		},
+	},
+	{ // [37]
+		"Simple regexp (can be simply transformed to one LIKE), with _, which needs to be escaped",
+		`{
+			"query": {
+				"bool": {
+					 "filter": [
+						{
+							"regexp": {
+								"field": {
+									"value": ".*_.."
+								}
+							}
+						}
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"field" LIKE '%\___'`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "field" LIKE '%\\___' ` +
+				`LIMIT 10`,
+		},
+	},
+	{ // [38]
+		"Complex regexp 1 (can't be transformed to LIKE)",
+		`{
+			"query": {
+				"bool": {
+					 "filter": [
+						{
+							"regexp": {
+								"field": {
+									"value": "a*-abb-all-li.mit.*s-5"
+								}
+							}
+						}
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"field" REGEXP 'a*-abb-all-li.mit.*s-5'`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "field" REGEXP 'a*-abb-all-li.mit.*s-5' ` +
+				`LIMIT 10`,
+		},
+	},
+	{ // [39]
+		"Complex regexp 2 (can't be transformed to LIKE)",
+		`{
+			"query": {
+				"bool": {
+					 "filter": [
+						{
+							"regexp": {
+								"field": {
+									"value": "a?"
+								}
+							}
+						}
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"field" REGEXP 'a?'`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "field" REGEXP 'a\?' ` +
+				`LIMIT 10`,
+		},
+	},
 }
 
 var TestsSearchNoAttrs = []SearchTestCase{
