@@ -540,7 +540,7 @@ var aggregationTests = []struct {
 				  "size": 0
 			}`,
 		[]string{
-			`SELECT floor("bytes"/1782.000000)*1782.000000, count() FROM (SELECT 1 FROM ` + tableNameQuoted + ` LIMIT 20000) ` +
+			`SELECT floor("bytes"/1782.000000)*1782.000000, count() FROM (SELECT "bytes" FROM ` + tableNameQuoted + ` LIMIT 20000) ` +
 				`GROUP BY floor("bytes"/1782.000000)*1782.000000 ` +
 				`ORDER BY floor("bytes"/1782.000000)*1782.000000`,
 		},
@@ -650,6 +650,9 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			// Let's leave those commented debugs for now, they'll be useful in next PRs
 			for j, query := range queries {
 				// fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\n", j, query, query.String(context.Background()))
+				if j >= len(test.ExpectedSQLs) {
+					t.Fatal("Too many queries in response")
+				}
 				if test.ExpectedSQLs[j] != "NoDBQuery" {
 					util.AssertSqlEqual(t, test.ExpectedSQLs[j], query.SelectCommand.String())
 				}
