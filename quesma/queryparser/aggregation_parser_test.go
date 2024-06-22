@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"github.com/jinzhu/copier"
-	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
@@ -686,8 +685,9 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 
 			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
 			acceptableDifference := []string{"doc_count_error_upper_bound", "sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma}
-			pp.Println("ACTUAL", actualMinusExpected)
-			pp.Println("EXPECTED", expectedMinusActual)
+			// TODO: sum_other_doc_count, doc_count_error_upper_bound, doc_count should be removed
+			// pp.Println("ACTUAL", actualMinusExpected)
+			// pp.Println("EXPECTED", expectedMinusActual)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
 			if body["track_total_hits"] == true { // FIXME some better check after track_total_hits

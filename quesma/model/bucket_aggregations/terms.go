@@ -53,5 +53,9 @@ func (query Terms) String() string {
 }
 
 func (query Terms) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
+	if len(rowsFromDB) <= query.size {
+		return rowsFromDB
+	} else {
+		return rowsFromDB[:query.size]
+	}
 }
