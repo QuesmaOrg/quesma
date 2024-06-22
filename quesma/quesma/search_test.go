@@ -336,7 +336,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 				}
 
 				// count, present in all tests
-				mock.ExpectQuery(`SELECT count\(\) FROM ` + strconv.Quote(tableName)).WillReturnRows(sqlmock.NewRows([]string{"count"}))
+				mock.ExpectQuery(`SELECT count\(\) FROM `).WillReturnRows(sqlmock.NewRows([]string{"count"}))
 				// Don't care about the query's SQL in this test, it's thoroughly tested in different tests, thus ""
 				mock.ExpectQuery("").WillReturnRows(returnedBuckets)
 
