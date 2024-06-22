@@ -2177,6 +2177,87 @@ var TestsSearch = []SearchTestCase{
 				`LIMIT 1`,
 		},
 	},
+	{ // [36]
+		"Simple regexp",
+		`{
+			"query": {
+				"bool": {
+					 "filter": [
+						{
+							"regexp": {
+								"field": {
+									"value": ".*-abb-all-li.mit.*s-5"
+								}
+							}
+						}
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"field" LIKE '%-abb-all-li_mit%s-5'`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "field" LIKE '%-abb-all-li_mit%s-5' ` +
+				`LIMIT 10`,
+		},
+	},
+	{ // [37]
+		"Complex regexp 1",
+		`{
+			"query": {
+				"bool": {
+					 "filter": [
+						{
+							"regexp": {
+								"field": {
+									"value": "a*-abb-all-li.mit.*s-5"
+								}
+							}
+						}
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"field" REGEXP 'a*-abb-all-li.mit.*s-5'`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "field" REGEXP 'a*-abb-all-li.mit.*s-5' ` +
+				`LIMIT 10`,
+		},
+	},
+	{ // [38]
+		"Complex regexp 2",
+		`{
+			"query": {
+				"bool": {
+					 "filter": [
+						{
+							"regexp": {
+								"field": {
+									"value": "a?"
+								}
+							}
+						}
+					]
+				}
+			},
+			"track_total_hits": false
+		}`,
+		[]string{`"field" REGEXP 'a?'`},
+		model.ListAllFields,
+		[]string{
+			`SELECT "message" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "field" REGEXP 'a\?' ` +
+				`LIMIT 10`,
+		},
+	},
 }
 
 var TestsSearchNoAttrs = []SearchTestCase{

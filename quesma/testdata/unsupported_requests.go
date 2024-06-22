@@ -1820,24 +1820,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 	//		}
 	//	}`,
 	//},
-	{ // [96]
-		TestName:  "Term-level queries: Regexp",
-		QueryType: "regexp",
-		QueryRequestJson: `
-		{
-			"query": {
-				"regexp": {
-					"user.id": {
-						"value": "k.*y",
-						"flags": "ALL",
-						"case_insensitive": true,
-						"max_determinized_states": 10000,
-						"rewrite": "constant_score_blended"
-					}
-				}
-			}
-		}`,
-	},
 	{ // [97]
 		TestName:  "Term-level queries: Terms set",
 		QueryType: "terms_set",

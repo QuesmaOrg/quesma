@@ -95,7 +95,7 @@ func (v *renderer) VisitInfix(e InfixExpr) interface{} {
 	// I think in the future every infix op should be in braces.
 	if e.Op == "AND" || e.Op == "OR" {
 		return fmt.Sprintf("(%v %v %v)", lhs, e.Op, rhs)
-	} else if strings.Contains(e.Op, "LIKE") || e.Op == "IS" || e.Op == "IN" {
+	} else if strings.Contains(e.Op, "LIKE") || e.Op == "IS" || e.Op == "IN" || e.Op == "REGEXP" {
 		return fmt.Sprintf("%v %v %v", lhs, e.Op, rhs)
 	} else {
 		return fmt.Sprintf("%v%v%v", lhs, e.Op, rhs)
