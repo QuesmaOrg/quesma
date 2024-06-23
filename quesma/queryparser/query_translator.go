@@ -480,31 +480,6 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 	}
 }
 
-// earliest == true  <==> we want earliest timestamp
-// earliest == false <==> we want latest timestamp
-func (cw *ClickhouseQueryTranslator) BuildTimestampQuery(timestampFieldName string, whereClause model.Expr, earliest bool) *model.Query {
-	var ordering model.OrderByDirection
-	if earliest {
-		ordering = model.DescOrder
-	} else {
-		ordering = model.AscOrder
-	}
-
-	return &model.Query{
-		SelectCommand: *model.NewSelectCommand(
-			[]model.Expr{model.NewColumnRef(timestampFieldName)},
-			nil,
-			[]model.OrderByExpr{model.NewSortColumn(timestampFieldName, ordering)},
-			model.NewTableRef(cw.Table.FullTableName()),
-			whereClause,
-			1,
-			0,
-			false,
-		),
-		TableName: cw.Table.FullTableName(),
-	}
-}
-
 func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMap) model.Expr {
 	const defaultDateTimeType = clickhouse.DateTime64
 	field := cw.parseFieldField(queryMap, "histogram")
