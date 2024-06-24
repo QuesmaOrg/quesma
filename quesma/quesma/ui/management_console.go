@@ -5,7 +5,6 @@ import (
 	"mitmproxy/quesma/elasticsearch"
 	"mitmproxy/quesma/schema"
 	"mitmproxy/quesma/telemetry"
-	"mitmproxy/quesma/tracing"
 	"mitmproxy/quesma/util"
 
 	"mitmproxy/quesma/clickhouse"
@@ -75,7 +74,7 @@ type (
 	QuesmaManagementConsole struct {
 		queryDebugPrimarySource   chan *QueryDebugPrimarySource
 		queryDebugSecondarySource chan *QueryDebugSecondarySource
-		queryDebugLogs            <-chan tracing.LogWithLevel
+		queryDebugLogs            <-chan logger.LogWithLevel
 		ui                        *http.Server
 		mutex                     sync.Mutex
 		debugInfoMessages         map[string]queryDebugInfo
@@ -98,7 +97,7 @@ type (
 	}
 )
 
-func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, logChan <-chan tracing.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent, schemasProvider SchemasProvider) *QuesmaManagementConsole {
+func NewQuesmaManagementConsole(config config.QuesmaConfiguration, logManager *clickhouse.LogManager, indexManager elasticsearch.IndexManagement, logChan <-chan logger.LogWithLevel, phoneHomeAgent telemetry.PhoneHomeAgent, schemasProvider SchemasProvider) *QuesmaManagementConsole {
 	return &QuesmaManagementConsole{
 		queryDebugPrimarySource:   make(chan *QueryDebugPrimarySource, 10),
 		queryDebugSecondarySource: make(chan *QueryDebugSecondarySource, 10),

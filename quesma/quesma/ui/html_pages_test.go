@@ -6,11 +6,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"mitmproxy/quesma/clickhouse"
 	"mitmproxy/quesma/concurrent"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/stats"
 	"mitmproxy/quesma/telemetry"
-	"mitmproxy/quesma/tracing"
 	"testing"
 )
 
@@ -18,7 +18,7 @@ func TestHtmlPages(t *testing.T) {
 	xss := "<script>alert('xss')</script>"
 	xssBytes := []byte(xss)
 	id := "b1c4a89e-4905-5e3c-b57f-dc92627d011e"
-	logChan := make(chan tracing.LogWithLevel, 5)
+	logChan := make(chan logger.LogWithLevel, 5)
 	qmc := NewQuesmaManagementConsole(config.QuesmaConfiguration{}, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
 	qmc.PushPrimaryInfo(&QueryDebugPrimarySource{Id: id, QueryResp: xssBytes})
 	qmc.PushSecondaryInfo(&QueryDebugSecondarySource{Id: id,
@@ -28,7 +28,7 @@ func TestHtmlPages(t *testing.T) {
 		QueryTranslatedResults: xssBytes,
 	})
 	log := fmt.Sprintf(`{"request_id": "%s", "message": "%s"}`, id, xss)
-	logChan <- tracing.LogWithLevel{Level: zerolog.ErrorLevel, Msg: log}
+	logChan <- logger.LogWithLevel{Level: zerolog.ErrorLevel, Msg: log}
 	// Manually process channel
 	for i := 0; i < 3; i++ {
 		qmc.processChannelMessage()
@@ -71,7 +71,7 @@ func TestHtmlPages(t *testing.T) {
 func TestHtmlSchemaPage(t *testing.T) {
 	xss := "<script>alert('xss')</script>"
 
-	logChan := make(chan tracing.LogWithLevel, 5)
+	logChan := make(chan logger.LogWithLevel, 5)
 
 	var columnsMap = make(map[string]*clickhouse.Column)
 

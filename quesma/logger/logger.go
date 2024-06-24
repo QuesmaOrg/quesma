@@ -40,13 +40,13 @@ const (
 var logger zerolog.Logger
 
 // InitLogger returns channel where log messages will be sent
-func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan struct{}, asyncQueryTraceLogger *tracing.AsyncTraceLogger) <-chan tracing.LogWithLevel {
+func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan struct{}, asyncQueryTraceLogger *tracing.AsyncTraceLogger) <-chan LogWithLevel {
 	zerolog.TimeFieldFormat = time.RFC3339Nano // without this we don't have milliseconds timestamp precision
 	var output io.Writer = zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.StampMilli}
 	if os.Getenv("GO_ENV") == "production" { // ConsoleWriter is slow, disable it in production
 		output = os.Stderr
 	}
-	logChannel := make(chan tracing.LogWithLevel, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
+	logChannel := make(chan LogWithLevel, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
 	chanWriter := channelWriter{ch: logChannel}
 
 	var logWriters []io.Writer
@@ -120,9 +120,9 @@ func InitSimpleLoggerForTests() {
 		Logger()
 }
 
-func InitOnlyChannelLoggerForTests(cfg config.QuesmaConfiguration) <-chan tracing.LogWithLevel {
-	zerolog.TimeFieldFormat = time.RFC3339Nano           // without this we don't have milliseconds timestamp precision
-	logChannel := make(chan tracing.LogWithLevel, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
+func InitOnlyChannelLoggerForTests(cfg config.QuesmaConfiguration) <-chan LogWithLevel {
+	zerolog.TimeFieldFormat = time.RFC3339Nano   // without this we don't have milliseconds timestamp precision
+	logChannel := make(chan LogWithLevel, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
 	chanWriter := channelWriter{ch: logChannel}
 
 	logger = zerolog.New(chanWriter).

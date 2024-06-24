@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/quesma/config"
 	"mitmproxy/quesma/telemetry"
-	"mitmproxy/quesma/tracing"
 	"net/http"
 	"testing"
 	"time"
@@ -19,7 +19,7 @@ func TestShouldExposePprof(t *testing.T) {
 	quesma := NewQuesmaTcpProxy(telemetry.NoopPhoneHomeAgent(), config.QuesmaConfiguration{
 		PublicTcpPort: 8080,
 		Elasticsearch: config.ElasticsearchConfiguration{Url: &config.Url{}},
-	}, make(<-chan tracing.LogWithLevel), false)
+	}, make(<-chan logger.LogWithLevel), false)
 	quesma.Start()
 	waitForHealthyQuesma(t)
 	t.Cleanup(func() {
