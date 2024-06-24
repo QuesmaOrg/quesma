@@ -407,7 +407,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	}
 
 	// 4. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
-	bucketAggrPresent, _, groupByFieldsAdded, _, err := cw.tryBucketAggregation(currentAggr, queryMap)
+	bucketAggrPresent, groupByFieldsAdded, err := cw.tryBucketAggregation(currentAggr, queryMap)
 	if err != nil {
 		return err
 	}
@@ -604,7 +604,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 // * 'success': was it bucket aggreggation?
 // * 'nonSchemaFieldAdded': did we add a non-schema field to 'currentAggr', if it turned out to be bucket aggregation? If we did, we need to know, to remove it later.
 func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQueryBuilder, queryMap QueryMap) (
-	success bool, columnsAdded, groupByFieldsAdded, orderByFieldsAdded int, err error) {
+	success bool, groupByFieldsAdded int, err error) {
 
 	success = true // returned in most cases
 	if histogramRaw, ok := queryMap["histogram"]; ok {
@@ -654,7 +654,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(col))
 
 		delete(queryMap, "histogram")
-		return success, 1, 1, 1, nil
+		return success, 1, nil
 	}
 	if dateHistogramRaw, ok := queryMap["date_histogram"]; ok {
 		dateHistogram, ok := dateHistogramRaw.(QueryMap)
@@ -670,7 +670,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(histogramPartOfQuery))
 
 		delete(queryMap, "date_histogram")
-		return success, 1, 1, 1, nil
+		return success, 1, nil
 	}
 	for _, termsType := range []string{"terms", "significant_terms"} {
 		if terms, ok := queryMap[termsType]; ok {
@@ -701,7 +701,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			if !orderByAdded {
 				currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(cw.parseFieldField(terms, termsType)))
 			}
-			return success, 1, 1, 1, nil
+			return success, 1, nil
 			/* will remove later
 			var size int
 			if sizeRaw, exists := terms.(QueryMap)["size"]; exists {
@@ -736,7 +736,6 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewSortByCountColumn(model.DescOrder))
 			currentAggr.SelectCommand.Limit = size
 			orderByAdded = true
-			orderByFieldsAdded = 1
 		}
 
 		var fieldsNr int
@@ -752,7 +751,6 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 				currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, column)
 				if !orderByAdded {
 					currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(column))
-					orderByFieldsAdded++
 				}
 			}
 		} else {
@@ -767,7 +765,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		}
 
 		delete(queryMap, "multi_terms")
-		return success, fieldsNr, fieldsNr, orderByFieldsAdded, nil
+		return success, fieldsNr, nil
 	}
 	if rangeRaw, ok := queryMap["range"]; ok {
 		rangeMap, ok := rangeRaw.(QueryMap)
@@ -780,7 +778,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			currentAggr.Aggregators[len(currentAggr.Aggregators)-1].Keyed = true
 		}
 		delete(queryMap, "range")
-		return success, 0, 0, 0, nil
+		return success, 0, nil
 	}
 	if dateRangeRaw, ok := queryMap["date_range"]; ok {
 		dateRange, ok := dateRangeRaw.(QueryMap)
@@ -790,7 +788,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		dateRangeParsed, err := cw.parseDateRangeAggregation(dateRange)
 		if err != nil {
 			logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("failed to parse date_range aggregation")
-			return false, 0, 0, 0, err
+			return false, 0, err
 		}
 		currentAggr.Type = dateRangeParsed
 		for _, interval := range dateRangeParsed.Intervals {
@@ -813,7 +811,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		}
 
 		delete(queryMap, "date_range")
-		return success, dateRangeParsed.SelectColumnsNr, 0, 0, nil
+		return success, 0, nil
 	}
 	if _, ok := queryMap["sampler"]; ok {
 		currentAggr.Type = metrics_aggregations.NewCount(cw.Ctx)
