@@ -4,6 +4,10 @@ import "net/url"
 
 type Url url.URL
 
+func (u *Url) ToUrl() *url.URL {
+	return (*url.URL)(u)
+}
+
 func (u *Url) UnmarshalText(text []byte) error {
 	urlValue, err := url.Parse(string(text))
 	if err != nil {
