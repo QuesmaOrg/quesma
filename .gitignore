@@ -21,3 +21,4 @@ docker/security/es.local
 docker/security/certificate-bundle.zip
 docker/security/clickhouse
 quesma/config.yaml
+quesma/.installation_id

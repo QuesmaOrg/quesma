@@ -32,6 +32,7 @@ const (
 )
 
 type (
+	// LogManager should be renamed to Connector  -> TODO !!!
 	LogManager struct {
 		ctx            context.Context
 		cancel         context.CancelFunc
@@ -260,6 +261,27 @@ func (lm *LogManager) sendCreateTableQuery(ctx context.Context, query string) er
 		return fmt.Errorf("error in sendCreateTableQuery: query: %s\nerr:%v", query, err)
 	}
 	return nil
+}
+
+func (lm *LogManager) executeRawQuery(query string) (*sql.Rows, error) {
+	if res, err := lm.chDb.Query(query); err != nil {
+		return nil, fmt.Errorf("error in executeRawQuery: query: %s\nerr:%v", query, err)
+	} else {
+		return res, nil
+	}
+}
+
+func (lm *LogManager) CheckIfConnectedToHydrolix() error {
+	rows, err := lm.executeRawQuery(`SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'TurbineStorage';`)
+	defer rows.Close()
+	if err != nil {
+		return fmt.Errorf("error executing HDX identifying query: %v", err)
+	} else {
+		if rows.Next() {
+			return fmt.Errorf("detected Hydrolix-specific table engine, which is not allowed")
+		}
+	}
+	return err
 }
 
 func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string, config *ChTableConfig) error {

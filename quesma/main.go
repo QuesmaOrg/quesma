@@ -10,8 +10,10 @@ import (
 	"os/signal"
 	"quesma/buildinfo"
 	"quesma/clickhouse"
+	"quesma/connectors"
 	"quesma/elasticsearch"
 	"quesma/feature"
+	"quesma/licensing"
 	"quesma/logger"
 	"quesma/quesma"
 	"quesma/quesma/config"
@@ -56,6 +58,7 @@ func main() {
 	}, sig, doneCh, asyncQueryTraceLogger)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
+	_ = licensing.Init(&cfg)
 
 	if asyncQueryTraceLogger != nil {
 		asyncQueryTraceEvictor := quesma.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
@@ -72,7 +75,9 @@ func main() {
 	schemaLoader := clickhouse.NewTableDiscovery(cfg, schemaManagement)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: schemaLoader}, cfg, clickhouse.SchemaTypeAdapter{})
 
-	lm := clickhouse.NewEmptyLogManager(cfg, connectionPool, phoneHomeAgent, schemaLoader)
+	connManager := connectors.NewConnectorManager(cfg, connectionPool, phoneHomeAgent, schemaLoader)
+	lm := connManager.GetConnector()
+
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())
