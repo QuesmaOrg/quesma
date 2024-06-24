@@ -11,6 +11,7 @@ import (
 	"mitmproxy/quesma/quesma/types"
 	"mitmproxy/quesma/quesma/ui"
 	"mitmproxy/quesma/tracing"
+	"strconv"
 	"time"
 )
 
@@ -26,23 +27,58 @@ func HandleTermsEnum(ctx context.Context, index string, body types.JSON, lm *cli
 }
 
 func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparser.ClickhouseQueryTranslator, qmc *ui.QuesmaManagementConsole) (result []byte, err error) {
-	request := NewRequest()
 	startTime := time.Now()
 
-	// TODO request should read the JSON itself
-	reqBody, err := body.Bytes()
-	if err != nil {
-		logger.Error().Msgf("error reading terms enum API request body: %s", err)
+	// defaults as in:
+	// https://www.elastic.co/guide/en/elasticsearch/reference/current/search-terms-enum.html
+	const (
+		defaultSize            = 10
+		defaultCaseInsensitive = false
+	)
+
+	var field string
+	if fieldRaw, ok := body["field"]; ok {
+		if field, ok = fieldRaw.(string); !ok {
+			logger.ErrorWithCtx(ctx).Msgf("error reading terms enum API request body: field is not a string")
+			return json.Marshal(emptyTermsEnumResponse())
+		}
+	} else {
+		logger.ErrorWithCtx(ctx).Msgf("error reading terms enum API request body: field is not present")
 		return json.Marshal(emptyTermsEnumResponse())
 	}
 
-	if err := request.UnmarshalJSON(reqBody); err != nil {
-		logger.Error().Msgf("error unmarshalling terms enum API request: %s", err)
-		return json.Marshal(emptyTermsEnumResponse())
+	size := defaultSize
+	if sizeRaw, ok := body["size"]; ok {
+		switch s := sizeRaw.(type) {
+		case float64:
+			size = int(s)
+		case string:
+			size, _ = strconv.Atoi(s)
+		}
 	}
 
-	where := qt.ParseAutocomplete(request.IndexFilter, request.Field, request.String, request.CaseInsensitive)
-	selectQuery := qt.BuildAutocompleteQuery(request.Field, where.WhereClause, request.Size)
+	var prefixString *string
+	if prefixStringRaw, ok := body["string"]; ok {
+		if prefixStringParsed, ok2 := prefixStringRaw.(string); ok2 {
+			prefixString = &prefixStringParsed
+		}
+	}
+
+	caseInsensitive := defaultCaseInsensitive
+	if caseInsensitiveRaw, ok := body["case_insensitive"]; ok {
+		caseInsensitive, _ = caseInsensitiveRaw.(bool)
+	}
+	var indexFilter *map[string]interface{}
+	if indexFilterRaw, ok := body["index_filter"]; ok {
+		if indexFilterObj, ok2 := indexFilterRaw.(map[string]interface{}); ok2 {
+			indexFilter = &indexFilterObj
+		} else {
+			logger.WarnWithCtx(ctx).Msgf("error reading terms enum API request body: index_filter is not a map")
+		}
+	}
+
+	where := qt.ParseAutocomplete(indexFilter, field, prefixString, caseInsensitive)
+	selectQuery := qt.BuildAutocompleteQuery(field, where.WhereClause, size)
 	dbQueryCtx, cancel := context.WithCancel(ctx)
 	// TODO this will be used to cancel goroutine that is executing the query
 	_ = cancel
@@ -59,6 +95,7 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparse
 		}
 	}
 
+	reqBody, _ := body.Bytes()
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     ctx.Value(tracing.RequestIdCtxKey).(string),
 		Path:                   path,

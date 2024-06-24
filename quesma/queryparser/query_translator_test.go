@@ -502,7 +502,6 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 		cw.BuildAutocompleteSuggestionsQuery("@", "", 0),
 		cw.BuildFacetsQuery("@", &model.SimpleQuery{}, true),
 		cw.BuildFacetsQuery("@", &model.SimpleQuery{}, false),
-		// queryTranslator.BuildTimestampQuery("@", "@", "", true), TODO uncomment when add unification for this query type
 	}
 	types := []model.SearchQueryType{model.ListAllFields, model.FacetsNumeric, model.Facets}
 	for i, query := range queries {
