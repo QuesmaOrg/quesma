@@ -349,25 +349,12 @@ func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQuer
 // Notice that on 0, 2, ..., level of nesting we have "aggs" key or aggregation type.
 // On 1, 3, ... level of nesting we have names of aggregations, which can be any arbitrary strings.
 // This function is called on those 0, 2, ... levels, and parses the actual aggregations.
-func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuilder, queryMap QueryMap, resultQueries *[]*model.Query) error {
+func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder, queryMap QueryMap, resultQueries *[]*model.Query) error {
 	if len(queryMap) == 0 {
 		return nil
 	}
 
-	whereBeforeNesting := currentAggr.whereBuilder // to restore it after processing this level
-	queryTypeBeforeNesting := currentAggr.Type
-	columnsBeforeNesting := currentAggr.SelectCommand.Columns
-	groupByBeforeNesting := currentAggr.SelectCommand.GroupBy
-	orderByBeforeNesting := currentAggr.SelectCommand.OrderBy
-	limitBeforeNesting := currentAggr.SelectCommand.Limit
-	defer func() {
-		currentAggr.whereBuilder = whereBeforeNesting
-		currentAggr.Type = queryTypeBeforeNesting
-		currentAggr.SelectCommand.Columns = columnsBeforeNesting
-		currentAggr.SelectCommand.GroupBy = groupByBeforeNesting
-		currentAggr.SelectCommand.OrderBy = orderByBeforeNesting
-		currentAggr.SelectCommand.Limit = limitBeforeNesting
-	}()
+	currentAggr := *prevAggr
 
 	// check if metadata's present
 	var metadata model.JsonMap
@@ -407,7 +394,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	}
 
 	// 4. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
-	bucketAggrPresent, groupByFieldsAdded, err := cw.tryBucketAggregation(currentAggr, queryMap)
+	bucketAggrPresent, groupByFieldsAdded, err := cw.tryBucketAggregation(&currentAggr, queryMap)
 	if err != nil {
 		return err
 	}
@@ -422,7 +409,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	// process "range" with subaggregations
 	Range, isRange := currentAggr.Type.(bucket_aggregations.Range)
 	if isRange {
-		cw.processRangeAggregation(currentAggr, Range, queryMap, resultQueries, metadata)
+		cw.processRangeAggregation(&currentAggr, Range, queryMap, resultQueries, metadata)
 	}
 
 	// TODO what happens if there's all: filters, range, and subaggregations at current level?
@@ -432,12 +419,12 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 
 	filters, isFilters := currentAggr.Type.(bucket_aggregations.Filters)
 	if isFilters {
-		cw.processFiltersAggregation(currentAggr, filters, queryMap, resultQueries)
+		cw.processFiltersAggregation(&currentAggr, filters, queryMap, resultQueries)
 	}
 
 	aggsHandledSeparately := isRange || isFilters
 	if aggs, ok := queryMap["aggs"]; ok && !aggsHandledSeparately {
-		err = cw.parseAggregationNames(currentAggr, aggs.(QueryMap), resultQueries)
+		err = cw.parseAggregationNames(&currentAggr, aggs.(QueryMap), resultQueries)
 		if err != nil {
 			return err
 		}
