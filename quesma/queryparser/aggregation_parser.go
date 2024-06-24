@@ -354,10 +354,20 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 		return nil
 	}
 
-	filterOnThisLevel := false
 	whereBeforeNesting := currentAggr.whereBuilder // to restore it after processing this level
 	queryTypeBeforeNesting := currentAggr.Type
+	columnsBeforeNesting := currentAggr.SelectCommand.Columns
+	groupByBeforeNesting := currentAggr.SelectCommand.GroupBy
+	orderByBeforeNesting := currentAggr.SelectCommand.OrderBy
 	limitBeforeNesting := currentAggr.SelectCommand.Limit
+	defer func() {
+		currentAggr.whereBuilder = whereBeforeNesting
+		currentAggr.Type = queryTypeBeforeNesting
+		currentAggr.SelectCommand.Columns = columnsBeforeNesting
+		currentAggr.SelectCommand.GroupBy = groupByBeforeNesting
+		currentAggr.SelectCommand.OrderBy = orderByBeforeNesting
+		currentAggr.SelectCommand.Limit = limitBeforeNesting
+	}()
 
 	// check if metadata's present
 	var metadata model.JsonMap
@@ -387,7 +397,6 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	// Also filter introduces count to current level.
 	if filterRaw, ok := queryMap["filter"]; ok {
 		if filter, ok := filterRaw.(QueryMap); ok {
-			filterOnThisLevel = true
 			currentAggr.Type = metrics_aggregations.NewCount(cw.Ctx)
 			currentAggr.whereBuilder = model.CombineWheres(cw.Ctx, currentAggr.whereBuilder, cw.parseQueryMap(filter))
 			*resultQueries = append(*resultQueries, currentAggr.buildCountAggregation(metadata))
@@ -398,7 +407,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	}
 
 	// 4. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
-	bucketAggrPresent, columnsAdded, groupByFieldsAdded, orderByFieldsAdded, err := cw.tryBucketAggregation(currentAggr, queryMap)
+	bucketAggrPresent, _, groupByFieldsAdded, _, err := cw.tryBucketAggregation(currentAggr, queryMap)
 	if err != nil {
 		return err
 	}
@@ -446,35 +455,6 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 			Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", k, v, v)
 	}
 
-	// restore current state, removing subaggregation state
-	if filterOnThisLevel {
-		currentAggr.whereBuilder = whereBeforeNesting
-	}
-	if columnsAdded > 0 {
-
-		if len(currentAggr.SelectCommand.Columns) >= columnsAdded {
-			currentAggr.SelectCommand.Columns = currentAggr.SelectCommand.Columns[:len(currentAggr.SelectCommand.Columns)-columnsAdded]
-		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("columnsAdded > currentAggr.Columns length -> should be impossible")
-		}
-
-	}
-	if groupByFieldsAdded > 0 {
-		if len(currentAggr.SelectCommand.GroupBy) >= groupByFieldsAdded {
-			currentAggr.SelectCommand.GroupBy = currentAggr.SelectCommand.GroupBy[:len(currentAggr.SelectCommand.GroupBy)-groupByFieldsAdded]
-		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("groupByFieldsAdded > currentAggr.GroupBy length -> should be impossible")
-		}
-	}
-	if orderByFieldsAdded > 0 {
-		if len(currentAggr.SelectCommand.OrderBy) >= orderByFieldsAdded {
-			currentAggr.SelectCommand.OrderBy = currentAggr.SelectCommand.OrderBy[:len(currentAggr.SelectCommand.OrderBy)-orderByFieldsAdded]
-		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("orderByFieldsAdded > currentAggr.OrderBy length -> should be impossible")
-		}
-	}
-	currentAggr.Type = queryTypeBeforeNesting
-	currentAggr.SelectCommand.Limit = limitBeforeNesting
 	return nil
 }
 
