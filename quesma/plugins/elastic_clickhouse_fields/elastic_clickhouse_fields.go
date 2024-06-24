@@ -18,20 +18,20 @@ var sqlNative = "__"
 
 type translateFunc func(string) string
 
-func doubleColons2dot(intput string) string {
-	return strings.ReplaceAll(intput, doubleColons, dot)
+func doubleColons2dot(input string) string {
+	return strings.ReplaceAll(input, doubleColons, dot)
 }
 
-func dot2DoubleColons(intput string) string {
-	return strings.ReplaceAll(intput, dot, doubleColons)
+func dot2DoubleColons(input string) string {
+	return strings.ReplaceAll(input, dot, doubleColons)
 }
 
-func dot2SQLNative(intput string) string {
-	return strings.ReplaceAll(intput, dot, sqlNative)
+func dot2SQLNative(input string) string {
+	return strings.ReplaceAll(input, dot, sqlNative)
 }
 
-func sqlNative2Dot(intput string) string {
-	return strings.ReplaceAll(intput, sqlNative, dot)
+func sqlNative2Dot(input string) string {
+	return strings.ReplaceAll(input, sqlNative, dot)
 }
 
 type resultTransformer struct {
