@@ -12,6 +12,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/testdata"
+	"quesma/testdata/clients/kunkka"
 	dashboard_1 "quesma/testdata/dashboard-1"
 	kibana_visualize "quesma/testdata/kibana-visualize"
 	opensearch_visualize "quesma/testdata/opensearch-visualize"
@@ -615,6 +616,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	allTests = append(allTests, testdata.PipelineAggregationTests...)
 	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
 	allTests = append(allTests, kibana_visualize.AggregationTests...)
+	allTests = append(allTests, kunkka.KunkkaTests...)
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)" {
@@ -637,6 +639,14 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			}
 			if i == 7 {
 				t.Skip("Let's implement top_hits in next PR. Easily doable, just a bit of code.")
+			}
+			if test.TestName == "it's the same input as in previous test, but with the original output from Elastic."+
+				"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
+				"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix" {
+				t.Skip("Unskip and remove the previous test after those fixes.")
+			}
+			if test.TestName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" {
+				t.Skip("Small details left for this test to be correct. I'll (Krzysiek) fix soon after returning to work")
 			}
 
 			body, parseErr := types.ParseJSON(test.QueryRequestJson)

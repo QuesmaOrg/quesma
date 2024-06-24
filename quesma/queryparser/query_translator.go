@@ -78,9 +78,6 @@ func (cw *ClickhouseQueryTranslator) finishMakeResponse(query *model.Query, Resu
 		return query.Type.TranslateSqlResponseToJson(ResultSet, level)
 	} else { // metrics
 		result := query.Type.TranslateSqlResponseToJson(ResultSet, level)[0]
-		if level > 0 && len(ResultSet) > 0 {
-			result[model.KeyAddedByQuesma] = ResultSet[0].Cols[level-1].Value
-		}
 		lastAggregator := query.Aggregators[len(query.Aggregators)-1].Name
 		if _, isTopHits := query.Type.(metrics_aggregations.TopHits); isTopHits {
 			return []model.JsonMap{{
@@ -139,8 +136,13 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 		weSplitOverHowManyFields := query.Aggregators[aggregatorsLevel].SplitOverHowManyFields
 		buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+weSplitOverHowManyFields)
 		for _, bucket := range buckets {
-			bucketsReturnMap = append(bucketsReturnMap,
-				cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)...)
+			newBuckets := cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
+			if len(bucket) > 0 {
+				for _, newBucket := range newBuckets {
+					newBucket[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
+				}
+			}
+			bucketsReturnMap = append(bucketsReturnMap, newBuckets...)
 		}
 	}
 

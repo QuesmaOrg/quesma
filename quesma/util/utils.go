@@ -289,23 +289,28 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 			i, j := 0, 0
 			for i < i1Len && j < i2Len {
 				var key1, key2 string
-				key1, ok = i1Typed[i]["key"].(string) // TODO keys may be ints
+				key1, ok = i1Typed[i][keyAddedByQuesma].(string)
 				if !ok {
-					if key1, ok = i1Typed[i][keyAddedByQuesma].(string); !ok { // TODO keys may be ints
+					if key1Int, ok := i1Typed[i][keyAddedByQuesma].(int64); ok {
+						key1 = strconv.FormatInt(key1Int, 10)
+					} else {
+						// TODO keys probably can be other types, e.g. bools
 						logger.ErrorWithCtx(ctx).Msgf("mergeAny: key not found in i1: %v", i1Typed[i])
 						i += 1
 						continue
 					}
 				}
-				key2, ok = i2Typed[j].(JsonMap)["key"].(string) // TODO keys may be ints
+				key2, ok = i2Typed[j].(JsonMap)[keyAddedByQuesma].(string) // TODO keys may be ints
 				if !ok {
-					if key2, ok = i2Typed[j].(JsonMap)[keyAddedByQuesma].(string); !ok { // TODO keys may be ints
+					if key2Int, ok := i2Typed[j].(JsonMap)[keyAddedByQuesma].(int64); ok {
+						key2 = strconv.FormatInt(key2Int, 10)
+					} else {
+						// TODO keys probably can be other types, e.g. bools
 						logger.ErrorWithCtx(ctx).Msgf("mergeAny: key not found in i2: %v", i2Typed[j])
 						j += 1
 						continue
 					}
 				}
-
 				if key1 == key2 {
 					mergedArray = append(mergedArray, mergeMapsRec(i1Typed[i], i2Typed[j].(JsonMap)))
 					i += 1
