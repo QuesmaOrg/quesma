@@ -3,10 +3,10 @@ package typical_queries
 import (
 	"context"
 	"fmt"
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/elasticsearch"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
+	"quesma/clickhouse"
+	"quesma/elasticsearch"
+	"quesma/logger"
+	"quesma/model"
 	"strconv"
 	"time"
 )

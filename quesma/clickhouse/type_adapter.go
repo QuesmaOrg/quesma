@@ -1,7 +1,7 @@
 package clickhouse
 
 import (
-	"mitmproxy/quesma/schema"
+	"quesma/schema"
 	"strings"
 )
 

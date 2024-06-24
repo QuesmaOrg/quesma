@@ -2,7 +2,7 @@ package metrics_aggregations
 
 import (
 	"context"
-	"mitmproxy/quesma/model"
+	"quesma/model"
 )
 
 type Cardinality struct {

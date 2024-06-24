@@ -3,8 +3,8 @@ package stats
 import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/types"
+	"quesma/quesma/config"
+	"quesma/quesma/types"
 	"testing"
 )
 

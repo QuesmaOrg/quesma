@@ -4,9 +4,9 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"github.com/ClickHouse/clickhouse-go/v2"
-	"mitmproxy/quesma/buildinfo"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/quesma/config"
+	"quesma/buildinfo"
+	"quesma/logger"
+	"quesma/quesma/config"
 	"strings"
 	"time"
 )

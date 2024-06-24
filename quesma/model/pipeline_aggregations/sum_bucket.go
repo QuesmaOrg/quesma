@@ -3,10 +3,10 @@ package pipeline_aggregations
 import (
 	"context"
 	"fmt"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryprocessor"
-	"mitmproxy/quesma/util"
+	"quesma/logger"
+	"quesma/model"
+	"quesma/queryprocessor"
+	"quesma/util"
 )
 
 type SumBucket struct {

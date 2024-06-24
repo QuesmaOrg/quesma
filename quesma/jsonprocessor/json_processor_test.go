@@ -3,7 +3,7 @@ package jsonprocessor
 import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
-	"mitmproxy/quesma/quesma/types"
+	"quesma/quesma/types"
 	"reflect"
 	"testing"
 )

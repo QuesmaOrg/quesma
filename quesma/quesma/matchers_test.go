@@ -2,8 +2,8 @@ package quesma
 
 import (
 	"github.com/stretchr/testify/assert"
-	"mitmproxy/quesma/quesma/mux"
-	"mitmproxy/quesma/quesma/types"
+	"quesma/quesma/mux"
+	"quesma/quesma/types"
 	"testing"
 )
 

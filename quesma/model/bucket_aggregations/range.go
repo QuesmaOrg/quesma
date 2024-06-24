@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
+	"quesma/logger"
+	"quesma/model"
 	"strconv"
 	"strings"
 )

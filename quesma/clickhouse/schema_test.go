@@ -3,7 +3,7 @@ package clickhouse
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
-	"mitmproxy/quesma/model"
+	"quesma/model"
 	"strconv"
 	"testing"
 )

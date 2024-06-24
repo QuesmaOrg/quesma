@@ -1,10 +1,10 @@
 package quesma
 
 import (
-	"mitmproxy/quesma/elasticsearch"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/util"
+	"quesma/elasticsearch"
+	"quesma/logger"
+	"quesma/quesma/config"
+	"quesma/util"
 	"slices"
 	"strings"
 )

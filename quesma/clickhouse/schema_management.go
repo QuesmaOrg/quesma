@@ -2,8 +2,8 @@ package clickhouse
 
 import (
 	"database/sql"
-	"mitmproxy/quesma/end_user_errors"
-	"mitmproxy/quesma/logger"
+	"quesma/end_user_errors"
+	"quesma/logger"
 )
 
 type SchemaManagement struct {

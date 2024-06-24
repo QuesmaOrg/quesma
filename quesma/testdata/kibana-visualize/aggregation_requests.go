@@ -1,8 +1,8 @@
 package kibana_visualize
 
 import (
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/testdata"
+	"quesma/model"
+	"quesma/testdata"
 )
 
 var AggregationTests = []testdata.AggregationTestCase{

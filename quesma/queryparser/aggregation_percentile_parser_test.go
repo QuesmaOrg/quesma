@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/stretchr/testify/assert"
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/model"
+	"quesma/clickhouse"
+	"quesma/model"
 	"testing"
 )
 

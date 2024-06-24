@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"github.com/rs/zerolog"
 	"io"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/stats/errorstats"
-	"mitmproxy/quesma/tracing"
 	"net/http"
 	"net/url"
 	"os"
+	"quesma/quesma/config"
+	"quesma/stats/errorstats"
+	"quesma/tracing"
 	"time"
 )
 

@@ -3,9 +3,9 @@ package metrics_aggregations
 import (
 	"context"
 	"fmt"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/util"
+	"quesma/logger"
+	"quesma/model"
+	"quesma/util"
 )
 
 type ExtendedStats struct {

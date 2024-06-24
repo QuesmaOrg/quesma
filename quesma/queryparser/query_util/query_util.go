@@ -2,9 +2,9 @@ package query_util
 
 import (
 	"context"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/model/typical_queries"
+	"quesma/logger"
+	"quesma/model"
+	"quesma/model/typical_queries"
 )
 
 func IsNonAggregationQuery(query *model.Query) bool {

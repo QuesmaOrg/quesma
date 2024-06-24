@@ -2,10 +2,10 @@ package ui
 
 import (
 	"fmt"
-	"mitmproxy/quesma/buildinfo"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/ui/internal/builder"
-	"mitmproxy/quesma/util"
+	"quesma/buildinfo"
+	"quesma/quesma/config"
+	"quesma/quesma/ui/internal/builder"
+	"quesma/util"
 )
 
 func (qmc *QuesmaManagementConsole) generateLiveTail() []byte {

@@ -1,11 +1,11 @@
 package quesma
 
 import (
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/schema"
+	"quesma/clickhouse"
+	"quesma/logger"
+	"quesma/model"
+	"quesma/quesma/config"
+	"quesma/schema"
 	"strings"
 )
 

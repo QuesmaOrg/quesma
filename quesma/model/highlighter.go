@@ -1,7 +1,7 @@
 package model
 
 import (
-	"mitmproxy/quesma/logger"
+	"quesma/logger"
 	"sort"
 	"strings"
 )

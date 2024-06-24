@@ -2,8 +2,8 @@ package queryparser
 
 import (
 	"context"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
+	"quesma/logger"
+	"quesma/model"
 )
 
 func (cw *ClickhouseQueryTranslator) ParseTopMetricsAggregation(queryMap QueryMap) metricsAggregation {

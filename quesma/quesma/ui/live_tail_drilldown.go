@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"gopkg.in/yaml.v3"
-	"mitmproxy/quesma/quesma/ui/internal/builder"
-	"mitmproxy/quesma/util"
+	"quesma/quesma/ui/internal/builder"
+	"quesma/util"
 	"strings"
 )
 

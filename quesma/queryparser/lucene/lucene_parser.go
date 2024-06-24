@@ -3,8 +3,8 @@ package lucene
 import (
 	"context"
 	"math"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
+	"quesma/logger"
+	"quesma/model"
 	"slices"
 	"strconv"
 	"strings"

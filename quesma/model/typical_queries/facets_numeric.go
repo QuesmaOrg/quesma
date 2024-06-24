@@ -2,9 +2,9 @@ package typical_queries
 
 import (
 	"context"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/util"
+	"quesma/logger"
+	"quesma/model"
+	"quesma/util"
 )
 
 // FacetsNumeric There's no such aggregation in Elastic. It's a special type of a simple bucket aggregation request,

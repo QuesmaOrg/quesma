@@ -2,7 +2,7 @@ package typical_queries
 
 import (
 	"context"
-	"mitmproxy/quesma/model"
+	"quesma/model"
 )
 
 type Count struct {

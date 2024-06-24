@@ -1,7 +1,7 @@
 package feature
 
 import (
-	"mitmproxy/quesma/logger"
+	"quesma/logger"
 	"sync"
 	"time"
 )

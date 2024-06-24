@@ -2,7 +2,7 @@ package errorstats
 
 import (
 	"github.com/rs/zerolog"
-	"mitmproxy/quesma/tracing"
+	"quesma/tracing"
 	"sort"
 	"sync"
 	"time"

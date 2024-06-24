@@ -2,8 +2,8 @@ package metrics_aggregations
 
 import (
 	"context"
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/model"
+	"quesma/clickhouse"
+	"quesma/model"
 )
 
 type Avg struct {

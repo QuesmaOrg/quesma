@@ -1,8 +1,8 @@
 package schema
 
 import (
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/quesma/config"
+	"quesma/logger"
+	"quesma/quesma/config"
 )
 
 type (

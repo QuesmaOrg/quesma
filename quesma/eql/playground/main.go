@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
-	"mitmproxy/quesma/eql"
-	"mitmproxy/quesma/eql/transform"
 	"os"
+	"quesma/eql"
+	"quesma/eql/transform"
 	"strings"
 	"text/tabwriter"
 )

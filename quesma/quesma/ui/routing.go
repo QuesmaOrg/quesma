@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"mitmproxy/quesma/quesma/mux"
-	"mitmproxy/quesma/quesma/ui/internal/builder"
+	"quesma/quesma/mux"
+	"quesma/quesma/ui/internal/builder"
 	"strings"
 )
 

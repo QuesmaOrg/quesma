@@ -3,7 +3,7 @@ package feature
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
-	"mitmproxy/quesma/quesma/config"
+	"quesma/quesma/config"
 	"testing"
 )
 

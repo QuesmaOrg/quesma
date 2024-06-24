@@ -2,7 +2,7 @@ package queryprocessor
 
 import (
 	"context"
-	"mitmproxy/quesma/model"
+	"quesma/model"
 	"reflect"
 )
 

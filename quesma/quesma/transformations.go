@@ -1,8 +1,8 @@
 package quesma
 
 import (
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/plugins"
+	"quesma/model"
+	"quesma/plugins"
 )
 
 type TransformationPipeline struct {

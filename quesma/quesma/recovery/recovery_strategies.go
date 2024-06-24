@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/rs/zerolog"
-	"mitmproxy/quesma/logger"
+	"quesma/logger"
 	"runtime/debug"
 	"sync/atomic"
 )

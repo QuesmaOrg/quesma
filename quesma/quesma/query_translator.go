@@ -2,11 +2,11 @@ package quesma
 
 import (
 	"context"
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/eql"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser"
-	"mitmproxy/quesma/quesma/types"
+	"quesma/clickhouse"
+	"quesma/eql"
+	"quesma/model"
+	"quesma/queryparser"
+	"quesma/quesma/types"
 )
 
 // This is an extracted interface for query translation.

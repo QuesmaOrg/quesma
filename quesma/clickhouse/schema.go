@@ -3,7 +3,7 @@ package clickhouse
 import (
 	"fmt"
 	"math"
-	"mitmproxy/quesma/util"
+	"quesma/util"
 	"reflect"
 	"strings"
 	"time"

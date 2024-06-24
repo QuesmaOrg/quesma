@@ -1,7 +1,7 @@
 package clickhouse
 
 import (
-	"mitmproxy/quesma/logger"
+	"quesma/logger"
 	"strings"
 	"unicode"
 )

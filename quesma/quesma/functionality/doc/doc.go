@@ -2,12 +2,12 @@ package doc
 
 import (
 	"context"
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/recovery"
-	"mitmproxy/quesma/quesma/types"
-	"mitmproxy/quesma/stats"
+	"quesma/clickhouse"
+	"quesma/logger"
+	"quesma/quesma/config"
+	"quesma/quesma/recovery"
+	"quesma/quesma/types"
+	"quesma/stats"
 	"sync/atomic"
 )
 

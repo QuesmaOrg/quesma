@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"mitmproxy/quesma/end_user_errors"
-	"mitmproxy/quesma/health"
+	"quesma/end_user_errors"
+	"quesma/health"
 	"sync"
 	"time"
 )

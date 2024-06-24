@@ -3,10 +3,10 @@ package ui
 import (
 	"fmt"
 	"github.com/rs/zerolog"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"net/url"
+	"quesma/logger"
+	"quesma/model"
+	"quesma/quesma/ui/internal/builder"
 	"regexp"
 	"sort"
 )

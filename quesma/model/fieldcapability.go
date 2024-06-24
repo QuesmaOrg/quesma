@@ -1,7 +1,7 @@
 package model
 
 import (
-	"mitmproxy/quesma/util"
+	"quesma/util"
 )
 
 // Content of this file is a copy of

@@ -2,9 +2,9 @@ package metrics_aggregations
 
 import (
 	"context"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/schema"
+	"quesma/logger"
+	"quesma/model"
+	"quesma/schema"
 	"strconv"
 	"strings"
 )

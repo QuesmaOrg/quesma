@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"mitmproxy/quesma/quesma/config"
 	"net/http"
 	"net/url"
+	"quesma/quesma/config"
 	"strconv"
 	"time"
 )

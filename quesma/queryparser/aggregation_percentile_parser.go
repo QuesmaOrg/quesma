@@ -2,8 +2,8 @@ package queryparser
 
 import (
 	"fmt"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
+	"quesma/logger"
+	"quesma/model"
 )
 
 const maxPrecision = 0.999999

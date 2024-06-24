@@ -1,6 +1,6 @@
 package testdata
 
-import "mitmproxy/quesma/quesma/ui"
+import "quesma/quesma/ui"
 
 var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 	// bucket:

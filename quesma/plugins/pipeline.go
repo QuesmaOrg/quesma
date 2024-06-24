@@ -1,8 +1,8 @@
 package plugins
 
 import (
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/quesma/types"
+	"quesma/model"
+	"quesma/quesma/types"
 )
 
 type QueryTransformerPipeline []QueryTransformer

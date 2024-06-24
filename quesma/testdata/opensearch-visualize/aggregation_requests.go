@@ -2,9 +2,9 @@ package opensearch_visualize
 
 import (
 	"math"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/testdata"
-	"mitmproxy/quesma/util"
+	"quesma/model"
+	"quesma/testdata"
+	"quesma/util"
 	"time"
 )
 

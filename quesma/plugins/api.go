@@ -1,9 +1,9 @@
 package plugins
 
 import (
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/types"
+	"quesma/model"
+	"quesma/quesma/config"
+	"quesma/quesma/types"
 )
 
 // Legit Interfaces

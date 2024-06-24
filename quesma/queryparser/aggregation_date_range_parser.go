@@ -1,8 +1,8 @@
 package queryparser
 
 import (
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model/bucket_aggregations"
+	"quesma/logger"
+	"quesma/model/bucket_aggregations"
 	"unicode"
 )
 

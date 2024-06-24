@@ -2,8 +2,8 @@ package ui
 
 import (
 	"fmt"
-	"mitmproxy/quesma/quesma/ui/internal/builder"
 	"net/url"
+	"quesma/quesma/ui/internal/builder"
 )
 
 func generateSimpleTop(title string) []byte {

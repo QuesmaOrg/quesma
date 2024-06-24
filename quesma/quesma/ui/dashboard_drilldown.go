@@ -2,9 +2,9 @@ package ui
 
 import (
 	"fmt"
-	"mitmproxy/quesma/quesma/ui/internal/builder"
-	"mitmproxy/quesma/stats/errorstats"
 	"net/url"
+	"quesma/quesma/ui/internal/builder"
+	"quesma/stats/errorstats"
 	"strconv"
 )
 

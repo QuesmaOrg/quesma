@@ -2,9 +2,9 @@ package registry
 
 import (
 	"fmt"
-	"mitmproxy/quesma/plugins"
-	"mitmproxy/quesma/plugins/elastic_clickhouse_fields"
-	"mitmproxy/quesma/quesma/config"
+	"quesma/plugins"
+	"quesma/plugins/elastic_clickhouse_fields"
+	"quesma/quesma/config"
 )
 
 var registeredPlugins []plugins.Plugin

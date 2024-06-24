@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"mitmproxy/quesma/quesma/ui/internal/builder"
+	"quesma/quesma/ui/internal/builder"
 	"slices"
 	"strings"
 )

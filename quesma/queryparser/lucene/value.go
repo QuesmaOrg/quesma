@@ -2,8 +2,8 @@ package lucene
 
 import (
 	"fmt"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
+	"quesma/logger"
+	"quesma/model"
 	"slices"
 	"strings"
 )

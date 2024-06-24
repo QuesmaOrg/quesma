@@ -1,9 +1,9 @@
 package lucene
 
 import (
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
-	//wc "mitmproxy/quesma/queryparser/where_clause"
+	"quesma/logger"
+	"quesma/model"
+	//wc "quesma/queryparser/where_clause"
 )
 
 func (p *luceneParser) BuildWhereStatement() model.Expr {

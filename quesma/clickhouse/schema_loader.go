@@ -3,11 +3,11 @@ package clickhouse
 import (
 	"context"
 	"errors"
-	"mitmproxy/quesma/end_user_errors"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/schema"
-	"mitmproxy/quesma/util"
+	"quesma/end_user_errors"
+	"quesma/logger"
+	"quesma/quesma/config"
+	"quesma/schema"
+	"quesma/util"
 	"strings"
 	"sync/atomic"
 )

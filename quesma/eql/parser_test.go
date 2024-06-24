@@ -2,7 +2,7 @@ package eql
 
 import (
 	"github.com/stretchr/testify/assert"
-	"mitmproxy/quesma/eql/parser"
+	"quesma/eql/parser"
 	"testing"
 )
 

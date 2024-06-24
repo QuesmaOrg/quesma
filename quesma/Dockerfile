@@ -26,13 +26,13 @@ RUN --mount=type=cache,target="/root/.cache/go-build" \
     --mount=type=cache,target=/go/pkg/mod  \
     go build \
     -ldflags=" \
-    -X 'mitmproxy/quesma/buildinfo.BuildHash=$QUESMA_BUILD_SHA'  \
+    -X 'quesma/buildinfo.BuildHash=$QUESMA_BUILD_SHA'  \
     -X 'buildinfo.BuildHash=$QUESMA_BUILD_SHA'  \
-    -X 'mitmproxy/quesma/buildinfo.Version=$QUESMA_VERSION'  \
+    -X 'quesma/buildinfo.Version=$QUESMA_VERSION'  \
     -X 'buildinfo.Version=$QUESMA_VERSION'  \
-    -X 'mitmproxy/quesma/buildinfo.LicenseKey=$QUESMA_LICENSE_KEY'  \
+    -X 'quesma/buildinfo.LicenseKey=$QUESMA_LICENSE_KEY'  \
     -X 'buildinfo.LicenseKey=$QUESMA_LICENSE_KEY' \
-    -X 'mitmproxy/quesma/buildinfo.BuildDate=$QUESMA_BUILD_DATE'  \
+    -X 'quesma/buildinfo.BuildDate=$QUESMA_BUILD_DATE'  \
     -X 'buildinfo.BuildDate=$QUESMA_BUILD_DATE' \
 
     " \

@@ -2,9 +2,9 @@ package queryparser
 
 import (
 	"github.com/barkimedes/go-deepcopy"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/model/bucket_aggregations"
+	"quesma/logger"
+	"quesma/model"
+	"quesma/model/bucket_aggregations"
 )
 
 func (cw *ClickhouseQueryTranslator) parseFilters(queryMap QueryMap) (success bool, filtersAggr bucket_aggregations.Filters) {

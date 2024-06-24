@@ -2,7 +2,7 @@ package ui
 
 import (
 	"fmt"
-	"mitmproxy/quesma/util"
+	"quesma/util"
 )
 
 func (qmc *QuesmaManagementConsole) generateSchemas() []byte {

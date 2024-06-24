@@ -1,8 +1,8 @@
 package opensearch_visualize
 
 import (
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/testdata"
+	"quesma/model"
+	"quesma/testdata"
 )
 
 var PipelineAggregationTests = []testdata.AggregationTestCase{

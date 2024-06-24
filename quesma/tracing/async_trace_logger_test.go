@@ -4,8 +4,8 @@ import (
 	"context"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
-	"mitmproxy/quesma/concurrent"
 	"os"
+	"quesma/concurrent"
 	"testing"
 	"time"
 )

@@ -2,16 +2,16 @@ package queryparser
 
 import (
 	"context"
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/kibana"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/model/bucket_aggregations"
-	"mitmproxy/quesma/model/metrics_aggregations"
-	"mitmproxy/quesma/model/typical_queries"
-	"mitmproxy/quesma/queryparser/query_util"
-	"mitmproxy/quesma/queryprocessor"
-	"mitmproxy/quesma/util"
+	"quesma/clickhouse"
+	"quesma/kibana"
+	"quesma/logger"
+	"quesma/model"
+	"quesma/model/bucket_aggregations"
+	"quesma/model/metrics_aggregations"
+	"quesma/model/typical_queries"
+	"quesma/queryparser/query_util"
+	"quesma/queryprocessor"
+	"quesma/util"
 )
 
 const facetsSampleSize = 20000
