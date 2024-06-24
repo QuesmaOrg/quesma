@@ -37,11 +37,16 @@ func NewDateHistogram(ctx context.Context, field model.Expr, interval string,
 		minDocCount: minDocCount, intervalType: intervalType, fieldDateTimeType: fieldDateTimeType}
 }
 
-func (typ DateHistogramIntervalType) String() string {
-	if typ == DateHistogramFixedInterval {
+func (typ DateHistogramIntervalType) String(ctx context.Context) string {
+	switch typ {
+	case DateHistogramFixedInterval:
 		return "fixed_interval"
+	case DateHistogramCalendarInterval:
+		return "calendar_interval"
+	default:
+		logger.ErrorWithCtx(ctx).Msgf("unexpected DateHistogramIntervalType: %v", typ)
+		return "invalid"
 	}
-	return "calendar_interval"
 }
 
 func (query *DateHistogram) IsBucketAggregation() bool {
@@ -57,19 +62,12 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 	}
 	var response []model.JsonMap
 	for _, row := range rows {
-		var keyRawFromQuery int64
-		var ok bool
-		keyRawFromQuery, ok = row.Cols[len(row.Cols)-2].Value.(int64) // used to be [level-1], but because some columns are duplicated, it doesn't work in 100% cases now
-		if !ok {
-			logger.WarnWithCtx(query.ctx).Msgf("unexpected type of key value: %T, %+v, Should be int64", row.Cols[len(row.Cols)-2].Value, row.Cols[len(row.Cols)-2].Value)
-		}
-
 		var key int64
 		if query.intervalType == DateHistogramCalendarInterval {
-			key = keyRawFromQuery
+			key = query.getKey(row)
 		} else {
 			intervalInMilliseconds := query.intervalAsDuration().Milliseconds()
-			key = keyRawFromQuery * intervalInMilliseconds
+			key = query.getKey(row) * intervalInMilliseconds
 		}
 
 		intervalStart := time.UnixMilli(key).UTC().Format("2006-01-02T15:04:05.000")
@@ -110,9 +108,11 @@ func (query *DateHistogram) GenerateSQL() model.Expr {
 		return query.generateSQLForFixedInterval()
 	case DateHistogramCalendarInterval:
 		return query.generateSQLForCalendarInterval()
+	default:
+		logger.ErrorWithCtx(query.ctx).Msgf("invalid interval type: %v (should be impossible). Returning InvalidExpr",
+			query.intervalType.String(query.ctx))
+		return model.InvalidExpr
 	}
-	logger.ErrorWithCtx(query.ctx).Msgf("unexpected interval type: %v. Returning InvalidExpr", query.intervalType.String())
-	return model.InvalidExpr
 }
 
 func (query *DateHistogram) generateSQLForFixedInterval() model.Expr {
