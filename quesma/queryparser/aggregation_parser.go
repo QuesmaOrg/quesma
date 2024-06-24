@@ -282,14 +282,13 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 	aggregations := make([]*model.Query, 0)
 
 	if aggsRaw, ok := queryAsMap["aggs"]; ok {
-		aggs, ok := aggsRaw.(QueryMap)
-		if !ok {
+		if aggs, okType := aggsRaw.(QueryMap); okType {
+			err := cw.parseAggregationNames(&currentAggr, aggs, &aggregations)
+			if err != nil {
+				return nil, err
+			}
+		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("aggs is not a map, but %T, aggs: %v", aggsRaw, aggsRaw)
-			return aggregations, nil
-		}
-		err := cw.parseAggregationNames(&currentAggr, aggs, &aggregations)
-		if err != nil {
-			return nil, err
 		}
 	}
 
