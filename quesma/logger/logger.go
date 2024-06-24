@@ -6,9 +6,7 @@ import (
 	"github.com/rs/zerolog"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
-	"quesma/quesma/config"
 	"quesma/stats/errorstats"
 	"quesma/tracing"
 	"time"
@@ -40,7 +38,7 @@ const (
 var logger zerolog.Logger
 
 // InitLogger returns channel where log messages will be sent
-func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan struct{}, asyncQueryTraceLogger *tracing.AsyncTraceLogger) <-chan LogWithLevel {
+func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asyncQueryTraceLogger *tracing.AsyncTraceLogger) <-chan LogWithLevel {
 	zerolog.TimeFieldFormat = time.RFC3339Nano // without this we don't have milliseconds timestamp precision
 	var output io.Writer = zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.StampMilli}
 	if os.Getenv("GO_ENV") == "production" { // ConsoleWriter is slow, disable it in production
@@ -50,13 +48,13 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 	chanWriter := channelWriter{ch: logChannel}
 
 	var logWriters []io.Writer
-	if cfg.Logging.FileLogging {
-		openLogFiles(cfg.Logging.Path)
+	if cfg.FileLogging {
+		openLogFiles(cfg.Path)
 		logWriters = []io.Writer{output, StdLogFile, errorFileLogger{ErrLogFile}, chanWriter}
 	} else {
 		logWriters = []io.Writer{output, chanWriter}
 	}
-	if cfg.Logging.RemoteLogDrainUrl == nil {
+	if cfg.RemoteLogDrainUrl == nil {
 		// FIXME
 		// LogForwarder has extra jobs either. It forwards information that we're done.
 		// This should be done  via context cancellation.
@@ -65,7 +63,7 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 			doneCh <- struct{}{}
 		}()
 	} else {
-		logDrainUrl := url.URL(*cfg.Logging.RemoteLogDrainUrl)
+		logDrainUrl := *cfg.RemoteLogDrainUrl
 		logForwarder := LogForwarder{logSender: LogSender{
 			Url:          &logDrainUrl,
 			LicenseKey:   cfg.LicenseKey,
@@ -88,7 +86,7 @@ func InitLogger(cfg config.QuesmaConfiguration, sig chan os.Signal, doneCh chan 
 
 	multi := zerolog.MultiLevelWriter(logWriters...)
 	logger = zerolog.New(multi).
-		Level(cfg.Logging.Level).
+		Level(cfg.Level).
 		With().
 		Timestamp().
 		Caller().
@@ -120,13 +118,13 @@ func InitSimpleLoggerForTests() {
 		Logger()
 }
 
-func InitOnlyChannelLoggerForTests(cfg config.QuesmaConfiguration) <-chan LogWithLevel {
+func InitOnlyChannelLoggerForTests() <-chan LogWithLevel {
 	zerolog.TimeFieldFormat = time.RFC3339Nano   // without this we don't have milliseconds timestamp precision
 	logChannel := make(chan LogWithLevel, 50000) // small number like 5 or 10 made entire Quesma totally unresponsive during the few seconds where Kibana spams with messages
 	chanWriter := channelWriter{ch: logChannel}
 
 	logger = zerolog.New(chanWriter).
-		Level(cfg.Logging.Level).
+		Level(zerolog.DebugLevel).
 		With().
 		Timestamp().
 		Caller().
