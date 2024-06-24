@@ -135,15 +135,15 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 		// normally it's just 1. It used to be just 1 before multi_terms aggregation, where we usually split over > 1 field
 		weSplitOverHowManyFields := query.Aggregators[aggregatorsLevel].SplitOverHowManyFields
 		buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+weSplitOverHowManyFields)
-		// pp.Println("buckets:", buckets)
 		for _, bucket := range buckets {
 			newBuckets := cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
-			for _, newBucket := range newBuckets {
-				newBucket[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
+			if len(bucket) > 0 {
+				for _, newBucket := range newBuckets {
+					newBucket[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
+				}
 			}
 			bucketsReturnMap = append(bucketsReturnMap, newBuckets...)
 		}
-		// pp.Println("bucketsReturnMap:", bucketsReturnMap)
 	}
 
 	result := make(model.JsonMap, 1)
@@ -200,14 +200,8 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 			continue
 		}
 		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
-		if i == 2 {
-			// pp.Println(aggregation)
-		}
 		if len(aggregation) != 0 {
 			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0], model.KeyAddedByQuesma) // result of root node is always a single map, thus [0]
-		}
-		if i >= 0 {
-			// pp.Println(i, aggregations)
 		}
 	}
 	return aggregations
