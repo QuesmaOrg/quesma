@@ -15,6 +15,19 @@ type WhereVisitor struct {
 }
 
 func (v *WhereVisitor) VisitLiteral(e model.LiteralExpr) interface{} {
+	if boolLiteral, ok := e.Value.(string); ok {
+		// TODO this is a hack for now
+		// bool literals are not quoted in the query and become strings
+		// we need to convert them back to bool literals
+		// proper solution would require introducing a new type for bool literals in the model
+		// and updating the parser to recognize them
+		// but this would require much more work
+		if strings.Contains(boolLiteral, "true") || strings.Contains(boolLiteral, "false") {
+			boolLiteral = strings.TrimLeft(boolLiteral, "'")
+			boolLiteral = strings.TrimRight(boolLiteral, "'")
+			return model.NewLiteral(boolLiteral)
+		}
+	}
 	return model.NewLiteral(e.Value)
 }
 
@@ -121,8 +134,20 @@ func (v *WhereVisitor) VisitOrderByExpr(e model.OrderByExpr) interface{}        
 func (v *WhereVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{}       { return e }
 func (v *WhereVisitor) VisitTableRef(e model.TableRef) interface{}               { return e }
 func (v *WhereVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{}         { return e }
-func (v *WhereVisitor) VisitSelectCommand(e model.SelectCommand) interface{}     { return e }
-func (v *WhereVisitor) VisitWindowFunction(e model.WindowFunction) interface{}   { return e }
+func (v *WhereVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
+	var whereClause model.Expr
+	if e.WhereClause != nil {
+		whereClause = e.WhereClause.Accept(v).(model.Expr)
+	}
+	var fromClause model.Expr
+	if e.FromClause != nil {
+		fromClause = e.FromClause.Accept(v).(model.Expr)
+	}
+
+	return model.NewSelectCommand(e.Columns, e.GroupBy, e.OrderBy,
+		fromClause, whereClause, e.Limit, e.SampleLimit, e.IsDistinct)
+}
+func (v *WhereVisitor) VisitWindowFunction(e model.WindowFunction) interface{} { return e }
 
 type SchemaCheckPass struct {
 	cfg            map[string]config.IndexConfiguration
@@ -149,16 +174,13 @@ func getFromTable(fromTable string) string {
 // into
 // SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(lhs,'String'),rhs)
 func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Query, error) {
-	if query.SelectCommand.WhereClause == nil {
-		return query, nil
-	}
 	fromTable := getFromTable(query.TableName)
 	whereVisitor := &WhereVisitor{tableName: fromTable, cfg: s.cfg}
 
-	transformedWhereClause := query.SelectCommand.WhereClause.Accept(whereVisitor)
-
-	query.SelectCommand.WhereClause = transformedWhereClause.(model.Expr)
-
+	expr := query.SelectCommand.Accept(whereVisitor)
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
 	return query, nil
 }
 
