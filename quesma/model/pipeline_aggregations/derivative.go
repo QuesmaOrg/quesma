@@ -3,7 +3,7 @@ package pipeline_aggregations
 import (
 	"context"
 	"fmt"
-	"mitmproxy/quesma/model"
+	"quesma/model"
 )
 
 // Derivative is just Serial Diff, with lag = 1

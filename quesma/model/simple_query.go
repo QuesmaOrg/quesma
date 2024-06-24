@@ -2,7 +2,7 @@ package model
 
 import (
 	"context"
-	"mitmproxy/quesma/logger"
+	"quesma/logger"
 )
 
 type SimpleQuery struct {

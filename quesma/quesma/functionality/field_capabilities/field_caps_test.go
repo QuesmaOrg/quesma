@@ -3,11 +3,11 @@ package field_capabilities
 import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/schema"
-	"mitmproxy/quesma/util"
+	"quesma/clickhouse"
+	"quesma/model"
+	"quesma/quesma/config"
+	"quesma/schema"
+	"quesma/util"
 	"testing"
 )
 

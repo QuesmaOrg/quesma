@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/rs/zerolog"
-	"mitmproxy/quesma/concurrent"
+	"quesma/concurrent"
 	"strings"
 	"time"
 )

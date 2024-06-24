@@ -2,11 +2,11 @@ package elastic_clickhouse_fields
 
 import (
 	"fmt"
-	"mitmproxy/quesma/jsonprocessor"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/plugins"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/types"
+	"quesma/jsonprocessor"
+	"quesma/model"
+	"quesma/plugins"
+	"quesma/quesma/config"
+	"quesma/quesma/types"
 	"strings"
 )
 

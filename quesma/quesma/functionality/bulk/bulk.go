@@ -3,14 +3,14 @@ package bulk
 import (
 	"context"
 	"fmt"
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/recovery"
-	"mitmproxy/quesma/quesma/types"
-	"mitmproxy/quesma/stats"
-	"mitmproxy/quesma/stats/errorstats"
-	"mitmproxy/quesma/telemetry"
+	"quesma/clickhouse"
+	"quesma/logger"
+	"quesma/quesma/config"
+	"quesma/quesma/recovery"
+	"quesma/quesma/types"
+	"quesma/stats"
+	"quesma/stats/errorstats"
+	"quesma/telemetry"
 	"sync/atomic"
 )
 

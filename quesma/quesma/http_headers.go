@@ -1,8 +1,8 @@
 package quesma
 
 import (
-	"mitmproxy/quesma/logger"
 	"net/http"
+	"quesma/logger"
 	"slices"
 )
 

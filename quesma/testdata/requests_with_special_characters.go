@@ -1,6 +1,6 @@
 package testdata
 
-import "mitmproxy/quesma/model"
+import "quesma/model"
 
 var AggregationTestsWithSpecialCharactersInFieldNames = []AggregationTestCase{
 	{

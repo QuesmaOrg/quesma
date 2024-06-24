@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"math/rand"
-	"mitmproxy/quesma/end_user_errors"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
+	"quesma/end_user_errors"
+	"quesma/logger"
+	"quesma/model"
 	"strings"
 	"time"
 )

@@ -2,8 +2,8 @@ package typical_queries
 
 import (
 	"context"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
+	"quesma/logger"
+	"quesma/model"
 )
 
 func facetsTranslateSqlResponseToJson(ctx context.Context, rows []model.QueryResultRow) model.JsonMap {

@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/quesma/config"
 	"net/http"
+	"quesma/logger"
+	"quesma/quesma/config"
 	"strconv"
 )
 

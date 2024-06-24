@@ -3,8 +3,8 @@ package bucket_aggregations
 import (
 	"context"
 	"fmt"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
+	"quesma/logger"
+	"quesma/model"
 	"strings"
 )
 

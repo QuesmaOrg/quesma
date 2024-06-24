@@ -1,8 +1,8 @@
 package dashboard_1
 
 import (
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/testdata"
+	"quesma/model"
+	"quesma/testdata"
 )
 
 /*

@@ -2,7 +2,7 @@ package stats
 
 import (
 	"math"
-	"mitmproxy/quesma/logger"
+	"quesma/logger"
 	"sort"
 	"sync"
 	"time"

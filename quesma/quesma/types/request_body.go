@@ -2,7 +2,7 @@ package types
 
 import (
 	"fmt"
-	"mitmproxy/quesma/end_user_errors"
+	"quesma/end_user_errors"
 	"strings"
 )
 

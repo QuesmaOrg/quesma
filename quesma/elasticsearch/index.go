@@ -1,7 +1,7 @@
 package elasticsearch
 
 import (
-	"mitmproxy/quesma/logger"
+	"quesma/logger"
 	"regexp"
 	"strings"
 )

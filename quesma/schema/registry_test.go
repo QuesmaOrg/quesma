@@ -1,9 +1,9 @@
 package schema_test
 
 import (
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/schema"
+	"quesma/clickhouse"
+	"quesma/quesma/config"
+	"quesma/schema"
 	"reflect"
 	"testing"
 )

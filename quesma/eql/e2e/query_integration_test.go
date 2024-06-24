@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"mitmproxy/quesma/jsonprocessor"
 	"net/http"
+	"quesma/jsonprocessor"
 	"sort"
 	"strings"
 )

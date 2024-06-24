@@ -2,7 +2,7 @@ package typical_queries
 
 import (
 	"context"
-	"mitmproxy/quesma/model"
+	"quesma/model"
 )
 
 // Facets There's no such aggregation in Elastic. It's a special type of a simple bucket aggregation request.

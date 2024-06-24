@@ -3,7 +3,7 @@ package eql
 import (
 	"fmt"
 	"github.com/antlr4-go/antlr/v4"
-	"mitmproxy/quesma/eql/parser"
+	"quesma/eql/parser"
 )
 
 //  antlr -Dlanguage=Go  -package parser quesma/eql/parser/EQL.g4

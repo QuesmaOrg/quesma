@@ -1,9 +1,9 @@
 package queryparser
 
 import (
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/model/pipeline_aggregations"
+	"quesma/logger"
+	"quesma/model"
+	"quesma/model/pipeline_aggregations"
 )
 
 // CAUTION: maybe "return" everywhere isn't corrent, as maybe there can be multiple pipeline aggregations at one level.

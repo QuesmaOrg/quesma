@@ -3,10 +3,10 @@ package queryparser
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/concurrent"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/testdata"
+	"quesma/clickhouse"
+	"quesma/concurrent"
+	"quesma/quesma/config"
+	"quesma/testdata"
 	"testing"
 )
 

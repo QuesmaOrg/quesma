@@ -2,7 +2,7 @@ package ui
 
 import (
 	"encoding/json"
-	"mitmproxy/quesma/logger"
+	"quesma/logger"
 )
 
 func (qmc *QuesmaManagementConsole) generateTelemetry() []byte {

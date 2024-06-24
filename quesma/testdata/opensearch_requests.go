@@ -1,7 +1,7 @@
 package testdata
 
 import (
-	"mitmproxy/quesma/model"
+	"quesma/model"
 )
 
 var OpensearchSearchTests = []SearchTestCase{

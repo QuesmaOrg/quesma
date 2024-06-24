@@ -3,9 +3,9 @@ package ui
 import (
 	"errors"
 	"fmt"
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/end_user_errors"
-	"mitmproxy/quesma/util"
+	"quesma/clickhouse"
+	"quesma/end_user_errors"
+	"quesma/util"
 	"sort"
 	"strings"
 )

@@ -2,9 +2,9 @@ package elasticsearch
 
 import (
 	"context"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/recovery"
+	"quesma/logger"
+	"quesma/quesma/config"
+	"quesma/quesma/recovery"
 	"strings"
 	"sync/atomic"
 	"time"

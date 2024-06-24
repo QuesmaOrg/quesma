@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/gorilla/mux"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/stats"
 	"net/http"
 	"net/http/pprof"
+	"quesma/logger"
+	"quesma/stats"
 	"runtime"
 )
 

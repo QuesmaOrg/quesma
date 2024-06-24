@@ -2,9 +2,9 @@ package bucket_aggregations
 
 import (
 	"context"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/util"
+	"quesma/logger"
+	"quesma/model"
+	"quesma/util"
 )
 
 type Histogram struct {

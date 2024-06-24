@@ -2,9 +2,9 @@ package stats
 
 import (
 	"fmt"
-	"mitmproxy/quesma/jsonprocessor"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/types"
+	"quesma/jsonprocessor"
+	"quesma/quesma/config"
+	"quesma/quesma/types"
 	"sort"
 	"strconv"
 	"strings"

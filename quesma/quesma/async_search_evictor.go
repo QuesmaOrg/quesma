@@ -2,10 +2,10 @@ package quesma
 
 import (
 	"context"
-	"mitmproxy/quesma/concurrent"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/quesma/recovery"
-	"mitmproxy/quesma/tracing"
+	"quesma/concurrent"
+	"quesma/logger"
+	"quesma/quesma/recovery"
+	"quesma/tracing"
 	"strings"
 	"time"
 )

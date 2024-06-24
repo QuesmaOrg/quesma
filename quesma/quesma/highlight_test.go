@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/telemetry"
+	"quesma/clickhouse"
+	"quesma/model"
+	"quesma/queryparser"
+	"quesma/quesma/config"
+	"quesma/telemetry"
 	"testing"
 )
 

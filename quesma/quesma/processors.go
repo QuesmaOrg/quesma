@@ -2,8 +2,8 @@ package quesma
 
 import (
 	"context"
-	"mitmproxy/quesma/quesma/mux"
-	"mitmproxy/quesma/tracing"
+	"quesma/quesma/mux"
+	"quesma/tracing"
 )
 
 type (

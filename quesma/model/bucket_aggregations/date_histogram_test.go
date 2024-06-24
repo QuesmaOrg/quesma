@@ -2,7 +2,7 @@ package bucket_aggregations
 
 import (
 	"github.com/stretchr/testify/assert"
-	"mitmproxy/quesma/model"
+	"quesma/model"
 	"testing"
 )
 

@@ -2,7 +2,7 @@ package eql
 
 import (
 	"fmt"
-	"mitmproxy/quesma/eql/transform"
+	"quesma/eql/transform"
 )
 
 type Transformer struct {

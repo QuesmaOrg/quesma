@@ -2,8 +2,8 @@ package clickhouse
 
 import (
 	"fmt"
-	"mitmproxy/quesma/plugins"
-	"mitmproxy/quesma/util"
+	"quesma/plugins"
+	"quesma/util"
 	"slices"
 	"strings"
 )

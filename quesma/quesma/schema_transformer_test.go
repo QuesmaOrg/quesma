@@ -2,10 +2,10 @@ package quesma
 
 import (
 	"github.com/stretchr/testify/assert"
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/schema"
+	"quesma/clickhouse"
+	"quesma/model"
+	"quesma/quesma/config"
+	"quesma/schema"
 	"strconv"
 	"testing"
 )

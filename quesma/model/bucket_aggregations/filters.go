@@ -2,8 +2,8 @@ package bucket_aggregations
 
 import (
 	"context"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
+	"quesma/logger"
+	"quesma/model"
 )
 
 type Filters struct {

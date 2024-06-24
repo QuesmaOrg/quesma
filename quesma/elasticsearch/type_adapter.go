@@ -1,8 +1,8 @@
 package elasticsearch
 
 import (
-	"mitmproxy/quesma/elasticsearch/elasticsearch_field_types"
-	"mitmproxy/quesma/schema"
+	"quesma/elasticsearch/elasticsearch_field_types"
+	"quesma/schema"
 )
 
 type SchemaTypeAdapter struct {

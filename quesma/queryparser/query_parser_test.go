@@ -2,13 +2,13 @@ package queryparser
 
 import (
 	"context"
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/concurrent"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/types"
-	"mitmproxy/quesma/telemetry"
-	"mitmproxy/quesma/testdata"
+	"quesma/clickhouse"
+	"quesma/concurrent"
+	"quesma/model"
+	"quesma/quesma/config"
+	"quesma/quesma/types"
+	"quesma/telemetry"
+	"quesma/testdata"
 	"strconv"
 	"testing"
 

@@ -1,8 +1,8 @@
 package testdata
 
 import (
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/model"
+	"quesma/clickhouse"
+	"quesma/model"
 	"time"
 )
 

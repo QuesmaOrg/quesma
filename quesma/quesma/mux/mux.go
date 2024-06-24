@@ -3,10 +3,10 @@ package mux
 import (
 	"context"
 	"github.com/ucarion/urlpath"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/quesma/types"
 	"net/http"
 	"net/url"
+	"quesma/logger"
+	"quesma/quesma/types"
 	"strings"
 )
 

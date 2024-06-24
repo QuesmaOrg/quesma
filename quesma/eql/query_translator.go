@@ -2,14 +2,14 @@ package eql
 
 import (
 	"context"
-	"mitmproxy/quesma/clickhouse"
-	"mitmproxy/quesma/elasticsearch"
-	"mitmproxy/quesma/eql/transform"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/model"
-	"mitmproxy/quesma/queryparser"
-	"mitmproxy/quesma/queryparser/query_util"
-	"mitmproxy/quesma/quesma/types"
+	"quesma/clickhouse"
+	"quesma/elasticsearch"
+	"quesma/eql/transform"
+	"quesma/logger"
+	"quesma/model"
+	"quesma/queryparser"
+	"quesma/queryparser/query_util"
+	"quesma/quesma/types"
 	"strconv"
 	"strings"
 )

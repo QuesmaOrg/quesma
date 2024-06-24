@@ -2,7 +2,7 @@ package quesma
 
 import (
 	"github.com/stretchr/testify/assert"
-	"mitmproxy/quesma/concurrent"
+	"quesma/concurrent"
 	"testing"
 	"time"
 )

@@ -1,7 +1,7 @@
 package mux
 
 import (
-	"mitmproxy/quesma/quesma/routes"
+	"quesma/quesma/routes"
 	"slices"
 	"strings"
 	"sync"

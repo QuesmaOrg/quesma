@@ -1,7 +1,7 @@
 package model
 
 import (
-	"mitmproxy/quesma/util"
+	"quesma/util"
 	"reflect"
 	"testing"
 )

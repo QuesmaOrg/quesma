@@ -2,7 +2,7 @@ package lucene
 
 import (
 	"context"
-	"mitmproxy/quesma/model"
+	"quesma/model"
 	"strconv"
 	"testing"
 )

@@ -3,9 +3,9 @@ package clickhouse
 import (
 	"context"
 	"encoding/json"
-	"mitmproxy/quesma/concurrent"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/quesma/types"
+	"quesma/concurrent"
+	"quesma/quesma/config"
+	"quesma/quesma/types"
 	"strings"
 	"sync/atomic"
 	"testing"

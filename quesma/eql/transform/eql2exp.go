@@ -2,7 +2,7 @@ package transform
 
 import (
 	"fmt"
-	"mitmproxy/quesma/eql/parser"
+	"quesma/eql/parser"
 	"strconv"
 	"strings"
 )

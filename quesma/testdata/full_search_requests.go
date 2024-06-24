@@ -2,7 +2,7 @@ package testdata
 
 import (
 	"fmt"
-	"mitmproxy/quesma/model"
+	"quesma/model"
 )
 
 func selectCnt(limit int) string {

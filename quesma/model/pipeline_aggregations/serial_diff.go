@@ -3,7 +3,7 @@ package pipeline_aggregations
 import (
 	"context"
 	"fmt"
-	"mitmproxy/quesma/model"
+	"quesma/model"
 )
 
 type SerialDiff struct {

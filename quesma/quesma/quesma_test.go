@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/stretchr/testify/assert"
-	"mitmproxy/quesma/logger"
-	"mitmproxy/quesma/quesma/config"
-	"mitmproxy/quesma/telemetry"
 	"net/http"
+	"quesma/logger"
+	"quesma/quesma/config"
+	"quesma/telemetry"
 	"testing"
 	"time"
 )

@@ -1,6 +1,6 @@
 package testdata
 
-import "mitmproxy/quesma/model"
+import "quesma/model"
 
 // TestsSearchNoFullTextFields - test cases for search queries for a table with no full text fields
 var TestsSearchNoFullTextFields = []SearchTestCase{
