@@ -105,7 +105,7 @@ func sendElkResponseToQuesmaConsole(ctx context.Context, elkResponse elasticResu
 	console.PushPrimaryInfo(&ui.QueryDebugPrimarySource{Id: id, QueryResp: body, PrimaryTook: elkResponse.took})
 }
 
-func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.QuesmaConfiguration, logChan <-chan tracing.LogWithLevel, inspect bool) *Quesma {
+func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.QuesmaConfiguration, logChan <-chan logger.LogWithLevel, inspect bool) *Quesma {
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, nil, nil, logChan, phoneHomeAgent, emptySchemasProvider{})
 	return &Quesma{
 		processor:               proxy.NewTcpProxy(config.PublicTcpPort, config.Elasticsearch.Url.Host, inspect),
@@ -115,7 +115,7 @@ func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.Qu
 	}
 }
 
-func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, schemaLoader clickhouse.TableDiscovery, indexManager elasticsearch.IndexManagement, schemaRegistry schema.Registry, config config.QuesmaConfiguration, logChan <-chan tracing.LogWithLevel) *Quesma {
+func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, schemaLoader clickhouse.TableDiscovery, indexManager elasticsearch.IndexManagement, schemaRegistry schema.Registry, config config.QuesmaConfiguration, logChan <-chan logger.LogWithLevel) *Quesma {
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(config, logManager, indexManager, logChan, phoneHomeAgent, schemaRegistry)
 	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, schemaRegistry)
 

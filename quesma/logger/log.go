@@ -1,4 +1,4 @@
-package tracing
+package logger
 
 import "github.com/rs/zerolog"
 

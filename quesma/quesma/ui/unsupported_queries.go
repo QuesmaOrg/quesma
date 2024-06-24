@@ -6,7 +6,6 @@ import (
 	"mitmproxy/quesma/logger"
 	"mitmproxy/quesma/model"
 	"mitmproxy/quesma/quesma/ui/internal/builder"
-	"mitmproxy/quesma/tracing"
 	"net/url"
 	"regexp"
 	"sort"
@@ -16,7 +15,7 @@ const UnrecognizedQueryType = "unrecognized"
 
 var unsupportedSearchQueryRegex, _ = regexp.Compile(logger.Reason + `":"` + logger.ReasonPrefixUnsupportedQueryType + `([[:word:]]+)"`)
 
-func processUnsupportedLogMessage(log tracing.LogWithLevel) *string {
+func processUnsupportedLogMessage(log logger.LogWithLevel) *string {
 	if log.Level != zerolog.ErrorLevel && log.Level != zerolog.WarnLevel { // only error and log
 		return nil
 	}
