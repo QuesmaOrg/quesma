@@ -296,7 +296,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 	return aggregations, nil
 }
 
-// 'resultAccumulator' - array when we store results
+// 'resultQueries' - array when we store results
 // 'queryMap' always looks like this:
 //
 //	"aggs": {
@@ -312,12 +312,12 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 // On 1, 3, ... level of nesting we have names of aggregations, which can be any arbitrary strings.
 // This function is called on those 1, 3, ... levels, and parses and saves those aggregation names.
 
-func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQueryBuilder, aggs QueryMap, resultAccumulator *[]*model.Query) (err error) {
+func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQueryBuilder, aggs QueryMap, resultQueries *[]*model.Query) (err error) {
 	for aggrName, aggrDict := range aggs {
 		aggregators := currentAggr.Aggregators
 		currentAggr.Aggregators = append(aggregators, model.NewAggregator(aggrName))
 		if subAggregation, ok := aggrDict.(QueryMap); ok {
-			err = cw.parseAggregation(currentAggr, subAggregation, resultAccumulator)
+			err = cw.parseAggregation(currentAggr, subAggregation, resultQueries)
 			if err != nil {
 				return err
 			}
@@ -334,7 +334,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQuer
 // even though it's a pretty simple algorithm.
 // When making changes, look at the order in which we parse fields, it is very important for correctness.
 //
-// 'resultAccumulator' - array when we store results
+// 'resultQueries' - array when we store results
 // 'queryMap' always looks like this:
 //
 //	"aggs": {
@@ -349,7 +349,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQuer
 // Notice that on 0, 2, ..., level of nesting we have "aggs" key or aggregation type.
 // On 1, 3, ... level of nesting we have names of aggregations, which can be any arbitrary strings.
 // This function is called on those 0, 2, ... levels, and parses the actual aggregations.
-func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuilder, queryMap QueryMap, resultAccumulator *[]*model.Query) error {
+func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuilder, queryMap QueryMap, resultQueries *[]*model.Query) error {
 	if len(queryMap) == 0 {
 		return nil
 	}
@@ -372,7 +372,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	if metricsAggrResult, isMetrics := cw.tryMetricsAggregation(queryMap); isMetrics {
 		metricAggr := currentAggr.buildMetricsAggregation(metricsAggrResult, metadata)
 		if metricAggr != nil {
-			*resultAccumulator = append(*resultAccumulator, metricAggr)
+			*resultQueries = append(*resultQueries, metricAggr)
 		}
 		return nil
 	}
@@ -380,7 +380,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	// 2. Pipeline aggregation => always leaf (for now)
 	pipelineAggregationType, isPipelineAggregation := cw.parsePipelineAggregations(queryMap)
 	if isPipelineAggregation {
-		*resultAccumulator = append(*resultAccumulator, currentAggr.finishBuildingAggregationPipeline(pipelineAggregationType, metadata))
+		*resultQueries = append(*resultQueries, currentAggr.finishBuildingAggregationPipeline(pipelineAggregationType, metadata))
 	}
 
 	// 3. Now process filter(s) first, because they apply to everything else on the same level or below.
@@ -390,7 +390,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 			filterOnThisLevel = true
 			currentAggr.Type = metrics_aggregations.NewCount(cw.Ctx)
 			currentAggr.whereBuilder = model.CombineWheres(cw.Ctx, currentAggr.whereBuilder, cw.parseQueryMap(filter))
-			*resultAccumulator = append(*resultAccumulator, currentAggr.buildCountAggregation(metadata))
+			*resultQueries = append(*resultQueries, currentAggr.buildCountAggregation(metadata))
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("filter is not a map, but %T, value: %v. Skipping", filterRaw, filterRaw)
 		}
@@ -413,7 +413,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	// process "range" with subaggregations
 	Range, isRange := currentAggr.Type.(bucket_aggregations.Range)
 	if isRange {
-		cw.processRangeAggregation(currentAggr, Range, queryMap, resultAccumulator, metadata)
+		cw.processRangeAggregation(currentAggr, Range, queryMap, resultQueries, metadata)
 	}
 
 	// TODO what happens if there's all: filters, range, and subaggregations at current level?
@@ -423,12 +423,12 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 
 	filters, isFilters := currentAggr.Type.(bucket_aggregations.Filters)
 	if isFilters {
-		cw.processFiltersAggregation(currentAggr, filters, queryMap, resultAccumulator)
+		cw.processFiltersAggregation(currentAggr, filters, queryMap, resultQueries)
 	}
 
 	aggsHandledSeparately := isRange || isFilters
 	if aggs, ok := queryMap["aggs"]; ok && !aggsHandledSeparately {
-		err = cw.parseAggregationNames(currentAggr, aggs.(QueryMap), resultAccumulator)
+		err = cw.parseAggregationNames(currentAggr, aggs.(QueryMap), resultQueries)
 		if err != nil {
 			return err
 		}
@@ -437,7 +437,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 
 	if bucketAggrPresent && !aggsHandledSeparately {
 		// range aggregation has separate, optimized handling
-		*resultAccumulator = append(*resultAccumulator, currentAggr.buildBucketAggregation(metadata))
+		*resultQueries = append(*resultQueries, currentAggr.buildBucketAggregation(metadata))
 	}
 
 	for k, v := range queryMap {
