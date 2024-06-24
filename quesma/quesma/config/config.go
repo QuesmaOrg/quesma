@@ -19,10 +19,6 @@ import (
 )
 
 const (
-	LicenseHeader   = "X-License-Key"          // Used to pass license key by phone home service
-	RemoteLogHeader = "X-Telemetry-Remote-Log" // Used to inform telemetry endpoint that the payload contains logs
-)
-const (
 	defaultConfigFileName    = "config.yaml"
 	configFileLocationEnvVar = "QUESMA_CONFIG_FILE"
 )
