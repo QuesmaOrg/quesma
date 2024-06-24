@@ -287,22 +287,9 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 			logger.WarnWithCtx(cw.Ctx).Msgf("aggs is not a map, but %T, aggs: %v", aggsRaw, aggsRaw)
 			return aggregations, nil
 		}
-		// The 'for' below duplicates the logic of parseAggregation a little bit, but let's refactor that later.
-		// Duplication is needed, because one request's most outer aggregator's name is "sampler", which
-		// is the same as the name of one bucket aggregation, and parsing algorithm mishandles the aggregator name
-		// for bucket aggregation name...
-		for aggrName, aggrRaw := range aggs {
-			aggr, ok := aggrRaw.(QueryMap)
-			if !ok {
-				logger.WarnWithCtx(cw.Ctx).Msgf("aggr is not a map, but %T, aggr: %v. Skipping", aggrRaw, aggrRaw)
-				continue
-			}
-			currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregator(aggrName))
-			err := cw.parseAggregation(&currentAggr, aggr, &aggregations)
-			if err != nil {
-				return nil, err
-			}
-			currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
+		err := cw.parseAggregationNames(&currentAggr, aggs, &aggregations)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -325,23 +312,20 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 // On 1, 3, ... level of nesting we have names of aggregations, which can be any arbitrary strings.
 // This function is called on those 1, 3, ... levels, and parses and saves those aggregation names.
 
-func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQueryBuilder, queryMap QueryMap, resultAccumulator *[]*model.Query) (err error) {
-	// We process subaggregations, introduced via (k, v), meaning 'aggregation_name': { dict }
-	for k, v := range queryMap {
-		// I assume it's new aggregator name
-		logger.DebugWithCtx(cw.Ctx).Msgf("names += %s", k)
-		currentAggr.Aggregators = append(currentAggr.Aggregators, model.NewAggregator(k))
-		if subAggregation, ok := v.(QueryMap); ok {
+func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQueryBuilder, aggs QueryMap, resultAccumulator *[]*model.Query) (err error) {
+	for aggrName, aggrDict := range aggs {
+		aggregators := currentAggr.Aggregators
+		currentAggr.Aggregators = append(aggregators, model.NewAggregator(aggrName))
+		if subAggregation, ok := aggrDict.(QueryMap); ok {
 			err = cw.parseAggregation(currentAggr, subAggregation, resultAccumulator)
 			if err != nil {
 				return err
 			}
 		} else {
 			logger.ErrorWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery("unexpected_type")).
-				Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", k, v, v)
+				Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", aggrName, aggrDict, aggrDict)
 		}
-		logger.DebugWithCtx(cw.Ctx).Msgf("names -= %s", k)
-		currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
+		currentAggr.Aggregators = aggregators
 	}
 	return nil
 }
