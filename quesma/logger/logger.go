@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/rs/zerolog"
 	"io"
-	"net/http"
 	"os"
+	log_sender "quesma/logger/sender"
 	"quesma/stats/errorstats"
 	"quesma/tracing"
 	"time"
@@ -30,10 +30,7 @@ const (
 	ReasonPrefixUnsupportedQueryType = "unsupported_search_query: " // Reason for Error messages for unsupported queries will start with this prefix
 )
 
-const (
-	initialBufferSize = 32 * 1024
-	bufferSizeChannel = 1024
-)
+const bufferSizeChannel = 1024
 
 var logger zerolog.Logger
 
@@ -63,20 +60,12 @@ func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asy
 			doneCh <- struct{}{}
 		}()
 	} else {
-		logDrainUrl := *cfg.RemoteLogDrainUrl
-		logForwarder := LogForwarder{logSender: LogSender{
-			Url:          &logDrainUrl,
-			LicenseKey:   cfg.LicenseKey,
-			LogBuffer:    make([]byte, 0, initialBufferSize),
-			LastSendTime: time.Now(),
-			Interval:     time.Minute,
-			httpClient: &http.Client{
-				Timeout: time.Minute,
-			},
-		}, logCh: make(chan []byte, bufferSizeChannel),
-			ticker: time.NewTicker(time.Second),
-			sigCh:  sig,
-			doneCh: doneCh,
+		logForwarder := LogForwarder{
+			logSender: log_sender.New(cfg.RemoteLogDrainUrl, cfg.LicenseKey),
+			logCh:     make(chan []byte, bufferSizeChannel),
+			ticker:    time.NewTicker(time.Second),
+			sigCh:     sig,
+			doneCh:    doneCh,
 		}
 
 		logForwarder.Run()

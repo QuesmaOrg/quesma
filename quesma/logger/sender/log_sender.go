@@ -1,4 +1,4 @@
-package logger
+package log_sender
 
 import (
 	"bytes"
@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"time"
 )
+
+const initialBufferSize = 32 * 1024
 
 type LogSender struct {
 	Url          *url.URL
@@ -99,4 +101,17 @@ func (logSender *LogSender) sendLogs() error {
 	logSender.LogBuffer = make([]byte, 0, cap(logSender.LogBuffer))
 	logSender.LastSendTime = time.Now()
 	return nil
+}
+
+func New(logDrainUrl *url.URL, licenseKey string) LogSender {
+	return LogSender{
+		Url:          logDrainUrl,
+		LicenseKey:   licenseKey,
+		LogBuffer:    make([]byte, 0, initialBufferSize),
+		LastSendTime: time.Now(),
+		Interval:     time.Minute,
+		httpClient: &http.Client{
+			Timeout: time.Minute,
+		},
+	}
 }

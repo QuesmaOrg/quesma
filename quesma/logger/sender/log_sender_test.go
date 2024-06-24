@@ -1,4 +1,4 @@
-package logger
+package log_sender
 
 import (
 	"fmt"

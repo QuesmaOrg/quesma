@@ -2,11 +2,12 @@ package logger
 
 import (
 	"os"
+	log_sender "quesma/logger/sender"
 	"time"
 )
 
 type LogForwarder struct {
-	logSender LogSender
+	logSender log_sender.LogSender
 	logCh     chan []byte
 	ticker    *time.Ticker
 	sigCh     chan os.Signal
