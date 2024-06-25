@@ -10,7 +10,7 @@ if [ ! -z "$1" ]; then
   echo "QUESMA_COMPOSE_FILE set to '$QUESMA_COMPOSE_FILE' by argument '$1'"
 else
   if [ "$QUESMA_COMPOSE_FILE" != "$DEFAULT_COMPOSE_FILE" ]; then
-    echo "QUESMA_COMPOSE_FILE overriden by env to $QUESMA_COMPOSE_FILE"
+    echo "QUESMA_COMPOSE_FILE overridden by env to $QUESMA_COMPOSE_FILE"
   fi
 fi
 
