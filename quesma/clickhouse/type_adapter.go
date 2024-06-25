@@ -34,6 +34,8 @@ func (c SchemaTypeAdapter) Convert(s string) (schema.Type, bool) {
 		return schema.TypeTimestamp, true
 	case "Date":
 		return schema.TypeDate, true
+	case "Point":
+		return schema.TypePoint, true
 	default:
 		return schema.TypeUnknown, false
 	}
