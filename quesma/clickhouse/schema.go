@@ -207,6 +207,8 @@ func ResolveType(clickHouseTypeName string) reflect.Type {
 		return reflect.TypeOf(int64(0))
 	case "Float32", "Float64":
 		return reflect.TypeOf(float64(0))
+	case "Point":
+		return reflect.TypeOf(Point{})
 	case "Bool":
 		return reflect.TypeOf(true)
 	case "JSON":
