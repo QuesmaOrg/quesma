@@ -22,6 +22,10 @@ func GuessClickhouseErrorType(err error) *EndUserError {
 			return ErrDatabaseTableNotFound.New(originalErr)
 		}
 
+		if strings.Contains(s, "Missing columns:") {
+			return ErrDatabaseFieldNotFound.New(originalErr)
+		}
+
 		if strings.HasPrefix(s, "dial tcp") {
 			return ErrDatabaseConnectionError.New(originalErr)
 		}
