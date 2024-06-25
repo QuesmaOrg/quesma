@@ -9,6 +9,66 @@ import (
 	"strings"
 )
 
+type BoolLiteralVisitor struct{}
+
+func (v *BoolLiteralVisitor) VisitLiteral(e model.LiteralExpr) interface{} {
+	if boolLiteral, ok := e.Value.(string); ok {
+		// TODO this is a hack for now
+		// bool literals are quoted in the query and become strings
+		// we need to convert them back to bool literals
+		// proper solution would require introducing a new type for bool literals in the model
+		// and updating the parser to recognize them
+		// but this would require much more work
+		if strings.Contains(boolLiteral, "true") || strings.Contains(boolLiteral, "false") {
+			boolLiteral = strings.TrimLeft(boolLiteral, "'")
+			boolLiteral = strings.TrimRight(boolLiteral, "'")
+			return model.NewLiteral(boolLiteral)
+		}
+	}
+	return model.NewLiteral(e.Value)
+}
+
+func (v *BoolLiteralVisitor) VisitInfix(e model.InfixExpr) interface{} {
+	return model.NewInfixExpr(e.Left.Accept(v).(model.Expr), e.Op, e.Right.Accept(v).(model.Expr))
+}
+
+func (v *BoolLiteralVisitor) VisitPrefixExpr(e model.PrefixExpr) interface{}           { return e }
+func (v *BoolLiteralVisitor) VisitFunction(e model.FunctionExpr) interface{}           { return e }
+func (v *BoolLiteralVisitor) VisitColumnRef(e model.ColumnRef) interface{}             { return e }
+func (v *BoolLiteralVisitor) VisitNestedProperty(e model.NestedProperty) interface{}   { return e }
+func (v *BoolLiteralVisitor) VisitArrayAccess(e model.ArrayAccess) interface{}         { return e }
+func (v *BoolLiteralVisitor) MultiFunctionExpr(e model.MultiFunctionExpr) interface{}  { return e }
+func (v *BoolLiteralVisitor) VisitMultiFunction(e model.MultiFunctionExpr) interface{} { return e }
+func (v *BoolLiteralVisitor) VisitString(e model.StringExpr) interface{}               { return e }
+func (v *BoolLiteralVisitor) VisitOrderByExpr(e model.OrderByExpr) interface{}         { return e }
+func (v *BoolLiteralVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{}       { return e }
+func (v *BoolLiteralVisitor) VisitTableRef(e model.TableRef) interface{}               { return e }
+func (v *BoolLiteralVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{}         { return e }
+func (v *BoolLiteralVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
+	var whereClause model.Expr
+	if e.WhereClause != nil {
+		whereClause = e.WhereClause.Accept(v).(model.Expr)
+	}
+	var fromClause model.Expr
+	if e.FromClause != nil {
+		fromClause = e.FromClause.Accept(v).(model.Expr)
+	}
+
+	return model.NewSelectCommand(e.Columns, e.GroupBy, e.OrderBy,
+		fromClause, whereClause, e.Limit, e.SampleLimit, e.IsDistinct)
+}
+func (v *BoolLiteralVisitor) VisitWindowFunction(e model.WindowFunction) interface{} { return e }
+
+func (s *SchemaCheckPass) applyBooleanLiteralLowering(query *model.Query) (*model.Query, error) {
+	whereVisitor := &BoolLiteralVisitor{}
+
+	expr := query.SelectCommand.Accept(whereVisitor)
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+}
+
 type WhereVisitor struct {
 	tableName string
 	cfg       map[string]config.IndexConfiguration
@@ -121,8 +181,20 @@ func (v *WhereVisitor) VisitOrderByExpr(e model.OrderByExpr) interface{}        
 func (v *WhereVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{}       { return e }
 func (v *WhereVisitor) VisitTableRef(e model.TableRef) interface{}               { return e }
 func (v *WhereVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{}         { return e }
-func (v *WhereVisitor) VisitSelectCommand(e model.SelectCommand) interface{}     { return e }
-func (v *WhereVisitor) VisitWindowFunction(e model.WindowFunction) interface{}   { return e }
+func (v *WhereVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
+	var whereClause model.Expr
+	if e.WhereClause != nil {
+		whereClause = e.WhereClause.Accept(v).(model.Expr)
+	}
+	var fromClause model.Expr
+	if e.FromClause != nil {
+		fromClause = e.FromClause.Accept(v).(model.Expr)
+	}
+
+	return model.NewSelectCommand(e.Columns, e.GroupBy, e.OrderBy,
+		fromClause, whereClause, e.Limit, e.SampleLimit, e.IsDistinct)
+}
+func (v *WhereVisitor) VisitWindowFunction(e model.WindowFunction) interface{} { return e }
 
 type SchemaCheckPass struct {
 	cfg            map[string]config.IndexConfiguration
@@ -149,16 +221,13 @@ func getFromTable(fromTable string) string {
 // into
 // SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(lhs,'String'),rhs)
 func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Query, error) {
-	if query.SelectCommand.WhereClause == nil {
-		return query, nil
-	}
 	fromTable := getFromTable(query.TableName)
 	whereVisitor := &WhereVisitor{tableName: fromTable, cfg: s.cfg}
 
-	transformedWhereClause := query.SelectCommand.WhereClause.Accept(whereVisitor)
-
-	query.SelectCommand.WhereClause = transformedWhereClause.(model.Expr)
-
+	expr := query.SelectCommand.Accept(whereVisitor)
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
 	return query, nil
 }
 
@@ -269,6 +338,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			TransformationName string
 			Transformation     func(*model.Query) (*model.Query, error)
 		}{
+			{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
 			{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
 			{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
 			{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
