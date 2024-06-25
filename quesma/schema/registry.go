@@ -89,6 +89,9 @@ func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguratio
 		}
 	} else {
 		for _, field := range indexConfiguration.SchemaConfiguration.Fields {
+			if field.Type.AsString() == config.TypeAlias {
+				continue
+			}
 			if resolvedType, valid := ParseType(field.Type.AsString()); valid {
 				fields[FieldName(field.Name.AsString())] = Field{Name: FieldName(field.Name.AsString()), Type: resolvedType}
 			} else {
