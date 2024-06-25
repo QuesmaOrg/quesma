@@ -33,7 +33,7 @@ const (
 	phoneHomeTimeout  = 10 * time.Second
 
 	statusOk    = "ok"
-	statusNotOk = "not-ok"
+	statusNotOk = "fail"
 
 	reportTypeOnSchedule = "on-schedule"
 	reportTypeOnShutdown = "on-shutdown"
@@ -239,7 +239,7 @@ func (a *agent) RecentStats() (recent PhoneHomeStats, available bool) {
 	return a.recent, a.recent.TakenAt != 0
 }
 
-func (a *agent) collectClickHouseUsage(ctx context.Context, stats *ClickHouseStats) {
+func (a *agent) collectClickHouseUsage(ctx context.Context, stats *ClickHouseStats) error {
 	// it counts whole clickhouse database, including system tables
 	totalSummaryQuery := `
 select 
@@ -259,11 +259,11 @@ where active
 		// code: 60 means system.parts table is not found
 		// Hydrolix does not support system.parts table.
 		if strings.Contains(err.Error(), "code: 60") {
-			return
+			return err
 		}
 
 		logger.WarnWithCtxAndReason(ctx, "No clickhouse stats").Err(err).Msg("Error getting stats from clickhouse.")
-		return
+		return err
 	}
 
 	defer rows.Close()
@@ -272,16 +272,18 @@ where active
 		err := rows.Scan(&stats.NumberOfRows, &stats.DiskSpace)
 		if err != nil {
 			logger.WarnWithCtxAndReason(ctx, "No clickhouse stats").Err(err).Msg("Error getting stats from clickhouse.")
-			return
+			return err
 		}
 	}
 
 	if rows.Err() != nil {
 		logger.WarnWithCtxAndReason(ctx, "No clickhouse stats").Err(rows.Err()).Msg("Error getting stats from clickhouse.")
+		return rows.Err()
 	}
+	return nil
 }
 
-func (a *agent) collectClickHouseVersion(ctx context.Context, stats *ClickHouseStats) {
+func (a *agent) collectClickHouseVersion(ctx context.Context, stats *ClickHouseStats) error {
 
 	// https://clickhouse.com/docs/en/sql-reference/functions/other-functions#version
 	totalSummaryQuery := `select version()`
@@ -293,7 +295,7 @@ func (a *agent) collectClickHouseVersion(ctx context.Context, stats *ClickHouseS
 
 	if err != nil {
 		logger.Error().Err(err).Msg("Error getting version from clickhouse.")
-		return
+		return err
 	}
 
 	defer rows.Close()
@@ -302,13 +304,15 @@ func (a *agent) collectClickHouseVersion(ctx context.Context, stats *ClickHouseS
 		err := rows.Scan(&stats.ServerVersion)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error getting version from clickhouse.")
-			return
+			return err
 		}
 	}
 
 	if rows.Err() != nil {
 		logger.Error().Err(rows.Err()).Msg("Error getting version from clickhouse.")
+		return rows.Err()
 	}
+	return nil
 }
 
 func (a *agent) CollectClickHouse(ctx context.Context) (stats ClickHouseStats) {
@@ -321,8 +325,12 @@ func (a *agent) CollectClickHouse(ctx context.Context) (stats ClickHouseStats) {
 	stats.MaxOpenConnection = dbStats.MaxOpenConnections
 	stats.OpenConnection = dbStats.OpenConnections
 
-	a.collectClickHouseUsage(ctx, &stats)
-	a.collectClickHouseVersion(ctx, &stats)
+	if err := a.collectClickHouseUsage(ctx, &stats); err != nil {
+		return stats
+	}
+	if err := a.collectClickHouseVersion(ctx, &stats); err != nil {
+		return stats
+	}
 
 	stats.Status = statusOk
 
