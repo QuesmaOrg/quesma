@@ -1,3 +1,5 @@
+// Copyright Quesma, licensed under the Elastic License 2.0.
+// SPDX-License-Identifier: Elastic-2.0
 package testdata
 
 // FIXME I'll restore this tests very soon. I need to merge this PR + #63 first, as I need changes from both of them to do so.
