@@ -31,6 +31,7 @@ indexes:
     mappings:
       ip: "ip"
       clientip: "ip"
+      geo::coordinates: "point"
     aliases:
       timestamp:
         source: "timestamp"
