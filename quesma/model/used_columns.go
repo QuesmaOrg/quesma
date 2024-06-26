@@ -1,3 +1,5 @@
+// Copyright Quesma, licensed under the Elastic License 2.0.
+// SPDX-License-Identifier: Elastic-2.0
 package model
 
 // TODO OKAY THIS NEEDS TO BE FIXED FOR THE NEW WHERE STATEMENT

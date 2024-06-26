@@ -1,3 +1,5 @@
+// Copyright Quesma, licensed under the Elastic License 2.0.
+// SPDX-License-Identifier: Elastic-2.0
 package model
 
 // Expr is a generic representation of an expression which is a part of the SQL query.

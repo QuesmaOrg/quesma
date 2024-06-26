@@ -1,3 +1,5 @@
+// Copyright Quesma, licensed under the Elastic License 2.0.
+// SPDX-License-Identifier: Elastic-2.0
 package util
 
 // IsSmaller checks if a is smaller than b (with a small epsilon, due to float inaccuracies)
