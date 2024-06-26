@@ -30,6 +30,23 @@ jobs:
         working-directory: ${{ matrix.module }}
         run: gofmt -l -d . | (! grep . -q) || (gofmt -l -d .;exit 1)
 
+      - name: License Header Verification
+        working-directory: ${{ matrix.module }}
+        run: |
+          LICENSE_COMMENT="// Copyright Quesma, licensed under the Elastic License 2.0.
+          // SPDX-License-Identifier: Elastic-2.0"
+          failed=false
+          while IFS= read -r -d '' file; do
+            file_content=$(< "$file")
+
+            if [[ "$file_content" != "$LICENSE_COMMENT"* ]]; then
+              echo "License header missing or incorrect in file: $file"
+              failed=true
+            fi
+          done < <(find . -type f -name "*.go" -print0)
+          if [ "$failed" = true ]; then
+            exit 1
+          fi
       - name: Go Vet
         working-directory: ${{ matrix.module }}
         run: go vet ./...
