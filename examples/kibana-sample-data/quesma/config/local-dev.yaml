@@ -1,0 +1,54 @@
+# Default for local-dev.yml
+mode: "dual-write-query-clickhouse"
+port: 8080  # public tcp port to listen for incoming traffic
+elasticsearch:
+  #url: "http://localhost:9200"
+  call: false
+  adminUrl: "http://localhost:5601"
+clickhouse:
+  url: "clickhouse://clickhouse:9000"
+  adminUrl: "http://localhost:8123/play"
+ingestStatistics: true
+internalTelemetryUrl: "https://api.quesma.com/phone-home"
+logging:
+  path: "logs"
+  level: "info"
+  remoteUrl: "https://api.quesma.com/phone-home"
+  disableFileLogging: false
+indexes:
+  kibana_sample_data_ecommerce:
+    enabled: true
+    mappings:
+      products.manufacturer: "text"
+  kibana_sample_data_flights:
+    enabled: true
+    mappings:
+      DestLocation: "geo_point"
+      OriginLocation: "geo_point"
+  kibana_sample_data_logs:
+    enabled: true
+    mappings:
+      ip: "ip"
+      clientip: "ip"
+    aliases:
+      timestamp:
+        source: "timestamp"
+        target: "@timestamp"
+  logs-generic-default:
+    enabled: true
+    static-schema:
+      fields:
+        message:
+          type: "text"
+        host.name:
+          type: "keyword"
+        service.name:
+          type: "keyword"
+        source:
+          type: "keyword"
+        severity:
+          type: "keyword"
+        severity_alias:
+          type: "alias"
+          aliased-field: "severity"
+    fullTextFields: [ "message", "host.name" ]
