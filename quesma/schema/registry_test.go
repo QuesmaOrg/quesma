@@ -191,6 +191,33 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			exists: true,
 		},
 		{
+			name: "schema inferred, with aliases [deprecated config]",
+			cfg: config.QuesmaConfiguration{
+				IndexConfig: map[string]config.IndexConfiguration{
+					"some_table": {Enabled: true,
+						TypeMappings: map[string]string{"message": "keyword"},
+						Aliases:      map[string]config.FieldAlias{"message_alias": {SourceFieldName: "message_alias", TargetFieldName: "message"}},
+					},
+				},
+			},
+			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{
+				"some_table": {Columns: map[string]schema.Column{
+					"message":    {Name: "message", Type: "LowCardinality(String)"},
+					"event_date": {Name: "event_date", Type: "DateTime64"},
+					"count":      {Name: "count", Type: "Int64"},
+				}},
+			}},
+			tableName: "some_table",
+			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
+				"message":    {Name: "message", Type: schema.TypeKeyword},
+				"event_date": {Name: "event_date", Type: schema.TypeTimestamp},
+				"count":      {Name: "count", Type: schema.TypeLong}},
+				Aliases: map[schema.FieldName]schema.FieldName{
+					"message_alias": "message",
+				}},
+			exists: true,
+		},
+		{
 			name: "schema inferred, requesting nonexistent schema",
 			cfg: config.QuesmaConfiguration{
 				IndexConfig: map[string]config.IndexConfiguration{

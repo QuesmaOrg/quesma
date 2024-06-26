@@ -106,8 +106,8 @@ func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguratio
 func (s *schemaRegistry) populateAliases(indexConfiguration config.IndexConfiguration, fields map[FieldName]Field, aliases map[FieldName]FieldName) {
 	if deprecatedConfigInUse(indexConfiguration) {
 		for aliasName, aliasConfig := range indexConfiguration.Aliases {
-			if _, exists := fields[FieldName(aliasConfig.SourceFieldName)]; exists {
-				aliases[FieldName(aliasName)] = FieldName(aliasConfig.SourceFieldName)
+			if _, exists := fields[FieldName(aliasConfig.TargetFieldName)]; exists {
+				aliases[FieldName(aliasName)] = FieldName(aliasConfig.TargetFieldName)
 			} else {
 				logger.Debug().Msgf("alias field %s not found, possibly not yet loaded", aliasConfig.SourceFieldName)
 			}
