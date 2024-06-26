@@ -20,6 +20,7 @@ indexes:
     enabled: true
     mappings:
       products.manufacturer: "text"
+      geoip.location: "geo_point"
   kibana_sample_data_flights:
     enabled: true
     mappings:
