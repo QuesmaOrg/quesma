@@ -135,7 +135,7 @@ services:
         condition: service_healthy
     volumes:
       - ./kibana/:/local_mount
-    command: ["/bin/bash", "-c", "/local_mount/add_sample_data.sh http://kibana:5601"]
+    command: ["/bin/bash", "-c", "/local_mount/add_e2e_data_views.sh http://kibana:5601"]
   kibana-sidecar_direct:
     image: docker.elastic.co/kibana/kibana:8.11.1
     restart: "no"
@@ -144,7 +144,7 @@ services:
         condition: service_healthy
     volumes:
       - ./kibana/:/local_mount
-    command: ["/bin/bash", "-c", "/local_mount/add_sample_data.sh http://kibana_direct:5601"]
+    command: ["/bin/bash", "-c", "/local_mount/add_e2e_data_views.sh http://kibana_direct:5601"]
   clickhouse: # user: 'default', no password
     image: clickhouse/clickhouse-server:23.12.2.59-alpine
     ports:
@@ -194,3 +194,11 @@ services:
     restart: "no"
     volumes:
       - ./mitmproxy:/var/mitmproxy
+  e2e-data-generator:
+    build: e2e-data-generator
+    depends_on:
+      clean-clickhouse:
+        condition: service_completed_successfully
+      elasticsearch_direct:
+        condition: service_healthy
+    restart: "no"
