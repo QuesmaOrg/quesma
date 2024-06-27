@@ -7,8 +7,8 @@ import shutil
 # If you want to save only some requests, use flags: -f, -l, -s, -e
 # More info about flags: ./bin/save_test.py -h
 
-TESTS_SRC_DIR = "../docker/mitmproxy/requests/"
-TESTS_DST_DIR = "../quesma/tests/end2end/testcases/"
+TESTS_SRC_DIR = "../../docker/mitmproxy/requests/"
+TESTS_DST_DIR = "../../quesma/tests/end2end/testcases/"
 
 
 # Returns lowest "free" test suite nr in TESTS_DST_DIR directory
@@ -43,41 +43,9 @@ def save_test(test_nrs: list[str]):
     print(f"Requests {copied_test_nrs} saved in {suite_dir}/")
 
 
-def get_requests_to_save(requests_available: list[int], args: dict[str, any]) -> list[str]:
-    if all(value is None for value in args.values()):
-        return [str(nr) for nr in requests_available]
-
-    requests_to_save = set()
-    if args["last"] is not None:
-        requests_to_save.update(requests_available[-args["last"]:])
-    if args["first"] is not None:
-        requests_to_save.update(requests_available[:args["first"]])
-    if args["slice"] is not None:
-        slice_ = args["slice"].split(":")
-        if len(slice_) != 2 or not slice_[0].isdigit() or not slice_[1].isdigit():
-            print("Invalid slice argument, should be two integers separated by ':', got: ", args["slice"])
-        else:
-            requests_to_save.update([nr for nr in requests_available if int(slice_[0]) <= nr <= int(slice_[1])])
-    if args["enumerate"] is not None:
-        requests_to_save.update(args["enumerate"])
-
-    return [str(nr) for nr in sorted(requests_to_save)]
-
-
-def parse_arguments():
-    ap = argparse.ArgumentParser(epilog="Without flags: all requests.   With some flags - subset of requests ("
-                                        "union-like, so '-f 10 -l 10' will save (first 10 UNION last 10) requests")
-    ap.add_argument("-l", "--last", help="Save last N requests", required=False, type=int)
-    ap.add_argument("-f", "--first", help="Save first N requests", required=False, type=int)
-    ap.add_argument("-s", "--slice", help="Save slice of requests, e.g. 10:20", required=False, type=str)
-    ap.add_argument("-e", "--enumerate", nargs="+", help="List nrs of requests to save, e.g. '-e 1 3 10'", required=False, type=int)
-    return vars(ap.parse_args())
-
-
 if __name__ == "__main__":
-    args = parse_arguments()
-    requests_available = sorted([int(file.name[:-5])
+    requests_available = sorted([file.name[:-5]
                                  for file in os.scandir(TESTS_SRC_DIR)
                                  if file.is_file() and file.name.endswith(".http") and file.name[:-5].isdigit()])
     print("Available test requests:", requests_available, "\n")
-    save_test(get_requests_to_save(requests_available, args))
+    save_test(requests_available)

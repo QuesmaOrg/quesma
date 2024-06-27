@@ -9,8 +9,10 @@ from mitmproxy import http
 from mitmproxy import io
 
 LOG_DIR = "/var/mitmproxy/requests/"
-
-RecordingMode = Enum('RecordingMode', ['ON', 'OFF'])
+START_RECORDING_PATH = '/___quesma_e2e_recorder_start'
+STOP_RECORDING_PATH  = '/___quesma_e2e_recorder_stop'
+CLEAN_RECORDING_PATH = '/___quesma_e2e_recorder_clean'
+SAVE_RECORDING_PATH  = '/___quesma_e2e_recorder_save'
 
 
 class Writer:
@@ -19,7 +21,7 @@ class Writer:
         self.f: BinaryIO = open(filename, "wb")
         self.w = io.FlowWriter(self.f)
         self.saved_requests_nr = 0
-        self.mode = RecordingMode.OFF
+        self.recording_on = False
         self.lock = Lock() # only for self.req_nr
         # clean requests on (re)start
         for file in glob.glob(os.path.join(LOG_DIR, '*.http')):
@@ -49,30 +51,31 @@ def record_request(flow: http.HTTPFlow) -> None:
     writer.response(flow)
 
 
-def start_recording(flow: http.HTTPFlow) -> None:
+def start_recording() -> None:
     print("----------------------- Starting e2e recording")
     with writer.lock:
-        writer.mode = RecordingMode.ON
+        writer.recording_on = True
     print("----------------------- e2e recording started")
 
 
-def stop_recording(flow: http.HTTPFlow) -> None:
+def stop_recording() -> None:
     print("----------------------- Stopping e2e recording")
     with writer.lock:
-        writer.mode = RecordingMode.OFF
+        writer.recording_on = False
     print("----------------------- e2e recording stopped")
 
 
-def save_test(flow: http.HTTPFlow) -> None:
-    print("----------------------- Saving recording")
-
-
-def clean_requests(flow: http.HTTPFlow) -> None:
+def clean_recording() -> None:
     print("----------------------- Cleaning e2e requests")
     with writer.lock:
         for file in glob.glob(os.path.join(LOG_DIR, '*.http')):
             os.remove(file)
+        writer.saved_requests_nr = 0
     print("----------------------- e2e requests cleaned")
+
+
+def save_recording() -> None:
+    print("----------------------- Saving recording")
 
 
 def request(flow: http.HTTPFlow) -> None:
@@ -81,16 +84,17 @@ def request(flow: http.HTTPFlow) -> None:
     print("p", parsed_url, "u",url_path)
 
     meta_requests = { # url -> handler
-        '/__start/_fleet/global_checkpoints': start_recording,
-        '/__stop/_fleet/global_checkpoints': stop_recording,
-        '/__clean/_fleet/global_checkpoints': clean_requests,
+        START_RECORDING_PATH: start_recording,
+        STOP_RECORDING_PATH: stop_recording,
+        CLEAN_RECORDING_PATH: clean_recording,
+        SAVE_RECORDING_PATH: save_recording,
     }
     if url_path in meta_requests:
-        meta_requests[url_path](flow)
+        meta_requests[url_path]()
         return
 
     with writer.lock:
-        if writer.mode == RecordingMode.OFF:
+        if not writer.recording_on:
             return
 
     search_methods = ['/_search', '/_async_search', '/_terms_enum']
