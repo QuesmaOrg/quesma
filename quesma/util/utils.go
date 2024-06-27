@@ -12,6 +12,7 @@ import (
 	"github.com/k0kubun/pp"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"quesma/logger"
 	"reflect"
@@ -83,12 +84,13 @@ func JsonToMap(jsonn string) (JsonMap, error) {
 
 // MapDifference returns pair of maps with fields that are present in one of input maps and not in the other
 // specifically (mActual - mExpected, mExpected - mActual)
+// * mActual - uses JsonMap fully: values are []JsonMap, or JsonMap, or base types
+// * mExpected - value can also be []any, because it's generated from Golang's json.Unmarshal
 // * compareBaseTypes - if true, we compare base type values as well (e.g. if mActual["key1"]["key2"] == 1,
 // and mExpected["key1"]["key2"] == 2, we say that they are different)
 // * compareFullArrays - if true, we compare entire arrays, if false just first element ([0])
-// * mActual - uses JsonMap fully: values are []JsonMap, or JsonMap, or base types
-// * mExpected - value can also be []any, because it's generated from Golang's json.Unmarshal
-func MapDifference(mActual, mExpected JsonMap, compareBaseTypes, compareFullArrays bool) (JsonMap, JsonMap) {
+// * limitArrayIndices - how many elements of arrays to compare, set e.g. to math.MaxInt to compare all
+func MapDifference(mActual, mExpected JsonMap, compareBaseTypes, compareFullArrays bool, limitArrayIndices int) (JsonMap, JsonMap) {
 	// We're adding 'mapToAdd' to 'resultDiff' at the key keysNested + name (`keysNested` is a list of keys, as JSONs can be nested)
 	// (or before, if such map doesn't exist on previous nested levels)
 	// append(keysNested, name) - list of keys to get to the current map ('mapToAdd')
@@ -111,7 +113,7 @@ func MapDifference(mActual, mExpected JsonMap, compareBaseTypes, compareFullArra
 	// 'descendFurther' - whether to descend further into nested maps/arrays.
 	// Introduced, because at each level we invoke this function twice, and we want to descend only once.
 	// 'keysNested' - backtrack slice, keeps keys to get to the current level of nested maps 'mActualCur' and 'mExpectedCur'
-	compareCurrentLevelAndDescendRec := func(mActualCur, mExpectedCur JsonMap, resultDiffThis, resultDiffOther JsonMap, keysNested []string, descendFurther bool) {
+	compareCurrentLevelAndDescendRec := func(mActualCur, mExpectedCur, resultDiffThis, resultDiffOther JsonMap, keysNested []string, descendFurther bool) {
 		for name, vActual := range mActualCur {
 			vExpected, ok := mExpectedCur[name]
 			if !ok {
@@ -156,7 +158,7 @@ func MapDifference(mActual, mExpected JsonMap, compareBaseTypes, compareFullArra
 				if !compareFullArrays {
 					lenActual, lenExpected = min(1, lenActual), min(1, lenExpected)
 				}
-				for i := 0; i < min(lenActual, lenExpected); i++ {
+				for i := 0; i < min(lenActual, lenExpected, limitArrayIndices); i++ {
 					// Code below doesn't cover 100% of cases. But covers all we see, so I don't want to
 					// waste time improving it until there's need for it.
 					// Assumption: elements of arrays are maps or base types. From observations, it's always true.
@@ -170,10 +172,10 @@ func MapDifference(mActual, mExpected JsonMap, compareBaseTypes, compareFullArra
 						addToResult(vActualTyped[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffThis)
 					}
 				}
-				for i := min(lenActual, lenExpected); i < lenActual; i++ {
+				for i := min(lenActual, lenExpected); i < min(lenActual, limitArrayIndices); i++ {
 					addToResult(vActualTyped[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffThis)
 				}
-				for i := min(lenActual, lenExpected); i < lenExpected; i++ {
+				for i := min(lenActual, lenExpected); i < min(lenExpected, limitArrayIndices); i++ {
 					addToResult(vExpectedArr[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffOther)
 				}
 			case []any:
@@ -184,7 +186,8 @@ func MapDifference(mActual, mExpected JsonMap, compareBaseTypes, compareFullArra
 					continue
 				}
 				lenActual, lenExpected := len(vActualTyped), len(vExpectedArr)
-				for i := 0; i < min(lenActual, lenExpected); i++ {
+
+				for i := 0; i < min(lenActual, lenExpected, limitArrayIndices); i++ {
 					// Code below doesn't cover the case, when elements of arrays are subarrays.
 					// But it should return that they are different, so it should be fine - we should notice that.
 					actualArrElementAsMap, okActualAsMap := vActualTyped[i].(JsonMap)
@@ -203,10 +206,10 @@ func MapDifference(mActual, mExpected JsonMap, compareBaseTypes, compareFullArra
 						addToResult(vExpectedArr[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffOther)
 					}
 				}
-				for i := min(lenActual, lenExpected); i < lenActual; i++ {
+				for i := min(lenActual, lenExpected); i < min(lenActual, limitArrayIndices); i++ {
 					addToResult(vActualTyped[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffThis)
 				}
-				for i := min(lenActual, lenExpected); i < lenExpected; i++ {
+				for i := min(lenActual, lenExpected); i < min(lenExpected, limitArrayIndices); i++ {
 					addToResult(vExpectedArr[i], name+"["+strconv.Itoa(i)+"]", keysNested, resultDiffOther)
 				}
 			default:
@@ -230,9 +233,13 @@ func MapDifference(mActual, mExpected JsonMap, compareBaseTypes, compareFullArra
 	return mDiffActualMinusExpected, mDiffExpectedMinusActual
 }
 
+func MapDifferenceCompareEverything(mActual, mExpected JsonMap) (JsonMap, JsonMap) {
+	return MapDifference(mActual, mExpected, true, true, math.MaxInt)
+}
+
 // returns pair of maps with fields that are present in one of input JSONs and not in the other
 // specifically (jsonActual - jsonExpected, jsonExpected - jsonActual, err)
-func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
+func JsonDifference(jsonActual, jsonExpected string, compareBaseTypes, compareFullArrays bool, limitArrayIndices int) (JsonMap, JsonMap, error) {
 	mActual, err := JsonToMap(jsonActual)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%v (first JSON, json: %s)", err, jsonActual)
@@ -241,8 +248,18 @@ func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("%v (second JSON, json: %s)", err, jsonExpected)
 	}
-	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected, false, false)
+	actualMinusExpected, expectedMinusActual := MapDifference(mActual, mExpected, compareBaseTypes, compareFullArrays, limitArrayIndices)
 	return actualMinusExpected, expectedMinusActual, nil
+}
+
+func JsonDifferenceCompareEverything(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
+	return JsonDifference(jsonActual, jsonExpected, true, true, math.MaxInt)
+}
+
+// JsonDifferenceWeak returns pair of maps with fields that are present in one of input JSONs and not in the other
+// It's weak, because it doesn't compare base types, and it compares only first element of arrays
+func JsonDifferenceWeak(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
+	return JsonDifference(jsonActual, jsonExpected, false, false, math.MaxInt)
 }
 
 // If there's type conflict, e.g. one map has {"a": map}, and second has {"a": array}, we log an error.
