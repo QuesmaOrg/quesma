@@ -46,6 +46,7 @@ do_http_post() {
 do_silent_http_post() {
   local url=$1
   local body=$2
+  echo "blabla $body"
 
   curl -w "HTTP %{http_code}" -k -o /dev/null --no-progress-meter ${MAYBE_AUTH} -X POST "$DASHBOARD_URL/$url" \
     -H "$XSRF_HEADER" \
