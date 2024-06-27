@@ -20,6 +20,7 @@ indexes:
     enabled: true
     mappings:
       products.manufacturer: "text"
+      category: "text"
   kibana_sample_data_flights:
     enabled: true
     mappings:
