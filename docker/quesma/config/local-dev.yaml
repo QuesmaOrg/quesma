@@ -21,6 +21,7 @@ indexes:
     mappings:
       products.manufacturer: "text"
       geoip.location: "geo_point"
+      category: "text"
   kibana_sample_data_flights:
     enabled: true
     mappings:
