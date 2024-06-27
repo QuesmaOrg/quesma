@@ -24,18 +24,20 @@ func sendCommandToClickhouse(cmd string) {
 	if err != nil {
 		panic(err)
 	}
+
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		panic(err)
 	}
-	if resp.StatusCode != 200 {
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
 		response, err := io.ReadAll(resp.Body)
 		if err != nil {
 			panic(err)
 		}
 		panic(fmt.Sprintf("Status code: %d, Clickhouse error: %s", resp.StatusCode, string(response)))
 	}
-	_ = resp.Body.Close()
 }
 
 func insertToClickhouse(tableName string, rows []string) {
@@ -54,12 +56,12 @@ func createIndexElastic(indexName string) {
 	if err != nil {
 		panic(err)
 	}
+	defer resp.Body.Close()
+
 	response, err := io.ReadAll(resp.Body)
-	if resp.StatusCode != 200 && !(resp.StatusCode == 400 && strings.Contains(string(response), "resource_already_exists_exception")) {
+	if resp.StatusCode != http.StatusOK {
 		panic("Elasticsearch error: " + string(response))
 	}
-
-	_ = resp.Body.Close()
 }
 
 func insertToElastic(indexName string, rows []string) {
@@ -78,8 +80,8 @@ func insertToElastic(indexName string, rows []string) {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := httpClient.Do(req)
 
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		panic(err)
 	}
