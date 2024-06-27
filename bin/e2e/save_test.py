@@ -7,8 +7,8 @@ import shutil
 # If you want to save only some requests, use flags: -f, -l, -s, -e
 # More info about flags: ./bin/save_test.py -h
 
-TESTS_SRC_DIR = "docker/mitmproxy/requests/"
-TESTS_DST_DIR = "quesma/tests/end2end/testcases/"
+TESTS_SRC_DIR = "../docker/mitmproxy/requests/"
+TESTS_DST_DIR = "../quesma/tests/end2end/testcases/"
 
 
 # Returns lowest "free" test suite nr in TESTS_DST_DIR directory
@@ -21,6 +21,10 @@ def get_new_test_suite_nr() -> str:
 
 
 def save_test(test_nrs: list[str]):
+    if not test_nrs:
+        print("No requests to save, doing nothing.")
+        return
+
     suite_nr = get_new_test_suite_nr()
     suite_dir = os.path.join(TESTS_DST_DIR, suite_nr)
     os.makedirs(suite_dir)
