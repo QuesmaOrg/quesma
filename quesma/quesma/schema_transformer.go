@@ -11,7 +11,9 @@ import (
 	"strings"
 )
 
-type BoolLiteralVisitor struct{}
+type BoolLiteralVisitor struct {
+	model.ExprVisitor
+}
 
 func (v *BoolLiteralVisitor) VisitLiteral(e model.LiteralExpr) interface{} {
 	if boolLiteral, ok := e.Value.(string); ok {
@@ -34,18 +36,6 @@ func (v *BoolLiteralVisitor) VisitInfix(e model.InfixExpr) interface{} {
 	return model.NewInfixExpr(e.Left.Accept(v).(model.Expr), e.Op, e.Right.Accept(v).(model.Expr))
 }
 
-func (v *BoolLiteralVisitor) VisitPrefixExpr(e model.PrefixExpr) interface{}           { return e }
-func (v *BoolLiteralVisitor) VisitFunction(e model.FunctionExpr) interface{}           { return e }
-func (v *BoolLiteralVisitor) VisitColumnRef(e model.ColumnRef) interface{}             { return e }
-func (v *BoolLiteralVisitor) VisitNestedProperty(e model.NestedProperty) interface{}   { return e }
-func (v *BoolLiteralVisitor) VisitArrayAccess(e model.ArrayAccess) interface{}         { return e }
-func (v *BoolLiteralVisitor) MultiFunctionExpr(e model.MultiFunctionExpr) interface{}  { return e }
-func (v *BoolLiteralVisitor) VisitMultiFunction(e model.MultiFunctionExpr) interface{} { return e }
-func (v *BoolLiteralVisitor) VisitString(e model.StringExpr) interface{}               { return e }
-func (v *BoolLiteralVisitor) VisitOrderByExpr(e model.OrderByExpr) interface{}         { return e }
-func (v *BoolLiteralVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{}       { return e }
-func (v *BoolLiteralVisitor) VisitTableRef(e model.TableRef) interface{}               { return e }
-func (v *BoolLiteralVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{}         { return e }
 func (v *BoolLiteralVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
 	var whereClause model.Expr
 	if e.WhereClause != nil {
@@ -59,10 +49,9 @@ func (v *BoolLiteralVisitor) VisitSelectCommand(e model.SelectCommand) interface
 	return model.NewSelectCommand(e.Columns, e.GroupBy, e.OrderBy,
 		fromClause, whereClause, e.Limit, e.SampleLimit, e.IsDistinct)
 }
-func (v *BoolLiteralVisitor) VisitWindowFunction(e model.WindowFunction) interface{} { return e }
 
 func (s *SchemaCheckPass) applyBooleanLiteralLowering(query *model.Query) (*model.Query, error) {
-	whereVisitor := &BoolLiteralVisitor{}
+	whereVisitor := &BoolLiteralVisitor{ExprVisitor: model.NoOpVisitor{}}
 
 	expr := query.SelectCommand.Accept(whereVisitor)
 	if _, ok := expr.(*model.SelectCommand); ok {
@@ -72,6 +61,7 @@ func (s *SchemaCheckPass) applyBooleanLiteralLowering(query *model.Query) (*mode
 }
 
 type WhereVisitor struct {
+	model.ExprVisitor
 	tableName string
 	cfg       map[string]config.IndexConfiguration
 }
@@ -176,13 +166,6 @@ func (v *WhereVisitor) VisitArrayAccess(e model.ArrayAccess) interface{} {
 }
 
 // TODO this whole block is fake ... need to double chceck this
-func (v *WhereVisitor) MultiFunctionExpr(e model.MultiFunctionExpr) interface{}  { return e }
-func (v *WhereVisitor) VisitMultiFunction(e model.MultiFunctionExpr) interface{} { return e }
-func (v *WhereVisitor) VisitString(e model.StringExpr) interface{}               { return e }
-func (v *WhereVisitor) VisitOrderByExpr(e model.OrderByExpr) interface{}         { return e }
-func (v *WhereVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{}       { return e }
-func (v *WhereVisitor) VisitTableRef(e model.TableRef) interface{}               { return e }
-func (v *WhereVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{}         { return e }
 func (v *WhereVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
 	var whereClause model.Expr
 	if e.WhereClause != nil {
@@ -196,7 +179,6 @@ func (v *WhereVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
 	return model.NewSelectCommand(e.Columns, e.GroupBy, e.OrderBy,
 		fromClause, whereClause, e.Limit, e.SampleLimit, e.IsDistinct)
 }
-func (v *WhereVisitor) VisitWindowFunction(e model.WindowFunction) interface{} { return e }
 
 type SchemaCheckPass struct {
 	cfg            map[string]config.IndexConfiguration
@@ -224,7 +206,7 @@ func getFromTable(fromTable string) string {
 // SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(lhs,'String'),rhs)
 func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Query, error) {
 	fromTable := getFromTable(query.TableName)
-	whereVisitor := &WhereVisitor{tableName: fromTable, cfg: s.cfg}
+	whereVisitor := &WhereVisitor{ExprVisitor: model.NoOpVisitor{}, tableName: fromTable, cfg: s.cfg}
 
 	expr := query.SelectCommand.Accept(whereVisitor)
 	if _, ok := expr.(*model.SelectCommand); ok {
@@ -234,29 +216,14 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 }
 
 type GeoIpVisitor struct {
+	model.ExprVisitor
 	tableName      string
 	schemaRegistry schema.Registry
 }
 
-func (v *GeoIpVisitor) VisitLiteral(e model.LiteralExpr) interface{}   { return e }
-func (v *GeoIpVisitor) VisitInfix(e model.InfixExpr) interface{}       { return e }
-func (v *GeoIpVisitor) VisitPrefixExpr(e model.PrefixExpr) interface{} { return e }
-func (v *GeoIpVisitor) VisitFunction(e model.FunctionExpr) interface{} { return e }
-func (v *GeoIpVisitor) VisitColumnRef(e model.ColumnRef) interface{} {
-	return e
-}
-func (v *GeoIpVisitor) VisitNestedProperty(e model.NestedProperty) interface{}   { return e }
-func (v *GeoIpVisitor) VisitArrayAccess(e model.ArrayAccess) interface{}         { return e }
-func (v *GeoIpVisitor) MultiFunctionExpr(e model.MultiFunctionExpr) interface{}  { return e }
-func (v *GeoIpVisitor) VisitMultiFunction(e model.MultiFunctionExpr) interface{} { return e }
-func (v *GeoIpVisitor) VisitString(e model.StringExpr) interface{}               { return e }
-func (v *GeoIpVisitor) VisitOrderByExpr(e model.OrderByExpr) interface{}         { return e }
-func (v *GeoIpVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{}       { return e }
 func (v *GeoIpVisitor) VisitTableRef(e model.TableRef) interface{} {
 	return model.NewTableRef(e.Name)
 }
-func (v *GeoIpVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{}       { return e }
-func (v *GeoIpVisitor) VisitWindowFunction(e model.WindowFunction) interface{} { return e }
 
 func (v *GeoIpVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
 	if v.schemaRegistry == nil {
@@ -314,7 +281,7 @@ func (v *GeoIpVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
 func (s *SchemaCheckPass) applyGeoTransformations(query *model.Query) (*model.Query, error) {
 	fromTable := getFromTable(query.TableName)
 
-	geoIpVisitor := &GeoIpVisitor{tableName: fromTable, schemaRegistry: s.schemaRegistry}
+	geoIpVisitor := &GeoIpVisitor{ExprVisitor: model.NoOpVisitor{}, tableName: fromTable, schemaRegistry: s.schemaRegistry}
 	expr := query.SelectCommand.Accept(geoIpVisitor)
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
