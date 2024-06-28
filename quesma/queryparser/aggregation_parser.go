@@ -55,7 +55,7 @@ type WhereClauseColumnVisitor struct {
 func (v *WhereClauseColumnVisitor) VisitColumnRef(e model.ColumnRef) interface{} {
 	for _, columnName := range v.ColumnNames {
 		if e.ColumnName == columnName {
-			return e
+			continue
 		}
 	}
 	v.ColumnNames = append(v.ColumnNames, e.ColumnName)
