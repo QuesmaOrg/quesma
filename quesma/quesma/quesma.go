@@ -274,11 +274,9 @@ func (r *router) preprocessRequest(ctx context.Context, quesmaRequest *mux.Reque
 	var err error
 	var processedRequest = quesmaRequest
 	for _, preprocessor := range r.requestPreprocessors {
-		if preprocessor.Applies(processedRequest) {
-			ctx, processedRequest, err = preprocessor.PreprocessRequest(ctx, processedRequest)
-			if err != nil {
-				return nil, nil, err
-			}
+		ctx, processedRequest, err = preprocessor.PreprocessRequest(ctx, processedRequest)
+		if err != nil {
+			return nil, nil, err
 		}
 	}
 	return processedRequest, ctx, nil
