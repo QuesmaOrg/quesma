@@ -206,37 +206,22 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			)
 			query.SelectCommand.WhereClause = model.And([]model.Expr{query.SelectCommand.WhereClause,
 				model.NewInfixExpr(model.NewColumnRef(model.RowNumberColumnName), "<=", model.NewLiteral(strconv.Itoa(metricsAggr.Size)))})
-			fmt.Println("@@@@QUERY_BEFORE:", model.AsString(query.SelectCommand))
-			/*
-				{
-					whereClauseVisitor := WhereClauseColumnVisitor{ExprVisitor: model.NoOpVisitor{}}
-					query.SelectCommand.WhereClause.Accept(&whereClauseVisitor)
-					for _, columnName := range whereClauseVisitor.ColumnNames {
-						for _, column := range query.SelectCommand.Columns {
-							if model.AsString(column) == columnName {
-								continue
-							}
-						}
-						query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewColumnRef(columnName))
-					}
-				}
-			*/
-			{
-				whereClauseVisitor := WhereClauseColumnVisitor{ExprVisitor: model.NoOpVisitor{}}
-				query.SelectCommand.WhereClause.Accept(&whereClauseVisitor)
-				if q, ok := query.SelectCommand.FromClause.(model.SelectCommand); ok {
-					for _, columnName := range whereClauseVisitor.ColumnNames {
-						for _, column := range query.SelectCommand.Columns {
-							if model.AsString(column) == columnName {
-								continue
-							}
-						}
-						q.Columns = append(q.Columns, model.NewColumnRef(columnName))
-					}
-					query.SelectCommand.FromClause = q
-				}
+
+			whereClauseVisitor := WhereClauseColumnVisitor{ExprVisitor: model.NoOpVisitor{}}
+			if _, ok := query.SelectCommand.FromClause.(model.SelectCommand); ok {
+				query.SelectCommand.FromClause.(model.SelectCommand).WhereClause.Accept(&whereClauseVisitor)
 			}
-			fmt.Println("@@@@QUERY_AFTER:", model.AsString(query.SelectCommand))
+			if q, ok := query.SelectCommand.FromClause.(model.SelectCommand); ok {
+				for _, columnName := range whereClauseVisitor.ColumnNames {
+					for _, column := range query.SelectCommand.Columns {
+						if model.AsString(column) == columnName {
+							continue
+						}
+					}
+					q.Columns = append(q.Columns, model.NewColumnRef(columnName))
+				}
+				query.SelectCommand.FromClause = q
+			}
 		} else {
 			innerFieldsAsSelect := make([]model.Expr, len(metricsAggr.Fields))
 			copy(innerFieldsAsSelect, metricsAggr.Fields)
