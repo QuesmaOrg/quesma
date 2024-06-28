@@ -83,7 +83,7 @@ func (v *WhereClauseColumnVisitor) VisitFunction(e model.FunctionExpr) interface
 
 func isColumnExist(columns []model.Expr, columnName string) bool {
 	for _, column := range columns {
-		if model.AsString(column) == "\""+columnName+"\"" {
+		if model.AsString(column) == fmt.Sprintf("%q", columnName) {
 			return true
 		}
 	}
