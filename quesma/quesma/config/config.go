@@ -163,6 +163,12 @@ func (c *QuesmaConfiguration) Validate() error {
 	//		result = multierror.Append(result, fmt.Errorf("connector %s requires setting the URL", conn.ConnectorType))
 	//	}
 	//}
+	if c.ClickHouse.Url == nil && c.Hydrolix.Url == nil {
+		result = multierror.Append(result, fmt.Errorf("clickHouse or hydrolix URL is required"))
+	}
+	if c.ClickHouse.IsNonEmpty() && c.Hydrolix.IsNonEmpty() {
+		result = multierror.Append(result, fmt.Errorf("only one of ClickHouse and Hydrolix can be configured"))
+	}
 	if c.Elasticsearch.Url == nil {
 		result = multierror.Append(result, fmt.Errorf("elasticsearch URL is required"))
 	}
@@ -294,7 +300,7 @@ func (c *QuesmaConfiguration) String() string {
 			connectorString.WriteString(fmt.Sprintf("\n          User: %s", conn.User))
 		}
 		if conn.Password != "" {
-			connectorString.WriteString(fmt.Sprint("\n          Password: ***"))
+			connectorString.WriteString("\n          Password: ***")
 		}
 		if conn.Database != "" {
 			connectorString.WriteString(fmt.Sprintf("\n          Database: %s", conn.Database))
