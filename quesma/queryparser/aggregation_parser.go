@@ -90,6 +90,18 @@ func isColumnExist(columns []model.Expr, columnName string) bool {
 	return false
 }
 
+func updateInnerQueryColumns(innerQuery model.SelectCommand, whereClause model.Expr) model.SelectCommand {
+	whereClauseVisitor := WhereClauseColumnVisitor{ExprVisitor: model.NoOpVisitor{}}
+	whereClause.Accept(&whereClauseVisitor)
+	for _, columnName := range whereClauseVisitor.ColumnNames {
+		if isColumnExist(innerQuery.Columns, columnName) {
+			continue
+		}
+		innerQuery.Columns = append(innerQuery.Columns, model.NewColumnRef(columnName))
+	}
+	return innerQuery
+}
+
 /* code from my previous approach to this issue. Let's keep for now, 95% it'll be not needed, I'll remove it then.
 func (b *aggrQueryBuilder) applyTermsSubSelect(terms bucket_aggregations.Terms) {
 	termsField := b.Query.GroupByFields[len(b.Query.GroupByFields)-1]
@@ -218,19 +230,9 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				innerFieldsAsSelect, b.Query.SelectCommand.GroupBy, b.whereBuilder.WhereClause,
 				metricsAggr.SortBy, strings.ToLower(metricsAggr.Order) == "desc",
 			)
-			whereClauseVisitor := WhereClauseColumnVisitor{ExprVisitor: model.NoOpVisitor{}}
-			if _, ok := query.SelectCommand.FromClause.(model.SelectCommand); ok {
-				query.SelectCommand.FromClause.(model.SelectCommand).WhereClause.Accept(&whereClauseVisitor)
-			}
-			if innerQuery, ok := query.SelectCommand.FromClause.(model.SelectCommand); ok {
-				for _, columnName := range whereClauseVisitor.ColumnNames {
-					if isColumnExist(innerQuery.Columns, columnName) {
-						continue
-					}
-					innerQuery.Columns = append(innerQuery.Columns, model.NewColumnRef(columnName))
-				}
-				query.SelectCommand.FromClause = innerQuery
-			}
+			query.SelectCommand.FromClause = updateInnerQueryColumns(query.SelectCommand.FromClause.(model.SelectCommand),
+				query.SelectCommand.FromClause.(model.SelectCommand).WhereClause)
+
 			query.SelectCommand.WhereClause = model.And([]model.Expr{query.SelectCommand.WhereClause,
 				model.NewInfixExpr(model.NewColumnRef(model.RowNumberColumnName), "<=", model.NewLiteral(strconv.Itoa(metricsAggr.Size)))})
 		} else {
