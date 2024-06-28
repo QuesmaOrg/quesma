@@ -46,6 +46,7 @@ func (m metricsAggregation) sortByExists() bool {
 
 const metricsAggregationDefaultFieldType = clickhouse.Invalid
 
+// WhereClauseColumnVisitor is a visitor that collects all column names from where clause
 type WhereClauseColumnVisitor struct {
 	model.ExprVisitor
 	ColumnNames []string
@@ -90,16 +91,18 @@ func isColumnExist(columns []model.Expr, columnName string) bool {
 	return false
 }
 
-func updateInnerQueryColumns(innerQuery model.SelectCommand, whereClause model.Expr) model.SelectCommand {
+// updateInnerQueryColumns adds columns that exists in where clause and are missing
+// in select clause
+func updateInnerQueryColumns(query model.SelectCommand, whereClause model.Expr) model.SelectCommand {
 	whereClauseVisitor := WhereClauseColumnVisitor{ExprVisitor: model.NoOpVisitor{}}
 	whereClause.Accept(&whereClauseVisitor)
 	for _, columnName := range whereClauseVisitor.ColumnNames {
-		if isColumnExist(innerQuery.Columns, columnName) {
+		if isColumnExist(query.Columns, columnName) {
 			continue
 		}
-		innerQuery.Columns = append(innerQuery.Columns, model.NewColumnRef(columnName))
+		query.Columns = append(query.Columns, model.NewColumnRef(columnName))
 	}
-	return innerQuery
+	return query
 }
 
 /* code from my previous approach to this issue. Let's keep for now, 95% it'll be not needed, I'll remove it then.
