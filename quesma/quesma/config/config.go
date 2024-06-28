@@ -294,7 +294,7 @@ func (c *QuesmaConfiguration) String() string {
 			connectorString.WriteString(fmt.Sprintf("\n          User: %s", conn.User))
 		}
 		if conn.Password != "" {
-			connectorString.WriteString(fmt.Sprint("\n          Password: ***"))
+			connectorString.WriteString("\n          Password: ***")
 		}
 		if conn.Database != "" {
 			connectorString.WriteString(fmt.Sprintf("\n          Database: %s", conn.Database))

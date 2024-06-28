@@ -272,16 +272,15 @@ func (lm *LogManager) executeRawQuery(query string) (*sql.Rows, error) {
 }
 
 func (lm *LogManager) CheckIfConnectedToHydrolix() error {
-	rows, err := lm.executeRawQuery(`SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'TurbineStorage';`)
-	defer rows.Close()
-	if err != nil {
+	if rows, err := lm.executeRawQuery(`SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'TurbineStorage';`); err != nil {
 		return fmt.Errorf("error executing HDX identifying query: %v", err)
 	} else {
+		defer rows.Close()
 		if rows.Next() {
 			return fmt.Errorf("detected Hydrolix-specific table engine, which is not allowed")
 		}
+		return nil
 	}
-	return err
 }
 
 func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string, config *ChTableConfig) error {

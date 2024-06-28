@@ -8,9 +8,9 @@ import (
 	"time"
 )
 
-const (
-	licenseEndpoint = "https://license.quesma.com/v1/license"
-)
+//const (
+//	licenseEndpoint = "https://license.quesma.com/v1/license" TBD
+//)
 
 type InstallationIDPayload struct {
 	InstallationID string `json:"installation_id"`
