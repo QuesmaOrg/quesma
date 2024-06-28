@@ -230,6 +230,13 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				innerFieldsAsSelect, b.Query.SelectCommand.GroupBy, b.whereBuilder.WhereClause,
 				metricsAggr.SortBy, strings.ToLower(metricsAggr.Order) == "desc",
 			)
+			// where clause is built from filters aggregation,
+			// and it can contain columns that are not in the select clause,
+			// so we need to add them to the select clause
+			// as they are used in outer query
+			// For now that kind of local fix, but this can be done in a more general way
+			// by step that will check semantic correctness of the query
+			// and do necessary transformations
 			query.SelectCommand.FromClause = updateInnerQueryColumns(query.SelectCommand.FromClause.(model.SelectCommand),
 				query.SelectCommand.FromClause.(model.SelectCommand).WhereClause)
 
