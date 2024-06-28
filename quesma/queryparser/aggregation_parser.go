@@ -46,6 +46,36 @@ func (m metricsAggregation) sortByExists() bool {
 
 const metricsAggregationDefaultFieldType = clickhouse.Invalid
 
+type WhereClauseColumnVisitor struct {
+	model.ExprVisitor
+	ColumnNames []string
+}
+
+func (v *WhereClauseColumnVisitor) VisitColumnRef(e model.ColumnRef) interface{} {
+	v.ColumnNames = append(v.ColumnNames, e.ColumnName)
+	return e
+}
+
+func (v *WhereClauseColumnVisitor) VisitInfix(e model.InfixExpr) interface{} {
+	e.Left.Accept(v)
+	e.Right.Accept(v)
+	return e
+}
+
+func (v *WhereClauseColumnVisitor) VisitPrefix(e model.PrefixExpr) interface{} {
+	for _, arg := range e.Args {
+		arg.Accept(v)
+	}
+	return e
+}
+
+func (v *WhereClauseColumnVisitor) VisitFunction(e model.FunctionExpr) interface{} {
+	for _, arg := range e.Args {
+		arg.Accept(v)
+	}
+	return e
+}
+
 /* code from my previous approach to this issue. Let's keep for now, 95% it'll be not needed, I'll remove it then.
 func (b *aggrQueryBuilder) applyTermsSubSelect(terms bucket_aggregations.Terms) {
 	termsField := b.Query.GroupByFields[len(b.Query.GroupByFields)-1]
@@ -176,6 +206,37 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			)
 			query.SelectCommand.WhereClause = model.And([]model.Expr{query.SelectCommand.WhereClause,
 				model.NewInfixExpr(model.NewColumnRef(model.RowNumberColumnName), "<=", model.NewLiteral(strconv.Itoa(metricsAggr.Size)))})
+			fmt.Println("@@@@QUERY_BEFORE:", model.AsString(query.SelectCommand))
+			/*
+				{
+					whereClauseVisitor := WhereClauseColumnVisitor{ExprVisitor: model.NoOpVisitor{}}
+					query.SelectCommand.WhereClause.Accept(&whereClauseVisitor)
+					for _, columnName := range whereClauseVisitor.ColumnNames {
+						for _, column := range query.SelectCommand.Columns {
+							if model.AsString(column) == columnName {
+								continue
+							}
+						}
+						query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewColumnRef(columnName))
+					}
+				}
+			*/
+			{
+				whereClauseVisitor := WhereClauseColumnVisitor{ExprVisitor: model.NoOpVisitor{}}
+				query.SelectCommand.WhereClause.Accept(&whereClauseVisitor)
+				if q, ok := query.SelectCommand.FromClause.(model.SelectCommand); ok {
+					for _, columnName := range whereClauseVisitor.ColumnNames {
+						for _, column := range query.SelectCommand.Columns {
+							if model.AsString(column) == columnName {
+								continue
+							}
+						}
+						q.Columns = append(q.Columns, model.NewColumnRef(columnName))
+					}
+					query.SelectCommand.FromClause = q
+				}
+			}
+			fmt.Println("@@@@QUERY_AFTER:", model.AsString(query.SelectCommand))
 		} else {
 			innerFieldsAsSelect := make([]model.Expr, len(metricsAggr.Fields))
 			copy(innerFieldsAsSelect, metricsAggr.Fields)
