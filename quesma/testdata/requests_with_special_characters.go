@@ -152,7 +152,7 @@ var AggregationTestsWithSpecialCharactersInFieldNames = []AggregationTestCase{
 				`minOrNull("-@timestamp") AS "windowed_-@timestamp" ` +
 				`FROM (SELECT "-@bytes", "-@timestamp", ROW_NUMBER() ` +
 				`OVER (PARTITION BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000) ORDER BY "-@timestamp" DESC) ` +
-				`AS "row_number" FROM ` + QuotedTableName + ` WHERE "message\$\*\%\:\;" IS NOT NULL) ` +
+				`AS "row_number", "message\$\*\%\:\;" FROM ` + QuotedTableName + ` WHERE "message\$\*\%\:\;" IS NOT NULL) ` +
 				`WHERE ("message\$\*\%\:\;" IS NOT NULL ` +
 				`AND "row_number"<=1) ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("-@timestamp") / 43200000) ` +

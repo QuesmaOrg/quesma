@@ -204,9 +204,6 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				innerFieldsAsSelect, b.Query.SelectCommand.GroupBy, b.whereBuilder.WhereClause,
 				metricsAggr.SortBy, strings.ToLower(metricsAggr.Order) == "desc",
 			)
-			query.SelectCommand.WhereClause = model.And([]model.Expr{query.SelectCommand.WhereClause,
-				model.NewInfixExpr(model.NewColumnRef(model.RowNumberColumnName), "<=", model.NewLiteral(strconv.Itoa(metricsAggr.Size)))})
-
 			whereClauseVisitor := WhereClauseColumnVisitor{ExprVisitor: model.NoOpVisitor{}}
 			if _, ok := query.SelectCommand.FromClause.(model.SelectCommand); ok {
 				query.SelectCommand.FromClause.(model.SelectCommand).WhereClause.Accept(&whereClauseVisitor)
@@ -222,6 +219,8 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				}
 				query.SelectCommand.FromClause = q
 			}
+			query.SelectCommand.WhereClause = model.And([]model.Expr{query.SelectCommand.WhereClause,
+				model.NewInfixExpr(model.NewColumnRef(model.RowNumberColumnName), "<=", model.NewLiteral(strconv.Itoa(metricsAggr.Size)))})
 		} else {
 			innerFieldsAsSelect := make([]model.Expr, len(metricsAggr.Fields))
 			copy(innerFieldsAsSelect, metricsAggr.Fields)

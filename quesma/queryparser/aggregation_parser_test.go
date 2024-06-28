@@ -474,7 +474,7 @@ var aggregationTests = []struct {
 				`maxOrNull("order_date") AS "windowed_order_date", maxOrNull("order_date") AS "windowed_order_date" ` +
 				`FROM (SELECT "order_date", "order_date", ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
-				`ORDER BY "order_date" ASC) AS "row_number" ` +
+				`ORDER BY "order_date" ASC) AS "row_number", "taxful_total_price" ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`WHERE "taxful_total_price" > '250') ` +
 				`WHERE ("taxful_total_price" > '250' AND "row_number"<=10) ` +
@@ -484,7 +484,7 @@ var aggregationTests = []struct {
 				`maxOrNull("taxful_total_price") AS "windowed_taxful_total_price", maxOrNull("order_date") AS "windowed_order_date" ` +
 				`FROM (SELECT "taxful_total_price", "order_date", ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
-				`ORDER BY "order_date" ASC) AS "row_number" ` +
+				`ORDER BY "order_date" ASC) AS "row_number", "taxful_total_price" ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`WHERE "taxful_total_price" > '250') ` +
 				`WHERE ("taxful_total_price" > '250' AND "row_number"<=10) ` +
