@@ -52,6 +52,11 @@ type WhereClauseColumnVisitor struct {
 }
 
 func (v *WhereClauseColumnVisitor) VisitColumnRef(e model.ColumnRef) interface{} {
+	for _, columnName := range v.ColumnNames {
+		if e.ColumnName == columnName {
+			return e
+		}
+	}
 	v.ColumnNames = append(v.ColumnNames, e.ColumnName)
 	return e
 }
@@ -74,6 +79,15 @@ func (v *WhereClauseColumnVisitor) VisitFunction(e model.FunctionExpr) interface
 		arg.Accept(v)
 	}
 	return e
+}
+
+func isColumnExist(columns []model.Expr, columnName string) bool {
+	for _, column := range columns {
+		if model.AsString(column) == "\""+columnName+"\"" {
+			return true
+		}
+	}
+	return false
 }
 
 /* code from my previous approach to this issue. Let's keep for now, 95% it'll be not needed, I'll remove it then.
@@ -208,16 +222,14 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			if _, ok := query.SelectCommand.FromClause.(model.SelectCommand); ok {
 				query.SelectCommand.FromClause.(model.SelectCommand).WhereClause.Accept(&whereClauseVisitor)
 			}
-			if q, ok := query.SelectCommand.FromClause.(model.SelectCommand); ok {
+			if innerQuery, ok := query.SelectCommand.FromClause.(model.SelectCommand); ok {
 				for _, columnName := range whereClauseVisitor.ColumnNames {
-					for _, column := range query.SelectCommand.Columns {
-						if model.AsString(column) == columnName {
-							continue
-						}
+					if isColumnExist(innerQuery.Columns, columnName) {
+						continue
 					}
-					q.Columns = append(q.Columns, model.NewColumnRef(columnName))
+					innerQuery.Columns = append(innerQuery.Columns, model.NewColumnRef(columnName))
 				}
-				query.SelectCommand.FromClause = q
+				query.SelectCommand.FromClause = innerQuery
 			}
 			query.SelectCommand.WhereClause = model.And([]model.Expr{query.SelectCommand.WhereClause,
 				model.NewInfixExpr(model.NewColumnRef(model.RowNumberColumnName), "<=", model.NewLiteral(strconv.Itoa(metricsAggr.Size)))})
