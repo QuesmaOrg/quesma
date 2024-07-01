@@ -75,7 +75,7 @@ func (l *LicenseModule) setInstallationID() {
 
 func (l *LicenseModule) tryStoringInstallationIdInFile(installationID string) {
 	if err := os.WriteFile(installationIdFile, []byte(installationID), 0644); err != nil {
-		logger.Warn().Msgf("Failed to store Installation ID in file: %v", err)
+		logger.Debug().Msgf("Failed to store Installation ID in file: %v", err)
 	} else {
 		logger.Info().Msgf("Stored Installation ID in file [%s]", installationIdFile)
 	}
