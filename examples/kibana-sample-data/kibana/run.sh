@@ -1,4 +1,5 @@
 #!/bin/bash
+echo "$@"
 DASHBOARD_URL="http://kibana:5601"
 
 if [ -z "$XSRF_HEADER" ]; then
@@ -46,7 +47,7 @@ do_silent_http_post() {
     -H 'Content-Type: application/json' \
     -d "$body"
 }
--
+
 add_sample_dataset() {
     local sample_data=$1
     START_TIME=$(date +%s)
@@ -55,3 +56,30 @@ add_sample_dataset() {
     END_TIME=$(date +%s)
     echo -e "\nAdded $sample_data dataset, took $((END_TIME-START_TIME)) seconds"
 }
+
+
+wait_until_available
+
+if [ -z "$LIMITED_DATASET" ] || [ "$LIMITED_DATASET" != "true" ]; then
+    add_sample_dataset "flights"
+    add_sample_dataset "logs"
+    add_sample_dataset "ecommerce"
+else
+    echo "Using limited dataset - only 'flights' index"
+    add_sample_dataset "flights"
+fi
+
+echo -n "Adding data view logs-generic... "
+do_silent_http_post "api/data_views/data_view" '{
+    "data_view": {
+       "name": "Logs Generator",
+       "title": "logs-generic-*",
+       "id": "logs-generic",
+       "timeFieldName": "@timestamp",
+       "allowNoIndex": true
+    },
+    "override": true
+}'
+echo ""
+echo -e "\nData views added."
+
