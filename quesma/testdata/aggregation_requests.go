@@ -2000,7 +2000,7 @@ var AggregationTests = []AggregationTestCase{
 				`maxOrNull("order_date") AS "windowed_order_date" FROM ` +
 				`(SELECT "order_date", "order_date", ROW_NUMBER() OVER ` +
 				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
-				`ORDER BY "order_date" ASC) AS "row_number" FROM ` + QuotedTableName + " " +
+				`ORDER BY "order_date" ASC) AS "row_number", "taxful_total_price" FROM ` + QuotedTableName + " " +
 				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
 				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250')) ` +
 				`WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +

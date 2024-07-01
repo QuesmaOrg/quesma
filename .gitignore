@@ -22,3 +22,4 @@ docker/security/certificate-bundle.zip
 docker/security/clickhouse
 quesma/config.yaml
 quesma/.installation_id
+examples/kibana-sample-data/quesma/logs/*
