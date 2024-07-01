@@ -299,6 +299,7 @@ func (cw *ClickhouseQueryTranslator) parseQueryMap(queryMap QueryMap) model.Simp
 		"query_string":        cw.parseQueryString,
 		"simple_query_string": cw.parseQueryString,
 		"regexp":              cw.parseRegexp,
+		"geo_bounding_box":    cw.parseGeoBoundingBox,
 	}
 	for k, v := range queryMap {
 		if f, ok := parseMap[k]; ok {
@@ -875,6 +876,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 }
 
 // parseDateTimeString returns string used to parse DateTime in Clickhouse (depends on column type)
+
 func (cw *ClickhouseQueryTranslator) parseDateTimeString(table *clickhouse.Table, field, dateTime string) (string, string) {
 	typ := table.GetDateTimeType(cw.Ctx, cw.ResolveField(cw.Ctx, field))
 	switch typ {
@@ -913,6 +915,15 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 				model.NewLiteral("size0"),
 			), "=", model.NewLiteral("0"))
 		case clickhouse.NotExists:
+			// TODO this is a workaround for the case when the field is a point
+			schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name))
+			if exists {
+				if value, ok := schemaInstance.Fields[schema.FieldName(fieldName)]; ok {
+					if value.Type.Equal(schema.TypePoint) {
+						return model.NewSimpleQuery(sql, true)
+					}
+				}
+			}
 			attrs := cw.Table.GetAttributesList()
 			stmts := make([]model.Expr, len(attrs))
 			for i, a := range attrs {
@@ -1374,4 +1385,49 @@ func (cw *ClickhouseQueryTranslator) GetDateTimeTypeFromSelectClause(ctx context
 		return cw.Table.GetDateTimeType(ctx, cw.ResolveField(ctx, ref.ColumnName))
 	}
 	return clickhouse.Invalid
+}
+
+func (cw *ClickhouseQueryTranslator) parseGeoBoundingBox(queryMap QueryMap) model.SimpleQuery {
+	stmts := make([]model.Expr, 0)
+	bottomRightExpressions := make([]model.Expr, 0)
+	topLeftExpressions := make([]model.Expr, 0)
+	var field string
+	for k, v := range queryMap {
+		// TODO handle lat lon as array case for now
+		// Generate following where statement, assuming that field
+		// is equal to "Location"
+		// GEO_BOUNDING_BOX("Location", top_left_lat, top_left_lon, bottom_right_lat, bottom_right_lon))
+		// GEO_BOUNDING_BOX here is an abstract geo function that will be mapped
+		// later to specific Clickhouse (or any other db function in the future)
+		// it takes 5 arguments: field, topLeftLat, topLeftLon, bottomRightLat, bottomRightLon
+		field = k
+		if bottomRight, ok := v.(QueryMap)["bottom_right"]; ok {
+			if bottomRightCornerAsArray, ok := bottomRight.([]interface{}); ok {
+				bottomRightExpressions = append(bottomRightExpressions, model.NewLiteral(fmt.Sprintf("%v", bottomRightCornerAsArray[0])))
+				bottomRightExpressions = append(bottomRightExpressions, model.NewLiteral(fmt.Sprintf("%v", bottomRightCornerAsArray[1])))
+			}
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("no bottom_right in geo_bounding_box query: %v", queryMap)
+			return model.NewSimpleQuery(nil, false)
+		}
+		if topLeft, ok := v.(QueryMap)["top_left"]; ok {
+			if topLeftCornerAsArray, ok := topLeft.([]interface{}); ok {
+				topLeftExpressions = append(topLeftExpressions, model.NewLiteral(fmt.Sprintf("%v", topLeftCornerAsArray[0])))
+				topLeftExpressions = append(topLeftExpressions, model.NewLiteral(fmt.Sprintf("%v", topLeftCornerAsArray[1])))
+			}
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("no top_left in geo_bounding_box query: %v", queryMap)
+			return model.NewSimpleQuery(nil, false)
+		}
+		args := make([]model.Expr, 0)
+		args = append(args, model.NewColumnRef(field))
+		args = append(args, topLeftExpressions...)
+		args = append(args, bottomRightExpressions...)
+		fun := model.NewFunction("GEO_BOUNDING_BOX", args...)
+		_ = fun
+		// TODO uncomment when GEO_BOUNDING_BOX is implemented
+		// it requires additional transformation to update field names
+		//stmts = append(stmts, fun)
+	}
+	return model.NewSimpleQuery(model.And(stmts), true)
 }
