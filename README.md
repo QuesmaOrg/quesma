@@ -33,7 +33,7 @@ It showcases:
 
 ### Running the example
 In order to run it, you need to:
-- close this repository
+- clone this repository: `git clone git@github.com:QuesmaOrg/quesma.git`
 - build `quesma:latest` image by running `docker build -f quesma/Dockerfile -t quesma:latest quesma` from the root directory
 - run `docker-compose up` directly from `/examples/kibana-sample-data` directory
 
