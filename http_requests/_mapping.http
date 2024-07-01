@@ -1,0 +1,1 @@
+GET http://localhost:8080/kibana_sample_data_ecommerce/_mapping
