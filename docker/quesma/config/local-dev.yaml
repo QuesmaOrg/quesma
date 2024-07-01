@@ -20,6 +20,7 @@ indexes:
     enabled: true
     mappings:
       products.manufacturer: "text"
+      products.product_name: "text"
       geoip.location: "geo_point"
       category: "text"
   kibana_sample_data_flights:
