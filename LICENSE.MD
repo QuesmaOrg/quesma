@@ -1,3 +1,5 @@
+Copyright (c) 2024 Quesma, Inc. All rights reserved.
+
 Source code in this repository is covered under the [Elastic License 2.0](https://github.com/elastic/elasticsearch/blob/ae39525e9f1f83bd4318cf8341b7d59534e5a5e3/licenses/ELASTIC-LICENSE-2.0.txt), as noted in the applicable header.
 
 ----
