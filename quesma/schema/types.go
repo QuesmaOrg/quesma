@@ -17,7 +17,7 @@ var (
 	TypeObject       = Type{Name: "object", Properties: []TypeProperty{Searchable}}
 	TypeArray        = Type{Name: "array", Properties: []TypeProperty{Searchable}}
 	TypeMap          = Type{Name: "map", Properties: []TypeProperty{Searchable}}
-	TypeIp           = Type{Name: "ip", Properties: []TypeProperty{Searchable}}
+	TypeIp           = Type{Name: "ip", Properties: []TypeProperty{Searchable, Aggregatable}}
 	TypePoint        = Type{Name: "point", Properties: []TypeProperty{Searchable, Aggregatable}}
 	TypeUnknown      = Type{Name: "unknown", Properties: []TypeProperty{Searchable}}
 )
