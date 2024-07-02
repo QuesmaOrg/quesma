@@ -171,3 +171,6 @@ which provides a minimal set of dependencies - Elasticsearch, Clickhouse, and Ki
    in containers to connect locally running Quesma process is to pass the IP address like this.
 4. If you set proper breakpoints in your IDE, you should see the execution stopped at the breakpoint.
 5. Profit!
+
+### License
+[Elastic License 2.0](https://github.com/QuesmaOrg/quesma/blob/main/LICENSE.MD)
