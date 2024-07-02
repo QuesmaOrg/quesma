@@ -20,6 +20,9 @@ indexes:
     enabled: true
     mappings:
       products.manufacturer: "text"
+      products.product_name: "text"
+      geoip.location: "geo_point"
+      category: "text"
   kibana_sample_data_flights:
     enabled: true
     mappings:
@@ -30,6 +33,8 @@ indexes:
     mappings:
       ip: "ip"
       clientip: "ip"
+      geo::coordinates: "point"
+      extension: "text"
     aliases:
       timestamp:
         source: "timestamp"
