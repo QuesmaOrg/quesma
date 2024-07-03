@@ -35,8 +35,8 @@ const banner = `
 
 func main() {
 	println(banner)
-	fmt.Printf("Quesma build info: version=[%s], build hash=[%s], build date=[%s] license key=[%s]\n",
-		buildinfo.Version, buildinfo.BuildHash, buildinfo.BuildDate, config.MaskLicenseKey(buildinfo.LicenseKey))
+	fmt.Printf("Quesma build info: version=[%s], build hash=[%s], build date=[%s]\n",
+		buildinfo.Version, buildinfo.BuildHash, buildinfo.BuildDate)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)

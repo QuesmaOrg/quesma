@@ -12,7 +12,6 @@ import (
 	"github.com/rs/zerolog"
 	"log"
 	"os"
-	"quesma/buildinfo"
 	"quesma/elasticsearch/elasticsearch_field_types"
 	"quesma/index"
 	"quesma/network"
@@ -127,7 +126,6 @@ func Load() QuesmaConfiguration {
 			}
 		}
 	}
-	config.configureLicenseKey()
 	return config
 }
 
@@ -220,22 +218,6 @@ func MaskLicenseKey(licenseKey string) string {
 		return "****" + licenseKey[len(licenseKey)-4:]
 	} else {
 		return "****"
-	}
-}
-
-func (c *QuesmaConfiguration) configureLicenseKey() {
-	// This condition implies that we're dealing with customer-specific build,
-	// which has license key injected at the build time via ldflags, see `docs/private-beta-releases.md`
-	if buildinfo.LicenseKey != buildinfo.DevelopmentLicenseKey && buildinfo.LicenseKey != "" {
-		// `buildinfo.LicenseKey` can be injected at the build time, don't get fooled by the IDE warning above
-		fmt.Printf("Using license key from build: %s\n", MaskLicenseKey(buildinfo.LicenseKey))
-		c.LicenseKey = buildinfo.LicenseKey
-		return
-	} else if c.LicenseKey != "" { // In case of **any other** setup, we fall back to what's been configured by user (==config or env vars)
-		fmt.Printf("Using license key from configuration: %s\n", MaskLicenseKey(c.LicenseKey))
-		return
-	} else {
-		log.Fatalf("missing license key. Quiting...")
 	}
 }
 

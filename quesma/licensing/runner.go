@@ -24,16 +24,21 @@ const (
 
 func Init(config *config.QuesmaConfiguration) *LicenseModule {
 	l := &LicenseModule{
-		Config: config,
+		Config:     config,
+		LicenseKey: []byte(config.LicenseKey),
 	}
-	l.setInstallationID()
-	go l.Run()
+	l.Run()
 	return l
 }
 
 func (l *LicenseModule) Run() {
-	if err := l.obtainLicenseKey(); err != nil {
-		PanicWithLicenseViolation(fmt.Errorf("failed to obtain license key: %v", err))
+	if len(l.LicenseKey) > 0 {
+		logger.Info().Msgf("License key [%s] already present, skipping license key obtainment.", l.LicenseKey)
+	} else {
+		l.setInstallationID()
+		if err := l.obtainLicenseKey(); err != nil {
+			PanicWithLicenseViolation(fmt.Errorf("failed to obtain license key: %v", err))
+		}
 	}
 	if err := l.processLicense(); err != nil {
 		PanicWithLicenseViolation(fmt.Errorf("failed to process license: %v", err))
