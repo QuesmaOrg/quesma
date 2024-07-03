@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"quesma/logger"
+	"strings"
 	"time"
 )
 
@@ -34,9 +35,9 @@ type AllowList struct {
 	ExpirationDate time.Time `json:"expiration_date"`
 }
 
-func (a *AllowList) ToString() string {
-	return fmt.Sprintf("[Quesma License]\n\tInstallation ID: %s\n\tClient Name: %s\n\tConnectors: %v\n\tProcessors: %v\n\tExpires: %s",
-		a.InstallationID, a.ClientName, a.Connectors, a.Processors, a.ExpirationDate)
+func (a *AllowList) String() string {
+	return fmt.Sprintf("[Quesma License]\n\tInstallation ID: %s\n\tClient Name: %s\n\tConnectors: [%v]\n\tProcessors: [%v]\n\tExpires: %s",
+		a.InstallationID, a.ClientName, strings.Join(a.Connectors, ", "), strings.Join(a.Processors, ", "), a.ExpirationDate)
 }
 
 // obtainLicenseKey presents an InstallationId to the license server and receives a LicenseKey in return
@@ -72,7 +73,7 @@ func (l *LicenseModule) processLicense() error {
 		return fmt.Errorf("failed processing license by the license server: %v", err)
 	} else {
 		l.AllowList = allowList
-		logger.Info().Msgf("Allowlist loaded successfully\n%s", allowList.ToString())
+		logger.Info().Msgf("Allowlist loaded successfully\n%s", allowList.String())
 	}
 	if l.AllowList.ExpirationDate.Before(time.Now()) {
 		return fmt.Errorf("license expired on %s", l.AllowList.ExpirationDate)

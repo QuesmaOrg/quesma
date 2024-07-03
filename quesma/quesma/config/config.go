@@ -213,14 +213,6 @@ func (c *QuesmaConfiguration) validateIndexName(indexName string, result error) 
 	return result
 }
 
-func MaskLicenseKey(licenseKey string) string {
-	if len(licenseKey) > 4 {
-		return "****" + licenseKey[len(licenseKey)-4:]
-	} else {
-		return "****"
-	}
-}
-
 func (c *QuesmaConfiguration) ReadsFromClickhouse() bool {
 	return c.Mode == DualWriteQueryClickhouse || c.Mode == DualWriteQueryClickhouseFallback ||
 		c.Mode == DualWriteQueryClickhouseVerify || c.Mode == ClickHouse
