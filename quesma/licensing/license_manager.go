@@ -47,10 +47,10 @@ func (l *LicenseModule) obtainLicenseKey() (err error) {
 		return err
 	}
 	resp, err := http.Post(obtainLicenseEndpoint, "application/json", bytes.NewReader(payloadBytes))
-	defer resp.Body.Close()
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -86,10 +86,10 @@ func (l *LicenseModule) fetchAllowList() (a *AllowList, err error) {
 		return nil, err
 	}
 	resp, err := http.Post(verifyLicenseEndpoint, "application/json", bytes.NewReader(payloadBytes))
-	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
