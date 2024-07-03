@@ -49,16 +49,16 @@ func main() {
 
 	var asyncQueryTraceLogger *tracing.AsyncTraceLogger
 
+	license := licensing.Init(&cfg)
 	qmcLogChannel := logger.InitLogger(logger.Configuration{
 		FileLogging:       cfg.Logging.FileLogging,
 		Path:              cfg.Logging.Path,
 		RemoteLogDrainUrl: cfg.Logging.RemoteLogDrainUrl.ToUrl(),
 		Level:             cfg.Logging.Level,
-		LicenseKey:        cfg.LicenseKey,
+		InstallationID:    license.InstallationID,
 	}, sig, doneCh, asyncQueryTraceLogger)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
-	_ = licensing.Init(&cfg)
 
 	if asyncQueryTraceLogger != nil {
 		asyncQueryTraceEvictor := quesma.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
@@ -68,7 +68,7 @@ func main() {
 
 	var connectionPool = clickhouse.InitDBConnectionPool(cfg)
 
-	phoneHomeAgent := telemetry.NewPhoneHomeAgent(cfg, connectionPool)
+	phoneHomeAgent := telemetry.NewPhoneHomeAgent(cfg, connectionPool, license.InstallationID)
 	phoneHomeAgent.Start()
 
 	schemaManagement := clickhouse.NewSchemaManagement(connectionPool)

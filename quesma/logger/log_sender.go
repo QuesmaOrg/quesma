@@ -8,19 +8,18 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"quesma/license"
 	"quesma/telemetry/headers"
 	"strconv"
 	"time"
 )
 
 type LogSender struct {
-	Url          *url.URL
-	LicenseKey   string
-	LogBuffer    []byte
-	LastSendTime time.Time
-	Interval     time.Duration
-	httpClient   *http.Client
+	Url            *url.URL
+	InstallationID string
+	LogBuffer      []byte
+	LastSendTime   time.Time
+	Interval       time.Duration
+	httpClient     *http.Client
 }
 
 func (logSender *LogSender) EatLogMessage(msg []byte) struct {
@@ -90,7 +89,7 @@ func (logSender *LogSender) sendLogs() error {
 	}
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set(telemetry_headers.XTelemetryRemoteLog, "true") // value is arbitrary, just have to be non-empty
-	req.Header.Set(license.Header, logSender.LicenseKey)
+	req.Header.Set(telemetry_headers.InstallationID, logSender.InstallationID)
 	resp, err := logSender.httpClient.Do(req)
 	if err != nil {
 		return err

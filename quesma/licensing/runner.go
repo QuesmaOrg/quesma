@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"os"
-	"quesma/logger"
 	"quesma/quesma/config"
 	"slices"
 )
@@ -33,7 +32,7 @@ func Init(config *config.QuesmaConfiguration) *LicenseModule {
 
 func (l *LicenseModule) Run() {
 	if len(l.LicenseKey) > 0 {
-		logger.Info().Msgf("License key [%s] already present, skipping license key obtainment.", l.LicenseKey)
+		fmt.Printf("License key [%s] already present, skipping license key obtainment.\n", l.LicenseKey)
 	} else {
 		l.setInstallationID()
 		if err := l.obtainLicenseKey(); err != nil {
@@ -60,28 +59,28 @@ func (l *LicenseModule) validateConfig() error {
 
 func (l *LicenseModule) setInstallationID() {
 	if l.Config.InstallationId != "" {
-		logger.Info().Msgf("Installation ID provided in the configuration [%s]", l.Config.InstallationId)
+		fmt.Printf("Installation ID provided in the configuration [%s]\n", l.Config.InstallationId)
 		l.InstallationID = l.Config.InstallationId
 		return
 	}
 
 	if data, err := os.ReadFile(installationIdFile); err != nil {
-		logger.Info().Msgf("Reading Installation ID failed [%v], generating new one", err)
+		fmt.Printf("Reading Installation ID failed [%v], generating new one\n", err)
 		generatedID := uuid.New().String()
-		logger.Info().Msgf("Generated Installation ID of [%s]", generatedID)
+		fmt.Printf("Generated Installation ID of [%s]\n", generatedID)
 		l.tryStoringInstallationIdInFile(generatedID)
 		l.InstallationID = generatedID
 	} else {
 		installationID := string(data)
-		logger.Info().Msgf("Installation ID of [%s] found", installationID)
+		fmt.Printf("Installation ID of [%s] found\n", installationID)
 		l.InstallationID = installationID
 	}
 }
 
 func (l *LicenseModule) tryStoringInstallationIdInFile(installationID string) {
 	if err := os.WriteFile(installationIdFile, []byte(installationID), 0644); err != nil {
-		logger.Debug().Msgf("Failed to store Installation ID in file: %v", err)
+		fmt.Printf("Failed to store Installation ID in file: %v\n", err)
 	} else {
-		logger.Info().Msgf("Stored Installation ID in file [%s]", installationIdFile)
+		fmt.Printf("Stored Installation ID in file [%s]\n", installationIdFile)
 	}
 }

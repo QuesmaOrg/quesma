@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Elastic-2.0
 package licensing
 
-import (
-	"quesma/logger"
-)
+import "fmt"
 
 const (
 	errorMessage = `There's been license violation detected. Please contact us at:
@@ -12,5 +10,5 @@ const (
 )
 
 func PanicWithLicenseViolation(initialErr error) {
-	logger.Panic().Msgf("Error thrown: %v\n%s", initialErr, errorMessage)
+	panic(fmt.Sprintf("Error thrown: %v\n%s", initialErr, errorMessage))
 }

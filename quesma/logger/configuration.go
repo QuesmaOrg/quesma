@@ -12,5 +12,5 @@ type Configuration struct {
 	Path              string
 	RemoteLogDrainUrl *url.URL
 	Level             zerolog.Level
-	LicenseKey        string
+	InstallationID    string
 }

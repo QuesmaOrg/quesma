@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"quesma/logger"
 	"strings"
 	"time"
 )
@@ -36,13 +35,13 @@ type AllowList struct {
 }
 
 func (a *AllowList) String() string {
-	return fmt.Sprintf("[Quesma License]\n\tInstallation ID: %s\n\tClient Name: %s\n\tConnectors: [%v]\n\tProcessors: [%v]\n\tExpires: %s",
+	return fmt.Sprintf("[Quesma License]\n\tInstallation ID: %s\n\tClient Name: %s\n\tConnectors: [%v]\n\tProcessors: [%v]\n\tExpires: %s\n",
 		a.InstallationID, a.ClientName, strings.Join(a.Connectors, ", "), strings.Join(a.Processors, ", "), a.ExpirationDate)
 }
 
 // obtainLicenseKey presents an InstallationId to the license server and receives a LicenseKey in return
 func (l *LicenseModule) obtainLicenseKey() (err error) {
-	logger.Info().Msgf("Obtaining license key for installation ID [%s]", l.InstallationID)
+	fmt.Printf("Obtaining license key for installation ID [%s]\n", l.InstallationID)
 	var payloadBytes []byte
 	if payloadBytes, err = json.Marshal(InstallationIDPayload{InstallationID: l.InstallationID}); err != nil {
 		return err
@@ -63,7 +62,7 @@ func (l *LicenseModule) obtainLicenseKey() (err error) {
 		return err
 	}
 	l.LicenseKey = licenseResponse.LicenseKey
-	logger.Info().Msgf("License key obtained and set successfully, key=[%s]", l.LicenseKey)
+	fmt.Printf("License key obtained and set successfully, key=[%s]\n", l.LicenseKey)
 	return nil
 }
 
@@ -73,7 +72,7 @@ func (l *LicenseModule) processLicense() error {
 		return fmt.Errorf("failed processing license by the license server: %v", err)
 	} else {
 		l.AllowList = allowList
-		logger.Info().Msgf("Allowlist loaded successfully\n%s", allowList.String())
+		fmt.Printf("Allowlist loaded successfully\n%s\n", allowList.String())
 	}
 	if l.AllowList.ExpirationDate.Before(time.Now()) {
 		return fmt.Errorf("license expired on %s", l.AllowList.ExpirationDate)
@@ -82,7 +81,7 @@ func (l *LicenseModule) processLicense() error {
 }
 
 func (l *LicenseModule) fetchAllowList() (a *AllowList, err error) {
-	logger.Info().Msgf("Presenting the license key to the license server for validation")
+	fmt.Printf("Presenting the license key to the license server for validation\n")
 	var payloadBytes []byte
 	if payloadBytes, err = json.Marshal(LicensePayload{LicenseKey: l.LicenseKey}); err != nil {
 		return nil, err
