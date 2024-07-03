@@ -97,3 +97,21 @@ these terms.
 **use** means anything you do with the software requiring one of your licenses.
 
 **trademark** means trademarks, service marks, and similar rights.
+
+
+
+----
+
+PRIVACY NOTICE
+
+We strive to provide best user experience and build the best product on the market. Part of this effort is related to constant improvement of our product, without a need to ask for time of our users.
+
+Quesma database gateway collects telemetry data and uses phone home type of communication to:
+*check license validity
+*collect environment information like components versions and runtime stats
+*provide us with information about health and performance
+*report errors and crashes
+
+At the current life stage of the product this information is mandatory for anyone wanting to use it and theres is no opt-out possibility. Please reach out to us, if that is a problem for you.
+
+The data transmitted contains no Personally Identifiable Information (PII) of any end users and is stictly realted to the health and performance of Quesma instance. This data is stored in secured environment belonging to Quesma and is not shared with any third parties. Check our documentation for example record of data.
