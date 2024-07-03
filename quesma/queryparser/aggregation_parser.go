@@ -417,6 +417,15 @@ func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQuer
 	return nil
 }
 
+func popColumnsFromStack[T any](ctx context.Context, columns []T, columnsAdded int) []T {
+	if len(columns) >= columnsAdded {
+		columns = columns[:len(columns)-columnsAdded]
+	} else {
+		logger.ErrorWithCtx(ctx).Msgf("Trying to remove %d columns from stack, but there are only %d columns", columnsAdded, len(columns))
+	}
+	return columns
+}
+
 // Builds aggregations recursively. Seems to be working on all examples so far,
 // even though it's a pretty simple algorithm.
 // When making changes, look at the order in which we parse fields, it is very important for correctness.
@@ -537,28 +546,16 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(currentAggr *aggrQueryBuil
 	if filterOnThisLevel {
 		currentAggr.whereBuilder = whereBeforeNesting
 	}
+	// Aggregations can be stacked with parent-child relationship and each aggregation can add columns to specific clauses.
+	// When child aggregation is finished, we need to remove columns added by it.
 	if columnsAdded > 0 {
-
-		if len(currentAggr.SelectCommand.Columns) >= columnsAdded {
-			currentAggr.SelectCommand.Columns = currentAggr.SelectCommand.Columns[:len(currentAggr.SelectCommand.Columns)-columnsAdded]
-		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("columnsAdded > currentAggr.Columns length -> should be impossible")
-		}
-
+		currentAggr.SelectCommand.Columns = popColumnsFromStack(cw.Ctx, currentAggr.SelectCommand.Columns, columnsAdded)
 	}
 	if groupByFieldsAdded > 0 {
-		if len(currentAggr.SelectCommand.GroupBy) >= groupByFieldsAdded {
-			currentAggr.SelectCommand.GroupBy = currentAggr.SelectCommand.GroupBy[:len(currentAggr.SelectCommand.GroupBy)-groupByFieldsAdded]
-		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("groupByFieldsAdded > currentAggr.GroupBy length -> should be impossible")
-		}
+		currentAggr.SelectCommand.GroupBy = popColumnsFromStack(cw.Ctx, currentAggr.SelectCommand.GroupBy, groupByFieldsAdded)
 	}
 	if orderByFieldsAdded > 0 {
-		if len(currentAggr.SelectCommand.OrderBy) >= orderByFieldsAdded {
-			currentAggr.SelectCommand.OrderBy = currentAggr.SelectCommand.OrderBy[:len(currentAggr.SelectCommand.OrderBy)-orderByFieldsAdded]
-		} else {
-			logger.ErrorWithCtx(cw.Ctx).Msgf("orderByFieldsAdded > currentAggr.OrderBy length -> should be impossible")
-		}
+		currentAggr.SelectCommand.OrderBy = popColumnsFromStack(cw.Ctx, currentAggr.SelectCommand.OrderBy, orderByFieldsAdded)
 	}
 	currentAggr.Type = queryTypeBeforeNesting
 	currentAggr.SelectCommand.Limit = limitBeforeNesting
