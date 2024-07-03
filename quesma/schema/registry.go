@@ -84,7 +84,7 @@ func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguratio
 	if deprecatedConfigInUse(indexConfiguration) {
 		for fieldName, fieldType := range indexConfiguration.TypeMappings {
 			if resolvedType, valid := ParseType(fieldType); valid {
-				fields[FieldName(fieldName)] = Field{Name: FieldName(fieldName), Type: resolvedType}
+				fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(fieldName), Type: resolvedType}
 			} else {
 				logger.Warn().Msgf("invalid configuration: type %s not supported (should have been spotted when validating configuration)", fieldType)
 			}
@@ -95,7 +95,7 @@ func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguratio
 				continue
 			}
 			if resolvedType, valid := ParseType(field.Type.AsString()); valid {
-				fields[FieldName(field.Name.AsString())] = Field{Name: FieldName(field.Name.AsString()), Type: resolvedType}
+				fields[FieldName(field.Name.AsString())] = Field{PropertyName: FieldName(field.Name.AsString()), InternalPropertyName: FieldName(field.Name.AsString()), Type: resolvedType}
 			} else {
 				logger.Warn().Msgf("invalid configuration: type %s not supported (should have been spotted when validating configuration)", field.Type.AsString())
 			}
@@ -132,10 +132,10 @@ func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[strin
 		for _, column := range tableDefinition.Columns {
 			if _, exists := fields[FieldName(column.Name)]; !exists {
 				if quesmaType, found2 := s.dataSourceTypeAdapter.Convert(column.Type); found2 {
-					fields[FieldName(column.Name)] = Field{Name: FieldName(column.Name), Type: quesmaType}
+					fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(column.Name), Type: quesmaType}
 				} else {
 					logger.Debug().Msgf("type %s not supported, falling back to text", column.Type)
-					fields[FieldName(column.Name)] = Field{Name: FieldName(column.Name), Type: TypeText}
+					fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(column.Name), Type: TypeText}
 				}
 			}
 		}
