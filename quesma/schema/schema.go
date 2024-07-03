@@ -8,8 +8,11 @@ type (
 		Aliases map[FieldName]FieldName
 	}
 	Field struct {
-		Name FieldName
-		Type Type
+		// PropertyName is how users refer to the field
+		PropertyName FieldName
+		// InternalPropertyName is how the field is represented in the data source
+		InternalPropertyName FieldName
+		Type                 Type
 	}
 	TableName string
 	FieldName string

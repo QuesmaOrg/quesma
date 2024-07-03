@@ -26,10 +26,10 @@ func TestSchema_ResolveField(t *testing.T) {
 			fieldName: "message",
 			schema: Schema{
 				Fields: map[FieldName]Field{
-					"message": {Name: "message", Type: TypeText},
+					"message": {PropertyName: "message", InternalPropertyName: "message", Type: TypeText},
 				},
 			},
-			resolvedField: Field{Name: "message", Type: TypeText},
+			resolvedField: Field{PropertyName: "message", InternalPropertyName: "message", Type: TypeText},
 			exists:        true,
 		},
 		{
@@ -37,7 +37,7 @@ func TestSchema_ResolveField(t *testing.T) {
 			fieldName: "foo",
 			schema: Schema{
 				Fields: map[FieldName]Field{
-					"message": {Name: "message", Type: TypeText},
+					"message": {PropertyName: "message", InternalPropertyName: "message", Type: TypeText},
 				},
 			},
 			resolvedField: Field{},
@@ -47,17 +47,17 @@ func TestSchema_ResolveField(t *testing.T) {
 			name:      "should resolve aliased field",
 			fieldName: "message_alias",
 			schema: Schema{
-				Fields:  map[FieldName]Field{"message": {Name: "message", Type: TypeText}},
+				Fields:  map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: TypeText}},
 				Aliases: map[FieldName]FieldName{"message_alias": "message"},
 			},
-			resolvedField: Field{Name: "message", Type: TypeText},
+			resolvedField: Field{PropertyName: "message", InternalPropertyName: "message", Type: TypeText},
 			exists:        true,
 		},
 		{
 			name:      "should not resolve aliased field",
 			fieldName: "message_alias",
 			schema: Schema{
-				Fields:  map[FieldName]Field{"message": {Name: "message", Type: TypeText}},
+				Fields:  map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: TypeText}},
 				Aliases: map[FieldName]FieldName{"message_alias": "foo"},
 			},
 			resolvedField: Field{},

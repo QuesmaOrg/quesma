@@ -87,10 +87,10 @@ func TestFieldCaps(t *testing.T) {
 		tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
-					"service.name":           {Name: "service.name", Type: schema.TypeKeyword},
-					"arrayOfArraysOfStrings": {Name: "arrayOfArraysOfStrings", Type: schema.TypeKeyword},
-					"arrayOfTuples":          {Name: "arrayOfTuples", Type: schema.TypeObject},
-					"host.name":              {Name: "host.name", Type: schema.TypeObject},
+					"service.name":           {PropertyName: "service.name", InternalPropertyName: "service.name", Type: schema.TypeKeyword},
+					"arrayOfArraysOfStrings": {PropertyName: "arrayOfArraysOfStrings", InternalPropertyName: "arrayOfArraysOfStrings", Type: schema.TypeKeyword},
+					"arrayOfTuples":          {PropertyName: "arrayOfTuples", InternalPropertyName: "arrayOfTuples", Type: schema.TypeObject},
+					"host.name":              {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
 				},
 			},
 		},
@@ -146,7 +146,7 @@ func TestFieldCapsWithAliases(t *testing.T) {
 	}, staticRegistry{
 		tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
-				Fields:  map[schema.FieldName]schema.Field{"@timestamp": {Name: "@timestamp", Type: schema.TypeTimestamp}},
+				Fields:  map[schema.FieldName]schema.Field{"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.TypeTimestamp}},
 				Aliases: map[schema.FieldName]schema.FieldName{"timestamp": "@timestamp"},
 			},
 		},
@@ -196,12 +196,12 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
 		tables: map[schema.TableName]schema.Schema{
 			"logs-1": {
 				Fields: map[schema.FieldName]schema.Field{
-					"foo.bar1": {Name: "foo.bar1", Type: schema.TypeKeyword},
+					"foo.bar1": {PropertyName: "foo.bar1", InternalPropertyName: "foo.bar1", Type: schema.TypeKeyword},
 				},
 			},
 			"logs-2": {
 				Fields: map[schema.FieldName]schema.Field{
-					"foo.bar2": {Name: "foo.bar2", Type: schema.TypeKeyword},
+					"foo.bar2": {PropertyName: "foo.bar2", InternalPropertyName: "foo.bar2", Type: schema.TypeKeyword},
 				},
 			},
 		},
@@ -309,17 +309,17 @@ func TestFieldCapsMultipleIndexesConflictingEntries(t *testing.T) {
 		tables: map[schema.TableName]schema.Schema{
 			"logs-1": {
 				Fields: map[schema.FieldName]schema.Field{
-					"foo.bar": {Name: "foo.bar", Type: schema.TypeKeyword},
+					"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo.bar", Type: schema.TypeKeyword},
 				},
 			},
 			"logs-2": {
 				Fields: map[schema.FieldName]schema.Field{
-					"foo.bar": {Name: "foo.bar", Type: schema.TypeBoolean},
+					"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo.bar", Type: schema.TypeBoolean},
 				},
 			},
 			"logs-3": {
 				Fields: map[schema.FieldName]schema.Field{
-					"foo.bar": {Name: "foo.bar", Type: schema.TypeBoolean},
+					"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo.bar", Type: schema.TypeBoolean},
 				},
 			},
 		},
