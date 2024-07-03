@@ -28,7 +28,7 @@ type LicensePayload struct {
 // AllowList is returned by the license server based on the provided license key
 type AllowList struct {
 	InstallationID string    `json:"installation_id"`
-	ClientName     string    `json:"client"`
+	ClientID       string    `json:"client_id"`
 	Connectors     []string  `json:"connectors"`
 	Processors     []string  `json:"processors"`
 	ExpirationDate time.Time `json:"expiration_date"`
@@ -36,7 +36,7 @@ type AllowList struct {
 
 func (a *AllowList) String() string {
 	return fmt.Sprintf("[Quesma License]\n\tInstallation ID: %s\n\tClient Name: %s\n\tConnectors: [%v]\n\tProcessors: [%v]\n\tExpires: %s\n",
-		a.InstallationID, a.ClientName, strings.Join(a.Connectors, ", "), strings.Join(a.Processors, ", "), a.ExpirationDate)
+		a.InstallationID, a.ClientID, strings.Join(a.Connectors, ", "), strings.Join(a.Processors, ", "), a.ExpirationDate)
 }
 
 // obtainLicenseKey presents an InstallationId to the license server and receives a LicenseKey in return
@@ -81,7 +81,6 @@ func (l *LicenseModule) processLicense() error {
 }
 
 func (l *LicenseModule) fetchAllowList() (a *AllowList, err error) {
-	fmt.Printf("Presenting the license key to the license server for validation\n")
 	var payloadBytes []byte
 	if payloadBytes, err = json.Marshal(LicensePayload{LicenseKey: l.LicenseKey}); err != nil {
 		return nil, err

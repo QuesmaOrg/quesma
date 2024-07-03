@@ -55,7 +55,7 @@ func main() {
 		Path:              cfg.Logging.Path,
 		RemoteLogDrainUrl: cfg.Logging.RemoteLogDrainUrl.ToUrl(),
 		Level:             cfg.Logging.Level,
-		InstallationID:    license.InstallationID,
+		ClientId:          license.AllowList.ClientID,
 	}, sig, doneCh, asyncQueryTraceLogger)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
@@ -68,7 +68,7 @@ func main() {
 
 	var connectionPool = clickhouse.InitDBConnectionPool(cfg)
 
-	phoneHomeAgent := telemetry.NewPhoneHomeAgent(cfg, connectionPool, license.InstallationID)
+	phoneHomeAgent := telemetry.NewPhoneHomeAgent(cfg, connectionPool, license.AllowList.ClientID)
 	phoneHomeAgent.Start()
 
 	schemaManagement := clickhouse.NewSchemaManagement(connectionPool)

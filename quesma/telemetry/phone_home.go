@@ -129,9 +129,9 @@ type agent struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	clickHouseDb   *sql.DB
-	config         config.QuesmaConfiguration
-	installationID string
+	clickHouseDb *sql.DB
+	config       config.QuesmaConfiguration
+	clientId     string
 
 	instanceId string
 	statedAt   time.Time
@@ -175,7 +175,7 @@ func hostname() string {
 	return name
 }
 
-func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *sql.DB, installationID string) PhoneHomeAgent {
+func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *sql.DB, clientId string) PhoneHomeAgent {
 
 	// TODO
 	// this is a question, maybe we should inherit context from the caller
@@ -190,7 +190,7 @@ func NewPhoneHomeAgent(configuration config.QuesmaConfiguration, clickHouseDb *s
 		instanceId:                generateInstanceID(),
 		clickHouseDb:              clickHouseDb,
 		config:                    configuration,
-		installationID:            installationID,
+		clientId:                  clientId,
 		clickHouseQueryTimes:      newDurationMeasurement(ctx),
 		clickHouseInsertsTimes:    newDurationMeasurement(ctx),
 		elasticReadTimes:          newDurationMeasurement(ctx),
@@ -556,7 +556,7 @@ func (a *agent) phoneHomeRemoteEndpoint(ctx context.Context, body []byte) (err e
 	}
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("User-Agent", "quesma/"+buildinfo.Version)
-	request.Header.Set(telemetry_headers.InstallationID, a.installationID)
+	request.Header.Set(telemetry_headers.ClientId, a.clientId)
 
 	resp, err := a.httpClient.Do(request)
 	if err != nil {
@@ -591,7 +591,7 @@ func (a *agent) phoneHomeLocalQuesma(ctx context.Context, body []byte) (err erro
 	}
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("User-Agent", "quesma/"+buildinfo.Version)
-	request.Header.Set(telemetry_headers.InstallationID, a.installationID)
+	request.Header.Set(telemetry_headers.ClientId, a.clientId)
 
 	resp, err := a.httpClient.Do(request)
 	if err != nil {

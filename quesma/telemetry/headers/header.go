@@ -4,4 +4,4 @@ package telemetry_headers
 
 // XTelemetryRemoteLog Used to inform telemetry endpoint that the payload contains logs
 const XTelemetryRemoteLog = "X-Telemetry-Remote-Log"
-const InstallationID = "X-Installation-Id"
+const ClientId = "X-Client-Id"

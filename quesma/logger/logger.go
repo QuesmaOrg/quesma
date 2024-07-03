@@ -67,11 +67,11 @@ func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asy
 	} else {
 		logDrainUrl := *cfg.RemoteLogDrainUrl
 		logForwarder := LogForwarder{logSender: LogSender{
-			Url:            &logDrainUrl,
-			InstallationID: cfg.InstallationID,
-			LogBuffer:      make([]byte, 0, initialBufferSize),
-			LastSendTime:   time.Now(),
-			Interval:       time.Minute,
+			Url:          &logDrainUrl,
+			ClientId:     cfg.ClientId,
+			LogBuffer:    make([]byte, 0, initialBufferSize),
+			LastSendTime: time.Now(),
+			Interval:     time.Minute,
 			httpClient: &http.Client{
 				Timeout: time.Minute,
 			},

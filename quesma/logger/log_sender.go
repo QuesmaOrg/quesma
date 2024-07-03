@@ -14,12 +14,12 @@ import (
 )
 
 type LogSender struct {
-	Url            *url.URL
-	InstallationID string
-	LogBuffer      []byte
-	LastSendTime   time.Time
-	Interval       time.Duration
-	httpClient     *http.Client
+	Url          *url.URL
+	ClientId     string
+	LogBuffer    []byte
+	LastSendTime time.Time
+	Interval     time.Duration
+	httpClient   *http.Client
 }
 
 func (logSender *LogSender) EatLogMessage(msg []byte) struct {
@@ -89,7 +89,7 @@ func (logSender *LogSender) sendLogs() error {
 	}
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set(telemetry_headers.XTelemetryRemoteLog, "true") // value is arbitrary, just have to be non-empty
-	req.Header.Set(telemetry_headers.InstallationID, logSender.InstallationID)
+	req.Header.Set(telemetry_headers.ClientId, logSender.ClientId)
 	resp, err := logSender.httpClient.Do(req)
 	if err != nil {
 		return err
