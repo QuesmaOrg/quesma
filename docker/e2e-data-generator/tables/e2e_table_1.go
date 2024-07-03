@@ -24,12 +24,14 @@ func (t E2eTable1) GenerateCreateTableString() string {
 		CREATE TABLE IF NOT EXISTS %s (
 			"meme" String CODEC(ZSTD(1)),
 			"keyword" LowCardinality(String),
-			"shoe_size" Int64 CODEC(DoubleDelta, LZ4),
+			"shoe_size" Float64 CODEC(DoubleDelta, LZ4),
 			"timestamp" DateTime64 DEFAULT now64()
 		)
 		ENGINE = MergeTree
 		ORDER BY timestamp`, t.Name())
 }
+
+var nr = 0
 
 // using every r.Intn in a new line to be more sure I'll get exactly the same data with the same seed
 func (t E2eTable1) GenerateOneRow(r *rand.Rand) (clickhouse, elastic string) {
@@ -39,14 +41,14 @@ func (t E2eTable1) GenerateOneRow(r *rand.Rand) (clickhouse, elastic string) {
 		"laugh", "silly", "witty", "amusing", "entertaining", "jolly", "jocular", "facetious", "droll",
 		"waggish", "absurd", "ridiculous", "ludicrous", "farce", "mockery", "parody", "satire", "irony",
 		"sarcasm", "wit", "banter", "raillery", "teasing", "mocking", "derision", "scorn"}
-	shoeSizes := []int{2, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45}
+	shoeSizes := []float64{86.861111, 80.0, -52.0}
 
 	meme := memes[r.Intn(len(memes))]
 	keyword := keywords[r.Intn(len(keywords))]
 	shoeSize := shoeSizes[r.Intn(len(shoeSizes))]
 	tsClickhouse, tsElastic := generateRandomTimestamp(r)
-	return fmt.Sprintf("('%s', '%s', %d, '%s')", meme, keyword, shoeSize, tsClickhouse),
-		fmt.Sprintf(`{ "meme" : "%s", "keyword" : "%s", "shoe_size" : %d, "timestamp" : "%s" }`, meme, keyword, shoeSize, tsElastic)
+	return fmt.Sprintf("('%s', '%s', %f, '%s')", meme, keyword, shoeSize, tsClickhouse),
+		fmt.Sprintf(`{ "meme" : "%s", "keyword" : "%s", "shoe_size" : "POINT (0.0 %f)", "timestamp" : "%s" }`, meme, keyword, shoeSize, tsElastic)
 }
 
 // from 2021-12-30 00:00:00 to 2022-01-02 23:59:59

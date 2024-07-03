@@ -38,15 +38,15 @@ func generateOneTable(table table, r *rand.Rand) {
 
 	go func() {
 		defer wg.Done()
-		sendCommandToClickhouse(table.GenerateCreateTableString())
-		fmt.Printf("Clickhouse table %s created\n", table.Name())
+		//sendCommandToClickhouse(table.GenerateCreateTableString())
+		//fmt.Printf("Clickhouse table %s created\n", table.Name())
 
-		insertToClickhouse(table.Name(), clickhouseRows)
-		fmt.Printf("Data of %d random rows inserted into Clickhouse's %s\n", table.RowsNr(), table.Name())
+		//insertToClickhouse(table.Name(), clickhouseRows)
+		//fmt.Printf("Data of %d random rows inserted into Clickhouse's %s\n", table.RowsNr(), table.Name())
 	}()
 	go func() {
 		defer wg.Done()
-		createIndexElastic(table.Name())
+		// createIndexElastic(table.Name())
 		fmt.Printf("Elastic index %s created\n", table.Name())
 
 		insertToElastic(table.Name(), elasticRows)

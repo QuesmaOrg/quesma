@@ -12,7 +12,7 @@ import (
 
 const (
 	clickhouseUrl = "http://clickhouse:8123/"
-	elasticUrl    = "http://elasticsearch_direct:9200/"
+	elasticUrl    = "http://localhost:9200/"
 )
 
 var httpClient = http.Client{}
@@ -47,7 +47,15 @@ func insertToClickhouse(tableName string, rows []string) {
 // elastic
 
 func createIndexElastic(indexName string) {
-	req, err := http.NewRequest("PUT", elasticUrl+indexName, nil)
+	req, err := http.NewRequest("PUT", elasticUrl+indexName,
+		strings.NewReader(`{"mappings": {
+    "properties": {
+      "shoe_size": {
+        "type": "geo_point"
+      }
+    }
+  }}`))
+	req.Header.Add("Content-Type", "application/json")
 	if err != nil {
 		panic(err)
 	}
