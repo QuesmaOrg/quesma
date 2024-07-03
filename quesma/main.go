@@ -49,13 +49,13 @@ func main() {
 
 	var asyncQueryTraceLogger *tracing.AsyncTraceLogger
 
-	license := licensing.Init(&cfg)
+	licenseMod := licensing.Init(&cfg)
 	qmcLogChannel := logger.InitLogger(logger.Configuration{
 		FileLogging:       cfg.Logging.FileLogging,
 		Path:              cfg.Logging.Path,
 		RemoteLogDrainUrl: cfg.Logging.RemoteLogDrainUrl.ToUrl(),
 		Level:             cfg.Logging.Level,
-		ClientId:          license.AllowList.ClientID,
+		ClientId:          licenseMod.License.ClientID,
 	}, sig, doneCh, asyncQueryTraceLogger)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
@@ -68,7 +68,7 @@ func main() {
 
 	var connectionPool = clickhouse.InitDBConnectionPool(cfg)
 
-	phoneHomeAgent := telemetry.NewPhoneHomeAgent(cfg, connectionPool, license.AllowList.ClientID)
+	phoneHomeAgent := telemetry.NewPhoneHomeAgent(cfg, connectionPool, licenseMod.License.ClientID)
 	phoneHomeAgent.Start()
 
 	schemaManagement := clickhouse.NewSchemaManagement(connectionPool)

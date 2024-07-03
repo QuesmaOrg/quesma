@@ -13,7 +13,7 @@ import (
 type LicenseModule struct {
 	InstallationID string
 	LicenseKey     []byte
-	AllowList      *AllowList
+	License        *License
 	Config         *config.QuesmaConfiguration
 }
 
@@ -50,7 +50,7 @@ func (l *LicenseModule) Run() {
 func (l *LicenseModule) validateConfig() error {
 	// Check if connectors are allowed
 	for _, conn := range l.Config.Connectors {
-		if !slices.Contains(l.AllowList.Connectors, conn.ConnectorType) {
+		if !slices.Contains(l.License.Connectors, conn.ConnectorType) {
 			return fmt.Errorf("connector [%s] is not allowed within the current license", conn.ConnectorType)
 		}
 	}
