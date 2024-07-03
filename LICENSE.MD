@@ -114,4 +114,4 @@ Quesma database gateway collects telemetry data and uses phone home type of comm
 
 At the current life stage of the product this information is mandatory for anyone wanting to use it and theres is no opt-out possibility. Please reach out to us, if that is a problem for you.
 
-The data transmitted contains no Personally Identifiable Information (PII) of any end users and is stictly realted to the health and performance of Quesma instance. This data is stored in secured environment belonging to Quesma and is not shared with any third parties. Check our documentation for example record of data.
+The data transmitted contains no Personally Identifiable Information (PII) of any end users and is stictly related to the health and performance of Quesma instance. This data is stored in secured environment belonging to Quesma and is not shared with any third parties. Check our documentation for example record of data.
