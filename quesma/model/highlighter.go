@@ -258,3 +258,11 @@ func (v *highlighter) VisitWindowFunction(f WindowFunction) interface{} {
 	}
 	return NewWindowFunction(f.Name, args, partitionBy, f.OrderBy.Accept(v).(OrderByExpr))
 }
+
+func (v *highlighter) VisitParenExpr(p ParenExpr) interface{} {
+	var exprs []Expr
+	for _, expr := range p.Exprs {
+		exprs = append(exprs, expr.Accept(v).(Expr))
+	}
+	return NewParenExpr(exprs...)
+}
