@@ -1,5 +1,5 @@
 mode: "dual-write-query-clickhouse"
-licenseKey: "empty-license-key-that-is-just-ci"
+installationId: "just-Quesma-smoke-test-instance"
 port: 8080
 indexes:
   kibana_sample_data_ecommerce:
