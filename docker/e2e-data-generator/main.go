@@ -46,7 +46,7 @@ func generateOneTable(table table, r *rand.Rand) {
 	}()
 	go func() {
 		defer wg.Done()
-		// createIndexElastic(table.Name())
+		createIndexElastic(table.Name())
 		fmt.Printf("Elastic index %s created\n", table.Name())
 
 		insertToElastic(table.Name(), elasticRows)

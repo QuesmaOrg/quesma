@@ -12,7 +12,7 @@ import (
 
 const (
 	clickhouseUrl = "http://clickhouse:8123/"
-	elasticUrl    = "http://localhost:9200/"
+	elasticUrl    = "http://elasticsearch_direct:9200/"
 )
 
 var httpClient = http.Client{}

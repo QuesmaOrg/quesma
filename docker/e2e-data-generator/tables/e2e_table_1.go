@@ -14,7 +14,7 @@ func (t E2eTable1) Name() string {
 }
 
 func (t E2eTable1) RowsNr() int {
-	return 5
+	return 15
 }
 
 // 'meme' will be a full text field
@@ -41,7 +41,7 @@ func (t E2eTable1) GenerateOneRow(r *rand.Rand) (clickhouse, elastic string) {
 		"laugh", "silly", "witty", "amusing", "entertaining", "jolly", "jocular", "facetious", "droll",
 		"waggish", "absurd", "ridiculous", "ludicrous", "farce", "mockery", "parody", "satire", "irony",
 		"sarcasm", "wit", "banter", "raillery", "teasing", "mocking", "derision", "scorn"}
-	shoeSizes := []float64{86.861111, 80.0, -52.0}
+	shoeSizes := []float64{86.861111, 80.0, -52.0, -85.5}
 
 	meme := memes[r.Intn(len(memes))]
 	keyword := keywords[r.Intn(len(keywords))]
