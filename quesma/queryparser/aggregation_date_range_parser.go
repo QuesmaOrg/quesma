@@ -3,8 +3,11 @@
 package queryparser
 
 import (
+	"errors"
+	"fmt"
 	"quesma/logger"
 	"quesma/model/bucket_aggregations"
+	"quesma/schema"
 	"unicode"
 )
 
@@ -12,8 +15,21 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(dateRange QueryMa
 	var err error
 	var fieldName, format string
 
+	if cw.SchemaRegistry == nil {
+		logger.Error().Msg("Schema registry is not set")
+		return bucket_aggregations.DateRange{}, errors.New("schema registry is not set")
+	}
+
+	schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name))
+	if !exists {
+		logger.Error().Msgf("Schema fot table %s not found", cw.Table.Name)
+		return bucket_aggregations.DateRange{}, fmt.Errorf("schema fot table %s not found", cw.Table.Name)
+	}
+
+	_ = schemaInstance
 	if field, exists := dateRange["field"]; exists {
 		if fieldNameRaw, ok := field.(string); ok {
+			//fieldName = schemaInstance.Fields[schema.FieldName(fieldNameRaw)].InternalPropertyName.AsString()
 			fieldName = cw.Table.ResolveField(cw.Ctx, fieldNameRaw)
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("field specified for date range aggregation is not a string. Using empty. Querymap: %v", dateRange)
