@@ -54,7 +54,7 @@ func (l *LicenseModule) obtainLicenseKey() (err error) {
 // processLicense presents the license to the license server and receives an AllowList in return
 func (l *LicenseModule) processLicense() error {
 	if fetchedLicense, err := l.fetchLicense(); err != nil {
-		return fmt.Errorf("failed processing license by the license server: %v", err)
+		return fmt.Errorf("license validation failed with: %v", err)
 	} else {
 		l.License = fetchedLicense
 		fmt.Printf("Allowlist loaded successfully\n%s\n", fetchedLicense.String())
@@ -71,6 +71,9 @@ func (l *LicenseModule) fetchLicense() (a *License, err error) {
 		return nil, err
 	}
 	resp, err := http.Post(verifyLicenseEndpoint, "application/json", bytes.NewReader(payloadBytes))
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, fmt.Errorf("license key rejected by the License server")
+	}
 	if err != nil {
 		return nil, err
 	}
