@@ -13,7 +13,7 @@ type ClickHouseConnector struct {
 const clickHouseConnectorTypeName = "clickhouse"
 
 func (c *ClickHouseConnector) LicensingCheck() (err error) {
-	return c.Connector.CheckIfConnectedToHydrolix()
+	return nil // c.Connector.CheckIfConnectedToHydrolix()
 }
 
 func (c *ClickHouseConnector) Type() string {
