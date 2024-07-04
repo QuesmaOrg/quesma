@@ -19,6 +19,11 @@ func (u *Url) UnmarshalText(text []byte) error {
 	return nil
 }
 
+func (u *Url) Hostname() string {
+	urlValue := url.URL(*u)
+	return urlValue.Hostname()
+}
+
 func (u *Url) String() string {
 	urlValue := url.URL(*u)
 	return urlValue.String()

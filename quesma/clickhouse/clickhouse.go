@@ -272,8 +272,8 @@ func (lm *LogManager) executeRawQuery(query string) (*sql.Rows, error) {
 	}
 }
 
-func (lm *LogManager) GetDBUrl() string {
-	return lm.cfg.ClickHouse.Url.String()
+func (lm *LogManager) GetDBUrl() *config.Url {
+	return lm.cfg.ClickHouse.Url
 }
 
 func (lm *LogManager) isConnectedToHydrolix() (bool, error) {
