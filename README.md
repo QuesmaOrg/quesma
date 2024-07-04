@@ -167,7 +167,7 @@ which provides a minimal set of dependencies - Elasticsearch, Clickhouse, and Ki
    This is minimalistic setup with `Elasticsearch`, `ClickHouse`, and `Kibana` populated with sample data sets.
    There's also `MITM proxy` to help you inspect the actual traffic.
 
-   **NOTE:** Since we're all using Mac's, Docker deamon cannot use `host` network mode. The only option for processes running
+   **NOTE:** Since we're all using Mac's, Docker daemon cannot use `host` network mode. The only option for processes running
    in containers to connect locally running Quesma process is to pass the IP address like this.
 4. If you set proper breakpoints in your IDE, you should see the execution stopped at the breakpoint.
 5. Profit!
