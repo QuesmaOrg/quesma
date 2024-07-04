@@ -222,7 +222,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}
 
-		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer)
+		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry)
 
 		queries, canParse, err := queryTranslator.ParseQuery(body)
 		if err != nil {
