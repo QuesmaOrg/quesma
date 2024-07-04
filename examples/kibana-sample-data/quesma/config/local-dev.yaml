@@ -35,6 +35,7 @@ indexes:
       clientip: "ip"
       geo::coordinates: "point"
       extension: "text"
+      url: "text"
     aliases:
       timestamp:
         source: "timestamp"
