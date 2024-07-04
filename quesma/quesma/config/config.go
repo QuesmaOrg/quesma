@@ -153,8 +153,9 @@ func (c *QuesmaConfiguration) Validate() error {
 	if c.PublicTcpPort == 0 { // unmarshalling defaults to 0 if not present
 		result = multierror.Append(result, fmt.Errorf("specifying Quesma TCP port for incoming traffic is required"))
 	}
-	if len(c.Connectors) != 1 {
-		result = multierror.Append(result, fmt.Errorf("at this moment Quesma supports **exactly** one connector"))
+	connectorCount := len(c.Connectors)
+	if connectorCount != 1 {
+		result = multierror.Append(result, fmt.Errorf("%d connectors configured - at this moment Quesma requires **exactly** one connector specified", connectorCount))
 	}
 	//for _, conn := range c.Connectors {
 	//	if conn.Url == nil {
