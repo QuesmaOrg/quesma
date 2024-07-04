@@ -16,8 +16,6 @@ import (
 	"os"
 	"quesma/buildinfo"
 	"quesma/health"
-	telemetry_headers "quesma/telemetry/headers"
-
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
@@ -556,7 +554,7 @@ func (a *agent) phoneHomeRemoteEndpoint(ctx context.Context, body []byte) (err e
 	}
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("User-Agent", "quesma/"+buildinfo.Version)
-	request.Header.Set(telemetry_headers.ClientId, a.clientId)
+	request.Header.Set(ClientIdHeaderName, a.clientId)
 
 	resp, err := a.httpClient.Do(request)
 	if err != nil {
@@ -591,7 +589,7 @@ func (a *agent) phoneHomeLocalQuesma(ctx context.Context, body []byte) (err erro
 	}
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("User-Agent", "quesma/"+buildinfo.Version)
-	request.Header.Set(telemetry_headers.ClientId, a.clientId)
+	request.Header.Set(ClientIdHeaderName, a.clientId)
 
 	resp, err := a.httpClient.Do(request)
 	if err != nil {

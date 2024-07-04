@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"quesma/telemetry/headers"
+	"quesma/telemetry"
 	"strconv"
 	"time"
 )
@@ -88,8 +88,8 @@ func (logSender *LogSender) sendLogs() error {
 		return err
 	}
 	req.Header.Set("Content-Type", "text/plain")
-	req.Header.Set(telemetry_headers.XTelemetryRemoteLog, "true") // value is arbitrary, just have to be non-empty
-	req.Header.Set(telemetry_headers.ClientId, logSender.ClientId)
+	req.Header.Set(telemetry.RemoteLogHeaderName, "true") // value is arbitrary, just have to be non-empty
+	req.Header.Set(telemetry.ClientIdHeaderName, logSender.ClientId)
 	resp, err := logSender.httpClient.Do(req)
 	if err != nil {
 		return err
