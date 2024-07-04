@@ -10,8 +10,8 @@ elasticsearch:
   url: "http://localhost:9200"
   call: false
 connectors:
-  - name: "clickhouse-conn"
-    type: "clickhouse" # one of [clickhouse, clickhouse-os, hydrolix]
+  my-clickhouse-connector:
+    type: "clickhouse-os" # one of [clickhouse, clickhouse-os, hydrolix]
 #clickhouse:   # this config is going to be removed, but for now let's just comment out
 #  url: "clickhouse://localhost:9000"
 ingestStatistics: true
