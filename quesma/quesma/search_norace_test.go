@@ -18,6 +18,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
+	"quesma/schema"
 	"quesma/telemetry"
 	"quesma/testdata"
 	"quesma/tracing"
@@ -43,8 +44,10 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			logChan := logger.InitOnlyChannelLoggerForTests()
 			managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
 			go managementConsole.RunOnlyChannelProcessor()
-
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
+			tableDiscovery :=
+				fixedTableProvider{tables: map[string]schema.Table{}}
+			s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s)
 			newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
 			_, _ = queryRunner.handleSearch(newCtx, tableName, types.MustJSON(tt.QueryRequestJson))
 
@@ -94,8 +97,10 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 	logChan := logger.InitOnlyChannelLoggerForTests()
 	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
 	go managementConsole.RunOnlyChannelProcessor()
-
-	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s)
 	for _, testNr := range testNrs {
 		newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
 		_, _ = queryRunner.handleSearch(newCtx, tableName, types.MustJSON(testdata.UnsupportedQueriesTests[testNr].QueryRequestJson))

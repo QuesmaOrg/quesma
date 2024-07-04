@@ -9,6 +9,7 @@ import (
 	"quesma/model"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
+	"quesma/schema"
 	"quesma/telemetry"
 	"quesma/testdata"
 	"strconv"
@@ -45,8 +46,11 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	lm := clickhouse.NewEmptyLogManager(cfg, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(config.QuesmaConfiguration{}, nil))
 	lm.AddTableIfDoesntExist(table)
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
 
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s}
 
 	for i, tt := range testdata.TestsSearch {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
@@ -92,7 +96,18 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 	}
 	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(config.QuesmaConfiguration{}, nil))
 	lm.AddTableIfDoesntExist(&table)
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
+	indexConfig := config.IndexConfiguration{
+		Name:    "logs-generic-default",
+		Enabled: true,
+	}
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
+
+	cfg.IndexConfig[indexConfig.Name] = indexConfig
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
 
 	for i, tt := range testdata.TestsSearchNoFullTextFields {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
@@ -137,8 +152,19 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	indexConfig := config.IndexConfiguration{
+		Name:    "logs-generic-default",
+		Enabled: true,
+	}
+	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
+
+	cfg.IndexConfig[indexConfig.Name] = indexConfig
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)

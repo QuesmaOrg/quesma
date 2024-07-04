@@ -5,6 +5,7 @@ package queryparser
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"quesma/clickhouse"
 	"quesma/logger"
@@ -31,6 +32,11 @@ func NewEmptyHighlighter() model.Highlighter {
 }
 
 func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]*model.Query, bool, error) {
+	if cw.SchemaRegistry == nil {
+		logger.Error().Msg("Schema registry is not set")
+		return nil, false, errors.New("schema registry is not set")
+	}
+
 	simpleQuery, queryInfo, highlighter, err := cw.parseQueryInternal(body)
 	if err != nil || !simpleQuery.CanParse {
 		logger.WarnWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)

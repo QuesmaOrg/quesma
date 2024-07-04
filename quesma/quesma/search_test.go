@@ -17,6 +17,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
+	"quesma/schema"
 	"quesma/telemetry"
 	"quesma/testdata"
 	"quesma/tracing"
@@ -76,6 +77,9 @@ func TestAsyncSearchHandler(t *testing.T) {
 		},
 		Created: true,
 	})
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
 	for i, tt := range testdata.TestsAsyncSearch {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
@@ -97,7 +101,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 				}
 				mock.ExpectQuery(wantedRegex).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s)
 			_, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryJson), defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
@@ -120,7 +124,9 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 		},
 		Created: true,
 	}
-
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
 	for i, tt := range testdata.AggregationTestsWithSpecialCharactersInFieldNames {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
@@ -132,7 +138,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 				mock.ExpectQuery(testdata.EscapeBrackets(expectedSql)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s)
 			_, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryRequestJson), defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
@@ -160,6 +166,9 @@ var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
 
 func TestSearchHandler(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
 	for _, tt := range testdata.TestsSearch {
 		t.Run(tt.Name, func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
@@ -171,7 +180,7 @@ func TestSearchHandler(t *testing.T) {
 				mock.ExpectQuery(testdata.EscapeWildcard(testdata.EscapeBrackets(wantedRegex))).
 					WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s)
 			_, _ = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 
 			if err := mock.ExpectationsWereMet(); err != nil {
@@ -184,6 +193,9 @@ func TestSearchHandler(t *testing.T) {
 // TODO this test gives wrong results??
 func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
@@ -194,7 +206,7 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s)
 			_, _ = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 
 			if err := mock.ExpectationsWereMet(); err != nil {
@@ -206,6 +218,9 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 
 func TestAsyncSearchFilter(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
 	for _, tt := range testdata.TestSearchFilter {
 		t.Run(tt.Name, func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
@@ -216,7 +231,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s)
 			_, _ = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryJson), defaultAsyncSearchTimeout, true)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -231,6 +246,9 @@ func TestAsyncSearchFilter(t *testing.T) {
 // It can't return uint64, thus creating response code panics because of that.
 func TestHandlingDateTimeFields(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
 	// I'm testing querying for all 3 types of fields that we support right now.
 	const dateTimeTimestampField = "timestamp"
 	const dateTime64TimestampField = "timestamp64"
@@ -290,7 +308,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))
 
 		// .AddRow(1000, uint64(10)).AddRow(1001, uint64(20))) // here rows should be added if uint64 were supported
-		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
+		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s)
 		response, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(query(fieldName)), defaultAsyncSearchTimeout, true)
 		assert.NoError(t, err)
 
@@ -309,6 +327,9 @@ func TestHandlingDateTimeFields(t *testing.T) {
 // Both `_search`, and `_async_search` handlers are tested.
 func TestNumericFacetsQueries(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
 	table := concurrent.NewMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
@@ -343,7 +364,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 				// Don't care about the query's SQL in this test, it's thoroughly tested in different tests, thus ""
 				mock.ExpectQuery("").WillReturnRows(returnedBuckets)
 
-				queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
+				queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s)
 				var response []byte
 				var err error
 				if handlerName == "handleSearch" {
@@ -385,7 +406,9 @@ func TestNumericFacetsQueries(t *testing.T) {
 
 func TestSearchTrackTotalCount(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
-
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
 	test := func(t *testing.T, handlerName string, testcase testdata.FullSearchTestCase) {
 		db, mock := util.InitSqlMockWithPrettyPrint(t, false)
 		defer db.Close()
@@ -400,7 +423,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 			mock.ExpectQuery(testdata.EscapeBrackets(sql)).WillReturnRows(rows)
 		}
 
-		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
+		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s)
 
 		var response []byte
 		var err error
