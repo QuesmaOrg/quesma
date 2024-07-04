@@ -240,3 +240,11 @@ func (v *ArrayTypeVisitor) VisitSelectCommand(e model.SelectCommand) interface{}
 		fromClause, whereClause, e.Limit, e.SampleLimit, e.IsDistinct)
 
 }
+
+func (v *ArrayTypeVisitor) VisitParenExpr(p model.ParenExpr) interface{} {
+	var exprs []model.Expr
+	for _, expr := range p.Exprs {
+		exprs = append(exprs, expr.Accept(v).(model.Expr))
+	}
+	return model.NewParenExpr(exprs...)
+}

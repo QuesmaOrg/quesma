@@ -171,6 +171,14 @@ func (v *exprColumnNameReplaceVisitor) VisitSelectCommand(query model.SelectComm
 	return query
 }
 
+func (v *exprColumnNameReplaceVisitor) VisitParenExpr(p model.ParenExpr) interface{} {
+	var exprs []model.Expr
+	for _, expr := range p.Exprs {
+		exprs = append(exprs, expr.Accept(v).(model.Expr))
+	}
+	return model.NewParenExpr(exprs...)
+}
+
 type queryTransformer struct {
 	translate translateFunc
 }

@@ -21,3 +21,4 @@ func (NoOpVisitor) VisitTableRef(e TableRef) interface{}               { return 
 func (NoOpVisitor) VisitAliasedExpr(e AliasedExpr) interface{}         { return e }
 func (NoOpVisitor) VisitSelectCommand(e SelectCommand) interface{}     { return e }
 func (NoOpVisitor) VisitWindowFunction(f WindowFunction) interface{}   { return f }
+func (NoOpVisitor) VisitParenExpr(e ParenExpr) interface{}             { return e }

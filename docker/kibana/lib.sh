@@ -1,5 +1,12 @@
 #!/bin/bash
-DASHBOARD_URL="http://kibana:5601"
+echo "$@"
+
+DASHBOARD_URL="$1"
+if [ -z "$DASHBOARD_URL" ]; then
+  DASHBOARD_URL="http://kibana:5601"
+fi
+
+echo "$DASHBOARD_URL"
 
 if [ -z "$XSRF_HEADER" ]; then
   XSRF_HEADER="kbn-xsrf: true"
@@ -46,7 +53,7 @@ do_silent_http_post() {
     -H 'Content-Type: application/json' \
     -d "$body"
 }
--
+
 add_sample_dataset() {
     local sample_data=$1
     START_TIME=$(date +%s)
