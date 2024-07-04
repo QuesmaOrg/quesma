@@ -363,8 +363,7 @@ func peekBody(r *http.Request) ([]byte, error) {
 		return nil, err
 	}
 
-	contentEncoding := r.Header.Get("Content-Encoding")
-	switch contentEncoding {
+	switch r.Header.Get("Content-Encoding") {
 	case "":
 		// No compression, leaving reqBody as-is
 	case "gzip":
