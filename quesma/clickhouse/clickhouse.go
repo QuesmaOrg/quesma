@@ -273,7 +273,12 @@ func (lm *LogManager) executeRawQuery(query string) (*sql.Rows, error) {
 }
 
 func (lm *LogManager) GetDBUrl() *config.Url {
-	return lm.cfg.ClickHouse.Url
+	// This func uses deprecated structs, this information should come straight from the connector
+	if lm.cfg.Hydrolix.IsNonEmpty() {
+		return lm.cfg.Hydrolix.Url
+	} else {
+		return lm.cfg.ClickHouse.Url
+	}
 }
 
 func (lm *LogManager) isConnectedToHydrolix() (bool, error) {
