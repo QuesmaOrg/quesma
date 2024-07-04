@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"math"
 	"quesma/concurrent"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
@@ -271,16 +272,43 @@ func (lm *LogManager) executeRawQuery(query string) (*sql.Rows, error) {
 	}
 }
 
-func (lm *LogManager) CheckIfConnectedToHydrolix() error {
+func (lm *LogManager) isConnectedToHydrolix() (bool, error) {
 	if rows, err := lm.executeRawQuery(`SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'TurbineStorage';`); err != nil {
-		return fmt.Errorf("error executing HDX identifying query: %v", err)
+		return false, fmt.Errorf("error executing HDX identifying query: %v", err)
 	} else {
 		defer rows.Close()
 		if rows.Next() {
+			return true, fmt.Errorf("detected Hydrolix-specific table engine, which is not allowed")
+		}
+		return false, nil
+	}
+}
+
+// CheckIfConnectedToHydrolix executes simple query with exponential backoff
+func (lm *LogManager) CheckIfConnectedToHydrolix() (returnedErr error) {
+	totalCheckTime := time.Minute
+	startTimeInSeconds := 2.0
+	start := time.Now()
+	attempt := 0
+	for {
+		isHydrolix, err := lm.isConnectedToHydrolix()
+		if err != nil {
+			returnedErr = fmt.Errorf("error checking connection to Hydrolix, attempt #%d, err=%v", attempt+1, err)
+		}
+		if isHydrolix {
 			return fmt.Errorf("detected Hydrolix-specific table engine, which is not allowed")
 		}
-		return nil
+		if time.Since(start) > totalCheckTime {
+			break
+		}
+		attempt++
+		sleepDuration := time.Duration(math.Pow(startTimeInSeconds, float64(attempt))) * time.Second
+		if remaining := time.Until(start.Add(totalCheckTime)); remaining < sleepDuration {
+			sleepDuration = remaining
+		}
+		time.Sleep(sleepDuration)
 	}
+	return returnedErr
 }
 
 func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string, config *ChTableConfig) error {
