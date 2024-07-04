@@ -247,3 +247,11 @@ func (v *renderer) VisitWindowFunction(f WindowFunction) interface{} {
 	sb.WriteString(")")
 	return sb.String()
 }
+
+func (v *renderer) VisitParenExpr(p ParenExpr) interface{} {
+	var exprs []string
+	for _, expr := range p.Exprs {
+		exprs = append(exprs, expr.Accept(v).(string))
+	}
+	return fmt.Sprintf("(%s)", strings.Join(exprs, " "))
+}

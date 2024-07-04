@@ -208,6 +208,21 @@ func NewWindowFunction(name string, args, partitionBy []Expr, orderBy OrderByExp
 
 func (f WindowFunction) Accept(v ExprVisitor) interface{} { return v.VisitWindowFunction(f) }
 
+// ParenExpr enables grouping of expressions with parentheses
+// e.g. `SELECT (x + y) * z`
+// This is important for precedence of operators
+type ParenExpr struct {
+	Exprs []Expr
+}
+
+func NewParenExpr(exprs ...Expr) ParenExpr {
+	return ParenExpr{Exprs: exprs}
+}
+
+func (p ParenExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitParenExpr(p)
+}
+
 type ExprVisitor interface {
 	VisitFunction(e FunctionExpr) interface{}
 	VisitMultiFunction(e MultiFunctionExpr) interface{}
@@ -224,4 +239,5 @@ type ExprVisitor interface {
 	VisitAliasedExpr(e AliasedExpr) interface{}
 	VisitSelectCommand(e SelectCommand) interface{}
 	VisitWindowFunction(f WindowFunction) interface{}
+	VisitParenExpr(e ParenExpr) interface{}
 }
