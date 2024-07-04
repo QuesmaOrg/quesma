@@ -272,6 +272,10 @@ func (lm *LogManager) executeRawQuery(query string) (*sql.Rows, error) {
 	}
 }
 
+func (lm *LogManager) GetDBUrl() string {
+	return lm.cfg.ClickHouse.Url.String()
+}
+
 func (lm *LogManager) isConnectedToHydrolix() (bool, error) {
 	if rows, err := lm.executeRawQuery(`SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'TurbineStorage';`); err != nil {
 		return false, fmt.Errorf("error executing HDX identifying query: %v", err)
