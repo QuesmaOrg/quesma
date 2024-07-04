@@ -14,6 +14,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/quesma/ui"
+	"quesma/schema"
 	"quesma/telemetry"
 	"quesma/testdata"
 	"quesma/util"
@@ -33,6 +34,9 @@ func TestSearchOpensearch(t *testing.T) {
 		},
 		Created: true,
 	}
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
 
 	for i, tt := range testdata.OpensearchSearchTests {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
@@ -40,7 +44,7 @@ func TestSearchOpensearch(t *testing.T) {
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))
 			managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, make(<-chan logger.LogWithLevel, 50000), telemetry.NewPhoneHomeEmptyAgent(), nil)
-			cw := queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
+			cw := queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
 
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
@@ -60,7 +64,7 @@ func TestSearchOpensearch(t *testing.T) {
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s)
 			_, err2 := queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 			assert.NoError(t, err2)
 
@@ -176,6 +180,9 @@ func TestHighlighter(t *testing.T) {
 		},
 		Created: true,
 	}
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
 
 	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	defer db.Close()
@@ -189,7 +196,7 @@ func TestHighlighter(t *testing.T) {
 															AddRow("text-to-highlight", "text-to-highlight", "text-to-highlight").
 															AddRow("text", "text", "text"))
 
-	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, nil)
+	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s)
 	response, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(query))
 	assert.NoError(t, err)
 	if err != nil {

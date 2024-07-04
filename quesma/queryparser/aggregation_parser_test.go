@@ -13,6 +13,7 @@ import (
 	"quesma/queryparser/query_util"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
+	"quesma/schema"
 	"quesma/testdata"
 	"quesma/testdata/clients/kunkka"
 	dashboard_1 "quesma/testdata/dashboard-1"
@@ -611,7 +612,21 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
+	indexConfig := map[string]config.IndexConfiguration{
+		"logs-generic-default": {
+			Name:    "logs-generic-default",
+			Enabled: true,
+		},
+	}
+	cfg := config.QuesmaConfiguration{
+		IndexConfig: indexConfig,
+	}
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{
+			"logs-generic-default": {Columns: map[string]schema.Column{}},
+		}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
 	allTests := testdata.AggregationTests
 	allTests = append(allTests, opensearch_visualize.AggregationTests...)
 	allTests = append(allTests, dashboard_1.AggregationTests...)

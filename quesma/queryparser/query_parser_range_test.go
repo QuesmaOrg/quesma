@@ -8,6 +8,7 @@ import (
 	"quesma/clickhouse"
 	"quesma/concurrent"
 	"quesma/quesma/config"
+	"quesma/schema"
 	"testing"
 )
 
@@ -16,6 +17,14 @@ type parseRangeTest struct {
 	rangePartOfQuery QueryMap
 	createTableQuery string
 	expectedWhere    string
+}
+
+type fixedTableProvider struct {
+	tables map[string]schema.Table
+}
+
+func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
+	return f.tables
 }
 
 var parseRangeTests = []parseRangeTest{
@@ -76,6 +85,14 @@ var parseRangeTests = []parseRangeTest{
 }
 
 func Test_parseRange(t *testing.T) {
+	indexConfig := map[string]config.IndexConfiguration{}
+	cfg := config.QuesmaConfiguration{
+		IndexConfig: indexConfig,
+	}
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{}}
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+
 	for _, test := range parseRangeTests {
 		t.Run(test.name, func(t *testing.T) {
 			table, err := clickhouse.NewTable(test.createTableQuery, clickhouse.NewNoTimestampOnlyStringAttrCHConfig())
@@ -84,7 +101,7 @@ func Test_parseRange(t *testing.T) {
 			}
 			assert.NoError(t, err)
 			lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{})
-			cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
+			cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s}
 
 			simpleQuery := cw.parseRange(test.rangePartOfQuery)
 			assert.Equal(t, test.expectedWhere, simpleQuery.WhereClauseAsString())
