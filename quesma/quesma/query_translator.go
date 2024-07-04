@@ -9,6 +9,7 @@ import (
 	"quesma/model"
 	"quesma/queryparser"
 	"quesma/quesma/types"
+	"quesma/schema"
 )
 
 // This is an extracted interface for query translation.
@@ -31,11 +32,11 @@ const (
 	QueryLanguageEQL     = "eql"
 )
 
-func NewQueryTranslator(ctx context.Context, language QueryLanguage, table *clickhouse.Table, logManager *clickhouse.LogManager, dateMathRenderer string) (queryTranslator IQueryTranslator) {
+func NewQueryTranslator(ctx context.Context, language QueryLanguage, table *clickhouse.Table, logManager *clickhouse.LogManager, dateMathRenderer string, schemaRegistry schema.Registry) (queryTranslator IQueryTranslator) {
 	switch language {
 	case QueryLanguageEQL:
 		return &eql.ClickhouseEQLQueryTranslator{ClickhouseLM: logManager, Table: table, Ctx: ctx}
 	default:
-		return &queryparser.ClickhouseQueryTranslator{ClickhouseLM: logManager, Table: table, Ctx: ctx, DateMathRenderer: dateMathRenderer}
+		return &queryparser.ClickhouseQueryTranslator{ClickhouseLM: logManager, Table: table, Ctx: ctx, DateMathRenderer: dateMathRenderer, SchemaRegistry: schemaRegistry}
 	}
 }

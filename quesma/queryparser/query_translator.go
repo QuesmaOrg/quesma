@@ -13,6 +13,7 @@ import (
 	"quesma/model/typical_queries"
 	"quesma/queryparser/query_util"
 	"quesma/queryprocessor"
+	"quesma/schema"
 	"quesma/util"
 )
 
@@ -26,6 +27,7 @@ type ClickhouseQueryTranslator struct {
 	Ctx          context.Context
 
 	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	SchemaRegistry   schema.Registry
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()
