@@ -563,16 +563,14 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 match, got: %d. value: %v", len(queryMap), queryMap)
 		return model.NewSimpleQuery(nil, false)
 	}
-	/*
-		schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name))
-		if !exists {
-			logger.Error().Msgf("Schema fot table %s not found", cw.Table.Name)
-		}
-	*/
+	schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name))
+	if !exists {
+		logger.Error().Msgf("Schema fot table %s not found", cw.Table.Name)
+	}
+	_ = schemaInstance
 	for fieldName, v := range queryMap {
 		//schemaInstance.Fields[schema.FieldName(fieldName)].InternalPropertyName.AsString()
 		//fieldName = schemaInstance.Fields[schema.FieldName(fieldName)].InternalPropertyName.AsString()
-
 		fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
 		// (fieldName, v) = either e.g. ("message", "this is a test")
 		//                  or  ("message", map["query": "this is a test", ...]). Here we only care about "query" until we find a case where we need more.

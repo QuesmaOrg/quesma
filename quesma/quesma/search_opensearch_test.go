@@ -34,9 +34,19 @@ func TestSearchOpensearch(t *testing.T) {
 		},
 		Created: true,
 	}
-	tableDiscovery :=
-		fixedTableProvider{tables: map[string]schema.Table{}}
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"service.name":           {PropertyName: "service.name", InternalPropertyName: "service.name", Type: schema.TypeKeyword},
+					"arrayOfArraysOfStrings": {PropertyName: "arrayOfArraysOfStrings", InternalPropertyName: "arrayOfArraysOfStrings", Type: schema.TypeKeyword},
+					"arrayOfTuples":          {PropertyName: "arrayOfTuples", InternalPropertyName: "arrayOfTuples", Type: schema.TypeObject},
+					"host.name":              {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+				},
+			},
+		},
+	}
 
 	for i, tt := range testdata.OpensearchSearchTests {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
@@ -180,9 +190,18 @@ func TestHighlighter(t *testing.T) {
 		},
 		Created: true,
 	}
-	tableDiscovery :=
-		fixedTableProvider{tables: map[string]schema.Table{}}
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"service.name":           {PropertyName: "service.name", InternalPropertyName: "service.name", Type: schema.TypeKeyword},
+					"arrayOfArraysOfStrings": {PropertyName: "arrayOfArraysOfStrings", InternalPropertyName: "arrayOfArraysOfStrings", Type: schema.TypeKeyword},
+					"arrayOfTuples":          {PropertyName: "arrayOfTuples", InternalPropertyName: "arrayOfTuples", Type: schema.TypeObject},
+					"host.name":              {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+				},
+			},
+		},
+	}
 
 	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	defer db.Close()

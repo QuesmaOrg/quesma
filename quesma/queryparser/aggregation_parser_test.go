@@ -29,6 +29,23 @@ import (
 const tableName = "logs-generic-default"
 const tableNameQuoted = `"` + tableName + `"`
 
+type staticRegistry struct {
+	tables map[schema.TableName]schema.Schema
+}
+
+func (e staticRegistry) AllSchemas() map[schema.TableName]schema.Schema {
+	if e.tables != nil {
+		return e.tables
+	} else {
+		return map[schema.TableName]schema.Schema{}
+	}
+}
+
+func (e staticRegistry) FindSchema(name schema.TableName) (schema.Schema, bool) {
+	s, found := e.tables[name]
+	return s, found
+}
+
 // Simple unit tests, testing only "aggs" part of the request json query
 var aggregationTests = []struct {
 	aggregationJson string
@@ -564,7 +581,19 @@ func TestAggregationParser(t *testing.T) {
 		t.Fatal(err)
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"service.name":           {PropertyName: "service.name", InternalPropertyName: "service.name", Type: schema.TypeKeyword},
+					"arrayOfArraysOfStrings": {PropertyName: "arrayOfArraysOfStrings", InternalPropertyName: "arrayOfArraysOfStrings", Type: schema.TypeKeyword},
+					"arrayOfTuples":          {PropertyName: "arrayOfTuples", InternalPropertyName: "arrayOfTuples", Type: schema.TypeObject},
+					"host.name":              {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+				},
+			},
+		},
+	}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s}
 
 	for testIdx, test := range aggregationTests {
 		t.Run(strconv.Itoa(testIdx), func(t *testing.T) {

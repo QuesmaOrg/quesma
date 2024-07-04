@@ -8,6 +8,7 @@ import (
 	"quesma/clickhouse"
 	"quesma/concurrent"
 	"quesma/quesma/config"
+	"quesma/schema"
 	"quesma/testdata"
 	"testing"
 )
@@ -26,7 +27,19 @@ func TestQueryParserAsyncSearch(t *testing.T) {
 		Created: true,
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background()}
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"service.name":           {PropertyName: "service.name", InternalPropertyName: "service.name", Type: schema.TypeKeyword},
+					"arrayOfArraysOfStrings": {PropertyName: "arrayOfArraysOfStrings", InternalPropertyName: "arrayOfArraysOfStrings", Type: schema.TypeKeyword},
+					"arrayOfTuples":          {PropertyName: "arrayOfTuples", InternalPropertyName: "arrayOfTuples", Type: schema.TypeObject},
+					"host.name":              {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+				},
+			},
+		},
+	}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
 	for _, tt := range testdata.TestsAsyncSearch {
 		t.Run(tt.Name, func(t *testing.T) {
 			query, queryInfo, _ := cw.ParseQueryAsyncSearch(tt.QueryJson)
@@ -40,7 +53,19 @@ func TestQueryParserAsyncSearch(t *testing.T) {
 func TestQueryParserAggregation(t *testing.T) {
 	table := clickhouse.NewEmptyTable("tablename")
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith("tablename", table), config.QuesmaConfiguration{})
-	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background()}
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"service.name":           {PropertyName: "service.name", InternalPropertyName: "service.name", Type: schema.TypeKeyword},
+					"arrayOfArraysOfStrings": {PropertyName: "arrayOfArraysOfStrings", InternalPropertyName: "arrayOfArraysOfStrings", Type: schema.TypeKeyword},
+					"arrayOfTuples":          {PropertyName: "arrayOfTuples", InternalPropertyName: "arrayOfTuples", Type: schema.TypeObject},
+					"host.name":              {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+				},
+			},
+		},
+	}
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s}
 	for _, tt := range testdata.AggregationTests {
 		t.Run(tt.TestName, func(t *testing.T) {
 			cw.ParseQueryAsyncSearch(tt.QueryRequestJson)
