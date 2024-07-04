@@ -12,7 +12,6 @@ import (
 	"github.com/rs/zerolog"
 	"log"
 	"os"
-	"quesma/buildinfo"
 	"quesma/elasticsearch/elasticsearch_field_types"
 	"quesma/index"
 	"quesma/network"
@@ -30,9 +29,14 @@ var (
 )
 
 type QuesmaConfiguration struct {
-	Mode                       operationMode                 `koanf:"mode"`
-	LicenseKey                 string                        `koanf:"licenseKey"`
-	ClickHouse                 RelationalDbConfiguration     `koanf:"clickhouse"`
+	// both clickhouse and hydrolix connections are going to be deprecated and everything is going to live under connector
+	Connectors     map[string]RelationalDbConfiguration `koanf:"connectors"`
+	Mode           operationMode                        `koanf:"mode"`
+	InstallationId string                               `koanf:"installationId"`
+	LicenseKey     string                               `koanf:"licenseKey"`
+	//deprecated
+	ClickHouse RelationalDbConfiguration `koanf:"clickhouse"`
+	//deprecated
 	Hydrolix                   RelationalDbConfiguration     `koanf:"hydrolix"`
 	Elasticsearch              ElasticsearchConfiguration    `koanf:"elasticsearch"`
 	IndexConfig                map[string]IndexConfiguration `koanf:"indexes"`
@@ -50,11 +54,13 @@ type LoggingConfiguration struct {
 }
 
 type RelationalDbConfiguration struct {
-	Url      *Url   `koanf:"url"`
-	User     string `koanf:"user"`
-	Password string `koanf:"password"`
-	Database string `koanf:"database"`
-	AdminUrl *Url   `koanf:"adminUrl"`
+	//ConnectorName string `koanf:"name"`
+	ConnectorType string `koanf:"type"`
+	Url           *Url   `koanf:"url"`
+	User          string `koanf:"user"`
+	Password      string `koanf:"password"`
+	Database      string `koanf:"database"`
+	AdminUrl      *Url   `koanf:"adminUrl"`
 }
 
 func (c *RelationalDbConfiguration) IsEmpty() bool {
@@ -120,7 +126,6 @@ func Load() QuesmaConfiguration {
 			}
 		}
 	}
-	config.configureLicenseKey()
 	return config
 }
 
@@ -148,6 +153,14 @@ func (c *QuesmaConfiguration) Validate() error {
 	if c.PublicTcpPort == 0 { // unmarshalling defaults to 0 if not present
 		result = multierror.Append(result, fmt.Errorf("specifying Quesma TCP port for incoming traffic is required"))
 	}
+	if len(c.Connectors) != 1 {
+		result = multierror.Append(result, fmt.Errorf("at this moment Quesma supports **exactly** one connector"))
+	}
+	//for _, conn := range c.Connectors {
+	//	if conn.Url == nil {
+	//		result = multierror.Append(result, fmt.Errorf("connector %s requires setting the URL", conn.ConnectorType))
+	//	}
+	//}
 	if c.ClickHouse.Url == nil && c.Hydrolix.Url == nil {
 		result = multierror.Append(result, fmt.Errorf("clickHouse or hydrolix URL is required"))
 	}
@@ -200,30 +213,6 @@ func (c *QuesmaConfiguration) validateIndexName(indexName string, result error) 
 	return result
 }
 
-func MaskLicenseKey(licenseKey string) string {
-	if len(licenseKey) > 4 {
-		return "****" + licenseKey[len(licenseKey)-4:]
-	} else {
-		return "****"
-	}
-}
-
-func (c *QuesmaConfiguration) configureLicenseKey() {
-	// This condition implies that we're dealing with customer-specific build,
-	// which has license key injected at the build time via ldflags, see `docs/private-beta-releases.md`
-	if buildinfo.LicenseKey != buildinfo.DevelopmentLicenseKey && buildinfo.LicenseKey != "" {
-		// `buildinfo.LicenseKey` can be injected at the build time, don't get fooled by the IDE warning above
-		fmt.Printf("Using license key from build: %s\n", MaskLicenseKey(buildinfo.LicenseKey))
-		c.LicenseKey = buildinfo.LicenseKey
-		return
-	} else if c.LicenseKey != "" { // In case of **any other** setup, we fall back to what's been configured by user (==config or env vars)
-		fmt.Printf("Using license key from configuration: %s\n", MaskLicenseKey(c.LicenseKey))
-		return
-	} else {
-		log.Fatalf("missing license key. Quiting...")
-	}
-}
-
 func (c *QuesmaConfiguration) ReadsFromClickhouse() bool {
 	return c.Mode == DualWriteQueryClickhouse || c.Mode == DualWriteQueryClickhouseFallback ||
 		c.Mode == DualWriteQueryClickhouseVerify || c.Mode == ClickHouse
@@ -260,21 +249,36 @@ func (c *QuesmaConfiguration) String() string {
 	if c.Elasticsearch.Password != "" {
 		elasticsearchExtra += "\n        Elasticsearch password: ***"
 	}
-
 	clickhouseUrl := "<nil>"
-	if c.ClickHouse.Url != nil {
-		clickhouseUrl = c.ClickHouse.Url.String()
-	}
-
 	clickhouseExtra := ""
 	if c.ClickHouse.User != "" {
 		clickhouseExtra = fmt.Sprintf("\n      ClickHouse user: %s", c.ClickHouse.User)
+	}
+	if c.ClickHouse.Url != nil {
+		clickhouseUrl = c.ClickHouse.Url.String()
 	}
 	if c.ClickHouse.Password != "" {
 		clickhouseExtra += "\n      ClickHouse password: ***"
 	}
 	if c.ClickHouse.Database != "" {
 		clickhouseExtra += fmt.Sprintf("\n      ClickHouse database: %s", c.ClickHouse.Database)
+	}
+	var connectorString strings.Builder
+	for connName, conn := range c.Connectors {
+		connectorString.WriteString(fmt.Sprintf("\n        - [%s] connector", connName))
+		connectorString.WriteString(fmt.Sprintf("\n          Type: %s", conn.ConnectorType))
+		if conn.Url != nil {
+			connectorString.WriteString(fmt.Sprintf("\n          Url: %s", conn.Url.String()))
+		}
+		if conn.User != "" {
+			connectorString.WriteString(fmt.Sprintf("\n          User: %s", conn.User))
+		}
+		if conn.Password != "" {
+			connectorString.WriteString("\n          Password: ***")
+		}
+		if conn.Database != "" {
+			connectorString.WriteString(fmt.Sprintf("\n          Database: %s", conn.Database))
+		}
 	}
 	quesmaInternalTelemetryUrl := "disabled"
 	if c.QuesmaInternalTelemetryUrl != nil {
@@ -284,7 +288,8 @@ func (c *QuesmaConfiguration) String() string {
 Quesma Configuration:
 	Mode: %s
 	Elasticsearch URL: %s%s
-	ClickHouse URL: %s%s
+	ClickhouseUrl: %s%s
+	Connectors: %s
 	Call Elasticsearch: %v
 	Indexes: %s
 	Logs Path: %s
@@ -297,6 +302,7 @@ Quesma Configuration:
 		elasticsearchExtra,
 		clickhouseUrl,
 		clickhouseExtra,
+		connectorString.String(),
 		c.Elasticsearch.Call,
 		indexConfigs,
 		c.Logging.Path,

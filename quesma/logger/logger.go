@@ -68,7 +68,7 @@ func InitLogger(cfg Configuration, sig chan os.Signal, doneCh chan struct{}, asy
 		logDrainUrl := *cfg.RemoteLogDrainUrl
 		logForwarder := LogForwarder{logSender: LogSender{
 			Url:          &logDrainUrl,
-			LicenseKey:   cfg.LicenseKey,
+			ClientId:     cfg.ClientId,
 			LogBuffer:    make([]byte, 0, initialBufferSize),
 			LastSendTime: time.Now(),
 			Interval:     time.Minute,

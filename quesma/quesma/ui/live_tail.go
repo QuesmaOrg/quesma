@@ -72,7 +72,7 @@ document.body.addEventListener('htmx:afterSwap', function(event) {
 	buffer.Write(qmc.generateUnsupportedQuerySidePanel())
 
 	// Don't get foiled by warning, this detects whether it's our development Quesma
-	if buildinfo.LicenseKey == buildinfo.DevelopmentLicenseKey || buildinfo.LicenseKey == "" {
+	if buildinfo.Version == "development" {
 		buffer.Html(`<h3>Useful links</h3>`)
 		buffer.Html(`<ul>`)
 		buffer.Html(`<li><a href="http://localhost:5601/app/observability-log-explorer/">Kibana Log Explorer</a></li>`)

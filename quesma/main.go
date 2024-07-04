@@ -10,8 +10,10 @@ import (
 	"os/signal"
 	"quesma/buildinfo"
 	"quesma/clickhouse"
+	"quesma/connectors"
 	"quesma/elasticsearch"
 	"quesma/feature"
+	"quesma/licensing"
 	"quesma/logger"
 	"quesma/quesma"
 	"quesma/quesma/config"
@@ -33,8 +35,8 @@ const banner = `
 
 func main() {
 	println(banner)
-	fmt.Printf("Quesma build info: version=[%s], build hash=[%s], build date=[%s] license key=[%s]\n",
-		buildinfo.Version, buildinfo.BuildHash, buildinfo.BuildDate, config.MaskLicenseKey(buildinfo.LicenseKey))
+	fmt.Printf("Quesma build info: version=[%s], build hash=[%s], build date=[%s]\n",
+		buildinfo.Version, buildinfo.BuildHash, buildinfo.BuildDate)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
@@ -47,12 +49,13 @@ func main() {
 
 	var asyncQueryTraceLogger *tracing.AsyncTraceLogger
 
+	licenseMod := licensing.Init(&cfg)
 	qmcLogChannel := logger.InitLogger(logger.Configuration{
 		FileLogging:       cfg.Logging.FileLogging,
 		Path:              cfg.Logging.Path,
 		RemoteLogDrainUrl: cfg.Logging.RemoteLogDrainUrl.ToUrl(),
 		Level:             cfg.Logging.Level,
-		LicenseKey:        cfg.LicenseKey,
+		ClientId:          licenseMod.License.ClientID,
 	}, sig, doneCh, asyncQueryTraceLogger)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
@@ -65,14 +68,16 @@ func main() {
 
 	var connectionPool = clickhouse.InitDBConnectionPool(cfg)
 
-	phoneHomeAgent := telemetry.NewPhoneHomeAgent(cfg, connectionPool)
+	phoneHomeAgent := telemetry.NewPhoneHomeAgent(cfg, connectionPool, licenseMod.License.ClientID)
 	phoneHomeAgent.Start()
 
 	schemaManagement := clickhouse.NewSchemaManagement(connectionPool)
 	schemaLoader := clickhouse.NewTableDiscovery(cfg, schemaManagement)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: schemaLoader}, cfg, clickhouse.SchemaTypeAdapter{})
 
-	lm := clickhouse.NewEmptyLogManager(cfg, connectionPool, phoneHomeAgent, schemaLoader)
+	connManager := connectors.NewConnectorManager(cfg, connectionPool, phoneHomeAgent, schemaLoader)
+	lm := connManager.GetConnector()
+
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())

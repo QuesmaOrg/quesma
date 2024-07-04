@@ -5,6 +5,9 @@ port: 8080  # public tcp port to listen for incoming traffic
 elasticsearch:
   url: "http://localhost:9200"
   call: false
+connectors:
+  my-clickhouse-connector:
+    type: "clickhouse"
 clickhouse:
   url: "clickhouse://localhost:9000"
 ingestStatistics: true

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"quesma/license"
 	"quesma/telemetry/headers"
 	"strconv"
 	"time"
@@ -16,7 +15,7 @@ import (
 
 type LogSender struct {
 	Url          *url.URL
-	LicenseKey   string
+	ClientId     string
 	LogBuffer    []byte
 	LastSendTime time.Time
 	Interval     time.Duration
@@ -90,7 +89,7 @@ func (logSender *LogSender) sendLogs() error {
 	}
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set(telemetry_headers.XTelemetryRemoteLog, "true") // value is arbitrary, just have to be non-empty
-	req.Header.Set(license.Header, logSender.LicenseKey)
+	req.Header.Set(telemetry_headers.ClientId, logSender.ClientId)
 	resp, err := logSender.httpClient.Do(req)
 	if err != nil {
 		return err
