@@ -14,6 +14,7 @@ import (
 	"quesma/model/typical_queries"
 	"quesma/queryparser/lucene"
 	"quesma/quesma/types"
+	"quesma/schema"
 	"quesma/util"
 	"strconv"
 	"strings"
@@ -1310,13 +1311,33 @@ func createSortColumn(fieldName, ordering string) (model.OrderByExpr, error) {
 		return model.OrderByExpr{}, fmt.Errorf("unexpected order value: [%s] for field [%s] Skipping", ordering, fieldName)
 	}
 }
+
+// ResolveField resolves field name to internal name
+// For now, it's part of QueryParser, however, it can
+// be part of transformation pipeline in the future
+// What prevents us from moving it to transformation pipeline now, is that
+// we need to anotate this field somehow in the AST, to be able
+// to distinguish it from other fields
 func (cw *ClickhouseQueryTranslator) ResolveField(ctx context.Context, fieldName string) (field string) {
 	// Alias resolution should occur *after* the query is parsed, not during the parsing
 	if cw.SchemaRegistry == nil {
 		logger.Error().Msg("Schema registry is not set")
 		return fieldName
 	}
-	field = fieldName
+	schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name))
+	if !exists {
+		logger.Error().Msgf("Schema fot table %s not found", cw.Table.Name)
+		return fieldName
+	}
+
+	if value, ok := schemaInstance.Fields[schema.FieldName(fieldName)]; ok {
+		field = value.InternalPropertyName.AsString()
+	} else {
+		// fallback to original field name
+		logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in schema", fieldName)
+		field = fieldName
+	}
+
 	// TODO handle aliases
 	/*
 		if t.aliases != nil {
@@ -1326,13 +1347,13 @@ func (cw *ClickhouseQueryTranslator) ResolveField(ctx context.Context, fieldName
 		}
 	*/
 	// TODO check against schema
-	/*
-		if field != "*" && field != "_all" && field != "_doc" && field != "_id" && field != "_index" {
-				if _, ok := t.Cols[field]; !ok {
-					logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in table '%s'", fieldName, t.Name)
-				}
+
+	if field != "*" && field != "_all" && field != "_doc" && field != "_id" && field != "_index" {
+		if _, ok := schemaInstance.Fields[schema.FieldName(field)]; !ok {
+			logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in schema", fieldName)
 		}
-	*/
+	}
+
 	return
 }
 func (cw *ClickhouseQueryTranslator) parseSizeExists(queryMap QueryMap) (size int, ok bool) {
