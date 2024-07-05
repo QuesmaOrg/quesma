@@ -1,4 +1,5 @@
-name: Build Quesma container image (nightly repository)
+name: Docker build
+# At this moment we push to image to our 'nightly' GCR repository
 
 on:
   push:
