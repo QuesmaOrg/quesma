@@ -28,6 +28,10 @@ const (
 	FullText     TypeProperty = "full_text"
 )
 
+func (t Type) Equal(t2 Type) bool {
+	return t.Name == t2.Name
+}
+
 func (t Type) IsAggregatable() bool {
 	return slices.Contains(t.Properties, Aggregatable)
 }
