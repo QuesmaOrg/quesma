@@ -530,7 +530,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			field, isFromScript := cw.parseFieldFieldMaybeScript(v, k)
 			var dateTimeType clickhouse.DateTimeType
 			if ref, ok := field.(model.ColumnRef); ok {
-				dateTimeType = cw.Table.GetDateTimeType(cw.Ctx, ref.ColumnName)
+				dateTimeType = cw.Table.GetDateTimeType(cw.Ctx, cw.ResolveField(cw.Ctx, ref.ColumnName))
 			} else {
 				dateTimeType = clickhouse.Invalid
 			}
@@ -552,7 +552,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		field, keyed, percentiles := cw.parsePercentilesAggregation(percentileMap)
 		var dateTimeType clickhouse.DateTimeType
 		if ref, ok := field.(model.ColumnRef); ok {
-			dateTimeType = cw.Table.GetDateTimeType(cw.Ctx, ref.ColumnName)
+			dateTimeType = cw.Table.GetDateTimeType(cw.Ctx, cw.ResolveField(cw.Ctx, ref.ColumnName))
 		} else {
 			dateTimeType = clickhouse.Invalid
 		}

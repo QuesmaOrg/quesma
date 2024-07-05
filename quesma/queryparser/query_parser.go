@@ -798,7 +798,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			v := v.(QueryMap)[op]
 			var timeFormatFuncName string
 			var finalLHS, valueToCompare model.Expr
-			fieldType := cw.Table.GetDateTimeType(cw.Ctx, field)
+			fieldType := cw.Table.GetDateTimeType(cw.Ctx, cw.ResolveField(cw.Ctx, field))
 			vToPrint := sprint(v)
 			valueToCompare = model.NewLiteral(vToPrint)
 			finalLHS = model.NewColumnRef(field)
@@ -876,7 +876,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 
 // parseDateTimeString returns string used to parse DateTime in Clickhouse (depends on column type)
 func (cw *ClickhouseQueryTranslator) parseDateTimeString(table *clickhouse.Table, field, dateTime string) (string, string) {
-	typ := table.GetDateTimeType(cw.Ctx, field)
+	typ := table.GetDateTimeType(cw.Ctx, cw.ResolveField(cw.Ctx, field))
 	switch typ {
 	case clickhouse.DateTime64:
 		return "parseDateTime64BestEffort('" + dateTime + "')", "parseDateTime64BestEffort"

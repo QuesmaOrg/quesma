@@ -201,25 +201,6 @@ func (t *Table) applyIndexConfig(configuration config.QuesmaConfiguration) {
 
 }
 
-// deprecated
-func (t *Table) ResolveField(ctx context.Context, fieldName string) (field string) {
-	// Alias resolution should occur *after* the query is parsed, not during the parsing
-	field = fieldName
-	if t.aliases != nil {
-		if alias, ok := t.aliases[fieldName]; ok {
-			field = alias
-		}
-	}
-
-	if field != "*" && field != "_all" && field != "_doc" && field != "_id" && field != "_index" {
-		if _, ok := t.Cols[field]; !ok {
-			logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in table '%s'", fieldName, t.Name)
-		}
-	}
-
-	return
-}
-
 func (t *Table) HasColumn(ctx context.Context, fieldName string) bool {
 	return t.Cols[fieldName] != nil
 }
