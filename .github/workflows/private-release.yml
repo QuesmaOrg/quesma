@@ -1,4 +1,4 @@
-name: [DEPRECATED] Build Quesma container image for customers and prospects (private beta repository)
+name: DEPRECATED - Build Quesma container image for customers and prospects (private beta repository)
 
 on:
   workflow_dispatch:
