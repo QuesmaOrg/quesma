@@ -8,6 +8,8 @@ services:
       - QUESMA_elasticsearch_url=http://elasticsearch:9200
       - QUESMA_port=8080
       - QUESMA_logging_path=/var/quesma/logs
+      - QUESMA_installationId=old-e2e-test-run
+      - QUESMA_connectors_my-clickhouse-connector_type=clickhouse-os
       - QUESMA_clickhouse_url=clickhouse://clickhouse:9000
       - QUESMA_logging_fileLogging=false
     depends_on:
