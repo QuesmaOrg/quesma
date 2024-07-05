@@ -5,6 +5,7 @@ package clickhouse
 import (
 	"fmt"
 	"quesma/plugins"
+	"quesma/schema"
 	"quesma/util"
 	"slices"
 	"strings"
@@ -14,7 +15,7 @@ const NestedSeparator = "::"
 
 // m: unmarshalled json from HTTP request
 // Returns nicely formatted string for CREATE TABLE command
-func FieldsMapToCreateTableString(namespace string, m SchemaMap, indentLvl int, config *ChTableConfig, nameFormatter plugins.TableColumNameFormatter) string {
+func FieldsMapToCreateTableString(namespace string, m SchemaMap, indentLvl int, config *ChTableConfig, nameFormatter plugins.TableColumNameFormatter, schemaMapping *schema.Schema) string {
 
 	var result strings.Builder
 	i := 0
@@ -31,9 +32,9 @@ func FieldsMapToCreateTableString(namespace string, m SchemaMap, indentLvl int, 
 		if (ok && nestedValue != nil && len(nestedValue) > 0) && !isListValue {
 			var nested []string
 			if namespace == "" {
-				nested = append(nested, FieldsMapToCreateTableString(name, nestedValue, indentLvl, config, nameFormatter))
+				nested = append(nested, FieldsMapToCreateTableString(name, nestedValue, indentLvl, config, nameFormatter, nil))
 			} else {
-				nested = append(nested, FieldsMapToCreateTableString(nameFormatter.Format(namespace, name), nestedValue, indentLvl, config, nameFormatter))
+				nested = append(nested, FieldsMapToCreateTableString(nameFormatter.Format(namespace, name), nestedValue, indentLvl, config, nameFormatter, nil))
 			}
 
 			result.WriteString(strings.Join(nested, ",\n"))

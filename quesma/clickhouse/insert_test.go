@@ -138,7 +138,9 @@ func logManagersNonEmpty(cfg *ChTableConfig) []logManagerHelper {
 }
 
 func logManagers(config *ChTableConfig) []logManagerHelper {
-	return append([]logManagerHelper{{NewLogManagerEmpty(), false}}, logManagersNonEmpty(config)...)
+	logManager := NewLogManagerEmpty()
+	logManager.schemaRegistry = staticRegistry{}
+	return append([]logManagerHelper{{logManager, false}}, logManagersNonEmpty(config)...)
 }
 
 func TestAutomaticTableCreationAtInsert(t *testing.T) {
@@ -148,7 +150,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 			for index3, lm := range logManagers(tableConfig) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], logManager["+strconv.Itoa(index3)+"]", func(t *testing.T) {
 
-					query, err := buildCreateTableQueryNoOurFields(context.Background(), tableName, types.MustJSON(tt.insertJson), tableConfig, cfg)
+					query, err := buildCreateTableQueryNoOurFields(context.Background(), tableName, types.MustJSON(tt.insertJson), tableConfig, cfg, staticRegistry{})
 					assert.NoError(t, err)
 					table, err := NewTable(query, tableConfig)
 					assert.NoError(t, err)

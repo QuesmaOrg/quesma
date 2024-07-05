@@ -70,6 +70,9 @@ func (e staticRegistry) AllSchemas() map[schema.TableName]schema.Schema {
 }
 
 func (e staticRegistry) FindSchema(name schema.TableName) (schema.Schema, bool) {
+	if e.tables == nil {
+		return schema.Schema{}, false
+	}
 	s, found := e.tables[name]
 	return s, found
 }
