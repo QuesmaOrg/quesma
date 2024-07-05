@@ -528,17 +528,11 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 	for k, v := range queryMap {
 		if slices.Contains(metricsAggregations, k) {
 			field, isFromScript := cw.parseFieldFieldMaybeScript(v, k)
-			var dateTimeType clickhouse.DateTimeType
-			if ref, ok := field.(model.ColumnRef); ok {
-				dateTimeType = cw.Table.GetDateTimeType(cw.Ctx, cw.ResolveField(cw.Ctx, ref.ColumnName))
-			} else {
-				dateTimeType = clickhouse.Invalid
-			}
 
 			return metricsAggregation{
 				AggrType:            k,
 				Fields:              []model.Expr{field},
-				FieldType:           dateTimeType,
+				FieldType:           cw.GetDateTimeTypeFromSelectClause(cw.Ctx, field),
 				IsFieldNameCompound: isFromScript,
 			}, true
 		}
@@ -550,16 +544,11 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			logger.WarnWithCtx(cw.Ctx).Msgf("percentiles is not a map, but %T, value: %v. Using empty map.", percentile, percentile)
 		}
 		field, keyed, percentiles := cw.parsePercentilesAggregation(percentileMap)
-		var dateTimeType clickhouse.DateTimeType
-		if ref, ok := field.(model.ColumnRef); ok {
-			dateTimeType = cw.Table.GetDateTimeType(cw.Ctx, cw.ResolveField(cw.Ctx, ref.ColumnName))
-		} else {
-			dateTimeType = clickhouse.Invalid
-		}
+
 		return metricsAggregation{
 			AggrType:    "quantile",
 			Fields:      []model.Expr{field},
-			FieldType:   dateTimeType,
+			FieldType:   cw.GetDateTimeTypeFromSelectClause(cw.Ctx, field),
 			Percentiles: percentiles,
 			Keyed:       keyed,
 		}, true

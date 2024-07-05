@@ -1354,3 +1354,10 @@ func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap, defaultSize in
 		return defaultSize
 	}
 }
+
+func (cw *ClickhouseQueryTranslator) GetDateTimeTypeFromSelectClause(ctx context.Context, expr model.Expr) clickhouse.DateTimeType {
+	if ref, ok := expr.(model.ColumnRef); ok {
+		return cw.Table.GetDateTimeType(ctx, cw.ResolveField(ctx, ref.ColumnName))
+	}
+	return clickhouse.Invalid
+}
