@@ -528,10 +528,11 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 	for k, v := range queryMap {
 		if slices.Contains(metricsAggregations, k) {
 			field, isFromScript := cw.parseFieldFieldMaybeScript(v, k)
+
 			return metricsAggregation{
 				AggrType:            k,
 				Fields:              []model.Expr{field},
-				FieldType:           cw.Table.GetDateTimeTypeFromSelectClause(cw.Ctx, field),
+				FieldType:           cw.GetDateTimeTypeFromSelectClause(cw.Ctx, field),
 				IsFieldNameCompound: isFromScript,
 			}, true
 		}
@@ -543,10 +544,11 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			logger.WarnWithCtx(cw.Ctx).Msgf("percentiles is not a map, but %T, value: %v. Using empty map.", percentile, percentile)
 		}
 		field, keyed, percentiles := cw.parsePercentilesAggregation(percentileMap)
+
 		return metricsAggregation{
 			AggrType:    "quantile",
 			Fields:      []model.Expr{field},
-			FieldType:   cw.Table.GetDateTimeTypeFromSelectClause(cw.Ctx, field),
+			FieldType:   cw.GetDateTimeTypeFromSelectClause(cw.Ctx, field),
 			Percentiles: percentiles,
 			Keyed:       keyed,
 		}, true
@@ -909,7 +911,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldField(shouldBeMap any, aggregatio
 	}
 	if fieldRaw, ok := Map["field"]; ok {
 		if field, ok := fieldRaw.(string); ok {
-			return model.NewColumnRef(cw.Table.ResolveField(cw.Ctx, field)) // model.NewSelectColumnTableField(cw.Table.ResolveField(cw.Ctx, field)) // remove this resolve? we do all transforms after parsing is done?
+			return model.NewColumnRef(cw.ResolveField(cw.Ctx, field)) // model.NewSelectColumnTableField(cw.Table.ResolveField(cw.Ctx, field)) // remove this resolve? we do all transforms after parsing is done?
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
 		}
@@ -939,7 +941,7 @@ func (cw *ClickhouseQueryTranslator) parseFieldFieldMaybeScript(shouldBeMap any,
 	// maybe "field" field
 	if fieldRaw, ok := Map["field"]; ok {
 		if field, ok := fieldRaw.(string); ok {
-			return model.NewColumnRef(cw.Table.ResolveField(cw.Ctx, field)), true // remove this resolve? we do all transforms after parsing is done?
+			return model.NewColumnRef(cw.ResolveField(cw.Ctx, field)), true // remove this resolve? we do all transforms after parsing is done?
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("field is not a string, but %T, value: %v", fieldRaw, fieldRaw)
 		}

@@ -1,10 +1,6 @@
 ![quesma-logo-black-transparent-full](https://github.com/QuesmaOrg/quesma/assets/150345712/2f05a9d6-1b50-4bf5-ba8a-4370e77ae797)
 
-- Website: www.quesma.com
-- LinkedIn: https://www.linkedin.com/company/quesma
-- X/Twitter https://twitter.com/QuesmaOrg
-- YouTube: https://www.youtube.com/@QuesmaOrg
-- Documentation: https://eap.quesma.com/eap-docs
+[Website](www.quesma.com) | [LinkedIn](https://www.linkedin.com/company/quesma) | [X/Twitter](https://twitter.com/QuesmaOrg) | [YouTube](https://www.youtube.com/@QuesmaOrg) | [Docs](https://eap.quesma.com/eap-docs)
 
 Quesma is an actively developed database gateway currently in pre-alpha Early Access. Route your queries through a translation layer that seamlessly connects your apps with the modern database platforms of your choice. No more query refactoring during migrations. How? Isn't migrating to a new database hard? Quesma does it without touching your application/client stack - keeping backward compatibility and moving safely, step-by-step. We translate your queries so you don’t have to rewrite your database query code during migrations.
 

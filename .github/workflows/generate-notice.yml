@@ -1,0 +1,69 @@
+name: Generate NOTICE.MD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  generate-notice-file:
+    strategy:
+      matrix:
+        module: [ "quesma" ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      repository-projects: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+          go-version: '1.22'
+
+      - name: Install go-licence-detector
+        working-directory: ${{ matrix.module }}
+        run: go get go.elastic.co/go-licence-detector && go install go.elastic.co/go-licence-detector
+
+      - name: Generate NOTICE.MD
+        working-directory: ${{ matrix.module }}
+        run: |
+          go list -m -json all | go-licence-detector -includeIndirect -noticeTemplate=../.github/templates/NOTICE.MD.tmpl -noticeOut=../NOTICE.MD -depsTemplate=../.github/templates/dependencies.asciidoc.tmpl -depsOut=dependencies.asciidoc
+          rm dependencies.asciidoc
+
+      - name: Print NOTICE.MD
+        run: cat NOTICE.MD
+        
+      - name: Check if NOTICE.MD changed
+        id: notice-file-changed
+        run: |
+          git fetch origin
+          if git ls-tree --name-only origin/main | grep -q '^NOTICE.MD$'; then
+            if git diff --exit-code origin/main -- NOTICE.MD; then
+              echo "::set-output name=changed::false"
+            else
+              echo "::set-output name=changed::true"
+            fi
+          else
+            echo "::set-output name=changed::true"
+          fi
+
+      - name: Issue a Pull Request
+        if: steps.notice-file-changed.outputs.changed == 'true'
+        run: |
+          BRANCH_NAME="notice/$(date +%Y%m%d%H%M%S)"
+          git checkout -b "$BRANCH_NAME"
+          git config --local user.email "ai@quesma.com"
+          git config --local user.name "Quesma AI"
+          git add NOTICE.MD
+          git commit -m "Update NOTICE.MD"
+          git push origin HEAD
+          gh pr create -l notice.md -l automation --title "Update NOTICE.MD" --body "There's been a change in Quesma dependencies" --base main --head "$BRANCH_NAME"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          
+        
