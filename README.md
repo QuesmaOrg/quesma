@@ -1,4 +1,4 @@
-![quesma-logo-black-transparent-full](https://github.com/QuesmaOrg/quesma/assets/150345712/2f05a9d6-1b50-4bf5-ba8a-4370e77ae797)
+[<img src="https://github.com/QuesmaOrg/quesma/assets/150345712/2f05a9d6-1b50-4bf5-ba8a-4370e77ae797" width="50%">](https://www.quesma.com)
 
 <p align="center">
 <a href="https://github.com/QuesmaOrg/quesma/actions/workflows/pipeline.yml"><img src="https://github.com/QuesmaOrg/quesma/actions/workflows/pipeline.yml/badge.svg"></a>
@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-<a href="http://www.quesma.com">Website</a> | 
+<a href="https://www.quesma.com">Website</a> | 
 <a href="https://www.linkedin.com/company/quesma">LinkedIn</a> | 
 <a href="https://twitter.com/QuesmaOrg">Twitter</a> | 
 <a href="https://www.youtube.com/@QuesmaOrg">YouTube</a> | 
