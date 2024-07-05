@@ -19,14 +19,6 @@ type parseRangeTest struct {
 	expectedWhere    string
 }
 
-type fixedTableProvider struct {
-	tables map[string]schema.Table
-}
-
-func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
-	return f.tables
-}
-
 var parseRangeTests = []parseRangeTest{
 	{
 		"DateTime64",
