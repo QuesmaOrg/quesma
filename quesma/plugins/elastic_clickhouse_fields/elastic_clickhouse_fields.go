@@ -111,6 +111,9 @@ type columNameFormatter struct {
 }
 
 func (t *columNameFormatter) Format(namespace, columnName string) string {
+	if namespace == "" {
+		return columnName
+	}
 	return fmt.Sprintf("%s%s%s", namespace, t.separator, columnName)
 }
 

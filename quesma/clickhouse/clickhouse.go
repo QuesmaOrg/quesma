@@ -365,11 +365,12 @@ func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jso
 		foundSchema = nil
 	}
 
-	columns := FieldsMapToCreateTableString("", jsonData, 1, tableConfig, nameFormatter, foundSchema) + Indexes(jsonData)
+	columns := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, foundSchema) + Indexes(jsonData)
 
 	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
 (
-	%s
+
+%s
 )
 %s
 COMMENT 'created by Quesma'`,
