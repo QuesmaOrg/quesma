@@ -1,9 +1,6 @@
 services:
   quesma:
     image: quesma:latest
-    # TODO remove once license server is implemented
-    env_file:
-      - .env
     environment:
       - QUESMA_elasticsearch_url=http://elasticsearch:9200
       - QUESMA_port=8080

@@ -14,6 +14,7 @@ import (
 	"quesma/model/typical_queries"
 	"quesma/queryparser/query_util"
 	"quesma/quesma/config"
+	"quesma/schema"
 	"quesma/util"
 	"reflect"
 	"strconv"
@@ -62,7 +63,25 @@ const (
 
 func TestSearchResponse(t *testing.T) {
 	row := []model.QueryResultRow{{}}
-	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"test": {
+				Fields: map[schema.FieldName]schema.Field{
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+				},
+			},
+		},
+	}
+	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background(), SchemaRegistry: s}
 	searchResp, err := cw.MakeAsyncSearchResponse(row, &model.Query{QueryInfoType: model.ListAllFields, Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
 	require.NoError(t, err)
 	searchRespBuf, err2 := searchResp.Marshal()
@@ -143,8 +162,25 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 			model.ListByField,
 		},
 	}
-
-	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background()}
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"test": {
+				Fields: map[schema.FieldName]schema.Field{
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+				},
+			},
+		},
+	}
+	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background(), SchemaRegistry: s}
 	for i, tt := range args {
 		t.Run(tt.queryType.String(), func(t *testing.T) {
 			hitQuery := query_util.BuildHitsQuery(

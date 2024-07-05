@@ -62,8 +62,8 @@ func (s *SchemaCheckPass) applyBooleanLiteralLowering(query *model.Query) (*mode
 
 type WhereVisitor struct {
 	model.ExprVisitor
-	tableName string
-	cfg       map[string]config.IndexConfiguration
+	tableName      string
+	schemaRegistry schema.Registry
 }
 
 func (v *WhereVisitor) VisitLiteral(e model.LiteralExpr) interface{} {
@@ -102,8 +102,16 @@ func (v *WhereVisitor) VisitInfix(e model.InfixExpr) interface{} {
 	if !strings.Contains(rhsValue, "/") {
 		return model.NewInfixExpr(lhs.(model.Expr), e.Op, rhs.(model.Expr))
 	}
-	mappedType := v.cfg[v.tableName].TypeMappings[lhsValue]
-	if mappedType != "ip" {
+	dataScheme, found := v.schemaRegistry.FindSchema(schema.TableName(v.tableName))
+	if !found {
+		logger.Error().Msgf("Schema for table %s not found, this should never happen here", v.tableName)
+	}
+
+	field, found := dataScheme.ResolveField(schema.FieldName(lhsValue))
+	if !found {
+		logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhsValue, v.tableName)
+	}
+	if !field.Type.Equal(schema.TypeIp) {
 		return model.NewInfixExpr(lhs.(model.Expr), e.Op, rhs.(model.Expr))
 	}
 	if len(lhsValue) == 0 || len(rhsValue) == 0 {
@@ -206,7 +214,7 @@ func getFromTable(fromTable string) string {
 // SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(lhs,'String'),rhs)
 func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Query, error) {
 	fromTable := getFromTable(query.TableName)
-	whereVisitor := &WhereVisitor{ExprVisitor: model.NoOpVisitor{}, tableName: fromTable, cfg: s.cfg}
+	whereVisitor := &WhereVisitor{ExprVisitor: model.NoOpVisitor{}, tableName: fromTable, schemaRegistry: s.schemaRegistry}
 
 	expr := query.SelectCommand.Accept(whereVisitor)
 	if _, ok := expr.(*model.SelectCommand); ok {

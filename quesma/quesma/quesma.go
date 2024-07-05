@@ -362,6 +362,23 @@ func peekBody(r *http.Request) ([]byte, error) {
 			Msgf("Error reading request body: %v", err)
 		return nil, err
 	}
+
+	switch r.Header.Get("Content-Encoding") {
+	case "":
+		// No compression, leaving reqBody as-is
+	case "gzip":
+		reqBody, err = gzip.UnZip(reqBody)
+		if err != nil {
+			logger.ErrorWithCtxAndReason(r.Context(), "invalid gzip body").
+				Msgf("Error decompressing gzip body: %v", err)
+			return nil, err
+		}
+	default:
+		logger.ErrorWithCtxAndReason(r.Context(), "unsupported Content-Encoding type").
+			Msgf("Unsupported Content-Encoding type: %v", err)
+		return nil, errors.New("unsupported Content-Encoding type")
+	}
+
 	r.Body = io.NopCloser(bytes.NewBuffer(reqBody))
 	return reqBody, nil
 }
