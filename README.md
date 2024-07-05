@@ -1,6 +1,6 @@
-[<img src="https://github.com/QuesmaOrg/quesma/assets/150345712/2f05a9d6-1b50-4bf5-ba8a-4370e77ae797" width="50%">](https://www.quesma.com)
-
 <p align="center">
+<a href="https://www.quesma.com"><img alt="Quesma" src="https://github.com/QuesmaOrg/quesma/assets/150345712/2f05a9d6-1b50-4bf5-ba8a-4370e77ae797" width="50%"></a>
+
 <a href="https://github.com/QuesmaOrg/quesma/actions/workflows/pipeline.yml"><img src="https://github.com/QuesmaOrg/quesma/actions/workflows/pipeline.yml/badge.svg"></a>
 <a href="https://github.com/QuesmaOrg/quesma/actions/workflows/release.yml"><img src="https://github.com/QuesmaOrg/quesma/actions/workflows/release.yml/badge.svg"></a>
 <a href=""><img src="https://img.shields.io/badge/golang-1.22.2-blue" /></a>
