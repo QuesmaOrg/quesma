@@ -161,7 +161,6 @@ func (t *Table) FullTableName() string {
 // GetDateTimeType returns type of a field (currently DateTime/DateTime64), if it's a DateTime type. Invalid otherwise.
 // Timestamp from config defaults to DateTime64.
 func (t *Table) GetDateTimeType(ctx context.Context, fieldName string) DateTimeType {
-	fieldName = t.ResolveField(ctx, fieldName)
 	if col, ok := t.Cols[fieldName]; ok {
 		typeName := col.Type.String()
 		// hasPrefix, not equal, because we can have DateTime64(3) and we want to catch it
@@ -174,13 +173,6 @@ func (t *Table) GetDateTimeType(ctx context.Context, fieldName string) DateTimeT
 	}
 	if t.Config.hasTimestamp && fieldName == timestampFieldName {
 		return DateTime64
-	}
-	return Invalid
-}
-
-func (t *Table) GetDateTimeTypeFromSelectClause(ctx context.Context, expr model.Expr) DateTimeType {
-	if ref, ok := expr.(model.ColumnRef); ok {
-		return t.GetDateTimeType(ctx, ref.ColumnName)
 	}
 	return Invalid
 }

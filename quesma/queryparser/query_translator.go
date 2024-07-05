@@ -493,7 +493,10 @@ func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMa
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Msg(err.Error())
 	}
-	dateTimeType := cw.Table.GetDateTimeTypeFromSelectClause(cw.Ctx, field)
+	var dateTimeType clickhouse.DateTimeType
+	if ref, ok := field.(model.ColumnRef); ok {
+		dateTimeType = cw.Table.GetDateTimeType(cw.Ctx, ref.ColumnName)
+	}
 	if dateTimeType == clickhouse.Invalid {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("invalid date type for field %+v. Using DateTime64 as default.", field)
 		dateTimeType = defaultDateTimeType
