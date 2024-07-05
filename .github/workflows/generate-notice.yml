@@ -37,7 +37,7 @@ jobs:
 
       - name: Print NOTICE.MD
         run: cat NOTICE.MD
-        
+
       - name: Check if NOTICE.MD changed
         id: notice-file-changed
         run: |
@@ -73,7 +73,7 @@ jobs:
           git commit -m "Update NOTICE.MD"
           git push origin HEAD
           gh pr create -l notice.md -l automation --title "Update NOTICE.MD" --body "There's been a change in Quesma dependencies" --base main --head "$BRANCH_NAME"
-        with:
-          token: ${{ secrets.NOTICE_MD_UPDATER_GH_TOKEN }}
+        env:
+          GH_TOKEN: ${{ secrets.NOTICE_MD_UPDATER_GH_TOKEN }}
           
         
