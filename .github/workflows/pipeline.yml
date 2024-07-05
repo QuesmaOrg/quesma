@@ -1,4 +1,4 @@
-name: Verify
+name: Build and test
 
 on:
   merge_group:
