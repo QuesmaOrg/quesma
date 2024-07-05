@@ -32,6 +32,8 @@ jobs:
       - name: Generate NOTICE.MD
         working-directory: ${{ matrix.module }}
         run: |
+          go mod tidy
+          go mod download all
           go list -m -json all | go-licence-detector -includeIndirect -noticeTemplate=../.github/templates/NOTICE.MD.tmpl -noticeOut=../NOTICE.MD -depsTemplate=../.github/templates/dependencies.asciidoc.tmpl -depsOut=dependencies.asciidoc
           rm dependencies.asciidoc
 
