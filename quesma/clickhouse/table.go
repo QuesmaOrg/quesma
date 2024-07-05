@@ -229,7 +229,6 @@ func (t *Table) ResolveField(ctx context.Context, fieldName string) (field strin
 }
 
 func (t *Table) HasColumn(ctx context.Context, fieldName string) bool {
-	fieldName = t.ResolveField(ctx, fieldName)
 	return t.Cols[fieldName] != nil
 }
 
@@ -269,8 +268,7 @@ func (t *Table) GetAttributesList() []Attribute {
 // TODO Won't work with tuples, e.g. trying to access via tupleName.tupleField will return NotExists,
 // instead of some other response. Fix this when needed (we seem to not need tuples right now)
 func (t *Table) GetFieldInfo(ctx context.Context, fieldName string) FieldInfo {
-	resolvedFieldName := t.ResolveField(ctx, fieldName)
-	col, ok := t.Cols[resolvedFieldName]
+	col, ok := t.Cols[fieldName]
 	if !ok {
 		return NotExists
 	}

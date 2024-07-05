@@ -904,7 +904,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 		fieldName = cw.ResolveField(cw.Ctx, fieldName)
 		fieldNameQuoted := strconv.Quote(fieldName)
 
-		switch cw.Table.GetFieldInfo(cw.Ctx, fieldName) {
+		switch cw.Table.GetFieldInfo(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName)) {
 		case clickhouse.ExistsAndIsBaseType:
 			sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
 		case clickhouse.ExistsAndIsArray:
@@ -924,7 +924,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			}
 			sql = model.Or(stmts)
 		default:
-			logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T for exists: %s", cw.Table.GetFieldInfo(cw.Ctx, fieldName), fieldName)
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T for exists: %s", cw.Table.GetFieldInfo(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName)), fieldName)
 		}
 	}
 	return model.NewSimpleQuery(sql, true)
@@ -1230,7 +1230,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 
 			// sortMap has only 1 key, so we can just iterate over it
 			for k, v := range sortMap {
-				if strings.HasPrefix(k, "_") && cw.Table.GetFieldInfo(cw.Ctx, k) == clickhouse.NotExists {
+				if strings.HasPrefix(k, "_") && cw.Table.GetFieldInfo(cw.Ctx, cw.ResolveField(cw.Ctx, k)) == clickhouse.NotExists {
 					// we're skipping ELK internal fields, like "_doc", "_id", etc.
 					continue
 				}
@@ -1264,7 +1264,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 		return sortColumns
 	case map[string]interface{}:
 		for fieldName, fieldValue := range sortMaps {
-			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, fieldName) == clickhouse.NotExists {
+			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName)) == clickhouse.NotExists {
 				// TODO Elastic internal fields will need to be supported in the future
 				continue
 			}
@@ -1281,7 +1281,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 
 	case map[string]string:
 		for fieldName, fieldValue := range sortMaps {
-			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, fieldName) == clickhouse.NotExists {
+			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName)) == clickhouse.NotExists {
 				// TODO Elastic internal fields will need to be supported in the future
 				continue
 			}
