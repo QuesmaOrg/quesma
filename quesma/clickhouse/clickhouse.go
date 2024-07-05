@@ -296,8 +296,9 @@ func (s PaidServiceName) String() string {
 }
 
 var paidServiceChecks = map[PaidServiceName]string{
-	CHCloudServiceName:  `SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'SharedMergeTree';`,
 	HydrolixServiceName: `SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'TurbineStorage';`,
+	// For CH Cloud we can also check for 'SharedMergeTree' engine, but there's even simpler way
+	CHCloudServiceName: `SELECT * FROM system.settings WHERE name='cloud_mode_engine';`,
 }
 
 func (lm *LogManager) isConnectedToPaidService(service PaidServiceName) (bool, error) {
