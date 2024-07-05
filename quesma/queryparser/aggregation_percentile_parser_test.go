@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/model"
+	"quesma/schema"
 	"testing"
 )
 
@@ -15,7 +16,25 @@ func Test_parsePercentilesAggregationWithDefaultPercents(t *testing.T) {
 	payload := QueryMap{
 		"field": "custom_name",
 	}
-	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}, Ctx: context.Background()}
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+				},
+			},
+		},
+	}
+	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}, Ctx: context.Background(), SchemaRegistry: s}
 	field, _, userSpecifiedPercents := cw.parsePercentilesAggregation(payload)
 	assert.Equal(t, model.NewColumnRef("custom_name"), field)
 	assert.Equal(t, defaultPercentiles, userSpecifiedPercents)
@@ -44,7 +63,25 @@ func Test_parsePercentilesAggregationWithUserSpecifiedPercents(t *testing.T) {
 	for k := range expectedOutputMap {
 		expectedOutputMapKeys = append(expectedOutputMapKeys, k)
 	}
-	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}, Ctx: context.Background()}
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+				},
+			},
+		},
+	}
+	cw := &ClickhouseQueryTranslator{Table: &clickhouse.Table{}, Ctx: context.Background(), SchemaRegistry: s}
 	fieldName, _, parsedMap := cw.parsePercentilesAggregation(payload)
 	assert.Equal(t, model.NewColumnRef("custom_name"), fieldName)
 

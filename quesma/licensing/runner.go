@@ -5,6 +5,7 @@ package licensing
 import (
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 	"os"
 	"quesma/quesma/config"
 	"slices"
@@ -32,7 +33,7 @@ func Init(config *config.QuesmaConfiguration) *LicenseModule {
 
 func (l *LicenseModule) Run() {
 	if len(l.LicenseKey) > 0 {
-		fmt.Printf("License key [%s] already present, skipping license key obtainment.\n", l.LicenseKey)
+		l.logInfo("License key [%s] already present, skipping license key obtainment.", l.LicenseKey)
 	} else {
 		l.setInstallationID()
 		if err := l.obtainLicenseKey(); err != nil {
@@ -59,28 +60,38 @@ func (l *LicenseModule) validateConfig() error {
 
 func (l *LicenseModule) setInstallationID() {
 	if l.Config.InstallationId != "" {
-		fmt.Printf("Installation ID provided in the configuration [%s]\n", l.Config.InstallationId)
+		l.logInfo("Installation ID provided in the configuration [%s]", l.Config.InstallationId)
 		l.InstallationID = l.Config.InstallationId
 		return
 	}
 
 	if data, err := os.ReadFile(installationIdFile); err != nil {
-		fmt.Printf("Reading Installation ID failed [%v], generating new one\n", err)
+		l.logDebug("Reading Installation ID failed [%v], generating new one", err)
 		generatedID := uuid.New().String()
-		fmt.Printf("Generated Installation ID of [%s]\n", generatedID)
+		l.logDebug("Generated Installation ID of [%s]", generatedID)
 		l.tryStoringInstallationIdInFile(generatedID)
 		l.InstallationID = generatedID
 	} else {
 		installationID := string(data)
-		fmt.Printf("Installation ID of [%s] found\n", installationID)
+		l.logDebug("Installation ID found in file [%s]", installationID)
 		l.InstallationID = installationID
 	}
 }
 
 func (l *LicenseModule) tryStoringInstallationIdInFile(installationID string) {
 	if err := os.WriteFile(installationIdFile, []byte(installationID), 0644); err != nil {
-		fmt.Printf("Failed to store Installation ID in file: %v\n", err)
+		l.logDebug("Failed to store Installation ID in file: %v", err)
 	} else {
-		fmt.Printf("Stored Installation ID in file [%s]\n", installationIdFile)
+		l.logDebug("Stored Installation ID in file [%s]", installationIdFile)
+	}
+}
+
+func (l *LicenseModule) logInfo(msg string, args ...interface{}) {
+	fmt.Printf(msg+"\n", args...)
+}
+
+func (l *LicenseModule) logDebug(msg string, args ...interface{}) {
+	if l.Config.Logging.Level == zerolog.DebugLevel {
+		fmt.Printf(msg+"\n", args...)
 	}
 }

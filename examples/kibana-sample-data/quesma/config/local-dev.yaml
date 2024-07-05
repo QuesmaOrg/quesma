@@ -1,6 +1,9 @@
 # Default for local-dev.yml
 mode: "dual-write-query-clickhouse"
 port: 8080  # public tcp port to listen for incoming traffic
+connectors:
+  ch:
+    type: "clickhouse-os"
 elasticsearch:
   #url: "http://localhost:9200"
   call: false
