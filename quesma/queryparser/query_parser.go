@@ -1331,7 +1331,6 @@ func (cw *ClickhouseQueryTranslator) ResolveField(ctx context.Context, fieldName
 		field = fieldName
 		return
 	}
-
 	if value, ok := schemaInstance.Fields[schema.FieldName(fieldName)]; ok {
 		field = value.InternalPropertyName.AsString()
 	} else {
@@ -1340,14 +1339,11 @@ func (cw *ClickhouseQueryTranslator) ResolveField(ctx context.Context, fieldName
 		field = fieldName
 	}
 
-	// TODO handle aliases
-	/*
-		if t.aliases != nil {
-			if alias, ok := t.aliases[fieldName]; ok {
-				field = alias
-			}
-		}
-	*/
+	// Check aliases
+	if value, ok := schemaInstance.Aliases[schema.FieldName(fieldName)]; ok {
+		field = value.AsString()
+	}
+
 	if field != "*" && field != "_all" && field != "_doc" && field != "_id" && field != "_index" {
 		if _, ok := schemaInstance.Fields[schema.FieldName(field)]; !ok {
 			logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in schema", fieldName)
