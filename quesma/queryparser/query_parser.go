@@ -1322,12 +1322,14 @@ func (cw *ClickhouseQueryTranslator) ResolveField(ctx context.Context, fieldName
 	// Alias resolution should occur *after* the query is parsed, not during the parsing
 	if cw.SchemaRegistry == nil {
 		logger.Error().Msg("Schema registry is not set")
-		return fieldName
+		field = fieldName
+		return
 	}
 	schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name))
 	if !exists {
 		logger.Error().Msgf("Schema fot table %s not found", cw.Table.Name)
-		return fieldName
+		field = fieldName
+		return
 	}
 
 	if value, ok := schemaInstance.Fields[schema.FieldName(fieldName)]; ok {
@@ -1346,14 +1348,11 @@ func (cw *ClickhouseQueryTranslator) ResolveField(ctx context.Context, fieldName
 			}
 		}
 	*/
-	// TODO check against schema
-
 	if field != "*" && field != "_all" && field != "_doc" && field != "_id" && field != "_index" {
 		if _, ok := schemaInstance.Fields[schema.FieldName(field)]; !ok {
 			logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in schema", fieldName)
 		}
 	}
-
 	return
 }
 func (cw *ClickhouseQueryTranslator) parseSizeExists(queryMap QueryMap) (size int, ok bool) {
