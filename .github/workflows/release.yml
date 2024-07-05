@@ -40,5 +40,6 @@ jobs:
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           build-args: |
             QUESMA_BUILD_SHA=${{ github.sha }}
+          platforms: linux/amd64,linux/arm64
         env:
           DOCKER_BUILD_NO_SUMMARY: true
