@@ -272,15 +272,6 @@ func (lm *LogManager) executeRawQuery(query string) (*sql.Rows, error) {
 	}
 }
 
-func (lm *LogManager) GetDBUrl() *config.Url {
-	// This func uses deprecated structs, this information should come straight from the connector
-	if lm.cfg.Hydrolix.IsNonEmpty() {
-		return lm.cfg.Hydrolix.Url
-	} else {
-		return lm.cfg.ClickHouse.Url
-	}
-}
-
 /* The logic below contains a simple checks that are executed by connectors to ensure that they are
 not connected to the data sources which are not allowed by current license. */
 
