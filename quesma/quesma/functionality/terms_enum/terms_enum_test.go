@@ -101,13 +101,25 @@ func TestHandleTermsEnumRequest(t *testing.T) {
 	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(testTableName, table))
-	qt := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: staticRegistry{
+	s := staticRegistry{
 		tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
-				Fields: map[schema.FieldName]schema.Field{},
+			"tablename": {
+				Fields: map[schema.FieldName]schema.Field{
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+				},
 			},
-		}}}
-
+		},
+	}
+	qt := &queryparser.ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s}
 	// Here we additionally verify that terms for `_tier` are **NOT** included in the SQL query
 	expectedQuery1 := `SELECT DISTINCT "client_name" FROM "` + testTableName + `" WHERE ("epoch_time">=parseDateTimeBestEffort('2024-02-27T12:25:00.000Z') AND "epoch_time"<=parseDateTimeBestEffort('2024-02-27T12:40:59.999Z')) LIMIT 13`
 	expectedQuery2 := `SELECT DISTINCT "client_name" FROM "` + testTableName + `" WHERE ("epoch_time"<=parseDateTimeBestEffort('2024-02-27T12:40:59.999Z') AND "epoch_time">=parseDateTimeBestEffort('2024-02-27T12:25:00.000Z')) LIMIT 13`

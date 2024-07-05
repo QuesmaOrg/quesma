@@ -77,9 +77,25 @@ func TestAsyncSearchHandler(t *testing.T) {
 		},
 		Created: true,
 	})
-	tableDiscovery :=
-		fixedTableProvider{tables: map[string]schema.Table{}}
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+				},
+			},
+		},
+	}
+
 	for i, tt := range testdata.TestsAsyncSearch {
 		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
@@ -124,9 +140,24 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 		},
 		Created: true,
 	}
-	tableDiscovery :=
-		fixedTableProvider{tables: map[string]schema.Table{}}
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+				},
+			},
+		},
+	}
 	for i, tt := range testdata.AggregationTestsWithSpecialCharactersInFieldNames {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
@@ -166,9 +197,23 @@ var table = concurrent.NewMapWith(tableName, &clickhouse.Table{
 
 func TestSearchHandler(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
-	tableDiscovery :=
-		fixedTableProvider{tables: map[string]schema.Table{}}
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+				},
+			},
+		},
+	}
 	for _, tt := range testdata.TestsSearch {
 		t.Run(tt.Name, func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
@@ -193,9 +238,23 @@ func TestSearchHandler(t *testing.T) {
 // TODO this test gives wrong results??
 func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
-	tableDiscovery :=
-		fixedTableProvider{tables: map[string]schema.Table{}}
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+				},
+			},
+		},
+	}
 	for _, tt := range testdata.TestsSearchNoAttrs {
 		t.Run(tt.Name, func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
@@ -218,9 +277,23 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 
 func TestAsyncSearchFilter(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
-	tableDiscovery :=
-		fixedTableProvider{tables: map[string]schema.Table{}}
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+				},
+			},
+		},
+	}
 	for _, tt := range testdata.TestSearchFilter {
 		t.Run(tt.Name, func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
@@ -246,9 +319,23 @@ func TestAsyncSearchFilter(t *testing.T) {
 // It can't return uint64, thus creating response code panics because of that.
 func TestHandlingDateTimeFields(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
-	tableDiscovery :=
-		fixedTableProvider{tables: map[string]schema.Table{}}
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+				},
+			},
+		},
+	}
 	// I'm testing querying for all 3 types of fields that we support right now.
 	const dateTimeTimestampField = "timestamp"
 	const dateTime64TimestampField = "timestamp64"
@@ -327,9 +414,23 @@ func TestHandlingDateTimeFields(t *testing.T) {
 // Both `_search`, and `_async_search` handlers are tested.
 func TestNumericFacetsQueries(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
-	tableDiscovery :=
-		fixedTableProvider{tables: map[string]schema.Table{}}
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+				},
+			},
+		},
+	}
 	table := concurrent.NewMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
@@ -406,9 +507,23 @@ func TestNumericFacetsQueries(t *testing.T) {
 
 func TestSearchTrackTotalCount(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
-	tableDiscovery :=
-		fixedTableProvider{tables: map[string]schema.Table{}}
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+				},
+			},
+		},
+	}
 	test := func(t *testing.T, handlerName string, testcase testdata.FullSearchTestCase) {
 		db, mock := util.InitSqlMockWithPrettyPrint(t, false)
 		defer db.Close()

@@ -37,12 +37,18 @@ func TestSearchOpensearch(t *testing.T) {
 
 	s := staticRegistry{
 		tables: map[schema.TableName]schema.Schema{
-			"logs-generic-default": {
+			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
-					"service.name":           {PropertyName: "service.name", InternalPropertyName: "service.name", Type: schema.TypeKeyword},
-					"arrayOfArraysOfStrings": {PropertyName: "arrayOfArraysOfStrings", InternalPropertyName: "arrayOfArraysOfStrings", Type: schema.TypeKeyword},
-					"arrayOfTuples":          {PropertyName: "arrayOfTuples", InternalPropertyName: "arrayOfTuples", Type: schema.TypeObject},
-					"host.name":              {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
 				},
 			},
 		},
@@ -194,10 +200,15 @@ func TestHighlighter(t *testing.T) {
 		tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
-					"service.name":           {PropertyName: "service.name", InternalPropertyName: "service.name", Type: schema.TypeKeyword},
-					"arrayOfArraysOfStrings": {PropertyName: "arrayOfArraysOfStrings", InternalPropertyName: "arrayOfArraysOfStrings", Type: schema.TypeKeyword},
-					"arrayOfTuples":          {PropertyName: "arrayOfTuples", InternalPropertyName: "arrayOfTuples", Type: schema.TypeObject},
-					"host.name":              {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host.name.keyword": {PropertyName: "host.name.keyword", InternalPropertyName: "host.name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
 				},
 			},
 		},
