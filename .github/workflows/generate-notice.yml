@@ -52,6 +52,16 @@ jobs:
             echo "::set-output name=changed::true"
           fi
 
+      - name: Close existing PRs
+        if: steps.notice-file-changed.outputs.changed == 'true'
+        run: |
+          open_prs=$(gh pr list --label notice.md --state open --json number --jq '.[].number')
+          for pr in $open_prs; do
+            gh pr close $pr
+          done
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Issue a Pull Request
         if: steps.notice-file-changed.outputs.changed == 'true'
         run: |
