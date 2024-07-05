@@ -3,6 +3,7 @@
 package queryparser
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -252,7 +253,7 @@ func (cw *ClickhouseQueryTranslator) parseMetadata(queryMap QueryMap) QueryMap {
 }
 
 func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fieldName string, prefix *string, caseIns bool) model.SimpleQuery {
-	fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
+	fieldName = cw.ResolveField(cw.Ctx, fieldName)
 	canParse := true
 	stmts := make([]model.Expr, 0)
 	if indexFilter != nil {
@@ -561,7 +562,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 	}
 
 	for fieldName, v := range queryMap {
-		fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
+		fieldName = cw.ResolveField(cw.Ctx, fieldName)
 		// (fieldName, v) = either e.g. ("message", "this is a test")
 		//                  or  ("message", map["query": "this is a test", ...]). Here we only care about "query" until we find a case where we need more.
 		vUnNested := v
@@ -661,7 +662,7 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) model.Simple
 	}
 
 	for fieldName, v := range queryMap {
-		fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
+		fieldName = cw.ResolveField(cw.Ctx, fieldName)
 		switch vCasted := v.(type) {
 		case string:
 			simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral("'"+vCasted+"%'"))
@@ -691,7 +692,7 @@ func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) model.Simp
 	}
 
 	for fieldName, v := range queryMap {
-		fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
+		fieldName = cw.ResolveField(cw.Ctx, fieldName)
 		if vAsMap, ok := v.(QueryMap); ok {
 			if value, ok := vAsMap["value"]; ok {
 				if valueAsString, ok := value.(string); ok {
@@ -781,7 +782,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 	}
 
 	for field, v := range queryMap {
-		field = cw.Table.ResolveField(cw.Ctx, field)
+		field = cw.ResolveField(cw.Ctx, field)
 		stmts := make([]model.Expr, 0)
 		if _, ok := v.(QueryMap); !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid range type: %T, value: %v", v, v)
@@ -900,7 +901,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid exists type: %T, value: %v", v, v)
 			return model.NewSimpleQuery(nil, false)
 		}
-		fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
+		fieldName = cw.ResolveField(cw.Ctx, fieldName)
 		fieldNameQuoted := strconv.Quote(fieldName)
 
 		switch cw.Table.GetFieldInfo(cw.Ctx, fieldName) {
@@ -1002,7 +1003,7 @@ func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []strin
 		if fieldStr == "*" {
 			return cw.Table.GetFulltextFields()
 		}
-		fieldStr = cw.Table.ResolveField(cw.Ctx, fieldStr)
+		fieldStr = cw.ResolveField(cw.Ctx, fieldStr)
 		result = append(result, fieldStr)
 	}
 	return result
@@ -1093,7 +1094,7 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 		return model.NewSearchQueryInfoNormal(), false
 	}
 	fieldName = strings.TrimSuffix(fieldName, ".keyword")
-	fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
+	fieldName = cw.ResolveField(cw.Ctx, fieldName)
 
 	secondNestingMap, ok := queryMap["sampler"].(QueryMap)
 	if !ok {
@@ -1183,7 +1184,7 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.S
 			}
 		}
 
-		resolvedField := cw.Table.ResolveField(cw.Ctx, fieldName)
+		resolvedField := cw.ResolveField(cw.Ctx, fieldName)
 		if resolvedField == "*" {
 			return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: size}, true
 		}
@@ -1233,7 +1234,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 					// we're skipping ELK internal fields, like "_doc", "_id", etc.
 					continue
 				}
-				fieldName := cw.Table.ResolveField(cw.Ctx, k)
+				fieldName := cw.ResolveField(cw.Ctx, k)
 				switch v := v.(type) {
 				case QueryMap:
 					if order, ok := v["order"]; ok {
@@ -1309,7 +1310,27 @@ func createSortColumn(fieldName, ordering string) (model.OrderByExpr, error) {
 		return model.OrderByExpr{}, fmt.Errorf("unexpected order value: [%s] for field [%s] Skipping", ordering, fieldName)
 	}
 }
-
+func (cw *ClickhouseQueryTranslator) ResolveField(ctx context.Context, fieldName string) (field string) {
+	// Alias resolution should occur *after* the query is parsed, not during the parsing
+	field = fieldName
+	// TODO handle aliases
+	/*
+		if t.aliases != nil {
+			if alias, ok := t.aliases[fieldName]; ok {
+				field = alias
+			}
+		}
+	*/
+	// TODO check against schema
+	/*
+		if field != "*" && field != "_all" && field != "_doc" && field != "_id" && field != "_index" {
+				if _, ok := t.Cols[field]; !ok {
+					logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in table '%s'", fieldName, t.Name)
+				}
+		}
+	*/
+	return
+}
 func (cw *ClickhouseQueryTranslator) parseSizeExists(queryMap QueryMap) (size int, ok bool) {
 	sizeRaw, exists := queryMap["size"]
 	if !exists {

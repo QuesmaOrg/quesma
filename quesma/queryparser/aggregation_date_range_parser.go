@@ -14,7 +14,7 @@ func (cw *ClickhouseQueryTranslator) parseDateRangeAggregation(dateRange QueryMa
 
 	if field, exists := dateRange["field"]; exists {
 		if fieldNameRaw, ok := field.(string); ok {
-			fieldName = cw.Table.ResolveField(cw.Ctx, fieldNameRaw)
+			fieldName = cw.ResolveField(cw.Ctx, fieldNameRaw)
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("field specified for date range aggregation is not a string. Using empty. Querymap: %v", dateRange)
 		}
