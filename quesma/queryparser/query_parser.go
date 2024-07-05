@@ -13,7 +13,6 @@ import (
 	"quesma/model/typical_queries"
 	"quesma/queryparser/lucene"
 	"quesma/quesma/types"
-	"quesma/schema"
 	"quesma/util"
 	"strconv"
 	"strings"
@@ -37,6 +36,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]*model.Query
 		logger.Error().Msg("Schema registry is not set")
 		return nil, false, errors.New("schema registry is not set")
 	}
+
 	simpleQuery, queryInfo, highlighter, err := cw.parseQueryInternal(body)
 	if err != nil || !simpleQuery.CanParse {
 		logger.WarnWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
@@ -252,11 +252,7 @@ func (cw *ClickhouseQueryTranslator) parseMetadata(queryMap QueryMap) QueryMap {
 }
 
 func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fieldName string, prefix *string, caseIns bool) model.SimpleQuery {
-	schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name))
-	if !exists {
-		logger.Error().Msgf("Schema fot table %s not found", cw.Table.Name)
-	}
-	fieldName = schemaInstance.Fields[schema.FieldName(fieldName)].InternalPropertyName.AsString()
+	fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
 	canParse := true
 	stmts := make([]model.Expr, 0)
 	if indexFilter != nil {
@@ -563,14 +559,8 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 		logger.WarnWithCtx(cw.Ctx).Msgf("we expect only 1 match, got: %d. value: %v", len(queryMap), queryMap)
 		return model.NewSimpleQuery(nil, false)
 	}
-	schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name))
-	if !exists {
-		logger.Error().Msgf("Schema fot table %s not found", cw.Table.Name)
-	}
-	_ = schemaInstance
+
 	for fieldName, v := range queryMap {
-		//schemaInstance.Fields[schema.FieldName(fieldName)].InternalPropertyName.AsString()
-		//fieldName = schemaInstance.Fields[schema.FieldName(fieldName)].InternalPropertyName.AsString()
 		fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
 		// (fieldName, v) = either e.g. ("message", "this is a test")
 		//                  or  ("message", map["query": "this is a test", ...]). Here we only care about "query" until we find a case where we need more.
