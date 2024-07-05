@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Elastic-2.0
 package connectors
 
-import "quesma/clickhouse"
+import (
+	"quesma/clickhouse"
+)
 
 type ClickHouseOSConnector struct {
 	Connector *clickhouse.LogManager
@@ -11,8 +13,16 @@ type ClickHouseOSConnector struct {
 const clickHouseOSConnectorTypeName = "clickhouse-os"
 
 func (c *ClickHouseOSConnector) LicensingCheck() error {
-	// TODO: Check if you're connected to ClickHouse Cloud OR Hydrolix and fail if so
-	return nil // return c.Connector.CheckIfConnectedToHydrolix()
+	checksCount := 2
+	errChan := make(chan error, checksCount)
+	go func() { errChan <- c.Connector.CheckIfConnectedPaidService(clickhouse.CHCloudServiceName) }()
+	go func() { errChan <- c.Connector.CheckIfConnectedPaidService(clickhouse.HydrolixServiceName) }()
+	for i := 0; i < checksCount; i++ {
+		if err := <-errChan; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (c *ClickHouseOSConnector) Type() string {

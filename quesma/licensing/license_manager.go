@@ -47,7 +47,7 @@ func (l *LicenseModule) obtainLicenseKey() (err error) {
 		return err
 	}
 	l.LicenseKey = licenseResponse.LicenseKey
-	fmt.Printf("License key obtained and set successfully, key=[%s]\n", l.LicenseKey)
+	fmt.Printf("License key obtained and set successfully, key=[%s.....%s]\n", string(l.LicenseKey[:8]), string(l.LicenseKey[len(l.LicenseKey)-8:]))
 	return nil
 }
 

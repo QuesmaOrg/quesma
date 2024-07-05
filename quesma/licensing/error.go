@@ -10,5 +10,5 @@ const (
 )
 
 func PanicWithLicenseViolation(initialErr error) {
-	panic(fmt.Sprintf("Error thrown: %v\n%s", initialErr, errorMessage))
+	panic(fmt.Sprintf("%v\n%s", initialErr, errorMessage))
 }

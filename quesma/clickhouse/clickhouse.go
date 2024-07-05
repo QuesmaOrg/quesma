@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"math"
 	"quesma/concurrent"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
@@ -271,16 +272,66 @@ func (lm *LogManager) executeRawQuery(query string) (*sql.Rows, error) {
 	}
 }
 
-func (lm *LogManager) CheckIfConnectedToHydrolix() error {
-	if rows, err := lm.executeRawQuery(`SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'TurbineStorage';`); err != nil {
-		return fmt.Errorf("error executing HDX identifying query: %v", err)
-	} else {
-		defer rows.Close()
-		if rows.Next() {
-			return fmt.Errorf("detected Hydrolix-specific table engine, which is not allowed")
-		}
-		return nil
+/* The logic below contains a simple checks that are executed by connectors to ensure that they are
+not connected to the data sources which are not allowed by current license. */
+
+type PaidServiceName int
+
+const (
+	CHCloudServiceName PaidServiceName = iota
+	HydrolixServiceName
+)
+
+func (s PaidServiceName) String() string {
+	return [...]string{"ClickHouse Cloud", "Hydrolix"}[s]
+}
+
+var paidServiceChecks = map[PaidServiceName]string{
+	HydrolixServiceName: `SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'TurbineStorage';`,
+	CHCloudServiceName:  `SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'SharedMergeTree';`,
+	// For CH Cloud we can also check the output of the following query: --> `SELECT * FROM system.settings WHERE name='cloud_mode_engine';`
+}
+
+func (lm *LogManager) isConnectedToPaidService(service PaidServiceName) (bool, error) {
+	rows, err := lm.executeRawQuery(paidServiceChecks[service])
+	if err != nil {
+		return false, fmt.Errorf("error executing %s-identifying query: %v", service, err)
 	}
+	defer rows.Close()
+	if rows.Next() {
+		return true, fmt.Errorf("detected %s-specific table engine, which is not allowed", service)
+	}
+	return false, nil
+}
+
+// CheckIfConnectedPaidService executes simple query with exponential backoff
+func (lm *LogManager) CheckIfConnectedPaidService(service PaidServiceName) (returnedErr error) {
+	if _, ok := paidServiceChecks[service]; !ok {
+		return fmt.Errorf("service %s is not supported", service)
+	}
+	totalCheckTime := time.Minute
+	startTimeInSeconds := 2.0
+	start := time.Now()
+	attempt := 0
+	for {
+		isConnectedToPaidService, err := lm.isConnectedToPaidService(service)
+		if err != nil {
+			returnedErr = fmt.Errorf("error checking connection to database, attempt #%d, err=%v", attempt+1, err)
+		}
+		if isConnectedToPaidService {
+			return fmt.Errorf("detected %s-specific table engine, which is not allowed", service)
+		}
+		if time.Since(start) > totalCheckTime {
+			break
+		}
+		attempt++
+		sleepDuration := time.Duration(math.Pow(startTimeInSeconds, float64(attempt))) * time.Second
+		if remaining := time.Until(start.Add(totalCheckTime)); remaining < sleepDuration {
+			sleepDuration = remaining
+		}
+		time.Sleep(sleepDuration)
+	}
+	return returnedErr
 }
 
 func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string, config *ChTableConfig) error {

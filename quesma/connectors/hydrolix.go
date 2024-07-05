@@ -4,7 +4,6 @@ package connectors
 
 import (
 	"quesma/clickhouse"
-	"quesma/logger"
 )
 
 type HydrolixConnector struct {
@@ -14,8 +13,7 @@ type HydrolixConnector struct {
 const hydrolixConnectorTypeName = "hydrolix"
 
 func (h *HydrolixConnector) LicensingCheck() error {
-	logger.Debug().Msg("Runtime checks for Hydrolix connector is not required, as static configuration disables it.")
-	return nil
+	return h.Connector.CheckIfConnectedPaidService(clickhouse.CHCloudServiceName)
 }
 
 func (h *HydrolixConnector) Type() string {
