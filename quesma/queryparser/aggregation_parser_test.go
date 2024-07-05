@@ -648,20 +648,25 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
-	indexConfig := map[string]config.IndexConfiguration{
-		"logs-generic-default": {
-			Name:    "logs-generic-default",
-			Enabled: true,
+
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+				},
+			},
 		},
 	}
-	cfg := config.QuesmaConfiguration{
-		IndexConfig: indexConfig,
-	}
-	tableDiscovery :=
-		fixedTableProvider{tables: map[string]schema.Table{
-			"logs-generic-default": {Columns: map[string]schema.Column{}},
-		}}
-	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
 	allTests := testdata.AggregationTests
 	allTests = append(allTests, opensearch_visualize.AggregationTests...)
@@ -795,7 +800,25 @@ func Test_parseFieldFromScriptField(t *testing.T) {
 		{QueryMap{"script": "script"}, nil, false},
 		{QueryMap{"script": QueryMap{"source": 1}}, nil, false},
 	}
-	cw := ClickhouseQueryTranslator{Ctx: context.Background()}
+	s := staticRegistry{
+		tables: map[schema.TableName]schema.Schema{
+			"logs-generic-default": {
+				Fields: map[schema.FieldName]schema.Field{
+					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
+					"type":              {PropertyName: "type", InternalPropertyName: "type", Type: schema.TypeText},
+					"name":              {PropertyName: "name", InternalPropertyName: "name", Type: schema.TypeText},
+					"content":           {PropertyName: "content", InternalPropertyName: "content", Type: schema.TypeText},
+					"message":           {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeText},
+					"host_name.keyword": {PropertyName: "host_name.keyword", InternalPropertyName: "host_name.keyword", Type: schema.TypeKeyword},
+					"FlightDelay":       {PropertyName: "FlightDelay", InternalPropertyName: "FlightDelay", Type: schema.TypeText},
+					"Cancelled":         {PropertyName: "Cancelled", InternalPropertyName: "Cancelled", Type: schema.TypeText},
+					"FlightDelayMin":    {PropertyName: "FlightDelayMin", InternalPropertyName: "FlightDelayMin", Type: schema.TypeText},
+					"_id":               {PropertyName: "_id", InternalPropertyName: "_id", Type: schema.TypeText},
+				},
+			},
+		},
+	}
+	cw := ClickhouseQueryTranslator{Ctx: context.Background(), SchemaRegistry: s}
 	for _, tc := range testcases {
 		field, success := cw.parseFieldFromScriptField(tc.queryMap)
 		assert.Equal(t, tc.expectedSuccess, success)
