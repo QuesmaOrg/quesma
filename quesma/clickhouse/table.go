@@ -161,7 +161,6 @@ func (t *Table) FullTableName() string {
 // GetDateTimeType returns type of a field (currently DateTime/DateTime64), if it's a DateTime type. Invalid otherwise.
 // Timestamp from config defaults to DateTime64.
 func (t *Table) GetDateTimeType(ctx context.Context, fieldName string) DateTimeType {
-	fieldName = t.ResolveField(ctx, fieldName)
 	if col, ok := t.Cols[fieldName]; ok {
 		typeName := col.Type.String()
 		// hasPrefix, not equal, because we can have DateTime64(3) and we want to catch it
@@ -174,13 +173,6 @@ func (t *Table) GetDateTimeType(ctx context.Context, fieldName string) DateTimeT
 	}
 	if t.Config.hasTimestamp && fieldName == timestampFieldName {
 		return DateTime64
-	}
-	return Invalid
-}
-
-func (t *Table) GetDateTimeTypeFromSelectClause(ctx context.Context, expr model.Expr) DateTimeType {
-	if ref, ok := expr.(model.ColumnRef); ok {
-		return t.GetDateTimeType(ctx, ref.ColumnName)
 	}
 	return Invalid
 }
@@ -209,27 +201,7 @@ func (t *Table) applyIndexConfig(configuration config.QuesmaConfiguration) {
 
 }
 
-// deprecated
-func (t *Table) ResolveField(ctx context.Context, fieldName string) (field string) {
-	// Alias resolution should occur *after* the query is parsed, not during the parsing
-	field = fieldName
-	if t.aliases != nil {
-		if alias, ok := t.aliases[fieldName]; ok {
-			field = alias
-		}
-	}
-
-	if field != "*" && field != "_all" && field != "_doc" && field != "_id" && field != "_index" {
-		if _, ok := t.Cols[field]; !ok {
-			logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in table '%s'", fieldName, t.Name)
-		}
-	}
-
-	return
-}
-
 func (t *Table) HasColumn(ctx context.Context, fieldName string) bool {
-	fieldName = t.ResolveField(ctx, fieldName)
 	return t.Cols[fieldName] != nil
 }
 
@@ -269,8 +241,7 @@ func (t *Table) GetAttributesList() []Attribute {
 // TODO Won't work with tuples, e.g. trying to access via tupleName.tupleField will return NotExists,
 // instead of some other response. Fix this when needed (we seem to not need tuples right now)
 func (t *Table) GetFieldInfo(ctx context.Context, fieldName string) FieldInfo {
-	resolvedFieldName := t.ResolveField(ctx, fieldName)
-	col, ok := t.Cols[resolvedFieldName]
+	col, ok := t.Cols[fieldName]
 	if !ok {
 		return NotExists
 	}

@@ -3,6 +3,7 @@
 package queryparser
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,7 @@ import (
 	"quesma/model/typical_queries"
 	"quesma/queryparser/lucene"
 	"quesma/quesma/types"
+	"quesma/schema"
 	"quesma/util"
 	"strconv"
 	"strings"
@@ -252,7 +254,7 @@ func (cw *ClickhouseQueryTranslator) parseMetadata(queryMap QueryMap) QueryMap {
 }
 
 func (cw *ClickhouseQueryTranslator) ParseAutocomplete(indexFilter *QueryMap, fieldName string, prefix *string, caseIns bool) model.SimpleQuery {
-	fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
+	fieldName = cw.ResolveField(cw.Ctx, fieldName)
 	canParse := true
 	stmts := make([]model.Expr, 0)
 	if indexFilter != nil {
@@ -561,7 +563,7 @@ func (cw *ClickhouseQueryTranslator) parseMatch(queryMap QueryMap, matchPhrase b
 	}
 
 	for fieldName, v := range queryMap {
-		fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
+		fieldName = cw.ResolveField(cw.Ctx, fieldName)
 		// (fieldName, v) = either e.g. ("message", "this is a test")
 		//                  or  ("message", map["query": "this is a test", ...]). Here we only care about "query" until we find a case where we need more.
 		vUnNested := v
@@ -661,7 +663,7 @@ func (cw *ClickhouseQueryTranslator) parsePrefix(queryMap QueryMap) model.Simple
 	}
 
 	for fieldName, v := range queryMap {
-		fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
+		fieldName = cw.ResolveField(cw.Ctx, fieldName)
 		switch vCasted := v.(type) {
 		case string:
 			simpleStat := model.NewInfixExpr(model.NewColumnRef(fieldName), "iLIKE", model.NewLiteral("'"+vCasted+"%'"))
@@ -691,7 +693,7 @@ func (cw *ClickhouseQueryTranslator) parseWildcard(queryMap QueryMap) model.Simp
 	}
 
 	for fieldName, v := range queryMap {
-		fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
+		fieldName = cw.ResolveField(cw.Ctx, fieldName)
 		if vAsMap, ok := v.(QueryMap); ok {
 			if value, ok := vAsMap["value"]; ok {
 				if valueAsString, ok := value.(string); ok {
@@ -781,7 +783,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 	}
 
 	for field, v := range queryMap {
-		field = cw.Table.ResolveField(cw.Ctx, field)
+		field = cw.ResolveField(cw.Ctx, field)
 		stmts := make([]model.Expr, 0)
 		if _, ok := v.(QueryMap); !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid range type: %T, value: %v", v, v)
@@ -797,7 +799,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 			v := v.(QueryMap)[op]
 			var timeFormatFuncName string
 			var finalLHS, valueToCompare model.Expr
-			fieldType := cw.Table.GetDateTimeType(cw.Ctx, field)
+			fieldType := cw.Table.GetDateTimeType(cw.Ctx, cw.ResolveField(cw.Ctx, field))
 			vToPrint := sprint(v)
 			valueToCompare = model.NewLiteral(vToPrint)
 			finalLHS = model.NewColumnRef(field)
@@ -875,7 +877,7 @@ func (cw *ClickhouseQueryTranslator) parseRange(queryMap QueryMap) model.SimpleQ
 
 // parseDateTimeString returns string used to parse DateTime in Clickhouse (depends on column type)
 func (cw *ClickhouseQueryTranslator) parseDateTimeString(table *clickhouse.Table, field, dateTime string) (string, string) {
-	typ := table.GetDateTimeType(cw.Ctx, field)
+	typ := table.GetDateTimeType(cw.Ctx, cw.ResolveField(cw.Ctx, field))
 	switch typ {
 	case clickhouse.DateTime64:
 		return "parseDateTime64BestEffort('" + dateTime + "')", "parseDateTime64BestEffort"
@@ -900,10 +902,10 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid exists type: %T, value: %v", v, v)
 			return model.NewSimpleQuery(nil, false)
 		}
-		fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
+		fieldName = cw.ResolveField(cw.Ctx, fieldName)
 		fieldNameQuoted := strconv.Quote(fieldName)
 
-		switch cw.Table.GetFieldInfo(cw.Ctx, fieldName) {
+		switch cw.Table.GetFieldInfo(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName)) {
 		case clickhouse.ExistsAndIsBaseType:
 			sql = model.NewInfixExpr(model.NewColumnRef(fieldName), "IS", model.NewLiteral("NOT NULL"))
 		case clickhouse.ExistsAndIsArray:
@@ -923,7 +925,7 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			}
 			sql = model.Or(stmts)
 		default:
-			logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T for exists: %s", cw.Table.GetFieldInfo(cw.Ctx, fieldName), fieldName)
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid field type: %T for exists: %s", cw.Table.GetFieldInfo(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName)), fieldName)
 		}
 	}
 	return model.NewSimpleQuery(sql, true)
@@ -1002,7 +1004,7 @@ func (cw *ClickhouseQueryTranslator) extractFields(fields []interface{}) []strin
 		if fieldStr == "*" {
 			return cw.Table.GetFulltextFields()
 		}
-		fieldStr = cw.Table.ResolveField(cw.Ctx, fieldStr)
+		fieldStr = cw.ResolveField(cw.Ctx, fieldStr)
 		result = append(result, fieldStr)
 	}
 	return result
@@ -1093,7 +1095,7 @@ func (cw *ClickhouseQueryTranslator) isItFacetsRequest(queryMap QueryMap) (model
 		return model.NewSearchQueryInfoNormal(), false
 	}
 	fieldName = strings.TrimSuffix(fieldName, ".keyword")
-	fieldName = cw.Table.ResolveField(cw.Ctx, fieldName)
+	fieldName = cw.ResolveField(cw.Ctx, fieldName)
 
 	secondNestingMap, ok := queryMap["sampler"].(QueryMap)
 	if !ok {
@@ -1183,7 +1185,7 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.S
 			}
 		}
 
-		resolvedField := cw.Table.ResolveField(cw.Ctx, fieldName)
+		resolvedField := cw.ResolveField(cw.Ctx, fieldName)
 		if resolvedField == "*" {
 			return model.SearchQueryInfo{Typ: model.ListAllFields, RequestedFields: []string{"*"}, FieldName: "*", I1: 0, I2: size}, true
 		}
@@ -1229,11 +1231,11 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 
 			// sortMap has only 1 key, so we can just iterate over it
 			for k, v := range sortMap {
-				if strings.HasPrefix(k, "_") && cw.Table.GetFieldInfo(cw.Ctx, k) == clickhouse.NotExists {
+				if strings.HasPrefix(k, "_") && cw.Table.GetFieldInfo(cw.Ctx, cw.ResolveField(cw.Ctx, k)) == clickhouse.NotExists {
 					// we're skipping ELK internal fields, like "_doc", "_id", etc.
 					continue
 				}
-				fieldName := cw.Table.ResolveField(cw.Ctx, k)
+				fieldName := cw.ResolveField(cw.Ctx, k)
 				switch v := v.(type) {
 				case QueryMap:
 					if order, ok := v["order"]; ok {
@@ -1263,7 +1265,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 		return sortColumns
 	case map[string]interface{}:
 		for fieldName, fieldValue := range sortMaps {
-			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, fieldName) == clickhouse.NotExists {
+			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName)) == clickhouse.NotExists {
 				// TODO Elastic internal fields will need to be supported in the future
 				continue
 			}
@@ -1280,7 +1282,7 @@ func (cw *ClickhouseQueryTranslator) parseSortFields(sortMaps any) (sortColumns 
 
 	case map[string]string:
 		for fieldName, fieldValue := range sortMaps {
-			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, fieldName) == clickhouse.NotExists {
+			if strings.HasPrefix(fieldName, "_") && cw.Table.GetFieldInfo(cw.Ctx, cw.ResolveField(cw.Ctx, fieldName)) == clickhouse.NotExists {
 				// TODO Elastic internal fields will need to be supported in the future
 				continue
 			}
@@ -1310,6 +1312,45 @@ func createSortColumn(fieldName, ordering string) (model.OrderByExpr, error) {
 	}
 }
 
+// ResolveField resolves field name to internal name
+// For now, it's part of QueryParser, however, it can
+// be part of transformation pipeline in the future
+// What prevents us from moving it to transformation pipeline now, is that
+// we need to anotate this field somehow in the AST, to be able
+// to distinguish it from other fields
+func (cw *ClickhouseQueryTranslator) ResolveField(ctx context.Context, fieldName string) (field string) {
+	// Alias resolution should occur *after* the query is parsed, not during the parsing
+	if cw.SchemaRegistry == nil {
+		logger.Error().Msg("Schema registry is not set")
+		field = fieldName
+		return
+	}
+	schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name))
+	if !exists {
+		logger.Error().Msgf("Schema fot table %s not found", cw.Table.Name)
+		field = fieldName
+		return
+	}
+	if value, ok := schemaInstance.Fields[schema.FieldName(fieldName)]; ok {
+		field = value.InternalPropertyName.AsString()
+	} else {
+		// fallback to original field name
+		logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in schema", fieldName)
+		field = fieldName
+	}
+
+	// Check aliases
+	if value, ok := schemaInstance.Aliases[schema.FieldName(fieldName)]; ok {
+		field = value.AsString()
+	}
+
+	if field != "*" && field != "_all" && field != "_doc" && field != "_id" && field != "_index" {
+		if _, ok := schemaInstance.Fields[schema.FieldName(field)]; !ok {
+			logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in schema", fieldName)
+		}
+	}
+	return
+}
 func (cw *ClickhouseQueryTranslator) parseSizeExists(queryMap QueryMap) (size int, ok bool) {
 	sizeRaw, exists := queryMap["size"]
 	if !exists {
@@ -1332,4 +1373,11 @@ func (cw *ClickhouseQueryTranslator) parseSize(queryMap QueryMap, defaultSize in
 		logger.WarnWithCtx(cw.Ctx).Msgf("invalid size type: %T, value: %v. Expected float64", sizeRaw, sizeRaw)
 		return defaultSize
 	}
+}
+
+func (cw *ClickhouseQueryTranslator) GetDateTimeTypeFromSelectClause(ctx context.Context, expr model.Expr) clickhouse.DateTimeType {
+	if ref, ok := expr.(model.ColumnRef); ok {
+		return cw.Table.GetDateTimeType(ctx, cw.ResolveField(ctx, ref.ColumnName))
+	}
+	return clickhouse.Invalid
 }
