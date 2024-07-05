@@ -1,4 +1,4 @@
-name: Docker build
+name: Docker image build
 # At this moment we push to image to our 'nightly' GCR repository
 
 on:
