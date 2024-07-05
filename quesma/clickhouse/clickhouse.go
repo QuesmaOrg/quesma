@@ -281,31 +281,53 @@ func (lm *LogManager) GetDBUrl() *config.Url {
 	}
 }
 
-func (lm *LogManager) isConnectedToHydrolix() (bool, error) {
-	if rows, err := lm.executeRawQuery(`SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'TurbineStorage';`); err != nil {
-		return false, fmt.Errorf("error executing HDX identifying query: %v", err)
-	} else {
-		defer rows.Close()
-		if rows.Next() {
-			return true, fmt.Errorf("detected Hydrolix-specific table engine, which is not allowed")
-		}
-		return false, nil
-	}
+/* The logic below contains a simple checks that are executed by connectors to ensure that they are
+not connected to the data sources which are not allowed by current license. */
+
+type PaidServiceName int
+
+const (
+	CHCloudServiceName PaidServiceName = iota
+	HydrolixServiceName
+)
+
+func (s PaidServiceName) String() string {
+	return [...]string{"ClickHouse Cloud", "Hydrolix"}[s]
 }
 
-// CheckIfConnectedToHydrolix executes simple query with exponential backoff
-func (lm *LogManager) CheckIfConnectedToHydrolix() (returnedErr error) {
+var paidServiceChecks = map[PaidServiceName]string{
+	CHCloudServiceName:  `SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'SharedMergeTree';`,
+	HydrolixServiceName: `SELECT concat(database,'.', table) FROM system.tables WHERE engine = 'TurbineStorage';`,
+}
+
+func (lm *LogManager) isConnectedToPaidService(service PaidServiceName) (bool, error) {
+	rows, err := lm.executeRawQuery(paidServiceChecks[service])
+	if err != nil {
+		return false, fmt.Errorf("error executing %s-identifying query: %v", service, err)
+	}
+	defer rows.Close()
+	if rows.Next() {
+		return true, fmt.Errorf("detected %s-specific table engine, which is not allowed", service)
+	}
+	return false, nil
+}
+
+// CheckIfConnectedPaidService executes simple query with exponential backoff
+func (lm *LogManager) CheckIfConnectedPaidService(service PaidServiceName) (returnedErr error) {
+	if _, ok := paidServiceChecks[service]; !ok {
+		return fmt.Errorf("service %s is not supported", service)
+	}
 	totalCheckTime := time.Minute
 	startTimeInSeconds := 2.0
 	start := time.Now()
 	attempt := 0
 	for {
-		isHydrolix, err := lm.isConnectedToHydrolix()
+		isConnectedToPaidService, err := lm.isConnectedToPaidService(service)
 		if err != nil {
-			returnedErr = fmt.Errorf("error checking connection to Hydrolix, attempt #%d, err=%v", attempt+1, err)
+			returnedErr = fmt.Errorf("error checking connection to database, attempt #%d, err=%v", attempt+1, err)
 		}
-		if isHydrolix {
-			return fmt.Errorf("detected Hydrolix-specific table engine, which is not allowed")
+		if isConnectedToPaidService {
+			return fmt.Errorf("detected %s-specific table engine, which is not allowed", service)
 		}
 		if time.Since(start) > totalCheckTime {
 			break
