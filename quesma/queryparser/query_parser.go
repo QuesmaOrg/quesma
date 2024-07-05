@@ -1312,6 +1312,10 @@ func createSortColumn(fieldName, ordering string) (model.OrderByExpr, error) {
 }
 func (cw *ClickhouseQueryTranslator) ResolveField(ctx context.Context, fieldName string) (field string) {
 	// Alias resolution should occur *after* the query is parsed, not during the parsing
+	if cw.SchemaRegistry == nil {
+		logger.Error().Msg("Schema registry is not set")
+		return fieldName
+	}
 	field = fieldName
 	// TODO handle aliases
 	/*
