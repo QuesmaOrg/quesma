@@ -1,4 +1,4 @@
-name: Build Quesma container image for internal uses (nigthly repository)
+name: Build Quesma container image (nightly repository)
 
 on:
   push:
@@ -37,5 +37,7 @@ jobs:
           tags: europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.sha }}
           # Pushes to GCR only for `main` branch builds
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          build-args: |
+            QUESMA_BUILD_SHA=${{ github.sha }}
         env:
           DOCKER_BUILD_NO_SUMMARY: true
