@@ -240,7 +240,6 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		if canParse {
 			if len(queries) > 0 && query_util.IsNonAggregationQuery(queries[0]) {
-
 				if properties := q.findNonexistingProperties(queries[0], table, queryTranslator); len(properties) > 0 {
 					logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
 					if elasticsearch.IsIndexPattern(indexPattern) {
@@ -655,7 +654,6 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 		}
 		if property != "*" && !table.HasColumn(q.executionCtx, property) {
 			results = append(results, property)
-
 		}
 	}
 	return results
