@@ -1,7 +1,7 @@
 {{- define "depInfo" -}}
 {{- range $i, $dep := . }}
 {{ "-" | line }}
-Module  : {{ $dep.Name }}
+#### Module  : {{ $dep.Name }}
 Version : {{ $dep.Version }}
 Time    : {{ $dep.VersionTime }}
 Licence : {{ $dep.LicenceType }}
@@ -10,7 +10,7 @@ Licence : {{ $dep.LicenceType }}
 {{ end }}
 {{- end -}}
 
-Copyright 2023-{{ currentYear }} Quesma Inc
+## Copyright 2023-{{ currentYear }} Quesma Inc
 
 This product includes software developed by The Apache Software
 Foundation (http://www.apache.org/).
