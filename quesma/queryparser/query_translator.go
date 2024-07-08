@@ -214,7 +214,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results [][]model.QueryResultRow) (queriesWithoutHits []*model.Query, resultsWithoutHits [][]model.QueryResultRow, hit *model.SearchHits) {
 	hitsIndex := -1
 	for i, query := range queries {
-		if query.QueryInfoType == model.ListAllFields || query.QueryInfoType == model.ListByField {
+		if _, hasHits := query.Type.(*typical_queries.Hits); hasHits {
 			if hitsIndex != -1 {
 				logger.WarnWithCtx(cw.Ctx).Msgf("multiple hits queries found in queries: %v", queries)
 			}
