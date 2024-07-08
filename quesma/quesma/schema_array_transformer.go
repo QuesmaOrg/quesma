@@ -63,12 +63,15 @@ func (v *ArrayTypeVisitor) VisitInfix(e model.InfixExpr) interface{} {
 		dbType := v.dbColumnType(column.ColumnName)
 
 		if strings.HasPrefix(dbType, "Array") {
+
+			op := strings.ToUpper(e.Op)
+
 			switch {
 
-			case e.Op == "iLIKE" && dbType == "Array(String)":
+			case (op == "ILIKE" || op == "LIKE") && dbType == "Array(String)":
 
 				variableName := "x"
-				lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteral(variableName), e.Op, e.Right.Accept(v).(model.Expr)))
+				lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteral(variableName), op, e.Right.Accept(v).(model.Expr)))
 				return model.NewFunction("arrayExists", lambda, e.Left)
 
 			case e.Op == "=":
