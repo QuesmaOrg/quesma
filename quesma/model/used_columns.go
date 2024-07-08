@@ -121,3 +121,7 @@ func (v *usedColumns) VisitParenExpr(p ParenExpr) interface{} {
 	}
 	return NewParenExpr(exprs...)
 }
+
+func (v *usedColumns) VisitLambdaExpr(e LambdaExpr) interface{} {
+	return NewLambdaExpr(e.Args, e.Body.Accept(v).(Expr))
+}
