@@ -12,5 +12,5 @@ class ExampleSpecialTable(Table):
 
 
 SPECIAL_TABLES: Dict[TableData, Type[Table]] = {
-    # env.EXAMPLE_SPECIAL_TABLE: ExampleSpecialTable
+    # env.EXAMPLE_SPECIAL_TABLE: ExampleSpecialTable # Add some tables here, if you add special ones.
 }

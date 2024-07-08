@@ -6,6 +6,7 @@ from collections import namedtuple
 import env
 
 Field = namedtuple("field", ["name", "type", "examples"])
+
 client = clickhouse_connect.get_client(host=env.CLICKHOUSE_ADDRESS, username=env.CLICKHOUSE_USER,
                                        password=env.CLICKHOUSE_PASSWORD)
 

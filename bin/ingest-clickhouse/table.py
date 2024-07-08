@@ -5,6 +5,7 @@ from tabulate import tabulate
 
 import clickhouse
 
+NESTING_SEPARATOR = '_' # data {"a": {"b": 5}} will become a_b: 5 in Clickhouse
 
 class Table:
     def __init__(self, table_name, urls, step_by_step):
@@ -27,7 +28,7 @@ class Table:
             if isinstance(value, dict):
                 flat_json.update(Table.flatten_json(value, nested_path + [key]))
             else:
-                flat_json['_'.join(nested_path + [key])] = value
+                flat_json[NESTING_SEPARATOR.join(nested_path + [key])] = value
         return flat_json
 
     @staticmethod
@@ -42,14 +43,14 @@ class Table:
     def sort_fields(fields):
         fields_sorted = []
         for field in fields:
-            first_dot = field.name.find(".")
-            if first_dot == -1:
+            first_separator = field.name.find(NESTING_SEPARATOR)
+            if first_separator == -1:
                 fields_sorted.append(field)
                 continue
-            first_part = field.name[:first_dot]
+            first_part = field.name[:first_separator]
             last_matched_idx = len(fields_sorted)
             for idx, f in enumerate(fields_sorted):
-                if len(f.name) >= first_dot and f.name[:first_dot] == first_part:
+                if len(f.name) >= first_separator and f.name[:first_separator] == first_part:
                     last_matched_idx = idx
             fields_sorted.insert(last_matched_idx, field)
 
@@ -57,10 +58,11 @@ class Table:
 
     # find example values in data for all fields (returns <= 3 different examples)
     def find_examples(self, field: clickhouse.Field):
+        max_examples_nr = 3
         for js in self.data_jsons:
             if field.name in js and js[field.name] not in field.examples:
                 field.examples.append(js[field.name])
-                if len(field.examples) == 3:
+                if len(field.examples) == max_examples_nr:
                     break
 
     def download_data(self):

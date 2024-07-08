@@ -10,7 +10,7 @@ from table import Table
 DEFAULT_STEP_BY_STEP = True  # by default, we don't run the entire script at one, but step by step
 
 
-# returns 2 lists (recognized_tables, unrecognized_tables)
+# returns 2 lists: (recognized_tables, unrecognized_tables)
 def get_tables_to_work_on(step_by_step: bool) -> Tuple[List[Table], List[str]]:
     tables, unrecognized_tables = [], []
     for table in env.TABLES:

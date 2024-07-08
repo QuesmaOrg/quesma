@@ -10,15 +10,15 @@ If you want to see how it works (with much more info logs), you can run the scri
 ```bash
 python3 full_insert_script.py
 ```
-You'll have to type `y` a few times to make script proceed.
+You'll have to type `y` a few times to make the script proceed.
 
 You can play with it how much you want, because there's also `drop_tables.py` script, which will
 drop all tables created by `full_insert_script.py` script. After that you can run `full_insert_script.py` again.
-It also has `-f` flag so you can run it via either (`step-by-step: on`)
+It also has `-f` flag so you can run it via either: `(step-by-step: on)`
 ```bash
 python3 drop_tables.py
 ```
-or (`force`, or `step-by-step: off`)
+or `force/step-by-step: off`
 ```bash
 python3 drop_tables.py -f
 ```
