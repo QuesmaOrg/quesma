@@ -1,6 +1,6 @@
 module mitmproxy/quesma
 
-go 1.22.0
+go 1.22.5
 
 require github.com/mailru/go-clickhouse v1.8.0
 
