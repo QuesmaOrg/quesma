@@ -225,7 +225,7 @@ func (p ParenExpr) Accept(v ExprVisitor) interface{} {
 
 // LambdaExpr represents a lambda expression,
 // e.g. `x -> x LIKE '%foo'%`
-// Some Clickhouse functions takes lambda expressions as an argument.
+// Some Clickhouse functions take lambda expressions as an argument.
 type LambdaExpr struct {
 	Args []string
 	Body Expr
