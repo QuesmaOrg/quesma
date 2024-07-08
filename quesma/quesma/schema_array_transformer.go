@@ -67,10 +67,9 @@ func (v *ArrayTypeVisitor) VisitInfix(e model.InfixExpr) interface{} {
 
 			case e.Op == "iLIKE" && dbType == "Array(String)":
 
-				// TODO replace with proper AST
-				lambda := fmt.Sprintf("tag -> tag %s %s", e.Op, model.AsString(e.Right))
-
-				return model.NewFunction("arrayExists", model.NewStringExpr(lambda), e.Left)
+				variableName := "x"
+				lambda := model.NewLambdaExpr([]string{variableName}, model.NewInfixExpr(model.NewLiteral(variableName), e.Op, e.Right.Accept(v).(model.Expr)))
+				return model.NewFunction("arrayExists", lambda, e.Left)
 
 			case e.Op == "=":
 				return model.NewFunction("has", e.Left, e.Right.Accept(v).(model.Expr))
@@ -247,4 +246,8 @@ func (v *ArrayTypeVisitor) VisitParenExpr(p model.ParenExpr) interface{} {
 		exprs = append(exprs, expr.Accept(v).(model.Expr))
 	}
 	return model.NewParenExpr(exprs...)
+}
+
+func (v *ArrayTypeVisitor) VisitLambdaExpr(e model.LambdaExpr) interface{} {
+	return model.NewLambdaExpr(e.Args, e.Body.Accept(v).(model.Expr))
 }
