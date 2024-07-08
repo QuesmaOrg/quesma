@@ -31,7 +31,6 @@ RUN --mount=type=cache,target="/root/.cache/go-build" \
     -X 'buildinfo.Version=$QUESMA_VERSION'  \
     -X 'quesma/buildinfo.BuildDate=$QUESMA_BUILD_DATE'  \
     -X 'buildinfo.BuildDate=$QUESMA_BUILD_DATE' \
-
     " \
     -o bin
 
