@@ -39,7 +39,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
   opensearch:
-    image: opensearchproject/opensearch:2.12.0
+    image: opensearchproject/opensearch:2.15.0
     container_name: opensearch
     environment:
       - cluster.name=opensearch-cluster
@@ -66,7 +66,7 @@ services:
         limits:
           memory: 4G
   opensearch-dashboards:
-    image: opensearchproject/opensearch-dashboards:2.12.0
+    image: opensearchproject/opensearch-dashboards:2.15.0
     environment:
       - 'OPENSEARCH_HOSTS=["http://mitmproxy:8080"]'
       - "DISABLE_SECURITY_DASHBOARDS_PLUGIN=true"
@@ -86,14 +86,14 @@ services:
       interval: 5s
       timeout: 1s
   opensearch-dashboards-sidecar:
-    image: opensearchproject/opensearch-dashboards:2.12.0
+    image: opensearchproject/opensearch-dashboards:2.15.0
     restart: "no"
     depends_on:
       opensearch-dashboards:
         condition: service_healthy
     volumes:
       - ./kibana/:/local_mount
-    command: ["/bin/bash", "-c", "/local_mount/add_osd_sample_data.sh"]
+    command: ["/bin/bash", "-c", "/local_mount/add_osd_sample_data.sh http://opensearch-dashboards:5601"]
   clickhouse:
     image: clickhouse/clickhouse-server:23.12.2.59-alpine
     ports:
