@@ -737,19 +737,30 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 
 			isEmptyGroupBy := len(currentAggr.SelectCommand.GroupBy) == 0
 
-			// parse missing paremeter
-			var missingPlaceholder string
+			// Parse 'missing' parameter. It can be any type.
+			var missingPlaceholder any
 			if m, ok := terms.(QueryMap); ok {
 				if m["missing"] != nil {
-					missingPlaceholder = m["missing"].(string)
+					missingPlaceholder = m["missing"]
 				}
 			}
 
 			fieldExpression := cw.parseFieldField(terms, termsType)
 
 			// apply missing placeholder if it is set
-			if missingPlaceholder != "" {
-				fieldExpression = model.NewFunction("COALESCE", fieldExpression, model.NewLiteral("'"+missingPlaceholder+"'"))
+			if missingPlaceholder != nil {
+				var value model.LiteralExpr
+
+				// Maybe we should check the input type against the schema?
+				// Right now we quote if it's a string.
+				switch val := missingPlaceholder.(type) {
+				case string:
+					value = model.NewLiteral("'" + val + "'")
+				default:
+					value = model.NewLiteral(missingPlaceholder)
+				}
+
+				fieldExpression = model.NewFunction("COALESCE", fieldExpression, value)
 			}
 
 			currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, fieldExpression)
