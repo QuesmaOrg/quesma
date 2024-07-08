@@ -30,14 +30,10 @@ func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow,
 	}
 	var response []model.JsonMap
 	for _, row := range rows {
-		var zoom int64
-		var x int64
-		var y int64
-		var key string
-		zoom = int64(row.Cols[0].Value.(float64))
-		x = int64(row.Cols[1].Value.(float64))
-		y = int64(row.Cols[2].Value.(float64))
-		key = strconv.FormatInt(zoom, 10) + "/" + strconv.FormatInt(x, 10) + "/" + strconv.FormatInt(y, 10)
+		zoom := int64(row.Cols[0].Value.(float64))
+		x := int64(row.Cols[1].Value.(float64))
+		y := int64(row.Cols[2].Value.(float64))
+		key := strconv.FormatInt(zoom, 10) + "/" + strconv.FormatInt(x, 10) + "/" + strconv.FormatInt(y, 10)
 		response = append(response, model.JsonMap{
 			"key":       key,
 			"doc_count": row.LastColValue(),
