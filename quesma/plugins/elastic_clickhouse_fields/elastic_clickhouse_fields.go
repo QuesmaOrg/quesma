@@ -179,6 +179,10 @@ func (v *exprColumnNameReplaceVisitor) VisitParenExpr(p model.ParenExpr) interfa
 	return model.NewParenExpr(exprs...)
 }
 
+func (v *exprColumnNameReplaceVisitor) VisitLambdaExpr(e model.LambdaExpr) interface{} {
+	return model.NewLambdaExpr(e.Args, e.Body.Accept(v).(model.Expr))
+}
+
 type queryTransformer struct {
 	translate translateFunc
 }

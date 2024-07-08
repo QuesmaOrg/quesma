@@ -266,3 +266,7 @@ func (v *highlighter) VisitParenExpr(p ParenExpr) interface{} {
 	}
 	return NewParenExpr(exprs...)
 }
+
+func (v *highlighter) VisitLambdaExpr(l LambdaExpr) interface{} {
+	return NewLambdaExpr(l.Args, l.Body.Accept(v).(Expr))
+}
