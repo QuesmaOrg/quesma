@@ -17,6 +17,7 @@
 <a href="https://www.youtube.com/@QuesmaOrg">YouTube</a> | 
 <a href="https://eap.quesma.com/eap-docs">Docs</a>
 </p>
+
 Quesma is an actively developed database gateway currently in pre-alpha Early Access. Route your queries through a translation layer that seamlessly connects your apps with the modern database platforms of your choice. No more query refactoring during migrations.
 
 How? Isn't migrating to a new database hard? Quesma does it without touching your application/client stack - keeping backward compatibility and moving safely, step-by-step. We translate your queries so you don’t have to rewrite your database query code during migrations.
