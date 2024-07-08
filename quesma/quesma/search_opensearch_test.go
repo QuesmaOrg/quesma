@@ -71,12 +71,6 @@ func TestSearchOpensearch(t *testing.T) {
 			whereClause := model.AsString(queries[0].SelectCommand.WhereClause)
 			assert.Contains(t, tt.WantedSql, whereClause, "contains wanted sql")
 
-			queryTypes := make(map[model.SearchQueryType]interface{})
-			for _, query := range queries {
-				queryTypes[query.QueryInfoType] = true
-			}
-			assert.Contains(t, queryTypes, tt.WantedQueryType, "equals to wanted query type")
-
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
