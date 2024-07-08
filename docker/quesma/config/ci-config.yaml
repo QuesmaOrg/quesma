@@ -1,4 +1,7 @@
 mode: "dual-write-query-clickhouse"
+connectors:
+  ch:
+    type: "clickhouse-os"
 installationId: "just-Quesma-smoke-test-instance"
 port: 8080
 indexes:
