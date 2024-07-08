@@ -313,7 +313,7 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 	}
 
 	for i, query := range queries {
-		if query.QueryInfoType == model.ListAllFields || query.QueryInfoType == model.ListByField {
+		if _, hasHits := query.Type.(*typical_queries.Hits); hasHits {
 			totalCount = len(results[i])
 			relation := "eq"
 			if query.SelectCommand.Limit != 0 && totalCount == query.SelectCommand.Limit {

@@ -41,11 +41,11 @@ const (
 	defaultVersion = 1 // if we  add "version" field, it's always 1
 )
 
-func (query *Hits) IsBucketAggregation() bool {
+func (query Hits) IsBucketAggregation() bool {
 	return false
 }
 
-func (query *Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
 	hits := make([]model.SearchHit, 0, len(rows))
 	for i, row := range rows {
 		hit := model.NewSearchHit(query.table.Name)
@@ -87,7 +87,7 @@ func (query *Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 	}}
 }
 
-func (query *Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.QueryResultRow) {
+func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.QueryResultRow) {
 	for _, col := range resultRow.Cols {
 		if col.Value == nil {
 			continue // We don't return empty value
@@ -117,7 +117,7 @@ func (query *Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.Que
 	}
 }
 
-func (query *Hits) computeIdForDocument(doc model.SearchHit, defaultID string) string {
+func (query Hits) computeIdForDocument(doc model.SearchHit, defaultID string) string {
 	tsFieldName, err := query.table.GetTimestampFieldName()
 	if err != nil {
 		return defaultID
@@ -139,10 +139,10 @@ func (query *Hits) computeIdForDocument(doc model.SearchHit, defaultID string) s
 	return pseudoUniqueId
 }
 
-func (query *Hits) String() string {
+func (query Hits) String() string {
 	return fmt.Sprintf("hits(table: %v)", query.table.Name)
 }
 
-func (query *Hits) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+func (query Hits) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	return rowsFromDB
 }
