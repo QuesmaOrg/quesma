@@ -737,8 +737,23 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 
 			isEmptyGroupBy := len(currentAggr.SelectCommand.GroupBy) == 0
 
-			currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, cw.parseFieldField(terms, termsType))
-			currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, cw.parseFieldField(terms, termsType))
+			// parse missing paremeter
+			var missingPlaceholder string
+			if m, ok := terms.(QueryMap); ok {
+				if m["missing"] != nil {
+					missingPlaceholder = m["missing"].(string)
+				}
+			}
+
+			fieldExpression := cw.parseFieldField(terms, termsType)
+
+			// apply missing placeholder if it is set
+			if missingPlaceholder != "" {
+				fieldExpression = model.NewFunction("COALESCE", fieldExpression, model.NewLiteral("'"+missingPlaceholder+"'"))
+			}
+
+			currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, fieldExpression)
+			currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, fieldExpression)
 
 			orderByAdded := false
 			size := 10
@@ -751,6 +766,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 							logger.WarnWithCtx(cw.Ctx).Msgf("size is not an float64, but %T, value: %v. Using default", sizeRaw, sizeRaw)
 						}
 					}
+
 				}
 				currentAggr.SelectCommand.Limit = size
 				currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewSortByCountColumn(model.DescOrder))
@@ -758,7 +774,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			}
 			delete(queryMap, termsType)
 			if !orderByAdded {
-				currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(cw.parseFieldField(terms, termsType)))
+				currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(fieldExpression))
 			}
 			return success, 1, nil
 			/* will remove later

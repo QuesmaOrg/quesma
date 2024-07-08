@@ -2414,16 +2414,16 @@ var AggregationTests = []AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`SELECT "event.dataset", toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
+			`SELECT COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z')) ` +
-				`GROUP BY "event.dataset", toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) ` +
-				`ORDER BY "event.dataset", toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
-			`SELECT "event.dataset", count() FROM ` + QuotedTableName + ` ` +
+				`GROUP BY COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) ` +
+				`ORDER BY COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
+			`SELECT COALESCE("event.dataset",'unknown'), count() FROM ` + QuotedTableName + ` ` +
 				`WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z')) ` +
-				`GROUP BY "event.dataset" ` +
-				`ORDER BY "event.dataset"`,
+				`GROUP BY COALESCE("event.dataset",'unknown') ` +
+				`ORDER BY COALESCE("event.dataset",'unknown')`,
 		},
 	},
 	{ // [14], "old" test, also can be found in testdata/requests.go TestAsyncSearch[5]

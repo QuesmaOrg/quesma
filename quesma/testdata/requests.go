@@ -727,18 +727,18 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.SearchQueryInfo{Typ: model.Normal},
 		[]string{
-			`SELECT "event.dataset", ` +
+			`SELECT COALESCE("event.dataset",'unknown'), ` +
 				groupBySQL("@timestamp", clickhouse.DateTime64, time.Minute) +
 				`, count() FROM ` + QuotedTableName + ` ` +
 				`WHERE ("@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') ` +
 				`AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z')) ` +
-				`GROUP BY "event.dataset", ` + groupBySQL("@timestamp", clickhouse.DateTime64, time.Minute) + ` ` +
-				`ORDER BY "event.dataset", ` + groupBySQL("@timestamp", clickhouse.DateTime64, time.Minute),
-			`SELECT "event.dataset", count() FROM ` + QuotedTableName + ` ` +
+				`GROUP BY COALESCE("event.dataset",'unknown'), ` + groupBySQL("@timestamp", clickhouse.DateTime64, time.Minute) + ` ` +
+				`ORDER BY COALESCE("event.dataset",'unknown'), ` + groupBySQL("@timestamp", clickhouse.DateTime64, time.Minute),
+			`SELECT COALESCE("event.dataset",'unknown'), count() FROM ` + QuotedTableName + ` ` +
 				`WHERE ("@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') ` +
 				`AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z')) ` +
-				`GROUP BY "event.dataset" ` +
-				`ORDER BY "event.dataset"`,
+				`GROUP BY COALESCE("event.dataset",'unknown') ` +
+				`ORDER BY COALESCE("event.dataset",'unknown')`,
 		},
 		true,
 	},
