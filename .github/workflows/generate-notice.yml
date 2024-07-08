@@ -46,12 +46,12 @@ jobs:
           git fetch origin
           if git ls-tree --name-only origin/main | grep -q '^NOTICE.MD$'; then
             if git diff --exit-code origin/main -- NOTICE.MD; then
-              echo "changed=false >> $GITHUB_OUTPUT"
+              echo "changed=false" >> $GITHUB_OUTPUT
             else
-              echo "changed=true >> $GITHUB_OUTPUT"
+              echo "changed=true" >> $GITHUB_OUTPUT
             fi
           else
-            echo "changed=true >> $GITHUB_OUTPUT"
+            echo "changed=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Close existing PRs
