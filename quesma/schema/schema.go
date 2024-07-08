@@ -26,11 +26,11 @@ func (t TableName) AsString() string {
 	return string(t)
 }
 
-func (s Schema) ResolveField(fieldName FieldName) (Field, bool) {
-	if alias, exists := s.Aliases[fieldName]; exists {
+func (s Schema) ResolveField(fieldName string) (Field, bool) {
+	if alias, exists := s.Aliases[FieldName(fieldName)]; exists {
 		field, exists := s.Fields[alias]
 		return field, exists
 	}
-	field, exists := s.Fields[fieldName]
+	field, exists := s.Fields[FieldName(fieldName)]
 	return field, exists
 }

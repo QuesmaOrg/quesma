@@ -66,7 +66,7 @@ func TestSchema_ResolveField(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, exists := tt.schema.ResolveField(FieldName(tt.fieldName))
+			got, exists := tt.schema.ResolveField(tt.fieldName)
 			if exists != tt.exists {
 				t.Errorf("ResolveField() exists = %v, want %v", exists, tt.exists)
 			}
