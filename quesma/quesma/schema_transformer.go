@@ -107,7 +107,7 @@ func (v *WhereVisitor) VisitInfix(e model.InfixExpr) interface{} {
 		logger.Error().Msgf("Schema for table %s not found, this should never happen here", v.tableName)
 	}
 
-	field, found := dataScheme.ResolveField(schema.FieldName(lhsValue))
+	field, found := dataScheme.ResolveField(lhsValue)
 	if !found {
 		logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhsValue, v.tableName)
 	}

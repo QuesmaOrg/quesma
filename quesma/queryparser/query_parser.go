@@ -1326,21 +1326,16 @@ func (cw *ClickhouseQueryTranslator) ResolveField(ctx context.Context, fieldName
 	}
 	schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name))
 	if !exists {
-		logger.Error().Msgf("Schema fot table %s not found", cw.Table.Name)
+		logger.Error().Msgf("Schema for table [%s] not found, this should never happen", cw.Table.Name)
 		field = fieldName
 		return
 	}
-	if value, ok := schemaInstance.Fields[schema.FieldName(fieldName)]; ok {
-		field = value.InternalPropertyName.AsString()
+	if resolvedField, ok := schemaInstance.ResolveField(fieldName); ok {
+		field = resolvedField.InternalPropertyName.AsString()
 	} else {
 		// fallback to original field name
 		logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in schema", fieldName)
 		field = fieldName
-	}
-
-	// Check aliases
-	if value, ok := schemaInstance.Aliases[schema.FieldName(fieldName)]; ok {
-		field = value.AsString()
 	}
 
 	if field != "*" && field != "_all" && field != "_doc" && field != "_id" && field != "_index" {
