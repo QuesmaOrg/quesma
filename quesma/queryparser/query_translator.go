@@ -284,7 +284,9 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 		return
 	}
 	for i, query := range queries {
-		if query.QueryInfoType == model.Facets || query.QueryInfoType == model.FacetsNumeric {
+		_, isFacetNumeric := query.Type.(*typical_queries.FacetsNumeric)
+		_, isFacet := query.Type.(*typical_queries.Facets)
+		if isFacetNumeric || isFacet {
 			totalCount = 0
 			for _, row := range results[i] {
 				if len(row.Cols) > 0 {
