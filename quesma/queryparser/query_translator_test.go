@@ -82,7 +82,7 @@ func TestSearchResponse(t *testing.T) {
 		},
 	}
 	cw := ClickhouseQueryTranslator{Table: &clickhouse.Table{Name: "test"}, Ctx: context.Background(), SchemaRegistry: s}
-	searchResp, err := cw.MakeAsyncSearchResponse(row, &model.Query{QueryInfoType: model.ListAllFields, Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
+	searchResp, err := cw.MakeAsyncSearchResponse(row, &model.Query{Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
 	require.NoError(t, err)
 	searchRespBuf, err2 := searchResp.Marshal()
 	require.NoError(t, err2)
@@ -190,7 +190,6 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 			highlighter := NewEmptyHighlighter()
 			queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, hitQuery.SelectCommand.OrderByFieldNames(), true, false, false)
 			hitQuery.Type = &queryType
-			hitQuery.QueryInfoType = model.ListByField
 			ourResponseRaw := cw.MakeSearchResponse(
 				[]*model.Query{hitQuery},
 				[][]model.QueryResultRow{args[i].ourQueryResult},
@@ -522,7 +521,7 @@ func TestMakeResponseSearchQueryIsProperJson(t *testing.T) {
 			//TODO - this used to take alias into account, but now it doesn't (model.QueryResultCol{ColName: field.Alias, Value: "not-important"}))
 			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: model.AsString(field), Value: "not-important"})
 		}
-		_ = cw.MakeSearchResponse([]*model.Query{{QueryInfoType: model.Normal, Highlighter: NewEmptyHighlighter()}}, [][]model.QueryResultRow{{resultRow}})
+		_ = cw.MakeSearchResponse([]*model.Query{{Highlighter: NewEmptyHighlighter()}}, [][]model.QueryResultRow{{resultRow}})
 	}
 }
 
@@ -541,8 +540,7 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 		cw.BuildFacetsQuery("@", &model.SimpleQuery{}, true),
 		cw.BuildFacetsQuery("@", &model.SimpleQuery{}, false),
 	}
-	types := []model.SearchQueryType{model.ListAllFields, model.FacetsNumeric, model.Facets}
-	for i, query := range queries {
+	for _, query := range queries {
 		resultRow := model.QueryResultRow{Cols: make([]model.QueryResultCol, 0)}
 		for j, field := range query.SelectCommand.Columns {
 			var value interface{} = "not-important"
@@ -552,7 +550,7 @@ func TestMakeResponseAsyncSearchQueryIsProperJson(t *testing.T) {
 			//TODO - this used to take alias into account, but now it doesn't (model.QueryResultCol{ColName: field.Alias, Value: "not-important"}))
 			resultRow.Cols = append(resultRow.Cols, model.QueryResultCol{ColName: model.AsString(field), Value: value})
 		}
-		_, err := cw.MakeAsyncSearchResponse([]model.QueryResultRow{resultRow}, &model.Query{QueryInfoType: types[i], Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
+		_, err := cw.MakeAsyncSearchResponse([]model.QueryResultRow{resultRow}, &model.Query{Highlighter: NewEmptyHighlighter()}, asyncRequestIdStr, false)
 		assert.NoError(t, err)
 	}
 }

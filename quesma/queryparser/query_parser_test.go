@@ -7,6 +7,7 @@ import (
 	"quesma/clickhouse"
 	"quesma/concurrent"
 	"quesma/model"
+	"quesma/model/typical_queries"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
@@ -77,15 +78,12 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 			whereClause := model.AsString(queries[0].SelectCommand.WhereClause)
 
 			assert.Contains(t, tt.WantedSql, whereClause, "contains wanted sql")
-			queryTypes := make(map[model.SearchQueryType]interface{})
 			var simpleListQuery *model.Query
 			for _, query := range queries {
-				queryTypes[query.QueryInfoType] = true
-				if query.QueryInfoType == model.ListAllFields {
+				if _, hasHits := query.Type.(*typical_queries.Hits); hasHits && query.SelectCommand.IsWildcard() {
 					simpleListQuery = query
 				}
 			}
-			assert.Contains(t, queryTypes, tt.WantedQueryType, "equals to wanted query type")
 			for _, wantedSQL := range tt.WantedSql {
 				assert.Contains(t, whereClause, wantedSQL, "query contains wanted sql")
 			}
@@ -148,15 +146,12 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 			whereClause := model.AsString(queries[0].SelectCommand.WhereClause)
 			assert.Contains(t, tt.WantedSql, whereClause, "contains wanted sql")
 
-			queryTypes := make(map[model.SearchQueryType]interface{})
 			var simpleListQuery *model.Query
 			for _, query := range queries {
-				queryTypes[query.QueryInfoType] = true
-				if query.QueryInfoType == model.ListAllFields {
+				if _, hasHits := query.Type.(*typical_queries.Hits); hasHits {
 					simpleListQuery = query
 				}
 			}
-			assert.Contains(t, queryTypes, tt.WantedQueryType, "equals to wanted query type")
 
 			for _, wantedSQL := range tt.WantedSql {
 				assert.Contains(t, whereClause, wantedSQL, "query contains wanted sql")
@@ -218,16 +213,12 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 			whereClause := model.AsString(queries[0].SelectCommand.WhereClause)
 			assert.Contains(t, tt.WantedSql, whereClause)
 
-			queryTypes := make(map[model.SearchQueryType]interface{})
 			var simpleListQuery *model.Query
 			for _, query := range queries {
-				queryTypes[query.QueryInfoType] = true
-				if query.QueryInfoType == model.ListAllFields {
+				if _, hasHits := query.Type.(*typical_queries.Hits); hasHits {
 					simpleListQuery = query
 				}
 			}
-
-			assert.Contains(t, queryTypes, tt.WantedQueryType)
 
 			if simpleListQuery != nil {
 				assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), simpleListQuery.SelectCommand.FromClause)

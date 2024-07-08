@@ -9,6 +9,7 @@ import (
 	"quesma/eql/transform"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/model/typical_queries"
 	"quesma/queryparser"
 	"quesma/queryparser/query_util"
 	"quesma/quesma/types"
@@ -43,12 +44,10 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(queries []*model.Quer
 		hits[i].Fields = make(map[string][]interface{})
 		hits[i].Highlight = make(map[string][]string)
 		hits[i].Source = []byte(resultRow.String(cw.Ctx))
-		if query.QueryInfoType == model.ListAllFields {
-			hits[i].ID = strconv.Itoa(i + 1)
-			hits[i].Index = cw.Table.Name
-			hits[i].Score = 1
-			hits[i].Version = 1
-		}
+		hits[i].ID = strconv.Itoa(i + 1)
+		hits[i].Index = cw.Table.Name
+		hits[i].Score = 1
+		hits[i].Version = 1
 		for _, fieldName := range query.SelectCommand.OrderByFieldNames() {
 			if val, ok := hits[i].Fields[fieldName]; ok {
 				hits[i].Sort = append(hits[i].Sort, elasticsearch.FormatSortValue(val[0]))
@@ -89,7 +88,8 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) ([]*model.Qu
 	if simpleQuery.CanParse {
 		canParse = true
 		query = query_util.BuildHitsQuery(cw.Ctx, cw.Table.Name, "*", &simpleQuery, queryInfo.I2)
-		query.QueryInfoType = queryInfo.Typ
+		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, query.SelectCommand.OrderByFieldNames(), true, false, false)
+		query.Type = &queryType
 		query.Highlighter = highlighter
 		query.SelectCommand.OrderBy = simpleQuery.OrderBy
 		queries = append(queries, query)

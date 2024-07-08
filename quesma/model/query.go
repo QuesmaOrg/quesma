@@ -15,10 +15,8 @@ type (
 	Query struct {
 		SelectCommand SelectCommand // The representation of SELECT query
 
-		// Eventually we should merge this two
-		QueryInfoType SearchQueryType
-		Type          QueryType
-		TableName     string
+		Type      QueryType
+		TableName string
 
 		Highlighter Highlighter
 		NoDBQuery   bool         // true <=> we don't need query to DB here, true in some pipeline aggregations

@@ -214,7 +214,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results [][]model.QueryResultRow) (queriesWithoutHits []*model.Query, resultsWithoutHits [][]model.QueryResultRow, hit *model.SearchHits) {
 	hitsIndex := -1
 	for i, query := range queries {
-		if query.QueryInfoType == model.ListAllFields || query.QueryInfoType == model.ListByField {
+		if _, hasHits := query.Type.(*typical_queries.Hits); hasHits {
 			if hitsIndex != -1 {
 				logger.WarnWithCtx(cw.Ctx).Msgf("multiple hits queries found in queries: %v", queries)
 			}
@@ -284,7 +284,9 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 		return
 	}
 	for i, query := range queries {
-		if query.QueryInfoType == model.Facets || query.QueryInfoType == model.FacetsNumeric {
+		_, isFacetNumeric := query.Type.(*typical_queries.FacetsNumeric)
+		_, isFacet := query.Type.(*typical_queries.Facets)
+		if isFacetNumeric || isFacet {
 			totalCount = 0
 			for _, row := range results[i] {
 				if len(row.Cols) > 0 {
@@ -313,7 +315,7 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 	}
 
 	for i, query := range queries {
-		if query.QueryInfoType == model.ListAllFields || query.QueryInfoType == model.ListByField {
+		if _, hasHits := query.Type.(*typical_queries.Hits); hasHits {
 			totalCount = len(results[i])
 			relation := "eq"
 			if query.SelectCommand.Limit != 0 && totalCount == query.SelectCommand.Limit {
