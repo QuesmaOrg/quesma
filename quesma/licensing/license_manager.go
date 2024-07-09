@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	obtainLicenseEndpoint = "https://quesma-licensing-service-gd46dsvxda-uc.a.run.app/api/license/obtain"
-	verifyLicenseEndpoint = "https://quesma-licensing-service-gd46dsvxda-uc.a.run.app/api/license/verify"
+	obtainLicenseEndpoint = "https://licensing.quesma.com/api/license/obtain"
+	verifyLicenseEndpoint = "https://licensing.quesma.com/api/license/verify"
 )
 
 type InstallationIDPayload struct {

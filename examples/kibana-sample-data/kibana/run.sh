@@ -60,14 +60,9 @@ add_sample_dataset() {
 
 wait_until_available
 
-if [ -z "$LIMITED_DATASET" ] || [ "$LIMITED_DATASET" != "true" ]; then
-    add_sample_dataset "flights"
-    add_sample_dataset "logs"
-    add_sample_dataset "ecommerce"
-else
-    echo "Using limited dataset - only 'flights' index"
-    add_sample_dataset "flights"
-fi
+add_sample_dataset "flights"
+#add_sample_dataset "logs"
+add_sample_dataset "ecommerce"
 
 echo -n "Adding data view logs-generic... "
 do_silent_http_post "api/data_views/data_view" '{
