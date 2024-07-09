@@ -22,9 +22,9 @@ func (query GeoTileGrid) IsBucketAggregation() bool {
 }
 
 func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
-	if len(rows) > 0 && len(rows[0].Cols) < 2 {
+	if len(rows) > 0 && len(rows[0].Cols) < 3 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
-			"unexpected number of columns in date_histogram aggregation response, len(rows[0].Cols): "+
+			"unexpected number of columns in geotile_grid aggregation response, len(rows[0].Cols): "+
 				"%d, level: %d", len(rows[0].Cols), level,
 		)
 	}
