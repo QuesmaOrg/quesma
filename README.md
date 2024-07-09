@@ -57,6 +57,11 @@ In order to run it, you need to:
 - build `quesma:latest` image by running `docker build -f quesma/Dockerfile -t quesma:latest quesma` from the root directory
 - run `docker-compose up` directly from `/examples/kibana-sample-data` directory
 
+Handy one-liner:
+```bash
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/QuesmaOrg/quesma/main/run.sh)"
+```
+
 Once it's running, you can access:
 - Kibana at [localhost:5601](http://localhost:5601/)
 - Quesma at [localhost:9999](http://localhost:9999/)
