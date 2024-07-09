@@ -213,21 +213,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 			}
 		}`,
 	},
-	{ // [10]
-		TestName:  "bucket aggregation: geotile_grid",
-		QueryType: "geotile_grid",
-		QueryRequestJson: `
-		{
-			"aggs": {
-				"large-grid": {
-					"geotile_grid": {
-						"field": "location",
-						"precision": 8
-					}
-				}
-			}
-		}`,
-	},
 	{ // [11]
 		TestName:  "bucket aggregation: global",
 		QueryType: "global",
@@ -471,23 +456,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 				"viewport": {
 					"geo_bounds": {
 						"field": "geometry"
-					}
-				}
-			}
-		}`,
-	},
-	{ // [26]
-		TestName:  "metrics aggregation: geo_centroid",
-		QueryType: "geo_centroid",
-		QueryRequestJson: `
-		{
-			"aggs": {
-				"cities": {
-					"terms": { "field": "city.keyword" },
-					"aggs": {
-						"centroid": {
-							"geo_centroid": { "field": "location" }
-						}
 					}
 				}
 			}
@@ -1250,34 +1218,6 @@ var UnsupportedQueriesTests = []UnsupportedQueryTestCase{
 					"query":      "database systems",
 					"fields":     [ "title", "abstract", "body"],
 					"operator":   "and"
-				}
-			}
-		}`,
-	},
-	{ // [66]
-		TestName:  "Geo queries: geo_bounding_box",
-		QueryType: "geo_bounding_box",
-		QueryRequestJson: `
-		{
-			"query": {
-				"bool": {
-					"must": {
-						"match_all": {}
-					},
-					"filter": {
-						"geo_bounding_box": {
-							"pin.location": {
-								"top_left": {
-									"lat": 40.73,
-									"lon": -74.1
-								},
-								"bottom_right": {
-									"lat": 40.01,
-									"lon": -71.12
-								}
-							}
-						}
-					}
 				}
 			}
 		}`,

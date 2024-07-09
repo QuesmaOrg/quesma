@@ -295,8 +295,10 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 						totalCount += int(v)
 					case int:
 						totalCount += v
+					case int64:
+						totalCount += int(v)
 					default:
-						logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v", v)
+						logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v %t", v, v)
 					}
 				}
 			}
