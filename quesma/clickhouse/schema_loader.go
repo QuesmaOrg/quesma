@@ -93,12 +93,13 @@ func (sl *tableDiscovery) ReloadTableDefinitions() {
 		return
 	} else {
 		if sl.cfg.IndexConfig == nil {
-			logger.Info().Msg("Index configuration empty, Quesma table auto-discovery starts")
+			logger.Info().Msg("Index configuration empty, running table auto-discovery")
 			for table, columns := range tables {
 				comment := sl.SchemaManagement.tableComment(databaseName, table)
 				createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
 				configuredTables[table] = discoveredTable{columns, config.IndexConfiguration{}, comment, createTableQuery}
 			}
+			logger.Info().Msgf("Table discovery results: tables=[%s]", strings.Join(util.MapKeys(configuredTables), ","))
 		} else {
 			for table, columns := range tables {
 				if indexConfig, found := sl.cfg.IndexConfig[table]; found {
