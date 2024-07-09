@@ -42,7 +42,7 @@ const (
 
 const (
 	localLogPath = "../docker/quesma/logs/quesma.log"
-	ciLogPath    = "/home/runner/work/quesma/quesma/docker/quesma/logs/quesma.log"
+	ciLogPath    = "/home/runner/work/quesma/quesma/ci/quesma/logs/quesma.log"
 	ciEnvVar     = "GITHUB_ACTIONS"
 )
 
