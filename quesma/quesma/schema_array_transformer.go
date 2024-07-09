@@ -21,11 +21,11 @@ import (
 type ArrayTypeVisitor struct {
 	tableName string
 	table     *clickhouse.Table
+	schema    schema.Schema
 
 	// deps
 	schemaRegistry schema.Registry
 	logManager     *clickhouse.LogManager
-	schema         schema.Schema
 }
 
 func (v *ArrayTypeVisitor) visitChildren(args []model.Expr) []model.Expr {
@@ -56,6 +56,7 @@ func (v *ArrayTypeVisitor) dbColumnType(fieldName string) string {
 }
 
 func (v *ArrayTypeVisitor) VisitLiteral(e model.LiteralExpr) interface{} { return e }
+
 func (v *ArrayTypeVisitor) VisitInfix(e model.InfixExpr) interface{} {
 
 	column, ok := e.Left.(model.ColumnRef)
@@ -90,12 +91,10 @@ func (v *ArrayTypeVisitor) VisitInfix(e model.InfixExpr) interface{} {
 }
 
 func (v *ArrayTypeVisitor) VisitPrefixExpr(e model.PrefixExpr) interface{} {
-
 	args := v.visitChildren(e.Args)
-
 	return model.NewPrefixExpr(e.Op, args)
-
 }
+
 func (v *ArrayTypeVisitor) VisitFunction(e model.FunctionExpr) interface{} {
 
 	if len(e.Args) == 1 {
@@ -123,52 +122,51 @@ func (v *ArrayTypeVisitor) VisitFunction(e model.FunctionExpr) interface{} {
 	args := v.visitChildren(e.Args)
 	return model.NewFunction(e.Name, args...)
 }
-func (v *ArrayTypeVisitor) VisitColumnRef(e model.ColumnRef) interface{} {
 
+func (v *ArrayTypeVisitor) VisitColumnRef(e model.ColumnRef) interface{} {
 	return e
 }
 
 func (v *ArrayTypeVisitor) VisitNestedProperty(e model.NestedProperty) interface{} {
-
 	return model.NestedProperty{
 		ColumnRef:    e.ColumnRef.Accept(v).(model.ColumnRef),
 		PropertyName: e.PropertyName.Accept(v).(model.LiteralExpr),
 	}
 }
+
 func (v *ArrayTypeVisitor) VisitArrayAccess(e model.ArrayAccess) interface{} {
 	return model.ArrayAccess{
 		ColumnRef: e.ColumnRef.Accept(v).(model.ColumnRef),
 		Index:     e.Index.Accept(v).(model.Expr),
 	}
 }
-func (v *ArrayTypeVisitor) VisitMultiFunction(e model.MultiFunctionExpr) interface{} {
 
+func (v *ArrayTypeVisitor) VisitMultiFunction(e model.MultiFunctionExpr) interface{} {
 	args := v.visitChildren(e.Args)
 	return model.MultiFunctionExpr{Name: e.Name, Args: args}
 }
 
 func (v *ArrayTypeVisitor) VisitString(e model.StringExpr) interface{} { return e }
+
 func (v *ArrayTypeVisitor) VisitOrderByExpr(e model.OrderByExpr) interface{} {
-
 	exprs := v.visitChildren(e.Exprs)
-
 	return model.NewOrderByExpr(exprs, e.Direction)
-
 }
-func (v *ArrayTypeVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{} {
 
+func (v *ArrayTypeVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{} {
 	return model.NewDistinctExpr(e.Expr.Accept(v).(model.Expr))
 }
+
 func (v *ArrayTypeVisitor) VisitTableRef(e model.TableRef) interface{} {
 	return model.NewTableRef(e.Name)
 }
+
 func (v *ArrayTypeVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{} {
 	return model.NewAliasedExpr(e.Expr.Accept(v).(model.Expr), e.Alias)
 }
+
 func (v *ArrayTypeVisitor) VisitWindowFunction(e model.WindowFunction) interface{} {
-
 	return model.NewWindowFunction(e.Name, v.visitChildren(e.Args), v.visitChildren(e.PartitionBy), e.OrderBy.Accept(v).(model.OrderByExpr))
-
 }
 
 func (v *ArrayTypeVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
