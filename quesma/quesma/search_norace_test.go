@@ -27,23 +27,6 @@ import (
 	"time"
 )
 
-type staticRegistry struct {
-	tables map[schema.TableName]schema.Schema
-}
-
-func (e staticRegistry) AllSchemas() map[schema.TableName]schema.Schema {
-	if e.tables != nil {
-		return e.tables
-	} else {
-		return map[schema.TableName]schema.Schema{}
-	}
-}
-
-func (e staticRegistry) FindSchema(name schema.TableName) (schema.Schema, bool) {
-	s, found := e.tables[name]
-	return s, found
-}
-
 // TestAllUnsupportedQueryTypesAreProperlyRecorded tests if all unsupported query types are properly recorded.
 // It runs |testdata.UnsupportedAggregationsTests| tests, each of them sends one query of unsupported type.
 // It ensures that this query type is recorded in the management console, and that all other query types are not.
