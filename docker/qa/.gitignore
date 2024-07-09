@@ -1,5 +1,0 @@
-mitmproxy/requests/*.json
-replay-traffic/data/*.json
-results/
-requests/
-mitmproxy/requests/

@@ -1,1 +1,0 @@
-This is small log generator which generates logs similar to the logs ingested by Device customer
