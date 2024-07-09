@@ -19,7 +19,7 @@ func NewSchemaManagement(chDb *sql.DB) *SchemaManagement {
 func (s *SchemaManagement) readTables(database string) (map[string]map[string]string, error) {
 	logger.Debug().Msgf("describing tables: %s", database)
 
-	rows, err := s.chDb.Query("SELECT table, name, type FROM system.columns WHERE database = ?", database)
+	rows, err := s.chDb.Query("SELECT table, name, type FROM system.columns WHERE database = ? AND database != 'system'", database)
 	if err != nil {
 		err = end_user_errors.GuessClickhouseErrorType(err).InternalDetails("reading list of columns from system.columns")
 		return map[string]map[string]string{}, err
@@ -42,7 +42,7 @@ func (s *SchemaManagement) readTables(database string) (map[string]map[string]st
 
 func (s *SchemaManagement) tableComment(database, table string) (comment string) {
 
-	err := s.chDb.QueryRow("SELECT comment FROM system.tables WHERE database = ? and table = ? ", database, table).Scan(&comment)
+	err := s.chDb.QueryRow("SELECT comment FROM system.tables WHERE database = ? and table = ? AND database != 'system'", database, table).Scan(&comment)
 
 	if err != nil {
 		logger.Error().Msgf("could not get table comment: %v", err)

@@ -92,31 +92,40 @@ func (sl *tableDiscovery) ReloadTableDefinitions() {
 		sl.tableDefinitions.Store(NewTableMap())
 		return
 	} else {
-		for table, columns := range tables {
-			if indexConfig, found := sl.cfg.IndexConfig[table]; found {
-				if indexConfig.Enabled {
-					for colName := range columns {
-						if _, exists := indexConfig.Aliases[colName]; exists {
-							logger.Error().Msgf("column [%s] clashes with an existing alias, table [%s]", colName, table)
-						}
-					}
-					comment := sl.SchemaManagement.tableComment(databaseName, table)
-					createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
-					configuredTables[table] = discoveredTable{columns, indexConfig, comment, createTableQuery}
-				} else {
-					explicitlyDisabledTables = append(explicitlyDisabledTables, table)
-				}
-			} else {
-				notConfiguredTables = append(notConfiguredTables, table)
+		if sl.cfg.IndexConfig == nil {
+			logger.Info().Msg("Index configuration empty, Quesma table auto-discovery starts")
+			for table, columns := range tables {
+				comment := sl.SchemaManagement.tableComment(databaseName, table)
+				createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
+				configuredTables[table] = discoveredTable{columns, config.IndexConfiguration{}, comment, createTableQuery}
 			}
+		} else {
+			for table, columns := range tables {
+				if indexConfig, found := sl.cfg.IndexConfig[table]; found {
+					if indexConfig.Enabled {
+						for colName := range columns {
+							if _, exists := indexConfig.Aliases[colName]; exists {
+								logger.Error().Msgf("column [%s] clashes with an existing alias, table [%s]", colName, table)
+							}
+						}
+						comment := sl.SchemaManagement.tableComment(databaseName, table)
+						createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
+						configuredTables[table] = discoveredTable{columns, indexConfig, comment, createTableQuery}
+					} else {
+						explicitlyDisabledTables = append(explicitlyDisabledTables, table)
+					}
+				} else {
+					notConfiguredTables = append(notConfiguredTables, table)
+				}
+			}
+			logger.Info().Msgf(
+				"Table discovery results: configured=[%s], found but not configured=[%s], explicitly disabled=[%s]",
+				strings.Join(util.MapKeys(configuredTables), ","),
+				strings.Join(notConfiguredTables, ","),
+				strings.Join(explicitlyDisabledTables, ","),
+			)
 		}
 	}
-	logger.Info().Msgf(
-		"Table discovery results: configured=[%s], found but not configured=[%s], explicitly disabled=[%s]",
-		strings.Join(util.MapKeys(configuredTables), ","),
-		strings.Join(notConfiguredTables, ","),
-		strings.Join(explicitlyDisabledTables, ","),
-	)
 	sl.ReloadTablesError = nil
 	sl.populateTableDefinitions(configuredTables, databaseName, sl.cfg)
 }
