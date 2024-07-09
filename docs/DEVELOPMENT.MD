@@ -4,7 +4,7 @@
 
 ### Architecture Decision Records
 
-https://github.com/QuesmaOrg/poc-elk-mitmproxy/tree/main/adr
+https://github.com/QuesmaOrg/quesma/tree/main/adr
 
 ### Quesma
 
