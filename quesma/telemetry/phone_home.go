@@ -92,7 +92,7 @@ type PhoneHomeStats struct {
 	ElasticBypassedReadsDuration  DurationStats `json:"elastic_bypassed_read_requests"`
 	ElasticBypassedWritesDuration DurationStats `json:"elastic_bypassed_write_requests"`
 
-	// Due to schema issues, we are not using this for now, ref: https://github.com/QuesmaOrg/poc-elk-mitmproxy/pull/648
+	// Due to schema issues, we are not using this for now
 	IngestCounters    MultiCounterStats          `json:"-"`
 	UserAgentCounters MultiCounterTopValuesStats `json:"top_user_agents"`
 

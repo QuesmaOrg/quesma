@@ -4,7 +4,7 @@
 
 ### Architecture Decision Records
 
-https://github.com/QuesmaOrg/poc-elk-mitmproxy/tree/main/adr
+https://github.com/QuesmaOrg/quesma/tree/main/adr
 
 ### Quesma
 
@@ -95,10 +95,10 @@ Now, head over to localhost:8082 and you can inspect the memory profile
 ### Clickhouse-client
 To connect to the client when `clickhouse-server` is running on [localhost:8123/play](http://localhost:8123/play)
 
-Alternatively, you can find the container name using `docker ps` and use the command line:
+Alternatively, you can find the container name using `docker ps` and use the command line, remember to substitute `{container-name}` with the actual name of the container:
 
 ```bash
-docker exec -it poc-elk-mitmproxy-clickhouse-1 clickhouse-client
+docker exec -it {container-name} clickhouse-client
 ```
 
 Once you connected, you run typical SQL commands such as:

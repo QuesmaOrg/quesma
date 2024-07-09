@@ -153,7 +153,6 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	}
 
 	query := b.buildAggregationCommon(metadata)
-
 	switch metricsAggr.AggrType {
 	case "sum", "min", "max", "avg":
 		query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewFunction(metricsAggr.AggrType+"OrNull", getFirstExpression()))
@@ -300,7 +299,19 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		addColumn("varSamp")
 		addColumn("stddevPop")
 		addColumn("stddevSamp")
-
+	case "geo_centroid":
+		firstExpr := getFirstExpression()
+		if col, ok := firstExpr.(model.ColumnRef); ok {
+			colName := col.ColumnName
+			// TODO we have create columns according to the schema
+			latColumn := model.NewColumnRef(colName + "::lat")
+			lonColumn := model.NewColumnRef(colName + "::lon")
+			castLat := model.NewFunction("CAST", latColumn, model.NewLiteral(fmt.Sprintf("'%s'", "Float")))
+			castLon := model.NewFunction("CAST", lonColumn, model.NewLiteral(fmt.Sprintf("'%s'", "Float")))
+			query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewFunction("avgOrNull", castLat))
+			query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewFunction("avgOrNull", castLon))
+			query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewFunction("count"))
+		}
 	default:
 		logger.WarnWithCtx(b.ctx).Msgf("unknown metrics aggregation: %s", metricsAggr.AggrType)
 		return nil
@@ -330,6 +341,8 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		query.Type = metrics_aggregations.NewValueCount(b.ctx)
 	case "percentile_ranks":
 		query.Type = metrics_aggregations.NewPercentileRanks(b.ctx, metricsAggr.Keyed)
+	case "geo_centroid":
+		query.Type = metrics_aggregations.NewGeoCentroid(b.ctx)
 	}
 	return query
 }
@@ -524,7 +537,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 	// full list: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-Aggregations-metrics.html
 	// shouldn't be hard to handle others, if necessary
 
-	metricsAggregations := []string{"sum", "avg", "min", "max", "cardinality", "value_count", "stats"}
+	metricsAggregations := []string{"sum", "avg", "min", "max", "cardinality", "value_count", "stats", "geo_centroid"}
 	for k, v := range queryMap {
 		if slices.Contains(metricsAggregations, k) {
 			field, isFromScript := cw.parseFieldFieldMaybeScript(v, k)
@@ -898,6 +911,76 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 
 		delete(queryMap, "date_range")
 		return success, 0, nil
+	}
+	if geoTileGridRaw, ok := queryMap["geotile_grid"]; ok {
+		geoTileGrid, ok := geoTileGridRaw.(QueryMap)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("geotile_grid is not a map, but %T, value: %v", geoTileGridRaw, geoTileGridRaw)
+		}
+		var precision float64
+		precisionRaw, ok := geoTileGrid["precision"]
+		if ok {
+			switch cutValueTyped := precisionRaw.(type) {
+			case float64:
+				precision = cutValueTyped
+			}
+		}
+		field := cw.parseFieldField(geoTileGrid, "geotile_grid")
+		currentAggr.Type = bucket_aggregations.NewGeoTileGrid(cw.Ctx)
+
+		// That's bucket (group by) formula for geotile_grid
+		// zoom/x/y
+		//	SELECT precision as zoom,
+		//	    FLOOR(((toFloat64("Location::lon") + 180.0) / 360.0) * POWER(2, zoom)) AS x_tile,
+		//	    FLOOR(
+		//	        (
+		//	            1 - LOG(TAN(RADIANS(toFloat64("Location::lat"))) + (1 / COS(RADIANS(toFloat64("Location::lat"))))) / PI()
+		//	        ) / 2.0 * POWER(2, zoom)
+		//	    ) AS y_tile, count()
+		//	FROM
+		//	     kibana_sample_data_flights Group by zoom, x_tile, y_tile
+
+		// TODO columns names should be created according to the schema
+		var lon = model.AsString(field)
+		lon = strings.Trim(lon, "\"")
+		lon = lon + "::lon"
+		var lat = model.AsString(field)
+		lat = strings.Trim(lat, "\"")
+		lat = lat + "::lat"
+		toFloatFunLon := model.NewFunction("toFloat64", model.NewColumnRef(lon))
+		var infixX model.Expr
+		infixX = model.NewParenExpr(model.NewInfixExpr(toFloatFunLon, "+", model.NewLiteral(180.0)))
+		infixX = model.NewParenExpr(model.NewInfixExpr(infixX, "/", model.NewLiteral(360.0)))
+		infixX = model.NewInfixExpr(infixX, "*",
+			model.NewFunction("POWER", model.NewLiteral(2), model.NewLiteral("zoom")))
+		xTile := model.NewAliasedExpr(model.NewFunction("FLOOR", infixX), "x_tile")
+		toFloatFunLat := model.NewFunction("toFloat64", model.NewColumnRef(lat))
+		radians := model.NewFunction("RADIANS", toFloatFunLat)
+		tan := model.NewFunction("TAN", radians)
+		cos := model.NewFunction("COS", radians)
+		Log := model.NewFunction("LOG", model.NewInfixExpr(tan, "+",
+			model.NewParenExpr(model.NewInfixExpr(model.NewLiteral(1), "/", cos))))
+
+		FloorContent := model.NewInfixExpr(
+			model.NewInfixExpr(
+				model.NewParenExpr(
+					model.NewInfixExpr(model.NewInfixExpr(model.NewLiteral(1), "-", Log), "/",
+						model.NewLiteral("PI()"))), "/",
+				model.NewLiteral(2.0)), "*",
+			model.NewFunction("POWER", model.NewLiteral(2), model.NewLiteral("zoom")))
+		yTile := model.NewAliasedExpr(
+			model.NewFunction("FLOOR", FloorContent), "y_tile")
+
+		currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, model.NewAliasedExpr(model.NewLiteral(precision), "zoom"))
+		currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, xTile)
+		currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, yTile)
+
+		currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, model.NewColumnRef("zoom"))
+		currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, model.NewColumnRef("x_tile"))
+		currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, model.NewColumnRef("y_tile"))
+
+		delete(queryMap, "geotile_grid")
+		return success, 3, err
 	}
 	if _, ok := queryMap["sampler"]; ok {
 		currentAggr.Type = metrics_aggregations.NewCount(cw.Ctx)

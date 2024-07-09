@@ -115,11 +115,7 @@ func (v *usedColumns) VisitWindowFunction(f WindowFunction) interface{} {
 }
 
 func (v *usedColumns) VisitParenExpr(p ParenExpr) interface{} {
-	var exprs []Expr
-	for _, expr := range p.Exprs {
-		exprs = append(exprs, expr.Accept(v).(Expr))
-	}
-	return NewParenExpr(exprs...)
+	return p
 }
 
 func (v *usedColumns) VisitLambdaExpr(e LambdaExpr) interface{} {
