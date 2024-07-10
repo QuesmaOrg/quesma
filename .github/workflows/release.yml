@@ -46,6 +46,9 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PAT }}
 
+      - name: Set the build date
+        run: echo QUESMA_BUILD_DATE=$(git --no-pager log -1 --date=format:'%Y-%m-%d' --format="%ad")  >> $GITHUB_ENV
+
       - name: Build and export
         uses: docker/build-push-action@v6
         with:
@@ -60,7 +63,7 @@ jobs:
           build-args: |
             QUESMA_BUILD_SHA=${{ github.sha }}
             QUESMA_VERSION=${{ github.event.inputs.VERSION }}
-            QUESMA_BUILD_DATE=${{ github.event.head.timestamp }}
+            QUESMA_BUILD_DATE=${{ env.QUESMA_BUILD_DATE }}
           platforms: linux/amd64,linux/arm64
         env:
           DOCKER_BUILD_SUMMARY: false
