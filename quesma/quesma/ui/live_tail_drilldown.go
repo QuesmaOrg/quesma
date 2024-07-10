@@ -3,7 +3,6 @@
 package ui
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"gopkg.in/yaml.v3"
@@ -45,9 +44,11 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 
 		buffer.Html(`<div class="query-body-translated">` + "\n")
 		buffer.Html("<p class=\"title\">Translated SQL:</p>\n")
-		buffer.Html(`<pre>`)
-		buffer.Text(util.SqlPrettyPrint(bytes.Join(request.QueryBodyTranslated, []byte{})))
-		buffer.Html("\n</pre>")
+		for _, queryBody := range request.QueryBodyTranslated {
+			buffer.Html(`<pre>`)
+			buffer.Text(util.SqlPrettyPrint(queryBody))
+			buffer.Html("\n</pre>")
+		}
 		buffer.Html(`</div>` + "\n")
 
 		buffer.Html(`<div class="elastic-response">` + "\n")
