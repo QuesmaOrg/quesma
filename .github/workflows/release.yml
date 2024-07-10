@@ -52,7 +52,7 @@ jobs:
             quesma/quesma:${{ github.event.inputs.VERSION }}
             quesma/quesma:latest
           # Pushes to GCR only for `main` branch builds
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          push: true #${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           build-args: |
             QUESMA_BUILD_SHA=${{ github.sha }}
             QUESMA_VERSION=${{ github.event.inputs.VERSION }}
