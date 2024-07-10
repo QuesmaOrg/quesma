@@ -427,7 +427,10 @@ func (cw *ClickhouseQueryTranslator) iterateListOrDictAndParse(queryMaps interfa
 		return cw.parseQueryMapArray(queryMapsTyped)
 	case QueryMap:
 		simpleQuery := cw.parseQueryMap(queryMapsTyped)
-		return []model.Expr{simpleQuery.WhereClause}, simpleQuery.CanParse
+		if simpleQuery.WhereClause != nil {
+			return []model.Expr{simpleQuery.WhereClause}, simpleQuery.CanParse
+		}
+		return []model.Expr{}, simpleQuery.CanParse
 	default:
 		logger.WarnWithCtx(cw.Ctx).Msgf("Invalid query type: %T, value: %v", queryMapsTyped, queryMapsTyped)
 		return []model.Expr{}, false
@@ -477,13 +480,9 @@ func (cw *ClickhouseQueryTranslator) parseBool(queryMap QueryMap) model.SimpleQu
 		sqlNots, canParseThis := cw.iterateListOrDictAndParse(queries)
 		canParse = canParse && canParseThis
 		if len(sqlNots) > 0 {
-			for i, stmt := range sqlNots {
-				if stmt != nil {
-					sqlNots[i] = model.NewPrefixExpr("NOT", []model.Expr{stmt})
-				}
-			}
-			orSql := model.Or(sqlNots)
-			sql = model.And([]model.Expr{sql, orSql})
+			// transform NOT a && NOT b && NOT c --> NOT (a OR b OR c)
+			sqlNot := model.NewPrefixExpr("NOT", []model.Expr{model.Or(sqlNots)})
+			sql = model.And([]model.Expr{sql, sqlNot})
 		}
 	}
 	return model.NewSimpleQuery(sql, canParse)

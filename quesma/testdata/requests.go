@@ -1194,7 +1194,10 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`("type"='upgrade-assistant-reindex-operation' AND (NOT ((has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL)) OR NOT ((has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))))`},
+		[]string{
+			`("type"='upgrade-assistant-reindex-operation' AND NOT ` +
+				`(((has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL) ` +
+				`OR (has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))))`},
 		model.ListAllFields,
 		////[]model.Query{
 		//	justSimplestWhere(`("type"='upgrade-assistant-reindex-operation' AND (NOT ((has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL)) OR NOT ((has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))))`),
@@ -1203,9 +1206,9 @@ var TestsSearch = []SearchTestCase{
 			`SELECT "message" ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("type"='upgrade-assistant-reindex-operation' ` +
-				`AND (NOT ((has("attributes_string_key","namespace") ` +
-				`AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL)) ` +
-				`OR NOT ((has("attributes_string_key","namespaces") ` +
+				`AND NOT (((has("attributes_string_key","namespace") ` +
+				`AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL) ` +
+				`OR (has("attributes_string_key","namespaces") ` +
 				`AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))))`,
 		},
 	},
