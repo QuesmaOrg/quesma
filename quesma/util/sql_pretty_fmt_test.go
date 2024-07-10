@@ -107,3 +107,29 @@ ORDER BY count() DESC`
 	sqlFormatted := SqlPrettyPrint([]byte(expect))
 	assert.Equal(t, expect, sqlFormatted)
 }
+
+func TestSqlWith(t *testing.T) {
+	sql := `SELECT count() FROM "kibana_sample_data_ecommerce"
+WITH subQuery_1 AS (SELECT "animalType" AS "subQuery_1_1", count() AS "subQuery_1_cnt" FROM "default"."animal_index" WHERE ("date">=parseDateTime64BestEffort('2024-04-17T08:53:18.456Z') AND "date"<=parseDateTime64BestEffort('2024-07-10T08:53:18.456Z')) GROUP BY "animalType" ORDER BY count() DESC, "animalType" LIMIT 5) SELECT "animalType", "zooName", count() FROM "default"."animal_index" INNER JOIN "subQuery_1" ON "animalType" = "subQuery_1_1" WHERE ("date">=parseDateTime64BestEffort('2024-04-17T08:53:18.456Z') AND "date"<=parseDateTime64BestEffort('2024-07-10T08:53:18.456Z')) GROUP BY "animalType", "zooName", subQuery_1_cnt ORDER BY subQuery_1_cnt DESC, "animalType", count() DESC, "zooName" LIMIT 6`
+	expect := `SELECT count()
+FROM "kibana_sample_data_ecommerce"
+
+WITH subQuery_1 AS (
+  SELECT "animalType" AS "subQuery_1_1", count() AS "subQuery_1_cnt"
+  FROM "default"."animal_index"
+  WHERE ("date">=parseDateTime64BestEffort('2024-04-17T08:53:18.456Z') AND
+    "date"<=parseDateTime64BestEffort('2024-07-10T08:53:18.456Z'))
+  GROUP BY "animalType"
+  ORDER BY count() DESC, "animalType"
+  LIMIT 5)
+SELECT "animalType", "zooName", count()
+FROM "default"."animal_index" INNER JOIN "subQuery_1" ON "animalType" =
+  "subQuery_1_1"
+WHERE ("date">=parseDateTime64BestEffort('2024-04-17T08:53:18.456Z') AND "date"
+  <=parseDateTime64BestEffort('2024-07-10T08:53:18.456Z'))
+GROUP BY "animalType", "zooName", subQuery_1_cnt
+ORDER BY subQuery_1_cnt DESC, "animalType", count() DESC, "zooName"
+LIMIT 6`
+	sqlFormatted := SqlPrettyPrint([]byte(sql))
+	assert.Equal(t, expect, sqlFormatted)
+}

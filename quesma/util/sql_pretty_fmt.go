@@ -34,11 +34,7 @@ func SqlPrettyPrint(sqlData []byte) string {
 
 		// Skip original whitespace
 		if token.Type == sqllexer.WS {
-			if strings.ContainsRune(token.Value, '\n') {
-				continue
-			} else {
-				token.Value = " "
-			}
+			token.Value = " "
 		}
 
 		// Add new line if needed
@@ -47,6 +43,14 @@ func SqlPrettyPrint(sqlData []byte) string {
 			lineLength = 0
 			isBreakIndent = false
 		}
+		if token.Value == "WITH" {
+			if len(stack) > 0 {
+				sb.WriteString("\n\n")
+				lineLength = 0
+			}
+			isBreakIndent = false
+			stack = []string{token.Value}
+		}
 		if token.Value == "SELECT" {
 			if len(stack) > 0 && stack[len(stack)-1] == "SELECT" {
 				stack = stack[:len(stack)-1]
@@ -54,6 +58,9 @@ func SqlPrettyPrint(sqlData []byte) string {
 					sb.WriteString("\n\n")
 					lineLength = 0
 				}
+			}
+			if len(stack) > 0 && stack[len(stack)-1] == "WITH" {
+				stack = stack[:len(stack)-1]
 			}
 			if len(stack) > 0 {
 				subQueryIndent += 1
