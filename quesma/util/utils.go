@@ -279,15 +279,6 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 			i1Len, i2Len := len(i1Typed), len(i2Typed)
 			mergedArray := make([]JsonMap, 0, max(i1Len, i2Len))
 
-			// CARE: keeps the old implementation for now, which seemed to work fine everywhere,
-			// until one `sample_flights` dashboard. It's not perfect. TODO improve it.
-			if i1Len == i2Len {
-				for i := 0; i < i1Len; i++ {
-					mergedArray = append(mergedArray, mergeMapsRec(i1Typed[i], i2Typed[i].(JsonMap)))
-				}
-				return mergedArray
-			}
-
 			i, j := 0, 0
 			for i < i1Len && j < i2Len {
 				var key1, key2 string
@@ -295,6 +286,10 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 				if !ok {
 					if key1Int, ok := i1Typed[i][keyAddedByQuesma].(int64); ok {
 						key1 = strconv.FormatInt(key1Int, 10)
+					} else if key1Uint, ok := i1Typed[i][keyAddedByQuesma].(uint64); ok {
+						key1 = strconv.FormatUint(key1Uint, 10)
+					} else if key1Float, ok := i1Typed[i][keyAddedByQuesma].(float64); ok {
+						key1 = strconv.FormatFloat(key1Float, 'f', -1, 64)
 					} else {
 						// TODO keys probably can be other types, e.g. bools
 						logger.ErrorWithCtx(ctx).Msgf("mergeAny: key not found in i1: %v", i1Typed[i])
@@ -306,6 +301,10 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 				if !ok {
 					if key2Int, ok := i2Typed[j].(JsonMap)[keyAddedByQuesma].(int64); ok {
 						key2 = strconv.FormatInt(key2Int, 10)
+					} else if key2Uint, ok := i2Typed[j].(JsonMap)[keyAddedByQuesma].(uint64); ok {
+						key2 = strconv.FormatUint(key2Uint, 10)
+					} else if key2Float, ok := i2Typed[j].(JsonMap)[keyAddedByQuesma].(float64); ok {
+						key2 = strconv.FormatFloat(key2Float, 'f', -1, 64)
 					} else {
 						// TODO keys probably can be other types, e.g. bools
 						logger.ErrorWithCtx(ctx).Msgf("mergeAny: key not found in i2: %v", i2Typed[j])
@@ -337,6 +336,7 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 			return mergedArray
 
 		default:
+			logger.WarnWithCtx(ctx).Msgf("mergeAny: i1 isn't neither json nor []json, i1 type: %T, i2 type: %T, i1: %v, i2: %v", i1, i2, i1, i2)
 			return i1
 		}
 	}

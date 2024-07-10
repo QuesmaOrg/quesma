@@ -438,6 +438,8 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 	}
 
 	currentAggr := *prevAggr
+	currentAggr.SelectCommand.Limit = 0
+	fmt.Println("AAAA", currentAggr.SelectCommand.Limit, prevAggr.SelectCommand.Limit)
 
 	// check if metadata's present
 	var metadata model.JsonMap
@@ -495,6 +497,24 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 		cw.processRangeAggregation(&currentAggr, Range, queryMap, resultQueries, metadata)
 	}
 
+	_, isTerms := currentAggr.Type.(bucket_aggregations.Terms)
+	if isTerms {
+		fmt.Println("IS TERMS")
+		*resultQueries = append(*resultQueries, currentAggr.buildBucketAggregation(metadata))
+		subquery := currentAggr.Query
+		subquery.CopyAggregationFields(currentAggr.Query)
+		subquery.SelectCommand.WhereClause = currentAggr.whereBuilder.WhereClause
+		subquery.SelectCommand.Columns = append(subquery.SelectCommand.Columns,
+			model.NewAliasedExpr(model.NewCountFunc(), fmt.Sprintf("subQuery_%d_cnt", len(currentAggr.SelectCommand.Subqueries)+1)))
+		subquery.SelectCommand.Subqueries = nil
+		if len(subquery.SelectCommand.OrderBy) > 2 {
+			subquery.SelectCommand.OrderBy = subquery.SelectCommand.OrderBy[len(subquery.SelectCommand.OrderBy)-2:]
+		}
+		currentAggr.SelectCommand.Subqueries = append(currentAggr.SelectCommand.Subqueries, subquery.SelectCommand)
+
+		fmt.Println("SUB:", currentAggr.SelectCommand.Subqueries)
+	}
+
 	// TODO what happens if there's all: filters, range, and subaggregations at current level?
 	// We probably need to do |ranges| * |filters| * |subaggregations| queries, but we don't do that yet.
 	// Or probably a bit less, if optimized correctly.
@@ -514,7 +534,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 	}
 	delete(queryMap, "aggs") // no-op if no "aggs"
 
-	if bucketAggrPresent && !aggsHandledSeparately {
+	if bucketAggrPresent && !aggsHandledSeparately && !isTerms {
 		// range aggregation has separate, optimized handling
 		*resultQueries = append(*resultQueries, currentAggr.buildBucketAggregation(metadata))
 	}
@@ -757,8 +777,6 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		if terms, ok := queryMap[termsType]; ok {
 			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms")
 
-			isEmptyGroupBy := len(currentAggr.SelectCommand.GroupBy) == 0
-
 			// Parse 'missing' parameter. It can be any type.
 			var missingPlaceholder any
 			if m, ok := terms.(QueryMap); ok {
@@ -785,49 +803,28 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 				fieldExpression = model.NewFunction("COALESCE", fieldExpression, value)
 			}
 
-			currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, fieldExpression)
-			currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, fieldExpression)
-
-			orderByAdded := false
 			size := 10
-			if _, ok := queryMap["aggs"]; isEmptyGroupBy && !ok { // we can do limit only it terms are not nested
-				if jsonMap, ok := terms.(QueryMap); ok {
-					if sizeRaw, ok := jsonMap["size"]; ok {
-						if sizeParsed, ok := sizeRaw.(float64); ok {
-							size = int(sizeParsed)
-						} else {
-							logger.WarnWithCtx(cw.Ctx).Msgf("size is not an float64, but %T, value: %v. Using default", sizeRaw, sizeRaw)
-						}
+			if jsonMap, ok := terms.(QueryMap); ok {
+				if sizeRaw, ok := jsonMap["size"]; ok {
+					if sizeParsed, ok := sizeRaw.(float64); ok {
+						size = int(sizeParsed)
+					} else {
+						logger.WarnWithCtx(cw.Ctx).Msgf("size is not an float64, but %T, value: %v. Using default", sizeRaw, sizeRaw)
 					}
 
 				}
-				currentAggr.SelectCommand.Limit = size
-				currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewSortByCountColumn(model.DescOrder))
-				orderByAdded = true
 			}
-			delete(queryMap, termsType)
-			if !orderByAdded {
-				currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(fieldExpression))
-			}
-			return success, 1, nil
-			/* will remove later
-			var size int
-			if sizeRaw, exists := terms.(QueryMap)["size"]; exists {
-				size = (int)(sizeRaw.(float64))
-			} else {
-				size = bucket_aggregations.DefaultSize
-			}
-			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, size, termsType == "significant_terms")
 
-			fieldName := strconv.Quote(cw.parseFieldField(terms, termsType))
-			currentAggr.GroupByFields = append(currentAggr.GroupByFields, fieldName)
-			currentAggr.NonSchemaFields = append(currentAggr.NonSchemaFields, fieldName)
-			currentAggr.SuffixClauses = append(currentAggr.SuffixClauses, fmt.Sprintf("LIMIT %d", size))
-			currentAggr.SubSelect = currentAggr.Query.String()
-			fmt.Println("SUB:", currentAggr.SubSelect)
+			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms")
+			currentAggr.SelectCommand.Limit = size
+			currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, fieldExpression)
+			currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, fieldExpression)
+			currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewSortByCountColumn(model.DescOrder))
+			currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.OrderByExpr{Exprs: []model.Expr{fieldExpression}})
+			currentAggr.SelectCommand.LimitBy = append(currentAggr.SelectCommand.LimitBy, fieldExpression)
+
 			delete(queryMap, termsType)
-			return success, 1, 1, nil
-			*/
+			return success, 1, nil
 		}
 	}
 	if multiTermsRaw, exists := queryMap["multi_terms"]; exists {

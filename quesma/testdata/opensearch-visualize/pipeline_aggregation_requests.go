@@ -2893,7 +2893,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z')) ` +
 				`GROUP BY "clientip" ` +
-				`ORDER BY count() DESC ` +
+				`ORDER BY count() DESC, "clientip" ` +
 				`LIMIT 5`,
 		},
 	},
@@ -3087,14 +3087,22 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
-			`SELECT "clientip", count(DISTINCT "geo.coordinates") ` +
+			`WITH subQuery_1 AS ` +
+				`(SELECT "clientip" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "clientip" ` +
-				`ORDER BY "clientip"`,
+				`ORDER BY count() DESC, "clientip" ` +
+				`LIMIT 5) ` +
+				`SELECT "clientip", count(DISTINCT "geo.coordinates") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "subQuery_1" ON "clientip" = "subQuery_1_1" ` +
+				`GROUP BY "clientip", subQuery_1_cnt ` +
+				`ORDER BY subQuery_1_cnt DESC, "clientip"`,
 			`SELECT "clientip", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "clientip" ` +
-				`ORDER BY "clientip"`,
+				`ORDER BY count() DESC, "clientip" ` +
+				`LIMIT 5`,
 		},
 	},
 	{ // [17]
@@ -3468,7 +3476,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z')) ` +
 				`GROUP BY "Cancelled" ` +
-				`ORDER BY count() DESC ` +
+				`ORDER BY count() DESC, "Cancelled" ` +
 				`LIMIT 5`,
 		},
 	},
@@ -4476,7 +4484,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z')) ` +
 				`GROUP BY "extension" ` +
-				`ORDER BY count() DESC ` +
+				`ORDER BY count() DESC, "extension" ` +
 				`LIMIT 5`,
 		},
 	},
@@ -4639,14 +4647,22 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
-			`SELECT "extension", avgOrNull("machine.ram") ` +
+			`WITH subQuery_1 AS ` +
+				`(SELECT "extension" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "extension" ` +
-				`ORDER BY "extension"`,
+				`ORDER BY count() DESC, "extension" ` +
+				`LIMIT 5) ` +
+				`SELECT "extension", avgOrNull("machine.ram") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "subQuery_1" ON "extension" = "subQuery_1_1" ` +
+				`GROUP BY "extension", subQuery_1_cnt ` +
+				`ORDER BY subQuery_1_cnt DESC, "extension"`,
 			`SELECT "extension", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "extension" ` +
-				`ORDER BY "extension"`,
+				`ORDER BY count() DESC, "extension" ` +
+				`LIMIT 5`,
 		},
 	},
 	{ // [25]

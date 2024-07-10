@@ -385,6 +385,7 @@ func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sam
 			0,
 			sampleLimit,
 			false,
+			nil,
 		),
 		TableName: cw.Table.FullTableName(),
 		Type:      typical_queries.NewCount(cw.Ctx),
@@ -406,6 +407,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, wh
 			limit,
 			0,
 			true,
+			nil,
 		),
 		TableName: cw.Table.FullTableName(),
 	}
@@ -428,6 +430,7 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 			limit,
 			0,
 			false,
+			nil,
 		),
 		TableName: cw.Table.FullTableName(),
 	}
@@ -452,6 +455,7 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 			0,
 			facetsSampleSize,
 			false,
+			nil,
 		),
 		TableName: cw.Table.FullTableName(),
 		Type:      typ,

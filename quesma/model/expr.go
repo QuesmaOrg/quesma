@@ -180,6 +180,15 @@ func NewOrderByExprWithoutOrder(exprs ...Expr) OrderByExpr {
 	return OrderByExpr{Exprs: exprs, Direction: DefaultOrder}
 }
 
+// IsCountDesc returns true <=> this OrderByExpr is count() DESC
+func (o OrderByExpr) IsCountDesc() bool {
+	if len(o.Exprs) != 1 || o.Direction != DescOrder {
+		return false
+	}
+	function, ok := o.Exprs[0].(FunctionExpr)
+	return ok && function.Name == "count"
+}
+
 func NewInfixExpr(lhs Expr, operator string, rhs Expr) InfixExpr {
 	return InfixExpr{lhs, operator, rhs}
 }

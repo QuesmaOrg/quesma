@@ -237,7 +237,7 @@ func (v *ArrayTypeVisitor) VisitSelectCommand(e model.SelectCommand) interface{}
 	}
 
 	return model.NewSelectCommand(columns, groupBy, e.OrderBy,
-		fromClause, whereClause, e.Limit, e.SampleLimit, e.IsDistinct)
+		fromClause, whereClause, e.Limit, e.SampleLimit, e.IsDistinct, e.Subqueries)
 
 }
 

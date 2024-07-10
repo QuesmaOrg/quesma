@@ -245,7 +245,7 @@ func (v *highlighter) VisitSelectCommand(c SelectCommand) interface{} {
 	if c.WhereClause != nil {
 		where = c.WhereClause.Accept(v).(Expr)
 	}
-	return *NewSelectCommand(columns, groupBy, orderBy, from, where, c.Limit, c.SampleLimit, c.IsDistinct)
+	return *NewSelectCommand(columns, groupBy, orderBy, from, where, c.Limit, c.SampleLimit, c.IsDistinct, c.Subqueries)
 }
 
 func (v *highlighter) VisitWindowFunction(f WindowFunction) interface{} {

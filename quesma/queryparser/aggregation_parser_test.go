@@ -5,17 +5,20 @@ package queryparser
 import (
 	"cmp"
 	"context"
+	"fmt"
 	"github.com/jinzhu/copier"
+	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
+	"quesma/logger"
 	"quesma/model"
 	"quesma/queryparser/query_util"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/testdata"
-	"quesma/testdata/clients/kunkka"
+	"quesma/testdata/clients"
 	dashboard_1 "quesma/testdata/dashboard-1"
 	kibana_visualize "quesma/testdata/kibana-visualize"
 	opensearch_visualize "quesma/testdata/opensearch-visualize"
@@ -26,6 +29,7 @@ import (
 	"testing"
 )
 
+// const tableName = "kibana_sample_data_flights"
 const tableName = "logs-generic-default"
 const tableNameQuoted = `"` + tableName + `"`
 
@@ -635,7 +639,7 @@ func sortAggregations(aggregations []*model.Query) {
 }
 
 func Test2AggregationParserExternalTestcases(t *testing.T) {
-	// logger.InitSimpleLoggerForTests()
+	logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -644,7 +648,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			"message":     {Name: "message", Type: clickhouse.NewBaseType("String"), IsFullTextMatch: true},
 			"bytes_gauge": {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
 		},
-		Name:   "logs-generic-default",
+		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
@@ -675,7 +679,8 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	allTests = append(allTests, testdata.PipelineAggregationTests...)
 	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
 	allTests = append(allTests, kibana_visualize.AggregationTests...)
-	allTests = append(allTests, kunkka.KunkkaTests...)
+	allTests = append(allTests, clients.KunkkaTests...)
+	allTests = append(allTests, clients.OpheliaTests...)
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)" {
@@ -707,6 +712,12 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			if test.TestName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" {
 				t.Skip("Small details left for this test to be correct. I'll (Krzysiek) fix soon after returning to work")
 			}
+			if test.TestName == "Ophelia Test 3: 5x terms + a lot of other aggregations" {
+				t.Skip("Very similar to 2 previous tests, very hard to add results. I'll fix later")
+			}
+			if i != 54 {
+				//t.Skip()
+			}
 
 			body, parseErr := types.ParseJSON(test.QueryRequestJson)
 			assert.NoError(t, parseErr)
@@ -716,10 +727,12 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Len(t, test.ExpectedResults, len(queries))
 			sortAggregations(queries) // to make test runs deterministic
-
+			for _, q := range queries {
+				fmt.Println(q.SelectCommand.String())
+			}
 			// Let's leave those commented debugs for now, they'll be useful in next PRs
 			for j, query := range queries {
-				// fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\n", j, query, query.String(context.Background()))
+				fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\n", j, query, model.AsString(query.SelectCommand))
 				if test.ExpectedSQLs[j] != "NoDBQuery" {
 					util.AssertSqlEqual(t, test.ExpectedSQLs[j], query.SelectCommand.String())
 				}
@@ -738,7 +751,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			// pp.Println("EXPECTED", expectedResultsCopy)
 			response := cw.MakeSearchResponse(queries, test.ExpectedResults)
 			responseMarshalled, marshalErr := response.Marshal()
-			// pp.Println("ACTUAL", response)
+			pp.Println("ACTUAL", response)
 			assert.NoError(t, marshalErr)
 
 			expectedResponseMap, _ := util.JsonToMap(test.ExpectedResponse)

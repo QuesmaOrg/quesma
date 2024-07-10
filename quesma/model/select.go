@@ -11,11 +11,14 @@ type SelectCommand struct {
 	GroupBy     []Expr        // if not empty, we do GROUP BY GroupBy...
 	OrderBy     []OrderByExpr // if not empty, we do ORDER BY OrderBy...
 
-	Limit       int // LIMIT clause, noLimit (0) means no limit
-	SampleLimit int // LIMIT, but before grouping, 0 means no limit
+	LimitBy     []Expr // LIMIT BY clause (empty => maybe LIMIT, but no LIMIT BY)
+	Limit       int    // LIMIT clause, noLimit (0) means no limit
+	SampleLimit int    // LIMIT, but before grouping, 0 means no limit
+
+	Subqueries []SelectCommand
 }
 
-func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, where Expr, limit, sampleLimit int, isDistinct bool) *SelectCommand {
+func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, where Expr, limit, sampleLimit int, isDistinct bool, subqueries []SelectCommand) *SelectCommand {
 	return &SelectCommand{
 		IsDistinct: isDistinct,
 
@@ -26,6 +29,7 @@ func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, wher
 		WhereClause: where,
 		Limit:       limit,
 		SampleLimit: sampleLimit,
+		Subqueries:  subqueries,
 	}
 }
 
