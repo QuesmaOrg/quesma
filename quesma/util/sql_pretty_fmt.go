@@ -44,10 +44,11 @@ func SqlPrettyPrint(sqlData []byte) string {
 			isBreakIndent = false
 		}
 		if token.Value == "WITH" {
-			sb.WriteString("\n\n")
-			lineLength = 0
+			if len(stack) > 0 {
+				sb.WriteString("\n\n")
+				lineLength = 0
+			}
 			isBreakIndent = false
-			// TODO: check if previous select
 			stack = []string{token.Value}
 		}
 		if token.Value == "SELECT" {
