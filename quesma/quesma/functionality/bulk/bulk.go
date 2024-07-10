@@ -26,7 +26,9 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *cli
 	cfg config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []WriteResult) {
 	defer recovery.LogPanic()
 
-	indicesWithDocumentsToInsert := make(map[string][]types.JSON, len(bulk))
+	bulkSize := len(bulk)
+	logger.Info().Msgf("Processing %d documents in _bulk", bulkSize/2)
+	indicesWithDocumentsToInsert := make(map[string][]types.JSON, bulkSize)
 
 	err := bulk.BulkForEach(func(op types.BulkOperation, document types.JSON) {
 
