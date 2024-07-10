@@ -715,8 +715,8 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			if test.TestName == "Ophelia Test 3: 5x terms + a lot of other aggregations" {
 				t.Skip("Very similar to 2 previous tests, very hard to add results. I'll fix later")
 			}
-			if i != 54 {
-				//t.Skip()
+			if i != 75 {
+				t.Skip()
 			}
 
 			body, parseErr := types.ParseJSON(test.QueryRequestJson)
@@ -732,7 +732,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			}
 			// Let's leave those commented debugs for now, they'll be useful in next PRs
 			for j, query := range queries {
-				fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\n", j, query, model.AsString(query.SelectCommand))
+				fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\naaaaaaa%v\n\n", j, query, model.AsString(query.SelectCommand), query.SelectCommand.Columns)
 				if test.ExpectedSQLs[j] != "NoDBQuery" {
 					util.AssertSqlEqual(t, test.ExpectedSQLs[j], query.SelectCommand.String())
 				}

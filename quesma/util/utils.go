@@ -251,6 +251,7 @@ func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
 // * mActual - uses JsonMap fully: values are []JsonMap, or JsonMap, or base types
 // * mExpected - value can also be []any, because it's generated from Golang's json.Unmarshal
 func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma string) JsonMap {
+	// pp.Println("mActual", mActual, "mExpected", mExpected)
 	var mergeMapsRec func(m1, m2 JsonMap) JsonMap
 	// merges 'i1' and 'i2' in 3 cases: both are JsonMap, both are []JsonMap, or both are some base type
 	mergeAny := func(i1, i2 any) any {
@@ -278,6 +279,15 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 
 			i1Len, i2Len := len(i1Typed), len(i2Typed)
 			mergedArray := make([]JsonMap, 0, max(i1Len, i2Len))
+
+			// CARE: keeps the old implementation for now, which seemed to work fine everywhere,
+			// until one `sample_flights` dashboard. It's not perfect. TODO improve it.
+			if i1Len == i2Len {
+				for i := 0; i < i1Len; i++ {
+					mergedArray = append(mergedArray, mergeMapsRec(i1Typed[i], i2Typed[i].(JsonMap)))
+				}
+				return mergedArray
+			}
 
 			i, j := 0, 0
 			for i < i1Len && j < i2Len {
