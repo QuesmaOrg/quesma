@@ -27,7 +27,8 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *cli
 	defer recovery.LogPanic()
 
 	bulkSize := len(bulk)
-	logger.Info().Msgf("Processing %d documents in _bulk", bulkSize/2)
+	logger.Info().Msgf("Inserting %d documents using _bulk", bulkSize/2)
+	// we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 	indicesWithDocumentsToInsert := make(map[string][]types.JSON, bulkSize)
 
 	err := bulk.BulkForEach(func(op types.BulkOperation, document types.JSON) {
