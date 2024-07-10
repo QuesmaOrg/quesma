@@ -10,6 +10,10 @@ on:
         description: 'Version number to tag the image with'
         default: latest
         required: true
+      PUSH:
+        description: 'Whether to push the image to the registry'
+        default: false
+        required: true
 
 jobs:
   build-quesma-docker-image:
@@ -51,8 +55,8 @@ jobs:
             europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.event.inputs.VERSION }}
             quesma/quesma:${{ github.event.inputs.VERSION }}
             quesma/quesma:latest
-          # Pushes to GCR only for `main` branch builds
-          push: true #${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          # Pushes to GCR only for `main` branch builds, unless set explicitly in the job input
+          push: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event.inputs.PUSH }}
           build-args: |
             QUESMA_BUILD_SHA=${{ github.sha }}
             QUESMA_VERSION=${{ github.event.inputs.VERSION }}
