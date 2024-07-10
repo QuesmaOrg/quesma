@@ -211,7 +211,7 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 		buffer.Html(fmt.Sprintf(`<div class="status">Host uptime: %s</div>`, secondsToTerseString(h.Uptime)))
 	}
 
-	buffer.Html("<div>Version: ")
+	buffer.Html(`<div class="status">Version: `)
 	buffer.Text(buildinfo.Version)
 	buffer.Html("</div>")
 
