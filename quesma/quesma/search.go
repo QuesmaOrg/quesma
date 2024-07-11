@@ -285,7 +285,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			responseBody = []byte(fmt.Sprintf("Invalid Queries: %s, err: %v", queriesBody, err))
 			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBodyConcat)
 			bodyAsBytes, _ := body.Bytes()
-			pushSecondaryInfo(q.quesmaManagementConsole, id, path, bodyAsBytes, queriesBody, responseBody, startTime)
+			pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, queriesBody, responseBody, startTime)
 			return responseBody, errors.New(string(responseBody))
 		}
 
@@ -302,7 +302,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			} else {
 				responseBody, err = response.response.Marshal()
 			}
-			pushSecondaryInfo(q.quesmaManagementConsole, id, path, bodyAsBytes, response.translatedQueryBody, responseBody, startTime)
+			pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, startTime)
 			return responseBody, err
 		} else {
 			select {
@@ -346,6 +346,7 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 		bodyAsBytes, _ := body.Bytes()
 		qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 			Id:                     id,
+			AsyncId:                asyncRequestIdStr,
 			Path:                   path,
 			IncomingQueryBody:      bodyAsBytes,
 			QueryBodyTranslated:    result.translatedQueryBody,
@@ -359,6 +360,7 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 	bodyAsBytes, _ := body.Bytes()
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     id,
+		AsyncId:                asyncRequestIdStr,
 		Path:                   path,
 		IncomingQueryBody:      bodyAsBytes,
 		QueryBodyTranslated:    result.translatedQueryBody,
@@ -670,9 +672,10 @@ func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]mo
 	return geoIpTransformer.Transform(res)
 }
 
-func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, Path string, IncomingQueryBody []byte, QueryBodyTranslated [][]byte, QueryTranslatedResults []byte, startTime time.Time) {
+func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, Path string, IncomingQueryBody []byte, QueryBodyTranslated [][]byte, QueryTranslatedResults []byte, startTime time.Time) {
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     Id,
+		AsyncId:                AsyncId,
 		Path:                   Path,
 		IncomingQueryBody:      IncomingQueryBody,
 		QueryBodyTranslated:    QueryBodyTranslated,

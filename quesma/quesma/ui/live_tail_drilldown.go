@@ -8,13 +8,26 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"quesma/quesma/ui/internal/builder"
+	"quesma/tracing"
 	"quesma/util"
 	"strings"
 )
 
 func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string) []byte {
+	var request queryDebugInfo
+	var requestFound bool
 	qmc.mutex.Lock()
-	request, requestFound := qmc.debugInfoMessages[requestId]
+	if strings.HasPrefix(requestId, tracing.AsyncIdPrefix) {
+		for _, debugInfo := range qmc.debugInfoMessages {
+			if debugInfo.AsyncId == requestId {
+				request = debugInfo
+				requestFound = true
+				break
+			}
+		}
+	} else {
+		request, requestFound = qmc.debugInfoMessages[requestId]
+	}
 	qmc.mutex.Unlock()
 
 	logMessages, optAsyncId := generateLogMessages(request.logMessages, []string{})
