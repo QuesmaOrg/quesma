@@ -96,22 +96,17 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 	}
 
 	// either we finish
-	if query.Type.IsBucketAggregation() {
-		if aggregatorsLevel == len(query.Aggregators) {
+	if aggregatorsLevel == len(query.Aggregators) {
+		if query.Type.IsBucketAggregation() {
 			return query.Type.TranslateSqlResponseToJson(ResultSet, selectLevel)
-		}
-	} else {
-		if aggregatorsLevel == len(query.Aggregators)-1 {
+		} else {
 			result := query.Type.TranslateSqlResponseToJson(ResultSet, selectLevel)[0]
-			lastAggregator := query.Aggregators[len(query.Aggregators)-1].Name
 			if _, isTopHits := query.Type.(metrics_aggregations.TopHits); isTopHits {
 				result = model.JsonMap{
 					"hits": result,
 				}
 			}
-			return []model.JsonMap{{
-				lastAggregator: result,
-			}}
+			return []model.JsonMap{result}
 		}
 	}
 
