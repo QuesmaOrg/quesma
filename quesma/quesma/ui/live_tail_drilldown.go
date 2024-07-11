@@ -76,8 +76,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 
 		buffer.Html(`<div class="quesma-response">` + "\n")
 		if len(request.QueryDebugSecondarySource.QueryTranslatedResults) > 0 {
-			tookStr := fmt.Sprintf(" took %d ms:", request.SecondaryTook.Milliseconds())
-			buffer.Html("<p class=\"title\">Quesma response").Text(tookStr).Html("</p>\n")
+			buffer.Html("<p class=\"title\">Quesma response").Html("</p>\n")
 			buffer.Html(`<pre>`)
 			buffer.Text(string(request.QueryDebugSecondarySource.QueryTranslatedResults))
 			buffer.Html("\n</pre>")
@@ -119,6 +118,8 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 		if request.unsupported != nil {
 			buffer.Html("<li>").Text("Unsupported: ").Text(*request.unsupported).Html("</li>\n")
 		}
+		tookStr := fmt.Sprintf("Took: %d ms", request.SecondaryTook.Milliseconds())
+		buffer.Html("<li>").Text(tookStr).Html("</li>")
 		buffer.Html("</ul>\n")
 	}
 

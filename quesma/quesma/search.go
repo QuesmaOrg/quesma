@@ -25,7 +25,6 @@ import (
 	"quesma/tracing"
 	"quesma/util"
 	"slices"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -122,7 +121,7 @@ func (q *QueryRunner) handleEQLSearch(ctx context.Context, indexPattern string, 
 func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON,
 	waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
 	async := AsyncQuery{
-		asyncRequestIdStr: generateAsyncRequestId(),
+		asyncRequestIdStr: tracing.GetAsyncId(),
 		waitForResultsMs:  waitForResultsMs,
 		keepOnCompletion:  keepOnCompletion,
 		startTime:         time.Now(),
@@ -388,10 +387,6 @@ func (q *QueryRunner) asyncQueriesCumulatedBodySize() int {
 		return true
 	})
 	return size
-}
-
-func generateAsyncRequestId() string {
-	return "quesma_async_search_id_" + strconv.FormatInt(asyncRequestId.Add(1), 10)
 }
 
 func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {

@@ -5302,7 +5302,7 @@ var AggregationTests = []AggregationTestCase{
 			"completion_status": 200,
 			"completion_time_in_millis": 0,
 			"expiration_time_in_millis": 0,
-			"id": "quesma_async_search_id_17",
+			"id": "quesma_async_17",
 			"is_partial": false,
 			"is_running": false,
 			"response": {

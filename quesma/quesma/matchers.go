@@ -8,12 +8,13 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/mux"
 	"quesma/quesma/types"
+	"quesma/tracing"
 	"strings"
 )
 
 func matchedAgainstAsyncId() mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
-		if !strings.HasPrefix(req.Params["id"], quesmaAsyncIdPrefix) {
+		if !strings.HasPrefix(req.Params["id"], tracing.AsyncIdPrefix) {
 			logger.Debug().Msgf("async query id %s is forwarded to Elasticsearch", req.Params["id"])
 			return false
 		}
