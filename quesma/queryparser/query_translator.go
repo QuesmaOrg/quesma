@@ -80,22 +80,7 @@ func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.Q
 // 'selectLevel' - which field from select we're grouping by at current level (or not grouping by, if query.Aggregators[aggregatorsLevel].Empty == true)
 func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *model.Query,
 	ResultSet []model.QueryResultRow, aggregatorsLevel, selectLevel int) []model.JsonMap {
-
-	if len(ResultSet) == 0 {
-		// We still should preserve `meta` field if it's there.
-		// (we don't preserve it if it's in subaggregations, as we cut them off in case of empty parent aggregation)
-		// Both cases tested with Elasticsearch in proxy mode, and our tests.
-		metaDict := make(model.JsonMap, 0)
-		metaAdded := cw.addMetadataIfNeeded(query, metaDict, aggregatorsLevel)
-		if !metaAdded {
-			return []model.JsonMap{}
-		}
-		return []model.JsonMap{{
-			query.Aggregators[aggregatorsLevel].Name: metaDict,
-		}}
-	}
-
-	// either we finish
+	// check if we finish
 	if aggregatorsLevel == len(query.Aggregators) {
 		if query.Type.IsBucketAggregation() {
 			return query.Type.TranslateSqlResponseToJson(ResultSet, selectLevel)
@@ -110,11 +95,24 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 		}
 	}
 
-	// fmt.Println("level1 :/", level1, " level2 B):", level2)
-
-	// or we need to go deeper
-	subResult := make(model.JsonMap, 1)
 	currentAggregator := query.Aggregators[aggregatorsLevel]
+	subResult := make(model.JsonMap, 1)
+
+	if len(ResultSet) == 0 {
+		// We still should preserve `meta` field if it's there.
+		// (we don't preserve it if it's in subaggregations, as we cut them off in case of empty parent aggregation)
+		// Both cases tested with Elasticsearch in proxy mode, and our tests.
+		if metaAdded := cw.addMetadataIfNeeded(query, subResult, aggregatorsLevel); metaAdded {
+			return []model.JsonMap{{
+				currentAggregator.Name: subResult,
+			}}
+		} else {
+			return []model.JsonMap{}
+		}
+	}
+
+	// fmt.Println("level1 :/", level1, " level2 B):", level2)
+	// or we need to go deeper
 	if currentAggregator.SplitOverHowManyFields == 0 {
 		subSubResult := cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel)[0]
 		// Keyed and Filters aggregations are special and need to be wrapped in "buckets"
