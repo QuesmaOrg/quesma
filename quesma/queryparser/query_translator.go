@@ -8,7 +8,6 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
-	"quesma/model/metrics_aggregations"
 	"quesma/model/typical_queries"
 	"quesma/queryparser/query_util"
 	"quesma/queryprocessor"
@@ -83,21 +82,12 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 	// check if we finish
 	if aggregatorsLevel == len(query.Aggregators) {
 		result := query.Type.TranslateSqlResponseToJson(ResultSet, selectLevel)
-		if query.Type.IsBucketAggregation() {
-			if len(result) == 1 { // maybe I fix other bug
-				return result[0]
-			} else {
-				return model.JsonMap{
-					"buckets": result,
-				}
-			}
-		} else {
-			if _, isTopHits := query.Type.(metrics_aggregations.TopHits); isTopHits {
-				return model.JsonMap{
-					"hits": result[0],
-				}
-			}
+		if !query.Type.IsBucketAggregation() || len(result) == 1 {
 			return result[0]
+		} else {
+			return model.JsonMap{
+				"buckets": result,
+			}
 		}
 	}
 
