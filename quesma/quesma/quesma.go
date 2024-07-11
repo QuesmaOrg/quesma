@@ -379,6 +379,7 @@ func peekBody(r *http.Request) ([]byte, error) {
 			Msgf("Unsupported Content-Encoding type: %s", contentEncoding)
 		return nil, errors.New("unsupported Content-Encoding type")
 	}
+	r.Header.Del("Content-Encoding") // In the transparent proxy case we will send an uncompressed body, so the header should be removed
 
 	r.Body = io.NopCloser(bytes.NewBuffer(reqBody))
 	return reqBody, nil
