@@ -18,7 +18,7 @@ type SelectCommand struct {
 	Subqueries []SelectCommand
 }
 
-func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, where Expr, limit, sampleLimit int, isDistinct bool, subqueries []SelectCommand) *SelectCommand {
+func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, where Expr, limitBy []Expr, limit, sampleLimit int, isDistinct bool, subqueries []SelectCommand) *SelectCommand {
 	return &SelectCommand{
 		IsDistinct: isDistinct,
 
@@ -27,6 +27,7 @@ func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, wher
 		OrderBy:     orderBy,
 		FromClause:  from,
 		WhereClause: where,
+		LimitBy:     limitBy,
 		Limit:       limit,
 		SampleLimit: sampleLimit,
 		Subqueries:  subqueries,
