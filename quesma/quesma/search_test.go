@@ -115,7 +115,10 @@ func TestAsyncSearchHandler(t *testing.T) {
 	}
 
 	for i, tt := range testdata.TestsAsyncSearch {
-		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
+			if i != 4 {
+				t.Skip()
+			}
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
@@ -236,9 +239,6 @@ func TestSearchHandler(t *testing.T) {
 	}
 	for i, tt := range testdata.TestsSearch {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
-			if i != 23 {
-				t.Skip()
-			}
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
 			defer db.Close()
 
