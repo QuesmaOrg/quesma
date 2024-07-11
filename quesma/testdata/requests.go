@@ -1900,7 +1900,7 @@ var TestsSearch = []SearchTestCase{
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
 				`GROUP BY "namespace" ` +
-				`ORDER BY count() DESC ` +
+				`ORDER BY count() DESC, "namespace" ` +
 				`LIMIT 10`,
 			`SELECT count(DISTINCT "namespace") ` +
 				`FROM ` + QuotedTableName + ` ` +
