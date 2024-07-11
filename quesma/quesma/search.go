@@ -35,8 +35,6 @@ const (
 	asyncQueriesLimitBytes = 1024 * 1024 * 500 // 500MB
 )
 
-var asyncRequestId atomic.Int64
-
 type AsyncRequestResult struct {
 	responseBody []byte
 	added        time.Time
