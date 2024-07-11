@@ -161,9 +161,9 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 
 	_ = cw.addMetadataIfNeeded(query, subResult, aggregatorsLevel)
 
-	result := make(model.JsonMap, 1)
-	result[query.Aggregators[aggregatorsLevel].Name] = subResult
-	return []model.JsonMap{result}
+	return []model.JsonMap{{
+		currentAggregator.Name: subResult,
+	}}
 }
 
 // addMetadataIfNeeded adds metadata to the `result` dictionary, if needed.
