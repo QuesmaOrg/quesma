@@ -134,11 +134,12 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 	subResult := make(model.JsonMap, 1)
 	currentAggregator := query.Aggregators[aggregatorsLevel]
 	if currentAggregator.SplitOverHowManyFields == 0 {
-		tmp := cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel)[0]
+		subSubResult := cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel)[0]
+		// Keyed and Filters aggregations are special and need to be wrapped in "buckets"
 		if currentAggregator.Keyed || currentAggregator.Filters {
-			subResult["buckets"] = tmp
+			subResult["buckets"] = subSubResult
 		} else {
-			subResult = tmp
+			subResult = subSubResult
 		}
 	} else {
 		var bucketsReturnMap []model.JsonMap
@@ -155,20 +156,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 			}
 			bucketsReturnMap = append(bucketsReturnMap, newBuckets...)
 		}
-		// The if below: very hacky, but works for now. I have an idea how to fix this and make code nice, but it'll take a while to refactor.
-		// Basically, for now every not-ending subaggregation has "buckets" key. Only exception is "sampler", which doesn't, thus this if.
-		//
-		// I'd like to keep an actual tree after the refactor, not a list of paths from root to leaf, as it is now.
-		// Then in the tree (in each node) I'd remember where I am at the moment (e.g. here I'm in "sampler",
-		// so I don't need buckets). It'd enable some custom handling for another weird types of requests.
-
-		if currentAggregator.Filters || currentAggregator.Keyed {
-			subResult["buckets"] = bucketsReturnMap[0]
-		} else if currentAggregator.SplitOverHowManyFields == 0 {
-			subResult = bucketsReturnMap[0]
-		} else {
-			subResult["buckets"] = bucketsReturnMap
-		}
+		subResult["buckets"] = bucketsReturnMap
 	}
 
 	_ = cw.addMetadataIfNeeded(query, subResult, aggregatorsLevel)
