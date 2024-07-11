@@ -7,6 +7,8 @@ type Expr interface {
 	Accept(v ExprVisitor) interface{}
 }
 
+var InvalidExpr = Expr(nil)
+
 // ColumnRef is a reference to a column in a table, we can enrich it with more information (e.g. type used) as we go
 type ColumnRef struct {
 	ColumnName string

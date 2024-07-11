@@ -5,7 +5,6 @@ package queryparser
 import (
 	"context"
 	"quesma/clickhouse"
-	"quesma/kibana"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -488,21 +487,6 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 		TableName: cw.Table.FullTableName(),
 		Type:      typ,
 	}
-}
-
-func (cw *ClickhouseQueryTranslator) createHistogramPartOfQuery(queryMap QueryMap) model.Expr {
-	const defaultDateTimeType = clickhouse.DateTime64
-	field := cw.parseFieldField(queryMap, "histogram")
-	interval, err := kibana.ParseInterval(cw.extractInterval(queryMap))
-	if err != nil {
-		logger.ErrorWithCtx(cw.Ctx).Msg(err.Error())
-	}
-	dateTimeType := cw.GetDateTimeTypeFromSelectClause(cw.Ctx, field)
-	if dateTimeType == clickhouse.Invalid {
-		logger.ErrorWithCtx(cw.Ctx).Msgf("invalid date type for field %+v. Using DateTime64 as default.", field)
-		dateTimeType = defaultDateTimeType
-	}
-	return clickhouse.TimestampGroupBy(field, dateTimeType, interval)
 }
 
 // sortInTopologicalOrder sorts all our queries to DB, which we send to calculate response for a single query request.

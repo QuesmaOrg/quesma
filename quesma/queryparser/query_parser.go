@@ -11,6 +11,7 @@ import (
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/model/bucket_aggregations"
 	"quesma/model/typical_queries"
 	"quesma/queryparser/lucene"
 	"quesma/quesma/types"
@@ -1202,27 +1203,29 @@ func (cw *ClickhouseQueryTranslator) isItListRequest(queryMap QueryMap) (model.S
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) extractInterval(queryMap QueryMap) string {
+func (cw *ClickhouseQueryTranslator) extractInterval(queryMap QueryMap) (interval string, intervalType bucket_aggregations.DateHistogramIntervalType) {
 	const defaultInterval = "30s"
+	const defaultIntervalType = bucket_aggregations.DateHistogramFixedInterval
 	if fixedInterval, exists := queryMap["fixed_interval"]; exists {
 		if asString, ok := fixedInterval.(string); ok {
-			return asString
+			return asString, bucket_aggregations.DateHistogramFixedInterval
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v. Returning default", fixedInterval, fixedInterval)
-			return defaultInterval
+			return defaultInterval, bucket_aggregations.DateHistogramFixedInterval
 		}
 	}
 	if calendarInterval, exists := queryMap["calendar_interval"]; exists {
 		if asString, ok := calendarInterval.(string); ok {
-			return asString
+			return asString, bucket_aggregations.DateHistogramCalendarInterval
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v. Returning default", calendarInterval, calendarInterval)
-			return defaultInterval
+			return defaultInterval, bucket_aggregations.DateHistogramCalendarInterval
 		}
 	}
 
-	logger.WarnWithCtx(cw.Ctx).Msgf("extractInterval: no interval found, returning default: %s", defaultInterval)
-	return defaultInterval
+	// this should NEVER happen (query should always have either fixed_interval, or calendar_interval_field), so defaultIntervalType is totally arbitrary
+	logger.WarnWithCtx(cw.Ctx).Msgf("extractInterval: no interval found, returning default: %s (%s)", defaultInterval, defaultIntervalType.String(cw.Ctx))
+	return defaultInterval, defaultIntervalType
 }
 
 // parseSortFields parses sort fields from the query

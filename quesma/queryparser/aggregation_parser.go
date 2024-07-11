@@ -733,13 +733,22 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		if !ok {
 			logger.WarnWithCtx(cw.Ctx).Msgf("date_histogram is not a map, but %T, value: %v", dateHistogramRaw, dateHistogramRaw)
 		}
+		field := cw.parseFieldField(dateHistogram, "date_histogram")
 		minDocCount := cw.parseMinDocCount(dateHistogram)
-		currentAggr.Type = bucket_aggregations.NewDateHistogram(cw.Ctx, minDocCount, cw.extractInterval(dateHistogram))
-		histogramPartOfQuery := cw.createHistogramPartOfQuery(dateHistogram)
+		interval, intervalType := cw.extractInterval(dateHistogram)
+		dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
 
-		currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, histogramPartOfQuery)
-		currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, histogramPartOfQuery)
-		currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(histogramPartOfQuery))
+		if dateTimeType == clickhouse.Invalid {
+			logger.WarnWithCtx(cw.Ctx).Msgf("invalid date time type for field %s", field)
+		}
+
+		dateHistogramAggr := bucket_aggregations.NewDateHistogram(cw.Ctx, field, interval, minDocCount, intervalType, dateTimeType)
+		currentAggr.Type = dateHistogramAggr
+
+		sqlQuery := dateHistogramAggr.GenerateSQL()
+		currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, sqlQuery)
+		currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, sqlQuery)
+		currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(sqlQuery))
 
 		delete(queryMap, "date_histogram")
 		return success, 1, nil
