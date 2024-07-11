@@ -129,10 +129,8 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 		buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+weSplitOverHowManyFields)
 		for _, bucket := range buckets {
 			newBuckets := cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
-			if len(bucket) > 0 {
-				for _, newBucket := range newBuckets {
-					newBucket[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
-				}
+			for _, newBucket := range newBuckets {
+				newBucket[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
 			}
 			bucketsReturnMap = append(bucketsReturnMap, newBuckets...)
 		}
