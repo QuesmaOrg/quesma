@@ -44,7 +44,7 @@ func (typ DateHistogramIntervalType) String(ctx context.Context) string {
 	case DateHistogramCalendarInterval:
 		return "calendar_interval"
 	default:
-		logger.ErrorWithCtx(ctx).Msgf("unexpected DateHistogramIntervalType: %v", typ)
+		logger.ErrorWithCtx(ctx).Msgf("unexpected DateHistogramIntervalType: %v", typ) // error as it should be impossible
 		return "invalid"
 	}
 }
@@ -109,7 +109,7 @@ func (query *DateHistogram) GenerateSQL() model.Expr {
 	case DateHistogramCalendarInterval:
 		return query.generateSQLForCalendarInterval()
 	default:
-		logger.ErrorWithCtx(query.ctx).Msgf("invalid interval type: %v (should be impossible). Returning InvalidExpr",
+		logger.WarnWithCtx(query.ctx).Msgf("invalid interval type: %v (should be impossible). Returning InvalidExpr",
 			query.intervalType.String(query.ctx))
 		return model.InvalidExpr
 	}
