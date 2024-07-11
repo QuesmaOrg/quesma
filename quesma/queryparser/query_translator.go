@@ -133,11 +133,12 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 	// or we need to go deeper
 	qp := queryprocessor.NewQueryProcessor(cw.Ctx)
 	var bucketsReturnMap []model.JsonMap
-	if query.Aggregators[aggregatorsLevel].SplitOverHowManyFields == 0 {
+	currentAggregator := query.Aggregators[aggregatorsLevel]
+	if currentAggregator.SplitOverHowManyFields == 0 {
 		bucketsReturnMap = append(bucketsReturnMap, cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel)...)
 	} else {
 		// normally it's just 1. It used to be just 1 before multi_terms aggregation, where we usually split over > 1 field
-		weSplitOverHowManyFields := query.Aggregators[aggregatorsLevel].SplitOverHowManyFields
+		weSplitOverHowManyFields := currentAggregator.SplitOverHowManyFields
 		buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+weSplitOverHowManyFields)
 		for _, bucket := range buckets {
 			newBuckets := cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
@@ -150,7 +151,6 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 		}
 	}
 
-	result := make(model.JsonMap, 1)
 	subResult := make(model.JsonMap, 1)
 
 	// The if below: very hacky, but works for now. I have an idea how to fix this and make code nice, but it'll take a while to refactor.
@@ -160,11 +160,9 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 	// Then in the tree (in each node) I'd remember where I am at the moment (e.g. here I'm in "sampler",
 	// so I don't need buckets). It'd enable some custom handling for another weird types of requests.
 
-	if query.Aggregators[aggregatorsLevel].Filters {
+	if currentAggregator.Filters || currentAggregator.Keyed {
 		subResult["buckets"] = bucketsReturnMap[0]
-	} else if query.Aggregators[aggregatorsLevel].Keyed {
-		subResult["buckets"] = bucketsReturnMap[0]
-	} else if query.Aggregators[aggregatorsLevel].SplitOverHowManyFields == 0 {
+	} else if currentAggregator.SplitOverHowManyFields == 0 {
 		subResult = bucketsReturnMap[0]
 	} else {
 		subResult["buckets"] = bucketsReturnMap
@@ -172,6 +170,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 
 	_ = cw.addMetadataIfNeeded(query, subResult, aggregatorsLevel)
 
+	result := make(model.JsonMap, 1)
 	result[query.Aggregators[aggregatorsLevel].Name] = subResult
 	return []model.JsonMap{result}
 }
