@@ -53,10 +53,11 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.module }}/.
+          # when called from the main branch, `github.event.inputs.VERSION` doesn't use default value and is just empty
           tags: | 
             europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.sha }}
-            europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.event.inputs.VERSION }}
-            quesma/quesma:${{ github.event.inputs.VERSION }}
+            europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.event.inputs.VERSION || 'latest' }}
+            quesma/quesma:${{ github.event.inputs.VERSION || 'latest' }}
             quesma/quesma:latest
           # Pushes to GCR only for `main` branch builds, unless set explicitly in the job input
           push: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event.inputs.PUSH }}
