@@ -75,26 +75,6 @@ func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.Q
 	return &response, nil
 }
 
-func (cw *ClickhouseQueryTranslator) finishMakeResponse(query *model.Query, ResultSet []model.QueryResultRow, level int) []model.JsonMap {
-	// fmt.Println("FinishMakeResponse", query, ResultSet, level, query.Type.String())
-	if query.Type.IsBucketAggregation() {
-		return query.Type.TranslateSqlResponseToJson(ResultSet, level)
-	} else { // metrics
-		result := query.Type.TranslateSqlResponseToJson(ResultSet, level)[0]
-		lastAggregator := query.Aggregators[len(query.Aggregators)-1].Name
-		if _, isTopHits := query.Type.(metrics_aggregations.TopHits); isTopHits {
-			return []model.JsonMap{{
-				lastAggregator: model.JsonMap{
-					"hits": result,
-				},
-			}}
-		}
-		return []model.JsonMap{{
-			lastAggregator: result,
-		}}
-	}
-}
-
 // DFS algorithm
 // 'aggregatorsLevel' - index saying which (sub)aggregation we're handling
 // 'selectLevel' - which field from select we're grouping by at current level (or not grouping by, if query.Aggregators[aggregatorsLevel].Empty == true)
@@ -116,15 +96,23 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 	}
 
 	// either we finish
-	if aggregatorsLevel == len(query.Aggregators) || (aggregatorsLevel == len(query.Aggregators)-1 && !query.Type.IsBucketAggregation()) {
-		/*
-			if len(ResultSet) > 0 {
-				pp.Println(query.Type, "level1: ", level1, "level2: ", level2, "cols: ", len(ResultSet[0].Cols))
-			} else {
-				pp.Println(query.Type, "level1: ", level1, "cols: no cols")
+	if query.Type.IsBucketAggregation() {
+		if aggregatorsLevel == len(query.Aggregators) {
+			return query.Type.TranslateSqlResponseToJson(ResultSet, selectLevel)
+		}
+	} else {
+		if aggregatorsLevel == len(query.Aggregators)-1 {
+			result := query.Type.TranslateSqlResponseToJson(ResultSet, selectLevel)[0]
+			lastAggregator := query.Aggregators[len(query.Aggregators)-1].Name
+			if _, isTopHits := query.Type.(metrics_aggregations.TopHits); isTopHits {
+				result = model.JsonMap{
+					"hits": result,
+				}
 			}
-		*/
-		return cw.finishMakeResponse(query, ResultSet, selectLevel)
+			return []model.JsonMap{{
+				lastAggregator: result,
+			}}
+		}
 	}
 
 	// fmt.Println("level1 :/", level1, " level2 B):", level2)
