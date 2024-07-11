@@ -1,6 +1,6 @@
 package testdata
 
-import "mitmproxy/quesma/model"
+import "quesma/model"
 
 // Goland lags a lot when you edit aggregation_requests.go file, so let's add new tests to this one.
 

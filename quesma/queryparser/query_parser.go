@@ -1224,7 +1224,7 @@ func (cw *ClickhouseQueryTranslator) extractInterval(queryMap QueryMap) (interva
 	}
 
 	// this should NEVER happen (query should always have either fixed_interval, or calendar_interval_field), so defaultIntervalType is totally arbitrary
-	logger.WarnWithCtx(cw.Ctx).Msgf("extractInterval: no interval found, returning default: %s (%s)", defaultInterval, defaultIntervalType.String())
+	logger.WarnWithCtx(cw.Ctx).Msgf("extractInterval: no interval found, returning default: %s (%s)", defaultInterval, defaultIntervalType.String(cw.Ctx))
 	return defaultInterval, defaultIntervalType
 }
 

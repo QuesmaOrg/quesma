@@ -736,7 +736,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		field := cw.parseFieldField(dateHistogram, "date_histogram")
 		minDocCount := cw.parseMinDocCount(dateHistogram)
 		interval, intervalType := cw.extractInterval(dateHistogram)
-		dateTimeType := cw.Table.GetDateTimeTypeFromSelectClause(cw.Ctx, field)
+		dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
 
 		if dateTimeType == clickhouse.Invalid {
 			logger.WarnWithCtx(cw.Ctx).Msgf("invalid date time type for field %s", field)
