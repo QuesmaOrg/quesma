@@ -134,7 +134,7 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string
 
 type AsyncSearchWithError struct {
 	response            *model.SearchResp
-	translatedQueryBody []byte
+	translatedQueryBody [][]byte
 	err                 error
 }
 
@@ -277,14 +277,16 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			}()
 
 		} else {
-			queriesBody := ""
-			for _, query := range queries {
-				queriesBody += query.SelectCommand.String() + "\n"
+			queriesBody := make([][]byte, len(queries))
+			queriesBodyConcat := ""
+			for i, query := range queries {
+				queriesBody[i] = []byte(query.SelectCommand.String())
+				queriesBodyConcat += query.SelectCommand.String() + "\n"
 			}
 			responseBody = []byte(fmt.Sprintf("Invalid Queries: %s, err: %v", queriesBody, err))
-			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBody)
+			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBodyConcat)
 			bodyAsBytes, _ := body.Bytes()
-			pushSecondaryInfo(q.quesmaManagementConsole, id, path, bodyAsBytes, []byte(queriesBody), responseBody, startTime)
+			pushSecondaryInfo(q.quesmaManagementConsole, id, path, bodyAsBytes, queriesBody, responseBody, startTime)
 			return responseBody, errors.New(string(responseBody))
 		}
 
@@ -556,9 +558,9 @@ func (q *QueryRunner) runQueryJobs(jobs []QueryJob) ([][]model.QueryResultRow, e
 func (q *QueryRunner) searchWorkerCommon(
 	ctx context.Context,
 	queries []*model.Query,
-	table *clickhouse.Table) (translatedQueryBody []byte, hits [][]model.QueryResultRow, err error) {
-	sqls := ""
+	table *clickhouse.Table) (translatedQueryBody [][]byte, hits [][]model.QueryResultRow, err error) {
 
+	translatedQueryBody = make([][]byte, len(queries))
 	hits = make([][]model.QueryResultRow, len(queries))
 
 	var jobs []QueryJob
@@ -573,7 +575,7 @@ func (q *QueryRunner) searchWorkerCommon(
 
 		sql := query.SelectCommand.String()
 		logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
-		sqls += sql + "\n"
+		translatedQueryBody[i] = []byte(sql)
 
 		if q.isInternalKibanaQuery(query) {
 			hits[i] = make([]model.QueryResultRow, 0)
@@ -609,7 +611,6 @@ func (q *QueryRunner) searchWorkerCommon(
 		hits[hitsPosition] = dbHits[jobId]
 	}
 
-	translatedQueryBody = []byte(sqls)
 	return
 }
 
@@ -617,7 +618,7 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 	aggregations []*model.Query,
 	table *clickhouse.Table,
 	doneCh chan<- AsyncSearchWithError,
-	optAsync *AsyncQuery) (translatedQueryBody []byte, resultRows [][]model.QueryResultRow, err error) {
+	optAsync *AsyncQuery) (translatedQueryBody [][]byte, resultRows [][]model.QueryResultRow, err error) {
 	if optAsync != nil {
 		if q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, doneCh) {
 			return
@@ -674,7 +675,7 @@ func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]mo
 	return geoIpTransformer.Transform(res)
 }
 
-func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, Path string, IncomingQueryBody, QueryBodyTranslated, QueryTranslatedResults []byte, startTime time.Time) {
+func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, Path string, IncomingQueryBody []byte, QueryBodyTranslated [][]byte, QueryTranslatedResults []byte, startTime time.Time) {
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     Id,
 		Path:                   Path,

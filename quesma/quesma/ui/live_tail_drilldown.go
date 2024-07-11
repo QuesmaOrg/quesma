@@ -3,6 +3,7 @@
 package ui
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"gopkg.in/yaml.v3"
@@ -44,9 +45,21 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 
 		buffer.Html(`<div class="query-body-translated">` + "\n")
 		buffer.Html("<p class=\"title\">Translated SQL:</p>\n")
-		buffer.Html(`<pre>`)
-		buffer.Text(util.SqlPrettyPrint(request.QueryBodyTranslated))
-		buffer.Html("\n</pre>")
+		for _, queryBody := range request.QueryBodyTranslated {
+			prettyQueryBody := util.SqlPrettyPrint(queryBody)
+			if qmc.cfg.ClickHouse.AdminUrl != nil {
+				// ClickHouse web UI /play expects a base64-encoded query
+				// in the URL:
+				base64QueryBody := base64.StdEncoding.EncodeToString([]byte(prettyQueryBody))
+				buffer.Html(`<a href="`).Text(qmc.cfg.ClickHouse.AdminUrl.String()).Text("/play#").Text(base64QueryBody).Html(`">`)
+			}
+			buffer.Html(`<pre>`)
+			buffer.Text(prettyQueryBody)
+			buffer.Html("\n</pre>")
+			if qmc.cfg.ClickHouse.AdminUrl != nil {
+				buffer.Html(`</a>`)
+			}
+		}
 		buffer.Html(`</div>` + "\n")
 
 		buffer.Html(`<div class="elastic-response">` + "\n")
