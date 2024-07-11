@@ -79,19 +79,25 @@ func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.Q
 // 'aggregatorsLevel' - index saying which (sub)aggregation we're handling
 // 'selectLevel' - which field from select we're grouping by at current level (or not grouping by, if query.Aggregators[aggregatorsLevel].Empty == true)
 func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *model.Query,
-	ResultSet []model.QueryResultRow, aggregatorsLevel, selectLevel int) []model.JsonMap {
+	ResultSet []model.QueryResultRow, aggregatorsLevel, selectLevel int) model.JsonMap {
 	// check if we finish
 	if aggregatorsLevel == len(query.Aggregators) {
+		result := query.Type.TranslateSqlResponseToJson(ResultSet, selectLevel)
 		if query.Type.IsBucketAggregation() {
-			return query.Type.TranslateSqlResponseToJson(ResultSet, selectLevel)
-		} else {
-			result := query.Type.TranslateSqlResponseToJson(ResultSet, selectLevel)[0]
-			if _, isTopHits := query.Type.(metrics_aggregations.TopHits); isTopHits {
-				result = model.JsonMap{
-					"hits": result,
+			if len(result) == 1 { // maybe I fix other bug
+				return result[0]
+			} else {
+				return model.JsonMap{
+					"buckets": result,
 				}
 			}
-			return []model.JsonMap{result}
+		} else {
+			if _, isTopHits := query.Type.(metrics_aggregations.TopHits); isTopHits {
+				return model.JsonMap{
+					"hits": result[0],
+				}
+			}
+			return result[0]
 		}
 	}
 
@@ -103,18 +109,18 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 		// (we don't preserve it if it's in subaggregations, as we cut them off in case of empty parent aggregation)
 		// Both cases tested with Elasticsearch in proxy mode, and our tests.
 		if metaAdded := cw.addMetadataIfNeeded(query, subResult, aggregatorsLevel); metaAdded {
-			return []model.JsonMap{{
+			return model.JsonMap{
 				currentAggregator.Name: subResult,
-			}}
+			}
 		} else {
-			return []model.JsonMap{}
+			return model.JsonMap{}
 		}
 	}
 
 	// fmt.Println("level1 :/", level1, " level2 B):", level2)
 	// or we need to go deeper
 	if currentAggregator.SplitOverHowManyFields == 0 {
-		subSubResult := cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel)[0]
+		subSubResult := cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel)
 		// Keyed and Filters aggregations are special and need to be wrapped in "buckets"
 		if currentAggregator.Keyed || currentAggregator.Filters {
 			subResult["buckets"] = subSubResult
@@ -128,20 +134,25 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 		weSplitOverHowManyFields := currentAggregator.SplitOverHowManyFields
 		buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+weSplitOverHowManyFields)
 		for _, bucket := range buckets {
-			newBuckets := cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
-			for _, newBucket := range newBuckets {
-				newBucket[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
+			potentialNewBuckets := cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
+			if array, exist := potentialNewBuckets["buckets"]; exist {
+				for _, newBucket := range array.([]model.JsonMap) {
+					newBucket[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
+					bucketsReturnMap = append(bucketsReturnMap, newBucket)
+				}
+			} else {
+				potentialNewBuckets[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
+				bucketsReturnMap = append(bucketsReturnMap, potentialNewBuckets)
 			}
-			bucketsReturnMap = append(bucketsReturnMap, newBuckets...)
 		}
 		subResult["buckets"] = bucketsReturnMap
 	}
 
 	_ = cw.addMetadataIfNeeded(query, subResult, aggregatorsLevel)
 
-	return []model.JsonMap{{
+	return model.JsonMap{
 		currentAggregator.Name: subResult,
-	}}
+	}
 }
 
 // addMetadataIfNeeded adds metadata to the `result` dictionary, if needed.
@@ -173,7 +184,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 		}
 		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
 		if len(aggregation) != 0 {
-			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation[0], model.KeyAddedByQuesma) // result of root node is always a single map, thus [0]
+			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation, model.KeyAddedByQuesma) // result of root node is always a single map, thus [0]
 		}
 	}
 	return aggregations
