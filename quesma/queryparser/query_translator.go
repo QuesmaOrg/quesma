@@ -131,13 +131,19 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 	// fmt.Println("level1 :/", level1, " level2 B):", level2)
 
 	// or we need to go deeper
-	qp := queryprocessor.NewQueryProcessor(cw.Ctx)
-	var bucketsReturnMap []model.JsonMap
+	subResult := make(model.JsonMap, 1)
 	currentAggregator := query.Aggregators[aggregatorsLevel]
 	if currentAggregator.SplitOverHowManyFields == 0 {
-		bucketsReturnMap = append(bucketsReturnMap, cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel)...)
+		tmp := cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel)[0]
+		if currentAggregator.Keyed || currentAggregator.Filters {
+			subResult["buckets"] = tmp
+		} else {
+			subResult = tmp
+		}
 	} else {
+		var bucketsReturnMap []model.JsonMap
 		// normally it's just 1. It used to be just 1 before multi_terms aggregation, where we usually split over > 1 field
+		qp := queryprocessor.NewQueryProcessor(cw.Ctx)
 		weSplitOverHowManyFields := currentAggregator.SplitOverHowManyFields
 		buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+weSplitOverHowManyFields)
 		for _, bucket := range buckets {
@@ -149,23 +155,20 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 			}
 			bucketsReturnMap = append(bucketsReturnMap, newBuckets...)
 		}
-	}
+		// The if below: very hacky, but works for now. I have an idea how to fix this and make code nice, but it'll take a while to refactor.
+		// Basically, for now every not-ending subaggregation has "buckets" key. Only exception is "sampler", which doesn't, thus this if.
+		//
+		// I'd like to keep an actual tree after the refactor, not a list of paths from root to leaf, as it is now.
+		// Then in the tree (in each node) I'd remember where I am at the moment (e.g. here I'm in "sampler",
+		// so I don't need buckets). It'd enable some custom handling for another weird types of requests.
 
-	subResult := make(model.JsonMap, 1)
-
-	// The if below: very hacky, but works for now. I have an idea how to fix this and make code nice, but it'll take a while to refactor.
-	// Basically, for now every not-ending subaggregation has "buckets" key. Only exception is "sampler", which doesn't, thus this if.
-	//
-	// I'd like to keep an actual tree after the refactor, not a list of paths from root to leaf, as it is now.
-	// Then in the tree (in each node) I'd remember where I am at the moment (e.g. here I'm in "sampler",
-	// so I don't need buckets). It'd enable some custom handling for another weird types of requests.
-
-	if currentAggregator.Filters || currentAggregator.Keyed {
-		subResult["buckets"] = bucketsReturnMap[0]
-	} else if currentAggregator.SplitOverHowManyFields == 0 {
-		subResult = bucketsReturnMap[0]
-	} else {
-		subResult["buckets"] = bucketsReturnMap
+		if currentAggregator.Filters || currentAggregator.Keyed {
+			subResult["buckets"] = bucketsReturnMap[0]
+		} else if currentAggregator.SplitOverHowManyFields == 0 {
+			subResult = bucketsReturnMap[0]
+		} else {
+			subResult["buckets"] = bucketsReturnMap
+		}
 	}
 
 	_ = cw.addMetadataIfNeeded(query, subResult, aggregatorsLevel)
