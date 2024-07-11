@@ -249,10 +249,11 @@ func (v *GeoIpVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
 		if col, ok := expr.(model.ColumnRef); ok {
 			// This checks if the column is of type point
 			// and if it is, it appends the lat and lon columns to the group by clause
-			if schemaInstance.Fields[schema.FieldName(col.ColumnName)].Type.Name == schema.TypePoint.Name {
+			field := schemaInstance.Fields[schema.FieldName(col.ColumnName)]
+			if field.Type.Name == schema.TypePoint.Name {
 				// TODO suffixes ::lat, ::lon are hardcoded for now
-				groupBy = append(groupBy, model.NewColumnRef(col.ColumnName+"::lat"))
-				groupBy = append(groupBy, model.NewColumnRef(col.ColumnName+"::lon"))
+				groupBy = append(groupBy, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lat"))
+				groupBy = append(groupBy, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lon"))
 			} else {
 				groupBy = append(groupBy, groupByExpr)
 			}
@@ -265,10 +266,11 @@ func (v *GeoIpVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
 		if col, ok := expr.(model.ColumnRef); ok {
 			// This checks if the column is of type point
 			// and if it is, it appends the lat and lon columns to the select clause
-			if schemaInstance.Fields[schema.FieldName(col.ColumnName)].Type.Name == schema.TypePoint.Name {
+			field := schemaInstance.Fields[schema.FieldName(col.ColumnName)]
+			if field.Type.Name == schema.TypePoint.Name {
 				// TODO suffixes ::lat, ::lon are hardcoded for now
-				columns = append(columns, model.NewColumnRef(col.ColumnName+"::lat"))
-				columns = append(columns, model.NewColumnRef(col.ColumnName+"::lon"))
+				columns = append(columns, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lat"))
+				columns = append(columns, model.NewColumnRef(field.InternalPropertyName.AsString()+"::lon"))
 			} else {
 				columns = append(columns, expr.Accept(v).(model.Expr))
 			}
