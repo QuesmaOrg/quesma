@@ -32,3 +32,5 @@ func (query Sum) String() string {
 func (query Sum) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	return rowsFromDB
 }
+
+func (query Sum) metricsAggregation() {}

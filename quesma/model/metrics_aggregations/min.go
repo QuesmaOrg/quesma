@@ -32,3 +32,5 @@ func (query Min) String() string {
 func (query Min) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	return rowsFromDB
 }
+
+func (query Min) metricsAggregation() {}

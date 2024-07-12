@@ -32,3 +32,5 @@ func (query Avg) String() string {
 func (query Avg) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	return rowsFromDB
 }
+
+func (query Avg) metricsAggregation() {}

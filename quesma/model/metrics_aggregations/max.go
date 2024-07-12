@@ -32,3 +32,5 @@ func (query Max) String() string {
 func (query Max) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	return rowsFromDB
 }
+
+func (query Max) metricsAggregation() {}

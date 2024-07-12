@@ -155,3 +155,5 @@ var emptyPercentilesResult = model.JsonMap{
 func (query Quantile) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	return rowsFromDB
 }
+
+func (query Quantile) metricsAggregation() {}

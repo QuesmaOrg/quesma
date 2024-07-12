@@ -37,3 +37,5 @@ func (query GeoCentroid) String() string {
 func (query GeoCentroid) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	return rowsFromDB
 }
+
+func (query GeoCentroid) metricsAggregation() {}

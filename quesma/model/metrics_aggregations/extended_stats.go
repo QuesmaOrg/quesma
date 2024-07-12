@@ -113,3 +113,5 @@ func (query ExtendedStats) getValue(row model.QueryResultRow, functionName strin
 	}
 	return "NaN"
 }
+
+func (query ExtendedStats) metricsAggregation() {}

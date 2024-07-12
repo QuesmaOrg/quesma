@@ -103,3 +103,5 @@ func (query PercentileRanks) String() string {
 func (query PercentileRanks) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	return rowsFromDB
 }
+
+func (query PercentileRanks) metricsAggregation() {}

@@ -39,3 +39,5 @@ func (query ValueCount) String() string {
 func (query ValueCount) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	return rowsFromDB
 }
+
+func (query ValueCount) metricsAggregation() {}

@@ -95,3 +95,5 @@ func (query TopHits) String() string {
 func (query TopHits) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	return rowsFromDB
 }
+
+func (query TopHits) metricsAggregation() {}

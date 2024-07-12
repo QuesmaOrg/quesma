@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+type MetricsAggregation interface {
+	model.QueryType
+	metricsAggregation() // marker function
+}
+
 func metricsTranslateSqlResponseToJson(ctx context.Context, rows []model.QueryResultRow, level int) model.JsonMap {
 	var value any = nil
 	if resultRowsAreFine(ctx, rows) {

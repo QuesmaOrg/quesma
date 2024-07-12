@@ -78,3 +78,5 @@ func (query TopMetrics) String() string {
 func (query TopMetrics) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	return rowsFromDB
 }
+
+func (query TopMetrics) metricsAggregation() {}

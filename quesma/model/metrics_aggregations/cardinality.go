@@ -30,3 +30,5 @@ func (query Cardinality) String() string {
 func (query Cardinality) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	return rowsFromDB
 }
+
+func (query Cardinality) metricsAggregation() {}
