@@ -79,7 +79,7 @@ var TestsNumericFacets = []struct {
 			"completion_status": 200,
 			"completion_time_in_millis": 0,
 			"expiration_time_in_millis": 0,
-			"id": "quesma_async_search_id_19",
+			"id": "quesma_async_19",
 			"is_partial": false,
 			"is_running": false,
 			"response": {
@@ -207,7 +207,7 @@ var TestsNumericFacets = []struct {
 			"completion_status": 200,
 			"completion_time_in_millis": 0,
 			"expiration_time_in_millis": 0,
-			"id": "quesma_async_search_id_19",
+			"id": "quesma_async_19",
 			"is_partial": false,
 			"is_running": false,
 			"response": {
@@ -338,7 +338,7 @@ var TestsNumericFacets = []struct {
 			"completion_status": 200,
 			"completion_time_in_millis": 0,
 			"expiration_time_in_millis": 0,
-			"id": "quesma_async_search_id_19",
+			"id": "quesma_async_19",
 			"is_partial": false,
 			"is_running": false,
 			"response": {
@@ -466,7 +466,7 @@ var TestsNumericFacets = []struct {
 			"completion_status": 200,
 			"completion_time_in_millis": 0,
 			"expiration_time_in_millis": 0,
-			"id": "quesma_async_search_id_19",
+			"id": "quesma_async_19",
 			"is_partial": false,
 			"is_running": false,
 			"response": {

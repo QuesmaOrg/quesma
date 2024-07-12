@@ -26,7 +26,6 @@ import (
 	"quesma/tracing"
 	"quesma/util"
 	"slices"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -36,8 +35,6 @@ const (
 	asyncQueriesLimit      = 10000
 	asyncQueriesLimitBytes = 1024 * 1024 * 500 // 500MB
 )
-
-var asyncRequestId atomic.Int64
 
 type AsyncRequestResult struct {
 	responseBody []byte
@@ -126,13 +123,13 @@ func (q *QueryRunner) handleEQLSearch(ctx context.Context, indexPattern string, 
 func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string, body types.JSON,
 	waitForResultsMs int, keepOnCompletion bool) ([]byte, error) {
 	async := AsyncQuery{
-		asyncRequestIdStr: generateAsyncRequestId(),
-		waitForResultsMs:  waitForResultsMs,
-		keepOnCompletion:  keepOnCompletion,
-		startTime:         time.Now(),
+		asyncId:          tracing.GetAsyncId(),
+		waitForResultsMs: waitForResultsMs,
+		keepOnCompletion: keepOnCompletion,
+		startTime:        time.Now(),
 	}
-	ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, async.asyncRequestIdStr)
-	logger.InfoWithCtx(ctx).Msgf("async search request id: %s started", async.asyncRequestIdStr)
+	ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, async.asyncId)
+	logger.InfoWithCtx(ctx).Msgf("async search request id: %s started", async.asyncId)
 	return q.handleSearchCommon(ctx, indexPattern, body, &async, QueryLanguageDefault)
 }
 
@@ -143,10 +140,10 @@ type AsyncSearchWithError struct {
 }
 
 type AsyncQuery struct {
-	asyncRequestIdStr string
-	waitForResultsMs  int
-	keepOnCompletion  bool
-	startTime         time.Time
+	asyncId          string
+	waitForResultsMs int
+	keepOnCompletion bool
+	startTime        time.Time
 }
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
@@ -159,7 +156,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		var resp []byte
 		if optAsync != nil {
-			resp, _ = queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 200)
+			resp, _ = queryparser.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
 		} else {
 			resp = queryparser.EmptySearchResponse(ctx)
 		}
@@ -167,7 +164,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	case sourceNone:
 		if elasticsearch.IsIndexPattern(indexPattern) {
 			if optAsync != nil {
-				return queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 200)
+				return queryparser.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
 			} else {
 				return queryparser.EmptySearchResponse(ctx), nil
 			}
@@ -188,7 +185,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	if len(sourcesClickhouse) == 0 {
 		if elasticsearch.IsIndexPattern(indexPattern) {
 			if optAsync != nil {
-				return queryparser.EmptyAsyncSearchResponse(optAsync.asyncRequestIdStr, false, 200)
+				return queryparser.EmptyAsyncSearchResponse(optAsync.asyncId, false, 200)
 			} else {
 				return queryparser.EmptySearchResponse(ctx), nil
 			}
@@ -290,7 +287,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			responseBody = []byte(fmt.Sprintf("Invalid Queries: %s, err: %v", queriesBody, err))
 			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBodyConcat)
 			bodyAsBytes, _ := body.Bytes()
-			pushSecondaryInfo(q.quesmaManagementConsole, id, path, bodyAsBytes, queriesBody, responseBody, startTime)
+			pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, queriesBody, responseBody, startTime)
 			return responseBody, errors.New(string(responseBody))
 		}
 
@@ -307,7 +304,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			} else {
 				responseBody, err = response.response.Marshal()
 			}
-			pushSecondaryInfo(q.quesmaManagementConsole, id, path, bodyAsBytes, response.translatedQueryBody, responseBody, startTime)
+			pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, startTime)
 			return responseBody, err
 		} else {
 			select {
@@ -315,11 +312,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				go func() { // Async search takes longer. Return partial results and wait for
 					recovery.LogPanicWithCtx(ctx)
 					res := <-doneCh
-					q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res, true)
+					q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res, true)
 				}()
-				return q.handlePartialAsyncSearch(ctx, optAsync.asyncRequestIdStr)
+				return q.handlePartialAsyncSearch(ctx, optAsync.asyncId)
 			case res := <-doneCh:
-				responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncRequestIdStr, optAsync.startTime, path, body, res,
+				responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res,
 					optAsync.keepOnCompletion)
 
 				return responseBody, err
@@ -338,19 +335,20 @@ func (q *QueryRunner) removeNotExistingTables(sourcesClickhouse []string) []stri
 	})
 }
 
-func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncRequestIdStr string,
+func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncId string,
 	startTime time.Time, path string, body types.JSON, result AsyncSearchWithError, keep bool) (responseBody []byte, err error) {
 	took := time.Since(startTime)
 	if result.err != nil {
 		if keep {
-			q.AsyncRequestStorage.Store(asyncRequestIdStr, AsyncRequestResult{err: result.err, added: time.Now(),
+			q.AsyncRequestStorage.Store(asyncId, AsyncRequestResult{err: result.err, added: time.Now(),
 				isCompressed: false})
 		}
-		responseBody, _ = queryparser.EmptyAsyncSearchResponse(asyncRequestIdStr, false, 503)
+		responseBody, _ = queryparser.EmptyAsyncSearchResponse(asyncId, false, 503)
 		err = result.err
 		bodyAsBytes, _ := body.Bytes()
 		qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 			Id:                     id,
+			AsyncId:                asyncId,
 			Path:                   path,
 			IncomingQueryBody:      bodyAsBytes,
 			QueryBodyTranslated:    result.translatedQueryBody,
@@ -359,11 +357,12 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 		})
 		return
 	}
-	asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, asyncRequestIdStr, false, 200)
+	asyncResponse := queryparser.SearchToAsyncSearchResponse(result.response, asyncId, false, 200)
 	responseBody, err = asyncResponse.Marshal()
 	bodyAsBytes, _ := body.Bytes()
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     id,
+		AsyncId:                asyncId,
 		Path:                   path,
 		IncomingQueryBody:      bodyAsBytes,
 		QueryBodyTranslated:    result.translatedQueryBody,
@@ -379,7 +378,7 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 				isCompressed = true
 			}
 		}
-		q.AsyncRequestStorage.Store(asyncRequestIdStr,
+		q.AsyncRequestStorage.Store(asyncId,
 			AsyncRequestResult{responseBody: compressedBody, added: time.Now(), err: err, isCompressed: isCompressed})
 	}
 	return
@@ -392,10 +391,6 @@ func (q *QueryRunner) asyncQueriesCumulatedBodySize() int {
 		return true
 	})
 	return size
-}
-
-func generateAsyncRequestId() string {
-	return "quesma_async_search_id_" + strconv.FormatInt(asyncRequestId.Add(1), 10)
 }
 
 func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {
@@ -441,12 +436,12 @@ func (q *QueryRunner) deleteAsyncSeach(id string) ([]byte, error) {
 	return []byte{}, nil
 }
 
-func (q *QueryRunner) reachedQueriesLimit(ctx context.Context, asyncRequestIdStr string, doneCh chan<- AsyncSearchWithError) bool {
+func (q *QueryRunner) reachedQueriesLimit(ctx context.Context, asyncId string, doneCh chan<- AsyncSearchWithError) bool {
 	if q.AsyncRequestStorage.Size() < asyncQueriesLimit && q.asyncQueriesCumulatedBodySize() < asyncQueriesLimitBytes {
 		return false
 	}
 	err := errors.New("too many async queries")
-	logger.ErrorWithCtx(ctx).Msgf("cannot handle %s, too many async queries", asyncRequestIdStr)
+	logger.ErrorWithCtx(ctx).Msgf("cannot handle %s, too many async queries", asyncId)
 	doneCh <- AsyncSearchWithError{err: err}
 	return true
 }
@@ -631,12 +626,12 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 	doneCh chan<- AsyncSearchWithError,
 	optAsync *AsyncQuery) (translatedQueryBody [][]byte, resultRows [][]model.QueryResultRow, err error) {
 	if optAsync != nil {
-		if q.reachedQueriesLimit(ctx, optAsync.asyncRequestIdStr, doneCh) {
+		if q.reachedQueriesLimit(ctx, optAsync.asyncId, doneCh) {
 			return
 		}
 		// We need different ctx as our cancel is no longer tied to HTTP request, but to overall timeout.
 		dbQueryCtx, dbCancel := context.WithCancel(tracing.NewContextWithRequest(ctx))
-		q.addAsyncQueryContext(dbQueryCtx, dbCancel, optAsync.asyncRequestIdStr)
+		q.addAsyncQueryContext(dbQueryCtx, dbCancel, optAsync.asyncId)
 		ctx = dbQueryCtx
 	}
 
@@ -686,9 +681,10 @@ func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]mo
 	return geoIpTransformer.Transform(res)
 }
 
-func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, Path string, IncomingQueryBody []byte, QueryBodyTranslated [][]byte, QueryTranslatedResults []byte, startTime time.Time) {
+func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, Path string, IncomingQueryBody []byte, QueryBodyTranslated [][]byte, QueryTranslatedResults []byte, startTime time.Time) {
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     Id,
+		AsyncId:                AsyncId,
 		Path:                   Path,
 		IncomingQueryBody:      IncomingQueryBody,
 		QueryBodyTranslated:    QueryBodyTranslated,
