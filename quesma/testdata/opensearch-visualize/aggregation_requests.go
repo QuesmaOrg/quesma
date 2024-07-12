@@ -731,7 +731,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"key": "503",
 							"score": 94
 						}
-					]
+					],
+					"doc_count_error_upper_bound": 0
 				}
 			},
 			"hits": {
@@ -891,7 +892,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"score": 94
 						}
 					],
-					"doc_count": 2786
+					"doc_count": 2786,
+					"doc_count_error_upper_bound": 0
 				}
 			},
 			"hits": {
@@ -1078,7 +1080,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 							"score": 2570
 						}
 					],
-					"doc_count": 2786
+					"doc_count": 2786,
+					"doc_count_error_upper_bound": 0
 				}
 			},
 			"hits": {

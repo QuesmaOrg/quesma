@@ -40,7 +40,8 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 		response = append(response, bucket)
 	}
 	return model.JsonMap{
-		"buckets": response,
+		"doc_count_error_upper_bound": 0,
+		"buckets":                     response,
 	}
 }
 

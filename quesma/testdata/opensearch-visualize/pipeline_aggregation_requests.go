@@ -4588,7 +4588,8 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 							"score": 76
 						}
 					],
-					"doc_count": 1865
+					"doc_count": 1865,
+					"doc_count_error_upper_bound": 0
 				}
 			},
 			"hits": {
