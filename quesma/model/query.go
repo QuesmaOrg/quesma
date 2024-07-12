@@ -11,9 +11,17 @@ const (
 	noLimit             = 0
 )
 
+// QueryOptimizeHints contains hints for query execution, e.g. peformance settings, temparaty table usage
+type QueryOptimizeHints struct {
+	Settings               map[string]any
+	OptimizationsPerformed []string
+}
+
 type (
 	Query struct {
 		SelectCommand SelectCommand // The representation of SELECT query
+
+		OptimizeHints *QueryOptimizeHints // it can be optional
 
 		Type      QueryType
 		TableName string
@@ -43,6 +51,10 @@ type (
 		String() string
 	}
 )
+
+func NewQueryExecutionHints() *QueryOptimizeHints {
+	return &QueryOptimizeHints{Settings: make(map[string]any)}
+}
 
 func NewSortColumn(field string, direction OrderByDirection) OrderByExpr {
 	return NewOrderByExpr([]Expr{NewColumnRef(field)}, direction)

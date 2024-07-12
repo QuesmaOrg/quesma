@@ -12,6 +12,7 @@ import (
 	"quesma/end_user_errors"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/optimize"
 	"quesma/plugins"
 	"quesma/plugins/registry"
 	"quesma/queryparser"
@@ -71,6 +72,10 @@ type QueryRunner struct {
 	schemaRegistry           schema.Registry
 }
 
+func (q *QueryRunner) EnableQueryOptimization() {
+	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline())
+}
+
 func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry) *QueryRunner {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -82,7 +87,6 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, i
 				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry, logManager: lm}, // this can be a part of another plugin
 			},
 		}, schemaRegistry: schemaRegistry}
-
 }
 
 func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id string) *AsyncQueryContext {
@@ -574,6 +578,13 @@ func (q *QueryRunner) searchWorkerCommon(
 		}
 
 		sql := query.SelectCommand.String()
+		//  TODO we should return what optimizations were performed
+		//  TODO translatedQueryBody should be a struct (sql, optimizations, query time, etc)
+		//
+		//if query.OptimizeHints != nil {
+		//	sql = sql + "\n-- optimizations: " + strings.Join(query.OptimizeHints.OptimizationsPerformed, ", ") + "\n"
+		//}
+
 		logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
 		translatedQueryBody[i] = []byte(sql)
 

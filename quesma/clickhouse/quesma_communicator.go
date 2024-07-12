@@ -72,7 +72,7 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 
 	}
 
-	rows, err := executeQuery(ctx, lm, query.SelectCommand.String(), columns, rowToScan)
+	rows, err := executeQuery(ctx, lm, query, columns, rowToScan)
 
 	if err == nil {
 		for _, row := range rows {
@@ -121,8 +121,10 @@ func (lm *LogManager) explainQuery(ctx context.Context, query string, elapsed ti
 	}
 }
 
-func executeQuery(ctx context.Context, lm *LogManager, queryAsString string, fields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
+func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, fields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
 	span := lm.phoneHomeAgent.ClickHouseQueryDuration().Begin()
+
+	queryAsString := query.SelectCommand.String()
 
 	// We drop privileges for the query
 	//
@@ -132,6 +134,15 @@ func executeQuery(ctx context.Context, lm *LogManager, queryAsString string, fie
 	settings := make(clickhouse.Settings)
 	settings["readonly"] = "1"
 	settings["allow_ddl"] = "0"
+
+	if query.OptimizeHints != nil {
+		fmt.Println("Applying performance settings", query.OptimizeHints.Settings)
+		for k, v := range query.OptimizeHints.Settings {
+			settings[k] = v
+		}
+
+		queryAsString = queryAsString + "\n-- optimizations: " + strings.Join(query.OptimizeHints.OptimizationsPerformed, ", ") + "\n"
+	}
 
 	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(settings))
 
