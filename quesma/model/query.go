@@ -4,6 +4,7 @@ package model
 
 import (
 	"context"
+	"github.com/k0kubun/pp"
 )
 
 const (
@@ -70,6 +71,10 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 
 	q.SelectCommand.OrderBy = make([]OrderByExpr, len(qwa.SelectCommand.OrderBy))
 	copy(q.SelectCommand.OrderBy, qwa.SelectCommand.OrderBy)
+
+	pp.Println("len: ", len(qwa.SelectCommand.Subqueries))
+	q.SelectCommand.Subqueries = make([]SelectCommand, len(qwa.SelectCommand.Subqueries))
+	copy(q.SelectCommand.Subqueries, qwa.SelectCommand.Subqueries)
 
 	q.Aggregators = make([]Aggregator, len(qwa.Aggregators))
 	copy(q.Aggregators, qwa.Aggregators)

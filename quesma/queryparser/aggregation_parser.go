@@ -5,6 +5,7 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -118,6 +119,7 @@ func (b *aggrQueryBuilder) applyTermsSubSelect(terms bucket_aggregations.Terms) 
 */
 
 func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) *model.Query {
+	pp.Println("aaa", b.Query.SelectCommand)
 	query := b.Query
 	query.SelectCommand.WhereClause = b.whereBuilder.WhereClause
 
@@ -196,6 +198,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				metricsAggr.Fields, partitionBy, model.RowNumberColumnName, query.SelectCommand.FromClause, whereString,
 			)
 		*/
+
 		query.SelectCommand.FromClause = query.NewSelectExprWithRowNumber(
 			query.SelectCommand.Columns, b.SelectCommand.GroupBy, b.whereBuilder.WhereClause, "", true)
 		query.SelectCommand.WhereClause = model.And([]model.Expr{
@@ -344,6 +347,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "geo_centroid":
 		query.Type = metrics_aggregations.NewGeoCentroid(b.ctx)
 	}
+	pp.Println("RETURN", query.SelectCommand)
 	return query
 }
 
@@ -375,7 +379,9 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 			logger.WarnWithCtx(cw.Ctx).Msgf("aggs is not a map, but %T, aggs: %v", aggsRaw, aggsRaw)
 		}
 	}
-
+	for _, a := range aggregations {
+		fmt.Println("QQ", a.SelectCommand.Subqueries)
+	}
 	return aggregations, nil
 }
 
@@ -454,6 +460,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 	if metricsAggrResult, isMetrics := cw.tryMetricsAggregation(queryMap); isMetrics {
 		metricAggr := currentAggr.buildMetricsAggregation(metricsAggrResult, metadata)
 		if metricAggr != nil {
+			fmt.Println("q", metricAggr.SelectCommand.Subqueries)
 			*resultQueries = append(*resultQueries, metricAggr)
 		}
 		return nil

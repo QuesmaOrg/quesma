@@ -136,6 +136,8 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	// THIS SHOULD PRODUCE QUERY IN  BRACES
 	var sb strings.Builder
 
+	//pp.Println(c)
+
 	const subqueryNamePrefix = "subQuery"
 	subqueryName := func(subqueryNr int) string {
 		return fmt.Sprintf("%s_%d", subqueryNamePrefix, subqueryNr)
@@ -210,17 +212,11 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	/* HACK ALERT END */
 	if c.FromClause != nil { // here we have to handle nested
 		if nestedCmd, isNested := c.FromClause.(SelectCommand); isNested {
-			sb.WriteString("(")
-			sb.WriteString(AsString(nestedCmd))
-			sb.WriteString(")")
-		} else if nestedCmd, ok := c.FromClause.(*SelectCommand); ok {
-			sb.WriteString("(")
-			sb.WriteString(AsString(nestedCmd))
-			sb.WriteString(")")
-		} else if len(c.Subqueries) == 0 {
-			sb.WriteString(AsString(c.FromClause))
+			sb.WriteString(fmt.Sprintf("(%s)", AsString(nestedCmd)))
 		} else {
 			sb.WriteString(AsString(c.FromClause))
+		}
+		if len(c.Subqueries) > 0 {
 			for subqIdx := range c.Subqueries {
 				sb.WriteString(" INNER JOIN ")
 				sb.WriteString(strconv.Quote(subqueryName(subqIdx + 1)))

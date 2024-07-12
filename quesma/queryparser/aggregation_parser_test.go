@@ -627,7 +627,7 @@ var aggregationTests = []struct {
 
 // Simple unit test, testing only "aggs" part of the request json query
 func TestAggregationParser(t *testing.T) {
-	// logger.InitSimpleLoggerForTests() FIXME there are 2 warns if you enable them, might look into that
+	logger.InitSimpleLoggerForTests() //FIXME there are 2 warns if you enable them, might look into that
 	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
@@ -669,6 +669,7 @@ func TestAggregationParser(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, len(test.translatedSqls), len(aggregations))
 			for _, aggregation := range aggregations {
+				fmt.Println("AQQ", aggregation.SelectCommand.Subqueries)
 				util.AssertContainsSqlEqual(t, test.translatedSqls, aggregation.SelectCommand.String())
 			}
 		})
