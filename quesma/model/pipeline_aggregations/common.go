@@ -38,13 +38,10 @@ func translateSqlResponseToJsonCommon(ctx context.Context, rows []model.QueryRes
 		logger.WarnWithCtx(ctx).Msgf("no rows returned for %s aggregation", aggregationName)
 		return model.JsonMap{}
 	}
-	var response []model.JsonMap
-	for _, row := range rows {
-		response = append(response, model.JsonMap{"value": row.Cols[len(row.Cols)-1].Value})
+	if len(rows) > 1 {
+		logger.WarnWithCtx(ctx).Msgf("More than one row returned for %s aggregation", aggregationName)
 	}
-	return model.JsonMap{
-		"buckets": response,
-	}
+	return model.JsonMap{"value": rows[0].Cols[len(rows[0].Cols)-1].Value}
 }
 
 // calculateResultWhenMissingCommonForDiffAggregations is common for derivative/serial diff aggregations
