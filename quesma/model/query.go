@@ -172,8 +172,8 @@ func (query UnknownAggregationType) IsBucketAggregation() bool {
 	return false
 }
 
-func (query UnknownAggregationType) TranslateSqlResponseToJson(rows []QueryResultRow, level int) []JsonMap {
-	return make([]JsonMap, 0)
+func (query UnknownAggregationType) TranslateSqlResponseToJson(rows []QueryResultRow, level int) JsonMap {
+	return make(JsonMap, 0)
 }
 
 func (query UnknownAggregationType) String() string {

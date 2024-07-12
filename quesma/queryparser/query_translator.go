@@ -81,14 +81,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 	ResultSet []model.QueryResultRow, aggregatorsLevel, selectLevel int) model.JsonMap {
 	// check if we finish
 	if aggregatorsLevel == len(query.Aggregators) {
-		result := query.Type.TranslateSqlResponseToJson(ResultSet, selectLevel)
-		if !query.Type.IsBucketAggregation() || len(result) == 1 {
-			return result[0]
-		} else {
-			return model.JsonMap{
-				"buckets": result,
-			}
-		}
+		return query.Type.TranslateSqlResponseToJson(ResultSet, selectLevel)
 	}
 
 	currentAggregator := query.Aggregators[aggregatorsLevel]
@@ -207,7 +200,7 @@ func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results []
 	}
 	hitsPartOfResponse := hitsQuery.Type.TranslateSqlResponseToJson(hitsResultSet, 0)
 
-	hitsResponse := hitsPartOfResponse[0]["hits"].(model.SearchHits)
+	hitsResponse := hitsPartOfResponse["hits"].(model.SearchHits)
 	return queriesWithoutHits, resultsWithoutHits, &hitsResponse
 }
 
