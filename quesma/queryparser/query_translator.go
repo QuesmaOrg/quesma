@@ -4,7 +4,6 @@ package queryparser
 
 import (
 	"context"
-	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -117,7 +116,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 		qp := queryprocessor.NewQueryProcessor(cw.Ctx)
 		weSplitOverHowManyFields := currentAggregator.SplitOverHowManyFields
 
-		// if leaf bucket aggregation
+		// leaf bucket aggregation
 		if aggregatorsLevel == len(query.Aggregators)-1 && query.Type.IsBucketAggregation() {
 			subResult = cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
 			if buckets, exist := subResult["buckets"]; exist {
@@ -127,21 +126,12 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 					}
 				}
 			}
-		} else {
+		} else { // need to split here into buckets
 			buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+weSplitOverHowManyFields)
 			for _, bucket := range buckets {
 				potentialNewBuckets := cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
-				if array, exist := potentialNewBuckets["buckets"]; exist {
-					panic("ala")
-					for _, newBucket := range array.([]model.JsonMap) {
-						newBucket[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
-						bucketsReturnMap = append(bucketsReturnMap, newBucket)
-					}
-				} else {
-					//panic("jm: " + currentAggregator.Name)
-					potentialNewBuckets[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
-					bucketsReturnMap = append(bucketsReturnMap, potentialNewBuckets)
-				}
+				potentialNewBuckets[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
+				bucketsReturnMap = append(bucketsReturnMap, potentialNewBuckets)
 			}
 			subResult["buckets"] = bucketsReturnMap
 		}
@@ -183,7 +173,6 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 		}
 		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
 		if len(aggregation) != 0 {
-			pp.Println("JM aggregation", aggregation)
 			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation, model.KeyAddedByQuesma)
 		}
 	}
