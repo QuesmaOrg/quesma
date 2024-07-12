@@ -115,20 +115,27 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 		// normally it's just 1. It used to be just 1 before multi_terms aggregation, where we usually split over > 1 field
 		qp := queryprocessor.NewQueryProcessor(cw.Ctx)
 		weSplitOverHowManyFields := currentAggregator.SplitOverHowManyFields
-		buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+weSplitOverHowManyFields)
-		for _, bucket := range buckets {
-			potentialNewBuckets := cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
-			if array, exist := potentialNewBuckets["buckets"]; exist {
-				for _, newBucket := range array.([]model.JsonMap) {
-					newBucket[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
-					bucketsReturnMap = append(bucketsReturnMap, newBucket)
+
+		// if leaf bucket aggregation
+		if aggregatorsLevel == len(query.Aggregators)-1 && query.Type.IsBucketAggregation() {
+			subResult = cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
+		} else {
+			buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+weSplitOverHowManyFields)
+			for _, bucket := range buckets {
+				potentialNewBuckets := cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
+				if array, exist := potentialNewBuckets["buckets"]; exist {
+					for _, newBucket := range array.([]model.JsonMap) {
+						newBucket[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
+						bucketsReturnMap = append(bucketsReturnMap, newBucket)
+					}
+				} else {
+					//panic("jm: " + currentAggregator.Name)
+					potentialNewBuckets[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
+					bucketsReturnMap = append(bucketsReturnMap, potentialNewBuckets)
 				}
-			} else {
-				potentialNewBuckets[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
-				bucketsReturnMap = append(bucketsReturnMap, potentialNewBuckets)
 			}
+			subResult["buckets"] = bucketsReturnMap
 		}
-		subResult["buckets"] = bucketsReturnMap
 	}
 
 	_ = cw.addMetadataIfNeeded(query, subResult, aggregatorsLevel)
