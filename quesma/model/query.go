@@ -11,7 +11,7 @@ const (
 	noLimit             = 0
 )
 
-// QueryOptimizeHints contains hints for query execution, e.g. peformance settings, temparaty table usage
+// QueryOptimizeHints contains hints for query execution, e.g., performance settings, temporary table usage
 type QueryOptimizeHints struct {
 	Settings               map[string]any
 	OptimizationsPerformed []string
