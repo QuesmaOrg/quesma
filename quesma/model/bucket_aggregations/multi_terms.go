@@ -23,12 +23,13 @@ func (query MultiTerms) IsBucketAggregation() bool {
 	return true
 }
 
-func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) (response []model.JsonMap) {
+func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	minimumExpectedColNr := query.fieldsNr + 1 // +1 for doc_count. Can be more, if this MultiTerms has parent aggregations, but never fewer.
 	if len(rows) > 0 && len(rows[0].Cols) < minimumExpectedColNr {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in terms aggregation response, len: %d, expected (at least): %d, rows[0]: %v", len(rows[0].Cols), minimumExpectedColNr, rows[0])
 	}
+	var response []model.JsonMap
 	const delimiter = '|' // between keys in key_as_string
 	for _, row := range rows {
 		startIndex := len(row.Cols) - query.fieldsNr - 1
@@ -55,7 +56,9 @@ func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 		}
 		response = append(response, bucket)
 	}
-	return
+	return model.JsonMap{
+		"buckets": response,
+	}
 }
 
 func (query MultiTerms) String() string {

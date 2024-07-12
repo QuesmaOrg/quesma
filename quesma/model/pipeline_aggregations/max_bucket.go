@@ -28,19 +28,19 @@ func (query MaxBucket) IsBucketAggregation() bool {
 // FIXME I think we should return all rows, not just 1
 // Dunno why it's working, maybe I'm wrong.
 // Let's wait for this until all pipeline merges, when I'll perform some more thorough tests.
-func (query MaxBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query MaxBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for max bucket aggregation")
-		return []model.JsonMap{nil}
+		return model.JsonMap{}
 	}
 	if len(rows) > 1 {
 		logger.WarnWithCtx(query.ctx).Msg("more than one row returned for max bucket aggregation")
 	}
 	if returnMap, ok := rows[0].LastColValue().(model.JsonMap); ok {
-		return []model.JsonMap{returnMap}
+		return returnMap
 	} else {
 		logger.WarnWithCtx(query.ctx).Msgf("could not convert value to JsonMap: %v, type: %T", rows[0].LastColValue(), rows[0].LastColValue())
-		return []model.JsonMap{nil}
+		return model.JsonMap{}
 	}
 }
 

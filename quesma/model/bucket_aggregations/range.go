@@ -122,17 +122,17 @@ func (query Range) IsBucketAggregation() bool {
 	return true
 }
 
-func (query Range) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Range) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	if len(rows) != 1 {
 		logger.ErrorWithCtx(query.ctx).Msgf("unexpected %d of rows in range aggregation response. Expected 1.", len(rows))
-		return nil
+		return model.JsonMap{}
 	}
 	startIteration := len(rows[0].Cols) - 1 - len(query.Intervals)
 	endIteration := len(rows[0].Cols) - 1
 	if startIteration >= endIteration || startIteration < 0 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected column nr in aggregation response, startIteration: %d, endIteration: %d", startIteration, endIteration)
-		return nil
+		return model.JsonMap{}
 	}
 	if query.Keyed {
 		var response = make(model.JsonMap)
@@ -140,7 +140,7 @@ func (query Range) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 			responseForInterval := query.responseForInterval(query.Intervals[i], col.Value)
 			response[query.Intervals[i].String()] = responseForInterval
 		}
-		return []model.JsonMap{response}
+		return response
 	} else {
 		var response []model.JsonMap
 		for i, col := range rows[0].Cols[startIteration:endIteration] {
@@ -148,7 +148,9 @@ func (query Range) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 			responseForInterval["key"] = query.Intervals[i].String()
 			response = append(response, responseForInterval)
 		}
-		return response
+		return model.JsonMap{
+			"buckets": response,
+		}
 	}
 }
 

@@ -25,10 +25,10 @@ func (query PercentileRanks) IsBucketAggregation() bool {
 	return false
 }
 
-func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows in percentile ranks response")
-		return make([]model.JsonMap, 0)
+		return make(model.JsonMap, 0)
 	}
 	// I duplicate a lot of code in this if/else below,
 	// but I think it's worth it, as this function might get called a lot of times for a single query.
@@ -58,9 +58,9 @@ func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResult
 					percentileRank.Value, percentileRank.Value)
 			}
 		}
-		return []model.JsonMap{{
+		return model.JsonMap{
 			"values": valueMap,
-		}}
+		}
 	} else {
 		buckets := make([]model.JsonMap, 0)
 		for _, percentileRank := range rows[0].Cols[level:] {
@@ -90,9 +90,9 @@ func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResult
 					percentileRank.Value, percentileRank.Value)
 			}
 		}
-		return []model.JsonMap{{
+		return model.JsonMap{
 			"values": buckets,
-		}}
+		}
 	}
 }
 

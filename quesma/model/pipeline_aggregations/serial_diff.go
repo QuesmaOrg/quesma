@@ -29,7 +29,7 @@ func (query SerialDiff) IsBucketAggregation() bool {
 	return false
 }
 
-func (query SerialDiff) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query SerialDiff) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	return translateSqlResponseToJsonCommon(query.ctx, rows, query.String())
 }
 

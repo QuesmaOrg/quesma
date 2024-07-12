@@ -33,16 +33,18 @@ func getKey(ctx context.Context, row model.QueryResultRow, query *model.Query) a
 
 // translateSqlResponseToJsonCommon translates rows from DB (maybe postprocessed later), into JSON's format in which
 // we want to return them. It is common for a lot of pipeline aggregations
-func translateSqlResponseToJsonCommon(ctx context.Context, rows []model.QueryResultRow, aggregationName string) []model.JsonMap {
+func translateSqlResponseToJsonCommon(ctx context.Context, rows []model.QueryResultRow, aggregationName string) model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(ctx).Msgf("no rows returned for %s aggregation", aggregationName)
-		return []model.JsonMap{{}}
+		return model.JsonMap{}
 	}
 	var response []model.JsonMap
 	for _, row := range rows {
 		response = append(response, model.JsonMap{"value": row.Cols[len(row.Cols)-1].Value})
 	}
-	return response
+	return model.JsonMap{
+		"buckets": response,
+	}
 }
 
 // calculateResultWhenMissingCommonForDiffAggregations is common for derivative/serial diff aggregations

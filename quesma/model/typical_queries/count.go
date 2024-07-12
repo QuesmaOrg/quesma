@@ -19,8 +19,8 @@ func (query Count) IsBucketAggregation() bool {
 	return false
 }
 
-func (query Count) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
-	return make([]model.JsonMap, 0)
+func (query Count) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+	return make(model.JsonMap, 0)
 }
 
 func (query Count) String() string {

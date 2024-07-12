@@ -21,7 +21,7 @@ func (query Terms) IsBucketAggregation() bool {
 	return true
 }
 
-func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	var response []model.JsonMap
 	if len(rows) > 0 && len(rows[0].Cols) < 2 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
@@ -39,7 +39,9 @@ func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 		}
 		response = append(response, bucket)
 	}
-	return response
+	return model.JsonMap{
+		"buckets": response,
+	}
 }
 
 func (query Terms) String() string {
