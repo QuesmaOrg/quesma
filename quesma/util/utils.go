@@ -418,6 +418,13 @@ func AssertContainsSqlEqual(t *testing.T, expected []string, actual string) {
 			return
 		}
 	}
+
+	pp.Println("-- Expected (one of):")
+	for i, el := range expected {
+		fmt.Printf("%d. %s\n", i+1, SqlPrettyPrint([]byte(el)))
+	}
+	pp.Println("---- Actual:")
+	fmt.Printf("%s\n", SqlPrettyPrint([]byte(actual)))
 	t.Errorf("Expected: %v\nActual: %s", expected, actual)
 }
 
