@@ -117,12 +117,12 @@ func Test_dateTrunc(t *testing.T) {
 			model.SelectCommand{
 				Columns:     []model.Expr{model.NewColumnRef("*")},
 				FromClause:  model.NewTableRef("foo"),
-				WhereClause: date("2024-06-04T13:05:00Z"),
+				WhereClause: date("2024-06-04T13:08:53.675Z"),
 			},
 		},
 
 		{
-			"select all where and between dates",
+			"select all where and between dates (>24h)",
 			model.SelectCommand{
 				Columns:     []model.Expr{model.NewColumnRef("*")},
 				FromClause:  model.NewTableRef("foo"),
@@ -131,7 +131,21 @@ func Test_dateTrunc(t *testing.T) {
 			model.SelectCommand{
 				Columns:     []model.Expr{model.NewColumnRef("*")},
 				FromClause:  model.NewTableRef("foo"),
-				WhereClause: and(gt(col("a"), date("2024-06-04T13:05:00Z")), lt(col("a"), date("2024-06-06T13:10:00Z"))),
+				WhereClause: and(gt(col("a"), date("2024-06-04T13:05:00Z")), lt(col("a"), date("2024-06-06T13:15:00Z"))),
+			},
+		},
+
+		{
+			"select all where and between dates (<24h)",
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo"),
+				WhereClause: and(gt(col("a"), date("2024-06-06T10:08:53.675Z")), lt(col("a"), date("2024-06-06T13:10:53.675Z"))),
+			},
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo"),
+				WhereClause: and(gt(col("a"), date("2024-06-06T10:08:53.675Z")), lt(col("a"), date("2024-06-06T13:10:53.675Z"))),
 			},
 		},
 

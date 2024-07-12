@@ -4,7 +4,6 @@ package optimize
 
 import (
 	"fmt"
-	"quesma/logger"
 	"quesma/model"
 	"strings"
 	"time"
@@ -25,25 +24,110 @@ func (v *truncateDateVisitor) visitChildren(args []model.Expr) []model.Expr {
 	return newArgs
 }
 
-func (v *truncateDateVisitor) VisitLiteral(e model.LiteralExpr) interface{} {
+func (v *truncateDateVisitor) processDateNode(e model.Expr) (string, string, bool) {
 
-	switch v := e.Value.(type) {
+	if fn, ok := e.(model.FunctionExpr); ok {
 
-	case string:
-		// "2024-06-04T13:08:53.675Z"
-		//
-		if strings.HasPrefix(v, "2024-") {
-			logger.Warn().Msgf("not handled date to truncate: '%s'. This can be a bug.", v)
+		if fn.Name == "parseDateTime64BestEffort" {
+
+			if len(fn.Args) == 1 {
+
+				//"2024-06-04T13:08:53.675Z" -> "2024-06-04T13:08:00.000Z"
+
+				if date, ok := fn.Args[0].(model.LiteralExpr); ok {
+					if dateStr, ok := date.Value.(string); ok {
+
+						dateStr = strings.Trim(dateStr, "'")
+						return fn.Name, dateStr, true
+					}
+				}
+			}
 		}
+	}
+	return "", "", false
+}
 
-	default:
-		return e
+type dateComparisonNode struct {
+	column string
+	op     string
+	fn     string
+	date   string
+}
+
+func (v *truncateDateVisitor) processDateComparisonNode(e model.Expr) *dateComparisonNode {
+
+	if op, ok := e.(model.InfixExpr); ok && (op.Op == ">" || op.Op == "<" || op.Op == ">=" || op.Op == "<=") {
+		if column, ok := op.Left.(model.ColumnRef); ok {
+			if fn, date, ok := v.processDateNode(op.Right); ok {
+				return &dateComparisonNode{column: column.ColumnName, op: op.Op, fn: fn, date: date}
+			}
+		}
+	}
+	return nil
+}
+
+func (v *truncateDateVisitor) compare(column, op string, right model.Expr) model.Expr {
+	return model.NewInfixExpr(model.NewColumnRef(column), op, right)
+}
+
+func (v *truncateDateVisitor) date(fn, str string) model.Expr {
+	return model.NewFunction(fn, model.NewLiteral(fmt.Sprintf("'%s'", str)))
+}
+
+func (v *truncateDateVisitor) truncateDate(op string, t time.Time) string {
+
+	truncatedDate := t.Truncate(v.truncateTo)
+
+	if op == "<" || op == "<=" {
+		truncatedDate = truncatedDate.Add(v.truncateTo)
 	}
 
+	return truncatedDate.Format(time.RFC3339)
+}
+
+func (v *truncateDateVisitor) VisitLiteral(e model.LiteralExpr) interface{} {
 	return e
 }
 
 func (v *truncateDateVisitor) VisitInfix(e model.InfixExpr) interface{} {
+
+	op := strings.ToLower(e.Op)
+	if op == "and" {
+
+		left := v.processDateComparisonNode(e.Left)
+		right := v.processDateComparisonNode(e.Right)
+
+		if left != nil && right != nil {
+
+			// check if the columns are the same,
+			if left.column == right.column {
+
+				if leftTime, err := time.Parse(time.RFC3339, left.date); err == nil {
+					if rightTime, err := time.Parse(time.RFC3339, right.date); err == nil {
+
+						duration := rightTime.Sub(leftTime).Abs()
+
+						// if the duration is more than 24 hours, we can truncate the date
+						if duration > 24*time.Hour {
+
+							newLeft := v.truncateDate(left.op, leftTime)
+							newRight := v.truncateDate(right.op, rightTime)
+
+							v.truncated = true
+
+							res := model.NewInfixExpr(
+								v.compare(left.column, left.op, v.date(left.fn, newLeft)),
+								e.Op,
+								v.compare(right.column, right.op, v.date(right.fn, newRight)))
+
+							return res
+						}
+					}
+				}
+			}
+		}
+	}
+
 	left := e.Left.Accept(v).(model.Expr)
 	right := e.Right.Accept(v).(model.Expr)
 
@@ -57,36 +141,6 @@ func (v *truncateDateVisitor) VisitPrefixExpr(e model.PrefixExpr) interface{} {
 }
 
 func (v *truncateDateVisitor) VisitFunction(e model.FunctionExpr) interface{} {
-
-	// TODO what other functions should we handle?
-	if e.Name == "parseDateTime64BestEffort" {
-
-		if len(e.Args) == 1 {
-
-			//"2024-06-04T13:08:53.675Z" -> "2024-06-04T13:08:00.000Z"
-
-			if date, ok := e.Args[0].(model.LiteralExpr); ok {
-				if dateStr, ok := date.Value.(string); ok {
-
-					dateStr = strings.Trim(dateStr, "'")
-
-					// Parse the date string into a time.Time object
-					d, err := time.Parse(time.RFC3339, dateStr)
-					if err != nil {
-						// can parse the date, return the original expression
-					} else {
-						truncatedDate := d.Truncate(v.truncateTo)
-						truncatedDateStr := truncatedDate.Format(time.RFC3339)
-						v.truncated = true
-
-						fmt.Println("DATE TRUNCATED: ", d, " -> ", truncatedDateStr)
-						return model.NewFunction(e.Name, model.NewLiteral(fmt.Sprintf("'%s'", truncatedDateStr)))
-					}
-				}
-			}
-		}
-	}
-
 	args := v.visitChildren(e.Args)
 	return model.NewFunction(e.Name, args...)
 }
