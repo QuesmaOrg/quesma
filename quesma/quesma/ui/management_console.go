@@ -43,7 +43,8 @@ type QueryDebugPrimarySource struct {
 }
 
 type QueryDebugSecondarySource struct {
-	Id string
+	Id      string
+	AsyncId string
 
 	Path              string
 	IncomingQueryBody []byte
@@ -179,6 +180,7 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 		// fmt.Println(msg.IncomingQueryBody)
 		secondaryDebugInfo := QueryDebugSecondarySource{
 			msg.Id,
+			msg.AsyncId,
 			msg.Path,
 			[]byte(util.JsonPrettify(string(msg.IncomingQueryBody), true)),
 			msg.QueryBodyTranslated,

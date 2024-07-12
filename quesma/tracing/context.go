@@ -15,6 +15,8 @@ const (
 	RequestPath     ContextKey = "RequestPath"
 	AsyncIdCtxKey   ContextKey = "AsyncId"
 	TraceEndCtxKey  ContextKey = "TraceEnd"
+
+	AsyncIdPrefix = "quesma_async_"
 )
 
 func (c ContextKey) AsString() string {
@@ -35,5 +37,9 @@ func NewContextWithRequest(existingCtx context.Context) context.Context {
 }
 
 func GetRequestId() string {
-	return uuid.New().String()
+	return uuid.Must(uuid.NewV7()).String()
+}
+
+func GetAsyncId() string {
+	return AsyncIdPrefix + uuid.Must(uuid.NewV7()).String()
 }

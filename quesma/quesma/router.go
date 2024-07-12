@@ -30,8 +30,7 @@ import (
 )
 
 const (
-	httpOk              = 200
-	quesmaAsyncIdPrefix = "quesma_async_search_id_"
+	httpOk = 200
 )
 
 func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *clickhouse.LogManager, console *ui.QuesmaManagementConsole, phoneHomeAgent telemetry.PhoneHomeAgent, queryRunner *QueryRunner) *mux.PathRouter {

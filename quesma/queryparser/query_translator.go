@@ -59,10 +59,10 @@ func EmptyAsyncSearchResponse(id string, isPartial bool, completionStatus int) (
 	return asyncSearchResp.Marshal() // error should never ever happen here
 }
 
-func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.QueryResultRow, query *model.Query, asyncRequestIdStr string, isPartial bool) (*model.AsyncSearchEntireResp, error) {
+func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.QueryResultRow, query *model.Query, asyncId string, isPartial bool) (*model.AsyncSearchEntireResp, error) {
 	searchResponse := cw.MakeSearchResponse([]*model.Query{query}, [][]model.QueryResultRow{ResultSet})
 	id := new(string)
-	*id = asyncRequestIdStr
+	*id = asyncId
 	response := model.AsyncSearchEntireResp{
 		Response:  *searchResponse,
 		ID:        id,
@@ -355,9 +355,9 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 	return response
 }
 
-func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncRequestIdStr string, isPartial bool, completionStatus int) *model.AsyncSearchEntireResp {
+func SearchToAsyncSearchResponse(searchResponse *model.SearchResp, asyncId string, isPartial bool, completionStatus int) *model.AsyncSearchEntireResp {
 	id := new(string)
-	*id = asyncRequestIdStr
+	*id = asyncId
 	response := model.AsyncSearchEntireResp{
 		Response:  *searchResponse,
 		ID:        id,

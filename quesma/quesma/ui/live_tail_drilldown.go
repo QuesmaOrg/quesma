@@ -8,21 +8,34 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"quesma/quesma/ui/internal/builder"
+	"quesma/tracing"
 	"quesma/util"
 	"strings"
 )
 
 func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string) []byte {
+	var request queryDebugInfo
+	var requestFound bool
 	qmc.mutex.Lock()
-	request, requestFound := qmc.debugInfoMessages[requestId]
+	if strings.HasPrefix(requestId, tracing.AsyncIdPrefix) {
+		for _, debugInfo := range qmc.debugInfoMessages {
+			if debugInfo.AsyncId == requestId {
+				request = debugInfo
+				requestFound = true
+				break
+			}
+		}
+	} else {
+		request, requestFound = qmc.debugInfoMessages[requestId]
+	}
 	qmc.mutex.Unlock()
 
-	logMessages, optAsyncId := generateLogMessages(request.logMessages, []string{})
+	logMessages := generateLogMessages(request.logMessages, []string{})
 
 	buffer := newBufferWithHead()
 	if requestFound {
-		if optAsyncId != nil {
-			buffer.Write(generateSimpleTop("Report for request id " + requestId + " and async id " + *optAsyncId))
+		if len(request.AsyncId) > 0 {
+			buffer.Write(generateSimpleTop("Report for request id " + requestId + " and async id " + request.AsyncId))
 		} else {
 			buffer.Write(generateSimpleTop("Report for request id " + requestId))
 		}
@@ -76,8 +89,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 
 		buffer.Html(`<div class="quesma-response">` + "\n")
 		if len(request.QueryDebugSecondarySource.QueryTranslatedResults) > 0 {
-			tookStr := fmt.Sprintf(" took %d ms:", request.SecondaryTook.Milliseconds())
-			buffer.Html("<p class=\"title\">Quesma response").Text(tookStr).Html("</p>\n")
+			buffer.Html("<p class=\"title\">Quesma response").Html("</p>\n")
 			buffer.Html(`<pre>`)
 			buffer.Text(string(request.QueryDebugSecondarySource.QueryTranslatedResults))
 			buffer.Html("\n</pre>")
@@ -113,12 +125,14 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 		buffer.Html("<ul>\n")
 		buffer.Html("<li>").Text("Request id: ").Text(requestId).Html("</li>\n")
 		buffer.Html("<li>").Text("Path: ").Text(request.Path).Html("</li>\n")
-		if optAsyncId != nil {
-			buffer.Html("<li>").Text("Async id: ").Text(*optAsyncId).Html("</li>\n")
+		if len(request.AsyncId) > 0 {
+			buffer.Html("<li>").Text("Async id: ").Text(request.AsyncId).Html("</li>\n")
 		}
 		if request.unsupported != nil {
 			buffer.Html("<li>").Text("Unsupported: ").Text(*request.unsupported).Html("</li>\n")
 		}
+		tookStr := fmt.Sprintf("Took: %d ms", request.SecondaryTook.Milliseconds())
+		buffer.Html("<li>").Text(tookStr).Html("</li>")
 		buffer.Html("</ul>\n")
 	}
 
@@ -147,7 +161,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 
 // links might be empty, then table won't have any links within.
 // if i < len(logMessages) && i < len(links) then logMessages[i] will have link links[i]
-func generateLogMessages(logMessages []string, links []string) ([]byte, *string) {
+func generateLogMessages(logMessages []string, links []string) []byte {
 	// adds a link to the table row if there is a link for it
 	addOpeningLink := func(row, column int) string {
 		if row < len(links) {
@@ -177,8 +191,6 @@ func generateLogMessages(logMessages []string, links []string) ([]byte, *string)
 
 	buffer.Html("</thead>\n")
 	buffer.Html("<tbody>\n")
-
-	var asyncId *string
 
 	for i, logMessage := range logMessages {
 		buffer.Html("<tr>\n")
@@ -221,10 +233,7 @@ func generateLogMessages(logMessages []string, links []string) ([]byte, *string)
 
 		// get rid of request_id and async_id
 		delete(fields, "request_id")
-		if id, ok := fields["async_id"].(string); ok {
-			asyncId = &id
-			delete(fields, "async_id")
-		}
+		delete(fields, "async_id")
 
 		// message
 		buffer.Html(`<td class="message">` + addOpeningLink(i, 2))
@@ -244,7 +253,7 @@ func generateLogMessages(logMessages []string, links []string) ([]byte, *string)
 
 	buffer.Html("</tbody>\n")
 	buffer.Html("</table>\n")
-	return buffer.Bytes(), asyncId
+	return buffer.Bytes()
 }
 
 func (qmc *QuesmaManagementConsole) generateReportForRequestsWithStr(requestStr string) []byte {
