@@ -32,7 +32,7 @@ type (
 	QueryType interface {
 		// TranslateSqlResponseToJson 'level' - we want to translate [level:] (metrics aggr) or [level-1:] (bucket aggr) columns to JSON
 		// Previous columns are used for bucketing.
-		// For 'bucket' aggregation result is a map wrapperd in 'buckets' key.
+		// For 'bucket' aggregation result is a map wrapped in 'buckets' key.
 		TranslateSqlResponseToJson(rows []QueryResultRow, level int) JsonMap
 
 		PostprocessResults(rowsFromDB []QueryResultRow) (ultimateRows []QueryResultRow)
