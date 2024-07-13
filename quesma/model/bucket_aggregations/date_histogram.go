@@ -53,7 +53,7 @@ func (query *DateHistogram) IsBucketAggregation() bool {
 	return true
 }
 
-func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	if len(rows) > 0 && len(rows[0].Cols) < 2 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in date_histogram aggregation response, len(rows[0].Cols): "+
@@ -77,7 +77,9 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 			"key_as_string": intervalStart,
 		})
 	}
-	return response
+	return model.JsonMap{
+		"buckets": response,
+	}
 }
 
 func (query *DateHistogram) String() string {

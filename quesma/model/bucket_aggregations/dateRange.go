@@ -84,7 +84,7 @@ func (query DateRange) IsBucketAggregation() bool {
 	return true
 }
 
-func (query DateRange) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query DateRange) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	if len(rows) != 1 {
 		logger.ErrorWithCtx(query.ctx).Msgf("unexpected number of rows in date_range aggregation response, len: %d", len(rows))
 		return nil
@@ -104,7 +104,9 @@ func (query DateRange) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 		response = append(response, responseForInterval)
 		columnIdx = nextColumnIdx
 	}
-	return response
+	return model.JsonMap{
+		"buckets": response,
+	}
 }
 
 func (query DateRange) String() string {

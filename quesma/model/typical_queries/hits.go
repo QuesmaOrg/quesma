@@ -45,7 +45,7 @@ func (query Hits) IsBucketAggregation() bool {
 	return false
 }
 
-func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	hits := make([]model.SearchHit, 0, len(rows))
 	for i, row := range rows {
 		hit := model.NewSearchHit(query.table.Name)
@@ -71,7 +71,7 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level 
 		hits = append(hits, hit)
 	}
 
-	return []model.JsonMap{{
+	return model.JsonMap{
 		"hits": model.SearchHits{
 			Total: &model.Total{
 				Value:    len(rows),
@@ -84,7 +84,7 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level 
 			Successful: 1,
 			Failed:     0,
 		},
-	}}
+	}
 }
 
 func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.QueryResultRow) {

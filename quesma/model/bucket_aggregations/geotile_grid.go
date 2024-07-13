@@ -21,7 +21,7 @@ func (query GeoTileGrid) IsBucketAggregation() bool {
 	return true
 }
 
-func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	if len(rows) > 0 && len(rows[0].Cols) < 3 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in geotile_grid aggregation response, len(rows[0].Cols): "+
@@ -39,7 +39,9 @@ func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow,
 			"doc_count": row.LastColValue(),
 		})
 	}
-	return response
+	return model.JsonMap{
+		"buckets": response,
+	}
 }
 
 func (query GeoTileGrid) String() string {
