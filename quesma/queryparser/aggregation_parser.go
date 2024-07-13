@@ -5,7 +5,6 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -119,7 +118,7 @@ func (b *aggrQueryBuilder) applyTermsSubSelect(terms bucket_aggregations.Terms) 
 */
 
 func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) *model.Query {
-	pp.Println("aaa", b.Query.SelectCommand)
+	//pp.Println("aaa", b.Query.SelectCommand)
 	query := b.Query
 	query.SelectCommand.WhereClause = b.whereBuilder.WhereClause
 
@@ -347,7 +346,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "geo_centroid":
 		query.Type = metrics_aggregations.NewGeoCentroid(b.ctx)
 	}
-	pp.Println("RETURN", query.SelectCommand)
+	//pp.Println("RETURN", query.SelectCommand)
 	return query
 }
 
@@ -379,9 +378,9 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 			logger.WarnWithCtx(cw.Ctx).Msgf("aggs is not a map, but %T, aggs: %v", aggsRaw, aggsRaw)
 		}
 	}
-	for _, a := range aggregations {
-		fmt.Println("QQ", a.SelectCommand.Subqueries)
-	}
+	//for _, a := range aggregations {
+	//		fmt.Println("QQ", a.SelectCommand.Subqueries)
+	//	}
 	return aggregations, nil
 }
 
@@ -445,7 +444,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 
 	currentAggr := *prevAggr
 	currentAggr.SelectCommand.Limit = 0
-	fmt.Println("AAAA", currentAggr.SelectCommand.Limit, prevAggr.SelectCommand.Limit)
+	//fmt.Println("AAAA", currentAggr.SelectCommand.Limit, prevAggr.SelectCommand.Limit)
 
 	// check if metadata's present
 	var metadata model.JsonMap
@@ -460,7 +459,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 	if metricsAggrResult, isMetrics := cw.tryMetricsAggregation(queryMap); isMetrics {
 		metricAggr := currentAggr.buildMetricsAggregation(metricsAggrResult, metadata)
 		if metricAggr != nil {
-			fmt.Println("q", metricAggr.SelectCommand.Subqueries)
+			//fmt.Println("q", metricAggr.SelectCommand.Subqueries)
 			*resultQueries = append(*resultQueries, metricAggr)
 		}
 		return nil
@@ -506,7 +505,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 
 	_, isTerms := currentAggr.Type.(bucket_aggregations.Terms)
 	if isTerms {
-		fmt.Println("IS TERMS")
+		//fmt.Println("IS TERMS")
 		*resultQueries = append(*resultQueries, currentAggr.buildBucketAggregation(metadata))
 		subquery := currentAggr.Query
 		subquery.CopyAggregationFields(currentAggr.Query)
@@ -519,7 +518,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 		}
 		currentAggr.SelectCommand.Subqueries = append(currentAggr.SelectCommand.Subqueries, subquery.SelectCommand)
 
-		fmt.Println("SUB:", currentAggr.SelectCommand.Subqueries)
+		//fmt.Println("SUB:", currentAggr.SelectCommand.Subqueries)
 	}
 
 	// TODO what happens if there's all: filters, range, and subaggregations at current level?

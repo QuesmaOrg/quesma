@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/jinzhu/copier"
-	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
@@ -362,13 +361,27 @@ var aggregationTests = []struct {
 				`GROUP BY "OriginAirportID", "DestAirportID", subQuery_1_cnt ` +
 				`ORDER BY subQuery_1_cnt DESC, "OriginAirportID", count() DESC, "DestAirportID" ` +
 				`LIMIT 10000 BY "OriginAirportID"`,
-			`SELECT "OriginAirportID", "DestAirportID", "DestLocation" ` +
+			`WITH subQuery_1 AS ` +
+				`(SELECT "OriginAirportID" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`GROUP BY "OriginAirportID" ` +
+				`ORDER BY count() DESC, "OriginAirportID" ` +
+				`LIMIT 10000), ` +
+				`subQuery_2 AS ` +
+				`(SELECT "OriginAirportID" AS "subQuery_2_1", "DestAirportID" AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`GROUP BY "OriginAirportID", "DestAirportID" ` +
+				`ORDER BY count() DESC, "DestAirportID" ` +
+				`LIMIT 10000 BY "OriginAirportID") ` +
+				`SELECT "OriginAirportID", "DestAirportID", "DestLocation" ` +
 				`FROM (SELECT "OriginAirportID", "DestAirportID", "DestLocation", ROW_NUMBER() ` +
 				`OVER (PARTITION BY "OriginAirportID", "DestAirportID") AS "row_number" ` +
-				`FROM "logs-generic-default") ` +
+				`FROM ` + tableNameQuoted + `) ` +
+				`INNER JOIN "subQuery_1" ON "OriginAirportID" = "subQuery_1_1" ` +
+				`INNER JOIN "subQuery_2" ON "OriginAirportID" = "subQuery_2_1" AND "DestAirportID" = "subQuery_2_2" ` +
 				`WHERE "row_number"<=1 ` +
-				`GROUP BY "OriginAirportID", "DestAirportID", "DestLocation" ` +
-				`ORDER BY "OriginAirportID", "DestAirportID"`,
+				`GROUP BY "OriginAirportID", "DestAirportID", "DestLocation", subQuery_1_cnt, subQuery_2_cnt ` +
+				`ORDER BY subQuery_1_cnt DESC, "OriginAirportID", subQuery_2_cnt DESC, "DestAirportID"`,
 			`WITH subQuery_1 AS ` +
 				`(SELECT "OriginAirportID" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
 				`FROM ` + tableNameQuoted + ` ` +
@@ -379,6 +392,7 @@ var aggregationTests = []struct {
 				`FROM (SELECT "OriginAirportID", "OriginLocation", "Origin", ROW_NUMBER() ` +
 				`OVER (PARTITION BY "OriginAirportID") AS "row_number" ` +
 				`FROM ` + tableNameQuoted + `) ` +
+				`INNER JOIN "subQuery_1" ON "OriginAirportID" = "subQuery_1_1" ` +
 				`WHERE "row_number"<=1 ` +
 				`GROUP BY "OriginAirportID", "OriginLocation", "Origin", subQuery_1_cnt ` +
 				`ORDER BY subQuery_1_cnt DESC, "OriginAirportID"`,
@@ -660,9 +674,6 @@ func TestAggregationParser(t *testing.T) {
 
 	for testIdx, test := range aggregationTests {
 		t.Run(strconv.Itoa(testIdx), func(t *testing.T) {
-			if testIdx != 6 {
-				t.Skip()
-			}
 			body, parseErr := types.ParseJSON(test.aggregationJson)
 			assert.NoError(t, parseErr)
 			aggregations, err := cw.ParseAggregationJson(body)
@@ -695,7 +706,7 @@ func sortAggregations(aggregations []*model.Query) {
 }
 
 func Test2AggregationParserExternalTestcases(t *testing.T) {
-	logger.InitSimpleLoggerForTests()
+	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -772,7 +783,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 				t.Skip("Very similar to 2 previous tests, very hard to add results. I'll fix later")
 			}
 			if i != 75 {
-				t.Skip()
+				//t.Skip()
 			}
 
 			body, parseErr := types.ParseJSON(test.QueryRequestJson)
@@ -783,12 +794,12 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Len(t, test.ExpectedResults, len(queries))
 			sortAggregations(queries) // to make test runs deterministic
-			for _, q := range queries {
-				fmt.Println(q.SelectCommand.String())
-			}
+			//for _, q := range queries {
+			//fmt.Println(q.SelectCommand.String())
+			//}
 			// Let's leave those commented debugs for now, they'll be useful in next PRs
 			for j, query := range queries {
-				fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\naaaaaaa%v\n\n", j, query, model.AsString(query.SelectCommand), query.SelectCommand.Columns)
+				//fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\naaaaaaa%v\n\n", j, query, model.AsString(query.SelectCommand), query.SelectCommand.Columns)
 				if test.ExpectedSQLs[j] != "NoDBQuery" {
 					util.AssertSqlEqual(t, test.ExpectedSQLs[j], query.SelectCommand.String())
 				}
@@ -807,7 +818,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			// pp.Println("EXPECTED", expectedResultsCopy)
 			response := cw.MakeSearchResponse(queries, test.ExpectedResults)
 			responseMarshalled, marshalErr := response.Marshal()
-			pp.Println("ACTUAL", response)
+			//pp.Println("ACTUAL", response)
 			assert.NoError(t, marshalErr)
 
 			expectedResponseMap, _ := util.JsonToMap(test.ExpectedResponse)
