@@ -31,17 +31,23 @@ import (
 // and tokens keep the rest (unparsed yet) part of the query.
 // After parsing, the result statement is kept in p.WhereStatement (we should change it in the future)
 // If you have multiple queries to parse, create a new luceneParser for each query.
-type luceneParser struct {
-	ctx               context.Context
-	tokens            []token
-	defaultFieldNames []string
-	// This is a little awkward, at some point we should remove `WhereStatement` and just return the statement from `BuildWhereStatement`
-	// However, given parsing implementation, it's easier to keep it for now.
-	WhereStatement model.Expr
-}
+type (
+	luceneParser struct {
+		ctx               context.Context
+		tokens            []token
+		defaultFieldNames []string
+		fieldNameResolver fieldNameResolver
+		// This is a little awkward, at some point we should remove `WhereStatement` and just return the statement from `BuildWhereStatement`
+		// However, given parsing implementation, it's easier to keep it for now.
+		WhereStatement model.Expr
+	}
+	fieldNameResolver interface {
+		ResolveFieldName(fieldName string) (string, bool)
+	}
+)
 
-func newLuceneParser(ctx context.Context, defaultFieldNames []string) luceneParser {
-	return luceneParser{ctx: ctx, defaultFieldNames: defaultFieldNames, tokens: make([]token, 0)}
+func newLuceneParser(ctx context.Context, defaultFieldNames []string, resolver fieldNameResolver) luceneParser {
+	return luceneParser{ctx: ctx, defaultFieldNames: defaultFieldNames, tokens: make([]token, 0), fieldNameResolver: resolver}
 }
 
 const fuzzyOperator = '~'
@@ -67,8 +73,8 @@ var specialOperators = map[string]token{
 	string(rightParenthesis): rightParenthesisToken{},
 }
 
-func TranslateToSQL(ctx context.Context, query string, fields []string) model.Expr {
-	parser := newLuceneParser(ctx, fields)
+func TranslateToSQL(ctx context.Context, query string, fields []string, resolver fieldNameResolver) model.Expr {
+	parser := newLuceneParser(ctx, fields, resolver)
 	return parser.translateToSQL(query)
 }
 

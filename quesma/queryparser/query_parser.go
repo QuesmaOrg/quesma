@@ -731,8 +731,23 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) model.S
 	query := queryMap["query"].(string) // query: (Required, string)
 
 	// we always call `TranslateToSQL` - Lucene parser returns "false" in case of invalid query
-	whereStmtFromLucene := lucene.TranslateToSQL(cw.Ctx, query, fields)
+	whereStmtFromLucene := lucene.TranslateToSQL(cw.Ctx, query, fields, schemaRegistryAdapter{tableName: cw.Table.Name, Registry: cw.SchemaRegistry})
 	return model.NewSimpleQuery(whereStmtFromLucene, true)
+}
+
+type schemaRegistryAdapter struct {
+	tableName string
+	schema.Registry
+}
+
+func (s schemaRegistryAdapter) ResolveFieldName(fieldName string) (string, bool) {
+	if resolvedSchema, exists := s.Registry.FindSchema(schema.TableName(s.tableName)); exists {
+		if field, fieldFound := resolvedSchema.ResolveField(fieldName); fieldFound {
+			return field.InternalPropertyName.AsString(), true
+		}
+	}
+
+	return fieldName, false
 }
 
 func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) model.SimpleQuery {
