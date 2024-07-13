@@ -4,8 +4,9 @@ package schema
 
 type (
 	Schema struct {
-		Fields  map[FieldName]Field
-		Aliases map[FieldName]FieldName
+		Fields              map[FieldName]Field
+		Aliases             map[FieldName]FieldName
+		internalNameToField map[FieldName]Field
 	}
 	Field struct {
 		// PropertyName is how users refer to the field
@@ -18,12 +19,36 @@ type (
 	FieldName string
 )
 
+func NewSchemaWithAliases(fields map[FieldName]Field, aliases map[FieldName]FieldName) Schema {
+	internalNameToField := make(map[FieldName]Field)
+	for _, field := range fields {
+		internalNameToField[field.InternalPropertyName] = field
+	}
+	return Schema{
+		Fields:              fields,
+		Aliases:             aliases,
+		internalNameToField: internalNameToField,
+	}
+}
+
+func NewSchema(fields map[FieldName]Field) Schema {
+	return NewSchemaWithAliases(fields, map[FieldName]FieldName{})
+}
+
 func (t FieldName) AsString() string {
 	return string(t)
 }
 
 func (t TableName) AsString() string {
 	return string(t)
+}
+
+func (s Schema) ResolveFieldByInternalName(fieldName string) (Field, bool) {
+	if field, exists := s.internalNameToField[FieldName(fieldName)]; exists {
+		return field, true
+	} else {
+		return Field{}, false
+	}
 }
 
 func (s Schema) ResolveField(fieldName string) (Field, bool) {
