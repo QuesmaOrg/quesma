@@ -60,7 +60,11 @@ func (p *luceneParser) buildWhereStatement(addDefaultOperator bool) model.Expr {
 			return invalidStatement
 		}
 		p.tokens = p.tokens[1:]
-		currentStatement = newLeafStatement([]string{currentToken.fieldName}, p.buildValue([]value{}, 0))
+		if name, resolved := p.fieldNameResolver.ResolveFieldName(currentToken.fieldName); resolved {
+			currentStatement = newLeafStatement([]string{name}, p.buildValue([]value{}, 0))
+		} else {
+			currentStatement = newLeafStatement([]string{currentToken.fieldName}, p.buildValue([]value{}, 0))
+		}
 	case separatorToken:
 		currentStatement = newLeafStatement(
 			p.defaultFieldNames,
