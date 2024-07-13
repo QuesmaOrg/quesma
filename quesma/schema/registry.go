@@ -43,7 +43,7 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 		s.populateSchemaFromStaticConfiguration(indexConfiguration, fields)
 		s.populateSchemaFromTableDefinition(definitions, indexName, fields)
 		s.populateAliases(indexConfiguration, fields, aliases)
-		schemas[TableName(indexName)] = Schema{Fields: fields, Aliases: aliases}
+		schemas[TableName(indexName)] = NewSchemaWithAliases(fields, aliases)
 	}
 
 	return schemas, nil
