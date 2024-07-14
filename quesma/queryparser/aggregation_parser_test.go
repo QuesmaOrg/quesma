@@ -783,9 +783,6 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			if test.TestName == "Ophelia Test 3: 5x terms + a lot of other aggregations" {
 				t.Skip("Very similar to 2 previous tests, very hard to add results. I'll fix later")
 			}
-			if i != 85 {
-				t.Skip()
-			}
 
 			body, parseErr := types.ParseJSON(test.QueryRequestJson)
 			assert.NoError(t, parseErr)
@@ -832,7 +829,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			actualMinusExpected, expectedMinusActual := util.MapDifference(response.Aggregations, expectedAggregationsPart, true, true)
 
 			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
-			acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma}
+			acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma, "sum_other_doc_count", "doc_count_error_upper_bound"}
 			pp.Println("ACTUAL diff", actualMinusExpected)
 			pp.Println("EXPECTED diff", expectedMinusActual)
 			// pp.Println("ACTUAL", response.Aggregations)

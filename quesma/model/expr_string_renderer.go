@@ -213,6 +213,8 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	if c.FromClause != nil { // here we have to handle nested
 		if nestedCmd, isNested := c.FromClause.(SelectCommand); isNested {
 			sb.WriteString(fmt.Sprintf("(%s)", AsString(nestedCmd)))
+		} else if nestedCmdPtr, isNested := c.FromClause.(*SelectCommand); isNested {
+			sb.WriteString(fmt.Sprintf("(%s)", AsString(nestedCmdPtr)))
 		} else {
 			sb.WriteString(AsString(c.FromClause))
 		}
