@@ -12,13 +12,13 @@ import (
 
 type MetricsAggregation interface {
 	model.QueryType
-	metricsAggregation() // marker function
+	MetricsAggregation() // marker function
 }
 
 func metricsTranslateSqlResponseToJson(ctx context.Context, rows []model.QueryResultRow, level int) model.JsonMap {
 	var value any = nil
 	if resultRowsAreFine(ctx, rows) {
-		value = rows[0].Cols[len(rows[0].Cols)-1].Value
+		value = rows[0].Cols[level].Value
 	}
 	return model.JsonMap{
 		"value": value,
@@ -36,7 +36,7 @@ func metricsTranslateSqlResponseToJsonWithFieldTypeCheck(
 
 	var value, valueAsString any = nil, nil
 	if resultRowsAreFine(ctx, rows) {
-		valueAsAny := rows[0].Cols[len(rows[0].Cols)-1].Value
+		valueAsAny := rows[0].Cols[level].Value
 		if valueAsTime, ok := valueAsAny.(time.Time); ok {
 			value = valueAsTime.UnixMilli()
 			valueAsString = valueAsTime.Format(time.RFC3339Nano)

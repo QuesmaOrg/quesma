@@ -735,16 +735,8 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 		},
 	}
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
-	allTests := testdata.AggregationTests
-	allTests = append(allTests, testdata.AggregationTests2...)
-	allTests = append(allTests, opensearch_visualize.AggregationTests...)
-	allTests = append(allTests, dashboard_1.AggregationTests...)
-	allTests = append(allTests, testdata.PipelineAggregationTests...)
-	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
-	allTests = append(allTests, kibana_visualize.AggregationTests...)
-	allTests = append(allTests, clients.KunkkaTests...)
-	allTests = append(allTests, clients.OpheliaTests...)
-	for i, test := range allTests {
+
+	for i, test := range getAllAggregationTestCases() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)" {
 				t.Skip("Needs to be fixed by keeping last key for every aggregation. Now we sometimes don't know it. Hard to reproduce, leaving it for separate PR")
@@ -899,4 +891,17 @@ func Test_parseFieldFromScriptField(t *testing.T) {
 		assert.Equal(t, tc.expectedSuccess, success)
 		assert.Equal(t, tc.expectedMatch, field)
 	}
+}
+
+func getAllAggregationTestCases() []testdata.AggregationTestCase {
+	allTests := testdata.AggregationTests
+	allTests = append(allTests, testdata.AggregationTests2...)
+	allTests = append(allTests, opensearch_visualize.AggregationTests...)
+	allTests = append(allTests, dashboard_1.AggregationTests...)
+	allTests = append(allTests, testdata.PipelineAggregationTests...)
+	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
+	allTests = append(allTests, kibana_visualize.AggregationTests...)
+	allTests = append(allTests, clients.KunkkaTests...)
+	allTests = append(allTests, clients.OpheliaTests...)
+	return allTests
 }

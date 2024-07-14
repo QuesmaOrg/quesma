@@ -104,4 +104,4 @@ func (query PercentileRanks) PostprocessResults(rowsFromDB []model.QueryResultRo
 	return rowsFromDB
 }
 
-func (query PercentileRanks) metricsAggregation() {}
+func (query PercentileRanks) MetricsAggregation() {}

@@ -31,4 +31,4 @@ func (query Cardinality) PostprocessResults(rowsFromDB []model.QueryResultRow) [
 	return rowsFromDB
 }
 
-func (query Cardinality) metricsAggregation() {}
+func (query Cardinality) MetricsAggregation() {}

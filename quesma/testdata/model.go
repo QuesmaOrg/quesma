@@ -31,6 +31,12 @@ type AggregationTestCase struct {
 	ExpectedSQLs     []string                 // [0] = translated SQLs for first aggregation, [1] = translated SQL for second aggregation, etc.
 }
 
+type MergeMetricsAggsTestUpdate struct {
+	TestName        string
+	ExpectedResults [][]model.QueryResultRow // [0] = result for first aggregation, [1] = result for second aggregation, etc.
+	ExpectedSQLs    []string                 // [0] = translated SQLs for first aggregation, [1] = translated SQL for second aggregation, etc.
+}
+
 type UnsupportedQueryTestCase struct {
 	TestName         string
 	QueryType        string

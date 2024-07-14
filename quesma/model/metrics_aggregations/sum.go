@@ -33,4 +33,4 @@ func (query Sum) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.Q
 	return rowsFromDB
 }
 
-func (query Sum) metricsAggregation() {}
+func (query Sum) MetricsAggregation() {}

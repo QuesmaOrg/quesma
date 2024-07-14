@@ -39,4 +39,4 @@ func (query Count) PostprocessResults(rowsFromDB []model.QueryResultRow) []model
 	return rowsFromDB
 }
 
-func (query Count) metricsAggregation() {}
+func (query Count) MetricsAggregation() {}

@@ -38,4 +38,4 @@ func (query GeoCentroid) PostprocessResults(rowsFromDB []model.QueryResultRow) [
 	return rowsFromDB
 }
 
-func (query GeoCentroid) metricsAggregation() {}
+func (query GeoCentroid) MetricsAggregation() {}

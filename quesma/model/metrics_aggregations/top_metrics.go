@@ -79,4 +79,4 @@ func (query TopMetrics) PostprocessResults(rowsFromDB []model.QueryResultRow) []
 	return rowsFromDB
 }
 
-func (query TopMetrics) metricsAggregation() {}
+func (query TopMetrics) MetricsAggregation() {}

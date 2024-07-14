@@ -156,4 +156,4 @@ func (query Quantile) PostprocessResults(rowsFromDB []model.QueryResultRow) []mo
 	return rowsFromDB
 }
 
-func (query Quantile) metricsAggregation() {}
+func (query Quantile) MetricsAggregation() {}

@@ -3024,7 +3024,7 @@ var AggregationTests = []AggregationTestCase{
 		},
 	},
 	{ // [18]
-		"",
+		"Sum + filters",
 		`{
     "_source": {
         "excludes": []

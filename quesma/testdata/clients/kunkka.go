@@ -207,7 +207,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-		},
+		}, // TODO FIX THIS TEST WITH OPTIMIZER
 	},
 	{ // [0]
 		TestName: "it's the same input as in previous test, but with the original output from Elastic." +

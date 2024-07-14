@@ -96,4 +96,4 @@ func (query TopHits) PostprocessResults(rowsFromDB []model.QueryResultRow) []mod
 	return rowsFromDB
 }
 
-func (query TopHits) metricsAggregation() {}
+func (query TopHits) MetricsAggregation() {}

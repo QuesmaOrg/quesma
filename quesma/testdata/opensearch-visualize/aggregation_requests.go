@@ -1413,8 +1413,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 		}`,
 		ExpectedResults: [][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(13059))}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull("todo")`, 23.0)}}},
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`minOrNull("todo")`, 0.0)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`maxOrNull(toHour("timestamp"))`, 23.0)}}},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol(`minOrNull(toHour("timestamp"))`, 0.0)}}},
 		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName,

@@ -4,10 +4,12 @@ package queryparser
 
 import (
 	"context"
+	"fmt"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"quesma/model/metrics_aggregations"
 	"quesma/model/typical_queries"
 	"quesma/queryparser/query_util"
 	"quesma/queryprocessor"
@@ -80,6 +82,7 @@ func (cw *ClickhouseQueryTranslator) MakeAsyncSearchResponse(ResultSet []model.Q
 func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *model.Query,
 	ResultSet []model.QueryResultRow, aggregatorsLevel, selectLevel int) model.JsonMap {
 	// check if we finish
+	fmt.Println("qq", aggregatorsLevel, len(query.Aggregators), len(ResultSet)) //, "splitOver: ", query.Aggregators[aggregatorsLevel].SplitOverHowManyFields)
 	if aggregatorsLevel == len(query.Aggregators) {
 		return query.Type.TranslateSqlResponseToJson(ResultSet, selectLevel)
 	}
@@ -167,11 +170,23 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 		return aggregations
 	}
 	cw.postprocessPipelineAggregations(queries, ResultSets)
+	fmt.Println("T", ResultSets)
 	for i, query := range queries {
+		fmt.Println("QUERYYYYY", query)
 		if i >= len(ResultSets) || query_util.IsNonAggregationQuery(query) {
 			continue
 		}
-		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
+		resultsIndex := i // normally results for i'th query are in i'th resultset
+		if metricsWrapper, ok := query.Type.(*metrics_aggregations.MetricsWrapper); ok {
+			for j, q := range queries {
+				if q == metricsWrapper.GetQueryWithResults() {
+					resultsIndex = j
+					break
+				}
+			}
+			fmt.Printf("query %d resultsIndex: %d len: %d\n", i, resultsIndex, len(ResultSets[resultsIndex]))
+		}
+		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[resultsIndex], 0, 0)
 		if len(aggregation) != 0 {
 			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation, model.KeyAddedByQuesma)
 		}
@@ -219,7 +234,7 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 	relationCount := "eq"
 	for i, query := range queries {
 		if query.Type != nil {
-			if _, isCount := query.Type.(typical_queries.Count); isCount {
+			if query_util.IsTypicalQueriesCount(query) {
 				if len(results[i]) > 0 && len(results[i][0].Cols) > 0 {
 					switch v := results[i][0].Cols[0].Value.(type) {
 					case uint64:
@@ -233,10 +248,13 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 					if query.SelectCommand.SampleLimit != 0 && totalCount == query.SelectCommand.SampleLimit {
 						relationCount = "gte"
 					}
+					if len(results[i][0].Cols) == 1 {
+						continue
+					}
 				} else {
 					logger.ErrorWithCtx(cw.Ctx).Msgf("no results for Count value SQL query result [%v]", results[i])
+					continue
 				}
-				continue
 			}
 		}
 

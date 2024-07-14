@@ -6,6 +6,7 @@ import (
 	"context"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/model/metrics_aggregations"
 	"quesma/model/typical_queries"
 )
 
@@ -13,6 +14,14 @@ func IsNonAggregationQuery(query *model.Query) bool {
 	switch query.Type.(type) {
 	case typical_queries.Count, *typical_queries.Hits, nil: // FIXME erase nil, always have type non-empty, but it's not that completely easy, as it seems
 		return true
+	case *metrics_aggregations.MetricsWrapper:
+		wrapped := query.Type.(*metrics_aggregations.MetricsWrapper).GetWrapped()
+		switch wrapped.(type) {
+		case typical_queries.Count, nil:
+			return true
+		default:
+			return false
+		}
 	default:
 		return false
 	}
@@ -52,4 +61,15 @@ func applySizeLimit(ctx context.Context, size int) int {
 		size = quesmaMaxSize
 	}
 	return size
+}
+
+func IsTypicalQueriesCount(query *model.Query) bool {
+	if _, ok := query.Type.(typical_queries.Count); ok {
+		return true
+	}
+	if wrapper, ok := query.Type.(*metrics_aggregations.MetricsWrapper); ok {
+		_, ok = wrapper.GetWrapped().(typical_queries.Count)
+		return ok
+	}
+	return false
 }

@@ -33,4 +33,4 @@ func (query Max) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.Q
 	return rowsFromDB
 }
 
-func (query Max) metricsAggregation() {}
+func (query Max) MetricsAggregation() {}
