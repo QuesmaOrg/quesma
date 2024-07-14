@@ -217,13 +217,14 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 			sb.WriteString(AsString(c.FromClause))
 		}
 		if len(c.Subqueries) > 0 {
-			for subqIdx := range c.Subqueries {
+			for subqIdx, subq := range c.Subqueries {
+				fmt.Println(subq)
 				sb.WriteString(" INNER JOIN ")
 				sb.WriteString(strconv.Quote(subqueryName(subqIdx + 1)))
 				sb.WriteString(" ON ")
-				for colIdx := range subqIdx + 1 {
+				for colIdx := range len(subq.Columns) - 1 {
 					sb.WriteString(fmt.Sprintf("%s = %s", AsString(c.Columns[colIdx]), strconv.Quote(subqueryFieldAlias(subqIdx+1, colIdx+1))))
-					if colIdx < subqIdx {
+					if colIdx < len(subq.Columns)-2 {
 						sb.WriteString(" AND ")
 					}
 				}

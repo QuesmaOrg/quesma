@@ -257,29 +257,29 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), subQuery_2 AS ` +
-				`(SELECT "surname" AS "subQuery_2_1", "limbName" AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`(SELECT "surname" AS "subQuery_2_1", COALESCE("limbName",'__missing__') AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY "surname", "limbName" ` +
-				`ORDER BY count() DESC, "limbName" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
+				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname") ` +
-				`SELECT "surname", "limbName", "organName", count() ` +
+				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND "limbName" = "subQuery_2_2" ` +
-				`GROUP BY "surname", "limbName", "organName", subQuery_1_cnt, subQuery_2_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, "limbName", count() DESC, "organName" ` +
-				`LIMIT 1 BY "surname", "limbName"`,
+				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND COALESCE("limbName",'__missing__') = "subQuery_2_2" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName", subQuery_1_cnt, subQuery_2_cnt ` +
+				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, COALESCE("limbName",'__missing__'), count() DESC, "organName" ` +
+				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')`,
 			`WITH subQuery_1 AS ` +
 				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
-				`SELECT "surname", "limbName", count() ` +
+				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`GROUP BY "surname", "limbName", subQuery_1_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", count() DESC, "limbName" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), subQuery_1_cnt ` +
+				`ORDER BY subQuery_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"`,
 			`SELECT "surname", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +

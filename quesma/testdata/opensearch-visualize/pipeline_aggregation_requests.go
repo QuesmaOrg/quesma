@@ -3331,14 +3331,22 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
-			`SELECT floor("bytes"/200.000000)*200.000000, "clientip", sumOrNull("bytes") ` +
+			`WITH subQuery_1 AS ` +
+				`(SELECT floor("bytes"/200.000000)*200.000000 AS "subQuery_1_1", "clientip" AS "subQuery_1_2", count() AS "subQuery_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000, "clientip" ` +
-				`ORDER BY floor("bytes"/200.000000)*200.000000, "clientip"`,
+				`ORDER BY count() DESC, "clientip" ` +
+				`LIMIT 2 BY floor("bytes"/200.000000)*200.000000) ` +
+				`SELECT floor("bytes"/200.000000)*200.000000, "clientip", sumOrNull("bytes") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "subQuery_1" ON floor("bytes"/200.000000)*200.000000 = "subQuery_1_1" AND "clientip" = "subQuery_1_2" ` +
+				`GROUP BY floor("bytes"/200.000000)*200.000000, "clientip", subQuery_1_cnt ` +
+				`ORDER BY floor("bytes"/200.000000)*200.000000, subQuery_1_cnt DESC, "clientip"`,
 			`SELECT floor("bytes"/200.000000)*200.000000, "clientip", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000, "clientip" ` +
-				`ORDER BY floor("bytes"/200.000000)*200.000000, "clientip"`,
+				`ORDER BY floor("bytes"/200.000000)*200.000000, count() DESC, "clientip" ` +
+				`LIMIT 2 BY floor("bytes"/200.000000)*200.000000`,
 			`SELECT floor("bytes"/200.000000)*200.000000, count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +

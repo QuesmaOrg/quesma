@@ -749,6 +749,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 
 		currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, col)
 		currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, col)
+		currentAggr.SelectCommand.LimitBy = append(currentAggr.SelectCommand.LimitBy, col)
 		currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(col))
 
 		delete(queryMap, "histogram")

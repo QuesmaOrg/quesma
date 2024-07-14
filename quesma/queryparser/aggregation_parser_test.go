@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/jinzhu/copier"
+	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
@@ -782,8 +783,8 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			if test.TestName == "Ophelia Test 3: 5x terms + a lot of other aggregations" {
 				t.Skip("Very similar to 2 previous tests, very hard to add results. I'll fix later")
 			}
-			if i != 75 {
-				//t.Skip()
+			if i != 85 {
+				t.Skip()
 			}
 
 			body, parseErr := types.ParseJSON(test.QueryRequestJson)
@@ -832,8 +833,8 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 
 			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
 			acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma}
-			// pp.Println("ACTUAL diff", actualMinusExpected)
-			// pp.Println("EXPECTED diff", expectedMinusActual)
+			pp.Println("ACTUAL diff", actualMinusExpected)
+			pp.Println("EXPECTED diff", expectedMinusActual)
 			// pp.Println("ACTUAL", response.Aggregations)
 			// pp.Println("EXPECTED", expectedAggregationsPart)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
