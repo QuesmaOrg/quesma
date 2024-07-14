@@ -138,30 +138,30 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 
 	//pp.Println(c)
 
-	const subqueryNamePrefix = "subQuery"
-	subqueryName := func(subqueryNr int) string {
-		return fmt.Sprintf("%s_%d", subqueryNamePrefix, subqueryNr)
+	const cteNamePrefix = "cte"
+	cteName := func(cteIdx int) string {
+		return fmt.Sprintf("%s_%d", cteNamePrefix, cteIdx+1)
 	}
-	subqueryFieldAlias := func(subqueryNr, fieldNr int) string {
-		return fmt.Sprintf("%s_%d_%d", subqueryNamePrefix, subqueryNr, fieldNr)
+	cteFieldAlias := func(cteIdx, fieldIdx int) string {
+		return fmt.Sprintf("%s_%d_%d", cteNamePrefix, cteIdx+1, fieldIdx+1)
 	}
-	subqueryCountAlias := func(subqueryNr int) string {
-		return fmt.Sprintf("%s_%d_cnt", subqueryNamePrefix, subqueryNr)
+	cteCountAlias := func(ctxIdx int) string {
+		return fmt.Sprintf("%s_%d_cnt", cteNamePrefix, ctxIdx+1)
 	}
-	if len(c.Subqueries) > 0 {
-		subqueryStrs := make([]string, 0, len(c.Subqueries))
-		for i, subquery := range c.Subqueries {
-			for j, col := range subquery.Columns {
-				if _, alreadyAliased := subquery.Columns[j].(AliasedExpr); !alreadyAliased {
-					subquery.Columns[j] = AliasedExpr{Expr: col, Alias: subqueryFieldAlias(i+1, j+1)}
+	if len(c.CTEs) > 0 {
+		CTEsStrings := make([]string, 0, len(c.CTEs))
+		for i, cte := range c.CTEs {
+			for j, col := range cte.Columns {
+				if _, alreadyAliased := cte.Columns[j].(AliasedExpr); !alreadyAliased {
+					cte.Columns[j] = AliasedExpr{Expr: col, Alias: cteFieldAlias(i, j)}
 				} else {
 					logger.Warn().Msgf("Subquery column already aliased: %s, %+v", AsString(col), col)
 				}
 			}
-			str := fmt.Sprintf("%s AS (%s)", subqueryName(i+1), AsString(subquery))
-			subqueryStrs = append(subqueryStrs, str)
+			str := fmt.Sprintf("%s AS (%s)", cteName(i), AsString(cte))
+			CTEsStrings = append(CTEsStrings, str)
 		}
-		sb.WriteString(fmt.Sprintf("WITH %s ", strings.Join(subqueryStrs, ", ")))
+		sb.WriteString(fmt.Sprintf("WITH %s ", strings.Join(CTEsStrings, ", ")))
 	}
 
 	sb.WriteString("SELECT ")
@@ -218,15 +218,14 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 		} else {
 			sb.WriteString(AsString(c.FromClause))
 		}
-		if len(c.Subqueries) > 0 {
-			for subqIdx, subq := range c.Subqueries {
-				fmt.Println(subq)
+		if len(c.CTEs) > 0 {
+			for cteIdx, cte := range c.CTEs {
 				sb.WriteString(" INNER JOIN ")
-				sb.WriteString(strconv.Quote(subqueryName(subqIdx + 1)))
+				sb.WriteString(strconv.Quote(cteName(cteIdx)))
 				sb.WriteString(" ON ")
-				for colIdx := range len(subq.Columns) - 1 {
-					sb.WriteString(fmt.Sprintf("%s = %s", AsString(c.Columns[colIdx]), strconv.Quote(subqueryFieldAlias(subqIdx+1, colIdx+1))))
-					if colIdx < len(subq.Columns)-2 {
+				for colIdx := range len(cte.Columns) - 1 { // at least so far, last one is always count() or some other metric aggr, on which we don't need to GROUP BY
+					sb.WriteString(fmt.Sprintf("%s = %s", AsString(c.Columns[colIdx]), strconv.Quote(cteFieldAlias(cteIdx, colIdx))))
+					if colIdx < len(cte.Columns)-2 {
 						sb.WriteString(" AND ")
 					}
 				}
@@ -248,17 +247,17 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	if len(groupBy) > 0 {
 		sb.WriteString(" GROUP BY ")
 		fullGroupBy := groupBy
-		for i := range c.Subqueries {
-			fullGroupBy = append(fullGroupBy, subqueryCountAlias(i+1))
+		for i := range c.CTEs {
+			fullGroupBy = append(fullGroupBy, cteCountAlias(i))
 		}
 		sb.WriteString(strings.Join(fullGroupBy, ", "))
 	}
 
 	orderBy := make([]string, 0, len(c.OrderBy))
-	orderByReplaced, orderByToReplace := 0, len(c.Subqueries)
+	orderByReplaced, orderByToReplace := 0, len(c.CTEs)
 	for _, col := range c.OrderBy {
 		if col.IsCountDesc() && orderByReplaced < orderByToReplace {
-			orderBy = append(orderBy, fmt.Sprintf("%s DESC", subqueryCountAlias(orderByReplaced+1)))
+			orderBy = append(orderBy, fmt.Sprintf("%s DESC", cteCountAlias(orderByReplaced)))
 			orderByReplaced++
 		} else {
 			orderBy = append(orderBy, AsString(col))

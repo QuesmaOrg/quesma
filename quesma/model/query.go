@@ -72,8 +72,8 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 	copy(q.SelectCommand.OrderBy, qwa.SelectCommand.OrderBy)
 
 	//pp.Println("len: ", len(qwa.SelectCommand.Subqueries))
-	q.SelectCommand.Subqueries = make([]SelectCommand, len(qwa.SelectCommand.Subqueries))
-	copy(q.SelectCommand.Subqueries, qwa.SelectCommand.Subqueries)
+	q.SelectCommand.CTEs = make([]SelectCommand, len(qwa.SelectCommand.CTEs))
+	copy(q.SelectCommand.CTEs, qwa.SelectCommand.CTEs)
 
 	q.Aggregators = make([]Aggregator, len(qwa.Aggregators))
 	copy(q.Aggregators, qwa.Aggregators)

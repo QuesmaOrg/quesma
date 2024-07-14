@@ -15,10 +15,11 @@ type SelectCommand struct {
 	Limit       int    // LIMIT clause, noLimit (0) means no limit
 	SampleLimit int    // LIMIT, but before grouping, 0 means no limit
 
-	Subqueries []SelectCommand
+	CTEs []SelectCommand // Common Table Expressions, so these parts of query: WITH cte_1 AS SELECT ..., cte_2 AS SELECT ...
 }
 
-func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, where Expr, limitBy []Expr, limit, sampleLimit int, isDistinct bool, subqueries []SelectCommand) *SelectCommand {
+func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, where Expr, limitBy []Expr,
+	limit, sampleLimit int, isDistinct bool, CTEs []SelectCommand) *SelectCommand {
 	return &SelectCommand{
 		IsDistinct: isDistinct,
 
@@ -30,7 +31,7 @@ func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, wher
 		LimitBy:     limitBy,
 		Limit:       limit,
 		SampleLimit: sampleLimit,
-		Subqueries:  subqueries,
+		CTEs:        CTEs,
 	}
 }
 
@@ -40,7 +41,7 @@ func (c SelectCommand) Accept(v ExprVisitor) interface{} {
 	return v.VisitSelectCommand(c)
 }
 
-func (c SelectCommand) String() string {
+func (c *SelectCommand) String() string {
 	// TODO - we might need to verify queries nested N-times (N>=3), perhaps this should strip the outermost braces
 	return AsString(c)
 }

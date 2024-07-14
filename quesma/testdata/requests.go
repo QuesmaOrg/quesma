@@ -727,8 +727,8 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.SearchQueryInfo{Typ: model.Normal},
 		[]string{
-			`WITH subQuery_1 AS ` +
-				`(SELECT COALESCE("event.dataset",'unknown') AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT COALESCE("event.dataset",'unknown') AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z')) ` +
@@ -737,11 +737,11 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 				`LIMIT 4) ` +
 				`SELECT COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON COALESCE("event.dataset",'unknown') = "subQuery_1_1" ` +
+				`INNER JOIN "cte_1" ON COALESCE("event.dataset",'unknown') = "cte_1_1" ` +
 				`WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z')) ` +
-				`GROUP BY COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), subQuery_1_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
+				`GROUP BY COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
 			`SELECT COALESCE("event.dataset",'unknown'), count() FROM ` + QuotedTableName + ` ` +
 				`WHERE ("@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') ` +
 				`AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z')) ` +

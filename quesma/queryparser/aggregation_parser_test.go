@@ -5,7 +5,6 @@ package queryparser
 import (
 	"cmp"
 	"context"
-	"fmt"
 	"github.com/jinzhu/copier"
 	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
@@ -143,30 +142,30 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` GROUP BY "OriginCityName" ORDER BY count() DESC, "OriginCityName" LIMIT 1000`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "OriginCityName" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "OriginCityName" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`GROUP BY "OriginCityName" ` +
 				`ORDER BY count() DESC, "OriginCityName" ` +
 				`LIMIT 1000) ` +
 				`SELECT "OriginCityName", count() ` +
 				`FROM ` + tableNameQuoted + ` ` +
-				`INNER JOIN "subQuery_1" ON "OriginCityName" = "subQuery_1_1" ` +
+				`INNER JOIN "cte_1" ON "OriginCityName" = "cte_1_1" ` +
 				`WHERE "FlightDelay"==true ` +
-				`GROUP BY "OriginCityName", subQuery_1_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "OriginCityName"`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "OriginCityName" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+				`GROUP BY "OriginCityName", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "OriginCityName"`,
+			`WITH cte_1 AS ` +
+				`(SELECT "OriginCityName" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`GROUP BY "OriginCityName" ` +
 				`ORDER BY count() DESC, "OriginCityName" ` +
 				`LIMIT 1000) ` +
 				`SELECT "OriginCityName", count() ` +
 				`FROM ` + tableNameQuoted + ` ` +
-				`INNER JOIN "subQuery_1" ON "OriginCityName" = "subQuery_1_1" ` +
+				`INNER JOIN "cte_1" ON "OriginCityName" = "cte_1_1" ` +
 				`WHERE "Cancelled"==true ` +
-				`GROUP BY "OriginCityName", subQuery_1_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "OriginCityName"`,
+				`GROUP BY "OriginCityName", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "OriginCityName"`,
 		},
 	},
 	{ // [2]
@@ -201,17 +200,17 @@ var aggregationTests = []struct {
 		}`,
 		[]string{
 			`SELECT "FlightDelayType", count() FROM ` + tableNameQuoted + ` GROUP BY "FlightDelayType" ORDER BY count() DESC, "FlightDelayType" LIMIT 10`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "FlightDelayType" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "FlightDelayType" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`GROUP BY "FlightDelayType" ` +
 				`ORDER BY count() DESC, "FlightDelayType" ` +
 				`LIMIT 10) ` +
 				`SELECT "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000), count() ` +
 				`FROM ` + tableNameQuoted + ` ` +
-				`INNER JOIN "subQuery_1" ON "FlightDelayType" = "subQuery_1_1" ` +
-				`GROUP BY "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000), subQuery_1_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000)`,
+				`INNER JOIN "cte_1" ON "FlightDelayType" = "cte_1_1" ` +
+				`GROUP BY "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000), cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000)`,
 		},
 	},
 	{ // [3]
@@ -350,26 +349,26 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
-			`WITH subQuery_1 AS ` +
-				`(SELECT "OriginAirportID" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "OriginAirportID" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`GROUP BY "OriginAirportID" ` +
 				`ORDER BY count() DESC, "OriginAirportID" ` +
 				`LIMIT 10000) ` +
 				`SELECT "OriginAirportID", "DestAirportID", count() ` +
 				`FROM ` + tableNameQuoted + ` ` +
-				`INNER JOIN "subQuery_1" ON "OriginAirportID" = "subQuery_1_1" ` +
-				`GROUP BY "OriginAirportID", "DestAirportID", subQuery_1_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "OriginAirportID", count() DESC, "DestAirportID" ` +
+				`INNER JOIN "cte_1" ON "OriginAirportID" = "cte_1_1" ` +
+				`GROUP BY "OriginAirportID", "DestAirportID", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "OriginAirportID", count() DESC, "DestAirportID" ` +
 				`LIMIT 10000 BY "OriginAirportID"`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "OriginAirportID" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "OriginAirportID" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`GROUP BY "OriginAirportID" ` +
 				`ORDER BY count() DESC, "OriginAirportID" ` +
 				`LIMIT 10000), ` +
-				`subQuery_2 AS ` +
-				`(SELECT "OriginAirportID" AS "subQuery_2_1", "DestAirportID" AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`cte_2 AS ` +
+				`(SELECT "OriginAirportID" AS "cte_2_1", "DestAirportID" AS "cte_2_2", count() AS "cte_2_cnt" ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`GROUP BY "OriginAirportID", "DestAirportID" ` +
 				`ORDER BY count() DESC, "DestAirportID" ` +
@@ -378,13 +377,13 @@ var aggregationTests = []struct {
 				`FROM (SELECT "OriginAirportID", "DestAirportID", "DestLocation", ROW_NUMBER() ` +
 				`OVER (PARTITION BY "OriginAirportID", "DestAirportID") AS "row_number" ` +
 				`FROM ` + tableNameQuoted + `) ` +
-				`INNER JOIN "subQuery_1" ON "OriginAirportID" = "subQuery_1_1" ` +
-				`INNER JOIN "subQuery_2" ON "OriginAirportID" = "subQuery_2_1" AND "DestAirportID" = "subQuery_2_2" ` +
+				`INNER JOIN "cte_1" ON "OriginAirportID" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "OriginAirportID" = "cte_2_1" AND "DestAirportID" = "cte_2_2" ` +
 				`WHERE "row_number"<=1 ` +
-				`GROUP BY "OriginAirportID", "DestAirportID", "DestLocation", subQuery_1_cnt, subQuery_2_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "OriginAirportID", subQuery_2_cnt DESC, "DestAirportID"`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "OriginAirportID" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+				`GROUP BY "OriginAirportID", "DestAirportID", "DestLocation", cte_1_cnt, cte_2_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "OriginAirportID", cte_2_cnt DESC, "DestAirportID"`,
+			`WITH cte_1 AS ` +
+				`(SELECT "OriginAirportID" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`GROUP BY "OriginAirportID" ` +
 				`ORDER BY count() DESC, "OriginAirportID" ` +
@@ -393,10 +392,10 @@ var aggregationTests = []struct {
 				`FROM (SELECT "OriginAirportID", "OriginLocation", "Origin", ROW_NUMBER() ` +
 				`OVER (PARTITION BY "OriginAirportID") AS "row_number" ` +
 				`FROM ` + tableNameQuoted + `) ` +
-				`INNER JOIN "subQuery_1" ON "OriginAirportID" = "subQuery_1_1" ` +
+				`INNER JOIN "cte_1" ON "OriginAirportID" = "cte_1_1" ` +
 				`WHERE "row_number"<=1 ` +
-				`GROUP BY "OriginAirportID", "OriginLocation", "Origin", subQuery_1_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "OriginAirportID"`,
+				`GROUP BY "OriginAirportID", "OriginLocation", "Origin", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "OriginAirportID"`,
 			`SELECT "OriginAirportID", count() FROM ` + tableNameQuoted + ` GROUP BY "OriginAirportID" ORDER BY count() DESC, "OriginAirportID" LIMIT 10000`,
 		},
 	},
@@ -431,17 +430,17 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
-			`WITH subQuery_1 AS ` +
-				`(SELECT "category" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "category" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + tableNameQuoted + ` ` +
 				`GROUP BY "category" ` +
 				`ORDER BY count() DESC, "category" ` +
 				`LIMIT 10) ` +
 				`SELECT "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000), count() ` +
 				`FROM ` + tableNameQuoted + ` ` +
-				`INNER JOIN "subQuery_1" ON "category" = "subQuery_1_1" ` +
-				`GROUP BY "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000), subQuery_1_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000)`,
+				`INNER JOIN "cte_1" ON "category" = "cte_1_1" ` +
+				`GROUP BY "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000), cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000)`,
 			`SELECT "category", count() FROM ` + tableNameQuoted + ` GROUP BY "category" ORDER BY count() DESC, "category" LIMIT 10`,
 		},
 	},
@@ -681,7 +680,6 @@ func TestAggregationParser(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, len(test.translatedSqls), len(aggregations))
 			for _, aggregation := range aggregations {
-				fmt.Println("AQQ", aggregation.SelectCommand.Subqueries)
 				util.AssertContainsSqlEqual(t, test.translatedSqls, aggregation.SelectCommand.String())
 			}
 		})

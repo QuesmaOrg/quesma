@@ -253,35 +253,35 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200), subQuery_2 AS ` +
-				`(SELECT "surname" AS "subQuery_2_1", COALESCE("limbName",'__missing__') AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`LIMIT 200), cte_2 AS ` +
+				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND COALESCE("limbName",'__missing__') = "subQuery_2_2" ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName", subQuery_1_cnt, subQuery_2_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, COALESCE("limbName",'__missing__'), count() DESC, "organName" ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName", cte_1_cnt, cte_2_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), count() DESC, "organName" ` +
 				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), subQuery_1_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"`,
 			`SELECT "surname", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
@@ -683,115 +683,115 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			},
 		},
 		ExpectedSQLs: []string{
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", sumOrNull("total") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`GROUP BY "surname", subQuery_1_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname"`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`GROUP BY "surname", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname"`,
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
-				`subQuery_2 AS ` +
-				`(SELECT "surname" AS "subQuery_2_1", COALESCE("limbName",'__missing__') AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`cte_2 AS ` +
+				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), sumOrNull("total") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND COALESCE("limbName",'__missing__') = "subQuery_2_2" ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), subQuery_1_cnt, subQuery_2_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, COALESCE("limbName",'__missing__')`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt, cte_2_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__')`,
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
-				`subQuery_2 AS ` +
-				`(SELECT "surname" AS "subQuery_2_1", COALESCE("limbName",'__missing__') AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`cte_2 AS ` +
+				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"), ` +
-				`subQuery_3 AS ` +
-				`(SELECT "surname" AS "subQuery_3_1", COALESCE("limbName",'__missing__') AS "subQuery_3_2", "organName" AS "subQuery_3_3", count() AS "subQuery_3_cnt" ` +
+				`cte_3 AS ` +
+				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", "organName" AS "cte_3_3", count() AS "cte_3_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName" ` +
 				`ORDER BY count() DESC, "organName" ` +
 				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", sumOrNull("total") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND COALESCE("limbName",'__missing__') = "subQuery_2_2" ` +
-				`INNER JOIN "subQuery_3" ON "surname" = "subQuery_3_1" AND COALESCE("limbName",'__missing__') = "subQuery_3_2" AND "organName" = "subQuery_3_3" ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName", subQuery_1_cnt, subQuery_2_cnt, subQuery_3_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, COALESCE("limbName",'__missing__'), subQuery_3_cnt DESC, "organName"`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
+				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND "organName" = "cte_3_3" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName", cte_1_cnt, cte_2_cnt, cte_3_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), cte_3_cnt DESC, "organName"`,
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
-				`subQuery_2 AS ` +
-				`(SELECT "surname" AS "subQuery_2_1", COALESCE("limbName",'__missing__') AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`cte_2 AS ` +
+				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"), ` +
-				`subQuery_3 AS ` +
-				`(SELECT "surname" AS "subQuery_3_1", COALESCE("limbName",'__missing__') AS "subQuery_3_2", "organName" AS "subQuery_3_3", count() AS "subQuery_3_cnt" ` +
+				`cte_3 AS ` +
+				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", "organName" AS "cte_3_3", count() AS "cte_3_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName" ` +
 				`ORDER BY count() DESC, "organName" ` +
 				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", sumOrNull("some") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND COALESCE("limbName",'__missing__') = "subQuery_2_2" ` +
-				`INNER JOIN "subQuery_3" ON "surname" = "subQuery_3_1" AND COALESCE("limbName",'__missing__') = "subQuery_3_2" AND "organName" = "subQuery_3_3" ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName", subQuery_1_cnt, subQuery_2_cnt, subQuery_3_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, COALESCE("limbName",'__missing__'), subQuery_3_cnt DESC, "organName"`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
+				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND "organName" = "cte_3_3" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName", cte_1_cnt, cte_2_cnt, cte_3_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), cte_3_cnt DESC, "organName"`,
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
-				`subQuery_2 AS ` +
-				`(SELECT "surname" AS "subQuery_2_1", COALESCE("limbName",'__missing__') AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`cte_2 AS ` +
+				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND COALESCE("limbName",'__missing__') = "subQuery_2_2" ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName", subQuery_1_cnt, subQuery_2_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, COALESCE("limbName",'__missing__'), count() DESC, "organName" ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName", cte_1_cnt, cte_2_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), count() DESC, "organName" ` +
 				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), subQuery_1_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"`,
 			`SELECT "surname", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
@@ -1232,115 +1232,115 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`FROM (SELECT 1 ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`LIMIT 10000)`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100) ` +
 				`SELECT "surname", sumOrNull("total") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`GROUP BY "surname", subQuery_1_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname"`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`GROUP BY "surname", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname"`,
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100), ` +
-				`subQuery_2 AS ` +
-				`(SELECT "surname" AS "subQuery_2_1", COALESCE("limbName",'__missing__') AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`cte_2 AS ` +
+				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), sumOrNull("total") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND COALESCE("limbName",'__missing__') = "subQuery_2_2" ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), subQuery_1_cnt, subQuery_2_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, COALESCE("limbName",'__missing__')`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt, cte_2_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__')`,
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100), ` +
-				`subQuery_2 AS ` +
-				`(SELECT "surname" AS "subQuery_2_1", COALESCE("limbName",'__missing__') AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`cte_2 AS ` +
+				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname"), ` +
-				`subQuery_3 AS ` +
-				`(SELECT "surname" AS "subQuery_3_1", COALESCE("limbName",'__missing__') AS "subQuery_3_2", COALESCE("organName",'__missing__') AS "subQuery_3_3", count() AS "subQuery_3_cnt" ` +
+				`cte_3 AS ` +
+				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", COALESCE("organName",'__missing__') AS "cte_3_3", count() AS "cte_3_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("organName",'__missing__') ` +
 				`LIMIT 10 BY "surname", COALESCE("limbName",'__missing__')) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), sumOrNull("total") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND COALESCE("limbName",'__missing__') = "subQuery_2_2" ` +
-				`INNER JOIN "subQuery_3" ON "surname" = "subQuery_3_1" AND COALESCE("limbName",'__missing__') = "subQuery_3_2" AND COALESCE("organName",'__missing__') = "subQuery_3_3" ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), subQuery_1_cnt, subQuery_2_cnt, subQuery_3_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, COALESCE("limbName",'__missing__'), subQuery_3_cnt DESC, COALESCE("organName",'__missing__')`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
+				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND COALESCE("organName",'__missing__') = "cte_3_3" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), cte_1_cnt, cte_2_cnt, cte_3_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), cte_3_cnt DESC, COALESCE("organName",'__missing__')`,
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100), ` +
-				`subQuery_2 AS ` +
-				`(SELECT "surname" AS "subQuery_2_1", COALESCE("limbName",'__missing__') AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`cte_2 AS ` +
+				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname"), ` +
-				`subQuery_3 AS ` +
-				`(SELECT "surname" AS "subQuery_3_1", COALESCE("limbName",'__missing__') AS "subQuery_3_2", COALESCE("organName",'__missing__') AS "subQuery_3_3", count() AS "subQuery_3_cnt" ` +
+				`cte_3 AS ` +
+				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", COALESCE("organName",'__missing__') AS "cte_3_3", count() AS "cte_3_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("organName",'__missing__') ` +
 				`LIMIT 10 BY "surname", COALESCE("limbName",'__missing__')) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), sumOrNull("some") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND COALESCE("limbName",'__missing__') = "subQuery_2_2" ` +
-				`INNER JOIN "subQuery_3" ON "surname" = "subQuery_3_1" AND COALESCE("limbName",'__missing__') = "subQuery_3_2" AND COALESCE("organName",'__missing__') = "subQuery_3_3" ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), subQuery_1_cnt, subQuery_2_cnt, subQuery_3_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, COALESCE("limbName",'__missing__'), subQuery_3_cnt DESC, COALESCE("organName",'__missing__')`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
+				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND COALESCE("organName",'__missing__') = "cte_3_3" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), cte_1_cnt, cte_2_cnt, cte_3_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), cte_3_cnt DESC, COALESCE("organName",'__missing__')`,
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
-				`subQuery_2 AS ` +
-				`(SELECT "surname" AS "subQuery_2_1", COALESCE("limbName",'__missing__') AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`cte_2 AS ` +
+				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND COALESCE("limbName",'__missing__') = "subQuery_2_2" ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), subQuery_1_cnt, subQuery_2_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, COALESCE("limbName",'__missing__'), count() DESC, COALESCE("organName",'__missing__') ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), cte_1_cnt, cte_2_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), count() DESC, COALESCE("organName",'__missing__') ` +
 				`LIMIT 10 BY "surname", COALESCE("limbName",'__missing__')`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100) ` +
 				`SELECT "surname", COALESCE(COALESCE("limbName",'__missing__'),'__missing__'), count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`GROUP BY "surname", COALESCE(COALESCE("limbName",'__missing__'),'__missing__'), subQuery_1_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`GROUP BY "surname", COALESCE(COALESCE("limbName",'__missing__'),'__missing__'), cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname"`,
 			`SELECT "surname", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
@@ -1349,62 +1349,62 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`LIMIT 100`,
 			``,
 			``,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100), ` +
-				`subQuery_2 AS ` +
-				`(SELECT "surname" AS "subQuery_2_1", COALESCE("limbName",'__missing__') AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`cte_2 AS ` +
+				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname"), ` +
-				`subQuery_3 AS ` +
-				`(SELECT "surname" AS "subQuery_3_1", COALESCE("limbName",'__missing__') AS "subQuery_3_2", COALESCE("organName",'__missing__') AS "subQuery_3_3", count() AS "subQuery_3_cnt" ` +
+				`cte_3 AS ` +
+				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", COALESCE("organName",'__missing__') AS "cte_3_3", count() AS "cte_3_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("organName",'__missing__') ` +
 				`LIMIT 10 BY "surname", COALESCE("limbName",'__missing__')) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), "doctorName", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND COALESCE("limbName",'__missing__') = "subQuery_2_2" ` +
-				`INNER JOIN "subQuery_3" ON "surname" = "subQuery_3_1" AND COALESCE("limbName",'__missing__') = "subQuery_3_2" AND COALESCE("organName",'__missing__') = "subQuery_3_3" ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), "doctorName", subQuery_1_cnt, subQuery_2_cnt, subQuery_3_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, COALESCE("limbName",'__missing__'), subQuery_3_cnt DESC, COALESCE("organName",'__missing__'), count() DESC, "doctorName" ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
+				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND COALESCE("organName",'__missing__') = "cte_3_3" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), "doctorName", cte_1_cnt, cte_2_cnt, cte_3_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), cte_3_cnt DESC, COALESCE("organName",'__missing__'), count() DESC, "doctorName" ` +
 				`LIMIT 6 BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__')`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100), ` +
-				`subQuery_2 AS ` +
-				`(SELECT "surname" AS "subQuery_2_1", COALESCE("limbName",'__missing__') AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`cte_2 AS ` +
+				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
 				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname") ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND COALESCE("limbName",'__missing__') = "subQuery_2_2" ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), subQuery_1_cnt, subQuery_2_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, COALESCE("limbName",'__missing__'), count() DESC, COALESCE("organName",'__missing__') ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), cte_1_cnt, cte_2_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), count() DESC, COALESCE("organName",'__missing__') ` +
 				`LIMIT 10 BY "surname", COALESCE("limbName",'__missing__')`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 100) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), subQuery_1_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 10 BY "surname"`,
 			`SELECT "surname", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +

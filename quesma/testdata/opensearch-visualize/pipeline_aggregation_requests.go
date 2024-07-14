@@ -3087,17 +3087,17 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "clientip" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "clientip" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "clientip" ` +
 				`ORDER BY count() DESC, "clientip" ` +
 				`LIMIT 5) ` +
 				`SELECT "clientip", count(DISTINCT "geo.coordinates") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "clientip" = "subQuery_1_1" ` +
-				`GROUP BY "clientip", subQuery_1_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "clientip"`,
+				`INNER JOIN "cte_1" ON "clientip" = "cte_1_1" ` +
+				`GROUP BY "clientip", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "clientip"`,
 			`SELECT "clientip", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "clientip" ` +
@@ -3331,17 +3331,17 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT floor("bytes"/200.000000)*200.000000 AS "subQuery_1_1", "clientip" AS "subQuery_1_2", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT floor("bytes"/200.000000)*200.000000 AS "cte_1_1", "clientip" AS "cte_1_2", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000, "clientip" ` +
 				`ORDER BY count() DESC, "clientip" ` +
 				`LIMIT 2 BY floor("bytes"/200.000000)*200.000000) ` +
 				`SELECT floor("bytes"/200.000000)*200.000000, "clientip", sumOrNull("bytes") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON floor("bytes"/200.000000)*200.000000 = "subQuery_1_1" AND "clientip" = "subQuery_1_2" ` +
-				`GROUP BY floor("bytes"/200.000000)*200.000000, "clientip", subQuery_1_cnt ` +
-				`ORDER BY floor("bytes"/200.000000)*200.000000, subQuery_1_cnt DESC, "clientip"`,
+				`INNER JOIN "cte_1" ON floor("bytes"/200.000000)*200.000000 = "cte_1_1" AND "clientip" = "cte_1_2" ` +
+				`GROUP BY floor("bytes"/200.000000)*200.000000, "clientip", cte_1_cnt ` +
+				`ORDER BY floor("bytes"/200.000000)*200.000000, cte_1_cnt DESC, "clientip"`,
 			`SELECT floor("bytes"/200.000000)*200.000000, "clientip", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000, "clientip" ` +
@@ -4655,17 +4655,17 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
-			`WITH subQuery_1 AS ` +
-				`(SELECT "extension" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "extension" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "extension" ` +
 				`ORDER BY count() DESC, "extension" ` +
 				`LIMIT 5) ` +
 				`SELECT "extension", avgOrNull("machine.ram") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "subQuery_1" ON "extension" = "subQuery_1_1" ` +
-				`GROUP BY "extension", subQuery_1_cnt ` +
-				`ORDER BY subQuery_1_cnt DESC, "extension"`,
+				`INNER JOIN "cte_1" ON "extension" = "cte_1_1" ` +
+				`GROUP BY "extension", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "extension"`,
 			`SELECT "extension", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "extension" ` +

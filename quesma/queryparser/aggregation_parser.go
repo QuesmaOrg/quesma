@@ -378,9 +378,6 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 			logger.WarnWithCtx(cw.Ctx).Msgf("aggs is not a map, but %T, aggs: %v", aggsRaw, aggsRaw)
 		}
 	}
-	//for _, a := range aggregations {
-	//		fmt.Println("QQ", a.SelectCommand.Subqueries)
-	//	}
 	return aggregations, nil
 }
 
@@ -459,7 +456,6 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 	if metricsAggrResult, isMetrics := cw.tryMetricsAggregation(queryMap); isMetrics {
 		metricAggr := currentAggr.buildMetricsAggregation(metricsAggrResult, metadata)
 		if metricAggr != nil {
-			//fmt.Println("q", metricAggr.SelectCommand.Subqueries)
 			*resultQueries = append(*resultQueries, metricAggr)
 		}
 		return nil
@@ -505,18 +501,18 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 
 	_, isTerms := currentAggr.Type.(bucket_aggregations.Terms)
 	if isTerms {
-		//fmt.Println("IS TERMS")
 		*resultQueries = append(*resultQueries, currentAggr.buildBucketAggregation(metadata))
-		subquery := currentAggr.Query
-		subquery.CopyAggregationFields(currentAggr.Query)
-		subquery.SelectCommand.WhereClause = currentAggr.whereBuilder.WhereClause
-		subquery.SelectCommand.Columns = append(subquery.SelectCommand.Columns,
-			model.NewAliasedExpr(model.NewCountFunc(), fmt.Sprintf("subQuery_%d_cnt", len(currentAggr.SelectCommand.Subqueries)+1)))
-		subquery.SelectCommand.Subqueries = nil
-		if len(subquery.SelectCommand.OrderBy) > 2 {
-			subquery.SelectCommand.OrderBy = subquery.SelectCommand.OrderBy[len(subquery.SelectCommand.OrderBy)-2:]
+		cte := currentAggr.Query
+		cte.CopyAggregationFields(currentAggr.Query)
+		cte.SelectCommand.WhereClause = currentAggr.whereBuilder.WhereClause
+		cte.SelectCommand.Columns = append(cte.SelectCommand.Columns,
+			model.NewAliasedExpr(model.NewCountFunc(), fmt.Sprintf("cte_%d_cnt", len(currentAggr.SelectCommand.CTEs)+1))) // FIXME unify this name creation with one in model/expr_as_string
+		cte.SelectCommand.CTEs = nil // CTEs don't have CTEs themselves (so far, maybe that'll need to change)
+		if len(cte.SelectCommand.OrderBy) > 2 {
+			// we can reduce nr of ORDER BYs in CTEs. Last 2 seem to be always enough. Proper ordering is done anyway in the outer SELECT.
+			cte.SelectCommand.OrderBy = cte.SelectCommand.OrderBy[len(cte.SelectCommand.OrderBy)-2:]
 		}
-		currentAggr.SelectCommand.Subqueries = append(currentAggr.SelectCommand.Subqueries, subquery.SelectCommand)
+		currentAggr.SelectCommand.CTEs = append(currentAggr.SelectCommand.CTEs, cte.SelectCommand)
 
 		//fmt.Println("SUB:", currentAggr.SelectCommand.Subqueries)
 	}
