@@ -29,15 +29,9 @@ func (qmc *QuesmaManagementConsole) generateSchemas() []byte {
 		buffer.Html(`</h2></th>`)
 		buffer.Html(`</tr>`)
 		buffer.Html(`<tr>`)
-		buffer.Html(`<th>`)
-		buffer.Html(`Public Name`)
-		buffer.Html(`</th>`)
-		buffer.Html(`<th>`)
-		buffer.Html(`Internal Name`)
-		buffer.Html(`</th>`)
-		buffer.Html(`<th>`)
-		buffer.Html(`Type`)
-		buffer.Html(`</th>`)
+		buffer.Html(`<th>Public Name</th>`)
+		buffer.Html(`<th>Internal Name</th>`)
+		buffer.Html(`<th>Type</th>`)
 		buffer.Html(`</tr>`)
 
 		for _, fieldName := range util.MapKeysSorted(schema.Fields) {
@@ -55,19 +49,23 @@ func (qmc *QuesmaManagementConsole) generateSchemas() []byte {
 			buffer.Html(`</tr>`)
 		}
 
-		for _, aliasFieldName := range util.MapKeysSorted(schema.Aliases) {
-			targetFieldName := schema.Aliases[aliasFieldName]
-			buffer.Html(`<tr>`)
-			buffer.Html(`<td>`)
-			buffer.Text("-")
-			buffer.Html(`</td>`)
-			buffer.Html(`<td>`)
-			buffer.Text(fmt.Sprintf("%s->%s", aliasFieldName.AsString(), targetFieldName.AsString()))
-			buffer.Html(`</td>`)
-			buffer.Html(`<td>`)
-			field := schema.Fields[targetFieldName]
-			buffer.Text(fmt.Sprintf("%s %s", field.Type.Name, field.Type.Properties))
-			buffer.Html(`</td>`)
+		if len(schema.Aliases) > 0 {
+			buffer.Html(`<th colspan=3><h4>Aliases</h4></th>`)
+
+			for _, aliasFieldName := range util.MapKeysSorted(schema.Aliases) {
+				targetFieldName := schema.Aliases[aliasFieldName]
+				buffer.Html(`<tr>`)
+				buffer.Html(`<td>`)
+				buffer.Text(fmt.Sprintf("%s->%s", aliasFieldName.AsString(), targetFieldName.AsString()))
+				buffer.Html(`</td>`)
+				buffer.Html(`<td>`)
+				buffer.Text("-")
+				buffer.Html(`</td>`)
+				buffer.Html(`<td>`)
+				field := schema.Fields[targetFieldName]
+				buffer.Text(fmt.Sprintf("%s %s", field.Type.Name, field.Type.Properties))
+				buffer.Html(`</td>`)
+			}
 		}
 	}
 
