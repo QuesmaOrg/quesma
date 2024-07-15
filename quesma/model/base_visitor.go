@@ -26,7 +26,7 @@ func NewBaseVisitor() *BaseExprVisitor {
 	return &BaseExprVisitor{}
 }
 
-func (v *BaseExprVisitor) visitChildren(args []Expr) []Expr {
+func (v *BaseExprVisitor) VisitChildren(args []Expr) []Expr {
 	var newArgs []Expr
 	for _, arg := range args {
 		if arg != nil {
@@ -56,14 +56,14 @@ func (v *BaseExprVisitor) VisitPrefixExpr(e PrefixExpr) interface{} {
 	if v.OverrideVisitPrefixExpr != nil {
 		return v.OverrideVisitPrefixExpr(v, e)
 	}
-	return NewPrefixExpr(e.Op, v.visitChildren(e.Args))
+	return NewPrefixExpr(e.Op, v.VisitChildren(e.Args))
 }
 
 func (v *BaseExprVisitor) VisitFunction(e FunctionExpr) interface{} {
 	if v.OverrideVisitFunction != nil {
 		return v.OverrideVisitFunction(v, e)
 	}
-	return NewFunction(e.Name, v.visitChildren(e.Args)...)
+	return NewFunction(e.Name, v.VisitChildren(e.Args)...)
 }
 
 func (v *BaseExprVisitor) VisitColumnRef(e ColumnRef) interface{} {
@@ -95,7 +95,7 @@ func (v *BaseExprVisitor) VisitMultiFunction(e MultiFunctionExpr) interface{} {
 	if v.OverrideVisitMultiFunction != nil {
 		return v.OverrideVisitMultiFunction(v, e)
 	}
-	return MultiFunctionExpr{Name: e.Name, Args: v.visitChildren(e.Args)}
+	return MultiFunctionExpr{Name: e.Name, Args: v.VisitChildren(e.Args)}
 }
 
 func (v *BaseExprVisitor) VisitString(e StringExpr) interface{} {
@@ -116,7 +116,7 @@ func (v *BaseExprVisitor) VisitOrderByExpr(e OrderByExpr) interface{} {
 	if v.OverrideVisitOrderByExpr != nil {
 		return v.OverrideVisitOrderByExpr(v, e)
 	}
-	return OrderByExpr{Exprs: v.visitChildren(e.Exprs), Direction: e.Direction}
+	return OrderByExpr{Exprs: v.VisitChildren(e.Exprs), Direction: e.Direction}
 }
 
 func (v *BaseExprVisitor) VisitDistinctExpr(e DistinctExpr) interface{} {
@@ -139,8 +139,8 @@ func (v *BaseExprVisitor) VisitWindowFunction(f WindowFunction) interface{} {
 	}
 	return WindowFunction{
 		Name:        f.Name,
-		Args:        v.visitChildren(f.Args),
-		PartitionBy: v.visitChildren(f.PartitionBy),
+		Args:        v.VisitChildren(f.Args),
+		PartitionBy: v.VisitChildren(f.PartitionBy),
 		OrderBy:     f.OrderBy.Accept(v).(OrderByExpr),
 	}
 }
