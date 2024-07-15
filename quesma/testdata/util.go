@@ -36,7 +36,6 @@ func selectFieldsInAnyOrderAsRegex(fields []string) string {
 	return resultRegex[:len(resultRegex)-1] // remove the last "|"
 }
 
-// const TableName = "kibana_sample_data_flights"
 const TableName = "logs-generic-default"
 const QuotedTableName = `"` + TableName + `"`
 const queryparserFacetsSampleSize = "20000" // should be same value as queryparser.facetsSampleSize

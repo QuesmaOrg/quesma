@@ -5,9 +5,7 @@ package util
 import (
 	"context"
 	"encoding/json"
-	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
-	"quesma/logger"
 	"reflect"
 	"strconv"
 	"testing"
@@ -662,11 +660,9 @@ func TestMergeMaps(t *testing.T) {
 			},
 		},
 	}
-	logger.InitSimpleLoggerForTests()
 	for i, tt := range cases {
 		t.Run("TestMergeMaps_"+strconv.Itoa(i), func(t *testing.T) {
 			// simple == or Equal doesn't work on nested maps => need DeepEqual
-			pp.Println(MergeMaps(context.Background(), tt.m1, tt.m2, "not-important"))
 			assert.True(t, reflect.DeepEqual(tt.wanted, MergeMaps(context.Background(), tt.m1, tt.m2, "not-important")))
 		})
 	}

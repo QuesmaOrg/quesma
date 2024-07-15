@@ -27,8 +27,7 @@ type (
 		TableName string
 
 		Highlighter Highlighter
-		NoDBQuery   bool // true <=> we don't need query to DB here, true in some pipeline aggregations and terms
-		IsPipeline  bool
+		NoDBQuery   bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
 		Parent      string       // parent aggregation name, used in some pipeline aggregations
 		Aggregators []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
 

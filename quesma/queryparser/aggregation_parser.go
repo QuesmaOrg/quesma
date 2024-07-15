@@ -329,7 +329,6 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 		}
 	}
 
-	// cw.combineQueries(aggregations)
 	return aggregations, nil
 }
 
@@ -393,8 +392,6 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 
 	currentAggr := *prevAggr
 	currentAggr.SelectCommand.Limit = 0
-	currentAggr.Parent = ""
-	currentAggr.NoDBQuery = false
 
 	// check if metadata's present
 	var metadata model.JsonMap
@@ -459,7 +456,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 		cte.CopyAggregationFields(currentAggr.Query)
 		cte.SelectCommand.WhereClause = currentAggr.whereBuilder.WhereClause
 		cte.SelectCommand.Columns = append(cte.SelectCommand.Columns,
-			model.NewAliasedExpr(terms.Tmp, fmt.Sprintf("cte_%d_cnt", len(currentAggr.SelectCommand.CTEs)+1))) // FIXME unify this name creation with one in model/expr_as_string
+			model.NewAliasedExpr(terms.OrderByExpr, fmt.Sprintf("cte_%d_cnt", len(currentAggr.SelectCommand.CTEs)+1))) // FIXME unify this name creation with one in model/expr_as_string
 		cte.SelectCommand.CTEs = nil // CTEs don't have CTEs themselves (so far, maybe that'll need to change)
 		if len(cte.SelectCommand.OrderBy) > 2 {
 			// we can reduce nr of ORDER BYs in CTEs. Last 2 seem to be always enough. Proper ordering is done anyway in the outer SELECT.
@@ -772,12 +769,12 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			}
 		}
 
-		defaultOrderBy := model.NewCountFunc()
+		defaultMainOrderBy := model.NewCountFunc()
 		defaultDirection := model.DescOrder
 
-		var mainOrderBy model.Expr = defaultOrderBy
+		var mainOrderBy model.Expr = defaultMainOrderBy
 		fullOrderBy := []model.OrderByExpr{ // default
-			{Exprs: []model.Expr{mainOrderBy}, Direction: model.DescOrder, Exchange: true},
+			{Exprs: []model.Expr{mainOrderBy}, Direction: defaultDirection, ExchangeToAliasInCTE: true},
 			{Exprs: []model.Expr{fieldExpression}},
 		}
 		direction := defaultDirection
@@ -794,19 +791,15 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 							direction = model.AscOrder
 						}
 
-						exchange := true
 						if key == "_key" {
 							fullOrderBy = []model.OrderByExpr{{Exprs: []model.Expr{fieldExpression}, Direction: direction}}
-							break // it's the default
-						} else if key == "_count" {
-							exchange = true
-						} else {
-							// currentAggr.NoDBQuery = true
-							currentAggr.Parent = key
+							break // mainOrderBy remains default
+						} else if key != "_count" {
 							mainOrderBy = cw.findMetricAggregation(queryMap, key, currentAggr)
 						}
+
 						fullOrderBy = []model.OrderByExpr{
-							{Exprs: []model.Expr{mainOrderBy}, Direction: direction, Exchange: exchange},
+							{Exprs: []model.Expr{mainOrderBy}, Direction: direction, ExchangeToAliasInCTE: true},
 							{Exprs: []model.Expr{fieldExpression}},
 						}
 					}
@@ -1122,7 +1115,7 @@ func (cw *ClickhouseQueryTranslator) parseMinDocCount(queryMap QueryMap) int {
 	return bucket_aggregations.DefaultMinDocCount
 }
 
-func (cw *ClickhouseQueryTranslator) findMetricAggregation(queryMap QueryMap, key string, currentAggr *aggrQueryBuilder) model.Expr {
+func (cw *ClickhouseQueryTranslator) findMetricAggregation(queryMap QueryMap, aggregationName string, currentAggr *aggrQueryBuilder) model.Expr {
 	notFoundValue := model.NewLiteral("")
 	aggsRaw, exists := queryMap["aggs"]
 	if !exists {
@@ -1134,18 +1127,27 @@ func (cw *ClickhouseQueryTranslator) findMetricAggregation(queryMap QueryMap, ke
 		logger.WarnWithCtx(cw.Ctx).Msgf("aggs is not a map, but %T, value: %v. Skipping", aggsRaw, aggsRaw)
 		return notFoundValue
 	}
-	if agg, exists := aggs[key]; exists {
-		a, success := cw.tryMetricsAggregation(agg.(QueryMap))
+	if aggMapRaw, exists := aggs[aggregationName]; exists {
+		aggMap, ok := aggMapRaw.(QueryMap)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("aggregation %s is not a map, but %T, value: %v. Skipping", aggregationName, aggMapRaw, aggMapRaw)
+			return notFoundValue
+		}
+
+		agg, success := cw.tryMetricsAggregation(aggMap)
 		if !success {
 			logger.WarnWithCtx(cw.Ctx).Msgf("failed to parse metric aggregation: %v", agg)
 			return notFoundValue
 		}
-		c := currentAggr.buildMetricsAggregation(a, model.NoMetadataField)
-		if len(c.SelectCommand.Columns) != len(currentAggr.SelectCommand.Columns)+1 {
-			logger.WarnWithCtx(cw.Ctx).Msgf("unexpected number of columns in metric aggregation: %d, expected %d", len(c.SelectCommand.Columns), len(currentAggr.SelectCommand.Columns)+1)
+
+		// we build a temporary query only to extract the name of the metric
+		tmpQuery := currentAggr.buildMetricsAggregation(agg, model.NoMetadataField)
+		if len(tmpQuery.SelectCommand.Columns) != len(currentAggr.SelectCommand.Columns)+1 {
+			logger.WarnWithCtx(cw.Ctx).Msgf("unexpected number of columns in metric aggregation: %d, expected %d",
+				len(tmpQuery.SelectCommand.Columns), len(currentAggr.SelectCommand.Columns)+1)
 			return notFoundValue
 		}
-		return c.SelectCommand.Columns[len(c.SelectCommand.Columns)-1]
+		return tmpQuery.SelectCommand.Columns[len(tmpQuery.SelectCommand.Columns)-1]
 	}
 	return notFoundValue
 }

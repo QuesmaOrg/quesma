@@ -4,7 +4,6 @@ package queryparser
 
 import (
 	"context"
-	"fmt"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -376,6 +375,7 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []*
 	}
 }
 
+/* This would be used in optimizer-2 by Krzysiek. Remove this [August 2024]+ if still not used.
 func (cw *ClickhouseQueryTranslator) combineQueries(queries []*model.Query) {
 	// TODO SET IS_PIPELINE = TRUE FOR PIPELINES!
 	for _, query := range queries {
@@ -401,6 +401,7 @@ func (cw *ClickhouseQueryTranslator) combineQueries(queries []*model.Query) {
 			model.OrderByExpr{Exprs: parentQuery.SelectCommand.Columns[len(parentQuery.SelectCommand.Columns)-1:], Direction: model.DescOrder})
 	}
 }
+*/
 
 func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sampleLimit int) *model.Query {
 	return &model.Query{
