@@ -22,6 +22,15 @@ import "quesma/model"
 type cacheGroupByQueries struct {
 }
 
+func (s *cacheGroupByQueries) Name() string {
+	return "cache_group_by_queries"
+}
+
+func (s *cacheGroupByQueries) IsEnabledByDefault() bool {
+	// this transformer can use a lot of memory on database side
+	return false
+}
+
 func (s *cacheGroupByQueries) Transform(queries []*model.Query) ([]*model.Query, error) {
 
 	for _, query := range queries {
@@ -30,7 +39,7 @@ func (s *cacheGroupByQueries) Transform(queries []*model.Query) ([]*model.Query,
 		// TODO add CTE here
 		if len(query.SelectCommand.GroupBy) > 0 {
 			query.OptimizeHints.Settings["use_query_cache"] = true
-			query.OptimizeHints.OptimizationsPerformed = append(query.OptimizeHints.OptimizationsPerformed, "cacheGroupByQueries")
+			query.OptimizeHints.OptimizationsPerformed = append(query.OptimizeHints.OptimizationsPerformed, s.Name())
 		}
 	}
 	return queries, nil

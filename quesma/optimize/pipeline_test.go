@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"quesma/model"
+	"quesma/quesma/config"
 	"testing"
 )
 
@@ -37,6 +38,10 @@ func Test_cacheGroupBy(t *testing.T) {
 		// Add CTE here
 	}
 
+	cfg := config.QuesmaConfiguration{}
+	cfg.EnabledOptimizers = make(config.OptimizersConfiguration)
+	cfg.EnabledOptimizers["cache_group_by_queries"] = true
+
 	for _, tt := range tests {
 
 		t.Run(tt.name, func(t *testing.T) {
@@ -46,7 +51,7 @@ func Test_cacheGroupBy(t *testing.T) {
 					SelectCommand: tt.query,
 				},
 			}
-			pipeline := NewOptimizePipeline()
+			pipeline := NewOptimizePipeline(cfg)
 			optimized, err := pipeline.Transform(queries)
 			if err != nil {
 				t.Fatalf("error optimizing query: %v", err)
@@ -91,12 +96,14 @@ func Test_dateTrunc(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		query    model.SelectCommand
-		expected model.SelectCommand
+		name      string
+		tableName string
+		query     model.SelectCommand
+		expected  model.SelectCommand
 	}{
 		{
 			"select all",
+			"foo",
 			model.SelectCommand{
 				Columns:    []model.Expr{model.NewColumnRef("*")},
 				FromClause: model.NewTableRef("foo"),
@@ -109,6 +116,7 @@ func Test_dateTrunc(t *testing.T) {
 
 		{
 			"select all where date ",
+			"foo",
 			model.SelectCommand{
 				Columns:     []model.Expr{model.NewColumnRef("*")},
 				FromClause:  model.NewTableRef("foo"),
@@ -123,6 +131,7 @@ func Test_dateTrunc(t *testing.T) {
 
 		{
 			"select all where and between dates (>24h)",
+			"foo",
 			model.SelectCommand{
 				Columns:     []model.Expr{model.NewColumnRef("*")},
 				FromClause:  model.NewTableRef("foo"),
@@ -137,6 +146,7 @@ func Test_dateTrunc(t *testing.T) {
 
 		{
 			"select all where and between dates (<24h)",
+			"foo",
 			model.SelectCommand{
 				Columns:     []model.Expr{model.NewColumnRef("*")},
 				FromClause:  model.NewTableRef("foo"),
@@ -151,6 +161,7 @@ func Test_dateTrunc(t *testing.T) {
 
 		{
 			"select a, count() from foo  group by 1",
+			"foo",
 			model.SelectCommand{
 				Columns:    []model.Expr{model.NewColumnRef("a"), model.NewFunction("count", model.NewColumnRef("*"))},
 				FromClause: model.NewTableRef("foo"),
@@ -162,7 +173,32 @@ func Test_dateTrunc(t *testing.T) {
 				GroupBy:    []model.Expr{model.NewLiteral(1)},
 			},
 		},
+		{
+			"select all where and between dates (>24h), disabled index ",
+			"foo2",
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo2"),
+				WhereClause: and(gt(col("a"), date("2024-01-06T10:08:53.675Z")), lt(col("a"), date("2024-06-06T13:10:53.675Z"))),
+			},
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo2"),
+				WhereClause: and(gt(col("a"), date("2024-01-06T10:08:53.675Z")), lt(col("a"), date("2024-06-06T13:10:53.675Z"))),
+			},
+		},
 		// Add CTE here
+	}
+
+	cfg := config.QuesmaConfiguration{}
+	cfg.EnabledOptimizers = make(config.OptimizersConfiguration)
+	cfg.EnabledOptimizers["truncate_date"] = false
+
+	cfg.IndexConfig = make(map[string]config.IndexConfiguration)
+	cfg.IndexConfig["foo"] = config.IndexConfiguration{
+		EnabledOptimizers: config.OptimizersConfiguration{
+			"truncate_date": true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -171,10 +207,11 @@ func Test_dateTrunc(t *testing.T) {
 
 			queries := []*model.Query{
 				{
+					TableName:     tt.tableName,
 					SelectCommand: tt.query,
 				},
 			}
-			pipeline := NewOptimizePipeline()
+			pipeline := NewOptimizePipeline(cfg)
 			optimized, err := pipeline.Transform(queries)
 
 			if err != nil {
