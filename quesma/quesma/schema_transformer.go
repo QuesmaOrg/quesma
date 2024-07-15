@@ -272,10 +272,10 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			TransformationName string
 			Transformation     func(*model.Query) (*model.Query, error)
 		}{
-			//{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
-			//{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
-			//{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
-			//{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
+			{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
+			{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
+			{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
+			{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
 		}
 		for _, transformation := range transformationChain {
 			inputQuery := query.SelectCommand.String()

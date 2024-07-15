@@ -638,7 +638,28 @@ func TestMergeMaps(t *testing.T) {
 					},
 				},
 			},
-			JsonMap{},
+			JsonMap{
+				"3": JsonMap{
+					"buckets": []JsonMap{
+						{
+							"1": JsonMap{
+								"value": 1490283747.600059,
+							},
+							"Quesma_key_JR*#@(DF*GAsFfS!/LI": "live",
+							"key":                            "live",
+							"doc_count":                      5,
+						},
+						{
+							"1": JsonMap{
+								"value": 780292625.671037,
+							},
+							"Quesma_key_JR*#@(DF*GAsFfS!/LI": "vod",
+							"key":                            "vod",
+							"doc_count":                      3,
+						},
+					},
+				},
+			},
 		},
 	}
 	logger.InitSimpleLoggerForTests()
