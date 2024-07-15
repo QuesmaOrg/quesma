@@ -5,12 +5,10 @@ package queryparser
 import (
 	"cmp"
 	"context"
-	"fmt"
 	"github.com/jinzhu/copier"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
-	"quesma/logger"
 	"quesma/model"
 	"quesma/queryparser/query_util"
 	"quesma/quesma/config"
@@ -28,7 +26,6 @@ import (
 	"testing"
 )
 
-// const tableName = "kibana_sample_data_flights"
 const tableName = "logs-generic-default"
 const tableNameQuoted = `"` + tableName + `"`
 
@@ -743,7 +740,7 @@ func sortAggregations(aggregations []*model.Query) {
 }
 
 func Test2AggregationParserExternalTestcases(t *testing.T) {
-	logger.InitSimpleLoggerForTests()
+	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -828,9 +825,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Len(t, test.ExpectedResults, len(queries))
 			sortAggregations(queries) // to make test runs deterministic
-			for _, q := range queries {
-				fmt.Println(q.SelectCommand.String())
-			}
+
 			// Let's leave those commented debugs for now, they'll be useful in next PRs
 			for j, query := range queries {
 				// fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\n%v\n\n", j, query, model.AsString(query.SelectCommand), query.SelectCommand.Columns)

@@ -251,7 +251,6 @@ func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
 // * mActual - uses JsonMap fully: values are []JsonMap, or JsonMap, or base types
 // * mExpected - value can also be []any, because it's generated from Golang's json.Unmarshal
 func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma string) JsonMap {
-	// pp.Println("mActual", mActual, "mExpected", mExpected)
 	var mergeMapsRec func(m1, m2 JsonMap) JsonMap
 	// merges 'i1' and 'i2' in 3 cases: both are JsonMap, both are []JsonMap, or both are some base type
 	mergeAny := func(i1, i2 any) any {
@@ -412,12 +411,9 @@ func AssertSqlEqual(t *testing.T, expected, actual string) {
 		fmt.Printf("%s\n", SqlPrettyPrint([]byte(actual)))
 		for i, c := range actual {
 			if c != rune(expected[i]) {
-				const length = 100
-				if i+length < len(actual) {
-					pp.Println("- First diff: ", actual[i:i+length])
-				} else {
-					pp.Println("- First diff: ", actual[i:])
-				}
+				const printLen = 100
+				pp.Printf("-- First diff: ")
+				fmt.Println(actual[i:min(i+printLen, len(actual))])
 				break
 			}
 		}
