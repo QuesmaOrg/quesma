@@ -5,6 +5,7 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -341,6 +342,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 		}
 	}
 
+	cw.combineQueries(aggregations)
 	return aggregations, nil
 }
 
@@ -404,6 +406,9 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 
 	currentAggr := *prevAggr
 	currentAggr.SelectCommand.Limit = 0
+	currentAggr.Parent = ""
+	currentAggr.NoDBQuery = false
+	fmt.Println("AAAA", currentAggr.SelectCommand.Limit, prevAggr.SelectCommand.Limit)
 
 	// check if metadata's present
 	var metadata model.JsonMap
@@ -731,64 +736,108 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		sqlQuery := dateHistogramAggr.GenerateSQL()
 		currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, sqlQuery)
 		currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, sqlQuery)
+		currentAggr.SelectCommand.LimitBy = append(currentAggr.SelectCommand.LimitBy, sqlQuery)
 		currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewOrderByExprWithoutOrder(sqlQuery))
 
 		delete(queryMap, "date_histogram")
 		return success, 1, nil
 	}
 	for _, termsType := range []string{"terms", "significant_terms"} {
-		if terms, ok := queryMap[termsType]; ok {
-			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms")
-
-			// Parse 'missing' parameter. It can be any type.
-			var missingPlaceholder any
-			if m, ok := terms.(QueryMap); ok {
-				if m["missing"] != nil {
-					missingPlaceholder = m["missing"]
-				}
-			}
-
-			fieldExpression := cw.parseFieldField(terms, termsType)
-
-			// apply missing placeholder if it is set
-			if missingPlaceholder != nil {
-				var value model.LiteralExpr
-
-				// Maybe we should check the input type against the schema?
-				// Right now we quote if it's a string.
-				switch val := missingPlaceholder.(type) {
-				case string:
-					value = model.NewLiteral("'" + val + "'")
-				default:
-					value = model.NewLiteral(missingPlaceholder)
-				}
-
-				fieldExpression = model.NewFunction("COALESCE", fieldExpression, value)
-			}
-
-			size := 10
-			if jsonMap, ok := terms.(QueryMap); ok {
-				if sizeRaw, ok := jsonMap["size"]; ok {
-					if sizeParsed, ok := sizeRaw.(float64); ok {
-						size = int(sizeParsed)
-					} else {
-						logger.WarnWithCtx(cw.Ctx).Msgf("size is not an float64, but %T, value: %v. Using default", sizeRaw, sizeRaw)
-					}
-
-				}
-			}
-
-			currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms")
-			currentAggr.SelectCommand.Limit = size
-			currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, fieldExpression)
-			currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, fieldExpression)
-			currentAggr.SelectCommand.LimitBy = append(currentAggr.SelectCommand.LimitBy, fieldExpression)
-			currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewSortByCountColumn(model.DescOrder))
-			currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.OrderByExpr{Exprs: []model.Expr{fieldExpression}})
-
-			delete(queryMap, termsType)
-			return success, 1, nil
+		termsRaw, ok := queryMap[termsType]
+		if !ok {
+			continue
 		}
+		terms, ok := termsRaw.(QueryMap)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("%s is not a map, but %T, value: %v", termsType, termsRaw, termsRaw)
+			continue
+		}
+
+		// Parse 'missing' parameter. It can be any type.
+		var missingPlaceholder any
+		if terms["missing"] != nil {
+			missingPlaceholder = terms["missing"]
+		}
+
+		fieldExpression := cw.parseFieldField(terms, termsType)
+
+		// apply missing placeholder if it is set
+		if missingPlaceholder != nil {
+			var value model.LiteralExpr
+
+			// Maybe we should check the input type against the schema?
+			// Right now we quote if it's a string.
+			switch val := missingPlaceholder.(type) {
+			case string:
+				value = model.NewLiteral("'" + val + "'")
+			default:
+				value = model.NewLiteral(missingPlaceholder)
+			}
+
+			fieldExpression = model.NewFunction("COALESCE", fieldExpression, value)
+		}
+
+		size := 10
+		if sizeRaw, ok := terms["size"]; ok {
+			if sizeParsed, ok := sizeRaw.(float64); ok {
+				size = int(sizeParsed)
+			} else {
+				logger.WarnWithCtx(cw.Ctx).Msgf("size is not an float64, but %T, value: %v. Using default", sizeRaw, sizeRaw)
+			}
+		}
+
+		defaultOrderBy := model.NewCountFunc()
+		defaultDirection := model.DescOrder
+
+		var orderBy model.Expr = defaultOrderBy
+		direction := defaultDirection
+		if orderRaw, exists := terms["order"]; exists {
+			if order, ok := orderRaw.(QueryMap); ok { // TODO it can be array too, don't handle it yet
+				if len(order) == 1 {
+					for key, valueRaw := range order { // value == "asc" or "desc"
+						value, ok := valueRaw.(string)
+						if !ok {
+							logger.WarnWithCtx(cw.Ctx).Msgf("order value is not a string, but %T, value: %v. Using default (desc)", valueRaw, valueRaw)
+							value = "desc"
+						}
+						if key == "_count" || key == "_key" { // TODO key shouldnt be here!!
+							if strings.ToLower(value) == "asc" {
+								direction = model.AscOrder
+							}
+							break
+						}
+						// currentAggr.NoDBQuery = true
+						currentAggr.Parent = key
+						orderBy = cw.findMetricAggregation(queryMap, key, currentAggr)
+						pp.Println("\n\n", key, orderBy, "\n\n")
+						// add desc/asc
+					}
+				} else {
+					logger.WarnWithCtx(cw.Ctx).Msgf("order has more than 1 key, but %d. Order: %+v. Using default", len(order), order)
+				}
+			} else {
+				logger.WarnWithCtx(cw.Ctx).Msgf("order is not a map, but %T, value: %v. Using default order", orderRaw, orderRaw)
+			}
+		}
+		fullOrderBy := []model.OrderByExpr{
+			{Exprs: []model.Expr{orderBy}, Direction: direction, Exchange: true},
+			{Exprs: []model.Expr{fieldExpression}},
+		}
+
+		pp.Println("field", fieldExpression, orderBy)
+		currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms", orderBy)
+		currentAggr.SelectCommand.Limit = size
+		currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, fieldExpression)
+		currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, fieldExpression)
+		currentAggr.SelectCommand.LimitBy = append(currentAggr.SelectCommand.LimitBy, fieldExpression)
+		currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, fullOrderBy...)
+		if missingPlaceholder == nil {
+			currentAggr.whereBuilder = model.CombineWheres(cw.Ctx, currentAggr.whereBuilder,
+				model.NewSimpleQuery(model.NewInfixExpr(fieldExpression, "IS", model.NewLiteral("NOT NULL")), true))
+		}
+
+		delete(queryMap, termsType)
+		return success, 1, nil
 	}
 	if multiTermsRaw, exists := queryMap["multi_terms"]; exists {
 		multiTerms, ok := multiTermsRaw.(QueryMap)
@@ -1078,6 +1127,35 @@ func (cw *ClickhouseQueryTranslator) parseMinDocCount(queryMap QueryMap) int {
 		}
 	}
 	return bucket_aggregations.DefaultMinDocCount
+}
+
+func (cw *ClickhouseQueryTranslator) findMetricAggregation(queryMap QueryMap, key string, currentAggr *aggrQueryBuilder) model.Expr {
+	notFoundValue := model.NewLiteral("")
+	aggsRaw, exists := queryMap["aggs"]
+	if !exists {
+		logger.WarnWithCtx(cw.Ctx).Msgf("no aggs in queryMap, queryMap: %+v", queryMap)
+		return notFoundValue
+	}
+	aggs, ok := aggsRaw.(QueryMap)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("aggs is not a map, but %T, value: %v. Skipping", aggsRaw, aggsRaw)
+		return notFoundValue
+	}
+	if agg, exists := aggs[key]; exists {
+		a, success := cw.tryMetricsAggregation(agg.(QueryMap))
+		if !success {
+			logger.WarnWithCtx(cw.Ctx).Msgf("failed to parse metric aggregation: %v", agg)
+			return notFoundValue
+		}
+		c := currentAggr.buildMetricsAggregation(a, model.NoMetadataField)
+		if len(c.SelectCommand.Columns) != len(currentAggr.SelectCommand.Columns)+1 {
+			logger.WarnWithCtx(cw.Ctx).Msgf("unexpected number of columns in metric aggregation: %d, expected %d", len(c.SelectCommand.Columns), len(currentAggr.SelectCommand.Columns)+1)
+			return notFoundValue
+		}
+		//pp.Println(model.AsString(c.SelectCommand.Columns[len(c.SelectCommand.Columns)-1]))
+		return c.SelectCommand.Columns[len(c.SelectCommand.Columns)-1]
+	}
+	return notFoundValue
 }
 
 // quoteArray returns a new array with the same elements, but quoted

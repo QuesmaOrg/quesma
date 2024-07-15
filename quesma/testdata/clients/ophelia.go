@@ -9,7 +9,7 @@ import (
 
 var OpheliaTests = []testdata.AggregationTestCase{
 	{ // [0]
-		TestName: "Ophelia Test 1: triple terms",
+		TestName: "Ophelia Test 1: triple terms + order by another aggregations",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -24,20 +24,30 @@ var OpheliaTests = []testdata.AggregationTestCase{
 									"terms": {
 										"field": "organName",
 										"order": {
-											"1": "desc"
+											"_key": "desc"
 										},
 										"shard_size": 25,
 										"size": 1
+									},
+								},
+								"1": {
+									"sum": {
+										"field": "total"
 									}
 								}
 							},
-							"terms": {
+								"terms": {
 								"field": "limbName",
 								"missing": "__missing__",
 								"order": {
-									"1": "desc"
+									"1": "asc"
 								},
 								"size": 20
+							}
+						},
+						"1": {
+							"avg": {
+								"field": "total"
 							}
 						}
 					},
@@ -219,6 +229,306 @@ var OpheliaTests = []testdata.AggregationTestCase{
 					model.NewQueryResultCol("count()", 17),
 				}},
 			},
+			{},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("count()", 21),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("count()", 24),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("count()", 1036),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("count()", 34),
+				}},
+			},
+			{},
+		},
+		ExpectedSQLs: []string{
+			`WITH subQuery_1 AS ` +
+				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200), subQuery_2 AS ` +
+				`(SELECT "surname" AS "subQuery_2_1", "limbName" AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname", "limbName" ` +
+				`ORDER BY count() DESC, "surname", count() DESC, "limbName" ` +
+				`LIMIT 20 BY "surname") ` +
+				`SELECT "surname", "limbName", "organName", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
+				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND "limbName" = "subQuery_2_2" ` +
+				`GROUP BY "surname", "limbName", "organName", subQuery_1_cnt, subQuery_2_cnt ` +
+				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, "limbName", count() DESC, "organName" ` +
+				`LIMIT 1 BY "surname", "limbName"`,
+			`WITH subQuery_1 AS ` +
+				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200) ` +
+				`SELECT "surname", "limbName", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
+				`GROUP BY "surname", "limbName", subQuery_1_cnt ` +
+				`ORDER BY subQuery_1_cnt DESC, "surname", count() ASC, "limbName" ` +
+				`LIMIT 20 BY "surname"`,
+			`NoDBQuery`,
+			`SELECT "surname", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200`,
+			``,
+		},
+	},
+	{ // [1]
+		TestName: "Ophelia Test 2: triple terms + order by another aggregations",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"8": {
+							"aggs": {
+								"4": {
+									"terms": {
+										"field": "organName",
+										"order": {
+											"_key": "desc"
+										},
+										"shard_size": 25,
+										"size": 1
+									},
+									"aggs": {
+										"5": {
+											"terms": {
+												"field": "organName",
+												"size": 2
+											}
+										}
+									}
+								},
+								"1": {
+									"sum": {
+										"field": "total"
+									}
+								}
+							},
+							"terms": {
+								"field": "limbName",
+								"missing": "__missing__",
+								"order": {
+									"1": "asc"
+								},
+								"size": 20
+							}
+						}
+					},
+					"terms": {
+						"field": "surname",
+						"order": {
+							"_key": "desc"
+						},
+						"shard_size": 1000,
+						"size": 200
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "createdAt",
+					"format": "date_time"
+				},
+				{
+					"field": "date",
+					"format": "date_time"
+				},
+				{
+					"field": "endTime",
+					"format": "date_time"
+				},
+				{
+					"field": "startTime",
+					"format": "date_time"
+				}
+			],
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1720352002293,
+			"expiration_time_in_millis": 1720352062445,
+			"id": "FnpTUXdfTTZLUlBtQVo1YzBTVFBseEEcM19IaHdFWG5RN1d1eV9VaUcxenYwdzo0MTc0MA==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"2": {
+						"buckets": [
+							{
+								"8": {
+									"buckets": [
+										{
+											"4": {
+												"buckets": [
+													{
+														"doc_count": 21,
+														"key": "c11"
+													}
+												],
+												"doc_count_error_upper_bound": 0,
+												"sum_other_doc_count": 0
+											},
+											"doc_count": 21,
+											"key": "b11"
+										},
+										{
+											"4": {
+												"buckets": [
+													{
+														"doc_count": 24,
+														"key": "c12"
+													}
+												],
+												"doc_count_error_upper_bound": 0,
+												"sum_other_doc_count": 0
+											},
+											"doc_count": 24,
+											"key": "b12"
+										}
+									],
+									"doc_count_error_upper_bound": -1,
+									"sum_other_doc_count": 504
+								},
+								"doc_count": 1036,
+								"key": "a1"
+							},
+							{
+								"8": {
+									"buckets": [
+										{
+											"4": {
+												"buckets": [
+													{
+														"doc_count": 17,
+														"key": "c21"
+													}
+												],
+												"doc_count_error_upper_bound": 0,
+												"sum_other_doc_count": 0
+											},
+											"doc_count": 17,
+											"key": "b21"
+										},
+										{
+											"4": {
+												"buckets": [
+													{
+														"doc_count": 17,
+														"key": "c22"
+													}
+												],
+												"doc_count_error_upper_bound": 0,
+												"sum_other_doc_count": 0
+											},
+											"doc_count": 17,
+											"key": "b22"
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 0
+								},
+								"doc_count": 34,
+								"key": "a2"
+							}
+						],
+						"doc_count_error_upper_bound": -1,
+						"sum_other_doc_count": 33220
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 50427
+					}
+				},
+				"timed_out": false,
+				"took": 554
+			},
+			"start_time_in_millis": 1720352001739
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("organName", "c11"),
+					model.NewQueryResultCol("count()", 21),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("organName", "c12"),
+					model.NewQueryResultCol("count()", 24),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
+					model.NewQueryResultCol("organName", "c21"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("organName", "c22"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+			},
+			{},
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
@@ -1317,40 +1627,108 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200), ` +
-				`cte_2 AS ` +
-				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
+				`subQuery_2 AS ` +
+				`(SELECT "surname" AS "subQuery_2_1", "limbName" AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
-				`ORDER BY count() DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
+				`GROUP BY "surname", "limbName" ` +
+				`ORDER BY count() DESC, "surname", count() DESC, "limbName" ` +
 				`LIMIT 20 BY "surname") ` +
-				`SELECT "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), count() ` +
+				`SELECT "surname", "limbName", sumOrNull("total") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), COALESCE("organName",'__missing__'), cte_1_cnt, cte_2_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), count() DESC, COALESCE("organName",'__missing__') ` +
-				`LIMIT 10 BY "surname", COALESCE("limbName",'__missing__')`,
-			`WITH cte_1 AS ` +
-				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
+				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND "limbName" = "subQuery_2_2" ` +
+				`GROUP BY "surname", "limbName", subQuery_1_cnt, subQuery_2_cnt ` +
+				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, "limbName"`,
+			`WITH subQuery_1 AS ` +
+				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 100) ` +
-				`SELECT "surname", COALESCE(COALESCE("limbName",'__missing__'),'__missing__'), count() ` +
+				`LIMIT 200), ` +
+				`subQuery_2 AS ` +
+				`(SELECT "surname" AS "subQuery_2_1", "limbName" AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`GROUP BY "surname", COALESCE(COALESCE("limbName",'__missing__'),'__missing__'), cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
-				`LIMIT 10 BY "surname"`,
+				`GROUP BY "surname", "limbName" ` +
+				`ORDER BY count() DESC, "surname", count() DESC, "limbName" ` +
+				`LIMIT 20 BY "surname"), ` +
+				`subQuery_3 AS ` +
+				`(SELECT "surname" AS "subQuery_3_1", "limbName" AS "subQuery_3_2", "organName" AS "subQuery_3_3", count() AS "subQuery_3_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname", "limbName", "organName" ` +
+				`ORDER BY count() DESC, "surname", count() DESC, "limbName", count() DESC, "organName" ` +
+				`LIMIT 1 BY "surname", "limbName") ` +
+				`SELECT "surname", "limbName", "organName", sumOrNull("total") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
+				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND "limbName" = "subQuery_2_2" ` +
+				`INNER JOIN "subQuery_3" ON "surname" = "subQuery_3_1" AND "limbName" = "subQuery_3_2" AND "organName" = "subQuery_3_3" ` +
+				`GROUP BY "surname", "limbName", "organName", subQuery_1_cnt, subQuery_2_cnt, subQuery_3_cnt ` +
+				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, "limbName", subQuery_3_cnt DESC, "organName"`,
+			`WITH subQuery_1 AS ` +
+				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200), ` +
+				`subQuery_2 AS ` +
+				`(SELECT "surname" AS "subQuery_2_1", "limbName" AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname", "limbName" ` +
+				`ORDER BY count() DESC, "surname", count() DESC, "limbName" ` +
+				`LIMIT 20 BY "surname"), ` +
+				`subQuery_3 AS ` +
+				`(SELECT "surname" AS "subQuery_3_1", "limbName" AS "subQuery_3_2", "organName" AS "subQuery_3_3", count() AS "subQuery_3_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname", "limbName", "organName" ` +
+				`ORDER BY count() DESC, "surname", count() DESC, "limbName", count() DESC, "organName" ` +
+				`LIMIT 1 BY "surname", "limbName") ` +
+				`SELECT "surname", "limbName", "organName", sumOrNull("some") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
+				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND "limbName" = "subQuery_2_2" ` +
+				`INNER JOIN "subQuery_3" ON "surname" = "subQuery_3_1" AND "limbName" = "subQuery_3_2" AND "organName" = "subQuery_3_3" ` +
+				`GROUP BY "surname", "limbName", "organName", subQuery_1_cnt, subQuery_2_cnt, subQuery_3_cnt ` +
+				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, "limbName", subQuery_3_cnt DESC, "organName"`,
+			`WITH subQuery_1 AS ` +
+				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200), ` +
+				`subQuery_2 AS ` +
+				`(SELECT "surname" AS "subQuery_2_1", "limbName" AS "subQuery_2_2", count() AS "subQuery_2_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname", "limbName" ` +
+				`ORDER BY count() DESC, "surname", count() DESC, "limbName" ` +
+				`LIMIT 20 BY "surname") ` +
+				`SELECT "surname", "limbName", "organName", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
+				`INNER JOIN "subQuery_2" ON "surname" = "subQuery_2_1" AND "limbName" = "subQuery_2_2" ` +
+				`GROUP BY "surname", "limbName", "organName", subQuery_1_cnt, subQuery_2_cnt ` +
+				`ORDER BY subQuery_1_cnt DESC, "surname", subQuery_2_cnt DESC, "limbName", count() DESC, "organName" ` +
+				`LIMIT 1 BY "surname", "limbName"`,
+			`WITH subQuery_1 AS ` +
+				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200) ` +
+				`SELECT "surname", "limbName", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "subQuery_1" ON "surname" = "subQuery_1_1" ` +
+				`GROUP BY "surname", "limbName", subQuery_1_cnt ` +
+				`ORDER BY subQuery_1_cnt DESC, "surname", count() DESC, "limbName" ` +
+				`LIMIT 20 BY "surname"`,
 			`SELECT "surname", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 100`,
+				`LIMIT 200`,
 			``,
 			``,
-			`WITH cte_1 AS ` +
-				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+			`WITH subQuery_1 AS ` +
+				`(SELECT "surname" AS "subQuery_1_1", count() AS "subQuery_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
