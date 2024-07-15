@@ -265,6 +265,17 @@ type truncateDate struct {
 	truncateTo time.Duration
 }
 
+func (s *truncateDate) Name() string {
+	return "truncate_date"
+}
+
+func (s *truncateDate) IsEnabledByDefault() bool {
+	// This optimization is not enabled by default.
+	// Tt returns different results than the original query
+	// So it should be used with caution
+	return false
+}
+
 func (s *truncateDate) Transform(queries []*model.Query) ([]*model.Query, error) {
 
 	for k, query := range queries {
@@ -277,7 +288,7 @@ func (s *truncateDate) Transform(queries []*model.Query) ([]*model.Query, error)
 		// this is just in case if there was no truncation, we keep the original query
 		if visitor.truncated && result != nil {
 			queries[k].SelectCommand = *result
-			query.OptimizeHints.OptimizationsPerformed = append(query.OptimizeHints.OptimizationsPerformed, "truncateDate")
+			query.OptimizeHints.OptimizationsPerformed = append(query.OptimizeHints.OptimizationsPerformed, s.Name())
 		}
 	}
 	return queries, nil
