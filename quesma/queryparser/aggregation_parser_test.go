@@ -816,7 +816,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			if test.TestName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" {
 				t.Skip("Small details left for this test to be correct. I'll (Krzysiek) fix soon after returning to work")
 			}
-			if test.TestName == "Ophelia Test 3: 5x terms + a lot of other aggregations" || test.TestName == "Ophelia Test 3: triple terms + other aggregations + order by another aggregations" {
+			if test.TestName == "Ophelia Test 3: 5x terms + a lot of other aggregations" || test.TestName == "Ophelia Test 6: triple terms + other aggregations + order by another aggregations" {
 				t.Skip("Very similar to 2 previous tests, results have like 500-1000 lines. They are almost finished though. Maybe I'll fix soon, but not in this PR")
 			}
 
