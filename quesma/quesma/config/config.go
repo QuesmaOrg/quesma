@@ -44,6 +44,7 @@ type QuesmaConfiguration struct {
 	PublicTcpPort              network.Port                  `koanf:"port"`
 	IngestStatistics           bool                          `koanf:"ingestStatistics"`
 	QuesmaInternalTelemetryUrl *Url                          `koanf:"internalTelemetryUrl"`
+	EnabledOptimizers          OptimizersConfiguration       `koanf:"optimizers"`
 }
 
 type LoggingConfiguration struct {
@@ -62,6 +63,8 @@ type RelationalDbConfiguration struct {
 	Database      string `koanf:"database"`
 	AdminUrl      *Url   `koanf:"adminUrl"`
 }
+
+type OptimizersConfiguration map[string]bool
 
 func (c *RelationalDbConfiguration) IsEmpty() bool {
 	return c != nil && c.Url == nil && c.User == "" && c.Password == "" && c.Database == ""

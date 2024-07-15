@@ -23,7 +23,8 @@ type IndexConfiguration struct {
 	TimestampField *string `koanf:"timestampField"`
 	// this is hidden from the user right now
 	// deprecated
-	SchemaConfiguration *SchemaConfiguration `koanf:"static-schema"`
+	SchemaConfiguration *SchemaConfiguration    `koanf:"static-schema"`
+	EnabledOptimizers   OptimizersConfiguration `koanf:"optimizers"`
 }
 
 func (c IndexConfiguration) HasFullTextField(fieldName string) bool {
