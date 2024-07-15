@@ -23,7 +23,7 @@ func (query *MetricsWrapper) IsBucketAggregation() bool {
 	return false
 }
 
-func (query *MetricsWrapper) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query *MetricsWrapper) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	fmt.Printf("kuku %s %d", query.String(), query.lastColIndex)
 	return query.wrapped.TranslateSqlResponseToJson(rows, query.lastColIndex)
 }

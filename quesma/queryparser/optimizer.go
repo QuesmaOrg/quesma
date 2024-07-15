@@ -1,3 +1,5 @@
+// Copyright Quesma, licensed under the Elastic License 2.0.
+// SPDX-License-Identifier: Elastic-2.0
 package queryparser
 
 import (
@@ -7,14 +9,13 @@ import (
 	"quesma/model"
 	"quesma/model/metrics_aggregations"
 	"quesma/model/typical_queries"
-	"quesma/plugins"
 )
 
 // maybe move to separate package?
 
-type QueryOptimizationPipeline struct {
-	transformers []plugins.QueryTransformer
-}
+//type QueryOptimizationPipeline struct {
+//	transformers []plugins.QueryTransformer
+//}
 
 type MergeMetricsAggsTransformer struct {
 	ctx context.Context
