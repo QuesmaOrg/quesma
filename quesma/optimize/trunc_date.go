@@ -9,6 +9,17 @@ import (
 	"time"
 )
 
+// truncateDateVisitor - a visitor that truncates dates in the query
+// It finds date comparisons like:
+//
+// column >= '2024-06-04T13:08:53.675Z' and column <= '2024-06-06T13:10:53.675Z'
+//
+// and truncates the dates to the nearest 5 minutes (or any other duration), resulting in:
+//
+// column >= '2024-06-04T13:05:00.000Z' and column <= '2024-06-06T13:15:00.000Z'
+//
+// Note: Truncation is done only if the difference between the dates is more than 24 hours.
+
 type truncateDateVisitor struct {
 	truncateTo time.Duration
 	truncated  bool
