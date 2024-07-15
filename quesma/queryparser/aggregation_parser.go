@@ -509,7 +509,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 			// we can reduce nr of ORDER BYs in CTEs. Last 2 seem to be always enough. Proper ordering is done anyway in the outer SELECT.
 			cte.SelectCommand.OrderBy = cte.SelectCommand.OrderBy[len(cte.SelectCommand.OrderBy)-2:]
 		}
-		currentAggr.SelectCommand.CTEs = append(currentAggr.SelectCommand.CTEs, cte.SelectCommand)
+		currentAggr.SelectCommand.CTEs = append(currentAggr.SelectCommand.CTEs, &cte.SelectCommand)
 	}
 
 	// TODO what happens if there's all: filters, range, and subaggregations at current level?

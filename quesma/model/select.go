@@ -15,11 +15,11 @@ type SelectCommand struct {
 	Limit       int    // LIMIT clause, noLimit (0) means no limit
 	SampleLimit int    // LIMIT, but before grouping, 0 means no limit
 
-	CTEs []SelectCommand // Common Table Expressions, so these parts of query: WITH cte_1 AS SELECT ..., cte_2 AS SELECT ...
+	CTEs []*SelectCommand // Common Table Expressions, so these parts of query: WITH cte_1 AS SELECT ..., cte_2 AS SELECT ...
 }
 
 func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, where Expr, limitBy []Expr,
-	limit, sampleLimit int, isDistinct bool, CTEs []SelectCommand) *SelectCommand {
+	limit, sampleLimit int, isDistinct bool, CTEs []*SelectCommand) *SelectCommand {
 	return &SelectCommand{
 		IsDistinct: isDistinct,
 
