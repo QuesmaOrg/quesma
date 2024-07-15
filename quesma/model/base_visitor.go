@@ -2,34 +2,28 @@
 // SPDX-License-Identifier: Elastic-2.0
 package model
 
-// BaseExprOverrides is a struct that holds function pointers to override the default behavior of the BaseExprVisitor
-// We keep them in separate struct to avoid name clashes with the methods
-type BaseExprOverrides struct {
-	VisitFunction       func(b *BaseExprVisitor, e FunctionExpr) interface{}
-	VisitMultiFunction  func(b *BaseExprVisitor, e MultiFunctionExpr) interface{}
-	VisitLiteral        func(b *BaseExprVisitor, l LiteralExpr) interface{}
-	VisitString         func(b *BaseExprVisitor, e StringExpr) interface{}
-	VisitInfix          func(b *BaseExprVisitor, e InfixExpr) interface{}
-	VisitColumnRef      func(b *BaseExprVisitor, e ColumnRef) interface{}
-	VisitPrefixExpr     func(b *BaseExprVisitor, e PrefixExpr) interface{}
-	VisitNestedProperty func(b *BaseExprVisitor, e NestedProperty) interface{}
-	VisitArrayAccess    func(b *BaseExprVisitor, e ArrayAccess) interface{}
-	VisitOrderByExpr    func(b *BaseExprVisitor, e OrderByExpr) interface{}
-	VisitDistinctExpr   func(b *BaseExprVisitor, e DistinctExpr) interface{}
-	VisitTableRef       func(b *BaseExprVisitor, e TableRef) interface{}
-	VisitAliasedExpr    func(b *BaseExprVisitor, e AliasedExpr) interface{}
-	VisitSelectCommand  func(b *BaseExprVisitor, e SelectCommand) interface{}
-	VisitWindowFunction func(b *BaseExprVisitor, f WindowFunction) interface{}
-	VisitParenExpr      func(b *BaseExprVisitor, e ParenExpr) interface{}
-	VisitLambdaExpr     func(b *BaseExprVisitor, e LambdaExpr) interface{}
-}
-
 type BaseExprVisitor struct {
-	Overrides BaseExprOverrides
+	OverrideVisitFunction       func(b *BaseExprVisitor, e FunctionExpr) interface{}
+	OverrideVisitMultiFunction  func(b *BaseExprVisitor, e MultiFunctionExpr) interface{}
+	OverrideVisitLiteral        func(b *BaseExprVisitor, l LiteralExpr) interface{}
+	OverrideVisitString         func(b *BaseExprVisitor, e StringExpr) interface{}
+	OverrideVisitInfix          func(b *BaseExprVisitor, e InfixExpr) interface{}
+	OverrideVisitColumnRef      func(b *BaseExprVisitor, e ColumnRef) interface{}
+	OverrideVisitPrefixExpr     func(b *BaseExprVisitor, e PrefixExpr) interface{}
+	OverrideVisitNestedProperty func(b *BaseExprVisitor, e NestedProperty) interface{}
+	OverrideVisitArrayAccess    func(b *BaseExprVisitor, e ArrayAccess) interface{}
+	OverrideVisitOrderByExpr    func(b *BaseExprVisitor, e OrderByExpr) interface{}
+	OverrideVisitDistinctExpr   func(b *BaseExprVisitor, e DistinctExpr) interface{}
+	OverrideVisitTableRef       func(b *BaseExprVisitor, e TableRef) interface{}
+	OverrideVisitAliasedExpr    func(b *BaseExprVisitor, e AliasedExpr) interface{}
+	OverrideVisitSelectCommand  func(b *BaseExprVisitor, e SelectCommand) interface{}
+	OverrideVisitWindowFunction func(b *BaseExprVisitor, f WindowFunction) interface{}
+	OverrideVisitParenExpr      func(b *BaseExprVisitor, e ParenExpr) interface{}
+	OverrideVisitLambdaExpr     func(b *BaseExprVisitor, e LambdaExpr) interface{}
 }
 
 func NewBaseVisitor() *BaseExprVisitor {
-	return &BaseExprVisitor{Overrides: BaseExprOverrides{}}
+	return &BaseExprVisitor{}
 }
 
 func (v *BaseExprVisitor) visitChildren(args []Expr) []Expr {
@@ -43,15 +37,15 @@ func (v *BaseExprVisitor) visitChildren(args []Expr) []Expr {
 }
 
 func (v *BaseExprVisitor) VisitLiteral(e LiteralExpr) interface{} {
-	if v.Overrides.VisitLiteral != nil {
-		return v.Overrides.VisitLiteral(v, e)
+	if v.OverrideVisitLiteral != nil {
+		return v.OverrideVisitLiteral(v, e)
 	}
 
 	return NewLiteral(e.Value)
 }
 func (v *BaseExprVisitor) VisitInfix(e InfixExpr) interface{} {
-	if v.Overrides.VisitInfix != nil {
-		return v.Overrides.VisitInfix(v, e)
+	if v.OverrideVisitInfix != nil {
+		return v.OverrideVisitInfix(v, e)
 	}
 	lhs := e.Left.Accept(v)
 	rhs := e.Right.Accept(v)
@@ -59,29 +53,29 @@ func (v *BaseExprVisitor) VisitInfix(e InfixExpr) interface{} {
 }
 
 func (v *BaseExprVisitor) VisitPrefixExpr(e PrefixExpr) interface{} {
-	if v.Overrides.VisitPrefixExpr != nil {
-		return v.Overrides.VisitPrefixExpr(v, e)
+	if v.OverrideVisitPrefixExpr != nil {
+		return v.OverrideVisitPrefixExpr(v, e)
 	}
 	return NewPrefixExpr(e.Op, v.visitChildren(e.Args))
 }
 
 func (v *BaseExprVisitor) VisitFunction(e FunctionExpr) interface{} {
-	if v.Overrides.VisitFunction != nil {
-		return v.Overrides.VisitFunction(v, e)
+	if v.OverrideVisitFunction != nil {
+		return v.OverrideVisitFunction(v, e)
 	}
 	return NewFunction(e.Name, v.visitChildren(e.Args)...)
 }
 
 func (v *BaseExprVisitor) VisitColumnRef(e ColumnRef) interface{} {
-	if v.Overrides.VisitColumnRef != nil {
-		return v.Overrides.VisitColumnRef(v, e)
+	if v.OverrideVisitColumnRef != nil {
+		return v.OverrideVisitColumnRef(v, e)
 	}
 	return NewColumnRef(e.ColumnName)
 }
 
 func (v *BaseExprVisitor) VisitNestedProperty(e NestedProperty) interface{} {
-	if v.Overrides.VisitNestedProperty != nil {
-		return v.Overrides.VisitNestedProperty(v, e)
+	if v.OverrideVisitNestedProperty != nil {
+		return v.OverrideVisitNestedProperty(v, e)
 	}
 	ColumnRef := e.ColumnRef.Accept(v).(ColumnRef)
 	Property := e.PropertyName.Accept(v).(LiteralExpr)
@@ -89,8 +83,8 @@ func (v *BaseExprVisitor) VisitNestedProperty(e NestedProperty) interface{} {
 }
 
 func (v *BaseExprVisitor) VisitArrayAccess(e ArrayAccess) interface{} {
-	if v.Overrides.VisitArrayAccess != nil {
-		return v.Overrides.VisitArrayAccess(v, e)
+	if v.OverrideVisitArrayAccess != nil {
+		return v.OverrideVisitArrayAccess(v, e)
 	}
 	columnRef := e.ColumnRef.Accept(v).(ColumnRef)
 	index := e.Index.Accept(v).(Expr)
@@ -98,50 +92,50 @@ func (v *BaseExprVisitor) VisitArrayAccess(e ArrayAccess) interface{} {
 }
 
 func (v *BaseExprVisitor) VisitMultiFunction(e MultiFunctionExpr) interface{} {
-	if v.Overrides.VisitMultiFunction != nil {
-		return v.Overrides.VisitMultiFunction(v, e)
+	if v.OverrideVisitMultiFunction != nil {
+		return v.OverrideVisitMultiFunction(v, e)
 	}
 	return MultiFunctionExpr{Name: e.Name, Args: v.visitChildren(e.Args)}
 }
 
 func (v *BaseExprVisitor) VisitString(e StringExpr) interface{} {
-	if v.Overrides.VisitString != nil {
-		return v.Overrides.VisitString(v, e)
+	if v.OverrideVisitString != nil {
+		return v.OverrideVisitString(v, e)
 	}
 	return e
 }
 
 func (v *BaseExprVisitor) VisitTableRef(e TableRef) interface{} {
-	if v.Overrides.VisitTableRef != nil {
-		return v.Overrides.VisitTableRef(v, e)
+	if v.OverrideVisitTableRef != nil {
+		return v.OverrideVisitTableRef(v, e)
 	}
 	return e
 }
 
 func (v *BaseExprVisitor) VisitOrderByExpr(e OrderByExpr) interface{} {
-	if v.Overrides.VisitOrderByExpr != nil {
-		return v.Overrides.VisitOrderByExpr(v, e)
+	if v.OverrideVisitOrderByExpr != nil {
+		return v.OverrideVisitOrderByExpr(v, e)
 	}
 	return OrderByExpr{Exprs: v.visitChildren(e.Exprs), Direction: e.Direction}
 }
 
 func (v *BaseExprVisitor) VisitDistinctExpr(e DistinctExpr) interface{} {
-	if v.Overrides.VisitDistinctExpr != nil {
-		return v.Overrides.VisitDistinctExpr(v, e)
+	if v.OverrideVisitDistinctExpr != nil {
+		return v.OverrideVisitDistinctExpr(v, e)
 	}
 	return DistinctExpr{Expr: e.Expr.Accept(v).(Expr)}
 }
 
 func (v *BaseExprVisitor) VisitAliasedExpr(e AliasedExpr) interface{} {
-	if v.Overrides.VisitAliasedExpr != nil {
-		return v.Overrides.VisitAliasedExpr(v, e)
+	if v.OverrideVisitAliasedExpr != nil {
+		return v.OverrideVisitAliasedExpr(v, e)
 	}
 	return NewAliasedExpr(e.Expr.Accept(v).(Expr), e.Alias)
 }
 
 func (v *BaseExprVisitor) VisitWindowFunction(f WindowFunction) interface{} {
-	if v.Overrides.VisitWindowFunction != nil {
-		return v.Overrides.VisitWindowFunction(v, f)
+	if v.OverrideVisitWindowFunction != nil {
+		return v.OverrideVisitWindowFunction(v, f)
 	}
 	return WindowFunction{
 		Name:        f.Name,
@@ -152,8 +146,8 @@ func (v *BaseExprVisitor) VisitWindowFunction(f WindowFunction) interface{} {
 }
 
 func (v *BaseExprVisitor) VisitSelectCommand(query SelectCommand) interface{} {
-	if v.Overrides.VisitSelectCommand != nil {
-		return v.Overrides.VisitSelectCommand(v, query)
+	if v.OverrideVisitSelectCommand != nil {
+		return v.OverrideVisitSelectCommand(v, query)
 	}
 	var columns, groupBy []Expr
 	var orderBy []OrderByExpr
@@ -179,8 +173,8 @@ func (v *BaseExprVisitor) VisitSelectCommand(query SelectCommand) interface{} {
 }
 
 func (v *BaseExprVisitor) VisitParenExpr(p ParenExpr) interface{} {
-	if v.Overrides.VisitParenExpr != nil {
-		return v.Overrides.VisitParenExpr(v, p)
+	if v.OverrideVisitParenExpr != nil {
+		return v.OverrideVisitParenExpr(v, p)
 	}
 	var exprs []Expr
 	for _, expr := range p.Exprs {
@@ -190,8 +184,8 @@ func (v *BaseExprVisitor) VisitParenExpr(p ParenExpr) interface{} {
 }
 
 func (v *BaseExprVisitor) VisitLambdaExpr(e LambdaExpr) interface{} {
-	if v.Overrides.VisitLambdaExpr != nil {
-		return v.Overrides.VisitLambdaExpr(v, e)
+	if v.OverrideVisitLambdaExpr != nil {
+		return v.OverrideVisitLambdaExpr(v, e)
 	}
 	return NewLambdaExpr(e.Args, e.Body.Accept(v).(Expr))
 }
