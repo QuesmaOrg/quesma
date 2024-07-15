@@ -331,6 +331,7 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 			Relation: "gte",
 		}
 	}
+
 	return response
 }
 
