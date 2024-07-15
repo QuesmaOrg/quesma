@@ -8,7 +8,7 @@ func GetUsedColumns(expr Expr) []ColumnRef {
 
 	visitor := NewBaseVisitor()
 
-	visitor.Overrides.VisitColumnRef = func(visitor *BaseExprVisitor, e ColumnRef) interface{} {
+	visitor.OverrideVisitColumnRef = func(visitor *BaseExprVisitor, e ColumnRef) interface{} {
 		usedColumns = append(usedColumns, e)
 		return e
 	}
