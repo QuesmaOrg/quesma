@@ -249,9 +249,11 @@ func Test_ipRangeTransform(t *testing.T) {
 		},
 	}
 	for k := range queries {
-		resultQueries, err := transform.Transform(queries[k])
-		assert.NoError(t, err)
-		assert.Equal(t, expectedQueries[k].SelectCommand.String(), resultQueries[0].SelectCommand.String())
+		t.Run(strconv.Itoa(k), func(t *testing.T) {
+			resultQueries, err := transform.Transform(queries[k])
+			assert.NoError(t, err)
+			assert.Equal(t, expectedQueries[k].SelectCommand.String(), resultQueries[0].SelectCommand.String())
+		})
 	}
 }
 

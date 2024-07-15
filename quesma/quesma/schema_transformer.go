@@ -39,134 +39,6 @@ func (s *SchemaCheckPass) applyBooleanLiteralLowering(query *model.Query) (*mode
 	return query, nil
 }
 
-type WhereVisitor struct {
-	model.ExprVisitor
-	tableName      string
-	schemaRegistry schema.Registry
-}
-
-func (v *WhereVisitor) VisitLiteral(e model.LiteralExpr) interface{} {
-	return model.NewLiteral(e.Value)
-}
-
-func (v *WhereVisitor) VisitInfix(e model.InfixExpr) interface{} {
-	const isIPAddressInRangePrimitive = "isIPAddressInRange"
-	const CASTPrimitive = "CAST"
-	const StringLiteral = "'String'"
-	var lhs, rhs interface{}
-	lhsValue := ""
-	rhsValue := ""
-	opValue := ""
-	if e.Left != nil {
-		lhs = e.Left.Accept(v)
-		if lhs != nil {
-			if lhsLiteral, ok := lhs.(model.LiteralExpr); ok {
-				lhsValue = lhsLiteral.Value.(string)
-			} else if lhsColumnRef, ok := lhs.(model.ColumnRef); ok {
-				lhsValue = lhsColumnRef.ColumnName
-			}
-		}
-	}
-	if e.Right != nil {
-		rhs = e.Right.Accept(v)
-		if rhs != nil {
-			if rhsLiteral, ok := rhs.(model.LiteralExpr); ok {
-				rhsValue = rhsLiteral.Value.(string)
-			} else if rhsColumnRef, ok := rhs.(model.ColumnRef); ok {
-				rhsValue = rhsColumnRef.ColumnName
-			}
-		}
-	}
-	// skip transformation in the case of strict IP address
-	if !strings.Contains(rhsValue, "/") {
-		return model.NewInfixExpr(lhs.(model.Expr), e.Op, rhs.(model.Expr))
-	}
-	dataScheme, found := v.schemaRegistry.FindSchema(schema.TableName(v.tableName))
-	if !found {
-		logger.Error().Msgf("Schema for table %s not found, this should never happen here", v.tableName)
-	}
-
-	field, found := dataScheme.ResolveField(lhsValue)
-	if !found {
-		logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhsValue, v.tableName)
-	}
-	if !field.Type.Equal(schema.TypeIp) {
-		return model.NewInfixExpr(lhs.(model.Expr), e.Op, rhs.(model.Expr))
-	}
-	if len(lhsValue) == 0 || len(rhsValue) == 0 {
-		return model.NewInfixExpr(lhs.(model.Expr), e.Op, rhs.(model.Expr))
-	}
-	opValue = e.Op
-	if opValue != "=" && opValue != "iLIKE" {
-		logger.Warn().Msgf("ip transformation omitted, operator is not = or iLIKE: %s, lhs: %s, rhs: %s", opValue, lhsValue, rhsValue)
-		return model.NewInfixExpr(lhs.(model.Expr), e.Op, rhs.(model.Expr))
-	}
-	rhsValue = strings.Replace(rhsValue, "%", "", -1)
-	transformedWhereClause := &model.FunctionExpr{
-		Name: isIPAddressInRangePrimitive,
-		Args: []model.Expr{
-			&model.FunctionExpr{
-				Name: CASTPrimitive,
-				Args: []model.Expr{
-					&model.LiteralExpr{Value: lhsValue},
-					&model.LiteralExpr{Value: StringLiteral},
-				},
-			},
-			&model.LiteralExpr{Value: rhsValue},
-		},
-	}
-	return transformedWhereClause
-}
-
-func (v *WhereVisitor) VisitPrefixExpr(e model.PrefixExpr) interface{} {
-	for _, arg := range e.Args {
-		if arg != nil {
-			arg.Accept(v)
-		}
-	}
-	return model.NewPrefixExpr(e.Op, e.Args)
-}
-
-func (v *WhereVisitor) VisitFunction(e model.FunctionExpr) interface{} {
-	for _, arg := range e.Args {
-		if arg != nil {
-			arg.Accept(v)
-		}
-	}
-	return model.NewFunction(e.Name, e.Args...)
-}
-
-func (v *WhereVisitor) VisitColumnRef(e model.ColumnRef) interface{} {
-	return model.NewColumnRef(e.ColumnName)
-}
-
-func (v *WhereVisitor) VisitNestedProperty(e model.NestedProperty) interface{} {
-	ColumnRef := e.ColumnRef.Accept(v).(model.ColumnRef)
-	Property := e.PropertyName.Accept(v).(model.LiteralExpr)
-	return model.NewNestedProperty(ColumnRef, Property)
-}
-
-func (v *WhereVisitor) VisitArrayAccess(e model.ArrayAccess) interface{} {
-	e.ColumnRef.Accept(v)
-	e.Index.Accept(v)
-	return model.NewArrayAccess(e.ColumnRef, e.Index)
-}
-
-// TODO this whole block is fake ... need to double chceck this
-func (v *WhereVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
-	var whereClause model.Expr
-	if e.WhereClause != nil {
-		whereClause = e.WhereClause.Accept(v).(model.Expr)
-	}
-	var fromClause model.Expr
-	if e.FromClause != nil {
-		fromClause = e.FromClause.Accept(v).(model.Expr)
-	}
-
-	return model.NewSelectCommand(e.Columns, e.GroupBy, e.OrderBy,
-		fromClause, whereClause, e.Limit, e.SampleLimit, e.IsDistinct)
-}
-
 type SchemaCheckPass struct {
 	cfg            map[string]config.IndexConfiguration
 	schemaRegistry schema.Registry
@@ -193,9 +65,90 @@ func getFromTable(fromTable string) string {
 // SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(lhs,'String'),rhs)
 func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Query, error) {
 	fromTable := getFromTable(query.TableName)
-	whereVisitor := &WhereVisitor{ExprVisitor: model.NoOpVisitor{}, tableName: fromTable, schemaRegistry: s.schemaRegistry}
 
-	expr := query.SelectCommand.Accept(whereVisitor)
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
+		const isIPAddressInRangePrimitive = "isIPAddressInRange"
+		const CASTPrimitive = "CAST"
+		const StringLiteral = "'String'"
+		var lhs, rhs interface{}
+		lhsValue := ""
+		rhsValue := ""
+		opValue := ""
+		if e.Left != nil {
+			lhs = e.Left.Accept(b)
+			if lhs != nil {
+				if lhsLiteral, ok := lhs.(model.LiteralExpr); ok {
+					if asString, ok := lhsLiteral.Value.(string); ok {
+						lhsValue = asString
+					}
+				} else if lhsColumnRef, ok := lhs.(model.ColumnRef); ok {
+					lhsValue = lhsColumnRef.ColumnName
+				}
+			}
+		}
+		if e.Right != nil {
+			rhs = e.Right.Accept(b)
+			if rhs != nil {
+				if rhsLiteral, ok := rhs.(model.LiteralExpr); ok {
+					if asString, ok := rhsLiteral.Value.(string); ok {
+						rhsValue = asString
+					}
+				} else if rhsColumnRef, ok := rhs.(model.ColumnRef); ok {
+					rhsValue = rhsColumnRef.ColumnName
+				}
+			}
+		}
+		// skip transformation in the case of strict IP address
+		if !strings.Contains(rhsValue, "/") {
+			return model.NewInfixExpr(lhs.(model.Expr), e.Op, rhs.(model.Expr))
+		}
+		dataScheme, found := s.schemaRegistry.FindSchema(schema.TableName(fromTable))
+		if !found {
+			logger.Error().Msgf("Schema for table %s not found, this should never happen here", fromTable)
+		}
+
+		field, found := dataScheme.ResolveField(lhsValue)
+		if !found {
+			logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhsValue, fromTable)
+		}
+		if !field.Type.Equal(schema.TypeIp) {
+			return model.NewInfixExpr(lhs.(model.Expr), e.Op, rhs.(model.Expr))
+		}
+		if len(lhsValue) == 0 || len(rhsValue) == 0 {
+			return model.NewInfixExpr(lhs.(model.Expr), e.Op, rhs.(model.Expr))
+		}
+		opValue = e.Op
+		if opValue != "=" && opValue != "iLIKE" {
+			logger.Warn().Msgf("ip transformation omitted, operator is not = or iLIKE: %s, lhs: %s, rhs: %s", opValue, lhsValue, rhsValue)
+			return model.NewInfixExpr(lhs.(model.Expr), e.Op, rhs.(model.Expr))
+		}
+		rhsValue = strings.Replace(rhsValue, "%", "", -1)
+		transformedWhereClause := &model.FunctionExpr{
+			Name: isIPAddressInRangePrimitive,
+			Args: []model.Expr{
+				&model.FunctionExpr{
+					Name: CASTPrimitive,
+					Args: []model.Expr{
+						&model.LiteralExpr{Value: lhsValue},
+						&model.LiteralExpr{Value: StringLiteral},
+					},
+				},
+				&model.LiteralExpr{Value: rhsValue},
+			},
+		}
+		return transformedWhereClause
+	}
+
+	visitor.OverrideVisitArrayAccess = func(b *model.BaseExprVisitor, e model.ArrayAccess) interface{} {
+		e.ColumnRef.Accept(b)
+		e.Index.Accept(b)
+		return model.NewArrayAccess(e.ColumnRef, e.Index)
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
+
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
