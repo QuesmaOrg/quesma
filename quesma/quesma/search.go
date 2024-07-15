@@ -69,8 +69,8 @@ type QueryRunner struct {
 	schemaRegistry           schema.Registry
 }
 
-func (q *QueryRunner) EnableQueryOptimization() {
-	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline())
+func (q *QueryRunner) EnableQueryOptimization(cfg config.QuesmaConfiguration) {
+	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
 }
 
 func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry) *QueryRunner {
