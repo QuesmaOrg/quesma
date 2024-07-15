@@ -129,7 +129,8 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 	// TODO this should be configurable somehow
 	//
 	// tests should not be run with optimization enabled by default
-	queryRunner.EnableQueryOptimization()
+        // TODO: Enable it in YAML
+	// queryRunner.EnableQueryOptimization()
 
 	router := configureRouter(config, schemaRegistry, logManager, quesmaManagementConsole, phoneHomeAgent, queryRunner)
 	return &Quesma{
