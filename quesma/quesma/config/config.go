@@ -236,6 +236,36 @@ func (c *QuesmaConfiguration) WritesToElasticsearch() bool {
 	return c.Mode != ClickHouse
 }
 
+func (c *QuesmaConfiguration) optimizersConfigAsString(s string, cfg OptimizersConfiguration) string {
+
+	var lines []string
+
+	lines = append(lines, fmt.Sprintf("        %s:", s))
+	for k, v := range cfg {
+		lines = append(lines, fmt.Sprintf("            %s: %v", k, v))
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func (c *QuesmaConfiguration) OptimizersConfigAsString() string {
+
+	var lines []string
+
+	lines = append(lines, "\n")
+
+	lines = append(lines, c.optimizersConfigAsString("Global", c.EnabledOptimizers))
+
+	for indexName, indexConfig := range c.IndexConfig {
+		if indexConfig.EnabledOptimizers != nil && len(indexConfig.EnabledOptimizers) > 0 {
+			lines = append(lines, c.optimizersConfigAsString(indexName, indexConfig.EnabledOptimizers))
+		}
+	}
+
+	lines = append(lines, "\n")
+	return strings.Join(lines, "\n")
+}
+
 func (c *QuesmaConfiguration) String() string {
 	var indexConfigs string
 	for _, idx := range c.IndexConfig {
@@ -300,7 +330,8 @@ Quesma Configuration:
 	Log Level: %v
 	Public TCP Port: %d
 	Ingest Statistics: %t,
-	Quesma Telemetry URL: %s`,
+	Quesma Telemetry URL: %s
+    Optimizers: %s`,
 		c.Mode.String(),
 		elasticUrl,
 		elasticsearchExtra,
@@ -314,6 +345,7 @@ Quesma Configuration:
 		c.PublicTcpPort,
 		c.IngestStatistics,
 		quesmaInternalTelemetryUrl,
+		c.OptimizersConfigAsString(),
 	)
 }
 
