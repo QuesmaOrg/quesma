@@ -234,7 +234,41 @@ func (s *SchemaCheckPass) applyGeoTransformations(query *model.Query) (*model.Qu
 func (s *SchemaCheckPass) applyArrayTransformations(query *model.Query) (*model.Query, error) {
 	fromTable := getFromTable(query.TableName)
 
-	visitor := &ArrayTypeVisitor{tableName: fromTable, schemaRegistry: s.schemaRegistry, logManager: s.logManager}
+	table := s.logManager.FindTable(fromTable)
+	if table == nil {
+		logger.Error().Msgf("Table %s not found", fromTable)
+		return query, nil
+	}
+
+	arrayTypeResolver := arrayTypeResolver{table: table}
+
+	// check if the query has array columns
+
+	selectCommand := query.SelectCommand
+
+	var allColumns []model.ColumnRef
+	for _, expr := range selectCommand.Columns {
+		allColumns = append(allColumns, model.GetUsedColumns(expr)...)
+	}
+	if selectCommand.WhereClause != nil {
+		allColumns = append(allColumns, model.GetUsedColumns(selectCommand.WhereClause)...)
+	}
+
+	hasArrayColumn := false
+	for _, col := range allColumns {
+		dbType := arrayTypeResolver.dbColumnType(col.ColumnName)
+		if strings.HasPrefix(dbType, "Array") {
+			hasArrayColumn = true
+			break
+		}
+	}
+	// no array columns, no need to transform
+	if !hasArrayColumn {
+		return query, nil
+	}
+
+	visitor := NewArrayTypeVisitor(arrayTypeResolver)
+
 	expr := query.SelectCommand.Accept(visitor)
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
