@@ -273,6 +273,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			Transformation     func(*model.Query) (*model.Query, error)
 		}{
 			{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
+			{TransformationName: "IndexMappingQueryRewriter", Transformation: s.applyIndexMappingTransformations},
 			{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
 			{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
 			{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
