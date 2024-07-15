@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Elastic-2.0
 package model
 
-// TODO OKAY THIS NEEDS TO BE FIXED FOR THE NEW WHERE STATEMENT
-type usedColumns struct{}
-
 func GetUsedColumns(expr Expr) []ColumnRef {
 
 	var usedColumns []ColumnRef
