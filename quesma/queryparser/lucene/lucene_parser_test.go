@@ -85,11 +85,41 @@ func TestTranslatingLuceneQueriesToSQL(t *testing.T) {
 	}
 	for i, tt := range append(properQueries, randomQueriesWithPossiblyIncorrectInput...) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			parser := newLuceneParser(context.Background(), defaultFieldNames)
+			parser := newLuceneParser(context.Background(), defaultFieldNames, fixedFieldNameResolver{})
 			got := model.AsString(parser.translateToSQL(tt.query))
 			if got != tt.want {
 				t.Errorf("\ngot  [%q]\nwant [%q]", got, tt.want)
 			}
 		})
 	}
+}
+
+func TestResolvePropertyNamesWhenTranslatingToSQL(t *testing.T) {
+	defaultFieldNames := []string{"title", "text"}
+	var properQueries = []struct {
+		query        string
+		nameResolver fieldNameResolver
+		want         string
+	}{
+		{query: `title:"The Right Way" AND text:go!!`, nameResolver: fixedFieldNameResolver{}, want: `("title" = 'The Right Way' AND "text" = 'go!!')`},
+		{query: `age:>10`, nameResolver: fixedFieldNameResolver{namesMap: map[string]string{"age": "foo"}}, want: `"foo" > '10'`},
+	}
+	for i, tt := range properQueries {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			parser := newLuceneParser(context.Background(), defaultFieldNames, tt.nameResolver)
+			got := model.AsString(parser.translateToSQL(tt.query))
+			if got != tt.want {
+				t.Errorf("\ngot  [%q]\nwant [%q]", got, tt.want)
+			}
+		})
+	}
+}
+
+type fixedFieldNameResolver struct {
+	namesMap map[string]string
+}
+
+func (f fixedFieldNameResolver) ResolveFieldName(fieldName string) (string, bool) {
+	name, exists := f.namesMap[fieldName]
+	return name, exists
 }

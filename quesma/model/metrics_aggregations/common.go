@@ -10,20 +10,20 @@ import (
 	"time"
 )
 
-func metricsTranslateSqlResponseToJson(ctx context.Context, rows []model.QueryResultRow, level int) []model.JsonMap {
+func metricsTranslateSqlResponseToJson(ctx context.Context, rows []model.QueryResultRow, level int) model.JsonMap {
 	var value any = nil
 	if resultRowsAreFine(ctx, rows) {
 		value = rows[0].Cols[len(rows[0].Cols)-1].Value
 	}
-	return []model.JsonMap{{
+	return model.JsonMap{
 		"value": value,
-	}}
+	}
 }
 
 // metricsTranslateSqlResponseToJsonWithFieldTypeCheck is the same as metricsTranslateSqlResponseToJson for all types except DateTimes.
 // With DateTimes, we need to return 2 values, instead of 1, that's the difference.
 func metricsTranslateSqlResponseToJsonWithFieldTypeCheck(
-	ctx context.Context, rows []model.QueryResultRow, level int, fieldType clickhouse.DateTimeType) []model.JsonMap {
+	ctx context.Context, rows []model.QueryResultRow, level int, fieldType clickhouse.DateTimeType) model.JsonMap {
 	if fieldType == clickhouse.Invalid {
 		// if it's not a date, we do just a normal response
 		return metricsTranslateSqlResponseToJson(ctx, rows, level)
@@ -45,7 +45,7 @@ func metricsTranslateSqlResponseToJsonWithFieldTypeCheck(
 	if value != nil {
 		response["value_as_string"] = valueAsString
 	}
-	return []model.JsonMap{response}
+	return response
 }
 
 func resultRowsAreFine(ctx context.Context, rows []model.QueryResultRow) bool {

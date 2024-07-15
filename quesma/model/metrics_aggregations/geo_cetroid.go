@@ -19,16 +19,14 @@ func (query GeoCentroid) IsBucketAggregation() bool {
 	return false
 }
 
-func (query GeoCentroid) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query GeoCentroid) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	location := model.JsonMap{
 		"lat": rows[0].Cols[3].Value,
 		"lon": rows[0].Cols[4].Value,
 	}
-	return []model.JsonMap{
-		{
-			"count":    rows[0].Cols[5].Value,
-			"location": location,
-		},
+	return model.JsonMap{
+		"count":    rows[0].Cols[5].Value,
+		"location": location,
 	}
 }
 

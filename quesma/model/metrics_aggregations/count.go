@@ -20,15 +20,15 @@ func (query Count) IsBucketAggregation() bool {
 	return false
 }
 
-func (query Count) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
-	var response []model.JsonMap
+func (query Count) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for count aggregation")
+		return make(model.JsonMap, 0)
 	}
-	for _, row := range rows {
-		response = append(response, model.JsonMap{"doc_count": row.Cols[level].Value})
+	if len(rows) > 1 {
+		logger.WarnWithCtx(query.ctx).Msg("More than one row returned for count aggregation")
 	}
-	return response
+	return model.JsonMap{"doc_count": rows[0].Cols[level].Value}
 }
 
 func (query Count) String() string {

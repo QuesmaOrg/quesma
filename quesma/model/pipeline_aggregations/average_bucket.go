@@ -24,7 +24,7 @@ func (query AverageBucket) IsBucketAggregation() bool {
 	return false
 }
 
-func (query AverageBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query AverageBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	return translateSqlResponseToJsonCommon(query.ctx, rows, query.String())
 }
 

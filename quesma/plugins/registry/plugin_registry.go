@@ -12,12 +12,7 @@ import (
 var registeredPlugins []plugins.Plugin
 
 func init() {
-	registeredPlugins = []plugins.Plugin{
-		// TODO below plugins are disabled due to some
-		// interferences with other components
-		&elastic_clickhouse_fields.Dot2DoubleColons2Dot{},
-		//&elastic_clickhouse_fields.Dot2DoubleUnderscores2Dot{},
-		&elastic_clickhouse_fields.Dot2DoubleColons{}}
+	registeredPlugins = []plugins.Plugin{&elastic_clickhouse_fields.Dot2DoubleColons2Dot{}}
 }
 
 func QueryTransformerFor(table string, cfg config.QuesmaConfiguration) plugins.QueryTransformer {

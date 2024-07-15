@@ -40,8 +40,8 @@ type (
 	QueryType interface {
 		// TranslateSqlResponseToJson 'level' - we want to translate [level:] (metrics aggr) or [level-1:] (bucket aggr) columns to JSON
 		// Previous columns are used for bucketing.
-		// For 'bucket' aggregation result is a slice of buckets, for 'metrics' aggregation it's a single bucket (only look at [0])
-		TranslateSqlResponseToJson(rows []QueryResultRow, level int) []JsonMap
+		// For 'bucket' aggregation result is a map wrapped in 'buckets' key.
+		TranslateSqlResponseToJson(rows []QueryResultRow, level int) JsonMap
 
 		PostprocessResults(rowsFromDB []QueryResultRow) (ultimateRows []QueryResultRow)
 
@@ -184,8 +184,8 @@ func (query UnknownAggregationType) IsBucketAggregation() bool {
 	return false
 }
 
-func (query UnknownAggregationType) TranslateSqlResponseToJson(rows []QueryResultRow, level int) []JsonMap {
-	return make([]JsonMap, 0)
+func (query UnknownAggregationType) TranslateSqlResponseToJson(rows []QueryResultRow, level int) JsonMap {
+	return make(JsonMap, 0)
 }
 
 func (query UnknownAggregationType) String() string {

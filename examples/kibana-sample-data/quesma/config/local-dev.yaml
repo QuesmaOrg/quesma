@@ -26,6 +26,7 @@ indexes:
       products.product_name: "text"
       geoip.location: "geo_point"
       category: "text"
+      manufacturer: "text"
   kibana_sample_data_flights:
     enabled: true
     mappings:
@@ -36,7 +37,7 @@ indexes:
     mappings:
       ip: "ip"
       clientip: "ip"
-      geo::coordinates: "point"
+      geo.coordinates: "point"
       extension: "text"
       url: "text"
     aliases:

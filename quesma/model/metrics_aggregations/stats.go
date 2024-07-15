@@ -21,12 +21,12 @@ func (query Stats) IsBucketAggregation() bool {
 	return false
 }
 
-func (query Stats) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Stats) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for stats aggregation")
-		return []model.JsonMap{{
+		return model.JsonMap{
 			"value": nil, // not completely sure if it's a good return value, but it looks fine to me. We should always get 1 row, not 0 anyway.
-		}}
+		}
 	}
 	if len(rows) > 1 {
 		logger.WarnWithCtx(query.ctx).Msgf("more than one row returned for stats aggregation, using only first. rows[0]: %+v, rows[1]: %+v", rows[0], rows[1])
@@ -46,7 +46,7 @@ func (query Stats) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 		withoutOrNull, _ := strings.CutSuffix(fullName, "OrNull")
 		resultMap[withoutOrNull] = v.Value
 	}
-	return []model.JsonMap{resultMap}
+	return resultMap
 }
 
 func (query Stats) String() string {

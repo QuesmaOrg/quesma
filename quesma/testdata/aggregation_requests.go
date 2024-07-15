@@ -2755,7 +2755,8 @@ var AggregationTests = []AggregationTestCase{
 							"doc_count": 1757,
 							"key": "User logged in"
 						}
-					]
+					],
+					"doc_count_error_upper_bound": 0
 				}
 			}
 		}`,
@@ -4104,7 +4105,8 @@ var AggregationTests = []AggregationTestCase{
 								"score": 206
 							}
 						],
-						"doc_count": 1608
+						"doc_count": 1608,
+						"doc_count_error_upper_bound": 0
 					}
 				},
 				"hits": {

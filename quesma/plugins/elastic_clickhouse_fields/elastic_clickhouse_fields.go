@@ -24,10 +24,6 @@ func doubleColons2dot(input string) string {
 	return strings.ReplaceAll(input, doubleColons, dot)
 }
 
-func dot2DoubleColons(input string) string {
-	return strings.ReplaceAll(input, dot, doubleColons)
-}
-
 func dot2SQLNative(input string) string {
 	return strings.ReplaceAll(input, dot, sqlNative)
 }
@@ -259,8 +255,7 @@ func (p *Dot2DoubleColons) GetTableColumnFormatter(table string, cfg config.Ques
 type Dot2DoubleColons2Dot struct{}
 
 func (*Dot2DoubleColons2Dot) matches(table string) bool {
-	// this is enabled for e-commerce data, it makes dashboard work
-	return strings.HasPrefix(table, "kibana_sample_data_ecommerce")
+	return true
 }
 
 func (*Dot2DoubleColons2Dot) IngestTransformer() plugins.IngestTransformer {
@@ -282,9 +277,6 @@ func (p *Dot2DoubleColons2Dot) GetTableColumnFormatter(table string, cfg config.
 }
 
 func (p *Dot2DoubleColons2Dot) ApplyQueryTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.QueryTransformer) []plugins.QueryTransformer {
-	if p.matches(table) {
-		transformers = append(transformers, &queryTransformer{translate: dot2DoubleColons})
-	}
 	return transformers
 }
 
@@ -296,9 +288,6 @@ func (p *Dot2DoubleColons2Dot) ApplyResultTransformers(table string, cfg config.
 }
 
 func (p *Dot2DoubleColons2Dot) ApplyFieldCapsTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.FieldCapsTransformer) []plugins.FieldCapsTransformer {
-	if p.matches(table) {
-		transformers = append(transformers, &fieldCapsTransformer{translate: doubleColons2dot})
-	}
 	return transformers
 }
 

@@ -549,7 +549,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 								"key_as_string": "critical|fedora"
 							}
 						],
-						"doc_count_error_upper_bound": -1,
+						"doc_count_error_upper_bound": 0,
 						"sum_other_doc_count": 121
 					}
 				},

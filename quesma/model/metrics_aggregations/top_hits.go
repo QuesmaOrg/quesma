@@ -24,7 +24,7 @@ func (query TopHits) IsBucketAggregation() bool {
 }
 
 // TODO implement correct
-func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	var topElems []any
 	if len(rows) > 0 && level >= len(rows[0].Cols)-1 {
 		// values are [level, len(row.Cols) - 1]
@@ -83,9 +83,9 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 		}
 		topElems = append(topElems, elem)
 	}
-	return []model.JsonMap{{
+	return model.JsonMap{
 		"hits": topElems,
-	}}
+	}
 }
 
 func (query TopHits) String() string {

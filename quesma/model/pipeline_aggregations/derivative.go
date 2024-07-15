@@ -27,7 +27,7 @@ func (query Derivative) IsBucketAggregation() bool {
 	return false
 }
 
-func (query Derivative) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Derivative) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	return translateSqlResponseToJsonCommon(query.ctx, rows, query.String())
 }
 

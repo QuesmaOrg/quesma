@@ -81,14 +81,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 	ResultSet []model.QueryResultRow, aggregatorsLevel, selectLevel int) model.JsonMap {
 	// check if we finish
 	if aggregatorsLevel == len(query.Aggregators) {
-		result := query.Type.TranslateSqlResponseToJson(ResultSet, selectLevel)
-		if !query.Type.IsBucketAggregation() || len(result) == 1 {
-			return result[0]
-		} else {
-			return model.JsonMap{
-				"buckets": result,
-			}
-		}
+		return query.Type.TranslateSqlResponseToJson(ResultSet, selectLevel)
 	}
 
 	currentAggregator := query.Aggregators[aggregatorsLevel]
@@ -122,20 +115,26 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 		// normally it's just 1. It used to be just 1 before multi_terms aggregation, where we usually split over > 1 field
 		qp := queryprocessor.NewQueryProcessor(cw.Ctx)
 		weSplitOverHowManyFields := currentAggregator.SplitOverHowManyFields
-		buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+weSplitOverHowManyFields)
-		for _, bucket := range buckets {
-			potentialNewBuckets := cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
-			if array, exist := potentialNewBuckets["buckets"]; exist {
-				for _, newBucket := range array.([]model.JsonMap) {
-					newBucket[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
-					bucketsReturnMap = append(bucketsReturnMap, newBucket)
+
+		// leaf bucket aggregation
+		if aggregatorsLevel == len(query.Aggregators)-1 && query.Type.IsBucketAggregation() {
+			subResult = cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
+			if buckets, exist := subResult["buckets"]; exist {
+				for i, bucket := range buckets.([]model.JsonMap) {
+					if i < len(ResultSet) {
+						bucket[model.KeyAddedByQuesma] = ResultSet[i].Cols[selectLevel].Value
+					}
 				}
-			} else {
+			}
+		} else { // need to split here into buckets
+			buckets := qp.SplitResultSetIntoBuckets(ResultSet, selectLevel+weSplitOverHowManyFields)
+			for _, bucket := range buckets {
+				potentialNewBuckets := cw.makeResponseAggregationRecursive(query, bucket, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
 				potentialNewBuckets[model.KeyAddedByQuesma] = bucket[0].Cols[selectLevel].Value
 				bucketsReturnMap = append(bucketsReturnMap, potentialNewBuckets)
 			}
+			subResult["buckets"] = bucketsReturnMap
 		}
-		subResult["buckets"] = bucketsReturnMap
 	}
 
 	_ = cw.addMetadataIfNeeded(query, subResult, aggregatorsLevel)
@@ -207,7 +206,7 @@ func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results []
 	}
 	hitsPartOfResponse := hitsQuery.Type.TranslateSqlResponseToJson(hitsResultSet, 0)
 
-	hitsResponse := hitsPartOfResponse[0]["hits"].(model.SearchHits)
+	hitsResponse := hitsPartOfResponse["hits"].(model.SearchHits)
 	return queriesWithoutHits, resultsWithoutHits, &hitsResponse
 }
 

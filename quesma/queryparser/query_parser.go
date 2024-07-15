@@ -731,8 +731,23 @@ func (cw *ClickhouseQueryTranslator) parseQueryString(queryMap QueryMap) model.S
 	query := queryMap["query"].(string) // query: (Required, string)
 
 	// we always call `TranslateToSQL` - Lucene parser returns "false" in case of invalid query
-	whereStmtFromLucene := lucene.TranslateToSQL(cw.Ctx, query, fields)
+	whereStmtFromLucene := lucene.TranslateToSQL(cw.Ctx, query, fields, schemaRegistryAdapter{tableName: cw.Table.Name, Registry: cw.SchemaRegistry})
 	return model.NewSimpleQuery(whereStmtFromLucene, true)
+}
+
+type schemaRegistryAdapter struct {
+	tableName string
+	schema.Registry
+}
+
+func (s schemaRegistryAdapter) ResolveFieldName(fieldName string) (string, bool) {
+	if resolvedSchema, exists := s.Registry.FindSchema(schema.TableName(s.tableName)); exists {
+		if field, fieldFound := resolvedSchema.ResolveField(fieldName); fieldFound {
+			return field.InternalPropertyName.AsString(), true
+		}
+	}
+
+	return fieldName, false
 }
 
 func (cw *ClickhouseQueryTranslator) parseNested(queryMap QueryMap) model.SimpleQuery {
@@ -916,12 +931,9 @@ func (cw *ClickhouseQueryTranslator) parseExists(queryMap QueryMap) model.Simple
 			), "=", model.NewLiteral("0"))
 		case clickhouse.NotExists:
 			// TODO this is a workaround for the case when the field is a point
-			schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name))
-			if exists {
-				if value, ok := schemaInstance.Fields[schema.FieldName(fieldName)]; ok {
-					if value.Type.Equal(schema.TypePoint) {
-						return model.NewSimpleQuery(sql, true)
-					}
+			if schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name)); exists {
+				if value, ok := schemaInstance.ResolveFieldByInternalName(fieldName); ok && value.Type.Equal(schema.TypePoint) {
+					return model.NewSimpleQuery(sql, true)
 				}
 			}
 			attrs := cw.Table.GetAttributesList()
@@ -1330,33 +1342,30 @@ func createSortColumn(fieldName, ordering string) (model.OrderByExpr, error) {
 // What prevents us from moving it to transformation pipeline now, is that
 // we need to anotate this field somehow in the AST, to be able
 // to distinguish it from other fields
-func (cw *ClickhouseQueryTranslator) ResolveField(ctx context.Context, fieldName string) (field string) {
+func (cw *ClickhouseQueryTranslator) ResolveField(ctx context.Context, fieldName string) string {
 	// Alias resolution should occur *after* the query is parsed, not during the parsing
 	if cw.SchemaRegistry == nil {
 		logger.Error().Msg("Schema registry is not set")
-		field = fieldName
-		return
+		return fieldName
 	}
 	schemaInstance, exists := cw.SchemaRegistry.FindSchema(schema.TableName(cw.Table.Name))
 	if !exists {
 		logger.Error().Msgf("Schema for table [%s] not found, this should never happen", cw.Table.Name)
-		field = fieldName
-		return
+		return fieldName
 	}
-	if resolvedField, ok := schemaInstance.ResolveField(fieldName); ok {
-		field = resolvedField.InternalPropertyName.AsString()
-	} else {
-		// fallback to original field name
-		logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in schema", fieldName)
-		field = fieldName
-	}
+	// TODO this should be handled eventually at schema level
+	fieldName = strings.TrimSuffix(fieldName, ".keyword")
+	fieldName = strings.TrimSuffix(fieldName, ".text")
 
-	if field != "*" && field != "_all" && field != "_doc" && field != "_id" && field != "_index" {
-		if _, ok := schemaInstance.Fields[schema.FieldName(field)]; !ok {
-			logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in schema", fieldName)
+	if resolvedField, ok := schemaInstance.ResolveField(fieldName); ok {
+		return resolvedField.InternalPropertyName.AsString()
+	} else {
+		if fieldName != "*" && fieldName != "_all" && fieldName != "_doc" && fieldName != "_id" && fieldName != "_index" {
+			logger.DebugWithCtx(ctx).Msgf("field '%s' referenced, but not found in schema, falling back to original name", fieldName)
 		}
+
+		return fieldName
 	}
-	return
 }
 func (cw *ClickhouseQueryTranslator) parseSizeExists(queryMap QueryMap) (size int, ok bool) {
 	sizeRaw, exists := queryMap["size"]

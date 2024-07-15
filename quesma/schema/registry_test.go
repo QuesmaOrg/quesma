@@ -42,11 +42,10 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				}},
 			}},
 			tableName: "some_table",
-			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
+			want: schema.NewSchema(map[schema.FieldName]schema.Field{
 				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
-				Aliases: map[schema.FieldName]schema.FieldName{}},
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}}),
 			exists: true,
 		},
 		{
@@ -64,11 +63,10 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				}},
 			}},
 			tableName: "some_table",
-			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
+			want: schema.NewSchema(map[schema.FieldName]schema.Field{
 				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
-				Aliases: map[schema.FieldName]schema.FieldName{}},
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}}),
 			exists: true,
 		},
 		{
@@ -85,11 +83,10 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				}},
 			}},
 			tableName: "some_table",
-			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
+			want: schema.NewSchema(map[schema.FieldName]schema.Field{
 				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
-				Aliases: map[schema.FieldName]schema.FieldName{}},
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}}),
 			exists: true,
 		},
 		{
@@ -110,11 +107,10 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				}},
 			}},
 			tableName: "some_table",
-			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
+			want: schema.NewSchema(map[schema.FieldName]schema.Field{
 				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
-				Aliases: map[schema.FieldName]schema.FieldName{}},
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}}),
 			exists: true,
 		},
 		{
@@ -130,10 +126,8 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			},
 			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{}},
 			tableName:      "some_table",
-			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
-				"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword}},
-				Aliases: map[schema.FieldName]schema.FieldName{}},
-			exists: true,
+			want:           schema.NewSchema(map[schema.FieldName]schema.Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword}}),
+			exists:         true,
 		},
 		{
 			name: "schema inferred, with mapping overrides",
@@ -154,11 +148,10 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				},
 				}}},
 			tableName: "some_table",
-			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
+			want: schema.NewSchema(map[schema.FieldName]schema.Field{
 				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
-				Aliases: map[schema.FieldName]schema.FieldName{}},
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}}),
 			exists: true,
 		},
 		{
@@ -181,13 +174,12 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				}},
 			}},
 			tableName: "some_table",
-			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
+			want: schema.NewSchemaWithAliases(map[schema.FieldName]schema.Field{
 				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
-				Aliases: map[schema.FieldName]schema.FieldName{
-					"message_alias": "message",
-				}},
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}}, map[schema.FieldName]schema.FieldName{
+				"message_alias": "message",
+			}),
 			exists: true,
 		},
 		{
@@ -208,13 +200,12 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				}},
 			}},
 			tableName: "some_table",
-			want: schema.Schema{Fields: map[schema.FieldName]schema.Field{
+			want: schema.NewSchemaWithAliases(map[schema.FieldName]schema.Field{
 				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
-				Aliases: map[schema.FieldName]schema.FieldName{
-					"message_alias": "message",
-				}},
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}}, map[schema.FieldName]schema.FieldName{
+				"message_alias": "message",
+			}),
 			exists: true,
 		},
 		{

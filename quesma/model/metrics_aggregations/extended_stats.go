@@ -25,21 +25,21 @@ func (query ExtendedStats) IsBucketAggregation() bool {
 	return false
 }
 
-func (query ExtendedStats) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query ExtendedStats) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows returned for stats aggregation")
-		return []model.JsonMap{{
+		return model.JsonMap{
 			"value": nil, // not completely sure if it's a good return value, but it looks fine to me. We should always get 1 row, not 0 anyway.
-		}}
+		}
 	}
 	if len(rows) > 1 {
 		logger.WarnWithCtx(query.ctx).Msgf("more than one row returned for stats aggregation, using only first. rows[0]: %+v, rows[1]: %+v", rows[0], rows[1])
 	}
 	if len(rows[0].Cols) < selectFieldsNr {
 		logger.WarnWithCtx(query.ctx).Msgf("not enough fields in the response for extended_stats aggregation. Expected at least %d, got %d. Got: %+v. Returning empty result.", selectFieldsNr, len(rows[0].Cols), rows[0])
-		return []model.JsonMap{{
+		return model.JsonMap{
 			"value": nil, // not completely sure if it's a good return value, but it looks fine to me. We should always get >= selectFieldsNr columns anyway.
-		}}
+		}
 	}
 
 	row := rows[0]
@@ -56,7 +56,7 @@ func (query ExtendedStats) TranslateSqlResponseToJson(rows []model.QueryResultRo
 		lowerSampling = avg - query.sigma*stdDevSampling
 	}
 
-	return []model.JsonMap{{
+	return model.JsonMap{
 		"count":                    query.getValue(row, "count"),
 		"min":                      query.getValue(row, "min"),
 		"max":                      query.getValue(row, "max"),
@@ -77,7 +77,7 @@ func (query ExtendedStats) TranslateSqlResponseToJson(rows []model.QueryResultRo
 			"upper_sampling":   upperSampling,
 			"lower_sampling":   lowerSampling,
 		},
-	}}
+	}
 }
 
 func (query ExtendedStats) String() string {

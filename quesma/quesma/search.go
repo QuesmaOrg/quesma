@@ -621,7 +621,7 @@ func (q *QueryRunner) searchWorkerCommon(
 }
 
 func (q *QueryRunner) searchWorker(ctx context.Context,
-	aggregations []*model.Query,
+	queries []*model.Query,
 	table *clickhouse.Table,
 	doneCh chan<- AsyncSearchWithError,
 	optAsync *AsyncQuery) (translatedQueryBody [][]byte, resultRows [][]model.QueryResultRow, err error) {
@@ -635,7 +635,7 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 		ctx = dbQueryCtx
 	}
 
-	return q.searchWorkerCommon(ctx, aggregations, table)
+	return q.searchWorkerCommon(ctx, queries, table)
 }
 
 func (q *QueryRunner) Close() {

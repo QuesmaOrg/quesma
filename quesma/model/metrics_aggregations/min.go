@@ -21,7 +21,7 @@ func (query Min) IsBucketAggregation() bool {
 	return false
 }
 
-func (query Min) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Min) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	return metricsTranslateSqlResponseToJsonWithFieldTypeCheck(query.ctx, rows, level, query.fieldType)
 }
 
