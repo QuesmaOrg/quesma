@@ -5,7 +5,6 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -70,18 +69,6 @@ func updateInnerQueryColumns(query model.SelectCommand, whereClause model.Expr) 
 	}
 	return query
 }
-
-/* code from my previous approach to this issue. Let's keep for now, 95% it'll be not needed, I'll remove it then.
-func (b *aggrQueryBuilder) applyTermsSubSelect(terms bucket_aggregations.Terms) {
-	termsField := b.Query.GroupByFields[len(b.Query.GroupByFields)-1]
-	pp.Println(b, terms, termsField, b.Query.String())
-	whereLimitStmt := fmt.Sprintf("%s IN (%s)", termsField, b.String())
-	fmt.Println("WHERE LIMIT STMT:", whereLimitStmt)
-	fmt.Println("where before:", b.whereBuilder.Sql.Stmt)
-	b.whereBuilder = combineWheres(b.whereBuilder, newSimpleQuery(NewSimpleStatement(whereLimitStmt), true))
-	fmt.Println("where after:", b.whereBuilder.Sql.Stmt)
-}
-*/
 
 func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) *model.Query {
 	query := b.Query
@@ -342,7 +329,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 		}
 	}
 
-	cw.combineQueries(aggregations)
+	// cw.combineQueries(aggregations)
 	return aggregations, nil
 }
 
@@ -408,7 +395,6 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 	currentAggr.SelectCommand.Limit = 0
 	currentAggr.Parent = ""
 	currentAggr.NoDBQuery = false
-	fmt.Println("AAAA", currentAggr.SelectCommand.Limit, prevAggr.SelectCommand.Limit)
 
 	// check if metadata's present
 	var metadata model.JsonMap
@@ -466,14 +452,14 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 		cw.processRangeAggregation(&currentAggr, Range, queryMap, resultQueries, metadata)
 	}
 
-	_, isTerms := currentAggr.Type.(bucket_aggregations.Terms)
+	terms, isTerms := currentAggr.Type.(bucket_aggregations.Terms)
 	if isTerms {
 		*resultQueries = append(*resultQueries, currentAggr.buildBucketAggregation(metadata))
 		cte := currentAggr.Query
 		cte.CopyAggregationFields(currentAggr.Query)
 		cte.SelectCommand.WhereClause = currentAggr.whereBuilder.WhereClause
 		cte.SelectCommand.Columns = append(cte.SelectCommand.Columns,
-			model.NewAliasedExpr(model.NewCountFunc(), fmt.Sprintf("cte_%d_cnt", len(currentAggr.SelectCommand.CTEs)+1))) // FIXME unify this name creation with one in model/expr_as_string
+			model.NewAliasedExpr(terms.Tmp, fmt.Sprintf("cte_%d_cnt", len(currentAggr.SelectCommand.CTEs)+1))) // FIXME unify this name creation with one in model/expr_as_string
 		cte.SelectCommand.CTEs = nil // CTEs don't have CTEs themselves (so far, maybe that'll need to change)
 		if len(cte.SelectCommand.OrderBy) > 2 {
 			// we can reduce nr of ORDER BYs in CTEs. Last 2 seem to be always enough. Proper ordering is done anyway in the outer SELECT.
@@ -789,7 +775,11 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		defaultOrderBy := model.NewCountFunc()
 		defaultDirection := model.DescOrder
 
-		var orderBy model.Expr = defaultOrderBy
+		var mainOrderBy model.Expr = defaultOrderBy
+		fullOrderBy := []model.OrderByExpr{ // default
+			{Exprs: []model.Expr{mainOrderBy}, Direction: model.DescOrder, Exchange: true},
+			{Exprs: []model.Expr{fieldExpression}},
+		}
 		direction := defaultDirection
 		if orderRaw, exists := terms["order"]; exists {
 			if order, ok := orderRaw.(QueryMap); ok { // TODO it can be array too, don't handle it yet
@@ -800,17 +790,25 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 							logger.WarnWithCtx(cw.Ctx).Msgf("order value is not a string, but %T, value: %v. Using default (desc)", valueRaw, valueRaw)
 							value = "desc"
 						}
-						if key == "_count" || key == "_key" { // TODO key shouldnt be here!!
-							if strings.ToLower(value) == "asc" {
-								direction = model.AscOrder
-							}
-							break
+						if strings.ToLower(value) == "asc" {
+							direction = model.AscOrder
 						}
-						// currentAggr.NoDBQuery = true
-						currentAggr.Parent = key
-						orderBy = cw.findMetricAggregation(queryMap, key, currentAggr)
-						pp.Println("\n\n", key, orderBy, "\n\n")
-						// add desc/asc
+
+						exchange := true
+						if key == "_key" {
+							fullOrderBy = []model.OrderByExpr{{Exprs: []model.Expr{fieldExpression}, Direction: direction}}
+							break // it's the default
+						} else if key == "_count" {
+							exchange = true
+						} else {
+							// currentAggr.NoDBQuery = true
+							currentAggr.Parent = key
+							mainOrderBy = cw.findMetricAggregation(queryMap, key, currentAggr)
+						}
+						fullOrderBy = []model.OrderByExpr{
+							{Exprs: []model.Expr{mainOrderBy}, Direction: direction, Exchange: exchange},
+							{Exprs: []model.Expr{fieldExpression}},
+						}
 					}
 				} else {
 					logger.WarnWithCtx(cw.Ctx).Msgf("order has more than 1 key, but %d. Order: %+v. Using default", len(order), order)
@@ -819,13 +817,8 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 				logger.WarnWithCtx(cw.Ctx).Msgf("order is not a map, but %T, value: %v. Using default order", orderRaw, orderRaw)
 			}
 		}
-		fullOrderBy := []model.OrderByExpr{
-			{Exprs: []model.Expr{orderBy}, Direction: direction, Exchange: true},
-			{Exprs: []model.Expr{fieldExpression}},
-		}
 
-		pp.Println("field", fieldExpression, orderBy)
-		currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms", orderBy)
+		currentAggr.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms", mainOrderBy)
 		currentAggr.SelectCommand.Limit = size
 		currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, fieldExpression)
 		currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, fieldExpression)
@@ -1152,7 +1145,6 @@ func (cw *ClickhouseQueryTranslator) findMetricAggregation(queryMap QueryMap, ke
 			logger.WarnWithCtx(cw.Ctx).Msgf("unexpected number of columns in metric aggregation: %d, expected %d", len(c.SelectCommand.Columns), len(currentAggr.SelectCommand.Columns)+1)
 			return notFoundValue
 		}
-		//pp.Println(model.AsString(c.SelectCommand.Columns[len(c.SelectCommand.Columns)-1]))
 		return c.SelectCommand.Columns[len(c.SelectCommand.Columns)-1]
 	}
 	return notFoundValue
