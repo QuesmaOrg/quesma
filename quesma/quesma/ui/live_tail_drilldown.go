@@ -59,7 +59,7 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 		buffer.Html(`<div class="query-body-translated">` + "\n")
 		buffer.Html("<p class=\"title\">Translated SQL:</p>\n")
 		for _, queryBody := range request.QueryBodyTranslated {
-			prettyQueryBody := util.SqlPrettyPrint(queryBody)
+			prettyQueryBody := util.SqlPrettyPrint(queryBody.Query)
 			if qmc.cfg.ClickHouse.AdminUrl != nil {
 				// ClickHouse web UI /play expects a base64-encoded query
 				// in the URL:

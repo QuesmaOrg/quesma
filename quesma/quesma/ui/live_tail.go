@@ -3,12 +3,12 @@
 package ui
 
 import (
-	"bytes"
 	"fmt"
 	"quesma/buildinfo"
 	"quesma/quesma/config"
 	"quesma/quesma/ui/internal/builder"
 	"quesma/util"
+	"strings"
 )
 
 func (qmc *QuesmaManagementConsole) generateLiveTail() []byte {
@@ -247,7 +247,10 @@ func (qmc *QuesmaManagementConsole) populateQueries(debugKeyValueSlice []queryDe
 		tookStr := fmt.Sprintf(" took %d ms", v.query.SecondaryTook.Milliseconds())
 		buffer.Html("<p>UUID:").Text(v.id).Text(tookStr).Html(errorBanner(v.query)).Html("</p>\n")
 		buffer.Html(`<pre Id="second_query`).Text(v.id).Html(`">`)
-		buffer.Text(util.SqlPrettyPrint(bytes.Join(v.query.QueryBodyTranslated, []byte{})))
+		for _, q := range v.query.QueryBodyTranslated {
+			buffer.Text(util.SqlPrettyPrint(q.Query))
+			buffer.Text(fmt.Sprintf("\n-- optimization: %s\n", strings.Join(q.AppliedOptimizations, ", ")))
+		}
 		buffer.Html("\n</pre>")
 		if withLinks {
 			buffer.Html("\n</a>")
