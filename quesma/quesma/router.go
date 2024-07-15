@@ -15,6 +15,7 @@ import (
 	"quesma/quesma/functionality/bulk"
 	"quesma/quesma/functionality/doc"
 	"quesma/quesma/functionality/field_capabilities"
+	"quesma/quesma/functionality/resolve"
 	"quesma/quesma/functionality/terms_enum"
 	"quesma/quesma/mux"
 	"quesma/quesma/routes"
@@ -24,7 +25,6 @@ import (
 	"quesma/telemetry"
 	"quesma/tracing"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 )
@@ -83,75 +83,11 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 	})
 
 	router.Register(routes.ResolveIndexPath, method("GET"), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
-		pattern := elasticsearch.NormalizePattern(req.Params["index"])
-		if elasticsearch.IsIndexPattern(pattern) {
-			// todo avoid creating new instances all the time
-			sources, found, err := elasticsearch.NewIndexResolver(cfg.Elasticsearch.Url.String()).Resolve(pattern)
-			if err != nil {
-				return nil, err
-			}
-			if !found {
-				return &mux.Result{StatusCode: 404}, nil
-			}
-
-			definitions, err := lm.GetTableDefinitions()
-			if err != nil {
-				return nil, err
-			}
-			sources.Indices = slices.DeleteFunc(sources.Indices, func(i elasticsearch.Index) bool {
-				return definitions.Has(i.Name)
-			})
-			sources.DataStreams = slices.DeleteFunc(sources.DataStreams, func(i elasticsearch.DataStream) bool {
-				return definitions.Has(i.Name)
-			})
-			definitions.Range(
-				func(name string, table *clickhouse.Table) bool {
-					if config.MatchName(elasticsearch.NormalizePattern(pattern), name) {
-						sources.DataStreams = append(sources.DataStreams, elasticsearch.DataStream{
-							Name:           name,
-							BackingIndices: []string{name},
-							TimestampField: `@timestamp`,
-						})
-					}
-
-					return true
-				})
-
-			return resolveIndexResult(sources), nil
-		} else {
-			if config.MatchName(elasticsearch.NormalizePattern(pattern), pattern) {
-				definitions, err := lm.GetTableDefinitions()
-				if err != nil {
-					return nil, err
-				}
-
-				if definitions.Has(pattern) {
-					return resolveIndexResult(elasticsearch.Sources{
-						Indices: []elasticsearch.Index{},
-						Aliases: []elasticsearch.Alias{},
-						DataStreams: []elasticsearch.DataStream{
-							{
-								Name:           pattern,
-								BackingIndices: []string{pattern},
-								TimestampField: `@timestamp`,
-							},
-						},
-					}), nil
-				} else {
-					return &mux.Result{StatusCode: 404}, nil
-				}
-			} else {
-				sources, found, err := elasticsearch.NewIndexResolver(cfg.Elasticsearch.Url.String()).Resolve(pattern)
-				if err != nil {
-					return nil, err
-				}
-				if !found {
-					return &mux.Result{StatusCode: 404}, nil
-				}
-
-				return resolveIndexResult(sources), nil
-			}
+		sources, err := resolve.HandleResolve(req.Params["index"], sr, cfg)
+		if err != nil {
+			return nil, err
 		}
+		return resolveIndexResult(sources), nil
 	})
 
 	router.Register(routes.IndexCountPath, and(method("GET"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
@@ -401,6 +337,10 @@ func elasticsearchInsertResult(body string, statusCode int) *mux.Result {
 }
 
 func resolveIndexResult(sources elasticsearch.Sources) *mux.Result {
+	if len(sources.Aliases) == 0 && len(sources.DataStreams) == 0 && len(sources.Indices) == 0 {
+		return &mux.Result{StatusCode: 404}
+	}
+
 	body, err := json.Marshal(sources)
 	if err != nil {
 		panic(err)

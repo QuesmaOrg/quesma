@@ -727,18 +727,27 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.SearchQueryInfo{Typ: model.Normal},
 		[]string{
-			`SELECT COALESCE("event.dataset",'unknown'), ` +
-				groupBySQL("@timestamp", clickhouse.DateTime64, time.Minute) +
-				`, count() FROM ` + QuotedTableName + ` ` +
-				`WHERE ("@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') ` +
-				`AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z')) ` +
-				`GROUP BY COALESCE("event.dataset",'unknown'), ` + groupBySQL("@timestamp", clickhouse.DateTime64, time.Minute) + ` ` +
-				`ORDER BY COALESCE("event.dataset",'unknown'), ` + groupBySQL("@timestamp", clickhouse.DateTime64, time.Minute),
+			`WITH cte_1 AS ` +
+				`(SELECT COALESCE("event.dataset",'unknown') AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z')) ` +
+				`GROUP BY COALESCE("event.dataset",'unknown') ` +
+				`ORDER BY count() DESC, COALESCE("event.dataset",'unknown') ` +
+				`LIMIT 4) ` +
+				`SELECT COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`INNER JOIN "cte_1" ON COALESCE("event.dataset",'unknown') = "cte_1_1" ` +
+				`WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z')) ` +
+				`GROUP BY COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
 			`SELECT COALESCE("event.dataset",'unknown'), count() FROM ` + QuotedTableName + ` ` +
 				`WHERE ("@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') ` +
 				`AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z')) ` +
 				`GROUP BY COALESCE("event.dataset",'unknown') ` +
-				`ORDER BY COALESCE("event.dataset",'unknown')`,
+				`ORDER BY count() DESC, COALESCE("event.dataset",'unknown') ` +
+				`LIMIT 4`,
 		},
 		true,
 	},
@@ -1590,7 +1599,7 @@ var TestsSearch = []SearchTestCase{
 				`AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z') ` +
 				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z'))) ` +
 				`GROUP BY "namespace" ` +
-				`ORDER BY count() DESC ` +
+				`ORDER BY count() DESC, "namespace" ` +
 				`LIMIT 10`,
 			`SELECT count(DISTINCT "namespace") ` +
 				`FROM ` + QuotedTableName + ` ` +
@@ -1741,7 +1750,7 @@ var TestsSearch = []SearchTestCase{
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
 				`GROUP BY "namespace" ` +
-				`ORDER BY count() DESC ` +
+				`ORDER BY count() DESC, "namespace" ` +
 				`LIMIT 10`,
 			`SELECT count(DISTINCT "namespace") ` +
 				`FROM ` + QuotedTableName + ` ` +
@@ -1822,7 +1831,7 @@ var TestsSearch = []SearchTestCase{
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))) ` +
 				`GROUP BY "namespace" ` +
-				`ORDER BY count() DESC ` +
+				`ORDER BY count() DESC, "namespace" ` +
 				`LIMIT 10`,
 			`SELECT count(DISTINCT "namespace") ` +
 				`FROM ` + QuotedTableName + ` ` +
@@ -1900,7 +1909,7 @@ var TestsSearch = []SearchTestCase{
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
 				`GROUP BY "namespace" ` +
-				`ORDER BY count() DESC ` +
+				`ORDER BY count() DESC, "namespace" ` +
 				`LIMIT 10`,
 			`SELECT count(DISTINCT "namespace") ` +
 				`FROM ` + QuotedTableName + ` ` +
