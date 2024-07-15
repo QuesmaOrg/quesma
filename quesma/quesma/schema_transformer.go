@@ -47,7 +47,7 @@ func (v *BoolLiteralVisitor) VisitSelectCommand(e model.SelectCommand) interface
 	}
 
 	return model.NewSelectCommand(e.Columns, e.GroupBy, e.OrderBy,
-		fromClause, whereClause, e.Limit, e.SampleLimit, e.IsDistinct)
+		fromClause, whereClause, e.LimitBy, e.Limit, e.SampleLimit, e.IsDistinct, e.CTEs)
 }
 
 func (s *SchemaCheckPass) applyBooleanLiteralLowering(query *model.Query) (*model.Query, error) {
@@ -185,7 +185,7 @@ func (v *WhereVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
 	}
 
 	return model.NewSelectCommand(e.Columns, e.GroupBy, e.OrderBy,
-		fromClause, whereClause, e.Limit, e.SampleLimit, e.IsDistinct)
+		fromClause, whereClause, e.LimitBy, e.Limit, e.SampleLimit, e.IsDistinct, e.CTEs)
 }
 
 type SchemaCheckPass struct {
@@ -285,7 +285,7 @@ func (v *GeoIpVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
 	}
 
 	return model.NewSelectCommand(columns, groupBy, e.OrderBy,
-		fromClause, e.WhereClause, e.Limit, e.SampleLimit, e.IsDistinct)
+		fromClause, e.WhereClause, e.LimitBy, e.Limit, e.SampleLimit, e.IsDistinct, e.CTEs)
 }
 
 func (s *SchemaCheckPass) applyGeoTransformations(query *model.Query) (*model.Query, error) {

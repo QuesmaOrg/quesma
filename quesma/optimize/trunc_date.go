@@ -236,8 +236,16 @@ func (v *truncateDateVisitor) VisitSelectCommand(e model.SelectCommand) interfac
 		whereClause = e.WhereClause.Accept(v).(model.Expr)
 	}
 
+	var ctes []model.SelectCommand
+	if e.CTEs != nil {
+		ctes = make([]model.SelectCommand, 0)
+		for _, cte := range e.CTEs {
+			ctes = append(ctes, cte.Accept(v).(model.SelectCommand))
+		}
+	}
+
 	return model.NewSelectCommand(columns, groupBy, e.OrderBy,
-		fromClause, whereClause, e.Limit, e.SampleLimit, e.IsDistinct)
+		fromClause, whereClause, e.LimitBy, e.Limit, e.SampleLimit, e.IsDistinct, ctes)
 
 }
 
