@@ -100,48 +100,60 @@ func (v *truncateDateVisitor) VisitLiteral(e model.LiteralExpr) interface{} {
 	return e
 }
 
-func (v *truncateDateVisitor) VisitInfix(e model.InfixExpr) interface{} {
+// truncate - truncates the date if the difference between the dates is more than 24 hours
+// returns nil if the truncation is not possible or not needed
+func (v *truncateDateVisitor) truncate(e model.InfixExpr) interface{} {
 
-	op := strings.ToLower(e.Op)
-	if op == "and" {
+	left := v.processDateComparisonNode(e.Left)
+	right := v.processDateComparisonNode(e.Right)
 
-		left := v.processDateComparisonNode(e.Left)
-		right := v.processDateComparisonNode(e.Right)
+	if left != nil && right != nil {
 
-		if left != nil && right != nil {
+		// check if the columns are the same,
+		if left.column == right.column {
 
-			// check if the columns are the same,
-			if left.column == right.column {
+			if leftTime, err := time.Parse(time.RFC3339, left.date); err == nil {
+				if rightTime, err := time.Parse(time.RFC3339, right.date); err == nil {
 
-				if leftTime, err := time.Parse(time.RFC3339, left.date); err == nil {
-					if rightTime, err := time.Parse(time.RFC3339, right.date); err == nil {
+					duration := rightTime.Sub(leftTime).Abs()
 
-						duration := rightTime.Sub(leftTime).Abs()
+					// if the duration is more than 24 hours, we can truncate the date
+					if duration > 24*time.Hour {
 
-						// if the duration is more than 24 hours, we can truncate the date
-						if duration > 24*time.Hour {
+						newLeft := v.truncateDate(left.op, leftTime)
+						newRight := v.truncateDate(right.op, rightTime)
 
-							newLeft := v.truncateDate(left.op, leftTime)
-							newRight := v.truncateDate(right.op, rightTime)
+						v.truncated = true
 
-							v.truncated = true
+						res := model.NewInfixExpr(
+							v.compare(left.column, left.op, v.date(left.fn, newLeft)),
+							e.Op,
+							v.compare(right.column, right.op, v.date(right.fn, newRight)))
 
-							res := model.NewInfixExpr(
-								v.compare(left.column, left.op, v.date(left.fn, newLeft)),
-								e.Op,
-								v.compare(right.column, right.op, v.date(right.fn, newRight)))
-
-							return res
-						}
+						return res
 					}
 				}
 			}
 		}
 	}
 
+	return nil
+}
+
+func (v *truncateDateVisitor) VisitInfix(e model.InfixExpr) interface{} {
+
+	op := strings.ToLower(e.Op)
+	if op == "and" {
+		truncatedExpr := v.truncate(e)
+
+		if truncatedExpr != nil {
+			return truncatedExpr
+		}
+	}
+
+	// no truncation
 	left := e.Left.Accept(v).(model.Expr)
 	right := e.Right.Accept(v).(model.Expr)
-
 	return model.NewInfixExpr(left, e.Op, right)
 }
 
