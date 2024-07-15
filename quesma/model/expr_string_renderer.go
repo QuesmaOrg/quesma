@@ -136,8 +136,6 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	// THIS SHOULD PRODUCE QUERY IN  BRACES
 	var sb strings.Builder
 
-	//pp.Println(c)
-
 	const cteNamePrefix = "cte"
 	cteName := func(cteIdx int) string {
 		return fmt.Sprintf("%s_%d", cteNamePrefix, cteIdx+1)

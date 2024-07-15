@@ -179,9 +179,6 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 	}
 	for i, tt := range testdata.AggregationTestsWithSpecialCharactersInFieldNames {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			if i != 0 {
-				t.Skip()
-			}
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(tableName, &table))

@@ -118,7 +118,6 @@ func (b *aggrQueryBuilder) applyTermsSubSelect(terms bucket_aggregations.Terms) 
 */
 
 func (b *aggrQueryBuilder) buildAggregationCommon(metadata model.JsonMap) *model.Query {
-	//pp.Println("aaa", b.Query.SelectCommand)
 	query := b.Query
 	query.SelectCommand.WhereClause = b.whereBuilder.WhereClause
 
@@ -197,7 +196,6 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				metricsAggr.Fields, partitionBy, model.RowNumberColumnName, query.SelectCommand.FromClause, whereString,
 			)
 		*/
-
 		query.SelectCommand.FromClause = query.NewSelectExprWithRowNumber(
 			query.SelectCommand.Columns, b.SelectCommand.GroupBy, b.whereBuilder.WhereClause, "", true)
 		query.SelectCommand.WhereClause = model.And([]model.Expr{
@@ -346,7 +344,6 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "geo_centroid":
 		query.Type = metrics_aggregations.NewGeoCentroid(b.ctx)
 	}
-	//pp.Println("RETURN", query.SelectCommand)
 	return query
 }
 
@@ -378,6 +375,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 			logger.WarnWithCtx(cw.Ctx).Msgf("aggs is not a map, but %T, aggs: %v", aggsRaw, aggsRaw)
 		}
 	}
+
 	return aggregations, nil
 }
 
@@ -441,7 +439,6 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 
 	currentAggr := *prevAggr
 	currentAggr.SelectCommand.Limit = 0
-	//fmt.Println("AAAA", currentAggr.SelectCommand.Limit, prevAggr.SelectCommand.Limit)
 
 	// check if metadata's present
 	var metadata model.JsonMap
@@ -513,8 +510,6 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 			cte.SelectCommand.OrderBy = cte.SelectCommand.OrderBy[len(cte.SelectCommand.OrderBy)-2:]
 		}
 		currentAggr.SelectCommand.CTEs = append(currentAggr.SelectCommand.CTEs, cte.SelectCommand)
-
-		//fmt.Println("SUB:", currentAggr.SelectCommand.Subqueries)
 	}
 
 	// TODO what happens if there's all: filters, range, and subaggregations at current level?
@@ -822,9 +817,9 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 			currentAggr.SelectCommand.Limit = size
 			currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, fieldExpression)
 			currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, fieldExpression)
+			currentAggr.SelectCommand.LimitBy = append(currentAggr.SelectCommand.LimitBy, fieldExpression)
 			currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.NewSortByCountColumn(model.DescOrder))
 			currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, model.OrderByExpr{Exprs: []model.Expr{fieldExpression}})
-			currentAggr.SelectCommand.LimitBy = append(currentAggr.SelectCommand.LimitBy, fieldExpression)
 
 			delete(queryMap, termsType)
 			return success, 1, nil

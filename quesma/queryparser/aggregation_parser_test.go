@@ -6,11 +6,9 @@ import (
 	"cmp"
 	"context"
 	"github.com/jinzhu/copier"
-	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
-	"quesma/logger"
 	"quesma/model"
 	"quesma/queryparser/query_util"
 	"quesma/quesma/config"
@@ -28,7 +26,6 @@ import (
 	"testing"
 )
 
-// const tableName = "kibana_sample_data_flights"
 const tableName = "logs-generic-default"
 const tableNameQuoted = `"` + tableName + `"`
 
@@ -641,7 +638,7 @@ var aggregationTests = []struct {
 
 // Simple unit test, testing only "aggs" part of the request json query
 func TestAggregationParser(t *testing.T) {
-	logger.InitSimpleLoggerForTests() //FIXME there are 2 warns if you enable them, might look into that
+	// logger.InitSimpleLoggerForTests() // FIXME there are 2 warns if you enable them, might look into that
 	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
@@ -779,7 +776,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 				t.Skip("Small details left for this test to be correct. I'll (Krzysiek) fix soon after returning to work")
 			}
 			if test.TestName == "Ophelia Test 3: 5x terms + a lot of other aggregations" {
-				t.Skip("Very similar to 2 previous tests, very hard to add results. I'll fix later")
+				t.Skip("Very similar to 2 previous tests, results have like 500-1000 lines. They are almost finished though. Maybe I'll fix soon, but not in this PR")
 			}
 
 			body, parseErr := types.ParseJSON(test.QueryRequestJson)
@@ -790,12 +787,10 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Len(t, test.ExpectedResults, len(queries))
 			sortAggregations(queries) // to make test runs deterministic
-			//for _, q := range queries {
-			//fmt.Println(q.SelectCommand.String())
-			//}
+
 			// Let's leave those commented debugs for now, they'll be useful in next PRs
 			for j, query := range queries {
-				//fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\naaaaaaa%v\n\n", j, query, model.AsString(query.SelectCommand), query.SelectCommand.Columns)
+				// fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\n%v\n\n", j, query, model.AsString(query.SelectCommand), query.SelectCommand.Columns)
 				if test.ExpectedSQLs[j] != "NoDBQuery" {
 					util.AssertSqlEqual(t, test.ExpectedSQLs[j], query.SelectCommand.String())
 				}
@@ -814,7 +809,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			// pp.Println("EXPECTED", expectedResultsCopy)
 			response := cw.MakeSearchResponse(queries, test.ExpectedResults)
 			responseMarshalled, marshalErr := response.Marshal()
-			//pp.Println("ACTUAL", response)
+			// pp.Println("ACTUAL", response)
 			assert.NoError(t, marshalErr)
 
 			expectedResponseMap, _ := util.JsonToMap(test.ExpectedResponse)
@@ -827,9 +822,10 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			actualMinusExpected, expectedMinusActual := util.MapDifference(response.Aggregations, expectedAggregationsPart, true, true)
 
 			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
-			acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma, "sum_other_doc_count", "doc_count_error_upper_bound"}
-			pp.Println("ACTUAL diff", actualMinusExpected)
-			pp.Println("EXPECTED diff", expectedMinusActual)
+			acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma,
+				"sum_other_doc_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
+			// pp.Println("ACTUAL diff", actualMinusExpected)
+			// pp.Println("EXPECTED diff", expectedMinusActual)
 			// pp.Println("ACTUAL", response.Aggregations)
 			// pp.Println("EXPECTED", expectedAggregationsPart)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))

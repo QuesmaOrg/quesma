@@ -251,7 +251,6 @@ func JsonDifference(jsonActual, jsonExpected string) (JsonMap, JsonMap, error) {
 // * mActual - uses JsonMap fully: values are []JsonMap, or JsonMap, or base types
 // * mExpected - value can also be []any, because it's generated from Golang's json.Unmarshal
 func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma string) JsonMap {
-	// pp.Println("mActual", mActual, "mExpected", mExpected)
 	var mergeMapsRec func(m1, m2 JsonMap) JsonMap
 	// merges 'i1' and 'i2' in 3 cases: both are JsonMap, both are []JsonMap, or both are some base type
 	mergeAny := func(i1, i2 any) any {
@@ -292,7 +291,7 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 			i, j := 0, 0
 			for i < i1Len && j < i2Len {
 				var key1, key2 string
-				key1, ok = i1Typed[i][keyAddedByQuesma].(string)
+				key1, ok = i1Typed[i][keyAddedByQuesma].(string) // TODO maybe some other types as well?
 				if !ok {
 					if key1Int, ok := i1Typed[i][keyAddedByQuesma].(int64); ok {
 						key1 = strconv.FormatInt(key1Int, 10)
@@ -307,7 +306,7 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 						continue
 					}
 				}
-				key2, ok = i2Typed[j].(JsonMap)[keyAddedByQuesma].(string) // TODO keys may be ints
+				key2, ok = i2Typed[j].(JsonMap)[keyAddedByQuesma].(string) // TODO maybe some other types as well?
 				if !ok {
 					if key2Int, ok := i2Typed[j].(JsonMap)[keyAddedByQuesma].(int64); ok {
 						key2 = strconv.FormatInt(key2Int, 10)
@@ -346,7 +345,7 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 			return mergedArray
 
 		default:
-			logger.WarnWithCtx(ctx).Msgf("mergeAny: i1 isn't neither json nor []json, i1 type: %T, i2 type: %T, i1: %v, i2: %v", i1, i2, i1, i2)
+			logger.WarnWithCtx(ctx).Msgf("mergeAny: i1 isn't neither JsonMap nor []JsonMap, i1 type: %T, i2 type: %T, i1: %v, i2: %v", i1, i2, i1, i2)
 			return i1
 		}
 	}
