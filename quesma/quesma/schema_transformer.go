@@ -11,49 +11,28 @@ import (
 	"strings"
 )
 
-type BoolLiteralVisitor struct {
-	model.ExprVisitor
-}
-
-func (v *BoolLiteralVisitor) VisitLiteral(e model.LiteralExpr) interface{} {
-	if boolLiteral, ok := e.Value.(string); ok {
-		// TODO this is a hack for now
-		// bool literals are quoted in the query and become strings
-		// we need to convert them back to bool literals
-		// proper solution would require introducing a new type for bool literals in the model
-		// and updating the parser to recognize them
-		// but this would require much more work
-		if strings.Contains(boolLiteral, "true") || strings.Contains(boolLiteral, "false") {
-			boolLiteral = strings.TrimLeft(boolLiteral, "'")
-			boolLiteral = strings.TrimRight(boolLiteral, "'")
-			return model.NewLiteral(boolLiteral)
-		}
-	}
-	return model.NewLiteral(e.Value)
-}
-
-func (v *BoolLiteralVisitor) VisitInfix(e model.InfixExpr) interface{} {
-	return model.NewInfixExpr(e.Left.Accept(v).(model.Expr), e.Op, e.Right.Accept(v).(model.Expr))
-}
-
-func (v *BoolLiteralVisitor) VisitSelectCommand(e model.SelectCommand) interface{} {
-	var whereClause model.Expr
-	if e.WhereClause != nil {
-		whereClause = e.WhereClause.Accept(v).(model.Expr)
-	}
-	var fromClause model.Expr
-	if e.FromClause != nil {
-		fromClause = e.FromClause.Accept(v).(model.Expr)
-	}
-
-	return model.NewSelectCommand(e.Columns, e.GroupBy, e.OrderBy,
-		fromClause, whereClause, e.Limit, e.SampleLimit, e.IsDistinct)
-}
-
 func (s *SchemaCheckPass) applyBooleanLiteralLowering(query *model.Query) (*model.Query, error) {
-	whereVisitor := &BoolLiteralVisitor{ExprVisitor: model.NoOpVisitor{}}
 
-	expr := query.SelectCommand.Accept(whereVisitor)
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitLiteral = func(b *model.BaseExprVisitor, e model.LiteralExpr) interface{} {
+		if boolLiteral, ok := e.Value.(string); ok {
+			// TODO this is a hack for now
+			// bool literals are quoted in the query and become strings
+			// we need to convert them back to bool literals
+			// proper solution would require introducing a new type for bool literals in the model
+			// and updating the parser to recognize them
+			// but this would require much more work
+			if strings.Contains(boolLiteral, "true") || strings.Contains(boolLiteral, "false") {
+				boolLiteral = strings.TrimLeft(boolLiteral, "'")
+				boolLiteral = strings.TrimRight(boolLiteral, "'")
+				return model.NewLiteral(boolLiteral)
+			}
+		}
+		return model.NewLiteral(e.Value)
+	}
+
+	expr := query.SelectCommand.Accept(visitor)
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
 	}
