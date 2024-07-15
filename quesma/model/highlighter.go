@@ -50,9 +50,37 @@ func (h *Highlighter) ShouldHighlight(columnName string) bool {
 
 // SetTokensToHighlight takes a Select query and extracts tokens that should be highlighted.
 func (h *Highlighter) SetTokensToHighlight(selectCmd SelectCommand) {
-	highlighterVisitor := NewHighlighter()
-	selectCmd.Accept(highlighterVisitor)
-	h.Tokens = highlighterVisitor.Tokens
+
+	h.Tokens = make(map[string]Tokens)
+
+	visitor := NewBaseVisitor()
+
+	visitor.OverrideVisitInfix = func(b *BaseExprVisitor, e InfixExpr) interface{} {
+		switch e.Op {
+		case "iLIKE", "LIKE", "IN", "=":
+			lhs, isColumnRef := e.Left.(ColumnRef)
+			rhs, isLiteral := e.Right.(LiteralExpr)
+			if isLiteral && isColumnRef { // we only highlight in this case
+				switch literalAsString := rhs.Value.(type) {
+				case string:
+					literalAsString = strings.TrimPrefix(literalAsString, "'%")
+					literalAsString = strings.TrimPrefix(literalAsString, "%")
+					literalAsString = strings.TrimSuffix(literalAsString, "'")
+					literalAsString = strings.TrimSuffix(literalAsString, "%")
+					if h.Tokens[lhs.ColumnName] == nil {
+						h.Tokens[lhs.ColumnName] = make(Tokens)
+					}
+					h.Tokens[lhs.ColumnName][strings.ToLower(literalAsString)] = struct{}{}
+				default:
+					logger.Info().Msgf("Value is of an unexpected type: %T\n", literalAsString)
+				}
+			}
+		}
+		return NewInfixExpr(e.Left.Accept(b).(Expr), e.Op, e.Right.Accept(b).(Expr))
+	}
+
+	selectCmd.Accept(visitor)
+
 }
 
 // HighlightValue takes a value and returns the part of it that should be highlighted, wrapped in tags.
@@ -123,150 +151,4 @@ func (h *Highlighter) HighlightValue(columnName, value string) []string {
 	}
 
 	return highlights
-}
-
-// highlighter is a visitor that traverses the AST and collects tokens that should be highlighted.
-type highlighter struct {
-	// TokensToHighlight represents a set of tokens that should be highlighted in the query.
-	Tokens map[string]Tokens
-}
-
-func NewHighlighter() *highlighter {
-	return &highlighter{
-		Tokens: make(map[string]Tokens),
-	}
-}
-
-func (v *highlighter) VisitColumnRef(e ColumnRef) interface{} {
-	return e
-}
-
-func (v *highlighter) VisitPrefixExpr(e PrefixExpr) interface{} {
-	var exprs []Expr
-	for _, expr := range e.Args {
-		exprs = append(exprs, expr.Accept(v).(Expr))
-	}
-	return NewPrefixExpr(e.Op, exprs)
-}
-
-func (v *highlighter) VisitNestedProperty(e NestedProperty) interface{} {
-	return NewNestedProperty(e.ColumnRef.Accept(v).(ColumnRef), e.PropertyName)
-}
-
-func (v *highlighter) VisitArrayAccess(e ArrayAccess) interface{} {
-	return NewArrayAccess(e.ColumnRef.Accept(v).(ColumnRef), e.Index.Accept(v).(Expr))
-}
-
-func (v *highlighter) VisitFunction(e FunctionExpr) interface{} {
-	var exprs []Expr
-	for _, expr := range e.Args {
-		exprs = append(exprs, expr.Accept(v).(Expr))
-	}
-	return NewFunction(e.Name, exprs...)
-}
-
-func (v *highlighter) VisitLiteral(l LiteralExpr) interface{} {
-	return l
-}
-
-func (v *highlighter) VisitString(e StringExpr) interface{} {
-	return e
-}
-
-func (v *highlighter) VisitMultiFunction(f MultiFunctionExpr) interface{} {
-	var exprs []Expr
-	for _, expr := range f.Args {
-		exprs = append(exprs, expr.Accept(v).(Expr))
-	}
-	return MultiFunctionExpr{Name: f.Name, Args: exprs}
-}
-
-func (v *highlighter) VisitInfix(e InfixExpr) interface{} {
-	switch e.Op {
-	case "iLIKE", "LIKE", "IN", "=":
-		lhs, isColumnRef := e.Left.(ColumnRef)
-		rhs, isLiteral := e.Right.(LiteralExpr)
-		if isLiteral && isColumnRef { // we only highlight in this case
-			switch literalAsString := rhs.Value.(type) {
-			case string:
-				literalAsString = strings.TrimPrefix(literalAsString, "'%")
-				literalAsString = strings.TrimPrefix(literalAsString, "%")
-				literalAsString = strings.TrimSuffix(literalAsString, "'")
-				literalAsString = strings.TrimSuffix(literalAsString, "%")
-				if v.Tokens[lhs.ColumnName] == nil {
-					v.Tokens[lhs.ColumnName] = make(Tokens)
-				}
-				v.Tokens[lhs.ColumnName][strings.ToLower(literalAsString)] = struct{}{}
-			default:
-				logger.Info().Msgf("Value is of an unexpected type: %T\n", literalAsString)
-			}
-		}
-	}
-	return NewInfixExpr(e.Left.Accept(v).(Expr), e.Op, e.Right.Accept(v).(Expr))
-}
-
-func (v *highlighter) VisitOrderByExpr(e OrderByExpr) interface{} {
-	var exprs []Expr
-	for _, expr := range e.Exprs {
-		exprs = append(exprs, expr.Accept(v).(Expr))
-	}
-	return NewOrderByExpr(exprs, e.Direction)
-}
-
-func (v *highlighter) VisitDistinctExpr(e DistinctExpr) interface{} {
-	return NewDistinctExpr(e.Expr.Accept(v).(Expr))
-}
-
-func (v *highlighter) VisitTableRef(e TableRef) interface{} {
-	return e
-}
-
-func (v *highlighter) VisitAliasedExpr(e AliasedExpr) interface{} {
-	return NewAliasedExpr(e.Expr.Accept(v).(Expr), e.Alias)
-}
-
-func (v *highlighter) VisitSelectCommand(c SelectCommand) interface{} {
-	var columns, groupBy []Expr
-	var orderBy []OrderByExpr
-	from := c.FromClause
-	where := c.WhereClause
-	for _, expr := range c.Columns {
-		columns = append(columns, expr.Accept(v).(Expr))
-	}
-	for _, expr := range c.GroupBy {
-		groupBy = append(groupBy, expr.Accept(v).(Expr))
-	}
-	for _, expr := range c.OrderBy {
-		orderBy = append(orderBy, expr.Accept(v).(OrderByExpr))
-	}
-	if c.FromClause != nil {
-		from = c.FromClause.Accept(v).(Expr)
-	}
-	if c.WhereClause != nil {
-		where = c.WhereClause.Accept(v).(Expr)
-	}
-	return *NewSelectCommand(columns, groupBy, orderBy, from, where, c.Limit, c.SampleLimit, c.IsDistinct)
-}
-
-func (v *highlighter) VisitWindowFunction(f WindowFunction) interface{} {
-	var args, partitionBy []Expr
-	for _, expr := range f.Args {
-		args = append(args, expr.Accept(v).(Expr))
-	}
-	for _, expr := range f.PartitionBy {
-		partitionBy = append(partitionBy, expr.Accept(v).(Expr))
-	}
-	return NewWindowFunction(f.Name, args, partitionBy, f.OrderBy.Accept(v).(OrderByExpr))
-}
-
-func (v *highlighter) VisitParenExpr(p ParenExpr) interface{} {
-	var exprs []Expr
-	for _, expr := range p.Exprs {
-		exprs = append(exprs, expr.Accept(v).(Expr))
-	}
-	return NewParenExpr(exprs...)
-}
-
-func (v *highlighter) VisitLambdaExpr(l LambdaExpr) interface{} {
-	return NewLambdaExpr(l.Args, l.Body.Accept(v).(Expr))
 }
