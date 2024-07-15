@@ -397,7 +397,7 @@ var MergeMetricsAggsTestUpdates = []testdata.MergeMetricsAggsTestUpdate{
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
 				`GROUP BY "OriginCityName" ` +
-				`ORDER BY count() DESC ` +
+				`ORDER BY count() DESC, "OriginCityName" ` +
 				`LIMIT 10`,
 			`NoDBQuery`,
 		},
@@ -437,6 +437,225 @@ var MergeMetricsAggsTestUpdates = []testdata.MergeMetricsAggsTestUpdate{
 				`FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
 			`NoDBQuery`,
+		},
+	},
+	{ // [5]
+		TestName: "Ophelia Test 2: triple terms + other aggregations + order by another aggregations",
+		ExpectedResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol(`sumOrNull("total")`, 1091661.7608666667),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol(`sumOrNull("total")`, 630270.07765),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol(`sumOrNull("total")`, 51891.94613333333),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol(`sumOrNull("total")`, 45774.291766666654),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
+					model.NewQueryResultCol(`sumOrNull("total")`, 399126.7496833334),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol(`sumOrNull("total")`, 231143.3279666666),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("organName", "c11"),
+					model.NewQueryResultCol(`sumOrNull("total")`, 51891.94613333333),
+					model.NewQueryResultCol(`sumOrNull("some")`, 37988.09523333333),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("organName", "c12"),
+					model.NewQueryResultCol(`sumOrNull("total")`, 45774.291766666654),
+					model.NewQueryResultCol(`sumOrNull("some")`, 36577.89516666666),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
+					model.NewQueryResultCol("organName", "c21"),
+					model.NewQueryResultCol(`sumOrNull("total")`, 399126.7496833334),
+					model.NewQueryResultCol(`sumOrNull("some")`, 337246.82201666664),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("organName", "c22"),
+					model.NewQueryResultCol(`sumOrNull("total")`, 231143.3279666666),
+					model.NewQueryResultCol(`sumOrNull("some")`, 205408.48849999998),
+				}},
+			},
+			{}, // NoDbQuery
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("organName", "c11"),
+					model.NewQueryResultCol("count()", 21),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("organName", "c12"),
+					model.NewQueryResultCol("count()", 24),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
+					model.NewQueryResultCol("organName", "c21"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("organName", "c22"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("count()", 21),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("count()", 24),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("count()", 1036),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("count()", 34),
+				}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200) ` +
+				`SELECT "surname", sumOrNull("total") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`GROUP BY "surname", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname"`,
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200), ` +
+				`cte_2 AS ` +
+				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
+				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
+				`LIMIT 20 BY "surname") ` +
+				`SELECT "surname", COALESCE("limbName",'__missing__'), sumOrNull("total") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt, cte_2_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__')`,
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200), ` +
+				`cte_2 AS ` +
+				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
+				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
+				`LIMIT 20 BY "surname"), ` +
+				`cte_3 AS ` +
+				`(SELECT "surname" AS "cte_3_1", COALESCE("limbName",'__missing__') AS "cte_3_2", "organName" AS "cte_3_3", count() AS "cte_3_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName" ` +
+				`ORDER BY count() DESC, "organName" ` +
+				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')) ` +
+				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", sumOrNull("total"), sumOrNull("some") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
+				`INNER JOIN "cte_3" ON "surname" = "cte_3_1" AND COALESCE("limbName",'__missing__') = "cte_3_2" AND "organName" = "cte_3_3" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName", cte_1_cnt, cte_2_cnt, cte_3_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), cte_3_cnt DESC, "organName"`,
+			`NoDBQuery`,
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200), ` +
+				`cte_2 AS ` +
+				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
+				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
+				`LIMIT 20 BY "surname") ` +
+				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName", cte_1_cnt, cte_2_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), count() DESC, "organName" ` +
+				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')`,
+			`WITH cte_1 AS ` +
+				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200) ` +
+				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
+				`LIMIT 20 BY "surname"`,
+			`SELECT "surname", count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200`,
 		},
 	},
 }
