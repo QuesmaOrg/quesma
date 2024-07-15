@@ -31,7 +31,8 @@ func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, wher
 		LimitBy:     limitBy,
 		Limit:       limit,
 		SampleLimit: sampleLimit,
-		CTEs:        CTEs,
+
+		CTEs: CTEs,
 	}
 }
 

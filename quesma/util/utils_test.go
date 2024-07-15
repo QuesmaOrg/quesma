@@ -5,7 +5,9 @@ package util
 import (
 	"context"
 	"encoding/json"
+	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
+	"quesma/logger"
 	"reflect"
 	"strconv"
 	"testing"
@@ -601,10 +603,49 @@ func TestMergeMaps(t *testing.T) {
 				},
 			},
 		},
+		{
+			JsonMap{
+				"3": JsonMap{
+					"buckets": []JsonMap{
+						{
+							"1": JsonMap{
+								"value": 1490283747.600059,
+							},
+							"Quesma_key_JR*#@(DF*GAsFfS!/LI": "live",
+						},
+						{
+							"1": JsonMap{
+								"value": 780292625.671037,
+							},
+							"Quesma_key_JR*#@(DF*GAsFfS!/LI": "vod",
+						},
+					},
+				},
+			},
+			JsonMap{
+				"3": JsonMap{
+					"buckets": []JsonMap{
+						{
+							"Quesma_key_JR*#@(DF*GAsFfS!/LI": "live",
+							"key":                            "live",
+							"doc_count":                      5,
+						},
+						{
+							"Quesma_key_JR*#@(DF*GAsFfS!/LI": "vod",
+							"key":                            "vod",
+							"doc_count":                      3,
+						},
+					},
+				},
+			},
+			JsonMap{},
+		},
 	}
+	logger.InitSimpleLoggerForTests()
 	for i, tt := range cases {
 		t.Run("TestMergeMaps_"+strconv.Itoa(i), func(t *testing.T) {
 			// simple == or Equal doesn't work on nested maps => need DeepEqual
+			pp.Println(MergeMaps(context.Background(), tt.m1, tt.m2, "not-important"))
 			assert.True(t, reflect.DeepEqual(tt.wanted, MergeMaps(context.Background(), tt.m1, tt.m2, "not-important")))
 		})
 	}

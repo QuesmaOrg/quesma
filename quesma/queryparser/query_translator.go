@@ -4,6 +4,7 @@ package queryparser
 
 import (
 	"context"
+	"fmt"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -372,6 +373,32 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []*
 			continue
 		}
 		ResultSets[queryIndex] = pipelineQueryType.CalculateResultWhenMissing(query, ResultSets[parentIndex])
+	}
+}
+
+func (cw *ClickhouseQueryTranslator) combineQueries(queries []*model.Query) {
+	// TODO SET IS_PIPELINE = TRUE FOR PIPELINES!
+	for _, query := range queries {
+		if !query.NoDBQuery || query.IsPipeline {
+			continue
+		}
+
+		fmt.Println("NoDBQuery", query)
+		parentIndex := -1
+		for i, parentCandidate := range queries {
+			if len(parentCandidate.Aggregators) == len(query.Aggregators)+1 && parentCandidate.Name() == query.Parent {
+				parentIndex = i
+				break
+			}
+		}
+		if parentIndex == -1 {
+			logger.WarnWithCtx(cw.Ctx).Msgf("parent index not found for query %v", query)
+			continue
+		}
+		fmt.Println("parentIdx:", parentIndex)
+		parentQuery := queries[parentIndex]
+		parentQuery.SelectCommand.OrderBy = append(parentQuery.SelectCommand.OrderBy,
+			model.OrderByExpr{Exprs: parentQuery.SelectCommand.Columns[len(parentQuery.SelectCommand.Columns)-1:], Direction: model.DescOrder})
 	}
 }
 

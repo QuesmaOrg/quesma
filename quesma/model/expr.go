@@ -167,6 +167,7 @@ const (
 type OrderByExpr struct {
 	Exprs     []Expr
 	Direction OrderByDirection
+	Exchange  bool
 }
 
 func (o OrderByExpr) Accept(v ExprVisitor) interface{} {
