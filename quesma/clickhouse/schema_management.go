@@ -40,6 +40,14 @@ func (s *SchemaManagement) readTables(database string) (map[string]map[string]st
 	return columnsPerTable, nil
 }
 
+func (s *SchemaManagement) tablePrimaryKey(database, table string) (primaryKey string) {
+	if err := s.chDb.QueryRow("SELECT primary_key FROM system.tables WHERE database = ? and table = ? AND database != 'system'", database, table).Scan(&primaryKey); err != nil {
+		logger.Error().Msgf("could not get primary key for table %s: %v", table, err)
+	}
+	logger.Info().Msgf("primary key for table %s = %s", table, primaryKey)
+	return primaryKey
+}
+
 func (s *SchemaManagement) tableComment(database, table string) (comment string) {
 
 	err := s.chDb.QueryRow("SELECT comment FROM system.tables WHERE database = ? and table = ? AND database != 'system'", database, table).Scan(&comment)

@@ -72,6 +72,10 @@ func (sl *tableDiscovery) TableDefinitionsFetchError() error {
 	return sl.ReloadTablesError
 }
 
+func (sl *tableDiscovery) TableAutodiscoveryEnabled() bool {
+	return sl.cfg.IndexConfig == nil
+}
+
 func (sl *tableDiscovery) ReloadTableDefinitions() {
 	logger.Debug().Msg("reloading tables definitions")
 	configuredTables := make(map[string]discoveredTable)
@@ -81,7 +85,6 @@ func (sl *tableDiscovery) ReloadTableDefinitions() {
 		databaseName = sl.cfg.ClickHouse.Database
 	}
 	if tables, err := sl.SchemaManagement.readTables(databaseName); err != nil {
-
 		var endUserError *end_user_errors.EndUserError
 		if errors.As(err, &endUserError) {
 			logger.ErrorWithCtxAndReason(context.Background(), endUserError.Reason()).Msgf("could not describe tables: %v", err)
@@ -92,12 +95,16 @@ func (sl *tableDiscovery) ReloadTableDefinitions() {
 		sl.tableDefinitions.Store(NewTableMap())
 		return
 	} else {
-		if sl.cfg.IndexConfig == nil {
+		if sl.TableAutodiscoveryEnabled() && sl.cfg.Hydrolix.IsNonEmpty() {
+			// Currently only for Hydrolix, which uses only one column as primary timestamp
+			// Ref: https://docs.hydrolix.io/docs/transforms-and-write-schema#primary-timestamp
 			logger.Info().Msg("Index configuration empty, running table auto-discovery")
 			for table, columns := range tables {
 				comment := sl.SchemaManagement.tableComment(databaseName, table)
 				createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
-				configuredTables[table] = discoveredTable{columns, config.IndexConfiguration{}, comment, createTableQuery}
+				if pk := sl.SchemaManagement.tablePrimaryKey(databaseName, table); pk != "" {
+					configuredTables[table] = discoveredTable{columns, config.IndexConfiguration{TimestampField: &pk}, comment, createTableQuery}
+				}
 			}
 			logger.Info().Msgf("Table discovery results: tables=[%s]", strings.Join(util.MapKeys(configuredTables), ","))
 		} else {
