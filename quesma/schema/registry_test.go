@@ -17,7 +17,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 		tableDiscovery schema.TableProvider
 		tableName      schema.TableName
 		want           schema.Schema
-		exists         bool
+		found          bool
 	}{
 		{
 			name:           "schema not found",
@@ -25,7 +25,7 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{}},
 			tableName:      "nonexistent",
 			want:           schema.Schema{},
-			exists:         false,
+			found:          false,
 		},
 		{
 			name: "schema inferred, no mappings",
@@ -45,8 +45,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			want: schema.NewSchema(map[schema.FieldName]schema.Field{
 				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}}),
-			exists: true,
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
+				true),
+			found: true,
 		},
 		{
 			name: "schema inferred, with type mappings (deprecated)",
@@ -66,8 +67,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			want: schema.NewSchema(map[schema.FieldName]schema.Field{
 				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}}),
-			exists: true,
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
+				true),
+			found: true,
 		},
 		{
 			name: "schema inferred, with type mappings not backed by db (deprecated)",
@@ -86,8 +88,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			want: schema.NewSchema(map[schema.FieldName]schema.Field{
 				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}}),
-			exists: true,
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
+				true),
+			found: true,
 		},
 		{
 			name: "schema inferred, with type mappings not backed by db",
@@ -110,8 +113,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			want: schema.NewSchema(map[schema.FieldName]schema.Field{
 				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}}),
-			exists: true,
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
+				true),
+			found: true,
 		},
 		{
 			name: "schema explicitly configured, nothing in db",
@@ -126,8 +130,8 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			},
 			tableDiscovery: fixedTableProvider{tables: map[string]schema.Table{}},
 			tableName:      "some_table",
-			want:           schema.NewSchema(map[schema.FieldName]schema.Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword}}),
-			exists:         true,
+			want:           schema.NewSchema(map[schema.FieldName]schema.Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword}}, false),
+			found:          true,
 		},
 		{
 			name: "schema inferred, with mapping overrides",
@@ -151,8 +155,9 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			want: schema.NewSchema(map[schema.FieldName]schema.Field{
 				"message":    {PropertyName: "message", InternalPropertyName: "message", Type: schema.TypeKeyword},
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
-				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}}),
-			exists: true,
+				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}},
+				true),
+			found: true,
 		},
 		{
 			name: "schema inferred, with aliases",
@@ -179,8 +184,8 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
 				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}}, map[schema.FieldName]schema.FieldName{
 				"message_alias": "message",
-			}),
-			exists: true,
+			}, true),
+			found: true,
 		},
 		{
 			name: "schema inferred, with aliases [deprecated config]",
@@ -205,8 +210,8 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 				"event_date": {PropertyName: "event_date", InternalPropertyName: "event_date", Type: schema.TypeTimestamp},
 				"count":      {PropertyName: "count", InternalPropertyName: "count", Type: schema.TypeLong}}, map[schema.FieldName]schema.FieldName{
 				"message_alias": "message",
-			}),
-			exists: true,
+			}, true),
+			found: true,
 		},
 		{
 			name: "schema inferred, requesting nonexistent schema",
@@ -224,15 +229,15 @@ func Test_schemaRegistry_FindSchema(t *testing.T) {
 			}},
 			tableName: "foo",
 			want:      schema.Schema{},
-			exists:    false,
+			found:     false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := schema.NewSchemaRegistry(tt.tableDiscovery, tt.cfg, clickhouse.SchemaTypeAdapter{})
 			resultSchema, resultFound := s.FindSchema(tt.tableName)
-			if resultFound != tt.exists {
-				t.Errorf("FindSchema() got1 = %v, want %v", resultFound, tt.exists)
+			if resultFound != tt.found {
+				t.Errorf("FindSchema() got1 = %v, want %v", resultFound, tt.found)
 			}
 			if !reflect.DeepEqual(resultSchema, tt.want) {
 				t.Errorf("FindSchema() got = %v, want %v", resultSchema, tt.want)
