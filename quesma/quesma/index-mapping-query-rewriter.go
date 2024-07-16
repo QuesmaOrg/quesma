@@ -5,9 +5,11 @@ package quesma
 
 import (
 	"quesma/model"
+	"quesma/quesma/config"
 )
 
 type IndexMappingRewriter struct {
+	indexMappings map[string]config.IndexMappingsConfiguration
 }
 
 func (IndexMappingRewriter) VisitFunction(e model.FunctionExpr) interface{}           { return e }
@@ -29,7 +31,7 @@ func (IndexMappingRewriter) VisitParenExpr(e model.ParenExpr) interface{}       
 func (IndexMappingRewriter) VisitLambdaExpr(e model.LambdaExpr) interface{}           { return e }
 
 func (s *SchemaCheckPass) applyIndexMappingTransformations(query *model.Query) (*model.Query, error) {
-	indexMappingRewriter := &IndexMappingRewriter{}
+	indexMappingRewriter := &IndexMappingRewriter{indexMappings: s.indexMappings}
 	expr := query.SelectCommand.Accept(indexMappingRewriter)
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)

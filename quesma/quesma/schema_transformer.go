@@ -43,6 +43,7 @@ type SchemaCheckPass struct {
 	cfg            map[string]config.IndexConfiguration
 	schemaRegistry schema.Registry
 	logManager     *clickhouse.LogManager
+	indexMappings  map[string]config.IndexMappingsConfiguration
 }
 
 // This functions trims the db name from the table name if exists
