@@ -19,7 +19,7 @@ func NewSchemaManagement(chDb *sql.DB) *SchemaManagement {
 func (s *SchemaManagement) readTables(database string) (map[string]map[string]string, error) {
 	logger.Debug().Msgf("describing tables: %s", database)
 
-	rows, err := s.chDb.Query("SELECT table, name, type FROM system.columns WHERE database = ? AND database != 'system'", database)
+	rows, err := s.chDb.Query("SELECT table, name, type FROM system.columns WHERE database = ?", database)
 	if err != nil {
 		err = end_user_errors.GuessClickhouseErrorType(err).InternalDetails("reading list of columns from system.columns")
 		return map[string]map[string]string{}, err
