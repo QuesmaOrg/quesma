@@ -9,7 +9,7 @@ import (
 )
 
 type IndexMappingRewriter struct {
-	indexMappings map[string]config.IndexMappingsConfiguration
+	sourceToDestMapping map[string]string
 }
 
 func (IndexMappingRewriter) VisitFunction(e model.FunctionExpr) interface{}           { return e }
@@ -30,8 +30,19 @@ func (IndexMappingRewriter) VisitWindowFunction(f model.WindowFunction) interfac
 func (IndexMappingRewriter) VisitParenExpr(e model.ParenExpr) interface{}             { return e }
 func (IndexMappingRewriter) VisitLambdaExpr(e model.LambdaExpr) interface{}           { return e }
 
+func NewIndexMappingRewriter(indexMappings map[string]config.IndexMappingsConfiguration) *IndexMappingRewriter {
+	rewriter := &IndexMappingRewriter{sourceToDestMapping: make(map[string]string)}
+	for _, indexMapping := range indexMappings {
+		for _, sourceIndex := range indexMapping.Mappings {
+			destIndex := indexMapping.Name
+			rewriter.sourceToDestMapping[sourceIndex] = destIndex
+		}
+	}
+	return rewriter
+}
+
 func (s *SchemaCheckPass) applyIndexMappingTransformations(query *model.Query) (*model.Query, error) {
-	indexMappingRewriter := &IndexMappingRewriter{indexMappings: s.indexMappings}
+	indexMappingRewriter := NewIndexMappingRewriter(s.indexMappings)
 	expr := query.SelectCommand.Accept(indexMappingRewriter)
 	if _, ok := expr.(*model.SelectCommand); ok {
 		query.SelectCommand = *expr.(*model.SelectCommand)
