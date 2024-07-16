@@ -20,6 +20,7 @@ type TableDiscovery interface {
 	TableDefinitions() *TableMap
 	TableDefinitionsFetchError() error
 	LastAccessTime() time.Time
+	ForceReloadCh() <-chan struct{}
 }
 
 type tableDiscovery struct {
@@ -28,6 +29,7 @@ type tableDiscovery struct {
 	tableDefinitions                  *atomic.Pointer[TableMap]
 	tableDefinitionsAccessUnixSec     atomic.Int64
 	tableDefinitionsLastReloadUnixSec atomic.Int64
+	forceReloadCh                     chan struct{}
 	ReloadTablesError                 error
 }
 
@@ -38,6 +40,7 @@ func NewTableDiscovery(cfg config.QuesmaConfiguration, schemaManagement *SchemaM
 		cfg:              cfg,
 		SchemaManagement: schemaManagement,
 		tableDefinitions: &tableDefinitions,
+		forceReloadCh:    make(chan struct{}, 0),
 	}
 }
 
@@ -69,6 +72,7 @@ func newTableDiscoveryWith(cfg config.QuesmaConfiguration, schemaManagement *Sch
 		cfg:              cfg,
 		SchemaManagement: schemaManagement,
 		tableDefinitions: &tableDefinitions,
+		forceReloadCh:    make(chan struct{}, 0),
 	}
 }
 
@@ -81,7 +85,12 @@ func (sl *tableDiscovery) LastAccessTime() time.Time {
 	return time.Unix(timeMs, 0)
 }
 
+func (sl *tableDiscovery) ForceReloadCh() <-chan struct{} {
+	return sl.forceReloadCh
+}
+
 func (sl *tableDiscovery) ReloadTableDefinitions() {
+	sl.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
 	logger.Debug().Msg("reloading tables definitions")
 	configuredTables := make(map[string]discoveredTable)
 	var explicitlyDisabledTables, notConfiguredTables []string
@@ -198,11 +207,16 @@ func (sl *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 		logger.Info().Msgf("discovered new tables: %s", discoveredTables)
 	}
 	sl.tableDefinitions.Store(tableMap)
-	sl.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
 }
 
 func (sl *tableDiscovery) TableDefinitions() *TableMap {
 	sl.tableDefinitionsAccessUnixSec.Store(time.Now().Unix())
+	lastReloadUnixSec := sl.tableDefinitionsLastReloadUnixSec.Load()
+	lastReload := time.Unix(lastReloadUnixSec, 0)
+	if time.Since(lastReload) > 15*time.Minute { // maybe configure
+		logger.Info().Msg("Table definitions are stale for 15 minutes, forcing reload")
+		sl.forceReloadCh <- struct{}{}
+	}
 	return sl.tableDefinitions.Load()
 }
 
