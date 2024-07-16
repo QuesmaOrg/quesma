@@ -40,10 +40,11 @@ func (s *SchemaCheckPass) applyBooleanLiteralLowering(query *model.Query) (*mode
 }
 
 type SchemaCheckPass struct {
-	cfg            map[string]config.IndexConfiguration
-	schemaRegistry schema.Registry
-	logManager     *clickhouse.LogManager
-	indexMappings  map[string]config.IndexMappingsConfiguration
+	cfg                 map[string]config.IndexConfiguration
+	schemaRegistry      schema.Registry
+	logManager          *clickhouse.LogManager
+	indexMappings       map[string]config.IndexMappingsConfiguration
+	sourceToDestMapping map[string]string
 }
 
 // This functions trims the db name from the table name if exists
