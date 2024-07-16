@@ -24,10 +24,14 @@ func (IndexMappingRewriter) VisitArrayAccess(e model.ArrayAccess) interface{}   
 func (IndexMappingRewriter) VisitOrderByExpr(e model.OrderByExpr) interface{}         { return e }
 func (IndexMappingRewriter) VisitDistinctExpr(e model.DistinctExpr) interface{}       { return e }
 func (IndexMappingRewriter) VisitTableRef(e model.TableRef) interface{} {
-	return e
+	return model.NewTableRef(e.Name)
 }
-func (IndexMappingRewriter) VisitAliasedExpr(e model.AliasedExpr) interface{}       { return e }
-func (IndexMappingRewriter) VisitSelectCommand(e model.SelectCommand) interface{}   { return e }
+func (v *IndexMappingRewriter) VisitAliasedExpr(e model.AliasedExpr) interface{} { return e }
+func (v *IndexMappingRewriter) VisitSelectCommand(e model.SelectCommand) interface{} {
+	fromClause := e.FromClause.Accept(v)
+	return model.NewSelectCommand(e.Columns, e.GroupBy, e.OrderBy,
+		fromClause.(model.Expr), e.WhereClause, e.LimitBy, e.Limit, e.SampleLimit, e.IsDistinct, e.CTEs)
+}
 func (IndexMappingRewriter) VisitWindowFunction(f model.WindowFunction) interface{} { return f }
 func (IndexMappingRewriter) VisitParenExpr(e model.ParenExpr) interface{}           { return e }
 func (IndexMappingRewriter) VisitLambdaExpr(e model.LambdaExpr) interface{}         { return e }
