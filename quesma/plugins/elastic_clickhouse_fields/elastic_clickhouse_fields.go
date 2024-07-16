@@ -66,126 +66,26 @@ func (t *fieldCapsTransformer) Transform(fieldCaps map[string]map[string]model.F
 
 // query transformer
 
-type exprColumnNameReplaceVisitor struct {
-	translate translateFunc
-}
-
-func (v *exprColumnNameReplaceVisitor) visitChildren(args []model.Expr) []model.Expr {
-	var newArgs []model.Expr
-	for _, arg := range args {
-		if arg != nil {
-			newArgs = append(newArgs, arg.Accept(v).(model.Expr))
-		}
-	}
-	return newArgs
-}
-
-func (v *exprColumnNameReplaceVisitor) VisitLiteral(e model.LiteralExpr) interface{} {
-	return model.NewLiteral(e.Value)
-}
-
-func (v *exprColumnNameReplaceVisitor) VisitInfix(e model.InfixExpr) interface{} {
-	lhs := e.Left.Accept(v)
-	rhs := e.Right.Accept(v)
-
-	return model.NewInfixExpr(lhs.(model.Expr), e.Op, rhs.(model.Expr))
-}
-
-func (v *exprColumnNameReplaceVisitor) VisitPrefixExpr(e model.PrefixExpr) interface{} {
-	return model.NewPrefixExpr(e.Op, v.visitChildren(e.Args))
-}
-
-func (v *exprColumnNameReplaceVisitor) VisitFunction(e model.FunctionExpr) interface{} {
-	return model.NewFunction(e.Name, v.visitChildren(e.Args)...)
-}
-
-func (v *exprColumnNameReplaceVisitor) VisitColumnRef(e model.ColumnRef) interface{} {
-	return model.NewColumnRef(v.translate(e.ColumnName))
-}
-
-func (v *exprColumnNameReplaceVisitor) VisitNestedProperty(e model.NestedProperty) interface{} {
-	ColumnRef := e.ColumnRef.Accept(v).(model.ColumnRef)
-	Property := e.PropertyName.Accept(v).(model.LiteralExpr)
-	return model.NewNestedProperty(ColumnRef, Property)
-}
-
-func (v *exprColumnNameReplaceVisitor) VisitArrayAccess(e model.ArrayAccess) interface{} {
-	columnRef := e.ColumnRef.Accept(v).(model.ColumnRef)
-	index := e.Index.Accept(v).(model.Expr)
-	return model.NewArrayAccess(columnRef, index)
-}
-
-func (v *exprColumnNameReplaceVisitor) VisitMultiFunction(e model.MultiFunctionExpr) interface{} {
-	return model.MultiFunctionExpr{Name: e.Name, Args: v.visitChildren(e.Args)}
-}
-
-func (v *exprColumnNameReplaceVisitor) VisitString(e model.StringExpr) interface{} { return e }
-
-func (v *exprColumnNameReplaceVisitor) VisitTableRef(e model.TableRef) interface{} {
-	return e
-}
-
-func (v *exprColumnNameReplaceVisitor) VisitOrderByExpr(e model.OrderByExpr) interface{} {
-	return model.OrderByExpr{Exprs: v.visitChildren(e.Exprs), Direction: e.Direction}
-}
-
-func (v *exprColumnNameReplaceVisitor) VisitDistinctExpr(e model.DistinctExpr) interface{} {
-	return model.DistinctExpr{Expr: e.Expr.Accept(v).(model.Expr)}
-}
-
-func (v *exprColumnNameReplaceVisitor) VisitAliasedExpr(e model.AliasedExpr) interface{} {
-	return model.NewAliasedExpr(e.Expr.Accept(v).(model.Expr), e.Alias)
-}
-
-func (v *exprColumnNameReplaceVisitor) VisitWindowFunction(f model.WindowFunction) interface{} {
-	return model.WindowFunction{
-		Name:        f.Name,
-		Args:        v.visitChildren(f.Args),
-		PartitionBy: v.visitChildren(f.PartitionBy),
-		OrderBy:     f.OrderBy.Accept(v).(model.OrderByExpr),
-	}
-}
-
-func (v *exprColumnNameReplaceVisitor) VisitSelectCommand(query model.SelectCommand) interface{} {
-
-	if query.WhereClause != nil {
-		query.WhereClause = query.WhereClause.Accept(v).(model.Expr)
-	}
-
-	for i, group := range query.GroupBy {
-		query.GroupBy[i] = group.Accept(v).(model.Expr)
-	}
-
-	for i, column := range query.Columns {
-		query.Columns[i] = column.Accept(v).(model.Expr)
-	}
-
-	for i, order := range query.OrderBy {
-		query.OrderBy[i] = order.Accept(v).(model.OrderByExpr)
-	}
-
-	return query
-}
-
-func (v *exprColumnNameReplaceVisitor) VisitParenExpr(p model.ParenExpr) interface{} {
-	var exprs []model.Expr
-	for _, expr := range p.Exprs {
-		exprs = append(exprs, expr.Accept(v).(model.Expr))
-	}
-	return model.NewParenExpr(exprs...)
-}
-
-func (v *exprColumnNameReplaceVisitor) VisitLambdaExpr(e model.LambdaExpr) interface{} {
-	return model.NewLambdaExpr(e.Args, e.Body.Accept(v).(model.Expr))
-}
-
 type queryTransformer struct {
 	translate translateFunc
 }
 
+func newColumnNameTranslator(translate translateFunc) model.ExprVisitor {
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
+
+		return model.NewColumnRef(translate(e.ColumnName))
+	}
+
+	return visitor
+
+}
+
 func (t *queryTransformer) Transform(queries []*model.Query) ([]*model.Query, error) {
 
-	visitor := &exprColumnNameReplaceVisitor{translate: t.translate}
+	visitor := newColumnNameTranslator(t.translate)
 
 	for _, query := range queries {
 		query.SelectCommand = query.SelectCommand.Accept(visitor).(model.SelectCommand)
