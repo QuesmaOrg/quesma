@@ -46,42 +46,6 @@ func (m metricsAggregation) sortByExists() bool {
 
 const metricsAggregationDefaultFieldType = clickhouse.Invalid
 
-// WhereClauseColumnVisitor is a visitor that collects all column names from where clause
-type WhereClauseColumnVisitor struct {
-	model.ExprVisitor
-	ColumnNames []string
-}
-
-func (v *WhereClauseColumnVisitor) VisitColumnRef(e model.ColumnRef) interface{} {
-	for _, columnName := range v.ColumnNames {
-		if e.ColumnName == columnName {
-			continue
-		}
-	}
-	v.ColumnNames = append(v.ColumnNames, e.ColumnName)
-	return e
-}
-
-func (v *WhereClauseColumnVisitor) VisitInfix(e model.InfixExpr) interface{} {
-	e.Left.Accept(v)
-	e.Right.Accept(v)
-	return e
-}
-
-func (v *WhereClauseColumnVisitor) VisitPrefix(e model.PrefixExpr) interface{} {
-	for _, arg := range e.Args {
-		arg.Accept(v)
-	}
-	return e
-}
-
-func (v *WhereClauseColumnVisitor) VisitFunction(e model.FunctionExpr) interface{} {
-	for _, arg := range e.Args {
-		arg.Accept(v)
-	}
-	return e
-}
-
 func isColumnExist(columns []model.Expr, columnName string) bool {
 	for _, column := range columns {
 		if model.AsString(column) == fmt.Sprintf("%q", columnName) {
@@ -94,13 +58,14 @@ func isColumnExist(columns []model.Expr, columnName string) bool {
 // updateInnerQueryColumns adds columns that exists in where clause and are missing
 // in select clause
 func updateInnerQueryColumns(query model.SelectCommand, whereClause model.Expr) model.SelectCommand {
-	whereClauseVisitor := WhereClauseColumnVisitor{ExprVisitor: model.NoOpVisitor{}}
-	whereClause.Accept(&whereClauseVisitor)
-	for _, columnName := range whereClauseVisitor.ColumnNames {
-		if isColumnExist(query.Columns, columnName) {
+
+	columns := model.GetUsedColumns(whereClause)
+
+	for _, column := range columns {
+		if isColumnExist(query.Columns, column.ColumnName) {
 			continue
 		}
-		query.Columns = append(query.Columns, model.NewColumnRef(columnName))
+		query.Columns = append(query.Columns, column)
 	}
 	return query
 }
