@@ -5,6 +5,7 @@ package clickhouse
 import (
 	"context"
 	"errors"
+	"fmt"
 	"quesma/end_user_errors"
 	"quesma/logger"
 	"quesma/quesma/config"
@@ -96,23 +97,27 @@ func (sl *tableDiscovery) ReloadTableDefinitions() {
 		return
 	} else {
 		if sl.TableAutodiscoveryEnabled() {
+			var autoDiscoResults strings.Builder
 			logger.Info().Msg("Index configuration empty, running table auto-discovery")
 			for table, columns := range tables {
 				comment := sl.SchemaManagement.tableComment(databaseName, table)
 				createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
-				var maybePrimaryKey string
+				var maybeTimestampField string
 				if sl.cfg.Hydrolix.IsNonEmpty() {
-					maybePrimaryKey = sl.SchemaManagement.tablePrimaryKey(databaseName, table, "hydrolix")
+					maybeTimestampField = sl.SchemaManagement.tableTimestampField(databaseName, table, "hydrolix")
 				} else {
-					maybePrimaryKey = sl.SchemaManagement.tablePrimaryKey(databaseName, table, "clickhouse")
+					maybeTimestampField = sl.SchemaManagement.tableTimestampField(databaseName, table, "clickhouse")
 				}
-				if maybePrimaryKey != "" {
-					configuredTables[table] = discoveredTable{columns, config.IndexConfiguration{TimestampField: &maybePrimaryKey}, comment, createTableQuery}
+				if maybeTimestampField != "" {
+					configuredTables[table] = discoveredTable{columns, config.IndexConfiguration{TimestampField: &maybeTimestampField}, comment, createTableQuery}
 				} else {
 					configuredTables[table] = discoveredTable{columns, config.IndexConfiguration{}, comment, createTableQuery}
 				}
 			}
-			logger.Info().Msgf("Table discovery results: tables=[%s]", strings.Join(util.MapKeys(configuredTables), ","))
+			for tableName, conf := range configuredTables {
+				autoDiscoResults.WriteString(fmt.Sprintf("(table=[%s] timestampField=[%s]), ", tableName, *conf.config.TimestampField))
+			}
+			logger.Info().Msgf("Table auto-discovery results: %d tables found, %s", len(configuredTables), strings.TrimSuffix(autoDiscoResults.String(), ", "))
 		} else {
 			for table, columns := range tables {
 				if indexConfig, found := sl.cfg.IndexConfig[table]; found {

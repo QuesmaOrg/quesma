@@ -40,7 +40,7 @@ func (s *SchemaManagement) readTables(database string) (map[string]map[string]st
 	return columnsPerTable, nil
 }
 
-func (s *SchemaManagement) tablePrimaryKey(database, table, dbKind string) (primaryKey string) {
+func (s *SchemaManagement) tableTimestampField(database, table, dbKind string) (primaryKey string) {
 	switch dbKind {
 	case "hydrolix":
 		return s.getTimestampFieldForHydrolix(database, table)
