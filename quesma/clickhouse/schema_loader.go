@@ -115,7 +115,7 @@ func (sl *tableDiscovery) ReloadTableDefinitions() {
 				}
 			}
 			for tableName, conf := range configuredTables {
-				autoDiscoResults.WriteString(fmt.Sprintf("(table=[%s] timestampField=[%s]), ", tableName, *conf.config.TimestampField))
+				autoDiscoResults.WriteString(fmt.Sprintf("(table=[%s] timestampField=[%s]), ", tableName, conf.config.GetTimestampField()))
 			}
 			logger.Info().Msgf("Table auto-discovery results: %d tables found, %s", len(configuredTables), strings.TrimSuffix(autoDiscoResults.String(), ", "))
 		} else {

@@ -30,6 +30,13 @@ func (c IndexConfiguration) HasFullTextField(fieldName string) bool {
 	return slices.Contains(c.FullTextFields, fieldName)
 }
 
+func (c IndexConfiguration) GetTimestampField() (tsField string) {
+	if c.TimestampField != nil {
+		tsField = *c.TimestampField
+	}
+	return
+}
+
 func (c IndexConfiguration) String() string {
 	var extraString string
 	extraString = ""
