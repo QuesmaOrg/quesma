@@ -115,3 +115,7 @@ func (query ExtendedStats) getValue(row model.QueryResultRow, functionName strin
 }
 
 func (query ExtendedStats) MetricsAggregation() {}
+
+func (query ExtendedStats) ColumnsNr() int {
+	return selectFieldsNr
+}

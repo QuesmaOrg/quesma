@@ -4,6 +4,7 @@ package metrics_aggregations
 
 import (
 	"context"
+	"github.com/k0kubun/pp"
 	"quesma/logger"
 	"quesma/model"
 	"strconv"
@@ -13,10 +14,11 @@ import (
 type TopMetrics struct {
 	ctx                context.Context
 	isSortFieldPresent bool
+	columnsNr          int // with sort field, if present
 }
 
-func NewTopMetrics(ctx context.Context, isSortFieldPresent bool) TopMetrics {
-	return TopMetrics{ctx: ctx, isSortFieldPresent: isSortFieldPresent}
+func NewTopMetrics(ctx context.Context, isSortFieldPresent bool, columnsNr int) TopMetrics {
+	return TopMetrics{ctx: ctx, isSortFieldPresent: isSortFieldPresent, columnsNr: columnsNr}
 }
 
 func (query TopMetrics) IsBucketAggregation() bool {
@@ -41,13 +43,15 @@ func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 		var sortVal []any
 		var valuesForMetrics []model.QueryResultCol
 		if query.isSortFieldPresent {
-			// per convention, we know that value we sorted by is in the last column (if it exists)
-			lastIndex := len(row.Cols) - 1 // last column is the sort column, we don't return it
-			sortVal = append(sortVal, row.Cols[lastIndex].Value)
-			valuesForMetrics = row.Cols[level:lastIndex]
+			// per convention, we know that value we sorted by is in the last column of this aggregation (if it exists) (level)
+			sortIndex := level // last column is the sort column, we don't return it
+			sortVal = append(sortVal, row.Cols[sortIndex].Value)
+			valuesForMetrics = row.Cols[level+1-query.columnsNr : sortIndex]
 		} else {
-			valuesForMetrics = row.Cols[level:]
+			valuesForMetrics = row.Cols[level+1-query.columnsNr : level+1]
 		}
+
+		pp.Println("----", level-query.columnsNr, level, valuesForMetrics)
 
 		metrics := make(model.JsonMap)
 		for _, col := range valuesForMetrics {
@@ -80,3 +84,7 @@ func (query TopMetrics) PostprocessResults(rowsFromDB []model.QueryResultRow) []
 }
 
 func (query TopMetrics) MetricsAggregation() {}
+
+func (query TopMetrics) ColumnsNr() int {
+	return query.columnsNr
+}

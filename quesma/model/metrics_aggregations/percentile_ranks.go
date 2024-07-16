@@ -14,7 +14,8 @@ type PercentileRanks struct {
 	ctx context.Context
 	// defines what response should look like
 	// https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-rank-aggregation.html#_keyed_response_5
-	Keyed bool
+	Keyed     bool
+	columnsNr int
 }
 
 func NewPercentileRanks(ctx context.Context, keyed bool) PercentileRanks {
@@ -105,3 +106,7 @@ func (query PercentileRanks) PostprocessResults(rowsFromDB []model.QueryResultRo
 }
 
 func (query PercentileRanks) MetricsAggregation() {}
+
+func (query PercentileRanks) ColumnsNr() int {
+	return query.columnsNr
+}

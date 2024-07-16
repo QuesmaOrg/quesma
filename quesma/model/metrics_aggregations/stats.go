@@ -58,3 +58,7 @@ func (query Stats) PostprocessResults(rowsFromDB []model.QueryResultRow) []model
 }
 
 func (query Stats) MetricsAggregation() {}
+
+func (query Stats) ColumnsNr() int {
+	return 4
+}

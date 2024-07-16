@@ -97,3 +97,7 @@ func (query TopHits) PostprocessResults(rowsFromDB []model.QueryResultRow) []mod
 }
 
 func (query TopHits) MetricsAggregation() {}
+
+func (query TopHits) ColumnsNr() int {
+	return 1 // FIXME
+}

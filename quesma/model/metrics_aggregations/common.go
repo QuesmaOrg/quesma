@@ -13,6 +13,7 @@ import (
 type MetricsAggregation interface {
 	model.QueryType
 	MetricsAggregation() // marker function
+	ColumnsNr() int
 }
 
 func metricsTranslateSqlResponseToJson(ctx context.Context, rows []model.QueryResultRow, level int) model.JsonMap {

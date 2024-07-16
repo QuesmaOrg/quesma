@@ -34,3 +34,7 @@ func (query Min) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.Q
 }
 
 func (query Min) MetricsAggregation() {}
+
+func (query Min) ColumnsNr() int {
+	return 1
+}

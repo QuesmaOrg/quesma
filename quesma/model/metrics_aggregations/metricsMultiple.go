@@ -39,6 +39,10 @@ func (query *MetricsWrapper) PostprocessResults(rowsFromDB []model.QueryResultRo
 
 func (query *MetricsWrapper) MetricsAggregation() {}
 
+func (query *MetricsWrapper) ColumnsNr() int {
+	return query.wrapped.ColumnsNr()
+}
+
 func (query *MetricsWrapper) GetQueryWithResults() *model.Query {
 	return query.queryWithResults
 }

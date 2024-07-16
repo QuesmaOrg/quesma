@@ -53,15 +53,6 @@ func (t MergeMetricsAggsTransformer) mergeable(query1, query2 *model.Query) bool
 		return false
 	}
 
-	// TODO remove this
-	if t.isTopMetrics(query1) || t.isTopMetrics(query2) {
-		return false
-	}
-	// TODO remove this
-	if t.isStdDev(query1) || t.isStdDev(query2) {
-		return false
-	}
-
 	// special case: (count with no limit, aggregation with 1 aggregator) is also mergeable
 	if t.isTypicalCount(query1) && len(query2.Aggregators) == 1 && query1.SelectCommand.SampleLimit == 0 {
 		return true
@@ -71,7 +62,8 @@ func (t MergeMetricsAggsTransformer) mergeable(query1, query2 *model.Query) bool
 	}
 
 	// queries need to have the same parents, so equal lengths + equal parents (N - 1 aggregators)
-	fmt.Println(query1.Aggregators, query2.Aggregators)
+	fmt.Println("a", query1.Aggregators, query1.Aggregators[0])
+	fmt.Println("b", query2.Aggregators)
 	if len(query1.Aggregators) != len(query2.Aggregators) {
 		return false
 	}
@@ -79,7 +71,9 @@ func (t MergeMetricsAggsTransformer) mergeable(query1, query2 *model.Query) bool
 		if query1.Aggregators[i] != query2.Aggregators[i] {
 			return false
 		}
-		if query1.Aggregators[i].Filters || query2.Aggregators[i].Filters { // can't join filters yet
+		q1Filters := query1.Aggregators[i].Filters
+		q2Filters := query2.Aggregators[i].Filters
+		if (q1Filters && !q2Filters) || (!q1Filters && q2Filters) {
 			return false
 		}
 	}
@@ -104,7 +98,12 @@ func (t MergeMetricsAggsTransformer) merge(queryToMerge, queryToMergeWith *model
 	}
 
 	fmt.Printf("before %s %T\n", queryToMergeWith.Type.String(), queryToMergeWith.Type)
-	queryToMergeWith.SelectCommand.Columns = append(queryToMergeWith.SelectCommand.Columns, queryToMerge.SelectCommand.Columns[colNr-1])
+	firstIdx := colNr - queryToMerge.Type.(metrics_aggregations.MetricsAggregation).ColumnsNr()
+	if firstIdx < 0 {
+		logger.ErrorWithCtx(t.ctx).Msgf("mergeMetricsAggsTransformer: firstIdx < 0: %d", firstIdx)
+		return
+	}
+	queryToMergeWith.SelectCommand.Columns = append(queryToMergeWith.SelectCommand.Columns, queryToMerge.SelectCommand.Columns[firstIdx:]...)
 
 	queryToMerge.Type = metrics_aggregations.NewMetricsWrapped(
 		t.ctx,
@@ -122,30 +121,6 @@ func (t MergeMetricsAggsTransformer) isTypicalCount(query *model.Query) bool {
 	}
 	if wrapper, ok := query.Type.(*metrics_aggregations.MetricsWrapper); ok {
 		_, ok = wrapper.GetWrapped().(typical_queries.Count)
-		return ok
-	}
-	return false
-}
-
-// TODO remove this
-func (t MergeMetricsAggsTransformer) isTopMetrics(query *model.Query) bool {
-	if _, ok := query.Type.(metrics_aggregations.TopMetrics); ok {
-		return true
-	}
-	if wrapper, ok := query.Type.(*metrics_aggregations.MetricsWrapper); ok {
-		_, ok = wrapper.GetWrapped().(metrics_aggregations.TopMetrics)
-		return ok
-	}
-	return false
-}
-
-// TODO remove this
-func (t MergeMetricsAggsTransformer) isStdDev(query *model.Query) bool {
-	if _, ok := query.Type.(metrics_aggregations.ExtendedStats); ok {
-		return true
-	}
-	if wrapper, ok := query.Type.(*metrics_aggregations.MetricsWrapper); ok {
-		_, ok = wrapper.GetWrapped().(metrics_aggregations.ExtendedStats)
 		return ok
 	}
 	return false

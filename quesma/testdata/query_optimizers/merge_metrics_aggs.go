@@ -658,4 +658,182 @@ var MergeMetricsAggsTestUpdates = []testdata.MergeMetricsAggsTestUpdate{
 				`LIMIT 200`,
 		},
 	},
+	{ // [6]
+		TestName: "Standard deviation",
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(122))}}},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1716333600000/600000)),
+					model.NewQueryResultCol(`count("bytes")`, 1),
+					model.NewQueryResultCol(`minOrNull("bytes")`, 7676.0),
+					model.NewQueryResultCol(`maxOrNull("bytes")`, 7676.0),
+					model.NewQueryResultCol(`avgOrNull("bytes")`, 7676.0),
+					model.NewQueryResultCol(`sumOrNull("bytes")`, 7676.0),
+					model.NewQueryResultCol(`sumOrNull("bytes"*"bytes")`, 58920976.0),
+					model.NewQueryResultCol(`varPop("bytes")`, 0.0),
+					model.NewQueryResultCol(`varSamp("bytes")`, nil),
+					model.NewQueryResultCol(`stddevPop("bytes")`, 0.0),
+					model.NewQueryResultCol(`stddevSamp("bytes")`, nil),
+					model.NewQueryResultCol(`count("bytes")`, 1),
+					model.NewQueryResultCol(`minOrNull("bytes")`, 7676.0),
+					model.NewQueryResultCol(`maxOrNull("bytes")`, 7676.0),
+					model.NewQueryResultCol(`avgOrNull("bytes")`, 7676.0),
+					model.NewQueryResultCol(`sumOrNull("bytes")`, 7676.0),
+					model.NewQueryResultCol(`sumOrNull("bytes"*"bytes")`, 58920976.0),
+					model.NewQueryResultCol(`varPop("bytes")`, 0.0),
+					model.NewQueryResultCol(`varSamp("bytes")`, nil),
+					model.NewQueryResultCol(`stddevPop("bytes")`, 0.0),
+					model.NewQueryResultCol(`stddevSamp("bytes")`, nil),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1716377400000/600000)),
+					model.NewQueryResultCol(`count("bytes")`, 8),
+					model.NewQueryResultCol(`minOrNull("bytes")`, 2426.0),
+					model.NewQueryResultCol(`maxOrNull("bytes")`, 7708.0),
+					model.NewQueryResultCol(`avgOrNull("bytes")`, 5754.375),
+					model.NewQueryResultCol(`sumOrNull("bytes")`, 46035.0),
+					model.NewQueryResultCol(`sumOrNull("bytes"*"bytes")`, 284895351.0),
+					model.NewQueryResultCol(`varPop("bytes")`, 2499087.234375),
+					model.NewQueryResultCol(`varSamp("bytes")`, 2856099.6964285714),
+					model.NewQueryResultCol(`stddevPop("bytes")`, 1580.8501618986538),
+					model.NewQueryResultCol(`stddevSamp("bytes")`, 1689.9999101859655),
+					model.NewQueryResultCol(`count("bytes")`, 8),
+					model.NewQueryResultCol(`minOrNull("bytes")`, 2426.0),
+					model.NewQueryResultCol(`maxOrNull("bytes")`, 7708.0),
+					model.NewQueryResultCol(`avgOrNull("bytes")`, 5754.375),
+					model.NewQueryResultCol(`sumOrNull("bytes")`, 46035.0),
+					model.NewQueryResultCol(`sumOrNull("bytes"*"bytes")`, 284895351.0),
+					model.NewQueryResultCol(`varPop("bytes")`, 2499087.234375),
+					model.NewQueryResultCol(`varSamp("bytes")`, 2856099.6964285714),
+					model.NewQueryResultCol(`stddevPop("bytes")`, 1580.8501618986538),
+					model.NewQueryResultCol(`stddevSamp("bytes")`, 1689.9999101859655),
+				}},
+			},
+			{}, // NoDBQuery
+			{
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1716333600000/600000)), model.NewQueryResultCol("count()", 1)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1716377400000/600000)), model.NewQueryResultCol("count()", 8)}},
+			},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z'))`,
+			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), ` +
+				`count("bytes"), ` +
+				`minOrNull("bytes"), ` +
+				`maxOrNull("bytes"), ` +
+				`avgOrNull("bytes"), ` +
+				`sumOrNull("bytes"), ` +
+				`sumOrNull("bytes"*"bytes"), ` +
+				`varPop("bytes"), ` +
+				`varSamp("bytes"), ` +
+				`stddevPop("bytes"), ` +
+				`stddevSamp("bytes"), ` +
+				`count("bytes"), ` +
+				`minOrNull("bytes"), ` +
+				`maxOrNull("bytes"), ` +
+				`avgOrNull("bytes"), ` +
+				`sumOrNull("bytes"), ` +
+				`sumOrNull("bytes"*"bytes"), ` +
+				`varPop("bytes"), ` +
+				`varSamp("bytes"), ` +
+				`stddevPop("bytes"), ` +
+				`stddevSamp("bytes") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z')) ` +
+				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
+				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
+			`NoDBQuery`,
+			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 600000), ` +
+				`count() ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-21T21:35:34.210Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-22T12:35:34.210Z')) ` +
+				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
+				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
+		},
+	},
+	{ // [7]
+		TestName: "very long: multiple top_metrics + histogram",
+		ExpectedResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1707480000000/1000/60/60/12)),
+					model.NewQueryResultCol("order_date", "2024-02-09T17:16:48.000Z"),
+					model.NewQueryResultCol("order_date", "2024-02-09T17:16:48.000Z"),
+					model.NewQueryResultCol("taxful_total_price", 310.0),
+					model.NewQueryResultCol("order_date", "2024-02-09T17:16:48.000Z"),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1707480000000/1000/60/60/12)),
+					model.NewQueryResultCol("order_date", "2024-02-09T21:34:34.000Z"),
+					model.NewQueryResultCol("order_date", "2024-02-09T21:34:34.000Z"),
+					model.NewQueryResultCol("taxful_total_price", 393.0),
+					model.NewQueryResultCol("order_date", "2024-02-09T21:34:34.000Z"),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1707739200000/1000/60/60/12)),
+					model.NewQueryResultCol("order_date", "2024-02-12T11:38:24.000Z"),
+					model.NewQueryResultCol("order_date", "2024-02-12T11:38:24.000Z"),
+					model.NewQueryResultCol("taxful_total_price", 283.0),
+					model.NewQueryResultCol("order_date", "2024-02-12T11:38:24.000Z"),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1707782400000/1000/60/60/12)),
+					model.NewQueryResultCol("order_date", "2024-02-13T03:50:24.000Z"),
+					model.NewQueryResultCol("order_date", "2024-02-13T03:50:24.000Z"),
+					model.NewQueryResultCol("taxful_total_price", 301.0),
+					model.NewQueryResultCol("order_date", "2024-02-13T03:50:24.000Z"),
+				}},
+			},
+			{}, // NoQueryDB
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1707480000000/1000/60/60/12)),
+					model.NewQueryResultCol("doc_count", 2),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1707739200000/1000/60/60/12)),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", int64(1707782400000/1000/60/60/12)),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+			},
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(4))}}},
+		},
+		ExpectedSQLs: []string{
+			`SELECT toInt64(toUnixTimestamp64Milli("order_date") / 43200000), maxOrNull("order_date") AS "windowed_order_date", ` +
+				`maxOrNull("order_date") AS "windowed_order_date", maxOrNull("taxful_total_price") AS "windowed_taxful_total_price", ` +
+				`maxOrNull("order_date") AS "windowed_order_date" ` +
+				`FROM ` +
+				`(SELECT "order_date", "order_date", ROW_NUMBER() OVER ` +
+				`(PARTITION BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
+				`ORDER BY "order_date" ASC) ` +
+				`AS "row_number", "taxful_total_price" ` +
+				`FROM ` + testdata.QuotedTableName + " " +
+				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
+				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250')) ` +
+				`WHERE ((("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
+				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250') AND "row_number"<=10) ` +
+				`GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
+				`ORDER BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000)`,
+			`NoDBQuery`,
+			`SELECT toInt64(toUnixTimestamp64Milli("order_date") / 43200000), count() FROM ` + testdata.QuotedTableName + " " +
+				`WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') AND ` +
+				`"order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250') ` +
+				`GROUP BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000) ` +
+				`ORDER BY toInt64(toUnixTimestamp64Milli("order_date") / 43200000)`,
+			`SELECT count() FROM ` + testdata.QuotedTableName + ` WHERE (("order_date">=parseDateTime64BestEffort('2024-02-06T09:59:57.034Z') ` +
+				`AND "order_date"<=parseDateTime64BestEffort('2024-02-13T09:59:57.034Z')) AND "taxful_total_price" > '250')`,
+		},
+	},
+	{ // [8] TODO another optimization possible (date_histogram + sub metrics)
+		TestName: "Sum + filters",
+	},
 }

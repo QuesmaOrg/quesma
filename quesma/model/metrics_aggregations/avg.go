@@ -34,3 +34,7 @@ func (query Avg) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.Q
 }
 
 func (query Avg) MetricsAggregation() {}
+
+func (query Avg) ColumnsNr() int {
+	return 1
+}

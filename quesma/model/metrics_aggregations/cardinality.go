@@ -32,3 +32,7 @@ func (query Cardinality) PostprocessResults(rowsFromDB []model.QueryResultRow) [
 }
 
 func (query Cardinality) MetricsAggregation() {}
+
+func (query Cardinality) ColumnsNr() int {
+	return 1
+}

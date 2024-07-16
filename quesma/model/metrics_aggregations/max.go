@@ -34,3 +34,7 @@ func (query Max) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.Q
 }
 
 func (query Max) MetricsAggregation() {}
+
+func (query Max) ColumnsNr() int {
+	return 1
+}

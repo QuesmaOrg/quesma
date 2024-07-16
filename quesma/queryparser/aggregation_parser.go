@@ -151,7 +151,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		logger.ErrorWithCtx(b.ctx).Msg("No field names in metrics aggregation. Using empty.")
 		return nil
 	}
-
+	var selectColumnsAdded int
 	query := b.buildAggregationCommon(metadata)
 	switch metricsAggr.AggrType {
 	case "sum", "min", "max", "avg":
@@ -168,8 +168,8 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 					Args: []model.Expr{model.NewLiteral(percentAsFloat), getFirstExpression()}},
 				fmt.Sprintf("quantile_%s", usersPercent),
 			))
-
 		}
+		selectColumnsAdded = len(usersPercents)
 	case "cardinality":
 		query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewCountFunc(model.NewDistinctExpr(getFirstExpression())))
 
@@ -225,6 +225,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				query.SelectCommand.Columns = append(query.SelectCommand.Columns,
 					model.NewAliasedExpr(model.NewFunction(ordFunc, field), fmt.Sprintf("windowed_%s", fieldName)))
 			}
+			selectColumnsAdded = len(innerFields)
 
 			innerFieldsAsSelect := make([]model.Expr, len(innerFields))
 			copy(innerFieldsAsSelect, innerFields)
@@ -256,7 +257,9 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 				} else {
 					query.SelectCommand.OrderBy = append(query.SelectCommand.OrderBy, model.NewSortColumn(metricsAggr.SortBy, model.AscOrder))
 				}
-
+				selectColumnsAdded = len(metricsAggr.Fields) + 1
+			} else {
+				selectColumnsAdded = len(metricsAggr.Fields)
 			}
 		}
 	case "percentile_ranks":
@@ -332,11 +335,11 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "cardinality":
 		query.Type = metrics_aggregations.NewCardinality(b.ctx)
 	case "quantile":
-		query.Type = metrics_aggregations.NewQuantile(b.ctx, metricsAggr.Keyed, metricsAggr.FieldType)
+		query.Type = metrics_aggregations.NewQuantile(b.ctx, metricsAggr.Keyed, metricsAggr.FieldType, selectColumnsAdded)
 	case "top_hits":
 		query.Type = metrics_aggregations.NewTopHits(b.ctx)
 	case "top_metrics":
-		query.Type = metrics_aggregations.NewTopMetrics(b.ctx, metricsAggr.sortByExists())
+		query.Type = metrics_aggregations.NewTopMetrics(b.ctx, metricsAggr.sortByExists(), selectColumnsAdded)
 	case "value_count":
 		query.Type = metrics_aggregations.NewValueCount(b.ctx)
 	case "percentile_ranks":

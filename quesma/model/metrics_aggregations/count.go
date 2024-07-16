@@ -40,3 +40,7 @@ func (query Count) PostprocessResults(rowsFromDB []model.QueryResultRow) []model
 }
 
 func (query Count) MetricsAggregation() {}
+
+func (query Count) ColumnsNr() int {
+	return 1
+}

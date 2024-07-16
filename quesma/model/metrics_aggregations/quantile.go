@@ -18,10 +18,11 @@ type Quantile struct {
 	ctx       context.Context
 	keyed     bool // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-aggregation.html#_keyed_response_6
 	fieldType clickhouse.DateTimeType
+	columnsNr int
 }
 
-func NewQuantile(ctx context.Context, keyed bool, fieldType clickhouse.DateTimeType) Quantile {
-	return Quantile{ctx, keyed, fieldType}
+func NewQuantile(ctx context.Context, keyed bool, fieldType clickhouse.DateTimeType, columnsNr int) Quantile {
+	return Quantile{ctx, keyed, fieldType, columnsNr}
 }
 
 func (query Quantile) IsBucketAggregation() bool {
@@ -157,3 +158,7 @@ func (query Quantile) PostprocessResults(rowsFromDB []model.QueryResultRow) []mo
 }
 
 func (query Quantile) MetricsAggregation() {}
+
+func (query Quantile) ColumnsNr() int {
+	return query.columnsNr
+}

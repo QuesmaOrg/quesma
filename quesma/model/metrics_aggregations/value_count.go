@@ -41,3 +41,7 @@ func (query ValueCount) PostprocessResults(rowsFromDB []model.QueryResultRow) []
 }
 
 func (query ValueCount) MetricsAggregation() {}
+
+func (query ValueCount) ColumnsNr() int {
+	return 1
+}
