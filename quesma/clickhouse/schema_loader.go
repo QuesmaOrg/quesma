@@ -12,19 +12,23 @@ import (
 	"quesma/util"
 	"strings"
 	"sync/atomic"
+	"time"
 )
 
 type TableDiscovery interface {
 	ReloadTableDefinitions()
 	TableDefinitions() *TableMap
 	TableDefinitionsFetchError() error
+	LastAccessTime() time.Time
 }
 
 type tableDiscovery struct {
-	cfg               config.QuesmaConfiguration
-	SchemaManagement  *SchemaManagement
-	tableDefinitions  *atomic.Pointer[TableMap]
-	ReloadTablesError error
+	cfg                               config.QuesmaConfiguration
+	SchemaManagement                  *SchemaManagement
+	tableDefinitions                  *atomic.Pointer[TableMap]
+	tableDefinitionsAccessUnixSec     atomic.Int64
+	tableDefinitionsLastReloadUnixSec atomic.Int64
+	ReloadTablesError                 error
 }
 
 func NewTableDiscovery(cfg config.QuesmaConfiguration, schemaManagement *SchemaManagement) TableDiscovery {
@@ -72,6 +76,11 @@ func (sl *tableDiscovery) TableDefinitionsFetchError() error {
 	return sl.ReloadTablesError
 }
 
+func (sl *tableDiscovery) LastAccessTime() time.Time {
+	timeMs := sl.tableDefinitionsLastReloadUnixSec.Load()
+	return time.Unix(timeMs, 0)
+}
+
 func (sl *tableDiscovery) ReloadTableDefinitions() {
 	logger.Debug().Msg("reloading tables definitions")
 	configuredTables := make(map[string]discoveredTable)
@@ -90,6 +99,7 @@ func (sl *tableDiscovery) ReloadTableDefinitions() {
 		}
 		sl.ReloadTablesError = err
 		sl.tableDefinitions.Store(NewTableMap())
+		sl.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
 		return
 	} else {
 		for table, columns := range tables {
@@ -188,9 +198,11 @@ func (sl *tableDiscovery) populateTableDefinitions(configuredTables map[string]d
 		logger.Info().Msgf("discovered new tables: %s", discoveredTables)
 	}
 	sl.tableDefinitions.Store(tableMap)
+	sl.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
 }
 
 func (sl *tableDiscovery) TableDefinitions() *TableMap {
+	sl.tableDefinitionsAccessUnixSec.Store(time.Now().Unix())
 	return sl.tableDefinitions.Load()
 }
 
