@@ -36,12 +36,14 @@ type tableDiscovery struct {
 func NewTableDiscovery(cfg config.QuesmaConfiguration, schemaManagement *SchemaManagement) TableDiscovery {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
-	return &tableDiscovery{
+	result := &tableDiscovery{
 		cfg:              cfg,
 		SchemaManagement: schemaManagement,
 		tableDefinitions: &tableDefinitions,
 		forceReloadCh:    make(chan struct{}, 0),
 	}
+	result.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
+	return result
 }
 
 type TableDiscoveryTableProviderAdapter struct {
@@ -68,12 +70,14 @@ func (t TableDiscoveryTableProviderAdapter) TableDefinitions() map[string]schema
 func newTableDiscoveryWith(cfg config.QuesmaConfiguration, schemaManagement *SchemaManagement, tables TableMap) TableDiscovery {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(&tables)
-	return &tableDiscovery{
+	result := &tableDiscovery{
 		cfg:              cfg,
 		SchemaManagement: schemaManagement,
 		tableDefinitions: &tableDefinitions,
 		forceReloadCh:    make(chan struct{}, 0),
 	}
+	result.tableDefinitionsLastReloadUnixSec.Store(time.Now().Unix())
+	return result
 }
 
 func (sl *tableDiscovery) TableDefinitionsFetchError() error {
