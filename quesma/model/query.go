@@ -83,7 +83,7 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 	q.SelectCommand.OrderBy = make([]OrderByExpr, len(qwa.SelectCommand.OrderBy))
 	copy(q.SelectCommand.OrderBy, qwa.SelectCommand.OrderBy)
 
-	q.SelectCommand.CTEs = make([]SelectCommand, len(qwa.SelectCommand.CTEs))
+	q.SelectCommand.CTEs = make([]*SelectCommand, len(qwa.SelectCommand.CTEs))
 	copy(q.SelectCommand.CTEs, qwa.SelectCommand.CTEs)
 
 	q.Aggregators = make([]Aggregator, len(qwa.Aggregators))
@@ -125,7 +125,7 @@ func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []
 		"ROW_NUMBER", nil, groupByFields, orderByExpr,
 	), RowNumberColumnName))
 
-	return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, whereClause, []Expr{}, 0, 0, false, []SelectCommand{})
+	return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, whereClause, []Expr{}, 0, 0, false, []*SelectCommand{})
 }
 
 // Aggregator is always initialized as "empty", so with SplitOverHowManyFields == 0, Keyed == false, Filters == false.
