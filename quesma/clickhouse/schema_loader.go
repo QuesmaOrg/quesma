@@ -95,15 +95,21 @@ func (sl *tableDiscovery) ReloadTableDefinitions() {
 		sl.tableDefinitions.Store(NewTableMap())
 		return
 	} else {
-		if sl.TableAutodiscoveryEnabled() && sl.cfg.Hydrolix.IsNonEmpty() {
-			// Currently only for Hydrolix, which uses only one column as primary timestamp
-			// Ref: https://docs.hydrolix.io/docs/transforms-and-write-schema#primary-timestamp
+		if sl.TableAutodiscoveryEnabled() {
 			logger.Info().Msg("Index configuration empty, running table auto-discovery")
 			for table, columns := range tables {
 				comment := sl.SchemaManagement.tableComment(databaseName, table)
 				createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
-				if pk := sl.SchemaManagement.tablePrimaryKey(databaseName, table); pk != "" {
-					configuredTables[table] = discoveredTable{columns, config.IndexConfiguration{TimestampField: &pk}, comment, createTableQuery}
+				var maybePrimaryKey string
+				if sl.cfg.Hydrolix.IsNonEmpty() {
+					maybePrimaryKey = sl.SchemaManagement.tablePrimaryKey(databaseName, table, "hydrolix")
+				} else {
+					maybePrimaryKey = sl.SchemaManagement.tablePrimaryKey(databaseName, table, "clickhouse")
+				}
+				if maybePrimaryKey != "" {
+					configuredTables[table] = discoveredTable{columns, config.IndexConfiguration{TimestampField: &maybePrimaryKey}, comment, createTableQuery}
+				} else {
+					configuredTables[table] = discoveredTable{columns, config.IndexConfiguration{}, comment, createTableQuery}
 				}
 			}
 			logger.Info().Msgf("Table discovery results: tables=[%s]", strings.Join(util.MapKeys(configuredTables), ","))
