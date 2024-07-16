@@ -23,12 +23,14 @@ func (IndexMappingRewriter) VisitNestedProperty(e model.NestedProperty) interfac
 func (IndexMappingRewriter) VisitArrayAccess(e model.ArrayAccess) interface{}         { return e }
 func (IndexMappingRewriter) VisitOrderByExpr(e model.OrderByExpr) interface{}         { return e }
 func (IndexMappingRewriter) VisitDistinctExpr(e model.DistinctExpr) interface{}       { return e }
-func (IndexMappingRewriter) VisitTableRef(e model.TableRef) interface{}               { return e }
-func (IndexMappingRewriter) VisitAliasedExpr(e model.AliasedExpr) interface{}         { return e }
-func (IndexMappingRewriter) VisitSelectCommand(e model.SelectCommand) interface{}     { return e }
-func (IndexMappingRewriter) VisitWindowFunction(f model.WindowFunction) interface{}   { return f }
-func (IndexMappingRewriter) VisitParenExpr(e model.ParenExpr) interface{}             { return e }
-func (IndexMappingRewriter) VisitLambdaExpr(e model.LambdaExpr) interface{}           { return e }
+func (IndexMappingRewriter) VisitTableRef(e model.TableRef) interface{} {
+	return e
+}
+func (IndexMappingRewriter) VisitAliasedExpr(e model.AliasedExpr) interface{}       { return e }
+func (IndexMappingRewriter) VisitSelectCommand(e model.SelectCommand) interface{}   { return e }
+func (IndexMappingRewriter) VisitWindowFunction(f model.WindowFunction) interface{} { return f }
+func (IndexMappingRewriter) VisitParenExpr(e model.ParenExpr) interface{}           { return e }
+func (IndexMappingRewriter) VisitLambdaExpr(e model.LambdaExpr) interface{}         { return e }
 
 func NewIndexMappingRewriter(indexMappings map[string]config.IndexMappingsConfiguration) *IndexMappingRewriter {
 	rewriter := &IndexMappingRewriter{sourceToDestMapping: make(map[string]string)}
