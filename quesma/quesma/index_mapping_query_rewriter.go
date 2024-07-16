@@ -16,12 +16,13 @@ func (s *SchemaCheckPass) applyIndexMappingTransformations(query *model.Query) (
 		}
 	}
 	visitor := model.NewBaseVisitor()
-	visitor.OverrideVisitSelectCommand = func(b *model.BaseExprVisitor, e model.SelectCommand) interface{} {
-		fromClause := e.FromClause.Accept(b)
-		return model.NewSelectCommand(e.Columns, e.GroupBy, e.OrderBy,
-			fromClause.(model.Expr), e.WhereClause, e.LimitBy, e.Limit, e.SampleLimit, e.IsDistinct, e.CTEs)
-	}
+
+	// For now, we only rewrite the table refs
+	// as it seems to be sufficient for the current use case
 	visitor.OverrideVisitTableRef = func(b *model.BaseExprVisitor, e model.TableRef) interface{} {
+		if destIndex, ok := s.sourceToDestMapping[e.Name]; ok {
+			return model.NewTableRef(destIndex)
+		}
 		return model.NewTableRef(e.Name)
 	}
 	expr := query.SelectCommand.Accept(visitor)
