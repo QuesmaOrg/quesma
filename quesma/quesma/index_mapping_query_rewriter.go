@@ -5,22 +5,31 @@ package quesma
 
 import (
 	"quesma/model"
+	"quesma/quesma/config"
 )
 
-func (s *SchemaCheckPass) applyIndexMappingTransformations(query *model.Query) (*model.Query, error) {
-	s.sourceToDestMapping = make(map[string]string)
-	for _, indexMapping := range s.indexMappings {
+func makeSourceToDestMappings(indexMappings map[string]config.IndexMappingsConfiguration) map[string]string {
+	sourceToDestMapping := make(map[string]string)
+	for _, indexMapping := range indexMappings {
 		for _, sourceIndex := range indexMapping.Mappings {
 			destIndex := indexMapping.Name
-			s.sourceToDestMapping[sourceIndex] = destIndex
+			sourceToDestMapping[sourceIndex] = destIndex
 		}
 	}
+	return sourceToDestMapping
+}
+
+func (s *SchemaCheckPass) applyIndexMappingTransformations(query *model.Query) (*model.Query, error) {
+	sourceToDestMapping := makeSourceToDestMappings(s.indexMappings)
+
 	visitor := model.NewBaseVisitor()
 
 	// For now, we only rewrite the table refs
 	// as it seems to be sufficient for the current use case
+	// as there will be only one table ref in the query
+	// we don't need to worry about the other expressions
 	visitor.OverrideVisitTableRef = func(b *model.BaseExprVisitor, e model.TableRef) interface{} {
-		if destIndex, ok := s.sourceToDestMapping[e.Name]; ok {
+		if destIndex, ok := sourceToDestMapping[e.Name]; ok {
 			return model.NewTableRef(destIndex)
 		}
 		return model.NewTableRef(e.Name)

@@ -10,7 +10,7 @@ import (
 
 type IndexMappingsConfiguration struct {
 	Name     string   `koanf:"name"`
-	Mappings []string `koanf:"internalIndexes"`
+	Mappings []string `koanf:"sourceIndexes"`
 }
 
 func (imc IndexMappingsConfiguration) String() string {

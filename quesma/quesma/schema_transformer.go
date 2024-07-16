@@ -40,11 +40,10 @@ func (s *SchemaCheckPass) applyBooleanLiteralLowering(query *model.Query) (*mode
 }
 
 type SchemaCheckPass struct {
-	cfg                 map[string]config.IndexConfiguration
-	schemaRegistry      schema.Registry
-	logManager          *clickhouse.LogManager
-	indexMappings       map[string]config.IndexMappingsConfiguration
-	sourceToDestMapping map[string]string
+	cfg            map[string]config.IndexConfiguration
+	schemaRegistry schema.Registry
+	logManager     *clickhouse.LogManager
+	indexMappings  map[string]config.IndexMappingsConfiguration
 }
 
 // This functions trims the db name from the table name if exists
@@ -274,8 +273,8 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			TransformationName string
 			Transformation     func(*model.Query) (*model.Query, error)
 		}{
-			{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
 			{TransformationName: "IndexMappingQueryRewriter", Transformation: s.applyIndexMappingTransformations},
+			{TransformationName: "BooleanLiteralTransformation", Transformation: s.applyBooleanLiteralLowering},
 			{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
 			{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
 			{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
