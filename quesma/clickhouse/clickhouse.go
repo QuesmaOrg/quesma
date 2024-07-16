@@ -88,6 +88,8 @@ func (lm *LogManager) Start() {
 	lm.schemaLoader.ReloadTableDefinitions()
 
 	logger.Info().Msgf("schemas loaded: %s", lm.schemaLoader.TableDefinitions().Keys())
+	const reloadInterval = 1 * time.Minute
+	forceReloadCh := lm.schemaLoader.ForceReloadCh()
 
 	go func() {
 		recovery.LogPanic()
@@ -96,8 +98,14 @@ func (lm *LogManager) Start() {
 			case <-lm.ctx.Done():
 				logger.Debug().Msg("closing log manager")
 				return
-			case <-time.After(1 * time.Minute): // TODO make it configurable
+			case <-forceReloadCh:
 				lm.schemaLoader.ReloadTableDefinitions()
+			case <-time.After(reloadInterval):
+				// only reload if we actually use Quesma, make it double time to prevent edge case
+				// otherwise it prevent ClickHouse Cloud from idle pausing and
+				if time.Since(lm.schemaLoader.LastAccessTime()) < reloadInterval*2 {
+					lm.schemaLoader.ReloadTableDefinitions()
+				}
 			}
 		}
 	}()
