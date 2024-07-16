@@ -6,6 +6,7 @@ type (
 	Schema struct {
 		Fields              map[FieldName]Field
 		Aliases             map[FieldName]FieldName
+		ExistsInDataSource  bool
 		internalNameToField map[FieldName]Field
 	}
 	Field struct {
@@ -19,7 +20,7 @@ type (
 	FieldName string
 )
 
-func NewSchemaWithAliases(fields map[FieldName]Field, aliases map[FieldName]FieldName) Schema {
+func NewSchemaWithAliases(fields map[FieldName]Field, aliases map[FieldName]FieldName, existsInDataSource bool) Schema {
 	internalNameToField := make(map[FieldName]Field)
 	for _, field := range fields {
 		internalNameToField[field.InternalPropertyName] = field
@@ -27,12 +28,13 @@ func NewSchemaWithAliases(fields map[FieldName]Field, aliases map[FieldName]Fiel
 	return Schema{
 		Fields:              fields,
 		Aliases:             aliases,
+		ExistsInDataSource:  existsInDataSource,
 		internalNameToField: internalNameToField,
 	}
 }
 
-func NewSchema(fields map[FieldName]Field) Schema {
-	return NewSchemaWithAliases(fields, map[FieldName]FieldName{})
+func NewSchema(fields map[FieldName]Field, existsInDataSource bool) Schema {
+	return NewSchemaWithAliases(fields, map[FieldName]FieldName{}, existsInDataSource)
 }
 
 func (t FieldName) AsString() string {

@@ -331,6 +331,7 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 			Relation: "gte",
 		}
 	}
+
 	return response
 }
 
@@ -382,9 +383,11 @@ func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sam
 			nil,
 			model.NewTableRef(cw.Table.FullTableName()),
 			whereClause,
+			[]model.Expr{},
 			0,
 			sampleLimit,
 			false,
+			nil,
 		),
 		TableName: cw.Table.FullTableName(),
 		Type:      typical_queries.NewCount(cw.Ctx),
@@ -403,9 +406,11 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteQuery(fieldName string, wh
 			nil,
 			model.NewTableRef(cw.Table.FullTableName()),
 			whereClause,
+			[]model.Expr{},
 			limit,
 			0,
 			true,
+			nil,
 		),
 		TableName: cw.Table.FullTableName(),
 	}
@@ -425,9 +430,11 @@ func (cw *ClickhouseQueryTranslator) BuildAutocompleteSuggestionsQuery(fieldName
 			nil,
 			model.NewTableRef(cw.Table.FullTableName()),
 			whereClause,
+			[]model.Expr{},
 			limit,
 			0,
 			false,
+			nil,
 		),
 		TableName: cw.Table.FullTableName(),
 	}
@@ -449,9 +456,11 @@ func (cw *ClickhouseQueryTranslator) BuildFacetsQuery(fieldName string, simpleQu
 			[]model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)},
 			model.NewTableRef(cw.Table.FullTableName()),
 			simpleQuery.WhereClause,
+			[]model.Expr{},
 			0,
 			facetsSampleSize,
 			false,
+			nil,
 		),
 		TableName: cw.Table.FullTableName(),
 		Type:      typ,

@@ -126,6 +126,9 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 
 	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
 
+	// tests should not be run with optimization enabled by default
+	queryRunner.EnableQueryOptimization(config)
+
 	router := configureRouter(config, schemaRegistry, logManager, quesmaManagementConsole, phoneHomeAgent, queryRunner)
 	return &Quesma{
 		telemetryAgent:          phoneHomeAgent,

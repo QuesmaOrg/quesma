@@ -12,6 +12,7 @@ import (
 	"quesma/end_user_errors"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/optimize"
 	"quesma/plugins"
 	"quesma/plugins/registry"
 	"quesma/queryparser"
@@ -68,6 +69,10 @@ type QueryRunner struct {
 	schemaRegistry           schema.Registry
 }
 
+func (q *QueryRunner) EnableQueryOptimization(cfg config.QuesmaConfiguration) {
+	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
+}
+
 func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry) *QueryRunner {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -79,7 +84,6 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, i
 				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry, logManager: lm}, // this can be a part of another plugin
 			},
 		}, schemaRegistry: schemaRegistry}
-
 }
 
 func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id string) *AsyncQueryContext {
@@ -390,7 +394,7 @@ func (q *QueryRunner) asyncQueriesCumulatedBodySize() int {
 }
 
 func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) ([]byte, error) {
-	if !strings.Contains(id, "quesma_async_search_id_") {
+	if !strings.Contains(id, tracing.AsyncIdPrefix) {
 		logger.ErrorWithCtx(ctx).Msgf("non quesma async id: %v", id)
 		return queryparser.EmptyAsyncSearchResponse(id, false, 503)
 	}
@@ -425,7 +429,7 @@ func (q *QueryRunner) handlePartialAsyncSearch(ctx context.Context, id string) (
 }
 
 func (q *QueryRunner) deleteAsyncSeach(id string) ([]byte, error) {
-	if !strings.Contains(id, "quesma_async_search_id_") {
+	if !strings.Contains(id, tracing.AsyncIdPrefix) {
 		return nil, errors.New("invalid quesma async search id : " + id)
 	}
 	q.AsyncRequestStorage.Delete(id)
@@ -569,6 +573,13 @@ func (q *QueryRunner) searchWorkerCommon(
 		}
 
 		sql := query.SelectCommand.String()
+		//  TODO we should return what optimizations were performed
+		//  TODO translatedQueryBody should be a struct (sql, optimizations, query time, etc)
+		//
+		//if query.OptimizeHints != nil {
+		//	sql = sql + "\n-- optimizations: " + strings.Join(query.OptimizeHints.OptimizationsPerformed, ", ") + "\n"
+		//}
+
 		logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
 		translatedQueryBody[i] = []byte(sql)
 

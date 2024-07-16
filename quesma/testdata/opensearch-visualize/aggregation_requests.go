@@ -773,18 +773,28 @@ var AggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z'))`,
-			`SELECT "response", maxOrNull("timestamp") ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z')) ` +
 				`GROUP BY "response" ` +
-				`ORDER BY "response"`,
+				`ORDER BY count() DESC, "response" ` +
+				`LIMIT 3) ` +
+				`SELECT "response", maxOrNull("timestamp") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z')) ` +
+				`GROUP BY "response", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "response"`,
 			`SELECT "response", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:49:59.517Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:49:59.517Z')) ` +
 				`GROUP BY "response" ` +
-				`ORDER BY "response"`,
+				`ORDER BY count() DESC, "response" ` +
+				`LIMIT 3`,
 		},
 	},
 	{ // [5]
@@ -934,18 +944,28 @@ var AggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z'))`,
-			`SELECT "response", minOrNull("timestamp") ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z')) ` +
 				`GROUP BY "response" ` +
-				`ORDER BY "response"`,
+				`ORDER BY count() DESC, "response" ` +
+				`LIMIT 3) ` +
+				`SELECT "response", minOrNull("timestamp") ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z')) ` +
+				`GROUP BY "response", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "response"`,
 			`SELECT "response", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:00.471Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:00.471Z')) ` +
 				`GROUP BY "response" ` +
-				`ORDER BY "response"`,
+				`ORDER BY count() DESC, "response" ` +
+				`LIMIT 3`,
 		},
 	},
 	{ // [6]
@@ -1116,7 +1136,15 @@ var AggregationTests = []testdata.AggregationTestCase{
 			`SELECT count() FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))`,
-			`SELECT "response", ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
+				`GROUP BY "response" ` +
+				`ORDER BY count() DESC, "response" ` +
+				`LIMIT 3) ` +
+				`SELECT "response", ` +
 				"quantiles(0.010000)(\"timestamp\") AS \"quantile_1\", " +
 				"quantiles(0.020000)(\"timestamp\") AS \"quantile_2\", " +
 				"quantiles(0.250000)(\"timestamp\") AS \"quantile_25\", " +
@@ -1125,15 +1153,17 @@ var AggregationTests = []testdata.AggregationTestCase{
 				"quantiles(0.950000)(\"timestamp\") AS \"quantile_95\", " +
 				"quantiles(0.990000)(\"timestamp\") AS \"quantile_99\" " +
 				`FROM ` + testdata.QuotedTableName + ` ` +
+				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
-				`GROUP BY "response" ` +
-				`ORDER BY "response"`,
+				`GROUP BY "response", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "response"`,
 			`SELECT "response", count() FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
 				`GROUP BY "response" ` +
-				`ORDER BY "response"`,
+				`ORDER BY count() DESC, "response" ` +
+				`LIMIT 3`,
 		},
 	},
 	{ // [7]

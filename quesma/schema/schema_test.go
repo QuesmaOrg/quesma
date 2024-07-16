@@ -24,28 +24,28 @@ func TestSchema_ResolveField(t *testing.T) {
 		{
 			name:          "should resolve field",
 			fieldName:     "message",
-			schema:        NewSchema(map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: TypeText}}),
+			schema:        NewSchema(map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: TypeText}}, false),
 			resolvedField: Field{PropertyName: "message", InternalPropertyName: "message", Type: TypeText},
 			exists:        true,
 		},
 		{
 			name:          "should not resolve field",
 			fieldName:     "foo",
-			schema:        NewSchema(map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: TypeText}}),
+			schema:        NewSchema(map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: TypeText}}, false),
 			resolvedField: Field{},
 			exists:        false,
 		},
 		{
 			name:          "should resolve aliased field",
 			fieldName:     "message_alias",
-			schema:        NewSchemaWithAliases(map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: TypeText}}, map[FieldName]FieldName{"message_alias": "message"}),
+			schema:        NewSchemaWithAliases(map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: TypeText}}, map[FieldName]FieldName{"message_alias": "message"}, false),
 			resolvedField: Field{PropertyName: "message", InternalPropertyName: "message", Type: TypeText},
 			exists:        true,
 		},
 		{
 			name:          "should not resolve aliased field",
 			fieldName:     "message_alias",
-			schema:        NewSchemaWithAliases(map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: TypeText}}, map[FieldName]FieldName{"message_alias": "foo"}),
+			schema:        NewSchemaWithAliases(map[FieldName]Field{"message": {PropertyName: "message", InternalPropertyName: "message", Type: TypeText}}, map[FieldName]FieldName{"message_alias": "foo"}, false),
 			resolvedField: Field{},
 			exists:        false,
 		},
@@ -73,21 +73,21 @@ func TestSchema_ResolveFieldByInternalName(t *testing.T) {
 	}{
 		{
 			testName:  "empty schema",
-			schema:    NewSchemaWithAliases(map[FieldName]Field{}, map[FieldName]FieldName{}),
+			schema:    NewSchemaWithAliases(map[FieldName]Field{}, map[FieldName]FieldName{}, false),
 			fieldName: "message",
 			want:      Field{},
 			found:     false,
 		},
 		{
 			testName:  "schema with fields with internal separators, lookup by property name",
-			schema:    NewSchema(map[FieldName]Field{"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo::bar", Type: TypeText}}),
+			schema:    NewSchema(map[FieldName]Field{"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo::bar", Type: TypeText}}, false),
 			fieldName: "foo.bar",
 			want:      Field{},
 			found:     false,
 		},
 		{
 			testName:  "schema with fields with internal separators, lookup by internal name",
-			schema:    NewSchema(map[FieldName]Field{"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo::bar", Type: TypeText}}),
+			schema:    NewSchema(map[FieldName]Field{"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo::bar", Type: TypeText}}, false),
 			fieldName: "foo::bar",
 			want:      Field{PropertyName: "foo.bar", InternalPropertyName: "foo::bar", Type: TypeText},
 			found:     true,
@@ -95,7 +95,7 @@ func TestSchema_ResolveFieldByInternalName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			s := NewSchemaWithAliases(tt.schema.Fields, tt.schema.Aliases)
+			s := NewSchemaWithAliases(tt.schema.Fields, tt.schema.Aliases, false)
 			got, found := s.ResolveFieldByInternalName(tt.fieldName)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ResolveFieldByInternalName() got = %v, want %v", got, tt.want)

@@ -42,9 +42,9 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 		aliases := make(map[FieldName]FieldName)
 
 		s.populateSchemaFromStaticConfiguration(indexConfiguration, fields)
-		s.populateSchemaFromTableDefinition(definitions, indexName, fields)
+		existsInDataSource := s.populateSchemaFromTableDefinition(definitions, indexName, fields)
 		s.populateAliases(indexConfiguration, fields, aliases)
-		schemas[TableName(indexName)] = NewSchemaWithAliases(fields, aliases)
+		schemas[TableName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource)
 	}
 
 	return schemas, nil
@@ -136,8 +136,9 @@ func (s *schemaRegistry) populateAliases(indexConfiguration config.IndexConfigur
 	}
 }
 
-func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[string]Table, indexName string, fields map[FieldName]Field) {
-	if tableDefinition, found := definitions[indexName]; found {
+func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[string]Table, indexName string, fields map[FieldName]Field) (existsInDataSource bool) {
+	tableDefinition, found := definitions[indexName]
+	if found {
 		logger.Debug().Msgf("loading schema for table %s", indexName)
 
 		for _, column := range tableDefinition.Columns {
@@ -154,4 +155,5 @@ func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[strin
 			}
 		}
 	}
+	return found
 }

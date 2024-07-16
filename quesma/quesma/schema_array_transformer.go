@@ -102,6 +102,5 @@ func NewArrayTypeVisitor(resolver arrayTypeResolver) model.ExprVisitor {
 		args := b.VisitChildren(e.Args)
 		return model.NewFunction(e.Name, args...)
 	}
-
 	return visitor
 }
