@@ -116,7 +116,7 @@ func (v *BaseExprVisitor) VisitOrderByExpr(e OrderByExpr) interface{} {
 	if v.OverrideVisitOrderByExpr != nil {
 		return v.OverrideVisitOrderByExpr(v, e)
 	}
-	return OrderByExpr{Exprs: v.VisitChildren(e.Exprs), Direction: e.Direction}
+	return OrderByExpr{Exprs: v.VisitChildren(e.Exprs), Direction: e.Direction, ExchangeToAliasInCTE: e.ExchangeToAliasInCTE}
 }
 
 func (v *BaseExprVisitor) VisitDistinctExpr(e DistinctExpr) interface{} {

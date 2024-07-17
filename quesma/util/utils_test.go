@@ -601,6 +601,64 @@ func TestMergeMaps(t *testing.T) {
 				},
 			},
 		},
+		{
+			JsonMap{
+				"3": JsonMap{
+					"buckets": []JsonMap{
+						{
+							"1": JsonMap{
+								"value": 1490283747.600059,
+							},
+							"Quesma_key_JR*#@(DF*GAsFfS!/LI": "live",
+						},
+						{
+							"1": JsonMap{
+								"value": 780292625.671037,
+							},
+							"Quesma_key_JR*#@(DF*GAsFfS!/LI": "vod",
+						},
+					},
+				},
+			},
+			JsonMap{
+				"3": JsonMap{
+					"buckets": []JsonMap{
+						{
+							"Quesma_key_JR*#@(DF*GAsFfS!/LI": "live",
+							"key":                            "live",
+							"doc_count":                      5,
+						},
+						{
+							"Quesma_key_JR*#@(DF*GAsFfS!/LI": "vod",
+							"key":                            "vod",
+							"doc_count":                      3,
+						},
+					},
+				},
+			},
+			JsonMap{
+				"3": JsonMap{
+					"buckets": []JsonMap{
+						{
+							"1": JsonMap{
+								"value": 1490283747.600059,
+							},
+							"Quesma_key_JR*#@(DF*GAsFfS!/LI": "live",
+							"key":                            "live",
+							"doc_count":                      5,
+						},
+						{
+							"1": JsonMap{
+								"value": 780292625.671037,
+							},
+							"Quesma_key_JR*#@(DF*GAsFfS!/LI": "vod",
+							"key":                            "vod",
+							"doc_count":                      3,
+						},
+					},
+				},
+			},
+		},
 	}
 	for i, tt := range cases {
 		t.Run("TestMergeMaps_"+strconv.Itoa(i), func(t *testing.T) {

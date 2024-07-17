@@ -70,6 +70,7 @@ const tableName = `logs-generic-default`
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.GetRequestId())
 
 func TestAsyncSearchHandler(t *testing.T) {
+	// logger.InitSimpleLoggerForTests()
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
 	table := concurrent.NewMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,

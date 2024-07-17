@@ -2890,10 +2890,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			`SELECT "clientip", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z') ` +
+				`WHERE (("timestamp"<=parseDateTime64BestEffort('2024-05-11T22:40:13.606Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-05-11T07:40:13.606Z')) ` +
+				`AND "clientip" IS NOT NULL) ` +
 				`GROUP BY "clientip" ` +
-				`ORDER BY count() DESC, "clientip" ` +
+				`ORDER BY "clientip" DESC ` +
 				`LIMIT 5`,
 		},
 	},
@@ -3090,18 +3091,21 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`WITH cte_1 AS ` +
 				`(SELECT "clientip" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "clientip" IS NOT NULL ` +
 				`GROUP BY "clientip" ` +
-				`ORDER BY count() DESC, "clientip" ` +
+				`ORDER BY "clientip" DESC ` +
 				`LIMIT 5) ` +
 				`SELECT "clientip", count(DISTINCT "geo.coordinates") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "clientip" = "cte_1_1" ` +
+				`WHERE "clientip" IS NOT NULL ` +
 				`GROUP BY "clientip", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "clientip"`,
+				`ORDER BY "clientip" DESC`,
 			`SELECT "clientip", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "clientip" IS NOT NULL ` +
 				`GROUP BY "clientip" ` +
-				`ORDER BY count() DESC, "clientip" ` +
+				`ORDER BY "clientip" DESC ` +
 				`LIMIT 5`,
 		},
 	},
@@ -3334,18 +3338,21 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`WITH cte_1 AS ` +
 				`(SELECT floor("bytes"/200.000000)*200.000000 AS "cte_1_1", "clientip" AS "cte_1_2", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "clientip" IS NOT NULL ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000, "clientip" ` +
-				`ORDER BY count() DESC, "clientip" ` +
+				`ORDER BY floor("bytes"/200.000000)*200.000000, "clientip" DESC ` +
 				`LIMIT 2 BY floor("bytes"/200.000000)*200.000000) ` +
 				`SELECT floor("bytes"/200.000000)*200.000000, "clientip", sumOrNull("bytes") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON floor("bytes"/200.000000)*200.000000 = "cte_1_1" AND "clientip" = "cte_1_2" ` +
+				`WHERE "clientip" IS NOT NULL ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000, "clientip", cte_1_cnt ` +
-				`ORDER BY floor("bytes"/200.000000)*200.000000, cte_1_cnt DESC, "clientip"`,
+				`ORDER BY floor("bytes"/200.000000)*200.000000, "clientip" DESC`,
 			`SELECT floor("bytes"/200.000000)*200.000000, "clientip", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "clientip" IS NOT NULL ` +
 				`GROUP BY floor("bytes"/200.000000)*200.000000, "clientip" ` +
-				`ORDER BY floor("bytes"/200.000000)*200.000000, count() DESC, "clientip" ` +
+				`ORDER BY floor("bytes"/200.000000)*200.000000, "clientip" DESC ` +
 				`LIMIT 2 BY floor("bytes"/200.000000)*200.000000`,
 			`SELECT floor("bytes"/200.000000)*200.000000, count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
@@ -3481,10 +3488,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			`SELECT "Cancelled", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z') ` +
+				`WHERE (("timestamp"<=parseDateTime64BestEffort('2024-05-12T21:56:51.264Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T21:56:51.264Z')) ` +
+				`AND "Cancelled" IS NOT NULL) ` +
 				`GROUP BY "Cancelled" ` +
-				`ORDER BY count() DESC, "Cancelled" ` +
+				`ORDER BY "Cancelled" DESC ` +
 				`LIMIT 5`,
 		},
 	},
@@ -4489,10 +4497,11 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`NoDBQuery`,
 			`SELECT "extension", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
-				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
+				`WHERE (("timestamp"<=parseDateTime64BestEffort('2024-05-12T22:16:26.906Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-04-27T22:16:26.906Z')) ` +
+				`AND "extension" IS NOT NULL) ` +
 				`GROUP BY "extension" ` +
-				`ORDER BY count() DESC, "extension" ` +
+				`ORDER BY "extension" DESC ` +
 				`LIMIT 5`,
 		},
 	},
@@ -4658,16 +4667,19 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			`WITH cte_1 AS ` +
 				`(SELECT "extension" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "extension" IS NOT NULL ` +
 				`GROUP BY "extension" ` +
 				`ORDER BY count() DESC, "extension" ` +
 				`LIMIT 5) ` +
 				`SELECT "extension", avgOrNull("machine.ram") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "extension" = "cte_1_1" ` +
+				`WHERE "extension" IS NOT NULL ` +
 				`GROUP BY "extension", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "extension"`,
 			`SELECT "extension", count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
+				`WHERE "extension" IS NOT NULL ` +
 				`GROUP BY "extension" ` +
 				`ORDER BY count() DESC, "extension" ` +
 				`LIMIT 5`,

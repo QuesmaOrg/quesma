@@ -375,6 +375,34 @@ func (cw *ClickhouseQueryTranslator) postprocessPipelineAggregations(queries []*
 	}
 }
 
+/* This would be used in optimizer-2 by Krzysiek. Remove this [August 2024]+ if still not used.
+func (cw *ClickhouseQueryTranslator) combineQueries(queries []*model.Query) {
+	// TODO SET IS_PIPELINE = TRUE FOR PIPELINES!
+	for _, query := range queries {
+		if !query.NoDBQuery || query.IsPipeline {
+			continue
+		}
+
+		fmt.Println("NoDBQuery", query)
+		parentIndex := -1
+		for i, parentCandidate := range queries {
+			if len(parentCandidate.Aggregators) == len(query.Aggregators)+1 && parentCandidate.Name() == query.Parent {
+				parentIndex = i
+				break
+			}
+		}
+		if parentIndex == -1 {
+			logger.WarnWithCtx(cw.Ctx).Msgf("parent index not found for query %v", query)
+			continue
+		}
+		fmt.Println("parentIdx:", parentIndex)
+		parentQuery := queries[parentIndex]
+		parentQuery.SelectCommand.OrderBy = append(parentQuery.SelectCommand.OrderBy,
+			model.OrderByExpr{Exprs: parentQuery.SelectCommand.Columns[len(parentQuery.SelectCommand.Columns)-1:], Direction: model.DescOrder})
+	}
+}
+*/
+
 func (cw *ClickhouseQueryTranslator) BuildCountQuery(whereClause model.Expr, sampleLimit int) *model.Query {
 	return &model.Query{
 		SelectCommand: *model.NewSelectCommand(

@@ -345,7 +345,10 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 			return mergedArray
 
 		default:
-			logger.WarnWithCtx(ctx).Msgf("mergeAny: i1 isn't neither JsonMap nor []JsonMap, i1 type: %T, i2 type: %T, i1: %v, i2: %v", i1, i2, i1, i2)
+			if i1 != i2 {
+				logger.WarnWithCtx(ctx).Msgf(
+					"mergeAny: i1 isn't neither JsonMap nor []JsonMap, i1 type: %T, i2 type: %T, i1: %v, i2: %v", i1, i2, i1, i2)
+			}
 			return i1
 		}
 	}
@@ -406,6 +409,14 @@ func AssertSqlEqual(t *testing.T, expected, actual string) {
 		fmt.Printf("%s\n", SqlPrettyPrint([]byte(expected)))
 		pp.Println("---- Actual:")
 		fmt.Printf("%s\n", SqlPrettyPrint([]byte(actual)))
+		for i, c := range actual {
+			if c != rune(expected[i]) {
+				const printLen = 100
+				pp.Printf("-- First diff: ")
+				fmt.Println(actual[i:min(i+printLen, len(actual))])
+				break
+			}
+		}
 		t.Errorf("Expected: %s, got: %s", expected, actual)
 	}
 }

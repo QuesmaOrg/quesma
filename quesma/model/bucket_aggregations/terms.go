@@ -11,10 +11,11 @@ import (
 type Terms struct {
 	ctx         context.Context
 	significant bool // true <=> significant_terms, false <=> terms
+	OrderByExpr model.Expr
 }
 
-func NewTerms(ctx context.Context, significant bool) Terms {
-	return Terms{ctx: ctx, significant: significant}
+func NewTerms(ctx context.Context, significant bool, orderByExpr model.Expr) Terms {
+	return Terms{ctx: ctx, significant: significant, OrderByExpr: orderByExpr}
 }
 
 func (query Terms) IsBucketAggregation() bool {

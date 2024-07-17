@@ -216,6 +216,7 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 		} else {
 			sb.WriteString(AsString(c.FromClause))
 		}
+
 		if len(c.CTEs) > 0 {
 			for cteIdx, cte := range c.CTEs {
 				sb.WriteString(" INNER JOIN ")
@@ -254,7 +255,7 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	orderBy := make([]string, 0, len(c.OrderBy))
 	orderByReplaced, orderByToReplace := 0, len(c.CTEs)
 	for _, col := range c.OrderBy {
-		if col.IsCountDesc() && orderByReplaced < orderByToReplace {
+		if col.ExchangeToAliasInCTE && orderByReplaced < orderByToReplace {
 			orderBy = append(orderBy, fmt.Sprintf("%s DESC", cteCountAlias(orderByReplaced)))
 			orderByReplaced++
 		} else {
