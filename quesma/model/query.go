@@ -17,11 +17,16 @@ type QueryOptimizeHints struct {
 	OptimizationsPerformed []string
 }
 
+type TransformationHistory struct {
+	SchemaTransformers []string
+}
+
 type (
 	Query struct {
 		SelectCommand SelectCommand // The representation of SELECT query
 
-		OptimizeHints *QueryOptimizeHints // it can be optional
+		OptimizeHints         *QueryOptimizeHints   // it can be optional
+		TransformationHistory TransformationHistory // it can be optional
 
 		Type      QueryType
 		TableName string

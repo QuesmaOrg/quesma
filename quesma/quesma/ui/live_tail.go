@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"quesma/buildinfo"
 	"quesma/quesma/config"
+	"quesma/quesma/types"
 	"quesma/quesma/ui/internal/builder"
 	"quesma/util"
 	"strings"
@@ -249,7 +250,9 @@ func (qmc *QuesmaManagementConsole) populateQueries(debugKeyValueSlice []queryDe
 		buffer.Html(`<pre Id="second_query`).Text(v.id).Html(`">`)
 		for _, q := range v.query.QueryBodyTranslated {
 			buffer.Text(util.SqlPrettyPrint(q.Query))
-			buffer.Text(fmt.Sprintf("\n-- optimization: %s\n", strings.Join(q.AppliedOptimizations, ", ")))
+			buffer.Text("\n")
+			printPerformanceResult(&buffer, q)
+			buffer.Text("\n")
 		}
 		buffer.Html("\n</pre>")
 		if withLinks {
@@ -294,4 +297,18 @@ func errorBanner(debugInfo queryDebugInfo) string {
 		result += fmt.Sprintf(` <span class="debug-warn-log">%d warnings</span>`, debugInfo.warnLogCount)
 	}
 	return result
+}
+
+func printPerformanceResult(buffer *builder.HtmlBuffer, q types.TranslatedSQLQuery) {
+	buffer.Text(fmt.Sprintf("\n-- time: %s\n", q.Duration))
+	if len(q.ExplainPlan) > 0 {
+		buffer.Text(fmt.Sprintf("--  Slow query has been detected. Check logs for explain plan.\n"))
+	}
+	if len(q.QueryTransformations) > 0 {
+		buffer.Text(fmt.Sprintf("-- transformations: %s\n", strings.Join(q.QueryTransformations, ", ")))
+	}
+	if len(q.PerformedOptimizations) > 0 {
+		buffer.Text(fmt.Sprintf("-- optimization: %s\n", strings.Join(q.PerformedOptimizations, ", ")))
+	}
+
 }

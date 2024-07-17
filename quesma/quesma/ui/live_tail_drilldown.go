@@ -68,6 +68,8 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 			}
 			buffer.Html(`<pre>`)
 			buffer.Text(prettyQueryBody)
+			buffer.Text("\n")
+			printPerformanceResult(&buffer, queryBody)
 			buffer.Html("\n</pre>")
 			if qmc.cfg.ClickHouse.AdminUrl != nil {
 				buffer.Html(`</a>`)

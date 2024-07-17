@@ -40,13 +40,18 @@ func (lm *LogManager) GetAllColumns(table *Table, query *model.Query) []string {
 	return columns
 }
 
+type PerformanceResult struct {
+	Duration    time.Duration
+	ExplainPlan string
+}
+
 // ProcessQuery - only WHERE clause
 // TODO query param should be type safe Query representing all parts of
 // sql statement that were already parsed and not string from which
 // we have to extract again different parts like where clause and columns to build a proper result
-func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *model.Query) ([]model.QueryResultRow, error) {
+func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *model.Query) (rows []model.QueryResultRow, performanceResult PerformanceResult, err error) {
 	if query.NoDBQuery {
-		return make([]model.QueryResultRow, 0), nil
+		return make([]model.QueryResultRow, 0), performanceResult, nil
 	}
 
 	table.applyTableSchema(query)
@@ -72,14 +77,14 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 
 	}
 
-	rows, err := executeQuery(ctx, lm, query, columns, rowToScan)
+	rows, performanceResult, err = executeQuery(ctx, lm, query, columns, rowToScan)
 
 	if err == nil {
 		for _, row := range rows {
 			row.Index = table.Name
 		}
 	}
-	return rows, err
+	return rows, performanceResult, err
 }
 
 var random = rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -91,7 +96,7 @@ func (lm *LogManager) shouldExplainQuery(elapsed time.Duration) bool {
 	return elapsed > slowQueryThreshold && random.Float64() < slowQuerySampleRate
 }
 
-func (lm *LogManager) explainQuery(ctx context.Context, query string, elapsed time.Duration) {
+func (lm *LogManager) explainQuery(ctx context.Context, query string, elapsed time.Duration) string {
 
 	explainQuery := "EXPLAIN json=1, indexes=1 " + query
 
@@ -99,14 +104,14 @@ func (lm *LogManager) explainQuery(ctx context.Context, query string, elapsed ti
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("failed to explain slow query: %v", err)
 	}
+	var explain string
 
 	defer rows.Close()
 	if rows.Next() {
-		var explain string
 		err := rows.Scan(&explain)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("failed to scan slow query explain: %v", err)
-			return
+			return ""
 		}
 
 		// reformat the explain output to make it one line and more readable
@@ -119,9 +124,10 @@ func (lm *LogManager) explainQuery(ctx context.Context, query string, elapsed ti
 	if rows.Err() != nil {
 		logger.ErrorWithCtx(ctx).Msgf("failed to read slow query explain: %v", rows.Err())
 	}
+	return explain
 }
 
-func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, fields []string, rowToScan []interface{}) ([]model.QueryResultRow, error) {
+func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, fields []string, rowToScan []interface{}) (res []model.QueryResultRow, performanceResult PerformanceResult, err error) {
 	span := lm.phoneHomeAgent.ClickHouseQueryDuration().Begin()
 
 	queryAsString := query.SelectCommand.String()
@@ -148,18 +154,19 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 	rows, err := lm.Query(ctx, queryAsString)
 	if err != nil {
 		span.End(err)
-		return nil, end_user_errors.GuessClickhouseErrorType(err).InternalDetails("clickhouse: query failed. err: %v, query: %v", err, queryAsString)
+		return nil, performanceResult, end_user_errors.GuessClickhouseErrorType(err).InternalDetails("clickhouse: query failed. err: %v, query: %v", err, queryAsString)
 	}
 
-	res, err := read(rows, fields, rowToScan)
+	res, err = read(rows, fields, rowToScan)
 	elapsed := span.End(nil)
+	performanceResult.Duration = elapsed
 	if err == nil {
 		if lm.shouldExplainQuery(elapsed) {
-			lm.explainQuery(ctx, queryAsString, elapsed)
+			performanceResult.ExplainPlan = lm.explainQuery(ctx, queryAsString, elapsed)
 		}
 	}
 
-	return res, err
+	return res, performanceResult, err
 }
 
 // 'selectFields' are all values that we return from the query, both columns and non-schema fields,
