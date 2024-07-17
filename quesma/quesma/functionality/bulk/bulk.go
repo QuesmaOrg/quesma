@@ -22,6 +22,17 @@ type (
 	}
 )
 
+func makeSourceToDestMappings(indexMappings map[string]config.IndexMappingsConfiguration) map[string]string {
+	sourceToDestMapping := make(map[string]string)
+	for _, indexMapping := range indexMappings {
+		for _, sourceIndex := range indexMapping.Mappings {
+			destIndex := indexMapping.Name
+			sourceToDestMapping[sourceIndex] = destIndex
+		}
+	}
+	return sourceToDestMapping
+}
+
 func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *clickhouse.LogManager,
 	cfg config.QuesmaConfiguration, phoneHomeAgent telemetry.PhoneHomeAgent) (results []WriteResult) {
 	defer recovery.LogPanic()
@@ -87,6 +98,11 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *cli
 		config.RunConfigured(ctx, cfg, indexName, make(types.JSON), func() error {
 			for _, document := range documents {
 				stats.GlobalStatistics.Process(cfg, indexName, document, clickhouse.NestedSeparator)
+			}
+			// if the index is mapped to specified database table in the configuration, use that table
+			sourceToDestinations := makeSourceToDestMappings(cfg.IndexSourceToInternalMappings)
+			if destIndex, ok := sourceToDestinations[indexName]; ok {
+				return lm.ProcessInsertQuery(ctx, destIndex, documents)
 			}
 			return lm.ProcessInsertQuery(ctx, indexName, documents)
 		})
