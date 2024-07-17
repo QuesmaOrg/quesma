@@ -12,11 +12,13 @@ type (
 	Registry interface {
 		AllSchemas() map[TableName]Schema
 		FindSchema(name TableName) (Schema, bool)
+		UpdateDynamicConfiguration(name TableName, table Table)
 	}
 	schemaRegistry struct {
 		configuration           config.QuesmaConfiguration
 		dataSourceTableProvider TableProvider
 		dataSourceTypeAdapter   typeAdapter
+		dynamicConfiguration    map[string]Table
 	}
 	typeAdapter interface {
 		Convert(string) (Type, bool)
@@ -29,7 +31,7 @@ type (
 	}
 	Column struct {
 		Name string
-		Type string
+		Type string // FIXME: change to schema.Type
 	}
 )
 
@@ -41,6 +43,7 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 		fields := make(map[FieldName]Field)
 		aliases := make(map[FieldName]FieldName)
 
+		s.populateSchemaFromDynamicConfiguration(indexName, fields)
 		s.populateSchemaFromStaticConfiguration(indexConfiguration, fields)
 		existsInDataSource := s.populateSchemaFromTableDefinition(definitions, indexName, fields)
 		s.populateAliases(indexConfiguration, fields, aliases)
@@ -48,6 +51,25 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 	}
 
 	return schemas, nil
+}
+
+func (s *schemaRegistry) populateSchemaFromDynamicConfiguration(indexName string, fields map[FieldName]Field) {
+	if d, found := s.dynamicConfiguration[indexName]; found {
+		for _, column := range d.Columns {
+			columnType, success := ParseQuesmaType(column.Type)
+			if !success {
+				logger.Warn().Msgf("Invalid dynamic configuration: type %s (of field %s in index %s) not supported. Skipping the field.", column.Type, column.Name, indexName)
+				continue
+			}
+
+			// TODO replace with notion of ephemeral types (see other identical TODOs)
+			if columnType.Equal(TypePoint) {
+				fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(strings.Replace(column.Name, ".", "::", -1)), Type: columnType}
+			} else {
+				fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(column.Name), Type: columnType}
+			}
+		}
+	}
 }
 
 func deprecatedConfigInUse(indexConfig config.IndexConfiguration) bool {
@@ -73,20 +95,25 @@ func (s *schemaRegistry) FindSchema(name TableName) (Schema, bool) {
 	}
 }
 
+func (s *schemaRegistry) UpdateDynamicConfiguration(name TableName, table Table) {
+	s.dynamicConfiguration[name.AsString()] = table
+}
+
 func NewSchemaRegistry(tableProvider TableProvider, configuration config.QuesmaConfiguration, dataSourceTypeAdapter typeAdapter) Registry {
 	return &schemaRegistry{
 		configuration:           configuration,
 		dataSourceTableProvider: tableProvider,
 		dataSourceTypeAdapter:   dataSourceTypeAdapter,
+		dynamicConfiguration:    make(map[string]Table),
 	}
 }
 
 func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguration config.IndexConfiguration, fields map[FieldName]Field) {
 	if deprecatedConfigInUse(indexConfiguration) {
 		for fieldName, fieldType := range indexConfiguration.TypeMappings {
-			if resolvedType, valid := ParseType(fieldType); valid {
+			if resolvedType, valid := ParseQuesmaType(fieldType); valid {
 				if resolvedType.Equal(TypePoint) {
-					// TODO replace with notion of ephemeral types
+					// TODO replace with notion of ephemeral types (see other identical TODOs)
 					fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(strings.Replace(fieldName, ".", "::", -1)), Type: resolvedType}
 				} else {
 					fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(fieldName), Type: resolvedType}
@@ -100,8 +127,8 @@ func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguratio
 			if field.Type.AsString() == config.TypeAlias {
 				continue
 			}
-			if resolvedType, valid := ParseType(field.Type.AsString()); valid {
-				// TODO replace with notion of ephemeral types
+			if resolvedType, valid := ParseQuesmaType(field.Type.AsString()); valid {
+				// TODO replace with notion of ephemeral types (see other identical TODOs)
 				if resolvedType.Equal(TypePoint) {
 					fields[FieldName(field.Name.AsString())] = Field{PropertyName: FieldName(field.Name.AsString()), InternalPropertyName: FieldName(strings.Replace(field.Name.AsString(), ".", "::", -1)), Type: resolvedType}
 				} else {

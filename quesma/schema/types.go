@@ -56,31 +56,31 @@ func (t Type) String() string {
 	return t.Name
 }
 
-func ParseType(t string) (Type, bool) {
+func ParseQuesmaType(t string) (Type, bool) {
 	switch t {
-	case "text":
+	case TypeText.Name:
 		return TypeText, true
-	case "keyword":
+	case TypeKeyword.Name:
 		return TypeKeyword, true
-	case "long":
+	case TypeLong.Name:
 		return TypeLong, true
-	case "timestamp":
+	case TypeTimestamp.Name:
 		return TypeTimestamp, true
-	case "date":
+	case TypeDate.Name:
 		return TypeDate, true
-	case "float":
+	case TypeFloat.Name:
 		return TypeFloat, true
-	case "bool":
+	case TypeBoolean.Name, "bool":
 		return TypeBoolean, true
-	case "json":
+	case TypeObject.Name, "json":
 		return TypeObject, true
-	case "array":
+	case TypeArray.Name:
 		return TypeArray, true
-	case "map":
+	case TypeMap.Name:
 		return TypeMap, true
-	case "ip":
+	case TypeIp.Name:
 		return TypeIp, true
-	case "point", "geo_point":
+	case TypePoint.Name, "geo_point":
 		return TypePoint, true
 	default:
 		return TypeUnknown, false
