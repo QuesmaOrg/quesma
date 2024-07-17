@@ -37,14 +37,15 @@ type QuesmaConfiguration struct {
 	//deprecated
 	ClickHouse RelationalDbConfiguration `koanf:"clickhouse"`
 	//deprecated
-	Hydrolix                   RelationalDbConfiguration     `koanf:"hydrolix"`
-	Elasticsearch              ElasticsearchConfiguration    `koanf:"elasticsearch"`
-	IndexConfig                map[string]IndexConfiguration `koanf:"indexes"`
-	Logging                    LoggingConfiguration          `koanf:"logging"`
-	PublicTcpPort              network.Port                  `koanf:"port"`
-	IngestStatistics           bool                          `koanf:"ingestStatistics"`
-	QuesmaInternalTelemetryUrl *Url                          `koanf:"internalTelemetryUrl"`
-	EnabledOptimizers          OptimizersConfiguration       `koanf:"optimizers"`
+	Hydrolix                      RelationalDbConfiguration             `koanf:"hydrolix"`
+	Elasticsearch                 ElasticsearchConfiguration            `koanf:"elasticsearch"`
+	IndexConfig                   map[string]IndexConfiguration         `koanf:"indexes"`
+	Logging                       LoggingConfiguration                  `koanf:"logging"`
+	PublicTcpPort                 network.Port                          `koanf:"port"`
+	IngestStatistics              bool                                  `koanf:"ingestStatistics"`
+	QuesmaInternalTelemetryUrl    *Url                                  `koanf:"internalTelemetryUrl"`
+	EnabledOptimizers             OptimizersConfiguration               `koanf:"optimizers"`
+	IndexSourceToInternalMappings map[string]IndexMappingsConfiguration `koanf:"indexMappings"`
 }
 
 type LoggingConfiguration struct {
@@ -128,6 +129,10 @@ func Load() QuesmaConfiguration {
 				idxConfig.SchemaConfiguration.Fields[fieldName] = configuration
 			}
 		}
+	}
+	for name, idxMapping := range config.IndexSourceToInternalMappings {
+		idxMapping.Name = name
+		config.IndexSourceToInternalMappings[name] = idxMapping
 	}
 	return config
 }
@@ -318,6 +323,10 @@ func (c *QuesmaConfiguration) String() string {
 	if c.QuesmaInternalTelemetryUrl != nil {
 		quesmaInternalTelemetryUrl = c.QuesmaInternalTelemetryUrl.String()
 	}
+	var indexMappings string
+	for _, idx := range c.IndexSourceToInternalMappings {
+		indexMappings += idx.String()
+	}
 	return fmt.Sprintf(`
 Quesma Configuration:
 	Mode: %s
@@ -326,6 +335,7 @@ Quesma Configuration:
 	Connectors: %s
 	Call Elasticsearch: %v
 	Indexes: %s
+	IndexMappings: %s
 	Logs Path: %s
 	Log Level: %v
 	Public TCP Port: %d
@@ -340,6 +350,7 @@ Quesma Configuration:
 		connectorString.String(),
 		c.Elasticsearch.Call,
 		indexConfigs,
+		indexMappings,
 		c.Logging.Path,
 		c.Logging.Level,
 		c.PublicTcpPort,
