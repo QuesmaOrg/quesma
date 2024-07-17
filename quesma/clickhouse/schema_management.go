@@ -12,6 +12,19 @@ type SchemaManagement struct {
 	chDb *sql.DB
 }
 
+//enum for dbKind
+
+type DbKind int
+
+const (
+	ClickHouse DbKind = iota //"clickhouse"
+	Hydrolix                 // = "hydrolix"
+)
+
+func (d DbKind) String() string {
+	return [...]string{"clickhouse", "hydrolix"}[d]
+}
+
 func NewSchemaManagement(chDb *sql.DB) *SchemaManagement {
 	return &SchemaManagement{chDb: chDb}
 }
@@ -40,9 +53,38 @@ func (s *SchemaManagement) readTables(database string) (map[string]map[string]st
 	return columnsPerTable, nil
 }
 
+func (s *SchemaManagement) tableTimestampField(database, table string, dbKind DbKind) (primaryKey string) {
+	switch dbKind {
+	case Hydrolix:
+		return s.getTimestampFieldForHydrolix(database, table)
+	case ClickHouse:
+		return s.getTimestampFieldForClickHouse(database, table)
+	}
+	return
+}
+
+func (s *SchemaManagement) getTimestampFieldForHydrolix(database, table string) (timestampField string) {
+	// In Hydrolix, there's always only one column in a table set as a primary timestamp
+	// Ref: https://docs.hydrolix.io/docs/transforms-and-write-schema#primary-timestamp
+	if err := s.chDb.QueryRow("SELECT primary_key FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&timestampField); err != nil {
+		logger.Debug().Msgf("failed fetching primary key for table %s: %v", table, err)
+	}
+	return timestampField
+}
+
+func (s *SchemaManagement) getTimestampFieldForClickHouse(database, table string) (timestampField string) {
+	// In ClickHouse, there's no concept of a primary timestamp field, primary keys are often composite,
+	// hence we have to use following heuristic to determine the timestamp field (also just picking the first column if there are multiple)
+	if err := s.chDb.QueryRow("SELECT name FROM system.columns WHERE database = ? AND table = ? AND is_in_primary_key = 1 AND type iLIKE 'DateTime%'", database, table).Scan(&timestampField); err != nil {
+		logger.Debug().Msgf("failed fetching primary key for table %s: %v", table, err)
+		return
+	}
+	return timestampField
+}
+
 func (s *SchemaManagement) tableComment(database, table string) (comment string) {
 
-	err := s.chDb.QueryRow("SELECT comment FROM system.tables WHERE database = ? and table = ? ", database, table).Scan(&comment)
+	err := s.chDb.QueryRow("SELECT comment FROM system.tables WHERE database = ? and table = ?", database, table).Scan(&comment)
 
 	if err != nil {
 		logger.Error().Msgf("could not get table comment: %v", err)
