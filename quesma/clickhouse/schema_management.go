@@ -12,6 +12,19 @@ type SchemaManagement struct {
 	chDb *sql.DB
 }
 
+//enum for dbKind
+
+type DbKind int
+
+const (
+	ClickHouse DbKind = iota //"clickhouse"
+	Hydrolix                 // = "hydrolix"
+)
+
+func (d DbKind) String() string {
+	return [...]string{"clickhouse", "hydrolix"}[d]
+}
+
 func NewSchemaManagement(chDb *sql.DB) *SchemaManagement {
 	return &SchemaManagement{chDb: chDb}
 }
@@ -40,15 +53,14 @@ func (s *SchemaManagement) readTables(database string) (map[string]map[string]st
 	return columnsPerTable, nil
 }
 
-func (s *SchemaManagement) tableTimestampField(database, table, dbKind string) (primaryKey string) {
+func (s *SchemaManagement) tableTimestampField(database, table string, dbKind DbKind) (primaryKey string) {
 	switch dbKind {
-	case "hydrolix":
+	case Hydrolix:
 		return s.getTimestampFieldForHydrolix(database, table)
-	case "clickhouse":
+	case ClickHouse:
 		return s.getTimestampFieldForClickHouse(database, table)
-	default:
-		return ""
 	}
+	return
 }
 
 func (s *SchemaManagement) getTimestampFieldForHydrolix(database, table string) (timestampField string) {

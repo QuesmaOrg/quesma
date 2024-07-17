@@ -146,9 +146,9 @@ func (sl *tableDiscovery) autoConfigureTables(tables map[string]map[string]strin
 		createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
 		var maybeTimestampField string
 		if sl.cfg.Hydrolix.IsNonEmpty() {
-			maybeTimestampField = sl.SchemaManagement.tableTimestampField(databaseName, table, "hydrolix")
+			maybeTimestampField = sl.SchemaManagement.tableTimestampField(databaseName, table, Hydrolix)
 		} else {
-			maybeTimestampField = sl.SchemaManagement.tableTimestampField(databaseName, table, "clickhouse")
+			maybeTimestampField = sl.SchemaManagement.tableTimestampField(databaseName, table, ClickHouse)
 		}
 		if maybeTimestampField != "" {
 			configuredTables[table] = discoveredTable{columns, config.IndexConfiguration{TimestampField: &maybeTimestampField}, comment, createTableQuery}
