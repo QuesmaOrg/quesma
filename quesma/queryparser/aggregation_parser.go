@@ -804,10 +804,10 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 						}
 					}
 				} else {
-					logger.WarnWithCtx(cw.Ctx).Msgf("order has more than 1 key, but %d. Order: %+v. Using default", len(order), order)
+					logger.ErrorWithCtx(cw.Ctx).Msgf("order has more than 1 key, but %d. Order: %+v. Using default", len(order), order)
 				}
 			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("order is not a map, but %T, value: %v. Using default order", orderRaw, orderRaw)
+				logger.ErrorWithCtx(cw.Ctx).Msgf("order is not a map, but %T, value: %v. Using default order", orderRaw, orderRaw)
 			}
 		}
 
@@ -817,7 +817,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, fieldExpression)
 		currentAggr.SelectCommand.LimitBy = append(currentAggr.SelectCommand.LimitBy, fieldExpression)
 		currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, fullOrderBy...)
-		if missingPlaceholder == nil {
+		if missingPlaceholder == nil { // TODO replace with schema
 			currentAggr.whereBuilder = model.CombineWheres(cw.Ctx, currentAggr.whereBuilder,
 				model.NewSimpleQuery(model.NewInfixExpr(fieldExpression, "IS", model.NewLiteral("NOT NULL")), true))
 		}
