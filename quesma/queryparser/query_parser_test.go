@@ -4,6 +4,7 @@ package queryparser
 
 import (
 	"context"
+	"fmt"
 	"quesma/clickhouse"
 	"quesma/concurrent"
 	"quesma/model"
@@ -13,6 +14,7 @@ import (
 	"quesma/schema"
 	"quesma/telemetry"
 	"quesma/testdata"
+	"quesma/util"
 	"strconv"
 	"testing"
 
@@ -68,24 +70,21 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: table, Ctx: context.Background(), SchemaRegistry: s}
 
 	for i, tt := range testdata.TestsSearch {
-		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
 			queries, canParse, errQuery := cw.ParseQuery(body)
 			assert.True(t, canParse, "can parse")
 			assert.NoError(t, errQuery, "no ParseQuery error")
 			assert.True(t, len(queries) > 0, "len queries > 0")
-			whereClause := model.AsString(queries[0].SelectCommand.WhereClause)
-
-			assert.Contains(t, tt.WantedSql, whereClause, "contains wanted sql")
 			var simpleListQuery *model.Query
 			for _, query := range queries {
 				if _, hasHits := query.Type.(*typical_queries.Hits); hasHits && query.SelectCommand.IsWildcard() {
 					simpleListQuery = query
 				}
 			}
-			for _, wantedSQL := range tt.WantedSql {
-				assert.Contains(t, whereClause, wantedSQL, "query contains wanted sql")
+			for _, query := range queries {
+				util.AssertContainsSqlEqual(t, tt.WantedSql, model.AsString(query.SelectCommand.WhereClause))
 			}
 			if simpleListQuery != nil {
 				assert.Equal(t, model.NewTableRef(strconv.Quote(testdata.TableName)), simpleListQuery.SelectCommand.FromClause)

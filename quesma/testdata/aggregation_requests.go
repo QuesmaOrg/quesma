@@ -330,40 +330,44 @@ var AggregationTests = []AggregationTestCase{
 			`WITH cte_1 AS ` +
 				`(SELECT "OriginCityName" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
+				`AND "OriginCityName" IS NOT NULL) ` +
 				`GROUP BY "OriginCityName" ` +
-				`ORDER BY count() DESC, "OriginCityName" ` +
+				`ORDER BY "OriginCityName" ASC ` +
 				`LIMIT 1000) ` +
 				`SELECT "OriginCityName", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "OriginCityName" = "cte_1_1" ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`WHERE ((("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
-				`AND "FlightDelay"==true) ` +
+				`AND "OriginCityName" IS NOT NULL) AND "FlightDelay"==true) ` +
 				`GROUP BY "OriginCityName", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "OriginCityName"`,
+				`ORDER BY "OriginCityName" ASC`,
 			`WITH cte_1 AS ` +
 				`(SELECT "OriginCityName" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
+				`AND "OriginCityName" IS NOT NULL) ` +
 				`GROUP BY "OriginCityName" ` +
-				`ORDER BY count() DESC, "OriginCityName" ` +
+				`ORDER BY "OriginCityName" ASC ` +
 				`LIMIT 1000) ` +
 				`SELECT "OriginCityName", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "OriginCityName" = "cte_1_1" ` +
-				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`WHERE ((("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
+				`AND "OriginCityName" IS NOT NULL) ` +
 				`AND "Cancelled"==true) ` +
 				`GROUP BY "OriginCityName", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "OriginCityName"`,
+				`ORDER BY "OriginCityName" ASC`,
 			`SELECT "OriginCityName", count() FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
+				`AND "OriginCityName" IS NOT NULL) ` +
 				`GROUP BY "OriginCityName" ` +
-				`ORDER BY count() DESC, "OriginCityName" ` +
+				`ORDER BY "OriginCityName" ASC ` +
 				`LIMIT 1000`,
 		},
 	},
@@ -560,21 +564,24 @@ var AggregationTests = []AggregationTestCase{
 			`WITH cte_1 AS ` +
 				`(SELECT "FlightDelayType" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND ` +
 				`"timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
+				`AND "FlightDelayType" IS NOT NULL) ` +
 				`GROUP BY "FlightDelayType" ` +
 				`ORDER BY count() DESC, "FlightDelayType" ` +
 				`LIMIT 10) ` +
 				`SELECT "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000), count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "FlightDelayType" = "cte_1_1" ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') AND ` +
 				`"timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
+				`AND "FlightDelayType" IS NOT NULL) ` +
 				`GROUP BY "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000), cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000)`,
 			`SELECT "FlightDelayType", count() FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
+				`AND "FlightDelayType" IS NOT NULL) ` +
 				`GROUP BY "FlightDelayType" ` +
 				`ORDER BY count() DESC, "FlightDelayType" ` +
 				`LIMIT 10`,
@@ -796,8 +803,9 @@ var AggregationTests = []AggregationTestCase{
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
 			`SELECT "OriginCityName", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
+				`AND "OriginCityName" IS NOT NULL) ` +
 				`GROUP BY "OriginCityName" ` +
 				`ORDER BY count() DESC, "OriginCityName" ` +
 				`LIMIT 10`,
@@ -1747,23 +1755,26 @@ var AggregationTests = []AggregationTestCase{
 			`WITH cte_1 AS ` +
 				`(SELECT "severity" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("host.name" iLIKE '%prometheus%' AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') ` +
+				`WHERE (("host.name" iLIKE '%prometheus%' AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))) ` +
+				`AND "severity" IS NOT NULL) ` +
 				`GROUP BY "severity" ` +
 				`ORDER BY count() DESC, "severity" ` +
 				`LIMIT 3) ` +
 				`SELECT "severity", toInt64(toUnixTimestamp64Milli("@timestamp") / 10800000), count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "severity" = "cte_1_1" ` +
-				`WHERE ("host.name" iLIKE '%prometheus%' AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') ` +
+				`WHERE (("host.name" iLIKE '%prometheus%' AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))) ` +
+				`AND "severity" IS NOT NULL) ` +
 				`GROUP BY "severity", toInt64(toUnixTimestamp64Milli("@timestamp") / 10800000), cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "severity", toInt64(toUnixTimestamp64Milli("@timestamp") / 10800000)`,
 			`SELECT "severity", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("host.name" iLIKE '%prometheus%' ` +
+				`WHERE (("host.name" iLIKE '%prometheus%' ` +
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-02-02T16:36:49.940Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-02-09T16:36:49.940Z'))) ` +
+				`AND "severity" IS NOT NULL) ` +
 				`GROUP BY "severity" ` +
 				`ORDER BY count() DESC, "severity" ` +
 				`LIMIT 3`,
@@ -2827,8 +2838,9 @@ var AggregationTests = []AggregationTestCase{
 				`LIMIT 5`,
 			`SELECT "message", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z') ` +
+				`WHERE (("timestamp"<=parseDateTime64BestEffort('2024-02-21T04:01:14.920Z') ` +
 				`AND "timestamp">=parseDateTime64BestEffort('2024-02-20T19:13:33.795Z')) ` +
+				`AND "message" IS NOT NULL) ` +
 				`GROUP BY "message" ` +
 				`ORDER BY count() DESC, "message" ` +
 				`LIMIT 3`,
@@ -4185,6 +4197,7 @@ var AggregationTests = []AggregationTestCase{
 				`FROM ` + QuotedTableName,
 			`SELECT "message", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "message" IS NOT NULL ` +
 				`GROUP BY "message" ` +
 				`ORDER BY count() DESC, "message" ` +
 				`LIMIT 4`,
@@ -4918,36 +4931,39 @@ var AggregationTests = []AggregationTestCase{
 			`WITH cte_1 AS ` +
 				`(SELECT "OriginCityName" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "OriginCityName" IS NOT NULL ` +
 				`GROUP BY "OriginCityName" ` +
-				`ORDER BY count() DESC, "OriginCityName" ` +
+				`ORDER BY "OriginCityName" ASC ` +
 				`LIMIT 1000) ` +
 				`SELECT "OriginCityName", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "OriginCityName" = "cte_1_1" ` +
-				`WHERE "FlightDelay"==true ` +
+				`WHERE ("OriginCityName" IS NOT NULL AND "FlightDelay"==true) ` +
 				`GROUP BY "OriginCityName", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "OriginCityName"`,
+				`ORDER BY "OriginCityName" ASC`,
 			`WITH cte_1 AS ` +
 				`(SELECT "OriginCityName" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "OriginCityName" IS NOT NULL ` +
 				`GROUP BY "OriginCityName" ` +
-				`ORDER BY count() DESC, "OriginCityName" ` +
+				`ORDER BY "OriginCityName" ASC ` +
 				`LIMIT 1000) ` +
 				`SELECT "OriginCityName", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "OriginCityName" = "cte_1_1" ` +
-				`WHERE "Cancelled"==true ` +
+				`WHERE ("OriginCityName" IS NOT NULL AND "Cancelled"==true) ` +
 				`GROUP BY "OriginCityName", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "OriginCityName"`,
+				`ORDER BY "OriginCityName" ASC`,
 			`SELECT "OriginCityName", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "OriginCityName" IS NOT NULL ` +
 				`GROUP BY "OriginCityName" ` +
-				`ORDER BY count() DESC, "OriginCityName" ` +
+				`ORDER BY "OriginCityName" ASC ` +
 				`LIMIT 1000`,
 		},
 	},
 	{ // [29]
-		TestName: "Terms, completely different tree results from 2 queries - merging them didn't work before (logs)",
+		TestName: "Terms, completely different tree results from 2 queries - merging them didn't work before (logs) TODO add results",
 		QueryRequestJson: `
 		{
 			"_source": {
@@ -5122,66 +5138,77 @@ var AggregationTests = []AggregationTestCase{
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T21:15:26.167Z')) ` +
 				`LIMIT 10000)`,
 			`WITH cte_1 AS ` +
-				`(SELECT "geo.src" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`(SELECT "geo.src" AS "cte_1_1", sumOrNull("memory") AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z') ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T21:15:26.167Z')) ` +
+				`AND "geo.src" IS NOT NULL) ` +
 				`GROUP BY "geo.src" ` +
-				`ORDER BY count() DESC, "geo.src" ` +
+				`ORDER BY sumOrNull("memory") DESC, "geo.src" ` +
 				`LIMIT 5) ` +
 				`SELECT "geo.src", sumOrNull("memory") ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "geo.src" = "cte_1_1" ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z') ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T21:15:26.167Z')) ` +
+				`AND "geo.src" IS NOT NULL) ` +
 				`GROUP BY "geo.src", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "geo.src"`,
 			`WITH cte_1 AS ` +
-				`(SELECT "geo.src" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`(SELECT "geo.src" AS "cte_1_1", sumOrNull("memory") AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z') ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T21:15:26.167Z')) ` +
+				`AND "geo.src" IS NOT NULL) ` +
 				`GROUP BY "geo.src" ` +
-				`ORDER BY count() DESC, "geo.src" ` +
+				`ORDER BY sumOrNull("memory") DESC, "geo.src" ` +
 				`LIMIT 5), ` +
 				`cte_2 AS ` +
-				`(SELECT "geo.src" AS "cte_2_1", "machine.os" AS "cte_2_2", count() AS "cte_2_cnt" ` +
+				`(SELECT "geo.src" AS "cte_2_1", "machine.os" AS "cte_2_2", sumOrNull("memory") AS "cte_2_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z') ` +
+				`WHERE ((("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T21:15:26.167Z')) ` +
+				`AND "geo.src" IS NOT NULL) ` +
+				`AND "machine.os" IS NOT NULL) ` +
 				`GROUP BY "geo.src", "machine.os" ` +
-				`ORDER BY count() DESC, "machine.os" ` +
+				`ORDER BY sumOrNull("memory") DESC, "machine.os" ` +
 				`LIMIT 5 BY "geo.src") ` +
 				`SELECT "geo.src", "machine.os", sumOrNull("memory") ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "geo.src" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "geo.src" = "cte_2_1" AND "machine.os" = "cte_2_2" ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z') ` +
+				`WHERE ((("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T21:15:26.167Z')) ` +
+				`AND "geo.src" IS NOT NULL) ` +
+				`AND "machine.os" IS NOT NULL) ` +
 				`GROUP BY "geo.src", "machine.os", cte_1_cnt, cte_2_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "geo.src", cte_2_cnt DESC, "machine.os"`,
 			`WITH cte_1 AS ` +
-				`(SELECT "geo.src" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`(SELECT "geo.src" AS "cte_1_1", sumOrNull("memory") AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z') ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T21:15:26.167Z')) ` +
+				`AND "geo.src" IS NOT NULL) ` +
 				`GROUP BY "geo.src" ` +
-				`ORDER BY count() DESC, "geo.src" ` +
+				`ORDER BY sumOrNull("memory") DESC, "geo.src" ` +
 				`LIMIT 5) ` +
 				`SELECT "geo.src", "machine.os", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "geo.src" = "cte_1_1" ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z') ` +
+				`WHERE ((("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T21:15:26.167Z')) ` +
+				`AND "geo.src" IS NOT NULL) ` +
+				`AND "machine.os" IS NOT NULL) ` +
 				`GROUP BY "geo.src", "machine.os", cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "geo.src", count() DESC, "machine.os" ` +
+				`ORDER BY cte_1_cnt DESC, "geo.src", sumOrNull("memory") DESC, "machine.os" ` +
 				`LIMIT 5 BY "geo.src"`,
 			`SELECT "geo.src", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z') ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-05-10T06:15:26.167Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T21:15:26.167Z')) ` +
+				`AND "geo.src" IS NOT NULL) ` +
 				`GROUP BY "geo.src" ` +
-				`ORDER BY count() DESC, "geo.src" ` +
+				`ORDER BY sumOrNull("memory") DESC, "geo.src" ` +
 				`LIMIT 5`,
 		},
 	},
@@ -5966,20 +5993,24 @@ var AggregationTests = []AggregationTestCase{
 			`WITH cte_1 AS ` +
 				`(SELECT "host.name" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE (("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY count() DESC, "host.name" ` +
 				`LIMIT 10) ` +
 				`SELECT "host.name", "message", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "host.name" = "cte_1_1" ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE ((("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
+				`AND "message" IS NOT NULL) ` +
 				`GROUP BY "host.name", "message", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "host.name", count() DESC, "message" ` +
 				`LIMIT 3 BY "host.name"`,
 			`SELECT "host.name", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE (("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY count() DESC, "host.name" ` +
 				`LIMIT 10`,
@@ -6076,14 +6107,17 @@ var AggregationTests = []AggregationTestCase{
 			`WITH cte_1 AS ` +
 				`(SELECT "host.name" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE (("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY count() DESC, "host.name" ` +
 				`LIMIT 10), ` +
 				`cte_2 AS ` +
 				`(SELECT "host.name" AS "cte_2_1", "message" AS "cte_2_2", count() AS "cte_2_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE ((("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
+				`AND "message" IS NOT NULL) ` +
 				`GROUP BY "host.name", "message" ` +
 				`ORDER BY count() DESC, "message" ` +
 				`LIMIT 3 BY "host.name") ` +
@@ -6091,27 +6125,34 @@ var AggregationTests = []AggregationTestCase{
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "host.name" = "cte_1_1" ` +
 				`INNER JOIN "cte_2" ON "host.name" = "cte_2_1" AND "message" = "cte_2_2" ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE (((("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
+				`AND "message" IS NOT NULL) ` +
+				`AND "message" IS NOT NULL) ` +
 				`GROUP BY "host.name", "message", "message", cte_1_cnt, cte_2_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "host.name", cte_2_cnt DESC, "message", count() DESC, "message" ` +
 				`LIMIT 3 BY "host.name", "message"`,
 			`WITH cte_1 AS ` +
 				`(SELECT "host.name" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE (("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY count() DESC, "host.name" ` +
 				`LIMIT 10) ` +
 				`SELECT "host.name", "message", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "host.name" = "cte_1_1" ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE ((("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
+				`AND "message" IS NOT NULL) ` +
 				`GROUP BY "host.name", "message", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "host.name", count() DESC, "message" ` +
 				`LIMIT 3 BY "host.name"`,
 			`SELECT "host.name", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE (("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY count() DESC, "host.name" ` +
 				`LIMIT 10`,
@@ -6196,19 +6237,22 @@ var AggregationTests = []AggregationTestCase{
 			`WITH cte_1 AS ` +
 				`(SELECT "host.name" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE (("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY count() DESC, "host.name" ` +
 				`LIMIT 8) ` +
 				`SELECT "host.name", "FlightDelayMin", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "host.name" = "cte_1_1" ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE (("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
 				`GROUP BY "host.name", "FlightDelayMin", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "host.name", "FlightDelayMin"`,
 			`SELECT "host.name", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE (("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY count() DESC, "host.name" ` +
 				`LIMIT 8`,
@@ -6309,19 +6353,22 @@ var AggregationTests = []AggregationTestCase{
 			`WITH cte_1 AS ` +
 				`(SELECT "host.name" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE (("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY count() DESC, "host.name" ` +
 				`LIMIT 10) ` +
 				`SELECT "host.name", "FlightDelayMin", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "host.name" = "cte_1_1" ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE (("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
 				`GROUP BY "host.name", "FlightDelayMin", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "host.name", "FlightDelayMin"`,
 			`SELECT "host.name", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE (("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY count() DESC, "host.name" ` +
 				`LIMIT 10`,
@@ -6409,19 +6456,22 @@ var AggregationTests = []AggregationTestCase{
 			`WITH cte_1 AS ` +
 				`(SELECT "host.name" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE (("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY count() DESC, "host.name" ` +
 				`LIMIT 10) ` +
 				`SELECT "host.name", "FlightDelayMin", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "host.name" = "cte_1_1" ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE (("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
 				`GROUP BY "host.name", "FlightDelayMin", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "host.name", "FlightDelayMin"`,
 			`SELECT "host.name", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`WHERE (("message" IS NOT NULL AND NOT ("message" iLIKE '%US%')) ` +
+				`AND "host.name" IS NOT NULL) ` +
 				`GROUP BY "host.name" ` +
 				`ORDER BY count() DESC, "host.name" ` +
 				`LIMIT 10`,
@@ -6640,23 +6690,26 @@ var AggregationTests = []AggregationTestCase{
 				`WHERE NOT ((("abc">=0 AND "abc"<600) OR "type" iLIKE '%def%')) ` +
 				`LIMIT 10000)`,
 			`WITH cte_1 AS ` +
-				`(SELECT "name" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`(SELECT "name" AS "cte_1_1", sumOrNull("total") AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE NOT ((("abc">=0 AND "abc"<600) OR "type" iLIKE '%def%')) ` +
+				`WHERE (NOT ((("abc">=0 AND "abc"<600) OR "type" iLIKE '%def%')) ` +
+				`AND "name" IS NOT NULL) ` +
 				`GROUP BY "name" ` +
-				`ORDER BY count() DESC, "name" ` +
+				`ORDER BY sumOrNull("total") DESC, "name" ` +
 				`LIMIT 10) ` +
 				`SELECT "name", sumOrNull("total") ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "name" = "cte_1_1" ` +
-				`WHERE NOT ((("abc">=0 AND "abc"<600) OR "type" iLIKE '%def%')) ` +
+				`WHERE (NOT ((("abc">=0 AND "abc"<600) OR "type" iLIKE '%def%')) ` +
+				`AND "name" IS NOT NULL) ` +
 				`GROUP BY "name", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "name"`,
 			`SELECT "name", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE NOT ((("abc">=0 AND "abc"<600) OR "type" iLIKE '%def%')) ` +
+				`WHERE (NOT ((("abc">=0 AND "abc"<600) OR "type" iLIKE '%def%')) ` +
+				`AND "name" IS NOT NULL) ` +
 				`GROUP BY "name" ` +
-				`ORDER BY count() DESC, "name" ` +
+				`ORDER BY sumOrNull("total") DESC, "name" ` +
 				`LIMIT 10`,
 		},
 	},
@@ -6721,17 +6774,20 @@ var AggregationTests = []AggregationTestCase{
 			`WITH cte_1 AS ` +
 				`(SELECT "OriginAirportID" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "OriginAirportID" IS NOT NULL ` +
 				`GROUP BY "OriginAirportID" ` +
 				`ORDER BY count() DESC, "OriginAirportID" ` +
 				`LIMIT 10) ` +
 				`SELECT "OriginAirportID", "DestAirportID", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`INNER JOIN "cte_1" ON "OriginAirportID" = "cte_1_1" ` +
+				`WHERE ("OriginAirportID" IS NOT NULL AND "DestAirportID" IS NOT NULL) ` +
 				`GROUP BY "OriginAirportID", "DestAirportID", cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "OriginAirportID", count() DESC, "DestAirportID" ` +
 				`LIMIT 3 BY "OriginAirportID"`,
 			`SELECT "OriginAirportID", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "OriginAirportID" IS NOT NULL ` +
 				`GROUP BY "OriginAirportID" ` +
 				`ORDER BY count() DESC, "OriginAirportID" ` +
 				`LIMIT 10`,

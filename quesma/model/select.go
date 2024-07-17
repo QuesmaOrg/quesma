@@ -21,8 +21,7 @@ type SelectCommand struct {
 func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, where Expr, limitBy []Expr,
 	limit, sampleLimit int, isDistinct bool, CTEs []*SelectCommand) *SelectCommand {
 	return &SelectCommand{
-		IsDistinct: isDistinct,
-
+		IsDistinct:  isDistinct,
 		Columns:     columns,
 		GroupBy:     groupBy,
 		OrderBy:     orderBy,
