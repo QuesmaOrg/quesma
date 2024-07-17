@@ -304,10 +304,17 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 // If there are no aggregations, returns nil.
 func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*model.Query, error) {
 	queryAsMap := body.Clone()
+
 	currentAggr := aggrQueryBuilder{}
 	currentAggr.SelectCommand.FromClause = model.NewTableRef(cw.Table.FullTableName())
 	currentAggr.TableName = cw.Table.FullTableName()
 	currentAggr.ctx = cw.Ctx
+
+	FULL := aggrQueryBuilder{}
+	FULL.SelectCommand.FromClause = model.NewTableRef(cw.Table.FullTableName())
+	FULL.TableName = cw.Table.FullTableName()
+	FULL.ctx = cw.Ctx
+
 	if queryPartRaw, ok := queryAsMap["query"]; ok {
 		if queryPart, ok := queryPartRaw.(QueryMap); ok {
 			currentAggr.whereBuilder = cw.parseQueryMap(queryPart)
@@ -320,7 +327,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 
 	if aggsRaw, ok := queryAsMap["aggs"]; ok {
 		if aggs, okType := aggsRaw.(QueryMap); okType {
-			err := cw.parseAggregationNames(&currentAggr, aggs, &aggregations)
+			err := cw.parseAggregationNames(&currentAggr, &FULL, aggs, &aggregations)
 			if err != nil {
 				return nil, err
 			}
@@ -329,6 +336,8 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 		}
 	}
 
+	fmt.Println("last:", FULL)
+	fmt.Println("last:", model.AsStringNew(FULL.SelectCommand))
 	return aggregations, nil
 }
 
@@ -348,12 +357,12 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 // On 1, 3, ... level of nesting we have names of aggregations, which can be any arbitrary strings.
 // This function is called on those 1, 3, ... levels, and parses and saves those aggregation names.
 
-func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQueryBuilder, aggs QueryMap, resultQueries *[]*model.Query) (err error) {
+func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr, FULL *aggrQueryBuilder, aggs QueryMap, resultQueries *[]*model.Query) (err error) {
 	for aggrName, aggrDict := range aggs {
 		aggregators := currentAggr.Aggregators
 		currentAggr.Aggregators = append(aggregators, model.NewAggregator(aggrName))
 		if subAggregation, ok := aggrDict.(QueryMap); ok {
-			err = cw.parseAggregation(currentAggr, subAggregation, resultQueries)
+			err = cw.parseAggregation(currentAggr, FULL, subAggregation, resultQueries)
 			if err != nil {
 				return err
 			}
@@ -385,12 +394,16 @@ func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr *aggrQuer
 // Notice that on 0, 2, ..., level of nesting we have "aggs" key or aggregation type.
 // On 1, 3, ... level of nesting we have names of aggregations, which can be any arbitrary strings.
 // This function is called on those 0, 2, ... levels, and parses the actual aggregations.
-func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder, queryMap QueryMap, resultQueries *[]*model.Query) error {
+func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder, FULL *aggrQueryBuilder, queryMap QueryMap, resultQueries *[]*model.Query) error {
 	if len(queryMap) == 0 {
 		return nil
 	}
 
 	currentAggr := *prevAggr
+	fmt.Println("currentAggr:")
+	fmt.Println(model.AsStringNew(currentAggr.SelectCommand))
+	fmt.Println("prevAggr:")
+	fmt.Println(model.AsStringNew(prevAggr.SelectCommand))
 	currentAggr.SelectCommand.Limit = 0
 
 	// check if metadata's present
@@ -408,6 +421,9 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 		if metricAggr != nil {
 			*resultQueries = append(*resultQueries, metricAggr)
 		}
+		cw.newLogicAddMetricAggregation(FULL, metricAggr, len(*resultQueries))
+		//fmt.Println("hmm added?:")
+		//fmt.Println(model.AsStringNew(FULL.SelectCommand))
 		return nil
 	}
 
@@ -431,7 +447,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 	}
 
 	// 4. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
-	bucketAggrPresent, groupByFieldsAdded, err := cw.tryBucketAggregation(&currentAggr, queryMap)
+	bucketAggrPresent, groupByFieldsAdded, err := cw.tryBucketAggregation(&currentAggr, FULL, queryMap)
 	if err != nil {
 		return err
 	}
@@ -446,7 +462,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 	// process "range" with subaggregations
 	Range, isRange := currentAggr.Type.(bucket_aggregations.Range)
 	if isRange {
-		cw.processRangeAggregation(&currentAggr, Range, queryMap, resultQueries, metadata)
+		cw.processRangeAggregation(&currentAggr, FULL, Range, queryMap, resultQueries, metadata)
 	}
 
 	terms, isTerms := currentAggr.Type.(bucket_aggregations.Terms)
@@ -463,6 +479,8 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 			cte.SelectCommand.OrderBy = cte.SelectCommand.OrderBy[len(cte.SelectCommand.OrderBy)-2:]
 		}
 		currentAggr.SelectCommand.CTEs = append(currentAggr.SelectCommand.CTEs, &cte.SelectCommand)
+	} else {
+		fmt.Println("---------------------------_", model.AsStringNew(FULL.Query.SelectCommand))
 	}
 
 	// TODO what happens if there's all: filters, range, and subaggregations at current level?
@@ -472,12 +490,12 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 
 	filters, isFilters := currentAggr.Type.(bucket_aggregations.Filters)
 	if isFilters {
-		cw.processFiltersAggregation(&currentAggr, filters, queryMap, resultQueries)
+		cw.processFiltersAggregation(&currentAggr, FULL, filters, queryMap, resultQueries)
 	}
 
 	aggsHandledSeparately := isRange || isFilters
 	if aggs, ok := queryMap["aggs"]; ok && !aggsHandledSeparately {
-		err = cw.parseAggregationNames(&currentAggr, aggs.(QueryMap), resultQueries)
+		err = cw.parseAggregationNames(&currentAggr, FULL, aggs.(QueryMap), resultQueries)
 		if err != nil {
 			return err
 		}
@@ -645,7 +663,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 // Returns:
 // * 'success': was it bucket aggreggation?
 // * 'nonSchemaFieldAdded': did we add a non-schema field to 'currentAggr', if it turned out to be bucket aggregation? If we did, we need to know, to remove it later.
-func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQueryBuilder, queryMap QueryMap) (
+func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr, FULL *aggrQueryBuilder, queryMap QueryMap) (
 	success bool, groupByFieldsAdded int, err error) {
 
 	success = true // returned in most cases
@@ -816,6 +834,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr *aggrQuery
 		currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, fieldExpression)
 		currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, fieldExpression)
 		currentAggr.SelectCommand.LimitBy = append(currentAggr.SelectCommand.LimitBy, fieldExpression)
+		cw.newLogicAddTermsAggregation(FULL, fieldExpression)
 		currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, fullOrderBy...)
 		if missingPlaceholder == nil {
 			currentAggr.whereBuilder = model.CombineWheres(cw.Ctx, currentAggr.whereBuilder,
@@ -1159,4 +1178,20 @@ func quoteArray(array []string) []string {
 		quotedArray = append(quotedArray, strconv.Quote(el))
 	}
 	return quotedArray
+}
+
+func (cw *ClickhouseQueryTranslator) newLogicAddTermsAggregation(aggrBuilder *aggrQueryBuilder, selectExpr model.Expr) {
+	aggrBuilder.AddColumnNew(selectExpr)
+	aggrBuilder.AddGroupByNew(selectExpr)
+}
+
+func (cw *ClickhouseQueryTranslator) newLogicAddMetricAggregation(aggrBuilder *aggrQueryBuilder, metricAggr *model.Query, an int) {
+	cn := len(metricAggr.SelectCommand.Columns)
+	lastCol := metricAggr.SelectCommand.Columns[cn-1]
+	fmt.Println("=== metricAggr:\n", metricAggr, model.AsString(lastCol))
+
+	partitionBy := aggrBuilder.SelectCommand.GetNewGroupBy()
+	windowExpr := model.NewWindowFunction(model.AsStringNew(lastCol), []model.Expr{}, partitionBy, model.OrderByExpr{})
+	fmt.Println("=== adding windowExpr:\n", model.AsString(windowExpr))
+	aggrBuilder.AddColumnNew(model.NewAliasedExpr(windowExpr, fmt.Sprintf("metric_%d", an)))
 }

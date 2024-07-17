@@ -16,6 +16,11 @@ type SelectCommand struct {
 	SampleLimit int    // LIMIT, but before grouping, 0 means no limit
 
 	CTEs []*SelectCommand // Common Table Expressions, so these parts of query: WITH cte_1 AS SELECT ..., cte_2 AS SELECT ...
+
+	newCTE         *SelectCommand // new CTE to be added to the query
+	newColumns     []Expr         // new columns to be added to the query
+	newGroupBy     []Expr
+	newGroupBySize []int
 }
 
 func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, where Expr, limitBy []Expr,
@@ -65,4 +70,8 @@ func (c *SelectCommand) OrderByFieldNames() (fieldNames []string) {
 		}
 	}
 	return fieldNames
+}
+
+func (c *SelectCommand) GetNewGroupBy() []Expr {
+	return c.newGroupBy
 }

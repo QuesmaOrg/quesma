@@ -88,6 +88,29 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 
 	q.Aggregators = make([]Aggregator, len(qwa.Aggregators))
 	copy(q.Aggregators, qwa.Aggregators)
+
+	// new
+	q.SelectCommand.newColumns = make([]Expr, len(qwa.SelectCommand.newColumns))
+	copy(q.SelectCommand.newColumns, qwa.SelectCommand.newColumns)
+
+	q.SelectCommand.GroupBy = make([]Expr, len(qwa.SelectCommand.GroupBy))
+	copy(q.SelectCommand.GroupBy, qwa.SelectCommand.GroupBy)
+}
+
+func (q *Query) AddColumn(column Expr) {
+	q.SelectCommand.Columns = append(q.SelectCommand.Columns, column)
+}
+
+func (q *Query) AddColumnNew(column Expr) {
+	q.SelectCommand.newColumns = append(q.SelectCommand.newColumns, column)
+}
+
+func (q *Query) AddGroupBy(column Expr) {
+	q.SelectCommand.GroupBy = append(q.SelectCommand.GroupBy, column)
+}
+
+func (q *Query) AddGroupByNew(column Expr) {
+	q.SelectCommand.newGroupBy = append(q.SelectCommand.newGroupBy, column)
 }
 
 // Name returns the name of this aggregation (specifically, the last aggregator)

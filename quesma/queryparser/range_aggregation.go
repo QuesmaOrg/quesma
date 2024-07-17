@@ -54,7 +54,7 @@ func (cw *ClickhouseQueryTranslator) parseRangeAggregation(rangePart QueryMap) b
 	return bucket_aggregations.NewRangeWithDefaultKeyed(cw.Ctx, field, intervals)
 }
 
-func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQueryBuilder, Range bucket_aggregations.Range,
+func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr, FULL *aggrQueryBuilder, Range bucket_aggregations.Range,
 	queryCurrentLevel QueryMap, aggregationsAccumulator *[]*model.Query, metadata JsonMap) {
 
 	// build this aggregation
@@ -93,7 +93,7 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 		aggsCopy, err := deepcopy.Anything(aggs)
 		if err == nil {
 			currentAggr.Type = model.NewUnknownAggregationType(cw.Ctx)
-			cw.parseAggregationNames(currentAggr, aggsCopy.(QueryMap), aggregationsAccumulator)
+			cw.parseAggregationNames(currentAggr, FULL, aggsCopy.(QueryMap), aggregationsAccumulator)
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("deepcopy 'aggs' map error: %v. Skipping current range's interval: %v, aggs: %v", err, interval, aggs)
 		}

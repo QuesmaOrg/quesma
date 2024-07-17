@@ -45,7 +45,7 @@ func (cw *ClickhouseQueryTranslator) parseFilters(queryMap QueryMap) (success bo
 	return true, bucket_aggregations.NewFilters(cw.Ctx, filters)
 }
 
-func (cw *ClickhouseQueryTranslator) processFiltersAggregation(aggrBuilder *aggrQueryBuilder,
+func (cw *ClickhouseQueryTranslator) processFiltersAggregation(aggrBuilder, FULL *aggrQueryBuilder,
 	aggr bucket_aggregations.Filters, queryMap QueryMap, resultAccumulator *[]*model.Query) error {
 	whereBeforeNesting := aggrBuilder.whereBuilder
 	aggrBuilder.Aggregators[len(aggrBuilder.Aggregators)-1].Filters = true
@@ -62,7 +62,7 @@ func (cw *ClickhouseQueryTranslator) processFiltersAggregation(aggrBuilder *aggr
 			aggsCopy, errAggs := deepcopy.Anything(aggs)
 			if errAggs == nil {
 				//err := cw.parseAggregationNames(newBuilder, aggsCopy.(QueryMap), resultAccumulator)
-				err := cw.parseAggregationNames(aggrBuilder, aggsCopy.(QueryMap), resultAccumulator)
+				err := cw.parseAggregationNames(aggrBuilder, FULL, aggsCopy.(QueryMap), resultAccumulator)
 				if err != nil {
 					return err
 				}
