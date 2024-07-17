@@ -351,6 +351,13 @@ func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string,
 	return lm.sendCreateTableQuery(ctx, addOurFieldsToCreateTableQuery(query, config, table))
 }
 
+func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema.Schema {
+	if foundSchema, found := schemaRegistry.FindSchema(schema.TableName(tableName)); found {
+		return &foundSchema
+	}
+	return nil
+}
+
 func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jsonData types.JSON, tableConfig *ChTableConfig, cfg config.QuesmaConfiguration, schemaRegistry schema.Registry) (string, error) {
 
 	nameFormatter, err := registry.TableColumNameFormatterFor(tableName, cfg)
@@ -358,14 +365,7 @@ func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jso
 		return "", err
 	}
 
-	var foundSchema *schema.Schema
-	if s, found := schemaRegistry.FindSchema(schema.TableName(tableName)); found {
-		foundSchema = &s
-	} else {
-		foundSchema = nil
-	}
-
-	columns := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, foundSchema) + Indexes(jsonData)
+	columns := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(schemaRegistry, tableName)) + Indexes(jsonData)
 
 	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
 (
