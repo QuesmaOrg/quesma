@@ -281,6 +281,9 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			inputQuery := query.SelectCommand.String()
 			query, err = transformation.Transformation(query)
 			if query.SelectCommand.String() != inputQuery {
+
+				query.TransformationHistory.SchemaTransformers = append(query.TransformationHistory.SchemaTransformers, transformation.TransformationName)
+
 				logger.Info().Msgf(transformation.TransformationName+" triggered, input query: %s", inputQuery)
 				logger.Info().Msgf(transformation.TransformationName+" triggered, output query: %s", query.SelectCommand.String())
 			}

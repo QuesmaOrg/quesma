@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"github.com/rs/zerolog"
 	"quesma/elasticsearch"
+	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/telemetry"
 	"quesma/util"
@@ -49,7 +50,7 @@ type QueryDebugSecondarySource struct {
 	Path              string
 	IncomingQueryBody []byte
 
-	QueryBodyTranslated    [][]byte
+	QueryBodyTranslated    []types.TranslatedSQLQuery
 	QueryTranslatedResults []byte
 	SecondaryTook          time.Duration
 }
@@ -135,8 +136,15 @@ func (qmc *QuesmaManagementConsole) RecordRequest(typeName string, took time.Dur
 }
 
 func (qdi *queryDebugInfo) requestContains(queryStr string) bool {
+
+	var translatedQueries [][]byte
+	for _, translatedQuery := range qdi.QueryDebugSecondarySource.QueryBodyTranslated {
+		translatedQueries = append(translatedQueries, translatedQuery.Query)
+	}
+
 	potentialPlaces := [][]byte{qdi.QueryDebugSecondarySource.IncomingQueryBody,
-		bytes.Join(qdi.QueryDebugSecondarySource.QueryBodyTranslated, []byte{})}
+		bytes.Join(translatedQueries, []byte{})}
+
 	for _, potentialPlace := range potentialPlaces {
 		if potentialPlace != nil && strings.Contains(string(potentialPlace), queryStr) {
 			return true

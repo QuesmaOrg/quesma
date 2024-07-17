@@ -135,7 +135,7 @@ func (q *QueryRunner) handleAsyncSearch(ctx context.Context, indexPattern string
 
 type AsyncSearchWithError struct {
 	response            *model.SearchResp
-	translatedQueryBody [][]byte
+	translatedQueryBody []types.TranslatedSQLQuery
 	err                 error
 }
 
@@ -278,10 +278,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			}()
 
 		} else {
-			queriesBody := make([][]byte, len(queries))
+			queriesBody := make([]types.TranslatedSQLQuery, len(queries))
 			queriesBodyConcat := ""
 			for i, query := range queries {
-				queriesBody[i] = []byte(query.SelectCommand.String())
+				queriesBody[i].Query = []byte(query.SelectCommand.String())
 				queriesBodyConcat += query.SelectCommand.String() + "\n"
 			}
 			responseBody = []byte(fmt.Sprintf("Invalid Queries: %s, err: %v", queriesBody, err))
@@ -465,26 +465,30 @@ func (q *QueryRunner) isInternalKibanaQuery(query *model.Query) bool {
 	return false
 }
 
-type QueryJob func(ctx context.Context) ([]model.QueryResultRow, error)
+type QueryJob func(ctx context.Context) ([]model.QueryResultRow, clickhouse.PerformanceResult, error)
 
-func (q *QueryRunner) runQueryJobsSequence(jobs []QueryJob) ([][]model.QueryResultRow, error) {
+func (q *QueryRunner) runQueryJobsSequence(jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
 	var results = make([][]model.QueryResultRow, 0)
+	var performance = make([]clickhouse.PerformanceResult, 0)
 	for _, job := range jobs {
-		rows, err := job(q.executionCtx)
+		rows, perf, err := job(q.executionCtx)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
+
 		results = append(results, rows)
+		performance = append(performance, perf)
 	}
-	return results, nil
+	return results, performance, nil
 }
 
-func (q *QueryRunner) runQueryJobsParallel(jobs []QueryJob) ([][]model.QueryResultRow, error) {
+func (q *QueryRunner) runQueryJobsParallel(jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
 
 	var results = make([][]model.QueryResultRow, len(jobs))
-
+	var performances = make([]clickhouse.PerformanceResult, len(jobs))
 	type result struct {
 		rows  []model.QueryResultRow
+		perf  clickhouse.PerformanceResult
 		err   error
 		jobId int
 	}
@@ -505,9 +509,9 @@ func (q *QueryRunner) runQueryJobsParallel(jobs []QueryJob) ([][]model.QueryResu
 				collector <- result{err: err, jobId: jobId}
 			})
 			start := time.Now()
-			rows, err := j(ctx)
+			rows, perf, err := j(ctx)
 			logger.DebugWithCtx(ctx).Msgf("parallel job %d finished in %v", jobId, time.Since(start))
-			collector <- result{rows: rows, err: err, jobId: jobId}
+			collector <- result{rows: rows, perf: perf, err: err, jobId: jobId}
 		}(ctx, n, job)
 	}
 
@@ -516,15 +520,16 @@ func (q *QueryRunner) runQueryJobsParallel(jobs []QueryJob) ([][]model.QueryResu
 		res := <-collector
 		if res.err == nil {
 			results[res.jobId] = res.rows
+			performances[res.jobId] = res.perf
 		} else {
-			return nil, res.err
+			return nil, nil, res.err
 		}
 	}
 
-	return results, nil
+	return results, performances, nil
 }
 
-func (q *QueryRunner) runQueryJobs(jobs []QueryJob) ([][]model.QueryResultRow, error) {
+func (q *QueryRunner) runQueryJobs(jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
 	const maxParallelQueries = 25 // this is arbitrary value
 
 	numberOfJobs := len(jobs)
@@ -557,9 +562,9 @@ func (q *QueryRunner) runQueryJobs(jobs []QueryJob) ([][]model.QueryResultRow, e
 func (q *QueryRunner) searchWorkerCommon(
 	ctx context.Context,
 	queries []*model.Query,
-	table *clickhouse.Table) (translatedQueryBody [][]byte, hits [][]model.QueryResultRow, err error) {
+	table *clickhouse.Table) (translatedQueryBody []types.TranslatedSQLQuery, hits [][]model.QueryResultRow, err error) {
 
-	translatedQueryBody = make([][]byte, len(queries))
+	translatedQueryBody = make([]types.TranslatedSQLQuery, len(queries))
 	hits = make([][]model.QueryResultRow, len(queries))
 
 	var jobs []QueryJob
@@ -573,42 +578,45 @@ func (q *QueryRunner) searchWorkerCommon(
 		}
 
 		sql := query.SelectCommand.String()
-		//  TODO we should return what optimizations were performed
-		//  TODO translatedQueryBody should be a struct (sql, optimizations, query time, etc)
-		//
-		//if query.OptimizeHints != nil {
-		//	sql = sql + "\n-- optimizations: " + strings.Join(query.OptimizeHints.OptimizationsPerformed, ", ") + "\n"
-		//}
-
 		logger.InfoWithCtx(ctx).Msgf("SQL: %s", sql)
-		translatedQueryBody[i] = []byte(sql)
+		translatedQueryBody[i].Query = []byte(sql)
+		if query.OptimizeHints != nil {
+			translatedQueryBody[i].PerformedOptimizations = query.OptimizeHints.OptimizationsPerformed
+		}
+
+		translatedQueryBody[i].QueryTransformations = query.TransformationHistory.SchemaTransformers
 
 		if q.isInternalKibanaQuery(query) {
 			hits[i] = make([]model.QueryResultRow, 0)
 			continue
 		}
 
-		job := func(ctx context.Context) ([]model.QueryResultRow, error) {
+		job := func(ctx context.Context) ([]model.QueryResultRow, clickhouse.PerformanceResult, error) {
 			var err error
-			rows, err := q.logManager.ProcessQuery(ctx, table, query)
+			rows, performance, err := q.logManager.ProcessQuery(ctx, table, query)
 
 			if err != nil {
 				logger.ErrorWithCtx(ctx).Msg(err.Error())
-				return nil, err
+				return nil, clickhouse.PerformanceResult{}, err
 			}
 
 			if query.Type != nil {
 				rows = query.Type.PostprocessResults(rows)
 			}
 
-			return rows, nil
+			return rows, performance, nil
 		}
 		jobs = append(jobs, job)
 		jobHitsPosition = append(jobHitsPosition, i)
 	}
-	dbHits, err := q.runQueryJobs(jobs)
+	dbHits, performance, err := q.runQueryJobs(jobs)
 	if err != nil {
 		return
+	}
+
+	for i, p := range performance {
+		translatedQueryBody[i].Duration = p.Duration
+		translatedQueryBody[i].ExplainPlan = p.ExplainPlan
 	}
 
 	// fill the hits array with the results in the order of the database queries
@@ -624,7 +632,7 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 	queries []*model.Query,
 	table *clickhouse.Table,
 	doneCh chan<- AsyncSearchWithError,
-	optAsync *AsyncQuery) (translatedQueryBody [][]byte, resultRows [][]model.QueryResultRow, err error) {
+	optAsync *AsyncQuery) (translatedQueryBody []types.TranslatedSQLQuery, resultRows [][]model.QueryResultRow, err error) {
 	if optAsync != nil {
 		if q.reachedQueriesLimit(ctx, optAsync.asyncId, doneCh) {
 			return
@@ -681,7 +689,7 @@ func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]mo
 	return geoIpTransformer.Transform(res)
 }
 
-func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, Path string, IncomingQueryBody []byte, QueryBodyTranslated [][]byte, QueryTranslatedResults []byte, startTime time.Time) {
+func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []types.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     Id,
 		AsyncId:                AsyncId,
