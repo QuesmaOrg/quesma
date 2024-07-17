@@ -19,6 +19,8 @@ type QueryOptimizeHints struct {
 
 type TransformationHistory struct {
 	SchemaTransformers []string
+	// we may keep AST for each transformation here
+	// or anything that will help to understand what was done
 }
 
 type (

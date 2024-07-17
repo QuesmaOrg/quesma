@@ -302,7 +302,7 @@ func errorBanner(debugInfo queryDebugInfo) string {
 func printPerformanceResult(buffer *builder.HtmlBuffer, q types.TranslatedSQLQuery) {
 	buffer.Text(fmt.Sprintf("\n-- time: %s\n", q.Duration))
 	if len(q.ExplainPlan) > 0 {
-		buffer.Text(fmt.Sprintf("--  Slow query has been detected. Check logs for explain plan.\n"))
+		buffer.Text("--  Slow query has been detected. Check logs for explain plan.\n")
 	}
 	if len(q.QueryTransformations) > 0 {
 		buffer.Text(fmt.Sprintf("-- transformations: %s\n", strings.Join(q.QueryTransformations, ", ")))
