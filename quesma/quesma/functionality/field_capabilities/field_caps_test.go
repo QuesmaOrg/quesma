@@ -83,8 +83,8 @@ func TestFieldCaps(t *testing.T) {
 				Enabled: true,
 			},
 		},
-	}, staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	}, schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"service.name":           {PropertyName: "service.name", InternalPropertyName: "service.name", Type: schema.TypeKeyword},
@@ -143,8 +143,8 @@ func TestFieldCapsWithAliases(t *testing.T) {
 }`)
 	resp, err := handleFieldCapsIndex(config.QuesmaConfiguration{
 		IndexConfig: map[string]config.IndexConfiguration{"logs-generic-default": {Name: "logs-generic-default", Enabled: true}},
-	}, staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	}, schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields:  map[schema.FieldName]schema.Field{"@timestamp": {PropertyName: "@timestamp", InternalPropertyName: "@timestamp", Type: schema.TypeTimestamp}},
 				Aliases: map[schema.FieldName]schema.FieldName{"timestamp": "@timestamp"},
@@ -192,8 +192,8 @@ func TestFieldCapsMultipleIndexes(t *testing.T) {
 				Enabled: true,
 			},
 		},
-	}, staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	}, schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"logs-1": {
 				Fields: map[schema.FieldName]schema.Field{
 					"foo.bar1": {PropertyName: "foo.bar1", InternalPropertyName: "foo.bar1", Type: schema.TypeKeyword},
@@ -305,8 +305,8 @@ func TestFieldCapsMultipleIndexesConflictingEntries(t *testing.T) {
 				Enabled: true,
 			},
 		},
-	}, staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	}, schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"logs-1": {
 				Fields: map[schema.FieldName]schema.Field{
 					"foo.bar": {PropertyName: "foo.bar", InternalPropertyName: "foo.bar", Type: schema.TypeKeyword},
@@ -411,24 +411,4 @@ func Test_merge(t *testing.T) {
 			assert.Equalf(t, tt.merged, got1, "merge(%v, %v)", tt.args.cap1, tt.args.cap2)
 		})
 	}
-}
-
-type staticRegistry struct {
-	tables map[schema.TableName]schema.Schema
-}
-
-func (e staticRegistry) AllSchemas() map[schema.TableName]schema.Schema {
-	if e.tables != nil {
-		return e.tables
-	} else {
-		return map[schema.TableName]schema.Schema{}
-	}
-}
-
-func (e staticRegistry) FindSchema(name schema.TableName) (schema.Schema, bool) {
-	if e.tables == nil {
-		return schema.Schema{}, false
-	}
-	s, found := e.tables[name]
-	return s, found
 }

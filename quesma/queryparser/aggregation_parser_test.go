@@ -29,26 +29,6 @@ import (
 const tableName = "logs-generic-default"
 const tableNameQuoted = `"` + tableName + `"`
 
-type staticRegistry struct {
-	tables map[schema.TableName]schema.Schema
-}
-
-func (e staticRegistry) AllSchemas() map[schema.TableName]schema.Schema {
-	if e.tables != nil {
-		return e.tables
-	} else {
-		return map[schema.TableName]schema.Schema{}
-	}
-}
-
-func (e staticRegistry) FindSchema(name schema.TableName) (schema.Schema, bool) {
-	if e.tables == nil {
-		return schema.Schema{}, false
-	}
-	s, found := e.tables[name]
-	return s, found
-}
-
 // Simple unit tests, testing only "aggs" part of the request json query
 var aggregationTests = []struct {
 	aggregationJson string
@@ -689,8 +669,8 @@ func TestAggregationParser(t *testing.T) {
 		t.Fatal(err)
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{})
-	s := staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
@@ -757,8 +737,8 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
 
-	s := staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
@@ -917,8 +897,8 @@ func Test_parseFieldFromScriptField(t *testing.T) {
 		{QueryMap{"script": "script"}, nil, false},
 		{QueryMap{"script": QueryMap{"source": 1}}, nil, false},
 	}
-	s := staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},

@@ -16,8 +16,8 @@ func Test_parsePercentilesAggregationWithDefaultPercents(t *testing.T) {
 	payload := QueryMap{
 		"field": "custom_name",
 	}
-	s := staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
@@ -63,8 +63,8 @@ func Test_parsePercentilesAggregationWithUserSpecifiedPercents(t *testing.T) {
 	for k := range expectedOutputMap {
 		expectedOutputMapKeys = append(expectedOutputMapKeys, k)
 	}
-	s := staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},

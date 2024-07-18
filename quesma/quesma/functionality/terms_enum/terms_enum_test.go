@@ -57,26 +57,6 @@ var rawRequestBody = []byte(`{
   }
 }`)
 
-type staticRegistry struct {
-	tables map[schema.TableName]schema.Schema
-}
-
-func (e staticRegistry) AllSchemas() map[schema.TableName]schema.Schema {
-	if e.tables != nil {
-		return e.tables
-	} else {
-		return map[schema.TableName]schema.Schema{}
-	}
-}
-
-func (e staticRegistry) FindSchema(name schema.TableName) (schema.Schema, bool) {
-	if e.tables == nil {
-		return schema.Schema{}, false
-	}
-	s, found := e.tables[name]
-	return s, found
-}
-
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, "test")
 
 func TestHandleTermsEnumRequest(t *testing.T) {
@@ -104,8 +84,8 @@ func TestHandleTermsEnumRequest(t *testing.T) {
 	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
 	defer db.Close()
 	lm := clickhouse.NewLogManagerWithConnection(db, concurrent.NewMapWith(testTableName, table))
-	s := staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"tablename": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
