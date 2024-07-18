@@ -5,8 +5,6 @@ package bulk
 import (
 	"context"
 	"fmt"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/quesma/config"
@@ -15,7 +13,7 @@ import (
 	"quesma/stats"
 	"quesma/stats/errorstats"
 	"quesma/telemetry"
-	"time"
+	"sync"
 )
 
 type (
@@ -30,16 +28,7 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *cli
 	defer recovery.LogPanic()
 
 	bulkSize := len(bulk)
-	// we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
-	sampledLogger := log.Sample(zerolog.LevelSampler{
-		InfoSampler: &zerolog.BurstSampler{
-			Burst:       2,
-			Period:      5 * time.Second,
-			NextSampler: &zerolog.BasicSampler{N: 50},
-		},
-	}) // Use a burst sampler to log 2 events during 5 seconds, then every 50th event.
-	sampledLogger.Info().Msgf("Inserting %d documents using _bulk", bulkSize/2)
-
+	maybeLogBatchSize(bulkSize / 2) // we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 	indicesWithDocumentsToInsert := make(map[string][]types.JSON, bulkSize)
 
 	err := bulk.BulkForEach(func(op types.BulkOperation, document types.JSON) {
@@ -106,4 +95,18 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *cli
 		})
 	}
 	return results
+}
+
+// Global set to keep track of logged batch sizes
+var loggedBatchSizes = make(map[int]struct{})
+var mutex sync.Mutex
+
+// maybeLogBatchSize logs only unique batch sizes
+func maybeLogBatchSize(batchSize int) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	if _, alreadyLogged := loggedBatchSizes[batchSize]; !alreadyLogged {
+		logger.Info().Msgf("Ingesting via _bulk API, batch size=%d documents", batchSize)
+		loggedBatchSizes[batchSize] = struct{}{}
+	}
 }
