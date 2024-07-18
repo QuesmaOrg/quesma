@@ -217,7 +217,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	for _, resolvedTableName := range sourcesClickhouse {
 		var err error
 		doneCh := make(chan AsyncSearchWithError, 1)
-		inputTableName := resolvedTableName
+		incomingIndexName := resolvedTableName
 		if indexMapping, ok := sourceToDestMappings[resolvedTableName]; ok {
 			resolvedTableName = indexMapping
 		}
@@ -226,7 +226,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}
 
-		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry, inputTableName)
+		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry, incomingIndexName)
 
 		queries, canParse, err := queryTranslator.ParseQuery(body)
 		if err != nil {

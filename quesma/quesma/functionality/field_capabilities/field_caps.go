@@ -53,11 +53,11 @@ func makeSourceToDestMappings(indexMappings map[string]config.IndexMappingsConfi
 }
 func handleFieldCapsIndex(cfg config.QuesmaConfiguration, schemaRegistry schema.Registry, indexes []string) ([]byte, error) {
 	fields := make(map[string]map[string]model.FieldCapability)
-
 	for _, resolvedIndex := range indexes {
 		if len(resolvedIndex) == 0 {
 			continue
 		}
+
 		if schemaDefinition, found := schemaRegistry.FindSchema(schema.TableName(resolvedIndex)); found {
 			indexConfig, configured := cfg.IndexConfig[resolvedIndex]
 			if configured && !indexConfig.Enabled {
