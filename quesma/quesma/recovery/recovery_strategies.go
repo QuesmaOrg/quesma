@@ -16,18 +16,20 @@ import (
 // make the recovery simple as possible.
 var PanicCounter atomic.Int64
 
-func commonRecovery(r any, panicLogger func() *zerolog.Event) {
-	PanicCounter.Add(1)
-	var err error
+func recoveredToError(r any) error {
 	switch t := r.(type) {
 	case string:
-		err = errors.New(t)
+		return errors.New(t)
 	case error:
-		err = t
+		return t
 	default:
-		err = errors.New("unknown error")
+		return errors.New("unknown error")
 	}
-	panicLogger().Msgf("Panic recovered: %s\n%s", err, string(debug.Stack()))
+}
+
+func commonRecovery(r any, panicLogger func() *zerolog.Event) {
+	PanicCounter.Add(1)
+	panicLogger().Msgf("Panic recovered: %s\n%s", recoveredToError(r), string(debug.Stack()))
 }
 
 func LogPanic() {
@@ -49,6 +51,6 @@ func LogAndHandlePanic(ctx context.Context, cleanupHandler func(err error)) {
 		commonRecovery(r, func() *zerolog.Event {
 			return logger.ErrorWithCtx(ctx)
 		})
-		cleanupHandler(errors.New("panic recovered " + string(debug.Stack())))
+		cleanupHandler(errors.New("Panic recovered: " + recoveredToError(r).Error() + "\n" + string(debug.Stack())))
 	}
 }
