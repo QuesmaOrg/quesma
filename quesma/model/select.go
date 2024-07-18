@@ -20,7 +20,9 @@ type SelectCommand struct {
 	newCTE         *SelectCommand // new CTE to be added to the query
 	newColumns     []Expr         // new columns to be added to the query
 	newGroupBy     []Expr
+	newFullGroupBy []Expr
 	newGroupBySize []int
+	newOrderBy     [][]OrderByExpr
 }
 
 func NewSelectCommand(columns, groupBy []Expr, orderBy []OrderByExpr, from, where Expr, limitBy []Expr,
@@ -73,5 +75,7 @@ func (c *SelectCommand) OrderByFieldNames() (fieldNames []string) {
 }
 
 func (c *SelectCommand) GetNewGroupBy() []Expr {
-	return c.newGroupBy
+	Copy := make([]Expr, len(c.newGroupBy))
+	copy(Copy, c.newGroupBy)
+	return Copy
 }

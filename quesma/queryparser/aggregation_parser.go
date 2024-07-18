@@ -5,6 +5,7 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -338,6 +339,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 
 	fmt.Println("last:", FULL)
 	fmt.Println("last:", model.AsStringNew(FULL.SelectCommand))
+	fmt.Println(util.SqlPrettyPrint([]byte(model.AsStringNew(FULL.SelectCommand))))
 	return aggregations, nil
 }
 
@@ -401,7 +403,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 
 	currentAggr := *prevAggr
 	fmt.Println("currentAggr:")
-	fmt.Println(model.AsStringNew(currentAggr.SelectCommand))
+	fmt.Println(model.AsStringNew(currentAggr.SelectCommand), "ngb")
 	fmt.Println("prevAggr:")
 	fmt.Println(model.AsStringNew(prevAggr.SelectCommand))
 	currentAggr.SelectCommand.Limit = 0
@@ -511,6 +513,10 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 		// should be empty by now. If it's not, it's an unsupported/unrecognized type of aggregation.
 		logger.ErrorWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).
 			Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", k, v, v)
+	}
+
+	if isTerms {
+		FULL.PopNewGroupBy()
 	}
 
 	return nil
@@ -813,7 +819,14 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr, FULL *agg
 							fullOrderBy = []model.OrderByExpr{{Exprs: []model.Expr{fieldExpression}, Direction: direction}}
 							break // mainOrderBy remains default
 						} else if key != "_count" {
-							mainOrderBy = cw.findMetricAggregation(queryMap, key, currentAggr)
+							pp.Println("AGGREGATORS")
+							fmt.Println("--- FULL", currentAggr)
+							aggregators := make([]string, 0)
+							for _, aggr := range currentAggr.Aggregators {
+								aggregators = append(aggregators, aggr.Name)
+							}
+							aggregators = append(aggregators, key)
+							mainOrderBy = model.NewAliasedExpr(cw.findMetricAggregation(queryMap, key, currentAggr), fmt.Sprintf("metric_%s", strings.Join(aggregators, "_")))
 						}
 
 						fullOrderBy = []model.OrderByExpr{
@@ -834,7 +847,9 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr, FULL *agg
 		currentAggr.SelectCommand.Columns = append(currentAggr.SelectCommand.Columns, fieldExpression)
 		currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, fieldExpression)
 		currentAggr.SelectCommand.LimitBy = append(currentAggr.SelectCommand.LimitBy, fieldExpression)
-		cw.newLogicAddTermsAggregation(FULL, fieldExpression)
+		fmt.Println("LEN FULL PRZED", len(FULL.SelectCommand.GetNewGroupBy()))
+		cw.newLogicAddTermsAggregation(FULL, fieldExpression, size, fullOrderBy)
+		fmt.Println("LEN FULL PO", len(FULL.SelectCommand.GetNewGroupBy()))
 		currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, fullOrderBy...)
 		if missingPlaceholder == nil {
 			currentAggr.whereBuilder = model.CombineWheres(cw.Ctx, currentAggr.whereBuilder,
@@ -1166,6 +1181,7 @@ func (cw *ClickhouseQueryTranslator) findMetricAggregation(queryMap QueryMap, ag
 				len(tmpQuery.SelectCommand.Columns), len(currentAggr.SelectCommand.Columns)+1)
 			return notFoundValue
 		}
+		pp.Println("qqqq", tmpQuery.Aggregators, tmpQuery.SelectCommand.Columns, aggregationName)
 		return tmpQuery.SelectCommand.Columns[len(tmpQuery.SelectCommand.Columns)-1]
 	}
 	return notFoundValue
@@ -1180,18 +1196,35 @@ func quoteArray(array []string) []string {
 	return quotedArray
 }
 
-func (cw *ClickhouseQueryTranslator) newLogicAddTermsAggregation(aggrBuilder *aggrQueryBuilder, selectExpr model.Expr) {
+func (cw *ClickhouseQueryTranslator) newLogicAddTermsAggregation(aggrBuilder *aggrQueryBuilder, selectExpr model.Expr, size int, orderBy []model.OrderByExpr) {
 	aggrBuilder.AddColumnNew(selectExpr)
 	aggrBuilder.AddGroupByNew(selectExpr)
+	aggrBuilder.AddFullGroupByNew(selectExpr)
+	aggrBuilder.AddSize(size)
+	aggrBuilder.AddOrderBy(orderBy)
 }
 
 func (cw *ClickhouseQueryTranslator) newLogicAddMetricAggregation(aggrBuilder *aggrQueryBuilder, metricAggr *model.Query, an int) {
 	cn := len(metricAggr.SelectCommand.Columns)
 	lastCol := metricAggr.SelectCommand.Columns[cn-1]
+	funcName := strings.Replace(strings.Replace(strings.Replace(model.AsStringNew(lastCol), "(", "_", 1), ")", "", 1), `"`, ``, 2)
 	fmt.Println("=== metricAggr:\n", metricAggr, model.AsString(lastCol))
 
+	goodCol := lastCol
+	if g, ok := goodCol.(model.FunctionExpr); ok {
+		goodCol = model.NewFunction(g.Name, model.NewLiteral(funcName))
+	}
+
 	partitionBy := aggrBuilder.SelectCommand.GetNewGroupBy()
-	windowExpr := model.NewWindowFunction(model.AsStringNew(lastCol), []model.Expr{}, partitionBy, model.OrderByExpr{})
+	fmt.Println("TTTTTTTTT", partitionBy)
+	windowExpr := model.NewWindowFunction(model.AsStringNew(goodCol), []model.Expr{}, partitionBy, model.OrderByExpr{})
 	fmt.Println("=== adding windowExpr:\n", model.AsString(windowExpr))
-	aggrBuilder.AddColumnNew(model.NewAliasedExpr(windowExpr, fmt.Sprintf("metric_%d", an)))
+
+	pp.Println("uuuuuuu", metricAggr.Aggregators)
+	aggregatorNames := make([]string, 0, len(aggrBuilder.Aggregators))
+	for _, aggr := range metricAggr.Aggregators {
+		aggregatorNames = append(aggregatorNames, aggr.Name)
+	}
+	aggrBuilder.AddColumnNew(model.NewAliasedExpr(windowExpr, fmt.Sprintf("metric_%s", strings.Join(aggregatorNames, "_"))))
+	aggrBuilder.AddColumnNew(model.NewAliasedExpr(lastCol, funcName))
 }

@@ -26,7 +26,7 @@ import (
 	"testing"
 )
 
-const tableName = "logs-generic-default"
+const tableName = "qq"
 const tableNameQuoted = `"` + tableName + `"`
 
 type staticRegistry struct {
