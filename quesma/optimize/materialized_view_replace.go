@@ -58,14 +58,6 @@ func (s *materializedViewReplace) replace(rule materializedViewReplaceRule, quer
 
 	visitor.OverrideVisitSelectCommand = func(v *model.BaseExprVisitor, query model.SelectCommand) interface{} {
 
-		var columns, groupBy []model.Expr
-		var orderBy []model.OrderByExpr
-		from := query.FromClause
-		where := query.WhereClause
-		columns = query.Columns
-		groupBy = query.GroupBy
-		orderBy = query.OrderBy
-
 		var ctes []*model.SelectCommand
 		if query.CTEs != nil {
 			ctes = make([]*model.SelectCommand, 0)
@@ -74,8 +66,10 @@ func (s *materializedViewReplace) replace(rule materializedViewReplaceRule, quer
 			}
 		}
 
-		if query.FromClause != nil {
-			if table, ok := query.FromClause.(model.TableRef); ok {
+		from := query.FromClause
+
+		if from != nil {
+			if table, ok := from.(model.TableRef); ok {
 
 				tableName := s.getTableName(table.Name) // todo: get table name from data
 
@@ -89,7 +83,7 @@ func (s *materializedViewReplace) replace(rule materializedViewReplaceRule, quer
 					if whereReplaced {
 						replaced = true
 						from = model.NewTableRef(rule.materializedView) // config param
-						return model.NewSelectCommand(columns, groupBy, orderBy, from, newWhere, query.LimitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes)
+						return model.NewSelectCommand(query.Columns, query.GroupBy, query.OrderBy, from, newWhere, query.LimitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes)
 					}
 				}
 			} else {
@@ -97,9 +91,9 @@ func (s *materializedViewReplace) replace(rule materializedViewReplaceRule, quer
 			}
 		}
 
-		where = query.WhereClause.Accept(v).(model.Expr)
+		where := query.WhereClause.Accept(v).(model.Expr)
 
-		return model.NewSelectCommand(columns, groupBy, orderBy, from, where, query.LimitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes)
+		return model.NewSelectCommand(query.Columns, query.GroupBy, query.OrderBy, from, where, query.LimitBy, query.Limit, query.SampleLimit, query.IsDistinct, ctes)
 
 	}
 
