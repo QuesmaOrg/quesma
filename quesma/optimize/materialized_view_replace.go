@@ -17,6 +17,48 @@ type materializedViewReplaceRule struct {
 type materializedViewReplace struct {
 }
 
+// it checks if the WHERE clause is `AND` tree only
+func (s *materializedViewReplace) validateWhere(expr model.Expr) bool {
+
+	var foundOR bool
+	var foundNOT bool
+
+	visitor := model.NewBaseVisitor()
+
+	visitor.OverrideVisitPrefixExpr = func(b *model.BaseExprVisitor, e model.PrefixExpr) interface{} {
+
+		if strings.ToUpper(e.Op) == "NOT" {
+			foundNOT = true
+			return e
+		}
+
+		b.VisitChildren(e.Args)
+		return e
+	}
+
+	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
+		if strings.ToUpper(e.Op) == "OR" {
+			foundOR = true
+			return e
+		}
+		e.Left.Accept(b)
+		e.Right.Accept(b)
+		return e
+	}
+
+	expr.Accept(visitor)
+
+	if foundNOT {
+		return false
+	}
+
+	if foundOR {
+		return false
+	}
+
+	return true
+}
+
 func (s *materializedViewReplace) getTableName(tableName string) string {
 
 	res := strings.Replace(tableName, `"`, "", -1)
@@ -29,8 +71,22 @@ func (s *materializedViewReplace) getTableName(tableName string) string {
 	return res
 }
 
-func (s *materializedViewReplace) replaceInfix(where model.Expr, pattern string, replacement model.Expr) (model.Expr, bool) {
+func (s *materializedViewReplace) matches(rule materializedViewReplaceRule, expr model.Expr) bool {
+	current := model.AsString(expr)
+	return rule.condition == current
+}
 
+func (s *materializedViewReplace) applyRule(rule materializedViewReplaceRule, expr model.Expr) (model.Expr, bool) {
+	if s.matches(rule, expr) {
+		return model.NewLiteral("TRUE"), true
+	}
+
+	return expr, false
+}
+
+func (s *materializedViewReplace) traverse(rule materializedViewReplaceRule, where model.Expr) (model.Expr, bool) {
+
+	var foundInNot bool
 	var replaced bool
 	var res model.Expr
 
@@ -38,15 +94,34 @@ func (s *materializedViewReplace) replaceInfix(where model.Expr, pattern string,
 
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 
-		current := model.AsString(e)
-		if pattern == current {
-			replaced = true
-			return replacement
+		// since we replace with "TRUE" we need to check if the operator is "AND"
+		if strings.ToUpper(e.Op) == "AND" {
+
+			left, leftReplaced := s.applyRule(rule, e.Left)
+			right, rightReplaced := s.applyRule(rule, e.Right)
+
+			if !leftReplaced {
+				left, leftReplaced = e.Left.Accept(b).(model.Expr)
+			}
+
+			if !rightReplaced {
+				right, rightReplaced = e.Right.Accept(b).(model.Expr)
+			}
+
+			if leftReplaced || rightReplaced {
+				replaced = true
+			}
+			return model.NewInfixExpr(left, e.Op, right)
 		}
+
 		return model.NewInfixExpr(e.Left.Accept(b).(model.Expr), e.Op, e.Right.Accept(b).(model.Expr))
 	}
 
 	res = where.Accept(visitor).(model.Expr)
+
+	if foundInNot {
+		return nil, false
+	}
 
 	return res, replaced
 }
@@ -77,7 +152,15 @@ func (s *materializedViewReplace) replace(rule materializedViewReplaceRule, quer
 				if rule.tableName == tableName { // config param
 
 					// we try to replace the where clause
-					newWhere, whereReplaced := s.replaceInfix(query.WhereClause, rule.condition, model.NewLiteral("TRUE"))
+					newWhere, whereReplaced := s.applyRule(rule, query.WhereClause)
+
+					if !whereReplaced {
+						// if we have AND tree, we try to traverse it
+						if s.validateWhere(query.WhereClause) {
+							// here we try to traverse the whole tree
+							newWhere, whereReplaced = s.traverse(rule, query.WhereClause)
+						}
+					}
 
 					// if we replaced the where clause, we replace the from clause
 					if whereReplaced {

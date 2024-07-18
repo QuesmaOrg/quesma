@@ -73,9 +73,7 @@ func Test_cacheGroupBy(t *testing.T) {
 			}
 
 			assert.Truef(t, enabled == tt.shouldCache, "expected use_query_cache to be %v, got %v", tt.shouldCache, enabled)
-
 		})
-
 	}
 }
 
@@ -232,12 +230,17 @@ func Test_dateTrunc(t *testing.T) {
 
 func Test_materialized_view_replace(t *testing.T) {
 
+	// DSL
 	date := func(s string) model.Expr {
 		return model.NewFunction("parseDateTime64BestEffort", model.NewLiteral(fmt.Sprintf("'%s'", s)))
 	}
 
 	and := func(a, b model.Expr) model.Expr {
 		return model.NewInfixExpr(a, "and", b)
+	}
+
+	or := func(a, b model.Expr) model.Expr {
+		return model.NewInfixExpr(a, "or", b)
 	}
 
 	lt := func(a, b model.Expr) model.Expr {
@@ -248,11 +251,20 @@ func Test_materialized_view_replace(t *testing.T) {
 		return model.NewInfixExpr(a, ">", b)
 	}
 
+	not := func(a model.Expr) model.Expr {
+		return model.NewPrefixExpr("not", []model.Expr{a})
+	}
+
 	col := func(s string) model.Expr {
 		return model.NewColumnRef(s)
 	}
+
 	literal := func(a any) model.Expr { return model.NewLiteral(a) }
 
+	condition := gt(col("a"), literal(10))
+	TRUE := literal("TRUE")
+
+	// tests
 	tests := []struct {
 		name      string
 		tableName string
@@ -275,17 +287,17 @@ func Test_materialized_view_replace(t *testing.T) {
 		},
 
 		{
-			"select all with condition",
+			"select all with condition at top level",
 			"foo",
 			model.SelectCommand{
 				Columns:     []model.Expr{model.NewColumnRef("*")},
 				FromClause:  model.NewTableRef("foo"),
-				WhereClause: gt(col("a"), literal(10)),
+				WhereClause: condition,
 			},
 			model.SelectCommand{
 				Columns:     []model.Expr{model.NewColumnRef("*")},
 				FromClause:  model.NewTableRef("foo_view"),
-				WhereClause: literal("TRUE"),
+				WhereClause: TRUE,
 			},
 		},
 
@@ -295,12 +307,12 @@ func Test_materialized_view_replace(t *testing.T) {
 			model.SelectCommand{
 				Columns:     []model.Expr{model.NewColumnRef("*")},
 				FromClause:  model.NewTableRef("foo"),
-				WhereClause: and(lt(col("c"), literal(1)), gt(col("a"), literal(10))),
+				WhereClause: and(lt(col("c"), literal(1)), condition),
 			},
 			model.SelectCommand{
 				Columns:     []model.Expr{model.NewColumnRef("*")},
 				FromClause:  model.NewTableRef("foo_view"),
-				WhereClause: and(lt(col("c"), literal(1)), literal("TRUE")),
+				WhereClause: and(lt(col("c"), literal(1)), TRUE),
 			},
 		},
 
@@ -310,12 +322,27 @@ func Test_materialized_view_replace(t *testing.T) {
 			model.SelectCommand{
 				Columns:     []model.Expr{model.NewColumnRef("*")},
 				FromClause:  model.NewTableRef("foo"),
-				WhereClause: and(gt(col("a"), literal(10)), and(lt(col("c"), literal(1)), gt(col("a"), literal(10)))),
+				WhereClause: and(condition, and(lt(col("c"), literal(1)), condition)),
 			},
 			model.SelectCommand{
 				Columns:     []model.Expr{model.NewColumnRef("*")},
 				FromClause:  model.NewTableRef("foo_view"),
-				WhereClause: and(literal("TRUE"), and(lt(col("c"), literal(1)), literal("TRUE"))),
+				WhereClause: and(TRUE, and(lt(col("c"), literal(1)), TRUE)),
+			},
+		},
+
+		{
+			"select all with condition 4",
+			"foo",
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo"),
+				WhereClause: and(and(condition, condition), and(lt(col("c"), literal(1)), condition)),
+			},
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo_view"),
+				WhereClause: and(and(TRUE, TRUE), and(lt(col("c"), literal(1)), TRUE)),
 			},
 		},
 
@@ -335,17 +362,62 @@ func Test_materialized_view_replace(t *testing.T) {
 		},
 
 		{
-			"select all from other table with condition",
+			"select all from other table with condition at top level",
 			"foo",
 			model.SelectCommand{
 				Columns:     []model.Expr{model.NewColumnRef("*")},
 				FromClause:  model.NewTableRef("foo1"),
-				WhereClause: gt(col("a"), literal(10)),
+				WhereClause: condition,
 			},
 			model.SelectCommand{
 				Columns:     []model.Expr{model.NewColumnRef("*")},
 				FromClause:  model.NewTableRef("foo1"),
-				WhereClause: gt(col("a"), literal(10)),
+				WhereClause: condition,
+			},
+		},
+
+		{
+			"select all OR",
+			"foo",
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo"),
+				WhereClause: or(condition, lt(col("b"), literal(1))),
+			},
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo"),
+				WhereClause: or(condition, lt(col("b"), literal(1))),
+			},
+		},
+
+		{
+			"select all NOT",
+			"foo",
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo"),
+				WhereClause: and(not(condition), lt(col("b"), literal(1))),
+			},
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo"),
+				WhereClause: and(not(condition), lt(col("b"), literal(1))),
+			},
+		},
+
+		{
+			"select all NOT2",
+			"foo",
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo"),
+				WhereClause: and(condition, and(not(lt(col("c"), literal(2))), lt(col("b"), literal(1)))),
+			},
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo"),
+				WhereClause: and(condition, and(not(lt(col("c"), literal(2))), lt(col("b"), literal(1)))),
 			},
 		},
 	}
@@ -387,8 +459,6 @@ func Test_materialized_view_replace(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.expected, optimized[0].SelectCommand)
-
 		})
-
 	}
 }
