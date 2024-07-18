@@ -337,9 +337,11 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 		}
 	}
 
-	fmt.Println("last:", FULL)
-	fmt.Println("last:", model.AsStringNew(FULL.SelectCommand))
-	fmt.Println(util.SqlPrettyPrint([]byte(model.AsStringNew(FULL.SelectCommand))))
+	// TODO if it
+	aggregations = []*model.Query{FULL.buildAggregationCommon(model.NoMetadataField)}
+	// fmt.Println("last:", FULL)
+	// fmt.Println("last:", model.AsStringNew(FULL.SelectCommand))
+	// fmt.Println(util.SqlPrettyPrint([]byte(model.AsStringNew(FULL.SelectCommand))))
 	return aggregations, nil
 }
 
