@@ -31,9 +31,12 @@ func TestMultiCounter_Add(t *testing.T) {
 		}
 	}
 
-	stats := mc.Aggregate()
+	stats := mc.AggregateAndReset()
 
 	assert.Equal(t, int64(4), stats["key1"])
 	assert.Equal(t, int64(2), stats["key2"])
 	assert.Equal(t, 2, len(stats))
+
+	stats2 := mc.AggregateAndReset()
+	assert.Empty(t, stats2)
 }

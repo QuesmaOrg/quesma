@@ -523,9 +523,9 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 	stats.ElasticWritesDuration = a.ElasticWriteRequestsDuration().AggregateAndReset()
 	stats.ElasticBypassedReadsDuration = a.ElasticBypassedReadRequestsDuration().AggregateAndReset()
 	stats.ElasticBypassedWritesDuration = a.ElasticBypassedWriteRequestsDuration().AggregateAndReset()
-	stats.UserAgentCounters = a.userAgentCounters.AggregateTopValues()
+	stats.UserAgentCounters = a.userAgentCounters.AggregateTopValuesAndReset()
 
-	stats.IngestCounters = a.ingestCounters.Aggregate()
+	stats.IngestCounters = a.ingestCounters.AggregateAndReset()
 
 	stats.RuntimeStats = a.runtimeStats()
 	stats.TopErrors = a.topErrors()
