@@ -106,7 +106,7 @@ func (lm *LogManager) Start() {
 				doneCh <- struct{}{}
 			case <-time.After(reloadInterval):
 				// only reload if we actually use Quesma, make it double time to prevent edge case
-				// otherwise it prevent ClickHouse Cloud from idle pausing and
+				// otherwise it prevent ClickHouse Cloud from idle pausing
 				if time.Since(lm.schemaLoader.LastAccessTime()) < reloadInterval*2 {
 					lm.schemaLoader.ReloadTableDefinitions()
 				}
