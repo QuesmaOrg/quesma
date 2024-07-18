@@ -50,12 +50,16 @@ func (im *indexManagement) ReloadIndices() {
 }
 
 func (im *indexManagement) GetSources() Sources {
-	return *im.sources.Load()
+	if s := im.sources.Load(); s != nil {
+		return *s
+	} else {
+		return Sources{}
+	}
 }
 
 func (im *indexManagement) GetSourceNames() map[string]bool {
 	names := make(map[string]bool)
-	sources := *im.sources.Load()
+	sources := im.GetSources()
 	for _, stream := range sources.DataStreams {
 		names[stream.Name] = true
 	}
