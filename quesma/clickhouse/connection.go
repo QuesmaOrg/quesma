@@ -24,8 +24,9 @@ func initDBConnection(c config.QuesmaConfiguration, tlsConfig *tls.Config) *sql.
 			Database: c.ClickHouse.Database,
 		}
 	}
-
-	options.TLS = tlsConfig
+	if !c.ClickHouse.DisableTLS {
+		options.TLS = tlsConfig
+	}
 
 	info := struct {
 		Name    string
