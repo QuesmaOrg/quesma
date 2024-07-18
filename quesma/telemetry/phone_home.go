@@ -514,9 +514,6 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 	stats.NumberOfPanics = recovery.PanicCounter.Load()
 	stats.InstanceID = a.instanceId
 
-	stats.ClickHouse = a.CollectClickHouse(ctx)
-	stats.Elasticsearch = a.CollectElastic(ctx)
-
 	stats.ClickHouseQueriesDuration = a.ClickHouseQueryDuration().AggregateAndReset()
 	stats.ClickHouseInsertsDuration = a.ClickHouseInsertDuration().AggregateAndReset()
 	stats.ElasticReadsDuration = a.ElasticReadRequestsDuration().AggregateAndReset()
@@ -524,6 +521,14 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 	stats.ElasticBypassedReadsDuration = a.ElasticBypassedReadRequestsDuration().AggregateAndReset()
 	stats.ElasticBypassedWritesDuration = a.ElasticBypassedWriteRequestsDuration().AggregateAndReset()
 	stats.UserAgentCounters = a.userAgentCounters.AggregateTopValuesAndReset()
+
+	stats.Elasticsearch = a.CollectElastic(ctx)
+
+	if stats.ClickHouseInsertsDuration.Count > 0 || stats.ClickHouseQueriesDuration.Count > 0 {
+		stats.ClickHouse = a.CollectClickHouse(ctx)
+	} else {
+		stats.ClickHouse = ClickHouseStats{Status: "paused"}
+	}
 
 	stats.IngestCounters = a.ingestCounters.AggregateAndReset()
 
