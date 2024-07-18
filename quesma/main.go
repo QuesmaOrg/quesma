@@ -75,7 +75,7 @@ func main() {
 	schemaLoader := clickhouse.NewTableDiscovery(cfg, schemaManagement)
 	schemaRegistry := schema.NewSchemaRegistry(clickhouse.TableDiscoveryTableProviderAdapter{TableDiscovery: schemaLoader}, cfg, clickhouse.SchemaTypeAdapter{})
 
-	connManager := connectors.NewConnectorManager(cfg, connectionPool, phoneHomeAgent, schemaLoader)
+	connManager := connectors.NewConnectorManager(cfg, connectionPool, phoneHomeAgent, schemaLoader, schemaRegistry)
 	lm := connManager.GetConnector()
 
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())

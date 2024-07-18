@@ -19,6 +19,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
+	"quesma/schema"
 	"quesma/telemetry"
 	"quesma/util"
 	"slices"
@@ -41,6 +42,7 @@ type (
 		schemaLoader   TableDiscovery
 		cfg            config.QuesmaConfiguration
 		phoneHomeAgent telemetry.PhoneHomeAgent
+		schemaRegistry schema.Registry
 	}
 	TableMap  = concurrent.Map[string, *Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -349,18 +351,26 @@ func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string,
 	return lm.sendCreateTableQuery(ctx, addOurFieldsToCreateTableQuery(query, config, table))
 }
 
-func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jsonData types.JSON, tableConfig *ChTableConfig, cfg config.QuesmaConfiguration) (string, error) {
+func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema.Schema {
+	if foundSchema, found := schemaRegistry.FindSchema(schema.TableName(tableName)); found {
+		return &foundSchema
+	}
+	return nil
+}
+
+func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jsonData types.JSON, tableConfig *ChTableConfig, cfg config.QuesmaConfiguration, schemaRegistry schema.Registry) (string, error) {
 
 	nameFormatter, err := registry.TableColumNameFormatterFor(tableName, cfg)
 	if err != nil {
 		return "", err
 	}
 
-	columns := FieldsMapToCreateTableString("", jsonData, 1, tableConfig, nameFormatter) + Indexes(jsonData)
+	columns := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(schemaRegistry, tableName)) + Indexes(jsonData)
 
 	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
 (
-	%s
+
+%s
 )
 %s
 COMMENT 'created by Quesma'`,
@@ -387,7 +397,7 @@ func Indexes(m SchemaMap) string {
 func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig) error {
 	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
 
-	query, err := buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, lm.cfg)
+	query, err := buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, lm.cfg, lm.schemaRegistry)
 	if err != nil {
 		return err
 	}
@@ -597,9 +607,9 @@ func (lm *LogManager) Ping() error {
 	return lm.chDb.Ping()
 }
 
-func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader TableDiscovery) *LogManager {
+func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader TableDiscovery, schemaRegistry schema.Registry) *LogManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, schemaLoader: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent}
+	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, schemaLoader: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry}
 }
 
 func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager {

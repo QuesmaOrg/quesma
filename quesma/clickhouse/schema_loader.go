@@ -5,6 +5,7 @@ package clickhouse
 import (
 	"context"
 	"errors"
+	"fmt"
 	"quesma/end_user_errors"
 	"quesma/logger"
 	"quesma/quesma/config"
@@ -72,16 +73,18 @@ func (sl *tableDiscovery) TableDefinitionsFetchError() error {
 	return sl.ReloadTablesError
 }
 
+func (sl *tableDiscovery) TableAutodiscoveryEnabled() bool {
+	return sl.cfg.IndexConfig == nil
+}
+
 func (sl *tableDiscovery) ReloadTableDefinitions() {
 	logger.Debug().Msg("reloading tables definitions")
-	configuredTables := make(map[string]discoveredTable)
-	var explicitlyDisabledTables, notConfiguredTables []string
+	var configuredTables map[string]discoveredTable
 	databaseName := "default"
 	if sl.cfg.ClickHouse.Database != "" {
 		databaseName = sl.cfg.ClickHouse.Database
 	}
 	if tables, err := sl.SchemaManagement.readTables(databaseName); err != nil {
-
 		var endUserError *end_user_errors.EndUserError
 		if errors.As(err, &endUserError) {
 			logger.ErrorWithCtxAndReason(context.Background(), endUserError.Reason()).Msgf("could not describe tables: %v", err)
@@ -92,23 +95,36 @@ func (sl *tableDiscovery) ReloadTableDefinitions() {
 		sl.tableDefinitions.Store(NewTableMap())
 		return
 	} else {
-		for table, columns := range tables {
-			if indexConfig, found := sl.cfg.IndexConfig[table]; found {
-				if indexConfig.Enabled {
-					for colName := range columns {
-						if _, exists := indexConfig.Aliases[colName]; exists {
-							logger.Error().Msgf("column [%s] clashes with an existing alias, table [%s]", colName, table)
-						}
+		if sl.TableAutodiscoveryEnabled() {
+			configuredTables = sl.autoConfigureTables(tables, databaseName)
+		} else {
+			configuredTables = sl.configureTables(tables, databaseName)
+		}
+	}
+	sl.ReloadTablesError = nil
+	sl.populateTableDefinitions(configuredTables, databaseName, sl.cfg)
+}
+
+// configureTables confronts the tables discovered in the database with the configuration provided by the user, returning final list of tables managed by Quesma
+func (sl *tableDiscovery) configureTables(tables map[string]map[string]string, databaseName string) (configuredTables map[string]discoveredTable) {
+	configuredTables = make(map[string]discoveredTable)
+	var explicitlyDisabledTables, notConfiguredTables []string
+	for table, columns := range tables {
+		if indexConfig, found := sl.cfg.IndexConfig[table]; found {
+			if indexConfig.Enabled {
+				for colName := range columns {
+					if _, exists := indexConfig.Aliases[colName]; exists {
+						logger.Error().Msgf("column [%s] clashes with an existing alias, table [%s]", colName, table)
 					}
-					comment := sl.SchemaManagement.tableComment(databaseName, table)
-					createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
-					configuredTables[table] = discoveredTable{columns, indexConfig, comment, createTableQuery}
-				} else {
-					explicitlyDisabledTables = append(explicitlyDisabledTables, table)
 				}
+				comment := sl.SchemaManagement.tableComment(databaseName, table)
+				createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
+				configuredTables[table] = discoveredTable{columns, indexConfig, comment, createTableQuery}
 			} else {
-				notConfiguredTables = append(notConfiguredTables, table)
+				explicitlyDisabledTables = append(explicitlyDisabledTables, table)
 			}
+		} else {
+			notConfiguredTables = append(notConfiguredTables, table)
 		}
 	}
 	logger.Info().Msgf(
@@ -117,8 +133,34 @@ func (sl *tableDiscovery) ReloadTableDefinitions() {
 		strings.Join(notConfiguredTables, ","),
 		strings.Join(explicitlyDisabledTables, ","),
 	)
-	sl.ReloadTablesError = nil
-	sl.populateTableDefinitions(configuredTables, databaseName, sl.cfg)
+	return
+}
+
+// autoConfigureTables takes the list of discovered tables and automatically configures them, returning the final list of tables managed by Quesma
+func (sl *tableDiscovery) autoConfigureTables(tables map[string]map[string]string, databaseName string) (configuredTables map[string]discoveredTable) {
+	configuredTables = make(map[string]discoveredTable)
+	var autoDiscoResults strings.Builder
+	logger.Info().Msg("Index configuration empty, running table auto-discovery")
+	for table, columns := range tables {
+		comment := sl.SchemaManagement.tableComment(databaseName, table)
+		createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
+		var maybeTimestampField string
+		if sl.cfg.Hydrolix.IsNonEmpty() {
+			maybeTimestampField = sl.SchemaManagement.tableTimestampField(databaseName, table, Hydrolix)
+		} else {
+			maybeTimestampField = sl.SchemaManagement.tableTimestampField(databaseName, table, ClickHouse)
+		}
+		if maybeTimestampField != "" {
+			configuredTables[table] = discoveredTable{columns, config.IndexConfiguration{TimestampField: &maybeTimestampField}, comment, createTableQuery}
+		} else {
+			configuredTables[table] = discoveredTable{columns, config.IndexConfiguration{}, comment, createTableQuery}
+		}
+	}
+	for tableName, conf := range configuredTables {
+		autoDiscoResults.WriteString(fmt.Sprintf("{table: %s, timestampField: %s}, ", tableName, conf.config.GetTimestampField()))
+	}
+	logger.Info().Msgf("Table auto-discovery results -> %d tables found: [%s]", len(configuredTables), strings.TrimSuffix(autoDiscoResults.String(), ", "))
+	return
 }
 
 func (sl *tableDiscovery) populateTableDefinitions(configuredTables map[string]discoveredTable, databaseName string, cfg config.QuesmaConfiguration) {

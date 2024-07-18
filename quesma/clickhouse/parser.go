@@ -4,7 +4,9 @@ package clickhouse
 
 import (
 	"fmt"
+	"quesma/logger"
 	"quesma/plugins"
+	"quesma/schema"
 	"quesma/util"
 	"slices"
 	"strings"
@@ -12,33 +14,65 @@ import (
 
 const NestedSeparator = "::"
 
+type CreateTableEntry struct {
+	ClickHouseColumnName string
+	ClickHouseType       string
+}
+
 // m: unmarshalled json from HTTP request
 // Returns nicely formatted string for CREATE TABLE command
-func FieldsMapToCreateTableString(namespace string, m SchemaMap, indentLvl int, config *ChTableConfig, nameFormatter plugins.TableColumNameFormatter) string {
-
+func FieldsMapToCreateTableString(m SchemaMap, config *ChTableConfig, nameFormatter plugins.TableColumNameFormatter, schemaMapping *schema.Schema) string {
 	var result strings.Builder
-	i := 0
-	for name, value := range m {
-		if namespace == "" {
-			result.WriteString("\n")
+
+	columnsFromJson := JsonToColumns("", m, 1, config, nameFormatter)
+	columnsFromSchema := SchemaToColumns(schemaMapping, nameFormatter)
+
+	first := true
+	for _, columnFromJson := range columnsFromJson {
+		if first {
+			first = false
+		} else {
+			result.WriteString(",\n")
+		}
+		result.WriteString(util.Indent(1))
+
+		if columnFromSchema, found := columnsFromSchema[schema.FieldName(columnFromJson.ClickHouseColumnName)]; found && !strings.Contains(columnFromJson.ClickHouseType, "Array") {
+			// Schema takes precedence over JSON (except for Arrays which are not currently handled)
+			result.WriteString(fmt.Sprintf("\"%s\" %s", columnFromSchema.ClickHouseColumnName, columnFromSchema.ClickHouseType))
+		} else {
+			result.WriteString(fmt.Sprintf("\"%s\" %s", columnFromJson.ClickHouseColumnName, columnFromJson.ClickHouseType))
 		}
 
+		delete(columnsFromSchema, schema.FieldName(columnFromJson.ClickHouseColumnName))
+	}
+
+	// There might be some columns from schema which were not present in the JSON
+	for _, column := range columnsFromSchema {
+		if first {
+			first = false
+		} else {
+			result.WriteString(",\n")
+		}
+		result.WriteString(util.Indent(1))
+		result.WriteString(fmt.Sprintf("\"%s\" %s", column.ClickHouseColumnName, column.ClickHouseType))
+	}
+
+	return result.String()
+}
+
+func JsonToColumns(namespace string, m SchemaMap, indentLvl int, config *ChTableConfig, nameFormatter plugins.TableColumNameFormatter) []CreateTableEntry {
+	var resultColumns []CreateTableEntry
+
+	for name, value := range m {
 		listValue, isListValue := value.([]interface{})
 		if isListValue {
 			value = listValue
 		}
 		nestedValue, ok := value.(SchemaMap)
 		if (ok && nestedValue != nil && len(nestedValue) > 0) && !isListValue {
-			var nested []string
-			if namespace == "" {
-				nested = append(nested, FieldsMapToCreateTableString(name, nestedValue, indentLvl, config, nameFormatter))
-			} else {
-				nested = append(nested, FieldsMapToCreateTableString(nameFormatter.Format(namespace, name), nestedValue, indentLvl, config, nameFormatter))
-			}
-
-			result.WriteString(strings.Join(nested, ",\n"))
+			nested := JsonToColumns(nameFormatter.Format(namespace, name), nestedValue, indentLvl, config, nameFormatter)
+			resultColumns = append(resultColumns, nested...)
 		} else {
-			// value is a single field. Only String/Bool/DateTime64 supported for now.
 			var fType string
 			if value == nil { // HACK ALERT -> We're treating null values as strings for now, so that we don't completely discard documents with empty values
 				fType = "Nullable(String)"
@@ -52,24 +86,57 @@ func FieldsMapToCreateTableString(namespace string, m SchemaMap, indentLvl int, 
 			if indentLvl == 1 && name == timestampFieldName && config.timestampDefaultsNow {
 				fType += " DEFAULT now64()"
 			}
-			result.WriteString(util.Indent(indentLvl))
-			if namespace == "" {
-				result.WriteString(fmt.Sprintf("\"%s\" %s", name, fType))
-			} else {
-				result.WriteString(fmt.Sprintf("\"%s\" %s", nameFormatter.Format(namespace, name), fType))
-			}
+			resultColumns = append(resultColumns, CreateTableEntry{ClickHouseColumnName: nameFormatter.Format(namespace, name), ClickHouseType: fType})
 		}
-		if i+1 < len(m) {
-			result.WriteString(",")
-		}
-
-		if namespace != "" && i+1 < len(m) {
-			result.WriteString("\n")
-		}
-
-		i++
 	}
-	return result.String()
+	return resultColumns
+}
+
+func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter plugins.TableColumNameFormatter) map[schema.FieldName]CreateTableEntry {
+	resultColumns := make(map[schema.FieldName]CreateTableEntry)
+
+	if schemaMapping == nil {
+		return resultColumns
+	}
+
+	for _, field := range schemaMapping.Fields {
+		var fType string
+
+		// FIXME: shouldn't InternalPropertyName already have "::"? (it currently doesn't)
+		internalPropertyName := strings.Replace(field.InternalPropertyName.AsString(), ".", "::", -1)
+
+		switch field.Type.Name {
+		default:
+			logger.Warn().Msgf("Unsupported field type '%s' for field '%s' when trying to create a table. Ignoring that field.", field.Type.Name, field.PropertyName.AsString())
+			continue
+		case schema.TypePoint.Name:
+			lat := nameFormatter.Format(internalPropertyName, "lat")
+			lon := nameFormatter.Format(internalPropertyName, "lon")
+			resultColumns[schema.FieldName(lat)] = CreateTableEntry{ClickHouseColumnName: lat, ClickHouseType: "Nullable(String)"}
+			resultColumns[schema.FieldName(lon)] = CreateTableEntry{ClickHouseColumnName: lon, ClickHouseType: "Nullable(String)"}
+			continue
+
+		// Simple types:
+		case schema.TypeText.Name:
+			fType = "Nullable(String)"
+		case schema.TypeKeyword.Name:
+			fType = "Nullable(String)"
+		case schema.TypeLong.Name:
+			fType = "Nullable(Int64)"
+		case schema.TypeUnsignedLong.Name:
+			fType = "Nullable(Uint64)"
+		case schema.TypeTimestamp.Name:
+			fType = "Nullable(DateTime64)"
+		case schema.TypeDate.Name:
+			fType = "Nullable(Date)"
+		case schema.TypeFloat.Name:
+			fType = "Nullable(Float64)"
+		case schema.TypeBoolean.Name:
+			fType = "Nullable(Bool)"
+		}
+		resultColumns[schema.FieldName(internalPropertyName)] = CreateTableEntry{ClickHouseColumnName: internalPropertyName, ClickHouseType: fType}
+	}
+	return resultColumns
 }
 
 // Returns map with fields that are in 'sm', but not in our table schema 't'.
