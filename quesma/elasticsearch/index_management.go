@@ -53,6 +53,7 @@ func (im *indexManagement) GetSources() Sources {
 	if s := im.sources.Load(); s != nil {
 		return *s
 	} else {
+		logger.Warn().Msg("Indices are not yet loaded, returning empty sources.")
 		return Sources{}
 	}
 }
