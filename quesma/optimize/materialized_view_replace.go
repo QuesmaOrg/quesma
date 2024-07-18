@@ -38,7 +38,8 @@ func (s *materializedViewReplace) replaceInfix(where model.Expr, pattern string,
 
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 
-		if pattern == model.AsString(e) {
+		current := model.AsString(e)
+		if pattern == current {
 			replaced = true
 			return replacement
 		}

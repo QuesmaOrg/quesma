@@ -15,11 +15,13 @@ func Test_cacheGroupBy(t *testing.T) {
 	tests := []struct {
 		name        string
 		shouldCache bool
+		tableName   string
 		query       model.SelectCommand
 	}{
 		{
 			"select all",
 			false,
+			"foo",
 			model.SelectCommand{
 				Columns:    []model.Expr{model.NewColumnRef("*")},
 				FromClause: model.NewTableRef("foo"),
@@ -29,6 +31,7 @@ func Test_cacheGroupBy(t *testing.T) {
 		{
 			"select a, count() from foo  group by 1",
 			true,
+			"foo",
 			model.SelectCommand{
 				Columns:    []model.Expr{model.NewColumnRef("a"), model.NewFunction("count", model.NewColumnRef("*"))},
 				FromClause: model.NewTableRef("foo"),
@@ -39,8 +42,10 @@ func Test_cacheGroupBy(t *testing.T) {
 	}
 
 	cfg := config.QuesmaConfiguration{}
-	cfg.EnabledOptimizers = make(config.OptimizersConfiguration)
-	cfg.EnabledOptimizers["cache_group_by_queries"] = true
+	cfg.IndexConfig = make(map[string]config.IndexConfiguration)
+	cfg.IndexConfig["foo"] = config.IndexConfiguration{
+		EnabledOptimizers: map[string]config.OptimizerConfiguration{"cache_group_by_queries": {Enabled: true}},
+	}
 
 	for _, tt := range tests {
 
@@ -49,6 +54,7 @@ func Test_cacheGroupBy(t *testing.T) {
 			queries := []*model.Query{
 				{
 					SelectCommand: tt.query,
+					TableName:     tt.tableName,
 				},
 			}
 			pipeline := NewOptimizePipeline(cfg)
@@ -191,13 +197,171 @@ func Test_dateTrunc(t *testing.T) {
 	}
 
 	cfg := config.QuesmaConfiguration{}
-	cfg.EnabledOptimizers = make(config.OptimizersConfiguration)
-	cfg.EnabledOptimizers["truncate_date"] = false
-
 	cfg.IndexConfig = make(map[string]config.IndexConfiguration)
 	cfg.IndexConfig["foo"] = config.IndexConfiguration{
-		EnabledOptimizers: config.OptimizersConfiguration{
-			"truncate_date": true,
+		EnabledOptimizers: map[string]config.OptimizerConfiguration{"truncate_date": {Enabled: true}},
+	}
+
+	for _, tt := range tests {
+
+		t.Run(tt.name, func(t *testing.T) {
+
+			queries := []*model.Query{
+				{
+					TableName:     tt.tableName,
+					SelectCommand: tt.query,
+				},
+			}
+			pipeline := NewOptimizePipeline(cfg)
+			optimized, err := pipeline.Transform(queries)
+
+			if err != nil {
+				t.Fatalf("error optimizing query: %v", err)
+			}
+
+			if len(optimized) != 1 {
+				t.Fatalf("expected 1 query, got %d", len(optimized))
+			}
+
+			assert.Equal(t, tt.expected, optimized[0].SelectCommand)
+
+		})
+
+	}
+}
+
+func Test_materialized_view_replace(t *testing.T) {
+
+	date := func(s string) model.Expr {
+		return model.NewFunction("parseDateTime64BestEffort", model.NewLiteral(fmt.Sprintf("'%s'", s)))
+	}
+
+	and := func(a, b model.Expr) model.Expr {
+		return model.NewInfixExpr(a, "and", b)
+	}
+
+	lt := func(a, b model.Expr) model.Expr {
+		return model.NewInfixExpr(a, "<", b)
+	}
+
+	gt := func(a, b model.Expr) model.Expr {
+		return model.NewInfixExpr(a, ">", b)
+	}
+
+	col := func(s string) model.Expr {
+		return model.NewColumnRef(s)
+	}
+	literal := func(a any) model.Expr { return model.NewLiteral(a) }
+
+	tests := []struct {
+		name      string
+		tableName string
+		query     model.SelectCommand
+		expected  model.SelectCommand
+	}{
+		{
+			"select all where date ",
+			"foo",
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo"),
+				WhereClause: date("2024-06-04T13:08:53.675Z"),
+			},
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo"),
+				WhereClause: date("2024-06-04T13:08:53.675Z"),
+			},
+		},
+
+		{
+			"select all with condition",
+			"foo",
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo"),
+				WhereClause: gt(col("a"), literal(10)),
+			},
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo_view"),
+				WhereClause: literal("TRUE"),
+			},
+		},
+
+		{
+			"select all with condition 2",
+			"foo",
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo"),
+				WhereClause: and(lt(col("c"), literal(1)), gt(col("a"), literal(10))),
+			},
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo_view"),
+				WhereClause: and(lt(col("c"), literal(1)), literal("TRUE")),
+			},
+		},
+
+		{
+			"select all with condition 3",
+			"foo",
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo"),
+				WhereClause: and(gt(col("a"), literal(10)), and(lt(col("c"), literal(1)), gt(col("a"), literal(10)))),
+			},
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo_view"),
+				WhereClause: and(literal("TRUE"), and(lt(col("c"), literal(1)), literal("TRUE"))),
+			},
+		},
+
+		{
+			"select all without condition",
+			"foo",
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo"),
+				WhereClause: lt(col("a"), literal(10)),
+			},
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo"),
+				WhereClause: lt(col("a"), literal(10)),
+			},
+		},
+
+		{
+			"select all from other table with condition",
+			"foo",
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo1"),
+				WhereClause: gt(col("a"), literal(10)),
+			},
+			model.SelectCommand{
+				Columns:     []model.Expr{model.NewColumnRef("*")},
+				FromClause:  model.NewTableRef("foo1"),
+				WhereClause: gt(col("a"), literal(10)),
+			},
+		},
+	}
+
+	cfg := config.QuesmaConfiguration{}
+	cfg.IndexConfig = make(map[string]config.IndexConfiguration)
+	cfg.IndexConfig["foo"] = config.IndexConfiguration{
+		EnabledOptimizers: map[string]config.OptimizerConfiguration{
+			"materialized_view_replace": {
+				Enabled: true,
+				Properties: map[string]string{
+					"table":     "foo",
+					"condition": `"a">10`,
+					"view":      "foo_view",
+				},
+			},
 		},
 	}
 
