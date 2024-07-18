@@ -54,14 +54,12 @@ func (qp *QueryProcessor) SplitResultSetIntoBuckets(ResultSet []model.QueryResul
 		return [][]model.QueryResultRow{{}}
 	}
 
-	buckets := [][]model.QueryResultRow{{}}
-	curBucket := 0
 	lastRow := ResultSet[0]
-	for _, row := range ResultSet {
+	buckets := [][]model.QueryResultRow{{lastRow}}
+	for _, row := range ResultSet[1:] {
 		if qp.sameGroupByFields(row, lastRow, level) {
-			buckets[curBucket] = append(buckets[curBucket], row)
+			buckets[len(buckets)-1] = append(buckets[len(buckets)-1], row)
 		} else {
-			curBucket++
 			buckets = append(buckets, []model.QueryResultRow{row})
 		}
 		lastRow = row

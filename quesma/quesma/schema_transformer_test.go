@@ -249,8 +249,205 @@ func Test_ipRangeTransform(t *testing.T) {
 		},
 	}
 	for k := range queries {
-		resultQueries, err := transform.Transform(queries[k])
-		assert.NoError(t, err)
-		assert.Equal(t, expectedQueries[k].SelectCommand.String(), resultQueries[0].SelectCommand.String())
+		t.Run(strconv.Itoa(k), func(t *testing.T) {
+			resultQueries, err := transform.Transform(queries[k])
+			assert.NoError(t, err)
+			assert.Equal(t, expectedQueries[k].SelectCommand.String(), resultQueries[0].SelectCommand.String())
+		})
+	}
+}
+
+func Test_arrayType(t *testing.T) {
+
+	indexConfig := map[string]config.IndexConfiguration{
+		"kibana_sample_data_ecommerce": {
+			Name:    "kibana_sample_data_ecommerce",
+			Enabled: true,
+		},
+	}
+	cfg := config.QuesmaConfiguration{
+		IndexConfig: indexConfig,
+	}
+
+	tableDiscovery :=
+		fixedTableProvider{tables: map[string]schema.Table{
+			"kibana_sample_data_ecommerce": {Columns: map[string]schema.Column{
+				"products::name":     {Name: "products::name", Type: "keyword"},
+				"products::quantity": {Name: "products::quantity", Type: "long"},
+				"products::sku":      {Name: "products::sku", Type: "keyword"},
+				"order_date":         {Name: "order_date", Type: "timestamp"},
+			}},
+		}}
+
+	tableDefinition := clickhouse.Table{
+		Name:   "kibana_sample_data_ecommerce",
+		Config: clickhouse.NewDefaultCHConfig(),
+		Cols: map[string]*clickhouse.Column{
+			"products::name":     {Name: "products::name", Type: clickhouse.NewBaseType("Array(String)")},
+			"products::quantity": {Name: "products::quantity", Type: clickhouse.NewBaseType("Array(Int64)")},
+			"products::sku":      {Name: "products::sku", Type: clickhouse.NewBaseType("Array(String)")},
+			"order_date":         {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
+		},
+	}
+
+	lm := clickhouse.NewLogManagerEmpty()
+
+	td, err := lm.GetTableDefinitions()
+	if err != nil {
+		t.Fatal(err)
+	}
+	td.Store("kibana_sample_data_ecommerce", &tableDefinition)
+
+	s := schema.NewSchemaRegistry(tableDiscovery, cfg, clickhouse.SchemaTypeAdapter{})
+	transform := &SchemaCheckPass{cfg: indexConfig, schemaRegistry: s, logManager: lm}
+
+	tests := []struct {
+		name     string
+		query    *model.Query
+		expected *model.Query
+	}{
+		{
+			name: "simple array",
+			query: &model.Query{
+				TableName: "kibana_sample_data_logs",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_logs"),
+					Columns:    []model.Expr{model.NewWildcardExpr},
+				},
+			},
+			expected: &model.Query{
+				TableName: "kibana_sample_data_logs",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_logs"),
+					Columns:    []model.Expr{model.NewWildcardExpr},
+				},
+			},
+		},
+
+		{
+			name: "arrayReduce",
+			//SELECT "order_date", sumOrNull("products::quantity") FROM "kibana_sample_data_ecommerce" GROUP BY "order_date"
+			query: &model.Query{
+				TableName: "kibana_sample_data_ecommerce",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
+					Columns: []model.Expr{
+						model.NewColumnRef("order_date"),
+						model.NewFunction("sumOrNull", model.NewColumnRef("products::quantity")),
+					},
+					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
+				},
+			},
+			//SELECT "order_date", sumOrNull(arrayReduce('sumOrNull',"products::quantity")) FROM "kibana_sample_data_ecommerce" GROUP BY "order_date"
+			expected: &model.Query{
+				TableName: "kibana_sample_data_ecommerce",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
+					Columns: []model.Expr{
+						model.NewColumnRef("order_date"),
+						model.NewFunction("sumOrNull", model.NewFunction("arrayReduce", model.NewLiteral("'sumOrNull'"), model.NewColumnRef("products::quantity"))),
+					},
+					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
+				},
+			},
+		},
+
+		{
+			name: "ilike array",
+			//SELECT "order_date", count() FROM "kibana_sample_data_ecommerce" WHERE  "products::name" ILIKE '%bag%	 GROUP BY "order_date"
+			//SELECT "order_date", count() FROM "kibana_sample_data_ecommerce" WHERE arrayExists((x) -> x ILIKE '%bag%',"products::product_name") GROUP BY "order_date"
+
+			query: &model.Query{
+				TableName: "kibana_sample_data_ecommerce",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
+					Columns: []model.Expr{
+						model.NewColumnRef("order_date"),
+						model.NewFunction("count"),
+					},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("products::name"),
+						"ILIKE",
+						model.NewLiteral("%foo%"),
+					),
+					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
+				},
+			},
+			expected: &model.Query{
+				TableName: "kibana_sample_data_ecommerce",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
+					Columns: []model.Expr{
+						model.NewColumnRef("order_date"),
+						model.NewFunction("count"),
+					},
+					WhereClause: model.NewFunction(
+						"arrayExists",
+						model.NewLambdaExpr([]string{"x"}, model.NewInfixExpr(model.NewLiteral("x"), "ILIKE", model.NewLiteral("%foo%"))),
+						model.NewColumnRef("products::name")),
+					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
+				},
+			},
+		},
+
+		//SELECT "order_date", count() FROM "kibana_sample_data_ecommerce" WHERE "products.sku" = 'XYZ' group by  "order_date"
+		//SELECT "order_date", count() FROM "kibana_sample_data_ecommerce" WHERE has("products.sku",'XYZ') group by "order_date"
+
+		{
+			name: "equals array",
+			query: &model.Query{
+				TableName: "kibana_sample_data_ecommerce",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
+					Columns: []model.Expr{
+						model.NewColumnRef("order_date"),
+						model.NewFunction("count"),
+					},
+					WhereClause: model.NewInfixExpr(
+						model.NewColumnRef("products::sku"),
+						"=",
+						model.NewLiteral("'XYZ'"),
+					),
+					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
+				},
+			},
+			expected: &model.Query{
+				TableName: "kibana_sample_data_ecommerce",
+				SelectCommand: model.SelectCommand{
+					FromClause: model.NewTableRef("kibana_sample_data_ecommerce"),
+					Columns: []model.Expr{
+						model.NewColumnRef("order_date"),
+						model.NewFunction("count"),
+					},
+					WhereClause: model.NewFunction(
+						"has",
+						model.NewColumnRef("products::sku"),
+						model.NewLiteral("'XYZ'")),
+					GroupBy: []model.Expr{model.NewColumnRef("order_date")},
+				},
+			},
+		},
+	}
+
+	asString := func(query *model.Query) string {
+		return query.SelectCommand.String()
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual, err := transform.Transform([]*model.Query{tt.query})
+			assert.NoError(t, err)
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.True(t, len(actual) == 1, "len queries == 1")
+
+			expectedJson := asString(tt.expected)
+			actualJson := asString(actual[0])
+
+			assert.Equal(t, expectedJson, actualJson)
+		})
 	}
 }

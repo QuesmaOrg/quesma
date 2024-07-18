@@ -4,6 +4,7 @@ package model
 
 import (
 	"fmt"
+	"quesma/logger"
 	"strconv"
 	"strings"
 )
@@ -134,6 +135,33 @@ func (v *renderer) VisitAliasedExpr(e AliasedExpr) interface{} {
 func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	// THIS SHOULD PRODUCE QUERY IN  BRACES
 	var sb strings.Builder
+
+	const cteNamePrefix = "cte"
+	cteName := func(cteIdx int) string {
+		return fmt.Sprintf("%s_%d", cteNamePrefix, cteIdx+1)
+	}
+	cteFieldAlias := func(cteIdx, fieldIdx int) string {
+		return fmt.Sprintf("%s_%d_%d", cteNamePrefix, cteIdx+1, fieldIdx+1)
+	}
+	cteCountAlias := func(ctxIdx int) string {
+		return fmt.Sprintf("%s_%d_cnt", cteNamePrefix, ctxIdx+1)
+	}
+	if len(c.CTEs) > 0 {
+		CTEsStrings := make([]string, 0, len(c.CTEs))
+		for i, cte := range c.CTEs {
+			for j, col := range cte.Columns {
+				if _, alreadyAliased := cte.Columns[j].(AliasedExpr); !alreadyAliased {
+					cte.Columns[j] = AliasedExpr{Expr: col, Alias: cteFieldAlias(i, j)}
+				} else {
+					logger.Warn().Msgf("Subquery column already aliased: %s, %+v", AsString(col), col)
+				}
+			}
+			str := fmt.Sprintf("%s AS (%s)", cteName(i), AsString(cte))
+			CTEsStrings = append(CTEsStrings, str)
+		}
+		sb.WriteString(fmt.Sprintf("WITH %s ", strings.Join(CTEsStrings, ", ")))
+	}
+
 	sb.WriteString("SELECT ")
 	if c.IsDistinct {
 		sb.WriteString("DISTINCT ")
@@ -182,15 +210,25 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	/* HACK ALERT END */
 	if c.FromClause != nil { // here we have to handle nested
 		if nestedCmd, isNested := c.FromClause.(SelectCommand); isNested {
-			sb.WriteString("(")
-			sb.WriteString(AsString(nestedCmd))
-			sb.WriteString(")")
-		} else if nestedCmd, ok := c.FromClause.(*SelectCommand); ok {
-			sb.WriteString("(")
-			sb.WriteString(AsString(nestedCmd))
-			sb.WriteString(")")
+			sb.WriteString(fmt.Sprintf("(%s)", AsString(nestedCmd)))
+		} else if nestedCmdPtr, isNested := c.FromClause.(*SelectCommand); isNested {
+			sb.WriteString(fmt.Sprintf("(%s)", AsString(nestedCmdPtr)))
 		} else {
 			sb.WriteString(AsString(c.FromClause))
+		}
+
+		if len(c.CTEs) > 0 {
+			for cteIdx, cte := range c.CTEs {
+				sb.WriteString(" INNER JOIN ")
+				sb.WriteString(strconv.Quote(cteName(cteIdx)))
+				sb.WriteString(" ON ")
+				for colIdx := range len(cte.Columns) - 1 { // at least so far, last one is always count() or some other metric aggr, on which we don't need to GROUP BY
+					sb.WriteString(fmt.Sprintf("%s = %s", AsString(c.Columns[colIdx]), strconv.Quote(cteFieldAlias(cteIdx, colIdx))))
+					if colIdx < len(cte.Columns)-2 {
+						sb.WriteString(" AND ")
+					}
+				}
+			}
 		}
 	}
 	if c.WhereClause != nil {
@@ -207,12 +245,22 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	}
 	if len(groupBy) > 0 {
 		sb.WriteString(" GROUP BY ")
-		sb.WriteString(strings.Join(groupBy, ", "))
+		fullGroupBy := groupBy
+		for i := range c.CTEs {
+			fullGroupBy = append(fullGroupBy, cteCountAlias(i))
+		}
+		sb.WriteString(strings.Join(fullGroupBy, ", "))
 	}
 
 	orderBy := make([]string, 0, len(c.OrderBy))
+	orderByReplaced, orderByToReplace := 0, len(c.CTEs)
 	for _, col := range c.OrderBy {
-		orderBy = append(orderBy, AsString(col))
+		if col.ExchangeToAliasInCTE && orderByReplaced < orderByToReplace {
+			orderBy = append(orderBy, fmt.Sprintf("%s DESC", cteCountAlias(orderByReplaced)))
+			orderByReplaced++
+		} else {
+			orderBy = append(orderBy, AsString(col))
+		}
 	}
 	if len(orderBy) > 0 {
 		sb.WriteString(" ORDER BY ")
@@ -220,7 +268,15 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	}
 
 	if c.Limit != noLimit {
-		sb.WriteString(fmt.Sprintf(" LIMIT %d", c.Limit))
+		if len(c.LimitBy) <= 1 {
+			sb.WriteString(fmt.Sprintf(" LIMIT %d", c.Limit))
+		} else {
+			limitBys := make([]string, 0, len(c.LimitBy)-1)
+			for _, col := range c.LimitBy[:len(c.LimitBy)-1] {
+				limitBys = append(limitBys, AsString(col))
+			}
+			sb.WriteString(fmt.Sprintf(" LIMIT %d BY %s", c.Limit, strings.Join(limitBys, ", ")))
+		}
 	}
 
 	return sb.String()

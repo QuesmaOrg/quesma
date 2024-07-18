@@ -25,11 +25,11 @@ func initializeLogger(asyncQueryHook *AsyncTraceLogger) zerolog.Logger {
 func TestAsyncTraceLogger_OneTransactionWithError(t *testing.T) {
 	asyncQueryHook := AsyncTraceLogger{AsyncQueryTrace: concurrent.NewMap[string, TraceCtx]()}
 	logger := initializeLogger(&asyncQueryHook)
-	ctx := context.WithValue(context.Background(), AsyncIdCtxKey, "quesma_async_search_id_1")
+	ctx := context.WithValue(context.Background(), AsyncIdCtxKey, "quesma_async_1")
 	logger.Info().Ctx(ctx).Msg("Start async search")
 	logger.Info().Ctx(ctx).Msg("Continue async search")
 	assert.Equal(t, 1, asyncQueryHook.AsyncQueryTrace.Size())
-	if traceCtx, ok := asyncQueryHook.AsyncQueryTrace.Load("quesma_async_search_id_1"); ok {
+	if traceCtx, ok := asyncQueryHook.AsyncQueryTrace.Load("quesma_async_1"); ok {
 		assert.Equal(t, 2, len(traceCtx.Messages))
 	}
 	logger.Error().Ctx(ctx).Msg("Error in async search")
@@ -39,11 +39,11 @@ func TestAsyncTraceLogger_OneTransactionWithError(t *testing.T) {
 func TestAsyncTraceLogger_OneTransactionOk(t *testing.T) {
 	asyncQueryHook := AsyncTraceLogger{AsyncQueryTrace: concurrent.NewMap[string, TraceCtx]()}
 	logger := initializeLogger(&asyncQueryHook)
-	ctx := context.WithValue(context.Background(), AsyncIdCtxKey, "quesma_async_search_id_1")
+	ctx := context.WithValue(context.Background(), AsyncIdCtxKey, "quesma_async_1")
 	logger.Info().Ctx(ctx).Msg("Start async search")
 	logger.Info().Ctx(ctx).Msg("Continue async search")
 	assert.Equal(t, 1, asyncQueryHook.AsyncQueryTrace.Size())
-	if traceCtx, ok := asyncQueryHook.AsyncQueryTrace.Load("quesma_async_search_id_1"); ok {
+	if traceCtx, ok := asyncQueryHook.AsyncQueryTrace.Load("quesma_async_1"); ok {
 		assert.Equal(t, 2, len(traceCtx.Messages))
 	}
 	ctx = context.WithValue(ctx, TraceEndCtxKey, true)

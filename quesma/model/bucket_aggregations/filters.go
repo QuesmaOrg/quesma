@@ -34,7 +34,7 @@ func (query Filters) IsBucketAggregation() bool {
 	return true
 }
 
-func (query Filters) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Filters) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	var value any = nil
 	if len(rows) > 0 {
 		if len(rows[0].Cols) > 0 {
@@ -43,9 +43,9 @@ func (query Filters) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 			logger.ErrorWithCtx(query.ctx).Msgf("unexpected number of columns in filters aggregation response, len(rows[0].Cols): %d, level: %d", len(rows[0].Cols), level)
 		}
 	}
-	return []model.JsonMap{{
+	return model.JsonMap{
 		"doc_count": value,
-	}}
+	}
 }
 
 func (query Filters) String() string {

@@ -28,7 +28,7 @@ func (query Quantile) IsBucketAggregation() bool {
 	return false
 }
 
-func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) []model.JsonMap {
+func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	valueMap := make(model.JsonMap)
 	valueAsStringMap := make(model.JsonMap)
 
@@ -62,9 +62,9 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 	}
 
 	if query.keyed {
-		return []model.JsonMap{{
+		return model.JsonMap{
 			"values": valueMap,
-		}}
+		}
 	} else {
 		var values []model.JsonMap
 		keysSorted := util.MapKeysSorted(valueMap)
@@ -80,9 +80,9 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 			}
 			values = append(values, responseValue)
 		}
-		return []model.JsonMap{{
+		return model.JsonMap{
 			"values": values,
-		}}
+		}
 	}
 }
 
@@ -148,9 +148,9 @@ func (query Quantile) processResult(colName string, percentileReturnedByClickhou
 	return percentile, percentileAsString, percentileIsNanOrInvalid
 }
 
-var emptyPercentilesResult = []model.JsonMap{{
+var emptyPercentilesResult = model.JsonMap{
 	"values": 0,
-}}
+}
 
 func (query Quantile) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	return rowsFromDB

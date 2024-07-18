@@ -19,6 +19,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
+	"quesma/schema"
 	"quesma/telemetry"
 	"quesma/util"
 	"slices"
@@ -41,6 +42,7 @@ type (
 		schemaLoader   TableDiscovery
 		cfg            config.QuesmaConfiguration
 		phoneHomeAgent telemetry.PhoneHomeAgent
+		schemaRegistry schema.Registry
 	}
 	TableMap  = concurrent.Map[string, *Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -86,6 +88,8 @@ func (lm *LogManager) Start() {
 	lm.schemaLoader.ReloadTableDefinitions()
 
 	logger.Info().Msgf("schemas loaded: %s", lm.schemaLoader.TableDefinitions().Keys())
+	const reloadInterval = 1 * time.Minute
+	forceReloadCh := lm.schemaLoader.ForceReloadCh()
 
 	go func() {
 		recovery.LogPanic()
@@ -94,8 +98,18 @@ func (lm *LogManager) Start() {
 			case <-lm.ctx.Done():
 				logger.Debug().Msg("closing log manager")
 				return
-			case <-time.After(1 * time.Minute): // TODO make it configurable
-				lm.schemaLoader.ReloadTableDefinitions()
+			case doneCh := <-forceReloadCh:
+				// this prevents flood of reloads, after a long pause
+				if time.Since(lm.schemaLoader.LastReloadTime()) > reloadInterval {
+					lm.schemaLoader.ReloadTableDefinitions()
+				}
+				doneCh <- struct{}{}
+			case <-time.After(reloadInterval):
+				// only reload if we actually use Quesma, make it double time to prevent edge case
+				// otherwise it prevent ClickHouse Cloud from idle pausing
+				if time.Since(lm.schemaLoader.LastAccessTime()) < reloadInterval*2 {
+					lm.schemaLoader.ReloadTableDefinitions()
+				}
 			}
 		}
 	}()
@@ -349,18 +363,26 @@ func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string,
 	return lm.sendCreateTableQuery(ctx, addOurFieldsToCreateTableQuery(query, config, table))
 }
 
-func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jsonData types.JSON, tableConfig *ChTableConfig, cfg config.QuesmaConfiguration) (string, error) {
+func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema.Schema {
+	if foundSchema, found := schemaRegistry.FindSchema(schema.TableName(tableName)); found {
+		return &foundSchema
+	}
+	return nil
+}
+
+func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jsonData types.JSON, tableConfig *ChTableConfig, cfg config.QuesmaConfiguration, schemaRegistry schema.Registry) (string, error) {
 
 	nameFormatter, err := registry.TableColumNameFormatterFor(tableName, cfg)
 	if err != nil {
 		return "", err
 	}
 
-	columns := FieldsMapToCreateTableString("", jsonData, 1, tableConfig, nameFormatter) + Indexes(jsonData)
+	columns := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(schemaRegistry, tableName)) + Indexes(jsonData)
 
 	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
 (
-	%s
+
+%s
 )
 %s
 COMMENT 'created by Quesma'`,
@@ -387,7 +409,7 @@ func Indexes(m SchemaMap) string {
 func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig) error {
 	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
 
-	query, err := buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, lm.cfg)
+	query, err := buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, lm.cfg, lm.schemaRegistry)
 	if err != nil {
 		return err
 	}
@@ -597,9 +619,9 @@ func (lm *LogManager) Ping() error {
 	return lm.chDb.Ping()
 }
 
-func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader TableDiscovery) *LogManager {
+func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader TableDiscovery, schemaRegistry schema.Registry) *LogManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, schemaLoader: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent}
+	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, schemaLoader: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry}
 }
 
 func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager {

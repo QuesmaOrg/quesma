@@ -15,7 +15,7 @@ import (
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/testdata"
-	"quesma/testdata/clients/kunkka"
+	"quesma/testdata/clients"
 	dashboard_1 "quesma/testdata/dashboard-1"
 	kibana_visualize "quesma/testdata/kibana-visualize"
 	opensearch_visualize "quesma/testdata/opensearch-visualize"
@@ -42,6 +42,9 @@ func (e staticRegistry) AllSchemas() map[schema.TableName]schema.Schema {
 }
 
 func (e staticRegistry) FindSchema(name schema.TableName) (schema.Schema, bool) {
+	if e.tables == nil {
+		return schema.Schema{}, false
+	}
 	s, found := e.tables[name]
 	return s, found
 }
@@ -138,9 +141,38 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
-			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` GROUP BY "OriginCityName" ORDER BY "OriginCityName"`,
-			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` WHERE "Cancelled"==true GROUP BY "OriginCityName" ORDER BY "OriginCityName"`,
-			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` WHERE "FlightDelay"==true GROUP BY "OriginCityName" ORDER BY "OriginCityName"`,
+			`SELECT "OriginCityName", count() ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "OriginCityName" IS NOT NULL ` +
+				`GROUP BY "OriginCityName" ` +
+				`ORDER BY "OriginCityName" ASC ` +
+				`LIMIT 1000`,
+			`WITH cte_1 AS ` +
+				`(SELECT "OriginCityName" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "OriginCityName" IS NOT NULL ` +
+				`GROUP BY "OriginCityName" ` +
+				`ORDER BY "OriginCityName" ASC ` +
+				`LIMIT 1000) ` +
+				`SELECT "OriginCityName", count() ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`INNER JOIN "cte_1" ON "OriginCityName" = "cte_1_1" ` +
+				`WHERE ("OriginCityName" IS NOT NULL AND "FlightDelay"==true) ` +
+				`GROUP BY "OriginCityName", cte_1_cnt ` +
+				`ORDER BY "OriginCityName" ASC`,
+			`WITH cte_1 AS ` +
+				`(SELECT "OriginCityName" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "OriginCityName" IS NOT NULL ` +
+				`GROUP BY "OriginCityName" ` +
+				`ORDER BY "OriginCityName" ASC ` +
+				`LIMIT 1000) ` +
+				`SELECT "OriginCityName", count() ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`INNER JOIN "cte_1" ON "OriginCityName" = "cte_1_1" ` +
+				`WHERE ("OriginCityName" IS NOT NULL AND "Cancelled"==true) ` +
+				`GROUP BY "OriginCityName", cte_1_cnt ` +
+				`ORDER BY "OriginCityName" ASC`,
 		},
 	},
 	{ // [2]
@@ -174,11 +206,25 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
-			`SELECT "FlightDelayType", count() FROM ` + tableNameQuoted + ` GROUP BY "FlightDelayType" ORDER BY "FlightDelayType"`,
-			`SELECT "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000), count() ` +
-				`FROM ` + tableNameQuoted + " " +
-				`GROUP BY "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000) ` +
-				`ORDER BY "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000)`,
+			`SELECT "FlightDelayType", count() ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "FlightDelayType" IS NOT NULL ` +
+				`GROUP BY "FlightDelayType" ` +
+				`ORDER BY count() DESC, "FlightDelayType" ` +
+				`LIMIT 10`,
+			`WITH cte_1 AS ` +
+				`(SELECT "FlightDelayType" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "FlightDelayType" IS NOT NULL ` +
+				`GROUP BY "FlightDelayType" ` +
+				`ORDER BY count() DESC, "FlightDelayType" ` +
+				`LIMIT 10) ` +
+				`SELECT "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000), count() ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`INNER JOIN "cte_1" ON "FlightDelayType" = "cte_1_1" ` +
+				`WHERE "FlightDelayType" IS NOT NULL ` +
+				`GROUP BY "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000), cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "FlightDelayType", toInt64(toUnixTimestamp64Milli("timestamp") / 10800000)`,
 		},
 	},
 	{ // [3]
@@ -317,23 +363,66 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
-			`SELECT "OriginAirportID", "DestAirportID", count() FROM ` + tableNameQuoted + ` ` +
-				`GROUP BY "OriginAirportID", "DestAirportID" ORDER BY "OriginAirportID", "DestAirportID"`,
-			`SELECT "OriginAirportID", "DestAirportID", "DestLocation" ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "OriginAirportID" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "OriginAirportID" IS NOT NULL ` +
+				`GROUP BY "OriginAirportID" ` +
+				`ORDER BY count() DESC, "OriginAirportID" ` +
+				`LIMIT 10000) ` +
+				`SELECT "OriginAirportID", "DestAirportID", count() ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`INNER JOIN "cte_1" ON "OriginAirportID" = "cte_1_1" ` +
+				`WHERE ("OriginAirportID" IS NOT NULL AND "DestAirportID" IS NOT NULL) ` +
+				`GROUP BY "OriginAirportID", "DestAirportID", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "OriginAirportID", count() DESC, "DestAirportID" ` +
+				`LIMIT 10000 BY "OriginAirportID"`,
+			`WITH cte_1 AS ` +
+				`(SELECT "OriginAirportID" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "OriginAirportID" IS NOT NULL ` +
+				`GROUP BY "OriginAirportID" ` +
+				`ORDER BY count() DESC, "OriginAirportID" ` +
+				`LIMIT 10000), ` +
+				`cte_2 AS ` +
+				`(SELECT "OriginAirportID" AS "cte_2_1", "DestAirportID" AS "cte_2_2", count() AS "cte_2_cnt" ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE ("OriginAirportID" IS NOT NULL AND "DestAirportID" IS NOT NULL) ` +
+				`GROUP BY "OriginAirportID", "DestAirportID" ` +
+				`ORDER BY count() DESC, "DestAirportID" ` +
+				`LIMIT 10000 BY "OriginAirportID") ` +
+				`SELECT "OriginAirportID", "DestAirportID", "DestLocation" ` +
 				`FROM (SELECT "OriginAirportID", "DestAirportID", "DestLocation", ROW_NUMBER() ` +
 				`OVER (PARTITION BY "OriginAirportID", "DestAirportID") AS "row_number" ` +
-				`FROM "logs-generic-default") ` +
-				`WHERE "row_number"<=1 ` +
-				`GROUP BY "OriginAirportID", "DestAirportID", "DestLocation" ` +
-				`ORDER BY "OriginAirportID", "DestAirportID"`,
-			`SELECT "OriginAirportID", "OriginLocation", "Origin" ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE ("OriginAirportID" IS NOT NULL AND "DestAirportID" IS NOT NULL)) ` +
+				`INNER JOIN "cte_1" ON "OriginAirportID" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "OriginAirportID" = "cte_2_1" AND "DestAirportID" = "cte_2_2" ` +
+				`WHERE (("OriginAirportID" IS NOT NULL AND "DestAirportID" IS NOT NULL) AND "row_number"<=1) ` +
+				`GROUP BY "OriginAirportID", "DestAirportID", "DestLocation", cte_1_cnt, cte_2_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "OriginAirportID", cte_2_cnt DESC, "DestAirportID"`,
+			`WITH cte_1 AS ` +
+				`(SELECT "OriginAirportID" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "OriginAirportID" IS NOT NULL ` +
+				`GROUP BY "OriginAirportID" ` +
+				`ORDER BY count() DESC, "OriginAirportID" ` +
+				`LIMIT 10000) ` +
+				`SELECT "OriginAirportID", "OriginLocation", "Origin" ` +
 				`FROM (SELECT "OriginAirportID", "OriginLocation", "Origin", ROW_NUMBER() ` +
 				`OVER (PARTITION BY "OriginAirportID") AS "row_number" ` +
-				`FROM "logs-generic-default") ` +
-				`WHERE "row_number"<=1 ` +
-				`GROUP BY "OriginAirportID", "OriginLocation", "Origin" ` +
-				`ORDER BY "OriginAirportID"`,
-			`SELECT "OriginAirportID", count() FROM ` + tableNameQuoted + ` GROUP BY "OriginAirportID" ORDER BY "OriginAirportID"`,
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "OriginAirportID" IS NOT NULL) ` +
+				`INNER JOIN "cte_1" ON "OriginAirportID" = "cte_1_1" ` +
+				`WHERE ("OriginAirportID" IS NOT NULL AND "row_number"<=1) ` +
+				`GROUP BY "OriginAirportID", "OriginLocation", "Origin", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "OriginAirportID"`,
+			`SELECT "OriginAirportID", count() ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "OriginAirportID" IS NOT NULL ` +
+				`GROUP BY "OriginAirportID" ` +
+				`ORDER BY count() DESC, "OriginAirportID" ` +
+				`LIMIT 10000`,
 		},
 	},
 	{ // [7]
@@ -367,11 +456,25 @@ var aggregationTests = []struct {
 			"size": 0
 		}`,
 		[]string{
-			`SELECT "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000), count() ` +
+			`WITH cte_1 AS ` +
+				`(SELECT "category" AS "cte_1_1", count() AS "cte_1_cnt" ` +
 				`FROM ` + tableNameQuoted + ` ` +
-				`GROUP BY "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000) ` +
-				`ORDER BY "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000)`,
-			`SELECT "category", count() FROM ` + tableNameQuoted + ` GROUP BY "category" ORDER BY "category"`,
+				`WHERE "category" IS NOT NULL ` +
+				`GROUP BY "category" ` +
+				`ORDER BY count() DESC, "category" ` +
+				`LIMIT 10) ` +
+				`SELECT "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000), count() ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`INNER JOIN "cte_1" ON "category" = "cte_1_1" ` +
+				`WHERE "category" IS NOT NULL ` +
+				`GROUP BY "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000), cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "category", toInt64(toUnixTimestamp64Milli("order_date") / 86400000)`,
+			`SELECT "category", count() ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "category" IS NOT NULL ` +
+				`GROUP BY "category" ` +
+				`ORDER BY count() DESC, "category" ` +
+				`LIMIT 10`,
 		},
 	},
 	{ // [8]
@@ -537,7 +640,12 @@ var aggregationTests = []struct {
 				"size": 0
 			}`,
 		[]string{
-			`SELECT "OriginCityName", count() FROM ` + tableNameQuoted + ` GROUP BY "OriginCityName" ORDER BY count() DESC LIMIT 10`,
+			`SELECT "OriginCityName", count() ` +
+				`FROM ` + tableNameQuoted + ` ` +
+				`WHERE "OriginCityName" IS NOT NULL ` +
+				`GROUP BY "OriginCityName" ` +
+				`ORDER BY count() DESC, "OriginCityName" ` +
+				`LIMIT 10`,
 			`SELECT count(DISTINCT "OriginCityName") FROM ` + tableNameQuoted,
 		},
 	},
@@ -571,7 +679,7 @@ var aggregationTests = []struct {
 
 // Simple unit test, testing only "aggs" part of the request json query
 func TestAggregationParser(t *testing.T) {
-	// logger.InitSimpleLoggerForTests() FIXME there are 2 warns if you enable them, might look into that
+	// logger.InitSimpleLoggerForTests() // FIXME there are 2 warns if you enable them, might look into that
 	table, err := clickhouse.NewTable(`CREATE TABLE `+tableName+`
 		( "message" String, "timestamp" DateTime64(3, 'UTC') )
 		ENGINE = Memory`,
@@ -644,7 +752,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			"message":     {Name: "message", Type: clickhouse.NewBaseType("String"), IsFullTextMatch: true},
 			"bytes_gauge": {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
 		},
-		Name:   "logs-generic-default",
+		Name:   tableName,
 		Config: clickhouse.NewDefaultCHConfig(),
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
@@ -669,12 +777,14 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 	}
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
 	allTests := testdata.AggregationTests
+	allTests = append(allTests, testdata.AggregationTests2...)
 	allTests = append(allTests, opensearch_visualize.AggregationTests...)
 	allTests = append(allTests, dashboard_1.AggregationTests...)
 	allTests = append(allTests, testdata.PipelineAggregationTests...)
 	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
 	allTests = append(allTests, kibana_visualize.AggregationTests...)
-	allTests = append(allTests, kunkka.KunkkaTests...)
+	allTests = append(allTests, clients.KunkkaTests...)
+	allTests = append(allTests, clients.OpheliaTests...)
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)" {
@@ -706,6 +816,9 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			if test.TestName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" {
 				t.Skip("Small details left for this test to be correct. I'll (Krzysiek) fix soon after returning to work")
 			}
+			if test.TestName == "Ophelia Test 3: 5x terms + a lot of other aggregations" || test.TestName == "Ophelia Test 6: triple terms + other aggregations + order by another aggregations" {
+				t.Skip("Very similar to 2 previous tests, results have like 500-1000 lines. They are almost finished though. Maybe I'll fix soon, but not in this PR")
+			}
 
 			body, parseErr := types.ParseJSON(test.QueryRequestJson)
 			assert.NoError(t, parseErr)
@@ -718,7 +831,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 
 			// Let's leave those commented debugs for now, they'll be useful in next PRs
 			for j, query := range queries {
-				// fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\n", j, query, query.String(context.Background()))
+				// fmt.Printf("--- Aggregation %d: %+v\n\n---SQL string: %s\n\n%v\n\n", j, query, model.AsString(query.SelectCommand), query.SelectCommand.Columns)
 				if test.ExpectedSQLs[j] != "NoDBQuery" {
 					util.AssertSqlEqual(t, test.ExpectedSQLs[j], query.SelectCommand.String())
 				}
@@ -750,9 +863,12 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			actualMinusExpected, expectedMinusActual := util.MapDifference(response.Aggregations, expectedAggregationsPart, true, true)
 
 			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
-			acceptableDifference := []string{"doc_count_error_upper_bound", "sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma}
-			// pp.Println("ACTUAL", actualMinusExpected)
-			// pp.Println("EXPECTED", expectedMinusActual)
+			acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma,
+				"sum_other_doc_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
+			// pp.Println("ACTUAL diff", actualMinusExpected)
+			// pp.Println("EXPECTED diff", expectedMinusActual)
+			// pp.Println("ACTUAL", response.Aggregations)
+			// pp.Println("EXPECTED", expectedAggregationsPart)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
 			if body["track_total_hits"] == true { // FIXME some better check after track_total_hits

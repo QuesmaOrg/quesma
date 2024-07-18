@@ -174,6 +174,15 @@ func (t *Table) GetDateTimeType(ctx context.Context, fieldName string) DateTimeT
 	if t.Config.hasTimestamp && fieldName == timestampFieldName {
 		return DateTime64
 	}
+	logger.WarnWithCtx(ctx).Msgf("datetime field '%s' not found in table '%s'", fieldName, t.Name)
+	return Invalid
+}
+
+func (t *Table) GetDateTimeTypeFromExpr(ctx context.Context, expr model.Expr) DateTimeType {
+	if ref, ok := expr.(model.ColumnRef); ok {
+		return t.GetDateTimeType(ctx, ref.ColumnName)
+	}
+	logger.WarnWithCtx(ctx).Msgf("datetime field '%v' not found in table '%s'", expr, t.Name)
 	return Invalid
 }
 

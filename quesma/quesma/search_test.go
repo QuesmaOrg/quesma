@@ -70,6 +70,7 @@ const tableName = `logs-generic-default`
 var ctx = context.WithValue(context.TODO(), tracing.RequestIdCtxKey, tracing.GetRequestId())
 
 func TestAsyncSearchHandler(t *testing.T) {
+	// logger.InitSimpleLoggerForTests()
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{tableName: {Enabled: true}}}
 	table := concurrent.NewMapWith(tableName, &clickhouse.Table{
 		Name:   tableName,
@@ -115,7 +116,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 	}
 
 	for i, tt := range testdata.TestsAsyncSearch {
-		t.Run(strconv.Itoa(i)+tt.Name, func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
 			defer db.Close()
 			lm := clickhouse.NewLogManagerWithConnection(db, table)
@@ -234,8 +235,8 @@ func TestSearchHandler(t *testing.T) {
 			},
 		},
 	}
-	for _, tt := range testdata.TestsSearch {
-		t.Run(tt.Name, func(t *testing.T) {
+	for i, tt := range testdata.TestsSearch {
+		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
 			db, mock := util.InitSqlMockWithPrettyPrint(t, false)
 			defer db.Close()
 

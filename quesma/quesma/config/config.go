@@ -37,13 +37,15 @@ type QuesmaConfiguration struct {
 	//deprecated
 	ClickHouse RelationalDbConfiguration `koanf:"clickhouse"`
 	//deprecated
-	Hydrolix                   RelationalDbConfiguration     `koanf:"hydrolix"`
-	Elasticsearch              ElasticsearchConfiguration    `koanf:"elasticsearch"`
-	IndexConfig                map[string]IndexConfiguration `koanf:"indexes"`
-	Logging                    LoggingConfiguration          `koanf:"logging"`
-	PublicTcpPort              network.Port                  `koanf:"port"`
-	IngestStatistics           bool                          `koanf:"ingestStatistics"`
-	QuesmaInternalTelemetryUrl *Url                          `koanf:"internalTelemetryUrl"`
+	Hydrolix                      RelationalDbConfiguration             `koanf:"hydrolix"`
+	Elasticsearch                 ElasticsearchConfiguration            `koanf:"elasticsearch"`
+	IndexConfig                   map[string]IndexConfiguration         `koanf:"indexes"`
+	Logging                       LoggingConfiguration                  `koanf:"logging"`
+	PublicTcpPort                 network.Port                          `koanf:"port"`
+	IngestStatistics              bool                                  `koanf:"ingestStatistics"`
+	QuesmaInternalTelemetryUrl    *Url                                  `koanf:"internalTelemetryUrl"`
+	EnabledOptimizers             OptimizersConfiguration               `koanf:"optimizers"`
+	IndexSourceToInternalMappings map[string]IndexMappingsConfiguration `koanf:"indexMappings"`
 }
 
 type LoggingConfiguration struct {
@@ -62,6 +64,8 @@ type RelationalDbConfiguration struct {
 	Database      string `koanf:"database"`
 	AdminUrl      *Url   `koanf:"adminUrl"`
 }
+
+type OptimizersConfiguration map[string]bool
 
 func (c *RelationalDbConfiguration) IsEmpty() bool {
 	return c != nil && c.Url == nil && c.User == "" && c.Password == "" && c.Database == ""
@@ -125,6 +129,10 @@ func Load() QuesmaConfiguration {
 				idxConfig.SchemaConfiguration.Fields[fieldName] = configuration
 			}
 		}
+	}
+	for name, idxMapping := range config.IndexSourceToInternalMappings {
+		idxMapping.Name = name
+		config.IndexSourceToInternalMappings[name] = idxMapping
 	}
 	return config
 }
@@ -233,6 +241,36 @@ func (c *QuesmaConfiguration) WritesToElasticsearch() bool {
 	return c.Mode != ClickHouse
 }
 
+func (c *QuesmaConfiguration) optimizersConfigAsString(s string, cfg OptimizersConfiguration) string {
+
+	var lines []string
+
+	lines = append(lines, fmt.Sprintf("        %s:", s))
+	for k, v := range cfg {
+		lines = append(lines, fmt.Sprintf("            %s: %v", k, v))
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func (c *QuesmaConfiguration) OptimizersConfigAsString() string {
+
+	var lines []string
+
+	lines = append(lines, "\n")
+
+	lines = append(lines, c.optimizersConfigAsString("Global", c.EnabledOptimizers))
+
+	for indexName, indexConfig := range c.IndexConfig {
+		if indexConfig.EnabledOptimizers != nil && len(indexConfig.EnabledOptimizers) > 0 {
+			lines = append(lines, c.optimizersConfigAsString(indexName, indexConfig.EnabledOptimizers))
+		}
+	}
+
+	lines = append(lines, "\n")
+	return strings.Join(lines, "\n")
+}
+
 func (c *QuesmaConfiguration) String() string {
 	var indexConfigs string
 	for _, idx := range c.IndexConfig {
@@ -285,6 +323,10 @@ func (c *QuesmaConfiguration) String() string {
 	if c.QuesmaInternalTelemetryUrl != nil {
 		quesmaInternalTelemetryUrl = c.QuesmaInternalTelemetryUrl.String()
 	}
+	var indexMappings string
+	for _, idx := range c.IndexSourceToInternalMappings {
+		indexMappings += idx.String()
+	}
 	return fmt.Sprintf(`
 Quesma Configuration:
 	Mode: %s
@@ -293,11 +335,13 @@ Quesma Configuration:
 	Connectors: %s
 	Call Elasticsearch: %v
 	Indexes: %s
+	IndexMappings: %s
 	Logs Path: %s
 	Log Level: %v
 	Public TCP Port: %d
 	Ingest Statistics: %t,
-	Quesma Telemetry URL: %s`,
+	Quesma Telemetry URL: %s
+    Optimizers: %s`,
 		c.Mode.String(),
 		elasticUrl,
 		elasticsearchExtra,
@@ -306,11 +350,13 @@ Quesma Configuration:
 		connectorString.String(),
 		c.Elasticsearch.Call,
 		indexConfigs,
+		indexMappings,
 		c.Logging.Path,
 		c.Logging.Level,
 		c.PublicTcpPort,
 		c.IngestStatistics,
 		quesmaInternalTelemetryUrl,
+		c.OptimizersConfigAsString(),
 	)
 }
 

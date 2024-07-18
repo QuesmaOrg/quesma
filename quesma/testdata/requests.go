@@ -727,18 +727,27 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.SearchQueryInfo{Typ: model.Normal},
 		[]string{
-			`SELECT COALESCE("event.dataset",'unknown'), ` +
-				groupBySQL("@timestamp", clickhouse.DateTime64, time.Minute) +
-				`, count() FROM ` + QuotedTableName + ` ` +
-				`WHERE ("@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') ` +
-				`AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z')) ` +
-				`GROUP BY COALESCE("event.dataset",'unknown'), ` + groupBySQL("@timestamp", clickhouse.DateTime64, time.Minute) + ` ` +
-				`ORDER BY COALESCE("event.dataset",'unknown'), ` + groupBySQL("@timestamp", clickhouse.DateTime64, time.Minute),
+			`WITH cte_1 AS ` +
+				`(SELECT COALESCE("event.dataset",'unknown') AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z')) ` +
+				`GROUP BY COALESCE("event.dataset",'unknown') ` +
+				`ORDER BY count() DESC, COALESCE("event.dataset",'unknown') ` +
+				`LIMIT 4) ` +
+				`SELECT COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`INNER JOIN "cte_1" ON COALESCE("event.dataset",'unknown') = "cte_1_1" ` +
+				`WHERE ("@timestamp">parseDateTime64BestEffort('2024-01-25T14:53:59.033Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-25T15:08:59.033Z')) ` +
+				`GROUP BY COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, COALESCE("event.dataset",'unknown'), toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
 			`SELECT COALESCE("event.dataset",'unknown'), count() FROM ` + QuotedTableName + ` ` +
 				`WHERE ("@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z') ` +
 				`AND "@timestamp".*parseDateTime64BestEffort('2024-01-25T1.:..:59.033Z')) ` +
 				`GROUP BY COALESCE("event.dataset",'unknown') ` +
-				`ORDER BY COALESCE("event.dataset",'unknown')`,
+				`ORDER BY count() DESC, COALESCE("event.dataset",'unknown') ` +
+				`LIMIT 4`,
 		},
 		true,
 	},
@@ -1194,7 +1203,10 @@ var TestsSearch = []SearchTestCase{
 			},
 			"track_total_hits": false
 		}`,
-		[]string{`("type"='upgrade-assistant-reindex-operation' AND (NOT ((has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL)) OR NOT ((has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))))`},
+		[]string{
+			`("type"='upgrade-assistant-reindex-operation' AND NOT ` +
+				`(((has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL) ` +
+				`OR (has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))))`},
 		model.ListAllFields,
 		////[]model.Query{
 		//	justSimplestWhere(`("type"='upgrade-assistant-reindex-operation' AND (NOT ((has("attributes_string_key","namespace") AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL)) OR NOT ((has("attributes_string_key","namespaces") AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))))`),
@@ -1203,9 +1215,9 @@ var TestsSearch = []SearchTestCase{
 			`SELECT "message" ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("type"='upgrade-assistant-reindex-operation' ` +
-				`AND (NOT ((has("attributes_string_key","namespace") ` +
-				`AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL)) ` +
-				`OR NOT ((has("attributes_string_key","namespaces") ` +
+				`AND NOT (((has("attributes_string_key","namespace") ` +
+				`AND "attributes_string_value"[indexOf("attributes_string_key","namespace")] IS NOT NULL) ` +
+				`OR (has("attributes_string_key","namespaces") ` +
 				`AND "attributes_string_value"[indexOf("attributes_string_key","namespaces")] IS NOT NULL))))`,
 		},
 	},
@@ -1493,7 +1505,11 @@ var TestsSearch = []SearchTestCase{
 		  }
 		`,
 		[]string{
-			`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`,
+			`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`,
+			`(("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
+				`AND "data_stream.namespace" IS NOT NULL)`,
 		},
 		model.Facets,
 		////[]model.Query{
@@ -1574,26 +1590,31 @@ var TestsSearch = []SearchTestCase{
 		  }
 		`,
 		[]string{
-			`("service.name"='admin' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z')))`,
+			`(("service.name"='admin' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z'))) ` +
+				`AND "namespace" IS NOT NULL)`,
+			`("service.name"='admin' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z')))`,
 		},
 		model.Facets,
 		////[]model.Query{
 		//	justSimplestWhere(`("service.name"='admin' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T14:34:35.873Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T14:49:35.873Z')))`),
 		//},
 		[]string{
-			`SELECT "namespace", count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("service.name"='admin' ` +
-				`AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z') ` +
-				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z'))) ` +
-				`GROUP BY "namespace" ` +
-				`ORDER BY count() DESC ` +
-				`LIMIT 10`,
 			`SELECT count(DISTINCT "namespace") ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("service.name"='admin' ` +
 				`AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z') ` +
 				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z')))`,
+			`SELECT "namespace", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE (("service.name"='admin' ` +
+				`AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z') ` +
+				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T14:..:35.873Z'))) ` +
+				`AND "namespace" IS NOT NULL) ` +
+				`GROUP BY "namespace" ` +
+				`ORDER BY count() DESC, "namespace" ` +
+				`LIMIT 10`,
 		},
 	},
 	{ // [21]
@@ -1656,7 +1677,15 @@ var TestsSearch = []SearchTestCase{
 		"timeout": "1000ms",
 		"track_total_hits": true
 	}`,
-		[]string{`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`},
+		[]string{
+			`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') ` +
+				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`,
+			`((("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') ` +
+				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))) ` +
+				`AND "data_stream.namespace" IS NOT NULL)`,
+		},
 		model.Facets,
 		////[]model.Query{
 		//	justSimplestWhere(`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`),
@@ -1726,7 +1755,13 @@ var TestsSearch = []SearchTestCase{
 			"terminate_after": 100000,
 			"timeout": "1000ms"
 		}`,
-		[]string{`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`},
+		[]string{
+			`(("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
+				`AND "namespace" IS NOT NULL)`,
+			`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`,
+		},
 		model.Facets,
 		////[]model.Query{
 		//	justSimplestWhere(`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`),
@@ -1734,11 +1769,12 @@ var TestsSearch = []SearchTestCase{
 		[]string{
 			`SELECT "namespace", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" iLIKE '%user%' ` +
+				`WHERE (("message" iLIKE '%user%' ` +
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
+				`AND "namespace" IS NOT NULL) ` +
 				`GROUP BY "namespace" ` +
-				`ORDER BY count() DESC ` +
+				`ORDER BY count() DESC, "namespace" ` +
 				`LIMIT 10`,
 			`SELECT count(DISTINCT "namespace") ` +
 				`FROM ` + QuotedTableName + ` ` +
@@ -1807,7 +1843,15 @@ var TestsSearch = []SearchTestCase{
 		"terminate_after": 100000,
 		"timeout": "1000ms"
 	}`,
-		[]string{`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`},
+		[]string{
+			`((("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') ` +
+				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))) ` +
+				`AND "namespace" IS NOT NULL)`,
+			`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') ` +
+				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`,
+		},
 		model.Facets,
 		////[]model.Query{
 		//	justSimplestWhere(`(("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z')))`),
@@ -1815,11 +1859,12 @@ var TestsSearch = []SearchTestCase{
 		[]string{
 			`SELECT "namespace", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE (("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') ` +
+				`WHERE ((("message" iLIKE '%User logged out%' AND "host.name" iLIKE '%poseidon%') ` +
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-29T15:36:36.491Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-29T18:11:36.491Z'))) ` +
+				`AND "namespace" IS NOT NULL) ` +
 				`GROUP BY "namespace" ` +
-				`ORDER BY count() DESC ` +
+				`ORDER BY count() DESC, "namespace" ` +
 				`LIMIT 10`,
 			`SELECT count(DISTINCT "namespace") ` +
 				`FROM ` + QuotedTableName + ` ` +
@@ -1885,7 +1930,13 @@ var TestsSearch = []SearchTestCase{
 			"terminate_after": 100000,
 			"timeout": "1000ms"
 		}`,
-		[]string{`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`},
+		[]string{
+			`(("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
+				`AND "namespace" IS NOT NULL)`,
+			`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`,
+		},
 		model.Facets,
 		////[]model.Query{
 		//	justSimplestWhere(`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`),
@@ -1893,11 +1944,12 @@ var TestsSearch = []SearchTestCase{
 		[]string{
 			`SELECT "namespace", count() ` +
 				`FROM ` + QuotedTableName + ` ` +
-				`WHERE ("message" iLIKE '%user%' ` +
+				`WHERE (("message" iLIKE '%user%' ` +
 				`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
+				`AND "namespace" IS NOT NULL) ` +
 				`GROUP BY "namespace" ` +
-				`ORDER BY count() DESC ` +
+				`ORDER BY count() DESC, "namespace" ` +
 				`LIMIT 10`,
 			`SELECT count(DISTINCT "namespace") ` +
 				`FROM ` + QuotedTableName + ` ` +

@@ -7,6 +7,8 @@ type Expr interface {
 	Accept(v ExprVisitor) interface{}
 }
 
+var InvalidExpr = Expr(nil)
+
 // ColumnRef is a reference to a column in a table, we can enrich it with more information (e.g. type used) as we go
 type ColumnRef struct {
 	ColumnName string
@@ -163,8 +165,9 @@ const (
 )
 
 type OrderByExpr struct {
-	Exprs     []Expr
-	Direction OrderByDirection
+	Exprs                []Expr
+	Direction            OrderByDirection
+	ExchangeToAliasInCTE bool
 }
 
 func (o OrderByExpr) Accept(v ExprVisitor) interface{} {
@@ -176,6 +179,15 @@ func NewOrderByExpr(exprs []Expr, direction OrderByDirection) OrderByExpr {
 }
 func NewOrderByExprWithoutOrder(exprs ...Expr) OrderByExpr {
 	return OrderByExpr{Exprs: exprs, Direction: DefaultOrder}
+}
+
+// IsCountDesc returns true <=> this OrderByExpr is count() DESC
+func (o OrderByExpr) IsCountDesc() bool {
+	if len(o.Exprs) != 1 || o.Direction != DescOrder {
+		return false
+	}
+	function, ok := o.Exprs[0].(FunctionExpr)
+	return ok && function.Name == "count"
 }
 
 func NewInfixExpr(lhs Expr, operator string, rhs Expr) InfixExpr {

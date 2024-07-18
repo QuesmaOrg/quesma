@@ -3,8 +3,10 @@
 package ui
 
 import (
+	"bytes"
 	"github.com/rs/zerolog"
 	"quesma/elasticsearch"
+	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/telemetry"
 	"quesma/util"
@@ -42,12 +44,13 @@ type QueryDebugPrimarySource struct {
 }
 
 type QueryDebugSecondarySource struct {
-	Id string
+	Id      string
+	AsyncId string
 
 	Path              string
 	IncomingQueryBody []byte
 
-	QueryBodyTranslated    []byte
+	QueryBodyTranslated    []types.TranslatedSQLQuery
 	QueryTranslatedResults []byte
 	SecondaryTook          time.Duration
 }
@@ -133,8 +136,15 @@ func (qmc *QuesmaManagementConsole) RecordRequest(typeName string, took time.Dur
 }
 
 func (qdi *queryDebugInfo) requestContains(queryStr string) bool {
+
+	var translatedQueries [][]byte
+	for _, translatedQuery := range qdi.QueryDebugSecondarySource.QueryBodyTranslated {
+		translatedQueries = append(translatedQueries, translatedQuery.Query)
+	}
+
 	potentialPlaces := [][]byte{qdi.QueryDebugSecondarySource.IncomingQueryBody,
-		qdi.QueryDebugSecondarySource.QueryBodyTranslated}
+		bytes.Join(translatedQueries, []byte{})}
+
 	for _, potentialPlace := range potentialPlaces {
 		if potentialPlace != nil && strings.Contains(string(potentialPlace), queryStr) {
 			return true
@@ -178,6 +188,7 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 		// fmt.Println(msg.IncomingQueryBody)
 		secondaryDebugInfo := QueryDebugSecondarySource{
 			msg.Id,
+			msg.AsyncId,
 			msg.Path,
 			[]byte(util.JsonPrettify(string(msg.IncomingQueryBody), true)),
 			msg.QueryBodyTranslated,

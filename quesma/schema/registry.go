@@ -5,6 +5,7 @@ package schema
 import (
 	"quesma/logger"
 	"quesma/quesma/config"
+	"strings"
 )
 
 type (
@@ -41,9 +42,9 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 		aliases := make(map[FieldName]FieldName)
 
 		s.populateSchemaFromStaticConfiguration(indexConfiguration, fields)
-		s.populateSchemaFromTableDefinition(definitions, indexName, fields)
+		existsInDataSource := s.populateSchemaFromTableDefinition(definitions, indexName, fields)
 		s.populateAliases(indexConfiguration, fields, aliases)
-		schemas[TableName(indexName)] = Schema{Fields: fields, Aliases: aliases}
+		schemas[TableName(indexName)] = NewSchemaWithAliases(fields, aliases, existsInDataSource)
 	}
 
 	return schemas, nil
@@ -84,7 +85,12 @@ func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguratio
 	if deprecatedConfigInUse(indexConfiguration) {
 		for fieldName, fieldType := range indexConfiguration.TypeMappings {
 			if resolvedType, valid := ParseType(fieldType); valid {
-				fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(fieldName), Type: resolvedType}
+				if resolvedType.Equal(TypePoint) {
+					// TODO replace with notion of ephemeral types
+					fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(strings.Replace(fieldName, ".", "::", -1)), Type: resolvedType}
+				} else {
+					fields[FieldName(fieldName)] = Field{PropertyName: FieldName(fieldName), InternalPropertyName: FieldName(fieldName), Type: resolvedType}
+				}
 			} else {
 				logger.Warn().Msgf("invalid configuration: type %s not supported (should have been spotted when validating configuration)", fieldType)
 			}
@@ -95,7 +101,12 @@ func (s *schemaRegistry) populateSchemaFromStaticConfiguration(indexConfiguratio
 				continue
 			}
 			if resolvedType, valid := ParseType(field.Type.AsString()); valid {
-				fields[FieldName(field.Name.AsString())] = Field{PropertyName: FieldName(field.Name.AsString()), InternalPropertyName: FieldName(field.Name.AsString()), Type: resolvedType}
+				// TODO replace with notion of ephemeral types
+				if resolvedType.Equal(TypePoint) {
+					fields[FieldName(field.Name.AsString())] = Field{PropertyName: FieldName(field.Name.AsString()), InternalPropertyName: FieldName(strings.Replace(field.Name.AsString(), ".", "::", -1)), Type: resolvedType}
+				} else {
+					fields[FieldName(field.Name.AsString())] = Field{PropertyName: FieldName(field.Name.AsString()), InternalPropertyName: FieldName(field.Name.AsString()), Type: resolvedType}
+				}
 			} else {
 				logger.Warn().Msgf("invalid configuration: type %s not supported (should have been spotted when validating configuration)", field.Type.AsString())
 			}
@@ -125,19 +136,24 @@ func (s *schemaRegistry) populateAliases(indexConfiguration config.IndexConfigur
 	}
 }
 
-func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[string]Table, indexName string, fields map[FieldName]Field) {
-	if tableDefinition, found := definitions[indexName]; found {
+func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[string]Table, indexName string, fields map[FieldName]Field) (existsInDataSource bool) {
+	tableDefinition, found := definitions[indexName]
+	if found {
 		logger.Debug().Msgf("loading schema for table %s", indexName)
 
 		for _, column := range tableDefinition.Columns {
-			if _, exists := fields[FieldName(column.Name)]; !exists {
-				if quesmaType, found2 := s.dataSourceTypeAdapter.Convert(column.Type); found2 {
-					fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(column.Name), Type: quesmaType}
+			propertyName := FieldName(strings.Replace(column.Name, "::", ".", -1))
+			if existing, exists := fields[propertyName]; !exists {
+				if quesmaType, resolved := s.dataSourceTypeAdapter.Convert(column.Type); resolved {
+					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: quesmaType}
 				} else {
 					logger.Debug().Msgf("type %s not supported, falling back to text", column.Type)
-					fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(column.Name), Type: TypeText}
+					fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: TypeText}
 				}
+			} else {
+				fields[propertyName] = Field{PropertyName: propertyName, InternalPropertyName: FieldName(column.Name), Type: existing.Type}
 			}
 		}
 	}
+	return found
 }

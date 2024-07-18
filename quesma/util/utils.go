@@ -291,10 +291,14 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 			i, j := 0, 0
 			for i < i1Len && j < i2Len {
 				var key1, key2 string
-				key1, ok = i1Typed[i][keyAddedByQuesma].(string)
+				key1, ok = i1Typed[i][keyAddedByQuesma].(string) // TODO maybe some other types as well?
 				if !ok {
 					if key1Int, ok := i1Typed[i][keyAddedByQuesma].(int64); ok {
 						key1 = strconv.FormatInt(key1Int, 10)
+					} else if key1Uint, ok := i1Typed[i][keyAddedByQuesma].(uint64); ok {
+						key1 = strconv.FormatUint(key1Uint, 10)
+					} else if key1Float, ok := i1Typed[i][keyAddedByQuesma].(float64); ok {
+						key1 = strconv.FormatFloat(key1Float, 'f', -1, 64)
 					} else {
 						// TODO keys probably can be other types, e.g. bools
 						logger.ErrorWithCtx(ctx).Msgf("mergeAny: key not found in i1: %v", i1Typed[i])
@@ -302,10 +306,14 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 						continue
 					}
 				}
-				key2, ok = i2Typed[j].(JsonMap)[keyAddedByQuesma].(string) // TODO keys may be ints
+				key2, ok = i2Typed[j].(JsonMap)[keyAddedByQuesma].(string) // TODO maybe some other types as well?
 				if !ok {
 					if key2Int, ok := i2Typed[j].(JsonMap)[keyAddedByQuesma].(int64); ok {
 						key2 = strconv.FormatInt(key2Int, 10)
+					} else if key2Uint, ok := i2Typed[j].(JsonMap)[keyAddedByQuesma].(uint64); ok {
+						key2 = strconv.FormatUint(key2Uint, 10)
+					} else if key2Float, ok := i2Typed[j].(JsonMap)[keyAddedByQuesma].(float64); ok {
+						key2 = strconv.FormatFloat(key2Float, 'f', -1, 64)
 					} else {
 						// TODO keys probably can be other types, e.g. bools
 						logger.ErrorWithCtx(ctx).Msgf("mergeAny: key not found in i2: %v", i2Typed[j])
@@ -337,6 +345,10 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 			return mergedArray
 
 		default:
+			if i1 != i2 {
+				logger.WarnWithCtx(ctx).Msgf(
+					"mergeAny: i1 isn't neither JsonMap nor []JsonMap, i1 type: %T, i2 type: %T, i1: %v, i2: %v", i1, i2, i1, i2)
+			}
 			return i1
 		}
 	}
@@ -397,6 +409,14 @@ func AssertSqlEqual(t *testing.T, expected, actual string) {
 		fmt.Printf("%s\n", SqlPrettyPrint([]byte(expected)))
 		pp.Println("---- Actual:")
 		fmt.Printf("%s\n", SqlPrettyPrint([]byte(actual)))
+		for i, c := range actual {
+			if c != rune(expected[i]) {
+				const printLen = 100
+				pp.Printf("-- First diff: ")
+				fmt.Println(actual[i:min(i+printLen, len(actual))])
+				break
+			}
+		}
 		t.Errorf("Expected: %s, got: %s", expected, actual)
 	}
 }
@@ -408,6 +428,13 @@ func AssertContainsSqlEqual(t *testing.T, expected []string, actual string) {
 			return
 		}
 	}
+
+	pp.Println("-- Expected (one of):")
+	for i, el := range expected {
+		fmt.Printf("%d. %s\n", i+1, SqlPrettyPrint([]byte(el)))
+	}
+	pp.Println("---- Actual:")
+	fmt.Printf("%s\n", SqlPrettyPrint([]byte(actual)))
 	t.Errorf("Expected: %v\nActual: %s", expected, actual)
 }
 

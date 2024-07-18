@@ -126,6 +126,9 @@ func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhous
 
 	queryRunner.DateMathRenderer = queryparser.DateMathExpressionFormatLiteral
 
+	// tests should not be run with optimization enabled by default
+	queryRunner.EnableQueryOptimization(config)
+
 	router := configureRouter(config, schemaRegistry, logManager, quesmaManagementConsole, phoneHomeAgent, queryRunner)
 	return &Quesma{
 		telemetryAgent:          phoneHomeAgent,
@@ -363,7 +366,8 @@ func peekBody(r *http.Request) ([]byte, error) {
 		return nil, err
 	}
 
-	switch r.Header.Get("Content-Encoding") {
+	contentEncoding := r.Header.Get("Content-Encoding")
+	switch contentEncoding {
 	case "":
 		// No compression, leaving reqBody as-is
 	case "gzip":
@@ -375,9 +379,10 @@ func peekBody(r *http.Request) ([]byte, error) {
 		}
 	default:
 		logger.ErrorWithCtxAndReason(r.Context(), "unsupported Content-Encoding type").
-			Msgf("Unsupported Content-Encoding type: %v", err)
+			Msgf("Unsupported Content-Encoding type: %s", contentEncoding)
 		return nil, errors.New("unsupported Content-Encoding type")
 	}
+	r.Header.Del("Content-Encoding") // In the transparent proxy case we will send an uncompressed body, so the header should be removed
 
 	r.Body = io.NopCloser(bytes.NewBuffer(reqBody))
 	return reqBody, nil
