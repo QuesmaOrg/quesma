@@ -188,7 +188,7 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 				&model.SimpleQuery{FieldName: "*"}, model.WeNeedUnlimitedCount,
 			)
 			highlighter := NewEmptyHighlighter()
-			queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, hitQuery.SelectCommand.OrderByFieldNames(), true, false, false)
+			queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, hitQuery.SelectCommand.OrderByFieldNames(), true, false, false, cw.Table.Name)
 			hitQuery.Type = &queryType
 			ourResponseRaw := cw.MakeSearchResponse(
 				[]*model.Query{hitQuery},

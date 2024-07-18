@@ -84,7 +84,7 @@ func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
 	if fullQuery != nil {
 		highlighter.SetTokensToHighlight(fullQuery.SelectCommand)
 		// TODO: pass right arguments
-		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, fullQuery.SelectCommand.OrderByFieldNames(), true, false, false)
+		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, fullQuery.SelectCommand.OrderByFieldNames(), true, false, false, cw.InputTableName)
 		fullQuery.Type = &queryType
 		fullQuery.Highlighter = highlighter
 	}

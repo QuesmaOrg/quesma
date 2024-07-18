@@ -21,7 +21,6 @@ func makeSourceToDestMappings(indexMappings map[string]config.IndexMappingsConfi
 
 func (s *SchemaCheckPass) applyIndexMappingTransformations(query *model.Query) (*model.Query, error) {
 	sourceToDestMapping := makeSourceToDestMappings(s.indexMappings)
-
 	visitor := model.NewBaseVisitor()
 
 	// For now, we only rewrite the table refs

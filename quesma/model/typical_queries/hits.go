@@ -27,13 +27,14 @@ type Hits struct {
 	addSource      bool // true <=> we add hit.Source field to the response
 	addScore       bool // true <=> we add hit.Score field to the response (whose value is always 1)
 	addVersion     bool // true <=> we add hit.Version field to the response (whose value is always 1)
+	inputTableName string
 }
 
 func NewHits(ctx context.Context, table *clickhouse.Table, highlighter *model.Highlighter,
-	sortFieldNames []string, addSource, addScore, addVersion bool) Hits {
+	sortFieldNames []string, addSource, addScore, addVersion bool, inputTableName string) Hits {
 
 	return Hits{ctx: ctx, table: table, highlighter: highlighter, sortFieldNames: sortFieldNames,
-		addSource: addSource, addScore: addScore, addVersion: addVersion}
+		addSource: addSource, addScore: addScore, addVersion: addVersion, inputTableName: inputTableName}
 }
 
 const (
@@ -48,7 +49,7 @@ func (query Hits) IsBucketAggregation() bool {
 func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	hits := make([]model.SearchHit, 0, len(rows))
 	for i, row := range rows {
-		hit := model.NewSearchHit(query.table.Name)
+		hit := model.NewSearchHit(query.inputTableName)
 		if query.addScore {
 			hit.Score = defaultScore
 		}

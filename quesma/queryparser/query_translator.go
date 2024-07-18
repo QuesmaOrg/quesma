@@ -26,6 +26,7 @@ type ClickhouseQueryTranslator struct {
 
 	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
 	SchemaRegistry   schema.Registry
+	InputTableName   string
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()
