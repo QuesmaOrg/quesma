@@ -19,7 +19,7 @@ func (d emptyTimer) Begin() Span {
 	return emptySpan{}
 }
 
-func (d emptyTimer) Aggregate() DurationStats {
+func (d emptyTimer) AggregateAndReset() DurationStats {
 	return DurationStats{}
 }
 

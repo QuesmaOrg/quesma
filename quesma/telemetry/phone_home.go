@@ -517,12 +517,12 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 	stats.ClickHouse = a.CollectClickHouse(ctx)
 	stats.Elasticsearch = a.CollectElastic(ctx)
 
-	stats.ClickHouseQueriesDuration = a.ClickHouseQueryDuration().Aggregate()
-	stats.ClickHouseInsertsDuration = a.ClickHouseInsertDuration().Aggregate()
-	stats.ElasticReadsDuration = a.ElasticReadRequestsDuration().Aggregate()
-	stats.ElasticWritesDuration = a.ElasticWriteRequestsDuration().Aggregate()
-	stats.ElasticBypassedReadsDuration = a.ElasticBypassedReadRequestsDuration().Aggregate()
-	stats.ElasticBypassedWritesDuration = a.ElasticBypassedWriteRequestsDuration().Aggregate()
+	stats.ClickHouseQueriesDuration = a.ClickHouseQueryDuration().AggregateAndReset()
+	stats.ClickHouseInsertsDuration = a.ClickHouseInsertDuration().AggregateAndReset()
+	stats.ElasticReadsDuration = a.ElasticReadRequestsDuration().AggregateAndReset()
+	stats.ElasticWritesDuration = a.ElasticWriteRequestsDuration().AggregateAndReset()
+	stats.ElasticBypassedReadsDuration = a.ElasticBypassedReadRequestsDuration().AggregateAndReset()
+	stats.ElasticBypassedWritesDuration = a.ElasticBypassedWriteRequestsDuration().AggregateAndReset()
 	stats.UserAgentCounters = a.userAgentCounters.AggregateTopValues()
 
 	stats.IngestCounters = a.ingestCounters.Aggregate()
