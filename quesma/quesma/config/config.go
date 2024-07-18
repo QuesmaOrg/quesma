@@ -62,6 +62,7 @@ type RelationalDbConfiguration struct {
 	Password      string `koanf:"password"`
 	Database      string `koanf:"database"`
 	AdminUrl      *Url   `koanf:"adminUrl"`
+	DisableTLS    bool   `koanf:"disableTLS"`
 }
 
 type OptimizerConfiguration struct {
