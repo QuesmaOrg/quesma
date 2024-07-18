@@ -1434,7 +1434,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 							"aggs": {
 								"4": {
 									"terms": {
-										"field": "episodeName",
+										"field": "organName",
 										"order": {
 											"_key": "desc"
 										},
@@ -1449,7 +1449,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 								}
 							},
 							"terms": {
-								"field": "episodeName",
+								"field": "limbName",
 								"missing": "__missing__",
 								"order": {
 									"1": "asc"
@@ -1464,7 +1464,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 						}
 					},
 					"terms": {
-						"field": "seriesName",
+						"field": "surname",
 						"order": {
 							"1": "desc"
 						},

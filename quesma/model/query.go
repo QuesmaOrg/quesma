@@ -93,8 +93,8 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 	q.SelectCommand.newColumns = make([]Expr, len(qwa.SelectCommand.newColumns))
 	copy(q.SelectCommand.newColumns, qwa.SelectCommand.newColumns)
 
-	q.SelectCommand.GroupBy = make([]Expr, len(qwa.SelectCommand.GroupBy))
-	copy(q.SelectCommand.GroupBy, qwa.SelectCommand.GroupBy)
+	q.SelectCommand.newGroupBy = make([]Expr, len(qwa.SelectCommand.newGroupBy))
+	copy(q.SelectCommand.newGroupBy, qwa.SelectCommand.newGroupBy)
 }
 
 func (q *Query) AddColumn(column Expr) {
@@ -111,6 +111,22 @@ func (q *Query) AddGroupBy(column Expr) {
 
 func (q *Query) AddGroupByNew(column Expr) {
 	q.SelectCommand.newGroupBy = append(q.SelectCommand.newGroupBy, column)
+}
+
+func (q *Query) AddFullGroupByNew(column Expr) {
+	q.SelectCommand.newFullGroupBy = append(q.SelectCommand.newFullGroupBy, column)
+}
+
+func (q *Query) AddSize(size int) {
+	q.SelectCommand.newGroupBySize = append(q.SelectCommand.newGroupBySize, size)
+}
+
+func (q *Query) AddOrderBy(orderBy []OrderByExpr) {
+	q.SelectCommand.newOrderBy = append(q.SelectCommand.newOrderBy, orderBy)
+}
+
+func (q *Query) PopNewGroupBy() {
+	q.SelectCommand.newGroupBy = q.SelectCommand.newGroupBy[:len(q.SelectCommand.newGroupBy)-1]
 }
 
 // Name returns the name of this aggregation (specifically, the last aggregator)

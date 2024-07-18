@@ -140,6 +140,29 @@ func (v *newRenderer) VisitExprArray(exprs []Expr) interface{} {
 	return strings.Join(asString, ", ")
 }
 
+func (v *newRenderer) neworderprinter(orderBy OrderByExpr) string {
+	var sb strings.Builder
+	for _, expr := range orderBy.Exprs {
+		if aliased, ok := expr.(AliasedExpr); ok {
+			sb.WriteString(aliased.Alias)
+		} else {
+			sb.WriteString(expr.Accept(v).(string))
+		}
+	}
+	if orderBy.Direction == DescOrder {
+		sb.WriteString(" DESC")
+	}
+	return sb.String()
+}
+
+func (v *newRenderer) VisitOrderExprArray(exprs []OrderByExpr) interface{} {
+	asString := make([]string, 0, len(exprs))
+	for _, expr := range exprs {
+		asString = append(asString, v.neworderprinter(expr))
+	}
+	return strings.Join(asString, ", ")
+}
+
 func (v *newRenderer) VisitSelectCommand(c SelectCommand) interface{} {
 	// THIS SHOULD PRODUCE QUERY IN  BRACES
 	var sb strings.Builder
@@ -147,11 +170,11 @@ func (v *newRenderer) VisitSelectCommand(c SelectCommand) interface{} {
 	pp.Println("newColumns:", c.newColumns)
 	pp.Println("newGroupBy:", c.newGroupBy)
 
-	weHaveCTE := len(c.newGroupBy) > 0
+	weHaveCTE := len(c.newFullGroupBy) > 0
 
 	if weHaveCTE {
 		sb.WriteString(fmt.Sprintf("WITH cte AS (SELECT %s FROM %s GROUP BY %s) ",
-			v.VisitExprArray(c.newColumns), AsString(c.FromClause), v.VisitExprArray(c.newGroupBy)))
+			v.VisitExprArray(c.newColumns), AsString(c.FromClause), v.VisitExprArray(c.newFullGroupBy)))
 	}
 
 	sb.WriteString("SELECT ")
@@ -168,6 +191,19 @@ func (v *newRenderer) VisitSelectCommand(c SelectCommand) interface{} {
 		}
 	}
 	sb.WriteString(strings.Join(colsOnlyAliases, ", "))
+	denseRanks := make([]string, 0)
+	denseRankSizes := make([]int, 0)
+	for i := range c.newFullGroupBy {
+		if c.newGroupBySize[i] != 0 {
+			partitionBy := ""
+			if i > 0 {
+				partitionBy = "PARTITION BY " + v.VisitExprArray(c.newGroupBy[:i]).(string) + " "
+			}
+			denseRanks = append(denseRanks, fmt.Sprintf("DENSE_RANK() OVER (%sORDER BY %s) AS dense_rank_%d", partitionBy, v.VisitOrderExprArray(c.newOrderBy[i]), i))
+			denseRankSizes = append(denseRankSizes, c.newGroupBySize[i])
+		}
+	}
+	sb.WriteString(", " + strings.Join(denseRanks, ", "))
 
 	sb.WriteString(" FROM ")
 	/* HACK ALERT BEGIN */
@@ -217,30 +253,13 @@ func (v *newRenderer) VisitSelectCommand(c SelectCommand) interface{} {
 		sb.WriteString(fmt.Sprintf(" LIMIT %d)", c.SampleLimit))
 	}
 
-	groupBy := make([]string, 0, len(c.GroupBy))
-	for _, col := range c.GroupBy {
-		groupBy = append(groupBy, AsString(col))
+	qualify := make([]string, 0, len(denseRanks))
+	orderBy := make([]string, 0, len(denseRanks))
+	for i, size := range denseRankSizes {
+		qualify = append(qualify, fmt.Sprintf("dense_rank_%d <= %d", i, size))
+		orderBy = append(orderBy, fmt.Sprintf("dense_rank_%d", i))
 	}
-	if len(groupBy) > 0 {
-		sb.WriteString(" GROUP BY ")
-		fullGroupBy := groupBy
-		sb.WriteString(strings.Join(fullGroupBy, ", "))
-	}
-
-	orderBy := make([]string, 0, len(c.OrderBy))
-	orderByReplaced, orderByToReplace := 0, len(c.CTEs)
-	for _, col := range c.OrderBy {
-		if col.ExchangeToAliasInCTE && orderByReplaced < orderByToReplace {
-			//orderBy = append(orderBy, fmt.Sprintf("%s DESC", cteCountAlias(orderByReplaced)))
-			orderByReplaced++
-		} else {
-			orderBy = append(orderBy, AsString(col))
-		}
-	}
-	if len(orderBy) > 0 {
-		sb.WriteString(" ORDER BY ")
-		sb.WriteString(strings.Join(orderBy, ", "))
-	}
+	sb.WriteString(fmt.Sprintf(" QUALIFY %s ORDER BY %s", strings.Join(qualify, " AND "), strings.Join(orderBy, ", ")))
 
 	if c.Limit != noLimit {
 		if len(c.LimitBy) <= 1 {
