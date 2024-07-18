@@ -334,6 +334,9 @@ func (lm *LogManager) CheckIfConnectedPaidService(service PaidServiceName) (retu
 		}
 		if isConnectedToPaidService {
 			return fmt.Errorf("detected %s-specific table engine, which is not allowed", service)
+		} else if err == nil { // no paid service detected, no conn errors
+			returnedErr = nil
+			break
 		}
 		if time.Since(start) > totalCheckTime {
 			break
