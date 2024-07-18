@@ -89,8 +89,8 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 
 var random = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-const slowQueryThreshold = 2 * time.Second
-const slowQuerySampleRate = 1
+const slowQueryThreshold = 30 * time.Second
+const slowQuerySampleRate = 0.1
 
 func (lm *LogManager) shouldExplainQuery(elapsed time.Duration) bool {
 	return elapsed > slowQueryThreshold && random.Float64() < slowQuerySampleRate
