@@ -31,7 +31,7 @@ func (s *cacheGroupByQueries) IsEnabledByDefault() bool {
 	return false
 }
 
-func (s *cacheGroupByQueries) Transform(queries []*model.Query) ([]*model.Query, error) {
+func (s *cacheGroupByQueries) Transform(queries []*model.Query, properties map[string]string) ([]*model.Query, error) {
 
 	for _, query := range queries {
 
