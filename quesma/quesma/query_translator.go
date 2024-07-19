@@ -23,7 +23,7 @@ import (
 type IQueryTranslator interface {
 	ParseQuery(body types.JSON) ([]*model.Query, *model.Query, bool, error)
 	MakeSearchResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) *model.SearchResp
-	translateOneQueryToMultipleQueriesResults(query *model.Query) ([][]model.QueryResultRow, error)
+	TranslateOneQueryToMultipleQueriesResults(aggregationQueries []*model.Query, resultSet []model.QueryResultRow) [][]model.QueryResultRow
 }
 
 type QueryLanguage string

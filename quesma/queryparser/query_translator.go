@@ -544,7 +544,7 @@ func (cw *ClickhouseQueryTranslator) sortInTopologicalOrder(queries []*model.Que
 	return indexesSorted
 }
 
-func (cw *ClickhouseQueryTranslator) translateOneQueryToMultipleQueriesResult(aggregationQueries []*model.Query, resultSet []model.QueryResultRow) [][]model.QueryResultRow {
+func (cw *ClickhouseQueryTranslator) TranslateOneQueryToMultipleQueriesResults(aggregationQueries []*model.Query, resultSet []model.QueryResultRow) [][]model.QueryResultRow {
 	resultSetForBaseQueries := make([][]model.QueryResultRow, 0, len(aggregationQueries))
 	for _, query := range aggregationQueries {
 		resultSetForBaseQueries = append(resultSetForBaseQueries, cw.translateCombinedQueryResultToBaseQueryResult(query, resultSet))

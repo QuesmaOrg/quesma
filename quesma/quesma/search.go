@@ -281,7 +281,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				}
 
 				if newLogic {
-					results = queryTranslator.translateOneQueryToMultipleQueriesResult(queries, results)
+					if len(results) != 1 {
+						panic("expected single results only")
+					}
+					results = queryTranslator.TranslateOneQueryToMultipleQueriesResults(queries, results[0])
 				}
 				searchResponse := queryTranslator.MakeSearchResponse(queries, results)
 

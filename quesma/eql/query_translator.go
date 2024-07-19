@@ -151,3 +151,7 @@ func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query
 func (cw *ClickhouseEQLQueryTranslator) MakeResponseAggregation(aggregations []*model.Query, aggregationResults [][]model.QueryResultRow) *model.SearchResp {
 	panic("EQL does not support aggregations")
 }
+
+func (cw *ClickhouseEQLQueryTranslator) TranslateOneQueryToMultipleQueriesResults(aggregationQueries []*model.Query, resultSet []model.QueryResultRow) [][]model.QueryResultRow {
+	panic("EQL does not support aggregations")
+}
