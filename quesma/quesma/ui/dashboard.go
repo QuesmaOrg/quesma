@@ -182,6 +182,13 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	buffer.Html(`<div id="dashboard-quesma" class="component">`)
 	buffer.Html(`<h3>Quesma</h3>`)
 
+	buffer.Html(`<div class="status">Version: `)
+	buffer.Text(buildinfo.Version)
+	buffer.Html("</div>")
+	buffer.Html(`<div class="status">[`)
+	buffer.Html(buildinfo.CheckForTheLatestVersion())
+	buffer.Html("]</div>")
+
 	cpuStr := ""
 	c0, err0 := cpu.Percent(0, false)
 
@@ -210,10 +217,6 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	if h, errH := host.Info(); errH == nil {
 		buffer.Html(fmt.Sprintf(`<div class="status">Host uptime: %s</div>`, secondsToTerseString(h.Uptime)))
 	}
-
-	buffer.Html(`<div class="status">Version: `)
-	buffer.Text(buildinfo.Version)
-	buffer.Html("</div>")
 
 	buffer.Html(`</div>`)
 
