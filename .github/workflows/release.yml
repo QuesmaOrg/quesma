@@ -85,6 +85,7 @@ jobs:
             ### Quesma ${{ github.event.inputs.VERSION }}
             
             Quesma version `${{ github.event.inputs.VERSION }}` has been released.
-            Get it from DockerHub now at https://hub.docker.com/r/quesma/quesma/tags
+            Check it out at https://hub.docker.com/r/quesma/quesma 
+            All tags URL: https://hub.docker.com/r/quesma/quesma/tags
           draft: true
           prerelease: false
