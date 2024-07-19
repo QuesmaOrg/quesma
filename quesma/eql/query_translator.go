@@ -73,12 +73,12 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(queries []*model.Quer
 	}
 }
 
-func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) ([]*model.Query, bool, error) {
+func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) ([]*model.Query, *model.Query, bool, error) {
 	simpleQuery, queryInfo, highlighter, err := cw.parseQuery(body)
 
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
-		return nil, false, err
+		return nil, nil, false, err
 	}
 
 	var query *model.Query
@@ -93,10 +93,10 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) ([]*model.Qu
 		query.Highlighter = highlighter
 		query.SelectCommand.OrderBy = simpleQuery.OrderBy
 		queries = append(queries, query)
-		return queries, canParse, nil
+		return queries, nil, canParse, nil
 	}
 
-	return nil, false, err
+	return nil, nil, false, err
 }
 
 func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query model.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter model.Highlighter, err error) {

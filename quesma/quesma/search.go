@@ -225,7 +225,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry)
 
-		queries, canParse, err := queryTranslator.ParseQuery(body)
+		queries, combinedQuery, canParse, err := queryTranslator.ParseQuery(body)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("parsing error: %v", err)
 		}
@@ -238,6 +238,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 		}
+
+		newLogic := true
 
 		if canParse {
 			if len(queries) > 0 && query_util.IsNonAggregationQuery(queries[0]) {
@@ -255,7 +257,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					doneCh <- AsyncSearchWithError{err: err}
 				})
 
-				translatedQueryBody, results, err := q.searchWorker(ctx, queries, table, doneCh, optAsync)
+				var translatedQueryBody [][]byte
+				var results [][]model.QueryResultRow
+				if newLogic {
+					translatedQueryBody, results, err = q.searchWorker(ctx, []*model.Query{combinedQuery}, table, doneCh, optAsync)
+				} else {
+					translatedQueryBody, results, err = q.searchWorker(ctx, queries, table, doneCh, optAsync)
+				}
 				if err != nil {
 					doneCh <- AsyncSearchWithError{err: err}
 					return
@@ -272,6 +280,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 				}
 
+				if newLogic {
+					results = queryTranslator.translateOneQueryToMultipleQueriesResult(queries, results)
+				}
 				searchResponse := queryTranslator.MakeSearchResponse(queries, results)
 
 				doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
