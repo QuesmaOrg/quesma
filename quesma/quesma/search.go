@@ -213,17 +213,20 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	if err != nil {
 		return nil, err
 	}
-
+	sourceToDestMappings := makeSourceToDestMappings(q.cfg.IndexSourceToInternalMappings)
 	for _, resolvedTableName := range sourcesClickhouse {
 		var err error
 		doneCh := make(chan AsyncSearchWithError, 1)
-
+		incomingIndexName := resolvedTableName
+		if indexMapping, ok := sourceToDestMappings[resolvedTableName]; ok {
+			resolvedTableName = indexMapping
+		}
 		table, _ := tables.Load(resolvedTableName)
 		if table == nil {
 			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
 		}
 
-		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry)
+		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry, incomingIndexName)
 
 		queries, canParse, err := queryTranslator.ParseQuery(body)
 		if err != nil {

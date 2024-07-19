@@ -41,7 +41,16 @@ func addFieldCapabilityFromSchemaRegistry(fields map[string]map[string]model.Fie
 		fields[colName][fieldTypeName] = fieldCapability
 	}
 }
-
+func makeSourceToDestMappings(indexMappings map[string]config.IndexMappingsConfiguration) map[string]string {
+	sourceToDestMapping := make(map[string]string)
+	for _, indexMapping := range indexMappings {
+		for _, sourceIndex := range indexMapping.Mappings {
+			destIndex := indexMapping.Name
+			sourceToDestMapping[sourceIndex] = destIndex
+		}
+	}
+	return sourceToDestMapping
+}
 func handleFieldCapsIndex(cfg config.QuesmaConfiguration, schemaRegistry schema.Registry, indexes []string) ([]byte, error) {
 	fields := make(map[string]map[string]model.FieldCapability)
 	for _, resolvedIndex := range indexes {
@@ -104,6 +113,12 @@ func EmptyFieldCapsResponse() []byte {
 }
 
 func HandleFieldCaps(ctx context.Context, cfg config.QuesmaConfiguration, schemaRegistry schema.Registry, index string, lm *clickhouse.LogManager) ([]byte, error) {
+	sourceToDestMapping := makeSourceToDestMappings(cfg.IndexSourceToInternalMappings)
+
+	if destIndex, ok := sourceToDestMapping[index]; ok {
+		index = destIndex
+	}
+
 	indexes, err := lm.ResolveIndexes(ctx, index)
 	if err != nil {
 		return nil, err
