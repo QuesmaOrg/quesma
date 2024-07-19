@@ -1,18 +1,12 @@
-name: Docker image build
-# At this moment we push to image to our 'nightly' GCR repository
+name: Release Quesma
+# Builds Quesma Docker image using specific git tag
+# and creates a GitHub release draft
 
 on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch: # Handy for testing
+  workflow_dispatch:
     inputs:
       VERSION:
-        description: 'Version number to tag the image with'
-        default: latest
-        required: true
-      PUSH:
-        description: 'Whether to push the image to the registry'
-        default: false
+        description: 'Version number - needs to be a valid semver, relevant tag should be present in the repository'
         required: true
 
 jobs:
@@ -22,7 +16,19 @@ jobs:
         module: [ "quesma" ]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Validate input - needs to match semver
+        run: |
+            echo "Validating input: ${{ github.event.inputs.VERSION }}"
+            if ! echo "${{ github.event.inputs.VERSION }}" | grep -qE '^([0-9]+)\.([0-9]+)\.([0-9]+)(-([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?(\+([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'; then
+              echo "ERROR: VERSION does not conform to SemVer (Semantic Versioning)"
+              exit 1
+            fi
+        shell: bash
+
+      - name: Checkout the correct revision
+        uses: actions/checkout@v
+        with:
+          ref: ${{ github.event.inputs.VERSION }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -53,14 +59,10 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.module }}/.
-          # when called from the main branch, `github.event.inputs.VERSION` doesn't use default value and is just empty
-          tags: | 
-            europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.sha }}
-            europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.event.inputs.VERSION || 'latest' }}
-            quesma/quesma:${{ github.event.inputs.VERSION || 'latest' }}
-            quesma/quesma:latest
-          # Pushes to GCR only for `main` branch builds, unless set explicitly in the job input
-          push: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event.inputs.PUSH }}
+          tags: |
+            europe-docker.pkg.dev/metal-figure-407109/quesma-nightly/quesma:${{ github.event.inputs.VERSION }}
+            quesma/quesma:${{ github.event.inputs.VERSION }}
+          push: true
           build-args: |
             QUESMA_BUILD_SHA=${{ github.sha }}
             QUESMA_VERSION=${{ github.event.inputs.VERSION }}
@@ -68,3 +70,15 @@ jobs:
           platforms: linux/amd64,linux/arm64
         env:
           DOCKER_BUILD_SUMMARY: false
+
+      - name: Create GitHub release (draft)
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provided by GitHub Actions, doesn't exist in repo secrets
+        with:
+          tag_name: ${{ github.event.inputs.VERSION }}
+          release_name: ${{ github.event.inputs.VERSION }}
+          body: |
+            ### Quesma ${{ github.event.inputs.VERSION }}
+          draft: true
+          prerelease: false
