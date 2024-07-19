@@ -23,9 +23,11 @@ type IndexConfiguration struct {
 	TimestampField *string `koanf:"timestampField"`
 	// this is hidden from the user right now
 	// deprecated
-	SchemaConfiguration *SchemaConfiguration    `koanf:"static-schema"`
-	EnabledOptimizers   OptimizersConfiguration `koanf:"optimizers"`
-	Override            string                  `koanf:"override"`
+	SchemaConfiguration *SchemaConfiguration              `koanf:"static-schema"`
+	EnabledOptimizers   map[string]OptimizerConfiguration `koanf:"optimizers"`
+	Override            string                            `koanf:"override"`
+}
+
 func (c IndexConfiguration) HasFullTextField(fieldName string) bool {
 	return slices.Contains(c.FullTextFields, fieldName)
 }
