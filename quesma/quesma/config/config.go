@@ -62,9 +62,13 @@ type RelationalDbConfiguration struct {
 	Password      string `koanf:"password"`
 	Database      string `koanf:"database"`
 	AdminUrl      *Url   `koanf:"adminUrl"`
+	DisableTLS    bool   `koanf:"disableTLS"`
 }
 
-type OptimizersConfiguration map[string]bool
+type OptimizerConfiguration struct {
+	Enabled    bool              `koanf:"enabled"`
+	Properties map[string]string `koanf:"properties"`
+}
 
 func (c *RelationalDbConfiguration) IsEmpty() bool {
 	return c != nil && c.Url == nil && c.User == "" && c.Password == "" && c.Database == ""
@@ -236,13 +240,16 @@ func (c *QuesmaConfiguration) WritesToElasticsearch() bool {
 	return c.Mode != ClickHouse
 }
 
-func (c *QuesmaConfiguration) optimizersConfigAsString(s string, cfg OptimizersConfiguration) string {
+func (c *QuesmaConfiguration) optimizersConfigAsString(s string, cfg map[string]OptimizerConfiguration) string {
 
 	var lines []string
 
 	lines = append(lines, fmt.Sprintf("        %s:", s))
 	for k, v := range cfg {
-		lines = append(lines, fmt.Sprintf("            %s: %v", k, v))
+		lines = append(lines, fmt.Sprintf("            %s: %v", k, v.Enabled))
+		if v.Properties != nil && len(v.Properties) > 0 {
+			lines = append(lines, fmt.Sprintf("                properties: %v", v.Properties))
+		}
 	}
 
 	return strings.Join(lines, "\n")
@@ -253,8 +260,6 @@ func (c *QuesmaConfiguration) OptimizersConfigAsString() string {
 	var lines []string
 
 	lines = append(lines, "\n")
-
-	lines = append(lines, c.optimizersConfigAsString("Global", c.EnabledOptimizers))
 
 	for indexName, indexConfig := range c.IndexConfig {
 		if indexConfig.EnabledOptimizers != nil && len(indexConfig.EnabledOptimizers) > 0 {

@@ -19,7 +19,7 @@ func (d emptyTimer) Begin() Span {
 	return emptySpan{}
 }
 
-func (d emptyTimer) Aggregate() DurationStats {
+func (d emptyTimer) AggregateAndReset() DurationStats {
 	return DurationStats{}
 }
 
@@ -29,11 +29,11 @@ func (d emptyMultiCounter) Add(key string, value int64) {
 	// do nothing
 }
 
-func (d emptyMultiCounter) Aggregate() MultiCounterStats {
+func (d emptyMultiCounter) AggregateAndReset() MultiCounterStats {
 	return MultiCounterStats{}
 }
 
-func (d emptyMultiCounter) AggregateTopValues() MultiCounterTopValuesStats {
+func (d emptyMultiCounter) AggregateTopValuesAndReset() MultiCounterTopValuesStats {
 	return MultiCounterTopValuesStats{}
 }
 

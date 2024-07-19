@@ -14,8 +14,8 @@ type MultiCounterTopValuesStats []string
 
 type MultiCounter interface {
 	Add(key string, value int64)
-	Aggregate() MultiCounterStats
-	AggregateTopValues() MultiCounterTopValuesStats
+	AggregateAndReset() MultiCounterStats
+	AggregateTopValuesAndReset() MultiCounterTopValuesStats
 }
 
 type sampleMultiCounter struct {
@@ -71,17 +71,18 @@ func (mc *multiCounter) Add(key string, value int64) {
 	mc.ingest <- sampleMultiCounter{key, value}
 }
 
-func (mc *multiCounter) Aggregate() (stats MultiCounterStats) {
+func (mc *multiCounter) AggregateAndReset() (stats MultiCounterStats) {
 	mc.m.Lock()
 	defer mc.m.Unlock()
 	stats = make(map[string]int64, len(mc.counters))
 	for k, v := range mc.counters {
 		stats[k] = v
 	}
+	mc.counters = make(map[string]int64)
 	return stats
 }
 
-func (mc *multiCounter) AggregateTopValues() (stats MultiCounterTopValuesStats) {
+func (mc *multiCounter) AggregateTopValuesAndReset() (stats MultiCounterTopValuesStats) {
 	mc.m.Lock()
 	defer mc.m.Unlock()
 	stats = make(MultiCounterTopValuesStats, 0, len(mc.counters))

@@ -13,6 +13,7 @@ connectors:
     type: "clickhouse-os" # one of [clickhouse, clickhouse-os, hydrolix]
 #clickhouse:   # this config is going to be removed, but for now let's just comment out
 #  url: "clickhouse://localhost:9000"
+#  disableTLS: true  # required for plaintext connections
 ingestStatistics: true
 internalTelemetryUrl: "https://api.quesma.com/phone-home"
 logging:

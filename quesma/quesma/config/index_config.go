@@ -26,8 +26,6 @@ type IndexConfiguration struct {
 	SchemaConfiguration *SchemaConfiguration    `koanf:"static-schema"`
 	EnabledOptimizers   OptimizersConfiguration `koanf:"optimizers"`
 	Override            string                  `koanf:"override"`
-}
-
 func (c IndexConfiguration) HasFullTextField(fieldName string) bool {
 	return slices.Contains(c.FullTextFields, fieldName)
 }

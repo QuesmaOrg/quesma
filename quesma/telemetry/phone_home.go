@@ -514,18 +514,23 @@ func (a *agent) collect(ctx context.Context, reportType string) (stats PhoneHome
 	stats.NumberOfPanics = recovery.PanicCounter.Load()
 	stats.InstanceID = a.instanceId
 
-	stats.ClickHouse = a.CollectClickHouse(ctx)
+	stats.ClickHouseQueriesDuration = a.ClickHouseQueryDuration().AggregateAndReset()
+	stats.ClickHouseInsertsDuration = a.ClickHouseInsertDuration().AggregateAndReset()
+	stats.ElasticReadsDuration = a.ElasticReadRequestsDuration().AggregateAndReset()
+	stats.ElasticWritesDuration = a.ElasticWriteRequestsDuration().AggregateAndReset()
+	stats.ElasticBypassedReadsDuration = a.ElasticBypassedReadRequestsDuration().AggregateAndReset()
+	stats.ElasticBypassedWritesDuration = a.ElasticBypassedWriteRequestsDuration().AggregateAndReset()
+	stats.UserAgentCounters = a.userAgentCounters.AggregateTopValuesAndReset()
+
 	stats.Elasticsearch = a.CollectElastic(ctx)
 
-	stats.ClickHouseQueriesDuration = a.ClickHouseQueryDuration().Aggregate()
-	stats.ClickHouseInsertsDuration = a.ClickHouseInsertDuration().Aggregate()
-	stats.ElasticReadsDuration = a.ElasticReadRequestsDuration().Aggregate()
-	stats.ElasticWritesDuration = a.ElasticWriteRequestsDuration().Aggregate()
-	stats.ElasticBypassedReadsDuration = a.ElasticBypassedReadRequestsDuration().Aggregate()
-	stats.ElasticBypassedWritesDuration = a.ElasticBypassedWriteRequestsDuration().Aggregate()
-	stats.UserAgentCounters = a.userAgentCounters.AggregateTopValues()
+	if stats.ClickHouseInsertsDuration.Count > 0 || stats.ClickHouseQueriesDuration.Count > 0 {
+		stats.ClickHouse = a.CollectClickHouse(ctx)
+	} else {
+		stats.ClickHouse = ClickHouseStats{Status: "paused"}
+	}
 
-	stats.IngestCounters = a.ingestCounters.Aggregate()
+	stats.IngestCounters = a.ingestCounters.AggregateAndReset()
 
 	stats.RuntimeStats = a.runtimeStats()
 	stats.TopErrors = a.topErrors()

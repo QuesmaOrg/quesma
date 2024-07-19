@@ -3,15 +3,18 @@
 package optimize
 
 import (
+	"fmt"
 	"quesma/model"
 	"quesma/plugins"
 	"quesma/quesma/config"
+	"strings"
 	"time"
 )
 
 // OptimizeTransformer - an interface for query transformers that have a name.
 type OptimizeTransformer interface {
-	plugins.QueryTransformer
+	Transform(queries []*model.Query, properties map[string]string) ([]*model.Query, error)
+
 	Name() string             // this name is used to enable/disable the transformer in the configuration
 	IsEnabledByDefault() bool // should return true for "not aggressive" transformers only
 }
@@ -29,6 +32,7 @@ func NewOptimizePipeline(config config.QuesmaConfiguration) plugins.QueryTransfo
 		optimizations: []OptimizeTransformer{
 			&truncateDate{truncateTo: 5 * time.Minute},
 			&cacheGroupByQueries{},
+			&materializedViewReplace{},
 		},
 	}
 }
@@ -44,27 +48,33 @@ func (s *OptimizePipeline) getIndexName(queries []*model.Query) string {
 	//  ...
 	// }
 
-	return queries[0].TableName
+	// we assume here that  table_name is the index name
+	tableName := queries[0].TableName
+	res := strings.Replace(tableName, `"`, "", -1)
+	if strings.Contains(res, ".") {
+		parts := strings.Split(res, ".")
+		if len(parts) == 2 {
+			return parts[1]
+		}
+	}
+	return res
 }
 
-func (s *OptimizePipeline) isEnabledFor(transformer OptimizeTransformer, queries []*model.Query) bool {
+func (s *OptimizePipeline) findConfig(transformer OptimizeTransformer, queries []*model.Query) (bool, map[string]string) {
 
 	indexName := s.getIndexName(queries)
 
 	// first we check index specific settings
 	if indexCfg, ok := s.config.IndexConfig[indexName]; ok {
-		if enabled, ok := indexCfg.EnabledOptimizers[transformer.Name()]; ok {
-			return enabled
+		fmt.Println("Index specific settings found", indexName)
+		if optimizerCfg, ok := indexCfg.EnabledOptimizers[transformer.Name()]; ok {
+			fmt.Println("Optimizer specific settings found", transformer.Name(), optimizerCfg.Enabled)
+			return optimizerCfg.Enabled, optimizerCfg.Properties
 		}
 	}
 
-	// then we check global settings
-	if enabled, ok := s.config.EnabledOptimizers[transformer.Name()]; ok {
-		return enabled
-	}
-
 	// default is not enabled
-	return transformer.IsEnabledByDefault()
+	return transformer.IsEnabledByDefault(), make(map[string]string)
 }
 
 func (s *OptimizePipeline) Transform(queries []*model.Query) ([]*model.Query, error) {
@@ -79,12 +89,14 @@ func (s *OptimizePipeline) Transform(queries []*model.Query) ([]*model.Query, er
 	// run optimizations on queries
 	for _, optimization := range s.optimizations {
 
-		if !s.isEnabledFor(optimization, queries) {
+		enabled, properties := s.findConfig(optimization, queries)
+
+		if !enabled {
 			continue
 		}
 
 		var err error
-		queries, err = optimization.Transform(queries)
+		queries, err = optimization.Transform(queries, properties)
 		if err != nil {
 			return nil, err
 		}

@@ -166,10 +166,11 @@ func (s *truncateDate) IsEnabledByDefault() bool {
 	return false
 }
 
-func (s *truncateDate) Transform(queries []*model.Query) ([]*model.Query, error) {
+func (s *truncateDate) Transform(queries []*model.Query, properties map[string]string) ([]*model.Query, error) {
 
 	for k, query := range queries {
-		visitor, processor := newTruncDate(s.truncateTo)
+
+		visitor, processor := newTruncDate(s.truncateTo) // read from properties
 
 		result := query.SelectCommand.Accept(visitor).(*model.SelectCommand)
 

@@ -38,7 +38,7 @@ func TestDurationMeasurement_Aggregate(t *testing.T) {
 		}
 	}
 
-	stats := measurement.Aggregate()
+	stats := measurement.AggregateAndReset()
 
 	assert.Equal(t, int64(100), stats.Count)
 	assert.Equal(t, int64(10), stats.Failed)
@@ -78,10 +78,12 @@ func TestDurationMeasurement_Percentiles(t *testing.T) {
 		}
 	}
 
-	stats := measurement.Aggregate()
+	stats := measurement.AggregateAndReset()
 
 	assert.Equal(t, float32(50.0), stats.Percentiles["50"])
 
+	stats2 := measurement.AggregateAndReset()
+	assert.Equal(t, float32(0.0), stats2.Percentiles["50"])
 }
 
 func TestDurationMeasurement_Percentiles_no_samples(t *testing.T) {
@@ -91,7 +93,7 @@ func TestDurationMeasurement_Percentiles_no_samples(t *testing.T) {
 
 	measurement := newDurationMeasurement(ctx)
 
-	stats := measurement.Aggregate()
+	stats := measurement.AggregateAndReset()
 
 	assert.Equal(t, float32(0.0), stats.Percentiles["50"])
 }
@@ -115,7 +117,10 @@ func TestDurationMeasurement_Percentiles_single_sample(t *testing.T) {
 		t.Errorf("ingest did not complete in time")
 	}
 
-	stats := measurement.Aggregate()
+	stats := measurement.AggregateAndReset()
 
 	assert.Equal(t, float32(1.0), stats.Percentiles["50"])
+
+	stats2 := measurement.AggregateAndReset()
+	assert.Equal(t, float32(0.0), stats2.Percentiles["50"])
 }
