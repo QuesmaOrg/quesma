@@ -47,16 +47,16 @@ func isNewer(latest, current string) (bool, error) {
 func CheckForTheLatestVersion() (updateAvailable bool, messageBanner string) {
 	latestRelease, err := getLatestRelease()
 	if err != nil {
-		return updateAvailable, fmt.Sprintf("Failed obtaining latest Quesma version from GitHub: %v", err)
+		return false, fmt.Sprintf("Failed obtaining latest Quesma version from GitHub: %v", err)
 	}
 	shouldUpgrade, err := latestRelease.IsNewerThanCurrentlyRunning()
 	if err != nil {
-		return updateAvailable, fmt.Sprintf("Failed comparing Quesma versions: %v", err)
+		return false, fmt.Sprintf("Failed comparing Quesma versions: %v", err)
 	}
 	if shouldUpgrade {
 		return true, fmt.Sprintf("A new version of Quesma is available: %s", latestRelease.Name)
 	} else {
-		return updateAvailable, fmt.Sprintf("You are running the latest version of Quesma: %s", Version)
+		return false, fmt.Sprintf("You are running the latest version of Quesma: %s", Version)
 	}
 }
 
