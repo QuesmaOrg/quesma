@@ -24,7 +24,7 @@ type Span interface {
 
 type DurationMeasurement interface {
 	Begin() Span
-	Aggregate() DurationStats
+	AggregateAndReset() DurationStats
 }
 
 type DurationStats struct {
@@ -111,7 +111,7 @@ func (a *durationMeasurement) ingestLoop() {
 
 }
 
-func (a *durationMeasurement) Aggregate() (stats DurationStats) {
+func (a *durationMeasurement) AggregateAndReset() (stats DurationStats) {
 	a.m.Lock()
 	defer a.m.Unlock()
 
@@ -125,6 +125,13 @@ func (a *durationMeasurement) Aggregate() (stats DurationStats) {
 
 	stats.OverThresholds = a.computeOverThresholdCounter()
 	stats.Percentiles = a.computePercentiles()
+
+	a.count = 0
+	a.sum = 0
+	a.failed = 0
+	for _, threshold := range overThresholds {
+		a.overThresholdCounters[threshold] = 0
+	}
 
 	return stats
 }
