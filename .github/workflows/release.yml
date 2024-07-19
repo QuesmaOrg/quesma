@@ -9,6 +9,9 @@ on:
         description: 'Version number - needs to be a valid semver, relevant tag should be present in the repository'
         required: true
 
+permissions:
+  contents: write  # To be able to create a release via GitHub API
+
 jobs:
   build-quesma-docker-image:
     strategy:
@@ -26,7 +29,7 @@ jobs:
         shell: bash
 
       - name: Checkout the correct revision
-        uses: actions/checkout@v
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.VERSION }}
 
@@ -80,5 +83,14 @@ jobs:
           release_name: ${{ github.event.inputs.VERSION }}
           body: |
             ### Quesma ${{ github.event.inputs.VERSION }}
+            
+            Quesma version `${{ github.event.inputs.VERSION }}` has been released! :confetti_ball: 
+  
+            Check it out at https://hub.docker.com/r/quesma/quesma! You can get the Docker image with:
+            ```bash
+            docker pull quesma/quesma:${{ github.event.inputs.VERSION }}
+            ```
+
+            All tags URL: https://hub.docker.com/r/quesma/quesma/tags
           draft: true
           prerelease: false
