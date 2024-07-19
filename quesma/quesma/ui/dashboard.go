@@ -182,12 +182,16 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	buffer.Html(`<div id="dashboard-quesma" class="component">`)
 	buffer.Html(`<h3>Quesma</h3>`)
 
-	buffer.Html(`<div class="status">Version: `)
-	buffer.Text(buildinfo.Version)
-	buffer.Html("</div>")
-	buffer.Html(`<div class="status">[`)
-	buffer.Html(buildinfo.CheckForTheLatestVersion())
-	buffer.Html("]</div>")
+	upgradeAvailable, message := buildinfo.CheckForTheLatestVersion()
+	if upgradeAvailable {
+		buffer.Html(`<div class="status" style="background-color: yellow; padding: 5px;">`)
+		buffer.Text(message)
+		buffer.Html("</div>")
+	} else {
+		buffer.Html(`<div class="status">Version: `)
+		buffer.Text(buildinfo.Version)
+		buffer.Html("</div>")
+	}
 
 	cpuStr := ""
 	c0, err0 := cpu.Percent(0, false)

@@ -44,19 +44,19 @@ func isNewer(latest, current string) (bool, error) {
 
 // CheckForTheLatestVersion obtains the latest release information from GitHub and compares it to the currently running version.
 // It returns a user-facing message indicating whether the latest version is newer, the same, or if there was an error.
-func CheckForTheLatestVersion() string {
+func CheckForTheLatestVersion() (updateAvailable bool, messageBanner string) {
 	latestRelease, err := getLatestRelease()
 	if err != nil {
-		return fmt.Sprintf("Failed obtaining latest Quesma version form GitHub: %v", err)
+		return updateAvailable, fmt.Sprintf("Failed obtaining latest Quesma version form GitHub: %v", err)
 	}
 	shouldUpgrade, err := latestRelease.IsNewerThanCurrentlyRunning()
 	if err != nil {
-		return fmt.Sprintf("Failed comparing Quesma versions: %v", err)
+		return updateAvailable, fmt.Sprintf("Failed comparing Quesma versions: %v", err)
 	}
 	if shouldUpgrade {
-		return fmt.Sprintf("A new version of Quesma is available: %s", latestRelease.Name)
+		return true, fmt.Sprintf("A new version of Quesma is available: %s", latestRelease.Name)
 	} else {
-		return fmt.Sprintf("You are running the latest version of Quesma: %s", Version)
+		return updateAvailable, fmt.Sprintf("You are running the latest version of Quesma: %s", Version)
 	}
 }
 

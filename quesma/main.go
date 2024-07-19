@@ -59,7 +59,9 @@ func main() {
 	}, sig, doneCh, asyncQueryTraceLogger)
 	defer logger.StdLogFile.Close()
 	defer logger.ErrLogFile.Close()
-	logger.Info().Msg(buildinfo.CheckForTheLatestVersion())
+	if upgradeAvailable, message := buildinfo.CheckForTheLatestVersion(); upgradeAvailable {
+		logger.Warn().Msg(message)
+	}
 
 	if asyncQueryTraceLogger != nil {
 		asyncQueryTraceEvictor := quesma.AsyncQueryTraceLoggerEvictor{AsyncQueryTrace: asyncQueryTraceLogger.AsyncQueryTrace}
