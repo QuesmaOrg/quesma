@@ -4,6 +4,8 @@ package model
 
 import (
 	"context"
+	"fmt"
+	"github.com/k0kubun/pp"
 )
 
 const (
@@ -30,6 +32,9 @@ type (
 		NoDBQuery   bool         // true <=> we don't need query to DB here, true in some pipeline aggregations
 		Parent      string       // parent aggregation name, used in some pipeline aggregations
 		Aggregators []Aggregator // keeps names of aggregators, e.g. "0", "1", "2", "suggestions". Needed for JSON response.
+
+		ColumnIndexes             []int // which columns from the result set are used in this query
+		newColumnsNotUselessCount int
 
 		// dictionary to add as 'meta' field in the response.
 		// WARNING: it's probably not passed everywhere where it's needed, just in one place.
@@ -95,6 +100,9 @@ func (q *Query) CopyAggregationFields(qwa Query) {
 
 	q.SelectCommand.newGroupBy = make([]Expr, len(qwa.SelectCommand.newGroupBy))
 	copy(q.SelectCommand.newGroupBy, qwa.SelectCommand.newGroupBy)
+
+	q.ColumnIndexes = make([]int, len(qwa.ColumnIndexes))
+	copy(q.ColumnIndexes, qwa.ColumnIndexes)
 }
 
 func (q *Query) AddColumn(column Expr) {
@@ -102,7 +110,15 @@ func (q *Query) AddColumn(column Expr) {
 }
 
 func (q *Query) AddColumnNew(column Expr) {
+	pp.Println("dodaje", column)
 	q.SelectCommand.newColumns = append(q.SelectCommand.newColumns, column)
+}
+
+func (q *Query) AddColumnCount(partitionBy []Expr) {
+	count := NewFunction("sum", NewFunction("count"))
+	fullColumn := NewWindowFunction(AsString(count), []Expr{}, partitionBy, OrderByExpr{})
+	fmt.Println("FULL COL", AsString(fullColumn), AsStringNew(fullColumn))
+	q.SelectCommand.newColumns = append(q.SelectCommand.newColumns, fullColumn)
 }
 
 func (q *Query) AddGroupBy(column Expr) {
@@ -127,6 +143,26 @@ func (q *Query) AddOrderBy(orderBy []OrderByExpr) {
 
 func (q *Query) PopNewGroupBy() {
 	q.SelectCommand.newGroupBy = q.SelectCommand.newGroupBy[:len(q.SelectCommand.newGroupBy)-1]
+}
+
+func (q *Query) AddLastIndices(columnsNr, howManyToAdd int) {
+	for i := columnsNr - howManyToAdd; i < columnsNr; i++ {
+		q.ColumnIndexes = append(q.ColumnIndexes, i)
+	}
+}
+
+func (q *Query) PopColumnIndex() {
+	q.ColumnIndexes = q.ColumnIndexes[:len(q.ColumnIndexes)-1]
+}
+
+// useless == aren't used in final select
+func (q *Query) GetNewColumnsNotUselessCount() int {
+	return q.newColumnsNotUselessCount
+}
+
+// useless == aren't used in final select
+func (q *Query) IncreaseNewColumnsNotUselessCount(x int) {
+	q.newColumnsNotUselessCount += x
 }
 
 // Name returns the name of this aggregation (specifically, the last aggregator)

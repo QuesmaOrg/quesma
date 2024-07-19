@@ -34,16 +34,19 @@ func NewEmptyHighlighter() model.Highlighter {
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]*model.Query, bool, error) {
+func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (notCombinedQueries []*model.Query, combinedQuery *model.Query, success bool, err error) {
 	if cw.SchemaRegistry == nil {
 		logger.Error().Msg("Schema registry is not set")
-		return nil, false, errors.New("schema registry is not set")
+		return nil, nil, false, errors.New("schema registry is not set")
 	}
 
-	simpleQuery, queryInfo, highlighter, err := cw.parseQueryInternal(body)
+	var simpleQuery *model.SimpleQuery
+	var queryInfo model.SearchQueryInfo
+	var highlighter model.Highlighter
+	simpleQuery, queryInfo, highlighter, err = cw.parseQueryInternal(body)
 	if err != nil || !simpleQuery.CanParse {
 		logger.WarnWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
-		return nil, false, err
+		return nil, nil, false, err
 	}
 
 	var queries []*model.Query
@@ -55,7 +58,8 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]*model.Query
 	if facetsQuery != nil {
 		queries = append(queries, facetsQuery)
 	} else {
-		aggregationQueries, err := cw.ParseAggregationJson(body)
+		var aggregationQueries []*model.Query
+		aggregationQueries, combinedQuery, err = cw.ParseAggregationJson(body)
 		if err != nil {
 			logger.WarnWithCtx(cw.Ctx).Msgf("error parsing aggregation: %v", err)
 		}
@@ -67,7 +71,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]*model.Query
 		queries = append(queries, listQuery)
 	}
 
-	return queries, true, err
+	return queries, combinedQuery, true, err
 }
 
 func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(

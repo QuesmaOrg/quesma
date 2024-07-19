@@ -3,6 +3,7 @@
 package queryparser
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"github.com/k0kubun/pp"
@@ -301,9 +302,27 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	return query
 }
 
+// Used in tests to make processing `aggregations` in a deterministic way
+func sortAggregations(aggregations []*model.Query) {
+	slices.SortFunc(aggregations, func(a, b *model.Query) int {
+		aLen, bLen := len(a.Aggregators), len(b.Aggregators)
+		for i := range min(aLen, bLen) {
+			if a.Aggregators[i].Name != b.Aggregators[i].Name {
+				return cmp.Compare(a.Aggregators[i].Name, b.Aggregators[i].Name)
+			}
+		}
+		// non-aggregations (len == 0) should be first
+		if aLen == 0 || bLen == 0 {
+			return cmp.Compare(aLen, bLen)
+		}
+		// longer list is first, as we first go deeper when parsing aggregations
+		return cmp.Compare(bLen, aLen)
+	})
+}
+
 // ParseAggregationJson parses JSON with aggregation query and returns array of queries with aggregations.
 // If there are no aggregations, returns nil.
-func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*model.Query, error) {
+func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*model.Query, *model.Query, error) {
 	queryAsMap := body.Clone()
 
 	currentAggr := aggrQueryBuilder{}
@@ -330,19 +349,20 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 		if aggs, okType := aggsRaw.(QueryMap); okType {
 			err := cw.parseAggregationNames(&currentAggr, &FULL, aggs, &aggregations)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("aggs is not a map, but %T, aggs: %v", aggsRaw, aggsRaw)
 		}
 	}
-
-	// TODO if it
-	aggregations = []*model.Query{FULL.buildAggregationCommon(model.NoMetadataField)}
+	sortAggregations(aggregations) // remove, only for easier coding purpose
+	for i, query := range aggregations {
+		fmt.Printf("-- AGG: %d: %+v\n\n", i, query)
+	}
 	// fmt.Println("last:", FULL)
 	// fmt.Println("last:", model.AsStringNew(FULL.SelectCommand))
-	// fmt.Println(util.SqlPrettyPrint([]byte(model.AsStringNew(FULL.SelectCommand))))
-	return aggregations, nil
+	fmt.Println(util.SqlPrettyPrint([]byte(model.AsStringNew(FULL.SelectCommand))))
+	return aggregations, FULL.buildAggregationCommon(model.NoMetadataField), nil // TODO add metadata
 }
 
 // 'resultQueries' - array when we store results
@@ -362,7 +382,8 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJson(body types.JSON) ([]*m
 // This function is called on those 1, 3, ... levels, and parses and saves those aggregation names.
 
 func (cw *ClickhouseQueryTranslator) parseAggregationNames(currentAggr, FULL *aggrQueryBuilder, aggs QueryMap, resultQueries *[]*model.Query) (err error) {
-	for aggrName, aggrDict := range aggs {
+	for _, aggrName := range util.MapKeysSorted(aggs) {
+		aggrDict := aggs[aggrName]
 		aggregators := currentAggr.Aggregators
 		currentAggr.Aggregators = append(aggregators, model.NewAggregator(aggrName))
 		if subAggregation, ok := aggrDict.(QueryMap); ok {
@@ -422,10 +443,10 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 	// 1. Metrics aggregation => always leaf
 	if metricsAggrResult, isMetrics := cw.tryMetricsAggregation(queryMap); isMetrics {
 		metricAggr := currentAggr.buildMetricsAggregation(metricsAggrResult, metadata)
+		cw.newLogicAddMetricAggregation(FULL, metricAggr, len(*resultQueries))
 		if metricAggr != nil {
 			*resultQueries = append(*resultQueries, metricAggr)
 		}
-		cw.newLogicAddMetricAggregation(FULL, metricAggr, len(*resultQueries))
 		//fmt.Println("hmm added?:")
 		//fmt.Println(model.AsStringNew(FULL.SelectCommand))
 		return nil
@@ -483,6 +504,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 			cte.SelectCommand.OrderBy = cte.SelectCommand.OrderBy[len(cte.SelectCommand.OrderBy)-2:]
 		}
 		currentAggr.SelectCommand.CTEs = append(currentAggr.SelectCommand.CTEs, &cte.SelectCommand)
+		currentAggr.PopColumnIndex()
 	} else {
 		fmt.Println("---------------------------_", model.AsStringNew(FULL.Query.SelectCommand))
 	}
@@ -519,6 +541,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 
 	if isTerms {
 		FULL.PopNewGroupBy()
+		currentAggr.PopColumnIndex()
 	}
 
 	return nil
@@ -850,8 +873,8 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregation(currentAggr, FULL *agg
 		currentAggr.SelectCommand.GroupBy = append(currentAggr.SelectCommand.GroupBy, fieldExpression)
 		currentAggr.SelectCommand.LimitBy = append(currentAggr.SelectCommand.LimitBy, fieldExpression)
 		fmt.Println("LEN FULL PRZED", len(FULL.SelectCommand.GetNewGroupBy()))
-		cw.newLogicAddTermsAggregation(FULL, fieldExpression, size, fullOrderBy)
-		fmt.Println("LEN FULL PO", len(FULL.SelectCommand.GetNewGroupBy()))
+		cw.newLogicAddTermsAggregation(FULL, currentAggr, fieldExpression, size, fullOrderBy)
+		fmt.Println("LEN FULL PO", len(FULL.SelectCommand.GetNewGroupBy()), fieldExpression)
 		currentAggr.SelectCommand.OrderBy = append(currentAggr.SelectCommand.OrderBy, fullOrderBy...)
 		if missingPlaceholder == nil {
 			currentAggr.whereBuilder = model.CombineWheres(cw.Ctx, currentAggr.whereBuilder,
@@ -1198,15 +1221,25 @@ func quoteArray(array []string) []string {
 	return quotedArray
 }
 
-func (cw *ClickhouseQueryTranslator) newLogicAddTermsAggregation(aggrBuilder *aggrQueryBuilder, selectExpr model.Expr, size int, orderBy []model.OrderByExpr) {
-	aggrBuilder.AddColumnNew(selectExpr)
-	aggrBuilder.AddGroupByNew(selectExpr)
-	aggrBuilder.AddFullGroupByNew(selectExpr)
-	aggrBuilder.AddSize(size)
-	aggrBuilder.AddOrderBy(orderBy)
+func (cw *ClickhouseQueryTranslator) newLogicAddTermsAggregation(FULL, currentAggr *aggrQueryBuilder,
+	selectExpr model.Expr, size int, orderBy []model.OrderByExpr) {
+	FULL.AddColumnNew(selectExpr)
+	FULL.AddGroupByNew(selectExpr)
+	FULL.AddFullGroupByNew(selectExpr)
+	FULL.AddSize(size)
+	FULL.AddOrderBy(orderBy)
+
+	partitionBy := FULL.SelectCommand.GetNewGroupBy()
+	fmt.Println("DODAJE TERMS", selectExpr, partitionBy)
+
+	FULL.AddColumnCount(partitionBy)
+	FULL.IncreaseNewColumnsNotUselessCount(2)
+	fmt.Println("adding last indices col nr:", FULL.SelectCommand.GetNewColumnsNr(), "adding 2, agg:", currentAggr)
+	currentAggr.AddLastIndices(FULL.GetNewColumnsNotUselessCount(), 2)
+	fmt.Println("column indexes: ", currentAggr.ColumnIndexes)
 }
 
-func (cw *ClickhouseQueryTranslator) newLogicAddMetricAggregation(aggrBuilder *aggrQueryBuilder, metricAggr *model.Query, an int) {
+func (cw *ClickhouseQueryTranslator) newLogicAddMetricAggregation(FULL *aggrQueryBuilder, metricAggr *model.Query, an int) {
 	cn := len(metricAggr.SelectCommand.Columns)
 	lastCol := metricAggr.SelectCommand.Columns[cn-1]
 	funcName := strings.Replace(strings.Replace(strings.Replace(model.AsStringNew(lastCol), "(", "_", 1), ")", "", 1), `"`, ``, 2)
@@ -1217,16 +1250,18 @@ func (cw *ClickhouseQueryTranslator) newLogicAddMetricAggregation(aggrBuilder *a
 		goodCol = model.NewFunction(g.Name, model.NewLiteral(funcName))
 	}
 
-	partitionBy := aggrBuilder.SelectCommand.GetNewGroupBy()
+	partitionBy := FULL.SelectCommand.GetNewGroupBy()
 	fmt.Println("TTTTTTTTT", partitionBy)
 	windowExpr := model.NewWindowFunction(model.AsStringNew(goodCol), []model.Expr{}, partitionBy, model.OrderByExpr{})
 	fmt.Println("=== adding windowExpr:\n", model.AsString(windowExpr))
 
 	pp.Println("uuuuuuu", metricAggr.Aggregators)
-	aggregatorNames := make([]string, 0, len(aggrBuilder.Aggregators))
+	aggregatorNames := make([]string, 0, len(FULL.Aggregators))
 	for _, aggr := range metricAggr.Aggregators {
 		aggregatorNames = append(aggregatorNames, aggr.Name)
 	}
-	aggrBuilder.AddColumnNew(model.NewAliasedExpr(windowExpr, fmt.Sprintf("metric_%s", strings.Join(aggregatorNames, "_"))))
-	aggrBuilder.AddColumnNew(model.NewAliasedExpr(lastCol, funcName))
+	FULL.AddColumnNew(model.NewAliasedExpr(windowExpr, fmt.Sprintf("metric_%s", strings.Join(aggregatorNames, "_"))))
+	FULL.IncreaseNewColumnsNotUselessCount(1)
+	metricAggr.AddLastIndices(FULL.GetNewColumnsNotUselessCount(), 1)
+	FULL.AddColumnNew(model.NewAliasedExprOnlyInCTE(lastCol, funcName))
 }

@@ -79,3 +79,7 @@ func (c *SelectCommand) GetNewGroupBy() []Expr {
 	copy(Copy, c.newGroupBy)
 	return Copy
 }
+
+func (c *SelectCommand) GetNewColumnsNr() int {
+	return len(c.newColumns)
+}

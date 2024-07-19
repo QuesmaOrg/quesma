@@ -3,7 +3,6 @@
 package queryparser
 
 import (
-	"cmp"
 	"context"
 	"github.com/jinzhu/copier"
 	"github.com/stretchr/testify/assert"
@@ -20,13 +19,12 @@ import (
 	kibana_visualize "quesma/testdata/kibana-visualize"
 	opensearch_visualize "quesma/testdata/opensearch-visualize"
 	"quesma/util"
-	"slices"
 	"strconv"
 	"strings"
 	"testing"
 )
 
-const tableName = "qq"
+const tableName = "logs-generic-default"
 const tableNameQuoted = `"` + tableName + `"`
 
 type staticRegistry struct {
@@ -711,7 +709,7 @@ func TestAggregationParser(t *testing.T) {
 		t.Run(strconv.Itoa(testIdx), func(t *testing.T) {
 			body, parseErr := types.ParseJSON(test.aggregationJson)
 			assert.NoError(t, parseErr)
-			aggregations, err := cw.ParseAggregationJson(body)
+			aggregations, _, err := cw.ParseAggregationJson(body)
 			assert.NoError(t, err)
 			assert.Equal(t, len(test.translatedSqls), len(aggregations))
 			for _, aggregation := range aggregations {
@@ -721,6 +719,7 @@ func TestAggregationParser(t *testing.T) {
 	}
 }
 
+/* TODO probably uncomment and use only in tests
 // Used in tests to make processing `aggregations` in a deterministic way
 func sortAggregations(aggregations []*model.Query) {
 	slices.SortFunc(aggregations, func(a, b *model.Query) int {
@@ -738,6 +737,7 @@ func sortAggregations(aggregations []*model.Query) {
 		return cmp.Compare(bLen, aLen)
 	})
 }
+*/
 
 func Test2AggregationParserExternalTestcases(t *testing.T) {
 	// logger.InitSimpleLoggerForTests()
@@ -824,7 +824,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			body, parseErr := types.ParseJSON(test.QueryRequestJson)
 			assert.NoError(t, parseErr)
 
-			queries, canParse, err := cw.ParseQuery(body)
+			queries, _, canParse, err := cw.ParseQuery(body)
 			assert.True(t, canParse)
 			assert.NoError(t, err)
 			assert.Len(t, test.ExpectedResults, len(queries))

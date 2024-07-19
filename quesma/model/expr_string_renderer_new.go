@@ -4,7 +4,6 @@ package model
 
 import (
 	"fmt"
-	"github.com/k0kubun/pp"
 	"strconv"
 	"strings"
 )
@@ -167,8 +166,11 @@ func (v *newRenderer) VisitSelectCommand(c SelectCommand) interface{} {
 	// THIS SHOULD PRODUCE QUERY IN  BRACES
 	var sb strings.Builder
 
-	pp.Println("newColumns:", c.newColumns)
-	pp.Println("newGroupBy:", c.newGroupBy)
+	fmt.Println("newColumns:")
+	for i, nc := range c.newColumns {
+		fmt.Printf("newColumns[%d]: %s\n", i, AsStringNew(nc))
+	}
+	// pp.Println("newGroupBy:", c.newGroupBy)
 
 	weHaveCTE := len(c.newFullGroupBy) > 0
 
@@ -181,13 +183,15 @@ func (v *newRenderer) VisitSelectCommand(c SelectCommand) interface{} {
 	if c.IsDistinct {
 		sb.WriteString("DISTINCT ")
 	}
-	colsOnlyAliases := make([]string, 0, len(c.newColumns))
+	colsOnlyAliases := make([]string, 0)
 	for _, col := range c.newColumns {
 		// TODO probably change to some visitor, or prettify in other way. POC style for now.
 		if aliased, ok := col.(AliasedExpr); ok {
-			colsOnlyAliases = append(colsOnlyAliases, strconv.Quote(aliased.Alias))
-		} else if colRef, ok := col.(ColumnRef); ok {
-			colsOnlyAliases = append(colsOnlyAliases, strconv.Quote(colRef.ColumnName))
+			if !aliased.OnlyInCTE {
+				colsOnlyAliases = append(colsOnlyAliases, strconv.Quote(aliased.Alias))
+			}
+		} else {
+			colsOnlyAliases = append(colsOnlyAliases, AsStringNew(col))
 		}
 	}
 	sb.WriteString(strings.Join(colsOnlyAliases, ", "))
@@ -197,9 +201,9 @@ func (v *newRenderer) VisitSelectCommand(c SelectCommand) interface{} {
 		if c.newGroupBySize[i] != 0 {
 			partitionBy := ""
 			if i > 0 {
-				partitionBy = "PARTITION BY " + v.VisitExprArray(c.newGroupBy[:i]).(string) + " "
+				partitionBy = "PARTITION BY " + v.VisitExprArray(c.newFullGroupBy[:i]).(string) + " "
 			}
-			denseRanks = append(denseRanks, fmt.Sprintf("DENSE_RANK() OVER (%sORDER BY %s) AS dense_rank_%d", partitionBy, v.VisitOrderExprArray(c.newOrderBy[i]), i))
+			denseRanks = append(denseRanks, fmt.Sprintf("DENSE_RANK() OVER (%sORDER BY %s) AS dense_rank_%d", partitionBy, v.VisitOrderExprArray(c.newOrderBy[i]), i+1))
 			denseRankSizes = append(denseRankSizes, c.newGroupBySize[i])
 		}
 	}
@@ -256,8 +260,8 @@ func (v *newRenderer) VisitSelectCommand(c SelectCommand) interface{} {
 	qualify := make([]string, 0, len(denseRanks))
 	orderBy := make([]string, 0, len(denseRanks))
 	for i, size := range denseRankSizes {
-		qualify = append(qualify, fmt.Sprintf("dense_rank_%d <= %d", i, size))
-		orderBy = append(orderBy, fmt.Sprintf("dense_rank_%d", i))
+		qualify = append(qualify, fmt.Sprintf("dense_rank_%d <= %d", i+1, size))
+		orderBy = append(orderBy, fmt.Sprintf("dense_rank_%d", i+1))
 	}
 	sb.WriteString(fmt.Sprintf(" QUALIFY %s ORDER BY %s", strings.Join(qualify, " AND "), strings.Join(orderBy, ", ")))
 

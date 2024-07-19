@@ -196,12 +196,17 @@ func NewInfixExpr(lhs Expr, operator string, rhs Expr) InfixExpr {
 
 // AliasedExpr is an expression with an alias, e.g. `columnName AS alias` or `COUNT(x) AS sum_of_xs`
 type AliasedExpr struct {
-	Expr  Expr
-	Alias string
+	Expr      Expr
+	Alias     string
+	OnlyInCTE bool
 }
 
 func NewAliasedExpr(expr Expr, alias string) AliasedExpr {
 	return AliasedExpr{Expr: expr, Alias: alias}
+}
+
+func NewAliasedExprOnlyInCTE(expr Expr, alias string) AliasedExpr {
+	return AliasedExpr{Expr: expr, Alias: alias, OnlyInCTE: true}
 }
 
 func (a AliasedExpr) Accept(v ExprVisitor) interface{} { return v.VisitAliasedExpr(a) }

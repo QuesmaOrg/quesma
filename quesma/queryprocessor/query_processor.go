@@ -46,6 +46,40 @@ func (qp *QueryProcessor) sameGroupByFields(row1, row2 model.QueryResultRow, lev
 	return true
 }
 
+// returns i if row1[columnIndices[i]] != row2[columnIndices[i]] and they are equal for < i
+// returns len(columnIndices) if row1 and row2 are equal for all columnIndices
+// Probably need to speed it up.
+func (qp *QueryProcessor) SameGroupByFieldsNumber(row1, row2 model.QueryResultRow, columnIndices []int) bool {
+
+	isArray := func(val interface{}) bool {
+		if val == nil {
+			return false
+		}
+		v := reflect.ValueOf(val)
+		return v.Kind() == reflect.Slice || v.Kind() == reflect.Array
+	}
+
+	for _, columnIndex := range columnIndices {
+		val1 := row1.Cols[columnIndex].Value
+		val2 := row2.Cols[columnIndex].Value
+		isArray1 := isArray(val1)
+		isArray2 := isArray(val2)
+
+		if !isArray1 && !isArray2 {
+			if row1.Cols[columnIndex].ExtractValue(qp.ctx) != row2.Cols[columnIndex].ExtractValue(qp.ctx) {
+				return false
+			}
+		} else if isArray1 && isArray2 {
+			if !reflect.DeepEqual(val1, val2) {
+				return false
+			}
+		} else {
+			return false
+		}
+	}
+	return true
+}
+
 // Splits ResultSet into buckets, based on the first level fields
 // E.g. if level == 0, we split into buckets based on the first field,
 // e.g. [row(1, ...), row(1, ...), row(2, ...), row(2, ...), row(3, ...)] -> [[row(1, ...), row(1, ...)], [row(2, ...), row(2, ...)], [row(3, ...)]]

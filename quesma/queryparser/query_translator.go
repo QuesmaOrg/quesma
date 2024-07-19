@@ -4,6 +4,7 @@ package queryparser
 
 import (
 	"context"
+	"fmt"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -168,6 +169,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 	}
 	cw.postprocessPipelineAggregations(queries, ResultSets)
 	for i, query := range queries {
+		fmt.Printf("%d %s %v\n\n", i, model.AsString(query.SelectCommand), ResultSets[i])
 		if i >= len(ResultSets) || query_util.IsNonAggregationQuery(query) {
 			continue
 		}
@@ -540,4 +542,35 @@ func (cw *ClickhouseQueryTranslator) sortInTopologicalOrder(queries []*model.Que
 		}
 	}
 	return indexesSorted
+}
+
+func (cw *ClickhouseQueryTranslator) translateOneQueryToMultipleQueriesResult(aggregationQueries []*model.Query, resultSet []model.QueryResultRow) [][]model.QueryResultRow {
+	resultSetForBaseQueries := make([][]model.QueryResultRow, 0, len(aggregationQueries))
+	for _, query := range aggregationQueries {
+		resultSetForBaseQueries = append(resultSetForBaseQueries, cw.translateCombinedQueryResultToBaseQueryResult(query, resultSet))
+	}
+	return resultSetForBaseQueries
+}
+
+func (cw *ClickhouseQueryTranslator) translateCombinedQueryResultToBaseQueryResult(query *model.Query, combinedQueryResultSet []model.QueryResultRow) []model.QueryResultRow {
+	qp := queryprocessor.NewQueryProcessor(cw.Ctx)
+	resultSet := make([]model.QueryResultRow, 0)
+	if len(combinedQueryResultSet) == 0 {
+		return resultSet
+	}
+	cw.addRow(&resultSet, combinedQueryResultSet[0], query.ColumnIndexes)
+	for i, row := range combinedQueryResultSet[1:] {
+		if !qp.SameGroupByFieldsNumber(row, combinedQueryResultSet[i], query.ColumnIndexes[:len(query.ColumnIndexes)-1]) {
+			cw.addRow(&resultSet, row, query.ColumnIndexes)
+		}
+	}
+	return resultSet
+}
+
+func (cw *ClickhouseQueryTranslator) addRow(resultSet *[]model.QueryResultRow, row model.QueryResultRow, columnIndices []int) {
+	newRow := make([]model.QueryResultCol, len(columnIndices))
+	for i, columnIndex := range columnIndices {
+		newRow[i] = row.Cols[columnIndex]
+	}
+	*resultSet = append(*resultSet, model.QueryResultRow{Cols: newRow})
 }
