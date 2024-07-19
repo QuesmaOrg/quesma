@@ -84,8 +84,13 @@ jobs:
           body: |
             ### Quesma ${{ github.event.inputs.VERSION }}
             
-            Quesma version `${{ github.event.inputs.VERSION }}` has been released.
-            Check it out at https://hub.docker.com/r/quesma/quesma 
+            Quesma version `${{ github.event.inputs.VERSION }}` has been released! :confetti_ball: 
+  
+            Check it out at https://hub.docker.com/r/quesma/quesma! You can get the Docker image with:
+            ```bash
+            docker pull quesma/quesma:${{ github.event.inputs.VERSION }}
+            ```
+
             All tags URL: https://hub.docker.com/r/quesma/quesma/tags
           draft: true
           prerelease: false
