@@ -12,6 +12,15 @@ import (
 	"quesma/quesma/types"
 )
 
+type aggregationLevelVersionUna struct {
+	Aggregator      model.Aggregator
+	Type            model.QueryType
+	Children        []*aggregationLevelVersionUna
+	SelectedColumns []model.Expr
+	OrderBy         *model.OrderByExpr
+	Limit           int // 0 if none, only for bucket aggregation
+}
+
 // Here is experimental code to generate aggregations in one SQL query. called Version Una.
 func (cw *ClickhouseQueryTranslator) ParseAggregationJsonVersionUna(body types.JSON) ([]*model.Query, error) {
 	queryAsMap := body.Clone()
