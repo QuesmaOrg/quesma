@@ -4,6 +4,7 @@ package jsonprocessor
 
 import (
 	"fmt"
+	"quesma/quesma/types"
 )
 
 func FlattenMap(data map[string]interface{}, nestedSeparator string) map[string]interface{} {
@@ -62,12 +63,12 @@ func (t *RewriteArrayOfObject) rewrite(array []interface{}) (map[string]interfac
 }
 
 // RewriteArrayOfObject rewrites an array of objects into map of arrays
-func (t *RewriteArrayOfObject) Transform(data map[string]interface{}) (map[string]interface{}, error) {
+func (t *RewriteArrayOfObject) Transform(data types.JSON) (types.JSON, error) {
 
 	for k, v := range data {
 		switch val := v.(type) {
 
-		case map[string]interface{}:
+		case types.JSON:
 
 			res, err := t.Transform(val)
 
