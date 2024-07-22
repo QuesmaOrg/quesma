@@ -17,8 +17,8 @@ func NewSum(ctx context.Context, fieldType clickhouse.DateTimeType) Sum {
 	return Sum{ctx: ctx, fieldType: fieldType}
 }
 
-func (query Sum) IsBucketAggregation() bool {
-	return false
+func (query Sum) AggregationType() model.AggregationType {
+	return model.MetricsAggregation
 }
 
 func (query Sum) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

@@ -15,8 +15,8 @@ func NewCardinality(ctx context.Context) Cardinality {
 	return Cardinality{ctx: ctx}
 }
 
-func (query Cardinality) IsBucketAggregation() bool {
-	return false
+func (query Cardinality) AggregationType() model.AggregationType {
+	return model.MetricsAggregation
 }
 
 func (query Cardinality) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

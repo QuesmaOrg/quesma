@@ -17,8 +17,8 @@ func NewGeoTileGrid(ctx context.Context) GeoTileGrid {
 	return GeoTileGrid{ctx: ctx}
 }
 
-func (query GeoTileGrid) IsBucketAggregation() bool {
-	return true
+func (query GeoTileGrid) AggregationType() model.AggregationType {
+	return model.BucketAggregation
 }
 
 func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

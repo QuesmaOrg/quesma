@@ -21,8 +21,8 @@ func NewMinBucket(ctx context.Context, bucketsPath string) MinBucket {
 	return MinBucket{ctx: ctx, Parent: parseBucketsPathIntoParentAggregationName(ctx, bucketsPath)}
 }
 
-func (query MinBucket) IsBucketAggregation() bool {
-	return false
+func (query MinBucket) AggregationType() model.AggregationType {
+	return model.PipelineAggregation
 }
 
 func (query MinBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

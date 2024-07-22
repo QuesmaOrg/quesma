@@ -21,8 +21,8 @@ func NewPercentileRanks(ctx context.Context, keyed bool) PercentileRanks {
 	return PercentileRanks{ctx: ctx, Keyed: keyed}
 }
 
-func (query PercentileRanks) IsBucketAggregation() bool {
-	return false
+func (query PercentileRanks) AggregationType() model.AggregationType {
+	return model.MetricsAggregation
 }
 
 func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

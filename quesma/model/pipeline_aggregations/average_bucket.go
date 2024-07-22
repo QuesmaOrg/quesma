@@ -20,8 +20,8 @@ func NewAverageBucket(ctx context.Context, bucketsPath string) AverageBucket {
 	return AverageBucket{ctx: ctx, Parent: parseBucketsPathIntoParentAggregationName(ctx, bucketsPath)}
 }
 
-func (query AverageBucket) IsBucketAggregation() bool {
-	return false
+func (query AverageBucket) AggregationType() model.AggregationType {
+	return model.PipelineAggregation
 }
 
 func (query AverageBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

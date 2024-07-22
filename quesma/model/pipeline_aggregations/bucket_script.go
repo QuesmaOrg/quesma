@@ -16,8 +16,8 @@ func NewBucketScript(ctx context.Context) BucketScript {
 	return BucketScript{ctx: ctx}
 }
 
-func (query BucketScript) IsBucketAggregation() bool {
-	return false
+func (query BucketScript) AggregationType() model.AggregationType {
+	return model.PipelineAggregation
 }
 
 func (query BucketScript) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

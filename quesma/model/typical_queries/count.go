@@ -15,8 +15,8 @@ func NewCount(ctx context.Context) Count {
 	return Count{ctx: ctx}
 }
 
-func (query Count) IsBucketAggregation() bool {
-	return false
+func (query Count) AggregationType() model.AggregationType {
+	return model.TypicalAggregation
 }
 
 func (query Count) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

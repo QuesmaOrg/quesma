@@ -80,8 +80,8 @@ func NewDateRange(ctx context.Context, fieldName string, format string, interval
 	return DateRange{ctx: ctx, FieldName: fieldName, Format: format, Intervals: intervals, SelectColumnsNr: selectColumnsNr}
 }
 
-func (query DateRange) IsBucketAggregation() bool {
-	return true
+func (query DateRange) AggregationType() model.AggregationType {
+	return model.BucketAggregation
 }
 
 func (query DateRange) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

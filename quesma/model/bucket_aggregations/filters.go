@@ -30,8 +30,8 @@ func NewFilter(name string, sql model.SimpleQuery) Filter {
 	return Filter{Name: name, Sql: sql}
 }
 
-func (query Filters) IsBucketAggregation() bool {
-	return true
+func (query Filters) AggregationType() model.AggregationType {
+	return model.BucketAggregation
 }
 
 func (query Filters) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

@@ -119,7 +119,7 @@ func (cw *ClickhouseQueryTranslator) makeResponseAggregationRecursive(query *mod
 		weSplitOverHowManyFields := currentAggregator.SplitOverHowManyFields
 
 		// leaf bucket aggregation
-		if aggregatorsLevel == len(query.Aggregators)-1 && query.Type.IsBucketAggregation() {
+		if aggregatorsLevel == len(query.Aggregators)-1 && query.Type.AggregationType() == model.BucketAggregation {
 			subResult = cw.makeResponseAggregationRecursive(query, ResultSet, aggregatorsLevel+1, selectLevel+weSplitOverHowManyFields)
 			if buckets, exist := subResult["buckets"]; exist {
 				for i, bucket := range buckets.([]model.JsonMap) {

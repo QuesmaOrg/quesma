@@ -17,8 +17,8 @@ func NewStats(ctx context.Context) Stats {
 	return Stats{ctx: ctx}
 }
 
-func (query Stats) IsBucketAggregation() bool {
-	return false
+func (query Stats) AggregationType() model.AggregationType {
+	return model.MetricsAggregation
 }
 
 func (query Stats) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

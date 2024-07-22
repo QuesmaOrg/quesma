@@ -33,8 +33,8 @@ func NewFacetsNumeric(ctx context.Context) FacetsNumeric {
 	return FacetsNumeric{ctx: ctx}
 }
 
-func (query FacetsNumeric) IsBucketAggregation() bool {
-	return true
+func (query FacetsNumeric) AggregationType() model.AggregationType {
+	return model.TypicalAggregation
 }
 
 func (query FacetsNumeric) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

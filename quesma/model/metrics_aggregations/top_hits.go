@@ -19,8 +19,8 @@ func NewTopHits(ctx context.Context) TopHits {
 	return TopHits{ctx: ctx}
 }
 
-func (query TopHits) IsBucketAggregation() bool {
-	return false
+func (query TopHits) AggregationType() model.AggregationType {
+	return model.MetricsAggregation
 }
 
 // TODO implement correct

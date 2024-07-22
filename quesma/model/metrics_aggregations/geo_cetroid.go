@@ -15,8 +15,8 @@ func NewGeoCentroid(ctx context.Context) GeoCentroid {
 	return GeoCentroid{ctx: ctx}
 }
 
-func (query GeoCentroid) IsBucketAggregation() bool {
-	return false
+func (query GeoCentroid) AggregationType() model.AggregationType {
+	return model.MetricsAggregation
 }
 
 func (query GeoCentroid) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

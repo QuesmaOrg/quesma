@@ -29,8 +29,8 @@ func NewCumulativeSum(ctx context.Context, bucketsPath string) CumulativeSum {
 
 const BucketsPathCount = "_count" // special name for `buckets_path` parameter, normally it's some other aggregation's name
 
-func (query CumulativeSum) IsBucketAggregation() bool {
-	return false
+func (query CumulativeSum) AggregationType() model.AggregationType {
+	return model.PipelineAggregation
 }
 
 func (query CumulativeSum) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

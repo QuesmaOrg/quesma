@@ -21,8 +21,8 @@ func NewMaxBucket(ctx context.Context, bucketsPath string) MaxBucket {
 	return MaxBucket{ctx: ctx, Parent: parseBucketsPathIntoParentAggregationName(ctx, bucketsPath)}
 }
 
-func (query MaxBucket) IsBucketAggregation() bool {
-	return false
+func (query MaxBucket) AggregationType() model.AggregationType {
+	return model.PipelineAggregation
 }
 
 // FIXME I think we should return all rows, not just 1
