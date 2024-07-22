@@ -228,21 +228,22 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry, incomingIndexName)
 
-		queries, canParse, err := queryTranslator.ParseQuery(body)
+		plan, canParse, err := queryTranslator.ParseQuery(body)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("parsing error: %v", err)
 		}
-		queries, err = q.transformationPipeline.Transform(queries)
+		plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 		}
 
-		queries, err = registry.QueryTransformerFor(table.Name, q.cfg).Transform(queries)
+		plan.Queries, err = registry.QueryTransformerFor(table.Name, q.cfg).Transform(plan.Queries)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 		}
 
 		if canParse {
+			queries := plan.Queries
 			if len(queries) > 0 && query_util.IsNonAggregationQuery(queries[0]) {
 				if properties := q.findNonexistingProperties(queries[0], table, queryTranslator); len(properties) > 0 {
 					logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
@@ -258,7 +259,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					doneCh <- AsyncSearchWithError{err: err}
 				})
 
-				translatedQueryBody, results, err := q.searchWorker(ctx, queries, table, doneCh, optAsync)
+				translatedQueryBody, results, err := q.searchWorker(ctx, plan, table, doneCh, optAsync)
 				if err != nil {
 					doneCh <- AsyncSearchWithError{err: err}
 					return
@@ -275,12 +276,20 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 					doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 				}
 
-				searchResponse := queryTranslator.MakeSearchResponse(queries, results)
+				if plan.ResultAdapter != nil {
+					results, err = plan.ResultAdapter.Transform(results)
+					if err != nil {
+						doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
+					}
+				}
+
+				searchResponse := queryTranslator.MakeSearchResponse(plan.Queries, results)
 
 				doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
 			}()
 
 		} else {
+			queries := plan.Queries
 			queriesBody := make([]types.TranslatedSQLQuery, len(queries))
 			queriesBodyConcat := ""
 			for i, query := range queries {
@@ -299,8 +308,8 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			response := <-doneCh
 			if response.err != nil {
 				err = response.err
-				if len(queries) > 0 {
-					logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queries[0]: %+v", err, queries[0])
+				if len(plan.Queries) > 0 {
+					logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queries[0]: %+v", err, plan.Queries[0])
 				} else {
 					logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queries empty", err)
 				}
@@ -564,8 +573,10 @@ func (q *QueryRunner) runQueryJobs(jobs []QueryJob) ([][]model.QueryResultRow, [
 
 func (q *QueryRunner) searchWorkerCommon(
 	ctx context.Context,
-	queries []*model.Query,
+	plan *model.ExecutionPlan,
 	table *clickhouse.Table) (translatedQueryBody []types.TranslatedSQLQuery, hits [][]model.QueryResultRow, err error) {
+
+	queries := plan.Queries
 
 	translatedQueryBody = make([]types.TranslatedSQLQuery, len(queries))
 	hits = make([][]model.QueryResultRow, len(queries))
@@ -632,7 +643,7 @@ func (q *QueryRunner) searchWorkerCommon(
 }
 
 func (q *QueryRunner) searchWorker(ctx context.Context,
-	queries []*model.Query,
+	plan *model.ExecutionPlan,
 	table *clickhouse.Table,
 	doneCh chan<- AsyncSearchWithError,
 	optAsync *AsyncQuery) (translatedQueryBody []types.TranslatedSQLQuery, resultRows [][]model.QueryResultRow, err error) {
@@ -646,7 +657,7 @@ func (q *QueryRunner) searchWorker(ctx context.Context,
 		ctx = dbQueryCtx
 	}
 
-	return q.searchWorkerCommon(ctx, queries, table)
+	return q.searchWorkerCommon(ctx, plan, table)
 }
 
 func (q *QueryRunner) Close() {

@@ -59,6 +59,17 @@ type (
 	}
 )
 
+// QueryResultAdapter it adadpts the result of alternative query parsers to the standard query result
+// Interface is similar to plugins.ResultTransformer
+type QueryResultAdapter interface {
+	Transform(result [][]QueryResultRow) ([][]QueryResultRow, error)
+}
+
+type ExecutionPlan struct {
+	Queries       []*Query
+	ResultAdapter QueryResultAdapter
+}
+
 func NewQueryExecutionHints() *QueryOptimizeHints {
 	return &QueryOptimizeHints{Settings: make(map[string]any)}
 }

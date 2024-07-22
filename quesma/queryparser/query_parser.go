@@ -34,16 +34,16 @@ func NewEmptyHighlighter() model.Highlighter {
 	}
 }
 
-func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]*model.Query, bool, error) {
+func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.ExecutionPlan, bool, error) {
 	if cw.SchemaRegistry == nil {
 		logger.Error().Msg("Schema registry is not set")
-		return nil, false, errors.New("schema registry is not set")
+		return &model.ExecutionPlan{}, false, errors.New("schema registry is not set")
 	}
 
 	simpleQuery, queryInfo, highlighter, err := cw.parseQueryInternal(body)
 	if err != nil || !simpleQuery.CanParse {
 		logger.WarnWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
-		return nil, false, err
+		return &model.ExecutionPlan{}, false, err
 	}
 
 	var queries []*model.Query
@@ -67,7 +67,11 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) ([]*model.Query
 		queries = append(queries, listQuery)
 	}
 
-	return queries, true, err
+	plan := &model.ExecutionPlan{
+		Queries: queries,
+	}
+
+	return plan, true, err
 }
 
 func (cw *ClickhouseQueryTranslator) buildListQueryIfNeeded(
