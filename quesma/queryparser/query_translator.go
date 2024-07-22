@@ -4,7 +4,6 @@ package queryparser
 
 import (
 	"context"
-	"fmt"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -171,7 +170,6 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 	}
 	cw.postprocessPipelineAggregations(queries, ResultSets)
 	for i, query := range queries {
-		fmt.Printf("%d %s %v\n\n", i, model.AsString(query.SelectCommand), ResultSets[i])
 		if i >= len(ResultSets) || query_util.IsNonAggregationQuery(query) {
 			continue
 		}
