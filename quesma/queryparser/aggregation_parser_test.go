@@ -823,7 +823,8 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 			body, parseErr := types.ParseJSON(test.QueryRequestJson)
 			assert.NoError(t, parseErr)
 
-			queries, canParse, err := cw.ParseQuery(body)
+			plan, canParse, err := cw.ParseQuery(body)
+			queries := plan.Queries
 			assert.True(t, canParse)
 			assert.NoError(t, err)
 			assert.Len(t, test.ExpectedResults, len(queries))

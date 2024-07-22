@@ -24,7 +24,8 @@ type ClickhouseQueryTranslator struct {
 	Table        *clickhouse.Table
 	Ctx          context.Context
 
-	DateMathRenderer  string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+	DateMathRenderer string // "clickhouse_interval" or "literal"  if not set, we use "clickhouse_interval"
+
 	SchemaRegistry    schema.Registry
 	IncomingIndexName string
 }

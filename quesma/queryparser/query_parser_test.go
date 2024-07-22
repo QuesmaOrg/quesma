@@ -73,7 +73,8 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 		t.Run(fmt.Sprintf("%s(%d)", tt.Name, i), func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
-			queries, canParse, errQuery := cw.ParseQuery(body)
+			plan, canParse, errQuery := cw.ParseQuery(body)
+			queries := plan.Queries
 			assert.True(t, canParse, "can parse")
 			assert.NoError(t, errQuery, "no ParseQuery error")
 			assert.True(t, len(queries) > 0, "len queries > 0")
@@ -138,7 +139,8 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
-			queries, canParse, errQuery := cw.ParseQuery(body)
+			plan, canParse, errQuery := cw.ParseQuery(body)
+			queries := plan.Queries
 			assert.NoError(t, errQuery, "no error in ParseQuery")
 			assert.True(t, canParse, "can parse")
 			assert.True(t, len(queries) > 0, "len queries > 0")
@@ -205,7 +207,8 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
-			queries, canParse, errQuery := cw.ParseQuery(body)
+			plan, canParse, errQuery := cw.ParseQuery(body)
+			queries := plan.Queries
 			assert.NoError(t, errQuery, "no error in ParseQuery")
 			assert.True(t, canParse, "can parse")
 			assert.True(t, len(queries) > 0, "len queries > 0")

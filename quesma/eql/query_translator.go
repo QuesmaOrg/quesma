@@ -73,7 +73,7 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(queries []*model.Quer
 	}
 }
 
-func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) ([]*model.Query, bool, error) {
+func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) (*model.ExecutionPlan, bool, error) {
 	simpleQuery, queryInfo, highlighter, err := cw.parseQuery(body)
 
 	if err != nil {
@@ -93,7 +93,8 @@ func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) ([]*model.Qu
 		query.Highlighter = highlighter
 		query.SelectCommand.OrderBy = simpleQuery.OrderBy
 		queries = append(queries, query)
-		return queries, canParse, nil
+		return &model.ExecutionPlan{Queries: queries}, canParse, nil
+
 	}
 
 	return nil, false, err
