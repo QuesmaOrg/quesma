@@ -55,7 +55,8 @@ func (cw *ClickhouseQueryTranslator) parseRangeAggregation(rangePart QueryMap) b
 }
 
 func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQueryBuilder, Range bucket_aggregations.Range,
-	queryCurrentLevel QueryMap, aggregationsAccumulator *[]*model.Query, metadata JsonMap) {
+	queryCurrentLevel QueryMap, metadata JsonMap) ([]*model.Query, error) {
+	aggregationQueries := make([]*model.Query, 0)
 
 	// build this aggregation
 	for _, interval := range Range.Intervals {
@@ -71,13 +72,13 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 			logger.ErrorWithCtx(cw.Ctx).Msg("no aggregators in currentAggr")
 		}
 	}
-	*aggregationsAccumulator = append(*aggregationsAccumulator, currentAggr.buildBucketAggregation(metadata))
+	aggregationQueries = append(aggregationQueries, currentAggr.buildBucketAggregation(metadata))
 	currentAggr.SelectCommand.Columns = currentAggr.SelectCommand.Columns[:len(currentAggr.SelectCommand.Columns)-len(Range.Intervals)]
 
 	// build subaggregations
 	aggs, hasAggs := queryCurrentLevel["aggs"].(QueryMap)
 	if !hasAggs {
-		return
+		return aggregationQueries, nil
 	}
 	// TODO now we run a separate query for each range.
 	// it's much easier to code it this way, but that can, quite easily, be improved.
@@ -93,11 +94,16 @@ func (cw *ClickhouseQueryTranslator) processRangeAggregation(currentAggr *aggrQu
 		aggsCopy, err := deepcopy.Anything(aggs)
 		if err == nil {
 			currentAggr.Type = model.NewUnknownAggregationType(cw.Ctx)
-			cw.parseAggregationNames(currentAggr, aggsCopy.(QueryMap), aggregationsAccumulator)
+			subAggregations, err := cw.parseAggregationNames(currentAggr, aggsCopy.(QueryMap))
+			if err != nil {
+				return aggregationQueries, err
+			}
+			aggregationQueries = append(aggregationQueries, subAggregations...)
 		} else {
 			logger.ErrorWithCtx(cw.Ctx).Msgf("deepcopy 'aggs' map error: %v. Skipping current range's interval: %v, aggs: %v", err, interval, aggs)
 		}
 		currentAggr.Aggregators = currentAggr.Aggregators[:len(currentAggr.Aggregators)-1]
 		currentAggr.whereBuilder = whereBeforeNesting
 	}
+	return aggregationQueries, nil
 }
