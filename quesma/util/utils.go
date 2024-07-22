@@ -345,7 +345,7 @@ func MergeMaps(ctx context.Context, mActual, mExpected JsonMap, keyAddedByQuesma
 			return mergedArray
 
 		default:
-			if i1 != i2 {
+			if !reflect.DeepEqual(i1, i2) {
 				logger.WarnWithCtx(ctx).Msgf(
 					"mergeAny: i1 isn't neither JsonMap nor []JsonMap, i1 type: %T, i2 type: %T, i1: %v, i2: %v", i1, i2, i1, i2)
 			}
