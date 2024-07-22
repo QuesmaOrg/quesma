@@ -3,12 +3,12 @@
 package queryparser
 
 import (
+	"errors"
 	"fmt"
 	"github.com/barkimedes/go-deepcopy"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
-	"quesma/model/metrics_aggregations"
 	"quesma/quesma/types"
 )
 
@@ -19,6 +19,12 @@ type aggregationLevelVersionUna struct {
 	SelectedColumns []model.Expr
 	OrderBy         *model.OrderByExpr
 	Limit           int // 0 if none, only for bucket aggregation
+	metadata        model.JsonMap
+}
+
+func (a *aggregationLevelVersionUna) buildMetricsAggregation(metricsAggrResult metricsAggregation) error {
+	panic("to implement")
+	return nil
 }
 
 // Here is experimental code to generate aggregations in one SQL query. called Version Una.
@@ -74,15 +80,10 @@ func (cw *ClickhouseQueryTranslator) parseAggregationNamesVersionUna(currentAggr
 	return aggregationQueries, nil
 }
 
-func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(prevAggr *aggrQueryBuilder, queryMap QueryMap) ([]*model.Query, error) {
-	aggregationQueries := make([]*model.Query, 0)
-
+func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(aggregationName string, queryMap QueryMap) (*aggregationLevelVersionUna, error) {
 	if len(queryMap) == 0 {
-		return aggregationQueries, nil
+		return nil, nil
 	}
-
-	currentAggr := *prevAggr
-	currentAggr.SelectCommand.Limit = 0
 
 	// check if metadata's present
 	var metadata model.JsonMap
@@ -93,31 +94,30 @@ func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(prevAggr *aggrQu
 		metadata = model.NoMetadataField
 	}
 
+	aggregation := &aggregationLevelVersionUna{
+		Aggregator: model.NewAggregator(aggregationName),
+		metadata:   metadata,
+	}
+
 	// 1. Metrics aggregation => always leaf
 	if metricsAggrResult, isMetrics := cw.tryMetricsAggregation(queryMap); isMetrics {
-		metricAggr := currentAggr.buildMetricsAggregation(metricsAggrResult, metadata)
-		if metricAggr != nil {
-			aggregationQueries = append(aggregationQueries, metricAggr)
+		err := aggregation.buildMetricsAggregation(metricsAggrResult)
+		if err != nil {
+			return nil, err
 		}
-		return aggregationQueries, nil
+		return aggregation, nil
 	}
 
 	// 2. Pipeline aggregation => always leaf (for now)
-	pipelineAggregationType, isPipelineAggregation := cw.parsePipelineAggregations(queryMap)
+	_, isPipelineAggregation := cw.parsePipelineAggregations(queryMap)
 	if isPipelineAggregation {
-		aggregationQueries = append(aggregationQueries, currentAggr.finishBuildingAggregationPipeline(pipelineAggregationType, metadata))
+		return nil, errors.New("pipeline aggregations are not supported in version uno")
 	}
 
 	// 3. Now process filter(s) first, because they apply to everything else on the same level or below.
 	// Also filter introduces count to current level.
-	if filterRaw, ok := queryMap["filter"]; ok {
-		if filter, ok := filterRaw.(QueryMap); ok {
-			currentAggr.Type = metrics_aggregations.NewCount(cw.Ctx)
-			currentAggr.whereBuilder = model.CombineWheres(cw.Ctx, currentAggr.whereBuilder, cw.parseQueryMap(filter))
-			aggregationQueries = append(aggregationQueries, currentAggr.buildCountAggregation(metadata))
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("filter is not a map, but %T, value: %v. Skipping", filterRaw, filterRaw)
-		}
+	if _, ok := queryMap["filter"]; ok {
+		return nil, errors.New("filter is not supported in version uno")
 		delete(queryMap, "filter")
 	}
 
@@ -195,7 +195,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(prevAggr *aggrQu
 			Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", k, v, v)
 	}
 
-	return aggregationQueries, nil
+	return aggregation, nil
 }
 
 func (cw *ClickhouseQueryTranslator) processRangeAggregationVersionUna(currentAggr *aggrQueryBuilder, Range bucket_aggregations.Range,
