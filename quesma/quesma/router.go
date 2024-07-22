@@ -261,8 +261,12 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 			return nil, err
 		}
 
-		mappings := body["mappings"].(map[string]interface{})
-		columns := elasticsearch.ParseMappings("", mappings)
+		mappings, ok := body["mappings"]
+		if !ok {
+			logger.Warn().Msgf("no mappings found in PUT /%s request, ignoring that request.", req.Params["index"])
+			return &mux.Result{StatusCode: httpOk}, nil
+		}
+		columns := elasticsearch.ParseMappings("", mappings.(map[string]interface{}))
 
 		sr.UpdateDynamicConfiguration(schema.TableName(req.Params["index"]), schema.Table{Columns: columns})
 

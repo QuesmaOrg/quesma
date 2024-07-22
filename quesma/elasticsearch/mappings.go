@@ -12,9 +12,13 @@ import (
 func ParseMappings(namespace string, mappings map[string]interface{}) map[string]schema.Column {
 	result := make(map[string]schema.Column)
 
-	properties := mappings["properties"].(map[string]interface{})
+	properties, found := mappings["properties"]
+	if !found {
+		log.Warn().Msgf("No 'properties' found in the mapping. The mapping was: %v", mappings)
+		return result
+	}
 
-	for field, fieldMapping := range properties {
+	for field, fieldMapping := range properties.(map[string]interface{}) {
 		fieldMappingAsMap := fieldMapping.(map[string]interface{})
 
 		var fieldName string

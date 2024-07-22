@@ -54,20 +54,22 @@ func (s *schemaRegistry) loadSchemas() (map[TableName]Schema, error) {
 }
 
 func (s *schemaRegistry) populateSchemaFromDynamicConfiguration(indexName string, fields map[FieldName]Field) {
-	if d, found := s.dynamicConfiguration[indexName]; found {
-		for _, column := range d.Columns {
-			columnType, success := ParseQuesmaType(column.Type)
-			if !success {
-				logger.Warn().Msgf("Invalid dynamic configuration: type %s (of field %s in index %s) not supported. Skipping the field.", column.Type, column.Name, indexName)
-				continue
-			}
+	d, found := s.dynamicConfiguration[indexName]
+	if !found {
+		return
+	}
+	for _, column := range d.Columns {
+		columnType, success := ParseQuesmaType(column.Type)
+		if !success {
+			logger.Warn().Msgf("Invalid dynamic configuration: type %s (of field %s in index %s) not supported. Skipping the field.", column.Type, column.Name, indexName)
+			continue
+		}
 
-			// TODO replace with notion of ephemeral types (see other identical TODOs)
-			if columnType.Equal(TypePoint) {
-				fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(strings.Replace(column.Name, ".", "::", -1)), Type: columnType}
-			} else {
-				fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(column.Name), Type: columnType}
-			}
+		// TODO replace with notion of ephemeral types (see other identical TODOs)
+		if columnType.Equal(TypePoint) {
+			fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(strings.Replace(column.Name, ".", "::", -1)), Type: columnType}
+		} else {
+			fields[FieldName(column.Name)] = Field{PropertyName: FieldName(column.Name), InternalPropertyName: FieldName(column.Name), Type: columnType}
 		}
 	}
 }
@@ -183,31 +185,4 @@ func (s *schemaRegistry) populateSchemaFromTableDefinition(definitions map[strin
 		}
 	}
 	return found
-}
-
-// Used in tests:
-
-type StaticRegistry struct {
-	Tables               map[TableName]Schema
-	DynamicConfiguration map[string]Table
-}
-
-func (e StaticRegistry) AllSchemas() map[TableName]Schema {
-	if e.Tables != nil {
-		return e.Tables
-	} else {
-		return map[TableName]Schema{}
-	}
-}
-
-func (e StaticRegistry) FindSchema(name TableName) (Schema, bool) {
-	if e.Tables == nil {
-		return Schema{}, false
-	}
-	s, found := e.Tables[name]
-	return s, found
-}
-
-func (e StaticRegistry) UpdateDynamicConfiguration(name TableName, table Table) {
-	e.DynamicConfiguration[name.AsString()] = table
 }
