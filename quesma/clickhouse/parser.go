@@ -73,18 +73,26 @@ func JsonToColumns(namespace string, m SchemaMap, indentLvl int, config *ChTable
 			nested := JsonToColumns(nameFormatter.Format(namespace, name), nestedValue, indentLvl, config, nameFormatter)
 			resultColumns = append(resultColumns, nested...)
 		} else {
-			var fType string
+			var fTypeString string
 			if value == nil { // HACK ALERT -> We're treating null values as strings for now, so that we don't completely discard documents with empty values
-				fType = "Nullable(String)"
+				fTypeString = "Nullable(String)"
 			} else {
-				fType = NewType(value).String()
-				if !strings.Contains(fType, "Array") && !strings.Contains(fType, "DateTime") {
-					fType = "Nullable(" + fType + ")"
+				fType := NewType(value)
+
+				// handle "field":{} case (Elastic Agent sends such JSON fields) by ignoring them
+				if multiValueType, ok := fType.(MultiValueType); ok && len(multiValueType.Cols) == 0 {
+					logger.Warn().Msgf("Ignoring empty JSON object: \"%s\":%v (in %s)", name, value, namespace)
+					continue
+				}
+
+				fTypeString = fType.String()
+				if !strings.Contains(fTypeString, "Array") && !strings.Contains(fTypeString, "DateTime") {
+					fTypeString = "Nullable(" + fTypeString + ")"
 				}
 			}
 			// hack for now
 			if indentLvl == 1 && name == timestampFieldName && config.timestampDefaultsNow {
-				fType += " DEFAULT now64()"
+				fTypeString += " DEFAULT now64()"
 			}
 
 			// We still may have name like:
@@ -96,7 +104,7 @@ func JsonToColumns(namespace string, m SchemaMap, indentLvl int, config *ChTable
 			internalName := nameFormatter.Format(namespace, name)
 			// We should never have dots in the field names, see 4 ADR
 			internalName = strings.Replace(internalName, ".", "::", -1)
-			resultColumns = append(resultColumns, CreateTableEntry{ClickHouseColumnName: internalName, ClickHouseType: fType})
+			resultColumns = append(resultColumns, CreateTableEntry{ClickHouseColumnName: internalName, ClickHouseType: fTypeString})
 		}
 	}
 	return resultColumns
