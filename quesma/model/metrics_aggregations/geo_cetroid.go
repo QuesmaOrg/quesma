@@ -33,7 +33,3 @@ func (query GeoCentroid) TranslateSqlResponseToJson(rows []model.QueryResultRow,
 func (query GeoCentroid) String() string {
 	return "geo_centroid"
 }
-
-func (query GeoCentroid) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}

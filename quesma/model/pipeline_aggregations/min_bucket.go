@@ -108,10 +108,6 @@ func (query MinBucket) calculateSingleMinBucket(qwa *model.Query, parentRows []m
 	return resultRow
 }
 
-func (query MinBucket) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}
-
 func (query MinBucket) String() string {
 	return fmt.Sprintf("min_bucket(%s)", query.Parent)
 }

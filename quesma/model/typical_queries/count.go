@@ -26,7 +26,3 @@ func (query Count) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 func (query Count) String() string {
 	return "count (non-aggregation)"
 }
-
-func (query Count) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}

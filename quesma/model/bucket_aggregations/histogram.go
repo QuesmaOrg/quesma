@@ -46,14 +46,21 @@ func (query Histogram) String() string {
 	return "histogram"
 }
 
-// we're sure len(row.Cols) >= 2
-func (query Histogram) getKey(row model.QueryResultRow) float64 {
-	return row.Cols[len(row.Cols)-2].Value.(float64)
+func (query Histogram) NewRowsTransformer() model.QueryRowsTransfomer {
+	return &HistogramRowsTransformer{
+		interval:    query.interval,
+		minDocCount: query.minDocCount,
+	}
+}
+
+type HistogramRowsTransformer struct {
+	interval    float64
+	minDocCount int
 }
 
 // if minDocCount == 0, and we have buckets e.g. [key, value1], [key+2*interval, value2], we need to insert [key+1*interval, 0]
 // CAUTION: a different kind of postprocessing is needed for minDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
-func (query Histogram) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+func (query *HistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
 	if query.minDocCount != 0 || len(rowsFromDB) < 2 {
 		// we only add empty rows, when
 		// a) minDocCount == 0
@@ -64,7 +71,7 @@ func (query Histogram) PostprocessResults(rowsFromDB []model.QueryResultRow) []m
 	postprocessedRows = append(postprocessedRows, rowsFromDB[0])
 	for i := 1; i < len(rowsFromDB); i++ {
 		if len(rowsFromDB[i-1].Cols) < 2 || len(rowsFromDB[i].Cols) < 2 {
-			logger.ErrorWithCtx(query.ctx).Msgf(
+			logger.ErrorWithCtx(ctx).Msgf(
 				"unexpected number of columns in histogram aggregation response (< 2),"+
 					"rowsFromDB[%d]: %+v, rowsFromDB[%d]: %+v. Skipping those rows in postprocessing",
 				i-1, rowsFromDB[i-1], i, rowsFromDB[i],
@@ -82,4 +89,8 @@ func (query Histogram) PostprocessResults(rowsFromDB []model.QueryResultRow) []m
 		postprocessedRows = append(postprocessedRows, rowsFromDB[i])
 	}
 	return postprocessedRows
+}
+
+func (query *HistogramRowsTransformer) getKey(row model.QueryResultRow) float64 {
+	return row.Cols[len(row.Cols)-2].Value.(float64)
 }

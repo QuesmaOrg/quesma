@@ -52,7 +52,3 @@ func (query Stats) TranslateSqlResponseToJson(rows []model.QueryResultRow, level
 func (query Stats) String() string {
 	return "stats"
 }
-
-func (query Stats) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}

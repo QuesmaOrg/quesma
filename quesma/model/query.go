@@ -64,8 +64,6 @@ type (
 		// For 'bucket' aggregation result is a map wrapped in 'buckets' key.
 		TranslateSqlResponseToJson(rows []QueryResultRow, level int) JsonMap
 
-		PostprocessResults(rowsFromDB []QueryResultRow) (ultimateRows []QueryResultRow)
-
 		AggregationType() AggregationType
 
 		String() string
@@ -78,9 +76,19 @@ type QueryResultAdapter interface {
 	Transform(result [][]QueryResultRow) ([][]QueryResultRow, error)
 }
 
+type QueryRowsTransfomer interface {
+	Transform(ctx context.Context, rows []QueryResultRow) []QueryResultRow
+}
+
 type ExecutionPlan struct {
-	Queries       []*Query
+	Queries []*Query
+
+	QueryRowsTransformers []QueryRowsTransfomer
+
 	ResultAdapter QueryResultAdapter
+
+	// add more fields here
+	// JSON renderers
 }
 
 func NewQueryExecutionHints() *QueryOptimizeHints {
@@ -230,8 +238,4 @@ func (query UnknownAggregationType) TranslateSqlResponseToJson(rows []QueryResul
 
 func (query UnknownAggregationType) String() string {
 	return "unknown aggregation type"
-}
-
-func (query UnknownAggregationType) PostprocessResults(rowsFromDB []QueryResultRow) []QueryResultRow {
-	return rowsFromDB
 }

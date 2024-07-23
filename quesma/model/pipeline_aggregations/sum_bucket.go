@@ -110,10 +110,6 @@ func (query SumBucket) calculateSingleSumBucket(parentRows []model.QueryResultRo
 	return resultRow
 }
 
-func (query SumBucket) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}
-
 func (query SumBucket) String() string {
 	return fmt.Sprintf("sum_bucket(%s)", query.Parent)
 }

@@ -84,10 +84,6 @@ func (query ExtendedStats) String() string {
 	return fmt.Sprintf("extended_stats(sigma=%f)", query.sigma)
 }
 
-func (query ExtendedStats) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}
-
 // we're not out of bounds for row.Cols[idx], because we've checked it in TranslateSqlResponseToJson
 func (query ExtendedStats) getValue(row model.QueryResultRow, functionName string) any {
 	l := len(row.Cols)
