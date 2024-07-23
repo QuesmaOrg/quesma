@@ -77,8 +77,8 @@ var parseRangeTests = []parseRangeTest{
 }
 
 func Test_parseRange(t *testing.T) {
-	s := staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},

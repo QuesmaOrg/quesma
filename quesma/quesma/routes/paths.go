@@ -23,6 +23,7 @@ const (
 	AsyncSearchIdPrefix  = "/_async_search/"
 	AsyncSearchIdPath    = "/_async_search/:id"
 	KibanaInternalPrefix = "/.kibana_"
+	IndexPath            = "/:index"
 )
 
 var notQueryPaths = []string{

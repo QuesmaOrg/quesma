@@ -18,6 +18,7 @@ const (
 	FieldTypeShort            string = "short"
 	FieldTypeDouble           string = "double"
 	FieldTypeFloat            string = "float"
+	FieldTypeHalfFloat        string = "half_float"
 	FieldTypeDate             string = "date"
 	FieldTypeDateNanos        string = "date_nanos"
 	FieldTypeAlias            string = "alias"

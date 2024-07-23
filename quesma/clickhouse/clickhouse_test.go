@@ -107,26 +107,6 @@ func TestInsertNonSchemaFields_2(t *testing.T) {
 }
 */
 
-type staticRegistry struct {
-	tables map[schema.TableName]schema.Schema
-}
-
-func (e staticRegistry) AllSchemas() map[schema.TableName]schema.Schema {
-	if e.tables != nil {
-		return e.tables
-	} else {
-		return map[schema.TableName]schema.Schema{}
-	}
-}
-
-func (e staticRegistry) FindSchema(name schema.TableName) (schema.Schema, bool) {
-	if e.tables == nil {
-		return schema.Schema{}, false
-	}
-	s, found := e.tables[name]
-	return s, found
-}
-
 func TestAddTimestamp(t *testing.T) {
 	tableConfig := &ChTableConfig{
 		hasTimestamp:                          true,
@@ -141,7 +121,7 @@ func TestAddTimestamp(t *testing.T) {
 		castUnsupportedAttrValueTypesToString: false,
 		preferCastingToOthers:                 false,
 	}
-	query, err := buildCreateTableQueryNoOurFields(context.Background(), "tableName", types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`), tableConfig, config.QuesmaConfiguration{}, staticRegistry{})
+	query, err := buildCreateTableQueryNoOurFields(context.Background(), "tableName", types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`), tableConfig, config.QuesmaConfiguration{}, schema.StaticRegistry{})
 	assert.NoError(t, err)
 	assert.True(t, strings.Contains(query, timestampFieldName))
 }
