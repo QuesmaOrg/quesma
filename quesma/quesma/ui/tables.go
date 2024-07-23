@@ -88,7 +88,7 @@ func (qmc *QuesmaManagementConsole) generateTables() []byte {
 			buffer.Html(`Name`)
 			buffer.Html(`</th>`)
 			buffer.Html(`<th>`)
-			buffer.Html(`Type`)
+			buffer.Html(`queryType`)
 			buffer.Html(`</th>`)
 			buffer.Html(`</tr>`)
 

@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	contentTypeHeaderKey             = "Content-Type"
+	contentTypeHeaderKey             = "Content-queryType"
 	osdRequestHeaderKey              = "x-opensearch-product-origin"
 	osdRequestHeaderValue            = "opensearch-dashboards"
 	elasticSearchResponseHeaderKey   = "X-Elastic-Product"

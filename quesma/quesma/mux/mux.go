@@ -52,14 +52,14 @@ type RequestMatcherFunc func(req *Request) bool
 func ServerErrorResult() *Result {
 	return &Result{
 		StatusCode: http.StatusInternalServerError,
-		Meta:       map[string]string{"Content-Type": "text/plain"},
+		Meta:       map[string]string{"Content-queryType": "text/plain"},
 	}
 }
 
 func BadReqeustResult() *Result {
 	return &Result{
 		StatusCode: http.StatusBadRequest,
-		Meta:       map[string]string{"Content-Type": "text/plain"},
+		Meta:       map[string]string{"Content-queryType": "text/plain"},
 	}
 }
 

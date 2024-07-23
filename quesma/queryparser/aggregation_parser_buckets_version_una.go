@@ -43,7 +43,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 			logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v", intervalTyped, intervalTyped)
 		}
 		minDocCount := cw.parseMinDocCount(histogram)
-		aggregation.Type = bucket_aggregations.NewHistogram(cw.Ctx, interval, minDocCount)
+		aggregation.queryType = bucket_aggregations.NewHistogram(cw.Ctx, interval, minDocCount)
 
 		field, _ := cw.parseFieldFieldMaybeScript(histogram, "histogram")
 		var col model.Expr
@@ -58,7 +58,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 			col = field
 		}
 
-		aggregation.SelectedColumns = append(aggregation.SelectedColumns, col)
+		aggregation.selectedColumns = append(aggregation.selectedColumns, col)
 
 		delete(queryMap, "histogram")
 		return success, nil
@@ -78,10 +78,10 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 		}
 
 		dateHistogramAggr := bucket_aggregations.NewDateHistogram(cw.Ctx, field, interval, minDocCount, intervalType, dateTimeType)
-		aggregation.Type = dateHistogramAggr
+		aggregation.queryType = dateHistogramAggr
 
 		sqlQuery := dateHistogramAggr.GenerateSQL()
-		aggregation.SelectedColumns = append(aggregation.SelectedColumns, sqlQuery)
+		aggregation.selectedColumns = append(aggregation.selectedColumns, sqlQuery)
 
 		delete(queryMap, "date_histogram")
 		return success, nil
@@ -172,10 +172,10 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 			}
 		}
 
-		aggregation.Type = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms", mainOrderBy)
-		aggregation.SelectedColumns = append(aggregation.SelectedColumns, fieldExpression)
-		aggregation.Limit = size
-		aggregation.OrderBy = &fullOrderBy
+		aggregation.queryType = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms", mainOrderBy)
+		aggregation.selectedColumns = append(aggregation.selectedColumns, fieldExpression)
+		aggregation.limit = size
+		aggregation.orderBy = &fullOrderBy
 		if missingPlaceholder == nil { // TODO replace with schema
 			aggregation.whereClause = model.NewInfixExpr(fieldExpression, "IS", model.NewLiteral("NOT NULL"))
 		}
@@ -192,8 +192,8 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 		const defaultSize = 10
 		size := cw.parseIntField(multiTerms, "size", defaultSize)
 
-		aggregation.OrderBy = &[]model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)}
-		aggregation.Limit = size
+		aggregation.orderBy = &[]model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)}
+		aggregation.limit = size
 
 		var fieldsNr int
 		if termsRaw, exists := multiTerms["terms"]; exists {
@@ -204,13 +204,13 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 			fieldsNr = len(terms)
 			for _, term := range terms {
 				column := cw.parseFieldField(term, "multi_terms")
-				aggregation.SelectedColumns = append(aggregation.SelectedColumns, column)
+				aggregation.selectedColumns = append(aggregation.selectedColumns, column)
 			}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msg("no terms in multi_terms")
 		}
 
-		aggregation.Type = bucket_aggregations.NewMultiTerms(cw.Ctx, fieldsNr)
+		aggregation.queryType = bucket_aggregations.NewMultiTerms(cw.Ctx, fieldsNr)
 
 		delete(queryMap, "multi_terms")
 		return success, nil
@@ -221,7 +221,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 			logger.WarnWithCtx(cw.Ctx).Msgf("range is not a map, but %T, value: %v. Using empty map", rangeRaw, rangeRaw)
 		}
 		Range := cw.parseRangeAggregation(rangeMap)
-		aggregation.Type = Range
+		aggregation.queryType = Range
 		if Range.Keyed {
 			aggregation.isKeyed = true
 		}
@@ -238,16 +238,16 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 			logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("failed to parse date_range aggregation")
 			return false, err
 		}
-		aggregation.Type = dateRangeParsed
+		aggregation.queryType = dateRangeParsed
 		for _, interval := range dateRangeParsed.Intervals {
 
-			aggregation.SelectedColumns = append(aggregation.SelectedColumns, interval.ToSQLSelectQuery(dateRangeParsed.FieldName))
+			aggregation.selectedColumns = append(aggregation.selectedColumns, interval.ToSQLSelectQuery(dateRangeParsed.FieldName))
 
 			if sqlSelect, selectNeeded := interval.BeginTimestampToSQL(); selectNeeded {
-				aggregation.SelectedColumns = append(aggregation.SelectedColumns, sqlSelect)
+				aggregation.selectedColumns = append(aggregation.selectedColumns, sqlSelect)
 			}
 			if sqlSelect, selectNeeded := interval.EndTimestampToSQL(); selectNeeded {
-				aggregation.SelectedColumns = append(aggregation.SelectedColumns, sqlSelect)
+				aggregation.selectedColumns = append(aggregation.selectedColumns, sqlSelect)
 			}
 		}
 
@@ -268,7 +268,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 			}
 		}
 		field := cw.parseFieldField(geoTileGrid, "geotile_grid")
-		aggregation.Type = bucket_aggregations.NewGeoTileGrid(cw.Ctx)
+		aggregation.queryType = bucket_aggregations.NewGeoTileGrid(cw.Ctx)
 
 		// That's bucket (group by) formula for geotile_grid
 		// zoom/x/y
@@ -313,15 +313,15 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 		yTile := model.NewAliasedExpr(
 			model.NewFunction("FLOOR", FloorContent), "y_tile")
 
-		aggregation.SelectedColumns = append(aggregation.SelectedColumns, model.NewAliasedExpr(model.NewLiteral(precision), "zoom"))
-		aggregation.SelectedColumns = append(aggregation.SelectedColumns, xTile)
-		aggregation.SelectedColumns = append(aggregation.SelectedColumns, yTile)
+		aggregation.selectedColumns = append(aggregation.selectedColumns, model.NewAliasedExpr(model.NewLiteral(precision), "zoom"))
+		aggregation.selectedColumns = append(aggregation.selectedColumns, xTile)
+		aggregation.selectedColumns = append(aggregation.selectedColumns, yTile)
 
 		delete(queryMap, "geotile_grid")
 		return success, err
 	}
 	if _, ok := queryMap["sampler"]; ok {
-		aggregation.Type = metrics_aggregations.NewCount(cw.Ctx)
+		aggregation.queryType = metrics_aggregations.NewCount(cw.Ctx)
 		delete(queryMap, "sampler")
 		return
 	}
@@ -329,7 +329,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 	// Random sampler doesn't have `size` field, but `probability`, so logic in the final version should be different.
 	// So far I've only observed its "probability" field to be 1.0, so it's not really important.
 	if _, ok := queryMap["random_sampler"]; ok {
-		aggregation.Type = metrics_aggregations.NewCount(cw.Ctx)
+		aggregation.queryType = metrics_aggregations.NewCount(cw.Ctx)
 		delete(queryMap, "random_sampler")
 		return
 	}
@@ -348,7 +348,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 		return
 	}
 	if isFilters, filterAggregation := cw.parseFilters(queryMap); isFilters {
-		aggregation.Type = filterAggregation
+		aggregation.queryType = filterAggregation
 		return
 	}
 	success = false
