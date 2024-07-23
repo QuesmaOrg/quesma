@@ -23,8 +23,8 @@ func NewDerivative(ctx context.Context, bucketsPath string) Derivative {
 	return Derivative{ctx: ctx, Parent: bucketsPath, IsCount: isCount}
 }
 
-func (query Derivative) IsBucketAggregation() bool {
-	return false
+func (query Derivative) AggregationType() model.AggregationType {
+	return model.PipelineAggregation
 }
 
 func (query Derivative) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

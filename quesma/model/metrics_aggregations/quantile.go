@@ -24,8 +24,8 @@ func NewQuantile(ctx context.Context, keyed bool, fieldType clickhouse.DateTimeT
 	return Quantile{ctx, keyed, fieldType}
 }
 
-func (query Quantile) IsBucketAggregation() bool {
-	return false
+func (query Quantile) AggregationType() model.AggregationType {
+	return model.MetricsAggregation
 }
 
 func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

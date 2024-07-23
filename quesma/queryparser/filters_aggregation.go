@@ -46,7 +46,9 @@ func (cw *ClickhouseQueryTranslator) parseFilters(queryMap QueryMap) (success bo
 }
 
 func (cw *ClickhouseQueryTranslator) processFiltersAggregation(aggrBuilder *aggrQueryBuilder,
-	aggr bucket_aggregations.Filters, queryMap QueryMap, resultAccumulator *[]*model.Query) error {
+	aggr bucket_aggregations.Filters, queryMap QueryMap) ([]*model.Query, error) {
+	aggregationQueries := make([]*model.Query, 0)
+
 	whereBeforeNesting := aggrBuilder.whereBuilder
 	aggrBuilder.Aggregators[len(aggrBuilder.Aggregators)-1].Filters = true
 	for _, filter := range aggr.Filters {
@@ -57,15 +59,16 @@ func (cw *ClickhouseQueryTranslator) processFiltersAggregation(aggrBuilder *aggr
 		aggrBuilder.Type = aggr
 		aggrBuilder.whereBuilder = model.CombineWheres(cw.Ctx, aggrBuilder.whereBuilder, filter.Sql)
 		aggrBuilder.Aggregators = append(aggrBuilder.Aggregators, model.NewAggregator(filter.Name))
-		*resultAccumulator = append(*resultAccumulator, aggrBuilder.buildBucketAggregation(nil)) // nil for now, will be changed
+		aggregationQueries = append(aggregationQueries, aggrBuilder.buildBucketAggregation(nil)) // nil for now, will be changed
 		if aggs, ok := queryMap["aggs"].(QueryMap); ok {
 			aggsCopy, errAggs := deepcopy.Anything(aggs)
 			if errAggs == nil {
 				//err := cw.parseAggregationNames(newBuilder, aggsCopy.(QueryMap), resultAccumulator)
-				err := cw.parseAggregationNames(aggrBuilder, aggsCopy.(QueryMap), resultAccumulator)
+				subAggregations, err := cw.parseAggregationNames(aggrBuilder, aggsCopy.(QueryMap))
 				if err != nil {
-					return err
+					return aggregationQueries, err
 				}
+				aggregationQueries = append(aggregationQueries, subAggregations...)
 			} else {
 				logger.ErrorWithCtx(cw.Ctx).Msgf("deepcopy 'aggs' map error: %v. Skipping. aggs: %v", errAggs, aggs)
 			}
@@ -74,5 +77,5 @@ func (cw *ClickhouseQueryTranslator) processFiltersAggregation(aggrBuilder *aggr
 		aggrBuilder.whereBuilder = whereBeforeNesting
 	}
 	delete(queryMap, "filters")
-	return nil
+	return aggregationQueries, nil
 }

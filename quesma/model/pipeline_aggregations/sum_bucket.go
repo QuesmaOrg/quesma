@@ -20,8 +20,8 @@ func NewSumBucket(ctx context.Context, bucketsPath string) SumBucket {
 	return SumBucket{ctx: ctx, Parent: parseBucketsPathIntoParentAggregationName(ctx, bucketsPath)}
 }
 
-func (query SumBucket) IsBucketAggregation() bool {
-	return false
+func (query SumBucket) AggregationType() model.AggregationType {
+	return model.PipelineAggregation
 }
 
 func (query SumBucket) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

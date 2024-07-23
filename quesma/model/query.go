@@ -23,6 +23,20 @@ type TransformationHistory struct {
 	// or anything that will help to understand what was done
 }
 
+type AggregationType int
+
+const (
+	BucketAggregation AggregationType = iota
+	MetricsAggregation
+	PipelineAggregation
+	TypicalAggregation // Not a real aggregation, but we reuse type
+	UnknownAggregation
+)
+
+func (s AggregationType) String() string {
+	return [...]string{"BucketAggregation", "MetricsAggregation", "PipelineAggregation", "TypicalAggregation", "UnknownAggregation"}[s]
+}
+
 type (
 	Query struct {
 		SelectCommand SelectCommand // The representation of SELECT query
@@ -52,9 +66,8 @@ type (
 
 		PostprocessResults(rowsFromDB []QueryResultRow) (ultimateRows []QueryResultRow)
 
-		// IsBucketAggregation if true, result from 'MakeResponse' will be a slice of buckets
-		// if false, it's a metrics aggregation and result from 'MakeResponse' will be a single bucket
-		IsBucketAggregation() bool
+		AggregationType() AggregationType
+
 		String() string
 	}
 )
@@ -207,8 +220,8 @@ func NewUnknownAggregationType(ctx context.Context) UnknownAggregationType {
 	return UnknownAggregationType{ctx: ctx}
 }
 
-func (query UnknownAggregationType) IsBucketAggregation() bool {
-	return false
+func (query UnknownAggregationType) AggregationType() AggregationType {
+	return UnknownAggregation
 }
 
 func (query UnknownAggregationType) TranslateSqlResponseToJson(rows []QueryResultRow, level int) JsonMap {

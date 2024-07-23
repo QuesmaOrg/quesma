@@ -11,9 +11,8 @@ type PipelineQueryType interface {
 	// For 'bucket' aggregation result is a slice of buckets, for 'metrics' aggregation it's a single bucket (only look at [0])
 	TranslateSqlResponseToJson(rows []QueryResultRow, level int) JsonMap
 
-	// IsBucketAggregation if true, result from 'MakeResponse' will be a slice of buckets
-	// if false, it's a metrics aggregation and result from 'MakeResponse' will be a single bucket
-	IsBucketAggregation() bool
+	// Should always return PipelineAggregation
+	AggregationType() AggregationType
 
 	// CalculateResultWhenMissing calculates the result of this aggregation when it's a NoDBQuery
 	// (we don't query the DB for the results, but calculate them from the parent aggregation)

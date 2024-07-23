@@ -21,8 +21,8 @@ func NewExtendedStats(ctx context.Context, sigma float64) ExtendedStats {
 
 const selectFieldsNr = 10 // how many selects we do to Clickhouse for this aggregation (count, min, ...)
 
-func (query ExtendedStats) IsBucketAggregation() bool {
-	return false
+func (query ExtendedStats) AggregationType() model.AggregationType {
+	return model.MetricsAggregation
 }
 
 func (query ExtendedStats) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

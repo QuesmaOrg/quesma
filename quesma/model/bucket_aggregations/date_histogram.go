@@ -49,8 +49,8 @@ func (typ DateHistogramIntervalType) String(ctx context.Context) string {
 	}
 }
 
-func (query *DateHistogram) IsBucketAggregation() bool {
-	return true
+func (query *DateHistogram) AggregationType() model.AggregationType {
+	return model.BucketAggregation
 }
 
 func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

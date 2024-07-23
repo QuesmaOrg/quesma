@@ -18,8 +18,8 @@ func NewTerms(ctx context.Context, significant bool, orderByExpr model.Expr) Ter
 	return Terms{ctx: ctx, significant: significant, OrderByExpr: orderByExpr}
 }
 
-func (query Terms) IsBucketAggregation() bool {
-	return true
+func (query Terms) AggregationType() model.AggregationType {
+	return model.BucketAggregation
 }
 
 func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

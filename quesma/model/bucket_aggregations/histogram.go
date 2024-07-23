@@ -19,8 +19,8 @@ func NewHistogram(ctx context.Context, interval float64, minDocCount int) Histog
 	return Histogram{ctx: ctx, interval: interval, minDocCount: minDocCount}
 }
 
-func (query Histogram) IsBucketAggregation() bool {
-	return true
+func (query Histogram) AggregationType() model.AggregationType {
+	return model.BucketAggregation
 }
 
 func (query Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

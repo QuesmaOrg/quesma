@@ -16,8 +16,8 @@ func NewValueCount(ctx context.Context) ValueCount {
 	return ValueCount{ctx: ctx}
 }
 
-func (query ValueCount) IsBucketAggregation() bool {
-	return false
+func (query ValueCount) AggregationType() model.AggregationType {
+	return model.MetricsAggregation
 }
 
 func (query ValueCount) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

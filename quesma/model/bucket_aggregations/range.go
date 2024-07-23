@@ -118,8 +118,8 @@ func NewRangeWithDefaultKeyed(ctx context.Context, expr model.Expr, intervals []
 	return Range{ctx, expr, intervals, keyedDefaultValue}
 }
 
-func (query Range) IsBucketAggregation() bool {
-	return true
+func (query Range) AggregationType() model.AggregationType {
+	return model.BucketAggregation
 }
 
 func (query Range) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

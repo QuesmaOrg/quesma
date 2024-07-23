@@ -19,8 +19,8 @@ func NewMultiTerms(ctx context.Context, fieldsNr int) MultiTerms {
 	return MultiTerms{ctx: ctx, fieldsNr: fieldsNr}
 }
 
-func (query MultiTerms) IsBucketAggregation() bool {
-	return true
+func (query MultiTerms) AggregationType() model.AggregationType {
+	return model.BucketAggregation
 }
 
 func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

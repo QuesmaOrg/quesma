@@ -25,8 +25,8 @@ func NewSerialDiff(ctx context.Context, bucketsPath string, lag int) SerialDiff 
 	}
 }
 
-func (query SerialDiff) IsBucketAggregation() bool {
-	return false
+func (query SerialDiff) AggregationType() model.AggregationType {
+	return model.PipelineAggregation
 }
 
 func (query SerialDiff) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

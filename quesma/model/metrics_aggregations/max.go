@@ -17,8 +17,8 @@ func NewMax(ctx context.Context, fieldType clickhouse.DateTimeType) Max {
 	return Max{ctx: ctx, fieldType: fieldType}
 }
 
-func (query Max) IsBucketAggregation() bool {
-	return false
+func (query Max) AggregationType() model.AggregationType {
+	return model.MetricsAggregation
 }
 
 func (query Max) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

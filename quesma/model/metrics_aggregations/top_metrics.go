@@ -19,8 +19,8 @@ func NewTopMetrics(ctx context.Context, isSortFieldPresent bool) TopMetrics {
 	return TopMetrics{ctx: ctx, isSortFieldPresent: isSortFieldPresent}
 }
 
-func (query TopMetrics) IsBucketAggregation() bool {
-	return false
+func (query TopMetrics) AggregationType() model.AggregationType {
+	return model.MetricsAggregation
 }
 
 func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

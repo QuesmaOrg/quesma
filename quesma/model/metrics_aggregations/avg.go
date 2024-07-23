@@ -17,8 +17,8 @@ func NewAvg(ctx context.Context, fieldType clickhouse.DateTimeType) Avg {
 	return Avg{ctx: ctx, fieldType: fieldType}
 }
 
-func (query Avg) IsBucketAggregation() bool {
-	return false
+func (query Avg) AggregationType() model.AggregationType {
+	return model.MetricsAggregation
 }
 
 func (query Avg) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

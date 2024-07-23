@@ -42,8 +42,8 @@ const (
 	defaultVersion = 1 // if we  add "version" field, it's always 1
 )
 
-func (query Hits) IsBucketAggregation() bool {
-	return false
+func (query Hits) AggregationType() model.AggregationType {
+	return model.TypicalAggregation
 }
 
 func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

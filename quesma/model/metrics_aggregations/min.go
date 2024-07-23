@@ -17,8 +17,8 @@ func NewMin(ctx context.Context, fieldType clickhouse.DateTimeType) Min {
 	return Min{ctx: ctx, fieldType: fieldType}
 }
 
-func (query Min) IsBucketAggregation() bool {
-	return false
+func (query Min) AggregationType() model.AggregationType {
+	return model.MetricsAggregation
 }
 
 func (query Min) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
