@@ -27,6 +27,3 @@ func (query Cardinality) String() string {
 	return "cardinality"
 }
 
-func (query Cardinality) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}

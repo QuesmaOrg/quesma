@@ -10,6 +10,7 @@ import (
 	"quesma/clickhouse"
 	"quesma/concurrent"
 	"quesma/model"
+	"quesma/model/bucket_aggregations"
 	"quesma/queryparser/query_util"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
@@ -743,6 +744,9 @@ func sortAggregations(aggregations []*model.Query) {
 }
 
 func Test2AggregationParserExternalTestcases(t *testing.T) {
+
+	ctx := context.Background()
+
 	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
@@ -839,7 +843,20 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 				if query_util.IsNonAggregationQuery(query) {
 					continue
 				}
-				test.ExpectedResults[j] = query.Type.PostprocessResults(test.ExpectedResults[j])
+
+				var resultTransformer model.QueryRowsTransfomer
+				switch agg := query.Type.(type) {
+				case bucket_aggregations.Histogram:
+
+					resultTransformer = agg.NewRowsTransformer()
+
+				case *bucket_aggregations.DateHistogram:
+					resultTransformer = agg.NewRowsTransformer()
+				}
+				if resultTransformer != nil {
+					test.ExpectedResults[j] = resultTransformer.Transform(ctx, test.ExpectedResults[j])
+				}
+
 				// fmt.Println("--- Group by: ", query.GroupByFields)
 			}
 

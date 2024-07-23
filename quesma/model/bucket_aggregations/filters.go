@@ -51,7 +51,3 @@ func (query Filters) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 func (query Filters) String() string {
 	return "filters"
 }
-
-func (query Filters) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}

@@ -47,7 +47,3 @@ func (query GeoTileGrid) TranslateSqlResponseToJson(rows []model.QueryResultRow,
 func (query GeoTileGrid) String() string {
 	return "geotile_grid"
 }
-
-func (query GeoTileGrid) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}

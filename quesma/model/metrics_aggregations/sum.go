@@ -29,6 +29,3 @@ func (query Sum) String() string {
 	return "sum"
 }
 
-func (query Sum) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}

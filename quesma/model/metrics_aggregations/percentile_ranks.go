@@ -100,6 +100,3 @@ func (query PercentileRanks) String() string {
 	return "percentile_ranks"
 }
 
-func (query PercentileRanks) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}

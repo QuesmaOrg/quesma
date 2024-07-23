@@ -35,10 +35,6 @@ func (query Derivative) CalculateResultWhenMissing(qwa *model.Query, parentRows 
 	return calculateResultWhenMissingCommonForDiffAggregations(query.ctx, parentRows, derivativeLag)
 }
 
-func (query Derivative) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}
-
 func (query Derivative) String() string {
 	return fmt.Sprintf("derivative(%s)", query.Parent)
 }

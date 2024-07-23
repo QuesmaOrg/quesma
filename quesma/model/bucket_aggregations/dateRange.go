@@ -166,7 +166,3 @@ func (query DateRange) parseTimestamp(timestamp any) int64 {
 	}
 	return timestamp.(int64)
 }
-
-func (query DateRange) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}

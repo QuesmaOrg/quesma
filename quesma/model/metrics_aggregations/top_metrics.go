@@ -75,6 +75,4 @@ func (query TopMetrics) String() string {
 	return "top_metrics"
 }
 
-func (query TopMetrics) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}
+

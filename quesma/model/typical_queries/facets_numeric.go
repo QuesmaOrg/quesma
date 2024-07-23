@@ -93,6 +93,3 @@ func (query FacetsNumeric) String() string {
 	return "facets_numeric"
 }
 
-func (query FacetsNumeric) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}

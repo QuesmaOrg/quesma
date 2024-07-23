@@ -170,7 +170,3 @@ func (query Range) responseForInterval(interval Interval, value any) model.JsonM
 	}
 	return response
 }
-
-func (query Range) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}

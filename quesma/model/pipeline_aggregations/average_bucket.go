@@ -86,10 +86,6 @@ func (query AverageBucket) calculateSingleAvgBucket(parentRows []model.QueryResu
 	return resultRow
 }
 
-func (query AverageBucket) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}
-
 func (query AverageBucket) String() string {
 	return fmt.Sprintf("avg_bucket(%s)", query.Parent)
 }

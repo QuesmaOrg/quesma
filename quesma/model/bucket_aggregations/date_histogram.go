@@ -54,6 +54,7 @@ func (query *DateHistogram) AggregationType() model.AggregationType {
 }
 
 func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+
 	if len(rows) > 0 && len(rows[0].Cols) < 2 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in date_histogram aggregation response, len(rows[0].Cols): "+
@@ -168,14 +169,24 @@ func (query *DateHistogram) generateSQLForCalendarInterval() model.Expr {
 	return model.InvalidExpr
 }
 
-// we're sure len(row.Cols) >= 2
 func (query *DateHistogram) getKey(row model.QueryResultRow) int64 {
 	return row.Cols[len(row.Cols)-2].Value.(int64)
 }
 
+func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransfomer {
+	return &DateHistogramRowsTransformer{minDocCount: query.minDocCount}
+}
+
+// we're sure len(row.Cols) >= 2
+
+type DateHistogramRowsTransformer struct {
+	minDocCount int
+}
+
 // if minDocCount == 0, and we have buckets e.g. [key, value1], [key+10, value2], we need to insert [key+1, 0], [key+2, 0]...
 // CAUTION: a different kind of postprocessing is needed for minDocCount > 1, but I haven't seen any query with that yet, so not implementing it now.
-func (query *DateHistogram) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+func (query *DateHistogramRowsTransformer) Transform(ctx context.Context, rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
+
 	if query.minDocCount != 0 || len(rowsFromDB) < 2 {
 		// we only add empty rows, when
 		// a) minDocCount == 0
@@ -183,14 +194,14 @@ func (query *DateHistogram) PostprocessResults(rowsFromDB []model.QueryResultRow
 		return rowsFromDB
 	}
 	if query.minDocCount < 0 {
-		logger.WarnWithCtx(query.ctx).Msgf("unexpected negative minDocCount: %d. Skipping postprocess", query.minDocCount)
+		logger.WarnWithCtx(ctx).Msgf("unexpected negative minDocCount: %d. Skipping postprocess", query.minDocCount)
 		return rowsFromDB
 	}
 	postprocessedRows := make([]model.QueryResultRow, 0, len(rowsFromDB))
 	postprocessedRows = append(postprocessedRows, rowsFromDB[0])
 	for i := 1; i < len(rowsFromDB); i++ {
 		if len(rowsFromDB[i-1].Cols) < 2 || len(rowsFromDB[i].Cols) < 2 {
-			logger.ErrorWithCtx(query.ctx).Msgf(
+			logger.ErrorWithCtx(ctx).Msgf(
 				"unexpected number of columns in date_histogram aggregation response (< 2),"+
 					"rowsFromDB[%d]: %+v, rowsFromDB[%d]: %+v. Skipping those rows in postprocessing",
 				i-1, rowsFromDB[i-1], i, rowsFromDB[i],
@@ -207,4 +218,8 @@ func (query *DateHistogram) PostprocessResults(rowsFromDB []model.QueryResultRow
 		postprocessedRows = append(postprocessedRows, rowsFromDB[i])
 	}
 	return postprocessedRows
+}
+
+func (query *DateHistogramRowsTransformer) getKey(row model.QueryResultRow) int64 {
+	return row.Cols[len(row.Cols)-2].Value.(int64)
 }

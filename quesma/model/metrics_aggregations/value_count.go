@@ -35,7 +35,3 @@ func (query ValueCount) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 func (query ValueCount) String() string {
 	return "value_count"
 }
-
-func (query ValueCount) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}

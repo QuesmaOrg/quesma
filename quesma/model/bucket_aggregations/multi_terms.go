@@ -65,7 +65,3 @@ func (query MultiTerms) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 func (query MultiTerms) String() string {
 	return fmt.Sprintf("multi_terms(fieldsNr: %d)", query.fieldsNr)
 }
-
-func (query MultiTerms) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}

@@ -614,10 +614,6 @@ func (q *QueryRunner) searchWorkerCommon(
 				return nil, clickhouse.PerformanceResult{}, err
 			}
 
-			if query.Type != nil {
-				rows = query.Type.PostprocessResults(rows)
-			}
-
 			return rows, performance, nil
 		}
 		jobs = append(jobs, job)
@@ -637,6 +633,14 @@ func (q *QueryRunner) searchWorkerCommon(
 	for jobId := range jobHitsPosition {
 		hitsPosition := jobHitsPosition[jobId]
 		hits[hitsPosition] = dbHits[jobId]
+	}
+
+	// apply the query rows transformers
+
+	for i, t := range plan.QueryRowsTransformers {
+		if t != nil {
+			hits[i] = t.Transform(ctx, hits[i])
+		}
 	}
 
 	return

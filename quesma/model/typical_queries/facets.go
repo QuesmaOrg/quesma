@@ -41,6 +41,4 @@ func (query Facets) String() string {
 	return "facets"
 }
 
-func (query Facets) PostprocessResults(rowsFromDB []model.QueryResultRow) []model.QueryResultRow {
-	return rowsFromDB
-}
+
