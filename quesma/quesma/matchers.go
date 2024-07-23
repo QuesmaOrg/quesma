@@ -133,6 +133,7 @@ func matchAgainstKibanaInternal() mux.RequestMatcher {
 
 		// 1. https://www.elastic.co/guide/en/security/current/alert-schema.html
 		// 2. migrationVersion
-		return !hasJsonKey("kibana.alert.", q) && !hasJsonKey("migrationVersion", q)
+		// 3., 4., 5. related to Kibana Fleet
+		return !hasJsonKey("kibana.alert.", q) && !hasJsonKey("migrationVersion", q) && !hasJsonKey("idleTimeoutExpiration", q) && !strings.Contains(req.Body, "fleet-message-signing-keys") && !strings.Contains(req.Body, "fleet-uninstall-tokens")
 	})
 }
