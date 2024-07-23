@@ -11,22 +11,20 @@ import (
 )
 
 type aggregationTopLevelVersionUna struct {
-	children     []*aggregationLevelVersionUna
-	whereBuilder model.SimpleQuery
+	children    []*aggregationLevelVersionUna
+	whereClause model.Expr
 }
 
 type aggregationLevelVersionUna struct {
-	name    string
-	isKeyed bool
-
-	queryType model.QueryType
-
+	name            string
+	queryType       model.QueryType
 	selectedColumns []model.Expr
 
 	// only for bucket aggregations
 	children []*aggregationLevelVersionUna
 	orderBy  *[]model.OrderByExpr
 	limit    int // 0 if none, only for bucket aggregation
+	isKeyed  bool
 
 	metadata    model.JsonMap
 	whereClause model.Expr
@@ -36,8 +34,7 @@ type aggregationLevelVersionUna struct {
 func (cw *ClickhouseQueryTranslator) ParseAggregationJsonVersionUna(body types.JSON) ([]*model.Query, error) {
 	queryAsMap := body.Clone()
 
-	topLevel := aggregationLevelVersionUna{
-		name:     "",
+	topLevel := aggregationTopLevelVersionUna{
 		children: []*aggregationLevelVersionUna{},
 	}
 
