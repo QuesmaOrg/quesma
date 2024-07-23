@@ -14,7 +14,7 @@ import (
 var registeredPlugins []plugins.Plugin
 
 func init() {
-	registeredPlugins = []plugins.Plugin{&elastic_clickhouse_fields.Dot2DoubleColons2Dot{}, &ingest_validator.IngestValidator{}}
+	registeredPlugins = []plugins.Plugin{&ingest_validator.IngestValidator{}, &elastic_clickhouse_fields.Dot2DoubleColons2Dot{}}
 }
 
 func QueryTransformerFor(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.QueryTransformer {
