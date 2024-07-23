@@ -46,11 +46,6 @@ func (query Histogram) String() string {
 	return "histogram"
 }
 
-// we're sure len(row.Cols) >= 2
-func (query Histogram) getKey(row model.QueryResultRow) float64 {
-	return row.Cols[len(row.Cols)-2].Value.(float64)
-}
-
 func (query Histogram) NewRowsTransformer() model.QueryRowsTransfomer {
 	return &HistogramRowsTransformer{
 		interval:    query.interval,
