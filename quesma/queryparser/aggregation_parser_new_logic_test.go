@@ -56,17 +56,7 @@ func Test3AggregationParserNewLogic(t *testing.T) {
 		},
 	}
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
-	/*allTests := testdata.AggregationTests
-	allTests = append(allTests, testdata.AggregationTests2...)
-	allTests = append(allTests, opensearch_visualize.AggregationTests...)
-	allTests = append(allTests, dashboard_1.AggregationTests...)
-	allTests = append(allTests, testdata.PipelineAggregationTests...)
-	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
-	allTests = append(allTests, kibana_visualize.AggregationTests...)
-	allTests = append(allTests, clients.KunkkaTests...)
-	allTests = append(allTests, clients.OpheliaTests...)
 
-	*/
 	for i, test := range testdata.NewLogicTestCases {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)" {
