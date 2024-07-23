@@ -40,5 +40,3 @@ func (query Facets) TranslateSqlResponseToJson(rows []model.QueryResultRow, leve
 func (query Facets) String() string {
 	return "facets"
 }
-
-

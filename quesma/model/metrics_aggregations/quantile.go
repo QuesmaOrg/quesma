@@ -151,4 +151,3 @@ func (query Quantile) processResult(colName string, percentileReturnedByClickhou
 var emptyPercentilesResult = model.JsonMap{
 	"values": 0,
 }
-

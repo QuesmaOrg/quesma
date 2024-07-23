@@ -99,4 +99,3 @@ func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResult
 func (query PercentileRanks) String() string {
 	return "percentile_ranks"
 }
-

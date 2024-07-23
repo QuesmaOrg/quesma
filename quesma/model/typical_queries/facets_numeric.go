@@ -92,4 +92,3 @@ func (query FacetsNumeric) TranslateSqlResponseToJson(rows []model.QueryResultRo
 func (query FacetsNumeric) String() string {
 	return "facets_numeric"
 }
-

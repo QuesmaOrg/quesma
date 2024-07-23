@@ -73,7 +73,6 @@ func (query CumulativeSum) CalculateResultWhenMissing(qwa *model.Query, parentRo
 	return resultRows
 }
 
-
 func (query CumulativeSum) String() string {
 	return fmt.Sprintf("cumulative_sum(%s)", query.Parent)
 }

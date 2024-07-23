@@ -28,4 +28,3 @@ func (query Sum) TranslateSqlResponseToJson(rows []model.QueryResultRow, level i
 func (query Sum) String() string {
 	return "sum"
 }
-

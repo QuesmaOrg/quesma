@@ -28,4 +28,3 @@ func (query Max) TranslateSqlResponseToJson(rows []model.QueryResultRow, level i
 func (query Max) String() string {
 	return "max"
 }
-

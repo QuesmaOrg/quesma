@@ -143,4 +143,3 @@ func (query Hits) computeIdForDocument(doc model.SearchHit, defaultID string) st
 func (query Hits) String() string {
 	return fmt.Sprintf("hits(table: %v)", query.indexName)
 }
-

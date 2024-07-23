@@ -74,5 +74,3 @@ func (query TopMetrics) TranslateSqlResponseToJson(rows []model.QueryResultRow, 
 func (query TopMetrics) String() string {
 	return "top_metrics"
 }
-
-

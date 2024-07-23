@@ -91,4 +91,3 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 func (query TopHits) String() string {
 	return "top_hits"
 }
-

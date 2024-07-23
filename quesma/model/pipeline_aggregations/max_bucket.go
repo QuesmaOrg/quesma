@@ -129,8 +129,6 @@ func (query MaxBucket) calculateSingleMaxBucket(qwa *model.Query, parentRows []m
 	return resultRow
 }
 
-
-
 func (query MaxBucket) String() string {
 	return fmt.Sprintf("max_bucket(%s)", query.Parent)
 }

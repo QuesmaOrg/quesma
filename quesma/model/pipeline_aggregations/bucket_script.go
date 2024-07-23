@@ -41,5 +41,3 @@ func (query BucketScript) CalculateResultWhenMissing(*model.Query, []model.Query
 func (query BucketScript) String() string {
 	return "bucket script"
 }
-
-
