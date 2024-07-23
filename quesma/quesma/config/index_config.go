@@ -25,6 +25,7 @@ type IndexConfiguration struct {
 	// deprecated
 	SchemaConfiguration *SchemaConfiguration              `koanf:"static-schema"`
 	EnabledOptimizers   map[string]OptimizerConfiguration `koanf:"optimizers"`
+	Override            string                            `koanf:"override"`
 }
 
 func (c IndexConfiguration) HasFullTextField(fieldName string) bool {
@@ -57,10 +58,11 @@ func (c IndexConfiguration) String() string {
 		}
 		extraString += strings.Join(fields, ", ")
 	}
-	var str = fmt.Sprintf("\n\t\t%s, enabled: %t, static-schema: %v",
+	var str = fmt.Sprintf("\n\t\t%s, enabled: %t, static-schema: %v, override: %s",
 		c.Name,
 		c.Enabled,
 		c.SchemaConfiguration,
+		c.Override,
 	)
 
 	if len(c.FullTextFields) > 0 {

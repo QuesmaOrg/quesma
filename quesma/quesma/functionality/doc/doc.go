@@ -20,6 +20,9 @@ func Write(ctx context.Context, tableName string, body types.JSON, lm *clickhous
 	}
 
 	config.RunConfigured(ctx, cfg, tableName, body, func() error {
+		if len(cfg.IndexConfig[tableName].Override) > 0 {
+			tableName = cfg.IndexConfig[tableName].Override
+		}
 		return lm.ProcessInsertQuery(ctx, tableName, types.NDJSON{body})
 	})
 	return nil
