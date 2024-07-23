@@ -304,7 +304,7 @@ func (c *QuesmaConfiguration) String() string {
 	var connectorString strings.Builder
 	for connName, conn := range c.Connectors {
 		connectorString.WriteString(fmt.Sprintf("\n        - [%s] connector", connName))
-		connectorString.WriteString(fmt.Sprintf("\n          Type: %s", conn.ConnectorType))
+		connectorString.WriteString(fmt.Sprintf("\n          queryType: %s", conn.ConnectorType))
 		if conn.Url != nil {
 			connectorString.WriteString(fmt.Sprintf("\n          Url: %s", conn.Url.String()))
 		}

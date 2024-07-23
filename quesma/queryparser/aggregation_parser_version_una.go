@@ -11,7 +11,7 @@ import (
 )
 
 type aggregationTopLevelVersionUna struct {
-	Children     []*aggregationLevelVersionUna
+	children     []*aggregationLevelVersionUna
 	whereBuilder model.SimpleQuery
 }
 
@@ -19,14 +19,14 @@ type aggregationLevelVersionUna struct {
 	name    string
 	isKeyed bool
 
-	Type model.QueryType
+	queryType model.QueryType
 
-	SelectedColumns []model.Expr
+	selectedColumns []model.Expr
 
 	// only for bucket aggregations
-	Children []*aggregationLevelVersionUna
-	OrderBy  *[]model.OrderByExpr
-	Limit    int // 0 if none, only for bucket aggregation
+	children []*aggregationLevelVersionUna
+	orderBy  *[]model.OrderByExpr
+	limit    int // 0 if none, only for bucket aggregation
 
 	metadata    model.JsonMap
 	whereClause model.Expr
@@ -38,7 +38,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJsonVersionUna(body types.J
 
 	topLevel := aggregationLevelVersionUna{
 		name:     "",
-		Children: []*aggregationLevelVersionUna{},
+		children: []*aggregationLevelVersionUna{},
 	}
 
 	if queryPartRaw, ok := queryAsMap["query"]; ok {
@@ -60,7 +60,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJsonVersionUna(body types.J
 			if err != nil {
 				return nil, err
 			}
-			topLevel.Children = subAggregations
+			topLevel.children = subAggregations
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("aggs is not a map, but %T, aggs: %v", aggsRaw, aggsRaw)
 		}
@@ -118,9 +118,9 @@ func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(aggregationName 
 		if err != nil {
 			return nil, err
 		}
-		aggregation.SelectedColumns = columns
-		aggregation.Type = generateMetricsType(cw.Ctx, metricsAggrResult)
-		if aggregation.Type == nil { // Should never happen, we should hit earlier error
+		aggregation.selectedColumns = columns
+		aggregation.queryType = generateMetricsType(cw.Ctx, metricsAggrResult)
+		if aggregation.queryType == nil { // Should never happen, we should hit earlier error
 			return nil, errors.New("unknown metrics aggregation")
 		}
 		return aggregation, nil
@@ -146,13 +146,13 @@ func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(aggregationName 
 	}
 
 	// process "range" with subaggregations
-	_, isRange := aggregation.Type.(bucket_aggregations.Range)
+	_, isRange := aggregation.queryType.(bucket_aggregations.Range)
 	if isRange {
 		// see processRangeAggregation for details how to implement it
 		return nil, errors.New("range is not supported in version uno")
 	}
 
-	_, isTerms := aggregation.Type.(bucket_aggregations.Terms)
+	_, isTerms := aggregation.queryType.(bucket_aggregations.Terms)
 	if isTerms {
 		// No-op for now
 	}
@@ -162,7 +162,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(aggregationName 
 	// Or probably a bit less, if optimized correctly.
 	// Let's wait until we see such a query, maybe range and filters are mutually exclusive.
 
-	_, isFilters := aggregation.Type.(bucket_aggregations.Filters)
+	_, isFilters := aggregation.queryType.(bucket_aggregations.Filters)
 	if isFilters {
 		return nil, errors.New("filters are not supported in version uno")
 	}
@@ -173,7 +173,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(aggregationName 
 		if err != nil {
 			return aggregation, err
 		}
-		aggregation.Children = subAggregations
+		aggregation.children = subAggregations
 	}
 	delete(queryMap, "aggs") // no-op if no "aggs"
 

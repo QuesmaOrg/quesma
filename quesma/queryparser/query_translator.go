@@ -399,7 +399,7 @@ func (cw *ClickhouseQueryTranslator) combineQueries(queries []*model.Query) {
 		}
 		fmt.Println("parentIdx:", parentIndex)
 		parentQuery := queries[parentIndex]
-		parentQuery.SelectCommand.OrderBy = append(parentQuery.SelectCommand.OrderBy,
+		parentQuery.SelectCommand.orderBy = append(parentQuery.SelectCommand.orderBy,
 			model.OrderByExpr{Exprs: parentQuery.SelectCommand.Columns[len(parentQuery.SelectCommand.Columns)-1:], Direction: model.DescOrder})
 	}
 }
