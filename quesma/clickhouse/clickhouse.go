@@ -13,8 +13,8 @@ import (
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/index"
+	"quesma/jsonprocessor"
 	"quesma/logger"
-	"quesma/plugins"
 	"quesma/plugins/registry"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
@@ -36,14 +36,13 @@ const (
 type (
 	// LogManager should be renamed to Connector  -> TODO !!!
 	LogManager struct {
-		ctx                          context.Context
-		cancel                       context.CancelFunc
-		chDb                         *sql.DB
-		schemaLoader                 TableDiscovery
-		cfg                          config.QuesmaConfiguration
-		phoneHomeAgent               telemetry.PhoneHomeAgent
-		schemaRegistry               schema.Registry
-		ingestTransformationPipeline plugins.IngestTransformerPipeline
+		ctx            context.Context
+		cancel         context.CancelFunc
+		chDb           *sql.DB
+		schemaLoader   TableDiscovery
+		cfg            config.QuesmaConfiguration
+		phoneHomeAgent telemetry.PhoneHomeAgent
+		schemaRegistry schema.Registry
 	}
 	TableMap  = concurrent.Map[string, *Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -376,7 +375,7 @@ func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema
 
 func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jsonData types.JSON, tableConfig *ChTableConfig, cfg config.QuesmaConfiguration, schemaRegistry schema.Registry) (string, error) {
 
-	nameFormatter, err := registry.TableColumNameFormatterFor(tableName, cfg)
+	nameFormatter, err := registry.TableColumNameFormatterFor(tableName, cfg, schemaRegistry)
 	if err != nil {
 		return "", err
 	}
@@ -525,9 +524,10 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, 
 	// this is pre ingest transformer
 	// here we transform the data before it's structure evaluation and insertion
 	//
+	transformer := &jsonprocessor.RewriteArrayOfObject{}
 	var processed []types.JSON
 	for _, jsonValue := range jsonData {
-		result, err := lm.ingestTransformationPipeline.Transform(jsonValue)
+		result, err := transformer.Transform(jsonValue)
 		if err != nil {
 			return fmt.Errorf("error while rewriting json: %v", err)
 		}
@@ -545,7 +545,7 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, 
 
 func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON, config *ChTableConfig) error {
 
-	transformer := registry.IngestTransformerFor(tableName, lm.cfg)
+	transformer := registry.IngestTransformerFor(tableName, lm.cfg, lm.schemaRegistry)
 
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
@@ -619,10 +619,6 @@ func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
 
 func (lm *LogManager) Ping() error {
 	return lm.chDb.Ping()
-}
-
-func (lm *LogManager) AddIngestTransformation(transformation plugins.IngestTransformer) {
-	lm.ingestTransformationPipeline = append(lm.ingestTransformationPipeline, transformation)
 }
 
 func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader TableDiscovery, schemaRegistry schema.Registry) *LogManager {

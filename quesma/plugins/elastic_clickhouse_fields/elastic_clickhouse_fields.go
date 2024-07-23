@@ -9,6 +9,7 @@ import (
 	"quesma/plugins"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
+	"quesma/schema"
 	"strings"
 )
 
@@ -165,32 +166,32 @@ func (*Dot2DoubleColons2Dot) IngestTransformer() plugins.IngestTransformer {
 	return &ingestTransformer{separator: doubleColons}
 }
 
-func (p *Dot2DoubleColons2Dot) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
+func (p *Dot2DoubleColons2Dot) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
 	if p.matches(table) {
 		transformers = append(transformers, &ingestTransformer{separator: doubleColons})
 	}
 	return transformers
 }
 
-func (p *Dot2DoubleColons2Dot) GetTableColumnFormatter(table string, cfg config.QuesmaConfiguration) plugins.TableColumNameFormatter {
+func (p *Dot2DoubleColons2Dot) GetTableColumnFormatter(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.TableColumNameFormatter {
 	if p.matches(table) {
 		return &columNameFormatter{separator: doubleColons}
 	}
 	return nil
 }
 
-func (p *Dot2DoubleColons2Dot) ApplyQueryTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.QueryTransformer) []plugins.QueryTransformer {
+func (p *Dot2DoubleColons2Dot) ApplyQueryTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.QueryTransformer) []plugins.QueryTransformer {
 	return transformers
 }
 
-func (p *Dot2DoubleColons2Dot) ApplyResultTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.ResultTransformer) []plugins.ResultTransformer {
+func (p *Dot2DoubleColons2Dot) ApplyResultTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.ResultTransformer) []plugins.ResultTransformer {
 	if p.matches(table) {
 		transformers = append(transformers, &resultTransformer{translate: doubleColons2dot})
 	}
 	return transformers
 }
 
-func (p *Dot2DoubleColons2Dot) ApplyFieldCapsTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.FieldCapsTransformer) []plugins.FieldCapsTransformer {
+func (p *Dot2DoubleColons2Dot) ApplyFieldCapsTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.FieldCapsTransformer) []plugins.FieldCapsTransformer {
 	return transformers
 }
 

@@ -6,21 +6,23 @@ import (
 	"fmt"
 	"quesma/plugins"
 	"quesma/plugins/elastic_clickhouse_fields"
+	"quesma/plugins/ingest_validator"
 	"quesma/quesma/config"
+	"quesma/schema"
 )
 
 var registeredPlugins []plugins.Plugin
 
 func init() {
-	registeredPlugins = []plugins.Plugin{&elastic_clickhouse_fields.Dot2DoubleColons2Dot{}}
+	registeredPlugins = []plugins.Plugin{&elastic_clickhouse_fields.Dot2DoubleColons2Dot{}, &ingest_validator.IngestValidator{}}
 }
 
-func QueryTransformerFor(table string, cfg config.QuesmaConfiguration) plugins.QueryTransformer {
+func QueryTransformerFor(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.QueryTransformer {
 
 	var transformers []plugins.QueryTransformer
 
 	for _, plugin := range registeredPlugins {
-		transformers = plugin.ApplyQueryTransformers(table, cfg, transformers)
+		transformers = plugin.ApplyQueryTransformers(table, cfg, schema, transformers)
 	}
 
 	if len(transformers) == 0 {
@@ -32,12 +34,12 @@ func QueryTransformerFor(table string, cfg config.QuesmaConfiguration) plugins.Q
 
 ///
 
-func ResultTransformerFor(table string, cfg config.QuesmaConfiguration) plugins.ResultTransformer {
+func ResultTransformerFor(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.ResultTransformer {
 
 	var transformers []plugins.ResultTransformer
 
 	for _, plugin := range registeredPlugins {
-		transformers = plugin.ApplyResultTransformers(table, cfg, transformers)
+		transformers = plugin.ApplyResultTransformers(table, cfg, schema, transformers)
 	}
 
 	if len(transformers) == 0 {
@@ -49,12 +51,12 @@ func ResultTransformerFor(table string, cfg config.QuesmaConfiguration) plugins.
 
 ///
 
-func FieldCapsTransformerFor(table string, cfg config.QuesmaConfiguration) plugins.FieldCapsTransformer {
+func FieldCapsTransformerFor(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.FieldCapsTransformer {
 
 	var transformers []plugins.FieldCapsTransformer
 
 	for _, plugin := range registeredPlugins {
-		transformers = plugin.ApplyFieldCapsTransformers(table, cfg, transformers)
+		transformers = plugin.ApplyFieldCapsTransformers(table, cfg, schema, transformers)
 	}
 
 	if len(transformers) == 0 {
@@ -64,12 +66,12 @@ func FieldCapsTransformerFor(table string, cfg config.QuesmaConfiguration) plugi
 	return plugins.FieldCapsTransformerPipeline(transformers)
 }
 
-func TableColumNameFormatterFor(table string, cfg config.QuesmaConfiguration) (plugins.TableColumNameFormatter, error) {
+func TableColumNameFormatterFor(table string, cfg config.QuesmaConfiguration, schema schema.Registry) (plugins.TableColumNameFormatter, error) {
 
 	var transformers []plugins.TableColumNameFormatter
 
 	for _, plugin := range registeredPlugins {
-		t := plugin.GetTableColumnFormatter(table, cfg)
+		t := plugin.GetTableColumnFormatter(table, cfg, schema)
 		if t != nil {
 			transformers = append(transformers, t)
 		}
@@ -86,12 +88,12 @@ func TableColumNameFormatterFor(table string, cfg config.QuesmaConfiguration) (p
 	return transformers[0], nil
 }
 
-func IngestTransformerFor(table string, cfg config.QuesmaConfiguration) plugins.IngestTransformer {
+func IngestTransformerFor(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.IngestTransformer {
 
 	var transformers []plugins.IngestTransformer
 
 	for _, plugin := range registeredPlugins {
-		transformers = plugin.ApplyIngestTransformers(table, cfg, transformers)
+		transformers = plugin.ApplyIngestTransformers(table, cfg, schema, transformers)
 	}
 
 	if len(transformers) == 0 {
