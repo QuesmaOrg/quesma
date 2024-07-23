@@ -3,7 +3,6 @@
 package queryparser
 
 import (
-	"context"
 	"errors"
 	"quesma/logger"
 	"quesma/model"
@@ -11,17 +10,26 @@ import (
 	"quesma/quesma/types"
 )
 
-type aggregationLevelVersionUna struct {
-	Aggregator      model.Aggregator
-	Type            model.QueryType
-	Children        []*aggregationLevelVersionUna
-	SelectedColumns []model.Expr
-	OrderBy         *[]model.OrderByExpr
-	Limit           int // 0 if none, only for bucket aggregation
-
-	metadata     model.JsonMap
+type aggregationTopLevelVersionUna struct {
+	Children     []*aggregationLevelVersionUna
 	whereBuilder model.SimpleQuery
-	ctx          context.Context
+}
+
+type aggregationLevelVersionUna struct {
+	name    string
+	isKeyed bool
+
+	Type model.QueryType
+
+	SelectedColumns []model.Expr
+
+	// only for bucket aggregations
+	Children []*aggregationLevelVersionUna
+	OrderBy  *[]model.OrderByExpr
+	Limit    int // 0 if none, only for bucket aggregation
+
+	metadata    model.JsonMap
+	whereClause model.Expr
 }
 
 // Here is experimental code to generate aggregations in one SQL query. called Version Una.
@@ -29,14 +37,18 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJsonVersionUna(body types.J
 	queryAsMap := body.Clone()
 
 	topLevel := aggregationLevelVersionUna{
-		Aggregator: model.NewAggregator(""),
-		Children:   []*aggregationLevelVersionUna{},
-		ctx:        cw.Ctx,
+		name:     "",
+		Children: []*aggregationLevelVersionUna{},
 	}
 
 	if queryPartRaw, ok := queryAsMap["query"]; ok {
 		if queryPart, ok := queryPartRaw.(QueryMap); ok {
-			topLevel.whereBuilder = cw.parseQueryMap(queryPart)
+			simpleQuery := cw.parseQueryMap(queryPart)
+			if simpleQuery.CanParse {
+				topLevel.whereClause = simpleQuery.WhereClause
+			} else {
+				return nil, errors.New("cannot parse query")
+			}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("query is not a map, but %T, query: %v. Skipping", queryPartRaw, queryPartRaw)
 		}
@@ -96,16 +108,20 @@ func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(aggregationName 
 	}
 
 	aggregation := &aggregationLevelVersionUna{
-		Aggregator: model.NewAggregator(aggregationName),
-		metadata:   metadata,
-		ctx:        cw.Ctx,
+		name:     aggregationName,
+		metadata: metadata,
 	}
 
 	// 1. Metrics aggregation => always leaf
 	if metricsAggrResult, isMetrics := cw.tryMetricsAggregation(queryMap); isMetrics {
-		err := aggregation.buildMetricsAggregation(metricsAggrResult)
+		columns, err := generateMetricSelectedColumns(cw.Ctx, metricsAggrResult)
 		if err != nil {
 			return nil, err
+		}
+		aggregation.SelectedColumns = columns
+		aggregation.Type = generateMetricsType(cw.Ctx, metricsAggrResult)
+		if aggregation.Type == nil { // Should never happen, we should hit earlier error
+			return nil, errors.New("unknown metrics aggregation")
 		}
 		return aggregation, nil
 	}

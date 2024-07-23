@@ -177,8 +177,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 		aggregation.Limit = size
 		aggregation.OrderBy = &fullOrderBy
 		if missingPlaceholder == nil { // TODO replace with schema
-			aggregation.whereBuilder = model.NewSimpleQuery(
-				model.NewInfixExpr(fieldExpression, "IS", model.NewLiteral("NOT NULL")), true)
+			aggregation.whereClause = model.NewInfixExpr(fieldExpression, "IS", model.NewLiteral("NOT NULL"))
 		}
 
 		delete(queryMap, termsType)
@@ -212,7 +211,6 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 		}
 
 		aggregation.Type = bucket_aggregations.NewMultiTerms(cw.Ctx, fieldsNr)
-		aggregation.Aggregator.SplitOverHowManyFields = fieldsNr
 
 		delete(queryMap, "multi_terms")
 		return success, nil
@@ -225,7 +223,7 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 		Range := cw.parseRangeAggregation(rangeMap)
 		aggregation.Type = Range
 		if Range.Keyed {
-			aggregation.Aggregator.Keyed = true
+			aggregation.isKeyed = true
 		}
 		delete(queryMap, "range")
 		return success, nil
@@ -252,9 +250,6 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 				aggregation.SelectedColumns = append(aggregation.SelectedColumns, sqlSelect)
 			}
 		}
-
-		// TODO after https://github.com/QuesmaOrg/quesma/pull/99 it should be only in 1 of 2 cases (keyed or not), just like in range aggregation
-		aggregation.Aggregator.SplitOverHowManyFields = 1
 
 		delete(queryMap, "date_range")
 		return success, nil
@@ -338,9 +333,14 @@ func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation 
 		delete(queryMap, "random_sampler")
 		return
 	}
-	if boolRaw, ok := queryMap["bool"]; ok {
+	if boolRaw, ok := queryMap["bool"]; ok { // is it really possible here?
 		if Bool, ok := boolRaw.(QueryMap); ok {
-			aggregation.whereBuilder = cw.parseBool(Bool)
+			simpleQuery := cw.parseBool(Bool)
+			if simpleQuery.CanParse {
+				aggregation.whereClause = simpleQuery.WhereClause
+			} else {
+				logger.WarnWithCtx(cw.Ctx).Msg("failed to parse bool")
+			}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msgf("bool is not a map, but %T, value: %v. Skipping", boolRaw, boolRaw)
 		}

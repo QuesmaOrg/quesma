@@ -126,39 +126,34 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 	return
 }
 
-func (a *aggregationLevelVersionUna) buildMetricsAggregation(metricsAggr metricsAggregation) error {
-	columns, err := generateMetricSelectedColumns(a.ctx, metricsAggr)
-	if err != nil {
-		return err
-	}
-	a.SelectedColumns = columns
+func generateMetricsType(ctx context.Context, metricsAggr metricsAggregation) model.QueryType {
 	switch metricsAggr.AggrType {
 	case "sum":
-		a.Type = metrics_aggregations.NewSum(a.ctx, metricsAggr.FieldType)
+		return metrics_aggregations.NewSum(ctx, metricsAggr.FieldType)
 	case "min":
-		a.Type = metrics_aggregations.NewMin(a.ctx, metricsAggr.FieldType)
+		return metrics_aggregations.NewMin(ctx, metricsAggr.FieldType)
 	case "max":
-		a.Type = metrics_aggregations.NewMax(a.ctx, metricsAggr.FieldType)
+		return metrics_aggregations.NewMax(ctx, metricsAggr.FieldType)
 	case "avg":
-		a.Type = metrics_aggregations.NewAvg(a.ctx, metricsAggr.FieldType)
+		return metrics_aggregations.NewAvg(ctx, metricsAggr.FieldType)
 	case "stats":
-		a.Type = metrics_aggregations.NewStats(a.ctx)
+		return metrics_aggregations.NewStats(ctx)
 	case "extended_stats":
-		a.Type = metrics_aggregations.NewExtendedStats(a.ctx, metricsAggr.sigma)
+		return metrics_aggregations.NewExtendedStats(ctx, metricsAggr.sigma)
 	case "cardinality":
-		a.Type = metrics_aggregations.NewCardinality(a.ctx)
+		return metrics_aggregations.NewCardinality(ctx)
 	case "quantile":
-		a.Type = metrics_aggregations.NewQuantile(a.ctx, metricsAggr.Keyed, metricsAggr.FieldType)
+		return metrics_aggregations.NewQuantile(ctx, metricsAggr.Keyed, metricsAggr.FieldType)
 	case "top_hits":
-		a.Type = metrics_aggregations.NewTopHits(a.ctx)
+		return metrics_aggregations.NewTopHits(ctx)
 	case "top_metrics":
-		a.Type = metrics_aggregations.NewTopMetrics(a.ctx, metricsAggr.sortByExists())
+		return metrics_aggregations.NewTopMetrics(ctx, metricsAggr.sortByExists())
 	case "value_count":
-		a.Type = metrics_aggregations.NewValueCount(a.ctx)
+		return metrics_aggregations.NewValueCount(ctx)
 	case "percentile_ranks":
-		a.Type = metrics_aggregations.NewPercentileRanks(a.ctx, metricsAggr.Keyed)
+		return metrics_aggregations.NewPercentileRanks(ctx, metricsAggr.Keyed)
 	case "geo_centroid":
-		a.Type = metrics_aggregations.NewGeoCentroid(a.ctx)
+		return metrics_aggregations.NewGeoCentroid(ctx)
 	}
 	return nil
 }
