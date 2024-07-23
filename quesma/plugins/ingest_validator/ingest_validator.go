@@ -9,14 +9,18 @@ import (
 	"quesma/schema"
 )
 
-type IngestValidator struct{}
+type IngestValidator struct {
+	cfg            config.QuesmaConfiguration
+	schemaRegistry schema.Registry
+	table          string
+}
 
 func (*IngestValidator) Transform(document types.JSON) (types.JSON, error) {
 	return document, nil
 }
 
 func (p *IngestValidator) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
-	transformers = append(transformers, &IngestValidator{})
+	transformers = append(transformers, &IngestValidator{cfg: cfg, schemaRegistry: schema, table: table})
 	return transformers
 }
 
