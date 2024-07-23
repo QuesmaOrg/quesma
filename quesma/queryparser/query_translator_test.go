@@ -63,8 +63,8 @@ const (
 
 func TestSearchResponse(t *testing.T) {
 	row := []model.QueryResultRow{{}}
-	s := staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"test": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
@@ -162,8 +162,8 @@ func TestMakeResponseSearchQuery(t *testing.T) {
 			model.ListByField,
 		},
 	}
-	s := staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"test": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},

@@ -44,8 +44,8 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 			logChan := logger.InitOnlyChannelLoggerForTests()
 			managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
 			go managementConsole.RunOnlyChannelProcessor()
-			s := staticRegistry{
-				tables: map[schema.TableName]schema.Schema{
+			s := schema.StaticRegistry{
+				Tables: map[schema.TableName]schema.Schema{
 					"logs-generic-default": {
 						Fields: map[schema.FieldName]schema.Field{
 							"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
@@ -112,8 +112,8 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 	logChan := logger.InitOnlyChannelLoggerForTests()
 	managementConsole := ui.NewQuesmaManagementConsole(cfg, nil, nil, logChan, telemetry.NewPhoneHomeEmptyAgent(), nil)
 	go managementConsole.RunOnlyChannelProcessor()
-	s := staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},

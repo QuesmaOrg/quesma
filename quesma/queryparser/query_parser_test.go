@@ -47,10 +47,10 @@ func TestQueryParserStringAttrConfig(t *testing.T) {
 
 	cfg.IndexConfig[indexConfig.Name] = indexConfig
 
-	lm := clickhouse.NewEmptyLogManager(cfg, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(config.QuesmaConfiguration{}, nil), staticRegistry{})
+	lm := clickhouse.NewEmptyLogManager(cfg, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(config.QuesmaConfiguration{}, nil), schema.StaticRegistry{})
 	lm.AddTableIfDoesntExist(table)
-	s := staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
@@ -106,7 +106,7 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 		},
 		Created: true,
 	}
-	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(config.QuesmaConfiguration{}, nil), staticRegistry{})
+	lm := clickhouse.NewEmptyLogManager(config.QuesmaConfiguration{}, nil, telemetry.NewPhoneHomeEmptyAgent(), clickhouse.NewTableDiscovery(config.QuesmaConfiguration{}, nil), schema.StaticRegistry{})
 	lm.AddTableIfDoesntExist(&table)
 	indexConfig := config.IndexConfiguration{
 		Name:    "logs-generic-default",
@@ -115,8 +115,8 @@ func TestQueryParserNoFullTextFields(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
 	cfg.IndexConfig[indexConfig.Name] = indexConfig
-	s := staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
@@ -183,8 +183,8 @@ func TestQueryParserNoAttrsConfig(t *testing.T) {
 	cfg := config.QuesmaConfiguration{IndexConfig: map[string]config.IndexConfiguration{}}
 
 	cfg.IndexConfig[indexConfig.Name] = indexConfig
-	s := staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
@@ -408,8 +408,8 @@ func TestNew(t *testing.T) {
 		t.Fatal(err)
 	}
 	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, table), config.QuesmaConfiguration{})
-	s := staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},

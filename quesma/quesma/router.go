@@ -238,8 +238,7 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 		}
 	})
 
-	eqlHandler := func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
-
+	router.Register(routes.EQLSearch, and(method("GET", "POST"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
 			return nil, err
@@ -254,9 +253,25 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 			}
 		}
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
-	}
+	})
 
-	router.Register(routes.EQLSearch, and(method("GET", "POST"), matchedAgainstPattern(cfg)), eqlHandler)
+	router.Register(routes.IndexPath, and(method("PUT"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		body, err := types.ExpectJSON(req.ParsedBody)
+		if err != nil {
+			return nil, err
+		}
+
+		mappings, ok := body["mappings"]
+		if !ok {
+			logger.Warn().Msgf("no mappings found in PUT /%s request, ignoring that request.", req.Params["index"])
+			return &mux.Result{StatusCode: httpOk}, nil
+		}
+		columns := elasticsearch.ParseMappings("", mappings.(map[string]interface{}))
+
+		sr.UpdateDynamicConfiguration(schema.TableName(req.Params["index"]), schema.Table{Columns: columns})
+
+		return &mux.Result{StatusCode: httpOk}, nil
+	})
 
 	return router
 }

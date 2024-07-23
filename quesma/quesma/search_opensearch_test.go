@@ -35,8 +35,8 @@ func TestSearchOpensearch(t *testing.T) {
 		Created: true,
 	}
 
-	s := staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			tableName: {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},
@@ -191,8 +191,8 @@ func TestHighlighter(t *testing.T) {
 		},
 		Created: true,
 	}
-	s := staticRegistry{
-		tables: map[schema.TableName]schema.Schema{
+	s := schema.StaticRegistry{
+		Tables: map[schema.TableName]schema.Schema{
 			"logs-generic-default": {
 				Fields: map[schema.FieldName]schema.Field{
 					"host.name":         {PropertyName: "host.name", InternalPropertyName: "host.name", Type: schema.TypeObject},

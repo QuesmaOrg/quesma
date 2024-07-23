@@ -81,7 +81,7 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, i
 		AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext](),
 		transformationPipeline: TransformationPipeline{
 			transformers: []plugins.QueryTransformer{
-				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry, logManager: lm, indexMappings: cfg.IndexSourceToInternalMappings}, // this can be a part of another plugin
+				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry, logManager: lm}, // this can be a part of another plugin
 			},
 		}, schemaRegistry: schemaRegistry}
 }
@@ -213,13 +213,12 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	if err != nil {
 		return nil, err
 	}
-	sourceToDestMappings := makeSourceToDestMappings(q.cfg.IndexSourceToInternalMappings)
 	for _, resolvedTableName := range sourcesClickhouse {
 		var err error
 		doneCh := make(chan AsyncSearchWithError, 1)
 		incomingIndexName := resolvedTableName
-		if indexMapping, ok := sourceToDestMappings[resolvedTableName]; ok {
-			resolvedTableName = indexMapping
+		if len(q.cfg.IndexConfig[resolvedTableName].Override) > 0 {
+			resolvedTableName = q.cfg.IndexConfig[resolvedTableName].Override
 		}
 		table, _ := tables.Load(resolvedTableName)
 		if table == nil {
