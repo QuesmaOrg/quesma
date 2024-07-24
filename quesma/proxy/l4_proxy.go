@@ -106,17 +106,18 @@ func configureRouting() *http.ServeMux {
 			return
 		}
 
-		err := ndjson.BulkForEach(func(operation types.BulkOperation, document types.JSON) {
+		err := ndjson.BulkForEach(func(i int, operation types.BulkOperation, _, document types.JSON) error {
 
 			index := operation.GetIndex()
 			if index == "" {
 				logger.Error().Msg("No index in operation")
-				return
+				return nil
 			}
 
 			if !elasticsearch.IsInternalIndex(index) {
 				stats.GlobalStatistics.Process(configuration, index, document, clickhouse.NestedSeparator)
 			}
+			return nil
 		})
 
 		if err != nil {

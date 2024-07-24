@@ -170,6 +170,12 @@ func Test_matchedAgainstBulkBody(t *testing.T) {
 			name:   "multiple indexes, some tables not present",
 			body:   `{"create":{"_index":"logs-generic-default"}}` + "\n{}\n" + `{"create":{"_index":"non-existent"}}`,
 			config: indexConfig("logs-generic-default", true),
+			want:   true,
+		},
+		{
+			name:   "multiple indexes, all tables not present",
+			body:   `{"create":{"_index":"not-there"}}` + "\n{}\n" + `{"create":{"_index":"non-existent"}}`,
+			config: indexConfig("logs-generic-default", true),
 			want:   false,
 		},
 	}
