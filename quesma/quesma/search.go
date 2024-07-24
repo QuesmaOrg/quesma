@@ -146,6 +146,110 @@ type AsyncQuery struct {
 	startTime        time.Time
 }
 
+func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery) ([]byte, error) {
+	id := ctx.Value(tracing.RequestIdCtxKey).(string)
+	path := ""
+	if value := ctx.Value(tracing.RequestPath); value != nil {
+		if str, ok := value.(string); ok {
+			path = str
+		}
+	}
+
+	var err error
+	var responseBody []byte
+	doneCh := make(chan AsyncSearchWithError, 1)
+
+	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
+	}
+
+
+	plan.Queries, err = registry.QueryTransformerFor(table.Name, q.cfg).Transform(plan.Queries)
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
+	}
+
+	queries := plan.Queries
+	if len(queries) > 0 && query_util.IsNonAggregationQuery(queries[0]) {
+		if properties := q.findNonexistingProperties(queries[0], table, queryTranslator); len(properties) > 0 {
+			logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
+			if elasticsearch.IsIndexPattern(plan.IndexPattern) {
+				return queryparser.EmptySearchResponse(ctx), nil
+			} else {
+				return nil, fmt.Errorf("properties %s not found in table %s", properties, table.Name)
+			}
+		}
+	}
+
+	go func() {
+		defer recovery.LogAndHandlePanic(ctx, func(err error) {
+			doneCh <- AsyncSearchWithError{err: err}
+		})
+
+		translatedQueryBody, results, err := q.searchWorker(ctx, plan, table, doneCh, optAsync)
+		if err != nil {
+			doneCh <- AsyncSearchWithError{err: err}
+			return
+		}
+
+		if len(results) == 0 {
+			logger.ErrorWithCtx(ctx).Msgf("no hits, sqls: %s", translatedQueryBody)
+			doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
+			return
+		}
+
+		results, err = q.postProcessResults(table, results)
+		if err != nil {
+			doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
+		}
+
+		if plan.ResultAdapter != nil {
+			results, err = plan.ResultAdapter.Transform(results)
+			if err != nil {
+				doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
+			}
+		}
+
+		searchResponse := queryTranslator.MakeSearchResponse(plan.Queries, results)
+
+		doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
+	}()
+
+	if optAsync == nil {
+		bodyAsBytes, _ := body.Bytes()
+		response := <-doneCh
+		if response.err != nil {
+			err = response.err
+			if len(plan.Queries) > 0 {
+				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queries[0]: %+v", err, plan.Queries[0])
+			} else {
+				logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queries empty", err)
+			}
+		} else {
+			responseBody, err = response.response.Marshal()
+		}
+		pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
+		return responseBody, err
+	} else {
+		select {
+		case <-time.After(time.Duration(optAsync.waitForResultsMs) * time.Millisecond):
+			go func() { // Async search takes longer. Return partial results and wait for
+				recovery.LogPanicWithCtx(ctx)
+				res := <-doneCh
+				q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res, true)
+			}()
+			return q.handlePartialAsyncSearch(ctx, optAsync.asyncId)
+		case res := <-doneCh:
+			responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res,
+				optAsync.keepOnCompletion)
+
+			return responseBody, err
+		}
+	}
+
+}
+
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
 	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im)
 
@@ -215,7 +319,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 	for _, resolvedTableName := range sourcesClickhouse {
 		var err error
-		doneCh := make(chan AsyncSearchWithError, 1)
+
 		incomingIndexName := resolvedTableName
 		if len(q.cfg.IndexConfig[resolvedTableName].Override) > 0 {
 			resolvedTableName = q.cfg.IndexConfig[resolvedTableName].Override
@@ -227,67 +331,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry, incomingIndexName)
 
-		plan, canParse, err := queryTranslator.ParseQuery(body)
+		plan, err := queryTranslator.ParseQuery(body)
+
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("parsing error: %v", err)
-		}
-		plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
-		}
 
-		plan.Queries, err = registry.QueryTransformerFor(table.Name, q.cfg).Transform(plan.Queries)
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
-		}
-
-		if canParse {
-			queries := plan.Queries
-			if len(queries) > 0 && query_util.IsNonAggregationQuery(queries[0]) {
-				if properties := q.findNonexistingProperties(queries[0], table, queryTranslator); len(properties) > 0 {
-					logger.DebugWithCtx(ctx).Msgf("properties %s not found in table %s", properties, table.Name)
-					if elasticsearch.IsIndexPattern(indexPattern) {
-						return queryparser.EmptySearchResponse(ctx), nil
-					} else {
-						return nil, fmt.Errorf("properties %s not found in table %s", properties, table.Name)
-					}
-				}
-			}
-			go func() {
-				defer recovery.LogAndHandlePanic(ctx, func(err error) {
-					doneCh <- AsyncSearchWithError{err: err}
-				})
-
-				translatedQueryBody, results, err := q.searchWorker(ctx, plan, table, doneCh, optAsync)
-				if err != nil {
-					doneCh <- AsyncSearchWithError{err: err}
-					return
-				}
-
-				if len(results) == 0 {
-					logger.ErrorWithCtx(ctx).Msgf("no hits, sqls: %s", translatedQueryBody)
-					doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
-					return
-				}
-
-				results, err = q.postProcessResults(table, results)
-				if err != nil {
-					doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
-				}
-
-				if plan.ResultAdapter != nil {
-					results, err = plan.ResultAdapter.Transform(results)
-					if err != nil {
-						doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
-					}
-				}
-
-				searchResponse := queryTranslator.MakeSearchResponse(plan.Queries, results)
-
-				doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
-			}()
-
-		} else {
 			queries := plan.Queries
 			queriesBody := make([]types.TranslatedSQLQuery, len(queries))
 			queriesBodyConcat := ""
@@ -302,37 +350,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			return responseBody, errors.New(string(responseBody))
 		}
 
-		if optAsync == nil {
-			bodyAsBytes, _ := body.Bytes()
-			response := <-doneCh
-			if response.err != nil {
-				err = response.err
-				if len(plan.Queries) > 0 {
-					logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queries[0]: %+v", err, plan.Queries[0])
-				} else {
-					logger.ErrorWithCtx(ctx).Msgf("error making response: %v, queries empty", err)
-				}
-			} else {
-				responseBody, err = response.response.Marshal()
-			}
-			pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, startTime)
-			return responseBody, err
-		} else {
-			select {
-			case <-time.After(time.Duration(optAsync.waitForResultsMs) * time.Millisecond):
-				go func() { // Async search takes longer. Return partial results and wait for
-					recovery.LogPanicWithCtx(ctx)
-					res := <-doneCh
-					q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res, true)
-				}()
-				return q.handlePartialAsyncSearch(ctx, optAsync.asyncId)
-			case res := <-doneCh:
-				responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res,
-					optAsync.keepOnCompletion)
+		plan.IndexPattern = indexPattern
+		plan.StartTime = startTime
 
-				return responseBody, err
-			}
-		}
+		return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync)
+
 	}
 
 	return responseBody, nil
