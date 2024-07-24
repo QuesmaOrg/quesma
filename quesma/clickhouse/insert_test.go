@@ -151,7 +151,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 			for index3, lm := range logManagers(tableConfig) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], logManager["+strconv.Itoa(index3)+"]", func(t *testing.T) {
 
-					query, err := buildCreateTableQueryNoOurFields(context.Background(), tableName, types.MustJSON(tt.insertJson), tableConfig, cfg, schema.StaticRegistry{})
+					query, err := buildCreateTableQueryNoOurFields(context.Background(), tableName, types.MustJSON(tt.insertJson), tableConfig, cfg, schema.StaticRegistry{}, nil)
 					assert.NoError(t, err)
 					table, err := NewTable(query, tableConfig)
 					assert.NoError(t, err)
@@ -229,7 +229,7 @@ func TestProcessInsertQuery(t *testing.T) {
 						mock.ExpectExec(expectedInserts[2*index1+1]).WillReturnResult(sqlmock.NewResult(1, 1))
 					}
 
-					err := lm.lm.ProcessInsertQuery(ctx, tableName, []types.JSON{types.MustJSON(tt.insertJson)})
+					err := lm.lm.ProcessInsertQuery(ctx, tableName, []types.JSON{types.MustJSON(tt.insertJson)}, nil, nil)
 					assert.NoError(t, err)
 					if err := mock.ExpectationsWereMet(); err != nil {
 						t.Fatal("there were unfulfilled expections:", err)
@@ -260,7 +260,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 			mock.ExpectExec(`CREATE TABLE IF NOT EXISTS "` + tableName).WillReturnResult(sqlmock.NewResult(0, 0))
 			mock.ExpectExec(expectedInsertJsons[i]).WillReturnResult(sqlmock.NewResult(0, 0))
 
-			err := lm.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON(fmt.Sprintf(`{"severity":"sev","int": %s}`, bigInt))})
+			err := lm.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON(fmt.Sprintf(`{"severity":"sev","int": %s}`, bigInt))}, nil, nil)
 			assert.NoError(t, err)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -289,7 +289,7 @@ func TestInsertVeryBigIntegers(t *testing.T) {
 
 			bigIntAsInt, _ := strconv.ParseInt(bigInt, 10, 64)
 			fmt.Printf(`{"severity":"sev","int": %d}\n`, bigIntAsInt)
-			err := lm.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON(fmt.Sprintf(`{"severity":"sev","int": %d}`, bigIntAsInt))})
+			err := lm.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON(fmt.Sprintf(`{"severity":"sev","int": %d}`, bigIntAsInt))}, nil, nil)
 			assert.NoError(t, err)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)

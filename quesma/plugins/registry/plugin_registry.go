@@ -4,6 +4,7 @@ package registry
 
 import (
 	"fmt"
+	"quesma/clickhouse"
 	"quesma/plugins"
 	"quesma/plugins/elastic_clickhouse_fields"
 	"quesma/plugins/ingest_validator"
@@ -88,7 +89,7 @@ func TableColumNameFormatterFor(table string, cfg config.QuesmaConfiguration, sc
 	return transformers[0], nil
 }
 
-func IngestTransformerFor(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.IngestTransformer {
+func IngestTransformerFor(table string, cfg config.QuesmaConfiguration, schema schema.Registry, tableMap clickhouse.TableMap) plugins.IngestTransformer {
 
 	var transformers []plugins.IngestTransformer
 
