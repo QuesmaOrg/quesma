@@ -138,10 +138,8 @@ func getQueryId(ctx context.Context) string {
 
 	if asyncId, ok := ctx.Value(tracing.AsyncIdCtxKey).(string); ok {
 		prefix = asyncId
-	} else {
-		if requestId, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
-			prefix = requestId
-		}
+	} else if requestId, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
+		prefix = requestId
 	}
 
 	return fmt.Sprintf("%s-%d", prefix, queryCounter.Add(1))
