@@ -42,9 +42,9 @@ var insertTests = []struct {
 			`(`,
 			`	`,
 			`	"@timestamp" DateTime64`,
-			`	"host.name" String`,
+			`	"host::name" String`,
 			`	"message" String`,
-			`	"service.name" String`,
+			`	"service::name" String`,
 			`	"severity" String`,
 			`	"source" String`,
 			`	INDEX severity_idx severity TYPE set(25) GRANULARITY 4`,
@@ -75,7 +75,7 @@ var insertTests = []struct {
 			`(`,
 			`	`,
 			`	"@timestamp" DateTime64`,
-			`	"host.name" String`,
+			`	"host::name" String`,
 			`	"message" String`,
 			`	"random1" Array(String)`,
 			`	"random2" string`,
@@ -108,10 +108,10 @@ var configs = []*ChTableConfig{
 }
 
 var expectedInserts = []string{
-	`INSERT INTO "` + tableName + `" FORMAT JSONEachRow ` + insertTests[0].insertJson,
-	`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_string_key":\["service.name","severity","source"\],"attributes_string_value":\["frontend","debug","rhel"\],"@timestamp":"2024-01-27T16:11:19.94Z","host.name":"hermes","message":"User password reset failed"}`,
-	`INSERT INTO "` + tableName + `" FORMAT JSONEachRow ` + strings.Replace(strings.Replace(insertTests[1].insertJson, "[", `\[`, 1), "]", `\]`, 1),
-	`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_string_key":\["random1","random2","severity"\],"attributes_string_value":\["\[debug\]","random-string","frontend"\],"@timestamp":"2024-01-27T16:11:19.94Z","host.name":"hermes","message":"User password reset failed"}`,
+	`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","service::name":"frontend","severity":"debug","source":"rhel"}`,
+	`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_string_key":\["service::name","severity","source"\],"attributes_string_value":\["frontend","debug","rhel"\],"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed"}`,
+	`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","random1":\["debug"\],"random2":"random-string","severity":"frontend"}`,
+	`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_string_key":\["random1","random2","severity"\],"attributes_string_value":\["\[debug\]","random-string","frontend"\],"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed"}`,
 }
 
 type logManagerHelper struct {
@@ -127,7 +127,7 @@ func logManagersNonEmpty(cfg *ChTableConfig) []logManagerHelper {
 			Config: cfg,
 			Cols: map[string]*Column{
 				"@timestamp":       dateTime("@timestamp"),
-				"host.name":        genericString("host.name"),
+				"host::name":       genericString("host::name"),
 				"message":          lowCardinalityString("message"),
 				"non-insert-field": genericString("non-insert-field"),
 			},
