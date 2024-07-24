@@ -341,6 +341,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 func (q *QueryRunner) removeNotExistingTables(sourcesClickhouse []string) []string {
 	allKnownTables, _ := q.logManager.GetTableDefinitions()
 	return slices.DeleteFunc(sourcesClickhouse, func(s string) bool {
+		if len(q.cfg.IndexConfig[s].Override) > 0 {
+			s = q.cfg.IndexConfig[s].Override
+		}
+
 		_, exists := allKnownTables.Load(s)
 		return !exists
 	})
