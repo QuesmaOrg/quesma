@@ -19,33 +19,35 @@ type IngestValidator struct {
 	tableMap       clickhouse.TableMap
 }
 
-func isLong(f float64) bool {
-	return f == float64(int64(f))
-}
-
-func isUnsignedLong(f float64) bool {
-	if f < 0 {
-		return false
+/*
+	func isLong(f float64) bool {
+		return f == float64(int64(f))
 	}
-	return f == float64(uint64(f))
-}
 
+	func isUnsignedLong(f float64) bool {
+		if f < 0 {
+			return false
+		}
+		return f == float64(uint64(f))
+	}
+*/
 func getTypeName(v interface{}) string {
 	t := reflect.TypeOf(v).String()
-	switch t {
-	case "string":
-		return "text"
-	case "bool":
-		return "boolean"
-	case "float64":
-		if isLong(v.(float64)) {
-			return "long"
-		} else if isUnsignedLong(v.(float64)) {
-			return "unsigned_long"
-		} else {
-			return "float"
-		}
-	}
+	/*
+		switch t {
+		case "string":
+			return "text"
+		case "bool":
+			return "boolean"
+		case "float64":
+			if isLong(v.(float64)) {
+				return "long"
+			} else if isUnsignedLong(v.(float64)) {
+				return "unsigned_long"
+			} else {
+				return "float"
+			}
+		}*/
 	return t
 }
 
@@ -55,28 +57,14 @@ func (iv *IngestValidator) Transform(document types.JSON) (types.JSON, error) {
 		logger.Error().Msgf("Table %s not found", iv.table)
 		return document, nil
 	}
-	_ = clickhouseTable
-	if iv.schemaRegistry == nil {
-		return document, nil
-	}
-	schemaInstance, exists := iv.schemaRegistry.FindSchema(schema.TableName(iv.table))
-	if !exists {
-		logger.Error().Msgf("Schema fot table %s not found", iv.table)
-		return document, nil
-	}
 
 	for k, v := range document {
-		field, exists := schemaInstance.ResolveField(k)
-		if exists {
-			if field.Type.Name != getTypeName(v) {
-				logger.Error().Msgf("Field %s has wrong type %s, expected %s", k, getTypeName(v), field.Type.Name)
-				return document, nil
-			}
+		if clickhouseTable.Cols[k].Type.String() != getTypeName(v) {
+			logger.Error().Msgf("Field %s has wrong type %s, expected %s", k, getTypeName(v), clickhouseTable.Cols[k].Type.String())
+			return document, nil
 		}
 	}
-
 	return document, nil
-
 }
 
 func (iv *IngestValidator) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, tableMap clickhouse.TableMap, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
