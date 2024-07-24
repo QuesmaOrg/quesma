@@ -10,26 +10,6 @@ import (
 	"quesma/quesma/types"
 )
 
-type aggregationTopLevelVersionUna struct {
-	children    []*aggregationLevelVersionUna
-	whereClause model.Expr
-}
-
-type aggregationLevelVersionUna struct {
-	name            string
-	queryType       model.QueryType
-	selectedColumns []model.Expr
-
-	// only for bucket aggregations
-	children []*aggregationLevelVersionUna
-	orderBy  *[]model.OrderByExpr
-	limit    int // 0 if none, only for bucket aggregation
-	isKeyed  bool
-
-	metadata    model.JsonMap
-	whereClause model.Expr
-}
-
 // Here is experimental code to generate aggregations in one SQL query. called Version Una.
 func (cw *ClickhouseQueryTranslator) ParseAggregationJsonVersionUna(body types.JSON) ([]*model.Query, error) {
 	queryAsMap := body.Clone()
@@ -132,8 +112,8 @@ func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(aggregationName 
 	// 3. Now process filter(s) first, because they apply to everything else on the same level or below.
 	// Also filter introduces count to current level.
 	if _, ok := queryMap["filter"]; ok {
-		return nil, errors.New("filter is not supported in version uno")
 		delete(queryMap, "filter")
+		return nil, errors.New("filter is not supported in version uno")
 	}
 
 	// 4. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
