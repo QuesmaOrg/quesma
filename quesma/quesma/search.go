@@ -265,7 +265,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				}
 
 				if len(results) == 0 {
-					logger.ErrorWithCtx(ctx).Msgf("no hits, sqls: %s", translatedQueryBody)
+					logger.ErrorWithCtx(ctx).Msgf("no hits, sqls: %v", translatedQueryBody)
 					doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: errors.New("no hits")}
 					return
 				}
@@ -295,7 +295,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				queriesBody[i].Query = []byte(query.SelectCommand.String())
 				queriesBodyConcat += query.SelectCommand.String() + "\n"
 			}
-			responseBody = []byte(fmt.Sprintf("Invalid Queries: %s, err: %v", queriesBody, err))
+			responseBody = []byte(fmt.Sprintf("Invalid Queries: %v, err: %v", queriesBody, err))
 			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBodyConcat)
 			bodyAsBytes, _ := body.Bytes()
 			pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, queriesBody, responseBody, startTime)
@@ -482,11 +482,11 @@ func (q *QueryRunner) isInternalKibanaQuery(query *model.Query) bool {
 
 type QueryJob func(ctx context.Context) ([]model.QueryResultRow, clickhouse.PerformanceResult, error)
 
-func (q *QueryRunner) runQueryJobsSequence(jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
+func (q *QueryRunner) runQueryJobsSequence(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
 	var results = make([][]model.QueryResultRow, 0)
 	var performance = make([]clickhouse.PerformanceResult, 0)
 	for _, job := range jobs {
-		rows, perf, err := job(q.executionCtx)
+		rows, perf, err := job(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -497,7 +497,7 @@ func (q *QueryRunner) runQueryJobsSequence(jobs []QueryJob) ([][]model.QueryResu
 	return results, performance, nil
 }
 
-func (q *QueryRunner) runQueryJobsParallel(jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
+func (q *QueryRunner) runQueryJobsParallel(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
 
 	var results = make([][]model.QueryResultRow, len(jobs))
 	var performances = make([]clickhouse.PerformanceResult, len(jobs))
@@ -512,7 +512,7 @@ func (q *QueryRunner) runQueryJobsParallel(jobs []QueryJob) ([][]model.QueryResu
 
 	// cancellation is done by the parent context
 	// or by the first goroutine that returns an error
-	ctx, cancel := context.WithCancel(q.executionCtx)
+	ctx, cancel := context.WithCancel(ctx)
 	// clean up on return
 	defer cancel()
 
@@ -544,7 +544,7 @@ func (q *QueryRunner) runQueryJobsParallel(jobs []QueryJob) ([][]model.QueryResu
 	return results, performances, nil
 }
 
-func (q *QueryRunner) runQueryJobs(jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
+func (q *QueryRunner) runQueryJobs(ctx context.Context, jobs []QueryJob) ([][]model.QueryResultRow, []clickhouse.PerformanceResult, error) {
 	const maxParallelQueries = 25 // this is arbitrary value
 
 	numberOfJobs := len(jobs)
@@ -558,20 +558,34 @@ func (q *QueryRunner) runQueryJobs(jobs []QueryJob) ([][]model.QueryResultRow, [
 	// Parallel can be slower when we have a fast network connection.
 	//
 	if numberOfJobs == 1 {
-		return q.runQueryJobsSequence(jobs)
+		return q.runQueryJobsSequence(ctx, jobs)
 	}
 
 	current := q.currentParallelQueryJobs.Add(int64(numberOfJobs))
 
 	if current > maxParallelQueries {
 		q.currentParallelQueryJobs.Add(int64(-numberOfJobs))
-		return q.runQueryJobsSequence(jobs)
+		return q.runQueryJobsSequence(ctx, jobs)
 	}
 
 	defer q.currentParallelQueryJobs.Add(int64(-numberOfJobs))
 
-	return q.runQueryJobsParallel(jobs)
+	return q.runQueryJobsParallel(ctx, jobs)
 
+}
+
+func (q *QueryRunner) makeJob(table *clickhouse.Table, query *model.Query) QueryJob {
+	return func(ctx context.Context) ([]model.QueryResultRow, clickhouse.PerformanceResult, error) {
+		var err error
+		rows, performance, err := q.logManager.ProcessQuery(ctx, table, query)
+
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msg(err.Error())
+			return nil, clickhouse.PerformanceResult{}, err
+		}
+
+		return rows, performance, nil
+	}
 }
 
 func (q *QueryRunner) searchWorkerCommon(
@@ -608,34 +622,26 @@ func (q *QueryRunner) searchWorkerCommon(
 			continue
 		}
 
-		job := func(ctx context.Context) ([]model.QueryResultRow, clickhouse.PerformanceResult, error) {
-			var err error
-			rows, performance, err := q.logManager.ProcessQuery(ctx, table, query)
-
-			if err != nil {
-				logger.ErrorWithCtx(ctx).Msg(err.Error())
-				return nil, clickhouse.PerformanceResult{}, err
-			}
-
-			return rows, performance, nil
-		}
+		job := q.makeJob(table, query)
 		jobs = append(jobs, job)
 		jobHitsPosition = append(jobHitsPosition, i)
 	}
-	dbHits, performance, err := q.runQueryJobs(jobs)
+
+	jobResults, performance, err := q.runQueryJobs(ctx, jobs)
 	if err != nil {
 		return
 	}
 
-	for i, p := range performance {
-		translatedQueryBody[i].Duration = p.Duration
-		translatedQueryBody[i].ExplainPlan = p.ExplainPlan
-	}
-
 	// fill the hits array with the results in the order of the database queries
-	for jobId := range jobHitsPosition {
-		hitsPosition := jobHitsPosition[jobId]
-		hits[hitsPosition] = dbHits[jobId]
+	for jobId, resultPosition := range jobHitsPosition {
+
+		hits[resultPosition] = jobResults[jobId]
+
+		p := performance[jobId]
+		translatedQueryBody[resultPosition].QueryID = p.QueryID
+		translatedQueryBody[resultPosition].Duration = p.Duration
+		translatedQueryBody[resultPosition].ExplainPlan = p.ExplainPlan
+		translatedQueryBody[resultPosition].RowsReturned = p.RowsReturned
 	}
 
 	// apply the query rows transformers

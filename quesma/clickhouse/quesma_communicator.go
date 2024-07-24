@@ -11,7 +11,9 @@ import (
 	"quesma/end_user_errors"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/tracing"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -41,8 +43,10 @@ func (lm *LogManager) GetAllColumns(table *Table, query *model.Query) []string {
 }
 
 type PerformanceResult struct {
-	Duration    time.Duration
-	ExplainPlan string
+	QueryID      string
+	Duration     time.Duration
+	RowsReturned int
+	ExplainPlan  string
 }
 
 // ProcessQuery - only WHERE clause
@@ -127,6 +131,22 @@ func (lm *LogManager) explainQuery(ctx context.Context, query string, elapsed ti
 	return explain
 }
 
+var queryCounter atomic.Int64
+
+func getQueryId(ctx context.Context) string {
+	prefix := "quesma-"
+
+	if asyncId, ok := ctx.Value(tracing.AsyncIdCtxKey).(string); ok {
+		prefix = asyncId
+	} else {
+		if requestId, ok := ctx.Value(tracing.RequestIdCtxKey).(string); ok {
+			prefix = requestId
+		}
+	}
+
+	return fmt.Sprintf("%s-%d", prefix, queryCounter.Add(1))
+}
+
 func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, fields []string, rowToScan []interface{}) (res []model.QueryResultRow, performanceResult PerformanceResult, err error) {
 	span := lm.phoneHomeAgent.ClickHouseQueryDuration().Begin()
 
@@ -149,7 +169,9 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 		queryAsString = queryAsString + "\n-- optimizations: " + strings.Join(query.OptimizeHints.OptimizationsPerformed, ", ") + "\n"
 	}
 
-	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(settings))
+	queryID := getQueryId(ctx)
+
+	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(settings), clickhouse.WithQueryID(queryID))
 
 	rows, err := lm.Query(ctx, queryAsString)
 	if err != nil {
@@ -158,8 +180,11 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 	}
 
 	res, err = read(rows, fields, rowToScan)
+
 	elapsed := span.End(nil)
 	performanceResult.Duration = elapsed
+	performanceResult.RowsReturned = len(res)
+	performanceResult.QueryID = queryID
 	if err == nil {
 		if lm.shouldExplainQuery(elapsed) {
 			performanceResult.ExplainPlan = lm.explainQuery(ctx, queryAsString, elapsed)
