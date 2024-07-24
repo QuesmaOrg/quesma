@@ -12,10 +12,19 @@ import (
 	"quesma/schema"
 )
 
-var registeredPlugins []plugins.Plugin
+// Plugin changes the behavior of Quesma by changing the pipeline of transformers
+type Plugin interface {
+	ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, tableMap clickhouse.TableMap, transformers []plugins.IngestTransformer) []plugins.IngestTransformer
+	ApplyFieldCapsTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.FieldCapsTransformer) []plugins.FieldCapsTransformer
+	ApplyQueryTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.QueryTransformer) []plugins.QueryTransformer
+	ApplyResultTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.ResultTransformer) []plugins.ResultTransformer
+	GetTableColumnFormatter(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.TableColumNameFormatter
+}
+
+var registeredPlugins []Plugin
 
 func init() {
-	registeredPlugins = []plugins.Plugin{&ingest_validator.IngestValidator{}, &elastic_clickhouse_fields.Dot2DoubleColons2Dot{}}
+	registeredPlugins = []Plugin{&ingest_validator.IngestValidator{}, &elastic_clickhouse_fields.Dot2DoubleColons2Dot{}}
 }
 
 func QueryTransformerFor(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.QueryTransformer {
@@ -94,7 +103,7 @@ func IngestTransformerFor(table string, cfg config.QuesmaConfiguration, schema s
 	var transformers []plugins.IngestTransformer
 
 	for _, plugin := range registeredPlugins {
-		transformers = plugin.ApplyIngestTransformers(table, cfg, schema, transformers)
+		transformers = plugin.ApplyIngestTransformers(table, cfg, schema, tableMap, transformers)
 	}
 
 	if len(transformers) == 0 {

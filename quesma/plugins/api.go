@@ -4,9 +4,7 @@ package plugins
 
 import (
 	"quesma/model"
-	"quesma/quesma/config"
 	"quesma/quesma/types"
-	"quesma/schema"
 )
 
 // Legit Interfaces
@@ -37,12 +35,3 @@ type TableColumNameFormatter interface {
 }
 
 ///
-
-// Plugin changes the behavior of Quesma by changing the pipeline of transformers
-type Plugin interface {
-	ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []IngestTransformer) []IngestTransformer
-	ApplyFieldCapsTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []FieldCapsTransformer) []FieldCapsTransformer
-	ApplyQueryTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []QueryTransformer) []QueryTransformer
-	ApplyResultTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []ResultTransformer) []ResultTransformer
-	GetTableColumnFormatter(table string, cfg config.QuesmaConfiguration, schema schema.Registry) TableColumNameFormatter
-}

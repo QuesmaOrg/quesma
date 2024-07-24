@@ -3,6 +3,7 @@
 package ingest_validator
 
 import (
+	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/plugins"
 	"quesma/quesma/config"
@@ -71,7 +72,7 @@ func (iv *IngestValidator) Transform(document types.JSON) (types.JSON, error) {
 
 }
 
-func (iv *IngestValidator) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
+func (iv *IngestValidator) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, tableMap clickhouse.TableMap, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
 	transformers = append(transformers, &IngestValidator{cfg: cfg, schemaRegistry: schema, table: table})
 	return transformers
 }

@@ -4,6 +4,7 @@ package elastic_clickhouse_fields
 
 import (
 	"fmt"
+	"quesma/clickhouse"
 	"quesma/jsonprocessor"
 	"quesma/model"
 	"quesma/plugins"
@@ -166,7 +167,7 @@ func (*Dot2DoubleColons2Dot) IngestTransformer() plugins.IngestTransformer {
 	return &ingestTransformer{separator: doubleColons}
 }
 
-func (p *Dot2DoubleColons2Dot) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
+func (p *Dot2DoubleColons2Dot) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, tableMap clickhouse.TableMap, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
 	if p.matches(table) {
 		transformers = append(transformers, &ingestTransformer{separator: doubleColons})
 	}
