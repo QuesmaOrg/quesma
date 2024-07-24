@@ -16,6 +16,7 @@ type IngestValidator struct {
 	cfg            config.QuesmaConfiguration
 	schemaRegistry schema.Registry
 	table          string
+	tableMap       clickhouse.TableMap
 }
 
 func isLong(f float64) bool {
@@ -49,6 +50,12 @@ func getTypeName(v interface{}) string {
 }
 
 func (iv *IngestValidator) Transform(document types.JSON) (types.JSON, error) {
+	clickhouseTable, ok := iv.tableMap.Load(iv.table)
+	if !ok {
+		logger.Error().Msgf("Table %s not found", iv.table)
+		return document, nil
+	}
+	_ = clickhouseTable
 	if iv.schemaRegistry == nil {
 		return document, nil
 	}
@@ -73,7 +80,7 @@ func (iv *IngestValidator) Transform(document types.JSON) (types.JSON, error) {
 }
 
 func (iv *IngestValidator) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, tableMap clickhouse.TableMap, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
-	transformers = append(transformers, &IngestValidator{cfg: cfg, schemaRegistry: schema, table: table})
+	transformers = append(transformers, &IngestValidator{cfg: cfg, schemaRegistry: schema, table: table, tableMap: tableMap})
 	return transformers
 }
 

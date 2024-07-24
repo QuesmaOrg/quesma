@@ -24,7 +24,7 @@ type Plugin interface {
 var registeredPlugins []Plugin
 
 func init() {
-	registeredPlugins = []Plugin{&ingest_validator.IngestValidator{}, &elastic_clickhouse_fields.Dot2DoubleColons2Dot{}}
+	registeredPlugins = []Plugin{&elastic_clickhouse_fields.Dot2DoubleColons2Dot{}, &ingest_validator.IngestValidator{}}
 }
 
 func QueryTransformerFor(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.QueryTransformer {
