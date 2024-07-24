@@ -24,7 +24,7 @@ type aggregationLevelVersionUna struct {
 	whereClause model.Expr
 }
 
-type metricAggregationPancakeVersionUna struct {
+type metricAggregationPancakeFillingVersionUna struct {
 	name            string
 	queryType       model.QueryType // it has to be metric aggregation
 	selectedColumns []model.Expr
@@ -32,7 +32,7 @@ type metricAggregationPancakeVersionUna struct {
 	metadata model.JsonMap
 }
 
-type bucketAggregationPancakeVersionUna struct {
+type bucketAggregationPancakeLayerVersionUna struct {
 	name            string
 	queryType       model.QueryType // it has to be bucket aggregation
 	selectedColumns []model.Expr
@@ -48,11 +48,11 @@ type bucketAggregationPancakeVersionUna struct {
 
 type aggregationPancakeVersionUna struct {
 	// we supported nested aggregation, but one at each level
-	bucketAggregations []*bucketAggregationPancakeVersionUna
+	bucketAggregations []*bucketAggregationPancakeLayerVersionUna
 	// metric aggregations for each corresponding bucket aggregation
 	// 0 - before 0 level of bucket aggregation
 	// 1 - after 0 level of bucket aggregation
-	metricAggregations [][]*metricAggregationPancakeVersionUna
+	metricAggregations [][]*metricAggregationPancakeFillingVersionUna
 
 	whereClause model.Expr
 }
