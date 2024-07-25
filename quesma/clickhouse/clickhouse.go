@@ -373,9 +373,10 @@ func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema
 	return nil
 }
 
-func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jsonData types.JSON, tableConfig *ChTableConfig, cfg config.QuesmaConfiguration, schemaRegistry schema.Registry, nameFormatter plugins.TableColumNameFormatter) (string, error) {
+func (lm *LogManager) buildCreateTableQueryNoOurFields(ctx context.Context, tableName string,
+	jsonData types.JSON, tableConfig *ChTableConfig, nameFormatter plugins.TableColumNameFormatter) (string, error) {
 
-	columns := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(schemaRegistry, tableName)) + Indexes(jsonData)
+	columns := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(lm.schemaRegistry, tableName)) + Indexes(jsonData)
 
 	createTableCmd := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS "%s"
 (
@@ -407,7 +408,7 @@ func Indexes(m SchemaMap) string {
 func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig, tableFormatter plugins.TableColumNameFormatter) error {
 	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
 
-	query, err := buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, lm.cfg, lm.schemaRegistry, tableFormatter)
+	query, err := lm.buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, tableFormatter)
 	if err != nil {
 		return err
 	}

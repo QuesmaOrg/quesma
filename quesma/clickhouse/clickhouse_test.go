@@ -133,8 +133,9 @@ func TestAddTimestamp(t *testing.T) {
 		preferCastingToOthers:                 false,
 	}
 	nameFormatter := &columNameFormatter{separator: "::"}
-
-	query, err := buildCreateTableQueryNoOurFields(context.Background(), "tableName", types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`), tableConfig, config.QuesmaConfiguration{}, schema.StaticRegistry{}, nameFormatter)
+	lm := NewLogManagerEmpty()
+	lm.schemaRegistry = schema.StaticRegistry{}
+	query, err := lm.buildCreateTableQueryNoOurFields(context.Background(), "tableName", types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`), tableConfig, nameFormatter)
 	assert.NoError(t, err)
 	assert.True(t, strings.Contains(query, timestampFieldName))
 }

@@ -152,13 +152,12 @@ func logManagers(config *ChTableConfig) []logManagerHelper {
 }
 
 func TestAutomaticTableCreationAtInsert(t *testing.T) {
-	cfg := config.QuesmaConfiguration{}
 	for index1, tt := range insertTests {
 		for index2, tableConfig := range configs {
 			for index3, lm := range logManagers(tableConfig) {
 				t.Run("case insertTest["+strconv.Itoa(index1)+"], config["+strconv.Itoa(index2)+"], logManager["+strconv.Itoa(index3)+"]", func(t *testing.T) {
-
-					query, err := buildCreateTableQueryNoOurFields(context.Background(), tableName, types.MustJSON(tt.insertJson), tableConfig, cfg, schema.StaticRegistry{}, &columNameFormatter{separator: "::"})
+					lm.lm.schemaRegistry = schema.StaticRegistry{}
+					query, err := lm.lm.buildCreateTableQueryNoOurFields(context.Background(), tableName, types.MustJSON(tt.insertJson), tableConfig, &columNameFormatter{separator: "::"})
 					assert.NoError(t, err)
 					table, err := NewTable(query, tableConfig)
 					assert.NoError(t, err)
