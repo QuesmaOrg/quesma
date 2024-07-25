@@ -428,7 +428,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		Name:                  model.AlternativeExecutionPlan,
 	}
 	*/
-	
+
 	var executionChan chan executionPlanResult
 
 	if alternativePlan != nil {
