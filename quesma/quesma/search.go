@@ -181,7 +181,7 @@ func (q *QueryRunner) checkProperties(ctx context.Context, plan *model.Execution
 	return nil, nil
 }
 
-func (q *QueryRunner) executePlanInternal(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, doneCh chan AsyncSearchWithError, optAsync *AsyncQuery) {
+func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, doneCh chan AsyncSearchWithError, optAsync *AsyncQuery) {
 	go func() {
 		defer recovery.LogAndHandlePanic(ctx, func(err error) {
 			doneCh <- AsyncSearchWithError{err: err}
@@ -229,7 +229,7 @@ func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.Ex
 		return resp, err
 	}
 
-	q.executePlanInternal(ctx, plan, queryTranslator, table, doneCh, nil)
+	q.runExecutePlanAsync(ctx, plan, queryTranslator, table, doneCh, nil)
 
 	response := <-doneCh
 
@@ -273,7 +273,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 		return resp, err
 	}
 
-	q.executePlanInternal(ctx, plan, queryTranslator, table, doneCh, optAsync)
+	q.runExecutePlanAsync(ctx, plan, queryTranslator, table, doneCh, optAsync)
 
 	if optAsync == nil {
 		bodyAsBytes, _ := body.Bytes()
