@@ -86,7 +86,17 @@ func JsonToColumns(namespace string, m SchemaMap, indentLvl int, config *ChTable
 			if indentLvl == 1 && name == timestampFieldName && config.timestampDefaultsNow {
 				fType += " DEFAULT now64()"
 			}
-			resultColumns = append(resultColumns, CreateTableEntry{ClickHouseColumnName: nameFormatter.Format(namespace, name), ClickHouseType: fType})
+
+			// We still may have name like:
+			// "service.name": { "very.name": "value" }
+			// Before that code it would be transformed to:
+			// "service.name::very.name"
+			// So I convert it to:
+			// "service::name::very::name"
+			internalName := nameFormatter.Format(namespace, name)
+			// We should never have dots in the field names, see 4 ADR
+			internalName = strings.Replace(internalName, ".", "::", -1)
+			resultColumns = append(resultColumns, CreateTableEntry{ClickHouseColumnName: internalName, ClickHouseType: fType})
 		}
 	}
 	return resultColumns
@@ -102,7 +112,7 @@ func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter plugins.TableCo
 	for _, field := range schemaMapping.Fields {
 		var fType string
 
-		// FIXME: shouldn't InternalPropertyName already have "::"? (it currently doesn't)
+		// We should never have dots in the field names, see 4 ADR
 		internalPropertyName := strings.Replace(field.InternalPropertyName.AsString(), ".", "::", -1)
 
 		switch field.Type.Name {

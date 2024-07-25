@@ -39,12 +39,12 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 	// TODO fix columns
 	fieldsMap := concurrent.NewMapWith("tableName", &Table{
 		Cols: map[string]*Column{
-			"host.name":    nil,
-			"message":      nil,
-			"service.name": nil,
-			"severity":     nil,
-			"timestamp":    nil,
-			"source":       nil,
+			"host::name":    nil,
+			"message":       nil,
+			"service::name": nil,
+			"severity":      nil,
+			"timestamp":     nil,
+			"source":        nil,
 		},
 	})
 

@@ -430,13 +430,23 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, config 
 	}
 	js := string(jsonData)
 
-	if !config.hasOthers && len(config.attributes) == 0 {
-		return js, nil
-	}
 	// we find all non-schema fields
 	m, err := types.ParseJSON(js)
 	if err != nil {
 		return "", err
+	}
+
+	wasReplaced := replaceDotsWithSeparator(m)
+
+	if !config.hasOthers && len(config.attributes) == 0 {
+		if wasReplaced {
+			rawBytes, err := m.Bytes()
+			if err != nil {
+				return "", err
+			}
+			js = string(rawBytes)
+		}
+		return js, nil
 	}
 
 	t := lm.FindTable(tableName)
