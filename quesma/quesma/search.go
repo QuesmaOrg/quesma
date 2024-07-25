@@ -389,7 +389,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	var executionChan chan executionPlanResult
 
 	if alternativePlan != nil {
-		executionChan = make(chan executionPlanResult, 2)
+
+		plans := []*model.ExecutionPlan{plan, alternativePlan}
+
+		executionChan = make(chan executionPlanResult, len(plans))
 
 		// run alternative plan in the background
 		go func() {
@@ -405,8 +408,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			var alternative executionPlanResult
 			var main executionPlanResult
 
-			// we have only two plans to execute
-			for range 2 {
+			for range len(plans) {
 				r := <-executionChan
 				logger.InfoWithCtx(ctx).Msgf("received results  %s", r.plan.Name)
 				if r.plan.Name == model.AlternativeExecutionPlan {
