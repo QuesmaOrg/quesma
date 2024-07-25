@@ -217,10 +217,8 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 	}()
 }
 
-func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON) ([]byte, error) {
+func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON) (responseBody []byte, err error) {
 
-	var err error
-	var responseBody []byte
 	doneCh := make(chan AsyncSearchWithError, 1)
 
 	q.transformQueries(ctx, plan, table)
@@ -248,13 +246,11 @@ func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.Ex
 
 }
 
-func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, executedChan chan executionPlanResult) ([]byte, error) {
+func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, executedChan chan executionPlanResult) (responseBody []byte, err error) {
 	contextValues := tracing.ExtractValues(ctx)
 	id := contextValues.RequestId
 	path := contextValues.RequestPath
 
-	var err error
-	var responseBody []byte
 	doneCh := make(chan AsyncSearchWithError, 1)
 
 	sendMainPlanResult := func(responseBody []byte, err error) {
