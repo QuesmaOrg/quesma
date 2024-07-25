@@ -82,6 +82,8 @@ type QueryRowsTransfomer interface {
 }
 
 type ExecutionPlan struct {
+	Name string
+
 	IndexPattern string
 
 	Queries []*Query

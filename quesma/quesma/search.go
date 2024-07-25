@@ -146,7 +146,13 @@ type AsyncQuery struct {
 	startTime        time.Time
 }
 
-func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery) ([]byte, error) {
+type executionPlanResult struct {
+	plan         *model.ExecutionPlan
+	err          error
+	responseBody []byte
+}
+
+func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, executedChan chan executionPlanResult) ([]byte, error) {
 	id := ctx.Value(tracing.RequestIdCtxKey).(string)
 	path := ""
 	if value := ctx.Value(tracing.RequestPath); value != nil {
@@ -159,11 +165,20 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	var responseBody []byte
 	doneCh := make(chan AsyncSearchWithError, 1)
 
+	markAsDone := func(responseBody []byte, err error) {
+		if executedChan != nil {
+			executedChan <- executionPlanResult{
+				plan:         plan,
+				err:          err,
+				responseBody: responseBody,
+			}
+		}
+	}
+
 	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 	}
-
 
 	plan.Queries, err = registry.QueryTransformerFor(table.Name, q.cfg).Transform(plan.Queries)
 	if err != nil {
@@ -230,6 +245,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 			responseBody, err = response.response.Marshal()
 		}
 		pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
+		markAsDone(responseBody, err)
 		return responseBody, err
 	} else {
 		select {
@@ -237,17 +253,17 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 			go func() { // Async search takes longer. Return partial results and wait for
 				recovery.LogPanicWithCtx(ctx)
 				res := <-doneCh
-				q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res, true)
+				responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res, true)
+				markAsDone(responseBody, err)
 			}()
 			return q.handlePartialAsyncSearch(ctx, optAsync.asyncId)
 		case res := <-doneCh:
 			responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res,
 				optAsync.keepOnCompletion)
-
+			markAsDone(responseBody, err)
 			return responseBody, err
 		}
 	}
-
 }
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
@@ -352,8 +368,63 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		plan.IndexPattern = indexPattern
 		plan.StartTime = startTime
+		plan.Name = "main"
 
-		return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync)
+		var alternativePlan *model.ExecutionPlan
+
+		// TODO add alternative plan here
+
+		alternativePlan = &model.ExecutionPlan{
+			IndexPattern:          plan.IndexPattern,
+			QueryRowsTransformers: plan.QueryRowsTransformers,
+			ResultAdapter:         plan.ResultAdapter,
+			Queries:               plan.Queries,
+			StartTime:             plan.StartTime,
+			Name:                  "alternative",
+		}
+
+		var executionChan chan executionPlanResult
+
+		if alternativePlan != nil {
+			executionChan = make(chan executionPlanResult, 2)
+
+			// run alternative plan in the background
+			go func() {
+				defer recovery.LogPanic()
+
+				// results are passed via channel
+				q.executePlan(ctx, alternativePlan, queryTranslator, table, body, optAsync, executionChan)
+
+			}()
+
+			go func(executionChan chan executionPlanResult) {
+				defer recovery.LogPanic()
+				var alternative executionPlanResult
+				var main executionPlanResult
+
+				// we have only two plans to execute
+				for range 2 {
+					r := <-executionChan
+					logger.InfoWithCtx(ctx).Msgf("received results  %s", r.plan)
+					if r.plan.Name == "alternative" {
+						alternative = r
+					} else if r.plan.Name == "main" {
+						main = r
+					}
+				}
+
+				if string(alternative.responseBody) != string(main.responseBody) {
+					logger.ErrorWithCtx(ctx).Msgf("alternative plan returned different results")
+					// dump the results here
+				} else {
+					logger.InfoWithCtx(ctx).Msgf("alternative plan returned same results")
+				}
+
+			}(executionChan)
+
+		}
+
+		return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, executionChan)
 
 	}
 
