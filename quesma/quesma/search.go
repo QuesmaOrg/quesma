@@ -304,6 +304,56 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	}
 }
 
+// runAlternativePlanAndComparison runs the alternative plan and comparison method in the background. It returns a channel to collect the main plan results.
+func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alternativePlan *model.ExecutionPlan, table *clickhouse.Table, body types.JSON, queryTranslator IQueryTranslator) chan<- executionPlanResult {
+	numberOfExpectedResults := len([]string{model.MainExecutionPlan, model.AlternativeExecutionPlan})
+
+	optComparePlansCh := make(chan executionPlanResult, numberOfExpectedResults)
+
+	// run alternative plan in the background (generator)
+	go func(optComparePlansCh chan<- executionPlanResult) {
+		defer recovery.LogPanic()
+
+		// results are passed via channel
+		body, err := q.executeAlternativePlan(ctx, alternativePlan, queryTranslator, table, body)
+
+		optComparePlansCh <- executionPlanResult{
+			plan:         alternativePlan,
+			err:          err,
+			responseBody: body,
+		}
+
+	}(optComparePlansCh)
+
+	// collector
+	go func(optComparePlansCh <-chan executionPlanResult) {
+		defer recovery.LogPanic()
+		var alternative executionPlanResult
+		var main executionPlanResult
+
+		for range numberOfExpectedResults {
+			r := <-optComparePlansCh
+			logger.InfoWithCtx(ctx).Msgf("received results  %s", r.plan.Name)
+			if r.plan.Name == model.AlternativeExecutionPlan {
+				alternative = r
+			} else if r.plan.Name == model.MainExecutionPlan {
+				main = r
+			}
+		}
+
+		// TODO add JSON comparison here
+		if string(alternative.responseBody) != string(main.responseBody) {
+			logger.ErrorWithCtx(ctx).Msgf("alternative plan returned different results")
+			// dump the results here, or
+		} else {
+			logger.InfoWithCtx(ctx).Msgf("alternative plan returned same results")
+		}
+
+	}(optComparePlansCh)
+
+	return optComparePlansCh
+}
+
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
 	sources, sourcesElastic, sourcesClickhouse := ResolveSources(indexPattern, q.cfg, q.im)
 
@@ -424,54 +474,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 	*/
 
-	var optComparePlansCh chan executionPlanResult
+	var optComparePlansCh chan<- executionPlanResult
 
 	if alternativePlan != nil {
-
-		plans := []*model.ExecutionPlan{plan, alternativePlan}
-
-		optComparePlansCh = make(chan executionPlanResult, len(plans))
-
-		// run alternative plan in the background
-		go func() {
-			defer recovery.LogPanic()
-
-			// results are passed via channel
-			body, err := q.executeAlternativePlan(ctx, alternativePlan, queryTranslator, table, body)
-
-			optComparePlansCh <- executionPlanResult{
-				plan:         alternativePlan,
-				err:          err,
-				responseBody: body,
-			}
-
-		}()
-
-		go func(optComparePlansCh <-chan executionPlanResult) {
-			defer recovery.LogPanic()
-			var alternative executionPlanResult
-			var main executionPlanResult
-
-			for range len(plans) {
-				r := <-optComparePlansCh
-				logger.InfoWithCtx(ctx).Msgf("received results  %s", r.plan.Name)
-				if r.plan.Name == model.AlternativeExecutionPlan {
-					alternative = r
-				} else if r.plan.Name == model.MainExecutionPlan {
-					main = r
-				}
-			}
-
-			// TODO add JSON comparison here
-			if string(alternative.responseBody) != string(main.responseBody) {
-				logger.ErrorWithCtx(ctx).Msgf("alternative plan returned different results")
-				// dump the results here, or
-			} else {
-				logger.InfoWithCtx(ctx).Msgf("alternative plan returned same results")
-			}
-
-		}(optComparePlansCh)
-
+		optComparePlansCh = q.runAlternativePlanAndComparison(ctx, alternativePlan, table, body, queryTranslator)
 	}
 
 	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh)
