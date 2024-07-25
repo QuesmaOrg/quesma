@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -114,7 +115,7 @@ func main() {
 		waitForDataViews(5 * time.Minute)
 		println("   Data Views: OK")
 		reportUri := waitForScheduleReportGeneration()
-		waitForLogsInClickhouse("logs-generic-default", time.Minute)
+		waitForLogsInClickhouse("logs-generic-default", time.Minute, []string{"@timestamp", "attributes_string_key", "attributes_string_value", "host::name", "message", "service::name", "severity", "source"})
 		println("   Logs in Clickhouse: OK")
 		waitForAsyncQuery(time.Minute)
 		println("   AsyncQuery: OK")
@@ -281,24 +282,50 @@ func waitFor(serviceName string, waitForFunc func() bool, timeout time.Duration)
 	return false
 }
 
-func waitForLogsInClickhouse(tableName string, timeout time.Duration) {
+func waitForLogsInClickhouse(tableName string, timeout time.Duration, expectColumns []string) {
+
+	sort.Strings(expectColumns)
+
+	var actualColumns []string
+
 	res := waitFor("clickhouse", func() bool {
-		logCount := -1
+
 		connection, err := sql.Open("clickhouse", clickhouseUrl)
 		if err != nil {
 			panic(err)
 		}
 		defer connection.Close()
 
-		row := connection.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM `%s`", tableName))
-		_ = row.Scan(&logCount)
+		rows, err := connection.Query(fmt.Sprintf("SELECT * FROM `%s` LIMIT 10", tableName))
+		if err != nil {
+			// wait for a table to be created
+			if !strings.Contains(err.Error(), "Code: 60") {
+				fmt.Println("Error querying clickhouse:", err)
+			}
+			return false
+		}
+		defer rows.Close()
 
-		return logCount > 0
+		actualColumns, err = rows.Columns()
+
+		if err != nil {
+			panic(err)
+		}
+
+		return rows.Next()
 	}, timeout)
 
 	if !res {
 		panic("no logs in clickhouse")
 	}
+
+	sort.Strings(expectColumns)
+	sort.Strings(actualColumns)
+
+	if !slices.Equal(expectColumns, actualColumns) {
+		panic(fmt.Sprintf("expected columns %v, got %v", expectColumns, actualColumns))
+	}
+
 }
 
 func waitForKibana(timeout time.Duration) {
