@@ -3,6 +3,7 @@
 package ui
 
 import (
+	"encoding/base64"
 	"fmt"
 	"quesma/buildinfo"
 	"quesma/quesma/config"
@@ -250,8 +251,8 @@ func (qmc *QuesmaManagementConsole) populateQueries(debugKeyValueSlice []queryDe
 		buffer.Html(`<pre Id="second_query`).Text(v.id).Html(`">`)
 		for _, q := range v.query.QueryBodyTranslated {
 			buffer.Text(util.SqlPrettyPrint(q.Query))
-			buffer.Text("\n")
-			printPerformanceResult(&buffer, q)
+			buffer.Text("\n\n")
+			qmc.printPerformanceResult(&buffer, q)
 			buffer.Text("\n")
 		}
 		buffer.Html("\n</pre>")
@@ -299,8 +300,21 @@ func errorBanner(debugInfo queryDebugInfo) string {
 	return result
 }
 
-func printPerformanceResult(buffer *builder.HtmlBuffer, q types.TranslatedSQLQuery) {
-	buffer.Text(fmt.Sprintf("\n-- time: %s\n", q.Duration))
+func (qmc *QuesmaManagementConsole) printPerformanceResult(buffer *builder.HtmlBuffer, q types.TranslatedSQLQuery) {
+
+	if qmc.cfg.ClickHouse.AdminUrl != nil {
+		// ClickHouse web UI /play expects a base64-encoded query
+		// in the URL:
+		query := "select * from system.query_log where type='QueryFinish' and query_id = '" + q.QueryID + "'"
+		base64QueryBody := base64.StdEncoding.EncodeToString([]byte(query))
+		buffer.Html(`<a href="`).Text(qmc.cfg.ClickHouse.AdminUrl.String()).Text("/play#").Text(base64QueryBody).Html(`">`)
+	}
+
+	buffer.Text(fmt.Sprintf("-- time: %s, rows returned: %d, query_id: %s \n", q.Duration, q.RowsReturned, q.QueryID))
+	if qmc.cfg.ClickHouse.AdminUrl != nil {
+		buffer.Html("</a>")
+	}
+
 	if len(q.ExplainPlan) > 0 {
 		buffer.Text("--  Slow query has been detected. Check logs for explain plan.\n")
 	}

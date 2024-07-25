@@ -12,6 +12,8 @@ type TranslatedSQLQuery struct {
 	PerformedOptimizations []string
 	QueryTransformations   []string
 
-	Duration    time.Duration
-	ExplainPlan string
+	Duration     time.Duration
+	RowsReturned int
+	QueryID      string
+	ExplainPlan  string
 }
