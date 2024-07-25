@@ -64,9 +64,8 @@ func TestSearchOpensearch(t *testing.T) {
 
 			body, parseErr := types.ParseJSON(tt.QueryJson)
 			assert.NoError(t, parseErr)
-			plan, canParse, err := cw.ParseQuery(body)
+			plan, err := cw.ParseQuery(body)
 			queries := plan.Queries
-			assert.True(t, canParse, "can parse")
 			assert.NoError(t, err, "no ParseQuery error")
 			assert.True(t, len(queries) > 0, "len queries > 0")
 			whereClause := model.AsString(queries[0].SelectCommand.WhereClause)

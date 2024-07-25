@@ -4,6 +4,7 @@ package model
 
 import (
 	"context"
+	"time"
 )
 
 const (
@@ -80,7 +81,14 @@ type QueryRowsTransfomer interface {
 	Transform(ctx context.Context, rows []QueryResultRow) []QueryResultRow
 }
 
+const MainExecutionPlan = "main"
+const AlternativeExecutionPlan = "alternative"
+
 type ExecutionPlan struct {
+	Name string
+
+	IndexPattern string
+
 	Queries []*Query
 
 	QueryRowsTransformers []QueryRowsTransfomer
@@ -89,6 +97,7 @@ type ExecutionPlan struct {
 
 	// add more fields here
 	// JSON renderers
+	StartTime time.Time
 }
 
 func NewQueryExecutionHints() *QueryOptimizeHints {

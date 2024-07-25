@@ -4,6 +4,7 @@ package eql
 
 import (
 	"context"
+	"fmt"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
 	"quesma/eql/transform"
@@ -73,31 +74,30 @@ func (cw *ClickhouseEQLQueryTranslator) MakeSearchResponse(queries []*model.Quer
 	}
 }
 
-func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) (*model.ExecutionPlan, bool, error) {
+func (cw *ClickhouseEQLQueryTranslator) ParseQuery(body types.JSON) (*model.ExecutionPlan, error) {
 	simpleQuery, queryInfo, highlighter, err := cw.parseQuery(body)
 
 	if err != nil {
 		logger.ErrorWithCtx(cw.Ctx).Msgf("error parsing query: %v", err)
-		return nil, false, err
+		return nil, err
 	}
 
 	var query *model.Query
 	var queries []*model.Query
-	canParse := false
 
 	if simpleQuery.CanParse {
-		canParse = true
+
 		query = query_util.BuildHitsQuery(cw.Ctx, cw.Table.Name, "*", &simpleQuery, queryInfo.I2)
 		queryType := typical_queries.NewHits(cw.Ctx, cw.Table, &highlighter, query.SelectCommand.OrderByFieldNames(), true, false, false, cw.Table.Name)
 		query.Type = &queryType
 		query.Highlighter = highlighter
 		query.SelectCommand.OrderBy = simpleQuery.OrderBy
 		queries = append(queries, query)
-		return &model.ExecutionPlan{Queries: queries}, canParse, nil
+		return &model.ExecutionPlan{Queries: queries}, nil
 
 	}
 
-	return nil, false, err
+	return nil, fmt.Errorf("could not parse query")
 }
 
 func (cw *ClickhouseEQLQueryTranslator) parseQuery(queryAsMap types.JSON) (query model.SimpleQuery, searchQueryInfo model.SearchQueryInfo, highlighter model.Highlighter, err error) {

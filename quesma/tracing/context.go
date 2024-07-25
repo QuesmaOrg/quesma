@@ -43,3 +43,30 @@ func GetRequestId() string {
 func GetAsyncId() string {
 	return AsyncIdPrefix + uuid.Must(uuid.NewV7()).String()
 }
+
+type ContextValues struct {
+	RequestId   string
+	AsyncId     string
+	Reason      string
+	RequestPath string
+	TraceEnd    bool
+}
+
+func ExtractValues(ctx context.Context) ContextValues {
+
+	str := func(key ContextKey) string {
+		if value := ctx.Value(key); value != nil {
+			if str, ok := value.(string); ok {
+				return str
+			}
+		}
+		return ""
+	}
+
+	return ContextValues{
+		RequestId:   str(RequestIdCtxKey),
+		AsyncId:     str(AsyncIdCtxKey),
+		Reason:      str(ReasonCtxKey),
+		RequestPath: str(RequestPath),
+	}
+}

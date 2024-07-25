@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"gopkg.in/yaml.v3"
+	"quesma/quesma/types"
 	"quesma/quesma/ui/internal/builder"
 	"quesma/tracing"
 	"quesma/util"
@@ -58,26 +59,37 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 
 		buffer.Html(`<div class="query-body-translated">` + "\n")
 		buffer.Html("<p class=\"title\">Translated SQL:</p>\n")
-		for _, queryBody := range request.QueryBodyTranslated {
-			prettyQueryBody := util.SqlPrettyPrint(queryBody.Query)
-			if qmc.cfg.ClickHouse.AdminUrl != nil {
-				// ClickHouse web UI /play expects a base64-encoded query
-				// in the URL:
-				base64QueryBody := base64.StdEncoding.EncodeToString([]byte(prettyQueryBody))
-				buffer.Html(`<a href="`).Text(qmc.cfg.ClickHouse.AdminUrl.String()).Text("/play#").Text(base64QueryBody).Html(`">`)
-			}
-			buffer.Html(`<pre>`)
-			buffer.Text(prettyQueryBody)
-			buffer.Html("\n</pre>")
-			if qmc.cfg.ClickHouse.AdminUrl != nil {
-				buffer.Html(`</a>`)
-			}
-			buffer.Html(`<pre>`)
-			buffer.Text("\n")
-			qmc.printPerformanceResult(&buffer, queryBody)
-			buffer.Html("\n</pre>")
 
+		printQueries := func(queries []types.TranslatedSQLQuery) {
+
+			for _, queryBody := range queries {
+				prettyQueryBody := util.SqlPrettyPrint(queryBody.Query)
+				if qmc.cfg.ClickHouse.AdminUrl != nil {
+					// ClickHouse web UI /play expects a base64-encoded query
+					// in the URL:
+					base64QueryBody := base64.StdEncoding.EncodeToString([]byte(prettyQueryBody))
+					buffer.Html(`<a href="`).Text(qmc.cfg.ClickHouse.AdminUrl.String()).Text("/play#").Text(base64QueryBody).Html(`">`)
+				}
+				buffer.Html(`<pre>`)
+				buffer.Text(prettyQueryBody)
+				buffer.Html("\n</pre>")
+				if qmc.cfg.ClickHouse.AdminUrl != nil {
+					buffer.Html(`</a>`)
+				}
+				buffer.Html(`<pre>`)
+				buffer.Text("\n")
+				qmc.printPerformanceResult(&buffer, queryBody)
+				buffer.Html("\n</pre>")
+			}
 		}
+
+		printQueries(request.QueryBodyTranslated)
+
+		if request.alternativePlanDebugSecondarySource != nil {
+			buffer.Html("\n--  Alternative plan queries ---------------------\n")
+			printQueries(request.alternativePlanDebugSecondarySource.QueryBodyTranslated)
+		}
+
 		buffer.Html(`</div>` + "\n")
 
 		buffer.Html(`<div class="elastic-response">` + "\n")
@@ -101,6 +113,20 @@ func (qmc *QuesmaManagementConsole) generateReportForRequestId(requestId string)
 		} else {
 			buffer.Html("<p class=\"title\">No Quesma response for this request</p>\n")
 		}
+
+		if request.alternativePlanDebugSecondarySource != nil {
+			if len(request.alternativePlanDebugSecondarySource.QueryTranslatedResults) > 0 {
+				buffer.Html("<p class=\"title\">Quesma alternative plan response").Html("</p>\n")
+				buffer.Html(`<pre>`)
+				buffer.Text(string(request.alternativePlanDebugSecondarySource.QueryTranslatedResults))
+				buffer.Html("\n</pre>")
+			} else {
+				buffer.Html("<p class=\"title\">No Quesma alternative plan response for this request</p>\n")
+			}
+
+			// TODO add JSON diff here
+		}
+
 		buffer.Html(`</div>` + "\n")
 
 		buffer.Html(`</div>` + "\n")
