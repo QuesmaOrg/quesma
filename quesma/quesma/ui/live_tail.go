@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"quesma/buildinfo"
+	"quesma/model"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/quesma/ui/internal/builder"
@@ -325,7 +326,7 @@ func (qmc *QuesmaManagementConsole) printPerformanceResult(buffer *builder.HtmlB
 		buffer.Text(fmt.Sprintf("-- optimization: %s\n", strings.Join(q.PerformedOptimizations, ", ")))
 	}
 
-	if q.ExecutionPlanName != "main" {
+	if q.ExecutionPlanName != model.MainExecutionPlan {
 		buffer.Text(fmt.Sprintf("-- execution plan: %s\n", q.ExecutionPlanName))
 	}
 

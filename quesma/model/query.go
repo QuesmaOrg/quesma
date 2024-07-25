@@ -81,6 +81,9 @@ type QueryRowsTransfomer interface {
 	Transform(ctx context.Context, rows []QueryResultRow) []QueryResultRow
 }
 
+const MainExecutionPlan = "main"
+const AlternativeExecutionPlan = "alternative"
+
 type ExecutionPlan struct {
 	Name string
 

@@ -367,7 +367,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 	plan.IndexPattern = indexPattern
 	plan.StartTime = startTime
-	plan.Name = "main"
+	plan.Name = model.MainExecutionPlan
 
 	var alternativePlan *model.ExecutionPlan
 
@@ -382,7 +382,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			ResultAdapter:         plan.ResultAdapter,
 			Queries:               plan.Queries,
 			StartTime:             plan.StartTime,
-			Name:                  "alternative",
+			Name:                  model.AlternativeExecutionPlan,
 		}
 	*/
 
@@ -409,9 +409,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			for range 2 {
 				r := <-executionChan
 				logger.InfoWithCtx(ctx).Msgf("received results  %s", r.plan.Name)
-				if r.plan.Name == "alternative" {
+				if r.plan.Name == model.AlternativeExecutionPlan {
 					alternative = r
-				} else if r.plan.Name == "main" {
+				} else if r.plan.Name == model.MainExecutionPlan {
 					main = r
 				}
 			}
