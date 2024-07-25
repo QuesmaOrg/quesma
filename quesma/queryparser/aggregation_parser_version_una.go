@@ -117,7 +117,8 @@ func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(aggregationName 
 	}
 
 	// 4. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
-	bucketAggrPresent, err := cw.tryBucketAggregationVersionUna(aggregation, queryMap)
+	// 	bucketAggrPresent, err := cw.tryBucketAggregationVersionUna(aggregation, queryMap)
+	_, err := cw.tryBucketAggregationVersionUna(aggregation, queryMap)
 	if err != nil {
 		return nil, err
 	}
@@ -129,10 +130,10 @@ func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(aggregationName 
 		return nil, errors.New("range is not supported in version uno")
 	}
 
-	_, isTerms := aggregation.queryType.(bucket_aggregations.Terms)
-	if isTerms {
-		// No-op for now
-	}
+	// _, isTerms := aggregation.queryType.(bucket_aggregations.Terms)
+	// if isTerms {
+	// No-op for now
+	//}
 
 	// TODO what happens if there's all: filters, range, and subaggregations at current level?
 	// We probably need to do |ranges| * |filters| * |subaggregations| queries, but we don't do that yet.
@@ -154,9 +155,9 @@ func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(aggregationName 
 	}
 	delete(queryMap, "aggs") // no-op if no "aggs"
 
-	if bucketAggrPresent && !aggsHandledSeparately && !isTerms {
-		// No-op for now
-	}
+	// if bucketAggrPresent && !aggsHandledSeparately && !isTerms {
+	// No-op for now
+	// }
 
 	for k, v := range queryMap {
 		// should be empty by now. If it's not, it's an unsupported/unrecognized type of aggregation.
