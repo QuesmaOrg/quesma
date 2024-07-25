@@ -153,7 +153,7 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 				if _, alreadyAliased := cte.Columns[j].(AliasedExpr); !alreadyAliased {
 					cte.Columns[j] = AliasedExpr{Expr: col, Alias: cteFieldAlias(i, j)}
 				} else {
-					logger.Warn().Msgf("Subquery column already aliased: %s, %+v", AsString(col), col)
+					logger.Debug().Msgf("Subquery column already aliased: %s, %+v", AsString(col), col)
 				}
 			}
 			str := fmt.Sprintf("%s AS (%s)", cteName(i), AsString(cte))
