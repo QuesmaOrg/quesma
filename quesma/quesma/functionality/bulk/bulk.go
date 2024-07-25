@@ -99,6 +99,7 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *cli
 			nameFormatter, err := registry.TableColumNameFormatterFor(indexName, cfg, nil)
 			if err != nil {
 				logger.Error().Msgf("Error getting table column name formatter for index %s: %v", indexName, err)
+				return err
 			}
 			tableMap, _ := lm.GetTableDefinitions()
 			transformer := registry.IngestTransformerFor(indexName, cfg, nil, tableMap)

@@ -28,6 +28,7 @@ func Write(ctx context.Context, tableName string, body types.JSON, lm *clickhous
 		nameFormatter, err := registry.TableColumNameFormatterFor(tableName, cfg, nil)
 		if err != nil {
 			logger.Error().Msgf("Error getting table column name formatter for index %s: %v", tableName, err)
+			return err
 		}
 
 		tableMap, _ := lm.GetTableDefinitions()
