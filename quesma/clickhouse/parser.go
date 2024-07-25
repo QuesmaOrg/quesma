@@ -266,13 +266,6 @@ func RemoveTypeMismatchSchemaFields(m SchemaMap, t *Table) SchemaMap {
 		}
 	}
 	for fieldName, v := range m {
-		withoutDotsFieldName := strings.Replace(fieldName, ".", "::", -1)
-		if fieldName != withoutDotsFieldName {
-			m[withoutDotsFieldName] = v
-			delete(m, fieldName)
-			fieldName = withoutDotsFieldName
-		}
-
 		col, ok := t.Cols[fieldName]
 		if ok && col != nil {
 			switch v := v.(type) {
