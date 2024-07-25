@@ -3,6 +3,7 @@
 package ingest_validator
 
 import (
+	"errors"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/plugins"
@@ -31,6 +32,9 @@ func isUnsignedInt(f float64) bool {
 }
 
 func getTypeName(v interface{}) string {
+	if v == nil {
+		return "unknown"
+	}
 	goType := reflect.TypeOf(v).String()
 	switch goType {
 	case "string":
@@ -48,8 +52,13 @@ func getTypeName(v interface{}) string {
 	}
 	switch elem := v.(type) {
 	case []interface{}:
-		return "Array(" + getTypeName(elem) + ")"
+		if len(elem) == 0 {
+			return "Array(unknown)"
+		} else {
+			return "Array(" + getTypeName(elem[0]) + ")"
+		}
 	}
+
 	return goType
 }
 
@@ -60,31 +69,48 @@ func removeLowCardinality(columnType string) string {
 	return columnType
 }
 
+func validateValueAgainstType(fieldName string, value interface{}, column *clickhouse.Column) []string {
+	const DateTimeType = "DateTime64"
+	const StringType = "String"
+	deletedFields := make([]string, 0)
+	columnType := column.Type.String()
+	columnType = removeLowCardinality(columnType)
+	incomingValueType := getTypeName(value)
+	if columnType == DateTimeType {
+		// TODO validate date format
+		// For now we store dates as strings
+		if incomingValueType != StringType {
+			// We should store it as an attribute in the future
+			deletedFields = append(deletedFields, fieldName)
+		}
+	} else if columnType != incomingValueType {
+		// TODO remove field from document for now
+		// We should store it as an attribute in the future
+		deletedFields = append(deletedFields, fieldName)
+	}
+	return deletedFields
+}
+
 func (iv *IngestValidator) Transform(document types.JSON) (types.JSON, error) {
+
 	clickhouseTable, ok := iv.tableMap.Load(iv.table)
 	if !ok {
 		logger.Error().Msgf("Table %s not found", iv.table)
-		return document, nil
+		return nil, errors.New("table not found:" + iv.table)
 	}
-	for k, v := range document {
-		if v != nil {
-			column := clickhouseTable.Cols[k]
-			if column != nil {
-				columnType := column.Type.String()
-				columnType = removeLowCardinality(columnType)
-				incomingValueType := getTypeName(v)
-				if columnType == "DateTime64" {
-					if incomingValueType != "String" {
-						// validate date format
-						logger.Error().Msgf("Field %s has wrong type %s, expected %s", k, getTypeName(v), columnType)
-						return document, nil
-					}
-				} else if columnType != incomingValueType {
-					logger.Error().Msgf("Field %s has wrong type %s, expected %s", k, getTypeName(v), columnType)
-					return document, nil
-				}
-			}
+	deletedFields := make([]string, 0)
+	for fieldName, value := range document {
+		if value == nil {
+			continue
 		}
+		column := clickhouseTable.Cols[fieldName]
+		if column == nil {
+			continue
+		}
+		deletedFields = append(deletedFields, validateValueAgainstType(fieldName, value, column)...)
+	}
+	for _, fieldName := range deletedFields {
+		delete(document, fieldName)
 	}
 	return document, nil
 }
