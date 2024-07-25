@@ -237,10 +237,8 @@ func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.Ex
 	}
 
 	contextValues := tracing.ExtractValues(ctx)
-	id := contextValues.RequestId
-	path := contextValues.RequestPath
 	bodyAsBytes, _ := body.Bytes()
-	pushAlternativeInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
+	pushAlternativeInfo(q.quesmaManagementConsole, contextValues.RequestId, "", contextValues.RequestPath, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
 
 	return responseBody, response.err
 
