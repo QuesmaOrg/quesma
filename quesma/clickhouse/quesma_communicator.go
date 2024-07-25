@@ -164,7 +164,9 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 			settings[k] = v
 		}
 
-		queryAsString = queryAsString + "\n-- optimizations: " + strings.Join(query.OptimizeHints.OptimizationsPerformed, ", ") + "\n"
+		if len(query.OptimizeHints.OptimizationsPerformed) > 0 {
+			queryAsString = queryAsString + "\n-- optimizations: " + strings.Join(query.OptimizeHints.OptimizationsPerformed, ", ") + "\n"
+		}
 	}
 
 	queryID := getQueryId(ctx)

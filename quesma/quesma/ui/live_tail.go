@@ -325,4 +325,8 @@ func (qmc *QuesmaManagementConsole) printPerformanceResult(buffer *builder.HtmlB
 		buffer.Text(fmt.Sprintf("-- optimization: %s\n", strings.Join(q.PerformedOptimizations, ", ")))
 	}
 
+	if q.ExecutionPlanName != "main" {
+		buffer.Text(fmt.Sprintf("-- execution plan: %s\n", q.ExecutionPlanName))
+	}
+
 }

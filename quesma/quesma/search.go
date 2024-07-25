@@ -372,7 +372,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		var alternativePlan *model.ExecutionPlan
 
 		// TODO add alternative plan here
-		/*
+
+		/* You may use this code to run alternative plan for checking how it works
+		   It breaks the tests. So, it is commented out.
+
 			alternativePlan = &model.ExecutionPlan{
 				IndexPattern:          plan.IndexPattern,
 				QueryRowsTransformers: plan.QueryRowsTransformers,
@@ -382,6 +385,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				Name:                  "alternative",
 			}
 		*/
+
 		var executionChan chan executionPlanResult
 
 		if alternativePlan != nil {
@@ -706,7 +710,7 @@ func (q *QueryRunner) searchWorkerCommon(
 		if query.OptimizeHints != nil {
 			translatedQueryBody[i].PerformedOptimizations = query.OptimizeHints.OptimizationsPerformed
 		}
-
+		translatedQueryBody[i].ExecutionPlanName = plan.Name
 		translatedQueryBody[i].QueryTransformations = query.TransformationHistory.SchemaTransformers
 
 		if q.isInternalKibanaQuery(query) {
