@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-func (cw *ClickhouseQueryTranslator) tryBucketAggregationVersionUna(aggregation *aggregationLevelVersionUna, queryMap QueryMap) (success bool, err error) {
+func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pancakeAggregationLevel, queryMap QueryMap) (success bool, err error) {
 
 	success = true // returned in most cases
 	if histogramRaw, ok := queryMap["histogram"]; ok {

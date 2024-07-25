@@ -12,34 +12,34 @@ import (
 	"testing"
 )
 
-func Test_aggregation_validator_una(t *testing.T) {
+func Test_aggregation_validator_pancake(t *testing.T) {
 
 	// DSL for testing
-	agg := func(a string, q model.QueryType) *aggregationLevelVersionUna {
-		return &aggregationLevelVersionUna{
+	agg := func(a string, q model.QueryType) *pancakeAggregationLevel {
+		return &pancakeAggregationLevel{
 			name:      a,
 			queryType: q,
 		}
 	}
 
-	metrics := func(a string) *aggregationLevelVersionUna {
+	metrics := func(a string) *pancakeAggregationLevel {
 		return agg(a, metrics_aggregations.Avg{})
 	}
 
-	pipeline := func(a string) *aggregationLevelVersionUna {
+	pipeline := func(a string) *pancakeAggregationLevel {
 		return agg(a, pipeline_aggregations.AverageBucket{})
 	}
 
-	bucket := func(a string, children ...*aggregationLevelVersionUna) *aggregationLevelVersionUna {
-		return &aggregationLevelVersionUna{
+	bucket := func(a string, children ...*pancakeAggregationLevel) *pancakeAggregationLevel {
+		return &pancakeAggregationLevel{
 			name:      a,
 			queryType: bucket_aggregations.Range{},
 			children:  children,
 		}
 	}
 
-	top := func(a ...*aggregationLevelVersionUna) *aggregationTopLevelVersionUna {
-		return &aggregationTopLevelVersionUna{
+	top := func(a ...*pancakeAggregationLevel) *pancakeAggregationTopLevel {
+		return &pancakeAggregationTopLevel{
 			children: a,
 		}
 	}
@@ -47,7 +47,7 @@ func Test_aggregation_validator_una(t *testing.T) {
 	// test cases
 	tests := []struct {
 		name string
-		agg  *aggregationTopLevelVersionUna
+		agg  *pancakeAggregationTopLevel
 		fail bool
 	}{
 		{"no aggregations", top(), true},
@@ -64,7 +64,7 @@ func Test_aggregation_validator_una(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			v := newAggregationValidatorUna()
+			v := newAggregationValidatorPancake()
 
 			err := v.validate(tt.agg)
 			fmt.Println("err: ", err)

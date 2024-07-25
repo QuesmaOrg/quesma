@@ -7,17 +7,17 @@ import (
 	"quesma/model"
 )
 
-type aggregationValidatorUnaWalker struct {
+type aggregationValidatorPancakeWalker struct {
 	currentAgg []string // it stores "path" to the current aggregation
 
-	visitMetrics  func(*aggregationLevelVersionUna) (any, error)
-	visitBucket   func(*aggregationLevelVersionUna) (any, error)
-	visitPipeline func(*aggregationLevelVersionUna) (any, error)
-	visitTypical  func(*aggregationLevelVersionUna) (any, error)
-	visitUnknown  func(*aggregationLevelVersionUna) (any, error)
+	visitMetrics  func(*pancakeAggregationLevel) (any, error)
+	visitBucket   func(*pancakeAggregationLevel) (any, error)
+	visitPipeline func(*pancakeAggregationLevel) (any, error)
+	visitTypical  func(*pancakeAggregationLevel) (any, error)
+	visitUnknown  func(*pancakeAggregationLevel) (any, error)
 }
 
-func (w *aggregationValidatorUnaWalker) visitChildren(aggs []*aggregationLevelVersionUna) (interface{}, error) {
+func (w *aggregationValidatorPancakeWalker) visitChildren(aggs []*pancakeAggregationLevel) (interface{}, error) {
 
 	var res []interface{}
 
@@ -31,7 +31,7 @@ func (w *aggregationValidatorUnaWalker) visitChildren(aggs []*aggregationLevelVe
 	return res, nil
 }
 
-func (w *aggregationValidatorUnaWalker) walk(agg *aggregationLevelVersionUna) (interface{}, error) {
+func (w *aggregationValidatorPancakeWalker) walk(agg *pancakeAggregationLevel) (interface{}, error) {
 
 	w.currentAgg = append(w.currentAgg, agg.name)
 	defer func() {
@@ -73,6 +73,6 @@ func (w *aggregationValidatorUnaWalker) walk(agg *aggregationLevelVersionUna) (i
 	}
 }
 
-func (w *aggregationValidatorUnaWalker) walkTopLevel(agg *aggregationTopLevelVersionUna) (interface{}, error) {
+func (w *aggregationValidatorPancakeWalker) walkTopLevel(agg *pancakeAggregationTopLevel) (interface{}, error) {
 	return w.visitChildren(agg.children)
 }

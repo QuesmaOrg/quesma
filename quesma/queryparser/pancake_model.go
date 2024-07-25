@@ -4,18 +4,18 @@ package queryparser
 
 import "quesma/model"
 
-type aggregationTopLevelVersionUna struct {
-	children    []*aggregationLevelVersionUna
+type pancakeAggregationTopLevel struct {
+	children    []*pancakeAggregationLevel
 	whereClause model.Expr
 }
 
-type aggregationLevelVersionUna struct {
+type pancakeAggregationLevel struct {
 	name            string
 	queryType       model.QueryType
 	selectedColumns []model.Expr
 
 	// only for bucket aggregations
-	children []*aggregationLevelVersionUna
+	children []*pancakeAggregationLevel
 	orderBy  *[]model.OrderByExpr
 	limit    int // 0 if none, only for bucket aggregation
 	isKeyed  bool
@@ -24,7 +24,7 @@ type aggregationLevelVersionUna struct {
 	whereClause model.Expr
 }
 
-type metricAggregationPancakeFillingVersionUna struct {
+type pancakeFillingMetricAggregation struct {
 	name            string
 	queryType       model.QueryType // it has to be metric aggregation
 	selectedColumns []model.Expr
@@ -32,13 +32,13 @@ type metricAggregationPancakeFillingVersionUna struct {
 	metadata model.JsonMap
 }
 
-type bucketAggregationPancakeLayerVersionUna struct {
+type pancakeLayerBucketAggregation struct {
 	name            string
 	queryType       model.QueryType // it has to be bucket aggregation
 	selectedColumns []model.Expr
 
 	// only for bucket aggregations
-	children []*aggregationLevelVersionUna
+	children []*pancakeAggregationLevel
 	orderBy  *[]model.OrderByExpr
 	limit    int // 0 if none, only for bucket aggregation
 	isKeyed  bool
@@ -46,13 +46,13 @@ type bucketAggregationPancakeLayerVersionUna struct {
 	metadata model.JsonMap
 }
 
-type aggregationPancakeVersionUna struct {
+type pancakeAggregation struct {
 	// we supported nested aggregation, but one at each level
-	bucketAggregations []*bucketAggregationPancakeLayerVersionUna
+	bucketAggregations []*pancakeLayerBucketAggregation
 	// metric aggregations for each corresponding bucket aggregation
 	// 0 - before 0 level of bucket aggregation
 	// 1 - after 0 level of bucket aggregation
-	metricAggregations [][]*metricAggregationPancakeFillingVersionUna
+	metricAggregations [][]*pancakeFillingMetricAggregation
 
 	whereClause model.Expr
 }

@@ -11,11 +11,11 @@ import (
 )
 
 // Here is experimental code to generate aggregations in one SQL query. called Version Una.
-func (cw *ClickhouseQueryTranslator) ParseAggregationJsonVersionUna(body types.JSON) ([]*model.Query, error) {
+func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON) ([]*model.Query, error) {
 	queryAsMap := body.Clone()
 
-	topLevel := aggregationTopLevelVersionUna{
-		children: []*aggregationLevelVersionUna{},
+	topLevel := pancakeAggregationTopLevel{
+		children: []*pancakeAggregationLevel{},
 	}
 
 	if queryPartRaw, ok := queryAsMap["query"]; ok {
@@ -33,7 +33,7 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJsonVersionUna(body types.J
 
 	if aggsRaw, ok := queryAsMap["aggs"]; ok {
 		if aggs, okType := aggsRaw.(QueryMap); okType {
-			subAggregations, err := cw.parseAggregationNamesVersionUna(aggs)
+			subAggregations, err := cw.pancakeParseAggregationNames(aggs)
 			if err != nil {
 				return nil, err
 			}
@@ -52,12 +52,12 @@ func (cw *ClickhouseQueryTranslator) ParseAggregationJsonVersionUna(body types.J
 	return aggregationQueries, nil
 }
 
-func (cw *ClickhouseQueryTranslator) parseAggregationNamesVersionUna(aggs QueryMap) ([]*aggregationLevelVersionUna, error) {
-	aggregationLevels := make([]*aggregationLevelVersionUna, 0)
+func (cw *ClickhouseQueryTranslator) pancakeParseAggregationNames(aggs QueryMap) ([]*pancakeAggregationLevel, error) {
+	aggregationLevels := make([]*pancakeAggregationLevel, 0)
 
 	for aggrName, aggrDict := range aggs {
 		if subAggregation, ok := aggrDict.(QueryMap); ok {
-			subLevel, err := cw.parseAggregationVersionUna(aggrName, subAggregation)
+			subLevel, err := cw.pancakeParseAggregation(aggrName, subAggregation)
 			if err != nil {
 				return aggregationLevels, err
 			}
@@ -70,7 +70,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregationNamesVersionUna(aggs QueryM
 	return aggregationLevels, nil
 }
 
-func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(aggregationName string, queryMap QueryMap) (*aggregationLevelVersionUna, error) {
+func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName string, queryMap QueryMap) (*pancakeAggregationLevel, error) {
 	if len(queryMap) == 0 {
 		return nil, nil
 	}
@@ -84,7 +84,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(aggregationName 
 		metadata = model.NoMetadataField
 	}
 
-	aggregation := &aggregationLevelVersionUna{
+	aggregation := &pancakeAggregationLevel{
 		name:     aggregationName,
 		metadata: metadata,
 	}
@@ -117,8 +117,8 @@ func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(aggregationName 
 	}
 
 	// 4. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
-	// 	bucketAggrPresent, err := cw.tryBucketAggregationVersionUna(aggregation, queryMap)
-	_, err := cw.tryBucketAggregationVersionUna(aggregation, queryMap)
+	// 	bucketAggrPresent, err := cw.pancakeTryBucketAggregation(aggregation, queryMap)
+	_, err := cw.pancakeTryBucketAggregation(aggregation, queryMap)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregationVersionUna(aggregationName 
 
 	aggsHandledSeparately := isRange || isFilters
 	if aggs, ok := queryMap["aggs"]; ok && !aggsHandledSeparately {
-		subAggregations, err := cw.parseAggregationNamesVersionUna(aggs.(QueryMap))
+		subAggregations, err := cw.pancakeParseAggregationNames(aggs.(QueryMap))
 		if err != nil {
 			return aggregation, err
 		}

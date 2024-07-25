@@ -8,15 +8,15 @@ import (
 	"strings"
 )
 
-type aggregationValidatorUna struct {
+type aggregationValidatorPancake struct {
 }
 
-func newAggregationValidatorUna() aggregationValidatorUna {
-	return aggregationValidatorUna{}
+func newAggregationValidatorPancake() aggregationValidatorPancake {
+	return aggregationValidatorPancake{}
 }
 
 // validate checks if the aggregation tree can be translated to a single SQL
-func (v *aggregationValidatorUna) validate(agg *aggregationTopLevelVersionUna) error {
+func (v *aggregationValidatorPancake) validate(agg *pancakeAggregationTopLevel) error {
 
 	if len(agg.children) == 0 {
 		return fmt.Errorf("no aggregations found")
@@ -26,13 +26,13 @@ func (v *aggregationValidatorUna) validate(agg *aggregationTopLevelVersionUna) e
 		return fmt.Errorf("top level aggregation can have at most 1 child but got: %d", len(agg.children))
 	}
 
-	walker := &aggregationValidatorUnaWalker{}
+	walker := &aggregationValidatorPancakeWalker{}
 
-	describe := func(agg *aggregationLevelVersionUna) string {
+	describe := func(agg *pancakeAggregationLevel) string {
 		return fmt.Sprintf("'%s' (%s)", strings.Join(walker.currentAgg, "."), agg.queryType.AggregationType())
 	}
 
-	walker.visitMetrics = func(agg *aggregationLevelVersionUna) (any, error) {
+	walker.visitMetrics = func(agg *pancakeAggregationLevel) (any, error) {
 
 		if len(agg.children) > 0 {
 			return nil, fmt.Errorf("metrics aggregation can't have children: %s", describe(agg))
@@ -41,19 +41,19 @@ func (v *aggregationValidatorUna) validate(agg *aggregationTopLevelVersionUna) e
 		return agg, nil
 	}
 
-	walker.visitTypical = func(agg *aggregationLevelVersionUna) (any, error) {
+	walker.visitTypical = func(agg *pancakeAggregationLevel) (any, error) {
 		return nil, fmt.Errorf("unsupported aggregation type: %s", describe(agg))
 	}
 
-	walker.visitPipeline = func(agg *aggregationLevelVersionUna) (any, error) {
+	walker.visitPipeline = func(agg *pancakeAggregationLevel) (any, error) {
 		return nil, fmt.Errorf("pipeline aggregations are not supported: %s", describe(agg))
 	}
 
-	walker.visitUnknown = func(agg *aggregationLevelVersionUna) (any, error) {
+	walker.visitUnknown = func(agg *pancakeAggregationLevel) (any, error) {
 		return nil, fmt.Errorf("unknown aggregation are not supported at all: %s", describe(agg))
 	}
 
-	walker.visitBucket = func(agg *aggregationLevelVersionUna) (any, error) {
+	walker.visitBucket = func(agg *pancakeAggregationLevel) (any, error) {
 
 		var buckets int
 
