@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"quesma/buildinfo"
-	"quesma/model"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/quesma/ui/internal/builder"
@@ -243,6 +242,16 @@ func (qmc *QuesmaManagementConsole) populateQueries(debugKeyValueSlice []queryDe
 	buffer.Html(`<div class="bottom_left" id="query-bottom-left">` + "\n")
 	buffer.Html(`<div class="title-bar">Clickhouse translated query` + "\n" + `</div>`)
 	buffer.Html(`<div class="debug-body">`)
+
+	printQueries := func(queries []types.TranslatedSQLQuery) {
+		for _, q := range queries {
+			buffer.Text(util.SqlPrettyPrint(q.Query))
+			buffer.Text("\n\n")
+			qmc.printPerformanceResult(&buffer, q)
+			buffer.Text("\n")
+		}
+	}
+
 	for _, v := range debugKeyValueSlice {
 		if withLinks {
 			buffer.Html(`<a href="/request-id/`).Text(v.id).Html(`">`)
@@ -250,12 +259,13 @@ func (qmc *QuesmaManagementConsole) populateQueries(debugKeyValueSlice []queryDe
 		tookStr := fmt.Sprintf(" took %d ms", v.query.SecondaryTook.Milliseconds())
 		buffer.Html("<p>UUID:").Text(v.id).Text(tookStr).Html(errorBanner(v.query)).Html("</p>\n")
 		buffer.Html(`<pre Id="second_query`).Text(v.id).Html(`">`)
-		for _, q := range v.query.QueryBodyTranslated {
-			buffer.Text(util.SqlPrettyPrint(q.Query))
-			buffer.Text("\n\n")
-			qmc.printPerformanceResult(&buffer, q)
-			buffer.Text("\n")
+		printQueries(v.query.QueryBodyTranslated)
+
+		if v.query.alternativePlanDebugSecondarySource != nil {
+			buffer.Text("--  Alternative plan queries --------------------- \n\n")
+			printQueries(v.query.alternativePlanDebugSecondarySource.QueryBodyTranslated)
 		}
+
 		buffer.Html("\n</pre>")
 		if withLinks {
 			buffer.Html("\n</a>")
@@ -325,9 +335,4 @@ func (qmc *QuesmaManagementConsole) printPerformanceResult(buffer *builder.HtmlB
 	if len(q.PerformedOptimizations) > 0 {
 		buffer.Text(fmt.Sprintf("-- optimization: %s\n", strings.Join(q.PerformedOptimizations, ", ")))
 	}
-
-	if q.ExecutionPlanName != model.MainExecutionPlan {
-		buffer.Text(fmt.Sprintf("-- execution plan: %s\n", q.ExecutionPlanName))
-	}
-
 }

@@ -237,12 +237,11 @@ func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.Ex
 		return nil, err
 	}
 
-	//contextValues := tracing.ExtractValues(ctx)
-	//id := contextValues.RequestId
-	//path := contextValues.RequestPath
-
-	// add pushTo AlternativeInfo
-	///pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
+	contextValues := tracing.ExtractValues(ctx)
+	id := contextValues.RequestId
+	path := contextValues.RequestPath
+	bodyAsBytes, _ := body.Bytes()
+	pushAlternativeInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
 
 	return responseBody, response.err
 
@@ -420,16 +419,16 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	/* You may use this code to run alternative plan for checking how it works
 	   It breaks the tests. So, it is commented out.
 
-		alternativePlan = &model.ExecutionPlan{
-			IndexPattern:          plan.IndexPattern,
-			QueryRowsTransformers: plan.QueryRowsTransformers,
-			ResultAdapter:         plan.ResultAdapter,
-			Queries:               plan.Queries,
-			StartTime:             plan.StartTime,
-			Name:                  model.AlternativeExecutionPlan,
-		}
+	alternativePlan = &model.ExecutionPlan{
+		IndexPattern:          plan.IndexPattern,
+		QueryRowsTransformers: plan.QueryRowsTransformers,
+		ResultAdapter:         plan.ResultAdapter,
+		Queries:               plan.Queries,
+		StartTime:             plan.StartTime,
+		Name:                  model.AlternativeExecutionPlan,
+	}
 	*/
-
+	
 	var executionChan chan executionPlanResult
 
 	if alternativePlan != nil {
@@ -468,9 +467,10 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				}
 			}
 
+			// TODO add JSON comparison here
 			if string(alternative.responseBody) != string(main.responseBody) {
 				logger.ErrorWithCtx(ctx).Msgf("alternative plan returned different results")
-				// dump the results here
+				// dump the results here, or
 			} else {
 				logger.InfoWithCtx(ctx).Msgf("alternative plan returned same results")
 			}
@@ -869,4 +869,17 @@ func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, Path string
 		QueryBodyTranslated:    QueryBodyTranslated,
 		QueryTranslatedResults: QueryTranslatedResults,
 		SecondaryTook:          time.Since(startTime)})
+}
+
+func pushAlternativeInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []types.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
+	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
+		Id:                     Id,
+		AsyncId:                AsyncId,
+		Path:                   Path,
+		IncomingQueryBody:      IncomingQueryBody,
+		QueryBodyTranslated:    QueryBodyTranslated,
+		QueryTranslatedResults: QueryTranslatedResults,
+		SecondaryTook:          time.Since(startTime),
+		IsAlternativePlan:      true})
+
 }

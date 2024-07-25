@@ -53,15 +53,18 @@ type QueryDebugSecondarySource struct {
 	QueryBodyTranslated    []types.TranslatedSQLQuery
 	QueryTranslatedResults []byte
 	SecondaryTook          time.Duration
+
+	IsAlternativePlan bool
 }
 
 type queryDebugInfo struct {
 	QueryDebugPrimarySource
 	QueryDebugSecondarySource
-	logMessages   []string
-	errorLogCount int
-	warnLogCount  int
-	unsupported   *string
+	alternativePlanDebugSecondarySource *QueryDebugSecondarySource
+	logMessages                         []string
+	errorLogCount                       int
+	warnLogCount                        int
+	unsupported                         *string
 }
 
 type queryDebugInfoWithId struct {
@@ -194,19 +197,34 @@ func (qmc *QuesmaManagementConsole) processChannelMessage() {
 			msg.QueryBodyTranslated,
 			[]byte(util.JsonPrettify(string(msg.QueryTranslatedResults), true)),
 			msg.SecondaryTook,
+			msg.IsAlternativePlan,
 		}
 		qmc.mutex.Lock()
-		if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {
-			qmc.debugInfoMessages[msg.Id] = queryDebugInfo{
-				QueryDebugSecondarySource: secondaryDebugInfo,
+
+		setDebugInfo := func(info *queryDebugInfo, secondaryDebugInfo QueryDebugSecondarySource) {
+			if secondaryDebugInfo.IsAlternativePlan {
+				info.alternativePlanDebugSecondarySource = &secondaryDebugInfo
+			} else {
+				info.QueryDebugSecondarySource = secondaryDebugInfo
 			}
+		}
+
+		if value, ok := qmc.debugInfoMessages[msg.Id]; !ok {
+
+			debugInfo := queryDebugInfo{}
+			setDebugInfo(&debugInfo, secondaryDebugInfo)
+
+			qmc.debugInfoMessages[msg.Id] = debugInfo
 			qmc.addNewMessageId(msg.Id)
 		} else {
-			value.QueryDebugSecondarySource = secondaryDebugInfo
+
+			setDebugInfo(&value, secondaryDebugInfo)
+
 			// That's the point where queryDebugInfo is
 			// complete and we can compare results
 			qmc.debugInfoMessages[msg.Id] = value
-			if isComplete(value) {
+
+			if !msg.IsAlternativePlan && isComplete(value) {
 				qmc.responseMatcherChannel <- value
 			}
 		}
