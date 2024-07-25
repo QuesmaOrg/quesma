@@ -165,7 +165,8 @@ func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.Executio
 	}
 }
 
-func (q *QueryRunner) checkProperties(plan *model.ExecutionPlan, table *clickhouse.Table, queryTranslator IQueryTranslator, ctx context.Context) ([]byte, error) {
+// Deprecated - this method should be examined and potentially removed
+func (q *QueryRunner) checkProperties(ctx context.Context, plan *model.ExecutionPlan, table *clickhouse.Table, queryTranslator IQueryTranslator) ([]byte, error) {
 	queries := plan.Queries
 	if len(queries) > 0 && query_util.IsNonAggregationQuery(queries[0]) {
 		if properties := q.findNonexistingProperties(queries[0], table, queryTranslator); len(properties) > 0 {
@@ -224,7 +225,7 @@ func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.Ex
 
 	q.transformQueries(ctx, plan, table)
 
-	if resp, err := q.checkProperties(plan, table, queryTranslator, ctx); err != nil {
+	if resp, err := q.checkProperties(ctx, plan, table, queryTranslator); err != nil {
 		return resp, err
 	}
 
@@ -268,7 +269,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 
 	q.transformQueries(ctx, plan, table)
 
-	if resp, err := q.checkProperties(plan, table, queryTranslator, ctx); err != nil {
+	if resp, err := q.checkProperties(ctx, plan, table, queryTranslator); err != nil {
 		return resp, err
 	}
 
