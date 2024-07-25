@@ -246,7 +246,7 @@ func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.Ex
 
 }
 
-func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, executedChan chan executionPlanResult) (responseBody []byte, err error) {
+func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, optComparePlansCh chan<- executionPlanResult) (responseBody []byte, err error) {
 	contextValues := tracing.ExtractValues(ctx)
 	id := contextValues.RequestId
 	path := contextValues.RequestPath
@@ -254,8 +254,8 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	doneCh := make(chan AsyncSearchWithError, 1)
 
 	sendMainPlanResult := func(responseBody []byte, err error) {
-		if executedChan != nil {
-			executedChan <- executionPlanResult{
+		if optComparePlansCh != nil {
+			optComparePlansCh <- executionPlanResult{
 				plan:         plan,
 				err:          err,
 				responseBody: responseBody,
@@ -426,13 +426,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 	*/
 
-	var executionChan chan executionPlanResult
+	var optComparePlansCh chan executionPlanResult
 
 	if alternativePlan != nil {
 
 		plans := []*model.ExecutionPlan{plan, alternativePlan}
 
-		executionChan = make(chan executionPlanResult, len(plans))
+		optComparePlansCh = make(chan executionPlanResult, len(plans))
 
 		// run alternative plan in the background
 		go func() {
@@ -441,7 +441,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			// results are passed via channel
 			body, err := q.executeAlternativePlan(ctx, alternativePlan, queryTranslator, table, body)
 
-			executionChan <- executionPlanResult{
+			optComparePlansCh <- executionPlanResult{
 				plan:         alternativePlan,
 				err:          err,
 				responseBody: body,
@@ -449,13 +449,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 
 		}()
 
-		go func(executionChan chan executionPlanResult) {
+		go func(optComparePlansCh <-chan executionPlanResult) {
 			defer recovery.LogPanic()
 			var alternative executionPlanResult
 			var main executionPlanResult
 
 			for range len(plans) {
-				r := <-executionChan
+				r := <-optComparePlansCh
 				logger.InfoWithCtx(ctx).Msgf("received results  %s", r.plan.Name)
 				if r.plan.Name == model.AlternativeExecutionPlan {
 					alternative = r
@@ -472,11 +472,11 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 				logger.InfoWithCtx(ctx).Msgf("alternative plan returned same results")
 			}
 
-		}(executionChan)
+		}(optComparePlansCh)
 
 	}
 
-	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, executionChan)
+	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh)
 }
 
 func (q *QueryRunner) removeNotExistingTables(sourcesClickhouse []string) []string {
