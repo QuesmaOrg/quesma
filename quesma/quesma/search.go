@@ -236,7 +236,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 		}
 
-		plan.Queries, err = registry.QueryTransformerFor(table.Name, q.cfg).Transform(plan.Queries)
+		plan.Queries, err = registry.QueryTransformerFor(table.Name, q.cfg, q.schemaRegistry).Transform(plan.Queries)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 		}
@@ -703,7 +703,7 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 
 func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
-	transformer := registry.ResultTransformerFor(table.Name, q.cfg)
+	transformer := registry.ResultTransformerFor(table.Name, q.cfg, q.schemaRegistry)
 
 	res, err := transformer.Transform(results)
 

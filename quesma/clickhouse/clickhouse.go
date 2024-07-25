@@ -13,9 +13,9 @@ import (
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
 	"quesma/index"
+	"quesma/jsonprocessor"
 	"quesma/logger"
 	"quesma/plugins"
-	"quesma/plugins/registry"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
@@ -36,14 +36,13 @@ const (
 type (
 	// LogManager should be renamed to Connector  -> TODO !!!
 	LogManager struct {
-		ctx                          context.Context
-		cancel                       context.CancelFunc
-		chDb                         *sql.DB
-		schemaLoader                 TableDiscovery
-		cfg                          config.QuesmaConfiguration
-		phoneHomeAgent               telemetry.PhoneHomeAgent
-		schemaRegistry               schema.Registry
-		ingestTransformationPipeline plugins.IngestTransformerPipeline
+		ctx            context.Context
+		cancel         context.CancelFunc
+		chDb           *sql.DB
+		schemaLoader   TableDiscovery
+		cfg            config.QuesmaConfiguration
+		phoneHomeAgent telemetry.PhoneHomeAgent
+		schemaRegistry schema.Registry
 	}
 	TableMap  = concurrent.Map[string, *Table]
 	SchemaMap = map[string]interface{} // TODO remove
@@ -374,12 +373,7 @@ func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema
 	return nil
 }
 
-func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jsonData types.JSON, tableConfig *ChTableConfig, cfg config.QuesmaConfiguration, schemaRegistry schema.Registry) (string, error) {
-
-	nameFormatter, err := registry.TableColumNameFormatterFor(tableName, cfg)
-	if err != nil {
-		return "", err
-	}
+func buildCreateTableQueryNoOurFields(ctx context.Context, tableName string, jsonData types.JSON, tableConfig *ChTableConfig, cfg config.QuesmaConfiguration, schemaRegistry schema.Registry, nameFormatter plugins.TableColumNameFormatter) (string, error) {
 
 	columns := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(schemaRegistry, tableName)) + Indexes(jsonData)
 
@@ -410,10 +404,10 @@ func Indexes(m SchemaMap) string {
 	return result.String()
 }
 
-func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig) error {
+func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig, tableFormatter plugins.TableColumNameFormatter) error {
 	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
 
-	query, err := buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, lm.cfg, lm.schemaRegistry)
+	query, err := buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, lm.cfg, lm.schemaRegistry, tableFormatter)
 	if err != nil {
 		return err
 	}
@@ -497,12 +491,12 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, config 
 	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), nil
 }
 
-func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName string, jsonData types.JSON) (*ChTableConfig, error) {
+func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName string, jsonData types.JSON, tableFormatter plugins.TableColumNameFormatter) (*ChTableConfig, error) {
 	table := lm.FindTable(tableName)
 	var config *ChTableConfig
 	if table == nil {
 		config = NewOnlySchemaFieldsCHConfig()
-		err := lm.CreateTableFromInsertQuery(ctx, tableName, jsonData, config)
+		err := lm.CreateTableFromInsertQuery(ctx, tableName, jsonData, config, tableFormatter)
 		if err != nil {
 			logger.ErrorWithCtx(ctx).Msgf("error ProcessInsertQuery, can't create table: %v", err)
 			return nil, err
@@ -520,14 +514,15 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 	return config, nil
 }
 
-func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []types.JSON) error {
+func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []types.JSON, transformer plugins.IngestTransformer, tableFormatter plugins.TableColumNameFormatter) error {
 
 	// this is pre ingest transformer
 	// here we transform the data before it's structure evaluation and insertion
 	//
+	preIngestTransformer := &jsonprocessor.RewriteArrayOfObject{}
 	var processed []types.JSON
 	for _, jsonValue := range jsonData {
-		result, err := lm.ingestTransformationPipeline.Transform(jsonValue)
+		result, err := preIngestTransformer.Transform(jsonValue)
 		if err != nil {
 			return fmt.Errorf("error while rewriting json: %v", err)
 		}
@@ -535,17 +530,15 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, 
 	}
 	jsonData = processed
 
-	tableConfig, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0])
+	tableConfig, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0], tableFormatter)
 	if err != nil {
 		return err
 	}
-	return lm.Insert(ctx, tableName, jsonData, tableConfig)
+	return lm.Insert(ctx, tableName, jsonData, tableConfig, transformer)
 
 }
 
-func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON, config *ChTableConfig) error {
-
-	transformer := registry.IngestTransformerFor(tableName, lm.cfg)
+func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON, config *ChTableConfig, transformer plugins.IngestTransformer) error {
 
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
@@ -619,10 +612,6 @@ func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
 
 func (lm *LogManager) Ping() error {
 	return lm.chDb.Ping()
-}
-
-func (lm *LogManager) AddIngestTransformation(transformation plugins.IngestTransformer) {
-	lm.ingestTransformationPipeline = append(lm.ingestTransformationPipeline, transformation)
 }
 
 func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader TableDiscovery, schemaRegistry schema.Registry) *LogManager {
