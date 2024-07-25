@@ -152,29 +152,8 @@ type executionPlanResult struct {
 	responseBody []byte
 }
 
-func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, executedChan chan executionPlanResult) ([]byte, error) {
-	id := ctx.Value(tracing.RequestIdCtxKey).(string)
-	path := ""
-	if value := ctx.Value(tracing.RequestPath); value != nil {
-		if str, ok := value.(string); ok {
-			path = str
-		}
-	}
-
+func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.ExecutionPlan, table *clickhouse.Table) {
 	var err error
-	var responseBody []byte
-	doneCh := make(chan AsyncSearchWithError, 1)
-
-	markAsDone := func(responseBody []byte, err error) {
-		if executedChan != nil {
-			executedChan <- executionPlanResult{
-				plan:         plan,
-				err:          err,
-				responseBody: responseBody,
-			}
-		}
-	}
-
 	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
@@ -184,7 +163,9 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	if err != nil {
 		logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 	}
+}
 
+func (q *QueryRunner) checkProperties(plan *model.ExecutionPlan, table *clickhouse.Table, queryTranslator IQueryTranslator, ctx context.Context) ([]byte, error) {
 	queries := plan.Queries
 	if len(queries) > 0 && query_util.IsNonAggregationQuery(queries[0]) {
 		if properties := q.findNonexistingProperties(queries[0], table, queryTranslator); len(properties) > 0 {
@@ -196,7 +177,10 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 			}
 		}
 	}
+	return nil, nil
+}
 
+func (q *QueryRunner) executePlanInternal(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, doneCh chan AsyncSearchWithError, optAsync *AsyncQuery) {
 	go func() {
 		defer recovery.LogAndHandlePanic(ctx, func(err error) {
 			doneCh <- AsyncSearchWithError{err: err}
@@ -230,6 +214,66 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 
 		doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
 	}()
+}
+
+func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON) ([]byte, error) {
+
+	var err error
+	var responseBody []byte
+	doneCh := make(chan AsyncSearchWithError, 1)
+
+	q.transformQueries(ctx, plan, table)
+
+	if resp, err := q.checkProperties(plan, table, queryTranslator, ctx); err != nil {
+		return resp, err
+	}
+
+	q.executePlanInternal(ctx, plan, queryTranslator, table, doneCh, nil)
+
+	response := <-doneCh
+
+	responseBody, err = response.response.Marshal()
+	if err != nil {
+		return nil, err
+	}
+
+	//contextValues := tracing.ExtractValues(ctx)
+	//id := contextValues.RequestId
+	//path := contextValues.RequestPath
+
+	// add pushTo AlternativeInfo
+	///pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
+
+	return responseBody, response.err
+
+}
+
+func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, executedChan chan executionPlanResult) ([]byte, error) {
+	contextValues := tracing.ExtractValues(ctx)
+	id := contextValues.RequestId
+	path := contextValues.RequestPath
+
+	var err error
+	var responseBody []byte
+	doneCh := make(chan AsyncSearchWithError, 1)
+
+	sendMainPlanResult := func(responseBody []byte, err error) {
+		if executedChan != nil {
+			executedChan <- executionPlanResult{
+				plan:         plan,
+				err:          err,
+				responseBody: responseBody,
+			}
+		}
+	}
+
+	q.transformQueries(ctx, plan, table)
+
+	if resp, err := q.checkProperties(plan, table, queryTranslator, ctx); err != nil {
+		return resp, err
+	}
+
+	q.executePlanInternal(ctx, plan, queryTranslator, table, doneCh, optAsync)
 
 	if optAsync == nil {
 		bodyAsBytes, _ := body.Bytes()
@@ -245,7 +289,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 			responseBody, err = response.response.Marshal()
 		}
 		pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
-		markAsDone(responseBody, err)
+		sendMainPlanResult(responseBody, err)
 		return responseBody, err
 	} else {
 		select {
@@ -254,13 +298,13 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 				recovery.LogPanicWithCtx(ctx)
 				res := <-doneCh
 				responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res, true)
-				markAsDone(responseBody, err)
+				sendMainPlanResult(responseBody, err)
 			}()
 			return q.handlePartialAsyncSearch(ctx, optAsync.asyncId)
 		case res := <-doneCh:
 			responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res,
 				optAsync.keepOnCompletion)
-			markAsDone(responseBody, err)
+			sendMainPlanResult(responseBody, err)
 			return responseBody, err
 		}
 	}
@@ -399,7 +443,13 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 			defer recovery.LogPanic()
 
 			// results are passed via channel
-			q.executePlan(ctx, alternativePlan, queryTranslator, table, body, optAsync, executionChan)
+			body, err := q.executeAlternativePlan(ctx, alternativePlan, queryTranslator, table, body)
+
+			executionChan <- executionPlanResult{
+				plan:         alternativePlan,
+				err:          err,
+				responseBody: body,
+			}
 
 		}()
 
