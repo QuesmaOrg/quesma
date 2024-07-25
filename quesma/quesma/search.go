@@ -333,105 +333,101 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	if err != nil {
 		return nil, err
 	}
-	for _, resolvedTableName := range sourcesClickhouse {
-		var err error
 
-		incomingIndexName := resolvedTableName
-		if len(q.cfg.IndexConfig[resolvedTableName].Override) > 0 {
-			resolvedTableName = q.cfg.IndexConfig[resolvedTableName].Override
+	resolvedTableName := sourcesClickhouse[0] // we got exactly one table here because of the check above
+
+	incomingIndexName := resolvedTableName
+	if len(q.cfg.IndexConfig[resolvedTableName].Override) > 0 {
+		resolvedTableName = q.cfg.IndexConfig[resolvedTableName].Override
+	}
+	table, _ := tables.Load(resolvedTableName)
+	if table == nil {
+		return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
+	}
+
+	queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry, incomingIndexName)
+
+	plan, err := queryTranslator.ParseQuery(body)
+
+	if err != nil {
+		logger.ErrorWithCtx(ctx).Msgf("parsing error: %v", err)
+		queries := plan.Queries
+		queriesBody := make([]types.TranslatedSQLQuery, len(queries))
+		queriesBodyConcat := ""
+		for i, query := range queries {
+			queriesBody[i].Query = []byte(query.SelectCommand.String())
+			queriesBodyConcat += query.SelectCommand.String() + "\n"
 		}
-		table, _ := tables.Load(resolvedTableName)
-		if table == nil {
-			return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
+		responseBody = []byte(fmt.Sprintf("Invalid Queries: %v, err: %v", queriesBody, err))
+		logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBodyConcat)
+		bodyAsBytes, _ := body.Bytes()
+		pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, queriesBody, responseBody, startTime)
+		return responseBody, errors.New(string(responseBody))
+	}
+
+	plan.IndexPattern = indexPattern
+	plan.StartTime = startTime
+	plan.Name = "main"
+
+	var alternativePlan *model.ExecutionPlan
+
+	// TODO add alternative plan here
+
+	/* You may use this code to run alternative plan for checking how it works
+	   It breaks the tests. So, it is commented out.
+
+		alternativePlan = &model.ExecutionPlan{
+			IndexPattern:          plan.IndexPattern,
+			QueryRowsTransformers: plan.QueryRowsTransformers,
+			ResultAdapter:         plan.ResultAdapter,
+			Queries:               plan.Queries,
+			StartTime:             plan.StartTime,
+			Name:                  "alternative",
 		}
+	*/
 
-		queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry, incomingIndexName)
+	var executionChan chan executionPlanResult
 
-		plan, err := queryTranslator.ParseQuery(body)
+	if alternativePlan != nil {
+		executionChan = make(chan executionPlanResult, 2)
 
-		if err != nil {
-			logger.ErrorWithCtx(ctx).Msgf("parsing error: %v", err)
-			queries := plan.Queries
-			queriesBody := make([]types.TranslatedSQLQuery, len(queries))
-			queriesBodyConcat := ""
-			for i, query := range queries {
-				queriesBody[i].Query = []byte(query.SelectCommand.String())
-				queriesBodyConcat += query.SelectCommand.String() + "\n"
-			}
-			responseBody = []byte(fmt.Sprintf("Invalid Queries: %v, err: %v", queriesBody, err))
-			logger.ErrorWithCtxAndReason(ctx, "Quesma generated invalid SQL query").Msg(queriesBodyConcat)
-			bodyAsBytes, _ := body.Bytes()
-			pushSecondaryInfo(q.quesmaManagementConsole, id, "", path, bodyAsBytes, queriesBody, responseBody, startTime)
-			return responseBody, errors.New(string(responseBody))
-		}
+		// run alternative plan in the background
+		go func() {
+			defer recovery.LogPanic()
 
-		plan.IndexPattern = indexPattern
-		plan.StartTime = startTime
-		plan.Name = "main"
+			// results are passed via channel
+			q.executePlan(ctx, alternativePlan, queryTranslator, table, body, optAsync, executionChan)
 
-		var alternativePlan *model.ExecutionPlan
+		}()
 
-		// TODO add alternative plan here
+		go func(executionChan chan executionPlanResult) {
+			defer recovery.LogPanic()
+			var alternative executionPlanResult
+			var main executionPlanResult
 
-		/* You may use this code to run alternative plan for checking how it works
-		   It breaks the tests. So, it is commented out.
-
-			alternativePlan = &model.ExecutionPlan{
-				IndexPattern:          plan.IndexPattern,
-				QueryRowsTransformers: plan.QueryRowsTransformers,
-				ResultAdapter:         plan.ResultAdapter,
-				Queries:               plan.Queries,
-				StartTime:             plan.StartTime,
-				Name:                  "alternative",
-			}
-		*/
-
-		var executionChan chan executionPlanResult
-
-		if alternativePlan != nil {
-			executionChan = make(chan executionPlanResult, 2)
-
-			// run alternative plan in the background
-			go func() {
-				defer recovery.LogPanic()
-
-				// results are passed via channel
-				q.executePlan(ctx, alternativePlan, queryTranslator, table, body, optAsync, executionChan)
-
-			}()
-
-			go func(executionChan chan executionPlanResult) {
-				defer recovery.LogPanic()
-				var alternative executionPlanResult
-				var main executionPlanResult
-
-				// we have only two plans to execute
-				for range 2 {
-					r := <-executionChan
-					logger.InfoWithCtx(ctx).Msgf("received results  %s", r.plan.Name)
-					if r.plan.Name == "alternative" {
-						alternative = r
-					} else if r.plan.Name == "main" {
-						main = r
-					}
+			// we have only two plans to execute
+			for range 2 {
+				r := <-executionChan
+				logger.InfoWithCtx(ctx).Msgf("received results  %s", r.plan.Name)
+				if r.plan.Name == "alternative" {
+					alternative = r
+				} else if r.plan.Name == "main" {
+					main = r
 				}
+			}
 
-				if string(alternative.responseBody) != string(main.responseBody) {
-					logger.ErrorWithCtx(ctx).Msgf("alternative plan returned different results")
-					// dump the results here
-				} else {
-					logger.InfoWithCtx(ctx).Msgf("alternative plan returned same results")
-				}
+			if string(alternative.responseBody) != string(main.responseBody) {
+				logger.ErrorWithCtx(ctx).Msgf("alternative plan returned different results")
+				// dump the results here
+			} else {
+				logger.InfoWithCtx(ctx).Msgf("alternative plan returned same results")
+			}
 
-			}(executionChan)
-
-		}
-
-		return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, executionChan)
+		}(executionChan)
 
 	}
 
-	return responseBody, nil
+	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, executionChan)
 }
 
 func (q *QueryRunner) removeNotExistingTables(sourcesClickhouse []string) []string {
