@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"quesma/clickhouse"
 	"quesma/logger"
+	"quesma/plugins/registry"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
@@ -95,7 +96,14 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *cli
 			if len(cfg.IndexConfig[indexName].Override) > 0 {
 				indexName = cfg.IndexConfig[indexName].Override
 			}
-			return lm.ProcessInsertQuery(ctx, indexName, documents)
+			nameFormatter, err := registry.TableColumNameFormatterFor(indexName, cfg, nil)
+			if err != nil {
+				logger.Error().Msgf("Error getting table column name formatter for index %s: %v", indexName, err)
+				return err
+			}
+			tableMap, _ := lm.GetTableDefinitions()
+			transformer := registry.IngestTransformerFor(indexName, cfg, nil, tableMap)
+			return lm.ProcessInsertQuery(ctx, indexName, documents, transformer, nameFormatter)
 		})
 	}
 	return results

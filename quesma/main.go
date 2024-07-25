@@ -13,7 +13,6 @@ import (
 	"quesma/connectors"
 	"quesma/elasticsearch"
 	"quesma/feature"
-	"quesma/jsonprocessor"
 	"quesma/licensing"
 	"quesma/logger"
 	"quesma/quesma"
@@ -78,7 +77,6 @@ func main() {
 
 	connManager := connectors.NewConnectorManager(cfg, connectionPool, phoneHomeAgent, schemaLoader, schemaRegistry)
 	lm := connManager.GetConnector()
-	lm.AddIngestTransformation(&jsonprocessor.RewriteArrayOfObject{})
 
 	im := elasticsearch.NewIndexManagement(cfg.Elasticsearch.Url.String())
 

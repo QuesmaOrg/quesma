@@ -72,7 +72,7 @@ func handleFieldCapsIndex(cfg config.QuesmaConfiguration, schemaRegistry schema.
 					addFieldCapabilityFromSchemaRegistry(fields, fmt.Sprintf("%s.text", fieldName.AsString()), schema.TypeText, resolvedIndex)
 				}
 			}
-			transformer := registry.FieldCapsTransformerFor(resolvedIndex, cfg)
+			transformer := registry.FieldCapsTransformerFor(resolvedIndex, cfg, schemaRegistry)
 			var err error
 			fields, err = transformer.Transform(fields)
 
