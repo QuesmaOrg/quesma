@@ -95,3 +95,69 @@ func pancakeBakeLayer(childAggregations []*pancakeAggregationLevel, pancakeResul
 	}
 	return nil
 }
+
+func pancakeTranslateFromAggregationToLayered2(topLevel pancakeAggregationTopLevel) (pancakeResult *pancakeAggregation2, err error) {
+	if topLevel.children == nil || len(topLevel.children) == 0 {
+		// no aggregations found
+		return
+	}
+
+	layers := make([]pancakeAggregationLayer, 0)
+
+	var currentBucketAggregation *pancakeAggregationLevel
+
+	// not sure about this,
+	// AFAIK we support only single branch of buckets aggregation
+	currentBucketAggregation = topLevel.children[0]
+
+	for {
+		var layer *pancakeAggregationLayer
+
+		layer, currentBucketAggregation, err = pancakeBakeLayer2(currentBucketAggregation.children)
+		if err != nil {
+			return nil, err
+		}
+		layers = append(layers, *layer)
+
+		if currentBucketAggregation == nil {
+			break
+		}
+	}
+
+	pancakeResult = &pancakeAggregation2{
+		layers:      layers,
+		whereClause: topLevel.whereClause,
+	}
+
+	return
+}
+
+func pancakeBakeLayer2(childAggregations []*pancakeAggregationLevel) (*pancakeAggregationLayer, *pancakeAggregationLevel, error) {
+
+	layer := &pancakeAggregationLayer{
+		metricAggregations: make([]*pancakeFillingMetricAggregation, 0),
+	}
+
+	var currentBucketAggregation *pancakeAggregationLevel
+
+	for _, childAgg := range childAggregations {
+		switch childAgg.queryType.AggregationType() {
+		case model.MetricsAggregation:
+			layer.metricAggregations = append(layer.metricAggregations, pancakeTranslateMetricToFilling(childAgg))
+
+		case model.BucketAggregation:
+			if currentBucketAggregation != nil {
+				return nil, nil, fmt.Errorf("two bucket aggregation on same level are not supported: %s, %s",
+					childAgg.name)
+			}
+
+			currentBucketAggregation = childAgg
+			layer.bucketAggregations = pancakeTranslateBucketToLayered(childAgg)
+
+		default:
+			return nil, nil, fmt.Errorf("unsupported aggregation type in pancake, name: %s, type: %s",
+				childAgg.name, childAgg.queryType.AggregationType().String())
+		}
+	}
+	return layer, currentBucketAggregation, nil
+}

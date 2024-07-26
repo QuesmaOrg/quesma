@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Elastic-2.0
 package queryparser
 
-import "quesma/model"
+import (
+	"quesma/model"
+)
 
 type pancakeAggregationTopLevel struct {
 	children    []*pancakeAggregationLevel
@@ -53,6 +55,17 @@ type pancakeAggregation struct {
 	// 0 - before 0 level of bucket aggregation
 	// 1 - after 0 level of bucket aggregation
 	metricAggregations [][]*pancakeFillingMetricAggregation
+
+	whereClause model.Expr
+}
+
+type pancakeAggregationLayer struct {
+	bucketAggregations *pancakeLayerBucketAggregation
+	metricAggregations []*pancakeFillingMetricAggregation
+}
+
+type pancakeAggregation2 struct {
+	layers []pancakeAggregationLayer
 
 	whereClause model.Expr
 }
