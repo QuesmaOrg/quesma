@@ -7,6 +7,78 @@ import (
 	"quesma/testdata"
 )
 
+type opheliaTestsPancakeTest struct {
+	TestName        string
+	Sql             string
+	ExpectedResults []model.QueryResultRow
+}
+
+var OpheliaTestsPancake = []opheliaTestsPancakeTest{ // take rest arguments from OpheliaTests
+	{ // [0]
+		TestName: "Ophelia Test 1: triple terms + default order",
+		Sql: `
+WITH cte_rank_1 AS (
+WITH cte_window_1 AS (SELECT "surname",
+       SUM(surname_part_cnt) OVER (PARTITION BY "surname") AS "surname_cnt",
+       COUNT() AS "surname_part_cnt",
+       "limbName",
+       SUM(limbName_part_cnt) OVER (PARTITION BY "surname", "limbName") AS "limbName_cnt",
+       COUNT() AS "limbName_part_cnt",
+       "organName",
+       COUNT() AS "organName_cnt"
+FROM "logs-generic-default"
+WHERE ("surname" IS NOT NULL AND "organName" IS NOT NULL)
+GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName")
+SELECT
+	"surname", "surname_cnt",
+	DENSE_RANK() OVER (ORDER BY "surname_cnt" DESC, "surname") AS "rank_surname_cnt",
+	"limbName", "limbName_cnt",
+	DENSE_RANK() OVER (PARTITION BY "surname" ORDER BY "limbName_cnt" DESC, "limbName") AS "rank_limbName_cnt",
+	"organName", "organName_cnt"
+	DENSE_RANK() OVER (PARTITION BY "surname", "limbName" ORDER BY "organName_cnt" DESC, "limbName") AS "rank_organName_cnt",
+FROM cte_window_1)
+SELECT "surname", "surname_cnt", "limbName", "limbName_cnt", "organName", "organName_cnt"
+FROM cte_rank_1
+WHERE "rank_surname_cnt" <= 200 AND "rank_limbName_cnt" <= 20 AND "rank_organName_cnt" <= 1
+ORDER BY "surname_cnt" DESC, "limbName_cnt" DESC, "organName_cnt" DESC
+`,
+		ExpectedResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("surname", "a1"),
+				model.NewQueryResultCol("surname_cnt", 1036),
+				model.NewQueryResultCol("limbName", "b11"),
+				model.NewQueryResultCol("limbName_cnt", 21),
+				model.NewQueryResultCol("organName", "c11"),
+				model.NewQueryResultCol("organName_cnt", 21),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("surname", "a1"),
+				model.NewQueryResultCol("surname_cnt", 1036),
+				model.NewQueryResultCol("limbName", "b12"),
+				model.NewQueryResultCol("limbName_cnt", 24),
+				model.NewQueryResultCol("organName", "c12"),
+				model.NewQueryResultCol("organName_cnt", 24),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("surname", "a2"),
+				model.NewQueryResultCol("surname_cnt", 34),
+				model.NewQueryResultCol("limbName", "b21"),
+				model.NewQueryResultCol("limbName_cnt", 17),
+				model.NewQueryResultCol("organName", "c21"),
+				model.NewQueryResultCol("organName_cnt", 17),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("surname", "a2"),
+				model.NewQueryResultCol("surname_cnt", 34),
+				model.NewQueryResultCol("limbName", "b22"),
+				model.NewQueryResultCol("limbName_cnt", 17),
+				model.NewQueryResultCol("organName", "c22"),
+				model.NewQueryResultCol("organName_cnt", 17),
+			}},
+		},
+	},
+}
+
 var OpheliaTests = []testdata.AggregationTestCase{
 	{ // [0]
 		TestName: "Ophelia Test 1: triple terms + default order",
