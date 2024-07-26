@@ -116,7 +116,6 @@ func (iv *IngestValidator) Transform(document types.JSON) (types.JSON, error) {
 }
 
 func (iv *IngestValidator) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, tableMap clickhouse.TableMap, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
-	transformers = append(transformers, &IngestValidator{cfg: cfg, schemaRegistry: schema, table: table, tableMap: tableMap})
 	return transformers
 }
 
