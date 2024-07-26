@@ -57,7 +57,16 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 			bucketAggregation := layer.nextBucketAggregation
 			// take care of bucket aggregation at level - 1
 			namePrefix = fmt.Sprintf("%s%s__", namePrefix, bucketAggregation.name)
-			prevGroupByColumns := groupByColumns
+			partitionBy := []model.Expr{}
+			if len(groupByColumns) == 0 {
+				partitionBy = []model.Expr{model.NewLiteral(1)}
+			} else {
+				for _, col := range groupByColumns {
+					partitionBy = append(partitionBy, newQuotedLiteral(col.Alias))
+				}
+			}
+
+			addedGroupByAliases := []model.Expr{}
 
 			// TODO: ...
 			for columnId, column := range bucketAggregation.selectedColumns {
@@ -66,6 +75,7 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 				aliasedColumn := model.AliasedExpr{column, aliasedName}
 				selectedColumns = append(selectedColumns, aliasedColumn)
 				groupByColumns = append(groupByColumns, aliasedColumn)
+				addedGroupByAliases = append(addedGroupByAliases, newQuotedLiteral(aliasedName))
 			}
 			columnId := len(bucketAggregation.selectedColumns)
 			if bucketAggregation.orderBy != nil && len(bucketAggregation.orderBy) > 0 {
@@ -73,15 +83,6 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 				orderBy := bucketAggregation.orderBy[0].Exprs[0]
 				aliasedName := fmt.Sprintf("aggr__%s%d", namePrefix, columnId)
 				columnId += 1
-
-				partitionBy := []model.Expr{}
-				if len(prevGroupByColumns) == 0 {
-					partitionBy = []model.Expr{model.NewLiteral(1)}
-				} else {
-					for _, col := range prevGroupByColumns {
-						partitionBy = append(partitionBy, newQuotedLiteral(col.Alias))
-					}
-				}
 
 				if layerId < len(aggregation.layers)-1 {
 					partColumnName := aliasedName + "_part"
@@ -91,7 +92,7 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 					orderByAgg := model.WindowFunction{Name: "sum", // TODO: different too
 						Args:        []model.Expr{newQuotedLiteral(partColumnName)},
 						PartitionBy: partitionBy,
-						OrderBy:     model.NewOrderByExprWithoutOrder(),
+						OrderBy:     []model.OrderByExpr{},
 					}
 					aliasedOrderByAgg := model.AliasedExpr{orderByAgg, aliasedName}
 					selectedColumns = append(selectedColumns, aliasedOrderByAgg)
@@ -99,11 +100,16 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 					aliasedColumn := model.AliasedExpr{orderBy, aliasedName}
 					selectedColumns = append(selectedColumns, aliasedColumn)
 				}
+				// We order by count, but add key to get right dense_rank()
+				rankColumOrderBy := []model.OrderByExpr{model.NewOrderByExpr([]model.Expr{newQuotedLiteral(aliasedName)}, model.DescOrder)}
+				for _, addedGroupByAlias := range addedGroupByAliases {
+					rankColumOrderBy = append(rankColumOrderBy, model.NewOrderByExpr([]model.Expr{addedGroupByAlias}, model.AscOrder))
+				}
+
 				rankColum := model.WindowFunction{Name: "dense_rank",
 					Args:        []model.Expr{},
 					PartitionBy: partitionBy,
-					// TODO: in order by we need key too
-					OrderBy: model.NewOrderByExpr([]model.Expr{newQuotedLiteral(aliasedName)}, model.DescOrder),
+					OrderBy:     rankColumOrderBy,
 				}
 				aliasedRank := model.AliasedExpr{rankColum, aliasedName + "_rank"}
 				selectedRankColumns = append(selectedRankColumns, aliasedRank)
