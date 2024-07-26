@@ -423,7 +423,7 @@ func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name strin
 
 // TODO
 // This method should be refactored to use mux.JSON instead of string
-func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, config *ChTableConfig) (string, error) {
+func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, notValidJson types.JSON, config *ChTableConfig) (string, error) {
 
 	jsonData, err := json.Marshal(data)
 
@@ -550,26 +550,29 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, 
 
 }
 
-func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON, config *ChTableConfig, transformer plugins.IngestTransformer) error {
+func subtractInputJson(input types.JSON, subtracted types.JSON) types.JSON {
+	for key := range subtracted {
+		delete(input, key)
+	}
+	return input
+}
 
+func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON, config *ChTableConfig, transformer plugins.IngestTransformer) error {
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
-
 		preprocessedJson, err := transformer.Transform(jsonValue)
-
 		if err != nil {
 			return fmt.Errorf("error IngestTransformer: %v", err)
 		}
-		var notValidJson types.JSON
-		notValidJson, err = lm.validateIngest(tableName, preprocessedJson)
+
+		notValidJson, err := lm.validateIngest(tableName, preprocessedJson)
 		if err != nil {
 			return fmt.Errorf("error validation: %v", err)
 		}
-		for fieldName := range notValidJson {
-			delete(preprocessedJson, fieldName)
-		}
 
-		insertJson, err := lm.BuildInsertJson(tableName, preprocessedJson, config)
+		preprocessedJson = subtractInputJson(preprocessedJson, notValidJson)
+
+		insertJson, err := lm.BuildInsertJson(tableName, preprocessedJson, notValidJson, config)
 		if err != nil {
 			return fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)
 		}
