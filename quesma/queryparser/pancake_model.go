@@ -40,7 +40,6 @@ type pancakeLayerBucketAggregation struct {
 	selectedColumns []model.Expr
 
 	// only for bucket aggregations
-	//children []*pancakeAggregationLevel // FIXME should be not needed?
 	orderBy *[]model.OrderByExpr
 	limit   int // 0 if none, only for bucket aggregation
 	isKeyed bool
