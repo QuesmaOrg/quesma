@@ -175,7 +175,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		aggregation.queryType = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms", mainOrderBy)
 		aggregation.selectedColumns = append(aggregation.selectedColumns, fieldExpression)
 		aggregation.limit = size
-		aggregation.orderBy = &fullOrderBy
+		aggregation.orderBy = fullOrderBy
 		if missingPlaceholder == nil { // TODO replace with schema
 			aggregation.whereClause = model.NewInfixExpr(fieldExpression, "IS", model.NewLiteral("NOT NULL"))
 		}
@@ -192,7 +192,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		const defaultSize = 10
 		size := cw.parseIntField(multiTerms, "size", defaultSize)
 
-		aggregation.orderBy = &[]model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)}
+		aggregation.orderBy = []model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)}
 		aggregation.limit = size
 
 		var fieldsNr int

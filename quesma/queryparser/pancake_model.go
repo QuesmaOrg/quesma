@@ -18,7 +18,7 @@ type pancakeAggregationLevel struct {
 
 	// only for bucket aggregations
 	children []*pancakeAggregationLevel
-	orderBy  *[]model.OrderByExpr
+	orderBy  []model.OrderByExpr
 	limit    int // 0 if none, only for bucket aggregation
 	isKeyed  bool
 
@@ -40,7 +40,7 @@ type pancakeLayerBucketAggregation struct {
 	selectedColumns []model.Expr
 
 	// only for bucket aggregations
-	orderBy *[]model.OrderByExpr
+	orderBy []model.OrderByExpr
 	limit   int // 0 if none, only for bucket aggregation
 	isKeyed bool
 
