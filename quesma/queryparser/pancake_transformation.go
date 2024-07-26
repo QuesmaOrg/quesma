@@ -86,6 +86,8 @@ func pancakeBakeLayer(childAggregations []*pancakeAggregationLevel, pancakeResul
 			}
 			pancakeResult.bucketAggregations = append(pancakeResult.bucketAggregations,
 				pancakeTranslateBucketToLayered(childAgg))
+			pancakeResult.metricAggregations = append(pancakeResult.metricAggregations,
+				make([]*pancakeFillingMetricAggregation, 0))
 		default:
 			return fmt.Errorf("unsupported aggregation type in pancake, name: %s, type: %s",
 				childAgg.name, childAgg.queryType.AggregationType().String())
