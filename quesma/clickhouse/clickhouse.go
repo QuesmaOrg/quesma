@@ -560,15 +560,15 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 		if err != nil {
 			return fmt.Errorf("error IngestTransformer: %v", err)
 		}
-		var deletedFields types.JSON
-		preprocessedJson, deletedFields, err = lm.validateIngest(tableName, preprocessedJson)
+		var notValidJson types.JSON
+		notValidJson, err = lm.validateIngest(tableName, preprocessedJson)
 		if err != nil {
 			return fmt.Errorf("error validation: %v", err)
 		}
-		for fieldName := range deletedFields {
+		for fieldName := range notValidJson {
 			delete(preprocessedJson, fieldName)
 		}
-		_ = deletedFields
+
 		insertJson, err := lm.BuildInsertJson(tableName, preprocessedJson, config)
 		if err != nil {
 			return fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)

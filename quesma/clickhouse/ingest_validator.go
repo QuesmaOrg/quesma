@@ -80,12 +80,12 @@ func validateValueAgainstType(fieldName string, value interface{}, column *Colum
 	return deletedFields
 }
 
-func (lm *LogManager) validateIngest(tableName string, document types.JSON) (types.JSON, types.JSON, error) {
+func (lm *LogManager) validateIngest(tableName string, document types.JSON) (types.JSON, error) {
 	clickhouseTable := lm.FindTable(tableName)
 
 	if clickhouseTable == nil {
 		logger.Error().Msgf("Table %s not found", tableName)
-		return nil, nil, errors.New("table not found:" + tableName)
+		return nil, errors.New("table not found:" + tableName)
 	}
 	deletedFields := make(types.JSON)
 	for fieldName, value := range document {
@@ -100,5 +100,5 @@ func (lm *LogManager) validateIngest(tableName string, document types.JSON) (typ
 			deletedFields[k] = v
 		}
 	}
-	return document, deletedFields, nil
+	return deletedFields, nil
 }
