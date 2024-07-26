@@ -38,6 +38,8 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 	selectedColumns := make([]model.AliasedExpr, 0)
 	selectedPartColumns := make([]model.AliasedExpr, 0)
 	selectedRankColumns := make([]model.AliasedExpr, 0)
+	whereRanks := make([]model.Expr, 0)
+	rankOrderBys := make([]model.OrderByExpr, 0)
 	groupByColumns := make([]model.AliasedExpr, 0)
 	namePrefix := ""
 	for layerId, layer := range aggregation.layers {
@@ -105,6 +107,12 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 				}
 				aliasedRank := model.AliasedExpr{rankColum, aliasedName + "_rank"}
 				selectedRankColumns = append(selectedRankColumns, aliasedRank)
+
+				whereRank := model.NewInfixExpr(newQuotedLiteral(aliasedRank.Alias), "<=", model.NewLiteral(bucketAggregation.limit))
+				whereRanks = append(whereRanks, whereRank)
+
+				rankOrderBy := model.NewOrderByExpr([]model.Expr{newQuotedLiteral(aliasedRank.Alias)}, model.AscOrder)
+				rankOrderBys = append(rankOrderBys, rankOrderBy)
 			}
 		}
 	}
@@ -121,7 +129,14 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 		FromClause: windowCte,
 	}
 
-	return &rankCte, nil
+	finalQuery := model.SelectCommand{
+		Columns:     aliasedExprArrayToLiteralExpr(selectedColumns),
+		FromClause:  rankCte,
+		WhereClause: model.And(whereRanks),
+		OrderBy:     rankOrderBys,
+	}
+
+	return &finalQuery, nil
 }
 
 func pancakeGenerateQuery(aggregation *pancakeAggregation, table *clickhouse.Table) (*model.Query, error) {
@@ -134,11 +149,11 @@ func pancakeGenerateQuery(aggregation *pancakeAggregation, table *clickhouse.Tab
 		return nil, err
 	}
 
-	resutQuery := &model.Query{
+	resultQuery := &model.Query{
 		SelectCommand: *resultSelectCommand,
 		TableName:     table.FullTableName(),
 		// TODO: Rest is to be filled, some of them incompatible with current query.model
 	}
 
-	return resutQuery, nil
+	return resultQuery, nil
 }
