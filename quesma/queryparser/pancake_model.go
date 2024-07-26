@@ -48,23 +48,12 @@ type pancakeLayerBucketAggregation struct {
 	metadata model.JsonMap
 }
 
-type pancakeAggregation struct {
-	// we supported nested aggregation, but one at each level
-	bucketAggregations []*pancakeLayerBucketAggregation
-	// metric aggregations for each corresponding bucket aggregation
-	// 0 - before 0 level of bucket aggregation
-	// 1 - after 0 level of bucket aggregation
-	metricAggregations [][]*pancakeFillingMetricAggregation
-
-	whereClause model.Expr
-}
-
 type pancakeAggregationLayer struct {
 	nextBucketAggregation     *pancakeLayerBucketAggregation
 	currentMetricAggregations []*pancakeFillingMetricAggregation
 }
 
-type pancakeAggregation2 struct {
+type pancakeAggregation struct {
 	layers []*pancakeAggregationLayer
 	// invariant: len(layers) > 0 && layers[len(layers)-1].nextBucketAggregation == nil
 

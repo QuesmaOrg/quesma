@@ -12,29 +12,12 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation) (*model.Selec
 	if aggregation == nil {
 		return nil, errors.New("aggregation is nil in pancakeGenerateQuery")
 	}
-	if len(aggregation.bucketAggregations)+1 != len(aggregation.metricAggregations) {
-		return nil, errors.New("number of bucket aggregations and metric aggregations does not match in pancakeGenerateQuery")
-	}
 
 	selectedColumns := make([]model.Expr, 0)
 	groupByColumns := make([]model.Expr, 0)
 	namePrefix := ""
-	for level, _ := range aggregation.metricAggregations {
-		if level > 0 {
-			// take care of bucket aggregation at level - 1
-			namePrefix = fmt.Sprintf("%s%s_", namePrefix, aggregation.bucketAggregations[level-1].name)
-			// TODO: ...
-			for columnId, column := range aggregation.bucketAggregations[level-1].selectedColumns {
-				aliasedName := fmt.Sprintf("%s_bucket_%d", namePrefix, columnId)
-				// TODO: check for collisions
-				aliasedColumn := model.AliasedExpr{column, aliasedName}
-				selectedColumns = append(selectedColumns, aliasedColumn)
-				if columnId < len(aggregation.bucketAggregations[level-1].selectedColumns)-1 {
-					groupByColumns = append(groupByColumns, aliasedColumn)
-				}
-			}
-		}
-		for _, metrics := range aggregation.metricAggregations[level] {
+	for _, layer := range aggregation.layers {
+		for _, metrics := range layer.currentMetricAggregations {
 			for columnId, column := range metrics.selectedColumns {
 				aliasedName := fmt.Sprintf("%s%s_%d", namePrefix, metrics.name, columnId)
 				// TODO: check for collisions
@@ -43,6 +26,22 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation) (*model.Selec
 			}
 			// TODO
 		}
+
+		if layer.nextBucketAggregation != nil {
+			// take care of bucket aggregation at level - 1
+			namePrefix = fmt.Sprintf("%s%s_", namePrefix, layer.nextBucketAggregation.name)
+			// TODO: ...
+			for columnId, column := range layer.nextBucketAggregation.selectedColumns {
+				aliasedName := fmt.Sprintf("%s_bucket_%d", namePrefix, columnId)
+				// TODO: check for collisions
+				aliasedColumn := model.AliasedExpr{column, aliasedName}
+				selectedColumns = append(selectedColumns, aliasedColumn)
+				if columnId < len(layer.nextBucketAggregation.selectedColumns)-1 {
+					groupByColumns = append(groupByColumns, aliasedColumn)
+				}
+			}
+		}
+
 	}
 
 	result := model.SelectCommand{
