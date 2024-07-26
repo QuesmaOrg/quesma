@@ -4,13 +4,17 @@ package queryparser
 
 import (
 	"context"
+	"fmt"
+	"github.com/k0kubun/pp"
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
+	"quesma/model"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
 	"quesma/testdata/clients"
+	"quesma/util"
 	"strconv"
 	"testing"
 )
@@ -40,7 +44,16 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)
 			assert.NoError(t, err)
 
-			cw.PancakeParseAggregationJson(jsonp)
+			pancakeSqls, err := cw.PancakeParseAggregationJson(jsonp)
+			assert.NoError(t, err)
+			assert.True(t, len(pancakeSqls) == 1, "pancakeSqls should have only one query")
+			pancakeSqlStr := model.AsString(pancakeSqls[0].SelectCommand)
+
+			pp.Println("Expected SQL:")
+			fmt.Println(util.SqlPrettyPrint([]byte(test.ExpectedSQLs[0])))
+			pp.Println("Actual (pancake) SQL:")
+			fmt.Println(util.SqlPrettyPrint([]byte(pancakeSqlStr)))
+			assert.Equal(t, test.ExpectedSQLs[0], pancakeSqlStr)
 		})
 	}
 }
