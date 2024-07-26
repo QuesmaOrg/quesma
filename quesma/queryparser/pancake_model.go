@@ -60,12 +60,13 @@ type pancakeAggregation struct {
 }
 
 type pancakeAggregationLayer struct {
-	bucketAggregations *pancakeLayerBucketAggregation
-	metricAggregations []*pancakeFillingMetricAggregation
+	nextBucketAggregation     *pancakeLayerBucketAggregation
+	currentMetricAggregations []*pancakeFillingMetricAggregation
 }
 
 type pancakeAggregation2 struct {
-	layers []pancakeAggregationLayer
+	layers []*pancakeAggregationLayer
+	// invariant: len(layers) > 0 && layers[len(layers)-1].nextBucketAggregation == nil
 
 	whereClause model.Expr
 }
