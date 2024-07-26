@@ -560,6 +560,10 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 		if err != nil {
 			return fmt.Errorf("error IngestTransformer: %v", err)
 		}
+		preprocessedJson, err = lm.validateIngest(tableName, preprocessedJson)
+		if err != nil {
+			return fmt.Errorf("error validation: %v", err)
+		}
 		insertJson, err := lm.BuildInsertJson(tableName, preprocessedJson, config)
 		if err != nil {
 			return fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)

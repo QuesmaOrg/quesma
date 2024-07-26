@@ -1,24 +1,13 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package ingest_validator
+package clickhouse
 
 import (
 	"errors"
-	"quesma/clickhouse"
 	"quesma/logger"
-	"quesma/plugins"
-	"quesma/quesma/config"
 	"quesma/quesma/types"
-	"quesma/schema"
 	"reflect"
 )
-
-type IngestValidator struct {
-	cfg            config.QuesmaConfiguration
-	schemaRegistry schema.Registry
-	table          string
-	tableMap       clickhouse.TableMap
-}
 
 func isInt(f float64) bool {
 	return f == float64(int64(f))
@@ -69,7 +58,7 @@ func removeLowCardinality(columnType string) string {
 	return columnType
 }
 
-func validateValueAgainstType(fieldName string, value interface{}, column *clickhouse.Column) []string {
+func validateValueAgainstType(fieldName string, value interface{}, column *Column) []string {
 	const DateTimeType = "DateTime64"
 	const StringType = "String"
 	deletedFields := make([]string, 0)
@@ -91,12 +80,12 @@ func validateValueAgainstType(fieldName string, value interface{}, column *click
 	return deletedFields
 }
 
-func (iv *IngestValidator) Transform(document types.JSON) (types.JSON, error) {
+func (lm *LogManager) validateIngest(tableName string, document types.JSON) (types.JSON, error) {
+	clickhouseTable := lm.FindTable(tableName)
 
-	clickhouseTable, ok := iv.tableMap.Load(iv.table)
-	if !ok {
-		logger.Error().Msgf("Table %s not found", iv.table)
-		return nil, errors.New("table not found:" + iv.table)
+	if clickhouseTable == nil {
+		logger.Error().Msgf("Table %s not found", tableName)
+		return nil, errors.New("table not found:" + tableName)
 	}
 	deletedFields := make([]string, 0)
 	for fieldName, value := range document {
@@ -113,24 +102,4 @@ func (iv *IngestValidator) Transform(document types.JSON) (types.JSON, error) {
 		delete(document, fieldName)
 	}
 	return document, nil
-}
-
-func (iv *IngestValidator) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, tableMap clickhouse.TableMap, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
-	return transformers
-}
-
-func (iv *IngestValidator) ApplyQueryTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.QueryTransformer) []plugins.QueryTransformer {
-	return transformers
-}
-
-func (iv *IngestValidator) ApplyResultTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.ResultTransformer) []plugins.ResultTransformer {
-	return transformers
-}
-
-func (iv *IngestValidator) ApplyFieldCapsTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.FieldCapsTransformer) []plugins.FieldCapsTransformer {
-	return transformers
-}
-
-func (iv *IngestValidator) GetTableColumnFormatter(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.TableColumNameFormatter {
-	return nil
 }
