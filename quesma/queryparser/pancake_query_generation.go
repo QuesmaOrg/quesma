@@ -20,7 +20,7 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 	for _, layer := range aggregation.layers {
 		for _, metrics := range layer.currentMetricAggregations {
 			for columnId, column := range metrics.selectedColumns {
-				aliasedName := fmt.Sprintf("%s%s_%d", namePrefix, metrics.name, columnId)
+				aliasedName := fmt.Sprintf("aggr__%s%s%d", namePrefix, metrics.name, columnId)
 				// TODO: check for collisions
 				aliasedColumn := model.AliasedExpr{column, aliasedName}
 				selectedColumns = append(selectedColumns, aliasedColumn)
@@ -30,10 +30,10 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 
 		if layer.nextBucketAggregation != nil {
 			// take care of bucket aggregation at level - 1
-			namePrefix = fmt.Sprintf("%s%s_", namePrefix, layer.nextBucketAggregation.name)
+			namePrefix = fmt.Sprintf("%s%s__", namePrefix, layer.nextBucketAggregation.name)
 			// TODO: ...
 			for columnId, column := range layer.nextBucketAggregation.selectedColumns {
-				aliasedName := fmt.Sprintf("%s_bucket_%d", namePrefix, columnId)
+				aliasedName := fmt.Sprintf("aggr__%s%d", namePrefix, columnId)
 				// TODO: check for collisions
 				aliasedColumn := model.AliasedExpr{column, aliasedName}
 				selectedColumns = append(selectedColumns, aliasedColumn)
