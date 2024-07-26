@@ -88,16 +88,17 @@ func (lm *LogManager) validateIngest(tableName string, document types.JSON) (typ
 		return nil, errors.New("table not found:" + tableName)
 	}
 	deletedFields := make(types.JSON)
-	for fieldName, value := range document {
-		if value == nil {
-			continue
-		}
-		column := clickhouseTable.Cols[fieldName]
+	for columnName, column := range clickhouseTable.Cols {
 		if column == nil {
 			continue
 		}
-		for k, v := range validateValueAgainstType(fieldName, value, column) {
-			deletedFields[k] = v
+		if value, ok := document[columnName]; ok {
+			if value == nil {
+				continue
+			}
+			for k, v := range validateValueAgainstType(columnName, value, column) {
+				deletedFields[k] = v
+			}
 		}
 	}
 	return deletedFields, nil

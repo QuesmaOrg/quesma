@@ -439,7 +439,6 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, notVali
 	}
 
 	wasReplaced := replaceDotsWithSeparator(m)
-
 	if !config.hasOthers && len(config.attributes) == 0 {
 		if wasReplaced {
 			rawBytes, err := m.Bytes()
@@ -461,7 +460,7 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, notVali
 
 	mDiff := DifferenceMap(m, t) // TODO change to DifferenceMap(m, t)
 
-	if len(mDiff) == 0 && string(schemaFieldsJson) == js { // no need to modify, just insert 'js'
+	if len(mDiff) == 0 && string(schemaFieldsJson) == js && len(notValidJson) == 0 { // no need to modify, just insert 'js'
 		return js, nil
 	}
 	var attrsMap map[string][]interface{}
@@ -472,6 +471,10 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, notVali
 		othersMap = mDiff
 	} else {
 		return "", fmt.Errorf("no attributes or others in config, but received non-schema fields: %s", mDiff)
+	}
+	for k, v := range notValidJson {
+		attrsMap[AttributesKeyColumn] = append(attrsMap[AttributesKeyColumn], k)
+		attrsMap[AttributesValueColumn] = append(attrsMap[AttributesValueColumn], v)
 	}
 	nonSchemaStr := ""
 	if len(attrsMap) > 0 {
@@ -561,10 +564,10 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
 		preprocessedJson, err := transformer.Transform(jsonValue)
+
 		if err != nil {
 			return fmt.Errorf("error IngestTransformer: %v", err)
 		}
-
 		notValidJson, err := lm.validateIngest(tableName, preprocessedJson)
 		if err != nil {
 			return fmt.Errorf("error validation: %v", err)
@@ -585,7 +588,6 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 		"date_time_input_format": "best_effort",
 	}))
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertValues)
-
 	span := lm.phoneHomeAgent.ClickHouseInsertDuration().Begin()
 	_, err := lm.chDb.ExecContext(ctx, insert)
 	span.End(err)
