@@ -49,7 +49,7 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 	if err != nil {
 		return nil, err
 	}
-	dbQuery, err := pancakeGenerateQuery(pancakeQueries)
+	dbQuery, err := pancakeGenerateQuery(pancakeQueries, cw.Table)
 	if err != nil {
 		return nil, err
 	}

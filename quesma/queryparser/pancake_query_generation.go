@@ -5,10 +5,11 @@ package queryparser
 import (
 	"errors"
 	"fmt"
+	"quesma/clickhouse"
 	"quesma/model"
 )
 
-func pancakeGenerateSelectCommand(aggregation *pancakeAggregation) (*model.SelectCommand, error) {
+func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickhouse.Table) (*model.SelectCommand, error) {
 	if aggregation == nil {
 		return nil, errors.New("aggregation is nil in pancakeGenerateQuery")
 	}
@@ -48,23 +49,25 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation) (*model.Selec
 		Columns:     selectedColumns,
 		GroupBy:     groupByColumns,
 		WhereClause: aggregation.whereClause,
+		FromClause:  model.NewTableRef(table.FullTableName()),
 	}
 
 	return &result, nil
 }
 
-func pancakeGenerateQuery(aggregation *pancakeAggregation) (*model.Query, error) {
+func pancakeGenerateQuery(aggregation *pancakeAggregation, table *clickhouse.Table) (*model.Query, error) {
 	if aggregation == nil {
 		return nil, errors.New("aggregation is nil in pancakeGenerateQuery")
 	}
 
-	resultSelectCommand, err := pancakeGenerateSelectCommand(aggregation)
+	resultSelectCommand, err := pancakeGenerateSelectCommand(aggregation, table)
 	if err != nil {
 		return nil, err
 	}
 
 	resutQuery := &model.Query{
 		SelectCommand: *resultSelectCommand,
+		TableName:     table.FullTableName(),
 		// TODO: Rest is to be filled, some of them incompatible with current query.model
 	}
 

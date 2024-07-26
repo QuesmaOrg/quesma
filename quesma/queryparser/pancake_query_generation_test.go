@@ -16,6 +16,7 @@ import (
 	"quesma/testdata/clients"
 	"quesma/util"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -49,11 +50,20 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			assert.True(t, len(pancakeSqls) == 1, "pancakeSqls should have only one query")
 			pancakeSqlStr := model.AsString(pancakeSqls[0].SelectCommand)
 
+			expectedSql := test.ExpectedSQLs[0]
+			// cheap trick to find the aggregation sql for now
+			for _, alternativeExpectedSql := range test.ExpectedSQLs {
+				if strings.Contains(alternativeExpectedSql, "cte_") {
+					expectedSql = alternativeExpectedSql
+					break
+				}
+			}
+
 			pp.Println("Expected SQL:")
-			fmt.Println(util.SqlPrettyPrint([]byte(test.ExpectedSQLs[0])))
+			fmt.Println(util.SqlPrettyPrint([]byte(expectedSql)))
 			pp.Println("Actual (pancake) SQL:")
 			fmt.Println(util.SqlPrettyPrint([]byte(pancakeSqlStr)))
-			assert.Equal(t, test.ExpectedSQLs[0], pancakeSqlStr)
+			assert.Equal(t, expectedSql, pancakeSqlStr)
 		})
 	}
 }
