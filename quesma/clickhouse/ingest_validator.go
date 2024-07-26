@@ -58,10 +58,10 @@ func removeLowCardinality(columnType string) string {
 	return columnType
 }
 
-func validateValueAgainstType(fieldName string, value interface{}, column *Column) []string {
+func validateValueAgainstType(fieldName string, value interface{}, column *Column) types.JSON {
 	const DateTimeType = "DateTime64"
 	const StringType = "String"
-	deletedFields := make([]string, 0)
+	deletedFields := make(types.JSON, 0)
 	columnType := column.Type.String()
 	columnType = removeLowCardinality(columnType)
 	incomingValueType := getTypeName(value)
@@ -70,24 +70,24 @@ func validateValueAgainstType(fieldName string, value interface{}, column *Colum
 		// For now we store dates as strings
 		if incomingValueType != StringType {
 			// We should store it as an attribute in the future
-			deletedFields = append(deletedFields, fieldName)
+			deletedFields[fieldName] = value
 		}
 	} else if columnType != incomingValueType {
 		// TODO remove field from document for now
 		// We should store it as an attribute in the future
-		deletedFields = append(deletedFields, fieldName)
+		deletedFields[fieldName] = value
 	}
 	return deletedFields
 }
 
-func (lm *LogManager) validateIngest(tableName string, document types.JSON) (types.JSON, error) {
+func (lm *LogManager) validateIngest(tableName string, document types.JSON) (types.JSON, types.JSON, error) {
 	clickhouseTable := lm.FindTable(tableName)
 
 	if clickhouseTable == nil {
 		logger.Error().Msgf("Table %s not found", tableName)
-		return nil, errors.New("table not found:" + tableName)
+		return nil, nil, errors.New("table not found:" + tableName)
 	}
-	deletedFields := make([]string, 0)
+	deletedFields := make(types.JSON)
 	for fieldName, value := range document {
 		if value == nil {
 			continue
@@ -96,10 +96,9 @@ func (lm *LogManager) validateIngest(tableName string, document types.JSON) (typ
 		if column == nil {
 			continue
 		}
-		deletedFields = append(deletedFields, validateValueAgainstType(fieldName, value, column)...)
+		for k, v := range validateValueAgainstType(fieldName, value, column) {
+			deletedFields[k] = v
+		}
 	}
-	for _, fieldName := range deletedFields {
-		delete(document, fieldName)
-	}
-	return document, nil
+	return document, deletedFields, nil
 }
