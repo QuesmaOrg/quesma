@@ -7,7 +7,6 @@ import (
 	"quesma/clickhouse"
 	"quesma/plugins"
 	"quesma/plugins/elastic_clickhouse_fields"
-	"quesma/plugins/ingest_validator"
 	"quesma/quesma/config"
 	"quesma/schema"
 )
@@ -24,7 +23,7 @@ type Plugin interface {
 var registeredPlugins []Plugin
 
 func init() {
-	registeredPlugins = []Plugin{&elastic_clickhouse_fields.Dot2DoubleColons2Dot{}, &ingest_validator.IngestValidator{}}
+	registeredPlugins = []Plugin{&elastic_clickhouse_fields.Dot2DoubleColons2Dot{}}
 }
 
 func QueryTransformerFor(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.QueryTransformer {
