@@ -16,7 +16,6 @@ import (
 	"quesma/testdata/clients"
 	"quesma/util"
 	"strconv"
-	"strings"
 	"testing"
 )
 
@@ -54,20 +53,17 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			assert.True(t, len(pancakeSqls) == 1, "pancakeSqls should have only one query")
 			pancakeSqlStr := model.AsString(pancakeSqls[0].SelectCommand)
 
-			expectedSql := test.ExpectedSQLs[0]
-			// cheap trick to find the aggregation sql for now
-			for _, alternativeExpectedSql := range test.ExpectedSQLs {
-				if strings.Contains(alternativeExpectedSql, "cte_") {
-					expectedSql = alternativeExpectedSql
-					break
-				}
-			}
+			expectedSql := clients.OpheliaTestsPancake[i].Sql
+			prettyExpectedSql := expectedSql[1:]
+
+			prettyPancakeSql := util.SqlPrettyPrint([]byte(pancakeSqlStr))
+			//prettyExpectedSql := util.SqlPrettyPrint([]byte(expectedSql))
 
 			pp.Println("Expected SQL:")
-			fmt.Println(util.SqlPrettyPrint([]byte(expectedSql)))
+			fmt.Println(prettyExpectedSql)
 			pp.Println("Actual (pancake) SQL:")
-			fmt.Println(util.SqlPrettyPrint([]byte(pancakeSqlStr)))
-			assert.Equal(t, expectedSql, pancakeSqlStr)
+			fmt.Println(prettyPancakeSql)
+			assert.Equal(t, prettyExpectedSql, prettyPancakeSql)
 
 			if i == 0 {
 				/* Sample code for Rafal:

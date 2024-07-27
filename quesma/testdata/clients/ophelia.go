@@ -17,31 +17,31 @@ var OpheliaTestsPancake = []opheliaTestsPancakeTest{ // take rest arguments from
 	{ // [0]
 		TestName: "Ophelia Test 1: triple terms + default order",
 		Sql: `
-WITH cte_rank_1 AS (
-WITH cte_window_1 AS (SELECT "surname",
-       SUM(surname_part_cnt) OVER (PARTITION BY "surname") AS "surname_cnt",
-       COUNT() AS "surname_part_cnt",
-       "limbName",
-       SUM(limbName_part_cnt) OVER (PARTITION BY "surname", "limbName") AS "limbName_cnt",
-       COUNT() AS "limbName_part_cnt",
-       "organName",
-       COUNT() AS "organName_cnt"
-FROM "logs-generic-default"
-WHERE ("surname" IS NOT NULL AND "organName" IS NOT NULL)
-GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName")
-SELECT
-	"surname", "surname_cnt",
-	DENSE_RANK() OVER (ORDER BY "surname_cnt" DESC, "surname") AS "rank_surname_cnt",
-	"limbName", "limbName_cnt",
-	DENSE_RANK() OVER (PARTITION BY "surname" ORDER BY "limbName_cnt" DESC, "limbName") AS "rank_limbName_cnt",
-	"organName", "organName_cnt"
-	DENSE_RANK() OVER (PARTITION BY "surname", "limbName" ORDER BY "organName_cnt" DESC, "limbName") AS "rank_organName_cnt",
-FROM cte_window_1)
-SELECT "surname", "surname_cnt", "limbName", "limbName_cnt", "organName", "organName_cnt"
-FROM cte_rank_1
-WHERE "rank_surname_cnt" <= 200 AND "rank_limbName_cnt" <= 20 AND "rank_organName_cnt" <= 1
-ORDER BY "surname_cnt" DESC, "limbName_cnt" DESC, "organName_cnt" DESC
-`,
+SELECT "aggr__2__0", "aggr__2__1", "aggr__2__8__0", "aggr__2__8__1",
+  "aggr__2__8__4__0", "aggr__2__8__4__1"
+FROM (
+  SELECT "aggr__2__0", "aggr__2__1", "aggr__2__8__0", "aggr__2__8__1",
+    "aggr__2__8__4__0", "aggr__2__8__4__1", dense_rank() OVER (PARTITION BY 1
+  ORDER BY "aggr__2__1" DESC, "aggr__2__0" ASC) AS "aggr__2__1_rank", dense_rank
+    () OVER (PARTITION BY "aggr__2__0"
+  ORDER BY "aggr__2__8__1" DESC, "aggr__2__8__0" ASC) AS "aggr__2__8__1_rank",
+    dense_rank() OVER (PARTITION BY "aggr__2__0", "aggr__2__8__0"
+  ORDER BY "aggr__2__8__4__1" DESC, "aggr__2__8__4__0" ASC) AS
+    "aggr__2__8__4__1_rank"
+  FROM (
+    SELECT "surname" AS "aggr__2__0", sum("aggr__2__1_part") OVER (PARTITION BY
+      1) AS "aggr__2__1", COALESCE("limbName",'__missing__') AS "aggr__2__8__0",
+       sum("aggr__2__8__1_part") OVER (PARTITION BY "aggr__2__0") AS
+      "aggr__2__8__1", "organName" AS "aggr__2__8__4__0", count() AS
+      "aggr__2__8__4__1", count() AS "aggr__2__1_part", count() AS
+      "aggr__2__8__1_part"
+    FROM "logs-generic-default"
+    GROUP BY "surname" AS "aggr__2__0", COALESCE("limbName",'__missing__') AS
+      "aggr__2__8__0", "organName" AS "aggr__2__8__4__0"))
+WHERE (("aggr__2__1_rank"<=200 AND "aggr__2__8__1_rank"<=20) AND
+  "aggr__2__8__4__1_rank"<=1)
+ORDER BY "aggr__2__1_rank" ASC, "aggr__2__8__1_rank" ASC,
+  "aggr__2__8__4__1_rank" ASC`,
 		ExpectedResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__0", "a1"),
