@@ -150,6 +150,7 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 					selectedColumns = append(selectedColumns, aliasedColumn)
 				}
 				// We order by count, but add key to get right dense_rank()
+				// TODO: fix order by
 				rankColumOrderBy := []model.OrderByExpr{model.NewOrderByExpr([]model.Expr{newQuotedLiteral(aliasedName)}, model.DescOrder)}
 				for _, addedGroupByAlias := range addedGroupByAliases {
 					rankColumOrderBy = append(rankColumOrderBy, model.NewOrderByExpr([]model.Expr{addedGroupByAlias}, model.AscOrder))

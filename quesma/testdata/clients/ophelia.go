@@ -2763,8 +2763,8 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`LIMIT 200`,
 		},
 	},
-	{ // [3]
-		TestName: "Ophelia Test 3: 5x terms + a lot of other aggregations",
+	{ // [6]
+		TestName: "Ophelia Test 7: 5x terms + a lot of other aggregations",
 		QueryRequestJson: `
 		{
 			"aggs": {

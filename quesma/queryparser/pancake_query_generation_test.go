@@ -46,6 +46,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Skipping tests with pancake SQL")
 				return
 			}
+			if test.TestName == "Ophelia Test 5: 4x terms + order by another aggregations" {
+				t.Skip("Skipping test, we need to implement sorting by key")
+				return
+			}
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)
 			assert.NoError(t, err)
 
