@@ -53,7 +53,7 @@ func (cw *ClickhouseQueryTranslator) processFiltersAggregation(aggrBuilder *aggr
 	aggrBuilder.Aggregators[len(aggrBuilder.Aggregators)-1].Filters = true
 	for _, filter := range aggr.Filters {
 		// newBuilder := aggrBuilder.clone()
-		// newBuilder.queryType = bucket_aggregations.NewFilters(cw.Ctx, []bucket_aggregations.Filter{filter})
+		// newBuilder.Type = bucket_aggregations.NewFilters(cw.Ctx, []bucket_aggregations.Filter{filter})
 		// newBuilder.whereBuilder.CombineWheresWith(filter.Sql)
 		// newBuilder.Aggregators = append(aggrBuilder.Aggregators, model.NewAggregatorEmpty(filter.Name))
 		aggrBuilder.Type = aggr

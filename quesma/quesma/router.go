@@ -308,7 +308,7 @@ func elasticsearchCountResult(body int64, statusCode int) *mux.Result {
 		panic(err)
 	}
 	return &mux.Result{Body: string(serialized), Meta: map[string]string{
-		"Content-queryType":       "application/json",
+		"Content-Type":            "application/json",
 		"X-Quesma-Headers-Source": "Quesma",
 	}, StatusCode: statusCode}
 }

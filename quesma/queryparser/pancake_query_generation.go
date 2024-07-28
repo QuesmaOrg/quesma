@@ -44,9 +44,8 @@ func pancakeGeneratePartitionBy(groupByColumns []model.AliasedExpr) []model.Expr
 
 // TODO: Implement all functions
 func pancakeGenerateAccumAggrFunctions(origExpr model.Expr, queryType model.QueryType) (accumExpr model.Expr, aggrFuncName string, err error) {
-	switch origExpr.(type) {
+	switch origFunc := origExpr.(type) {
 	case model.FunctionExpr:
-		origFunc := origExpr.(model.FunctionExpr)
 		switch origFunc.Name {
 		case "sumOrNull", "minOrNull", "maxOrNull":
 			return origExpr, origFunc.Name, nil

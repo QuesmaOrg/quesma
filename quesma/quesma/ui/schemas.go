@@ -31,7 +31,7 @@ func (qmc *QuesmaManagementConsole) generateSchemas() []byte {
 		buffer.Html(`<tr>`)
 		buffer.Html(`<th>Public Name</th>`)
 		buffer.Html(`<th>Internal Name</th>`)
-		buffer.Html(`<th>queryType</th>`)
+		buffer.Html(`<th>Type</th>`)
 		buffer.Html(`</tr>`)
 
 		for _, fieldName := range util.MapKeysSorted(schema.Fields) {

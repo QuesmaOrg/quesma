@@ -67,14 +67,15 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			fmt.Println(prettyPancakeSql)
 			assert.Equal(t, prettyExpectedSql, prettyPancakeSql)
 
-			if i == 0 {
-				/* Sample code for Rafal:
-				sqlRowResults := clients.OpheliaTestsPancake[0]
-				pancakeSqls[0].pancakeItself
-				jsonP := panckakeGenerateJsonReturn(pancakeSqls[0].pancakeItself, sqlRowResults)
-				test.ExpectedResponse // parse and take "aggs" and compare
-				*/
-			}
+			/*
+				if i == 0 {
+					 Sample code for Rafal:
+					sqlRowResults := clients.OpheliaTestsPancake[0]
+					pancakeSqls[0].pancakeItself
+					jsonP := panckakeGenerateJsonReturn(pancakeSqls[0].pancakeItself, sqlRowResults)
+					test.ExpectedResponse // parse and take "aggs" and compare
+				}
+			*/
 		})
 	}
 }

@@ -129,7 +129,7 @@ func Test3AggregationParserNewLogic(t *testing.T) {
 					if query_util.IsNonAggregationQuery(query) {
 						continue
 					}
-					test.ExpectedResults[j] = query.queryType.PostprocessResults(test.ExpectedResults[j])
+					test.ExpectedResults[j] = query.Type.PostprocessResults(test.ExpectedResults[j])
 					// fmt.Println("--- Group by: ", query.GroupByFields)
 				}
 

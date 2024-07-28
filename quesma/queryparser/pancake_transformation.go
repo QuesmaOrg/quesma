@@ -96,7 +96,7 @@ func pancakeTranslateFromAggregationToLayered(topLevel pancakeAggregationTopLeve
 
 func pancakeBakeLayer(childAggregations []*pancakeAggregationLevel) (*pancakeAggregationLayer, *pancakeAggregationLevel, error) {
 
-	if childAggregations == nil || len(childAggregations) == 0 {
+	if len(childAggregations) == 0 {
 		return nil, nil, nil
 	}
 
