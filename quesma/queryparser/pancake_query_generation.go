@@ -30,6 +30,19 @@ func aliasedExprArrayToLiteralExpr(aliasedExprs []model.AliasedExpr) []model.Exp
 	return exprs
 }
 
+func pancakeGeneratePartitionBy(groupByColumns []model.AliasedExpr) []model.Expr {
+	partitionBy := make([]model.Expr, 0)
+	if len(groupByColumns) == 0 {
+		partitionBy = []model.Expr{model.NewLiteral(1)}
+	} else {
+		for _, col := range groupByColumns {
+			partitionBy = append(partitionBy, newQuotedLiteral(col.Alias))
+		}
+	}
+	return partitionBy
+}
+
+// TODO: collapse metric names
 func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickhouse.Table) (*model.SelectCommand, error) {
 	if aggregation == nil {
 		return nil, errors.New("aggregation is nil in pancakeGenerateQuery")
@@ -43,18 +56,9 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 	groupByColumns := make([]model.AliasedExpr, 0)
 	namePrefix := ""
 	for layerId, layer := range aggregation.layers {
-		partitionBy := []model.Expr{}
-		if len(groupByColumns) == 0 {
-			partitionBy = []model.Expr{model.NewLiteral(1)}
-		} else {
-			for _, col := range groupByColumns {
-				partitionBy = append(partitionBy, newQuotedLiteral(col.Alias))
-			}
-		}
-
 		for _, metrics := range layer.currentMetricAggregations {
 			for columnId, column := range metrics.selectedColumns {
-				aliasedName := fmt.Sprintf("metric__%s%s%d", namePrefix, metrics.name, columnId)
+				aliasedName := fmt.Sprintf("metric__%s%s_col_%d", namePrefix, metrics.name, columnId)
 
 				// TODO: check for collisions
 				if layerId < len(aggregation.layers)-1 {
@@ -63,7 +67,7 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 					// TODO: need proper aggregate, not just for count, sum, min, max
 					finalColumn := model.WindowFunction{Name: "sumOrNull", // TODO: different too
 						Args:        []model.Expr{newQuotedLiteral(partColumnName)},
-						PartitionBy: partitionBy,
+						PartitionBy: pancakeGeneratePartitionBy(groupByColumns),
 						OrderBy:     []model.OrderByExpr{},
 					}
 					aliasedColumn := model.AliasedExpr{finalColumn, aliasedName}
@@ -82,10 +86,11 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 			namePrefix = fmt.Sprintf("%s%s__", namePrefix, bucketAggregation.name)
 
 			addedGroupByAliases := []model.Expr{}
+			previousGroupByColumns := groupByColumns
 
 			// TODO: ...
 			for columnId, column := range bucketAggregation.selectedColumns {
-				aliasedName := fmt.Sprintf("aggr__%s%d", namePrefix, columnId)
+				aliasedName := fmt.Sprintf("aggr__%skey_%d", namePrefix, columnId)
 				// TODO: check for collisions
 				aliasedColumn := model.AliasedExpr{column, aliasedName}
 				selectedColumns = append(selectedColumns, aliasedColumn)
@@ -96,17 +101,18 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 			if bucketAggregation.orderBy != nil && len(bucketAggregation.orderBy) > 0 {
 				// TODO: different columns
 				orderBy := bucketAggregation.orderBy[0].Exprs[0]
-				aliasedName := fmt.Sprintf("aggr__%s%d", namePrefix, columnId)
+				aliasedName := fmt.Sprintf("aggr__%sorder_%d", namePrefix, columnId)
 				columnId += 1
 
-				if layerId < len(aggregation.layers)-1 {
+				// if it is not last bucket aggregation
+				if layerId < len(aggregation.layers)-1 && aggregation.layers[layerId+1].nextBucketAggregation != nil {
 					partColumnName := aliasedName + "_part"
 					aliasedColumn := model.AliasedExpr{orderBy, partColumnName}
 					selectedPartColumns = append(selectedPartColumns, aliasedColumn)
 					// TODO: need proper aggregate, not just for count
 					orderByAgg := model.WindowFunction{Name: "sum", // TODO: different too
 						Args:        []model.Expr{newQuotedLiteral(partColumnName)},
-						PartitionBy: partitionBy,
+						PartitionBy: pancakeGeneratePartitionBy(groupByColumns),
 						OrderBy:     []model.OrderByExpr{},
 					}
 					aliasedOrderByAgg := model.AliasedExpr{orderByAgg, aliasedName}
@@ -123,7 +129,7 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 
 				rankColum := model.WindowFunction{Name: "dense_rank",
 					Args:        []model.Expr{},
-					PartitionBy: partitionBy,
+					PartitionBy: pancakeGeneratePartitionBy(previousGroupByColumns),
 					OrderBy:     rankColumOrderBy,
 				}
 				aliasedRank := model.AliasedExpr{rankColum, aliasedName + "_rank"}

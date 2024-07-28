@@ -15,31 +15,34 @@ var OpheliaTestsPancake = []opheliaTestsPancakeTest{ // take rest arguments from
 	{ // [0]
 		TestName: "Ophelia Test 1: triple terms + default order",
 		Sql: `
-SELECT "aggr__2__0", "aggr__2__1", "aggr__2__8__0", "aggr__2__8__1",
-  "aggr__2__8__4__0", "aggr__2__8__4__1"
+SELECT "aggr__2__key_0", "aggr__2__order_1", "aggr__2__8__key_0",
+  "aggr__2__8__order_1", "aggr__2__8__4__key_0", "aggr__2__8__4__order_1"
 FROM (
-  SELECT "aggr__2__0", "aggr__2__1", "aggr__2__8__0", "aggr__2__8__1",
-    "aggr__2__8__4__0", "aggr__2__8__4__1", dense_rank() OVER (PARTITION BY 1
-  ORDER BY "aggr__2__1" DESC, "aggr__2__0" ASC) AS "aggr__2__1_rank", dense_rank
-    () OVER (PARTITION BY "aggr__2__0"
-  ORDER BY "aggr__2__8__1" DESC, "aggr__2__8__0" ASC) AS "aggr__2__8__1_rank",
-    dense_rank() OVER (PARTITION BY "aggr__2__0", "aggr__2__8__0"
-  ORDER BY "aggr__2__8__4__1" DESC, "aggr__2__8__4__0" ASC) AS
-    "aggr__2__8__4__1_rank"
+  SELECT "aggr__2__key_0", "aggr__2__order_1", "aggr__2__8__key_0",
+    "aggr__2__8__order_1", "aggr__2__8__4__key_0", "aggr__2__8__4__order_1",
+    dense_rank() OVER (PARTITION BY 1
+  ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC) AS
+    "aggr__2__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__2__key_0"
+  ORDER BY "aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
+    "aggr__2__8__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__2__key_0"
+    , "aggr__2__8__key_0"
+  ORDER BY "aggr__2__8__4__order_1" DESC, "aggr__2__8__4__key_0" ASC) AS
+    "aggr__2__8__4__order_1_rank"
   FROM (
-    SELECT "surname" AS "aggr__2__0", sum("aggr__2__1_part") OVER (PARTITION BY
-      1) AS "aggr__2__1", COALESCE("limbName",'__missing__') AS "aggr__2__8__0",
-       sum("aggr__2__8__1_part") OVER (PARTITION BY "aggr__2__0") AS
-      "aggr__2__8__1", "organName" AS "aggr__2__8__4__0", count() AS
-      "aggr__2__8__4__1", count() AS "aggr__2__1_part", count() AS
-      "aggr__2__8__1_part"
+    SELECT "surname" AS "aggr__2__key_0", sum("aggr__2__order_1_part") OVER (
+      PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1", COALESCE("limbName",
+      '__missing__') AS "aggr__2__8__key_0", sum("aggr__2__8__order_1_part")
+      OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
+      "aggr__2__8__order_1", "organName" AS "aggr__2__8__4__key_0", count() AS
+      "aggr__2__8__4__order_1", count() AS "aggr__2__order_1_part", count() AS
+      "aggr__2__8__order_1_part"
     FROM "logs-generic-default"
-    GROUP BY "surname" AS "aggr__2__0", COALESCE("limbName",'__missing__') AS
-      "aggr__2__8__0", "organName" AS "aggr__2__8__4__0"))
-WHERE (("aggr__2__1_rank"<=200 AND "aggr__2__8__1_rank"<=20) AND
-  "aggr__2__8__4__1_rank"<=1)
-ORDER BY "aggr__2__1_rank" ASC, "aggr__2__8__1_rank" ASC,
-  "aggr__2__8__4__1_rank" ASC`,
+    GROUP BY "surname" AS "aggr__2__key_0", COALESCE("limbName",'__missing__')
+      AS "aggr__2__8__key_0", "organName" AS "aggr__2__8__4__key_0"))
+WHERE (("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20) AND
+  "aggr__2__8__4__order_1_rank"<=1)
+ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
+  "aggr__2__8__4__order_1_rank" ASC`,
 		ExpectedResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__0", "a1"),
@@ -78,40 +81,122 @@ ORDER BY "aggr__2__1_rank" ASC, "aggr__2__8__1_rank" ASC,
 	{
 		TestName: "Ophelia Test 2: triple terms + other aggregations + default order",
 		Sql: `
-SELECT "aggr__2__0", "aggr__2__1", "metric__2__10", "aggr__2__8__0",
-  "aggr__2__8__1", "metric__2__8__10", "aggr__2__8__4__0", "aggr__2__8__4__1",
-  "metric__2__8__4__10", "metric__2__8__4__50"
+SELECT "aggr__2__key_0", "aggr__2__order_1", "metric__2__1_col_0",
+  "aggr__2__8__key_0", "aggr__2__8__order_1", "metric__2__8__1_col_0",
+  "aggr__2__8__4__key_0", "aggr__2__8__4__order_1", "metric__2__8__4__1_col_0",
+  "metric__2__8__4__5_col_0"
 FROM (
-  SELECT "aggr__2__0", "aggr__2__1", "metric__2__10", "aggr__2__8__0",
-    "aggr__2__8__1", "metric__2__8__10", "aggr__2__8__4__0", "aggr__2__8__4__1",
-     "metric__2__8__4__10", "metric__2__8__4__50", dense_rank() OVER (PARTITION
-    BY 1
-  ORDER BY "aggr__2__1" DESC, "aggr__2__0" ASC) AS "aggr__2__1_rank", dense_rank
-    () OVER (PARTITION BY "aggr__2__0"
-  ORDER BY "aggr__2__8__1" DESC, "aggr__2__8__0" ASC) AS "aggr__2__8__1_rank",
-    dense_rank() OVER (PARTITION BY "aggr__2__0", "aggr__2__8__0"
-  ORDER BY "aggr__2__8__4__1" DESC, "aggr__2__8__4__0" ASC) AS
-    "aggr__2__8__4__1_rank"
+  SELECT "aggr__2__key_0", "aggr__2__order_1", "metric__2__1_col_0",
+    "aggr__2__8__key_0", "aggr__2__8__order_1", "metric__2__8__1_col_0",
+    "aggr__2__8__4__key_0", "aggr__2__8__4__order_1", "metric__2__8__4__1_col_0"
+    , "metric__2__8__4__5_col_0", dense_rank() OVER (PARTITION BY 1
+  ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC) AS
+    "aggr__2__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__2__key_0"
+  ORDER BY "aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
+    "aggr__2__8__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__2__key_0"
+    , "aggr__2__8__key_0"
+  ORDER BY "aggr__2__8__4__order_1" DESC, "aggr__2__8__4__key_0" ASC) AS
+    "aggr__2__8__4__order_1_rank"
   FROM (
-    SELECT "surname" AS "aggr__2__0", sum("aggr__2__1_part") OVER (PARTITION BY
-      1) AS "aggr__2__1", sumOrNull("metric__2__10_part") OVER (PARTITION BY
-      "aggr__2__0") AS "metric__2__10", COALESCE("limbName",'__missing__') AS
-      "aggr__2__8__0", sum("aggr__2__8__1_part") OVER (PARTITION BY "aggr__2__0"
-      ) AS "aggr__2__8__1", sumOrNull("metric__2__8__10_part") OVER (PARTITION
-      BY "aggr__2__0", "aggr__2__8__0") AS "metric__2__8__10", "organName" AS
-      "aggr__2__8__4__0", sum("aggr__2__8__4__1_part") OVER (PARTITION BY
-      "aggr__2__0", "aggr__2__8__0") AS "aggr__2__8__4__1", sumOrNull("total")
-      AS "metric__2__8__4__10", sumOrNull("some") AS "metric__2__8__4__50",
-      count() AS "aggr__2__1_part", sumOrNull("total") AS "metric__2__10_part",
-      count() AS "aggr__2__8__1_part", sumOrNull("total") AS
-      "metric__2__8__10_part", count() AS "aggr__2__8__4__1_part"
+    SELECT "surname" AS "aggr__2__key_0", sum("aggr__2__order_1_part") OVER (
+      PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1", sumOrNull(
+      "metric__2__1_col_0_part") OVER (PARTITION BY "aggr__2__key_0") AS
+      "metric__2__1_col_0", COALESCE("limbName",'__missing__') AS
+      "aggr__2__8__key_0", sum("aggr__2__8__order_1_part") OVER (PARTITION BY
+      "aggr__2__key_0", "aggr__2__8__key_0") AS "aggr__2__8__order_1", sumOrNull
+      ("metric__2__8__1_col_0_part") OVER (PARTITION BY "aggr__2__key_0",
+      "aggr__2__8__key_0") AS "metric__2__8__1_col_0", "organName" AS
+      "aggr__2__8__4__key_0", count() AS "aggr__2__8__4__order_1", sumOrNull(
+      "total") AS "metric__2__8__4__1_col_0", sumOrNull("some") AS
+      "metric__2__8__4__5_col_0", count() AS "aggr__2__order_1_part", sumOrNull(
+      "total") AS "metric__2__1_col_0_part", count() AS
+      "aggr__2__8__order_1_part", sumOrNull("total") AS
+      "metric__2__8__1_col_0_part"
     FROM "logs-generic-default"
-    GROUP BY "surname" AS "aggr__2__0", COALESCE("limbName",'__missing__') AS
-      "aggr__2__8__0", "organName" AS "aggr__2__8__4__0"))
-WHERE (("aggr__2__1_rank"<=200 AND "aggr__2__8__1_rank"<=20) AND
-  "aggr__2__8__4__1_rank"<=1)
-ORDER BY "aggr__2__1_rank" ASC, "aggr__2__8__1_rank" ASC,
-  "aggr__2__8__4__1_rank" ASC`,
+    GROUP BY "surname" AS "aggr__2__key_0", COALESCE("limbName",'__missing__')
+      AS "aggr__2__8__key_0", "organName" AS "aggr__2__8__4__key_0"))
+WHERE (("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20) AND
+  "aggr__2__8__4__order_1_rank"<=1)
+ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
+  "aggr__2__8__4__order_1_rank" ASC`,
+		ExpectedResults: []model.QueryResultRow{}, // TODO
+	},
+	{
+		TestName: "Ophelia Test 3: 5x terms + a lot of other aggregations",
+		Sql: `
+SELECT "aggr__2__key_0", "aggr__2__order_1", "metric__2__1_col_0",
+  "aggr__2__7__key_0", "aggr__2__7__order_1", "metric__2__7__1_col_0",
+  "aggr__2__7__8__key_0", "aggr__2__7__8__order_1", "metric__2__7__8__1_col_0",
+  "aggr__2__7__8__4__key_0", "aggr__2__7__8__4__order_1",
+  "metric__2__7__8__4__1_col_0", "aggr__2__7__8__4__3__key_0",
+  "aggr__2__7__8__4__3__order_1", "metric__2__7__8__4__3__1_col_0",
+  "metric__2__7__8__4__3__5_col_0", "metric__2__7__8__4__3__6_col_0"
+FROM (
+  SELECT "aggr__2__key_0", "aggr__2__order_1", "metric__2__1_col_0",
+    "aggr__2__7__key_0", "aggr__2__7__order_1", "metric__2__7__1_col_0",
+    "aggr__2__7__8__key_0", "aggr__2__7__8__order_1", "metric__2__7__8__1_col_0"
+    , "aggr__2__7__8__4__key_0", "aggr__2__7__8__4__order_1",
+    "metric__2__7__8__4__1_col_0", "aggr__2__7__8__4__3__key_0",
+    "aggr__2__7__8__4__3__order_1", "metric__2__7__8__4__3__1_col_0",
+    "metric__2__7__8__4__3__5_col_0", "metric__2__7__8__4__3__6_col_0",
+    dense_rank() OVER (PARTITION BY 1
+  ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC) AS
+    "aggr__2__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__2__key_0"
+  ORDER BY "aggr__2__7__order_1" DESC, "aggr__2__7__key_0" ASC) AS
+    "aggr__2__7__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__2__key_0"
+    , "aggr__2__7__key_0"
+  ORDER BY "aggr__2__7__8__order_1" DESC, "aggr__2__7__8__key_0" ASC) AS
+    "aggr__2__7__8__order_1_rank", dense_rank() OVER (PARTITION BY
+    "aggr__2__key_0", "aggr__2__7__key_0", "aggr__2__7__8__key_0"
+  ORDER BY "aggr__2__7__8__4__order_1" DESC, "aggr__2__7__8__4__key_0" ASC) AS
+    "aggr__2__7__8__4__order_1_rank", dense_rank() OVER (PARTITION BY
+    "aggr__2__key_0", "aggr__2__7__key_0", "aggr__2__7__8__key_0",
+    "aggr__2__7__8__4__key_0"
+  ORDER BY "aggr__2__7__8__4__3__order_1" DESC, "aggr__2__7__8__4__3__key_0" ASC
+    ) AS "aggr__2__7__8__4__3__order_1_rank"
+  FROM (
+    SELECT "surname" AS "aggr__2__key_0", sum("aggr__2__order_1_part") OVER (
+      PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1", sumOrNull(
+      "metric__2__1_col_0_part") OVER (PARTITION BY "aggr__2__key_0") AS
+      "metric__2__1_col_0", COALESCE("limbName",'__missing__') AS
+      "aggr__2__7__key_0", sum("aggr__2__7__order_1_part") OVER (PARTITION BY
+      "aggr__2__key_0", "aggr__2__7__key_0") AS "aggr__2__7__order_1", sumOrNull
+      ("metric__2__7__1_col_0_part") OVER (PARTITION BY "aggr__2__key_0",
+      "aggr__2__7__key_0") AS "metric__2__7__1_col_0", COALESCE("organName",
+      '__missing__') AS "aggr__2__7__8__key_0", sum(
+      "aggr__2__7__8__order_1_part") OVER (PARTITION BY "aggr__2__key_0",
+      "aggr__2__7__key_0", "aggr__2__7__8__key_0") AS "aggr__2__7__8__order_1",
+      sumOrNull("metric__2__7__8__1_col_0_part") OVER (PARTITION BY
+      "aggr__2__key_0", "aggr__2__7__key_0", "aggr__2__7__8__key_0") AS
+      "metric__2__7__8__1_col_0", "doctorName" AS "aggr__2__7__8__4__key_0", sum
+      ("aggr__2__7__8__4__order_1_part") OVER (PARTITION BY "aggr__2__key_0",
+      "aggr__2__7__key_0", "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
+       "aggr__2__7__8__4__order_1", sumOrNull("metric__2__7__8__4__1_col_0_part"
+      ) OVER (PARTITION BY "aggr__2__key_0", "aggr__2__7__key_0",
+      "aggr__2__7__8__key_0", "aggr__2__7__8__4__key_0") AS
+      "metric__2__7__8__4__1_col_0", "height" AS "aggr__2__7__8__4__3__key_0",
+      sumOrNull("total") AS "aggr__2__7__8__4__3__order_1", sumOrNull("total")
+      AS "metric__2__7__8__4__3__1_col_0", sumOrNull("some") AS
+      "metric__2__7__8__4__3__5_col_0", sumOrNull("cost") AS
+      "metric__2__7__8__4__3__6_col_0", sumOrNull("total") AS
+      "aggr__2__order_1_part", sumOrNull("total") AS "metric__2__1_col_0_part",
+      sumOrNull("total") AS "aggr__2__7__order_1_part", sumOrNull("total") AS
+      "metric__2__7__1_col_0_part", sumOrNull("total") AS
+      "aggr__2__7__8__order_1_part", sumOrNull("total") AS
+      "metric__2__7__8__1_col_0_part", sumOrNull("total") AS
+      "aggr__2__7__8__4__order_1_part", sumOrNull("total") AS
+      "metric__2__7__8__4__1_col_0_part"
+    FROM "logs-generic-default"
+    GROUP BY "surname" AS "aggr__2__key_0", COALESCE("limbName",'__missing__')
+      AS "aggr__2__7__key_0", COALESCE("organName",'__missing__') AS
+      "aggr__2__7__8__key_0", "doctorName" AS "aggr__2__7__8__4__key_0",
+      "height" AS "aggr__2__7__8__4__3__key_0"))
+WHERE (((("aggr__2__order_1_rank"<=100 AND "aggr__2__7__order_1_rank"<=10) AND
+  "aggr__2__7__8__order_1_rank"<=10) AND "aggr__2__7__8__4__order_1_rank"<=6)
+  AND "aggr__2__7__8__4__3__order_1_rank"<=1)
+ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__7__order_1_rank" ASC,
+  "aggr__2__7__8__order_1_rank" ASC, "aggr__2__7__8__4__order_1_rank" ASC,
+  "aggr__2__7__8__4__3__order_1_rank" ASC`,
 		ExpectedResults: []model.QueryResultRow{}, // TODO
 	},
 }
