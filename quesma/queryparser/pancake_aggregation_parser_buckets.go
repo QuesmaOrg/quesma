@@ -156,7 +156,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 							fullOrderBy = []model.OrderByExpr{{Exprs: []model.Expr{fieldExpression}, Direction: direction}}
 							break // mainOrderBy remains default
 						} else if key != "_count" {
-							mainOrderBy = cw.findMetricAggregationVersionUna(queryMap, key)
+							mainOrderBy = cw.pancakeFindMetricAggregation(queryMap, key)
 						}
 
 						fullOrderBy = []model.OrderByExpr{
@@ -355,7 +355,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 	return
 }
 
-func (cw *ClickhouseQueryTranslator) findMetricAggregationVersionUna(queryMap QueryMap, aggregationName string) model.Expr {
+func (cw *ClickhouseQueryTranslator) pancakeFindMetricAggregation(queryMap QueryMap, aggregationName string) model.Expr {
 	notFoundValue := model.NewLiteral("")
 	aggsRaw, exists := queryMap["aggs"]
 	if !exists {

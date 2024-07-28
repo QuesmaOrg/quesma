@@ -42,20 +42,15 @@ func TestPancakeQueryGeneration(t *testing.T) {
 	allTests := clients.OpheliaTests
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if i >= len(clients.OpheliaTestsPancake) {
-				t.Skip("Skipping tests with pancake SQL")
-				return
-			}
-			if test.TestName == "Ophelia Test 5: 4x terms + order by another aggregations" {
-				t.Skip("Skipping test, we need to implement sorting by key")
-				return
-			}
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)
 			assert.NoError(t, err)
 
 			pancakeSqls, err := cw.PancakeParseAggregationJson(jsonp)
 			assert.NoError(t, err)
 			assert.True(t, len(pancakeSqls) == 1, "pancakeSqls should have only one query")
+			if len(pancakeSqls) < 1 {
+				return
+			}
 			pancakeSqlStr := model.AsString(pancakeSqls[0].SelectCommand)
 
 			if len(clients.OpheliaTestsPancake) <= i {

@@ -124,13 +124,16 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 			}
 			columnId := len(bucketAggregation.selectedColumns)
 			if bucketAggregation.orderBy != nil && len(bucketAggregation.orderBy) > 0 {
-				// TODO: different columns
+				// TODO: handle all columns
 				orderBy := bucketAggregation.orderBy[0].Exprs[0]
+				orderByDirection := bucketAggregation.orderBy[0].Direction
 				aliasedName := fmt.Sprintf("aggr__%sorder_%d", namePrefix, columnId)
 				columnId += 1
 
-				// if it is not last bucket aggregation
-				if layerId < len(aggregation.layers)-1 && aggregation.layers[layerId+1].nextBucketAggregation != nil {
+				_, isColumnRef := orderBy.(model.ColumnRef)
+
+				hasMoreBucketAggregations := layerId < len(aggregation.layers)-1 && aggregation.layers[layerId+1].nextBucketAggregation != nil
+				if hasMoreBucketAggregations && !isColumnRef {
 					partColumnName := aliasedName + "_part"
 					partColumn, aggFunctionName, err := pancakeGenerateAccumAggrFunctions(orderBy, nil)
 					if err != nil {
@@ -138,6 +141,7 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 					}
 					aliasedColumn := model.AliasedExpr{partColumn, partColumnName}
 					selectedPartColumns = append(selectedPartColumns, aliasedColumn)
+					// TODO: fix order by
 					orderByAgg := model.WindowFunction{Name: aggFunctionName,
 						Args:        []model.Expr{newQuotedLiteral(partColumnName)},
 						PartitionBy: pancakeGeneratePartitionBy(groupByColumns),
@@ -149,9 +153,9 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 					aliasedColumn := model.AliasedExpr{orderBy, aliasedName}
 					selectedColumns = append(selectedColumns, aliasedColumn)
 				}
+
 				// We order by count, but add key to get right dense_rank()
-				// TODO: fix order by
-				rankColumOrderBy := []model.OrderByExpr{model.NewOrderByExpr([]model.Expr{newQuotedLiteral(aliasedName)}, model.DescOrder)}
+				rankColumOrderBy := []model.OrderByExpr{model.NewOrderByExpr([]model.Expr{newQuotedLiteral(aliasedName)}, orderByDirection)}
 				for _, addedGroupByAlias := range addedGroupByAliases {
 					rankColumOrderBy = append(rankColumOrderBy, model.NewOrderByExpr([]model.Expr{addedGroupByAlias}, model.AscOrder))
 				}
