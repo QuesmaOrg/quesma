@@ -89,17 +89,17 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 					if err != nil {
 						return nil, err
 					}
-					aliasedPartColumn := model.AliasedExpr{partColumn, partColumnName}
+					aliasedPartColumn := model.AliasedExpr{Expr: partColumn, Alias: partColumnName}
 					selectedPartColumns = append(selectedPartColumns, aliasedPartColumn)
 					finalColumn := model.WindowFunction{Name: aggFunctionName,
 						Args:        []model.Expr{newQuotedLiteral(partColumnName)},
 						PartitionBy: pancakeGeneratePartitionBy(groupByColumns),
 						OrderBy:     []model.OrderByExpr{},
 					}
-					aliasedColumn := model.AliasedExpr{finalColumn, aliasedName}
+					aliasedColumn := model.AliasedExpr{Expr: finalColumn, Alias: aliasedName}
 					selectedColumns = append(selectedColumns, aliasedColumn)
 				} else {
-					aliasedColumn := model.AliasedExpr{column, aliasedName}
+					aliasedColumn := model.AliasedExpr{Expr: column, Alias: aliasedName}
 					selectedColumns = append(selectedColumns, aliasedColumn)
 				}
 			}
@@ -117,7 +117,7 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 			for columnId, column := range bucketAggregation.selectedColumns {
 				aliasedName := fmt.Sprintf("aggr__%skey_%d", namePrefix, columnId)
 				// TODO: check for collisions
-				aliasedColumn := model.AliasedExpr{column, aliasedName}
+				aliasedColumn := model.AliasedExpr{Expr: column, Alias: aliasedName}
 				selectedColumns = append(selectedColumns, aliasedColumn)
 				groupByColumns = append(groupByColumns, aliasedColumn)
 				addedGroupByAliases = append(addedGroupByAliases, newQuotedLiteral(aliasedName))
@@ -139,7 +139,7 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 					if err != nil {
 						return nil, err
 					}
-					aliasedColumn := model.AliasedExpr{partColumn, partColumnName}
+					aliasedColumn := model.AliasedExpr{Expr: partColumn, Alias: partColumnName}
 					selectedPartColumns = append(selectedPartColumns, aliasedColumn)
 					// TODO: fix order by
 					orderByAgg := model.WindowFunction{Name: aggFunctionName,
@@ -147,10 +147,10 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 						PartitionBy: pancakeGeneratePartitionBy(groupByColumns),
 						OrderBy:     []model.OrderByExpr{},
 					}
-					aliasedOrderByAgg := model.AliasedExpr{orderByAgg, aliasedName}
+					aliasedOrderByAgg := model.AliasedExpr{Expr: orderByAgg, Alias: aliasedName}
 					selectedColumns = append(selectedColumns, aliasedOrderByAgg)
 				} else {
-					aliasedColumn := model.AliasedExpr{orderBy, aliasedName}
+					aliasedColumn := model.AliasedExpr{Expr: orderBy, Alias: aliasedName}
 					selectedColumns = append(selectedColumns, aliasedColumn)
 				}
 
@@ -165,7 +165,7 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 					PartitionBy: pancakeGeneratePartitionBy(previousGroupByColumns),
 					OrderBy:     rankColumOrderBy,
 				}
-				aliasedRank := model.AliasedExpr{rankColum, aliasedName + "_rank"}
+				aliasedRank := model.AliasedExpr{Expr: rankColum, Alias: aliasedName + "_rank"}
 				selectedRankColumns = append(selectedRankColumns, aliasedRank)
 
 				whereRank := model.NewInfixExpr(newQuotedLiteral(aliasedRank.Alias), "<=", model.NewLiteral(bucketAggregation.limit))
