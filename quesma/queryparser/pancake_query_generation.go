@@ -42,7 +42,29 @@ func pancakeGeneratePartitionBy(groupByColumns []model.AliasedExpr) []model.Expr
 	return partitionBy
 }
 
-// TODO: collapse metric names
+// TODO: Implement all functions
+func pancakeGenerateAccumAggrFunctions(origExpr model.Expr, queryType model.QueryType) (accumExpr model.Expr, aggrFuncName string, err error) {
+	switch origExpr.(type) {
+	case model.FunctionExpr:
+		origFunc := origExpr.(model.FunctionExpr)
+		switch origFunc.Name {
+		case "sumOrNull", "minOrNull", "maxOrNull":
+			return origExpr, origFunc.Name, nil
+		case "avgOrNull":
+			return model.NewFunction("avgState", origFunc.Args...), "avgMerge", nil
+		case "count":
+			return model.NewFunction("count", origFunc.Args...), "sum", nil
+		}
+	}
+	debugQueryType := "<nil>"
+	if queryType != nil {
+		debugQueryType = queryType.String()
+	}
+	return nil, "",
+		fmt.Errorf("not implemented, queryType: %s, origExpr: %s", debugQueryType, model.AsString(origExpr))
+}
+
+// TODO: deduplicate metric names
 func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickhouse.Table) (*model.SelectCommand, error) {
 	if aggregation == nil {
 		return nil, errors.New("aggregation is nil in pancakeGenerateQuery")
@@ -63,9 +85,13 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 				// TODO: check for collisions
 				if layerId < len(aggregation.layers)-1 {
 					partColumnName := aliasedName + "_part"
-					selectedPartColumns = append(selectedPartColumns, model.AliasedExpr{column, partColumnName})
-					// TODO: need proper aggregate, not just for count, sum, min, max
-					finalColumn := model.WindowFunction{Name: "sumOrNull", // TODO: different too
+					partColumn, aggFunctionName, err := pancakeGenerateAccumAggrFunctions(column, metrics.queryType)
+					if err != nil {
+						return nil, err
+					}
+					aliasedPartColumn := model.AliasedExpr{partColumn, partColumnName}
+					selectedPartColumns = append(selectedPartColumns, aliasedPartColumn)
+					finalColumn := model.WindowFunction{Name: aggFunctionName,
 						Args:        []model.Expr{newQuotedLiteral(partColumnName)},
 						PartitionBy: pancakeGeneratePartitionBy(groupByColumns),
 						OrderBy:     []model.OrderByExpr{},
@@ -77,7 +103,6 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 					selectedColumns = append(selectedColumns, aliasedColumn)
 				}
 			}
-			// TODO
 		}
 
 		if layer.nextBucketAggregation != nil {
@@ -107,10 +132,13 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 				// if it is not last bucket aggregation
 				if layerId < len(aggregation.layers)-1 && aggregation.layers[layerId+1].nextBucketAggregation != nil {
 					partColumnName := aliasedName + "_part"
-					aliasedColumn := model.AliasedExpr{orderBy, partColumnName}
+					partColumn, aggFunctionName, err := pancakeGenerateAccumAggrFunctions(orderBy, nil)
+					if err != nil {
+						return nil, err
+					}
+					aliasedColumn := model.AliasedExpr{partColumn, partColumnName}
 					selectedPartColumns = append(selectedPartColumns, aliasedColumn)
-					// TODO: need proper aggregate, not just for count
-					orderByAgg := model.WindowFunction{Name: "sum", // TODO: different too
+					orderByAgg := model.WindowFunction{Name: aggFunctionName,
 						Args:        []model.Expr{newQuotedLiteral(partColumnName)},
 						PartitionBy: pancakeGeneratePartitionBy(groupByColumns),
 						OrderBy:     []model.OrderByExpr{},
