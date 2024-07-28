@@ -58,3 +58,20 @@ type pancakeAggregation struct {
 
 	whereClause model.Expr
 }
+
+// Not a real aggregation, but it is a pancake that has alternative JSON rendering
+type pancakeQueryType struct {
+	pancakeAggregation *pancakeAggregation
+}
+
+func (p pancakeQueryType) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+	panic("not implemented")
+}
+
+func (p pancakeQueryType) AggregationType() model.AggregationType {
+	return model.TypicalAggregation
+}
+
+func (p pancakeQueryType) String() string {
+	return "pancake query type"
+}

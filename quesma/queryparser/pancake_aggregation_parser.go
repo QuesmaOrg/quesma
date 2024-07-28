@@ -43,8 +43,6 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 		}
 	}
 
-	// TODO: Implement topLevel to SQL conversion
-
 	pancakeQueries, err := pancakeTranslateFromAggregationToLayered(topLevel)
 	if err != nil {
 		return nil, err
@@ -56,11 +54,6 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 
 	aggregationQueries := make([]*model.Query, 0)
 	aggregationQueries = append(aggregationQueries, dbQuery)
-
-	// TODO: Add FROM clause, table name, and context
-	// currentAggr.SelectCommand.FromClause = model.NewTableRef(cw.Table.FullTableName())
-	// currentAggr.TableName = cw.Table.FullTableName()
-	// currentAggr.ctx = cw.Ctx
 
 	return aggregationQueries, nil
 }

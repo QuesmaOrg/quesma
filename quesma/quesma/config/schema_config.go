@@ -43,7 +43,7 @@ func (fn FieldName) AsString() string {
 }
 
 func (fc FieldConfiguration) String() string {
-	baseString := fmt.Sprintf("FieldConfiguration: Name=%s, queryType=%s", fc.Name, fc.Type)
+	baseString := fmt.Sprintf("FieldConfiguration: Name=%s, Type=%s", fc.Name, fc.Type)
 	if fc.ColumnName != "" {
 		baseString += fmt.Sprintf(", ColumnName=%s", fc.ColumnName)
 	}

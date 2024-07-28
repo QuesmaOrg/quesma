@@ -211,7 +211,7 @@ func pancakeGenerateQuery(aggregation *pancakeAggregation, table *clickhouse.Tab
 	resultQuery := &model.Query{
 		SelectCommand: *resultSelectCommand,
 		TableName:     table.FullTableName(),
-		// TODO: Rest is to be filled, some of them incompatible with current query.model
+		Type:          pancakeQueryType{pancakeAggregation: aggregation},
 	}
 
 	return resultQuery, nil
