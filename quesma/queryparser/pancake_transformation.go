@@ -5,6 +5,7 @@ package queryparser
 import (
 	"fmt"
 	"quesma/model"
+	"sort"
 )
 
 func pancakeTranslateMetricToFilling(metric *pancakeAggregationLevel) (filling *pancakeFillingMetricAggregation) {
@@ -74,6 +75,15 @@ func pancakeTranslateFromAggregationToLayered(topLevel pancakeAggregationTopLeve
 		}
 
 		layers = append(layers, layer)
+	}
+
+	// we need sort metric aggregation to generate consistent results, otherwise:
+	// - tests are flaky
+	// - database might not use it query cache
+	for _, layer := range layers {
+		sort.Slice(layer.currentMetricAggregations, func(i, j int) bool {
+			return layer.currentMetricAggregations[i].name < layer.currentMetricAggregations[j].name
+		})
 	}
 
 	pancakeResult = &pancakeAggregation{
