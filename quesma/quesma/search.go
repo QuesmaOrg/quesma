@@ -315,7 +315,8 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alter
 		defer recovery.LogPanic()
 
 		// results are passed via channel
-		body, err := q.executeAlternativePlan(ctx, alternativePlan, queryTranslator, table, body)
+		newCtx := tracing.NewContextWithRequest(ctx)
+		body, err := q.executeAlternativePlan(newCtx, alternativePlan, queryTranslator, table, body)
 
 		optComparePlansCh <- executionPlanResult{
 			plan:         alternativePlan,
@@ -491,7 +492,7 @@ func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, r
 					queries := append(queriesWithoutAggr, pancakeQueries...)
 					return &model.ExecutionPlan{
 						IndexPattern:          plan.IndexPattern,
-						QueryRowsTransformers: plan.QueryRowsTransformers,
+						QueryRowsTransformers: make([]model.QueryRowsTransfomer, len(queries)),
 						ResultAdapter:         plan.ResultAdapter,
 						Queries:               queries,
 						StartTime:             plan.StartTime,

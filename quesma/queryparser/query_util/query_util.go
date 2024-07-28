@@ -11,7 +11,8 @@ import (
 
 func IsNonAggregationQuery(query *model.Query) bool {
 	switch query.Type.(type) {
-	case typical_queries.Count, *typical_queries.Hits, nil: // FIXME erase nil, always have type non-empty, but it's not that completely easy, as it seems
+	// FIXME erase nil, always have type non-empty, but it's not that completely easy, as it seems
+	case typical_queries.Count, *typical_queries.Hits, nil:
 		return true
 	default:
 		return false
