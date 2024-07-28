@@ -16,6 +16,7 @@ import (
 	"quesma/testdata/clients"
 	"quesma/util"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -41,8 +42,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 	allTests := clients.OpheliaTests
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if i > 0 {
-				t.Skip("Skipping all tests except the first one")
+			if i > 1 {
+				t.Skip("Skipping all tests except first two")
 				return
 			}
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)
@@ -53,11 +54,13 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			assert.True(t, len(pancakeSqls) == 1, "pancakeSqls should have only one query")
 			pancakeSqlStr := model.AsString(pancakeSqls[0].SelectCommand)
 
+			if len(clients.OpheliaTestsPancake) <= i {
+				t.Fatal("No pancake SQL for this test")
+			}
 			expectedSql := clients.OpheliaTestsPancake[i].Sql
-			prettyExpectedSql := expectedSql[1:]
+			prettyExpectedSql := strings.TrimSpace(expectedSql)
 
 			prettyPancakeSql := util.SqlPrettyPrint([]byte(pancakeSqlStr))
-			//prettyExpectedSql := util.SqlPrettyPrint([]byte(expectedSql))
 
 			pp.Println("Expected SQL:")
 			fmt.Println(prettyExpectedSql)

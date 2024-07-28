@@ -43,12 +43,35 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 	groupByColumns := make([]model.AliasedExpr, 0)
 	namePrefix := ""
 	for layerId, layer := range aggregation.layers {
+		partitionBy := []model.Expr{}
+		if len(groupByColumns) == 0 {
+			partitionBy = []model.Expr{model.NewLiteral(1)}
+		} else {
+			for _, col := range groupByColumns {
+				partitionBy = append(partitionBy, newQuotedLiteral(col.Alias))
+			}
+		}
+
 		for _, metrics := range layer.currentMetricAggregations {
 			for columnId, column := range metrics.selectedColumns {
 				aliasedName := fmt.Sprintf("metric__%s%s%d", namePrefix, metrics.name, columnId)
+
 				// TODO: check for collisions
-				aliasedColumn := model.AliasedExpr{column, aliasedName}
-				selectedColumns = append(selectedColumns, aliasedColumn)
+				if layerId < len(aggregation.layers)-1 {
+					partColumnName := aliasedName + "_part"
+					selectedPartColumns = append(selectedPartColumns, model.AliasedExpr{column, partColumnName})
+					// TODO: need proper aggregate, not just for count, sum, min, max
+					finalColumn := model.WindowFunction{Name: "sumOrNull", // TODO: different too
+						Args:        []model.Expr{newQuotedLiteral(partColumnName)},
+						PartitionBy: partitionBy,
+						OrderBy:     []model.OrderByExpr{},
+					}
+					aliasedColumn := model.AliasedExpr{finalColumn, aliasedName}
+					selectedColumns = append(selectedColumns, aliasedColumn)
+				} else {
+					aliasedColumn := model.AliasedExpr{column, aliasedName}
+					selectedColumns = append(selectedColumns, aliasedColumn)
+				}
 			}
 			// TODO
 		}
@@ -57,14 +80,6 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 			bucketAggregation := layer.nextBucketAggregation
 			// take care of bucket aggregation at level - 1
 			namePrefix = fmt.Sprintf("%s%s__", namePrefix, bucketAggregation.name)
-			partitionBy := []model.Expr{}
-			if len(groupByColumns) == 0 {
-				partitionBy = []model.Expr{model.NewLiteral(1)}
-			} else {
-				for _, col := range groupByColumns {
-					partitionBy = append(partitionBy, newQuotedLiteral(col.Alias))
-				}
-			}
 
 			addedGroupByAliases := []model.Expr{}
 
