@@ -107,6 +107,9 @@ func pancakeBakeLayer(childAggregations []*pancakeAggregationLevel) (*pancakeAgg
 	}
 
 	for _, childAgg := range childAggregations {
+		if childAgg.queryType == nil {
+			return nil, nil, fmt.Errorf("query type is nil in pancakeBakeLayer")
+		}
 		switch childAgg.queryType.AggregationType() {
 		case model.MetricsAggregation:
 			layer.currentMetricAggregations = append(layer.currentMetricAggregations, pancakeTranslateMetricToFilling(childAgg))
