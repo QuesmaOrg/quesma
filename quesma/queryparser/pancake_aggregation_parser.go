@@ -10,6 +10,8 @@ import (
 	"quesma/quesma/types"
 )
 
+const PancakeOptimizerName = "pancake"
+
 // Here is experimental code to generate aggregations in one SQL query. called Version Una.
 func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON) ([]*model.Query, error) {
 	queryAsMap := body.Clone()

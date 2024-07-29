@@ -434,7 +434,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
 	}
 
-	queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry, incomingIndexName)
+	queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry, incomingIndexName, q.cfg)
 
 	plan, err := queryTranslator.ParseQuery(body)
 
@@ -471,8 +471,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 }
 
 func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, resolvedTableName string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON) *model.ExecutionPlan {
-	optimizers := q.cfg.IndexConfig[resolvedTableName].EnabledOptimizers
-	if pancakeConfig, hasPancake := optimizers["pancake"]; hasPancake && pancakeConfig.Enabled {
+
+	props, enabled := q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration(queryparser.PancakeOptimizerName)
+	if enabled && props["mode"] == "alternative" {
 
 		hasAggQuery := false
 		queriesWithoutAggr := make([]*model.Query, 0)

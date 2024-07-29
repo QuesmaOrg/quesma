@@ -35,6 +35,7 @@ func NewEmptyHighlighter() model.Highlighter {
 }
 
 func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.ExecutionPlan, error) {
+
 	if cw.SchemaRegistry == nil {
 		logger.Error().Msg("Schema registry is not set")
 		return &model.ExecutionPlan{}, errors.New("schema registry is not set")
@@ -55,14 +56,40 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	if facetsQuery != nil {
 		queries = append(queries, facetsQuery)
 	} else {
-		aggregationQueries, err := cw.ParseAggregationJson(body)
-		if err != nil {
-			logger.WarnWithCtx(cw.Ctx).Msgf("error parsing aggregation: %v", err)
+
+		var pancakeApplied bool
+
+		// this is an alternative implementation
+		pancakeOptimizerProps, enabled := cw.Config.IndexConfig[cw.IncomingIndexName].GetOptimizerConfiguration(PancakeOptimizerName)
+		if enabled && pancakeOptimizerProps["mode"] == "apply" {
+			if pancakeQueries, err := cw.PancakeParseAggregationJson(body); err == nil {
+
+				// decorate each query with the fact that it was optimized by pancake
+				for _, query := range pancakeQueries {
+					if query.OptimizeHints == nil {
+						query.OptimizeHints = model.NewQueryExecutionHints()
+					}
+					query.OptimizeHints.OptimizationsPerformed = append(query.OptimizeHints.OptimizationsPerformed, PancakeOptimizerName)
+				}
+
+				queries = append(queries, pancakeQueries...)
+				pancakeApplied = true
+			} else {
+				logger.WarnWithCtx(cw.Ctx).Msgf("Error parsing pancake queries: %v. Falling back to the standard implementation.", err)
+			}
 		}
-		if aggregationQueries != nil {
+
+		// this is a standard implementation
+		if !pancakeApplied {
+			aggregationQueries, err := cw.ParseAggregationJson(body)
+			if err != nil {
+				logger.WarnWithCtx(cw.Ctx).Msgf("error parsing aggregation: %v", err)
+				return &model.ExecutionPlan{}, err
+			}
 			queries = append(queries, aggregationQueries...)
 		}
 	}
+
 	if listQuery := cw.buildListQueryIfNeeded(simpleQuery, queryInfo, highlighter); listQuery != nil {
 		queries = append(queries, listQuery)
 	}

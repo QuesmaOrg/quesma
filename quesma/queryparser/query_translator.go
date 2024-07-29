@@ -11,6 +11,7 @@ import (
 	"quesma/model/typical_queries"
 	"quesma/queryparser/query_util"
 	"quesma/queryprocessor"
+	"quesma/quesma/config"
 	"quesma/schema"
 	"quesma/util"
 )
@@ -28,6 +29,7 @@ type ClickhouseQueryTranslator struct {
 
 	SchemaRegistry    schema.Registry
 	IncomingIndexName string
+	Config            config.QuesmaConfiguration
 }
 
 var completionStatusOK = func() *int { value := 200; return &value }()
