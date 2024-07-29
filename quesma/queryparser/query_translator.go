@@ -178,6 +178,8 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 		if i >= len(ResultSets) || query_util.IsNonAggregationQuery(query) {
 			continue
 		}
+		var aggregation model.JsonMap
+
 		if pancake, isPancake := query.Type.(PancakeQueryType); isPancake {
 
 			// TODO maybe this should be moved to separate function
@@ -197,10 +199,10 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 				}
 			}
 
-			// TODO: implement
-			continue
+			aggregation = pancake.TranslateSqlResponseToJson(ResultSets[i], 0)
+		} else {
+			aggregation = cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
 		}
-		aggregation := cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
 		if len(aggregation) != 0 {
 			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation, model.KeyAddedByQuesma)
 		}

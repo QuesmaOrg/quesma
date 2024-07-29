@@ -42,8 +42,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 	allTests := clients.OpheliaTests
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if i >= 2 {
-				t.Skip() // TODO: remove
+			if i >= 1 { // TODO: remove
+				t.Skip()
 			}
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)
 			assert.NoError(t, err)
@@ -56,10 +56,19 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 			pancakeSqlStr := model.AsString(pancakeSqls[0].SelectCommand)
 
-			if len(clients.OpheliaTestsPancake) <= i {
+			olpheliaTestsPancakeIdx := -1
+			for idx, olpheliaTest := range clients.OpheliaTestsPancake {
+				if olpheliaTest.TestName == test.TestName {
+					olpheliaTestsPancakeIdx = idx
+					break
+				}
+			}
+
+			if olpheliaTestsPancakeIdx == -1 {
 				t.Fatal("No pancake SQL for this test")
 			}
-			expectedSql := clients.OpheliaTestsPancake[i].Sql
+			opheliaTestPancake := clients.OpheliaTestsPancake[olpheliaTestsPancakeIdx]
+			expectedSql := opheliaTestPancake.Sql
 			prettyExpectedSql := strings.TrimSpace(expectedSql)
 
 			prettyPancakeSql := util.SqlPrettyPrint([]byte(pancakeSqlStr))
@@ -70,11 +79,11 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			fmt.Println(prettyPancakeSql)
 
 			assert.Equal(t, prettyExpectedSql, prettyPancakeSql)
-			if len(clients.OpheliaTestsPancake[i].ExpectedResults) == 0 {
+			if len(opheliaTestPancake.ExpectedResults) == 0 {
 				assert.Fail(t, "No pancake expected results for this test")
 			}
 
-			if len(clients.OpheliaTestsPancake[i].ExpectedResults) > 1 {
+			if len(opheliaTestPancake.ExpectedResults) > 1 {
 				if queryType, ok := pancakeSqls[0].Type.(PancakeQueryType); ok {
 					expectedJson, err := util.JsonToMap(test.ExpectedResponse)
 					if err != nil {
@@ -88,15 +97,15 @@ func TestPancakeQueryGeneration(t *testing.T) {
 					}
 					assert.NotNil(t, expectedAggregationsPart, "Expected JSON should have 'response'/'aggregations' part")
 
-					pancakeJson := pancakeRenderJSON(queryType.pancakeAggregation, clients.OpheliaTestsPancake[i].ExpectedResults)
+					pancakeJson := pancakeRenderJSON(queryType.pancakeAggregation, opheliaTestPancake.ExpectedResults)
 
 					actualMinusExpected, expectedMinusActual := util.MapDifference(pancakeJson, expectedAggregationsPart, true, true)
 
 					// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
 					acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma,
 						"sum_other_doc_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
-					// pp.Println("ACTUAL diff", actualMinusExpected)
-					// pp.Println("EXPECTED diff", expectedMinusActual)
+					pp.Println("ACTUAL diff", actualMinusExpected)
+					pp.Println("EXPECTED diff", expectedMinusActual)
 					pp.Println("ACTUAL", pancakeJson)
 					pp.Println("EXPECTED", expectedAggregationsPart)
 					assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))

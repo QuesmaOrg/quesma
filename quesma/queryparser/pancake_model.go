@@ -81,7 +81,7 @@ func (p PancakeQueryType) ReturnCount() *pancakeFillingMetricAggregation {
 }
 
 func (p PancakeQueryType) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-	panic("pancake is not implemented")
+	return pancakeRenderJSON(p.pancakeAggregation, rows)
 }
 
 func (p PancakeQueryType) AggregationType() model.AggregationType {

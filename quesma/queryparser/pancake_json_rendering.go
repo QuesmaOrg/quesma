@@ -5,6 +5,7 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/model"
 	"quesma/util"
 	"strings"
@@ -14,9 +15,9 @@ func pancakeSelectMetricRows(name string, rows []model.QueryResultRow) []model.Q
 	result := []model.QueryResultRow{}
 	for _, row := range rows {
 		newRow := model.QueryResultRow{Index: row.Index}
-		for _, cols := range row.Cols {
-			if strings.HasPrefix(cols.ColName, name) {
-				newRow.Cols = append(newRow.Cols, cols)
+		for _, col := range row.Cols {
+			if strings.HasPrefix(col.ColName, name) {
+				newRow.Cols = append(newRow.Cols, col)
 			}
 		}
 		result = append(result, newRow)
@@ -96,17 +97,19 @@ func pancakeSplitBucketRows(name string, rows []model.QueryResultRow) ([]model.Q
 }
 
 func pancakeRenderJSONLayer(layerId int, layers []*pancakeAggregationLayer, rows []model.QueryResultRow) model.JsonMap {
+	pp.Println("JM: pancakeRenderJSONLayer", layerId, len(layers), rows)
 	result := model.JsonMap{}
 	if layerId >= len(layers) {
 		return result
 	}
 	layer := layers[layerId]
 	for _, metric := range layer.currentMetricAggregations {
-		bucketName := "metric__"
+		metricName := "metric__"
 		for i := 0; i < layerId; i++ {
-			bucketName = fmt.Sprintf("%s%s__", bucketName, layers[i].nextBucketAggregation.name)
+			metricName = fmt.Sprintf("%s%s__", metricName, layers[i].nextBucketAggregation.name)
 		}
-		metricRows := pancakeSelectMetricRows(bucketName, rows)
+		metricName = fmt.Sprintf("%s%s_col_", metricName, metric.name)
+		metricRows := pancakeSelectMetricRows(metricName, rows)
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
 	}
 
