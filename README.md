@@ -54,12 +54,13 @@ The setup contains following demo datasets:
 ### Running the example
 In order to run it, you need to:
 - clone this repository: `git clone git@github.com:QuesmaOrg/quesma.git`
-- build `quesma:latest` image by running `docker build -f quesma/Dockerfile -t quesma:latest quesma` from the root directory
 - run `docker-compose up` directly from `/examples/kibana-sample-data` directory
+
+If you want to build your own image, run `./bin/build-image.sh` from the root directory
 
 Handy one-liner:
 ```bash
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/QuesmaOrg/quesma/main/run.sh)"
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/QuesmaOrg/quesma/main/examples/run.sh)"
 ```
 
 Once it's running, you can access:
