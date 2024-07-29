@@ -46,30 +46,39 @@ func EscapeBrackets(s string) string {
 }
 
 func TestIngestValidation(t *testing.T) {
+	// Trying to ingest a field with a different type than the one defined in the table
+	// will end with populating attributes_string_key with the field name and attributes_string_value with the field value
+	inputJson := []string{
+		`{"string_field":10}`,
+		`{"string_field":"10"}`,
+	}
 	expectedInsertJsons := []string{
-		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_string_key":["non_insert_field"],"attributes_string_value":[10]}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_string_key":["string_field"],"attributes_string_value":[10]}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"string_field":"10"}`, tableName),
 	}
 	tableMap := concurrent.NewMapWith(tableName, &Table{
 		Name:   tableName,
 		Config: NewChTableConfigFourAttrs(),
 		Cols: map[string]*Column{
-			"non_insert_field": {Name: "non_insert_field", Type: BaseType{
+			"string_field": {Name: "string_field", Type: BaseType{
 				Name:   "String",
 				goType: NewBaseType("String").goType,
 			}},
 		},
 		Created: true,
 	})
-	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
-	lm := NewLogManagerEmpty()
-	lm.chDb = db
-	lm.schemaLoader = newTableDiscoveryWith(config.QuesmaConfiguration{}, nil, *tableMap)
-	defer db.Close()
-	mock.ExpectExec(EscapeBrackets(expectedInsertJsons[0])).WithoutArgs().WillReturnResult(sqlmock.NewResult(0, 0))
+	for i := range inputJson {
+		db, mock := util.InitSqlMockWithPrettyPrint(t, true)
+		lm := NewLogManagerEmpty()
+		lm.chDb = db
+		lm.schemaLoader = newTableDiscoveryWith(config.QuesmaConfiguration{}, nil, *tableMap)
+		defer db.Close()
 
-	err := lm.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON((`{"non_insert_field":10}`))}, &IngestTransformer{}, &columNameFormatter{separator: "::"})
-	assert.NoError(t, err)
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatal("there were unfulfilled expections:", err)
+		mock.ExpectExec(EscapeBrackets(expectedInsertJsons[i])).WithoutArgs().WillReturnResult(sqlmock.NewResult(0, 0))
+		err := lm.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON((inputJson[i]))}, &IngestTransformer{}, &columNameFormatter{separator: "::"})
+		assert.NoError(t, err)
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatal("there were unfulfilled expections:", err)
+		}
 	}
 }

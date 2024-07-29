@@ -562,11 +562,12 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, 
 
 }
 
-func subtractInputJson(input types.JSON, subtracted types.JSON) types.JSON {
-	for key := range subtracted {
-		delete(input, key)
+// This function removes fields that are part of anotherDoc from inputDoc
+func subtractInputJson(inputDoc types.JSON, anotherDoc types.JSON) types.JSON {
+	for key := range anotherDoc {
+		delete(inputDoc, key)
 	}
-	return input
+	return inputDoc
 }
 
 func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON, config *ChTableConfig, transformer plugins.IngestTransformer) error {
@@ -601,7 +602,6 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 		"date_time_input_format": "best_effort",
 	}))
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertValues)
-	fmt.Printf("Insert query: %s\n", insert)
 	span := lm.phoneHomeAgent.ClickHouseInsertDuration().Begin()
 	_, err := lm.chDb.ExecContext(ctx, insert)
 	span.End(err)

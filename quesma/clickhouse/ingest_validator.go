@@ -21,40 +21,46 @@ func isUnsignedInt(f float64) bool {
 }
 
 func getTypeName(v interface{}) string {
+	const unknownLiteral = "unknown"
+	const arrayLiteral = "Array"
+	primitiveTypes := map[string]string{
+		"string":  "String",
+		"bool":    "Bool",
+		"int":     "Int64",
+		"float64": "Float64",
+		"uint":    "UInt64",
+	}
 	if v == nil {
-		return "unknown"
+		return unknownLiteral
 	}
 	goType := reflect.TypeOf(v).String()
 	switch goType {
-	case "string":
-		return "String"
-	case "bool":
-		return "Bool"
+	case "string", "bool":
+		return primitiveTypes[goType]
 	case "int":
 		if v.(int) < 0 {
-			return "Int64"
+			return primitiveTypes["int"]
 		} else {
-			return "UInt64"
+			return primitiveTypes["uint"]
 		}
 	case "float64":
 		if isInt(v.(float64)) {
-			return "Int64"
+			return primitiveTypes["int"]
 		} else if isUnsignedInt(v.(float64)) {
-			return "UInt64"
-		} else {
-			return "Float64"
+			return primitiveTypes["uint"]
 		}
+		return primitiveTypes[goType]
 	}
 	switch elem := v.(type) {
 	case []interface{}:
 		if len(elem) == 0 {
-			return "Array(unknown)"
+			return arrayLiteral + "(unknown)"
 		} else {
-			return "Array(" + getTypeName(elem[0]) + ")"
+			return arrayLiteral + "(" + getTypeName(elem[0]) + ")"
 		}
 	case interface{}:
 		if e := reflect.ValueOf(elem); e.Kind() == reflect.Slice {
-			return "Array(" + getTypeName(e.Index(0).Interface()) + ")"
+			return arrayLiteral + "(" + getTypeName(e.Index(0).Interface()) + ")"
 		}
 	}
 	return goType
