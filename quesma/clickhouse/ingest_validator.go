@@ -30,6 +30,12 @@ func getTypeName(v interface{}) string {
 		return "String"
 	case "bool":
 		return "Bool"
+	case "int":
+		if v.(int) < 0 {
+			return "Int64"
+		} else {
+			return "UInt64"
+		}
 	case "float64":
 		if isInt(v.(float64)) {
 			return "Int64"
@@ -46,8 +52,11 @@ func getTypeName(v interface{}) string {
 		} else {
 			return "Array(" + getTypeName(elem[0]) + ")"
 		}
+	case interface{}:
+		if e := reflect.ValueOf(elem); e.Kind() == reflect.Slice {
+			return "Array(" + getTypeName(e.Index(0).Interface()) + ")"
+		}
 	}
-
 	return goType
 }
 
