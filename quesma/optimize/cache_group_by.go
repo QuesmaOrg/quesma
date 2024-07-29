@@ -35,9 +35,43 @@ func (s *cacheGroupByQueries) Transform(queries []*model.Query, properties map[s
 
 	for _, query := range queries {
 
-		// TODO add better detection
-		// TODO add CTE here
-		if len(query.SelectCommand.GroupBy) > 0 {
+		var hasGroupBy bool
+		var hasWindowFunction bool
+		visitor := model.NewBaseVisitor()
+
+		visitor.OverrideVisitSelectCommand = func(v *model.BaseExprVisitor, query model.SelectCommand) interface{} {
+
+			if query.GroupBy != nil && len(query.GroupBy) > 0 {
+				hasGroupBy = true
+			}
+
+			for _, expr := range query.Columns {
+				expr.Accept(v)
+			}
+
+			if query.FromClause != nil {
+				query.FromClause.Accept(v)
+			}
+			if query.WhereClause != nil {
+				query.WhereClause.Accept(v)
+			}
+
+			if query.CTEs != nil {
+				for _, cte := range query.CTEs {
+					cte.Accept(v)
+				}
+			}
+
+			return query
+		}
+
+		// we use window functions in  aggregation queries
+		visitor.OverrideVisitWindowFunction = func(v *model.BaseExprVisitor, f model.WindowFunction) interface{} {
+			hasWindowFunction = true
+			return f
+		}
+
+		if hasGroupBy || hasWindowFunction {
 			query.OptimizeHints.ClickhouseQuerySettings["use_query_cache"] = true
 			query.OptimizeHints.OptimizationsPerformed = append(query.OptimizeHints.OptimizationsPerformed, s.Name())
 		}
