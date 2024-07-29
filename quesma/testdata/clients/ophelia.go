@@ -398,29 +398,6 @@ var OpheliaTests = []testdata.AggregationTestCase{
 									"buckets": [
 										{
 											"1": {
-												"value": 51891.94613333333
-											},
-											"4": {
-												"buckets": [
-													{
-														"1": {
-															"value": 51891.94613333333
-														},
-														"5": {
-															"value": 37988.09523333333
-														},
-														"doc_count": 21,
-														"key": "c11"
-													}
-												],
-												"doc_count_error_upper_bound": 0,
-												"sum_other_doc_count": 0
-											},
-											"doc_count": 21,
-											"key": "b11"
-										},
-										{
-											"1": {
 												"value": 45774.291766666654
 											},
 											"4": {
@@ -441,6 +418,29 @@ var OpheliaTests = []testdata.AggregationTestCase{
 											},
 											"doc_count": 24,
 											"key": "b12"
+										},
+										{
+											"1": {
+												"value": 51891.94613333333
+											},
+											"4": {
+												"buckets": [
+													{
+														"1": {
+															"value": 51891.94613333333
+														},
+														"5": {
+															"value": 37988.09523333333
+														},
+														"doc_count": 21,
+														"key": "c11"
+													}
+												],
+												"doc_count_error_upper_bound": 0,
+												"sum_other_doc_count": 0
+											},
+											"doc_count": 21,
+											"key": "b11"
 										}
 									],
 									"doc_count_error_upper_bound": -1,
@@ -1528,6 +1528,23 @@ var OpheliaTests = []testdata.AggregationTestCase{
 									"buckets": [
 										{
 											"1": {
+												"value": 45774.291766666654
+											},
+											"4": {
+												"buckets": [
+													{
+														"doc_count": 24,
+														"key": "c12"
+													}
+												],
+												"doc_count_error_upper_bound": 0,
+												"sum_other_doc_count": 0
+											},
+											"doc_count": 24,
+											"key": "b12"
+										},
+										{
+											"1": {
 												"value": 51891.94613333333
 											},
 											"4": {
@@ -1543,23 +1560,6 @@ var OpheliaTests = []testdata.AggregationTestCase{
 											"doc_count": 21,
 											"key": "b11"
 										},
-										{
-											"1": {
-												"value": 45774.291766666654
-											},
-											"4": {
-												"buckets": [
-													{
-														"doc_count": 24,
-														"key": "c12"
-													}
-												],
-												"doc_count_error_upper_bound": 0,
-												"sum_other_doc_count": 0
-											},
-											"doc_count": 24,
-											"key": "b12"
-										}
 									],
 									"doc_count_error_upper_bound": -1,
 									"sum_other_doc_count": 504
@@ -1573,23 +1573,6 @@ var OpheliaTests = []testdata.AggregationTestCase{
 								},
 								"8": {
 									"buckets": [
-										{
-											"1": {
-												"value": 399126.7496833334
-											},
-											"4": {
-												"buckets": [
-													{
-														"doc_count": 17,
-														"key": "c21"
-													}
-												],
-												"doc_count_error_upper_bound": 0,
-												"sum_other_doc_count": 0
-											},
-											"doc_count": 17,
-											"key": "b21"
-										},
 										{
 											"1": {
 												"value": 231143.3279666666
@@ -1606,6 +1589,23 @@ var OpheliaTests = []testdata.AggregationTestCase{
 											},
 											"doc_count": 17,
 											"key": "b22"
+										},
+										{
+											"1": {
+												"value": 399126.7496833334
+											},
+											"4": {
+												"buckets": [
+													{
+														"doc_count": 17,
+														"key": "c21"
+													}
+												],
+												"doc_count_error_upper_bound": 0,
+												"sum_other_doc_count": 0
+											},
+											"doc_count": 17,
+											"key": "b21"
 										}
 									],
 									"doc_count_error_upper_bound": 0,
@@ -1911,18 +1911,18 @@ var OpheliaTests = []testdata.AggregationTestCase{
 									"buckets": [
 										{
 											"1": {
-												"value": 51891.94613333333
+												"value": 231143.3279666666
 											},
 											"4": {
 												"buckets": [
 													{
-														"doc_count": 21,
-														"key": "c11",
+														"doc_count": 17,
+														"key": "c22",
 														"5": {
 															"buckets": [
 																{
-																	"doc_count": 21,
-																	"key": "c11"
+																	"doc_count": 17,
+																	"key": "c22"
 																}
 															]
 														}
@@ -1931,44 +1931,9 @@ var OpheliaTests = []testdata.AggregationTestCase{
 												"doc_count_error_upper_bound": 0,
 												"sum_other_doc_count": 0
 											},
-											"doc_count": 21,
-											"key": "b11"
+											"doc_count": 17,
+											"key": "b22"
 										},
-										{
-											"1": {
-												"value": 45774.291766666654
-											},
-											"4": {
-												"buckets": [
-													{
-														"doc_count": 24,
-														"key": "c12",
-														"5": {
-															"buckets": [
-																{
-																	"doc_count": 24,
-																	"key": "c12"
-																}
-															]
-														}
-													}
-												],
-												"doc_count_error_upper_bound": 0,
-												"sum_other_doc_count": 0
-											},
-											"doc_count": 24,
-											"key": "b12"
-										}
-									],
-									"doc_count_error_upper_bound": -1,
-									"sum_other_doc_count": 504
-								},
-								"doc_count": 1036,
-								"key": "a1"
-							},
-							{
-								"8": {
-									"buckets": [
 										{
 											"1": {
 												"value": 399126.7496833334
@@ -1993,21 +1958,31 @@ var OpheliaTests = []testdata.AggregationTestCase{
 											},
 											"doc_count": 17,
 											"key": "b21"
-										},
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 0
+								},
+								"doc_count": 34,
+								"key": "a2"
+							},
+							{
+								"8": {
+									"buckets": [
 										{
 											"1": {
-												"value": 231143.3279666666
+												"value": 45774.291766666654
 											},
 											"4": {
 												"buckets": [
 													{
-														"doc_count": 17,
-														"key": "c22",
+														"doc_count": 24,
+														"key": "c12",
 														"5": {
 															"buckets": [
 																{
-																	"doc_count": 17,
-																	"key": "c22"
+																	"doc_count": 24,
+																	"key": "c12"
 																}
 															]
 														}
@@ -2016,15 +1991,40 @@ var OpheliaTests = []testdata.AggregationTestCase{
 												"doc_count_error_upper_bound": 0,
 												"sum_other_doc_count": 0
 											},
-											"doc_count": 17,
-											"key": "b22"
+											"doc_count": 24,
+											"key": "b12"
+										},
+										{
+											"1": {
+												"value": 51891.94613333333
+											},
+											"4": {
+												"buckets": [
+													{
+														"doc_count": 21,
+														"key": "c11",
+														"5": {
+															"buckets": [
+																{
+																	"doc_count": 21,
+																	"key": "c11"
+																}
+															]
+														}
+													}
+												],
+												"doc_count_error_upper_bound": 0,
+												"sum_other_doc_count": 0
+											},
+											"doc_count": 21,
+											"key": "b11"
 										}
 									],
-									"doc_count_error_upper_bound": 0,
-									"sum_other_doc_count": 0
+									"doc_count_error_upper_bound": -1,
+									"sum_other_doc_count": 504
 								},
-								"doc_count": 34,
-								"key": "a2"
+								"doc_count": 1036,
+								"key": "a1"
 							}
 						],
 						"doc_count_error_upper_bound": -1,
