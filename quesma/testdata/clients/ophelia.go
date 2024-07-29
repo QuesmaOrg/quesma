@@ -540,13 +540,13 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol(`sumOrNull("total")`, 51891.94613333333),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol(`sumOrNull("total")`, 45774.291766666654),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol(`sumOrNull("total")`, 45774.291766666654),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol(`sumOrNull("total")`, 51891.94613333333),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -562,15 +562,15 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("organName", "c11"),
-					model.NewQueryResultCol(`sumOrNull("total")`, 51891.94613333333),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b12"),
 					model.NewQueryResultCol("organName", "c12"),
 					model.NewQueryResultCol(`sumOrNull("total")`, 45774.291766666654),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("organName", "c11"),
+					model.NewQueryResultCol(`sumOrNull("total")`, 51891.94613333333),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -588,15 +588,15 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("organName", "c11"),
-					model.NewQueryResultCol(`sumOrNull("some")`, 37988.09523333333),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b12"),
 					model.NewQueryResultCol("organName", "c12"),
 					model.NewQueryResultCol(`sumOrNull("some")`, 36577.89516666666),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("organName", "c11"),
+					model.NewQueryResultCol(`sumOrNull("some")`, 37988.09523333333),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -614,15 +614,15 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("organName", "c11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b12"),
 					model.NewQueryResultCol("organName", "c12"),
 					model.NewQueryResultCol("count()", 24),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("organName", "c11"),
+					model.NewQueryResultCol("count()", 21),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -640,13 +640,13 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("count()", 21),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("count()", 24),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 24),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("count()", 21),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -1559,7 +1559,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 											},
 											"doc_count": 21,
 											"key": "b11"
-										},
+										}
 									],
 									"doc_count_error_upper_bound": -1,
 									"sum_other_doc_count": 504
@@ -1646,32 +1646,26 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("count()", 51891.94613333333),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b12"),
 					model.NewQueryResultCol("count()", 45774.291766666654),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("count()", 399126.7496833334),
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("count()", 51891.94613333333),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
 					model.NewQueryResultCol("limbName", "b22"),
 					model.NewQueryResultCol("count()", 231143.3279666666),
 				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
+					model.NewQueryResultCol("count()", 399126.7496833334),
+				}},
 			},
 			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("organName", "c11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b12"),
@@ -1679,10 +1673,10 @@ var OpheliaTests = []testdata.AggregationTestCase{
 					model.NewQueryResultCol("count()", 24),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("organName", "c21"),
-					model.NewQueryResultCol("count()", 17),
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("organName", "c11"),
+					model.NewQueryResultCol("count()", 21),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -1690,26 +1684,32 @@ var OpheliaTests = []testdata.AggregationTestCase{
 					model.NewQueryResultCol("organName", "c22"),
 					model.NewQueryResultCol("count()", 17),
 				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
+					model.NewQueryResultCol("organName", "c21"),
+					model.NewQueryResultCol("count()", 17),
+				}},
 			},
 			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b12"),
 					model.NewQueryResultCol("count()", 24),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("count()", 17),
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("count()", 21),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
 					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
 					model.NewQueryResultCol("count()", 17),
 				}},
 			},
@@ -2047,14 +2047,9 @@ var OpheliaTests = []testdata.AggregationTestCase{
 		ExpectedResults: [][]model.QueryResultRow{
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("count()", 51891.94613333333),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 45774.291766666654),
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("count()", 231143.3279666666),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -2062,25 +2057,23 @@ var OpheliaTests = []testdata.AggregationTestCase{
 					model.NewQueryResultCol("count()", 399126.7496833334),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
-					model.NewQueryResultCol("count()", 231143.3279666666),
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("count()", 45774.291766666654),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("count()", 51891.94613333333),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("organName", "c11"),
-					model.NewQueryResultCol("organName", "c11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("organName", "c12"),
-					model.NewQueryResultCol("organName", "c12"),
-					model.NewQueryResultCol("count()", 24),
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("organName", "c22"),
+					model.NewQueryResultCol("organName", "c22"),
+					model.NewQueryResultCol("count()", 17),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -2090,25 +2083,26 @@ var OpheliaTests = []testdata.AggregationTestCase{
 					model.NewQueryResultCol("count()", 17),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
-					model.NewQueryResultCol("organName", "c22"),
-					model.NewQueryResultCol("organName", "c22"),
-					model.NewQueryResultCol("count()", 17),
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("organName", "c12"),
+					model.NewQueryResultCol("organName", "c12"),
+					model.NewQueryResultCol("count()", 24),
 				}},
-			},
-			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b11"),
 					model.NewQueryResultCol("organName", "c11"),
+					model.NewQueryResultCol("organName", "c11"),
 					model.NewQueryResultCol("count()", 21),
 				}},
+			},
+			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("organName", "c12"),
-					model.NewQueryResultCol("count()", 24),
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("organName", "c22"),
+					model.NewQueryResultCol("count()", 17),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -2117,22 +2111,23 @@ var OpheliaTests = []testdata.AggregationTestCase{
 					model.NewQueryResultCol("count()", 17),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
-					model.NewQueryResultCol("organName", "c22"),
-					model.NewQueryResultCol("count()", 17),
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("organName", "c12"),
+					model.NewQueryResultCol("count()", 24),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("organName", "c11"),
+					model.NewQueryResultCol("count()", 21),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 24),
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("count()", 17),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -2140,19 +2135,24 @@ var OpheliaTests = []testdata.AggregationTestCase{
 					model.NewQueryResultCol("count()", 17),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
-					model.NewQueryResultCol("count()", 17),
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("count()", 24),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("count()", 21),
 				}},
 			},
 			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
 					model.NewQueryResultCol("count()", 34),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("count()", 1036),
 				}},
 			},
 		},
