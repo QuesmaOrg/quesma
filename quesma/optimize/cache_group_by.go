@@ -4,7 +4,7 @@ package optimize
 
 import "quesma/model"
 
-// cacheGroupByQueries - a transformer that suggests db to cache the query results
+// cacheQueries - a transformer that suggests db to cache the query results
 //
 // It's done by adding settings to the query
 //
@@ -19,24 +19,25 @@ import "quesma/model"
 //  SYSTEM DROP QUERY CACHE
 //
 
-type cacheGroupByQueries struct {
+type cacheQueries struct {
 }
 
-func (s *cacheGroupByQueries) Name() string {
-	return "cache_group_by_queries"
+func (s *cacheQueries) Name() string {
+	return "cache_queries"
 }
 
-func (s *cacheGroupByQueries) IsEnabledByDefault() bool {
+func (s *cacheQueries) IsEnabledByDefault() bool {
 	// this transformer can use a lot of memory on database side
 	return false
 }
 
-func (s *cacheGroupByQueries) Transform(queries []*model.Query, properties map[string]string) ([]*model.Query, error) {
+func (s *cacheQueries) Transform(queries []*model.Query, properties map[string]string) ([]*model.Query, error) {
 
 	for _, query := range queries {
 
 		var hasGroupBy bool
 		var hasWindowFunction bool
+		var hasCount bool
 		visitor := model.NewBaseVisitor()
 
 		visitor.OverrideVisitSelectCommand = func(v *model.BaseExprVisitor, query model.SelectCommand) interface{} {
@@ -71,10 +72,22 @@ func (s *cacheGroupByQueries) Transform(queries []*model.Query, properties map[s
 			return f
 		}
 
-		if hasGroupBy || hasWindowFunction {
+		visitor.OverrideVisitFunction = func(v *model.BaseExprVisitor, f model.FunctionExpr) interface{} {
+
+			if f.Name == "count" {
+				hasCount = true
+			}
+			return f
+
+		}
+
+		query.SelectCommand.Accept(visitor)
+
+		if hasGroupBy || hasWindowFunction || hasCount {
 			query.OptimizeHints.ClickhouseQuerySettings["use_query_cache"] = true
 			query.OptimizeHints.OptimizationsPerformed = append(query.OptimizeHints.OptimizationsPerformed, s.Name())
 		}
+
 	}
 	return queries, nil
 }

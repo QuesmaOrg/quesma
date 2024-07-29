@@ -31,7 +31,7 @@ func NewOptimizePipeline(config config.QuesmaConfiguration) plugins.QueryTransfo
 		config: config,
 		optimizations: []OptimizeTransformer{
 			&truncateDate{truncateTo: 5 * time.Minute},
-			&cacheGroupByQueries{},
+			&cacheQueries{},
 			&materializedViewReplace{},
 		},
 	}
