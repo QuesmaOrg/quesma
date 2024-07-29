@@ -7,13 +7,14 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"quesma/model/typical_queries"
 	"quesma/quesma/types"
 )
 
 const PancakeOptimizerName = "pancake"
 
 // Here is experimental code to generate aggregations in one SQL query. called Version Una.
-func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON) ([]*model.Query, error) {
+func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON, addCount bool) ([]*model.Query, error) {
 	queryAsMap := body.Clone()
 
 	topLevel := pancakeAggregationTopLevel{
@@ -46,6 +47,20 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 	}
 
 	pancakeQueries, err := pancakeTranslateFromAggregationToLayered(topLevel)
+
+	if addCount {
+
+		// use our building blocks to add count
+		augmentedCountAggregation := &pancakeFillingMetricAggregation{
+			name:            PancakeTotalCountMetricName,
+			queryType:       typical_queries.Count{},
+			selectedColumns: []model.Expr{model.NewFunction("count", model.NewLiteral("*"))},
+		}
+
+		pancakeQueries.layers[0].currentMetricAggregations = append(pancakeQueries.layers[0].currentMetricAggregations, augmentedCountAggregation)
+
+	}
+
 	if err != nil {
 		return nil, err
 	}

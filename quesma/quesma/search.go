@@ -488,7 +488,11 @@ func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, r
 
 		if hasAggQuery {
 			if chQueryTranslator, ok := queryTranslator.(*queryparser.ClickhouseQueryTranslator); ok {
-				if pancakeQueries, err := chQueryTranslator.PancakeParseAggregationJson(body); err == nil {
+
+				// TODO FIXME check if the original plan has count query
+				addCount := false
+
+				if pancakeQueries, err := chQueryTranslator.PancakeParseAggregationJson(body, addCount); err == nil {
 					logger.InfoWithCtx(ctx).Msgf("Running alternative pancake queries")
 					queries := append(queriesWithoutAggr, pancakeQueries...)
 					return &model.ExecutionPlan{

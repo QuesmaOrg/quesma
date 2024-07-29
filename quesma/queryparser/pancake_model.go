@@ -59,9 +59,25 @@ type pancakeAggregation struct {
 	whereClause model.Expr
 }
 
+const PancakeTotalCountMetricName = "__quesma_total_count"
+
 // Not a real aggregation, but it is a pancake that has alternative JSON rendering
 type PancakeQueryType struct {
 	pancakeAggregation *pancakeAggregation
+}
+
+func (p PancakeQueryType) ReturnCount() *pancakeFillingMetricAggregation {
+
+	if len(p.pancakeAggregation.layers) > 0 {
+
+		for _, metric := range p.pancakeAggregation.layers[0].currentMetricAggregations {
+			if metric.name == PancakeTotalCountMetricName {
+				return metric
+			}
+		}
+	}
+
+	return nil
 }
 
 func (p PancakeQueryType) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {

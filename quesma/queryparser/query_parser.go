@@ -49,11 +49,16 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 
 	var queries []*model.Query
 
-	if countQuery := cw.buildCountQueryIfNeeded(simpleQuery, queryInfo); countQuery != nil {
-		queries = append(queries, countQuery)
-	}
+	// countQuery will be added later, depending on pancake optimization
+	countQuery := cw.buildCountQueryIfNeeded(simpleQuery, queryInfo)
+
 	facetsQuery := cw.buildFacetsQueryIfNeeded(simpleQuery, queryInfo)
 	if facetsQuery != nil {
+
+		if countQuery != nil {
+			queries = append(queries, countQuery)
+		}
+
 		queries = append(queries, facetsQuery)
 	} else {
 
@@ -62,7 +67,11 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		// this is an alternative implementation
 		pancakeOptimizerProps, enabled := cw.Config.IndexConfig[cw.IncomingIndexName].GetOptimizerConfiguration(PancakeOptimizerName)
 		if enabled && pancakeOptimizerProps["mode"] == "apply" {
-			if pancakeQueries, err := cw.PancakeParseAggregationJson(body); err == nil {
+
+			// here we deside if pancake should count rows
+			addCount := countQuery != nil
+
+			if pancakeQueries, err := cw.PancakeParseAggregationJson(body, addCount); err == nil {
 				queries = append(queries, pancakeQueries...)
 				pancakeApplied = true
 			} else {
@@ -77,7 +86,13 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 				logger.WarnWithCtx(cw.Ctx).Msgf("error parsing aggregation: %v", err)
 				return &model.ExecutionPlan{}, err
 			}
+
+			if countQuery != nil {
+				queries = append(queries, countQuery)
+			}
+
 			queries = append(queries, aggregationQueries...)
+
 		}
 	}
 

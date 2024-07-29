@@ -165,17 +165,38 @@ func (cw *ClickhouseQueryTranslator) addMetadataIfNeeded(query *model.Query, res
 	return false
 }
 
-func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) model.JsonMap {
+func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) (model.JsonMap, *model.Total) {
 	aggregations := model.JsonMap{}
 	if len(queries) == 0 {
-		return aggregations
+		return aggregations, nil
 	}
 	cw.postprocessPipelineAggregations(queries, ResultSets)
+
+	var totalCount *model.Total
+
 	for i, query := range queries {
 		if i >= len(ResultSets) || query_util.IsNonAggregationQuery(query) {
 			continue
 		}
-		if _, isPancake := query.Type.(PancakeQueryType); isPancake {
+		if pancake, isPancake := query.Type.(PancakeQueryType); isPancake {
+
+			// TODO maybe this should be moved to separate function
+			totalCountAgg := pancake.ReturnCount()
+			if totalCountAgg != nil {
+				if len(ResultSets[i]) > 0 && len(ResultSets[i][0].Cols) > 0 {
+					for _, cell := range ResultSets[i][0].Cols {
+						// FIXME THIS is hardcoded for now, as we don't have a way to get the name of the column
+						if cell.ColName == "metric____quesma_total_count_col_0" {
+							totalCount = &model.Total{
+								Value:    int(cell.Value.(int64)),
+								Relation: "eq", //  TODO NOT sure if it is correct
+							}
+							break
+						}
+					}
+				}
+			}
+
 			// TODO: implement
 			continue
 		}
@@ -184,7 +205,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation, model.KeyAddedByQuesma)
 		}
 	}
-	return aggregations
+	return aggregations, totalCount
 }
 
 func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results [][]model.QueryResultRow) (queriesWithoutHits []*model.Query, resultsWithoutHits [][]model.QueryResultRow, hit *model.SearchHits) {
@@ -318,8 +339,15 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 	queries, ResultSets, total = cw.makeTotalCount(queries, ResultSets) // get hits and remove it from queries
 	queries, ResultSets, hits = cw.makeHits(queries, ResultSets)        // get hits and remove it from queries
 
+	aggregations, totalCount := cw.MakeAggregationPartOfResponse(queries, ResultSets)
+
+	// pancakes can count total in a different way, so we must decide which one to use
+	if total == nil && totalCount != nil {
+		total = totalCount
+	}
+
 	response := &model.SearchResp{
-		Aggregations: cw.MakeAggregationPartOfResponse(queries, ResultSets),
+		Aggregations: aggregations,
 		Shards: model.ResponseShards{
 			Total:      1,
 			Successful: 1,

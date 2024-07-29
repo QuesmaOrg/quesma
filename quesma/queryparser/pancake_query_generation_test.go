@@ -48,7 +48,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)
 			assert.NoError(t, err)
 
-			pancakeSqls, err := cw.PancakeParseAggregationJson(jsonp)
+			pancakeSqls, err := cw.PancakeParseAggregationJson(jsonp, false)
 			assert.NoError(t, err)
 			assert.True(t, len(pancakeSqls) == 1, "pancakeSqls should have only one query")
 			if len(pancakeSqls) < 1 {
@@ -211,7 +211,7 @@ LIMIT 3
 			jsonp, err := types.ParseJSON(tt.json)
 			assert.NoError(t, err)
 
-			pancakeSqls, err := cw.PancakeParseAggregationJson(jsonp)
+			pancakeSqls, err := cw.PancakeParseAggregationJson(jsonp, false)
 			assert.NoError(t, err)
 			assert.True(t, len(pancakeSqls) == 1, "pancakeSqls should have only one query")
 			if len(pancakeSqls) < 1 {
