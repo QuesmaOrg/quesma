@@ -65,7 +65,11 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			fmt.Println(prettyExpectedSql)
 			pp.Println("Actual (pancake) SQL:")
 			fmt.Println(prettyPancakeSql)
+
 			assert.Equal(t, prettyExpectedSql, prettyPancakeSql)
+			if len(clients.OpheliaTestsPancake[i].ExpectedResults) == 0 {
+				assert.Fail(t, "No pancake expected results for this test")
+			}
 
 			/*
 				if i == 0 {

@@ -119,7 +119,20 @@ WHERE (("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20) AND
   "aggr__2__8__4__order_1_rank"<=1)
 ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
   "aggr__2__8__4__order_1_rank" ASC`,
-		ExpectedResults: []model.QueryResultRow{},
+		ExpectedResults: []model.QueryResultRow{ // TODO: put right values
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__order_1", 12345),
+				model.NewQueryResultCol("metric__2__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__8__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__8__order_1", 12345),
+				model.NewQueryResultCol("metric__2__8__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__8__4__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__8__4__order_1", 12345),
+				model.NewQueryResultCol("metric__2__8__4__1_col_0", 12345),
+				model.NewQueryResultCol("metric__2__8__4__5_col_0", 12345),
+			}},
+		},
 	},
 	{
 		TestName: "Ophelia Test 3: 5x terms + a lot of other aggregations",
@@ -197,8 +210,27 @@ WHERE (((("aggr__2__order_1_rank"<=100 AND "aggr__2__7__order_1_rank"<=10) AND
 ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__7__order_1_rank" ASC,
   "aggr__2__7__8__order_1_rank" ASC, "aggr__2__7__8__4__order_1_rank" ASC,
   "aggr__2__7__8__4__3__order_1_rank" ASC`,
-		ExpectedResults: []model.QueryResultRow{}, // TODO
-	},
+		ExpectedResults: []model.QueryResultRow{ // TODO: fix
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__order_1", 12345),
+				model.NewQueryResultCol("metric__2__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__order_1", 12345),
+				model.NewQueryResultCol("metric__2__7__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__order_1", 12345),
+				model.NewQueryResultCol("metric__2__7__8__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__4__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__4__order_1", 12345),
+				model.NewQueryResultCol("metric__2__7__8__4__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__order_1", 12345),
+				model.NewQueryResultCol("metric__2__7__8__4__3__1_col_0", 12345),
+				model.NewQueryResultCol("metric__2__7__8__4__3__5_col_0", 12345),
+				model.NewQueryResultCol("metric__2__7__8__4__3__6_col_0", 12345),
+			}},
+		}},
 	{
 		TestName: "Ophelia Test 4: triple terms + order by another aggregations",
 		Sql: `
@@ -236,7 +268,18 @@ WHERE (("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20) AND
   "aggr__2__8__4__order_1_rank"<=1)
 ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
   "aggr__2__8__4__order_1_rank" ASC`,
-		ExpectedResults: []model.QueryResultRow{}, // TODO
+		ExpectedResults: []model.QueryResultRow{ // TODO: Fix
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__order_1", 12345),
+				model.NewQueryResultCol("metric__2__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__8__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__8__order_1", 12345),
+				model.NewQueryResultCol("metric__2__8__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__8__4__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__8__4__order_1", 12345),
+			}},
+		},
 	},
 	{
 		TestName: "Ophelia Test 5: 4x terms + order by another aggregations",
@@ -280,7 +323,19 @@ WHERE ((("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20) AND
   "aggr__2__8__4__order_1_rank"<=1) AND "aggr__2__8__4__5__order_1_rank"<=2)
 ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
   "aggr__2__8__4__order_1_rank" ASC, "aggr__2__8__4__5__order_1_rank" ASC`,
-		ExpectedResults: []model.QueryResultRow{}, // TODO
+		ExpectedResults: []model.QueryResultRow{ // TODO: Fix
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__order_1", 12345),
+				model.NewQueryResultCol("aggr__2__8__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__8__order_1", 12345),
+				model.NewQueryResultCol("metric__2__8__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__8__4__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__8__4__order_1", 12345),
+				model.NewQueryResultCol("aggr__2__8__4__5__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__8__4__5__order_1", 12345),
+			}},
+		},
 	},
 	{
 		TestName: "Ophelia Test 6: triple terms + other aggregations + order by another aggregations",
@@ -323,7 +378,27 @@ WHERE (("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20) AND
   "aggr__2__8__4__order_1_rank"<=1)
 ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
   "aggr__2__8__4__order_1_rank" ASC`,
-		ExpectedResults: []model.QueryResultRow{}, // TODO
+		ExpectedResults: []model.QueryResultRow{ // TODO: Fix values
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__order_1", 12345),
+				model.NewQueryResultCol("metric__2__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__order_1", 12345),
+				model.NewQueryResultCol("metric__2__7__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__order_1", 12345),
+				model.NewQueryResultCol("metric__2__7__8__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__4__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__4__order_1", 12345),
+				model.NewQueryResultCol("metric__2__7__8__4__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__order_1", 12345),
+				model.NewQueryResultCol("metric__2__7__8__4__3__1_col_0", 12345),
+				model.NewQueryResultCol("metric__2__7__8__4__3__5_col_0", 12345),
+				model.NewQueryResultCol("metric__2__7__8__4__3__6_col_0", 12345),
+			}},
+		},
 	},
 	{
 		TestName: "Ophelia Test 7: 5x terms + a lot of other aggregations",
@@ -401,6 +476,26 @@ WHERE (((("aggr__2__order_1_rank"<=100 AND "aggr__2__7__order_1_rank"<=10) AND
 ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__7__order_1_rank" ASC,
   "aggr__2__7__8__order_1_rank" ASC, "aggr__2__7__8__4__order_1_rank" ASC,
   "aggr__2__7__8__4__3__order_1_rank" ASC`,
-		ExpectedResults: []model.QueryResultRow{}, // TODO
+		ExpectedResults: []model.QueryResultRow{ // TODO: Fix values
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__order_1", 12345),
+				model.NewQueryResultCol("metric__2__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__order_1", 12345),
+				model.NewQueryResultCol("metric__2__7__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__order_1", 12345),
+				model.NewQueryResultCol("metric__2__7__8__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__4__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__4__order_1", 12345),
+				model.NewQueryResultCol("metric__2__7__8__4__1_col_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__key_0", 12345),
+				model.NewQueryResultCol("aggr__2__7__8__4__3__order_1", 12345),
+				model.NewQueryResultCol("metric__2__7__8__4__3__1_col_0", 12345),
+				model.NewQueryResultCol("metric__2__7__8__4__3__5_col_0", 12345),
+				model.NewQueryResultCol("metric__2__7__8__4__3__6_col_0", 12345),
+			}},
+		},
 	},
 }
