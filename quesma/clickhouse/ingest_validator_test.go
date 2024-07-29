@@ -8,43 +8,23 @@ import (
 	"testing"
 )
 
-func TestIngestValidation(t *testing.T) {
-	var value interface{}
-	{
-		value = 1
-		assert.Equal(t, "UInt64", getTypeName(value))
+func TestGetTypeName(t *testing.T) {
+	values := make(map[string][]interface{})
+	values["UInt64"] = []interface{}{1}
+	values["Float64"] = []interface{}{1.1}
+	values["Int64"] = []interface{}{-1}
+	values["String"] = []interface{}{"string"}
+	values["Bool"] = []interface{}{true}
+	values["Array(UInt64)"] = []interface{}{[]interface{}{1}}
+	values["Array(Int64)"] = []interface{}{[]interface{}{-1}}
+	values["Array(Array(Int64))"] = []interface{}{[][]interface{}{{-1}}}
+	values["Array(Array(Array(Int64)))"] = []interface{}{[][][]interface{}{{{-1}}}}
+	for typeName, values := range values {
+		for _, value := range values {
+			t.Run(typeName, func(t *testing.T) {
+				assert.NotNil(t, value)
+				assert.Equal(t, typeName, getTypeName(value))
+			})
+		}
 	}
-	{
-		value = 1.1
-		assert.Equal(t, "Float64", getTypeName(value))
-	}
-	{
-		value = -1
-		assert.Equal(t, "Int64", getTypeName(value))
-	}
-	{
-		value = "string"
-		assert.Equal(t, "String", getTypeName(value))
-	}
-	{
-		value = true
-		assert.Equal(t, "Bool", getTypeName(value))
-	}
-	{
-		value = []interface{}{1}
-		assert.Equal(t, "Array(UInt64)", getTypeName(value))
-	}
-	{
-		value = []interface{}{-1}
-		assert.Equal(t, "Array(Int64)", getTypeName(value))
-	}
-	{
-		value = [][]interface{}{{-1}}
-		assert.Equal(t, "Array(Array(Int64))", getTypeName(value))
-	}
-	{
-		value = [][][]interface{}{{{-1}}}
-		assert.Equal(t, "Array(Array(Array(Int64)))", getTypeName(value))
-	}
-
 }
