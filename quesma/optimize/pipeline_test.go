@@ -44,7 +44,7 @@ func Test_cacheGroupBy(t *testing.T) {
 	cfg := config.QuesmaConfiguration{}
 	cfg.IndexConfig = make(map[string]config.IndexConfiguration)
 	cfg.IndexConfig["foo"] = config.IndexConfiguration{
-		EnabledOptimizers: map[string]config.OptimizerConfiguration{"cache_group_by_queries": {Enabled: true}},
+		EnabledOptimizers: map[string]config.OptimizerConfiguration{"cache_queries": {Enabled: true}},
 	}
 
 	for _, tt := range tests {
