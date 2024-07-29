@@ -63,15 +63,6 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 		pancakeOptimizerProps, enabled := cw.Config.IndexConfig[cw.IncomingIndexName].GetOptimizerConfiguration(PancakeOptimizerName)
 		if enabled && pancakeOptimizerProps["mode"] == "apply" {
 			if pancakeQueries, err := cw.PancakeParseAggregationJson(body); err == nil {
-
-				// decorate each query with the fact that it was optimized by pancake
-				for _, query := range pancakeQueries {
-					if query.OptimizeHints == nil {
-						query.OptimizeHints = model.NewQueryExecutionHints()
-					}
-					query.OptimizeHints.OptimizationsPerformed = append(query.OptimizeHints.OptimizationsPerformed, PancakeOptimizerName)
-				}
-
 				queries = append(queries, pancakeQueries...)
 				pancakeApplied = true
 			} else {

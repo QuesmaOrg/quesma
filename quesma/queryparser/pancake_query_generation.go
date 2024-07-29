@@ -64,9 +64,9 @@ func pancakeGenerateAccumAggrFunctions(origExpr model.Expr, queryType model.Quer
 }
 
 // TODO: deduplicate metric names
-func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickhouse.Table) (*model.SelectCommand, error) {
+func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickhouse.Table) (*model.SelectCommand, bool, error) {
 	if aggregation == nil {
-		return nil, errors.New("aggregation is nil in pancakeGenerateQuery")
+		return nil, false, errors.New("aggregation is nil in pancakeGenerateQuery")
 	}
 
 	selectedColumns := make([]model.AliasedExpr, 0)
@@ -86,7 +86,7 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 					partColumnName := aliasedName + "_part"
 					partColumn, aggFunctionName, err := pancakeGenerateAccumAggrFunctions(column, metrics.queryType)
 					if err != nil {
-						return nil, err
+						return nil, false, err
 					}
 					aliasedPartColumn := model.AliasedExpr{Expr: partColumn, Alias: partColumnName}
 					selectedPartColumns = append(selectedPartColumns, aliasedPartColumn)
@@ -136,7 +136,7 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 					partColumnName := aliasedName + "_part"
 					partColumn, aggFunctionName, err := pancakeGenerateAccumAggrFunctions(orderBy, nil)
 					if err != nil {
-						return nil, err
+						return nil, false, err
 					}
 					aliasedColumn := model.AliasedExpr{Expr: partColumn, Alias: partColumnName}
 					selectedPartColumns = append(selectedPartColumns, aliasedColumn)
@@ -176,6 +176,29 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 		}
 	}
 
+	// if we have single layer we can emit simpler query
+	if len(aggregation.layers) == 1 || len(aggregation.layers) == 2 && aggregation.layers[1].nextBucketAggregation == nil {
+		limit := 0
+		orderBy := make([]model.OrderByExpr, 0)
+		if aggregation.layers[0].nextBucketAggregation != nil {
+			limit = aggregation.layers[0].nextBucketAggregation.limit
+
+			if len(selectedRankColumns) > 0 {
+				orderBy = selectedRankColumns[0].Expr.(model.WindowFunction).OrderBy
+			}
+		}
+
+		query := model.SelectCommand{
+			Columns:     aliasedExprArrayToExpr(append(selectedColumns, selectedPartColumns...)),
+			GroupBy:     aliasedExprArrayToExpr(groupByColumns),
+			WhereClause: aggregation.whereClause,
+			FromClause:  model.NewTableRef(table.FullTableName()),
+			OrderBy:     orderBy,
+			Limit:       limit,
+		}
+		return &query, false, nil
+	}
+
 	windowCte := model.SelectCommand{
 		Columns:     aliasedExprArrayToExpr(append(selectedColumns, selectedPartColumns...)),
 		GroupBy:     aliasedExprArrayToExpr(groupByColumns),
@@ -195,7 +218,7 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 		OrderBy:     rankOrderBys,
 	}
 
-	return &finalQuery, nil
+	return &finalQuery, true, nil
 }
 
 func pancakeGenerateQuery(aggregation *pancakeAggregation, table *clickhouse.Table) (*model.Query, error) {
@@ -203,7 +226,7 @@ func pancakeGenerateQuery(aggregation *pancakeAggregation, table *clickhouse.Tab
 		return nil, errors.New("aggregation is nil in pancakeGenerateQuery")
 	}
 
-	resultSelectCommand, err := pancakeGenerateSelectCommand(aggregation, table)
+	resultSelectCommand, isFullPancake, err := pancakeGenerateSelectCommand(aggregation, table)
 	if err != nil {
 		return nil, err
 	}
@@ -212,6 +235,13 @@ func pancakeGenerateQuery(aggregation *pancakeAggregation, table *clickhouse.Tab
 		SelectCommand: *resultSelectCommand,
 		TableName:     table.FullTableName(),
 		Type:          PancakeQueryType{pancakeAggregation: aggregation},
+		OptimizeHints: model.NewQueryExecutionHints(),
+	}
+
+	if isFullPancake {
+		resultQuery.OptimizeHints.OptimizationsPerformed = append(resultQuery.OptimizeHints.OptimizationsPerformed, PancakeOptimizerName)
+	} else {
+		resultQuery.OptimizeHints.OptimizationsPerformed = append(resultQuery.OptimizeHints.OptimizationsPerformed, PancakeOptimizerName+"(half)")
 	}
 
 	return resultQuery, nil

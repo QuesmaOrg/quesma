@@ -117,3 +117,116 @@ func TestPancakeQueryGeneration(t *testing.T) {
 		})
 	}
 }
+
+func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
+
+	debug := true
+
+	table := clickhouse.Table{
+		Cols: map[string]*clickhouse.Column{
+			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"timestamp":   {Name: "timestamp", Type: clickhouse.NewBaseType("DateTime64")},
+			"order_date":  {Name: "order_date", Type: clickhouse.NewBaseType("DateTime64")},
+			"message":     {Name: "message", Type: clickhouse.NewBaseType("String"), IsFullTextMatch: true},
+			"bytes_gauge": {Name: "bytes_gauge", Type: clickhouse.NewBaseType("UInt64")},
+		},
+		Name:   tableName,
+		Config: clickhouse.NewDefaultCHConfig(),
+	}
+
+	lm := clickhouse.NewLogManager(concurrent.NewMapWith(tableName, &table), config.QuesmaConfiguration{})
+	schemaRegistry := schema.StaticRegistry{}
+
+	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: schemaRegistry}
+
+	tests := []struct {
+		name string
+		json string
+		sql  string
+	}{
+		{
+			name: "test1",
+			json: `
+{
+  "aggs": {
+    "0": {
+      "terms": {
+        "field": "host.name",
+        "order": {
+          "_count": "desc"
+        },
+        "shard_size": 25,
+        "size": 3
+      }
+    }
+  },
+  "track_total_hits": true
+}
+
+`,
+			sql: `
+SELECT "host.name" AS "aggr__0__key_0", count() AS "aggr__0__order_1"
+FROM "logs-generic-default"
+GROUP BY "host.name" AS "aggr__0__key_0"
+ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC
+LIMIT 3`, // -- missing `WHERE host::name" IS NOT NULL
+		},
+
+		{"test2",
+			`
+{
+  "aggs": {
+    "0": {
+      "aggs": {
+          "2": {
+            "avg": {
+              "field": "bytes_gauge"
+          }
+        }
+      },
+      "terms": {
+        "field": "host.name",
+        "size": 3
+      }
+    }
+  }
+}
+`,
+			`
+SELECT "host.name" AS "aggr__0__key_0", count() AS "aggr__0__order_1", avgOrNull
+  ("bytes_gauge") AS "metric__0__2_col_0"
+FROM "logs-generic-default"
+GROUP BY "host.name" AS "aggr__0__key_0"
+ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC
+LIMIT 3
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			jsonp, err := types.ParseJSON(tt.json)
+			assert.NoError(t, err)
+
+			pancakeSqls, err := cw.PancakeParseAggregationJson(jsonp)
+			assert.NoError(t, err)
+			assert.True(t, len(pancakeSqls) == 1, "pancakeSqls should have only one query")
+			if len(pancakeSqls) < 1 {
+				return
+			}
+			pancakeSqlStr := model.AsString(pancakeSqls[0].SelectCommand)
+			prettyPancakeSql := util.SqlPrettyPrint([]byte(pancakeSqlStr))
+
+			if debug {
+				fmt.Println("Expected SQL:")
+				fmt.Println(tt.sql)
+				fmt.Println("Actual (pancake) SQL:")
+				fmt.Println(prettyPancakeSql)
+			}
+			assert.Equal(t, strings.TrimSpace(tt.sql), strings.TrimSpace(prettyPancakeSql))
+
+		})
+	}
+
+}
