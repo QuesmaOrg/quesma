@@ -597,6 +597,7 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 		"date_time_input_format": "best_effort",
 	}))
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertValues)
+	fmt.Printf("Insert query: %s\n", insert)
 	span := lm.phoneHomeAgent.ClickHouseInsertDuration().Begin()
 	_, err := lm.chDb.ExecContext(ctx, insert)
 	span.End(err)

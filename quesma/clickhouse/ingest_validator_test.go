@@ -4,7 +4,15 @@
 package clickhouse
 
 import (
+	"context"
+	"fmt"
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"quesma/concurrent"
+	"quesma/quesma/config"
+	"quesma/quesma/types"
+	"quesma/util"
+	"strings"
 	"testing"
 )
 
@@ -26,5 +34,42 @@ func TestGetTypeName(t *testing.T) {
 				assert.Equal(t, typeName, getTypeName(value))
 			})
 		}
+	}
+}
+
+func EscapeBrackets(s string) string {
+	s = strings.ReplaceAll(s, `(`, `\(`)
+	s = strings.ReplaceAll(s, `)`, `\)`)
+	s = strings.ReplaceAll(s, `[`, `\[`)
+	s = strings.ReplaceAll(s, `]`, `\]`)
+	return s
+}
+
+func TestIngestValidation(t *testing.T) {
+	expectedInsertJsons := []string{
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_string_key":["non_insert_field"],"attributes_string_value":[10]}`, tableName),
+	}
+	tableMap := concurrent.NewMapWith(tableName, &Table{
+		Name:   tableName,
+		Config: NewChTableConfigFourAttrs(),
+		Cols: map[string]*Column{
+			"non_insert_field": {Name: "non_insert_field", Type: BaseType{
+				Name:   "String",
+				goType: NewBaseType("String").goType,
+			}},
+		},
+		Created: true,
+	})
+	db, mock := util.InitSqlMockWithPrettyPrint(t, true)
+	lm := NewLogManagerEmpty()
+	lm.chDb = db
+	lm.schemaLoader = newTableDiscoveryWith(config.QuesmaConfiguration{}, nil, *tableMap)
+	defer db.Close()
+	mock.ExpectExec(EscapeBrackets(expectedInsertJsons[0])).WithoutArgs().WillReturnResult(sqlmock.NewResult(0, 0))
+
+	err := lm.ProcessInsertQuery(context.Background(), tableName, []types.JSON{types.MustJSON((`{"non_insert_field":10}`))}, &IngestTransformer{}, &columNameFormatter{separator: "::"})
+	assert.NoError(t, err)
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal("there were unfulfilled expections:", err)
 	}
 }
