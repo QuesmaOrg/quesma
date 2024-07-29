@@ -421,6 +421,15 @@ func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name strin
 	return nil
 }
 
+// This function takes an attributesMap and update it
+// with the fields that are not validated according to the inferred schema
+func updateAttributesMap(attrsMap map[string][]interface{}, notValidJson types.JSON) {
+	for k, v := range notValidJson {
+		attrsMap[AttributesKeyColumn] = append(attrsMap[AttributesKeyColumn], k)
+		attrsMap[AttributesValueColumn] = append(attrsMap[AttributesValueColumn], v)
+	}
+}
+
 // TODO
 // This method should be refactored to use mux.JSON instead of string
 func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, notValidJson types.JSON, config *ChTableConfig) (string, error) {
@@ -472,10 +481,10 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, notVali
 	} else {
 		return "", fmt.Errorf("no attributes or others in config, but received non-schema fields: %s", mDiff)
 	}
-	for k, v := range notValidJson {
-		attrsMap[AttributesKeyColumn] = append(attrsMap[AttributesKeyColumn], k)
-		attrsMap[AttributesValueColumn] = append(attrsMap[AttributesValueColumn], v)
-	}
+	// If there are some non-valid fields, we need to add them to the attributes map
+	// to not lose them and be able to store them later by
+	// generating correct update query
+	updateAttributesMap(attrsMap, notValidJson)
 	nonSchemaStr := ""
 	if len(attrsMap) > 0 {
 		attrs, err := json.Marshal(attrsMap) // check probably bad, they need to be arrays
