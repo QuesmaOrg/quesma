@@ -86,6 +86,9 @@ func validateValueAgainstType(fieldName string, value interface{}, column *Colum
 	return deletedFields
 }
 
+// validateIngest validates the document against the table schema
+// and returns the fields that are not valid e.g. have wrong types
+// according to the schema
 func (lm *LogManager) validateIngest(tableName string, document types.JSON) (types.JSON, error) {
 	clickhouseTable := lm.FindTable(tableName)
 

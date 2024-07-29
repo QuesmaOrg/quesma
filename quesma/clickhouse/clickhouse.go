@@ -423,8 +423,8 @@ func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name strin
 
 // This function takes an attributesMap and update it
 // with the fields that are not validated according to the inferred schema
-func updateAttributesMap(attrsMap map[string][]interface{}, notValidJson types.JSON) {
-	for k, v := range notValidJson {
+func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, inValidJson types.JSON) {
+	for k, v := range inValidJson {
 		attrsMap[AttributesKeyColumn] = append(attrsMap[AttributesKeyColumn], k)
 		attrsMap[AttributesValueColumn] = append(attrsMap[AttributesValueColumn], v)
 	}
@@ -432,7 +432,7 @@ func updateAttributesMap(attrsMap map[string][]interface{}, notValidJson types.J
 
 // TODO
 // This method should be refactored to use mux.JSON instead of string
-func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, notValidJson types.JSON, config *ChTableConfig) (string, error) {
+func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValidJson types.JSON, config *ChTableConfig) (string, error) {
 
 	jsonData, err := json.Marshal(data)
 
@@ -469,7 +469,7 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, notVali
 
 	mDiff := DifferenceMap(m, t) // TODO change to DifferenceMap(m, t)
 
-	if len(mDiff) == 0 && string(schemaFieldsJson) == js && len(notValidJson) == 0 { // no need to modify, just insert 'js'
+	if len(mDiff) == 0 && string(schemaFieldsJson) == js && len(inValidJson) == 0 { // no need to modify, just insert 'js'
 		return js, nil
 	}
 	var attrsMap map[string][]interface{}
@@ -484,7 +484,7 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, notVali
 	// If there are some non-valid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
 	// generating correct update query
-	updateAttributesMap(attrsMap, notValidJson)
+	addInvalidJsonFieldsToAttributes(attrsMap, inValidJson)
 	nonSchemaStr := ""
 	if len(attrsMap) > 0 {
 		attrs, err := json.Marshal(attrsMap) // check probably bad, they need to be arrays
@@ -577,14 +577,18 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 		if err != nil {
 			return fmt.Errorf("error IngestTransformer: %v", err)
 		}
-		notValidJson, err := lm.validateIngest(tableName, preprocessedJson)
+
+		// Validate the input JSON
+		// against the schema
+		inValidJson, err := lm.validateIngest(tableName, preprocessedJson)
 		if err != nil {
 			return fmt.Errorf("error validation: %v", err)
 		}
 
-		preprocessedJson = subtractInputJson(preprocessedJson, notValidJson)
+		// Remove invalid fields from the input JSON
+		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
 
-		insertJson, err := lm.BuildInsertJson(tableName, preprocessedJson, notValidJson, config)
+		insertJson, err := lm.BuildInsertJson(tableName, preprocessedJson, inValidJson, config)
 		if err != nil {
 			return fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)
 		}
