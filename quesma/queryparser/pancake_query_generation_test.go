@@ -71,6 +71,39 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				assert.Fail(t, "No pancake expected results for this test")
 			}
 
+			if len(clients.OpheliaTestsPancake[i].ExpectedResults) > 1 {
+				if queryType, ok := pancakeSqls[0].Type.(PancakeQueryType); ok {
+					expectedJson, err := util.JsonToMap(test.ExpectedResponse)
+					if err != nil {
+						assert.Fail(t, "Failed to parse expected JSON")
+					}
+					var expectedAggregationsPart model.JsonMap
+					if response, ok := expectedJson["response"].(model.JsonMap); ok {
+						if aggregations, ok2 := response["aggregations"].(model.JsonMap); ok2 {
+							expectedAggregationsPart = aggregations
+						}
+					}
+					assert.NotNil(t, expectedAggregationsPart, "Expected JSON should have 'response'/'aggregations' part")
+
+					pancakeJson := pancakeRenderJSON(queryType.pancakeAggregation, clients.OpheliaTestsPancake[i].ExpectedResults)
+
+					actualMinusExpected, expectedMinusActual := util.MapDifference(pancakeJson, expectedAggregationsPart, true, true)
+
+					// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
+					acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma,
+						"sum_other_doc_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
+					// pp.Println("ACTUAL diff", actualMinusExpected)
+					// pp.Println("EXPECTED diff", expectedMinusActual)
+					pp.Println("ACTUAL", pancakeJson)
+					pp.Println("EXPECTED", expectedAggregationsPart)
+					assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
+					assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
+
+				} else {
+					assert.Fail(t, "Expected pancake query type")
+				}
+			}
+
 			/*
 				if i == 0 {
 					 Sample code for Rafal:
