@@ -68,8 +68,8 @@ func Test_cacheGroupBy(t *testing.T) {
 			}
 
 			var enabled bool
-			if optimized[0].OptimizeHints.Settings["use_query_cache"] != nil {
-				enabled = optimized[0].OptimizeHints.Settings["use_query_cache"].(bool)
+			if optimized[0].OptimizeHints.ClickhouseQuerySettings["use_query_cache"] != nil {
+				enabled = optimized[0].OptimizeHints.ClickhouseQuerySettings["use_query_cache"].(bool)
 			}
 
 			assert.Truef(t, enabled == tt.shouldCache, "expected use_query_cache to be %v, got %v", tt.shouldCache, enabled)
