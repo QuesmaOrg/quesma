@@ -78,12 +78,9 @@ func validateValueAgainstType(fieldName string, value interface{}, column *Colum
 		// TODO validate date format
 		// For now we store dates as strings
 		if incomingValueType != StringType {
-			// We should store it as an attribute in the future
 			deletedFields[fieldName] = value
 		}
 	} else if columnType != incomingValueType {
-		// TODO remove field from document for now
-		// We should store it as an attribute in the future
 		deletedFields[fieldName] = value
 	}
 	return deletedFields
