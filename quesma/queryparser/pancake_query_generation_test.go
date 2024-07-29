@@ -42,7 +42,9 @@ func TestPancakeQueryGeneration(t *testing.T) {
 	allTests := clients.OpheliaTests
 	for i, test := range allTests {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			t.Skip()
+			if i >= 2 {
+				t.Skip() // TODO: remove
+			}
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)
 			assert.NoError(t, err)
 

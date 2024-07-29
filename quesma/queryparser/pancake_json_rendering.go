@@ -10,6 +10,21 @@ import (
 	"strings"
 )
 
+func pancakeSelectMetricRows(name string, rows []model.QueryResultRow) []model.QueryResultRow {
+	result := []model.QueryResultRow{}
+	for _, row := range rows {
+		newRow := model.QueryResultRow{Index: row.Index}
+		for _, cols := range row.Cols {
+			if strings.HasPrefix(cols.ColName, name) {
+				newRow.Cols = append(newRow.Cols, cols)
+			}
+		}
+		result = append(result, newRow)
+		break // just one row please
+	}
+	return result
+}
+
 func pancakeSplitBucketRows(name string, rows []model.QueryResultRow) ([]model.QueryResultRow, [][]model.QueryResultRow) {
 	// pp.Println("JM: pancakeSplitBucketRows", name)
 	buckets := []model.QueryResultRow{}
@@ -87,9 +102,12 @@ func pancakeRenderJSONLayer(layerId int, layers []*pancakeAggregationLayer, rows
 	}
 	layer := layers[layerId]
 	for _, metric := range layer.currentMetricAggregations {
-		result[metric.name] = model.JsonMap{
-			"aggregation": "metric",
+		bucketName := "metric__"
+		for i := 0; i < layerId; i++ {
+			bucketName = fmt.Sprintf("%s%s__", bucketName, layers[i].nextBucketAggregation.name)
 		}
+		metricRows := pancakeSelectMetricRows(bucketName, rows)
+		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
 	}
 
 	if layer.nextBucketAggregation != nil {
@@ -103,7 +121,7 @@ func pancakeRenderJSONLayer(layerId int, layers []*pancakeAggregationLayer, rows
 		if layerId+1 < len(layers) { // Add subAggregation
 			if bucketArrRaw, ok := buckets["buckets"]; ok {
 				bucketArr := bucketArrRaw.([]model.JsonMap)
-				if len(buckets) != len(subAggrRows) {
+				if len(bucketArr) != len(subAggrRows) {
 					// TODO: Maybe handle it somehow
 					// pp.Println("JM: pancakeRenderJSONLayer mismatch count", len(buckets), len(subAggrRows))
 					panic("buckets and subAggrRows should have the same length")
