@@ -1092,7 +1092,7 @@ var AggregationTests = []AggregationTestCase{
 				`AND ("timestamp">=parseDateTime64BestEffort('2024-01-26T13:47:16.029Z') AND "timestamp"<=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z')))`,
 		},
 	},
-	{ // [7]
+	{ // [7] same as Flights, but without geoip variable
 		"top hits, quite complex",
 		`{
 			"aggs": {
@@ -1181,10 +1181,7 @@ var AggregationTests = []AggregationTestCase{
 															"_index": "kibana_sample_data_flights",
 															"_score": 1.0,
 															"_source": {
-																"DestLocation": {
-																	"lat": "-34.8222",
-																	"lon": "-58.5358"
-																}
+																"DestLocation": "-34.8222"
 															}
 														}
 													],
@@ -1207,10 +1204,7 @@ var AggregationTests = []AggregationTestCase{
 															"_index": "kibana_sample_data_flights",
 															"_score": 1.0,
 															"_source": {
-																"DestLocation": {
-																	"lat": "-0.129166667",
-																	"lon": "-78.3575"
-																}
+																"DestLocation": "-0.129166667"
 															}
 														}
 													],
@@ -1239,10 +1233,7 @@ var AggregationTests = []AggregationTestCase{
 												"_score": 1.0,
 												"_source": {
 													"Origin": "Mariscal Sucre International Airport",
-													"OriginLocation": {
-														"lat": "-0.129166667",
-														"lon": "-78.3575"
-													}
+													"OriginLocation": "-0.129166667"
 												}
 											}
 										],
@@ -1266,10 +1257,7 @@ var AggregationTests = []AggregationTestCase{
 															"_index": "kibana_sample_data_flights",
 															"_score": 1.0,
 															"_source": {
-																"DestLocation": {
-																	"lat": "45.47060013",
-																	"lon": "-73.74079895"
-																}
+																"DestLocation": "45.47060013"
 															}
 														}
 													],
@@ -1292,10 +1280,7 @@ var AggregationTests = []AggregationTestCase{
 															"_index": "kibana_sample_data_flights",
 															"_score": 1.0,
 															"_source": {
-																"DestLocation": {
-																	"lat": "-34.8222",
-																	"lon": "-58.5358"
-																}
+																"DestLocation": "-34.8222"
 															}
 														}
 													],
@@ -1322,10 +1307,7 @@ var AggregationTests = []AggregationTestCase{
 												"_score": 1.0,
 												"_source": {
 													"Origin": "Duluth International Airport",
-													"OriginLocation": {
-														"lat": "46.84209824",
-														"lon": "-92.19360352"
-													}
+													"OriginLocation": "46.84209824"
 												}
 											}
 										],
@@ -1356,64 +1338,129 @@ var AggregationTests = []AggregationTestCase{
 			"start_time_in_millis": 1707486436501
 		}`,
 		[][]model.QueryResultRow{
-			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(13014))}}},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("OriginAirportID", "UIO"), model.NewQueryResultCol("DestAirportID", "EZE"),
-					model.NewQueryResultCol("lat", "-34.8222"), model.NewQueryResultCol("lon", "-58.5358"),
+					model.NewQueryResultCol("OriginAirportID", "UIO"),
+					model.NewQueryResultCol("DestAirportID", "EZE"),
+					model.NewQueryResultCol("DestLocation", "-34.8222"),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("OriginAirportID", "UIO"), model.NewQueryResultCol("DestAirportID", "UIO"),
-					model.NewQueryResultCol("lat", "-0.129166667"), model.NewQueryResultCol("lon", "-78.3575"),
+					model.NewQueryResultCol("OriginAirportID", "UIO"),
+					model.NewQueryResultCol("DestAirportID", "UIO"),
+					model.NewQueryResultCol("DestLocation", "-0.129166667"),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("OriginAirportID", "DLH"), model.NewQueryResultCol("DestAirportID", "YUL"),
-					model.NewQueryResultCol("lat", "45.47060013"), model.NewQueryResultCol("lon", "-73.74079895"),
+					model.NewQueryResultCol("OriginAirportID", "DLH"),
+					model.NewQueryResultCol("DestAirportID", "YUL"),
+					model.NewQueryResultCol("DestLocation", "45.47060013"),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("OriginAirportID", "DLH"), model.NewQueryResultCol("DestAirportID", "EZE"),
-					model.NewQueryResultCol("lat", "46.84209824"), model.NewQueryResultCol("lon", "-92.19360352"),
+					model.NewQueryResultCol("OriginAirportID", "DLH"),
+					model.NewQueryResultCol("DestAirportID", "EZE"),
+					model.NewQueryResultCol("DestLocation", "-34.8222"),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("OriginAirportID", "UIO"), model.NewQueryResultCol("DestAirportID", "EZE"),
-					model.NewQueryResultCol("doc_count", 21), model.NewQueryResultCol("key", "EZE"),
+					model.NewQueryResultCol("OriginAirportID", "UIO"),
+					model.NewQueryResultCol("DestAirportID", "EZE"),
+					model.NewQueryResultCol("count()", 21),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("OriginAirportID", "UIO"), model.NewQueryResultCol("DestAirportID", "UIO"),
-					model.NewQueryResultCol("doc_count", 12), model.NewQueryResultCol("key", "UI"),
+					model.NewQueryResultCol("OriginAirportID", "UIO"),
+					model.NewQueryResultCol("DestAirportID", "UIO"),
+					model.NewQueryResultCol("count()", 12),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("OriginAirportID", "DLH"), model.NewQueryResultCol("DestAirportID", "YUL"),
-					model.NewQueryResultCol("doc_count", 11), model.NewQueryResultCol("key", "YUL"),
+					model.NewQueryResultCol("OriginAirportID", "DLH"),
+					model.NewQueryResultCol("DestAirportID", "YUL"),
+					model.NewQueryResultCol("count()", 11),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("OriginAirportID", "DLH"), model.NewQueryResultCol("DestAirportID", "EZE"),
-					model.NewQueryResultCol("doc_count", 10), model.NewQueryResultCol("key", "EZE"),
+					model.NewQueryResultCol("OriginAirportID", "DLH"),
+					model.NewQueryResultCol("DestAirportID", "EZE"),
+					model.NewQueryResultCol("count()", 10),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("OriginAirportID", "UIO"),
+					model.NewQueryResultCol("OriginLocation", "-0.129166667"),
 					model.NewQueryResultCol("Origin", "Mariscal Sucre International Airport"),
-					model.NewQueryResultCol("lat", "-0.129166667"), model.NewQueryResultCol("lon", "-78.3575"),
 				}},
 				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("OriginAirportID", "DLH"),
+					model.NewQueryResultCol("OriginLocation", "46.84209824"),
 					model.NewQueryResultCol("Origin", "Duluth International Airport"),
-					model.NewQueryResultCol("lat", "46.84209824"), model.NewQueryResultCol("lon", "-92.19360352"),
 				}},
 			},
 			{
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 283), model.NewQueryResultCol("key", "UIO")}},
-				{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", 15), model.NewQueryResultCol("key", "DLH")}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("OriginAirportID", "UIO"), model.NewQueryResultCol("count()", 283)}},
+				{Cols: []model.QueryResultCol{model.NewQueryResultCol("OriginAirportID", "DLH"), model.NewQueryResultCol("count()", 15)}},
 			},
 		},
 		[]string{
-			`SELECT count() ` +
-				`FROM ` + QuotedTableName + ` `,
-			``,
-			``,
-			``,
+			`WITH cte_1 AS (` +
+				`SELECT "OriginAirportID" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "OriginAirportID" IS NOT NULL ` +
+				`GROUP BY "OriginAirportID" ` +
+				`ORDER BY count() DESC, "OriginAirportID" ` +
+				`LIMIT 10000), ` +
+				`cte_2 AS (` +
+				`SELECT "OriginAirportID" AS "cte_2_1", "DestAirportID" AS "cte_2_2", count() AS "cte_2_cnt" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("OriginAirportID" IS NOT NULL AND "DestAirportID" IS NOT NULL) ` +
+				`GROUP BY "OriginAirportID", "DestAirportID" ` +
+				`ORDER BY count() DESC, "DestAirportID" ` +
+				`LIMIT 10000 BY "OriginAirportID") ` +
+				`SELECT "OriginAirportID", "DestAirportID", "DestLocation" ` +
+				`FROM (` +
+				`SELECT "OriginAirportID", "DestAirportID", "DestLocation", ROW_NUMBER() OVER (` +
+				`PARTITION BY "OriginAirportID", "DestAirportID") AS "row_number" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("OriginAirportID" IS NOT NULL AND "DestAirportID" IS NOT NULL)) ` +
+				`INNER JOIN "cte_1" ON "OriginAirportID" = "cte_1_1" ` +
+				`INNER JOIN "cte_2" ON "OriginAirportID" = "cte_2_1" AND "DestAirportID" = "cte_2_2" ` +
+				`WHERE (("OriginAirportID" IS NOT NULL AND "DestAirportID" IS NOT NULL) AND "row_number"<=1) ` +
+				`GROUP BY "OriginAirportID", "DestAirportID", "DestLocation", cte_1_cnt, cte_2_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "OriginAirportID", cte_2_cnt DESC, "DestAirportID"`,
+			`WITH cte_1 AS (` +
+				`SELECT "OriginAirportID" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "OriginAirportID" IS NOT NULL ` +
+				`GROUP BY "OriginAirportID" ` +
+				`ORDER BY count() DESC, "OriginAirportID" ` +
+				`LIMIT 10000) ` +
+				`SELECT "OriginAirportID", "DestAirportID", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`INNER JOIN "cte_1" ON "OriginAirportID" = "cte_1_1" ` +
+				`WHERE ("OriginAirportID" IS NOT NULL AND "DestAirportID" IS NOT NULL) ` +
+				`GROUP BY "OriginAirportID", "DestAirportID", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "OriginAirportID", count() DESC, "DestAirportID" ` +
+				`LIMIT 10000 BY "OriginAirportID"`,
+			`WITH cte_1 AS (` +
+				`SELECT "OriginAirportID" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "OriginAirportID" IS NOT NULL ` +
+				`GROUP BY "OriginAirportID" ` +
+				`ORDER BY count() DESC, "OriginAirportID" ` +
+				`LIMIT 10000) ` +
+				`SELECT "OriginAirportID", "OriginLocation", "Origin" ` +
+				`FROM (` +
+				`SELECT "OriginAirportID", "OriginLocation", "Origin", ROW_NUMBER() OVER (PARTITION BY "OriginAirportID") AS "row_number" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "OriginAirportID" IS NOT NULL) ` +
+				`INNER JOIN "cte_1" ON "OriginAirportID" = "cte_1_1" ` +
+				`WHERE ("OriginAirportID" IS NOT NULL AND "row_number"<=1) ` +
+				`GROUP BY "OriginAirportID", "OriginLocation", "Origin", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "OriginAirportID"`,
+			`SELECT "OriginAirportID", count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE "OriginAirportID" IS NOT NULL ` +
+				`GROUP BY "OriginAirportID" ` +
+				`ORDER BY count() DESC, "OriginAirportID" ` +
+				`LIMIT 10000`,
 		},
 	},
 	{ // [8]

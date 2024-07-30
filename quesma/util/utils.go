@@ -412,8 +412,9 @@ func AssertSqlEqual(t *testing.T, expected, actual string) {
 		for i, c := range actual {
 			if c != rune(expected[i]) {
 				const printLen = 100
-				pp.Printf("-- First diff: ")
-				fmt.Println(actual[i:min(i+printLen, len(actual))])
+				pp.Println("-- First diff:")
+				fmt.Println("actual:", actual[i:min(i+printLen, len(actual))])
+				fmt.Println("expect:", expected[i:min(i+printLen, len(expected))]) // FIXME if sizes differ, we'll may get panic
 				break
 			}
 		}

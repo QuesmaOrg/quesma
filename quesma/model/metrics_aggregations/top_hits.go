@@ -84,7 +84,9 @@ func (query TopHits) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 		topElems = append(topElems, elem)
 	}
 	return model.JsonMap{
-		"hits": topElems,
+		"hits": model.JsonMap{
+			"hits": topElems,
+		},
 	}
 }
 
