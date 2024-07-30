@@ -39,7 +39,7 @@ type (
 		ctx            context.Context
 		cancel         context.CancelFunc
 		chDb           *sql.DB
-		schemaLoader   TableDiscovery
+		tableDiscovery TableDiscovery
 		cfg            config.QuesmaConfiguration
 		phoneHomeAgent telemetry.PhoneHomeAgent
 		schemaRegistry schema.Registry
@@ -85,11 +85,11 @@ func (lm *LogManager) Start() {
 		logger.ErrorWithCtxAndReason(lm.ctx, endUserError.Reason()).Msgf("could not connect to clickhouse. error: %v", endUserError)
 	}
 
-	lm.schemaLoader.ReloadTableDefinitions()
+	lm.tableDiscovery.ReloadTableDefinitions()
 
-	logger.Info().Msgf("schemas loaded: %s", lm.schemaLoader.TableDefinitions().Keys())
+	logger.Info().Msgf("schemas loaded: %s", lm.tableDiscovery.TableDefinitions().Keys())
 	const reloadInterval = 1 * time.Minute
-	forceReloadCh := lm.schemaLoader.ForceReloadCh()
+	forceReloadCh := lm.tableDiscovery.ForceReloadCh()
 
 	go func() {
 		recovery.LogPanic()
@@ -100,15 +100,15 @@ func (lm *LogManager) Start() {
 				return
 			case doneCh := <-forceReloadCh:
 				// this prevents flood of reloads, after a long pause
-				if time.Since(lm.schemaLoader.LastReloadTime()) > reloadInterval {
-					lm.schemaLoader.ReloadTableDefinitions()
+				if time.Since(lm.tableDiscovery.LastReloadTime()) > reloadInterval {
+					lm.tableDiscovery.ReloadTableDefinitions()
 				}
 				doneCh <- struct{}{}
 			case <-time.After(reloadInterval):
 				// only reload if we actually use Quesma, make it double time to prevent edge case
 				// otherwise it prevent ClickHouse Cloud from idle pausing
-				if time.Since(lm.schemaLoader.LastAccessTime()) < reloadInterval*2 {
-					lm.schemaLoader.ReloadTableDefinitions()
+				if time.Since(lm.tableDiscovery.LastAccessTime()) < reloadInterval*2 {
+					lm.tableDiscovery.ReloadTableDefinitions()
 				}
 			}
 		}
@@ -120,6 +120,7 @@ func (lm *LogManager) Stop() {
 }
 
 type discoveredTable struct {
+	name             string
 	columnTypes      map[string]string
 	config           config.IndexConfiguration
 	comment          string
@@ -128,7 +129,7 @@ type discoveredTable struct {
 
 func (lm *LogManager) ReloadTables() {
 	logger.Info().Msg("reloading tables definitions")
-	lm.schemaLoader.ReloadTableDefinitions()
+	lm.tableDiscovery.ReloadTableDefinitions()
 }
 
 func (lm *LogManager) Close() {
@@ -139,7 +140,7 @@ func (lm *LogManager) Close() {
 // Indexes can be in a form of wildcard, e.g. "index-*"
 // If we have such index, we need to resolve it to a real table name.
 func (lm *LogManager) ResolveTableName(index string) (result string) {
-	lm.schemaLoader.TableDefinitions().
+	lm.tableDiscovery.TableDefinitions().
 		Range(func(k string, v *Table) bool {
 			if elasticsearch.IndexMatches(index, k) {
 				result = k
@@ -155,7 +156,7 @@ func (lm *LogManager) ResolveTableName(index string) (result string) {
 // empty pattern means all indexes
 // "_all" index name means all indexes
 func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (results []string, err error) {
-	if err = lm.schemaLoader.TableDefinitionsFetchError(); err != nil {
+	if err = lm.tableDiscovery.TableDefinitionsFetchError(); err != nil {
 		return nil, err
 	}
 
@@ -163,7 +164,7 @@ func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (resu
 	if strings.Contains(patterns, ",") {
 		for _, pattern := range strings.Split(patterns, ",") {
 			if pattern == elasticsearch.AllIndexesAliasIndexName || pattern == "" {
-				results = lm.schemaLoader.TableDefinitions().Keys()
+				results = lm.tableDiscovery.TableDefinitions().Keys()
 				slices.Sort(results)
 				return results, nil
 			} else {
@@ -176,11 +177,11 @@ func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (resu
 		}
 	} else {
 		if patterns == elasticsearch.AllIndexesAliasIndexName || len(patterns) == 0 {
-			results = lm.schemaLoader.TableDefinitions().Keys()
+			results = lm.tableDiscovery.TableDefinitions().Keys()
 			slices.Sort(results)
 			return results, nil
 		} else {
-			lm.schemaLoader.TableDefinitions().
+			lm.tableDiscovery.TableDefinitions().
 				Range(func(tableName string, v *Table) bool {
 					if elasticsearch.IndexMatches(patterns, tableName) {
 						results = append(results, tableName)
@@ -585,7 +586,7 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 
 func (lm *LogManager) FindTable(tableName string) (result *Table) {
 	tableNamePattern := index.TableNamePatternRegexp(tableName)
-	lm.schemaLoader.TableDefinitions().
+	lm.tableDiscovery.TableDefinitions().
 		Range(func(name string, table *Table) bool {
 			if tableNamePattern.MatchString(name) {
 				result = table
@@ -598,11 +599,11 @@ func (lm *LogManager) FindTable(tableName string) (result *Table) {
 }
 
 func (lm *LogManager) GetTableDefinitions() (TableMap, error) {
-	if err := lm.schemaLoader.TableDefinitionsFetchError(); err != nil {
-		return *lm.schemaLoader.TableDefinitions(), err
+	if err := lm.tableDiscovery.TableDefinitionsFetchError(); err != nil {
+		return *lm.tableDiscovery.TableDefinitions(), err
 	}
 
-	return *lm.schemaLoader.TableDefinitions(), nil
+	return *lm.tableDiscovery.TableDefinitions(), nil
 }
 
 // Returns if schema wasn't created (so it needs to be, and will be in a moment)
@@ -613,7 +614,7 @@ func (lm *LogManager) AddTableIfDoesntExist(table *Table) bool {
 
 		table.applyIndexConfig(lm.cfg)
 
-		lm.schemaLoader.TableDefinitions().Store(table.Name, table)
+		lm.tableDiscovery.TableDefinitions().Store(table.Name, table)
 		return true
 	}
 	wasntCreated := !t.Created
@@ -627,24 +628,24 @@ func (lm *LogManager) Ping() error {
 
 func NewEmptyLogManager(cfg config.QuesmaConfiguration, chDb *sql.DB, phoneHomeAgent telemetry.PhoneHomeAgent, loader TableDiscovery, schemaRegistry schema.Registry) *LogManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, schemaLoader: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry}
+	return &LogManager{ctx: ctx, cancel: cancel, chDb: chDb, tableDiscovery: loader, cfg: cfg, phoneHomeAgent: phoneHomeAgent, schemaRegistry: schemaRegistry}
 }
 
 func NewLogManager(tables *TableMap, cfg config.QuesmaConfiguration) *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(tables)
-	return &LogManager{chDb: nil, schemaLoader: newTableDiscoveryWith(cfg, nil, *tables), cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{chDb: nil, tableDiscovery: newTableDiscoveryWith(cfg, nil, *tables), cfg: cfg, phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 // right now only for tests purposes
 func NewLogManagerWithConnection(db *sql.DB, tables *TableMap) *LogManager {
-	return &LogManager{chDb: db, schemaLoader: newTableDiscoveryWith(config.QuesmaConfiguration{}, NewSchemaManagement(db), *tables), phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{chDb: db, tableDiscovery: newTableDiscoveryWith(config.QuesmaConfiguration{}, NewSchemaManagement(db), *tables), phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 func NewLogManagerEmpty() *LogManager {
 	var tableDefinitions = atomic.Pointer[TableMap]{}
 	tableDefinitions.Store(NewTableMap())
-	return &LogManager{schemaLoader: NewTableDiscovery(config.QuesmaConfiguration{}, nil), phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
+	return &LogManager{tableDiscovery: NewTableDiscovery(config.QuesmaConfiguration{}, nil), phoneHomeAgent: telemetry.NewPhoneHomeEmptyAgent()}
 }
 
 func NewOnlySchemaFieldsCHConfig() *ChTableConfig {
