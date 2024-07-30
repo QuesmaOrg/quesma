@@ -160,7 +160,7 @@ func executeQuery(ctx context.Context, lm *LogManager, query *model.Query, field
 	settings["allow_ddl"] = "0"
 
 	if query.OptimizeHints != nil {
-		for k, v := range query.OptimizeHints.Settings {
+		for k, v := range query.OptimizeHints.ClickhouseQuerySettings {
 			settings[k] = v
 		}
 
