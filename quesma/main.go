@@ -17,6 +17,7 @@ import (
 	"quesma/logger"
 	"quesma/quesma"
 	"quesma/quesma/config"
+	"quesma/quesma/ui"
 	"quesma/schema"
 	"quesma/telemetry"
 	"quesma/tracing"
@@ -82,7 +83,9 @@ func main() {
 
 	logger.Info().Msgf("loaded config: %s", cfg.String())
 
-	instance := constructQuesma(cfg, schemaLoader, lm, im, schemaRegistry, phoneHomeAgent, qmcLogChannel)
+	quesmaManagementConsole := ui.NewQuesmaManagementConsole(cfg, lm, im, qmcLogChannel, phoneHomeAgent, schemaRegistry)
+
+	instance := constructQuesma(cfg, schemaLoader, lm, im, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel)
 	instance.Start()
 
 	<-doneCh
@@ -99,15 +102,14 @@ func main() {
 
 }
 
-func constructQuesma(cfg config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, logChan <-chan logger.LogWithLevel) *quesma.Quesma {
-
+func constructQuesma(cfg config.QuesmaConfiguration, sl clickhouse.TableDiscovery, lm *clickhouse.LogManager, im elasticsearch.IndexManagement, schemaRegistry schema.Registry, phoneHomeAgent telemetry.PhoneHomeAgent, quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel) *quesma.Quesma {
 	switch cfg.Mode {
 	case config.Proxy:
-		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, logChan, false)
+		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, false)
 	case config.ProxyInspect:
-		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, logChan, true)
+		return quesma.NewQuesmaTcpProxy(phoneHomeAgent, cfg, quesmaManagementConsole, logChan, true)
 	case config.DualWriteQueryElastic, config.DualWriteQueryClickhouse, config.DualWriteQueryClickhouseVerify, config.DualWriteQueryClickhouseFallback:
-		return quesma.NewHttpProxy(phoneHomeAgent, lm, sl, im, schemaRegistry, cfg, logChan)
+		return quesma.NewHttpProxy(phoneHomeAgent, lm, sl, im, schemaRegistry, cfg, quesmaManagementConsole, logChan)
 	}
 	logger.Panic().Msgf("unknown operation mode: %s", cfg.Mode.String())
 	panic("unreachable")

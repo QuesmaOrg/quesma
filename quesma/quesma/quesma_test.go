@@ -21,7 +21,7 @@ func TestShouldExposePprof(t *testing.T) {
 	quesma := NewQuesmaTcpProxy(telemetry.NoopPhoneHomeAgent(), config.QuesmaConfiguration{
 		PublicTcpPort: 8080,
 		Elasticsearch: config.ElasticsearchConfiguration{Url: &config.Url{}},
-	}, make(<-chan logger.LogWithLevel), false)
+	}, nil, make(<-chan logger.LogWithLevel), false)
 	quesma.Start()
 	waitForHealthyQuesma(t)
 	t.Cleanup(func() {
