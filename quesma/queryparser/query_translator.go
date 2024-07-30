@@ -182,23 +182,6 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 
 		if pancake, isPancake := query.Type.(PancakeQueryType); isPancake {
 
-			// TODO maybe this should be moved to separate function
-			totalCountAgg := pancake.ReturnCount()
-			if totalCountAgg != nil {
-				if len(ResultSets[i]) > 0 && len(ResultSets[i][0].Cols) > 0 {
-					for _, cell := range ResultSets[i][0].Cols {
-						// FIXME THIS is hardcoded for now, as we don't have a way to get the name of the column
-						if cell.ColName == "metric____quesma_total_count_col_0" {
-							totalCount = &model.Total{
-								Value:    int(cell.Value.(int64)),
-								Relation: "eq", //  TODO NOT sure if it is correct
-							}
-							break
-						}
-					}
-				}
-			}
-
 			aggregation = pancake.TranslateSqlResponseToJson(ResultSets[i], 0)
 		} else {
 			aggregation = cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
@@ -312,6 +295,37 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 				Relation: relation,
 			}
 			return
+		}
+	}
+
+	for i, query := range queries {
+		if pancake, isPancake := query.Type.(*PancakeQueryType); isPancake {
+			totalCountAgg := pancake.ReturnCount()
+			if totalCountAgg != nil {
+				if len(results[i]) > 0 && len(results[i][0].Cols) > 0 {
+					for _, cell := range results[i][0].Cols {
+						// FIXME THIS is hardcoded for now, as we don't have a way to get the name of the column
+						if cell.ColName == "metric____quesma_total_count_col_0" {
+							switch v := cell.Value.(type) {
+							case uint64:
+								totalCount += int(v)
+							case int:
+								totalCount += v
+							case int64:
+								totalCount += int(v)
+							default:
+								logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v %t", v, v)
+							}
+
+							total = &model.Total{
+								Value:    totalCount,
+								Relation: "eq",
+							}
+							return
+						}
+					}
+				}
+			}
 		}
 	}
 
