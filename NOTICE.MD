@@ -1443,11 +1443,11 @@ THE SOFTWARE.
 
 --------------------------------------------------------------------------------
 #### Module  : github.com/knadh/koanf/providers/file
-Version : v1.0.0
-Time    : 2024-07-01T11:55:33Z
+Version : v1.1.0
+Time    : 2024-07-29T18:42:38Z
 Licence : MIT
 
-Contents of probable licence file $GOMODCACHE/github.com/knadh/koanf/providers/file@v1.0.0/LICENSE:
+Contents of probable licence file $GOMODCACHE/github.com/knadh/koanf/providers/file@v1.1.0/LICENSE:
 
 The MIT License
 
