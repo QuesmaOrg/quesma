@@ -50,7 +50,7 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 
 	f := func(t1, t2 TableMap) {
 		lm := NewLogManager(fieldsMap, config.QuesmaConfiguration{})
-		j, err := lm.BuildInsertJson("tableName", types.MustJSON(rowToInsert), hasOthersConfig)
+		j, err := lm.BuildInsertJson("tableName", types.MustJSON(rowToInsert), nil, hasOthersConfig)
 		assert.NoError(t, err)
 		m := make(SchemaMap)
 		err = json.Unmarshal([]byte(j), &m)
