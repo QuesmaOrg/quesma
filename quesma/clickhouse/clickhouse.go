@@ -481,7 +481,7 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	} else {
 		return "", fmt.Errorf("no attributes or others in config, but received non-schema fields: %s", mDiff)
 	}
-	// If there are some non-valid fields, we need to add them to the attributes map
+	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
 	// generating correct update query
 	addInvalidJsonFieldsToAttributes(attrsMap, inValidJson)
