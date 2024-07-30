@@ -140,6 +140,7 @@ func pancakeRenderJSONLayer(layerId int, layers []*pancakeAggregationLayer, rows
 
 		result[layer.nextBucketAggregation.name] = buckets
 	}
+	fmt.Println("PANCAKED")
 	return result
 }
 
