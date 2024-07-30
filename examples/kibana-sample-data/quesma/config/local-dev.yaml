@@ -32,18 +32,6 @@ indexes:
     mappings:
       DestLocation: "geo_point"
       OriginLocation: "geo_point"
-  kibana_sample_data_logs:
-    enabled: true
-    mappings:
-      ip: "ip"
-      clientip: "ip"
-      geo.coordinates: "point"
-      extension: "text"
-      url: "text"
-    aliases:
-      timestamp:
-        source: "timestamp"
-        target: "@timestamp"
   logs-generic-default:
     enabled: true
     static-schema:
