@@ -12,7 +12,7 @@ import (
 
 func pancakeSelectMetricRows(name string, rows []model.QueryResultRow) []model.QueryResultRow {
 	result := []model.QueryResultRow{}
-	for _, row := range rows {
+	for i, row := range rows {
 		newRow := model.QueryResultRow{Index: row.Index}
 		for _, col := range row.Cols {
 			if strings.HasPrefix(col.ColName, name) {
@@ -20,7 +20,9 @@ func pancakeSelectMetricRows(name string, rows []model.QueryResultRow) []model.Q
 			}
 		}
 		result = append(result, newRow)
-		break // just one row please
+		if i == 0 {
+			break // just one row please. FIXME Style. If here is only to fix staticcheck...
+		}
 	}
 	return result
 }

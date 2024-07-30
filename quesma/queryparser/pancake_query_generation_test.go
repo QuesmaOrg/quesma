@@ -45,9 +45,9 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if i != 0 && i != 1 && i != 3 && i != 4 { // TODO: remove
 				t.Skip()
 			}
-			if i != 4 { // TODO remove
-				// t.Skip()
-			}
+			// if i != 4 { // TODO remove
+			// t.Skip()
+			// }
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)
 			assert.NoError(t, err)
 
