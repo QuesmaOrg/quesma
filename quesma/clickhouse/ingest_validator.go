@@ -87,6 +87,9 @@ func validateValueAgainstType(fieldName string, value interface{}, column *Colum
 			deletedFields[fieldName] = value
 		}
 	} else if columnType != incomingValueType {
+		if columnType == "Float64" && (incomingValueType == "Int64" || incomingValueType == "UInt64") {
+			return deletedFields
+		}
 		deletedFields[fieldName] = value
 	}
 	return deletedFields

@@ -37,6 +37,24 @@ func TestGetTypeName(t *testing.T) {
 	}
 }
 
+func TestValidateIngest(t *testing.T) {
+	floatCol := &Column{Name: "float_field", Type: BaseType{
+		Name:   "Float64",
+		goType: NewBaseType("float64").goType,
+	}}
+
+	invalidJson := validateValueAgainstType("float", 1, floatCol)
+	assert.Equal(t, 0, len(invalidJson))
+	StringCol := &Column{Name: "float_field", Type: BaseType{
+		Name:   "String",
+		goType: NewBaseType("string").goType,
+	}}
+
+	invalidJson = validateValueAgainstType("string", 1, StringCol)
+	assert.Equal(t, 1, len(invalidJson))
+
+}
+
 func EscapeBrackets(s string) string {
 	s = strings.ReplaceAll(s, `(`, `\(`)
 	s = strings.ReplaceAll(s, `)`, `\)`)
