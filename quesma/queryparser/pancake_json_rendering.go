@@ -120,6 +120,34 @@ func pancakeRenderJSONLayer(layerId int, layers []*pancakeAggregationLayer, rows
 			bucketName = fmt.Sprintf("%s%s__", bucketName, layers[i].nextBucketAggregation.name)
 		}
 		bucketRows, subAggrRows := pancakeSplitBucketRows(bucketName, rows)
+
+		// We are filter out null
+		if layer.nextBucketAggregation.whereClause != nil {
+			// TODO: nicer way of passing not null
+			if _, ok := layer.nextBucketAggregation.whereClause.(model.InfixExpr); ok {
+				nullRowToDelete := -1
+				nameofKey := bucketName + "key"
+			ROW:
+				for i, row := range bucketRows {
+					for _, col := range row.Cols {
+						if strings.HasPrefix(col.ColName, nameofKey) {
+							if col.Value == nil || col.Value == "" {
+								nullRowToDelete = i
+								break ROW
+							}
+						}
+					}
+				}
+
+				if nullRowToDelete != -1 {
+					bucketRows = append(bucketRows[:nullRowToDelete], bucketRows[nullRowToDelete+1:]...)
+					subAggrRows = append(subAggrRows[:nullRowToDelete], subAggrRows[nullRowToDelete+1:]...)
+				} else if layer.nextBucketAggregation.limit != 0 && len(bucketRows) > layer.nextBucketAggregation.limit {
+					bucketRows = bucketRows[:layer.nextBucketAggregation.limit]
+					subAggrRows = subAggrRows[:layer.nextBucketAggregation.limit]
+				}
+			}
+		}
 		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, 0) // TODO: fill level?
 
 		if layerId+1 < len(layers) { // Add subAggregation

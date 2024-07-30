@@ -185,7 +185,7 @@ SELECT "host.name" AS "aggr__0__key_0", count(*) AS "aggr__0__count", count() AS
 FROM "logs-generic-default"
 GROUP BY "host.name" AS "aggr__0__key_0"
 ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC
-LIMIT 3`, // -- missing `WHERE host::name" IS NOT NULL
+LIMIT 4`, // -- we added one more as filtering nulls happens during rendering
 		},
 
 		{"test2",
@@ -214,7 +214,7 @@ SELECT "host.name" AS "aggr__0__key_0", count(*) AS "aggr__0__count", count() AS
 FROM "logs-generic-default"
 GROUP BY "host.name" AS "aggr__0__key_0"
 ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC
-LIMIT 3`,
+LIMIT 4`, // we increased limit by 1 to allow filtering of nulls druing json rendering
 		},
 	}
 

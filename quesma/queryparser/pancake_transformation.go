@@ -40,12 +40,12 @@ func pancakeTranslateBucketToLayered(bucket *pancakeAggregationLevel) (layer *pa
 		queryType:       bucket.queryType,
 		selectedColumns: bucket.selectedColumns,
 
-		//children: bucket.children,
 		orderBy: bucket.orderBy,
 		limit:   bucket.limit,
 		isKeyed: bucket.isKeyed,
 
-		metadata: bucket.metadata,
+		metadata:    bucket.metadata,
+		whereClause: bucket.whereClause,
 	}, nil
 }
 

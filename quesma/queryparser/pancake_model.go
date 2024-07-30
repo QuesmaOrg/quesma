@@ -44,7 +44,8 @@ type pancakeLayerBucketAggregation struct {
 	limit   int // 0 if none, only for bucket aggregation
 	isKeyed bool
 
-	metadata model.JsonMap
+	metadata    model.JsonMap
+	whereClause model.Expr
 }
 
 type pancakeAggregationLayer struct {
