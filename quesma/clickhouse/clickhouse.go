@@ -421,8 +421,8 @@ func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name strin
 	return nil
 }
 
-// This function takes an attributesMap and update it
-// with the fields that are not validated according to the inferred schema
+// This function takes an attributesMap and updates it
+// with the fields that are not valid according to the inferred schema
 func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalidJson types.JSON) {
 	for k, v := range inValidJson {
 		attrsMap[AttributesKeyColumn] = append(attrsMap[AttributesKeyColumn], k)
