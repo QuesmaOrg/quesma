@@ -37,7 +37,7 @@ func pancakeSplitBucketRows(name string, rows []model.QueryResultRow) ([]model.Q
 	subAggrs = append(subAggrs, []model.QueryResultRow{model.QueryResultRow{Index: indexName}})
 	for _, cols := range rows[0].Cols {
 		// pp.Println("JM: pancakeSplitBucketRows first", name, cols.ColName)
-		if strings.HasPrefix(cols.ColName, name+"key") || strings.HasPrefix(cols.ColName, name+"order") {
+		if strings.HasPrefix(cols.ColName, name+"key") || strings.HasPrefix(cols.ColName, name+"count") {
 			buckets[0].Cols = append(buckets[0].Cols, cols)
 		} else {
 			subAggrs[0][0].Cols = append(subAggrs[0][0].Cols, cols)
@@ -73,7 +73,7 @@ func pancakeSplitBucketRows(name string, rows []model.QueryResultRow) ([]model.Q
 			subAggrs = append(subAggrs, []model.QueryResultRow{model.QueryResultRow{Index: indexName}})
 			lastIdx := len(buckets) - 1
 			for _, cols := range row.Cols {
-				if strings.HasPrefix(cols.ColName, name+"key") || strings.HasPrefix(cols.ColName, name+"order") {
+				if strings.HasPrefix(cols.ColName, name+"key") || strings.HasPrefix(cols.ColName, name+"count") {
 					buckets[lastIdx].Cols = append(buckets[lastIdx].Cols, cols)
 				} else {
 					subAggrs[lastIdx][0].Cols = append(subAggrs[lastIdx][0].Cols, cols)
@@ -83,7 +83,7 @@ func pancakeSplitBucketRows(name string, rows []model.QueryResultRow) ([]model.Q
 			lastIdx := len(buckets) - 1
 			subAggrs[lastIdx] = append(subAggrs[lastIdx], model.QueryResultRow{Index: indexName})
 			for _, cols := range row.Cols {
-				if !(strings.HasPrefix(cols.ColName, name+"_key") || strings.HasPrefix(cols.ColName, name+" _order")) {
+				if !(strings.HasPrefix(cols.ColName, name+"key") || strings.HasPrefix(cols.ColName, name+"count")) {
 					lastSubIdx := len(subAggrs[lastIdx]) - 1
 					subAggrs[lastIdx][lastSubIdx].Cols = append(subAggrs[lastIdx][lastSubIdx].Cols, cols)
 				}

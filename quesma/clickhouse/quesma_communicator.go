@@ -12,6 +12,7 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/tracing"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -71,6 +72,18 @@ func (lm *LogManager) ProcessQuery(ctx context.Context, table *Table, query *mod
 			colName = col.ColumnName
 		case model.AliasedExpr:
 			colName = col.Alias
+		case model.LiteralExpr:
+			if str, isStr := col.Value.(string); isStr {
+				if unquoted, err := strconv.Unquote(str); err == nil {
+					colName = unquoted
+				} else {
+					colName = str
+				}
+			} else {
+				if colName == "" {
+					colName = fmt.Sprintf("column_%d", count)
+				}
+			}
 		default:
 			if colName == "" {
 				colName = fmt.Sprintf("column_%d", count)

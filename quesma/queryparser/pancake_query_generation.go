@@ -121,6 +121,31 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 				groupByColumns = append(groupByColumns, aliasedColumn)
 				addedGroupByAliases = append(addedGroupByAliases, newQuotedLiteral(aliasedName))
 			}
+
+			hasMoreBucketAggregations := layerId < len(aggregation.layers)-1 && aggregation.layers[layerId+1].nextBucketAggregation != nil
+
+			// build count for aggr
+			// TODO: Maybe optimize
+			countAliasName := fmt.Sprintf("aggr__%scount", namePrefix)
+			if hasMoreBucketAggregations {
+				partCountAliasName := countAliasName + "_part"
+				partCountColumn := model.NewFunction("count", model.NewLiteral("*"))
+				partCountAliasedColumn := model.AliasedExpr{Expr: partCountColumn, Alias: partCountAliasName}
+				selectedPartColumns = append(selectedPartColumns, partCountAliasedColumn)
+
+				countColumn := model.WindowFunction{Name: "sum",
+					Args:        []model.Expr{newQuotedLiteral(partCountAliasName)},
+					PartitionBy: pancakeGeneratePartitionBy(groupByColumns), /// TODO
+					OrderBy:     []model.OrderByExpr{},
+				}
+				countAliasedColumn := model.AliasedExpr{Expr: countColumn, Alias: countAliasName}
+				selectedColumns = append(selectedColumns, countAliasedColumn)
+			} else {
+				countColumn := model.NewFunction("count", model.NewLiteral("*"))
+				countAliasedColumn := model.AliasedExpr{Expr: countColumn, Alias: countAliasName}
+				selectedColumns = append(selectedColumns, countAliasedColumn)
+			}
+
 			columnId := len(bucketAggregation.selectedColumns)
 			if bucketAggregation.orderBy != nil && len(bucketAggregation.orderBy) > 0 {
 				// TODO: handle all columns
@@ -131,7 +156,6 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 
 				_, isColumnRef := orderBy.(model.ColumnRef)
 
-				hasMoreBucketAggregations := layerId < len(aggregation.layers)-1 && aggregation.layers[layerId+1].nextBucketAggregation != nil
 				if hasMoreBucketAggregations && !isColumnRef {
 					partColumnName := aliasedName + "_part"
 					partColumn, aggFunctionName, err := pancakeGenerateAccumAggrFunctions(orderBy, nil)

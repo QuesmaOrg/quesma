@@ -48,6 +48,10 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 
 	pancakeQueries, err := pancakeTranslateFromAggregationToLayered(topLevel)
 
+	if err != nil {
+		return nil, err
+	}
+
 	if addCount {
 
 		// use our building blocks to add count
@@ -61,9 +65,6 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 
 	}
 
-	if err != nil {
-		return nil, err
-	}
 	dbQuery, err := pancakeGenerateQuery(pancakeQueries, cw.Table)
 	if err != nil {
 		return nil, err
