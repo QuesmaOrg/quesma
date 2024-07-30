@@ -15,11 +15,13 @@ var OpheliaTestsPancake = []opheliaTestsPancakeTest{ // take rest arguments from
 	{ // [0]
 		TestName: "Ophelia Test 1: triple terms + default order",
 		Sql: `
-SELECT "aggr__2__key_0", "aggr__2__order_1", "aggr__2__8__key_0",
-  "aggr__2__8__order_1", "aggr__2__8__4__key_0", "aggr__2__8__4__order_1"
+SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+  "aggr__2__8__key_0", "aggr__2__8__count", "aggr__2__8__order_1",
+  "aggr__2__8__4__key_0", "aggr__2__8__4__count", "aggr__2__8__4__order_1"
 FROM (
-  SELECT "aggr__2__key_0", "aggr__2__order_1", "aggr__2__8__key_0",
-    "aggr__2__8__order_1", "aggr__2__8__4__key_0", "aggr__2__8__4__order_1",
+  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+    "aggr__2__8__key_0", "aggr__2__8__count", "aggr__2__8__order_1",
+    "aggr__2__8__4__key_0", "aggr__2__8__4__count", "aggr__2__8__4__order_1",
     dense_rank() OVER (PARTITION BY 1
   ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC) AS
     "aggr__2__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__2__key_0"
@@ -29,12 +31,17 @@ FROM (
   ORDER BY "aggr__2__8__4__order_1" DESC, "aggr__2__8__4__key_0" ASC) AS
     "aggr__2__8__4__order_1_rank"
   FROM (
-    SELECT "surname" AS "aggr__2__key_0", sum("aggr__2__order_1_part") OVER (
-      PARTITION BY "aggr__2__key_0") AS "aggr__2__order_1", COALESCE("limbName",
-      '__missing__') AS "aggr__2__8__key_0", sum("aggr__2__8__order_1_part")
-      OVER (PARTITION BY "aggr__2__key_0", "aggr__2__8__key_0") AS
-      "aggr__2__8__order_1", "organName" AS "aggr__2__8__4__key_0", count() AS
-      "aggr__2__8__4__order_1", count() AS "aggr__2__order_1_part", count() AS
+    SELECT "surname" AS "aggr__2__key_0", sum("aggr__2__count_part") OVER (
+      PARTITION BY "aggr__2__key_0") AS "aggr__2__count", sum(
+      "aggr__2__order_1_part") OVER (PARTITION BY "aggr__2__key_0") AS
+      "aggr__2__order_1", COALESCE("limbName",'__missing__') AS
+      "aggr__2__8__key_0", sum("aggr__2__8__count_part") OVER (PARTITION BY
+      "aggr__2__key_0", "aggr__2__8__key_0") AS "aggr__2__8__count", sum(
+      "aggr__2__8__order_1_part") OVER (PARTITION BY "aggr__2__key_0",
+      "aggr__2__8__key_0") AS "aggr__2__8__order_1", "organName" AS
+      "aggr__2__8__4__key_0", count(*) AS "aggr__2__8__4__count", count() AS
+      "aggr__2__8__4__order_1", count(*) AS "aggr__2__count_part", count() AS
+      "aggr__2__order_1_part", count(*) AS "aggr__2__8__count_part", count() AS
       "aggr__2__8__order_1_part"
     FROM "logs-generic-default"
     GROUP BY "surname" AS "aggr__2__key_0", COALESCE("limbName",'__missing__')
@@ -46,34 +53,46 @@ ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
 		ExpectedResults: []model.QueryResultRow{
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
+				model.NewQueryResultCol("aggr__2__count_1", 1036),
 				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b11"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 21),
 				model.NewQueryResultCol("aggr__2__8__order_1", 21),
 				model.NewQueryResultCol("aggr__2__8__4__key_0", "c11"),
+				model.NewQueryResultCol("aggr__2__8__4__count_1", 21),
 				model.NewQueryResultCol("aggr__2__8__4__order_1", 21),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", "a1"),
+				model.NewQueryResultCol("aggr__2__count_1", 1036),
 				model.NewQueryResultCol("aggr__2__order_1", 1036),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b12"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 24),
 				model.NewQueryResultCol("aggr__2__8__order_1", 24),
 				model.NewQueryResultCol("aggr__2__8__4__key_0", "c12"),
+				model.NewQueryResultCol("aggr__2__8__4__count_1", 24),
 				model.NewQueryResultCol("aggr__2__8__4__order_1", 24),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
+				model.NewQueryResultCol("aggr__2__count_1", 34),
 				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b21"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 17),
 				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 				model.NewQueryResultCol("aggr__2__8__4__key_0", "c21"),
+				model.NewQueryResultCol("aggr__2__8__4__count_1", 17),
 				model.NewQueryResultCol("aggr__2__8__4__order_1", 17),
 			}},
 			{Cols: []model.QueryResultCol{
 				model.NewQueryResultCol("aggr__2__key_0", "a2"),
+				model.NewQueryResultCol("aggr__2__count_1", 34),
 				model.NewQueryResultCol("aggr__2__order_1", 34),
 				model.NewQueryResultCol("aggr__2__8__key_0", "b22"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 17),
 				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 				model.NewQueryResultCol("aggr__2__8__4__key_0", "c22"),
+				model.NewQueryResultCol("aggr__2__8__4__count_1", 17),
 				model.NewQueryResultCol("aggr__2__8__4__order_1", 17),
 			}},
 		},

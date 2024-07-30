@@ -176,7 +176,8 @@ func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
 
 `,
 			sql: `
-SELECT "host.name" AS "aggr__0__key_0", count() AS "aggr__0__order_1"
+SELECT "host.name" AS "aggr__0__key_0", count(*) AS "aggr__0__count", count() AS
+   "aggr__0__order_1"
 FROM "logs-generic-default"
 GROUP BY "host.name" AS "aggr__0__key_0"
 ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC
@@ -204,13 +205,12 @@ LIMIT 3`, // -- missing `WHERE host::name" IS NOT NULL
 }
 `,
 			`
-SELECT "host.name" AS "aggr__0__key_0", count() AS "aggr__0__order_1", avgOrNull
-  ("bytes_gauge") AS "metric__0__2_col_0"
+SELECT "host.name" AS "aggr__0__key_0", count(*) AS "aggr__0__count", count() AS
+   "aggr__0__order_1", avgOrNull("bytes_gauge") AS "metric__0__2_col_0"
 FROM "logs-generic-default"
 GROUP BY "host.name" AS "aggr__0__key_0"
 ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC
-LIMIT 3
-`,
+LIMIT 3`,
 		},
 	}
 
