@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func Test_cacheGroupBy(t *testing.T) {
+func Test_cacheQueries(t *testing.T) {
 
 	tests := []struct {
 		name        string
