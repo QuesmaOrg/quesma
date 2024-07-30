@@ -5,7 +5,6 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/model"
 	"quesma/util"
 	"strings"
@@ -97,7 +96,7 @@ func pancakeSplitBucketRows(name string, rows []model.QueryResultRow) ([]model.Q
 }
 
 func pancakeRenderJSONLayer(layerId int, layers []*pancakeAggregationLayer, rows []model.QueryResultRow) model.JsonMap {
-	pp.Println("JM: pancakeRenderJSONLayer", layerId, len(layers), rows)
+	// pp.Println("JM: pancakeRenderJSONLayer", layerId, len(layers), rows)
 	result := model.JsonMap{}
 	if layerId >= len(layers) {
 		return result
