@@ -10,11 +10,14 @@ import (
 	"strconv"
 )
 
-func newQuotedLiteral(value string) model.LiteralExpr {
+type pancakeQueryGenerator struct {
+}
+
+func (p *pancakeQueryGenerator) newQuotedLiteral(value string) model.LiteralExpr {
 	return model.LiteralExpr{Value: strconv.Quote(value)}
 }
 
-func aliasedExprArrayToExpr(aliasedExprs []model.AliasedExpr) []model.Expr {
+func (p *pancakeQueryGenerator) aliasedExprArrayToExpr(aliasedExprs []model.AliasedExpr) []model.Expr {
 	exprs := make([]model.Expr, 0, len(aliasedExprs))
 	for _, aliasedExpr := range aliasedExprs {
 		exprs = append(exprs, aliasedExpr)
@@ -22,28 +25,28 @@ func aliasedExprArrayToExpr(aliasedExprs []model.AliasedExpr) []model.Expr {
 	return exprs
 }
 
-func aliasedExprArrayToLiteralExpr(aliasedExprs []model.AliasedExpr) []model.Expr {
+func (p *pancakeQueryGenerator) aliasedExprArrayToLiteralExpr(aliasedExprs []model.AliasedExpr) []model.Expr {
 	exprs := make([]model.Expr, 0, len(aliasedExprs))
 	for _, aliasedExpr := range aliasedExprs {
-		exprs = append(exprs, newQuotedLiteral(aliasedExpr.Alias))
+		exprs = append(exprs, p.newQuotedLiteral(aliasedExpr.Alias))
 	}
 	return exprs
 }
 
-func pancakeGeneratePartitionBy(groupByColumns []model.AliasedExpr) []model.Expr {
+func (p *pancakeQueryGenerator) generatePartitionBy(groupByColumns []model.AliasedExpr) []model.Expr {
 	partitionBy := make([]model.Expr, 0)
 	if len(groupByColumns) == 0 {
 		partitionBy = []model.Expr{model.NewLiteral(1)}
 	} else {
 		for _, col := range groupByColumns {
-			partitionBy = append(partitionBy, newQuotedLiteral(col.Alias))
+			partitionBy = append(partitionBy, p.newQuotedLiteral(col.Alias))
 		}
 	}
 	return partitionBy
 }
 
 // TODO: Implement all functions
-func pancakeGenerateAccumAggrFunctions(origExpr model.Expr, queryType model.QueryType) (accumExpr model.Expr, aggrFuncName string, err error) {
+func (p *pancakeQueryGenerator) generateAccumAggrFunctions(origExpr model.Expr, queryType model.QueryType) (accumExpr model.Expr, aggrFuncName string, err error) {
 	switch origFunc := origExpr.(type) {
 	case model.FunctionExpr:
 		switch origFunc.Name {
@@ -64,9 +67,9 @@ func pancakeGenerateAccumAggrFunctions(origExpr model.Expr, queryType model.Quer
 }
 
 // TODO: deduplicate metric names
-func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickhouse.Table) (*model.SelectCommand, bool, error) {
+func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggregation, table *clickhouse.Table) (*model.SelectCommand, bool, error) {
 	if aggregation == nil {
-		return nil, false, errors.New("aggregation is nil in pancakeGenerateQuery")
+		return nil, false, errors.New("aggregation is nil in generateQuery")
 	}
 
 	selectedColumns := make([]model.AliasedExpr, 0)
@@ -84,15 +87,15 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 				// TODO: check for collisions
 				if layerId < len(aggregation.layers)-1 {
 					partColumnName := aliasedName + "_part"
-					partColumn, aggFunctionName, err := pancakeGenerateAccumAggrFunctions(column, metrics.queryType)
+					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(column, metrics.queryType)
 					if err != nil {
 						return nil, false, err
 					}
 					aliasedPartColumn := model.AliasedExpr{Expr: partColumn, Alias: partColumnName}
 					selectedPartColumns = append(selectedPartColumns, aliasedPartColumn)
 					finalColumn := model.WindowFunction{Name: aggFunctionName,
-						Args:        []model.Expr{newQuotedLiteral(partColumnName)},
-						PartitionBy: pancakeGeneratePartitionBy(groupByColumns),
+						Args:        []model.Expr{p.newQuotedLiteral(partColumnName)},
+						PartitionBy: p.generatePartitionBy(groupByColumns),
 						OrderBy:     []model.OrderByExpr{},
 					}
 					aliasedColumn := model.AliasedExpr{Expr: finalColumn, Alias: aliasedName}
@@ -119,7 +122,7 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 				aliasedColumn := model.AliasedExpr{Expr: column, Alias: aliasedName}
 				selectedColumns = append(selectedColumns, aliasedColumn)
 				groupByColumns = append(groupByColumns, aliasedColumn)
-				addedGroupByAliases = append(addedGroupByAliases, newQuotedLiteral(aliasedName))
+				addedGroupByAliases = append(addedGroupByAliases, p.newQuotedLiteral(aliasedName))
 			}
 
 			hasMoreBucketAggregations := layerId < len(aggregation.layers)-1 && aggregation.layers[layerId+1].nextBucketAggregation != nil
@@ -134,8 +137,8 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 				selectedPartColumns = append(selectedPartColumns, partCountAliasedColumn)
 
 				countColumn := model.WindowFunction{Name: "sum",
-					Args:        []model.Expr{newQuotedLiteral(partCountAliasName)},
-					PartitionBy: pancakeGeneratePartitionBy(groupByColumns), /// TODO
+					Args:        []model.Expr{p.newQuotedLiteral(partCountAliasName)},
+					PartitionBy: p.generatePartitionBy(groupByColumns), /// TODO
 					OrderBy:     []model.OrderByExpr{},
 				}
 				countAliasedColumn := model.AliasedExpr{Expr: countColumn, Alias: countAliasName}
@@ -158,7 +161,7 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 
 				if hasMoreBucketAggregations && !isColumnRef {
 					partColumnName := aliasedName + "_part"
-					partColumn, aggFunctionName, err := pancakeGenerateAccumAggrFunctions(orderBy, nil)
+					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderBy, nil)
 					if err != nil {
 						return nil, false, err
 					}
@@ -166,8 +169,8 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 					selectedPartColumns = append(selectedPartColumns, aliasedColumn)
 					// TODO: fix order by
 					orderByAgg := model.WindowFunction{Name: aggFunctionName,
-						Args:        []model.Expr{newQuotedLiteral(partColumnName)},
-						PartitionBy: pancakeGeneratePartitionBy(groupByColumns),
+						Args:        []model.Expr{p.newQuotedLiteral(partColumnName)},
+						PartitionBy: p.generatePartitionBy(groupByColumns),
 						OrderBy:     []model.OrderByExpr{},
 					}
 					aliasedOrderByAgg := model.AliasedExpr{Expr: orderByAgg, Alias: aliasedName}
@@ -178,14 +181,14 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 				}
 
 				// We order by count, but add key to get right dense_rank()
-				rankColumOrderBy := []model.OrderByExpr{model.NewOrderByExpr([]model.Expr{newQuotedLiteral(aliasedName)}, orderByDirection)}
+				rankColumOrderBy := []model.OrderByExpr{model.NewOrderByExpr([]model.Expr{p.newQuotedLiteral(aliasedName)}, orderByDirection)}
 				for _, addedGroupByAlias := range addedGroupByAliases {
 					rankColumOrderBy = append(rankColumOrderBy, model.NewOrderByExpr([]model.Expr{addedGroupByAlias}, model.AscOrder))
 				}
 
 				rankColum := model.WindowFunction{Name: "dense_rank",
 					Args:        []model.Expr{},
-					PartitionBy: pancakeGeneratePartitionBy(previousGroupByColumns),
+					PartitionBy: p.generatePartitionBy(previousGroupByColumns),
 					OrderBy:     rankColumOrderBy,
 				}
 				aliasedRank := model.AliasedExpr{Expr: rankColum, Alias: aliasedName + "_rank"}
@@ -201,10 +204,10 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 						}
 					}
 				}
-				whereRank := model.NewInfixExpr(newQuotedLiteral(aliasedRank.Alias), "<=", model.NewLiteral(bucketAggregation.limit))
+				whereRank := model.NewInfixExpr(p.newQuotedLiteral(aliasedRank.Alias), "<=", model.NewLiteral(bucketAggregation.limit))
 				whereRanks = append(whereRanks, whereRank)
 
-				rankOrderBy := model.NewOrderByExpr([]model.Expr{newQuotedLiteral(aliasedRank.Alias)}, model.AscOrder)
+				rankOrderBy := model.NewOrderByExpr([]model.Expr{p.newQuotedLiteral(aliasedRank.Alias)}, model.AscOrder)
 				rankOrderBys = append(rankOrderBys, rankOrderBy)
 			}
 		}
@@ -232,8 +235,8 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 		}
 
 		query := model.SelectCommand{
-			Columns:     aliasedExprArrayToExpr(append(selectedColumns, selectedPartColumns...)),
-			GroupBy:     aliasedExprArrayToExpr(groupByColumns),
+			Columns:     p.aliasedExprArrayToExpr(append(selectedColumns, selectedPartColumns...)),
+			GroupBy:     p.aliasedExprArrayToExpr(groupByColumns),
 			WhereClause: aggregation.whereClause,
 			FromClause:  model.NewTableRef(table.FullTableName()),
 			OrderBy:     orderBy,
@@ -243,19 +246,19 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 	}
 
 	windowCte := model.SelectCommand{
-		Columns:     aliasedExprArrayToExpr(append(selectedColumns, selectedPartColumns...)),
-		GroupBy:     aliasedExprArrayToExpr(groupByColumns),
+		Columns:     p.aliasedExprArrayToExpr(append(selectedColumns, selectedPartColumns...)),
+		GroupBy:     p.aliasedExprArrayToExpr(groupByColumns),
 		WhereClause: aggregation.whereClause,
 		FromClause:  model.NewTableRef(table.FullTableName()),
 	}
 
 	rankCte := model.SelectCommand{
-		Columns:    append(aliasedExprArrayToLiteralExpr(selectedColumns), aliasedExprArrayToExpr(selectedRankColumns)...),
+		Columns:    append(p.aliasedExprArrayToLiteralExpr(selectedColumns), p.aliasedExprArrayToExpr(selectedRankColumns)...),
 		FromClause: windowCte,
 	}
 
 	finalQuery := model.SelectCommand{
-		Columns:     aliasedExprArrayToLiteralExpr(selectedColumns),
+		Columns:     p.aliasedExprArrayToLiteralExpr(selectedColumns),
 		FromClause:  rankCte,
 		WhereClause: model.And(whereRanks),
 		OrderBy:     rankOrderBys,
@@ -264,12 +267,12 @@ func pancakeGenerateSelectCommand(aggregation *pancakeAggregation, table *clickh
 	return &finalQuery, true, nil
 }
 
-func pancakeGenerateQuery(aggregation *pancakeAggregation, table *clickhouse.Table) (*model.Query, error) {
+func (p *pancakeQueryGenerator) generateQuery(aggregation *pancakeAggregation, table *clickhouse.Table) (*model.Query, error) {
 	if aggregation == nil {
-		return nil, errors.New("aggregation is nil in pancakeGenerateQuery")
+		return nil, errors.New("aggregation is nil in generateQuery")
 	}
 
-	resultSelectCommand, isFullPancake, err := pancakeGenerateSelectCommand(aggregation, table)
+	resultSelectCommand, isFullPancake, err := p.generateSelectCommand(aggregation, table)
 	if err != nil {
 		return nil, err
 	}
