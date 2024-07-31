@@ -72,8 +72,8 @@ jobs:
         run: |
           BRANCH_NAME="notice/$(date +%Y%m%d%H%M%S)"
           git checkout -b "$BRANCH_NAME"
-          git config --local user.email "ai@quesma.com"
-          git config --local user.name "Quesma AI"
+          git config --local user.email "quesma-bot@quesma.com"
+          git config --local user.name "Quesma[bot]"
           git add NOTICE.MD
           git commit -m "Update NOTICE.MD"
           git push origin HEAD

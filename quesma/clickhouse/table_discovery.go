@@ -28,6 +28,7 @@ type TableDiscovery interface {
 
 type tableDiscovery struct {
 	cfg                               config.QuesmaConfiguration
+	tableVerifier                     tableVerifier
 	SchemaManagement                  *SchemaManagement
 	tableDefinitions                  *atomic.Pointer[TableMap]
 	tableDefinitionsAccessUnixSec     atomic.Int64
@@ -132,6 +133,7 @@ func (sl *tableDiscovery) ReloadTableDefinitions() {
 		}
 	}
 	sl.ReloadTablesError = nil
+	sl.verify(configuredTables)
 	sl.populateTableDefinitions(configuredTables, databaseName, sl.cfg)
 }
 
@@ -149,7 +151,7 @@ func (sl *tableDiscovery) configureTables(tables map[string]map[string]string, d
 				}
 				comment := sl.SchemaManagement.tableComment(databaseName, table)
 				createTableQuery := sl.SchemaManagement.createTableQuery(databaseName, table)
-				configuredTables[table] = discoveredTable{columns, indexConfig, comment, createTableQuery}
+				configuredTables[table] = discoveredTable{table, columns, indexConfig, comment, createTableQuery}
 			} else {
 				explicitlyDisabledTables = append(explicitlyDisabledTables, table)
 			}
@@ -181,9 +183,9 @@ func (sl *tableDiscovery) autoConfigureTables(tables map[string]map[string]strin
 			maybeTimestampField = sl.SchemaManagement.tableTimestampField(databaseName, table, ClickHouse)
 		}
 		if maybeTimestampField != "" {
-			configuredTables[table] = discoveredTable{columns, config.IndexConfiguration{TimestampField: &maybeTimestampField}, comment, createTableQuery}
+			configuredTables[table] = discoveredTable{table, columns, config.IndexConfiguration{TimestampField: &maybeTimestampField}, comment, createTableQuery}
 		} else {
-			configuredTables[table] = discoveredTable{columns, config.IndexConfiguration{}, comment, createTableQuery}
+			configuredTables[table] = discoveredTable{table, columns, config.IndexConfiguration{}, comment, createTableQuery}
 		}
 	}
 	for tableName, conf := range configuredTables {
@@ -273,6 +275,17 @@ func (sl *tableDiscovery) TableDefinitions() *TableMap {
 		<-doneCh
 	}
 	return sl.tableDefinitions.Load()
+}
+
+func (sl *tableDiscovery) verify(tables map[string]discoveredTable) {
+	for _, table := range tables {
+		logger.Info().Msgf("verifying table %s", table.name)
+		if correct, violations := sl.tableVerifier.verify(table); correct {
+			logger.Debug().Msgf("table %s verified", table.name)
+		} else {
+			logger.Warn().Msgf("table %s verification failed: %s", table.name, violations)
+		}
+	}
 }
 
 func resolveColumn(colName, colType string) *Column {

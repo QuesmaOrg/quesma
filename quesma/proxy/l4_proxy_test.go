@@ -63,8 +63,8 @@ func verifyStatistics(t *testing.T, port network.Port) {
 	}()
 
 	for i := 0; i < 50; i++ {
-		indexStats, err := stats.GlobalStatistics.GetIndexStatistics("logs")
-		if err == nil && indexStats != nil && indexStats.Requests > 0 {
+		ingestStats, err := stats.GlobalStatistics.GetIngestStatistics("logs")
+		if err == nil && ingestStats != nil && ingestStats.Requests > 0 {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)

@@ -14,8 +14,8 @@ const (
 
 // QueryOptimizeHints contains hints for query execution, e.g., performance settings, temporary table usage
 type QueryOptimizeHints struct {
-	Settings               map[string]any
-	OptimizationsPerformed []string
+	ClickhouseQuerySettings map[string]any // Clickhouse settings, e.g., use_query_cache, max_threads, etc. Added by the optimizers
+	OptimizationsPerformed  []string       // List of optimizations performed by the optimizers
 }
 
 type TransformationHistory struct {
@@ -101,7 +101,7 @@ type ExecutionPlan struct {
 }
 
 func NewQueryExecutionHints() *QueryOptimizeHints {
-	return &QueryOptimizeHints{Settings: make(map[string]any)}
+	return &QueryOptimizeHints{ClickhouseQuerySettings: make(map[string]any)}
 }
 
 func NewSortColumn(field string, direction OrderByDirection) OrderByExpr {
