@@ -28,7 +28,7 @@ func pancakeSelectMetricRows(name string, rows []model.QueryResultRow) []model.Q
 }
 
 func pancakeSplitBucketRows(name string, rows []model.QueryResultRow) ([]model.QueryResultRow, [][]model.QueryResultRow) {
-	// pp.Println("JM: pancakeSplitBucketRows", name)
+
 	buckets := []model.QueryResultRow{}
 	subAggrs := [][]model.QueryResultRow{}
 	if len(rows) == 0 {
@@ -36,9 +36,9 @@ func pancakeSplitBucketRows(name string, rows []model.QueryResultRow) ([]model.Q
 	}
 	indexName := rows[0].Index
 	buckets = append(buckets, model.QueryResultRow{Index: indexName})
-	subAggrs = append(subAggrs, []model.QueryResultRow{model.QueryResultRow{Index: indexName}})
+	subAggrs = append(subAggrs, []model.QueryResultRow{{Index: indexName}})
 	for _, cols := range rows[0].Cols {
-		// pp.Println("JM: pancakeSplitBucketRows first", name, cols.ColName)
+
 		if strings.HasPrefix(cols.ColName, name+"key") || strings.HasPrefix(cols.ColName, name+"count") {
 			buckets[0].Cols = append(buckets[0].Cols, cols)
 		} else {
@@ -48,8 +48,6 @@ func pancakeSplitBucketRows(name string, rows []model.QueryResultRow) ([]model.Q
 	// restRow
 	for _, row := range rows[1:] {
 		isNewBucket := false
-		//pp.Println("JM: row", row)
-		//pp.Println("JM: bucket", buckets)
 		previousBucket := buckets[len(buckets)-1]
 		for _, cols := range row.Cols {
 			if strings.HasPrefix(cols.ColName, name+"key") {
@@ -93,15 +91,14 @@ func pancakeSplitBucketRows(name string, rows []model.QueryResultRow) ([]model.Q
 		}
 	}
 
-	// pp.Println("JM: pancakeSplitBucketRows result", name, buckets, subAggrs)
 	return buckets, subAggrs
 }
 
-func pancakeRenderJSONLayer(layerId int, layers []*pancakeAggregationLayer, rows []model.QueryResultRow) model.JsonMap {
-	// pp.Println("JM: pancakeRenderJSONLayer", layerId, len(layers), rows)
+func pancakeRenderJSONLayer(layerId int, layers []*pancakeAggregationLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
+
 	result := model.JsonMap{}
 	if layerId >= len(layers) {
-		return result
+		return result, nil
 	}
 	layer := layers[layerId]
 	for _, metric := range layer.currentMetricAggregations {
@@ -155,25 +152,26 @@ func pancakeRenderJSONLayer(layerId int, layers []*pancakeAggregationLayer, rows
 				bucketArr := bucketArrRaw.([]model.JsonMap)
 				if len(bucketArr) != len(subAggrRows) {
 					// TODO: Maybe handle it somehow
-					// pp.Println("JM: pancakeRenderJSONLayer mismatch count", len(buckets), len(subAggrRows))
-					panic("buckets and subAggrRows should have the same length")
+					return nil, fmt.Errorf("buckets and subAggrRows should have the same length. layer: %s ", layer.nextBucketAggregation.name)
 				}
 
 				for i, bucket := range bucketArr {
-					subAggr := pancakeRenderJSONLayer(layerId+1, layers, subAggrRows[i])
+					subAggr, err := pancakeRenderJSONLayer(layerId+1, layers, subAggrRows[i])
+					if err != nil {
+						return nil, err
+					}
 					bucketArr[i] = util.MergeMaps(context.Background(), bucket, subAggr, model.KeyAddedByQuesma)
 				}
 			} else {
-				panic("no buckets key in bucket json")
+				return nil, fmt.Errorf("no buckets key in bucket json, layer: %s", layer.nextBucketAggregation.name)
 			}
 		}
 
 		result[layer.nextBucketAggregation.name] = buckets
 	}
-	fmt.Println("PANCAKED")
-	return result
+	return result, nil
 }
 
-func pancakeRenderJSON(agg *pancakeAggregation, rows []model.QueryResultRow) model.JsonMap {
+func pancakeRenderJSON(agg *pancakeAggregation, rows []model.QueryResultRow) (model.JsonMap, error) {
 	return pancakeRenderJSONLayer(0, agg.layers, rows)
 }

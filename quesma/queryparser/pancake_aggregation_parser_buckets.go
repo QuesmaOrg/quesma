@@ -4,6 +4,7 @@
 package queryparser
 
 import (
+	"fmt"
 	"quesma/clickhouse"
 	"quesma/logger"
 	"quesma/model"
@@ -19,20 +20,20 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 	if histogramRaw, ok := queryMap["histogram"]; ok {
 		histogram, ok := histogramRaw.(QueryMap)
 		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("date_histogram is not a map, but %T, value: %v", histogramRaw, histogramRaw)
+			return false, fmt.Errorf("histogram is not a map, but %T, value: %v", histogramRaw, histogramRaw)
 		}
 
 		var interval float64
 		intervalRaw, ok := histogram["interval"]
 		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("interval not found in histogram: %v", histogram)
+			return false, fmt.Errorf("interval not found in histogram: %v", histogram)
 		}
 		switch intervalTyped := intervalRaw.(type) {
 		case string:
 			var err error
 			interval, err = strconv.ParseFloat(intervalTyped, 64)
 			if err != nil {
-				logger.ErrorWithCtx(cw.Ctx).Err(err).Msgf("failed to parse interval: %v", intervalRaw)
+				return false, fmt.Errorf("failed to parse interval: %v", intervalRaw)
 			}
 		case int:
 			interval = float64(intervalTyped)
@@ -40,7 +41,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			interval = intervalTyped
 		default:
 			interval = 1.0
-			logger.ErrorWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v", intervalTyped, intervalTyped)
+			logger.WarnWithCtx(cw.Ctx).Msgf("unexpected type of interval: %T, value: %v. Will use 1.0.", intervalTyped, intervalTyped)
 		}
 		minDocCount := cw.parseMinDocCount(histogram)
 		aggregation.queryType = bucket_aggregations.NewHistogram(cw.Ctx, interval, minDocCount)
@@ -66,7 +67,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 	if dateHistogramRaw, ok := queryMap["date_histogram"]; ok {
 		dateHistogram, ok := dateHistogramRaw.(QueryMap)
 		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("date_histogram is not a map, but %T, value: %v", dateHistogramRaw, dateHistogramRaw)
+			return false, fmt.Errorf("date_histogram is not a map, but %T, value: %v", dateHistogramRaw, dateHistogramRaw)
 		}
 		field := cw.parseFieldField(dateHistogram, "date_histogram")
 		minDocCount := cw.parseMinDocCount(dateHistogram)
@@ -74,7 +75,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		dateTimeType := cw.Table.GetDateTimeTypeFromExpr(cw.Ctx, field)
 
 		if dateTimeType == clickhouse.Invalid {
-			logger.WarnWithCtx(cw.Ctx).Msgf("invalid date time type for field %s", field)
+			return false, fmt.Errorf("invalid date time type for field %s", field)
 		}
 
 		dateHistogramAggr := bucket_aggregations.NewDateHistogram(cw.Ctx, field, interval, minDocCount, intervalType, dateTimeType)
@@ -93,8 +94,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}
 		terms, ok := termsRaw.(QueryMap)
 		if !ok {
-			logger.WarnWithCtx(cw.Ctx).Msgf("%s is not a map, but %T, value: %v", termsType, termsRaw, termsRaw)
-			continue
+			return false, fmt.Errorf("%s is not a map, but %T, value: %v", termsType, termsRaw, termsRaw)
 		}
 
 		// Parse 'missing' parameter. It can be any type.
@@ -165,10 +165,10 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 						}
 					}
 				} else {
-					logger.ErrorWithCtx(cw.Ctx).Msgf("order has more than 1 key, but %d. Order: %+v. Using default", len(order), order)
+					logger.WarnWithCtx(cw.Ctx).Msgf("order has more than 1 key, but %d. Order: %+v. Using default", len(order), order)
 				}
 			} else {
-				logger.ErrorWithCtx(cw.Ctx).Msgf("order is not a map, but %T, value: %v. Using default order", orderRaw, orderRaw)
+				logger.WarnWithCtx(cw.Ctx).Msgf("order is not a map, but %T, value: %v. Using default order", orderRaw, orderRaw)
 			}
 		}
 

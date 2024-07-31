@@ -4,6 +4,7 @@ package queryparser
 
 import (
 	"errors"
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
@@ -87,7 +88,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregationNames(aggs QueryMap)
 			}
 			aggregationLevels = append(aggregationLevels, subLevel)
 		} else {
-			logger.ErrorWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery("unexpected_type")).
+			logger.WarnWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery("unexpected_type")).
 				Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", aggrName, aggrDict, aggrDict)
 		}
 	}
@@ -122,7 +123,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 		aggregation.selectedColumns = columns
 		aggregation.queryType = generateMetricsType(cw.Ctx, metricsAggrResult)
 		if aggregation.queryType == nil { // Should never happen, we should hit earlier error
-			return nil, errors.New("unknown metrics aggregation")
+			return nil, fmt.Errorf("unknown metrics aggregation: %v" + metricsAggrResult.AggrType)
 		}
 		return aggregation, nil
 	}
@@ -137,7 +138,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 	// Also filter introduces count to current level.
 	if _, ok := queryMap["filter"]; ok {
 		delete(queryMap, "filter")
-		return nil, errors.New("filter is not supported in version uno")
+		return nil, errors.New("filter is not supported in version")
 	}
 
 	// 4. Bucket aggregations. They introduce new subaggregations, even if no explicit subaggregation defined on this level.
@@ -151,7 +152,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 	_, isRange := aggregation.queryType.(bucket_aggregations.Range)
 	if isRange {
 		// see processRangeAggregation for details how to implement it
-		return nil, errors.New("range is not supported in version uno")
+		return nil, errors.New("range is not supported in version")
 	}
 
 	// _, isTerms := aggregation.queryType.(bucket_aggregations.Terms)
@@ -166,7 +167,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 
 	_, isFilters := aggregation.queryType.(bucket_aggregations.Filters)
 	if isFilters {
-		return nil, errors.New("filters are not supported in version uno")
+		return nil, errors.New("filters are not supported in version")
 	}
 
 	aggsHandledSeparately := isRange || isFilters
@@ -185,7 +186,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 
 	for k, v := range queryMap {
 		// should be empty by now. If it's not, it's an unsupported/unrecognized type of aggregation.
-		logger.ErrorWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).
+		logger.WarnWithCtxAndReason(cw.Ctx, logger.ReasonUnsupportedQuery(k)).
 			Msgf("unexpected type of subaggregation: (%v: %v), value type: %T. Skipping", k, v, v)
 	}
 

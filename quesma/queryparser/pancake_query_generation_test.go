@@ -101,7 +101,11 @@ func TestPancakeQueryGeneration(t *testing.T) {
 					}
 					assert.NotNil(t, expectedAggregationsPart, "Expected JSON should have 'response'/'aggregations' part")
 
-					pancakeJson := pancakeRenderJSON(queryType.pancakeAggregation, opheliaTestPancake.ExpectedResults)
+					pancakeJson, err := pancakeRenderJSON(queryType.pancakeAggregation, opheliaTestPancake.ExpectedResults)
+
+					if err != nil {
+						t.Fatal("Failed to render pancake JSON", err)
+					}
 
 					// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
 					acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma,
