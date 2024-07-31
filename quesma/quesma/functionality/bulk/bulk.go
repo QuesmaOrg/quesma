@@ -69,6 +69,8 @@ func Write(ctx context.Context, defaultIndex *string, bulk types.NDJSON, lm *cli
 	bulkSize := len(bulk) / 2 // we divided payload by 2 so that we don't take into account the `action_and_meta_data` line, ref: https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 	maybeLogBatchSize(bulkSize)
 
+	// The returned results should be in the same order as the input request, however splitting the bulk might change the order.
+	// Therefore, each BulkRequestEntry has a corresponding pointer to the result entry, allowing us to freely split and reshuffle the bulk.
 	results, clickhouseDocumentsToInsert, elasticRequestBody, elasticBulkEntries, err := splitBulk(ctx, defaultIndex, bulk, bulkSize, cfg)
 	if err != nil {
 		return []BulkItem{}, err
@@ -176,7 +178,7 @@ func sendToElastic(elasticRequestBody []byte, cfg config.QuesmaConfiguration, el
 		return err
 	}
 
-	// Copy Elastic's response entries to our response
+	// Copy Elastic's response entries to our response (pointers to results array)
 	for i, entry := range elasticBulkResponse.Items {
 		*elasticBulkEntries[i].response = entry
 	}
@@ -243,6 +245,7 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 					}
 				}
 
+				// Fill out the response pointer (a pointer to the results array we will return for a bulk)
 				switch document.operation {
 				case "create":
 					document.response.Create = bulkSingleResponse
