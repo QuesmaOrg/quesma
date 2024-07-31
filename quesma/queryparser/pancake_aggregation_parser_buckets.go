@@ -83,6 +83,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 
 		sqlQuery := dateHistogramAggr.GenerateSQL()
 		aggregation.selectedColumns = append(aggregation.selectedColumns, sqlQuery)
+		aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExprWithoutOrder(sqlQuery))
 
 		delete(queryMap, "date_histogram")
 		return success, nil

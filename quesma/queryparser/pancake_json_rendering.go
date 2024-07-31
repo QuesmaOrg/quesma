@@ -148,7 +148,7 @@ func (p *pancakeJSONRenderer) layerToJSON(layerId int, layers []*pancakeAggregat
 				}
 			}
 		}
-		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, 0) // TODO: fill level?
+		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, layerId+1) // TODO: for date_histogram this layerId+1 layer seems correct, is it for all?
 
 		if layerId+1 < len(layers) { // Add subAggregation
 			if bucketArrRaw, ok := buckets["buckets"]; ok {

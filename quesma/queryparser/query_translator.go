@@ -14,6 +14,7 @@ import (
 	"quesma/quesma/config"
 	"quesma/schema"
 	"quesma/util"
+	"strings"
 )
 
 const facetsSampleSize = 20000
@@ -298,12 +299,39 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 		}
 	}
 
-	for i, query := range queries {
-		if pancake, isPancake := query.Type.(*PancakeQueryType); isPancake {
+	for queryIdx, query := range queries {
+		if pancake, isPancake := query.Type.(PancakeQueryType); isPancake {
 			totalCountAgg := pancake.ReturnCount()
 			if totalCountAgg != nil {
-				if len(results[i]) > 0 && len(results[i][0].Cols) > 0 {
-					for _, cell := range results[i][0].Cols {
+				if len(results[queryIdx]) == 0 {
+					continue
+				}
+				totalCount = 0
+				for rowIdx, row := range results[queryIdx] {
+					// sum over all rows
+					if len(row.Cols) == 0 {
+						continue
+					}
+
+					// if group by key exists + it's the same as last, we have already counted it and need to continue
+					newKey := true
+					if rowIdx != 0 { // for first row we always have a new key
+						for colIdx, cell := range row.Cols {
+							// find first group by key
+							if strings.HasSuffix(cell.ColName, "__key_0") {
+								if row.Cols[colIdx].Value == results[queryIdx][rowIdx-1].Cols[colIdx].Value {
+									newKey = false
+								}
+								break
+							}
+						}
+					}
+					if !newKey {
+						continue
+					}
+
+					// find the count column
+					for _, cell := range row.Cols {
 						// FIXME THIS is hardcoded for now, as we don't have a way to get the name of the column
 						if cell.ColName == "metric____quesma_total_count_col_0" {
 							switch v := cell.Value.(type) {
@@ -316,15 +344,14 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 							default:
 								logger.ErrorWithCtx(cw.Ctx).Msgf("Unknown type of count %v %t", v, v)
 							}
-
-							total = &model.Total{
-								Value:    totalCount,
-								Relation: "eq",
-							}
-							return
 						}
 					}
 				}
+				total = &model.Total{
+					Value:    totalCount,
+					Relation: "eq",
+				}
+				return
 			}
 		}
 	}
