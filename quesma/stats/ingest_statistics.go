@@ -23,8 +23,8 @@ const (
 )
 
 type (
-	Statistics      map[string]*IndexStatistics
-	IndexStatistics struct {
+	Statistics       map[string]*IngestStatistics
+	IngestStatistics struct {
 		IndexName string
 		Requests  int64
 		Keys      map[string]*KeyStatistics
@@ -47,11 +47,11 @@ func (s *Statistics) String() string {
 	mu.Lock()
 	defer mu.Unlock()
 
-	for indexName, indexStats := range *s {
+	for indexName, ingestStats := range *s {
 		result.WriteString(fmt.Sprintf("Index: %s\n", indexName))
-		result.WriteString(fmt.Sprintf("  Requests: %d\n", indexStats.Requests))
+		result.WriteString(fmt.Sprintf("  Requests: %d\n", ingestStats.Requests))
 
-		for keyName, keyStats := range indexStats.Keys {
+		for keyName, keyStats := range ingestStats.Keys {
 			result.WriteString(fmt.Sprintf("  %s\n", keyName))
 			result.WriteString(fmt.Sprintf("    Occurrences: %d\n", keyStats.Occurrences))
 
@@ -82,7 +82,7 @@ func (s *Statistics) Process(cfg config.QuesmaConfiguration, index string, jsonD
 
 	statistics, ok := (*s)[index]
 	if !ok {
-		statistics = &IndexStatistics{IndexName: index, Keys: make(map[string]*KeyStatistics)}
+		statistics = &IngestStatistics{IndexName: index, Keys: make(map[string]*KeyStatistics)}
 		(*s)[index] = statistics
 	}
 	// TODO as proper eviction strategy requires some time
@@ -112,7 +112,7 @@ func (s *Statistics) Process(cfg config.QuesmaConfiguration, index string, jsonD
 	}
 }
 
-func (s *Statistics) GetIndexStatistics(indexName string) (*IndexStatistics, error) {
+func (s *Statistics) GetIngestStatistics(indexName string) (*IngestStatistics, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	if stats, ok := (*s)[indexName]; ok {
@@ -122,7 +122,7 @@ func (s *Statistics) GetIndexStatistics(indexName string) (*IndexStatistics, err
 	}
 }
 
-func (s *Statistics) SortedIndexNames() (result []*IndexStatistics) {
+func (s *Statistics) SortedIndexNames() (result []*IngestStatistics) {
 	mu.Lock()
 	for _, value := range *s {
 		result = append(result, value)
@@ -136,7 +136,7 @@ func (s *Statistics) SortedIndexNames() (result []*IndexStatistics) {
 	return result
 }
 
-func (is *IndexStatistics) SortedKeyStatistics() (result []*KeyStatistics) {
+func (is *IngestStatistics) SortedKeyStatistics() (result []*KeyStatistics) {
 	mu.Lock()
 	for _, value := range is.Keys {
 		result = append(result, value)
