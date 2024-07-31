@@ -106,7 +106,7 @@ func configureRouting() *http.ServeMux {
 			return
 		}
 
-		err := ndjson.BulkForEach(func(i int, operation types.BulkOperation, _, document types.JSON) error {
+		err := ndjson.BulkForEach(func(entryNumber int, operation types.BulkOperation, _, document types.JSON) error {
 
 			index := operation.GetIndex()
 			if index == "" {

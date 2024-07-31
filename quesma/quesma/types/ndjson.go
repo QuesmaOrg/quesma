@@ -63,7 +63,7 @@ func (op BulkOperation) GetOperation() string {
 	return ""
 }
 
-func (n NDJSON) BulkForEach(f func(i int, operationParsed BulkOperation, operation JSON, doc JSON) error) error {
+func (n NDJSON) BulkForEach(f func(entryNumber int, operationParsed BulkOperation, operation JSON, doc JSON) error) error {
 
 	for i := 0; i+1 < len(n); i += 2 {
 		operation := n[i]  // {"create":{"_index":"kibana_sample_data_flights", "_id": 1}}

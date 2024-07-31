@@ -93,7 +93,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 	var elasticRequestBody []byte
 	var elasticBulkEntries []BulkRequestEntry
 
-	err := bulk.BulkForEach(func(i int, op types.BulkOperation, rawOp types.JSON, document types.JSON) error {
+	err := bulk.BulkForEach(func(entryNumber int, op types.BulkOperation, rawOp types.JSON, document types.JSON) error {
 		index := op.GetIndex()
 		operation := op.GetOperation()
 
@@ -101,7 +101,7 @@ func splitBulk(ctx context.Context, defaultIndex *string, bulk types.NDJSON, bul
 			operation: operation,
 			index:     index,
 			document:  document,
-			response:  &results[i],
+			response:  &results[entryNumber],
 		}
 
 		if index == "" {
