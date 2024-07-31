@@ -47,7 +47,8 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 		}
 	}
 
-	pancakeQueries, err := pancakeTranslateFromAggregationToLayered(topLevel)
+	transformer := &aggregationTree2Pancake{}
+	pancakeQueries, err := transformer.toPancake(topLevel)
 
 	if err != nil {
 		return nil, err

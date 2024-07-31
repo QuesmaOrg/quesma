@@ -8,7 +8,10 @@ import (
 	"sort"
 )
 
-func pancakeTranslateMetricToFilling(metric *pancakeAggregationLevel) (filling *pancakeFillingMetricAggregation, err error) {
+type aggregationTree2Pancake struct {
+}
+
+func (a *aggregationTree2Pancake) translateMetricToFilling(metric *pancakeAggregationLevel) (filling *pancakeFillingMetricAggregation, err error) {
 	if metric == nil {
 		return nil, fmt.Errorf("metric aggregation is nil")
 
@@ -26,7 +29,7 @@ func pancakeTranslateMetricToFilling(metric *pancakeAggregationLevel) (filling *
 	}, nil
 }
 
-func pancakeTranslateBucketToLayered(bucket *pancakeAggregationLevel) (layer *pancakeLayerBucketAggregation, err error) {
+func (a *aggregationTree2Pancake) translateBucketToLayer(bucket *pancakeAggregationLevel) (layer *pancakeLayerBucketAggregation, err error) {
 	if bucket == nil {
 		return nil, fmt.Errorf("bucket aggregation is nil")
 
@@ -49,7 +52,52 @@ func pancakeTranslateBucketToLayered(bucket *pancakeAggregationLevel) (layer *pa
 	}, nil
 }
 
-func pancakeTranslateFromAggregationToLayered(topLevel pancakeAggregationTopLevel) (pancakeResult *pancakeAggregation, err error) {
+func (a *aggregationTree2Pancake) bakeLayer(childAggregations []*pancakeAggregationLevel) (*pancakeAggregationLayer, *pancakeAggregationLevel, error) {
+
+	if len(childAggregations) == 0 {
+		return nil, nil, nil
+	}
+
+	var nextBucketAggregation *pancakeAggregationLevel // this is the next bucket aggregation to process
+
+	layer := &pancakeAggregationLayer{
+		currentMetricAggregations: make([]*pancakeFillingMetricAggregation, 0),
+	}
+
+	for _, childAgg := range childAggregations {
+		if childAgg.queryType == nil {
+			return nil, nil, fmt.Errorf("query type is nil in bakeLayer")
+		}
+		switch childAgg.queryType.AggregationType() {
+		case model.MetricsAggregation:
+			metrics, err := a.translateMetricToFilling(childAgg)
+			if err != nil {
+				return nil, nil, err
+			}
+			layer.currentMetricAggregations = append(layer.currentMetricAggregations, metrics)
+
+		case model.BucketAggregation:
+			if layer.nextBucketAggregation != nil {
+				return nil, nil, fmt.Errorf("two bucket aggregation on same level are not supported: %s, %s",
+					layer.nextBucketAggregation.name, childAgg.name)
+			}
+
+			bucket, err := a.translateBucketToLayer(childAgg)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			layer.nextBucketAggregation = bucket
+			nextBucketAggregation = childAgg
+		default:
+			return nil, nil, fmt.Errorf("unsupported aggregation type in pancake, name: %s, type: %s",
+				childAgg.name, childAgg.queryType.AggregationType().String())
+		}
+	}
+	return layer, nextBucketAggregation, nil
+}
+
+func (a *aggregationTree2Pancake) toPancake(topLevel pancakeAggregationTopLevel) (pancakeResult *pancakeAggregation, err error) {
 	if topLevel.children == nil || len(topLevel.children) == 0 {
 		return nil, fmt.Errorf("no top level aggregations found")
 	}
@@ -57,7 +105,7 @@ func pancakeTranslateFromAggregationToLayered(topLevel pancakeAggregationTopLeve
 	var nextBucketAggregation *pancakeAggregationLevel
 
 	layers := make([]*pancakeAggregationLayer, 0)
-	firstLayer, nextBucketAggregation, err := pancakeBakeLayer(topLevel.children)
+	firstLayer, nextBucketAggregation, err := a.bakeLayer(topLevel.children)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +114,7 @@ func pancakeTranslateFromAggregationToLayered(topLevel pancakeAggregationTopLeve
 
 	for nextBucketAggregation != nil {
 		var layer *pancakeAggregationLayer
-		layer, nextBucketAggregation, err = pancakeBakeLayer(nextBucketAggregation.children)
+		layer, nextBucketAggregation, err = a.bakeLayer(nextBucketAggregation.children)
 		if err != nil {
 			return nil, err
 		}
@@ -92,49 +140,4 @@ func pancakeTranslateFromAggregationToLayered(topLevel pancakeAggregationTopLeve
 	}
 
 	return
-}
-
-func pancakeBakeLayer(childAggregations []*pancakeAggregationLevel) (*pancakeAggregationLayer, *pancakeAggregationLevel, error) {
-
-	if len(childAggregations) == 0 {
-		return nil, nil, nil
-	}
-
-	var nextBucketAggregation *pancakeAggregationLevel // this is the next bucket aggregation to process
-
-	layer := &pancakeAggregationLayer{
-		currentMetricAggregations: make([]*pancakeFillingMetricAggregation, 0),
-	}
-
-	for _, childAgg := range childAggregations {
-		if childAgg.queryType == nil {
-			return nil, nil, fmt.Errorf("query type is nil in pancakeBakeLayer")
-		}
-		switch childAgg.queryType.AggregationType() {
-		case model.MetricsAggregation:
-			metrics, err := pancakeTranslateMetricToFilling(childAgg)
-			if err != nil {
-				return nil, nil, err
-			}
-			layer.currentMetricAggregations = append(layer.currentMetricAggregations, metrics)
-
-		case model.BucketAggregation:
-			if layer.nextBucketAggregation != nil {
-				return nil, nil, fmt.Errorf("two bucket aggregation on same level are not supported: %s, %s",
-					layer.nextBucketAggregation.name, childAgg.name)
-			}
-
-			bucket, err := pancakeTranslateBucketToLayered(childAgg)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			layer.nextBucketAggregation = bucket
-			nextBucketAggregation = childAgg
-		default:
-			return nil, nil, fmt.Errorf("unsupported aggregation type in pancake, name: %s, type: %s",
-				childAgg.name, childAgg.queryType.AggregationType().String())
-		}
-	}
-	return layer, nextBucketAggregation, nil
 }
