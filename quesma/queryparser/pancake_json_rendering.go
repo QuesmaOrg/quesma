@@ -10,7 +10,10 @@ import (
 	"strings"
 )
 
-func pancakeSelectMetricRows(name string, rows []model.QueryResultRow) []model.QueryResultRow {
+type pancakeJSONRenderer struct {
+}
+
+func (p *pancakeJSONRenderer) selectMetricRows(name string, rows []model.QueryResultRow) []model.QueryResultRow {
 	result := []model.QueryResultRow{}
 	for i, row := range rows {
 		newRow := model.QueryResultRow{Index: row.Index}
@@ -27,7 +30,7 @@ func pancakeSelectMetricRows(name string, rows []model.QueryResultRow) []model.Q
 	return result
 }
 
-func pancakeSplitBucketRows(name string, rows []model.QueryResultRow) ([]model.QueryResultRow, [][]model.QueryResultRow) {
+func (p *pancakeJSONRenderer) splitBucketRows(name string, rows []model.QueryResultRow) ([]model.QueryResultRow, [][]model.QueryResultRow) {
 
 	buckets := []model.QueryResultRow{}
 	subAggrs := [][]model.QueryResultRow{}
@@ -94,7 +97,7 @@ func pancakeSplitBucketRows(name string, rows []model.QueryResultRow) ([]model.Q
 	return buckets, subAggrs
 }
 
-func pancakeRenderJSONLayer(layerId int, layers []*pancakeAggregationLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
+func (p *pancakeJSONRenderer) layerToJSON(layerId int, layers []*pancakeAggregationLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
 
 	result := model.JsonMap{}
 	if layerId >= len(layers) {
@@ -107,7 +110,7 @@ func pancakeRenderJSONLayer(layerId int, layers []*pancakeAggregationLayer, rows
 			metricName = fmt.Sprintf("%s%s__", metricName, layers[i].nextBucketAggregation.name)
 		}
 		metricName = fmt.Sprintf("%s%s_col_", metricName, metric.name)
-		metricRows := pancakeSelectMetricRows(metricName, rows)
+		metricRows := p.selectMetricRows(metricName, rows)
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
 	}
 
@@ -116,7 +119,7 @@ func pancakeRenderJSONLayer(layerId int, layers []*pancakeAggregationLayer, rows
 		for i := 0; i <= layerId; i++ {
 			bucketName = fmt.Sprintf("%s%s__", bucketName, layers[i].nextBucketAggregation.name)
 		}
-		bucketRows, subAggrRows := pancakeSplitBucketRows(bucketName, rows)
+		bucketRows, subAggrRows := p.splitBucketRows(bucketName, rows)
 
 		// We are filter out null
 		if layer.nextBucketAggregation.whereClause != nil {
@@ -156,7 +159,7 @@ func pancakeRenderJSONLayer(layerId int, layers []*pancakeAggregationLayer, rows
 				}
 
 				for i, bucket := range bucketArr {
-					subAggr, err := pancakeRenderJSONLayer(layerId+1, layers, subAggrRows[i])
+					subAggr, err := p.layerToJSON(layerId+1, layers, subAggrRows[i])
 					if err != nil {
 						return nil, err
 					}
@@ -172,6 +175,6 @@ func pancakeRenderJSONLayer(layerId int, layers []*pancakeAggregationLayer, rows
 	return result, nil
 }
 
-func pancakeRenderJSON(agg *pancakeAggregation, rows []model.QueryResultRow) (model.JsonMap, error) {
-	return pancakeRenderJSONLayer(0, agg.layers, rows)
+func (p *pancakeJSONRenderer) toJSON(agg *pancakeAggregation, rows []model.QueryResultRow) (model.JsonMap, error) {
+	return p.layerToJSON(0, agg.layers, rows)
 }

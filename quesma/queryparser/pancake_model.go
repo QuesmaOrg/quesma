@@ -83,7 +83,9 @@ func (p PancakeQueryType) ReturnCount() *pancakeFillingMetricAggregation {
 }
 
 func (p PancakeQueryType) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-	res, err := pancakeRenderJSON(p.pancakeAggregation, rows)
+
+	renderer := &pancakeJSONRenderer{}
+	res, err := renderer.toJSON(p.pancakeAggregation, rows)
 	if err != nil {
 		// We should return an error here.
 		//

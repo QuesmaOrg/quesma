@@ -101,7 +101,8 @@ func TestPancakeQueryGeneration(t *testing.T) {
 					}
 					assert.NotNil(t, expectedAggregationsPart, "Expected JSON should have 'response'/'aggregations' part")
 
-					pancakeJson, err := pancakeRenderJSON(queryType.pancakeAggregation, opheliaTestPancake.ExpectedResults)
+					renderer := &pancakeJSONRenderer{}
+					pancakeJson, err := renderer.toJSON(queryType.pancakeAggregation, opheliaTestPancake.ExpectedResults)
 
 					if err != nil {
 						t.Fatal("Failed to render pancake JSON", err)
