@@ -24,15 +24,23 @@ func matchedAgainstAsyncId() mux.RequestMatcher {
 
 func matchedAgainstBulkBody(configuration config.QuesmaConfiguration) mux.RequestMatcher {
 	return mux.RequestMatcherFunc(func(req *mux.Request) bool {
-		for idx, s := range strings.Split(req.Body, "\n") {
-			if idx%2 == 0 && len(s) > 0 {
+		idx := 0
+		for _, s := range strings.Split(req.Body, "\n") {
+			if len(s) == 0 {
+				// ElasticSearch Agent sends empty lines between some JSONs, ignore them.
+				continue
+			}
+			if idx%2 == 0 {
 				indexConfig, found := configuration.IndexConfig[extractIndexName(s)]
-				if !found || !indexConfig.Enabled {
-					return false
+				if found && indexConfig.Enabled {
+					return true
 				}
 			}
+			idx += 1
 		}
-		return true
+
+		// All indexes are disabled, the whole bulk can go to Elastic
+		return false
 	})
 }
 

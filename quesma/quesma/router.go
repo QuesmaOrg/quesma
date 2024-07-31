@@ -51,8 +51,8 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 			return nil, err
 		}
 
-		results := bulk.Write(ctx, nil, body, lm, cfg, phoneHomeAgent)
-		return bulkInsertResult(results), nil
+		results, err := bulk.Write(ctx, nil, body, lm, cfg, phoneHomeAgent)
+		return bulkInsertResult(results, err), nil
 	})
 
 	router.Register(routes.IndexRefreshPath, and(method("POST"), matchedExact(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
@@ -78,8 +78,8 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 			return nil, err
 		}
 
-		results := bulk.Write(ctx, &index, body, lm, cfg, phoneHomeAgent)
-		return bulkInsertResult(results), nil
+		results, err := bulk.Write(ctx, &index, body, lm, cfg, phoneHomeAgent)
+		return bulkInsertResult(results, err), nil
 	})
 
 	router.Register(routes.ResolveIndexPath, method("GET"), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
@@ -330,10 +330,17 @@ func elasticsearchQueryResult(body string, statusCode int) *mux.Result {
 	}, StatusCode: statusCode}
 }
 
-func bulkInsertResult(ops []bulk.WriteResult) *mux.Result {
-	body, err := json.Marshal(bulkResponse{
+func bulkInsertResult(ops []bulk.BulkItem, err error) *mux.Result {
+	if err != nil {
+		return &mux.Result{
+			Body:       string(queryparser.BadRequestParseError(err)),
+			StatusCode: 400,
+		}
+	}
+
+	body, err := json.Marshal(bulk.BulkResponse{
 		Errors: false,
-		Items:  toBulkItems(ops),
+		Items:  ops,
 		Took:   42,
 	})
 	if err != nil {
@@ -387,34 +394,6 @@ func indexDocResult(index string, statusCode int) *mux.Result {
 	return elasticsearchInsertResult(string(body), statusCode)
 }
 
-func bulkSingleResult(opName string, index string) any {
-	response := bulkSingleResponse{
-		ID:          "fakeId",
-		Index:       index,
-		PrimaryTerm: 1,
-		SeqNo:       0,
-		Shards: shardsResponse{
-			Failed:     0,
-			Successful: 1,
-			Total:      1,
-		},
-		Version: 0,
-		Result:  "created",
-		Status:  201,
-	}
-	if opName == "create" {
-		return struct {
-			Create bulkSingleResponse `json:"create"`
-		}{Create: response}
-	} else if opName == "index" {
-		return struct {
-			Index bulkSingleResponse `json:"index"`
-		}{Index: response}
-	} else {
-		panic("unsupported operation name: " + opName)
-	}
-}
-
 type (
 	indexDocResponse struct {
 		Id          string         `json:"_id"`
@@ -425,35 +404,12 @@ type (
 		Version     int            `json:"_version"`
 		Result      string         `json:"result"`
 	}
-	bulkSingleResponse struct {
-		ID          string         `json:"_id"`
-		Index       string         `json:"_index"`
-		PrimaryTerm int            `json:"_primary_term"`
-		SeqNo       int            `json:"_seq_no"`
-		Shards      shardsResponse `json:"_shards"`
-		Version     int            `json:"_version"`
-		Result      string         `json:"result"`
-		Status      int            `json:"status"`
-	}
-	bulkResponse struct {
-		Errors bool  `json:"errors"`
-		Items  []any `json:"items"`
-		Took   int   `json:"took"`
-	}
 	shardsResponse struct {
 		Failed     int `json:"failed"`
 		Successful int `json:"successful"`
 		Total      int `json:"total"`
 	}
 )
-
-func toBulkItems(ops []bulk.WriteResult) []any {
-	var items []any
-	for _, op := range ops {
-		items = append(items, bulkSingleResult(op.Operation, op.Index))
-	}
-	return items
-}
 
 var indexNamePattern = regexp.MustCompile(`"_index"\s*:\s*"([^"]+)"`)
 

@@ -63,7 +63,7 @@ func (op BulkOperation) GetOperation() string {
 	return ""
 }
 
-func (n NDJSON) BulkForEach(f func(operation BulkOperation, doc JSON)) error {
+func (n NDJSON) BulkForEach(f func(entryNumber int, operationParsed BulkOperation, operation JSON, doc JSON) error) error {
 
 	for i := 0; i+1 < len(n); i += 2 {
 		operation := n[i]  // {"create":{"_index":"kibana_sample_data_flights", "_id": 1}}
@@ -71,14 +71,12 @@ func (n NDJSON) BulkForEach(f func(operation BulkOperation, doc JSON)) error {
 
 		var operationParsed BulkOperation // operationName (create, index, update, delete) -> DocumentTarget
 
-		err := operation.Remarshal(&operationParsed)
+		_ = operation.Remarshal(&operationParsed) // ignore error, the callback must handle it (it will see an unknown operation)
+
+		err := f(i/2, operationParsed, operation, document)
 		if err != nil {
 			return err
 		}
-
-		f(operationParsed, document)
 	}
-
 	return nil
-
 }
