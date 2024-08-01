@@ -70,27 +70,27 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucketName string, rows []model.Qu
 	return buckets, subAggrs
 }
 
-func (p *pancakeJSONRenderer) layerToJSON(layerId int, layers []*pancakeAggregationLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
+func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeAggregationLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
 
 	result := model.JsonMap{}
-	if layerId >= len(layers) {
+	if layerIdx >= len(layers) {
 		return result, nil
 	}
-	layer := layers[layerId]
+	layer := layers[layerIdx]
 	for _, metric := range layer.currentMetricAggregations {
-		metricName := "metric__"
-		for i := 0; i < layerId; i++ {
-			metricName = fmt.Sprintf("%s%s__", metricName, layers[i].nextBucketAggregation.name)
+		metricName := ""
+		for _, prevLayer := range layers[:layerIdx] {
+			metricName = fmt.Sprintf("%s%s__", metricName, prevLayer.nextBucketAggregation.name)
 		}
-		metricName = fmt.Sprintf("%s%s_col_", metricName, metric.name)
+		metricName = fmt.Sprintf("metric__%s%s_col_", metricName, metric.name)
 		metricRows := p.selectMetricRows(metricName, rows)
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
 	}
 
 	if layer.nextBucketAggregation != nil {
 		bucketName := "aggr__"
-		for i := 0; i <= layerId; i++ {
-			bucketName = fmt.Sprintf("%s%s__", bucketName, layers[i].nextBucketAggregation.name)
+		for _, prevLayer := range layers[:layerIdx+1] {
+			bucketName = fmt.Sprintf("%s%s__", bucketName, prevLayer.nextBucketAggregation.name)
 		}
 		bucketRows, subAggrRows := p.splitBucketRows(bucketName, rows)
 
@@ -121,9 +121,9 @@ func (p *pancakeJSONRenderer) layerToJSON(layerId int, layers []*pancakeAggregat
 				}
 			}
 		}
-		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, layerId+1) // TODO: for date_histogram this layerId+1 layer seems correct, is it for all?
+		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, layerIdx+1) // TODO: for date_histogram this layerIdx+1 layer seems correct, is it for all?
 
-		if layerId+1 < len(layers) { // Add subAggregation
+		if layerIdx+1 < len(layers) { // Add subAggregation
 			if bucketArrRaw, ok := buckets["buckets"]; ok {
 				bucketArr := bucketArrRaw.([]model.JsonMap)
 				if len(bucketArr) != len(subAggrRows) {
@@ -132,7 +132,8 @@ func (p *pancakeJSONRenderer) layerToJSON(layerId int, layers []*pancakeAggregat
 				}
 
 				for i, bucket := range bucketArr {
-					subAggr, err := p.layerToJSON(layerId+1, layers, subAggrRows[i])
+					// TODO: Maybe add model.KeyAddedByQuesma if there are more than one pancake
+					subAggr, err := p.layerToJSON(layerIdx+1, layers, subAggrRows[i])
 					if err != nil {
 						return nil, err
 					}
