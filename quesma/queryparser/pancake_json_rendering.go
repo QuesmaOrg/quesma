@@ -13,85 +13,58 @@ import (
 type pancakeJSONRenderer struct {
 }
 
-func (p *pancakeJSONRenderer) selectMetricRows(name string, rows []model.QueryResultRow) []model.QueryResultRow {
-	result := []model.QueryResultRow{}
-	for i, row := range rows {
-		newRow := model.QueryResultRow{Index: row.Index}
-		for _, col := range row.Cols {
-			if strings.HasPrefix(col.ColName, name) {
+func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.QueryResultRow) (result []model.QueryResultRow) {
+	if len(rows) > 0 {
+		newRow := model.QueryResultRow{Index: rows[0].Index}
+		for _, col := range rows[0].Cols {
+			if strings.HasPrefix(col.ColName, metricName) {
 				newRow.Cols = append(newRow.Cols, col)
 			}
 		}
-		result = append(result, newRow)
-		if i == 0 {
-			break // just one row please. FIXME Style. If here is only to fix staticcheck...
-		}
+		return []model.QueryResultRow{newRow}
 	}
-	return result
+	return
 }
 
-func (p *pancakeJSONRenderer) splitBucketRows(name string, rows []model.QueryResultRow) ([]model.QueryResultRow, [][]model.QueryResultRow) {
+func (p *pancakeJSONRenderer) splitBucketRows(bucketName string, rows []model.QueryResultRow) (
+	buckets []model.QueryResultRow, subAggrs [][]model.QueryResultRow) {
 
-	buckets := []model.QueryResultRow{}
-	subAggrs := [][]model.QueryResultRow{}
 	if len(rows) == 0 {
 		return buckets, subAggrs
 	}
+	bucketKeyName := bucketName + "key"
+	bucketCountName := bucketName + "count"
 	indexName := rows[0].Index
-	buckets = append(buckets, model.QueryResultRow{Index: indexName})
-	subAggrs = append(subAggrs, []model.QueryResultRow{{Index: indexName}})
-	for _, cols := range rows[0].Cols {
-
-		if strings.HasPrefix(cols.ColName, name+"key") || strings.HasPrefix(cols.ColName, name+"count") {
-			buckets[0].Cols = append(buckets[0].Cols, cols)
-		} else {
-			subAggrs[0][0].Cols = append(subAggrs[0][0].Cols, cols)
-		}
-	}
-	// restRow
-	for _, row := range rows[1:] {
-		isNewBucket := false
-		previousBucket := buckets[len(buckets)-1]
-		for _, cols := range row.Cols {
-			if strings.HasPrefix(cols.ColName, name+"key") {
-				noSameKeyValue := true
-				for _, previousCols := range previousBucket.Cols {
-					if cols.ColName == previousCols.ColName {
-						if cols.Value == previousCols.Value {
-							noSameKeyValue = false
+	for rowIdx, row := range rows {
+		isNewBucket := rowIdx == 0 // first row is always new bucket
+		if !isNewBucket {          // for subsequent rows, create new bucket if any key is different
+			previousBucket := buckets[len(buckets)-1]
+			for _, cols := range row.Cols {
+				if strings.HasPrefix(cols.ColName, bucketKeyName) {
+					for _, previousCols := range previousBucket.Cols {
+						if cols.ColName == previousCols.ColName {
+							if cols.Value != previousCols.Value {
+								isNewBucket = true
+							}
+							break
 						}
-						break
 					}
 				}
-				if noSameKeyValue {
-					isNewBucket = true
-					break
-				}
 			}
 		}
 
-		// check if it's a new bucket
 		if isNewBucket {
 			buckets = append(buckets, model.QueryResultRow{Index: indexName})
-			subAggrs = append(subAggrs, []model.QueryResultRow{model.QueryResultRow{Index: indexName}})
+			subAggrs = append(subAggrs, []model.QueryResultRow{})
 			lastIdx := len(buckets) - 1
 			for _, cols := range row.Cols {
-				if strings.HasPrefix(cols.ColName, name+"key") || strings.HasPrefix(cols.ColName, name+"count") {
+				if strings.HasPrefix(cols.ColName, bucketKeyName) || strings.HasPrefix(cols.ColName, bucketCountName) {
 					buckets[lastIdx].Cols = append(buckets[lastIdx].Cols, cols)
-				} else {
-					subAggrs[lastIdx][0].Cols = append(subAggrs[lastIdx][0].Cols, cols)
-				}
-			}
-		} else {
-			lastIdx := len(buckets) - 1
-			subAggrs[lastIdx] = append(subAggrs[lastIdx], model.QueryResultRow{Index: indexName})
-			for _, cols := range row.Cols {
-				if !(strings.HasPrefix(cols.ColName, name+"key") || strings.HasPrefix(cols.ColName, name+"count")) {
-					lastSubIdx := len(subAggrs[lastIdx]) - 1
-					subAggrs[lastIdx][lastSubIdx].Cols = append(subAggrs[lastIdx][lastSubIdx].Cols, cols)
 				}
 			}
 		}
+		lastIdx := len(buckets) - 1
+		subAggrs[lastIdx] = append(subAggrs[lastIdx], row)
 	}
 
 	return buckets, subAggrs
