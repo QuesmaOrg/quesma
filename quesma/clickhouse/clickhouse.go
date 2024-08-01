@@ -20,6 +20,7 @@ import (
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
 	"quesma/schema"
+	"quesma/stats"
 	"quesma/telemetry"
 	"quesma/util"
 	"slices"
@@ -587,6 +588,7 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 			return fmt.Errorf("error validation: %v", err)
 		}
 
+		stats.GlobalStatistics.ProcessInvalidValues(lm.cfg, tableName, inValidJson, NestedSeparator)
 		// Remove invalid fields from the input JSON
 		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
 

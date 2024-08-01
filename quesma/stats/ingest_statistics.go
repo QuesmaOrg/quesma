@@ -30,9 +30,10 @@ type (
 		Keys      map[string]*KeyStatistics
 	}
 	KeyStatistics struct {
-		KeyName     string
-		Occurrences int64
-		Values      map[string]*ValueStatistics
+		KeyName       string
+		Occurrences   int64
+		Values        map[string]*ValueStatistics
+		InvalidValues map[string]*ValueStatistics
 	}
 	ValueStatistics struct {
 		ValueName   string
@@ -91,12 +92,11 @@ func (s *Statistics) Process(cfg config.QuesmaConfiguration, index string, jsonD
 		cfg.IngestStatistics = false
 		return
 	}
-	statistics.Requests++
 
 	for key, value := range flatJson {
 		keyStatistics, ok := statistics.Keys[key]
 		if !ok {
-			keyStatistics = &KeyStatistics{KeyName: key, Values: make(map[string]*ValueStatistics)}
+			keyStatistics = &KeyStatistics{KeyName: key, Values: make(map[string]*ValueStatistics), InvalidValues: make(map[string]*ValueStatistics)}
 			statistics.Keys[key] = keyStatistics
 		}
 
@@ -109,6 +109,48 @@ func (s *Statistics) Process(cfg config.QuesmaConfiguration, index string, jsonD
 		}
 		valueStatistics.Occurrences++
 		valueStatistics.Types = typesOf(valueString)
+	}
+	statistics.Requests++
+}
+
+func (s *Statistics) ProcessInvalidValues(cfg config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
+	// TODO reading cfg.IngestStatistics is not thread safe
+	if !cfg.IngestStatistics {
+		return
+	}
+
+	flatJson := jsonprocessor.FlattenMap(jsonData, nestedSeparator)
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	statistics, ok := (*s)[index]
+	if !ok {
+		statistics = &IngestStatistics{IndexName: index, Keys: make(map[string]*KeyStatistics)}
+		(*s)[index] = statistics
+	}
+	// TODO as proper eviction strategy requires some time
+	// to be implemented, we limit the number of requests for now
+	if statistics.Requests >= STATISTICS_LIMIT {
+		cfg.IngestStatistics = false
+		return
+	}
+
+	for key, value := range flatJson {
+		keyStatistics, ok := statistics.Keys[key]
+		if !ok {
+			keyStatistics = &KeyStatistics{KeyName: key, Values: make(map[string]*ValueStatistics), InvalidValues: make(map[string]*ValueStatistics)}
+			statistics.Keys[key] = keyStatistics
+		}
+
+		valueString := fmt.Sprintf("%v", value)
+		invalidValueStatistics, ok := keyStatistics.InvalidValues[valueString]
+		if !ok {
+			invalidValueStatistics = &ValueStatistics{ValueName: valueString}
+			keyStatistics.InvalidValues[valueString] = invalidValueStatistics
+		}
+		invalidValueStatistics.Occurrences++
+		invalidValueStatistics.Types = typesOf(valueString)
 	}
 }
 
@@ -150,9 +192,9 @@ func (is *IngestStatistics) SortedKeyStatistics() (result []*KeyStatistics) {
 	return result
 }
 
-func (vs *KeyStatistics) TopNValues(n int) (result []*ValueStatistics) {
+func topNValuesHelper(n int, values map[string]*ValueStatistics) (result []*ValueStatistics) {
 	mu.Lock()
-	for _, value := range vs.Values {
+	for _, value := range values {
 		result = append(result, value)
 	}
 	mu.Unlock()
@@ -166,6 +208,14 @@ func (vs *KeyStatistics) TopNValues(n int) (result []*ValueStatistics) {
 	})
 
 	return result[:n]
+}
+
+func (vs *KeyStatistics) TopNValues(n int) (result []*ValueStatistics) {
+	return topNValuesHelper(n, vs.Values)
+}
+
+func (vs *KeyStatistics) TopNInvalidValues(n int) (result []*ValueStatistics) {
+	return topNValuesHelper(n, vs.InvalidValues)
 }
 
 func typesOf(str string) (types []string) {
