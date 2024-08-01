@@ -13,14 +13,13 @@ import (
 	"quesma/quesma/config"
 	"quesma/quesma/types"
 	"quesma/schema"
-	"quesma/testdata/clients"
 	"quesma/util"
 	"strconv"
 	"strings"
 	"testing"
 )
 
-func TestPancakeQueryGeneration(t *testing.T) {
+func Test3PancakeQueryGeneration(t *testing.T) {
 
 	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
@@ -40,15 +39,63 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: schemaRegistry}
 
-	allTests := clients.OpheliaTests
-	for i, test := range allTests {
+	for i, test := range allAggregationTestsWithoutPipeline() { // TODO fix pipeline
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			if i != 0 && i != 1 && i != 3 && i != 4 && i != 5 { // TODO: remove
-				t.Skip()
+			// --------
+			// TODO FIXME
+			// Fix date_histogram always having WHERE "aggr__0__1__order_1_rank"<=0
+			// It's wrong and should be an easy fix.
+			// It's e.g. test with i == 2
+			// --------
+
+			if test.ExpectedPancakeSQL == "" || test.ExpectedPancakeResults == nil { // TODO remove this
+				t.Skip("Not updated answers for pancake.")
 			}
-			//if i != 5 { // TODO remove
-			//	t.Skip()
-			//}
+			if strings.HasPrefix(test.TestName, "dashboard-1") {
+				t.Skip("Skipped also for previous implementation. Those 2 tests have nested histograms with min_doc_count=0. Some work done long time ago (Krzysiek)")
+			}
+			if i == 29 || i == 30 {
+				t.Skip("Skipped also for previous implementation. New tests, harder, failing for now.")
+			}
+			if Range(test.TestName) {
+				t.Skip("Fix range")
+			}
+			if dateRange(test.TestName) {
+				t.Skip("Fix date range")
+			}
+			if percentiles(test.TestName) {
+				t.Skip("Fix percentiles")
+			}
+			if percentileRanks(test.TestName) {
+				t.Skip("Fix percentile ranks")
+			}
+			if topHits(test.TestName) {
+				t.Skip("Fix top_hits")
+			}
+			if topMetrics(test.TestName) {
+				t.Skip("Fix top metrics")
+			}
+			if multiplePancakes(test.TestName) {
+				t.Skip("Fix multiple pancakes")
+			}
+			if histogramMinDocCount0(test.TestName) {
+				t.Skip("Fix histogram min doc count 0")
+			}
+			if meta(test.TestName) {
+				t.Skip("Fix meta")
+			}
+			if filter(test.TestName) {
+				t.Skip("Fix filter")
+			}
+			if filters(test.TestName) {
+				t.Skip("Fix filters")
+			}
+			if sampler(test.TestName) {
+				t.Skip("Fix sampler")
+			}
+
+			fmt.Println("i:", i, "test:", test.TestName)
+
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)
 			assert.NoError(t, err)
 
@@ -60,70 +107,59 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 			pancakeSqlStr := model.AsString(pancakeSqls[0].SelectCommand)
 
-			olpheliaTestsPancakeIdx := -1
-			for idx, olpheliaTest := range clients.OpheliaTestsPancake {
-				if olpheliaTest.TestName == test.TestName {
-					olpheliaTestsPancakeIdx = idx
-					break
-				}
-			}
-
-			if olpheliaTestsPancakeIdx == -1 {
-				t.Fatal("No pancake SQL for this test")
-			}
-			opheliaTestPancake := clients.OpheliaTestsPancake[olpheliaTestsPancakeIdx]
-			expectedSql := opheliaTestPancake.Sql
-			prettyExpectedSql := strings.TrimSpace(expectedSql)
+			prettyExpectedSql := util.SqlPrettyPrint([]byte(strings.TrimSpace(test.ExpectedPancakeSQL)))
 
 			prettyPancakeSql := util.SqlPrettyPrint([]byte(pancakeSqlStr))
 
-			pp.Println("Expected SQL:")
-			fmt.Println(prettyExpectedSql)
-			pp.Println("Actual (pancake) SQL:")
-			fmt.Println(prettyPancakeSql)
+			/*
+				pp.Println("Expected SQL:")
+				fmt.Println(prettyExpectedSql)
+				pp.Println("Actual (pancake) SQL:")
+				fmt.Println(prettyPancakeSql)
+			*/
 
-			assert.Equal(t, prettyExpectedSql, prettyPancakeSql)
-			if len(opheliaTestPancake.ExpectedResults) == 0 {
-				assert.Fail(t, "No pancake expected results for this test")
+			util.AssertSqlEqual(t, prettyExpectedSql, prettyPancakeSql)
+			// assert.Equal(t, prettyExpectedSql, prettyPancakeSql)
+
+			queryType, ok := pancakeSqls[0].Type.(PancakeQueryType)
+			if !ok {
+				assert.Fail(t, "Expected pancake query type")
 			}
 
-			if len(opheliaTestPancake.ExpectedResults) > 1 {
-				if queryType, ok := pancakeSqls[0].Type.(PancakeQueryType); ok {
-					expectedJson, err := util.JsonToMap(test.ExpectedResponse)
-					if err != nil {
-						assert.Fail(t, "Failed to parse expected JSON")
-					}
-					var expectedAggregationsPart model.JsonMap
-					if response, ok := expectedJson["response"].(model.JsonMap); ok {
-						if aggregations, ok2 := response["aggregations"].(model.JsonMap); ok2 {
-							expectedAggregationsPart = aggregations
-						}
-					}
-					assert.NotNil(t, expectedAggregationsPart, "Expected JSON should have 'response'/'aggregations' part")
-
-					renderer := &pancakeJSONRenderer{}
-					pancakeJson, err := renderer.toJSON(queryType.pancakeAggregation, opheliaTestPancake.ExpectedResults)
-
-					if err != nil {
-						t.Fatal("Failed to render pancake JSON", err)
-					}
-
-					// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
-					acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma,
-						"sum_other_doc_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
-					actualMinusExpected, expectedMinusActual := util.MapDifference(pancakeJson,
-						expectedAggregationsPart, acceptableDifference, true, true)
-					pp.Println("ACTUAL diff", actualMinusExpected)
-					pp.Println("EXPECTED diff", expectedMinusActual)
-					pp.Println("ACTUAL", pancakeJson)
-					pp.Println("EXPECTED", expectedAggregationsPart)
-					assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
-					assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
-
-				} else {
-					assert.Fail(t, "Expected pancake query type")
-				}
+			expectedJson, err := util.JsonToMap(test.ExpectedResponse)
+			if err != nil {
+				assert.Fail(t, "Failed to parse expected JSON")
 			}
+			var expectedAggregationsPart model.JsonMap
+			if responseSubMap, hasResponse := expectedJson["response"]; hasResponse {
+				expectedAggregationsPart = responseSubMap.(JsonMap)["aggregations"].(JsonMap)
+			} else {
+				expectedAggregationsPart = expectedJson["aggregations"].(JsonMap)
+			}
+			assert.NotNil(t, expectedAggregationsPart, "Expected JSON should have 'response'/'aggregations' part")
+
+			renderer := &pancakeJSONRenderer{}
+			pancakeJson, err := renderer.toJSON(queryType.pancakeAggregation, test.ExpectedPancakeResults)
+
+			if err != nil {
+				t.Fatal("Failed to render pancake JSON", err)
+			}
+
+			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
+			acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma,
+				"sum_other_doc_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
+			actualMinusExpected, expectedMinusActual := util.MapDifference(pancakeJson,
+				expectedAggregationsPart, acceptableDifference, true, true)
+			if len(actualMinusExpected) != 0 {
+				pp.Println("ACTUAL diff", actualMinusExpected)
+			}
+			if len(expectedMinusActual) != 0 {
+				pp.Println("EXPECTED diff", expectedMinusActual)
+			}
+			//pp.Println("ACTUAL", pancakeJson)
+			//pp.Println("EXPECTED", expectedAggregationsPart)
+			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
+			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
 
 			/*
 				if i == 0 {
@@ -136,6 +172,97 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			*/
 		})
 	}
+}
+
+// TODO remove after fix
+func Range(testName string) bool {
+	t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Heat Map -> Metrics: Median, Buckets: X-Asis Range" // also percentiles
+	t2 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Sum, Buckets: Aggregation: Range"
+	t3 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range"
+	t4 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Unique Count, Buckets: Aggregation: Range"
+	t5 := testName == "range bucket aggregation, both keyed and not"
+	return t1 || t2 || t3 || t4 || t5
+}
+
+// TODO remove after fix
+func dateRange(testName string) bool {
+	t1 := testName == "range bucket aggregation, both keyed and not"
+	return t1
+}
+
+// TODO remove after fix
+func percentiles(testName string) bool {
+	t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Heat Map -> Metrics: Median, Buckets: X-Asis Range" // also range
+	t2 := testName == "Percentiles on DateTime field. Reproduce: Visualize -> Line: Metrics -> Percentiles (or Median, it's the same aggregation) @timestamp, Buckets: Add X-Asis, Aggregation: Significant Terms"
+	t3 := testName == "Field statistics > summary for numeric fields" // also filter and sampler
+	return t1 || t2 || t3
+}
+
+// TODO remove after fix
+func percentileRanks(testName string) bool {
+	return testName == "Percentile_ranks keyed=false. Reproduce: Visualize -> Line -> Metrics: Percentile Ranks, Buckets: X-Asis Date Histogram"
+}
+
+// TODO remove after fix
+func topHits(testName string) bool {
+	t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range" // also range
+	t2 := testName == "top hits, quite complex"
+	return t1 || t2
+}
+
+// TODO remove after fix
+func topMetrics(testName string) bool {
+	t1 := testName == "Kibana Visualize -> Last Value. Used to panic" // also filter
+	t2 := testName == "simplest top_metrics, no sort"
+	t3 := testName == "simplest top_metrics, with sort"
+	t4 := testName == "very long: multiple top_metrics + histogram" // also top_metrics
+	return t1 || t2 || t3 || t4
+}
+
+// TODO remove after fix
+func multiplePancakes(testName string) bool {
+	return testName == "histogram with all possible calendar_intervals"
+}
+
+// TODO remove after fix
+func histogramMinDocCount0(testName string) bool {
+	t1 := testName == "simple histogram, but min_doc_count: 0"
+	t2 := testName == "simple date_histogram, but min_doc_count: 0"
+	return t1 || t2
+}
+
+// TODO remove after fix
+func meta(testName string) bool {
+	t1 := testName == "meta field in aggregation"
+	t2 := testName == "0 result rows in terms+histogram + meta field"
+	return t1 || t2
+}
+
+// TODO remove after fix
+func filter(testName string) bool {
+	t1 := testName == "Terms, completely different tree results from 2 queries - merging them didn't work before"
+	t2 := testName == "Kibana Visualize -> Last Value. Used to panic" // also top_metrics
+	t3 := testName == "2 sibling count aggregations"
+	t4 := testName == "simple filter/count"
+	t5 := testName == "triple nested aggs"
+	t6 := testName == "Field statistics > summary for numeric fields"
+	return t1 || t2 || t3 || t4 || t5 || t6 // also sampler and percentiles
+}
+
+// TODO remove after fix
+func filters(testName string) bool {
+	t1 := testName == "filters"
+	t2 := testName == "very long: multiple top_metrics + histogram" // also filters
+	t3 := testName == "complex filters"
+	return t1 || t2 || t3
+}
+
+// TODO remove after fix
+func sampler(testName string) bool {
+	t1 := testName == "value_count + top_values: regression test"
+	t2 := testName == "random sampler, from Explorer > Field statistics"
+	t3 := testName == "Field statistics > summary for numeric fields" // also filter and percentiles
+	return t1 || t2 || t3
 }
 
 func TestPancakeQueryGeneration_halfpancake(t *testing.T) {

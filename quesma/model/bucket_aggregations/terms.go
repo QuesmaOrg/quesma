@@ -23,11 +23,15 @@ func (query Terms) AggregationType() model.AggregationType {
 }
 
 func (query Terms) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-	var response []model.JsonMap
 	if len(rows) > 0 && len(rows[0].Cols) < 2 {
 		logger.ErrorWithCtx(query.ctx).Msgf(
 			"unexpected number of columns in terms aggregation response, len: %d, rows[0]: %v", len(rows[0].Cols), rows[0])
 	}
+	if len(rows) == 0 {
+		return model.JsonMap{}
+	}
+
+	var response []model.JsonMap
 	for _, row := range rows {
 		docCount := row.Cols[len(row.Cols)-1].Value
 		bucket := model.JsonMap{

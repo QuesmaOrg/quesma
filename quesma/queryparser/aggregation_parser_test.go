@@ -723,6 +723,35 @@ func sortAggregations(aggregations []*model.Query) {
 	})
 }
 
+func allAggregationTests() []testdata.AggregationTestCase {
+	const lowerBoundTestNr = 80
+	allTests := make([]testdata.AggregationTestCase, 0, lowerBoundTestNr)
+	allTests = append(allTests, testdata.AggregationTests...)
+	allTests = append(allTests, testdata.AggregationTests2...)
+	allTests = append(allTests, opensearch_visualize.AggregationTests...)
+	allTests = append(allTests, dashboard_1.AggregationTests...)
+	allTests = append(allTests, testdata.PipelineAggregationTests...)
+	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
+	allTests = append(allTests, kibana_visualize.AggregationTests...)
+	allTests = append(allTests, clients.KunkkaTests...)
+	allTests = append(allTests, clients.OpheliaTests...)
+	return allTests
+}
+
+// TODO remove after pipeline aggregations are implemented
+func allAggregationTestsWithoutPipeline() []testdata.AggregationTestCase {
+	const lowerBoundTestNr = 80
+	allTests := make([]testdata.AggregationTestCase, 0, lowerBoundTestNr)
+	allTests = append(allTests, testdata.AggregationTests...)
+	allTests = append(allTests, testdata.AggregationTests2...)
+	allTests = append(allTests, opensearch_visualize.AggregationTests...)
+	allTests = append(allTests, dashboard_1.AggregationTests...)
+	allTests = append(allTests, kibana_visualize.AggregationTests...)
+	allTests = append(allTests, clients.KunkkaTests...)
+	allTests = append(allTests, clients.OpheliaTests...)
+	return allTests
+}
+
 func Test2AggregationParserExternalTestcases(t *testing.T) {
 
 	ctx := context.Background()
@@ -760,16 +789,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 		},
 	}
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: s}
-	allTests := testdata.AggregationTests
-	allTests = append(allTests, testdata.AggregationTests2...)
-	allTests = append(allTests, opensearch_visualize.AggregationTests...)
-	allTests = append(allTests, dashboard_1.AggregationTests...)
-	allTests = append(allTests, testdata.PipelineAggregationTests...)
-	allTests = append(allTests, opensearch_visualize.PipelineAggregationTests...)
-	allTests = append(allTests, kibana_visualize.AggregationTests...)
-	allTests = append(allTests, clients.KunkkaTests...)
-	allTests = append(allTests, clients.OpheliaTests...)
-	for i, test := range allTests {
+	for i, test := range allAggregationTests() {
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if test.TestName == "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)" {
 				t.Skip("Needs to be fixed by keeping last key for every aggregation. Now we sometimes don't know it. Hard to reproduce, leaving it for separate PR")
@@ -778,10 +798,10 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 				t.Skip("Waiting for fix. Now we handle only the case where pipeline agg is at the same nesting level as its parent. Should be quick to fix.")
 			}
 			if i == 27 || i == 29 || i == 30 {
-				t.Skip("New tests, harder, failing for now. Fixes for them in 2 next PRs")
+				t.Skip("New tests, harder, failing for now.")
 			}
 			if strings.HasPrefix(test.TestName, "dashboard-1") {
-				t.Skip("Those 2 tests have nested histograms with min_doc_count=0. I'll add support for that in next PR, already most of work done")
+				t.Skip("Those 2 tests have nested histograms with min_doc_count=0. Some work done long time ago (Krzysiek)")
 			}
 			if test.TestName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range" {
 				t.Skip("Need a (most likely) small fix to top_hits.")

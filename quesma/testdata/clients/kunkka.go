@@ -187,6 +187,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() FROM (SELECT 1 FROM ` + testdata.QuotedTableName + ` LIMIT 10000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("spent") ` +
@@ -208,8 +209,9 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 		},
+		ExpectedPancakeSQL: "",
 	},
-	{ // [0]
+	{ // [1]
 		TestName: "it's the same input as in previous test, but with the original output from Elastic." +
 			"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)." +
 			"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix",
@@ -400,6 +402,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() FROM (SELECT 1 FROM ` + testdata.QuotedTableName + ` LIMIT 10000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("spent") ` +
@@ -421,8 +424,9 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 		},
+		ExpectedPancakeSQL: "",
 	},
-	{
+	{ // [2]
 		TestName: "clients/kunkka/test_1, used to be broken before aggregations merge fix",
 		QueryRequestJson: `
 		{
@@ -1095,6 +1099,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 			},
 			{},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
@@ -1244,5 +1249,6 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 		},
+		ExpectedPancakeSQL: "",
 	},
 }

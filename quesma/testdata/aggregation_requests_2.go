@@ -7,7 +7,7 @@ import "quesma/model"
 // Goland lags a lot when you edit aggregation_requests.go file, so let's add new tests to this one.
 
 var AggregationTests2 = []AggregationTestCase{
-	{ // [40]
+	{ // [42]
 		// FIXME results for this test are not 100% correct for day/week intervals (maybe others too)
 		// see https://github.com/QuesmaOrg/quesma/issues/307
 		TestName: "histogram with all possible calendar_intervals",
@@ -301,65 +301,6 @@ var AggregationTests2 = []AggregationTestCase{
 				}
 			}
 		}`,
-		ExpectedSQLs: []string{
-			`SELECT count() FROM ` + QuotedTableName,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
-			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) ` +
-				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000`,
-			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000, count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 ` +
-				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000`,
-		},
 		ExpectedResults: [][]model.QueryResultRow{
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(33))}}},
 			{{Cols: []model.QueryResultCol{
@@ -431,5 +372,66 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("count()", uint64(33)),
 			}}},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + QuotedTableName,
+			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000), count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) ` +
+				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`,
+			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000), count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000) ` +
+				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 86400000)`,
+			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
+				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
+			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
+				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
+			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) ` +
+				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
+			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 60000), count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) ` +
+				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 60000)`,
+			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000, count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 ` +
+				`ORDER BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000`,
+			`SELECT toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000, count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`GROUP BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000 ` +
+				`ORDER BY toInt64(toUnixTimestamp(toStartOfMonth("@timestamp")))*1000`,
+			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000, count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 ` +
+				`ORDER BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000`,
+			`SELECT toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000, count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`GROUP BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000 ` +
+				`ORDER BY toInt64(toUnixTimestamp(toStartOfQuarter("@timestamp")))*1000`,
+			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000, count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 ` +
+				`ORDER BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000`,
+			`SELECT toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000, count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`GROUP BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000 ` +
+				`ORDER BY toInt64(toUnixTimestamp(toStartOfWeek("@timestamp")))*1000`,
+			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000, count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 ` +
+				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000`,
+			`SELECT toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000, count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`GROUP BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000 ` +
+				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000`,
+		},
+		ExpectedPancakeSQL: "TODO",
 	},
 }

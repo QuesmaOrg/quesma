@@ -150,6 +150,10 @@ func (p *pancakeJSONRenderer) layerToJSON(layerId int, layers []*pancakeAggregat
 		}
 		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, layerId+1) // TODO: for date_histogram this layerId+1 layer seems correct, is it for all?
 
+		if len(buckets) == 0 { // without this we'd generate {"buckets": []} in the response, which Elastic doesn't do.
+			return result, nil
+		}
+
 		if layerId+1 < len(layers) { // Add subAggregation
 			if bucketArrRaw, ok := buckets["buckets"]; ok {
 				bucketArr := bucketArrRaw.([]model.JsonMap)
