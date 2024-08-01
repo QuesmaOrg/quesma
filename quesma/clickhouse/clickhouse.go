@@ -572,7 +572,8 @@ func (lm *LogManager) execute(ctx context.Context, query string) error {
 	return err
 }
 
-func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON, config *ChTableConfig, transformer plugins.IngestTransformer) error {
+func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON,
+	config *ChTableConfig, transformer plugins.IngestTransformer) error {
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
 		preprocessedJson, err := transformer.Transform(jsonValue)
@@ -588,7 +589,8 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 			return fmt.Errorf("error validation: %v", err)
 		}
 
-		stats.GlobalStatistics.ProcessInvalidValues(lm.cfg, tableName, inValidJson, NestedSeparator)
+		stats.GlobalStatistics.UpdateNonSchemaValues(lm.cfg, tableName,
+			inValidJson, NestedSeparator)
 		// Remove invalid fields from the input JSON
 		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
 

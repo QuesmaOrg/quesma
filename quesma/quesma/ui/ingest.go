@@ -29,14 +29,14 @@ func (qmc *QuesmaManagementConsole) generateIngestStatistics() []byte {
 	return buffer.Bytes()
 }
 
-func (qmc *QuesmaManagementConsole) generateInvalidValuesStatistics(index *stats.IngestStatistics) []byte {
+func (qmc *QuesmaManagementConsole) generateSchemaNonCompliantStatistics(index *stats.IngestStatistics) []byte {
 	var buffer builder.HtmlBuffer
 	const maxTopValues = 5
 	headerInjected := false
 	for _, keyStats := range index.SortedKeyStatistics() {
 		topInvalidValuesCount := maxTopValues
-		if len(keyStats.InvalidValues) < maxTopValues {
-			topInvalidValuesCount = len(keyStats.InvalidValues)
+		if len(keyStats.NonSchemaValues) < maxTopValues {
+			topInvalidValuesCount = len(keyStats.NonSchemaValues)
 		}
 		if topInvalidValuesCount == 0 {
 			continue
@@ -48,7 +48,7 @@ func (qmc *QuesmaManagementConsole) generateInvalidValuesStatistics(index *stats
 			buffer.Html(`<tr>` + "\n")
 			buffer.Html(`<th class="key">Key</th>` + "\n")
 			buffer.Html(`<th class="key-count">Count</th>` + "\n")
-			buffer.Html(`<th class="value">schema non conformant fields</th>` + "\n")
+			buffer.Html(`<th class="value">schema non compliant fields</th>` + "\n")
 			buffer.Html(`<th class="value-count">Count</th>` + "\n")
 			buffer.Html(`<th class="value-count">Percentage</th>` + "\n")
 			buffer.Html(`<th class="types">Potential type</th>` + "\n")
@@ -139,10 +139,10 @@ func (qmc *QuesmaManagementConsole) generateStatistics() []byte {
 		buffer.Html("</tbody>\n")
 
 		buffer.Html("</table>\n")
-		invalidValuesStatistics := qmc.generateInvalidValuesStatistics(index)
+		invalidValuesStatistics := qmc.generateSchemaNonCompliantStatistics(index)
 		if len(invalidValuesStatistics) > 0 {
 			buffer.Html("<br>\n")
-			buffer.Html(fmt.Sprintf("<h3>%s schema non conformant fields</h3>\n", index.IndexName))
+			buffer.Html(fmt.Sprintf("<h3>%s schema non compliant fields</h3>\n", index.IndexName))
 			buffer.Write(invalidValuesStatistics)
 			buffer.Html("<br>\n")
 		}

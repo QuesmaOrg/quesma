@@ -30,10 +30,10 @@ type (
 		Keys      map[string]*KeyStatistics
 	}
 	KeyStatistics struct {
-		KeyName       string
-		Occurrences   int64
-		Values        map[string]*ValueStatistics
-		InvalidValues map[string]*ValueStatistics
+		KeyName         string
+		Occurrences     int64
+		Values          map[string]*ValueStatistics
+		NonSchemaValues map[string]*ValueStatistics
 	}
 	ValueStatistics struct {
 		ValueName   string
@@ -70,50 +70,17 @@ func New() *Statistics {
 	return &statistics
 }
 
-func (s *Statistics) Process(cfg config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
-	// TODO reading cfg.IngestStatistics is not thread safe
-	if !cfg.IngestStatistics {
-		return
+func (s *Statistics) getValueStatisticsPtr(keyStatistics *KeyStatistics, nonSchemaFields bool) *map[string]*ValueStatistics {
+	switch nonSchemaFields {
+	case true:
+		return &keyStatistics.NonSchemaValues
+	default:
+		return &keyStatistics.Values
 	}
-
-	flatJson := jsonprocessor.FlattenMap(jsonData, nestedSeparator)
-
-	mu.Lock()
-	defer mu.Unlock()
-
-	statistics, ok := (*s)[index]
-	if !ok {
-		statistics = &IngestStatistics{IndexName: index, Keys: make(map[string]*KeyStatistics)}
-		(*s)[index] = statistics
-	}
-	// TODO as proper eviction strategy requires some time
-	// to be implemented, we limit the number of requests for now
-	if statistics.Requests >= STATISTICS_LIMIT {
-		cfg.IngestStatistics = false
-		return
-	}
-
-	for key, value := range flatJson {
-		keyStatistics, ok := statistics.Keys[key]
-		if !ok {
-			keyStatistics = &KeyStatistics{KeyName: key, Values: make(map[string]*ValueStatistics), InvalidValues: make(map[string]*ValueStatistics)}
-			statistics.Keys[key] = keyStatistics
-		}
-
-		keyStatistics.Occurrences++
-		valueString := fmt.Sprintf("%v", value)
-		valueStatistics, ok := keyStatistics.Values[valueString]
-		if !ok {
-			valueStatistics = &ValueStatistics{ValueName: valueString}
-			keyStatistics.Values[valueString] = valueStatistics
-		}
-		valueStatistics.Occurrences++
-		valueStatistics.Types = typesOf(valueString)
-	}
-	statistics.Requests++
 }
 
-func (s *Statistics) ProcessInvalidValues(cfg config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
+func (s *Statistics) process(cfg config.QuesmaConfiguration, index string,
+	jsonData types.JSON, nonSchemaFields bool, nestedSeparator string) {
 	// TODO reading cfg.IngestStatistics is not thread safe
 	if !cfg.IngestStatistics {
 		return
@@ -139,19 +106,35 @@ func (s *Statistics) ProcessInvalidValues(cfg config.QuesmaConfiguration, index 
 	for key, value := range flatJson {
 		keyStatistics, ok := statistics.Keys[key]
 		if !ok {
-			keyStatistics = &KeyStatistics{KeyName: key, Values: make(map[string]*ValueStatistics), InvalidValues: make(map[string]*ValueStatistics)}
+			keyStatistics = &KeyStatistics{KeyName: key, Values: make(map[string]*ValueStatistics),
+				NonSchemaValues: make(map[string]*ValueStatistics)}
 			statistics.Keys[key] = keyStatistics
 		}
 
-		valueString := fmt.Sprintf("%v", value)
-		invalidValueStatistics, ok := keyStatistics.InvalidValues[valueString]
-		if !ok {
-			invalidValueStatistics = &ValueStatistics{ValueName: valueString}
-			keyStatistics.InvalidValues[valueString] = invalidValueStatistics
+		if !nonSchemaFields {
+			keyStatistics.Occurrences++
 		}
-		invalidValueStatistics.Occurrences++
-		invalidValueStatistics.Types = typesOf(valueString)
+		valueString := fmt.Sprintf("%v", value)
+		valuesPtr := s.getValueStatisticsPtr(keyStatistics, nonSchemaFields)
+		valueStatistics, ok := (*valuesPtr)[valueString]
+		if !ok {
+			valueStatistics = &ValueStatistics{ValueName: valueString}
+			(*valuesPtr)[valueString] = valueStatistics
+		}
+		(*valuesPtr)[valueString].Occurrences++
+		valueStatistics.Types = typesOf(valueString)
 	}
+}
+
+func (s *Statistics) Process(cfg config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
+	s.process(cfg, index, jsonData, false, nestedSeparator)
+	if statistics, ok := (*s)[index]; ok {
+		statistics.Requests++
+	}
+}
+
+func (s *Statistics) UpdateNonSchemaValues(cfg config.QuesmaConfiguration, index string, jsonData types.JSON, nestedSeparator string) {
+	s.process(cfg, index, jsonData, true, nestedSeparator)
 }
 
 func (s *Statistics) GetIngestStatistics(indexName string) (*IngestStatistics, error) {
@@ -215,7 +198,7 @@ func (vs *KeyStatistics) TopNValues(n int) (result []*ValueStatistics) {
 }
 
 func (vs *KeyStatistics) TopNInvalidValues(n int) (result []*ValueStatistics) {
-	return topNValuesHelper(n, vs.InvalidValues)
+	return topNValuesHelper(n, vs.NonSchemaValues)
 }
 
 func typesOf(str string) (types []string) {
