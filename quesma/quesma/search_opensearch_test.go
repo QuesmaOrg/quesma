@@ -6,6 +6,7 @@ import (
 	"context"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/concurrent"
 	"quesma/logger"
@@ -74,7 +75,7 @@ func TestSearchOpensearch(t *testing.T) {
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s)
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptyResultsRepository())
 			_, err2 := queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 			assert.NoError(t, err2)
 
@@ -220,7 +221,7 @@ func TestHighlighter(t *testing.T) {
 															AddRow("text-to-highlight", "text-to-highlight", "text-to-highlight").
 															AddRow("text", "text", "text"))
 
-	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s)
+	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptyResultsRepository())
 	response, err := queryRunner.handleSearch(ctx, tableName, types.MustJSON(query))
 	assert.NoError(t, err)
 	if err != nil {
