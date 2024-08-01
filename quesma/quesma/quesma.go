@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/elasticsearch"
 	"quesma/end_user_errors"
@@ -118,8 +119,8 @@ func NewQuesmaTcpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, config config.Qu
 
 func NewHttpProxy(phoneHomeAgent telemetry.PhoneHomeAgent, logManager *clickhouse.LogManager, schemaLoader clickhouse.TableDiscovery,
 	indexManager elasticsearch.IndexManagement, schemaRegistry schema.Registry, config config.QuesmaConfiguration,
-	quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel) *Quesma {
-	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, schemaRegistry)
+	quesmaManagementConsole *ui.QuesmaManagementConsole, logChan <-chan logger.LogWithLevel, abResultsRepository ab_testing.ResultsRepository) *Quesma {
+	queryRunner := NewQueryRunner(logManager, config, indexManager, quesmaManagementConsole, schemaRegistry, abResultsRepository)
 
 	// not sure how we should configure our query translator ???
 	// is this a config option??
