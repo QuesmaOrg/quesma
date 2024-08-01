@@ -43,12 +43,12 @@ func (a *aggregationTree2Pancake) translateBucketToLayer(bucket *pancakeAggregat
 		queryType:       bucket.queryType,
 		selectedColumns: bucket.selectedColumns,
 
-		orderBy: bucket.orderBy,
-		limit:   bucket.limit,
-		isKeyed: bucket.isKeyed,
+		orderBy:                 bucket.orderBy,
+		limit:                   bucket.limit,
+		isKeyed:                 bucket.isKeyed,
+		filterOurEmptyKeyBucket: bucket.filterOutEmptyKeyBucket,
 
-		metadata:    bucket.metadata,
-		whereClause: bucket.whereClause,
+		metadata: bucket.metadata,
 	}, nil
 }
 

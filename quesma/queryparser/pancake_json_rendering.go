@@ -70,6 +70,38 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucketName string, rows []model.Qu
 	return buckets, subAggrs
 }
 
+// In some queries we want to filter out null values or empty
+// We accomplish that by increasing limit by one during SQL query and then filtering out during JSON rendering.
+// So we either filter out empty or last one if there is none.
+// This can't be replaced by WHERE in generic case.
+func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeAggregationLayer, bucketName string, bucketRows []model.QueryResultRow, subAggrRows [][]model.QueryResultRow) ([]model.QueryResultRow, [][]model.QueryResultRow) {
+	// We are filter out null
+	if layer.nextBucketAggregation.filterOurEmptyKeyBucket {
+		nullRowToDelete := -1
+		bucketKeyName := bucketName + "key"
+	ROW:
+		for i, row := range bucketRows {
+			for _, col := range row.Cols {
+				if strings.HasPrefix(col.ColName, bucketKeyName) {
+					if col.Value == nil || col.Value == "" { // TODO: replace with schema
+						nullRowToDelete = i
+						break ROW
+					}
+				}
+			}
+		}
+
+		if nullRowToDelete != -1 {
+			bucketRows = append(bucketRows[:nullRowToDelete], bucketRows[nullRowToDelete+1:]...)
+			subAggrRows = append(subAggrRows[:nullRowToDelete], subAggrRows[nullRowToDelete+1:]...)
+		} else if layer.nextBucketAggregation.limit != 0 && len(bucketRows) > layer.nextBucketAggregation.limit {
+			bucketRows = bucketRows[:layer.nextBucketAggregation.limit]
+			subAggrRows = subAggrRows[:layer.nextBucketAggregation.limit]
+		}
+	}
+	return bucketRows, subAggrRows
+}
+
 func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeAggregationLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
 
 	result := model.JsonMap{}
@@ -94,33 +126,7 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeAggrega
 		}
 		bucketRows, subAggrRows := p.splitBucketRows(bucketName, rows)
 
-		// We are filter out null
-		if layer.nextBucketAggregation.whereClause != nil {
-			// TODO: nicer way of passing not null
-			if _, ok := layer.nextBucketAggregation.whereClause.(model.InfixExpr); ok {
-				nullRowToDelete := -1
-				nameofKey := bucketName + "key"
-			ROW:
-				for i, row := range bucketRows {
-					for _, col := range row.Cols {
-						if strings.HasPrefix(col.ColName, nameofKey) {
-							if col.Value == nil || col.Value == "" {
-								nullRowToDelete = i
-								break ROW
-							}
-						}
-					}
-				}
-
-				if nullRowToDelete != -1 {
-					bucketRows = append(bucketRows[:nullRowToDelete], bucketRows[nullRowToDelete+1:]...)
-					subAggrRows = append(subAggrRows[:nullRowToDelete], subAggrRows[nullRowToDelete+1:]...)
-				} else if layer.nextBucketAggregation.limit != 0 && len(bucketRows) > layer.nextBucketAggregation.limit {
-					bucketRows = bucketRows[:layer.nextBucketAggregation.limit]
-					subAggrRows = subAggrRows[:layer.nextBucketAggregation.limit]
-				}
-			}
-		}
+		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, bucketName, bucketRows, subAggrRows)
 		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, layerIdx+1) // TODO: for date_histogram this layerIdx+1 layer seems correct, is it for all?
 
 		if layerIdx+1 < len(layers) { // Add subAggregation

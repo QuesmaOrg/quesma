@@ -177,8 +177,8 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		aggregation.selectedColumns = append(aggregation.selectedColumns, fieldExpression)
 		aggregation.limit = size
 		aggregation.orderBy = fullOrderBy
-		if missingPlaceholder == nil { // TODO replace with schema
-			aggregation.whereClause = model.NewInfixExpr(fieldExpression, "IS", model.NewLiteral("NOT NULL"))
+		if missingPlaceholder == nil {
+			aggregation.filterOutEmptyKeyBucket = true
 		}
 
 		delete(queryMap, termsType)
@@ -332,20 +332,6 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 	if _, ok := queryMap["random_sampler"]; ok {
 		aggregation.queryType = metrics_aggregations.NewCount(cw.Ctx)
 		delete(queryMap, "random_sampler")
-		return
-	}
-	if boolRaw, ok := queryMap["bool"]; ok { // is it really possible here?
-		if Bool, ok := boolRaw.(QueryMap); ok {
-			simpleQuery := cw.parseBool(Bool)
-			if simpleQuery.CanParse {
-				aggregation.whereClause = simpleQuery.WhereClause
-			} else {
-				logger.WarnWithCtx(cw.Ctx).Msg("failed to parse bool")
-			}
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("bool is not a map, but %T, value: %v. Skipping", boolRaw, boolRaw)
-		}
-		delete(queryMap, "bool")
 		return
 	}
 	if isFilters, filterAggregation := cw.parseFilters(queryMap); isFilters {

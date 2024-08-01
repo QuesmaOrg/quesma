@@ -196,14 +196,12 @@ func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggreg
 
 				// if where not null, increase limit by 1
 				limit := bucketAggregation.limit
-				if bucketAggregation.whereClause != nil {
-					// TODO: nicer way of passing not null
-					if _, ok := bucketAggregation.whereClause.(model.InfixExpr); ok {
-						if limit != 0 {
-							limit += 1
-						}
+				if bucketAggregation.filterOurEmptyKeyBucket {
+					if limit != 0 {
+						limit += 1
 					}
 				}
+
 				whereRank := model.NewInfixExpr(p.newQuotedLiteral(aliasedRank.Alias), "<=", model.NewLiteral(bucketAggregation.limit))
 				whereRanks = append(whereRanks, whereRank)
 
@@ -220,12 +218,9 @@ func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggreg
 		if aggregation.layers[0].nextBucketAggregation != nil {
 			limit = aggregation.layers[0].nextBucketAggregation.limit
 			// if where not null, increase limit by 1
-			if aggregation.layers[0].nextBucketAggregation.whereClause != nil {
-				// TODO: nicer way of passing not null
-				if _, ok := aggregation.layers[0].nextBucketAggregation.whereClause.(model.InfixExpr); ok {
-					if limit != 0 {
-						limit += 1
-					}
+			if aggregation.layers[0].nextBucketAggregation.filterOurEmptyKeyBucket {
+				if limit != 0 {
+					limit += 1
 				}
 			}
 

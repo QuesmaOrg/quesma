@@ -18,13 +18,13 @@ type pancakeAggregationLevel struct {
 	selectedColumns []model.Expr
 
 	// only for bucket aggregations
-	children []*pancakeAggregationLevel
-	orderBy  []model.OrderByExpr
-	limit    int // 0 if none, only for bucket aggregation
-	isKeyed  bool
+	children                []*pancakeAggregationLevel
+	orderBy                 []model.OrderByExpr
+	limit                   int // 0 if none, only for bucket aggregation
+	isKeyed                 bool
+	filterOutEmptyKeyBucket bool
 
-	metadata    model.JsonMap
-	whereClause model.Expr
+	metadata model.JsonMap
 }
 
 type pancakeFillingMetricAggregation struct {
@@ -45,8 +45,8 @@ type pancakeLayerBucketAggregation struct {
 	limit   int // 0 if none, only for bucket aggregation
 	isKeyed bool
 
-	metadata    model.JsonMap
-	whereClause model.Expr
+	metadata                model.JsonMap
+	filterOurEmptyKeyBucket bool
 }
 
 type pancakeAggregationLayer struct {
