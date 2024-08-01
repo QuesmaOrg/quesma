@@ -68,10 +68,21 @@ type PancakeQueryType struct {
 	pancakeAggregation *pancakeAggregation
 }
 
-func (p PancakeQueryType) ReturnCount() *pancakeFillingMetricAggregation {
+func (p PancakeQueryType) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+	panic("not a real aggregation, it should not be never used")
+}
+
+func (p PancakeQueryType) AggregationType() model.AggregationType {
+	return model.TypicalAggregation
+}
+
+func (p PancakeQueryType) String() string {
+	return "pancake query type"
+}
+
+func (p PancakeQueryType) ReturnTotalCount() *pancakeFillingMetricAggregation {
 
 	if len(p.pancakeAggregation.layers) > 0 {
-
 		for _, metric := range p.pancakeAggregation.layers[0].currentMetricAggregations {
 			if metric.name == PancakeTotalCountMetricName {
 				return metric
@@ -82,24 +93,11 @@ func (p PancakeQueryType) ReturnCount() *pancakeFillingMetricAggregation {
 	return nil
 }
 
-func (p PancakeQueryType) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-
+func (p PancakeQueryType) RenderAggregationJson(rows []model.QueryResultRow) (model.JsonMap, error) {
 	renderer := &pancakeJSONRenderer{}
 	res, err := renderer.toJSON(p.pancakeAggregation, rows)
 	if err != nil {
-		// We should return an error here.
-		//
-		// It will need to change the signature of this function and other interface implementations
 		logger.Error().Err(err).Msg("Error rendering JSON. Returning empty.")
-		return model.JsonMap{}
 	}
-	return res
-}
-
-func (p PancakeQueryType) AggregationType() model.AggregationType {
-	return model.TypicalAggregation
-}
-
-func (p PancakeQueryType) String() string {
-	return "pancake query type"
+	return res, err
 }
