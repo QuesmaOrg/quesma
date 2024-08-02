@@ -7187,25 +7187,27 @@ var AggregationTests = []AggregationTestCase{
 		},
 		ExpectedPancakeSQL: `
 			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
-			  "aggr__0__1__key_0", "aggr__0__1__count"
+			  "aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1"
 			FROM (
 			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
-				"aggr__0__1__key_0", "aggr__0__1__count", dense_rank() OVER (PARTITION BY 1
+				"aggr__0__1__key_0", "aggr__0__1__count", "aggr__0__1__order_1",
+				dense_rank() OVER (PARTITION BY 1
 			  ORDER BY "aggr__0__order_1" DESC, "aggr__0__key_0" ASC) AS
-				"aggr__0__order_1_rank"
+				"aggr__0__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__0__key_0"
+			  ORDER BY "aggr__0__1__order_1", "aggr__0__1__key_0" ASC) AS
+				"aggr__0__1__order_1_rank"
 			  FROM (
-				SELECT "host.name" AS "aggr__0__key_0", sum("aggr__0__count_part") OVER (
-				  PARTITION BY "aggr__0__key_0") AS "aggr__0__count", sum(
-				  "aggr__0__order_1_part") OVER (PARTITION BY "aggr__0__key_0") AS
+				SELECT "host.name" AS "aggr__0__key_0", sum("aggr__0__count_part") OVER
+				  (PARTITION BY "aggr__0__key_0") AS "aggr__0__count",
+				  sum("aggr__0__order_1_part") OVER (PARTITION BY "aggr__0__key_0") AS
 				  "aggr__0__order_1", "FlightDelayMin" AS "aggr__0__1__key_0", count(*) AS
-				  "aggr__0__1__count", count(*) AS "aggr__0__count_part", count() AS
-				  "aggr__0__order_1_part"
+				  "aggr__0__1__count", "FlightDelayMin" AS "aggr__0__1__order_1", count(*)
+				  AS "aggr__0__count_part", count() AS "aggr__0__order_1_part"
 				FROM "logs-generic-default"
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
-				GROUP BY "host.name" AS "aggr__0__key_0", "FlightDelayMin" AS
-				  "aggr__0__1__key_0"))
-			WHERE "aggr__0__order_1_rank"<=10
-			ORDER BY "aggr__0__order_1_rank" ASC`,
+				GROUP BY "host.name" AS "aggr__0__key_0", "FlightDelayMin" AS "aggr__0__1__key_0"))
+			WHERE ("aggr__0__order_1_rank"<=10 AND "aggr__0__1__order_1_rank"<=0)
+			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ // [37]
 		// Now we don't copy, as it's nested. Tested with Elasticsearch.
