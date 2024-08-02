@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"net/http"
 	"quesma/logger"
 )
@@ -15,7 +14,7 @@ type ppPrintFanout struct {
 }
 
 func (t *ppPrintFanout) process(in Data) (out Data, drop bool, err error) {
-	pp.Println("A/B Testing FANOUT", in)
+	//pp.Println("A/B Testing FANOUT", in)
 	return in, false, nil
 }
 
@@ -38,7 +37,7 @@ func (t *elasticSearchFanout) process(in Data) (out Data, drop bool, err error) 
 
 	logLine, err := json.Marshal(in)
 	if err != nil {
-		logger.Error().Msgf("Failed to marshal A/B results line: %v", err)
+		logger.Error().Msgf("failed to marshal A/B results line: %v", err)
 		return in, false, err
 	}
 
@@ -47,15 +46,15 @@ func (t *elasticSearchFanout) process(in Data) (out Data, drop bool, err error) 
 
 	if resp, err := http.Post(t.url+"/_bulk", "application/json", bytes.NewBuffer(logBytes)); err != nil {
 		t.errorCount += +1
-		return in, false, fmt.Errorf("Failed to send A/B results: %v", err)
+		return in, false, fmt.Errorf("failed to send A/B results: %v", err)
 	} else {
 		if err := resp.Body.Close(); err != nil {
 			t.errorCount += +1
-			return in, false, fmt.Errorf("Failed to close response body: %v", err)
+			return in, false, fmt.Errorf("failed to close response body: %v", err)
 		}
 		if resp.StatusCode != http.StatusOK {
 			t.errorCount += +1
-			return in, false, fmt.Errorf("Failed to send A/B results: %v", resp.Status)
+			return in, false, fmt.Errorf("failed to send A/B results: %v", resp.Status)
 		}
 	}
 

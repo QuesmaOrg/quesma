@@ -52,8 +52,6 @@ func (f *facade) Start() {
 
 				if f.delegate != nil {
 					f.delegate.Store(result)
-				} else {
-					// no repository, just drop results
 				}
 
 			case <-f.ctx.Done():

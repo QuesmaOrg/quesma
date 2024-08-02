@@ -59,7 +59,7 @@ func NewResultsRepository(ctx context.Context, healthQueue chan<- ab_testing.Hea
 		pipeline: []processor{
 			&probabilisticSampler{ratio: 1},
 			&diffTransformer{},
-			//&ppPrintFanout{},
+			&ppPrintFanout{},
 			&elasticSearchFanout{
 				url:       "http://localhost:8080",
 				indexName: "ab_testing_logs",
