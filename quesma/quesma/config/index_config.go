@@ -75,3 +75,11 @@ func (c IndexConfiguration) String() string {
 		return str
 	}
 }
+
+func (c IndexConfiguration) GetOptimizerConfiguration(optimizerName string) (map[string]string, bool) {
+	if optimizer, ok := c.EnabledOptimizers[optimizerName]; ok {
+		return optimizer.Properties, optimizer.Enabled
+	}
+
+	return nil, false
+}

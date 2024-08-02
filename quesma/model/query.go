@@ -170,7 +170,7 @@ func (q *Query) NewSelectExprWithRowNumber(selectFields []Expr, groupByFields []
 		}
 	}
 	selectFields = append(selectFields, NewAliasedExpr(NewWindowFunction(
-		"ROW_NUMBER", nil, groupByFields, orderByExpr,
+		"ROW_NUMBER", nil, groupByFields, []OrderByExpr{orderByExpr},
 	), RowNumberColumnName))
 
 	return *NewSelectCommand(selectFields, nil, nil, q.SelectCommand.FromClause, whereClause, []Expr{}, 0, 0, false, []*SelectCommand{})

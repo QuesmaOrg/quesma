@@ -320,7 +320,8 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alter
 		defer recovery.LogPanic()
 
 		// results are passed via channel
-		body, err := q.executeAlternativePlan(ctx, alternativePlan, queryTranslator, table, body)
+		newCtx := tracing.NewContextWithRequest(ctx)
+		body, err := q.executeAlternativePlan(newCtx, alternativePlan, queryTranslator, table, body)
 
 		optComparePlansCh <- executionPlanResult{
 			plan:         alternativePlan,
@@ -462,7 +463,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		return []byte{}, end_user_errors.ErrNoSuchTable.New(fmt.Errorf("can't load %s table", resolvedTableName)).Details("Table: %s", resolvedTableName)
 	}
 
-	queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry, incomingIndexName)
+	queryTranslator := NewQueryTranslator(ctx, queryLanguage, table, q.logManager, q.DateMathRenderer, q.schemaRegistry, incomingIndexName, q.cfg)
 
 	plan, err := queryTranslator.ParseQuery(body)
 
@@ -486,22 +487,9 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	plan.StartTime = startTime
 	plan.Name = model.MainExecutionPlan
 
-	var alternativePlan *model.ExecutionPlan
+	// Some flags may trigger alternative execution plans, this is primary for dev
+	alternativePlan := q.maybeCreateAlternativeExecutionPlan(ctx, resolvedTableName, plan, queryTranslator, body)
 
-	// TODO add alternative plan here
-
-	/* You may use this code to run alternative plan for checking how it works
-	   It breaks the tests. So, it is commented out.
-
-	alternativePlan = &model.ExecutionPlan{
-		IndexPattern:          plan.IndexPattern,
-		QueryRowsTransformers: plan.QueryRowsTransformers,
-		ResultAdapter:         plan.ResultAdapter,
-		Queries:               plan.Queries,
-		StartTime:             plan.StartTime,
-		Name:                  model.AlternativeExecutionPlan,
-	}
-	*/
 	var optComparePlansCh chan<- executionPlanResult
 
 	if alternativePlan != nil {
@@ -509,6 +497,51 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	}
 
 	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh)
+}
+
+func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, resolvedTableName string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON) *model.ExecutionPlan {
+
+	props, enabled := q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration(queryparser.PancakeOptimizerName)
+	if enabled && props["mode"] == "alternative" {
+
+		hasAggQuery := false
+		queriesWithoutAggr := make([]*model.Query, 0)
+		for _, query := range plan.Queries {
+			switch query.Type.AggregationType() {
+			case model.MetricsAggregation, model.BucketAggregation, model.PipelineAggregation:
+				hasAggQuery = true
+			default:
+				queriesWithoutAggr = append(queriesWithoutAggr, query)
+			}
+		}
+
+		if hasAggQuery {
+			if chQueryTranslator, ok := queryTranslator.(*queryparser.ClickhouseQueryTranslator); ok {
+
+				// TODO FIXME check if the original plan has count query
+				addCount := false
+
+				if pancakeQueries, err := chQueryTranslator.PancakeParseAggregationJson(body, addCount); err == nil {
+					logger.InfoWithCtx(ctx).Msgf("Running alternative pancake queries")
+					queries := append(queriesWithoutAggr, pancakeQueries...)
+					return &model.ExecutionPlan{
+						IndexPattern:          plan.IndexPattern,
+						QueryRowsTransformers: make([]model.QueryRowsTransfomer, len(queries)),
+						ResultAdapter:         plan.ResultAdapter,
+						Queries:               queries,
+						StartTime:             plan.StartTime,
+						Name:                  model.AlternativeExecutionPlan,
+					}
+				} else {
+					// TODO: change to info
+					logger.ErrorWithCtx(ctx).Msgf("Error parsing pancake queries: %v", err)
+				}
+			} else {
+				logger.ErrorWithCtx(ctx).Msgf("Alternative plan is not supported for non-clickhouse query translators")
+			}
+		}
+	}
+	return nil
 }
 
 func (q *QueryRunner) removeNotExistingTables(sourcesClickhouse []string) []string {
