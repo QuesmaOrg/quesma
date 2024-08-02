@@ -60,6 +60,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		}
 
 		aggregation.selectedColumns = append(aggregation.selectedColumns, col)
+		aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExprWithoutOrder(col))
 
 		delete(queryMap, "histogram")
 		return success, nil

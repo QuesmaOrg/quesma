@@ -127,6 +127,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
@@ -138,6 +139,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY "day_of_week_i" ` +
 				`ORDER BY "day_of_week_i"`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [1]
 		TestName: "Cumulative sum with other aggregation. Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Average), Buckets: Histogram",
@@ -269,6 +271,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
@@ -281,6 +284,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY "day_of_week_i" ` +
 				`ORDER BY "day_of_week_i"`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [2]
 		TestName: "Cumulative sum to other cumulative sum. Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Cumulative Sum (Aggregation: Count)), Buckets: Histogram",
@@ -403,6 +407,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
@@ -412,6 +417,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY "day_of_week_i" ` +
 				`ORDER BY "day_of_week_i"`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [3]
 		TestName: "Cumulative sum - quite complex, a graph of pipelines. Reproduce: Visualize -> Vertical Bar: Metrics: Cumulative Sum (Aggregation: Cumulative Sum (Aggregation: Max)), Buckets: Histogram",
@@ -555,6 +561,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
@@ -568,6 +575,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY "day_of_week_i" ` +
 				`ORDER BY "day_of_week_i"`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [4]
 		TestName: "Simplest Derivative (count). Reproduce: Visualize -> Vertical Bar: Metrics: Derivative (Aggregation: Count), Buckets: Histogram",
@@ -696,6 +704,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
@@ -705,6 +714,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [5]
 		TestName: "Derivative with other aggregation. Reproduce: Visualize -> Vertical Bar: Metrics: Derivative (Aggregation: Sum), Buckets: Date Histogram",
@@ -905,6 +915,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
@@ -920,6 +931,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [6]
 		TestName: "Derivative to cumulative sum. Reproduce: Visualize -> Vertical Bar: Metrics: Derivative (Aggregation: Cumulative Sum (Aggregation: Count)), Buckets: Date Histogram",
@@ -1171,6 +1183,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
@@ -1180,6 +1193,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [7]
 		TestName: "Simplest Serial Diff (count), lag=default (1). Reproduce: Visualize -> Vertical Bar: Metrics: Serial Diff (Aggregation: Count), Buckets: Histogram",
@@ -1322,6 +1336,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
@@ -1331,6 +1346,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [8]
 		TestName: "Simplest Serial Diff (count), lag=2. Don't know how to reproduce in OpenSearch, but you can click out:" +
@@ -1476,6 +1492,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
@@ -1485,6 +1502,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [9]
 		TestName: "Serial diff with other aggregation. Reproduce: Visualize -> Vertical Bar: Metrics: Serial Diff (Aggregation: Sum), Buckets: Date Histogram",
@@ -1685,6 +1703,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
@@ -1700,6 +1719,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [10]
 		TestName: "Serial Diff to cumulative sum. Reproduce: Visualize -> Vertical Bar: Metrics: Serial Diff (Aggregation: Cumulative Sum (Aggregation: Count)), Buckets: Date Histogram",
@@ -1951,6 +1971,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
@@ -1960,6 +1981,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [11]
 		TestName: "Simplest avg_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Average Bucket (Bucket: Date Histogram, Metric: Count)",
@@ -2080,6 +2102,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
@@ -2089,6 +2112,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [12]
 		TestName: "avg_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Average Bucket (Bucket: Date Histogram, Metric: Max)",
@@ -2239,6 +2263,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
@@ -2252,6 +2277,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	/* TODO need fix for date_range and subaggregations. Same one, as already merged ~1-2 weeks ago for range. It's WIP.
 	{ // [13]
@@ -2498,6 +2524,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+	    ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
@@ -2550,6 +2577,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`WHERE "timestamp">=parseDateTime64BestEffort('2024-05-11T01:55:02.236Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-11T16:55:02.236Z') `,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	*/
 	{ // [14]
@@ -2713,6 +2741,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
@@ -2726,6 +2755,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [15]
 		TestName: "Simplest min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Count)",
@@ -2882,6 +2912,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
@@ -2897,6 +2928,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY "clientip" DESC ` +
 				`LIMIT 5`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [16]
 		TestName: "min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Unique Count)",
@@ -3084,6 +3116,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
@@ -3108,6 +3141,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY "clientip" DESC ` +
 				`LIMIT 5`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [17]
 		TestName: "complex min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Sum), Buckets: Split Series: Histogram",
@@ -3331,6 +3365,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
@@ -3359,6 +3394,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY floor("bytes"/200.000000)*200.000000 ` +
 				`ORDER BY floor("bytes"/200.000000)*200.000000`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [18]
 		TestName: "Simplest max_bucket. Reproduce: Visualize -> Line: Metrics: Max Bucket (Bucket: Terms, Metric: Count)",
@@ -3480,6 +3516,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
@@ -3495,6 +3532,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY "Cancelled" DESC ` +
 				`LIMIT 5`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [19]
 		TestName: "Max/Sum bucket with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max (Sum) Bucket (Aggregation: Date Histogram, Metric: Min)",
@@ -3659,6 +3697,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
@@ -3674,6 +3713,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 600000)`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [20]
 		TestName: "Different pipeline aggrs with some null buckets. Reproduce: Visualize -> Vertical Bar: Metrics: Max/Sum Bucket/etc. (Aggregation: Histogram, Metric: Max)",
@@ -3910,6 +3950,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 			},
 			{}, // NoDBQuery
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName,
 			`NoDBQuery`,
@@ -3925,6 +3966,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY "bytes"`,
 			`NoDBQuery`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	/* waits for probably a simple filters fix
 	{ // [21]
@@ -4080,6 +4122,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` `,
@@ -4097,6 +4140,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`WHERE false `,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	*/
 	/* waits for probably a simple filters fix
@@ -4305,6 +4349,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				model.NewQueryResultCol(`count()`, 2184),
 			}}},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` `,
@@ -4339,6 +4384,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`count() ` +
 				`FROM ` + testdata.QuotedTableName + ` `,
 		},
+		ExpectedPancakeSQL: "TODO",
 	}, */
 	{ // [23]
 		TestName: "Simplest sum_bucket. Reproduce: Visualize -> Horizontal Bar: Metrics: Sum Bucket (B ucket: Terms, Metric: Count)",
@@ -4489,6 +4535,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
@@ -4504,6 +4551,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY "extension" DESC ` +
 				`LIMIT 5`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [24]
 		TestName: "sum_bucket. Reproduce: Visualize -> Horizontal Bar: Metrics: Sum Bucket (Bucket: Significant Terms, Metric: Average)",
@@ -4660,6 +4708,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
@@ -4684,6 +4733,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY count() DESC, "extension" ` +
 				`LIMIT 5`,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [25]
 		TestName: "complex sum_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Sum Bucket (Bucket: Date Histogram, Metric: Average), Buckets: X-Asis: Histogram",
@@ -5272,6 +5322,7 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
+		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
@@ -5322,5 +5373,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`count() ` +
 				`FROM ` + testdata.QuotedTableName,
 		},
+		ExpectedPancakeSQL: "TODO",
 	},
 }
