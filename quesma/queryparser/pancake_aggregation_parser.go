@@ -59,6 +59,7 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 		// use our building blocks to add count
 		augmentedCountAggregation := &pancakeFillingMetricAggregation{
 			name:            PancakeTotalCountMetricName,
+			internalName:    "metric__" + PancakeTotalCountMetricName,
 			queryType:       typical_queries.Count{},
 			selectedColumns: []model.Expr{model.NewFunction("count", model.NewLiteral("*"))},
 		}
