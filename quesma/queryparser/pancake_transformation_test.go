@@ -50,17 +50,17 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 
 	panBucket := func(a, b string) *pancakeLayerBucketAggregation {
 		return &pancakeLayerBucketAggregation{
-			name:      a,
-			aliasName: b,
-			queryType: bucket_aggregations.Range{},
+			name:         a,
+			internalName: b,
+			queryType:    bucket_aggregations.Range{},
 		}
 	}
 
 	panMetric := func(a, b string) *pancakeFillingMetricAggregation {
 		return &pancakeFillingMetricAggregation{
-			name:      a,
-			aliasName: b,
-			queryType: metrics_aggregations.Avg{},
+			name:         a,
+			internalName: b,
+			queryType:    metrics_aggregations.Avg{},
 		}
 	}
 

@@ -24,7 +24,7 @@ func (a *aggregationTree2Pancake) translateMetricToFilling(previousAggrNames []s
 	return &pancakeFillingMetricAggregation{
 		name: metric.name,
 		// TODO: check for collisions
-		aliasName:       fmt.Sprintf("metric__%s", strings.Join(append(previousAggrNames, metric.name), "__")),
+		internalName:    fmt.Sprintf("metric__%s", strings.Join(append(previousAggrNames, metric.name), "__")),
 		queryType:       metric.queryType,
 		selectedColumns: metric.selectedColumns,
 
@@ -44,7 +44,7 @@ func (a *aggregationTree2Pancake) translateBucketToLayer(previousAggrNames []str
 	return &pancakeLayerBucketAggregation{
 		name: bucket.name,
 		// TODO: check for collisions
-		aliasName:       fmt.Sprintf("aggr__%s__", strings.Join(append(previousAggrNames, bucket.name), "__")),
+		internalName:    fmt.Sprintf("aggr__%s__", strings.Join(append(previousAggrNames, bucket.name), "__")),
 		queryType:       bucket.queryType,
 		selectedColumns: bucket.selectedColumns,
 

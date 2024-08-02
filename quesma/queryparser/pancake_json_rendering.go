@@ -32,8 +32,8 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeLayerBucketAggregat
 	if len(rows) == 0 {
 		return buckets, subAggrs
 	}
-	bucketKeyName := bucket.AliasNameForKeyPrefix()
-	bucketCountName := bucket.AliasNameForCount()
+	bucketKeyName := bucket.InternalNameForKeyPrefix()
+	bucketCountName := bucket.InternalNameForCount()
 	indexName := rows[0].Index
 	for rowIdx, row := range rows {
 		isNewBucket := rowIdx == 0 // first row is always new bucket
@@ -78,7 +78,7 @@ func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeAggrega
 	// We are filter out null
 	if layer.nextBucketAggregation.filterOurEmptyKeyBucket {
 		nullRowToDelete := -1
-		bucketKeyName := layer.nextBucketAggregation.AliasNameForKeyPrefix()
+		bucketKeyName := layer.nextBucketAggregation.InternalNameForKeyPrefix()
 	ROW:
 		for i, row := range bucketRows {
 			for _, col := range row.Cols {
@@ -110,7 +110,7 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeAggrega
 	}
 	layer := layers[layerIdx]
 	for _, metric := range layer.currentMetricAggregations {
-		metricRows := p.selectMetricRows(metric.aliasName+"_col_", rows)
+		metricRows := p.selectMetricRows(metric.internalName+"_col_", rows)
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
 	}
 

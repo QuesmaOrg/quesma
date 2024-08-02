@@ -30,7 +30,7 @@ type pancakeAggregationLevel struct {
 
 type pancakeFillingMetricAggregation struct {
 	name            string          // as originally appeared in Query DSL
-	aliasName       string          // full name with path, e.g. metric__byCountry__byCity__population or aggr__byCountry
+	internalName    string          // full name with path, e.g. metric__byCountry__byCity__population or aggr__byCountry
 	queryType       model.QueryType // it has to be metric aggregation
 	selectedColumns []model.Expr
 
@@ -39,7 +39,7 @@ type pancakeFillingMetricAggregation struct {
 
 type pancakeLayerBucketAggregation struct {
 	name            string          // as originally appeared in Query DSL
-	aliasName       string          // full name with path, e.g. metric__byCountry__byCity__population or aggr__byCountry
+	internalName    string          // full name with path, e.g. metric__byCountry__byCity__population or aggr__byCountry
 	queryType       model.QueryType // it has to be bucket aggregation
 	selectedColumns []model.Expr
 
@@ -52,20 +52,20 @@ type pancakeLayerBucketAggregation struct {
 	filterOurEmptyKeyBucket bool
 }
 
-func (p pancakeLayerBucketAggregation) AliasNameForKeyPrefix() string {
-	return fmt.Sprintf("%skey", p.aliasName)
+func (p pancakeLayerBucketAggregation) InternalNameForKeyPrefix() string {
+	return fmt.Sprintf("%skey", p.internalName)
 }
 
-func (p pancakeLayerBucketAggregation) AliasNameForKey(id int) string {
-	return fmt.Sprintf("%s_%d", p.AliasNameForKeyPrefix(), id)
+func (p pancakeLayerBucketAggregation) InternalNameForKey(id int) string {
+	return fmt.Sprintf("%s_%d", p.InternalNameForKeyPrefix(), id)
 }
 
-func (p pancakeLayerBucketAggregation) AliasNameForOrderBy(id int) string {
-	return fmt.Sprintf("%sorder_%d", p.aliasName, id)
+func (p pancakeLayerBucketAggregation) InternalNameForOrderBy(id int) string {
+	return fmt.Sprintf("%sorder_%d", p.internalName, id)
 }
 
-func (p pancakeLayerBucketAggregation) AliasNameForCount() string {
-	return fmt.Sprintf("%scount", p.aliasName)
+func (p pancakeLayerBucketAggregation) InternalNameForCount() string {
+	return fmt.Sprintf("%scount", p.internalName)
 }
 
 type pancakeAggregationLayer struct {
