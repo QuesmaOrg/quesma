@@ -78,16 +78,14 @@ func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggreg
 	whereRanks := make([]model.Expr, 0)
 	rankOrderBys := make([]model.OrderByExpr, 0)
 	groupByColumns := make([]model.AliasedExpr, 0)
-	namePrefix := ""
 	for layerId, layer := range aggregation.layers {
-		for _, metrics := range layer.currentMetricAggregations {
-			for columnId, column := range metrics.selectedColumns {
-				aliasedName := fmt.Sprintf("metric__%s%s_col_%d", namePrefix, metrics.name, columnId)
+		for _, metric := range layer.currentMetricAggregations {
+			for columnId, column := range metric.selectedColumns {
+				aliasedName := fmt.Sprintf("%s_col_%d", metric.aliasName, columnId)
 
-				// TODO: check for collisions
 				if layerId < len(aggregation.layers)-1 {
 					partColumnName := aliasedName + "_part"
-					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(column, metrics.queryType)
+					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(column, metric.queryType)
 					if err != nil {
 						return nil, false, err
 					}
@@ -110,15 +108,13 @@ func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggreg
 		if layer.nextBucketAggregation != nil {
 			bucketAggregation := layer.nextBucketAggregation
 			// take care of bucket aggregation at level - 1
-			namePrefix = fmt.Sprintf("%s%s__", namePrefix, bucketAggregation.name)
 
 			addedGroupByAliases := []model.Expr{}
 			previousGroupByColumns := groupByColumns
 
 			// TODO: ...
 			for columnId, column := range bucketAggregation.selectedColumns {
-				aliasedName := fmt.Sprintf("aggr__%skey_%d", namePrefix, columnId)
-				// TODO: check for collisions
+				aliasedName := fmt.Sprintf("%skey_%d", bucketAggregation.aliasName, columnId)
 				aliasedColumn := model.AliasedExpr{Expr: column, Alias: aliasedName}
 				selectedColumns = append(selectedColumns, aliasedColumn)
 				groupByColumns = append(groupByColumns, aliasedColumn)
@@ -129,7 +125,7 @@ func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggreg
 
 			// build count for aggr
 			// TODO: Maybe optimize
-			countAliasName := fmt.Sprintf("aggr__%scount", namePrefix)
+			countAliasName := fmt.Sprintf("%scount", bucketAggregation.aliasName)
 			if hasMoreBucketAggregations {
 				partCountAliasName := countAliasName + "_part"
 				partCountColumn := model.NewFunction("count", model.NewLiteral("*"))
@@ -154,7 +150,7 @@ func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggreg
 				// TODO: handle all columns
 				orderBy := bucketAggregation.orderBy[0].Exprs[0]
 				orderByDirection := bucketAggregation.orderBy[0].Direction
-				aliasedName := fmt.Sprintf("aggr__%sorder_%d", namePrefix, columnId)
+				aliasedName := fmt.Sprintf("%sorder_%d", bucketAggregation.aliasName, columnId)
 				columnId += 1
 
 				_, isColumnRef := orderBy.(model.ColumnRef)

@@ -5,6 +5,7 @@ package queryparser
 import (
 	"context"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/model"
 	"quesma/util"
 	"strings"
@@ -115,7 +116,10 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeAggrega
 			metricName = fmt.Sprintf("%s%s__", metricName, prevLayer.nextBucketAggregation.name)
 		}
 		metricName = fmt.Sprintf("metric__%s%s_col_", metricName, metric.name)
-		metricRows := p.selectMetricRows(metricName, rows)
+		if metricName != metric.aliasName+"_col_" {
+			pp.Println("JM bug:", metricName, metric.aliasName+"_col_")
+		}
+		metricRows := p.selectMetricRows(metric.aliasName+"_col_", rows)
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
 	}
 
@@ -124,9 +128,12 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeAggrega
 		for _, prevLayer := range layers[:layerIdx+1] {
 			bucketName = fmt.Sprintf("%s%s__", bucketName, prevLayer.nextBucketAggregation.name)
 		}
-		bucketRows, subAggrRows := p.splitBucketRows(bucketName, rows)
+		if bucketName != layer.nextBucketAggregation.aliasName {
+			pp.Println("JM bug bucket:", bucketName, layer.nextBucketAggregation.aliasName)
+		}
+		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation.aliasName, rows)
 
-		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, bucketName, bucketRows, subAggrRows)
+		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, layer.nextBucketAggregation.aliasName, bucketRows, subAggrRows)
 		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, layerIdx+1) // TODO: for date_histogram this layerIdx+1 layer seems correct, is it for all?
 
 		if layerIdx+1 < len(layers) { // Add subAggregation
