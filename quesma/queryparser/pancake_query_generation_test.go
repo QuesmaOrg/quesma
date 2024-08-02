@@ -41,13 +41,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 	for i, test := range allAggregationTestsWithoutPipeline() { // TODO fix pipeline
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
-			// --------
-			// TODO FIXME
-			// Fix date_histogram always having WHERE "aggr__0__1__order_1_rank"<=0
-			// It's wrong and should be an easy fix.
-			// It's e.g. test with i == 2
-			// --------
-
 			if test.ExpectedPancakeSQL == "" || test.ExpectedPancakeResults == nil { // TODO remove this
 				t.Skip("Not updated answers for pancake.")
 			}

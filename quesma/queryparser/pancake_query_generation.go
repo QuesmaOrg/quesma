@@ -194,8 +194,10 @@ func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggreg
 					}
 				}
 
-				whereRank := model.NewInfixExpr(p.newQuotedLiteral(aliasedRank.Alias), "<=", model.NewLiteral(bucketAggregation.limit))
-				whereRanks = append(whereRanks, whereRank)
+				if bucketAggregation.limit != pancakeBucketAggregationNoLimit {
+					whereRank := model.NewInfixExpr(p.newQuotedLiteral(aliasedRank.Alias), "<=", model.NewLiteral(bucketAggregation.limit))
+					whereRanks = append(whereRanks, whereRank)
+				}
 
 				rankOrderBy := model.NewOrderByExpr([]model.Expr{p.newQuotedLiteral(aliasedRank.Alias)}, model.AscOrder)
 				rankOrderBys = append(rankOrderBys, rankOrderBy)

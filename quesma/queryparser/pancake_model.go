@@ -21,7 +21,7 @@ type pancakeAggregationLevel struct {
 	// only for bucket aggregations
 	children                []*pancakeAggregationLevel
 	orderBy                 []model.OrderByExpr
-	limit                   int // 0 if none, only for bucket aggregation
+	limit                   int // pancakeBucketAggregationNoLimit if none, only for bucket aggregation
 	isKeyed                 bool
 	filterOutEmptyKeyBucket bool
 
@@ -45,7 +45,7 @@ type pancakeLayerBucketAggregation struct {
 
 	// only for bucket aggregations
 	orderBy []model.OrderByExpr
-	limit   int // 0 if none, only for bucket aggregation
+	limit   int // pancakeBucketAggregationNoLimit if none
 	isKeyed bool
 
 	metadata                model.JsonMap
@@ -81,6 +81,7 @@ type pancakeAggregation struct {
 }
 
 const PancakeTotalCountMetricName = "__quesma_total_count"
+const pancakeBucketAggregationNoLimit = 0
 
 // Not a real aggregation, but it is a pancake that has alternative JSON rendering
 type PancakeQueryType struct {
