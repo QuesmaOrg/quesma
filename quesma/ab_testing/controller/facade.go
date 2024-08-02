@@ -3,25 +3,67 @@
 package controller
 
 import (
-	"github.com/k0kubun/pp"
+	"context"
 	"quesma/ab_testing"
+	"quesma/logger"
+	"quesma/quesma/recovery"
 )
 
+type facadeControlMessage struct {
+	newDelegate ab_testing.ResultsRepository
+}
+
 type facade struct {
-	delegate ab_testing.ResultsRepository
+	ctx          context.Context
+	delegate     ab_testing.ResultsRepository
+	queue        chan ab_testing.Result
+	controlQueue chan facadeControlMessage
 }
 
-func NewFacade(repository ab_testing.ResultsRepository) ab_testing.ResultsRepository {
+func NewFacade(ctx context.Context) *facade {
+
 	return &facade{
-		delegate: repository,
+		ctx:          ctx,
+		delegate:     nil,
+		queue:        make(chan ab_testing.Result, 10),
+		controlQueue: make(chan facadeControlMessage, 10),
 	}
+
 }
 
-func (d *facade) Store(data ab_testing.Result) {
+func (f *facade) Start() {
 
-	pp.Println("XXXX Facade Store", data)
+	go func() {
+		recovery.LogPanic()
 
-	if d.delegate != nil {
-		d.delegate.Store(data)
-	}
+		for {
+			select {
+
+			case ctrl := <-f.controlQueue:
+
+				if f.delegate != ctrl.newDelegate {
+					logger.InfoWithCtx(f.ctx).Msgf("Facade: New repository: %s ", ctrl.newDelegate)
+					f.delegate = ctrl.newDelegate
+
+				}
+
+				f.delegate = ctrl.newDelegate
+
+			case result := <-f.queue:
+
+				if f.delegate != nil {
+					f.delegate.Store(result)
+				} else {
+					// no repository, just drop results
+				}
+
+			case <-f.ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+func (f *facade) Store(data ab_testing.Result) {
+	f.queue <- data
 }

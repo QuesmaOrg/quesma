@@ -14,15 +14,19 @@ import (
 type ABTestingController struct {
 	ctx        context.Context
 	cancelFunc context.CancelFunc
-	facade     *facade
 
-	repository *repository.ResultsRepositoryImpl
+	facade *facade
 }
 
 func NewABTestingController() *ABTestingController {
+
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &ABTestingController{
-		facade:     &facade{},
-		repository: repository.NewResultsRepository(),
+		facade:     NewFacade(ctx),
+		ctx:        ctx,
+		cancelFunc: cancel,
+
 		// add quesma health monitor service here
 	}
 }
@@ -31,35 +35,68 @@ func (c *ABTestingController) Client() ab_testing.ResultsRepository {
 	return c.facade
 }
 
+func (c *ABTestingController) newInMemoryRepository(healthQueue chan<- ab_testing.HealthMessage) *repository.ResultsRepositoryImpl {
+	repo := repository.NewResultsRepository(c.ctx, healthQueue)
+	repo.Start()
+	return repo
+}
+
 func (c *ABTestingController) loop() {
+
+	var repo *repository.ResultsRepositoryImpl
+	repoHealthQueue := make(chan ab_testing.HealthMessage)
+
+	updateFacade := func(r ab_testing.ResultsRepository) {
+		c.facade.controlQueue <- facadeControlMessage{
+			newDelegate: r,
+		}
+	}
 
 	for {
 		logger.InfoWithCtx(c.ctx).Msg("AB Testing Controller Loop")
-		// add logic here
-		// start/stop  the inMemoryRepository repository
 
-		// sets the delegate if the in memory is healthy
+		if repo == nil {
+			logger.InfoWithCtx(c.ctx).Msg("Creating InMemoryRepository")
+			repo = c.newInMemoryRepository(repoHealthQueue)
+		}
+		// TODO add logic here
 
-		// disable facade if quesma is healthy
+		// start/stop the inMemoryRepository repository
 
-		c.facade.delegate = c.repository
+		// suspend facade if quesma is not healthy
+		// supend facade if repository is not healthy
 
 		select {
 		case <-c.ctx.Done():
 			return
+
+		case h := <-repoHealthQueue:
+
+			logger.InfoWithCtx(c.ctx).Msgf("AB Testing Repository Health: %v", h.IsHealthy)
+
+			if !h.IsHealthy {
+				updateFacade(nil)
+
+				// we should give a chance to the repository to recover
+
+				logger.InfoWithCtx(c.ctx).Msg("Stopping  InMemoryRepository")
+				repo.Stop()
+				repo = nil
+			} else {
+				updateFacade(repo)
+			}
+
 		case <-time.After(10 * time.Second):
+			// check if repository is still alive
 		}
 	}
 }
 
 func (c *ABTestingController) Start() {
 
-	ctx, cancel := context.WithCancel(context.Background())
+	logger.InfoWithCtx(c.ctx).Msg("Starting AB Testing Controller")
 
-	logger.InfoWithCtx(ctx).Msg("Starting AB Testing Controller")
-
-	c.ctx = ctx
-	c.cancelFunc = cancel
+	c.facade.Start()
 
 	go func() {
 		recovery.LogAndHandlePanic(c.ctx, func(err error) {
@@ -68,7 +105,6 @@ func (c *ABTestingController) Start() {
 		c.loop()
 	}()
 
-	// c.inMemoryRepository.Start()
 }
 
 func (c *ABTestingController) Stop() {

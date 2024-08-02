@@ -21,8 +21,15 @@ type Result struct {
 	A       Response `json:"request_a"`
 	B       Response `json:"request_b"`
 	// add other fields if needed
+	// TODO add  other  fields
+	// quesma request id
+	// quesma async_id
 }
 
 type ResultsRepository interface {
 	Store(result Result)
+}
+
+type HealthMessage struct {
+	IsHealthy bool
 }
