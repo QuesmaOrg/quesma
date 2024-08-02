@@ -74,9 +74,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if histogramMinDocCount0(test.TestName) {
 				t.Skip("Fix histogram min doc count 0")
 			}
-			if meta(test.TestName) {
-				t.Skip("Fix meta")
-			}
 			if filter(test.TestName) {
 				t.Skip("Fix filter")
 			}
@@ -224,13 +221,6 @@ func multiplePancakes(testName string) bool {
 func histogramMinDocCount0(testName string) bool {
 	t1 := testName == "simple histogram, but min_doc_count: 0"
 	t2 := testName == "simple date_histogram, but min_doc_count: 0"
-	return t1 || t2
-}
-
-// TODO remove after fix
-func meta(testName string) bool {
-	t1 := testName == "meta field in aggregation"
-	t2 := testName == "0 result rows in terms+histogram + meta field"
 	return t1 || t2
 }
 
