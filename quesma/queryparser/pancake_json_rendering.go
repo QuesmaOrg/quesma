@@ -26,14 +26,14 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 	return
 }
 
-func (p *pancakeJSONRenderer) splitBucketRows(bucketName string, rows []model.QueryResultRow) (
+func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeLayerBucketAggregation, rows []model.QueryResultRow) (
 	buckets []model.QueryResultRow, subAggrs [][]model.QueryResultRow) {
 
 	if len(rows) == 0 {
 		return buckets, subAggrs
 	}
-	bucketKeyName := bucketName + "key"
-	bucketCountName := bucketName + "count"
+	bucketKeyName := bucket.AliasNameForKeyPrefix()
+	bucketCountName := bucket.AliasNameForCount()
 	indexName := rows[0].Index
 	for rowIdx, row := range rows {
 		isNewBucket := rowIdx == 0 // first row is always new bucket
@@ -74,11 +74,11 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucketName string, rows []model.Qu
 // We accomplish that by increasing limit by one during SQL query and then filtering out during JSON rendering.
 // So we either filter out empty or last one if there is none.
 // This can't be replaced by WHERE in generic case.
-func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeAggregationLayer, bucketName string, bucketRows []model.QueryResultRow, subAggrRows [][]model.QueryResultRow) ([]model.QueryResultRow, [][]model.QueryResultRow) {
+func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeAggregationLayer, bucketRows []model.QueryResultRow, subAggrRows [][]model.QueryResultRow) ([]model.QueryResultRow, [][]model.QueryResultRow) {
 	// We are filter out null
 	if layer.nextBucketAggregation.filterOurEmptyKeyBucket {
 		nullRowToDelete := -1
-		bucketKeyName := bucketName + "key"
+		bucketKeyName := layer.nextBucketAggregation.AliasNameForKeyPrefix()
 	ROW:
 		for i, row := range bucketRows {
 			for _, col := range row.Cols {
@@ -115,9 +115,9 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeAggrega
 	}
 
 	if layer.nextBucketAggregation != nil {
-		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation.aliasName, rows)
+		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation, rows)
 
-		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, layer.nextBucketAggregation.aliasName, bucketRows, subAggrRows)
+		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows)
 		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, layerIdx+1) // TODO: for date_histogram this layerIdx+1 layer seems correct, is it for all?
 
 		if layerIdx+1 < len(layers) { // Add subAggregation

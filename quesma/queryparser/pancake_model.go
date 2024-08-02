@@ -52,8 +52,12 @@ type pancakeLayerBucketAggregation struct {
 	filterOurEmptyKeyBucket bool
 }
 
+func (p pancakeLayerBucketAggregation) AliasNameForKeyPrefix() string {
+	return fmt.Sprintf("%skey", p.aliasName)
+}
+
 func (p pancakeLayerBucketAggregation) AliasNameForKey(id int) string {
-	return fmt.Sprintf("%skey_%d", p.aliasName, id)
+	return fmt.Sprintf("%s_%d", p.AliasNameForKeyPrefix(), id)
 }
 
 func (p pancakeLayerBucketAggregation) AliasNameForOrderBy(id int) string {
