@@ -9,7 +9,6 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
-	"quesma/model/metrics_aggregations"
 	"strconv"
 	"strings"
 )
@@ -323,7 +322,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		return success, err
 	}
 	if _, ok := queryMap["sampler"]; ok {
-		aggregation.queryType = metrics_aggregations.NewCount(cw.Ctx)
+		aggregation.queryType = bucket_aggregations.NewSampler(cw.Ctx)
 		delete(queryMap, "sampler")
 		return
 	}
@@ -331,7 +330,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 	// Random sampler doesn't have `size` field, but `probability`, so logic in the final version should be different.
 	// So far I've only observed its "probability" field to be 1.0, so it's not really important.
 	if _, ok := queryMap["random_sampler"]; ok {
-		aggregation.queryType = metrics_aggregations.NewCount(cw.Ctx)
+		aggregation.queryType = bucket_aggregations.NewSampler(cw.Ctx)
 		delete(queryMap, "random_sampler")
 		return
 	}
