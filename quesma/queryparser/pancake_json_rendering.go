@@ -117,11 +117,11 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeAggrega
 
 	if layer.nextBucketAggregation != nil {
 		if _, isSampler := layer.nextBucketAggregation.queryType.(bucket_aggregations.Sampler); isSampler {
-			subRendered, err := p.layerToJSON(layerIdx+1, layers, rows)
+			jsonWithOmittedSampler, err := p.layerToJSON(layerIdx+1, layers, rows)
 			if err != nil {
 				return nil, err
 			}
-			result[layer.nextBucketAggregation.name] = subRendered
+			result[layer.nextBucketAggregation.name] = jsonWithOmittedSampler
 			return result, nil
 		}
 
