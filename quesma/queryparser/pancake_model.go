@@ -28,7 +28,8 @@ type pancakeAggregationLevel struct {
 }
 
 type pancakeFillingMetricAggregation struct {
-	name            string
+	name            string          // as originally appeared in Query DSL
+	aliasName       string          // full name with path, e.g. metric__byCountry__byCity__population or aggr__byCountry
 	queryType       model.QueryType // it has to be metric aggregation
 	selectedColumns []model.Expr
 
@@ -36,7 +37,8 @@ type pancakeFillingMetricAggregation struct {
 }
 
 type pancakeLayerBucketAggregation struct {
-	name            string
+	name            string          // as originally appeared in Query DSL
+	aliasName       string          // full name with path, e.g. metric__byCountry__byCity__population or aggr__byCountry
 	queryType       model.QueryType // it has to be bucket aggregation
 	selectedColumns []model.Expr
 
