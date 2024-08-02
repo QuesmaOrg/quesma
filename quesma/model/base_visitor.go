@@ -137,11 +137,15 @@ func (v *BaseExprVisitor) VisitWindowFunction(f WindowFunction) interface{} {
 	if v.OverrideVisitWindowFunction != nil {
 		return v.OverrideVisitWindowFunction(v, f)
 	}
+	var orderBy []OrderByExpr
+	for _, expr := range f.OrderBy {
+		orderBy = append(orderBy, expr.Accept(v).(OrderByExpr))
+	}
 	return WindowFunction{
 		Name:        f.Name,
 		Args:        v.VisitChildren(f.Args),
 		PartitionBy: v.VisitChildren(f.PartitionBy),
-		OrderBy:     f.OrderBy.Accept(v).(OrderByExpr),
+		OrderBy:     orderBy,
 	}
 }
 

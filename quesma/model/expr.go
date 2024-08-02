@@ -211,10 +211,10 @@ type WindowFunction struct {
 	Name        string
 	Args        []Expr
 	PartitionBy []Expr
-	OrderBy     OrderByExpr
+	OrderBy     []OrderByExpr
 }
 
-func NewWindowFunction(name string, args, partitionBy []Expr, orderBy OrderByExpr) WindowFunction {
+func NewWindowFunction(name string, args, partitionBy []Expr, orderBy []OrderByExpr) WindowFunction {
 	return WindowFunction{Name: name, Args: args, PartitionBy: partitionBy, OrderBy: orderBy}
 }
 

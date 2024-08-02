@@ -398,29 +398,6 @@ var OpheliaTests = []testdata.AggregationTestCase{
 									"buckets": [
 										{
 											"1": {
-												"value": 51891.94613333333
-											},
-											"4": {
-												"buckets": [
-													{
-														"1": {
-															"value": 51891.94613333333
-														},
-														"5": {
-															"value": 37988.09523333333
-														},
-														"doc_count": 21,
-														"key": "c11"
-													}
-												],
-												"doc_count_error_upper_bound": 0,
-												"sum_other_doc_count": 0
-											},
-											"doc_count": 21,
-											"key": "b11"
-										},
-										{
-											"1": {
 												"value": 45774.291766666654
 											},
 											"4": {
@@ -441,6 +418,29 @@ var OpheliaTests = []testdata.AggregationTestCase{
 											},
 											"doc_count": 24,
 											"key": "b12"
+										},
+										{
+											"1": {
+												"value": 51891.94613333333
+											},
+											"4": {
+												"buckets": [
+													{
+														"1": {
+															"value": 51891.94613333333
+														},
+														"5": {
+															"value": 37988.09523333333
+														},
+														"doc_count": 21,
+														"key": "c11"
+													}
+												],
+												"doc_count_error_upper_bound": 0,
+												"sum_other_doc_count": 0
+											},
+											"doc_count": 21,
+											"key": "b11"
 										}
 									],
 									"doc_count_error_upper_bound": -1,
@@ -540,13 +540,13 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol(`sumOrNull("total")`, 51891.94613333333),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol(`sumOrNull("total")`, 45774.291766666654),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol(`sumOrNull("total")`, 45774.291766666654),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol(`sumOrNull("total")`, 51891.94613333333),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -562,15 +562,15 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("organName", "c11"),
-					model.NewQueryResultCol(`sumOrNull("total")`, 51891.94613333333),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b12"),
 					model.NewQueryResultCol("organName", "c12"),
 					model.NewQueryResultCol(`sumOrNull("total")`, 45774.291766666654),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("organName", "c11"),
+					model.NewQueryResultCol(`sumOrNull("total")`, 51891.94613333333),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -588,15 +588,15 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("organName", "c11"),
-					model.NewQueryResultCol(`sumOrNull("some")`, 37988.09523333333),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b12"),
 					model.NewQueryResultCol("organName", "c12"),
 					model.NewQueryResultCol(`sumOrNull("some")`, 36577.89516666666),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("organName", "c11"),
+					model.NewQueryResultCol(`sumOrNull("some")`, 37988.09523333333),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -614,15 +614,15 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("organName", "c11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b12"),
 					model.NewQueryResultCol("organName", "c12"),
 					model.NewQueryResultCol("count()", 24),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("organName", "c11"),
+					model.NewQueryResultCol("count()", 21),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -640,13 +640,13 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("count()", 21),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("count()", 24),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 24),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("count()", 21),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -1528,23 +1528,6 @@ var OpheliaTests = []testdata.AggregationTestCase{
 									"buckets": [
 										{
 											"1": {
-												"value": 51891.94613333333
-											},
-											"4": {
-												"buckets": [
-													{
-														"doc_count": 21,
-														"key": "c11"
-													}
-												],
-												"doc_count_error_upper_bound": 0,
-												"sum_other_doc_count": 0
-											},
-											"doc_count": 21,
-											"key": "b11"
-										},
-										{
-											"1": {
 												"value": 45774.291766666654
 											},
 											"4": {
@@ -1559,6 +1542,23 @@ var OpheliaTests = []testdata.AggregationTestCase{
 											},
 											"doc_count": 24,
 											"key": "b12"
+										},
+										{
+											"1": {
+												"value": 51891.94613333333
+											},
+											"4": {
+												"buckets": [
+													{
+														"doc_count": 21,
+														"key": "c11"
+													}
+												],
+												"doc_count_error_upper_bound": 0,
+												"sum_other_doc_count": 0
+											},
+											"doc_count": 21,
+											"key": "b11"
 										}
 									],
 									"doc_count_error_upper_bound": -1,
@@ -1575,23 +1575,6 @@ var OpheliaTests = []testdata.AggregationTestCase{
 									"buckets": [
 										{
 											"1": {
-												"value": 399126.7496833334
-											},
-											"4": {
-												"buckets": [
-													{
-														"doc_count": 17,
-														"key": "c21"
-													}
-												],
-												"doc_count_error_upper_bound": 0,
-												"sum_other_doc_count": 0
-											},
-											"doc_count": 17,
-											"key": "b21"
-										},
-										{
-											"1": {
 												"value": 231143.3279666666
 											},
 											"4": {
@@ -1606,6 +1589,23 @@ var OpheliaTests = []testdata.AggregationTestCase{
 											},
 											"doc_count": 17,
 											"key": "b22"
+										},
+										{
+											"1": {
+												"value": 399126.7496833334
+											},
+											"4": {
+												"buckets": [
+													{
+														"doc_count": 17,
+														"key": "c21"
+													}
+												],
+												"doc_count_error_upper_bound": 0,
+												"sum_other_doc_count": 0
+											},
+											"doc_count": 17,
+											"key": "b21"
 										}
 									],
 									"doc_count_error_upper_bound": 0,
@@ -1646,32 +1646,26 @@ var OpheliaTests = []testdata.AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("count()", 51891.94613333333),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b12"),
 					model.NewQueryResultCol("count()", 45774.291766666654),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("count()", 399126.7496833334),
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("count()", 51891.94613333333),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
 					model.NewQueryResultCol("limbName", "b22"),
 					model.NewQueryResultCol("count()", 231143.3279666666),
 				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
+					model.NewQueryResultCol("count()", 399126.7496833334),
+				}},
 			},
 			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("organName", "c11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b12"),
@@ -1679,10 +1673,10 @@ var OpheliaTests = []testdata.AggregationTestCase{
 					model.NewQueryResultCol("count()", 24),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("organName", "c21"),
-					model.NewQueryResultCol("count()", 17),
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("organName", "c11"),
+					model.NewQueryResultCol("count()", 21),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -1690,26 +1684,32 @@ var OpheliaTests = []testdata.AggregationTestCase{
 					model.NewQueryResultCol("organName", "c22"),
 					model.NewQueryResultCol("count()", 17),
 				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
+					model.NewQueryResultCol("organName", "c21"),
+					model.NewQueryResultCol("count()", 17),
+				}},
 			},
 			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b12"),
 					model.NewQueryResultCol("count()", 24),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("count()", 17),
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("count()", 21),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
 					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
 					model.NewQueryResultCol("count()", 17),
 				}},
 			},
@@ -1911,18 +1911,18 @@ var OpheliaTests = []testdata.AggregationTestCase{
 									"buckets": [
 										{
 											"1": {
-												"value": 51891.94613333333
+												"value": 231143.3279666666
 											},
 											"4": {
 												"buckets": [
 													{
-														"doc_count": 21,
-														"key": "c11",
+														"doc_count": 17,
+														"key": "c22",
 														"5": {
 															"buckets": [
 																{
-																	"doc_count": 21,
-																	"key": "c11"
+																	"doc_count": 17,
+																	"key": "d22"
 																}
 															]
 														}
@@ -1931,44 +1931,9 @@ var OpheliaTests = []testdata.AggregationTestCase{
 												"doc_count_error_upper_bound": 0,
 												"sum_other_doc_count": 0
 											},
-											"doc_count": 21,
-											"key": "b11"
+											"doc_count": 17,
+											"key": "b22"
 										},
-										{
-											"1": {
-												"value": 45774.291766666654
-											},
-											"4": {
-												"buckets": [
-													{
-														"doc_count": 24,
-														"key": "c12",
-														"5": {
-															"buckets": [
-																{
-																	"doc_count": 24,
-																	"key": "c12"
-																}
-															]
-														}
-													}
-												],
-												"doc_count_error_upper_bound": 0,
-												"sum_other_doc_count": 0
-											},
-											"doc_count": 24,
-											"key": "b12"
-										}
-									],
-									"doc_count_error_upper_bound": -1,
-									"sum_other_doc_count": 504
-								},
-								"doc_count": 1036,
-								"key": "a1"
-							},
-							{
-								"8": {
-									"buckets": [
 										{
 											"1": {
 												"value": 399126.7496833334
@@ -1982,7 +1947,7 @@ var OpheliaTests = []testdata.AggregationTestCase{
 															"buckets": [
 																{
 																	"doc_count": 17,
-																	"key": "c21"
+																	"key": "d21"
 																}
 															]
 														}
@@ -1993,21 +1958,31 @@ var OpheliaTests = []testdata.AggregationTestCase{
 											},
 											"doc_count": 17,
 											"key": "b21"
-										},
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 0
+								},
+								"doc_count": 34,
+								"key": "a2"
+							},
+							{
+								"8": {
+									"buckets": [
 										{
 											"1": {
-												"value": 231143.3279666666
+												"value": 45774.291766666654
 											},
 											"4": {
 												"buckets": [
 													{
-														"doc_count": 17,
-														"key": "c22",
+														"doc_count": 24,
+														"key": "c12",
 														"5": {
 															"buckets": [
 																{
-																	"doc_count": 17,
-																	"key": "c22"
+																	"doc_count": 24,
+																	"key": "d12"
 																}
 															]
 														}
@@ -2016,15 +1991,40 @@ var OpheliaTests = []testdata.AggregationTestCase{
 												"doc_count_error_upper_bound": 0,
 												"sum_other_doc_count": 0
 											},
-											"doc_count": 17,
-											"key": "b22"
+											"doc_count": 24,
+											"key": "b12"
+										},
+										{
+											"1": {
+												"value": 51891.94613333333
+											},
+											"4": {
+												"buckets": [
+													{
+														"doc_count": 21,
+														"key": "c11",
+														"5": {
+															"buckets": [
+																{
+																	"doc_count": 21,
+																	"key": "d11"
+																}
+															]
+														}
+													}
+												],
+												"doc_count_error_upper_bound": 0,
+												"sum_other_doc_count": 0
+											},
+											"doc_count": 21,
+											"key": "b11"
 										}
 									],
-									"doc_count_error_upper_bound": 0,
-									"sum_other_doc_count": 0
+									"doc_count_error_upper_bound": -1,
+									"sum_other_doc_count": 504
 								},
-								"doc_count": 34,
-								"key": "a2"
+								"doc_count": 1036,
+								"key": "a1"
 							}
 						],
 						"doc_count_error_upper_bound": -1,
@@ -2047,14 +2047,9 @@ var OpheliaTests = []testdata.AggregationTestCase{
 		ExpectedResults: [][]model.QueryResultRow{
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("count()", 51891.94613333333),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("count()", 45774.291766666654),
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("count()", 231143.3279666666),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -2062,77 +2057,77 @@ var OpheliaTests = []testdata.AggregationTestCase{
 					model.NewQueryResultCol("count()", 399126.7496833334),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
-					model.NewQueryResultCol("count()", 231143.3279666666),
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("count()", 45774.291766666654),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("count()", 51891.94613333333),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("organName", "c11"),
-					model.NewQueryResultCol("organName", "c11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("organName", "c12"),
-					model.NewQueryResultCol("organName", "c12"),
-					model.NewQueryResultCol("count()", 24),
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("organName", "c22"),
+					model.NewQueryResultCol("organName", "d22"),
+					model.NewQueryResultCol("count()", 17),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
 					model.NewQueryResultCol("limbName", "b21"),
 					model.NewQueryResultCol("organName", "c21"),
-					model.NewQueryResultCol("organName", "c21"),
+					model.NewQueryResultCol("organName", "d21"),
 					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
-					model.NewQueryResultCol("organName", "c22"),
-					model.NewQueryResultCol("organName", "c22"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("organName", "c11"),
-					model.NewQueryResultCol("count()", 21),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b12"),
 					model.NewQueryResultCol("organName", "c12"),
+					model.NewQueryResultCol("organName", "d12"),
 					model.NewQueryResultCol("count()", 24),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("organName", "c21"),
-					model.NewQueryResultCol("count()", 17),
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("organName", "c11"),
+					model.NewQueryResultCol("organName", "d11"),
+					model.NewQueryResultCol("count()", 21),
 				}},
+			},
+			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
 					model.NewQueryResultCol("limbName", "b22"),
 					model.NewQueryResultCol("organName", "c22"),
 					model.NewQueryResultCol("count()", 17),
 				}},
-			},
-			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("count()", 21),
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
+					model.NewQueryResultCol("organName", "c21"),
+					model.NewQueryResultCol("count()", 17),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("organName", "c12"),
 					model.NewQueryResultCol("count()", 24),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("organName", "c11"),
+					model.NewQueryResultCol("count()", 21),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("count()", 17),
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
@@ -2140,19 +2135,24 @@ var OpheliaTests = []testdata.AggregationTestCase{
 					model.NewQueryResultCol("count()", 17),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
-					model.NewQueryResultCol("count()", 17),
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("count()", 24),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("count()", 21),
 				}},
 			},
 			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("count()", 1036),
-				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
 					model.NewQueryResultCol("count()", 34),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("count()", 1036),
 				}},
 			},
 		},
@@ -2763,8 +2763,8 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				`LIMIT 200`,
 		},
 	},
-	{ // [3]
-		TestName: "Ophelia Test 3: 5x terms + a lot of other aggregations",
+	{ // [6]
+		TestName: "Ophelia Test 7: 5x terms + a lot of other aggregations",
 		QueryRequestJson: `
 		{
 			"aggs": {

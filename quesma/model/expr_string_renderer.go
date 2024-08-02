@@ -296,9 +296,13 @@ func (v *renderer) VisitWindowFunction(f WindowFunction) interface{} {
 	stmtWithoutOrderBy := fmt.Sprintf("%s(%s) OVER (PARTITION BY %s", f.Name, strings.Join(args, ", "), strings.Join(partitionBy, ", "))
 	sb.WriteString(stmtWithoutOrderBy)
 
-	if len(f.OrderBy.Exprs) != 0 {
+	if len(f.OrderBy) > 0 && len(f.OrderBy[0].Exprs) > 0 {
 		sb.WriteString(" ORDER BY ")
-		sb.WriteString(AsString(f.OrderBy))
+		var orderByStr []string
+		for _, orderBy := range f.OrderBy {
+			orderByStr = append(orderByStr, AsString(orderBy))
+		}
+		sb.WriteString(strings.Join(orderByStr, ", "))
 	}
 	sb.WriteString(")")
 	return sb.String()
