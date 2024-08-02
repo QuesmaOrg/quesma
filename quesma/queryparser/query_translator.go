@@ -166,14 +166,12 @@ func (cw *ClickhouseQueryTranslator) addMetadataIfNeeded(query *model.Query, res
 	return false
 }
 
-func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) (model.JsonMap, *model.Total) {
+func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*model.Query, ResultSets [][]model.QueryResultRow) (model.JsonMap, error) {
 	aggregations := model.JsonMap{}
 	if len(queries) == 0 {
 		return aggregations, nil
 	}
 	cw.postprocessPipelineAggregations(queries, ResultSets)
-
-	var totalCount *model.Total
 
 	for i, query := range queries {
 		if i >= len(ResultSets) || query_util.IsNonAggregationQuery(query) {
@@ -183,7 +181,11 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 
 		if pancake, isPancake := query.Type.(PancakeQueryType); isPancake {
 
-			aggregation = pancake.TranslateSqlResponseToJson(ResultSets[i], 0)
+			var err error
+			aggregation, err = pancake.RenderAggregationJson(ResultSets[i])
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			aggregation = cw.makeResponseAggregationRecursive(query, ResultSets[i], 0, 0)
 		}
@@ -191,7 +193,7 @@ func (cw *ClickhouseQueryTranslator) MakeAggregationPartOfResponse(queries []*mo
 			aggregations = util.MergeMaps(cw.Ctx, aggregations, aggregation, model.KeyAddedByQuesma)
 		}
 	}
-	return aggregations, totalCount
+	return aggregations, nil
 }
 
 func (cw *ClickhouseQueryTranslator) makeHits(queries []*model.Query, results [][]model.QueryResultRow) (queriesWithoutHits []*model.Query, resultsWithoutHits [][]model.QueryResultRow, hit *model.SearchHits) {
@@ -301,7 +303,7 @@ func (cw *ClickhouseQueryTranslator) makeTotalCount(queries []*model.Query, resu
 
 	for queryIdx, query := range queries {
 		if pancake, isPancake := query.Type.(PancakeQueryType); isPancake {
-			totalCountAgg := pancake.ReturnCount()
+			totalCountAgg := pancake.ReturnTotalCount()
 			if totalCountAgg != nil {
 				if len(results[queryIdx]) == 0 {
 					continue
@@ -382,15 +384,11 @@ func (cw *ClickhouseQueryTranslator) MakeSearchResponse(queries []*model.Query, 
 	queries, ResultSets, total = cw.makeTotalCount(queries, ResultSets) // get hits and remove it from queries
 	queries, ResultSets, hits = cw.makeHits(queries, ResultSets)        // get hits and remove it from queries
 
-	aggregations, totalCount := cw.MakeAggregationPartOfResponse(queries, ResultSets)
-
-	// pancakes can count total in a different way, so we must decide which one to use
-	if total == nil && totalCount != nil {
-		total = totalCount
-	}
+	aggregations, err := cw.MakeAggregationPartOfResponse(queries, ResultSets)
 
 	response := &model.SearchResp{
 		Aggregations: aggregations,
+		Timeout:      err != nil, // if there was an error, we should return that results are partial
 		Shards: model.ResponseShards{
 			Total:      1,
 			Successful: 1,

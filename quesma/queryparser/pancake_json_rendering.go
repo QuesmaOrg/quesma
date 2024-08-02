@@ -13,148 +13,118 @@ import (
 type pancakeJSONRenderer struct {
 }
 
-func (p *pancakeJSONRenderer) selectMetricRows(name string, rows []model.QueryResultRow) []model.QueryResultRow {
-	result := []model.QueryResultRow{}
-	for i, row := range rows {
-		newRow := model.QueryResultRow{Index: row.Index}
-		for _, col := range row.Cols {
-			if strings.HasPrefix(col.ColName, name) {
+func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.QueryResultRow) (result []model.QueryResultRow) {
+	if len(rows) > 0 {
+		newRow := model.QueryResultRow{Index: rows[0].Index}
+		for _, col := range rows[0].Cols {
+			if strings.HasPrefix(col.ColName, metricName) {
 				newRow.Cols = append(newRow.Cols, col)
 			}
 		}
-		result = append(result, newRow)
-		if i == 0 {
-			break // just one row please. FIXME Style. If here is only to fix staticcheck...
-		}
+		return []model.QueryResultRow{newRow}
 	}
-	return result
+	return
 }
 
-func (p *pancakeJSONRenderer) splitBucketRows(name string, rows []model.QueryResultRow) ([]model.QueryResultRow, [][]model.QueryResultRow) {
+func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeLayerBucketAggregation, rows []model.QueryResultRow) (
+	buckets []model.QueryResultRow, subAggrs [][]model.QueryResultRow) {
 
-	buckets := []model.QueryResultRow{}
-	subAggrs := [][]model.QueryResultRow{}
 	if len(rows) == 0 {
 		return buckets, subAggrs
 	}
+	bucketKeyName := bucket.InternalNameForKeyPrefix()
+	bucketCountName := bucket.InternalNameForCount()
 	indexName := rows[0].Index
-	buckets = append(buckets, model.QueryResultRow{Index: indexName})
-	subAggrs = append(subAggrs, []model.QueryResultRow{{Index: indexName}})
-	for _, cols := range rows[0].Cols {
-
-		if strings.HasPrefix(cols.ColName, name+"key") || strings.HasPrefix(cols.ColName, name+"count") {
-			buckets[0].Cols = append(buckets[0].Cols, cols)
-		} else {
-			subAggrs[0][0].Cols = append(subAggrs[0][0].Cols, cols)
-		}
-	}
-	// restRow
-	for _, row := range rows[1:] {
-		isNewBucket := false
-		previousBucket := buckets[len(buckets)-1]
-		for _, cols := range row.Cols {
-			if strings.HasPrefix(cols.ColName, name+"key") {
-				noSameKeyValue := true
-				for _, previousCols := range previousBucket.Cols {
-					if cols.ColName == previousCols.ColName {
-						if cols.Value == previousCols.Value {
-							noSameKeyValue = false
+	for rowIdx, row := range rows {
+		isNewBucket := rowIdx == 0 // first row is always new bucket
+		if !isNewBucket {          // for subsequent rows, create new bucket if any key is different
+			previousBucket := buckets[len(buckets)-1]
+			for _, cols := range row.Cols {
+				if strings.HasPrefix(cols.ColName, bucketKeyName) {
+					for _, previousCols := range previousBucket.Cols {
+						if cols.ColName == previousCols.ColName {
+							if cols.Value != previousCols.Value {
+								isNewBucket = true
+							}
+							break
 						}
-						break
 					}
 				}
-				if noSameKeyValue {
-					isNewBucket = true
-					break
-				}
 			}
 		}
 
-		// check if it's a new bucket
 		if isNewBucket {
 			buckets = append(buckets, model.QueryResultRow{Index: indexName})
-			subAggrs = append(subAggrs, []model.QueryResultRow{model.QueryResultRow{Index: indexName}})
+			subAggrs = append(subAggrs, []model.QueryResultRow{})
 			lastIdx := len(buckets) - 1
 			for _, cols := range row.Cols {
-				if strings.HasPrefix(cols.ColName, name+"key") || strings.HasPrefix(cols.ColName, name+"count") {
+				if strings.HasPrefix(cols.ColName, bucketKeyName) || strings.HasPrefix(cols.ColName, bucketCountName) {
 					buckets[lastIdx].Cols = append(buckets[lastIdx].Cols, cols)
-				} else {
-					subAggrs[lastIdx][0].Cols = append(subAggrs[lastIdx][0].Cols, cols)
-				}
-			}
-		} else {
-			lastIdx := len(buckets) - 1
-			subAggrs[lastIdx] = append(subAggrs[lastIdx], model.QueryResultRow{Index: indexName})
-			for _, cols := range row.Cols {
-				if !(strings.HasPrefix(cols.ColName, name+"key") || strings.HasPrefix(cols.ColName, name+"count")) {
-					lastSubIdx := len(subAggrs[lastIdx]) - 1
-					subAggrs[lastIdx][lastSubIdx].Cols = append(subAggrs[lastIdx][lastSubIdx].Cols, cols)
 				}
 			}
 		}
+		lastIdx := len(buckets) - 1
+		subAggrs[lastIdx] = append(subAggrs[lastIdx], row)
 	}
 
 	return buckets, subAggrs
 }
 
-func (p *pancakeJSONRenderer) layerToJSON(layerId int, layers []*pancakeAggregationLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
+// In some queries we want to filter out null values or empty
+// We accomplish that by increasing limit by one during SQL query and then filtering out during JSON rendering.
+// So we either filter out empty or last one if there is none.
+// This can't be replaced by WHERE in generic case.
+func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeAggregationLayer, bucketRows []model.QueryResultRow, subAggrRows [][]model.QueryResultRow) ([]model.QueryResultRow, [][]model.QueryResultRow) {
+	// We are filter out null
+	if layer.nextBucketAggregation.filterOurEmptyKeyBucket {
+		nullRowToDelete := -1
+		bucketKeyName := layer.nextBucketAggregation.InternalNameForKeyPrefix()
+	ROW:
+		for i, row := range bucketRows {
+			for _, col := range row.Cols {
+				if strings.HasPrefix(col.ColName, bucketKeyName) {
+					if col.Value == nil || col.Value == "" { // TODO: replace with schema
+						nullRowToDelete = i
+						break ROW
+					}
+				}
+			}
+		}
+
+		if nullRowToDelete != -1 {
+			bucketRows = append(bucketRows[:nullRowToDelete], bucketRows[nullRowToDelete+1:]...)
+			subAggrRows = append(subAggrRows[:nullRowToDelete], subAggrRows[nullRowToDelete+1:]...)
+		} else if layer.nextBucketAggregation.limit != 0 && len(bucketRows) > layer.nextBucketAggregation.limit {
+			bucketRows = bucketRows[:layer.nextBucketAggregation.limit]
+			subAggrRows = subAggrRows[:layer.nextBucketAggregation.limit]
+		}
+	}
+	return bucketRows, subAggrRows
+}
+
+func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeAggregationLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
 
 	result := model.JsonMap{}
-	if layerId >= len(layers) {
+	if layerIdx >= len(layers) {
 		return result, nil
 	}
-	layer := layers[layerId]
+	layer := layers[layerIdx]
 	for _, metric := range layer.currentMetricAggregations {
-		metricName := "metric__"
-		for i := 0; i < layerId; i++ {
-			metricName = fmt.Sprintf("%s%s__", metricName, layers[i].nextBucketAggregation.name)
-		}
-		metricName = fmt.Sprintf("%s%s_col_", metricName, metric.name)
-		metricRows := p.selectMetricRows(metricName, rows)
+		metricRows := p.selectMetricRows(metric.internalName+"_col_", rows)
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
 	}
 
 	if layer.nextBucketAggregation != nil {
-		bucketName := "aggr__"
-		for i := 0; i <= layerId; i++ {
-			bucketName = fmt.Sprintf("%s%s__", bucketName, layers[i].nextBucketAggregation.name)
-		}
-		bucketRows, subAggrRows := p.splitBucketRows(bucketName, rows)
+		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation, rows)
 
-		// We are filter out null
-		if layer.nextBucketAggregation.whereClause != nil {
-			// TODO: nicer way of passing not null
-			if _, ok := layer.nextBucketAggregation.whereClause.(model.InfixExpr); ok {
-				nullRowToDelete := -1
-				nameofKey := bucketName + "key"
-			ROW:
-				for i, row := range bucketRows {
-					for _, col := range row.Cols {
-						if strings.HasPrefix(col.ColName, nameofKey) {
-							if col.Value == nil || col.Value == "" {
-								nullRowToDelete = i
-								break ROW
-							}
-						}
-					}
-				}
-
-				if nullRowToDelete != -1 {
-					bucketRows = append(bucketRows[:nullRowToDelete], bucketRows[nullRowToDelete+1:]...)
-					subAggrRows = append(subAggrRows[:nullRowToDelete], subAggrRows[nullRowToDelete+1:]...)
-				} else if layer.nextBucketAggregation.limit != 0 && len(bucketRows) > layer.nextBucketAggregation.limit {
-					bucketRows = bucketRows[:layer.nextBucketAggregation.limit]
-					subAggrRows = subAggrRows[:layer.nextBucketAggregation.limit]
-				}
-			}
-		}
-		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, layerId+1) // TODO: for date_histogram this layerId+1 layer seems correct, is it for all?
+		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows)
+		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, layerIdx+1) // TODO: for date_histogram this layerIdx+1 layer seems correct, is it for all?
 
 		if len(buckets) == 0 { // without this we'd generate {"buckets": []} in the response, which Elastic doesn't do.
 			return result, nil
 		}
 
-		if layerId+1 < len(layers) { // Add subAggregation
+		if layerIdx+1 < len(layers) { // Add subAggregation
 			if bucketArrRaw, ok := buckets["buckets"]; ok {
 				bucketArr := bucketArrRaw.([]model.JsonMap)
 				if len(bucketArr) != len(subAggrRows) {
@@ -163,7 +133,8 @@ func (p *pancakeJSONRenderer) layerToJSON(layerId int, layers []*pancakeAggregat
 				}
 
 				for i, bucket := range bucketArr {
-					subAggr, err := p.layerToJSON(layerId+1, layers, subAggrRows[i])
+					// TODO: Maybe add model.KeyAddedByQuesma if there are more than one pancake
+					subAggr, err := p.layerToJSON(layerIdx+1, layers, subAggrRows[i])
 					if err != nil {
 						return nil, err
 					}

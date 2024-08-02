@@ -78,16 +78,14 @@ func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggreg
 	whereRanks := make([]model.Expr, 0)
 	rankOrderBys := make([]model.OrderByExpr, 0)
 	groupByColumns := make([]model.AliasedExpr, 0)
-	namePrefix := ""
 	for layerId, layer := range aggregation.layers {
-		for _, metrics := range layer.currentMetricAggregations {
-			for columnId, column := range metrics.selectedColumns {
-				aliasedName := fmt.Sprintf("metric__%s%s_col_%d", namePrefix, metrics.name, columnId)
+		for _, metric := range layer.currentMetricAggregations {
+			for columnId, column := range metric.selectedColumns {
+				aliasedName := fmt.Sprintf("%s_col_%d", metric.internalName, columnId)
 
-				// TODO: check for collisions
 				if layerId < len(aggregation.layers)-1 {
 					partColumnName := aliasedName + "_part"
-					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(column, metrics.queryType)
+					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(column, metric.queryType)
 					if err != nil {
 						return nil, false, err
 					}
@@ -110,28 +108,24 @@ func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggreg
 		if layer.nextBucketAggregation != nil {
 			bucketAggregation := layer.nextBucketAggregation
 			// take care of bucket aggregation at level - 1
-			namePrefix = fmt.Sprintf("%s%s__", namePrefix, bucketAggregation.name)
 
 			addedGroupByAliases := []model.Expr{}
 			previousGroupByColumns := groupByColumns
 
 			// TODO: ...
 			for columnId, column := range bucketAggregation.selectedColumns {
-				aliasedName := fmt.Sprintf("aggr__%skey_%d", namePrefix, columnId)
-				// TODO: check for collisions
-				aliasedColumn := model.AliasedExpr{Expr: column, Alias: aliasedName}
+				aliasedColumn := model.AliasedExpr{Expr: column, Alias: bucketAggregation.InternalNameForKey(columnId)}
 				selectedColumns = append(selectedColumns, aliasedColumn)
 				groupByColumns = append(groupByColumns, aliasedColumn)
-				addedGroupByAliases = append(addedGroupByAliases, p.newQuotedLiteral(aliasedName))
+				addedGroupByAliases = append(addedGroupByAliases, p.newQuotedLiteral(aliasedColumn.Alias))
 			}
 
 			hasMoreBucketAggregations := layerId < len(aggregation.layers)-1 && aggregation.layers[layerId+1].nextBucketAggregation != nil
 
 			// build count for aggr
 			// TODO: Maybe optimize
-			countAliasName := fmt.Sprintf("aggr__%scount", namePrefix)
 			if hasMoreBucketAggregations {
-				partCountAliasName := countAliasName + "_part"
+				partCountAliasName := bucketAggregation.InternalNameForCount() + "_part"
 				partCountColumn := model.NewFunction("count", model.NewLiteral("*"))
 				partCountAliasedColumn := model.AliasedExpr{Expr: partCountColumn, Alias: partCountAliasName}
 				selectedPartColumns = append(selectedPartColumns, partCountAliasedColumn)
@@ -141,11 +135,11 @@ func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggreg
 					PartitionBy: p.generatePartitionBy(groupByColumns), /// TODO
 					OrderBy:     []model.OrderByExpr{},
 				}
-				countAliasedColumn := model.AliasedExpr{Expr: countColumn, Alias: countAliasName}
+				countAliasedColumn := model.AliasedExpr{Expr: countColumn, Alias: bucketAggregation.InternalNameForCount()}
 				selectedColumns = append(selectedColumns, countAliasedColumn)
 			} else {
 				countColumn := model.NewFunction("count", model.NewLiteral("*"))
-				countAliasedColumn := model.AliasedExpr{Expr: countColumn, Alias: countAliasName}
+				countAliasedColumn := model.AliasedExpr{Expr: countColumn, Alias: bucketAggregation.InternalNameForCount()}
 				selectedColumns = append(selectedColumns, countAliasedColumn)
 			}
 
@@ -154,13 +148,11 @@ func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggreg
 				// TODO: handle all columns
 				orderBy := bucketAggregation.orderBy[0].Exprs[0]
 				orderByDirection := bucketAggregation.orderBy[0].Direction
-				aliasedName := fmt.Sprintf("aggr__%sorder_%d", namePrefix, columnId)
-				columnId += 1
 
 				_, isColumnRef := orderBy.(model.ColumnRef)
 
 				if hasMoreBucketAggregations && !isColumnRef {
-					partColumnName := aliasedName + "_part"
+					partColumnName := bucketAggregation.InternalNameForOrderBy(columnId) + "_part"
 					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderBy, nil)
 					if err != nil {
 						return nil, false, err
@@ -173,15 +165,15 @@ func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggreg
 						PartitionBy: p.generatePartitionBy(groupByColumns),
 						OrderBy:     []model.OrderByExpr{},
 					}
-					aliasedOrderByAgg := model.AliasedExpr{Expr: orderByAgg, Alias: aliasedName}
+					aliasedOrderByAgg := model.AliasedExpr{Expr: orderByAgg, Alias: bucketAggregation.InternalNameForOrderBy(columnId)}
 					selectedColumns = append(selectedColumns, aliasedOrderByAgg)
 				} else {
-					aliasedColumn := model.AliasedExpr{Expr: orderBy, Alias: aliasedName}
+					aliasedColumn := model.AliasedExpr{Expr: orderBy, Alias: bucketAggregation.InternalNameForOrderBy(columnId)}
 					selectedColumns = append(selectedColumns, aliasedColumn)
 				}
 
 				// We order by count, but add key to get right dense_rank()
-				rankColumOrderBy := []model.OrderByExpr{model.NewOrderByExpr([]model.Expr{p.newQuotedLiteral(aliasedName)}, orderByDirection)}
+				rankColumOrderBy := []model.OrderByExpr{model.NewOrderByExpr([]model.Expr{p.newQuotedLiteral(bucketAggregation.InternalNameForOrderBy(columnId))}, orderByDirection)}
 				for _, addedGroupByAlias := range addedGroupByAliases {
 					rankColumOrderBy = append(rankColumOrderBy, model.NewOrderByExpr([]model.Expr{addedGroupByAlias}, model.AscOrder))
 				}
@@ -191,19 +183,17 @@ func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggreg
 					PartitionBy: p.generatePartitionBy(previousGroupByColumns),
 					OrderBy:     rankColumOrderBy,
 				}
-				aliasedRank := model.AliasedExpr{Expr: rankColum, Alias: aliasedName + "_rank"}
+				aliasedRank := model.AliasedExpr{Expr: rankColum, Alias: bucketAggregation.InternalNameForOrderBy(columnId) + "_rank"}
 				selectedRankColumns = append(selectedRankColumns, aliasedRank)
 
 				// if where not null, increase limit by 1
 				limit := bucketAggregation.limit
-				if bucketAggregation.whereClause != nil {
-					// TODO: nicer way of passing not null
-					if _, ok := bucketAggregation.whereClause.(model.InfixExpr); ok {
-						if limit != 0 {
-							limit += 1
-						}
+				if bucketAggregation.filterOurEmptyKeyBucket {
+					if limit != 0 {
+						limit += 1
 					}
 				}
+
 				whereRank := model.NewInfixExpr(p.newQuotedLiteral(aliasedRank.Alias), "<=", model.NewLiteral(bucketAggregation.limit))
 				whereRanks = append(whereRanks, whereRank)
 
@@ -220,12 +210,9 @@ func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggreg
 		if aggregation.layers[0].nextBucketAggregation != nil {
 			limit = aggregation.layers[0].nextBucketAggregation.limit
 			// if where not null, increase limit by 1
-			if aggregation.layers[0].nextBucketAggregation.whereClause != nil {
-				// TODO: nicer way of passing not null
-				if _, ok := aggregation.layers[0].nextBucketAggregation.whereClause.(model.InfixExpr); ok {
-					if limit != 0 {
-						limit += 1
-					}
+			if aggregation.layers[0].nextBucketAggregation.filterOurEmptyKeyBucket {
+				if limit != 0 {
+					limit += 1
 				}
 			}
 

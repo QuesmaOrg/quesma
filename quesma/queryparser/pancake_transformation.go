@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"quesma/model"
 	"sort"
+	"strings"
 )
 
 type aggregationTree2Pancake struct {
 }
 
-func (a *aggregationTree2Pancake) translateMetricToFilling(metric *pancakeAggregationLevel) (filling *pancakeFillingMetricAggregation, err error) {
+func (a *aggregationTree2Pancake) translateMetricToFilling(previousAggrNames []string, metric *pancakeAggregationLevel) (filling *pancakeFillingMetricAggregation, err error) {
 	if metric == nil {
 		return nil, fmt.Errorf("metric aggregation is nil")
 
@@ -21,7 +22,9 @@ func (a *aggregationTree2Pancake) translateMetricToFilling(metric *pancakeAggreg
 	}
 
 	return &pancakeFillingMetricAggregation{
-		name:            metric.name,
+		name: metric.name,
+		// TODO: check for collisions
+		internalName:    fmt.Sprintf("metric__%s", strings.Join(append(previousAggrNames, metric.name), "__")),
 		queryType:       metric.queryType,
 		selectedColumns: metric.selectedColumns,
 
@@ -29,7 +32,7 @@ func (a *aggregationTree2Pancake) translateMetricToFilling(metric *pancakeAggreg
 	}, nil
 }
 
-func (a *aggregationTree2Pancake) translateBucketToLayer(bucket *pancakeAggregationLevel) (layer *pancakeLayerBucketAggregation, err error) {
+func (a *aggregationTree2Pancake) translateBucketToLayer(previousAggrNames []string, bucket *pancakeAggregationLevel) (layer *pancakeLayerBucketAggregation, err error) {
 	if bucket == nil {
 		return nil, fmt.Errorf("bucket aggregation is nil")
 
@@ -39,20 +42,22 @@ func (a *aggregationTree2Pancake) translateBucketToLayer(bucket *pancakeAggregat
 	}
 
 	return &pancakeLayerBucketAggregation{
-		name:            bucket.name,
+		name: bucket.name,
+		// TODO: check for collisions
+		internalName:    fmt.Sprintf("aggr__%s__", strings.Join(append(previousAggrNames, bucket.name), "__")),
 		queryType:       bucket.queryType,
 		selectedColumns: bucket.selectedColumns,
 
-		orderBy: bucket.orderBy,
-		limit:   bucket.limit,
-		isKeyed: bucket.isKeyed,
+		orderBy:                 bucket.orderBy,
+		limit:                   bucket.limit,
+		isKeyed:                 bucket.isKeyed,
+		filterOurEmptyKeyBucket: bucket.filterOutEmptyKeyBucket,
 
-		metadata:    bucket.metadata,
-		whereClause: bucket.whereClause,
+		metadata: bucket.metadata,
 	}, nil
 }
 
-func (a *aggregationTree2Pancake) bakeLayer(childAggregations []*pancakeAggregationLevel) (*pancakeAggregationLayer, *pancakeAggregationLevel, error) {
+func (a *aggregationTree2Pancake) bakeLayer(previousAggrNames []string, childAggregations []*pancakeAggregationLevel) (*pancakeAggregationLayer, *pancakeAggregationLevel, error) {
 
 	if len(childAggregations) == 0 {
 		return nil, nil, nil
@@ -70,7 +75,7 @@ func (a *aggregationTree2Pancake) bakeLayer(childAggregations []*pancakeAggregat
 		}
 		switch childAgg.queryType.AggregationType() {
 		case model.MetricsAggregation:
-			metrics, err := a.translateMetricToFilling(childAgg)
+			metrics, err := a.translateMetricToFilling(previousAggrNames, childAgg)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -82,7 +87,7 @@ func (a *aggregationTree2Pancake) bakeLayer(childAggregations []*pancakeAggregat
 					layer.nextBucketAggregation.name, childAgg.name)
 			}
 
-			bucket, err := a.translateBucketToLayer(childAgg)
+			bucket, err := a.translateBucketToLayer(previousAggrNames, childAgg)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -105,7 +110,8 @@ func (a *aggregationTree2Pancake) toPancake(topLevel pancakeAggregationTopLevel)
 	var nextBucketAggregation *pancakeAggregationLevel
 
 	layers := make([]*pancakeAggregationLayer, 0)
-	firstLayer, nextBucketAggregation, err := a.bakeLayer(topLevel.children)
+	aggrNames := make([]string, 0)
+	firstLayer, nextBucketAggregation, err := a.bakeLayer(aggrNames, topLevel.children)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +120,8 @@ func (a *aggregationTree2Pancake) toPancake(topLevel pancakeAggregationTopLevel)
 
 	for nextBucketAggregation != nil {
 		var layer *pancakeAggregationLayer
-		layer, nextBucketAggregation, err = a.bakeLayer(nextBucketAggregation.children)
+		aggrNames = append(aggrNames, nextBucketAggregation.name)
+		layer, nextBucketAggregation, err = a.bakeLayer(aggrNames, nextBucketAggregation.children)
 		if err != nil {
 			return nil, err
 		}

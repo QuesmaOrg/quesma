@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-func Test3PancakeQueryGeneration(t *testing.T) {
+func TestPancakeQueryGeneration(t *testing.T) {
 
 	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
@@ -92,6 +92,9 @@ func Test3PancakeQueryGeneration(t *testing.T) {
 			}
 			if sampler(test.TestName) {
 				t.Skip("Fix sampler")
+			}
+			if multiTerms(test.TestName) {
+				t.Skip("Fix multi terms")
 			}
 
 			fmt.Println("i:", i, "test:", test.TestName)
@@ -245,8 +248,15 @@ func filter(testName string) bool {
 	t3 := testName == "2 sibling count aggregations"
 	t4 := testName == "simple filter/count"
 	t5 := testName == "triple nested aggs"
-	t6 := testName == "Field statistics > summary for numeric fields"
-	return t1 || t2 || t3 || t4 || t5 || t6 // also sampler and percentiles
+	t6 := testName == "Field statistics > summary for numeric fields" // also sampler and percentiles
+	t7 := testName == "clients/kunkka/test_0, used to be broken before aggregations merge fix"+
+		"Output more or less works, but is different and worse than what Elastic returns."+
+		"If it starts failing, maybe that's a good thing"
+	t8 := testName == "it's the same input as in previous test, but with the original output from Elastic."+
+		"Skipped for now, as our response is different in 2 things: key_as_string date (probably not important) + we don't return 0's (e.g. doc_count: 0)."+
+		"If we need clients/kunkka/test_0, used to be broken before aggregations merge fix"
+	t9 := testName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" // also filters
+	return t1 || t2 || t3 || t4 || t5 || t6 || t7 || t8 || t9
 }
 
 // TODO remove after fix
@@ -254,7 +264,8 @@ func filters(testName string) bool {
 	t1 := testName == "filters"
 	t2 := testName == "very long: multiple top_metrics + histogram" // also filters
 	t3 := testName == "complex filters"
-	return t1 || t2 || t3
+	t4 := testName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" // also filter
+	return t1 || t2 || t3 || t4
 }
 
 // TODO remove after fix
@@ -263,6 +274,15 @@ func sampler(testName string) bool {
 	t2 := testName == "random sampler, from Explorer > Field statistics"
 	t3 := testName == "Field statistics > summary for numeric fields" // also filter and percentiles
 	return t1 || t2 || t3
+}
+
+// TODO remove after fix
+func multiTerms(testName string) bool {
+	t1 := testName == "Multi_terms without subaggregations. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)"
+	t2 := testName == "Multi_terms with simple count. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Count of records, Breakdown: @timestamp"
+	t3 := testName == "Multi_terms with double-nested subaggregations. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Unique count, Breakdown: @timestamp"
+	t4 := testName == "Quite simple multi_terms, but with non-string keys. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)"
+	return t1 || t2 || t3 || t4
 }
 
 func TestPancakeQueryGeneration_halfpancake(t *testing.T) {

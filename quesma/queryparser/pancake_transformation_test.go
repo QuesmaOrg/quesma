@@ -48,17 +48,19 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 
 	// output
 
-	panBucket := func(a string) *pancakeLayerBucketAggregation {
+	panBucket := func(a, b string) *pancakeLayerBucketAggregation {
 		return &pancakeLayerBucketAggregation{
-			name:      a,
-			queryType: bucket_aggregations.Range{},
+			name:         a,
+			internalName: b,
+			queryType:    bucket_aggregations.Range{},
 		}
 	}
 
-	panMetric := func(a string) *pancakeFillingMetricAggregation {
+	panMetric := func(a, b string) *pancakeFillingMetricAggregation {
 		return &pancakeFillingMetricAggregation{
-			name:      a,
-			queryType: metrics_aggregations.Avg{},
+			name:         a,
+			internalName: b,
+			queryType:    metrics_aggregations.Avg{},
 		}
 	}
 
@@ -85,38 +87,38 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 		{"one bucket aggregation",
 			top(bucket("bucket_1", metrics("metrics_1"), metrics("metrics_2"))),
 			pancake(
-				layer(panBucket("bucket_1")),
-				layer(nil, panMetric("metrics_1"), panMetric("metrics_2"))),
+				layer(panBucket("bucket_1", "aggr__bucket_1__")),
+				layer(nil, panMetric("metrics_1", "metric__bucket_1__metrics_1"), panMetric("metrics_2", "metric__bucket_1__metrics_2"))),
 		},
 
 		{"bucket in bucket  ... ",
 			top(bucket("bucket_1", bucket("bucket_2"))),
 			pancake(
-				layer(panBucket("bucket_1")),
-				layer(panBucket("bucket_2"))),
+				layer(panBucket("bucket_1", "aggr__bucket_1__")),
+				layer(panBucket("bucket_2", "aggr__bucket_1__bucket_2__"))),
 		},
 
 		{"one bucket aggregation with metrics aggregations ",
 			top(bucket("bucket_1", metrics("metrics_1"), metrics("metrics_2"))),
 			pancake(
-				layer(panBucket("bucket_1")),
-				layer(nil, panMetric("metrics_1"), panMetric("metrics_2"))),
+				layer(panBucket("bucket_1", "aggr__bucket_1__")),
+				layer(nil, panMetric("metrics_1", "metric__bucket_1__metrics_1"), panMetric("metrics_2", "metric__bucket_1__metrics_2"))),
 		},
 
 		{"one bucket aggregation with metrics aggregations and bucket aggregations",
 			top(bucket("bucket_1", metrics("metrics_1"), metrics("metrics_2"), bucket("bucket_2", metrics("metrics_3")))),
 			pancake(
-				layer(panBucket("bucket_1")),
-				layer(panBucket("bucket_2"), panMetric("metrics_1"), panMetric("metrics_2")),
-				layer(nil, panMetric("metrics_3"))),
+				layer(panBucket("bucket_1", "aggr__bucket_1__")),
+				layer(panBucket("bucket_2", "aggr__bucket_1__bucket_2__"), panMetric("metrics_1", "metric__bucket_1__metrics_1"), panMetric("metrics_2", "metric__bucket_1__metrics_2")),
+				layer(nil, panMetric("metrics_3", "metric__bucket_1__bucket_2__metrics_3"))),
 		},
 
 		{"one bucket aggregation with metrics aggregations and bucket aggregations",
 			top(bucket("bucket_1", metrics("metrics_1"), metrics("metrics_2"), bucket("bucket_2", bucket("bucket_3"), metrics("metrics_3")))),
 			pancake(
-				layer(panBucket("bucket_1")),
-				layer(panBucket("bucket_2"), panMetric("metrics_1"), panMetric("metrics_2")),
-				layer(panBucket("bucket_3"), panMetric("metrics_3"))),
+				layer(panBucket("bucket_1", "aggr__bucket_1__")),
+				layer(panBucket("bucket_2", "aggr__bucket_1__bucket_2__"), panMetric("metrics_1", "metric__bucket_1__metrics_1"), panMetric("metrics_2", "metric__bucket_1__metrics_2")),
+				layer(panBucket("bucket_3", "aggr__bucket_1__bucket_2__bucket_3__"), panMetric("metrics_3", "metric__bucket_1__bucket_2__metrics_3"))),
 		},
 	}
 

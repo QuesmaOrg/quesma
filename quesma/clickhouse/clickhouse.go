@@ -272,13 +272,6 @@ func (lm *LogManager) Count(ctx context.Context, table string) (int64, error) {
 	return count, nil
 }
 
-func (lm *LogManager) sendCreateTableQuery(ctx context.Context, query string) error {
-	if _, err := lm.chDb.ExecContext(ctx, query); err != nil {
-		return fmt.Errorf("error in sendCreateTableQuery: query: %s\nerr:%v", query, err)
-	}
-	return nil
-}
-
 func (lm *LogManager) executeRawQuery(query string) (*sql.Rows, error) {
 	if res, err := lm.chDb.Query(query); err != nil {
 		return nil, fmt.Errorf("error in executeRawQuery: query: %s\nerr:%v", query, err)
@@ -364,7 +357,7 @@ func (lm *LogManager) ProcessCreateTableQuery(ctx context.Context, query string,
 		return fmt.Errorf("table %s already exists", table.Name)
 	}
 
-	return lm.sendCreateTableQuery(ctx, addOurFieldsToCreateTableQuery(query, config, table))
+	return lm.execute(ctx, addOurFieldsToCreateTableQuery(query, config, table))
 }
 
 func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema.Schema {
@@ -527,7 +520,7 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 		}
 		return config, nil
 	} else if !table.Created {
-		err := lm.sendCreateTableQuery(ctx, table.createTableString())
+		err := lm.execute(ctx, table.createTableString())
 		if err != nil {
 			return nil, err
 		}
@@ -539,7 +532,6 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 }
 
 func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []types.JSON, transformer plugins.IngestTransformer, tableFormatter plugins.TableColumNameFormatter) error {
-
 	// this is pre ingest transformer
 	// here we transform the data before it's structure evaluation and insertion
 	//
@@ -568,6 +560,15 @@ func subtractInputJson(inputDoc types.JSON, anotherDoc types.JSON) types.JSON {
 		delete(inputDoc, key)
 	}
 	return inputDoc
+}
+
+// This function executes query with context
+// and creates span for it
+func (lm *LogManager) execute(ctx context.Context, query string) error {
+	span := lm.phoneHomeAgent.ClickHouseInsertDuration().Begin()
+	_, err := lm.chDb.ExecContext(ctx, query)
+	span.End(err)
+	return err
 }
 
 func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON, config *ChTableConfig, transformer plugins.IngestTransformer) error {
@@ -602,9 +603,7 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 		"date_time_input_format": "best_effort",
 	}))
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertValues)
-	span := lm.phoneHomeAgent.ClickHouseInsertDuration().Begin()
-	_, err := lm.chDb.ExecContext(ctx, insert)
-	span.End(err)
+	err := lm.execute(ctx, insert)
 	if err != nil {
 		return end_user_errors.GuessClickhouseErrorType(err).InternalDetails("insert into table '%s' failed", tableName)
 	} else {

@@ -209,7 +209,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 		},
-		ExpectedPancakeSQL: "",
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [1]
 		TestName: "it's the same input as in previous test, but with the original output from Elastic." +
@@ -424,7 +424,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 		},
-		ExpectedPancakeSQL: "",
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [2]
 		TestName: "clients/kunkka/test_1, used to be broken before aggregations merge fix",
@@ -1249,6 +1249,6 @@ var KunkkaTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000)`,
 		},
-		ExpectedPancakeSQL: "",
+		ExpectedPancakeSQL: "TODO",
 	},
 }

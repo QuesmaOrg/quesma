@@ -3,6 +3,7 @@
 package queryparser
 
 import (
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 )
@@ -18,17 +19,18 @@ type pancakeAggregationLevel struct {
 	selectedColumns []model.Expr
 
 	// only for bucket aggregations
-	children []*pancakeAggregationLevel
-	orderBy  []model.OrderByExpr
-	limit    int // 0 if none, only for bucket aggregation
-	isKeyed  bool
+	children                []*pancakeAggregationLevel
+	orderBy                 []model.OrderByExpr
+	limit                   int // 0 if none, only for bucket aggregation
+	isKeyed                 bool
+	filterOutEmptyKeyBucket bool
 
-	metadata    model.JsonMap
-	whereClause model.Expr
+	metadata model.JsonMap
 }
 
 type pancakeFillingMetricAggregation struct {
-	name            string
+	name            string          // as originally appeared in Query DSL
+	internalName    string          // full name with path, e.g. metric__byCountry__byCity__population or aggr__byCountry
 	queryType       model.QueryType // it has to be metric aggregation
 	selectedColumns []model.Expr
 
@@ -36,7 +38,8 @@ type pancakeFillingMetricAggregation struct {
 }
 
 type pancakeLayerBucketAggregation struct {
-	name            string
+	name            string          // as originally appeared in Query DSL
+	internalName    string          // full name with path, e.g. metric__byCountry__byCity__population or aggr__byCountry
 	queryType       model.QueryType // it has to be bucket aggregation
 	selectedColumns []model.Expr
 
@@ -45,8 +48,24 @@ type pancakeLayerBucketAggregation struct {
 	limit   int // 0 if none, only for bucket aggregation
 	isKeyed bool
 
-	metadata    model.JsonMap
-	whereClause model.Expr
+	metadata                model.JsonMap
+	filterOurEmptyKeyBucket bool
+}
+
+func (p pancakeLayerBucketAggregation) InternalNameForKeyPrefix() string {
+	return fmt.Sprintf("%skey", p.internalName)
+}
+
+func (p pancakeLayerBucketAggregation) InternalNameForKey(id int) string {
+	return fmt.Sprintf("%s_%d", p.InternalNameForKeyPrefix(), id)
+}
+
+func (p pancakeLayerBucketAggregation) InternalNameForOrderBy(id int) string {
+	return fmt.Sprintf("%sorder_%d", p.internalName, id)
+}
+
+func (p pancakeLayerBucketAggregation) InternalNameForCount() string {
+	return fmt.Sprintf("%scount", p.internalName)
 }
 
 type pancakeAggregationLayer struct {
@@ -68,10 +87,21 @@ type PancakeQueryType struct {
 	pancakeAggregation *pancakeAggregation
 }
 
-func (p PancakeQueryType) ReturnCount() *pancakeFillingMetricAggregation {
+func (p PancakeQueryType) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
+	panic("not a real aggregation, it should not be never used")
+}
+
+func (p PancakeQueryType) AggregationType() model.AggregationType {
+	return model.TypicalAggregation
+}
+
+func (p PancakeQueryType) String() string {
+	return "pancake query type"
+}
+
+func (p PancakeQueryType) ReturnTotalCount() *pancakeFillingMetricAggregation {
 
 	if len(p.pancakeAggregation.layers) > 0 {
-
 		for _, metric := range p.pancakeAggregation.layers[0].currentMetricAggregations {
 			if metric.name == PancakeTotalCountMetricName {
 				return metric
@@ -82,24 +112,11 @@ func (p PancakeQueryType) ReturnCount() *pancakeFillingMetricAggregation {
 	return nil
 }
 
-func (p PancakeQueryType) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-
+func (p PancakeQueryType) RenderAggregationJson(rows []model.QueryResultRow) (model.JsonMap, error) {
 	renderer := &pancakeJSONRenderer{}
 	res, err := renderer.toJSON(p.pancakeAggregation, rows)
 	if err != nil {
-		// We should return an error here.
-		//
-		// It will need to change the signature of this function and other interface implementations
 		logger.Error().Err(err).Msg("Error rendering JSON. Returning empty.")
-		return model.JsonMap{}
 	}
-	return res
-}
-
-func (p PancakeQueryType) AggregationType() model.AggregationType {
-	return model.TypicalAggregation
-}
-
-func (p PancakeQueryType) String() string {
-	return "pancake query type"
+	return res, err
 }

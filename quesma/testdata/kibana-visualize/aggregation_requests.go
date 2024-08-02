@@ -239,7 +239,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000)`,
 		},
-		ExpectedPancakeSQL: "",
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [1]
 		TestName: "Multi_terms with simple count. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Count of records, Breakdown: @timestamp",
@@ -406,7 +406,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY "message", "host.name" ` +
 				`ORDER BY "message", "host.name"`,
 		},
-		ExpectedPancakeSQL: "",
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ //[2],
 		TestName: "Multi_terms with double-nested subaggregations. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Unique count, Breakdown: @timestamp",
@@ -657,7 +657,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY "severity", "source" ` +
 				`ORDER BY "severity", "source"`,
 		},
-		ExpectedPancakeSQL: "",
+		ExpectedPancakeSQL: "TODO",
 	},
 	{ // [3]
 		TestName: "Quite simple multi_terms, but with non-string keys. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)",
@@ -854,6 +854,6 @@ var AggregationTests = []testdata.AggregationTestCase{
 				`GROUP BY "Cancelled", "AvgTicketPrice" ` +
 				`ORDER BY "Cancelled", "AvgTicketPrice"`,
 		},
-		ExpectedPancakeSQL: "",
+		ExpectedPancakeSQL: "TODO",
 	},
 }

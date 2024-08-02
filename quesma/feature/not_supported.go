@@ -5,7 +5,9 @@ package feature
 import (
 	"context"
 	"fmt"
+	"quesma/elasticsearch"
 	"regexp"
+	"strings"
 )
 
 // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-template.html
@@ -80,6 +82,16 @@ func checkIfOurIndex(ctx context.Context, method string, path string, indexResol
 	if len(match) > 1 {
 		indexNamePart := match[1]
 		var matched bool
+
+		if strings.HasPrefix(indexNamePart, "_") {
+			// This is not actually an index, this is some endpoint (for example /_monitoring/bulk)
+			return false
+		}
+		// Optimization: avoid using indexResolver for internal indexes
+		if elasticsearch.IsInternalIndex(indexNamePart) {
+			return false
+		}
+
 		indexes, err := indexResolver(ctx, indexNamePart)
 		if err != nil {
 			logMessage("Error resolving index: %v", err)
