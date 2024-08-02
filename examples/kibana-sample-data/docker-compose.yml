@@ -1,6 +1,6 @@
 services:
   quesma:
-    image: quesma:latest
+    image: quesma/quesma:latest
     environment:
       - QUESMA_elasticsearch_url=http://elasticsearch:9200
       - QUESMA_port=8080
