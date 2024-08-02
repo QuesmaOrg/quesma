@@ -90,11 +90,11 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
 			}
-			if sampler(test.TestName) {
-				t.Skip("Fix sampler")
-			}
 			if multiTerms(test.TestName) {
 				t.Skip("Fix multi terms")
+			}
+			if valueCount(test.TestName) {
+				t.Skip("Fix value count")
 			}
 
 			fmt.Println("i:", i, "test:", test.TestName)
@@ -269,20 +269,17 @@ func filters(testName string) bool {
 }
 
 // TODO remove after fix
-func sampler(testName string) bool {
-	t1 := testName == "value_count + top_values: regression test"
-	t2 := testName == "random sampler, from Explorer > Field statistics"
-	t3 := testName == "Field statistics > summary for numeric fields" // also filter and percentiles
-	return t1 || t2 || t3
-}
-
-// TODO remove after fix
 func multiTerms(testName string) bool {
 	t1 := testName == "Multi_terms without subaggregations. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)"
 	t2 := testName == "Multi_terms with simple count. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Count of records, Breakdown: @timestamp"
 	t3 := testName == "Multi_terms with double-nested subaggregations. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Unique count, Breakdown: @timestamp"
 	t4 := testName == "Quite simple multi_terms, but with non-string keys. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)"
 	return t1 || t2 || t3 || t4
+}
+
+// TODO remove after fix
+func valueCount(testName string) bool {
+	return testName == "value_count + top_values: regression test"
 }
 
 func TestPancakeQueryGeneration_halfpancake(t *testing.T) {

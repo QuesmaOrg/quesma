@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"quesma/model"
+	"quesma/model/bucket_aggregations"
 	"quesma/util"
 	"strings"
 )
@@ -115,6 +116,15 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeAggrega
 	}
 
 	if layer.nextBucketAggregation != nil {
+		if _, isSampler := layer.nextBucketAggregation.queryType.(bucket_aggregations.Sampler); isSampler {
+			subRendered, err := p.layerToJSON(layerIdx+1, layers, rows)
+			if err != nil {
+				return nil, err
+			}
+			result[layer.nextBucketAggregation.name] = subRendered
+			return result, nil
+		}
+
 		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation, rows)
 
 		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows)
