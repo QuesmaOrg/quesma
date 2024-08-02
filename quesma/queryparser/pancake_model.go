@@ -3,6 +3,7 @@
 package queryparser
 
 import (
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 )
@@ -49,6 +50,18 @@ type pancakeLayerBucketAggregation struct {
 
 	metadata                model.JsonMap
 	filterOurEmptyKeyBucket bool
+}
+
+func (p pancakeLayerBucketAggregation) AliasNameForKey(id int) string {
+	return fmt.Sprintf("%skey_%d", p.aliasName, id)
+}
+
+func (p pancakeLayerBucketAggregation) AliasNameForOrderBy(id int) string {
+	return fmt.Sprintf("%sorder_%d", p.aliasName, id)
+}
+
+func (p pancakeLayerBucketAggregation) AliasNameForCount() string {
+	return fmt.Sprintf("%scount", p.aliasName)
 }
 
 type pancakeAggregationLayer struct {
