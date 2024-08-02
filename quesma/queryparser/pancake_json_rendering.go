@@ -5,7 +5,6 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/model"
 	"quesma/util"
 	"strings"
@@ -111,26 +110,11 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeAggrega
 	}
 	layer := layers[layerIdx]
 	for _, metric := range layer.currentMetricAggregations {
-		metricName := ""
-		for _, prevLayer := range layers[:layerIdx] {
-			metricName = fmt.Sprintf("%s%s__", metricName, prevLayer.nextBucketAggregation.name)
-		}
-		metricName = fmt.Sprintf("metric__%s%s_col_", metricName, metric.name)
-		if metricName != metric.aliasName+"_col_" {
-			pp.Println("JM bug:", metricName, metric.aliasName+"_col_")
-		}
 		metricRows := p.selectMetricRows(metric.aliasName+"_col_", rows)
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
 	}
 
 	if layer.nextBucketAggregation != nil {
-		bucketName := "aggr__"
-		for _, prevLayer := range layers[:layerIdx+1] {
-			bucketName = fmt.Sprintf("%s%s__", bucketName, prevLayer.nextBucketAggregation.name)
-		}
-		if bucketName != layer.nextBucketAggregation.aliasName {
-			pp.Println("JM bug bucket:", bucketName, layer.nextBucketAggregation.aliasName)
-		}
 		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation.aliasName, rows)
 
 		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, layer.nextBucketAggregation.aliasName, bucketRows, subAggrRows)
