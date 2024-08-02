@@ -7,6 +7,7 @@ import (
 	"quesma/ab_testing"
 	"quesma/ab_testing/repository"
 	"quesma/logger"
+	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"time"
 )
@@ -16,9 +17,11 @@ type ABTestingController struct {
 	cancelFunc context.CancelFunc
 
 	facade *facade
+
+	enabled bool
 }
 
-func NewABTestingController() *ABTestingController {
+func NewABTestingController(cfg config.QuesmaConfiguration) *ABTestingController {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -26,13 +29,17 @@ func NewABTestingController() *ABTestingController {
 		facade:     NewFacade(ctx),
 		ctx:        ctx,
 		cancelFunc: cancel,
-
+		enabled:    false, // TODO this should be read from config
 		// add quesma health monitor service here
 	}
 }
 
 func (c *ABTestingController) Client() ab_testing.ResultsRepository {
-	return c.facade
+	if c.enabled {
+		return c.facade
+	} else {
+		return ab_testing.NewEmptyResultsRepository()
+	}
 }
 
 func (c *ABTestingController) newInMemoryRepository(healthQueue chan<- ab_testing.HealthMessage) *repository.ResultsRepositoryImpl {
@@ -59,12 +66,8 @@ func (c *ABTestingController) loop() {
 			logger.InfoWithCtx(c.ctx).Msg("Creating InMemoryRepository")
 			repo = c.newInMemoryRepository(repoHealthQueue)
 		}
+
 		// TODO add logic here
-
-		// start/stop the inMemoryRepository repository
-
-		// suspend facade if quesma is not healthy
-		// supend facade if repository is not healthy
 
 		select {
 		case <-c.ctx.Done():
@@ -93,6 +96,11 @@ func (c *ABTestingController) loop() {
 }
 
 func (c *ABTestingController) Start() {
+
+	if !c.enabled {
+		logger.InfoWithCtx(c.ctx).Msg("AB Testing Controller is disabled")
+		return
+	}
 
 	logger.InfoWithCtx(c.ctx).Msg("Starting AB Testing Controller")
 

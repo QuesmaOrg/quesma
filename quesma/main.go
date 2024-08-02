@@ -87,7 +87,7 @@ func main() {
 
 	quesmaManagementConsole := ui.NewQuesmaManagementConsole(cfg, lm, im, qmcLogChannel, phoneHomeAgent, schemaRegistry)
 
-	abTestingController := controller.NewABTestingController()
+	abTestingController := controller.NewABTestingController(cfg)
 	abTestingController.Start()
 
 	instance := constructQuesma(cfg, schemaLoader, lm, im, schemaRegistry, phoneHomeAgent, quesmaManagementConsole, qmcLogChannel, abTestingController.Client())

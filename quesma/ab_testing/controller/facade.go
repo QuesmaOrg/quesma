@@ -44,7 +44,6 @@ func (f *facade) Start() {
 				if f.delegate != ctrl.newDelegate {
 					logger.InfoWithCtx(f.ctx).Msgf("Facade: New repository: %s ", ctrl.newDelegate)
 					f.delegate = ctrl.newDelegate
-
 				}
 
 				f.delegate = ctrl.newDelegate

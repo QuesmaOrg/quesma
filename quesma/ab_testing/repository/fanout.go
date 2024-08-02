@@ -1,3 +1,5 @@
+// Copyright Quesma, licensed under the Elastic License 2.0.
+// SPDX-License-Identifier: Elastic-2.0
 package repository
 
 import (
@@ -5,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/k0kubun/pp"
-	"math/rand"
 	"net/http"
 	"quesma/logger"
 )
@@ -25,11 +26,6 @@ type elasticSearchFanout struct {
 }
 
 func (t *elasticSearchFanout) process(in Data) (out Data, drop bool, err error) {
-
-	// add some fail rate
-	if rand.Float64() < 0.1 {
-		return in, true, nil
-	}
 
 	// add real bulk logic here
 
