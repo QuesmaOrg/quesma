@@ -131,52 +131,11 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			}
 		}
 
-		defaultMainOrderBy := model.NewCountFunc()
-		defaultDirection := model.DescOrder
-
-		var mainOrderBy model.Expr = defaultMainOrderBy
-		fullOrderBy := []model.OrderByExpr{ // default
-			{Exprs: []model.Expr{mainOrderBy}, Direction: defaultDirection, ExchangeToAliasInCTE: true},
-			{Exprs: []model.Expr{fieldExpression}},
-		}
-		direction := defaultDirection
-		if orderRaw, exists := terms["order"]; exists {
-			if order, ok := orderRaw.(QueryMap); ok { // TODO it can be array too, don't handle it yet
-				if len(order) == 1 {
-					for key, valueRaw := range order { // value == "asc" or "desc"
-						value, ok := valueRaw.(string)
-						if !ok {
-							logger.WarnWithCtx(cw.Ctx).Msgf("order value is not a string, but %T, value: %v. Using default (desc)", valueRaw, valueRaw)
-							value = "desc"
-						}
-						if strings.ToLower(value) == "asc" {
-							direction = model.AscOrder
-						}
-
-						if key == "_key" {
-							fullOrderBy = []model.OrderByExpr{{Exprs: []model.Expr{fieldExpression}, Direction: direction}}
-							break // mainOrderBy remains default
-						} else if key != "_count" {
-							mainOrderBy = cw.pancakeFindMetricAggregation(queryMap, key)
-						}
-
-						fullOrderBy = []model.OrderByExpr{
-							{Exprs: []model.Expr{mainOrderBy}, Direction: direction, ExchangeToAliasInCTE: true},
-							{Exprs: []model.Expr{fieldExpression}},
-						}
-					}
-				} else {
-					logger.WarnWithCtx(cw.Ctx).Msgf("order has more than 1 key, but %d. Order: %+v. Using default", len(order), order)
-				}
-			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("order is not a map, but %T, value: %v. Using default order", orderRaw, orderRaw)
-			}
-		}
-
-		aggregation.queryType = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms", mainOrderBy)
+		orderBy := cw.parseOrder(terms, queryMap, fieldExpression)
+		aggregation.queryType = bucket_aggregations.NewTerms(cw.Ctx, termsType == "significant_terms", orderBy[0]) // TODO probably full, not [0]
 		aggregation.selectedColumns = append(aggregation.selectedColumns, fieldExpression)
 		aggregation.limit = size
-		aggregation.orderBy = fullOrderBy
+		aggregation.orderBy = orderBy
 		if missingPlaceholder == nil {
 			aggregation.filterOutEmptyKeyBucket = true
 		}
@@ -196,6 +155,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		aggregation.orderBy = []model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)}
 		aggregation.limit = size
 
+		var firstColumn model.Expr = nil
 		var fieldsNr int
 		if termsRaw, exists := multiTerms["terms"]; exists {
 			terms, ok := termsRaw.([]any)
@@ -205,13 +165,19 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			fieldsNr = len(terms)
 			for _, term := range terms {
 				column := cw.parseFieldField(term, "multi_terms")
+				if firstColumn == nil {
+					firstColumn = column
+				}
 				aggregation.selectedColumns = append(aggregation.selectedColumns, column)
 			}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msg("no terms in multi_terms")
 		}
 
+		orderBy := cw.parseOrder(multiTerms, queryMap, firstColumn) // TODO change from first column to all
 		aggregation.queryType = bucket_aggregations.NewMultiTerms(cw.Ctx, fieldsNr)
+		aggregation.limit = size
+		aggregation.orderBy = orderBy
 
 		delete(queryMap, "multi_terms")
 		return success, nil
@@ -404,4 +370,49 @@ func (cw *ClickhouseQueryTranslator) parseRandomSampler(randomSamplerRaw any) bu
 		cw.parseFloatField(randomSampler, "probability", defaultProbability),
 		cw.parseIntField(randomSampler, "seed", defaultSeed),
 	)
+}
+
+func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldExpression model.Expr) []model.OrderByExpr {
+	defaultMainOrderBy := model.NewCountFunc()
+	defaultDirection := model.DescOrder
+
+	var mainOrderBy model.Expr = defaultMainOrderBy
+	fullOrderBy := []model.OrderByExpr{ // default
+		{Exprs: []model.Expr{mainOrderBy}, Direction: defaultDirection, ExchangeToAliasInCTE: true},
+		{Exprs: []model.Expr{fieldExpression}},
+	}
+	direction := defaultDirection
+	if orderRaw, exists := terms["order"]; exists {
+		if order, ok := orderRaw.(QueryMap); ok { // TODO it can be array too, don't handle it yet
+			if len(order) == 1 {
+				for key, valueRaw := range order { // value == "asc" or "desc"
+					value, ok := valueRaw.(string)
+					if !ok {
+						logger.WarnWithCtx(cw.Ctx).Msgf("order value is not a string, but %T, value: %v. Using default (desc)", valueRaw, valueRaw)
+						value = "desc"
+					}
+					if strings.ToLower(value) == "asc" {
+						direction = model.AscOrder
+					}
+
+					if key == "_key" {
+						fullOrderBy = []model.OrderByExpr{{Exprs: []model.Expr{fieldExpression}, Direction: direction}}
+						break // mainOrderBy remains default
+					} else if key != "_count" {
+						mainOrderBy = cw.pancakeFindMetricAggregation(queryMap, key)
+					}
+
+					fullOrderBy = []model.OrderByExpr{
+						{Exprs: []model.Expr{mainOrderBy}, Direction: direction, ExchangeToAliasInCTE: true},
+						{Exprs: []model.Expr{fieldExpression}},
+					}
+				}
+			} else {
+				logger.WarnWithCtx(cw.Ctx).Msgf("order has more than 1 key, but %d. Order: %+v. Using default", len(order), order)
+			}
+		} else {
+			logger.WarnWithCtx(cw.Ctx).Msgf("order is not a map, but %T, value: %v. Using default order", orderRaw, orderRaw)
+		}
+	}
+	return fullOrderBy
 }
