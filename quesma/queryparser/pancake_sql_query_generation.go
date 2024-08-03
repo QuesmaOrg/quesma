@@ -46,7 +46,8 @@ func (p *pancakeSqlQueryGenerator) generatePartitionBy(groupByColumns []model.Al
 }
 
 // TODO: Implement all functions
-func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Expr, queryType model.QueryType) (accumExpr model.Expr, aggrFuncName string, err error) {
+func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Expr, queryType model.QueryType) (
+	accumExpr model.Expr, aggrFuncName string, err error) {
 	switch origFunc := origExpr.(type) {
 	case model.FunctionExpr:
 		switch origFunc.Name {
@@ -55,6 +56,8 @@ func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Exp
 		case "avgOrNull":
 			return model.NewFunction("avgState", origFunc.Args...), "avgMerge", nil
 		case "count":
+			return model.NewFunction("count", origFunc.Args...), "sum", nil
+		default:
 			return model.NewFunction("count", origFunc.Args...), "sum", nil
 		}
 	}
@@ -82,7 +85,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		for _, metric := range layer.currentMetricAggregations {
 			for columnId, column := range metric.selectedColumns {
 				aliasedName := fmt.Sprintf("%s_col_%d", metric.internalName, columnId)
-
+				fmt.Println("tutaj, metric")
 				if layerId < len(aggregation.layers)-1 {
 					partColumnName := aliasedName + "_part"
 					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(column, metric.queryType)
@@ -154,6 +157,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 				if hasMoreBucketAggregations && !isColumnRef {
 					partColumnName := bucketAggregation.InternalNameForOrderBy(columnId) + "_part"
 					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderBy, nil)
+					fmt.Println("tutaj 2, buckets", partColumn, aggFunctionName, err)
 					if err != nil {
 						return nil, false, err
 					}
