@@ -1,15 +1,17 @@
 name: E2E tests
 
-on: # @TODO TBD WHEN WE RUN
+on:
+  workflow_dispatch: # this enables manual triggering of the test
+  schedule:
+    - cron: '0 0 * * *' # everyday 00:00 UTC (02:00 in Poland, summer time)
+    - cron: '0 8 * * MON-FRI'    # 08:00 UTC (10:00 in Poland, summer time)
+    - cron: '0 11 * * MON-FRI'   # 11:00 UTC (13:00 in Poland, summer time)
+    - cron: '0 14 * * MON-FRI'   # 14:00 UTC (16:00 in Poland, summer time)
+    - cron: '30 16 * * MON-FRI'  # 16:30 UTC (18:30 in Poland, summer time)
   push:
-    branches: [ "main" ]
-  workflow_dispatch:
-    inputs:
-      GIT_REF:
-        description: 'Commit hash to run the tests'
-        required: true
-jobs:
+    branches: ["e2e-github-workflow"] # TODO remove this, only for tests
 
+jobs:
   build-quesma-docker-image:
     strategy:
       matrix:
@@ -17,8 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: ## @TODO REMOVE
-          ref: ${{ github.event.inputs.GIT_REF }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -49,11 +49,32 @@ jobs:
 
   e2e-test-run:
     runs-on: ubuntu-latest
+    permissions: # manually checked that those 3 are the smallest set of necessary permissions to run all the steps
+      contents: read
+      id-token: write # write means read+write
+      pull-requests: write
     needs: [build-quesma-docker-image]
     steps:
       - uses: actions/checkout@v4
-        with:     ## @TODO REMOVE
-          ref: ${{ github.event.inputs.GIT_REF }}
+
+      - name: Set env variables needed to write comments in the PR thread
+        run: |
+          pr_nr="$(gh pr list --search ${{ github.sha }} | awk '{print $1}')"
+          pr_url="https://api.github.com/repos/${{ github.repository }}/issues/${pr_nr}/comments"
+          test_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
+          echo "PR_NR=$pr_nr" >> $GITHUB_ENV
+          echo "PR_URL=$pr_url" >> $GITHUB_ENV
+          echo "TEST_URL=$test_url" >> $GITHUB_ENV
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Add before-test comment to the PR
+        run: |
+          msg="\"e2e tests started... [(Run)](${TEST_URL})\""
+          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -X POST \
+               -d "{\"body\": $msg}" $PR_URL
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -71,7 +92,7 @@ jobs:
           for file in /tmp/images/*/*.tar; do
             docker load --input $file
           done
-          docker image ls -a  
+          docker image ls -a
 
       - name: Build and start docker compose
         timeout-minutes: 10
@@ -90,6 +111,47 @@ jobs:
         run: until [ "$(curl -s -o /dev/null -w "%{http_code}" localhost:8080)" = "200" ]; do sleep 3; done
 
       - name: Run e2e tests
+        id: run_tests
         working-directory: quesma
-        run: go test -race --tags=integration  -v ./...
+        #run: go test -race --tags=integration  -v ./...
+        run: go test -race -v ./queryparser
+        #go test -race -v ./...
 
+      - name: Add after-test comment to the PR
+        if: always()
+        run: |
+          if [ ${{ steps.run_tests.outcome }} == "success" ]; then
+            emoji=":white_check_mark:"
+          else
+            emoji=":x:"
+          fi
+          echo "${{ toJSON(github) }}"
+          echo "blabla maybe now works? if not, try the more popular repo"
+          msg="\"e2e tests finished, status: ${emoji} [(Run summary)](${TEST_URL})\""
+          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -X POST \
+               -d "{\"body\": $msg}" $PR_URL
+
+      - name: Report fail to Slack (from cron)
+        if: always()
+        # ${{ always() && github.ref_name == 'main' }}
+        uses: ravsamhq/notify-slack-action@v2
+        with:
+          status: ${{ job.status }}
+          notify_when: 'failure'
+          message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
+          mention_groups: "e2e,!e2e"
+          mention_groups_when: "failure,warnings"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.ACTION_MONITORING_SLACK }} # our key, kept in GitHub secrets
+
+      - name: Report fail to Slack (manual trigger)
+        if: ${{ always() && github.event_name != 'schedule' }}
+        uses: ravsamhq/notify-slack-action@v2
+        with:
+          status: ${{ job.status }}
+          notify_when: 'failure'
+          mention_users: ${{ github.actor }}
+          mention_users_when: "failure,warnings"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.ACTION_MONITORING_SLACK }} # our key, kept in GitHub secrets
