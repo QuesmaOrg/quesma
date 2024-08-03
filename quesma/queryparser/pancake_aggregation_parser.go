@@ -125,7 +125,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 
 	// 1. Metrics aggregation => always leaf
 	if metricsAggrResult, isMetrics := cw.tryMetricsAggregation(queryMap); isMetrics {
-		columns, err := generateMetricSelectedColumns(cw.Ctx, metricsAggrResult)
+		columns, err := generateMetricSelectedColumns(cw.Ctx, &metricsAggrResult)
 		if err != nil {
 			return nil, err
 		}

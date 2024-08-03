@@ -28,16 +28,17 @@ type aggrQueryBuilder struct {
 }
 
 type metricsAggregation struct {
-	AggrType            string
-	Fields              []model.Expr            // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
-	FieldType           clickhouse.DateTimeType // field type of FieldNames[0]. If it's a date field, a slightly different response is needed
-	Percentiles         map[string]float64      // Only for percentiles aggregation
-	Keyed               bool                    // Only for percentiles aggregation
-	SortBy              string                  // Only for top_metrics
-	Size                int                     // Only for top_metrics
-	Order               string                  // Only for top_metrics
-	IsFieldNameCompound bool                    // Only for a few aggregations, where we have only 1 field. It's a compound, so e.g. toHour(timestamp), not just "timestamp"
-	sigma               float64                 // only for standard deviation
+	AggrType                   string
+	Fields                     []model.Expr            // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
+	FieldType                  clickhouse.DateTimeType // field type of FieldNames[0]. If it's a date field, a slightly different response is needed
+	Percentiles                map[string]float64      // Only for percentiles aggregation
+	Keyed                      bool                    // Only for percentiles aggregation
+	PercentileRanksColumnNames []string                // Only for percentile_ranks
+	SortBy                     string                  // Only for top_metrics
+	Size                       int                     // Only for top_metrics
+	Order                      string                  // Only for top_metrics
+	IsFieldNameCompound        bool                    // Only for a few aggregations, where we have only 1 field. It's a compound, so e.g. toHour(timestamp), not just "timestamp"
+	sigma                      float64                 // only for standard deviation
 }
 
 func (m metricsAggregation) sortByExists() bool {
@@ -104,6 +105,8 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		logger.ErrorWithCtx(b.ctx).Msg("No field names in metrics aggregation. Using empty.")
 		return nil
 	}
+
+	var percentileRanksColumnNames []string
 
 	query := b.buildAggregationCommon(metadata)
 	switch metricsAggr.AggrType {
@@ -228,8 +231,10 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			)
 			firstCountExp := model.NewFunction("count", ifExp)
 			twoCountsExp := model.NewInfixExpr(firstCountExp, "/", model.NewCountFunc(model.NewWildcardExpr))
+			fullExp := model.NewInfixExpr(twoCountsExp, "*", model.NewLiteral(100))
 
-			query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewInfixExpr(twoCountsExp, "*", model.NewLiteral(100)))
+			query.SelectCommand.Columns = append(query.SelectCommand.Columns, fullExp)
+			percentileRanksColumnNames = append(percentileRanksColumnNames, model.AsString(fullExp))
 		}
 	case "extended_stats":
 
@@ -293,7 +298,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "value_count":
 		query.Type = metrics_aggregations.NewValueCount(b.ctx)
 	case "percentile_ranks":
-		query.Type = metrics_aggregations.NewPercentileRanks(b.ctx, metricsAggr.Keyed)
+		query.Type = metrics_aggregations.NewPercentileRanks(b.ctx, percentileRanksColumnNames, metricsAggr.Keyed)
 	case "geo_centroid":
 		query.Type = metrics_aggregations.NewGeoCentroid(b.ctx)
 	}

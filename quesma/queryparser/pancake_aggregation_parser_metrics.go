@@ -14,7 +14,8 @@ import (
 	"strconv"
 )
 
-func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggregation) (result []model.Expr, err error) {
+// TODO fix this new *. Stop doing that
+func generateMetricSelectedColumns(ctx context.Context, metricsAggr *metricsAggregation) (result []model.Expr, err error) {
 	getFirstExpression := func() model.Expr {
 		if len(metricsAggr.Fields) > 0 {
 			return metricsAggr.Fields[0]
@@ -65,6 +66,7 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 		return nil, errors.New("top_hits is not implemented yet in version una")
 	case "percentile_ranks":
 		result = make([]model.Expr, 0, len(metricsAggr.Fields[1:]))
+		columnNames := make([]string, 0, len(metricsAggr.Fields[1:]))
 		for _, cutValueAsString := range metricsAggr.Fields[1:] {
 			unquoted, _ := strconv.Unquote(model.AsString(cutValueAsString))
 			cutValue, _ := strconv.ParseFloat(unquoted, 64)
@@ -80,9 +82,12 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 			)
 			firstCountExp := model.NewFunction("count", ifExp)
 			twoCountsExp := model.NewInfixExpr(firstCountExp, "/", model.NewCountFunc(model.NewWildcardExpr))
+			fullExp := model.NewInfixExpr(twoCountsExp, "*", model.NewLiteral(100))
 
-			result = append(result, model.NewInfixExpr(twoCountsExp, "*", model.NewLiteral(100)))
+			result = append(result, fullExp)
+			columnNames = append(columnNames, model.AsString(fullExp))
 		}
+		metricsAggr.PercentileRanksColumnNames = columnNames
 	case "extended_stats":
 
 		expr := getFirstExpression()
@@ -151,7 +156,7 @@ func generateMetricsType(ctx context.Context, metricsAggr metricsAggregation) mo
 	case "value_count":
 		return metrics_aggregations.NewValueCount(ctx)
 	case "percentile_ranks":
-		return metrics_aggregations.NewPercentileRanks(ctx, metricsAggr.Keyed)
+		return metrics_aggregations.NewPercentileRanks(ctx, metricsAggr.PercentileRanksColumnNames, metricsAggr.Keyed)
 	case "geo_centroid":
 		return metrics_aggregations.NewGeoCentroid(ctx)
 	}
