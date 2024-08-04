@@ -7,22 +7,22 @@ import (
 )
 
 type SearchTestCase struct {
-	Name            string
-	QueryJson       string
-	WantedSql       []string // array because of non-determinism
-	WantedQueryType model.SearchQueryType
+	Name           string
+	QueryJson      string
+	WantedSql      []string // array because of non-determinism
+	WantedHitsType model.HitsType
 	//WantedQuery     []model.Query // array because of non-determinism
 	WantedRegexes []string // regexes saying what SELECT queries to CH should look like (in order). A lot of '.' here because of non-determinism.
 }
 
 type AsyncSearchTestCase struct {
-	Name              string
-	QueryJson         string
-	ResultJson        string // from ELK
-	Comment           string
-	WantedParseResult model.SearchQueryInfo
-	WantedRegexes     []string // queries might be a bit weird at times, because of non-determinism of our parser (need to use a lot of "." in regexes) (they also need to happen as ordered in this slice)
-	IsAggregation     bool     // is it an aggregation query?
+	Name           string
+	QueryJson      string
+	ResultJson     string // from ELK
+	Comment        string
+	WantedHitsInfo model.HitsInfo
+	WantedRegexes  []string // queries might be a bit weird at times, because of non-determinism of our parser (need to use a lot of "." in regexes) (they also need to happen as ordered in this slice)
+	IsAggregation  bool     // is it an aggregation query?
 }
 
 type AggregationTestCase struct {

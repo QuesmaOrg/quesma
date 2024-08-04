@@ -181,15 +181,17 @@ func NewAggregator(name string) Aggregator {
 	return Aggregator{Name: name}
 }
 
-type SearchQueryType int // TODO/warning: right now difference between ListByField/ListAllFields/Normal is not very clear. It probably should be merged into 1 type.
+type HitsType int
 
 const (
-	Facets SearchQueryType = iota
-	FacetsNumeric
-	ListByField
-	ListAllFields
-	Normal
+	NoHits HitsType = iota
+	SomeFields
+	AllFields
 )
+
+func (t HitsType) String() string {
+	return []string{"NoHits", "SomeFields", "AllFields"}[t]
+}
 
 const (
 	DefaultSizeListQuery = 10 // we use LIMIT 10 in some simple list queries (SELECT ...)
@@ -197,24 +199,15 @@ const (
 	TrackTotalHitsFalse  = -2
 )
 
-func (queryType SearchQueryType) String() string {
-	return []string{"Facets", "FacetsNumeric", "ListByField", "ListAllFields", "Normal"}[queryType]
+type HitsInfo struct {
+	Type            HitsType
+	RequestedFields []string // only used if hitsType == SomeFields, names of fields to return
+	Size            int      // how many hits to return
+	TrackTotalHits  int      // >= 0: we want this nr of total hits, TrackTotalHitsTrue: it was "true", TrackTotalHitsFalse: it was "false", in the request
 }
 
-type SearchQueryInfo struct {
-	Typ SearchQueryType
-	// to be used as replacement for FieldName
-	RequestedFields []string
-	// deprecated
-	FieldName      string
-	I1             int
-	I2             int
-	Size           int // how many hits to return
-	TrackTotalHits int // >= 0: we want this nr of total hits, TrackTotalHitsTrue: it was "true", TrackTotalHitsFalse: it was "false", in the request
-}
-
-func NewSearchQueryInfoNormal() SearchQueryInfo {
-	return SearchQueryInfo{Typ: Normal}
+func NewHitsInfo(t HitsType, requestedFields []string, size int, trackTotalHits int) HitsInfo {
+	return HitsInfo{Type: t, RequestedFields: requestedFields, Size: size, TrackTotalHits: trackTotalHits}
 }
 
 // UnknownAggregationType is a placeholder for an aggregation type that'll be determined in the future,

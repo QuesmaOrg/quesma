@@ -179,7 +179,7 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 		defer recovery.LogAndHandlePanic(ctx, func(err error) {
 			doneCh <- AsyncSearchWithError{err: err}
 		})
-
+		fmt.Println("query runner")
 		translatedQueryBody, results, err := q.searchWorker(ctx, plan, table, doneCh, optAsync)
 		if err != nil {
 			doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
@@ -231,9 +231,9 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	if resp, err := q.checkProperties(ctx, plan, table, queryTranslator); err != nil {
 		return resp, err
 	}
-
+	fmt.Println(3)
 	q.runExecutePlanAsync(ctx, plan, queryTranslator, table, doneCh, optAsync)
-
+	fmt.Println(4)
 	if optAsync == nil {
 		bodyAsBytes, _ := body.Bytes()
 		response := <-doneCh
@@ -383,6 +383,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 		optComparePlansCh = q.runAlternativePlanAndComparison(ctx, alternativePlan, alternativePlanExecutor, body)
 	}
 
+	fmt.Printf("Plan to be executed: %+v", plan)
 	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh)
 }
 
@@ -651,6 +652,8 @@ func (q *QueryRunner) searchWorkerCommon(
 
 	var jobs []QueryJob
 	var jobHitsPosition []int // it keeps the position of the hits array for each job
+
+	fmt.Println("queries:", queries)
 
 	for i, query := range queries {
 		if query.NoDBQuery {

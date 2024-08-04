@@ -149,7 +149,33 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 }`,
 		"no comment yet",
 		model.SearchQueryInfo{Typ: model.Facets, FieldName: "host.name", I1: 10, I2: 5000},
-		[]string{`SELECT "host.name" AS "key", count() AS "doc_count" FROM (SELECT "host.name" FROM ` + TableName + `  WHERE (("@timestamp".=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') AND "@timestamp".=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%') LIMIT ` + queryparserFacetsSampleSize + `) GROUP BY "host.name" ORDER BY count() DESC`},
+		[]string{
+			`SELECT "aggr__sample__count", "metric__sample__sample_count_col_0", ` +
+				`"aggr__sample__top_values__key_0", "aggr__sample__top_values__parent_count", ` +
+				`"aggr__sample__top_values__count", "aggr__sample__top_values__order_1" ` +
+				`FROM (` +
+				`SELECT "aggr__sample__count", "metric__sample__sample_count_col_0", ` +
+				`"aggr__sample__top_values__key_0", "aggr__sample__top_values__parent_count", ` +
+				`"aggr__sample__top_values__count", "aggr__sample__top_values__order_1", ` +
+				`dense_rank() OVER (PARTITION BY 1 ` +
+				`ORDER BY "aggr__sample__top_values__order_1" DESC, ` +
+				`"aggr__sample__top_values__key_0" ASC) AS "aggr__sample__top_values__order_1_rank" ` +
+				`FROM (` +
+				`SELECT sum("aggr__sample__count_part") OVER (PARTITION BY 1) AS ` +
+				`"aggr__sample__count", count() AS "metric__sample__sample_count_col_0", ` +
+				`"host.name" AS "aggr__sample__top_values__key_0", sum(count(\*)) OVER ` +
+				`(PARTITION BY 1) AS "aggr__sample__top_values__parent_count", count(\*) AS ` +
+				`"aggr__sample__top_values__count", count() AS ` +
+				`"aggr__sample__top_values__order_1", count(\*) AS ` +
+				`"aggr__sample__count_part" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
+				`AND "message" iLIKE '%user%') ` +
+				`GROUP BY "host.name" AS "aggr__sample__top_values__key_0")) ` +
+				`WHERE "aggr__sample__top_values__order_1_rank"<=10 ` +
+				`ORDER BY "aggr__sample__top_values__order_1_rank" ASC`,
+		},
 		true,
 	},
 	{ // [1]
@@ -1486,7 +1512,7 @@ var TestsSearch = []SearchTestCase{
 			  "suggestions": {
 				"terms": {
 				  "size": 10,
-				  "field": "data_stream.namespace",
+				  "field": "namespace",
 				  "shard_size": 10,
 				  "order": {
 					"_count": "desc"
@@ -1495,7 +1521,7 @@ var TestsSearch = []SearchTestCase{
 			  },
 			  "unique_terms": {
 				"cardinality": {
-				  "field": "data_stream.namespace"
+				  "field": "namespace"
 				}
 			  }
 			},
@@ -1515,11 +1541,18 @@ var TestsSearch = []SearchTestCase{
 		//	justSimplestWhere(`("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z')))`),
 		//},
 		[]string{
-			`SELECT count() ` +
+			`SELECT count(DISTINCT "namespace") AS "metric__unique_terms_col_0", ` +
+				`count(*) AS "metric____quesma_total_count_col_0", ` +
+				`"namespace" AS "aggr__suggestions__key_0", ` +
+				`sum(count(*)) OVER (PARTITION BY 1) AS "aggr__suggestions__parent_count", ` +
+				`count(*) AS "aggr__suggestions__count", ` +
+				`count() AS "aggr__suggestions__order_1" ` +
 				`FROM ` + TableName + ` ` +
-				`WHERE (` + fullTextFieldName + ` iLIKE '%user%' ` +
-				`AND ("@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z') ` +
-				`AND "@timestamp".=parseDateTime64BestEffort('2024-01-22T09:..:10.299Z')))`,
+				`WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-22T09:26:10.299Z') ` +
+				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-22T09:41:10.299Z'))) ` +
+				`GROUP BY "namespace" AS "aggr__suggestions__key_0" ` +
+				`ORDER BY "aggr__suggestions__order_1" DESC, "aggr__suggestions__key_0" ASC ` +
+				`LIMIT 11`,
 		},
 	},
 	{ // [20]
