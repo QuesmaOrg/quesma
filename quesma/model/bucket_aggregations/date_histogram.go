@@ -61,6 +61,11 @@ func (query *DateHistogram) TranslateSqlResponseToJson(rows []model.QueryResultR
 				"%d, level: %d", len(rows[0].Cols), level,
 		)
 	}
+
+	if query.minDocCount == 0 {
+		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
+	}
+
 	var response []model.JsonMap
 	for _, row := range rows {
 		var key int64

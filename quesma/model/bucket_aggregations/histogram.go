@@ -4,6 +4,7 @@ package bucket_aggregations
 
 import (
 	"context"
+	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"quesma/util"
@@ -30,6 +31,13 @@ func (query Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 				"%d, level: %d", len(rows[0].Cols), level,
 		)
 	}
+
+	fmt.Println("rows przed", rows)
+	if query.minDocCount == 0 {
+		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
+	}
+	fmt.Println("rows po", rows)
+
 	var response []model.JsonMap
 	for _, row := range rows {
 		response = append(response, model.JsonMap{

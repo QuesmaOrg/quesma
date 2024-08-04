@@ -47,6 +47,7 @@ func (p *pancakeQueryGenerator) generatePartitionBy(groupByColumns []model.Alias
 
 // TODO: Implement all functions
 func (p *pancakeQueryGenerator) generateAccumAggrFunctions(origExpr model.Expr, queryType model.QueryType) (accumExpr model.Expr, aggrFuncName string, err error) {
+	fmt.Printf("origExpr: %+v %T", origExpr, origExpr)
 	switch origFunc := origExpr.(type) {
 	case model.FunctionExpr:
 		switch origFunc.Name {
@@ -57,6 +58,8 @@ func (p *pancakeQueryGenerator) generateAccumAggrFunctions(origExpr model.Expr, 
 		case "count":
 			return model.NewFunction("count", origFunc.Args...), "sum", nil
 		}
+	case model.InfixExpr:
+		return origExpr, "sum", nil
 	}
 	debugQueryType := "<nil>"
 	if queryType != nil {
@@ -153,18 +156,27 @@ func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggreg
 
 				if hasMoreBucketAggregations && !isColumnRef {
 					partColumnName := bucketAggregation.InternalNameForOrderBy(columnId) + "_part"
-					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderBy, nil)
-					if err != nil {
-						return nil, false, err
+					fmt.Println("partColumnName", partColumnName, "orderBy", orderBy)
+
+					var orderByAgg model.Expr
+					switch orderBy.(type) {
+					case model.FunctionExpr:
+						partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderBy, nil)
+						if err != nil {
+							return nil, false, err
+						}
+						aliasedColumn := model.AliasedExpr{Expr: partColumn, Alias: partColumnName}
+						selectedPartColumns = append(selectedPartColumns, aliasedColumn)
+						// TODO: fix order by
+						orderByAgg = model.WindowFunction{Name: aggFunctionName,
+							Args:        []model.Expr{p.newQuotedLiteral(partColumnName)},
+							PartitionBy: p.generatePartitionBy(groupByColumns),
+							OrderBy:     []model.OrderByExpr{},
+						}
+					case model.InfixExpr:
+						orderByAgg = orderBy
 					}
-					aliasedColumn := model.AliasedExpr{Expr: partColumn, Alias: partColumnName}
-					selectedPartColumns = append(selectedPartColumns, aliasedColumn)
-					// TODO: fix order by
-					orderByAgg := model.WindowFunction{Name: aggFunctionName,
-						Args:        []model.Expr{p.newQuotedLiteral(partColumnName)},
-						PartitionBy: p.generatePartitionBy(groupByColumns),
-						OrderBy:     []model.OrderByExpr{},
-					}
+
 					aliasedOrderByAgg := model.AliasedExpr{Expr: orderByAgg, Alias: bucketAggregation.InternalNameForOrderBy(columnId)}
 					selectedColumns = append(selectedColumns, aliasedOrderByAgg)
 				} else {
