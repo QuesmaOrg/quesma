@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-func TestPancakeQueryGeneration(t *testing.T) {
+func Test3PancakeQueryGeneration(t *testing.T) {
 
 	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
@@ -67,9 +67,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 			if multiplePancakes(test.TestName) {
 				t.Skip("Fix multiple pancakes")
-			}
-			if histogramMinDocCount0(test.TestName) {
-				t.Skip("Fix histogram min doc count 0")
 			}
 			if filter(test.TestName) {
 				t.Skip("Fix filter")
@@ -205,14 +202,6 @@ func topMetrics(testName string) bool {
 // TODO remove after fix
 func multiplePancakes(testName string) bool {
 	return testName == "histogram with all possible calendar_intervals"
-}
-
-// TODO remove after fix
-func histogramMinDocCount0(testName string) bool {
-	t1 := testName == "simple histogram, but min_doc_count: 0"
-	t2 := testName == "simple date_histogram, but min_doc_count: 0"
-	t3 := testName == "2x histogram with min_doc_count 0"
-	return t1 || t2 || t3
 }
 
 // TODO remove after fix
