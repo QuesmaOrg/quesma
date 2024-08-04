@@ -2564,8 +2564,9 @@ var AggregationTests = []AggregationTestCase{
 				"aggr__sample__top_values__order_1_rank"
 			  FROM (
 				SELECT sum("aggr__sample__count_part") OVER (PARTITION BY 1) AS
-				  "aggr__sample__count", count() AS "metric__sample__sample_count_col_0",
-				  "host.name" AS "aggr__sample__top_values__key_0", count(*) AS
+				  "aggr__sample__count", count("host.name") AS
+				  "metric__sample__sample_count_col_0", "host.name" AS
+				  "aggr__sample__top_values__key_0", count(*) AS
 				  "aggr__sample__top_values__count", count() AS
 				  "aggr__sample__top_values__order_1", count(*) AS
 				  "aggr__sample__count_part"

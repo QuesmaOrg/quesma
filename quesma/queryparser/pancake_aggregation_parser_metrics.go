@@ -45,7 +45,7 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 		result = []model.Expr{model.NewCountFunc(model.NewDistinctExpr(getFirstExpression()))}
 
 	case "value_count":
-		result = []model.Expr{model.NewCountFunc()}
+		result = []model.Expr{model.NewCountFunc(getFirstExpression())}
 
 	case "stats":
 		expr := getFirstExpression()

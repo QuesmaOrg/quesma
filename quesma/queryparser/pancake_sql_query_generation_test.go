@@ -80,9 +80,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if multiTerms(test.TestName) {
 				t.Skip("Fix multi terms")
 			}
-			if valueCount(test.TestName) { // DON'T FIX, I already have it fixed in another PR
-				t.Skip("Fix value count")
-			}
 
 			fmt.Println("i:", i, "test:", test.TestName)
 
@@ -249,11 +246,6 @@ func multiTerms(testName string) bool {
 	t3 := testName == "Multi_terms with double-nested subaggregations. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Unique count, Breakdown: @timestamp"
 	t4 := testName == "Quite simple multi_terms, but with non-string keys. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)"
 	return t1 || t2 || t3 || t4
-}
-
-// TODO remove after fix
-func valueCount(testName string) bool {
-	return testName == "value_count + top_values: regression test"
 }
 
 func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
