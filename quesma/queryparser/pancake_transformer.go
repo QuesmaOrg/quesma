@@ -13,7 +13,7 @@ import (
 type pancakeTransformer struct {
 }
 
-func (a *pancakeTransformer) metricAggregationToFilling(previousAggrNames []string, metric *pancakeAggregationLevel) (filling *pancakeFillingMetricAggregation, err error) {
+func (a *pancakeTransformer) metricAggregationTreeNodeToModel(previousAggrNames []string, metric *pancakeAggregationTreeNode) (metricModel *pancakeModelMetricAggregation, err error) {
 	if metric == nil {
 		return nil, fmt.Errorf("metric aggregation is nil")
 
@@ -22,7 +22,7 @@ func (a *pancakeTransformer) metricAggregationToFilling(previousAggrNames []stri
 		return nil, fmt.Errorf("metric %s aggregation is not metrics aggregation, type: %s", metric.name, metric.queryType.AggregationType().String())
 	}
 
-	return &pancakeFillingMetricAggregation{
+	return &pancakeModelMetricAggregation{
 		name: metric.name,
 		// TODO: check for collisions
 		internalName:    fmt.Sprintf("metric__%s", strings.Join(append(previousAggrNames, metric.name), "__")),
@@ -33,7 +33,7 @@ func (a *pancakeTransformer) metricAggregationToFilling(previousAggrNames []stri
 	}, nil
 }
 
-func (a *pancakeTransformer) bucketAggregationToLayer(previousAggrNames []string, bucket *pancakeAggregationLevel) (layer *pancakeLayerBucketAggregation, err error) {
+func (a *pancakeTransformer) bucketAggregationToLayer(previousAggrNames []string, bucket *pancakeAggregationTreeNode) (layer *pancakeModelBucketAggregation, err error) {
 	if bucket == nil {
 		return nil, fmt.Errorf("bucket aggregation is nil")
 
@@ -42,7 +42,7 @@ func (a *pancakeTransformer) bucketAggregationToLayer(previousAggrNames []string
 		return nil, fmt.Errorf("bucket aggregation %s is not bucket aggregation, type: %s", bucket.name, bucket.queryType.AggregationType().String())
 	}
 
-	return &pancakeLayerBucketAggregation{
+	return &pancakeModelBucketAggregation{
 		name: bucket.name,
 		// TODO: check for collisions
 		internalName:    fmt.Sprintf("aggr__%s__", strings.Join(append(previousAggrNames, bucket.name), "__")),
@@ -58,14 +58,14 @@ func (a *pancakeTransformer) bucketAggregationToLayer(previousAggrNames []string
 	}, nil
 }
 
-func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggregations []*pancakeAggregationLevel) (layer *pancakeAggregationLayer, nextBucketAggregation *pancakeAggregationLevel, err error) {
+func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggregations []*pancakeAggregationTreeNode) (layer *pancakeModelLayer, nextBucketAggregation *pancakeAggregationTreeNode, err error) {
 
 	if len(childAggregations) == 0 {
 		return nil, nil, nil
 	}
 
-	layer = &pancakeAggregationLayer{
-		currentMetricAggregations: make([]*pancakeFillingMetricAggregation, 0),
+	layer = &pancakeModelLayer{
+		currentMetricAggregations: make([]*pancakeModelMetricAggregation, 0),
 	}
 
 	for _, childAgg := range childAggregations {
@@ -74,7 +74,7 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 		}
 		switch childAgg.queryType.AggregationType() {
 		case model.MetricsAggregation:
-			metrics, err := a.metricAggregationToFilling(previousAggrNames, childAgg)
+			metrics, err := a.metricAggregationTreeNodeToModel(previousAggrNames, childAgg)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -101,14 +101,14 @@ func (a *pancakeTransformer) createLayer(previousAggrNames []string, childAggreg
 	return layer, nextBucketAggregation, nil
 }
 
-func (a *pancakeTransformer) aggregationTreeToPancake(topLevel pancakeAggregationTopLevel) (pancakeResult *pancakeAggregation, err error) {
+func (a *pancakeTransformer) aggregationTreeToPancake(topLevel pancakeAggregationTree) (pancakeResult *pancakeModel, err error) {
 	if topLevel.children == nil || len(topLevel.children) == 0 {
 		return nil, fmt.Errorf("no top level aggregations found")
 	}
 
-	var nextBucketAggregation *pancakeAggregationLevel
+	var nextBucketAggregation *pancakeAggregationTreeNode
 
-	layers := make([]*pancakeAggregationLayer, 0)
+	layers := make([]*pancakeModelLayer, 0)
 	aggrNames := make([]string, 0)
 	firstLayer, nextBucketAggregation, err := a.createLayer(aggrNames, topLevel.children)
 	if err != nil {
@@ -118,7 +118,7 @@ func (a *pancakeTransformer) aggregationTreeToPancake(topLevel pancakeAggregatio
 	layers = append(layers, firstLayer)
 
 	for nextBucketAggregation != nil {
-		var layer *pancakeAggregationLayer
+		var layer *pancakeModelLayer
 		aggrNames = append(aggrNames, nextBucketAggregation.name)
 		layer, nextBucketAggregation, err = a.createLayer(aggrNames, nextBucketAggregation.children)
 		if err != nil {
@@ -140,7 +140,7 @@ func (a *pancakeTransformer) aggregationTreeToPancake(topLevel pancakeAggregatio
 		})
 	}
 
-	pancakeResult = &pancakeAggregation{
+	pancakeResult = &pancakeModel{
 		layers:      layers,
 		whereClause: topLevel.whereClause,
 	}

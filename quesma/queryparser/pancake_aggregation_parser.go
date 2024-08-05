@@ -22,8 +22,8 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 	// Phase 1: Parse Query DSL into aggregation tree
 	queryAsMap := body.Clone()
 
-	topLevel := pancakeAggregationTopLevel{
-		children: []*pancakeAggregationLevel{},
+	topLevel := pancakeAggregationTree{
+		children: []*pancakeAggregationTreeNode{},
 	}
 
 	if queryPartRaw, ok := queryAsMap["query"]; ok {
@@ -62,7 +62,7 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 	if addCount {
 
 		// use our building blocks to add count
-		augmentedCountAggregation := &pancakeFillingMetricAggregation{
+		augmentedCountAggregation := &pancakeModelMetricAggregation{
 			name:            PancakeTotalCountMetricName,
 			internalName:    "metric__" + PancakeTotalCountMetricName,
 			queryType:       typical_queries.Count{},
@@ -86,8 +86,8 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 	return aggregationQueries, nil
 }
 
-func (cw *ClickhouseQueryTranslator) pancakeParseAggregationNames(aggs QueryMap) ([]*pancakeAggregationLevel, error) {
-	aggregationLevels := make([]*pancakeAggregationLevel, 0)
+func (cw *ClickhouseQueryTranslator) pancakeParseAggregationNames(aggs QueryMap) ([]*pancakeAggregationTreeNode, error) {
+	aggregationLevels := make([]*pancakeAggregationTreeNode, 0)
 
 	for aggrName, aggrDict := range aggs {
 		if subAggregation, ok := aggrDict.(QueryMap); ok {
@@ -104,7 +104,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregationNames(aggs QueryMap)
 	return aggregationLevels, nil
 }
 
-func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName string, queryMap QueryMap) (*pancakeAggregationLevel, error) {
+func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName string, queryMap QueryMap) (*pancakeAggregationTreeNode, error) {
 	if len(queryMap) == 0 {
 		return nil, nil
 	}
@@ -118,7 +118,7 @@ func (cw *ClickhouseQueryTranslator) pancakeParseAggregation(aggregationName str
 		metadata = model.NoMetadataField
 	}
 
-	aggregation := &pancakeAggregationLevel{
+	aggregation := &pancakeAggregationTreeNode{
 		name:     aggregationName,
 		metadata: metadata,
 	}
