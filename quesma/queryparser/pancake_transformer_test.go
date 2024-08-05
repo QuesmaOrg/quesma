@@ -16,63 +16,63 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 
 	// input
 
-	agg := func(a string, q model.QueryType) *pancakeAggregationLevel {
-		return &pancakeAggregationLevel{
+	agg := func(a string, q model.QueryType) *pancakeAggregationTreeNode {
+		return &pancakeAggregationTreeNode{
 			name:      a,
 			queryType: q,
 		}
 	}
 
-	metrics := func(a string) *pancakeAggregationLevel {
+	metrics := func(a string) *pancakeAggregationTreeNode {
 		return agg(a, metrics_aggregations.Avg{})
 	}
 
-	bucket := func(a string, children ...*pancakeAggregationLevel) *pancakeAggregationLevel {
+	bucket := func(a string, children ...*pancakeAggregationTreeNode) *pancakeAggregationTreeNode {
 
 		if children == nil {
-			children = make([]*pancakeAggregationLevel, 0)
+			children = make([]*pancakeAggregationTreeNode, 0)
 		}
 
-		return &pancakeAggregationLevel{
+		return &pancakeAggregationTreeNode{
 			name:      a,
 			queryType: bucket_aggregations.Range{},
 			children:  children,
 		}
 	}
 
-	top := func(a ...*pancakeAggregationLevel) *pancakeAggregationTopLevel {
-		return &pancakeAggregationTopLevel{
+	top := func(a ...*pancakeAggregationTreeNode) *pancakeAggregationTree {
+		return &pancakeAggregationTree{
 			children: a,
 		}
 	}
 
 	// output
 
-	panBucket := func(a, b string) *pancakeLayerBucketAggregation {
-		return &pancakeLayerBucketAggregation{
+	panBucket := func(a, b string) *pancakeModelBucketAggregation {
+		return &pancakeModelBucketAggregation{
 			name:         a,
 			internalName: b,
 			queryType:    bucket_aggregations.Range{},
 		}
 	}
 
-	panMetric := func(a, b string) *pancakeFillingMetricAggregation {
-		return &pancakeFillingMetricAggregation{
+	panMetric := func(a, b string) *pancakeModelMetricAggregation {
+		return &pancakeModelMetricAggregation{
 			name:         a,
 			internalName: b,
 			queryType:    metrics_aggregations.Avg{},
 		}
 	}
 
-	layer := func(bucket *pancakeLayerBucketAggregation, metrics ...*pancakeFillingMetricAggregation) *pancakeAggregationLayer {
-		return &pancakeAggregationLayer{
+	layer := func(bucket *pancakeModelBucketAggregation, metrics ...*pancakeModelMetricAggregation) *pancakeModelLayer {
+		return &pancakeModelLayer{
 			nextBucketAggregation:     bucket,
 			currentMetricAggregations: metrics,
 		}
 	}
 
-	pancake := func(panLayers ...*pancakeAggregationLayer) *pancakeAggregation {
-		return &pancakeAggregation{
+	pancake := func(panLayers ...*pancakeModelLayer) *pancakeModel {
+		return &pancakeModel{
 			layers: panLayers,
 		}
 	}
@@ -80,8 +80,8 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 	// test cases
 	tests := []struct {
 		name    string
-		tree    *pancakeAggregationTopLevel
-		pancake *pancakeAggregation
+		tree    *pancakeAggregationTree
+		pancake *pancakeModel
 	}{
 
 		{"one bucket aggregation",
@@ -125,9 +125,9 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			transformer := &aggregationTree2Pancake{}
+			transformer := &pancakeTransformer{}
 
-			pan, err := transformer.toPancake(*tt.tree)
+			pan, err := transformer.aggregationTreeToPancake(*tt.tree)
 
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)

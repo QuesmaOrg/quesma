@@ -10,14 +10,14 @@ import (
 	"strconv"
 )
 
-type pancakeQueryGenerator struct {
+type pancakeSqlQueryGenerator struct {
 }
 
-func (p *pancakeQueryGenerator) newQuotedLiteral(value string) model.LiteralExpr {
+func (p *pancakeSqlQueryGenerator) newQuotedLiteral(value string) model.LiteralExpr {
 	return model.LiteralExpr{Value: strconv.Quote(value)}
 }
 
-func (p *pancakeQueryGenerator) aliasedExprArrayToExpr(aliasedExprs []model.AliasedExpr) []model.Expr {
+func (p *pancakeSqlQueryGenerator) aliasedExprArrayToExpr(aliasedExprs []model.AliasedExpr) []model.Expr {
 	exprs := make([]model.Expr, 0, len(aliasedExprs))
 	for _, aliasedExpr := range aliasedExprs {
 		exprs = append(exprs, aliasedExpr)
@@ -25,7 +25,7 @@ func (p *pancakeQueryGenerator) aliasedExprArrayToExpr(aliasedExprs []model.Alia
 	return exprs
 }
 
-func (p *pancakeQueryGenerator) aliasedExprArrayToLiteralExpr(aliasedExprs []model.AliasedExpr) []model.Expr {
+func (p *pancakeSqlQueryGenerator) aliasedExprArrayToLiteralExpr(aliasedExprs []model.AliasedExpr) []model.Expr {
 	exprs := make([]model.Expr, 0, len(aliasedExprs))
 	for _, aliasedExpr := range aliasedExprs {
 		exprs = append(exprs, p.newQuotedLiteral(aliasedExpr.Alias))
@@ -33,7 +33,7 @@ func (p *pancakeQueryGenerator) aliasedExprArrayToLiteralExpr(aliasedExprs []mod
 	return exprs
 }
 
-func (p *pancakeQueryGenerator) generatePartitionBy(groupByColumns []model.AliasedExpr) []model.Expr {
+func (p *pancakeSqlQueryGenerator) generatePartitionBy(groupByColumns []model.AliasedExpr) []model.Expr {
 	partitionBy := make([]model.Expr, 0)
 	if len(groupByColumns) == 0 {
 		partitionBy = []model.Expr{model.NewLiteral(1)}
@@ -46,7 +46,7 @@ func (p *pancakeQueryGenerator) generatePartitionBy(groupByColumns []model.Alias
 }
 
 // TODO: Implement all functions
-func (p *pancakeQueryGenerator) generateAccumAggrFunctions(origExpr model.Expr, queryType model.QueryType) (accumExpr model.Expr, aggrFuncName string, err error) {
+func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Expr, queryType model.QueryType) (accumExpr model.Expr, aggrFuncName string, err error) {
 	switch origFunc := origExpr.(type) {
 	case model.FunctionExpr:
 		switch origFunc.Name {
@@ -67,7 +67,7 @@ func (p *pancakeQueryGenerator) generateAccumAggrFunctions(origExpr model.Expr, 
 }
 
 // TODO: deduplicate metric names
-func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggregation, table *clickhouse.Table) (*model.SelectCommand, bool, error) {
+func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeModel, table *clickhouse.Table) (*model.SelectCommand, bool, error) {
 	if aggregation == nil {
 		return nil, false, errors.New("aggregation is nil in generateQuery")
 	}
@@ -256,7 +256,7 @@ func (p *pancakeQueryGenerator) generateSelectCommand(aggregation *pancakeAggreg
 	return &finalQuery, true, nil
 }
 
-func (p *pancakeQueryGenerator) generateQuery(aggregation *pancakeAggregation, table *clickhouse.Table) (*model.Query, error) {
+func (p *pancakeSqlQueryGenerator) generateQuery(aggregation *pancakeModel, table *clickhouse.Table) (*model.Query, error) {
 	if aggregation == nil {
 		return nil, errors.New("aggregation is nil in generateQuery")
 	}
