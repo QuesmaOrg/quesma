@@ -20,7 +20,7 @@ import (
 	"testing"
 )
 
-func Test3PancakeQueryGeneration(t *testing.T) {
+func TestPancakeQueryGeneration(t *testing.T) {
 
 	logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
@@ -71,9 +71,6 @@ func Test3PancakeQueryGeneration(t *testing.T) {
 			}
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
-			}
-			if multiTerms(test.TestName) {
-				t.Skip("Fix multi terms")
 			}
 
 			fmt.Println("i:", i, "test:", test.TestName)
@@ -139,7 +136,7 @@ func Test3PancakeQueryGeneration(t *testing.T) {
 			if len(expectedMinusActual) != 0 {
 				pp.Println("EXPECTED diff", expectedMinusActual)
 			}
-			pp.Println("ACTUAL", pancakeJson)
+			//pp.Println("ACTUAL", pancakeJson)
 			//pp.Println("EXPECTED", expectedAggregationsPart)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))

@@ -61,6 +61,8 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		aggregation.selectedColumns = append(aggregation.selectedColumns, col)
 		aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExprWithoutOrder(col))
 
+		fmt.Println("orderik", aggregation.orderBy)
+
 		delete(queryMap, "histogram")
 		return success, nil
 	}
@@ -84,6 +86,8 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		sqlQuery := dateHistogramAggr.GenerateSQL()
 		aggregation.selectedColumns = append(aggregation.selectedColumns, sqlQuery)
 		aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExprWithoutOrder(sqlQuery))
+
+		fmt.Printf("orderik: %+v\n", aggregation.orderBy)
 
 		delete(queryMap, "date_histogram")
 		return success, nil
