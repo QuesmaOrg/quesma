@@ -112,7 +112,7 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 	for _, metric := range layer.currentMetricAggregations {
 		metricRows := p.selectMetricRows(metric.internalName+"_col_", rows)
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
-		// maybe add metadata also here? probably not needed
+		// TODO: maybe add metadata also here? probably not needed
 	}
 
 	if layer.nextBucketAggregation != nil {
