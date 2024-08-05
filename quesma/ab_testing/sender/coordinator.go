@@ -12,11 +12,12 @@ import (
 	"time"
 )
 
+// SenderCoordinator - manages sender and in memory collector.
 type SenderCoordinator struct {
 	ctx        context.Context
 	cancelFunc context.CancelFunc
 
-	sender *sender
+	sender *sender // sender managed by this coordinator
 
 	enabled bool
 }
@@ -26,7 +27,7 @@ func NewSenderCoordinator(cfg config.QuesmaConfiguration) *SenderCoordinator {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &SenderCoordinator{
-		sender:     NewSender(ctx),
+		sender:     newSender(ctx),
 		ctx:        ctx,
 		cancelFunc: cancel,
 		enabled:    false, // TODO this should be read from config
@@ -53,7 +54,7 @@ func (c *SenderCoordinator) receiveHealthStatusesLoop() {
 	var inMemoryCollector *collector.InMemoryCollector
 	repoHealthQueue := make(chan ab_testing.HealthMessage)
 
-	senderUseCollector := func(r ab_testing.Sender) {
+	senderUseCollector := func(r collector.Collector) {
 		c.sender.controlQueue <- senderControlMessage{
 			useCollector: r,
 		}

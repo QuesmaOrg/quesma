@@ -26,6 +26,7 @@ type Result struct {
 	// quesma async_id
 }
 
+// Sender sends results to a destination. This one will be used in Quesma core.
 type Sender interface {
 	Send(result Result)
 }

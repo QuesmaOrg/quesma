@@ -15,6 +15,10 @@ type Diff struct {
 	IsDiff   bool   `json:"is_diff"`
 }
 
+type Collector interface {
+	Collect(result ab_testing.Result)
+}
+
 // it holds the EnrichedResults of the processing
 type EnrichedResults struct {
 	ab_testing.Result
@@ -94,7 +98,7 @@ func (r *InMemoryCollector) Start() {
 	}()
 }
 
-func (r *InMemoryCollector) Send(data ab_testing.Result) {
+func (r *InMemoryCollector) Collect(data ab_testing.Result) {
 	r.receiveQueue <- data
 }
 

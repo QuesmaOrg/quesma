@@ -5,22 +5,24 @@ package sender
 import (
 	"context"
 	"quesma/ab_testing"
+	"quesma/ab_testing/collector"
 	"quesma/logger"
 	"quesma/quesma/recovery"
 )
 
 type senderControlMessage struct {
-	useCollector ab_testing.Sender
+	useCollector collector.Collector
 }
 
+// sender sends results to the collector if available. This implementation is managed by SenderCoordinator.
 type sender struct {
 	ctx          context.Context
-	collector    ab_testing.Sender
+	collector    collector.Collector // collector has the same interfaces
 	queue        chan ab_testing.Result
 	controlQueue chan senderControlMessage
 }
 
-func NewSender(ctx context.Context) *sender {
+func newSender(ctx context.Context) *sender {
 
 	return &sender{
 		ctx:          ctx,
@@ -51,7 +53,7 @@ func (f *sender) Start() {
 			case result := <-f.queue:
 
 				if f.collector != nil {
-					f.collector.Send(result)
+					f.collector.Collect(result)
 				}
 
 			case <-f.ctx.Done():
