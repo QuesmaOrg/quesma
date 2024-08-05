@@ -313,7 +313,7 @@ var AggregationTests = []testdata.AggregationTestCase{
                 GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
                   "aggr__0__key_0", "severity" AS "aggr__0__1__key_0", "source" AS
                   "aggr__0__1__key_1"))
-            WHERE ("aggr__0__order_1_rank"<=0 AND "aggr__0__1__order_2_rank"<=3)
+            WHERE "aggr__0__1__order_2_rank"<=3
             ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_2_rank" ASC`,
 	},
 	{ // [1]
@@ -534,7 +534,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				GROUP BY "message" AS "aggr__0__key_0", "host.name" AS "aggr__0__key_1",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 				  "aggr__0__1__key_0"))
-			WHERE ("aggr__0__order_2_rank"<=3 AND "aggr__0__1__order_1_rank"<=0)
+			WHERE "aggr__0__order_2_rank"<=3
 			ORDER BY "aggr__0__order_2_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ //[2],
@@ -851,7 +851,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				GROUP BY "severity" AS "aggr__0__key_0", "source" AS "aggr__0__key_1",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 				  "aggr__0__1__key_0"))
-			WHERE ("aggr__0__order_2_rank"<=3 AND "aggr__0__1__order_1_rank"<=0)
+			WHERE "aggr__0__order_2_rank"<=3
 			ORDER BY "aggr__0__order_2_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ // [3]
@@ -1102,7 +1102,7 @@ var AggregationTests = []testdata.AggregationTestCase{
 				GROUP BY "Cancelled" AS "aggr__0__key_0", "AvgTicketPrice" AS
 				  "aggr__0__key_1", toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
 				   "aggr__0__1__key_0"))
-			WHERE ("aggr__0__order_2_rank"<=3 AND "aggr__0__1__order_1_rank"<=0)
+			WHERE "aggr__0__order_2_rank"<=3
 			ORDER BY "aggr__0__order_2_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 }

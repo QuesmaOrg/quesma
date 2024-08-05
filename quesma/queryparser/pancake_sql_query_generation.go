@@ -99,6 +99,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 						PartitionBy: p.generatePartitionBy(groupByColumns),
 						OrderBy:     []model.OrderByExpr{},
 					}
+					fmt.Printf("partColumn: %+v, aggFunctionName: %s, finalColumn %+v\n", partColumn, aggFunctionName, finalColumn)
 					aliasedColumn := model.AliasedExpr{Expr: finalColumn, Alias: aliasedName}
 					selectedColumns = append(selectedColumns, aliasedColumn)
 				} else {
@@ -157,7 +158,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 				if hasMoreBucketAggregations && !isColumnRef {
 					partColumnName := bucketAggregation.InternalNameForOrderBy(columnId) + "_part"
 					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderBy, nil)
-					fmt.Println("tutaj 2, buckets", partColumn, aggFunctionName, err)
+
 					if err != nil {
 						return nil, false, err
 					}
@@ -169,6 +170,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 						PartitionBy: p.generatePartitionBy(groupByColumns),
 						OrderBy:     []model.OrderByExpr{},
 					}
+					fmt.Println("tutaj 2, buckets", partColumn, aggFunctionName, err, model.AsString(partColumn), "order by aggr", model.AsString(orderByAgg), "name:", bucketAggregation.InternalNameForOrderBy(columnId))
 					aliasedOrderByAgg := model.AliasedExpr{Expr: orderByAgg, Alias: bucketAggregation.InternalNameForOrderBy(columnId)}
 					selectedColumns = append(selectedColumns, aliasedOrderByAgg)
 				} else {
