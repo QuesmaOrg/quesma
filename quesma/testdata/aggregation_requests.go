@@ -671,7 +671,7 @@ var AggregationTests = []AggregationTestCase{
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))
 				GROUP BY "FlightDelayType" AS "aggr__0__key_0",
 				  toInt64(toUnixTimestamp64Milli("timestamp") / 10800000) AS "aggr__0__1__key_0"))
-			WHERE ("aggr__0__order_1_rank"<=10 AND "aggr__0__1__order_1_rank"<=0)
+			WHERE "aggr__0__order_1_rank"<=10
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ // [3]
@@ -2032,7 +2032,7 @@ var AggregationTests = []AggregationTestCase{
 				  parseDateTime64BestEffort('2024-02-09T16:36:49.940Z')))
 				GROUP BY "severity" AS "aggr__0__key_0", toInt64(toUnixTimestamp64Milli(
 				  "@timestamp") / 10800000) AS "aggr__0__1__key_0"))
-			WHERE ("aggr__0__order_1_rank"<=3 AND "aggr__0__1__order_1_rank"<=0)
+			WHERE "aggr__0__order_1_rank"<=3
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ // [10]
@@ -2860,7 +2860,7 @@ var AggregationTests = []AggregationTestCase{
 				GROUP BY COALESCE("event.dataset",'unknown') AS "aggr__stats__key_0",
 				  toInt64(toUnixTimestamp64Milli("@timestamp") / 60000) AS
 				  "aggr__stats__series__key_0"))
-			WHERE ("aggr__stats__order_1_rank"<=4 AND "aggr__stats__series__order_1_rank"<=0)
+			WHERE "aggr__stats__order_1_rank"<=4
 			ORDER BY "aggr__stats__order_1_rank" ASC, "aggr__stats__series__order_1_rank" ASC`,
 	},
 	{ // [14], "old" test, also can be found in testdata/requests.go TestAsyncSearch[5]
@@ -7066,7 +7066,7 @@ var AggregationTests = []AggregationTestCase{
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "FlightDelayMin" AS
 				  "aggr__0__1__key_0"))
-			WHERE ("aggr__0__order_1_rank"<=8 AND "aggr__0__1__order_1_rank"<=0)
+			WHERE "aggr__0__order_1_rank"<=8
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ // [36]
@@ -7332,7 +7332,7 @@ var AggregationTests = []AggregationTestCase{
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "FlightDelayMin" AS
 				  "aggr__0__1__key_0"))
-			WHERE ("aggr__0__order_1_rank"<=10 AND "aggr__0__1__order_1_rank"<=0)
+			WHERE "aggr__0__order_1_rank"<=10
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ // [38]
