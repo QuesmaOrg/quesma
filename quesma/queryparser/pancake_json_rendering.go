@@ -114,6 +114,8 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
 	}
 
+	// od razu
+
 	if layer.nextBucketAggregation != nil {
 		bucketRows, subAggrRows := p.splitBucketRows(layer.nextBucketAggregation, rows)
 

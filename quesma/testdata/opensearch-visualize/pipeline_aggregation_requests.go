@@ -2938,11 +2938,6 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				"excludes": []
 			},
 			"aggs": {
-				"1": {
-					"min_bucket": {
-						"buckets_path": "1-bucket>1-metric"
-					}
-				},
 				"1-bucket": {
 					"aggs": {
 						"1-metric": {
@@ -3116,7 +3111,38 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "255.205.14.152"),
+				model.NewQueryResultCol("aggr__1-bucket__count", 1),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "255.205.14.152"),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "255.174.89.45"),
+				model.NewQueryResultCol("aggr__1-bucket__count", 1),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "255.174.89.45"),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "253.69.5.67"),
+				model.NewQueryResultCol("aggr__1-bucket__count", 1),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "253.69.5.67"),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "252.177.62.191"),
+				model.NewQueryResultCol("aggr__1-bucket__count", 1),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "252.177.62.191"),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__1-bucket__key_0", "251.250.144.158"),
+				model.NewQueryResultCol("aggr__1-bucket__count", 1),
+				model.NewQueryResultCol("aggr__1-bucket__order_1", "251.250.144.158"),
+				model.NewQueryResultCol("metric__1-bucket__1-metric_col_0", 1),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + testdata.QuotedTableName,
@@ -3141,7 +3167,14 @@ var PipelineAggregationTests = []testdata.AggregationTestCase{
 				`ORDER BY "clientip" DESC ` +
 				`LIMIT 5`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "clientip" AS "aggr__1-bucket__key_0", count(*) AS
+			  "aggr__1-bucket__count", "clientip" AS "aggr__1-bucket__order_1",
+			  count(DISTINCT "geo.coordinates") AS "metric__1-bucket__1-metric_col_0"
+			FROM "logs-generic-default"
+			GROUP BY "clientip" AS "aggr__1-bucket__key_0"
+			ORDER BY "aggr__1-bucket__order_1" DESC, "aggr__1-bucket__key_0" ASC
+			LIMIT 6`,
 	},
 	{ // [17]
 		TestName: "complex min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Sum), Buckets: Split Series: Histogram",
