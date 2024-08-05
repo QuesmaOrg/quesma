@@ -27,7 +27,7 @@ func (c SchemaTypeAdapter) Convert(s string) (schema.Type, bool) {
 	case "Int", "Int8", "Int16", "Int32", "Int64":
 		return schema.TypeLong, true
 	case "UInt8", "UInt16", "UInt32", "UInt64", "UInt128", "UInt256":
-		return schema.TypeUnsignedLong, true
+		return schema.TypeInteger, true
 	case "Bool":
 		return schema.TypeBoolean, true
 	case "Float32", "Float64":
