@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-func TestPancakeQueryGeneration(t *testing.T) {
+func Test3PancakeQueryGeneration(t *testing.T) {
 
 	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
@@ -70,9 +70,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 			if multiplePancakes(test.TestName) {
 				t.Skip("Fix multiple pancakes")
-			}
-			if histogramMinDocCount0(test.TestName) {
-				t.Skip("Fix histogram min doc count 0")
 			}
 			if meta(test.TestName) {
 				t.Skip("Fix meta")
