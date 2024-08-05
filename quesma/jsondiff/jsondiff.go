@@ -139,28 +139,9 @@ func (d *JSONDiff) intersect(a, b []string) []string {
 	return c
 }
 
-func (d *JSONDiff) subtract(a, b []string) []string {
-	var c []string
-
-	for _, x := range a {
-		found := false
-		for _, y := range b {
-			if x == y {
-				found = true
-				break
-			}
-		}
-		if !found {
-			c = append(c, x)
-		}
-	}
-
-	return c
-}
-
 func (d *JSONDiff) compareArray(actual []any, expected []any) {
 
-	if len(actual)-len(expected) == 1 || len(actual)-len(expected) == 1 {
+	if len(actual)-len(expected) == 1 || len(actual)-len(expected) == -1 {
 		d.addProblem(invalidArrayLength, fmt.Sprintf("%d", len(actual)), fmt.Sprintf("%d", len(expected)))
 		// off by one difference, here we can compare the rest of the array
 	} else if len(actual) != len(expected) {
