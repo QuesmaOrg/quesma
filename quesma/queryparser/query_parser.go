@@ -550,7 +550,8 @@ func (cw *ClickhouseQueryTranslator) parseTerm(queryMap QueryMap) model.SimpleQu
 				whereClause = model.NewInfixExpr(model.NewLiteral("0"), "=", model.NewLiteral("0 /* "+k+"="+sprint(v)+" */"))
 				return model.NewSimpleQuery(whereClause, true)
 			}
-			whereClause = model.NewInfixExpr(model.NewColumnRef(k), "=", model.NewLiteral(sprint(v)))
+			fieldName := cw.ResolveField(cw.Ctx, k)
+			whereClause = model.NewInfixExpr(model.NewColumnRef(fieldName), "=", model.NewLiteral(sprint(v)))
 			return model.NewSimpleQuery(whereClause, true)
 		}
 	}
