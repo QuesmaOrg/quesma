@@ -142,6 +142,8 @@ func asElasticType(t schema.Type) string {
 		return elasticsearch_field_types.FieldTypeObject
 	case schema.TypePoint.Name:
 		return elasticsearch_field_types.FieldTypeGeoPoint
+	case schema.TypeUnsignedLong.Name:
+		return elasticsearch_field_types.FieldTypeUnsignedLong
 	default:
 		return elasticsearch_field_types.FieldTypeText
 	}
