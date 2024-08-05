@@ -1,32 +1,32 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package controller
+package sender
 
 import (
 	"context"
 	"quesma/ab_testing"
-	"quesma/ab_testing/repository"
+	"quesma/ab_testing/collector"
 	"quesma/logger"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"time"
 )
 
-type ABTestingController struct {
+type SenderCoordinator struct {
 	ctx        context.Context
 	cancelFunc context.CancelFunc
 
-	facade *facade
+	facade *sender
 
 	enabled bool
 }
 
-func NewABTestingController(cfg config.QuesmaConfiguration) *ABTestingController {
+func NewSenderCoordinator(cfg config.QuesmaConfiguration) *SenderCoordinator {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &ABTestingController{
-		facade:     NewFacade(ctx),
+	return &SenderCoordinator{
+		facade:     NewSender(ctx),
 		ctx:        ctx,
 		cancelFunc: cancel,
 		enabled:    false, // TODO this should be read from config
@@ -34,28 +34,28 @@ func NewABTestingController(cfg config.QuesmaConfiguration) *ABTestingController
 	}
 }
 
-func (c *ABTestingController) Client() ab_testing.ResultsRepository {
+func (c *SenderCoordinator) GetSender() ab_testing.Sender {
 	if c.enabled {
 		return c.facade
 	} else {
-		return ab_testing.NewEmptyResultsRepository()
+		return ab_testing.NewEmptySender()
 	}
 }
 
-func (c *ABTestingController) newInMemoryRepository(healthQueue chan<- ab_testing.HealthMessage) *repository.ResultsRepositoryImpl {
-	repo := repository.NewResultsRepository(c.ctx, healthQueue)
+func (c *SenderCoordinator) newInMemoryProcessor(healthQueue chan<- ab_testing.HealthMessage) *collector.InMemoryCollector {
+	repo := collector.NewCollector(c.ctx, healthQueue)
 	repo.Start()
 	return repo
 }
 
-func (c *ABTestingController) loop() {
+func (c *SenderCoordinator) receiveHealthStatusesLoop() {
 
-	var repo *repository.ResultsRepositoryImpl
+	var repo *collector.InMemoryCollector
 	repoHealthQueue := make(chan ab_testing.HealthMessage)
 
-	updateFacade := func(r ab_testing.ResultsRepository) {
-		c.facade.controlQueue <- facadeControlMessage{
-			newDelegate: r,
+	updateFacade := func(r ab_testing.Sender) {
+		c.facade.controlQueue <- senderControlMessage{
+			useCollector: r,
 		}
 	}
 
@@ -64,7 +64,7 @@ func (c *ABTestingController) loop() {
 
 		if repo == nil {
 			logger.InfoWithCtx(c.ctx).Msg("Creating InMemoryRepository")
-			repo = c.newInMemoryRepository(repoHealthQueue)
+			repo = c.newInMemoryProcessor(repoHealthQueue)
 		}
 
 		// TODO add logic here
@@ -80,7 +80,7 @@ func (c *ABTestingController) loop() {
 			if !h.IsHealthy {
 				updateFacade(nil)
 
-				// we should give a chance to the repository to recover
+				// we should give a chance to the collector to recover
 
 				logger.InfoWithCtx(c.ctx).Msg("Stopping  InMemoryRepository")
 				repo.Stop()
@@ -90,12 +90,12 @@ func (c *ABTestingController) loop() {
 			}
 
 		case <-time.After(10 * time.Second):
-			// check if repository is still alive
+			// check if collector is still alive
 		}
 	}
 }
 
-func (c *ABTestingController) Start() {
+func (c *SenderCoordinator) Start() {
 
 	if !c.enabled {
 		logger.InfoWithCtx(c.ctx).Msg("AB Testing Controller is disabled")
@@ -110,12 +110,12 @@ func (c *ABTestingController) Start() {
 		recovery.LogAndHandlePanic(c.ctx, func(err error) {
 			c.cancelFunc()
 		})
-		c.loop()
+		c.receiveHealthStatusesLoop()
 	}()
 
 }
 
-func (c *ABTestingController) Stop() {
+func (c *SenderCoordinator) Stop() {
 	logger.InfoWithCtx(c.ctx).Msg("Stopping AB Testing Controller")
 	c.cancelFunc()
 }

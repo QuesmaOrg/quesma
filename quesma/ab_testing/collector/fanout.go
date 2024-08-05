@@ -1,6 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package repository
+package collector
 
 import (
 	"bytes"
@@ -13,7 +13,7 @@ import (
 type ppPrintFanout struct {
 }
 
-func (t *ppPrintFanout) process(in Data) (out Data, drop bool, err error) {
+func (t *ppPrintFanout) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
 	//pp.Println("A/B Testing FANOUT", in)
 	return in, false, nil
 }
@@ -24,7 +24,7 @@ type elasticSearchFanout struct {
 	errorCount int
 }
 
-func (t *elasticSearchFanout) process(in Data) (out Data, drop bool, err error) {
+func (t *elasticSearchFanout) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
 
 	// add real bulk logic here
 

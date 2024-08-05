@@ -26,8 +26,8 @@ type Result struct {
 	// quesma async_id
 }
 
-type ResultsRepository interface {
-	Store(result Result)
+type Sender interface {
+	Send(result Result)
 }
 
 type HealthMessage struct {

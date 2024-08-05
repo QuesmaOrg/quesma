@@ -63,7 +63,7 @@ func TestAllUnsupportedQueryTypesAreProperlyRecorded(t *testing.T) {
 				},
 			}
 
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptyResultsRepository())
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 			newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
 			_, _ = queryRunner.handleSearch(newCtx, tableName, types.MustJSON(tt.QueryRequestJson))
 
@@ -132,7 +132,7 @@ func TestDifferentUnsupportedQueries(t *testing.T) {
 		},
 	}
 
-	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptyResultsRepository())
+	queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 	for _, testNr := range testNrs {
 		newCtx := context.WithValue(ctx, tracing.RequestIdCtxKey, tracing.GetRequestId())
 		_, _ = queryRunner.handleSearch(newCtx, tableName, types.MustJSON(testdata.UnsupportedQueriesTests[testNr].QueryRequestJson))

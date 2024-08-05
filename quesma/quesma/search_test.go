@@ -137,7 +137,7 @@ func TestAsyncSearchHandler(t *testing.T) {
 				}
 				mock.ExpectQuery(wantedRegex).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptyResultsRepository())
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 			_, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryJson), defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
@@ -190,7 +190,7 @@ func TestAsyncSearchHandlerSpecialCharacters(t *testing.T) {
 				mock.ExpectQuery(testdata.EscapeBrackets(expectedSql)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
 
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptyResultsRepository())
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 			_, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryRequestJson), defaultAsyncSearchTimeout, true)
 			assert.NoError(t, err)
 
@@ -247,7 +247,7 @@ func TestSearchHandler(t *testing.T) {
 				mock.ExpectQuery(testdata.EscapeWildcard(testdata.EscapeBrackets(wantedRegex))).
 					WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptyResultsRepository())
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 			_, _ = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 
 			if err := mock.ExpectationsWereMet(); err != nil {
@@ -288,7 +288,7 @@ func TestSearchHandlerNoAttrsConfig(t *testing.T) {
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptyResultsRepository())
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 			_, _ = queryRunner.handleSearch(ctx, tableName, types.MustJSON(tt.QueryJson))
 
 			if err := mock.ExpectationsWereMet(); err != nil {
@@ -328,7 +328,7 @@ func TestAsyncSearchFilter(t *testing.T) {
 			for _, wantedRegex := range tt.WantedRegexes {
 				mock.ExpectQuery(testdata.EscapeBrackets(wantedRegex)).WillReturnRows(sqlmock.NewRows([]string{"@timestamp", "host.name"}))
 			}
-			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptyResultsRepository())
+			queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 			_, _ = queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(tt.QueryJson), defaultAsyncSearchTimeout, true)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Fatal("there were unfulfilled expections:", err)
@@ -420,7 +420,7 @@ func TestHandlingDateTimeFields(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"key", "doc_count"}))
 
 		// .AddRow(1000, uint64(10)).AddRow(1001, uint64(20))) // here rows should be added if uint64 were supported
-		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptyResultsRepository())
+		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 		response, err := queryRunner.handleAsyncSearch(ctx, tableName, types.MustJSON(query(fieldName)), defaultAsyncSearchTimeout, true)
 		assert.NoError(t, err)
 
@@ -490,7 +490,7 @@ func TestNumericFacetsQueries(t *testing.T) {
 				// Don't care about the query's SQL in this test, it's thoroughly tested in different tests, thus ""
 				mock.ExpectQuery("").WillReturnRows(returnedBuckets)
 
-				queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptyResultsRepository())
+				queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 				var response []byte
 				var err error
 				if handlerName == "handleSearch" {
@@ -563,7 +563,7 @@ func TestSearchTrackTotalCount(t *testing.T) {
 			mock.ExpectQuery(testdata.EscapeBrackets(sql)).WillReturnRows(rows)
 		}
 
-		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptyResultsRepository())
+		queryRunner := NewQueryRunner(lm, cfg, nil, managementConsole, s, ab_testing.NewEmptySender())
 
 		var response []byte
 		var err error

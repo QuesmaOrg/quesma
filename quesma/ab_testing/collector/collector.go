@@ -1,6 +1,6 @@
 // Copyright Quesma, licensed under the Elastic License 2.0.
 // SPDX-License-Identifier: Elastic-2.0
-package repository
+package collector
 
 import (
 	"context"
@@ -15,30 +15,29 @@ type Diff struct {
 	IsDiff   bool   `json:"is_diff"`
 }
 
-// it holds the Data of the processing
-
-type Data struct {
+// it holds the EnrichedResults of the processing
+type EnrichedResults struct {
 	ab_testing.Result
 
 	Timestamp string `json:"@timestamp"`
 	Diff      Diff   `json:"diff"`
 }
 
-type processor interface {
-	process(in Data) (out Data, drop bool, err error)
+type pipelineProcessor interface {
+	process(in EnrichedResults) (out EnrichedResults, drop bool, err error)
 }
 
 type processorErrorMessage struct {
-	processor processor
+	processor pipelineProcessor
 	err       error
 }
 
-type ResultsRepositoryImpl struct {
+type InMemoryCollector struct {
 	ctx          context.Context
 	cancelFunc   context.CancelFunc
 	receiveQueue chan ab_testing.Result
 
-	pipeline []processor
+	pipeline []pipelineProcessor
 
 	processorErrorQueue chan processorErrorMessage
 
@@ -46,17 +45,17 @@ type ResultsRepositoryImpl struct {
 	// add  health state
 }
 
-func NewResultsRepository(ctx context.Context, healthQueue chan<- ab_testing.HealthMessage) *ResultsRepositoryImpl {
+func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessage) *InMemoryCollector {
 
 	ctx, cancel := context.WithCancel(ctx)
 
 	// TODO read config here
 
-	return &ResultsRepositoryImpl{
+	return &InMemoryCollector{
 		receiveQueue: make(chan ab_testing.Result, 1000),
 		ctx:          ctx,
 		cancelFunc:   cancel,
-		pipeline: []processor{
+		pipeline: []pipelineProcessor{
 			&probabilisticSampler{ratio: 1},
 			&diffTransformer{},
 			&ppPrintFanout{},
@@ -70,13 +69,13 @@ func NewResultsRepository(ctx context.Context, healthQueue chan<- ab_testing.Hea
 	}
 }
 
-func (r *ResultsRepositoryImpl) Stop() {
+func (r *InMemoryCollector) Stop() {
 	r.cancelFunc()
 	// stop everything and clean up ASAP
 
 }
 
-func (r *ResultsRepositoryImpl) Start() {
+func (r *InMemoryCollector) Start() {
 
 	logger.Info().Msg("Starting A/B Results Repository")
 
@@ -84,23 +83,23 @@ func (r *ResultsRepositoryImpl) Start() {
 		recovery.LogAndHandlePanic(r.ctx, func(err error) {
 			r.cancelFunc()
 		})
-		r.loop()
+		r.receiveIncomingResults()
 	}()
 
 	go func() {
 		recovery.LogAndHandlePanic(r.ctx, func(err error) {
 			r.cancelFunc()
 		})
-		r.controlLoop()
+		r.receiveHealthAndErrorsLoop()
 	}()
 }
 
-func (r *ResultsRepositoryImpl) Store(data ab_testing.Result) {
+func (r *InMemoryCollector) Send(data ab_testing.Result) {
 	r.receiveQueue <- data
 }
 
-// loop - it process incoming results
-func (r *ResultsRepositoryImpl) loop() {
+// receiveIncomingResults - it processResult incoming results
+func (r *InMemoryCollector) receiveIncomingResults() {
 
 	for {
 		select {
@@ -109,13 +108,13 @@ func (r *ResultsRepositoryImpl) loop() {
 			return
 
 		case msg := <-r.receiveQueue:
-			r.process(msg)
+			r.processResult(msg)
 		}
 	}
 }
 
-// controlLoop - it process incoming error/health messages
-func (r *ResultsRepositoryImpl) controlLoop() {
+// receiveHealthAndErrorsLoop - it processResult incoming error/health messages
+func (r *InMemoryCollector) receiveHealthAndErrorsLoop() {
 
 	errorCount := 0
 
@@ -144,7 +143,7 @@ func (r *ResultsRepositoryImpl) controlLoop() {
 			// shutdown itself
 			//
 		case <-r.ctx.Done():
-			logger.InfoWithCtx(r.ctx).Msg("Results Repository stopping control loop")
+			logger.InfoWithCtx(r.ctx).Msg("Results Repository stopping control receiveIncomingResults")
 			return
 
 		case <-time.After(10 * time.Second):
@@ -153,20 +152,20 @@ func (r *ResultsRepositoryImpl) controlLoop() {
 	}
 }
 
-func (r *ResultsRepositoryImpl) process(result ab_testing.Result) {
+func (r *InMemoryCollector) processResult(result ab_testing.Result) {
 
 	// convert raw data to a log line
-	msg := Data{
+	res := EnrichedResults{
 		Result: result,
 	}
-	msg.Timestamp = time.Now().Format(time.RFC3339)
+	res.Timestamp = time.Now().Format(time.RFC3339)
 
 	var err error
 	var drop bool
 
 	for _, processor := range r.pipeline {
 		logger.InfoWithCtx(r.ctx).Msgf("Processing with %v", processor)
-		if msg, drop, err = processor.process(msg); err != nil {
+		if res, drop, err = processor.process(res); err != nil {
 			r.processorErrorQueue <- processorErrorMessage{
 				processor: processor,
 				err:       err,

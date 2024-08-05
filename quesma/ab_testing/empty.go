@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Elastic-2.0
 package ab_testing
 
-type emptyResultsRepository struct{}
+type emptySender struct{}
 
-func (e *emptyResultsRepository) Store(result Result) {
+func (e *emptySender) Send(result Result) {
 	// do nothing
 }
 
-func NewEmptyResultsRepository() ResultsRepository {
-	return &emptyResultsRepository{}
+func NewEmptySender() Sender {
+	return &emptySender{}
 }

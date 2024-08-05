@@ -68,14 +68,14 @@ type QueryRunner struct {
 	currentParallelQueryJobs atomic.Int64
 	transformationPipeline   TransformationPipeline
 	schemaRegistry           schema.Registry
-	ABResultsRepository      ab_testing.ResultsRepository
+	ABResultsSender          ab_testing.Sender
 }
 
 func (q *QueryRunner) EnableQueryOptimization(cfg config.QuesmaConfiguration) {
 	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
 }
 
-func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry, abResultsRepository ab_testing.ResultsRepository) *QueryRunner {
+func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry, abResultsRepository ab_testing.Sender) *QueryRunner {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc,
@@ -86,8 +86,8 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, i
 				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry, logManager: lm}, // this can be a part of another plugin
 			},
 		},
-		schemaRegistry:      schemaRegistry,
-		ABResultsRepository: abResultsRepository,
+		schemaRegistry:  schemaRegistry,
+		ABResultsSender: abResultsRepository,
 	}
 }
 
@@ -369,7 +369,7 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alter
 			},
 		}
 
-		q.ABResultsRepository.Store(abResult)
+		q.ABResultsSender.Send(abResult)
 
 		// TODO add JSON comparison here
 		if string(alternative.responseBody) != string(main.responseBody) {
