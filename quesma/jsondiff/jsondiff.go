@@ -1,8 +1,12 @@
+// Copyright Quesma, licensed under the Elastic License 2.0.
+// SPDX-License-Identifier: Elastic-2.0
 package jsondiff
 
 import (
 	"fmt"
 	"quesma/quesma/types"
+	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -17,7 +21,6 @@ func newType(code, message string) problemType {
 }
 
 var (
-	missingValue       = newType("missing_value", "Missing value")
 	invalidType        = newType("invalid_type", "Types are not equal")
 	invalidValue       = newType("invalid_value", "Values are not equal")
 	invalidArrayLength = newType("invalid_array_length", "Array lengths are not equal")
@@ -32,7 +35,8 @@ type Problem struct {
 
 	Expected string
 	Actual   string
-	// other
+
+	// TODO: add more context,
 }
 
 func (p Problem) String() string {
@@ -53,14 +57,24 @@ type JSONDiff struct {
 	path     []string
 	problems Results
 
-	ignorePaths []string
+	ignorePaths []*regexp.Regexp
 }
 
-func NewJSONDiff(ignorePaths ...string) *JSONDiff {
+func NewJSONDiff(ignorePaths ...string) (*JSONDiff, error) {
+
+	var ignorePathRegex []*regexp.Regexp
+
+	for _, p := range ignorePaths {
+		rx, err := regexp.Compile(p)
+		if err != nil {
+			return nil, fmt.Errorf("regexp '%s' compilation failed: %v", p, err)
+		}
+		ignorePathRegex = append(ignorePathRegex, rx)
+	}
 
 	return &JSONDiff{
-		ignorePaths: ignorePaths,
-	}
+		ignorePaths: ignorePathRegex,
+	}, nil
 }
 
 func (d *JSONDiff) pushPath(path string) {
@@ -78,8 +92,8 @@ func (d *JSONDiff) pathString() string {
 func (d *JSONDiff) isIgnoredPath() bool {
 	p := d.pathString()
 	// regexp match ?
-	for _, k := range d.ignorePaths {
-		if k == p {
+	for _, rx := range d.ignorePaths {
+		if rx.MatchString(p) {
 			return true
 		}
 	}
@@ -125,6 +139,25 @@ func (d *JSONDiff) intersect(a, b []string) []string {
 	return c
 }
 
+func (d *JSONDiff) subtract(a, b []string) []string {
+	var c []string
+
+	for _, x := range a {
+		found := false
+		for _, y := range b {
+			if x == y {
+				found = true
+				break
+			}
+		}
+		if !found {
+			c = append(c, x)
+		}
+	}
+
+	return c
+}
+
 func (d *JSONDiff) compareArray(actual []any, expected []any) {
 
 	if len(actual)-len(expected) == 1 || len(actual)-len(expected) == 1 {
@@ -135,11 +168,21 @@ func (d *JSONDiff) compareArray(actual []any, expected []any) {
 		return
 	}
 
+	// TODO maybe check if the arrays are sorter differently
+
 	for i := range min(len(actual), len(expected)) {
 		d.pushPath(fmt.Sprintf("[%d]", i))
 		d.compare(actual[i], expected[i])
 		d.popPath()
 	}
+}
+
+func (d *JSONDiff) asValue(a any) string {
+	return fmt.Sprintf("%v", a)
+}
+
+func (d *JSONDiff) asType(a any) string {
+	return fmt.Sprintf("%T", a)
 }
 
 func (d *JSONDiff) compare(a any, b any) {
@@ -151,8 +194,13 @@ func (d *JSONDiff) compare(a any, b any) {
 		return
 	}
 
-	if b == nil {
-		d.addProblem(missingValue, fmt.Sprintf("%v", a), fmt.Sprintf("%v", b))
+	if a == nil && b != nil {
+		d.addProblem(invalidValue, d.asValue(a), d.asValue(b))
+		return
+	}
+
+	if a != nil && b == nil {
+		d.addProblem(invalidValue, d.asValue(a), d.asValue(b))
 		return
 	}
 
@@ -164,7 +212,7 @@ func (d *JSONDiff) compare(a any, b any) {
 
 			d.compareObject(aVal, bVal)
 		default:
-			d.addProblem(invalidType, fmt.Sprintf("%T", a), fmt.Sprintf("%T", b))
+			d.addProblem(invalidType, d.asType(a), d.asType(b))
 			return
 		}
 
@@ -173,10 +221,18 @@ func (d *JSONDiff) compare(a any, b any) {
 		case []any:
 			d.compareArray(a.([]any), b.([]any))
 		default:
-			d.addProblem(invalidType, fmt.Sprintf("%T", a), fmt.Sprintf("%T", b))
+			d.addProblem(invalidType, d.asType(a), d.asType(b))
 		}
 
 	default:
+
+		if reflect.TypeOf(a) != reflect.TypeOf(b) {
+			d.addProblem(invalidType, d.asValue(a), d.asValue(b))
+			return
+		}
+
+		// TODO how to compare floats and ints ?
+
 		if a != b {
 			d.addProblem(invalidValue, fmt.Sprintf("%v", a), fmt.Sprintf("%v", b))
 		}
@@ -185,17 +241,19 @@ func (d *JSONDiff) compare(a any, b any) {
 
 func (d *JSONDiff) compareObject(expected map[string]any, actual map[string]any) {
 
-	keysA := d.keySet(expected)
-	keysB := d.keySet(actual)
+	expectedKeys := d.keySet(expected)
+	actualKeys := d.keySet(actual)
 
-	intersect := d.intersect(keysA, keysB)
+	commonKeys := d.intersect(expectedKeys, actualKeys)
 
-	if len(intersect) == 0 {
-		d.addProblem(objectDifference, strings.Join(keysA, ", "), strings.Join(keysB, ", "))
+	if len(commonKeys) == 0 {
+		d.addProblem(objectDifference, strings.Join(expectedKeys, ", "), strings.Join(actualKeys, ", "))
 		return
 	}
 
-	for _, k := range keysA {
+	// TODO what keys should we compare?
+
+	for _, k := range expectedKeys {
 		d.pushPath(k)
 		d.compare(expected[k], actual[k])
 		d.popPath()
