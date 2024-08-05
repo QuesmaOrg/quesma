@@ -68,7 +68,7 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 
 	}
 
-	generator := &pancakeQueryGenerator{}
+	generator := &pancakeSqlQueryGenerator{}
 	dbQuery, err := generator.generateQuery(pancakeQueries, cw.Table)
 	if err != nil {
 		return nil, err

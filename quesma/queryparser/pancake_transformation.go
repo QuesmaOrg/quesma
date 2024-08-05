@@ -57,15 +57,13 @@ func (a *aggregationTree2Pancake) translateBucketToLayer(previousAggrNames []str
 	}, nil
 }
 
-func (a *aggregationTree2Pancake) bakeLayer(previousAggrNames []string, childAggregations []*pancakeAggregationLevel) (*pancakeAggregationLayer, *pancakeAggregationLevel, error) {
+func (a *aggregationTree2Pancake) bakeLayer(previousAggrNames []string, childAggregations []*pancakeAggregationLevel) (layer *pancakeAggregationLayer, nextBucketAggregation *pancakeAggregationLevel, err error) {
 
 	if len(childAggregations) == 0 {
 		return nil, nil, nil
 	}
 
-	var nextBucketAggregation *pancakeAggregationLevel // this is the next bucket aggregation to process
-
-	layer := &pancakeAggregationLayer{
+	layer = &pancakeAggregationLayer{
 		currentMetricAggregations: make([]*pancakeFillingMetricAggregation, 0),
 	}
 
