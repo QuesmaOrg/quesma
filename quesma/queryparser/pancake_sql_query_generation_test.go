@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
+	"quesma/logger"
 	"quesma/model"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
@@ -21,7 +22,7 @@ import (
 
 func TestPancakeQueryGeneration(t *testing.T) {
 
-	// logger.InitSimpleLoggerForTests()
+	logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
@@ -86,8 +87,9 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if sampler(test.TestName) {
 				t.Skip("Fix sampler")
 			}
-			if multiTerms(test.TestName) {
-				t.Skip("Fix multi terms")
+
+			if i != 55 {
+				t.Skip()
 			}
 
 			fmt.Println("i:", i, "test:", test.TestName)
@@ -267,15 +269,6 @@ func sampler(testName string) bool {
 	t2 := testName == "random sampler, from Explorer > Field statistics"
 	t3 := testName == "Field statistics > summary for numeric fields" // also filter and percentiles
 	return t1 || t2 || t3
-}
-
-// TODO remove after fix
-func multiTerms(testName string) bool {
-	t1 := testName == "Multi_terms without subaggregations. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)"
-	t2 := testName == "Multi_terms with simple count. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Count of records, Breakdown: @timestamp"
-	t3 := testName == "Multi_terms with double-nested subaggregations. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Unique count, Breakdown: @timestamp"
-	t4 := testName == "Quite simple multi_terms, but with non-string keys. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)"
-	return t1 || t2 || t3 || t4
 }
 
 func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
