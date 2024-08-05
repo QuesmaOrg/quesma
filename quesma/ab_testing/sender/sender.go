@@ -14,9 +14,9 @@ type senderControlMessage struct {
 }
 
 type sender struct {
-	ctx       context.Context
-	collector ab_testing.Sender
-	queue     chan ab_testing.Result
+	ctx          context.Context
+	collector    ab_testing.Sender
+	queue        chan ab_testing.Result
 	controlQueue chan senderControlMessage
 }
 
