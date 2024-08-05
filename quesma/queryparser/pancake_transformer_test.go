@@ -125,9 +125,9 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			transformer := &aggregationTree2Pancake{}
+			transformer := &pancakeTransformer{}
 
-			pan, err := transformer.toPancake(*tt.tree)
+			pan, err := transformer.aggregationTreeToPancake(*tt.tree)
 
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)

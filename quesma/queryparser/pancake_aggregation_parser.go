@@ -14,8 +14,12 @@ import (
 
 const PancakeOptimizerName = "pancake"
 
-// Here is experimental code to generate aggregations in one SQL query. called Version Una.
+// New way of generating queries, based on pancake model:
+// 1. Parse Query DSL into aggregation tree.
+// 2. Translate aggregation tree into pancake model.
+// 3. Generate SQL queries from pancake model.
 func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON, addCount bool) ([]*model.Query, error) {
+	// Phase 1: Parse Query DSL into aggregation tree
 	queryAsMap := body.Clone()
 
 	topLevel := pancakeAggregationTopLevel{
@@ -47,8 +51,9 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 		}
 	}
 
-	transformer := &aggregationTree2Pancake{}
-	pancakeQueries, err := transformer.toPancake(topLevel)
+	// Phase 2: Translate aggregation tree into pancake model
+	transformer := &pancakeTransformer{}
+	pancakeQueries, err := transformer.aggregationTreeToPancake(topLevel)
 
 	if err != nil {
 		return nil, err
@@ -68,6 +73,7 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 
 	}
 
+	// Phase 3: Generate SQL queries from pancake model
 	generator := &pancakeSqlQueryGenerator{}
 	dbQuery, err := generator.generateQuery(pancakeQueries, cw.Table)
 	if err != nil {
