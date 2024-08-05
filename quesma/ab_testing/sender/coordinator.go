@@ -16,7 +16,7 @@ type SenderCoordinator struct {
 	ctx        context.Context
 	cancelFunc context.CancelFunc
 
-	facade *sender
+	sender *sender
 
 	enabled bool
 }
@@ -26,7 +26,7 @@ func NewSenderCoordinator(cfg config.QuesmaConfiguration) *SenderCoordinator {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &SenderCoordinator{
-		facade:     NewSender(ctx),
+		sender:     NewSender(ctx),
 		ctx:        ctx,
 		cancelFunc: cancel,
 		enabled:    false, // TODO this should be read from config
@@ -36,7 +36,7 @@ func NewSenderCoordinator(cfg config.QuesmaConfiguration) *SenderCoordinator {
 
 func (c *SenderCoordinator) GetSender() ab_testing.Sender {
 	if c.enabled {
-		return c.facade
+		return c.sender
 	} else {
 		return ab_testing.NewEmptySender()
 	}
@@ -50,11 +50,11 @@ func (c *SenderCoordinator) newInMemoryProcessor(healthQueue chan<- ab_testing.H
 
 func (c *SenderCoordinator) receiveHealthStatusesLoop() {
 
-	var repo *collector.InMemoryCollector
+	var inMemoryCollector *collector.InMemoryCollector
 	repoHealthQueue := make(chan ab_testing.HealthMessage)
 
-	updateFacade := func(r ab_testing.Sender) {
-		c.facade.controlQueue <- senderControlMessage{
+	senderUseCollector := func(r ab_testing.Sender) {
+		c.sender.controlQueue <- senderControlMessage{
 			useCollector: r,
 		}
 	}
@@ -62,9 +62,9 @@ func (c *SenderCoordinator) receiveHealthStatusesLoop() {
 	for {
 		logger.InfoWithCtx(c.ctx).Msg("AB Testing Controller Loop")
 
-		if repo == nil {
+		if inMemoryCollector == nil {
 			logger.InfoWithCtx(c.ctx).Msg("Creating InMemoryRepository")
-			repo = c.newInMemoryProcessor(repoHealthQueue)
+			inMemoryCollector = c.newInMemoryProcessor(repoHealthQueue)
 		}
 
 		// TODO add logic here
@@ -78,15 +78,15 @@ func (c *SenderCoordinator) receiveHealthStatusesLoop() {
 			logger.InfoWithCtx(c.ctx).Msgf("AB Testing Repository Health: %v", h.IsHealthy)
 
 			if !h.IsHealthy {
-				updateFacade(nil)
+				senderUseCollector(nil)
 
 				// we should give a chance to the collector to recover
 
 				logger.InfoWithCtx(c.ctx).Msg("Stopping  InMemoryRepository")
-				repo.Stop()
-				repo = nil
+				inMemoryCollector.Stop()
+				inMemoryCollector = nil
 			} else {
-				updateFacade(repo)
+				senderUseCollector(inMemoryCollector)
 			}
 
 		case <-time.After(10 * time.Second):
@@ -104,7 +104,7 @@ func (c *SenderCoordinator) Start() {
 
 	logger.InfoWithCtx(c.ctx).Msg("Starting AB Testing Controller")
 
-	c.facade.Start()
+	c.sender.Start()
 
 	go func() {
 		recovery.LogAndHandlePanic(c.ctx, func(err error) {
