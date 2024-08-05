@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/concurrent"
 	"quesma/elasticsearch"
@@ -67,13 +68,14 @@ type QueryRunner struct {
 	currentParallelQueryJobs atomic.Int64
 	transformationPipeline   TransformationPipeline
 	schemaRegistry           schema.Registry
+	ABResultsSender          ab_testing.Sender
 }
 
 func (q *QueryRunner) EnableQueryOptimization(cfg config.QuesmaConfiguration) {
 	q.transformationPipeline.transformers = append(q.transformationPipeline.transformers, optimize.NewOptimizePipeline(cfg))
 }
 
-func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry) *QueryRunner {
+func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, im elasticsearch.IndexManagement, qmc *ui.QuesmaManagementConsole, schemaRegistry schema.Registry, abResultsRepository ab_testing.Sender) *QueryRunner {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &QueryRunner{logManager: lm, cfg: cfg, im: im, quesmaManagementConsole: qmc,
@@ -83,7 +85,10 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, i
 			transformers: []plugins.QueryTransformer{
 				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry, logManager: lm}, // this can be a part of another plugin
 			},
-		}, schemaRegistry: schemaRegistry}
+		},
+		schemaRegistry:  schemaRegistry,
+		ABResultsSender: abResultsRepository,
+	}
 }
 
 func NewAsyncQueryContext(ctx context.Context, cancel context.CancelFunc, id string) *AsyncQueryContext {
@@ -341,6 +346,30 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alter
 				main = r
 			}
 		}
+
+		bytes, err := body.Bytes()
+		if err != nil {
+			bytes = []byte("error converting body to bytes")
+		}
+
+		abResult := ab_testing.Result{
+			Request: ab_testing.Request{
+				Path: "TODO",
+				Body: string(bytes),
+			},
+
+			A: ab_testing.Response{
+				Body: string(main.responseBody),
+				Time: time.Since(main.plan.StartTime),
+			},
+
+			B: ab_testing.Response{
+				Body: string(alternative.responseBody),
+				Time: time.Since(alternative.plan.StartTime),
+			},
+		}
+
+		q.ABResultsSender.Send(abResult)
 
 		// TODO add JSON comparison here
 		if string(alternative.responseBody) != string(main.responseBody) {
