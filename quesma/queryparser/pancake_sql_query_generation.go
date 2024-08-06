@@ -161,14 +161,13 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 		aliasedRank := model.AliasedExpr{Expr: rankColum, Alias: bucketAggregation.InternalNameForOrderBy(columnId) + "_rank"}
 		addRankColumns = append(addRankColumns, aliasedRank)
 
-		// if where not null, increase limit by 1
-		limit := bucketAggregation.limit
-		if bucketAggregation.filterOurEmptyKeyBucket && limit != 0 {
-			limit += 1
-		}
-
 		if bucketAggregation.limit != pancakeBucketAggregationNoLimit {
-			whereRank := model.NewInfixExpr(p.newQuotedLiteral(aliasedRank.Alias), "<=", model.NewLiteral(bucketAggregation.limit))
+			// if where not null, increase limit by 1
+			limit := bucketAggregation.limit
+			if bucketAggregation.filterOurEmptyKeyBucket {
+				limit += 1
+			}
+			whereRank := model.NewInfixExpr(p.newQuotedLiteral(aliasedRank.Alias), "<=", model.NewLiteral(limit))
 			addRankWheres = append(addRankWheres, whereRank)
 		}
 

@@ -671,7 +671,7 @@ var AggregationTests = []AggregationTestCase{
 				  AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))
 				GROUP BY "FlightDelayType" AS "aggr__0__key_0",
 				  toInt64(toUnixTimestamp64Milli("timestamp") / 10800000) AS "aggr__0__1__key_0"))
-			WHERE "aggr__0__order_1_rank"<=10
+			WHERE "aggr__0__order_1_rank"<=11
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ // [3]
@@ -2032,7 +2032,7 @@ var AggregationTests = []AggregationTestCase{
 				  parseDateTime64BestEffort('2024-02-09T16:36:49.940Z')))
 				GROUP BY "severity" AS "aggr__0__key_0", toInt64(toUnixTimestamp64Milli(
 				  "@timestamp") / 10800000) AS "aggr__0__1__key_0"))
-			WHERE "aggr__0__order_1_rank"<=3
+			WHERE "aggr__0__order_1_rank"<=4
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ // [10]
@@ -6760,7 +6760,7 @@ var AggregationTests = []AggregationTestCase{
 				FROM "logs-generic-default"
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "message" AS "aggr__0__1__key_0"))
-			WHERE ("aggr__0__order_1_rank"<=10 AND "aggr__0__1__order_1_rank"<=3)
+			WHERE ("aggr__0__order_1_rank"<=11 AND "aggr__0__1__order_1_rank"<=4)
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC
 `,
 	},
@@ -6939,8 +6939,8 @@ var AggregationTests = []AggregationTestCase{
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "message" AS "aggr__0__1__key_0",
 				  "message" AS "aggr__0__1__2__key_0"))
-			WHERE (("aggr__0__order_1_rank"<=10 AND "aggr__0__1__order_1_rank"<=3) AND
-			  "aggr__0__1__2__order_1_rank"<=3)
+			WHERE (("aggr__0__order_1_rank"<=11 AND "aggr__0__1__order_1_rank"<=4) AND
+			  "aggr__0__1__2__order_1_rank"<=4)
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC,
 			  "aggr__0__1__2__order_1_rank" ASC`,
 	},
@@ -7066,7 +7066,7 @@ var AggregationTests = []AggregationTestCase{
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "FlightDelayMin" AS
 				  "aggr__0__1__key_0"))
-			WHERE "aggr__0__order_1_rank"<=8
+			WHERE "aggr__0__order_1_rank"<=9
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ // [36]
@@ -7332,7 +7332,7 @@ var AggregationTests = []AggregationTestCase{
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "FlightDelayMin" AS
 				  "aggr__0__1__key_0"))
-			WHERE "aggr__0__order_1_rank"<=10
+			WHERE "aggr__0__order_1_rank"<=11
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ // [38]
@@ -7684,7 +7684,7 @@ var AggregationTests = []AggregationTestCase{
 				FROM "logs-generic-default"
 				GROUP BY "OriginAirportID" AS "aggr__0__key_0", "DestAirportID" AS
 				  "aggr__0__1__key_0"))
-			WHERE ("aggr__0__order_1_rank"<=10 AND "aggr__0__1__order_1_rank"<=3)
+			WHERE ("aggr__0__order_1_rank"<=11 AND "aggr__0__1__order_1_rank"<=4)
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 }
