@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"quesma/buildinfo"
 	"quesma/health"
+	"quesma/logger"
 	"quesma/quesma/ui/internal/builder"
 	"quesma/stats/errorstats"
 	"runtime"
@@ -182,6 +183,12 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	buffer.Html(`<div id="dashboard-quesma" class="component">`)
 	buffer.Html(`<h3>Quesma</h3>`)
 
+	buffer = maybePrintUpgradeAvailableBanner(buffer)
+
+	buffer.Html(`<div class="status">Version: `)
+	buffer.Text(buildinfo.Version)
+	buffer.Html("</div>")
+
 	cpuStr := ""
 	c0, err0 := cpu.Percent(0, false)
 
@@ -211,10 +218,6 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 		buffer.Html(fmt.Sprintf(`<div class="status">Host uptime: %s</div>`, secondsToTerseString(h.Uptime)))
 	}
 
-	buffer.Html(`<div class="status">Version: `)
-	buffer.Text(buildinfo.Version)
-	buffer.Html("</div>")
-
 	buffer.Html(`</div>`)
 
 	buffer.Html(`<div id="dashboard-errors" class="component">`)
@@ -232,4 +235,31 @@ func (qmc *QuesmaManagementConsole) generateDashboardPanel() []byte {
 	buffer.Html(`</div>`)
 
 	return buffer.Bytes()
+}
+
+type latestVersionCheckResult struct {
+	upgradeAvailable bool
+	message          string
+}
+
+// maybePrintUpgradeAvailableBanner has time cap of 500ms to check for the latest version, if it takes longer than that,
+// it will log an error message and don't render anything
+func maybePrintUpgradeAvailableBanner(buffer builder.HtmlBuffer) builder.HtmlBuffer {
+
+	resultChan := make(chan latestVersionCheckResult, 1)
+	go func() {
+		upgradeAvailable, message := buildinfo.CheckForTheLatestVersion()
+		resultChan <- latestVersionCheckResult{upgradeAvailable, message}
+	}()
+	select {
+	case result := <-resultChan:
+		if result.upgradeAvailable {
+			buffer.Html(`<div class="status" style="background-color: yellow; padding: 5px;">`)
+			buffer.Text(result.message)
+			buffer.Html("</div>")
+		}
+	case <-time.After(500 * time.Millisecond):
+		logger.Error().Msg("Timeout while checking for the latest version.")
+	}
+	return buffer
 }
