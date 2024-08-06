@@ -79,6 +79,6 @@ jobs:
           git push origin HEAD
           gh pr create -l notice.md -l automation --title "Update NOTICE.MD" --body "There's been a change in Quesma dependencies" --base main --head "$BRANCH_NAME"
         env:
-          GH_TOKEN: ${{ secrets.NOTICE_MD_UPDATER_GH_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           
         
