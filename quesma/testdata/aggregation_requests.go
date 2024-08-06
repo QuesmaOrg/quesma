@@ -7206,7 +7206,7 @@ var AggregationTests = []AggregationTestCase{
 				FROM "logs-generic-default"
 				WHERE ("message" IS NOT NULL AND NOT ("message" iLIKE '%US%'))
 				GROUP BY "host.name" AS "aggr__0__key_0", "FlightDelayMin" AS "aggr__0__1__key_0"))
-			WHERE ("aggr__0__order_1_rank"<=10 AND "aggr__0__1__order_1_rank"<=0)
+			WHERE "aggr__0__order_1_rank"<=10
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__1__order_1_rank" ASC`,
 	},
 	{ // [37]
