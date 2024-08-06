@@ -26,7 +26,7 @@ func (p *pancakeJSONRenderer) selectMetricRows(metricName string, rows []model.Q
 	return
 }
 
-func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeLayerBucketAggregation, rows []model.QueryResultRow) (
+func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeModelBucketAggregation, rows []model.QueryResultRow) (
 	buckets []model.QueryResultRow, subAggrs [][]model.QueryResultRow) {
 
 	if len(rows) == 0 {
@@ -74,7 +74,7 @@ func (p *pancakeJSONRenderer) splitBucketRows(bucket *pancakeLayerBucketAggregat
 // We accomplish that by increasing limit by one during SQL query and then filtering out during JSON rendering.
 // So we either filter out empty or last one if there is none.
 // This can't be replaced by WHERE in generic case.
-func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeAggregationLayer, bucketRows []model.QueryResultRow, subAggrRows [][]model.QueryResultRow) ([]model.QueryResultRow, [][]model.QueryResultRow) {
+func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeModelLayer, bucketRows []model.QueryResultRow, subAggrRows [][]model.QueryResultRow) ([]model.QueryResultRow, [][]model.QueryResultRow) {
 	// We are filter out null
 	if layer.nextBucketAggregation.filterOurEmptyKeyBucket {
 		nullRowToDelete := -1
@@ -102,7 +102,7 @@ func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeAggrega
 	return bucketRows, subAggrRows
 }
 
-func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeAggregationLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
+func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
 
 	result := model.JsonMap{}
 	if layerIdx >= len(layers) {
@@ -150,6 +150,6 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeAggrega
 	return result, nil
 }
 
-func (p *pancakeJSONRenderer) toJSON(agg *pancakeAggregation, rows []model.QueryResultRow) (model.JsonMap, error) {
+func (p *pancakeJSONRenderer) toJSON(agg *pancakeModel, rows []model.QueryResultRow) (model.JsonMap, error) {
 	return p.layerToJSON(0, agg.layers, rows)
 }

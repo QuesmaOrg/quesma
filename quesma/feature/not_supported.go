@@ -10,6 +10,11 @@ import (
 	"strings"
 )
 
+const (
+	apmTelemetryOpaqueId = "apm-telemetry-task"
+	kibanaFleetOpaqueId  = "fleet-usage-sender"
+)
+
 // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-template.html
 var searchTemplatePathRegexps = compileRegexes([]string{"^/_scripts/(.*)", "^/_render/template$", "^/_render/template$"})
 var searchTemplatePathWithIndexRegexps = compileRegexes([]string{"^/(.*)/_search/template$", "^/(.*)/_msearch/template$"})
@@ -34,8 +39,8 @@ func logMessage(message string, args ...interface{}) {
 	NotSupportedLogger.Log(fmt.Sprintf(message, args...))
 }
 
-func AnalyzeUnsupportedCalls(ctx context.Context, method, path string, indexResolver func(ctx context.Context, pattern string) (indexes []string, err error)) (result bool) {
-	return checkSearchTemplate(ctx, method, path) || checkSearchTemplateWithIndex(ctx, method, path, indexResolver) || checkIfOurIndex(ctx, method, path, indexResolver)
+func AnalyzeUnsupportedCalls(ctx context.Context, method, path string, opaqueId string, indexResolver func(ctx context.Context, pattern string) (indexes []string, err error)) (result bool) {
+	return checkSearchTemplate(ctx, method, path) || checkSearchTemplateWithIndex(ctx, method, path, indexResolver) || (!checkIfKibanaInternalOpaqueId(opaqueId) && checkIfOurIndex(ctx, method, path, indexResolver))
 }
 
 func checkSearchTemplate(ctx context.Context, method string, path string) bool {
@@ -70,6 +75,11 @@ func checkSearchTemplateWithIndex(ctx context.Context, method string, path strin
 		}
 	}
 	return false
+}
+
+func checkIfKibanaInternalOpaqueId(opaqueId string) bool {
+	opaqueId = strings.ToLower(opaqueId)
+	return strings.Contains(opaqueId, apmTelemetryOpaqueId) || strings.Contains(opaqueId, kibanaFleetOpaqueId)
 }
 
 func checkIfOurIndex(ctx context.Context, method string, path string, indexResolver func(context.Context, string) ([]string, error)) bool {

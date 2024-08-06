@@ -109,7 +109,7 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 			logger.Error().Msgf("Schema for table %s not found, this should never happen here", fromTable)
 		}
 
-		field, found := dataScheme.ResolveField(lhsValue)
+		field, found := dataScheme.ResolveFieldByInternalName(lhsValue)
 		if !found {
 			logger.Error().Msgf("Field %s not found in schema for table %s, should never happen here", lhsValue, fromTable)
 		}
@@ -131,7 +131,7 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 				&model.FunctionExpr{
 					Name: CASTPrimitive,
 					Args: []model.Expr{
-						&model.LiteralExpr{Value: lhsValue},
+						lhs.(model.Expr),
 						&model.LiteralExpr{Value: StringLiteral},
 					},
 				},
