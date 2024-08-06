@@ -103,24 +103,23 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 
 	// build count for aggr
 	// TODO: Maybe optimize
+	var countColumn model.Expr
 	if hasMoreBucketAggregations {
 		partCountAliasName := bucketAggregation.InternalNameForCount() + "_part"
 		partCountColumn := model.NewFunction("count", model.NewLiteral("*"))
 		partCountAliasedColumn := model.AliasedExpr{Expr: partCountColumn, Alias: partCountAliasName}
 		addPartColumns = append(addPartColumns, partCountAliasedColumn)
 
-		countColumn := model.WindowFunction{Name: "sum",
+		countColumn = model.WindowFunction{Name: "sum",
 			Args:        []model.Expr{p.newQuotedLiteral(partCountAliasName)},
 			PartitionBy: p.generatePartitionBy(append(groupByColumns, addGroupBys...)), /// TODO
 			OrderBy:     []model.OrderByExpr{},
 		}
-		countAliasedColumn := model.AliasedExpr{Expr: countColumn, Alias: bucketAggregation.InternalNameForCount()}
-		addSelectColumns = append(addSelectColumns, countAliasedColumn)
 	} else {
-		countColumn := model.NewFunction("count", model.NewLiteral("*"))
-		countAliasedColumn := model.AliasedExpr{Expr: countColumn, Alias: bucketAggregation.InternalNameForCount()}
-		addSelectColumns = append(addSelectColumns, countAliasedColumn)
+		countColumn = model.NewFunction("count", model.NewLiteral("*"))
 	}
+	countAliasedColumn := model.AliasedExpr{Expr: countColumn, Alias: bucketAggregation.InternalNameForCount()}
+	addSelectColumns = append(addSelectColumns, countAliasedColumn)
 
 	columnId := len(bucketAggregation.selectedColumns)
 	if bucketAggregation.orderBy != nil && len(bucketAggregation.orderBy) > 0 {
