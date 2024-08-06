@@ -98,16 +98,11 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(aggregation *pancakeMo
 	bucketAggregation := layer.nextBucketAggregation
 	// take care of bucket aggregation at level - 1
 
-	addedGroupByAliases := []model.Expr{}
-	previousGroupByColumns := groupByColumns
-
 	// TODO: ...
 	for columnId, column := range bucketAggregation.selectedColumns {
 		aliasedColumn := model.AliasedExpr{Expr: column, Alias: bucketAggregation.InternalNameForKey(columnId)}
 		addSelectColumns = append(addSelectColumns, aliasedColumn)
-		groupByColumns = append(groupByColumns, aliasedColumn)
 		addGroupByColumns = append(addGroupByColumns, aliasedColumn)
-		addedGroupByAliases = append(addedGroupByAliases, p.newQuotedLiteral(aliasedColumn.Alias))
 	}
 
 	hasMoreBucketAggregations := layerId < len(aggregation.layers)-1 && aggregation.layers[layerId+1].nextBucketAggregation != nil
@@ -122,7 +117,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(aggregation *pancakeMo
 
 		countColumn := model.WindowFunction{Name: "sum",
 			Args:        []model.Expr{p.newQuotedLiteral(partCountAliasName)},
-			PartitionBy: p.generatePartitionBy(groupByColumns), /// TODO
+			PartitionBy: p.generatePartitionBy(append(groupByColumns, addGroupByColumns...)), /// TODO
 			OrderBy:     []model.OrderByExpr{},
 		}
 		countAliasedColumn := model.AliasedExpr{Expr: countColumn, Alias: bucketAggregation.InternalNameForCount()}
@@ -152,7 +147,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(aggregation *pancakeMo
 			// TODO: fix order by
 			orderByAgg := model.WindowFunction{Name: aggFunctionName,
 				Args:        []model.Expr{p.newQuotedLiteral(partColumnName)},
-				PartitionBy: p.generatePartitionBy(groupByColumns),
+				PartitionBy: p.generatePartitionBy(append(groupByColumns, addGroupByColumns...)),
 				OrderBy:     []model.OrderByExpr{},
 			}
 			aliasedOrderByAgg := model.AliasedExpr{Expr: orderByAgg, Alias: bucketAggregation.InternalNameForOrderBy(columnId)}
@@ -164,13 +159,13 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(aggregation *pancakeMo
 
 		// We order by count, but add key to get right dense_rank()
 		rankColumOrderBy := []model.OrderByExpr{model.NewOrderByExpr([]model.Expr{p.newQuotedLiteral(bucketAggregation.InternalNameForOrderBy(columnId))}, orderByDirection)}
-		for _, addedGroupByAlias := range addedGroupByAliases {
+		for _, addedGroupByAlias := range p.aliasedExprArrayToLiteralExpr(addGroupByColumns) {
 			rankColumOrderBy = append(rankColumOrderBy, model.NewOrderByExpr([]model.Expr{addedGroupByAlias}, model.AscOrder))
 		}
 
 		rankColum := model.WindowFunction{Name: "dense_rank",
 			Args:        []model.Expr{},
-			PartitionBy: p.generatePartitionBy(previousGroupByColumns),
+			PartitionBy: p.generatePartitionBy(groupByColumns),
 			OrderBy:     rankColumOrderBy,
 		}
 		aliasedRank := model.AliasedExpr{Expr: rankColum, Alias: bucketAggregation.InternalNameForOrderBy(columnId) + "_rank"}
