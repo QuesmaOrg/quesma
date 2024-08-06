@@ -138,17 +138,14 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 			aliasedColumn := model.AliasedExpr{Expr: partColumn, Alias: partColumnName}
 			addPartColumns = append(addPartColumns, aliasedColumn)
 			// TODO: fix order by
-			orderByAgg := model.WindowFunction{Name: aggFunctionName,
+			orderBy = model.WindowFunction{Name: aggFunctionName,
 				Args:        []model.Expr{p.newQuotedLiteral(partColumnName)},
 				PartitionBy: p.generatePartitionBy(append(groupByColumns, addGroupBys...)),
 				OrderBy:     []model.OrderByExpr{},
 			}
-			aliasedOrderByAgg := model.AliasedExpr{Expr: orderByAgg, Alias: bucketAggregation.InternalNameForOrderBy(columnId)}
-			addSelectColumns = append(addSelectColumns, aliasedOrderByAgg)
-		} else {
-			aliasedColumn := model.AliasedExpr{Expr: orderBy, Alias: bucketAggregation.InternalNameForOrderBy(columnId)}
-			addSelectColumns = append(addSelectColumns, aliasedColumn)
 		}
+		aliasedColumn := model.AliasedExpr{Expr: orderBy, Alias: bucketAggregation.InternalNameForOrderBy(columnId)}
+		addSelectColumns = append(addSelectColumns, aliasedColumn)
 
 		// We order by count, but add key to get right dense_rank()
 		rankColumOrderBy := []model.OrderByExpr{model.NewOrderByExpr([]model.Expr{p.newQuotedLiteral(bucketAggregation.InternalNameForOrderBy(columnId))}, orderByDirection)}
@@ -166,10 +163,8 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 
 		// if where not null, increase limit by 1
 		limit := bucketAggregation.limit
-		if bucketAggregation.filterOurEmptyKeyBucket {
-			if limit != 0 {
-				limit += 1
-			}
+		if bucketAggregation.filterOurEmptyKeyBucket && limit != 0 {
+			limit += 1
 		}
 
 		if bucketAggregation.limit != pancakeBucketAggregationNoLimit {
