@@ -69,6 +69,7 @@ func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Exp
 func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMetricAggregation, groupByColumns []model.AliasedExpr, hasMoreBucketAggregations bool) (addSelectColumns []model.AliasedExpr, addPartColumns []model.AliasedExpr, err error) {
 	for columnId, column := range metric.selectedColumns {
 		aliasedName := fmt.Sprintf("%s_col_%d", metric.internalName, columnId)
+		finalColumn := column
 
 		if hasMoreBucketAggregations {
 			partColumnName := aliasedName + "_part"
@@ -78,17 +79,14 @@ func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMet
 			}
 			aliasedPartColumn := model.AliasedExpr{Expr: partColumn, Alias: partColumnName}
 			addPartColumns = append(addPartColumns, aliasedPartColumn)
-			finalColumn := model.WindowFunction{Name: aggFunctionName,
+			finalColumn = model.WindowFunction{Name: aggFunctionName,
 				Args:        []model.Expr{p.newQuotedLiteral(partColumnName)},
 				PartitionBy: p.generatePartitionBy(groupByColumns),
 				OrderBy:     []model.OrderByExpr{},
 			}
-			aliasedColumn := model.AliasedExpr{Expr: finalColumn, Alias: aliasedName}
-			addSelectColumns = append(addSelectColumns, aliasedColumn)
-		} else {
-			aliasedColumn := model.AliasedExpr{Expr: column, Alias: aliasedName}
-			addSelectColumns = append(addSelectColumns, aliasedColumn)
 		}
+		aliasedColumn := model.AliasedExpr{Expr: finalColumn, Alias: aliasedName}
+		addSelectColumns = append(addSelectColumns, aliasedColumn)
 	}
 	return
 }
