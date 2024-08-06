@@ -258,7 +258,7 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 		}
 	} else {
 
-		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, logManager.ResolveIndexes)
+		feature.AnalyzeUnsupportedCalls(ctx, req.Method, req.URL.Path, req.Header.Get(opaqueIdHeaderKey), logManager.ResolveIndexes)
 
 		rawResponse := <-r.sendHttpRequestToElastic(ctx, req, reqBody, true)
 		response := rawResponse.response
