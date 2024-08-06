@@ -66,11 +66,11 @@ func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Exp
 		fmt.Errorf("not implemented, queryType: %s, origExpr: %s", debugQueryType, model.AsString(origExpr))
 }
 
-func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMetricAggregation, needPartialResult bool, groupByColumns []model.AliasedExpr) (addSelectColumns []model.AliasedExpr, addPartColumns []model.AliasedExpr, err error) {
+func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMetricAggregation, groupByColumns []model.AliasedExpr, hasMoreBucketAggregations bool) (addSelectColumns []model.AliasedExpr, addPartColumns []model.AliasedExpr, err error) {
 	for columnId, column := range metric.selectedColumns {
 		aliasedName := fmt.Sprintf("%s_col_%d", metric.internalName, columnId)
 
-		if needPartialResult {
+		if hasMoreBucketAggregations {
 			partColumnName := aliasedName + "_part"
 			partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(column, metric.queryType)
 			if err != nil {
@@ -199,10 +199,10 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	rankOrderBys := make([]model.OrderByExpr, 0)
 	groupBys := make([]model.AliasedExpr, 0)
 	for layerId, layer := range aggregation.layers {
-		needPartialResult := layerId+1 < len(aggregation.layers)
+		hasMoreBucketAggregations := layerId+1 < len(aggregation.layers)
 
 		for _, metric := range layer.currentMetricAggregations {
-			addSelectColumns, addPartColumns, err := p.generateMetricSelects(metric, needPartialResult, groupBys)
+			addSelectColumns, addPartColumns, err := p.generateMetricSelects(metric, groupBys, hasMoreBucketAggregations)
 			if err != nil {
 				return nil, false, err
 			}
@@ -211,8 +211,9 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		}
 
 		if layer.nextBucketAggregation != nil {
-			hasMoreBucketAggregations := layerId < len(aggregation.layers)-1 && aggregation.layers[layerId+1].nextBucketAggregation != nil
-			addSelectColumns, addPartColumns, addGroupBys, addRankColumns, addRankWheres, addRankOrderBys, err := p.generateBucketSqlParts(layer.nextBucketAggregation, groupBys, hasMoreBucketAggregations)
+			hasMoreBucketAggregations = hasMoreBucketAggregations && aggregation.layers[layerId+1].nextBucketAggregation != nil
+			addSelectColumns, addPartColumns, addGroupBys, addRankColumns, addRankWheres, addRankOrderBys, err :=
+				p.generateBucketSqlParts(layer.nextBucketAggregation, groupBys, hasMoreBucketAggregations)
 			if err != nil {
 				return nil, false, err
 			}
