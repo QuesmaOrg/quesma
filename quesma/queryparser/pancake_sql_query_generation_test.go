@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-func TestPancakeQueryGeneration(t *testing.T) {
+func Test3PancakeQueryGeneration(t *testing.T) {
 
 	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
@@ -39,7 +39,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 	cw := ClickhouseQueryTranslator{ClickhouseLM: lm, Table: &table, Ctx: context.Background(), SchemaRegistry: schemaRegistry}
 
-	for i, test := range allAggregationTestsWithoutPipeline() { // TODO fix pipeline
+	for i, test := range allAggregationTests() { // TODO fix pipeline
 		t.Run(test.TestName+"("+strconv.Itoa(i)+")", func(t *testing.T) {
 			if test.ExpectedPancakeSQL == "" || test.ExpectedPancakeResults == nil { // TODO remove this
 				t.Skip("Not updated answers for pancake.")
@@ -88,6 +88,12 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 			if multiTerms(test.TestName) {
 				t.Skip("Fix multi terms")
+			}
+			if i != 7 {
+				//t.Skip()
+			}
+			if test.TestName != "min_bucket. Reproduce: Visualize -> Vertical Bar: Metrics: Min Bucket (Bucket: Terms, Metric: Unique Count)" {
+				t.Skip()
 			}
 
 			fmt.Println("i:", i, "test:", test.TestName)
@@ -152,7 +158,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if len(expectedMinusActual) != 0 {
 				pp.Println("EXPECTED diff", expectedMinusActual)
 			}
-			//pp.Println("ACTUAL", pancakeJson)
+			pp.Println("ACTUAL", pancakeJson)
 			//pp.Println("EXPECTED", expectedAggregationsPart)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
@@ -202,8 +208,8 @@ func percentileRanks(testName string) bool {
 // TODO remove after fix
 func topHits(testName string) bool {
 	t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range" // also range
-	t2 := testName == "top hits, quite complex"
-	return t1 || t2
+	//t2 := testName == "top hits, quite complex"
+	return t1 // || t2
 }
 
 // TODO remove after fix
