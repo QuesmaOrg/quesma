@@ -13,14 +13,18 @@ func TestNewUnsupportedFeature_index(t *testing.T) {
 
 	tests := []struct {
 		path     string
+		opaqueId string
 		isLogged bool
 	}{
-		{"/foo/_search", true},
-		{"/foo/_new_feature", true},
-		{"/bar/_search", false},
+		{"/foo/_search", "", true},
+		{"/foo/_new_feature", "", true},
+		{"/bar/_search", "", false},
 
-		{"/foo/_search/template", true},
-		{"/_scripts/foo", true},
+		{"/foo/_search/template", "", true},
+		{"/_scripts/foo", "", true},
+
+		{"/logs-elastic_agent-*/_search", "unknownId;kibana:task%20manager:run%20Fleet-Usage-Sender:Fleet-Usage-Sender-1.1.3", false},
+		{"/foo/_search", "unknownId;kibana:task%20manager:run%20Fleet-Usage-Sender:Fleet-Usage-Sender-1.1.3", false},
 	}
 
 	cfg := config.QuesmaConfiguration{}
@@ -43,7 +47,7 @@ func TestNewUnsupportedFeature_index(t *testing.T) {
 	for _, tt := range tests {
 
 		t.Run(tt.path, func(t *testing.T) {
-			given := AnalyzeUnsupportedCalls(ctx, "GET", tt.path, indexNameResolver)
+			given := AnalyzeUnsupportedCalls(ctx, "GET", tt.path, tt.opaqueId, indexNameResolver)
 			assert.Equal(t, tt.isLogged, given)
 		})
 	}
