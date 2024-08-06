@@ -66,6 +66,33 @@ func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Exp
 		fmt.Errorf("not implemented, queryType: %s, origExpr: %s", debugQueryType, model.AsString(origExpr))
 }
 
+func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMetricAggregation, needPartialResult bool, groupByColumns []model.AliasedExpr) (addSelectColumns []model.AliasedExpr, addSelectPartColumns []model.AliasedExpr, err error) {
+	for columnId, column := range metric.selectedColumns {
+		aliasedName := fmt.Sprintf("%s_col_%d", metric.internalName, columnId)
+
+		if needPartialResult {
+			partColumnName := aliasedName + "_part"
+			partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(column, metric.queryType)
+			if err != nil {
+				return nil, nil, err
+			}
+			aliasedPartColumn := model.AliasedExpr{Expr: partColumn, Alias: partColumnName}
+			addSelectPartColumns = append(addSelectPartColumns, aliasedPartColumn)
+			finalColumn := model.WindowFunction{Name: aggFunctionName,
+				Args:        []model.Expr{p.newQuotedLiteral(partColumnName)},
+				PartitionBy: p.generatePartitionBy(groupByColumns),
+				OrderBy:     []model.OrderByExpr{},
+			}
+			aliasedColumn := model.AliasedExpr{Expr: finalColumn, Alias: aliasedName}
+			addSelectColumns = append(addSelectColumns, aliasedColumn)
+		} else {
+			aliasedColumn := model.AliasedExpr{Expr: column, Alias: aliasedName}
+			addSelectColumns = append(addSelectColumns, aliasedColumn)
+		}
+	}
+	return
+}
+
 // TODO: deduplicate metric names
 func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeModel, table *clickhouse.Table) (*model.SelectCommand, bool, error) {
 	if aggregation == nil {
@@ -79,30 +106,15 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	rankOrderBys := make([]model.OrderByExpr, 0)
 	groupByColumns := make([]model.AliasedExpr, 0)
 	for layerId, layer := range aggregation.layers {
-		for _, metric := range layer.currentMetricAggregations {
-			for columnId, column := range metric.selectedColumns {
-				aliasedName := fmt.Sprintf("%s_col_%d", metric.internalName, columnId)
+		needPartialResult := layerId+1 < len(aggregation.layers)
 
-				if layerId < len(aggregation.layers)-1 {
-					partColumnName := aliasedName + "_part"
-					partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(column, metric.queryType)
-					if err != nil {
-						return nil, false, err
-					}
-					aliasedPartColumn := model.AliasedExpr{Expr: partColumn, Alias: partColumnName}
-					selectedPartColumns = append(selectedPartColumns, aliasedPartColumn)
-					finalColumn := model.WindowFunction{Name: aggFunctionName,
-						Args:        []model.Expr{p.newQuotedLiteral(partColumnName)},
-						PartitionBy: p.generatePartitionBy(groupByColumns),
-						OrderBy:     []model.OrderByExpr{},
-					}
-					aliasedColumn := model.AliasedExpr{Expr: finalColumn, Alias: aliasedName}
-					selectedColumns = append(selectedColumns, aliasedColumn)
-				} else {
-					aliasedColumn := model.AliasedExpr{Expr: column, Alias: aliasedName}
-					selectedColumns = append(selectedColumns, aliasedColumn)
-				}
+		for _, metric := range layer.currentMetricAggregations {
+			addSelectColumns, addSelectPartColumns, err := p.generateMetricSelects(metric, needPartialResult, groupByColumns)
+			if err != nil {
+				return nil, false, err
 			}
+			selectedColumns = append(selectedColumns, addSelectColumns...)
+			selectedPartColumns = append(selectedPartColumns, addSelectPartColumns...)
 		}
 
 		if layer.nextBucketAggregation != nil {
