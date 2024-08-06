@@ -66,7 +66,7 @@ func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Exp
 		fmt.Errorf("not implemented, queryType: %s, origExpr: %s", debugQueryType, model.AsString(origExpr))
 }
 
-func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMetricAggregation, needPartialResult bool, groupByColumns []model.AliasedExpr) (addSelectColumns []model.AliasedExpr, addSelectPartColumns []model.AliasedExpr, err error) {
+func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMetricAggregation, needPartialResult bool, groupByColumns []model.AliasedExpr) (addSelectColumns []model.AliasedExpr, addPartColumns []model.AliasedExpr, err error) {
 	for columnId, column := range metric.selectedColumns {
 		aliasedName := fmt.Sprintf("%s_col_%d", metric.internalName, columnId)
 
@@ -77,7 +77,7 @@ func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMet
 				return nil, nil, err
 			}
 			aliasedPartColumn := model.AliasedExpr{Expr: partColumn, Alias: partColumnName}
-			addSelectPartColumns = append(addSelectPartColumns, aliasedPartColumn)
+			addPartColumns = append(addPartColumns, aliasedPartColumn)
 			finalColumn := model.WindowFunction{Name: aggFunctionName,
 				Args:        []model.Expr{p.newQuotedLiteral(partColumnName)},
 				PartitionBy: p.generatePartitionBy(groupByColumns),
@@ -94,13 +94,13 @@ func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMet
 }
 
 func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pancakeModelBucketAggregation, groupByColumns []model.AliasedExpr, hasMoreBucketAggregations bool) (
-	addSelectColumns, addSelectPartColumns, addGroupByColumns, addSelectedRankColumns []model.AliasedExpr, addWhereRanks []model.Expr, addRankOrderBys []model.OrderByExpr, err error) {
+	addSelectColumns, addPartColumns, addGroupBys, addRankColumns []model.AliasedExpr, addRankWheres []model.Expr, addRankOrderBys []model.OrderByExpr, err error) {
 
 	// TODO: ...
 	for columnId, column := range bucketAggregation.selectedColumns {
 		aliasedColumn := model.AliasedExpr{Expr: column, Alias: bucketAggregation.InternalNameForKey(columnId)}
 		addSelectColumns = append(addSelectColumns, aliasedColumn)
-		addGroupByColumns = append(addGroupByColumns, aliasedColumn)
+		addGroupBys = append(addGroupBys, aliasedColumn)
 	}
 
 	// build count for aggr
@@ -109,11 +109,11 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 		partCountAliasName := bucketAggregation.InternalNameForCount() + "_part"
 		partCountColumn := model.NewFunction("count", model.NewLiteral("*"))
 		partCountAliasedColumn := model.AliasedExpr{Expr: partCountColumn, Alias: partCountAliasName}
-		addSelectPartColumns = append(addSelectPartColumns, partCountAliasedColumn)
+		addPartColumns = append(addPartColumns, partCountAliasedColumn)
 
 		countColumn := model.WindowFunction{Name: "sum",
 			Args:        []model.Expr{p.newQuotedLiteral(partCountAliasName)},
-			PartitionBy: p.generatePartitionBy(append(groupByColumns, addGroupByColumns...)), /// TODO
+			PartitionBy: p.generatePartitionBy(append(groupByColumns, addGroupBys...)), /// TODO
 			OrderBy:     []model.OrderByExpr{},
 		}
 		countAliasedColumn := model.AliasedExpr{Expr: countColumn, Alias: bucketAggregation.InternalNameForCount()}
@@ -139,11 +139,11 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 				return nil, nil, nil, nil, nil, nil, err
 			}
 			aliasedColumn := model.AliasedExpr{Expr: partColumn, Alias: partColumnName}
-			addSelectPartColumns = append(addSelectPartColumns, aliasedColumn)
+			addPartColumns = append(addPartColumns, aliasedColumn)
 			// TODO: fix order by
 			orderByAgg := model.WindowFunction{Name: aggFunctionName,
 				Args:        []model.Expr{p.newQuotedLiteral(partColumnName)},
-				PartitionBy: p.generatePartitionBy(append(groupByColumns, addGroupByColumns...)),
+				PartitionBy: p.generatePartitionBy(append(groupByColumns, addGroupBys...)),
 				OrderBy:     []model.OrderByExpr{},
 			}
 			aliasedOrderByAgg := model.AliasedExpr{Expr: orderByAgg, Alias: bucketAggregation.InternalNameForOrderBy(columnId)}
@@ -155,7 +155,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 
 		// We order by count, but add key to get right dense_rank()
 		rankColumOrderBy := []model.OrderByExpr{model.NewOrderByExpr([]model.Expr{p.newQuotedLiteral(bucketAggregation.InternalNameForOrderBy(columnId))}, orderByDirection)}
-		for _, addedGroupByAlias := range p.aliasedExprArrayToLiteralExpr(addGroupByColumns) {
+		for _, addedGroupByAlias := range p.aliasedExprArrayToLiteralExpr(addGroupBys) {
 			rankColumOrderBy = append(rankColumOrderBy, model.NewOrderByExpr([]model.Expr{addedGroupByAlias}, model.AscOrder))
 		}
 
@@ -165,7 +165,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 			OrderBy:     rankColumOrderBy,
 		}
 		aliasedRank := model.AliasedExpr{Expr: rankColum, Alias: bucketAggregation.InternalNameForOrderBy(columnId) + "_rank"}
-		addSelectedRankColumns = append(addSelectedRankColumns, aliasedRank)
+		addRankColumns = append(addRankColumns, aliasedRank)
 
 		// if where not null, increase limit by 1
 		limit := bucketAggregation.limit
@@ -177,7 +177,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 
 		if bucketAggregation.limit != pancakeBucketAggregationNoLimit {
 			whereRank := model.NewInfixExpr(p.newQuotedLiteral(aliasedRank.Alias), "<=", model.NewLiteral(bucketAggregation.limit))
-			addWhereRanks = append(addWhereRanks, whereRank)
+			addRankWheres = append(addRankWheres, whereRank)
 		}
 
 		rankOrderBy := model.NewOrderByExpr([]model.Expr{p.newQuotedLiteral(aliasedRank.Alias)}, model.AscOrder)
@@ -192,35 +192,35 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		return nil, false, errors.New("aggregation is nil in generateQuery")
 	}
 
-	selectedColumns := make([]model.AliasedExpr, 0)
-	selectedPartColumns := make([]model.AliasedExpr, 0)
-	selectedRankColumns := make([]model.AliasedExpr, 0)
-	whereRanks := make([]model.Expr, 0)
+	selectColumns := make([]model.AliasedExpr, 0)
+	partColumns := make([]model.AliasedExpr, 0)
+	rankColumns := make([]model.AliasedExpr, 0)
+	rankWheres := make([]model.Expr, 0)
 	rankOrderBys := make([]model.OrderByExpr, 0)
-	groupByColumns := make([]model.AliasedExpr, 0)
+	groupBys := make([]model.AliasedExpr, 0)
 	for layerId, layer := range aggregation.layers {
 		needPartialResult := layerId+1 < len(aggregation.layers)
 
 		for _, metric := range layer.currentMetricAggregations {
-			addSelectColumns, addSelectPartColumns, err := p.generateMetricSelects(metric, needPartialResult, groupByColumns)
+			addSelectColumns, addPartColumns, err := p.generateMetricSelects(metric, needPartialResult, groupBys)
 			if err != nil {
 				return nil, false, err
 			}
-			selectedColumns = append(selectedColumns, addSelectColumns...)
-			selectedPartColumns = append(selectedPartColumns, addSelectPartColumns...)
+			selectColumns = append(selectColumns, addSelectColumns...)
+			partColumns = append(partColumns, addPartColumns...)
 		}
 
 		if layer.nextBucketAggregation != nil {
 			hasMoreBucketAggregations := layerId < len(aggregation.layers)-1 && aggregation.layers[layerId+1].nextBucketAggregation != nil
-			addSelectColumns, addSelectPartColumns, addGroupByColumns, addSelectedRankColumns, addWhereRanks, addRankOrderBys, err := p.generateBucketSqlParts(layer.nextBucketAggregation, groupByColumns, hasMoreBucketAggregations)
+			addSelectColumns, addPartColumns, addGroupBys, addRankColumns, addRankWheres, addRankOrderBys, err := p.generateBucketSqlParts(layer.nextBucketAggregation, groupBys, hasMoreBucketAggregations)
 			if err != nil {
 				return nil, false, err
 			}
-			selectedColumns = append(selectedColumns, addSelectColumns...)
-			selectedPartColumns = append(selectedPartColumns, addSelectPartColumns...)
-			groupByColumns = append(groupByColumns, addGroupByColumns...)
-			selectedRankColumns = append(selectedRankColumns, addSelectedRankColumns...)
-			whereRanks = append(whereRanks, addWhereRanks...)
+			selectColumns = append(selectColumns, addSelectColumns...)
+			partColumns = append(partColumns, addPartColumns...)
+			groupBys = append(groupBys, addGroupBys...)
+			rankColumns = append(rankColumns, addRankColumns...)
+			rankWheres = append(rankWheres, addRankWheres...)
 			rankOrderBys = append(rankOrderBys, addRankOrderBys...)
 		}
 	}
@@ -238,14 +238,14 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 				}
 			}
 
-			if len(selectedRankColumns) > 0 {
-				orderBy = selectedRankColumns[0].Expr.(model.WindowFunction).OrderBy
+			if len(rankColumns) > 0 {
+				orderBy = rankColumns[0].Expr.(model.WindowFunction).OrderBy
 			}
 		}
 
 		query := model.SelectCommand{
-			Columns:     p.aliasedExprArrayToExpr(append(selectedColumns, selectedPartColumns...)),
-			GroupBy:     p.aliasedExprArrayToExpr(groupByColumns),
+			Columns:     p.aliasedExprArrayToExpr(append(selectColumns, partColumns...)),
+			GroupBy:     p.aliasedExprArrayToExpr(groupBys),
 			WhereClause: aggregation.whereClause,
 			FromClause:  model.NewTableRef(table.FullTableName()),
 			OrderBy:     orderBy,
@@ -255,21 +255,21 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 	}
 
 	windowCte := model.SelectCommand{
-		Columns:     p.aliasedExprArrayToExpr(append(selectedColumns, selectedPartColumns...)),
-		GroupBy:     p.aliasedExprArrayToExpr(groupByColumns),
+		Columns:     p.aliasedExprArrayToExpr(append(selectColumns, partColumns...)),
+		GroupBy:     p.aliasedExprArrayToExpr(groupBys),
 		WhereClause: aggregation.whereClause,
 		FromClause:  model.NewTableRef(table.FullTableName()),
 	}
 
 	rankCte := model.SelectCommand{
-		Columns:    append(p.aliasedExprArrayToLiteralExpr(selectedColumns), p.aliasedExprArrayToExpr(selectedRankColumns)...),
+		Columns:    append(p.aliasedExprArrayToLiteralExpr(selectColumns), p.aliasedExprArrayToExpr(rankColumns)...),
 		FromClause: windowCte,
 	}
 
 	finalQuery := model.SelectCommand{
-		Columns:     p.aliasedExprArrayToLiteralExpr(selectedColumns),
+		Columns:     p.aliasedExprArrayToLiteralExpr(selectColumns),
 		FromClause:  rankCte,
-		WhereClause: model.And(whereRanks),
+		WhereClause: model.And(rankWheres),
 		OrderBy:     rankOrderBys,
 	}
 
