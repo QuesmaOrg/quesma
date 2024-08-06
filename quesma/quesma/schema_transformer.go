@@ -265,6 +265,51 @@ func (s *SchemaCheckPass) applyArrayTransformations(query *model.Query) (*model.
 	return query, nil
 }
 
+func (s *SchemaCheckPass) applyMapTransformations(query *model.Query) (*model.Query, error) {
+	fromTable := getFromTable(query.TableName)
+
+	table := s.logManager.FindTable(fromTable)
+	if table == nil {
+		logger.Error().Msgf("Table %s not found", fromTable)
+		return query, nil
+	}
+
+	mapResolver := mapTypeResolver{table: table}
+
+	// check if the query has map columns
+
+	selectCommand := query.SelectCommand
+
+	var allColumns []model.ColumnRef
+	for _, expr := range selectCommand.Columns {
+		allColumns = append(allColumns, model.GetUsedColumns(expr)...)
+	}
+	if selectCommand.WhereClause != nil {
+		allColumns = append(allColumns, model.GetUsedColumns(selectCommand.WhereClause)...)
+	}
+
+	hasMapColumn := false
+	for _, col := range allColumns {
+		dbType := mapResolver.dbColumnType(col.ColumnName)
+		if strings.HasPrefix(dbType, "Unknown(Map") {
+			hasMapColumn = true
+			break
+		}
+	}
+	// no array columns, no need to transform
+	if !hasMapColumn {
+		return query, nil
+	}
+
+	visitor := NewMapTypeVisitor(mapResolver)
+
+	expr := query.SelectCommand.Accept(visitor)
+	if _, ok := expr.(*model.SelectCommand); ok {
+		query.SelectCommand = *expr.(*model.SelectCommand)
+	}
+	return query, nil
+}
+
 func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, error) {
 	for k, query := range queries {
 		var err error
@@ -276,6 +321,7 @@ func (s *SchemaCheckPass) Transform(queries []*model.Query) ([]*model.Query, err
 			{TransformationName: "IpTransformation", Transformation: s.applyIpTransformations},
 			{TransformationName: "GeoTransformation", Transformation: s.applyGeoTransformations},
 			{TransformationName: "ArrayTransformation", Transformation: s.applyArrayTransformations},
+			{TransformationName: "MapTransformation", Transformation: s.applyMapTransformations},
 		}
 		for _, transformation := range transformationChain {
 			inputQuery := query.SelectCommand.String()
