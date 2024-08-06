@@ -62,7 +62,9 @@ func getFromTable(fromTable string) string {
 // SELECT * FROM "kibana_sample_data_logs" WHERE lhs op rhs
 // where op is '=' or 'iLIKE'
 // into
-// SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(lhs,'String'),rhs)
+// SELECT * FROM "kibana_sample_data_logs" WHERE isIPAddressInRange(CAST(COALESCE(lhs,'0.0.0.0') AS "String"),rhs) - COALESCE is used to handle NULL values
+//
+//	e.g.: isIPAddressInRange(CAST(COALESCE(IP_ADDR_COLUMN_NAME,'0.0.0.0') AS "String"),'10.10.10.0/24')
 func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Query, error) {
 	fromTable := getFromTable(query.TableName)
 
@@ -131,8 +133,16 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 				&model.FunctionExpr{
 					Name: CASTPrimitive,
 					Args: []model.Expr{
-						lhs.(model.Expr),
-						&model.LiteralExpr{Value: StringLiteral},
+						&model.AliasedExpr{
+							Expr: &model.FunctionExpr{
+								Name: "COALESCE",
+								Args: []model.Expr{
+									lhs.(model.Expr),
+									&model.LiteralExpr{Value: "'0.0.0.0'"},
+								},
+							},
+							Alias: "String",
+						},
 					},
 				},
 				&model.LiteralExpr{Value: rhsValue},
