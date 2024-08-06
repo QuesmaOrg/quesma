@@ -93,10 +93,8 @@ func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMet
 	return
 }
 
-func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(aggregation *pancakeModel, layer *pancakeModelLayer, groupByColumns []model.AliasedExpr, layerId int) (
+func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pancakeModelBucketAggregation, groupByColumns []model.AliasedExpr, hasMoreBucketAggregations bool) (
 	addSelectColumns, addSelectPartColumns, addGroupByColumns, addSelectedRankColumns []model.AliasedExpr, addWhereRanks []model.Expr, addRankOrderBys []model.OrderByExpr, err error) {
-	bucketAggregation := layer.nextBucketAggregation
-	// take care of bucket aggregation at level - 1
 
 	// TODO: ...
 	for columnId, column := range bucketAggregation.selectedColumns {
@@ -104,8 +102,6 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(aggregation *pancakeMo
 		addSelectColumns = append(addSelectColumns, aliasedColumn)
 		addGroupByColumns = append(addGroupByColumns, aliasedColumn)
 	}
-
-	hasMoreBucketAggregations := layerId < len(aggregation.layers)-1 && aggregation.layers[layerId+1].nextBucketAggregation != nil
 
 	// build count for aggr
 	// TODO: Maybe optimize
@@ -215,7 +211,8 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		}
 
 		if layer.nextBucketAggregation != nil {
-			addSelectColumns, addSelectPartColumns, addGroupByColumns, addSelectedRankColumns, addWhereRanks, addRankOrderBys, err := p.generateBucketSqlParts(aggregation, layer, groupByColumns, layerId)
+			hasMoreBucketAggregations := layerId < len(aggregation.layers)-1 && aggregation.layers[layerId+1].nextBucketAggregation != nil
+			addSelectColumns, addSelectPartColumns, addGroupByColumns, addSelectedRankColumns, addWhereRanks, addRankOrderBys, err := p.generateBucketSqlParts(layer.nextBucketAggregation, groupByColumns, hasMoreBucketAggregations)
 			if err != nil {
 				return nil, false, err
 			}
