@@ -73,7 +73,7 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 	visitor.OverrideVisitInfix = func(b *model.BaseExprVisitor, e model.InfixExpr) interface{} {
 		const isIPAddressInRangePrimitive = "isIPAddressInRange"
 		const CASTPrimitive = "CAST"
-		const StringLiteral = "'String'"
+		const COALESCEPrimitive = "COALESCE"
 		var lhs, rhs interface{}
 		lhsValue := ""
 		rhsValue := ""
@@ -135,7 +135,7 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 					Args: []model.Expr{
 						&model.AliasedExpr{
 							Expr: &model.FunctionExpr{
-								Name: "COALESCE",
+								Name: COALESCEPrimitive,
 								Args: []model.Expr{
 									lhs.(model.Expr),
 									&model.LiteralExpr{Value: "'0.0.0.0'"},

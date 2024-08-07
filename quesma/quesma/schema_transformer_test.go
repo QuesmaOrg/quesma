@@ -23,6 +23,7 @@ func (f fixedTableProvider) TableDefinitions() map[string]schema.Table {
 func Test_ipRangeTransform(t *testing.T) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
 	const CASTPrimitive = "CAST"
+	const COALESCEPrimitive = "COALESCE"
 	const StringLiteral = "'String'"
 	const IpFieldContent = "'111.42.223.209/16'"
 	IpFieldName := strconv.Quote("clientip")
@@ -80,8 +81,16 @@ func Test_ipRangeTransform(t *testing.T) {
 						&model.FunctionExpr{
 							Name: CASTPrimitive,
 							Args: []model.Expr{
-								&model.LiteralExpr{Value: IpFieldName},
-								&model.LiteralExpr{Value: StringLiteral},
+								&model.AliasedExpr{
+									Expr: &model.FunctionExpr{
+										Name: COALESCEPrimitive,
+										Args: []model.Expr{
+											&model.LiteralExpr{Value: IpFieldName},
+											&model.LiteralExpr{Value: "'0.0.0.0'"},
+										},
+									},
+									Alias: "String",
+								},
 							},
 						},
 						&model.LiteralExpr{Value: IpFieldContent},
@@ -100,8 +109,16 @@ func Test_ipRangeTransform(t *testing.T) {
 						&model.FunctionExpr{
 							Name: CASTPrimitive,
 							Args: []model.Expr{
-								&model.ColumnRef{ColumnName: "nested::clientip"},
-								&model.LiteralExpr{Value: StringLiteral},
+								&model.AliasedExpr{
+									Expr: &model.FunctionExpr{
+										Name: COALESCEPrimitive,
+										Args: []model.Expr{
+											&model.ColumnRef{ColumnName: "nested::clientip"},
+											&model.LiteralExpr{Value: "'0.0.0.0'"},
+										},
+									},
+									Alias: "String",
+								},
 							},
 						},
 						&model.LiteralExpr{Value: IpFieldContent},
@@ -120,8 +137,16 @@ func Test_ipRangeTransform(t *testing.T) {
 						&model.FunctionExpr{
 							Name: CASTPrimitive,
 							Args: []model.Expr{
-								&model.ColumnRef{ColumnName: IpFieldName},
-								&model.LiteralExpr{Value: StringLiteral},
+								&model.AliasedExpr{
+									Expr: &model.FunctionExpr{
+										Name: COALESCEPrimitive,
+										Args: []model.Expr{
+											&model.ColumnRef{ColumnName: IpFieldName},
+											&model.LiteralExpr{Value: "'0.0.0.0'"},
+										},
+									},
+									Alias: "String",
+								},
 							},
 						},
 						&model.LiteralExpr{Value: IpFieldContent},
@@ -152,8 +177,16 @@ func Test_ipRangeTransform(t *testing.T) {
 						&model.FunctionExpr{
 							Name: CASTPrimitive,
 							Args: []model.Expr{
-								&model.LiteralExpr{Value: IpFieldName},
-								&model.LiteralExpr{Value: StringLiteral},
+								&model.AliasedExpr{
+									Expr: &model.FunctionExpr{
+										Name: COALESCEPrimitive,
+										Args: []model.Expr{
+											&model.LiteralExpr{Value: IpFieldName},
+											&model.LiteralExpr{Value: "'0.0.0.0'"},
+										},
+									},
+									Alias: "String",
+								},
 							},
 						},
 						&model.LiteralExpr{Value: IpFieldContent},
@@ -189,14 +222,23 @@ func Test_ipRangeTransform(t *testing.T) {
 						},
 					},
 					Op: "AND",
+
 					Right: &model.FunctionExpr{
 						Name: isIPAddressInRangePrimitive,
 						Args: []model.Expr{
 							&model.FunctionExpr{
 								Name: CASTPrimitive,
 								Args: []model.Expr{
-									&model.LiteralExpr{Value: IpFieldName},
-									&model.LiteralExpr{Value: StringLiteral},
+									&model.AliasedExpr{
+										Expr: &model.FunctionExpr{
+											Name: COALESCEPrimitive,
+											Args: []model.Expr{
+												&model.LiteralExpr{Value: IpFieldName},
+												&model.LiteralExpr{Value: "'0.0.0.0'"},
+											},
+										},
+										Alias: "String",
+									},
 								},
 							},
 							&model.LiteralExpr{Value: IpFieldContent},
