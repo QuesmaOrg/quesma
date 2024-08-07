@@ -284,7 +284,7 @@ func (d *JSONDiff) compareArrayByElementKeys(expected []any, actual []any) bool 
 		}
 	}
 
-	if d.compareStringArrays(expectedKeys, actualKeys) == false && d.compareStringsArrayOmitOrder(expectedKeys, actualKeys) {
+	if !d.compareStringArrays(expectedKeys, actualKeys) && d.compareStringsArrayOmitOrder(expectedKeys, actualKeys) {
 
 		d.addMismatch(arrayKeysSortDifference,
 			fmt.Sprintf("Keys: %s", d.joinKeys(expectedKeys)),
