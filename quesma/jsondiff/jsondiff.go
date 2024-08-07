@@ -5,6 +5,7 @@ package jsondiff
 import (
 	"fmt"
 	"math"
+
 	"quesma/quesma/types"
 	"reflect"
 	"regexp"
@@ -134,7 +135,6 @@ func (d *JSONDiff) AddKeyExtractor(str string, keyExtractor func(any) (string, e
 
 func (d *JSONDiff) addMismatch(mismatchType mismatchType, expected string, actual string) {
 	m := JSONMismatch{
-
 		Path:    d.pathString(),
 		Message: mismatchType.message,
 		Type:    mismatchType.code,
@@ -159,6 +159,7 @@ func (d *JSONDiff) keySet(a types.JSON) []string {
 
 func (d *JSONDiff) intersect(a, b []string) []string {
 	var c []string
+
 	// TODO rewrite to sth more efficient
 
 	for _, x := range a {
@@ -316,6 +317,7 @@ func (d *JSONDiff) asType(a any) string {
 }
 
 func (d *JSONDiff) compare(expected any, actual any) {
+
 	if d.isIgnoredPath() {
 		return
 	}
@@ -339,11 +341,11 @@ func (d *JSONDiff) compare(expected any, actual any) {
 	case map[string]any:
 
 		switch bVal := actual.(type) {
+
 		case map[string]any:
 
 			d.compareObject(aVal, bVal)
 		default:
-
 			d.addMismatch(invalidType, d.asType(expected), d.asType(actual))
 
 			return

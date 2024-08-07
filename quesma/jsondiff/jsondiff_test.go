@@ -4,12 +4,16 @@ package jsondiff
 
 import (
 	"fmt"
+
 	"github.com/k0kubun/pp"
+
 	"quesma/quesma/types"
 	"testing"
 )
 
 func TestJSONDiff(t *testing.T) {
+
+	var debug = false
 
 	mismatch := func(path string, mType mismatchType) JSONMismatch {
 		return JSONMismatch{
@@ -133,7 +137,9 @@ func TestJSONDiff(t *testing.T) {
 
 			problems, err := diff.Diff(types.MustJSON(tt.expected), types.MustJSON(tt.actual))
 
-			pp.Println("problems:\n", problems)
+			if debug {
+				pp.Println("problems:\n", problems)
+			}
 			if err != nil {
 				t.Fatalf("Expected no error, got %v", err)
 			}

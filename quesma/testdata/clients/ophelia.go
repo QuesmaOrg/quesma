@@ -364,8 +364,8 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				FROM "logs-generic-default"
 				GROUP BY "surname" AS "aggr__2__key_0", COALESCE("limbName",'__missing__')
 				  AS "aggr__2__8__key_0", "organName" AS "aggr__2__8__4__key_0"))
-			WHERE (("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20) AND
-			  "aggr__2__8__4__order_1_rank"<=1)
+			WHERE (("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=20) AND
+			  "aggr__2__8__4__order_1_rank"<=2)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
 			  "aggr__2__8__4__order_1_rank" ASC`,
 	},
@@ -990,8 +990,8 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				FROM "logs-generic-default"
 				GROUP BY "surname" AS "aggr__2__key_0", COALESCE("limbName",'__missing__')
 				  AS "aggr__2__8__key_0", "organName" AS "aggr__2__8__4__key_0"))
-			WHERE (("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20) AND
-			  "aggr__2__8__4__order_1_rank"<=1)
+			WHERE (("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=20) AND
+			  "aggr__2__8__4__order_1_rank"<=2)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
 			  "aggr__2__8__4__order_1_rank" ASC`,
 	},
@@ -2081,8 +2081,8 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				FROM "logs-generic-default"
 				GROUP BY "surname" AS "aggr__2__key_0", COALESCE("limbName",'__missing__')
 				  AS "aggr__2__8__key_0", "organName" AS "aggr__2__8__4__key_0"))
-			WHERE (("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20) AND
-			  "aggr__2__8__4__order_1_rank"<=1)
+			WHERE (("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=20) AND
+			  "aggr__2__8__4__order_1_rank"<=2)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
 			  "aggr__2__8__4__order_1_rank" ASC`,
 	},
@@ -2642,8 +2642,8 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				GROUP BY "surname" AS "aggr__2__key_0", COALESCE("limbName",'__missing__')
 				  AS "aggr__2__8__key_0", "organName" AS "aggr__2__8__4__key_0", "organName"
 				   AS "aggr__2__8__4__5__key_0"))
-			WHERE ((("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20) AND
-			  "aggr__2__8__4__order_1_rank"<=1) AND "aggr__2__8__4__5__order_1_rank"<=2)
+			WHERE ((("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=20) AND
+			  "aggr__2__8__4__order_1_rank"<=2) AND "aggr__2__8__4__5__order_1_rank"<=3)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
 			  "aggr__2__8__4__order_1_rank" ASC, "aggr__2__8__4__5__order_1_rank" ASC`,
 	},
@@ -3259,8 +3259,8 @@ var OpheliaTests = []testdata.AggregationTestCase{
 				FROM "logs-generic-default"
 				GROUP BY "surname" AS "aggr__2__key_0", COALESCE("limbName",'__missing__')
 				  AS "aggr__2__8__key_0", "organName" AS "aggr__2__8__4__key_0"))
-			WHERE (("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20) AND
-			  "aggr__2__8__4__order_1_rank"<=1)
+			WHERE (("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=20) AND
+			  "aggr__2__8__4__order_1_rank"<=2)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC,
 			  "aggr__2__8__4__order_1_rank" ASC`,
 	},
