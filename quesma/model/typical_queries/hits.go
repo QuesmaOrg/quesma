@@ -9,6 +9,7 @@ import (
 	"quesma/elasticsearch"
 	"quesma/logger"
 	"quesma/model"
+	"reflect"
 	"strconv"
 	"time"
 )
@@ -89,12 +90,25 @@ func (query Hits) TranslateSqlResponseToJson(rows []model.QueryResultRow, level 
 }
 
 func (query Hits) addAndHighlightHit(hit *model.SearchHit, resultRow *model.QueryResultRow) {
+	toInterfaceArray := func(val interface{}) []interface{} {
+		v := reflect.ValueOf(val)
+		if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
+			return []interface{}{val}
+		}
+
+		result := make([]interface{}, v.Len())
+		for i := 0; i < v.Len(); i++ {
+			result[i] = v.Index(i).Interface()
+		}
+		return result
+	}
+
 	for _, col := range resultRow.Cols {
 		if col.Value == nil {
 			continue // We don't return empty value
 		}
 		columnName := col.ColName
-		hit.Fields[columnName] = []interface{}{col.Value}
+		hit.Fields[columnName] = toInterfaceArray(col.Value)
 		if query.highlighter.ShouldHighlight(columnName) {
 			// check if we have a string here and if so, highlight it
 			switch valueAsString := col.Value.(type) {
