@@ -112,6 +112,7 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 	for _, metric := range layer.currentMetricAggregations {
 		metricRows := p.selectMetricRows(metric.internalName+"_col_", rows)
 		result[metric.name] = metric.queryType.TranslateSqlResponseToJson(metricRows, 0) // TODO: fill level?
+		// TODO: maybe add metadata also here? probably not needed
 	}
 
 	if layer.nextBucketAggregation != nil {
@@ -121,6 +122,10 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, layerIdx+1) // TODO: for date_histogram this layerIdx+1 layer seems correct, is it for all?
 
 		if len(buckets) == 0 { // without this we'd generate {"buckets": []} in the response, which Elastic doesn't do.
+			if layer.nextBucketAggregation.metadata != nil {
+				buckets["meta"] = layer.nextBucketAggregation.metadata
+				result[layer.nextBucketAggregation.name] = buckets
+			}
 			return result, nil
 		}
 
@@ -145,6 +150,9 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 			}
 		}
 
+		if layer.nextBucketAggregation.metadata != nil {
+			buckets["meta"] = layer.nextBucketAggregation.metadata
+		}
 		result[layer.nextBucketAggregation.name] = buckets
 	}
 	return result, nil
