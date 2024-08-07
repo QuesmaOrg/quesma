@@ -162,12 +162,18 @@ func (d *JSONDiff) intersect(a, b []string) []string {
 
 	// TODO rewrite to sth more efficient
 
+	elementCounts := make(map[string]int)
+
+	// Count all elements from slice 'a'
 	for _, x := range a {
-		for _, y := range b {
-			if x == y {
-				c = append(c, x)
-				break
-			}
+		elementCounts[x]++
+	}
+
+	// Check each element in slice 'b' against the map
+	for _, y := range b {
+		if count, exists := elementCounts[y]; exists && count > 0 {
+			c = append(c, y)
+			elementCounts[y] = 0 // Ensure each element is added only once to the result
 		}
 	}
 
@@ -225,21 +231,35 @@ func (d *JSONDiff) compareArrayByElementKeys(expected []any, actual []any) bool 
 	}
 
 	var expectedKeys []string
+	var expectedKeysSet = make(map[string]bool)
 	for _, element := range expected {
 		key, err := keyExtractor(element)
 		if err != nil {
 			return false
 		}
 		expectedKeys = append(expectedKeys, key)
+		expectedKeysSet[key] = true
+	}
+
+	if len(expectedKeysSet) < len(expectedKeys) {
+		// some keys are duplicated
+		// we cannot compare the arrays by keys
+		return false
 	}
 
 	var actualKeys []string
+	var actualKeysSet = make(map[string]bool)
 	for _, element := range actual {
 		key, err := keyExtractor(element)
 		if err != nil {
 			return false
 		}
 		actualKeys = append(actualKeys, key)
+	}
+	if len(actualKeysSet) < len(actualKeys) {
+		// some keys are duplicated
+		// we cannot compare the arrays by keys
+		return false
 	}
 
 	commonKeys := d.intersect(expectedKeys, actualKeys)
