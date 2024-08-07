@@ -5,7 +5,6 @@ package main
 import (
 	"bytes"
 	"database/sql"
-	"encoding/csv"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -22,10 +21,8 @@ import (
 
 const (
 	clickhouseUrl          = "http://localhost:8123"
-	kibanaUrl              = "http://localhost:5601"
 	kibanaHealthCheckUrl   = "http://localhost:5601/api/status"
 	kibanaDataViewsUrl     = "http://localhost:5601/api/data_views"
-	kibanaCsvReportUrl     = "http://localhost:5601/api/reporting/generate/csv_searchsource"
 	elasticsearchBaseUrl   = "http://localhost:9201"
 	elasticIndexCountUrl   = "http://localhost:9201/logs-generic-default,logs-*/_count"
 	quesmaIndexCountUrl    = "http://localhost:9200/logs-generic-default,logs-*/_count"
@@ -34,6 +31,9 @@ const (
 
 	kibanaLogExplorerMainUrl = "http://localhost:5601/app/observability-log-explorer/?controlPanels=(data_stream.namespace:(explicitInput:(fieldName:data_stream.namespace,id:data_stream.namespace,title:Namespace),grow:!f,order:0,type:optionsListControl,width:medium))&_a=(columns:!(service.name,host.name,message),filters:!(),grid:(columns:(host.name:(width:320),service.name:(width:240))),index:BQZwpgNmDGAuCWB7AdgFQJ4AcwC4CGEEAlEA,interval:auto,query:(language:kuery,query:%27%27),rowHeight:0,sort:!(!(%27@timestamp%27,desc)))&_g=(filters:!(),refreshInterval:(pause:!t,value:60000),time:(from:now-15m,to:now))"
 	kibanaLogInternalUrl     = "http://localhost:5601/internal/controls/optionsList/logs-*-*"
+
+	kibanaDiscoverMainUrl     = "http://localhost:5601/app/discover"
+	kibanaDiscoverInternalUrl = "http://localhost:5601/internal/bsearch?compress=false"
 )
 
 const (
@@ -99,6 +99,19 @@ const kibanaInternalLog = `
 }
 `
 
+const kibanaDiscoverInternalQuery = `
+{
+	"batch": [{
+		"request": {
+			"params": {
+				"index": "logs-generic-*",
+				"body": {"size": 500}
+			}
+		}
+	}]
+}
+`
+
 func main() {
 	waitForStart := flag.Bool("wait-for-start", false, "Wait for start of whole system")
 
@@ -114,15 +127,14 @@ func main() {
 		println("   Kibana: OK")
 		waitForDataViews(5 * time.Minute)
 		println("   Data Views: OK")
-		reportUri := waitForScheduleReportGeneration()
 		waitForLogsInClickhouse("logs-generic-default", time.Minute, []string{"@timestamp", "attributes_string_key", "attributes_string_value", "host::name", "message", "service::name", "severity", "source"})
 		println("   Logs in Clickhouse: OK")
 		waitForAsyncQuery(time.Minute)
 		println("   AsyncQuery: OK")
 		waitForKibanaLogExplorer("kibana LogExplorer", time.Minute)
 		println("   Kibana LogExplorer: OK")
-		waitForKibanaReportGeneration(reportUri, 5*time.Minute)
-		println("   Kibana Report: OK")
+		waitForKibanaDiscover("kibana Search", time.Minute, []string{"severity", "service.name", "host.name", "message"})
+		println("   Kibana Discover: OK")
 	}
 }
 
@@ -202,63 +214,6 @@ func compareClickHouseTableWithElasticsearchIndex(tableOrIndexName string, timeo
 func compareKibanaSampleDataInClickHouseWithElasticsearch(timeout time.Duration) {
 	// CI jobs uses LIMITED_DATASET and only this `flight` data index will get installed
 	compareClickHouseTableWithElasticsearchIndex("kibana_sample_data_flights", timeout)
-}
-
-// just returns the path to the Kibana report for later download
-func scheduleReportGeneration() (string, error) {
-	body := `{"jobParams": "(objectType:search,searchSource:(index:'logs-generic',query:(language:kuery,query:'')))"}`
-	req, _ := http.NewRequest("POST", kibanaCsvReportUrl, bytes.NewBuffer([]byte(body)))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("kbn-xsrf", "custom-value")
-	client := &http.Client{}
-	if resp, err := client.Do(req); err == nil {
-		defer resp.Body.Close()
-		var responseData map[string]interface{}
-		if err := json.NewDecoder(resp.Body).Decode(&responseData); err != nil {
-			return "", fmt.Errorf("error decoding response")
-		}
-		return fmt.Sprintf("%s", responseData["path"]), nil
-	}
-	return "", fmt.Errorf("error scheduling report generation")
-}
-
-func waitForScheduleReportGeneration() string {
-	reportUri, err := scheduleReportGeneration()
-	if err != nil {
-		panic("Error scheduling report generation")
-	}
-	return reportUri
-}
-
-func waitForKibanaReportGeneration(reportUri string, timeout time.Duration) {
-	var csvReport [][]string
-	res := waitFor("kibana report", func() bool {
-		if resp, err := http.Get(fmt.Sprintf("%s%s", kibanaUrl, reportUri)); err != nil || resp.StatusCode != 200 {
-			return false
-		} else {
-			defer resp.Body.Close()
-			responseBody, _ := io.ReadAll(resp.Body)
-			reader := csv.NewReader(strings.NewReader(string(responseBody)))
-			csvReport, _ = reader.ReadAll()
-
-			return true
-		}
-	}, timeout)
-	if !res {
-		panic("kibana report failed to generate")
-	}
-	csvHeader := csvReport[0]
-	if slices.Contains(csvHeader, "@timestamp") {
-		fmt.Printf("Report generation successful")
-	} else {
-		panic("Report doesn't have proper header")
-	}
-	if entriesCount := len(csvReport); entriesCount < 10 {
-		panic(fmt.Sprintf("Report contains only %d lines", entriesCount))
-	} else {
-		fmt.Printf("Report generation successful, %d entries exported to CSV\n", entriesCount-1)
-	}
-
 }
 
 func waitFor(serviceName string, waitForFunc func() bool, timeout time.Duration) bool {
@@ -420,18 +375,70 @@ func sourceClickhouse(resp *http.Response) bool {
 
 func waitForKibanaLogExplorer(serviceName string, timeout time.Duration) {
 	res := waitFor(serviceName, func() bool {
-		return sendKibanaRequest(kibanaLogInternalUrl, "POST", kibanaLogExplorerMainUrl, kibanaInternalLog)
+		_, ok := sendKibanaRequest(kibanaLogInternalUrl, "POST", kibanaLogExplorerMainUrl, kibanaInternalLog)
+		return ok
 	}, timeout)
 	if !res {
 		panic(serviceName + " is not alive or is not receiving logs")
 	}
 }
 
-func sendKibanaRequest(url string, method string, referrer, query string) bool {
+func waitForKibanaDiscover(serviceName string, timeout time.Duration, expectColumns []string) {
+	var response map[string]interface{}
+
+	success := waitFor(serviceName, func() bool {
+		body, ok := sendKibanaRequest(kibanaDiscoverInternalUrl, "POST", kibanaDiscoverMainUrl, kibanaDiscoverInternalQuery)
+		if !ok {
+			return false
+		}
+
+		err := json.Unmarshal([]byte(body), &response)
+		if err != nil {
+			panic(serviceName + " received invalid response from Kibana: " + body)
+		}
+
+		return true
+	}, timeout)
+
+	if !success {
+		panic(serviceName + " is not alive or is not receiving logs")
+	}
+
+	result := response["result"]
+	if result == nil {
+		panic(fmt.Sprintf("Received invalid search results from Kibana (wrong 'result' field): %v", response))
+	}
+	rawResponse := result.(map[string]interface{})["rawResponse"]
+	if rawResponse == nil {
+		panic(fmt.Sprintf("Received invalid search results from Kibana (wrong 'rawResponse' field): %v", response))
+	}
+	hits := rawResponse.(map[string]interface{})["hits"]
+	if hits == nil {
+		panic(fmt.Sprintf("Received invalid search results from Kibana (wrong 'hits' field): %v", response))
+	}
+	innerHits := hits.(map[string]interface{})["hits"]
+	if innerHits == nil {
+		panic(fmt.Sprintf("Received invalid search results from Kibana (wrong inner 'hits' field): %v", response))
+	}
+
+	innerHitsCount := len(innerHits.([]interface{}))
+	if innerHitsCount < 10 {
+		panic(fmt.Sprintf("Search result contains only %d records", innerHitsCount))
+	}
+
+	innerHitsStr := fmt.Sprintf("%v", innerHits)
+	for _, expectedColumn := range expectColumns {
+		if !strings.Contains(innerHitsStr, expectedColumn) {
+			panic(fmt.Sprintf("missing column %v from hits", expectedColumn))
+		}
+	}
+}
+
+func sendKibanaRequest(url string, method string, referrer, query string) (string, bool) {
 	req, err := http.NewRequest(method, url, bytes.NewBuffer([]byte(query)))
 	if err != nil {
 		fmt.Println("Error creating request:", err)
-		return false
+		return "", false
 	}
 
 	if referrer != "" {
@@ -443,19 +450,19 @@ func sendKibanaRequest(url string, method string, referrer, query string) bool {
 	response, err := client.Do(req)
 	if err != nil {
 		fmt.Println("Error sending request:", err)
-		return false
+		return "", false
 	}
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		fmt.Println("Error reading response:", err)
-		return false
+		return "", false
 	}
 
 	bodyStr := string(body)
 	if strings.Contains(bodyStr, "\"statusCode\":500,\"error\":\"Internal Server Error\"") {
-		return false
+		return "", false
 	}
-	return true
+	return bodyStr, true
 }

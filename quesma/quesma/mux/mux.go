@@ -145,3 +145,13 @@ func (p *predicateAnd) Matches(req *Request) bool {
 func And(predicates ...RequestMatcher) RequestMatcher {
 	return &predicateAnd{predicates}
 }
+
+type predicateNever struct{}
+
+func (p *predicateNever) Matches(req *Request) bool {
+	return false
+}
+
+func Never() RequestMatcher {
+	return &predicateNever{}
+}
