@@ -4,6 +4,7 @@ package jsondiff
 
 import (
 	"fmt"
+	"github.com/k0kubun/pp"
 	"quesma/quesma/types"
 	"testing"
 )
@@ -92,6 +93,20 @@ func TestJSONDiff(t *testing.T) {
 			actual:   `{"a": {"d": {"b": 2}}, "c": 3}`,
 			problems: []Problem{problem("a.d.b", invalidValue)},
 		},
+
+		{
+			name:     "array sort difference ",
+			expected: `{"a": [1, 2, 3], "b": 2, "c": 3}`,
+			actual:   `{"a": [1, 3, 2], "b": 2, "c": 3}`,
+			problems: []Problem{problem("a.[1]", invalidValue), problem("a.[2]", invalidValue)},
+		},
+
+		{
+			name:     "array sort difference (with key extractor)",
+			expected: `{"bar": [5, 2, 3], "b": 2, "c": 3}`,
+			actual:   `{"bar": [5, 3, 2], "b": 2, "c": 3}`,
+			problems: []Problem{problem("bar", arraySortDifference)},
+		},
 	}
 
 	for _, tt := range tests {
@@ -101,9 +116,17 @@ func TestJSONDiff(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Expected no error, got %v", err)
 			}
+			err = diff.AddKeyExtractor("bar", func(v any) (string, error) {
+				return fmt.Sprintf("%v", v), nil
+			})
+
+			if err != nil {
+				t.Fatalf("Expected no error, got %v", err)
+			}
 
 			problems, err := diff.Diff(types.MustJSON(tt.expected), types.MustJSON(tt.actual))
 
+			pp.Println("problems:\n", problems)
 			if err != nil {
 				t.Fatalf("Expected no error, got %v", err)
 			}
@@ -121,7 +144,6 @@ func TestJSONDiff(t *testing.T) {
 					t.Errorf("Expected type %s, got %s", tt.problems[i].Type, p.Type)
 				}
 			}
-
 		})
 	}
 }

@@ -241,8 +241,12 @@ func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.Ex
 		return nil, err
 	}
 
-	contextValues := tracing.ExtractValues(ctx)
+	asyncResponse := queryparser.SearchToAsyncSearchResponse(response.response, "__quesma_alternative_plan", false, 200)
+	responseBody, err = asyncResponse.Marshal()
 	bodyAsBytes, _ := body.Bytes()
+
+	contextValues := tracing.ExtractValues(ctx)
+
 	pushAlternativeInfo(q.quesmaManagementConsole, contextValues.RequestId, "", contextValues.RequestPath, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
 
 	return responseBody, response.err
@@ -311,6 +315,9 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 
 // runAlternativePlanAndComparison runs the alternative plan and comparison method in the background. It returns a channel to collect the main plan results.
 func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alternativePlan *model.ExecutionPlan, table *clickhouse.Table, body types.JSON, queryTranslator IQueryTranslator) chan<- executionPlanResult {
+
+	contextValues := tracing.ExtractValues(ctx)
+
 	numberOfExpectedResults := len([]string{model.MainExecutionPlan, model.AlternativeExecutionPlan})
 
 	optComparePlansCh := make(chan executionPlanResult, numberOfExpectedResults)
@@ -354,19 +361,23 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alter
 
 		abResult := ab_testing.Result{
 			Request: ab_testing.Request{
-				Path: "TODO",
+				Path: contextValues.RequestPath,
 				Body: string(bytes),
 			},
 
 			A: ab_testing.Response{
+				Name: "main",
 				Body: string(main.responseBody),
 				Time: time.Since(main.plan.StartTime),
 			},
 
 			B: ab_testing.Response{
+				Name: "alternative",
 				Body: string(alternative.responseBody),
 				Time: time.Since(alternative.plan.StartTime),
 			},
+			RequestID: contextValues.RequestId,
+			OpaqueID:  "TODO",
 		}
 
 		q.ABResultsSender.Send(abResult)

@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-type Diff struct {
-	BodyDiff string `json:"body_diff"`
-	IsDiff   bool   `json:"is_diff"`
+type ResponseMismatch struct {
+	Mismatches string `json:"mismatches"`
+	IsMismatch bool   `json:"is_mismatch"`
 }
 
 type Collector interface {
@@ -23,8 +23,8 @@ type Collector interface {
 type EnrichedResults struct {
 	ab_testing.Result
 
-	Timestamp string `json:"@timestamp"`
-	Diff      Diff   `json:"diff"`
+	Timestamp string           `json:"@timestamp"`
+	Mismatch  ResponseMismatch `json:"response_mismatch"`
 }
 
 type pipelineProcessor interface {

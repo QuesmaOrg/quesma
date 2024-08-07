@@ -30,7 +30,7 @@ func NewSenderCoordinator(cfg config.QuesmaConfiguration) *SenderCoordinator {
 		sender:     newSender(ctx),
 		ctx:        ctx,
 		cancelFunc: cancel,
-		enabled:    false, // TODO this should be read from config
+		enabled:    true, // TODO this should be read from config
 		// add quesma health monitor service here
 	}
 }
