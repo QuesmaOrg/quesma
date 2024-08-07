@@ -454,8 +454,7 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	}
 
 	t := lm.FindTable(tableName)
-	onlySchemaFields := RemoveTypeMismatchSchemaFields(m, t)
-	schemaFieldsJson, err := json.Marshal(onlySchemaFields)
+	schemaFieldsJson, err := json.Marshal(m)
 
 	if err != nil {
 		return "", err
@@ -497,7 +496,7 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 		}
 		nonSchemaStr += fmt.Sprintf(`"%s":%s`, othersFieldName, others)
 	}
-	onlySchemaFields = RemoveNonSchemaFields(m, t)
+	onlySchemaFields := RemoveNonSchemaFields(m, t)
 	schemaFieldsJson, err = json.Marshal(onlySchemaFields)
 	if err != nil {
 		return "", err
