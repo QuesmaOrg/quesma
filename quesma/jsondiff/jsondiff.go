@@ -11,13 +11,13 @@ import (
 	"strings"
 )
 
-type problemType struct {
+type mismatchType struct {
 	code    string
 	message string
 }
 
-func newType(code, message string) problemType {
-	return problemType{code, message}
+func newType(code, message string) mismatchType {
+	return mismatchType{code, message}
 }
 
 var (
@@ -27,7 +27,7 @@ var (
 	objectDifference   = newType("object_difference", "Objects are different")
 )
 
-type Problem struct {
+type JSONMismatch struct {
 	Path string
 
 	Type    string
@@ -39,13 +39,13 @@ type Problem struct {
 	// TODO: add more context,
 }
 
-func (p Problem) String() string {
+func (p JSONMismatch) String() string {
 	return fmt.Sprintf("%s: %s, expected: %s, actual: %s", p.Path, p.Message, p.Expected, p.Actual)
 }
 
-type Results []Problem
+type Mismatches []JSONMismatch
 
-func (r Results) String() string {
+func (r Mismatches) String() string {
 	var s string
 	for _, p := range r {
 		s += p.String() + "\n"
@@ -54,8 +54,8 @@ func (r Results) String() string {
 }
 
 type JSONDiff struct {
-	path     []string
-	problems Results
+	path       []string
+	mismatches Mismatches
 
 	ignorePaths []*regexp.Regexp
 }
@@ -100,16 +100,16 @@ func (d *JSONDiff) isIgnoredPath() bool {
 	return false
 }
 
-func (d *JSONDiff) addProblem(problemType problemType, expected string, actual string) {
-	problem := Problem{
+func (d *JSONDiff) addMismatch(mismatchType mismatchType, expected string, actual string) {
+	m := JSONMismatch{
 		Path:    d.pathString(),
-		Message: problemType.message,
-		Type:    problemType.code,
+		Message: mismatchType.message,
+		Type:    mismatchType.code,
 
 		Expected: expected,
 		Actual:   actual,
 	}
-	d.problems = append(d.problems, problem)
+	d.mismatches = append(d.mismatches, m)
 }
 
 func (d *JSONDiff) keySet(a types.JSON) []string {
@@ -142,10 +142,10 @@ func (d *JSONDiff) intersect(a, b []string) []string {
 func (d *JSONDiff) compareArray(actual []any, expected []any) {
 
 	if len(actual)-len(expected) == 1 || len(actual)-len(expected) == -1 {
-		d.addProblem(invalidArrayLength, fmt.Sprintf("%d", len(actual)), fmt.Sprintf("%d", len(expected)))
+		d.addMismatch(invalidArrayLength, fmt.Sprintf("%d", len(actual)), fmt.Sprintf("%d", len(expected)))
 		// off by one difference, here we can compare the rest of the array
 	} else if len(actual) != len(expected) {
-		d.addProblem(invalidArrayLength, fmt.Sprintf("%d", len(actual)), fmt.Sprintf("%d", len(expected)))
+		d.addMismatch(invalidArrayLength, fmt.Sprintf("%d", len(actual)), fmt.Sprintf("%d", len(expected)))
 		return
 	}
 
@@ -176,12 +176,12 @@ func (d *JSONDiff) compare(a any, b any) {
 	}
 
 	if a == nil && b != nil {
-		d.addProblem(invalidValue, d.asValue(a), d.asValue(b))
+		d.addMismatch(invalidValue, d.asValue(a), d.asValue(b))
 		return
 	}
 
 	if a != nil && b == nil {
-		d.addProblem(invalidValue, d.asValue(a), d.asValue(b))
+		d.addMismatch(invalidValue, d.asValue(a), d.asValue(b))
 		return
 	}
 
@@ -193,7 +193,7 @@ func (d *JSONDiff) compare(a any, b any) {
 
 			d.compareObject(aVal, bVal)
 		default:
-			d.addProblem(invalidType, d.asType(a), d.asType(b))
+			d.addMismatch(invalidType, d.asType(a), d.asType(b))
 			return
 		}
 
@@ -202,20 +202,20 @@ func (d *JSONDiff) compare(a any, b any) {
 		case []any:
 			d.compareArray(a.([]any), b.([]any))
 		default:
-			d.addProblem(invalidType, d.asType(a), d.asType(b))
+			d.addMismatch(invalidType, d.asType(a), d.asType(b))
 		}
 
 	default:
 
 		if reflect.TypeOf(a) != reflect.TypeOf(b) {
-			d.addProblem(invalidType, d.asValue(a), d.asValue(b))
+			d.addMismatch(invalidType, d.asValue(a), d.asValue(b))
 			return
 		}
 
 		// TODO how to compare floats and ints ?
 
 		if a != b {
-			d.addProblem(invalidValue, fmt.Sprintf("%v", a), fmt.Sprintf("%v", b))
+			d.addMismatch(invalidValue, fmt.Sprintf("%v", a), fmt.Sprintf("%v", b))
 		}
 	}
 }
@@ -228,7 +228,7 @@ func (d *JSONDiff) compareObject(expected map[string]any, actual map[string]any)
 	commonKeys := d.intersect(expectedKeys, actualKeys)
 
 	if len(commonKeys) == 0 {
-		d.addProblem(objectDifference, strings.Join(expectedKeys, ", "), strings.Join(actualKeys, ", "))
+		d.addMismatch(objectDifference, strings.Join(expectedKeys, ", "), strings.Join(actualKeys, ", "))
 		return
 	}
 
@@ -241,7 +241,7 @@ func (d *JSONDiff) compareObject(expected map[string]any, actual map[string]any)
 	}
 }
 
-func (d *JSONDiff) Diff(expected types.JSON, actual types.JSON) (Results, error) {
+func (d *JSONDiff) Diff(expected types.JSON, actual types.JSON) (Mismatches, error) {
 
 	// There is a problem with our JSON type. The root is a types.JSON, but objects inside are map[string]any.
 	// We need to convert the types.JSON to map[string]any
@@ -249,5 +249,5 @@ func (d *JSONDiff) Diff(expected types.JSON, actual types.JSON) (Results, error)
 	actualMap := map[string]any(actual)
 
 	d.compare(expectedMap, actualMap)
-	return d.problems, nil
+	return d.mismatches, nil
 }
