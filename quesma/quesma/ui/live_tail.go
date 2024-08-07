@@ -199,7 +199,13 @@ func (qmc *QuesmaManagementConsole) populateQueries(debugKeyValueSlice []queryDe
 		if withLinks {
 			buffer.Html(`<a href="/request-id/`).Text(v.id).Html(`">`)
 		}
-		buffer.Html("<p>UUID:").Text(v.id).Html(" Path: ").Text(v.query.Path).Html("</p>\n")
+		buffer.Html("<p>UUID:").Text(v.id).Html(" Path: ")
+
+		if v.query.OpaqueId != "" {
+			buffer.Text("OpaqueId: ").Text(v.query.OpaqueId)
+		}
+
+		buffer.Text(v.query.Path).Html("</p>\n")
 		buffer.Html(`<pre Id="query`).Text(v.id).Html(`">`)
 		buffer.Text(string(v.query.IncomingQueryBody))
 		buffer.Html("\n</pre>")
