@@ -74,6 +74,7 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 		const isIPAddressInRangePrimitive = "isIPAddressInRange"
 		const CASTPrimitive = "CAST"
 		const COALESCEPrimitive = "COALESCE"
+		const StringLiteral = "String"
 		var lhs, rhs interface{}
 		lhsValue := ""
 		rhsValue := ""
@@ -141,7 +142,7 @@ func (s *SchemaCheckPass) applyIpTransformations(query *model.Query) (*model.Que
 									&model.LiteralExpr{Value: "'0.0.0.0'"},
 								},
 							},
-							Alias: "String",
+							Alias: StringLiteral,
 						},
 					},
 				},

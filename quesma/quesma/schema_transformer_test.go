@@ -24,7 +24,7 @@ func Test_ipRangeTransform(t *testing.T) {
 	const isIPAddressInRangePrimitive = "isIPAddressInRange"
 	const CASTPrimitive = "CAST"
 	const COALESCEPrimitive = "COALESCE"
-	const StringLiteral = "'String'"
+	const StringLiteral = "String"
 	const IpFieldContent = "'111.42.223.209/16'"
 	IpFieldName := strconv.Quote("clientip")
 
@@ -89,7 +89,7 @@ func Test_ipRangeTransform(t *testing.T) {
 											&model.LiteralExpr{Value: "'0.0.0.0'"},
 										},
 									},
-									Alias: "String",
+									Alias: StringLiteral,
 								},
 							},
 						},
@@ -117,7 +117,7 @@ func Test_ipRangeTransform(t *testing.T) {
 											&model.LiteralExpr{Value: "'0.0.0.0'"},
 										},
 									},
-									Alias: "String",
+									Alias: StringLiteral,
 								},
 							},
 						},
@@ -145,7 +145,7 @@ func Test_ipRangeTransform(t *testing.T) {
 											&model.LiteralExpr{Value: "'0.0.0.0'"},
 										},
 									},
-									Alias: "String",
+									Alias: StringLiteral,
 								},
 							},
 						},
@@ -185,7 +185,7 @@ func Test_ipRangeTransform(t *testing.T) {
 											&model.LiteralExpr{Value: "'0.0.0.0'"},
 										},
 									},
-									Alias: "String",
+									Alias: StringLiteral,
 								},
 							},
 						},
@@ -237,7 +237,7 @@ func Test_ipRangeTransform(t *testing.T) {
 												&model.LiteralExpr{Value: "'0.0.0.0'"},
 											},
 										},
-										Alias: "String",
+										Alias: StringLiteral,
 									},
 								},
 							},
