@@ -13,7 +13,10 @@ type diffTransformer struct {
 
 func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
 
-	d := jsondiff.NewElasticResponseJSONDiff()
+	d, err := jsondiff.NewElasticResponseJSONDiff()
+	if err != nil {
+		return in, false, err
+	}
 
 	jsonA, err := types.ParseJSON(in.A.Body)
 	if err != nil {
