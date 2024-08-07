@@ -29,6 +29,7 @@ const (
 	Reason                           = "reason"     // Known error reason key for the logger
 	Path                             = "path"
 	AsyncId                          = "async_id"
+	OpaqueId                         = "opaque_id"
 	ReasonPrefixUnsupportedQueryType = "unsupported_search_query: " // Reason for Error messages for unsupported queries will start with this prefix
 )
 
@@ -173,6 +174,11 @@ func addKnownContextValues(event *zerolog.Event, ctx context.Context) *zerolog.E
 			event = event.Str(AsyncId, asyncId)
 		}
 	}
+
+	if requestId, ok := ctx.Value(tracing.OpaqueIdCtxKey).(string); ok {
+		event = event.Str(OpaqueId, requestId)
+	}
+
 	return event
 }
 

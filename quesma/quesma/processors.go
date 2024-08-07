@@ -34,6 +34,8 @@ func (t TraceIdPreprocessor) PreprocessRequest(ctx context.Context, req *mux.Req
 	req.Headers.Add(tracing.RequestIdCtxKey.AsString(), rid)
 	ctx = context.WithValue(ctx, tracing.RequestIdCtxKey, rid)
 	ctx = context.WithValue(ctx, tracing.RequestPath, req.Path)
+	ctx = context.WithValue(ctx, tracing.OpaqueIdCtxKey, req.Headers.Get(opaqueIdHeaderKey))
+
 	return ctx, req, nil
 }
 
