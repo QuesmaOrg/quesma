@@ -61,8 +61,7 @@ func (c *SenderCoordinator) receiveHealthStatusesLoop() {
 	}
 
 	for {
-		logger.InfoWithCtx(c.ctx).Msg("AB Testing Controller Loop")
-
+		
 		if inMemoryCollector == nil {
 			logger.InfoWithCtx(c.ctx).Msg("Creating InMemoryRepository")
 			inMemoryCollector = c.newInMemoryProcessor(repoHealthQueue)
@@ -76,7 +75,7 @@ func (c *SenderCoordinator) receiveHealthStatusesLoop() {
 
 		case h := <-repoHealthQueue:
 
-			logger.InfoWithCtx(c.ctx).Msgf("AB Testing Repository Health: %v", h.IsHealthy)
+			logger.InfoWithCtx(c.ctx).Msgf("A/B Testing Repository Health: %v", h.IsHealthy)
 
 			if !h.IsHealthy {
 				senderUseCollector(nil)
@@ -99,11 +98,11 @@ func (c *SenderCoordinator) receiveHealthStatusesLoop() {
 func (c *SenderCoordinator) Start() {
 
 	if !c.enabled {
-		logger.InfoWithCtx(c.ctx).Msg("AB Testing Controller is disabled")
+		logger.InfoWithCtx(c.ctx).Msg("A/B Testing Controller is disabled")
 		return
 	}
 
-	logger.InfoWithCtx(c.ctx).Msg("Starting AB Testing Controller")
+	logger.InfoWithCtx(c.ctx).Msg("Starting A/B Testing Coordinator")
 
 	c.sender.Start()
 
@@ -117,6 +116,6 @@ func (c *SenderCoordinator) Start() {
 }
 
 func (c *SenderCoordinator) Stop() {
-	logger.InfoWithCtx(c.ctx).Msg("Stopping AB Testing Controller")
+	logger.InfoWithCtx(c.ctx).Msg("Stopping A/B Testing Controller")
 	c.cancelFunc()
 }

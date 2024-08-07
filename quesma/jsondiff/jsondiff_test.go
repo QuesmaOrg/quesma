@@ -11,10 +11,10 @@ import (
 
 func TestJSONDiff(t *testing.T) {
 
-	problem := func(path string, problemType mismatchType) JSONMismatch {
+	mismatch := func(path string, mType mismatchType) JSONMismatch {
 		return JSONMismatch{
 			Path: path,
-			Type: problemType.code,
+			Type: mType.code,
 		}
 	}
 
@@ -35,77 +35,84 @@ func TestJSONDiff(t *testing.T) {
 			name:     "Test 2",
 			expected: `{"a": 1, "b": 2, "c": 3}`,
 			actual:   `{"a": 1, "b": 3, "c": 3}`,
-			problems: []JSONMismatch{problem("b", invalidValue)},
+			problems: []JSONMismatch{mismatch("b", invalidValue)},
 		},
 
 		{
 			name:     "invalid type",
 			expected: `{"a": 1, "b": 2, "c": 3}`,
 			actual:   `{"a": 1, "b": "foo", "c": 3}`,
-			problems: []JSONMismatch{problem("b", invalidType)},
+			problems: []JSONMismatch{mismatch("b", invalidType)},
 		},
 
 		{
 			name:     "missing value",
 			expected: `{"a": 1, "b": 2, "c": 3}`,
 			actual:   `{"a": 1, "c": 3}`,
-			problems: []JSONMismatch{problem("b", invalidValue)},
+			problems: []JSONMismatch{mismatch("b", invalidValue)},
 		},
 
 		{
 			name:     "array length",
 			expected: `{"a": [1, 2, 3], "b": 2, "c": 3}`,
 			actual:   `{"a": [1, 2], "b": 2, "c": 3}`,
-			problems: []JSONMismatch{problem("a", invalidArrayLength)},
+			problems: []JSONMismatch{mismatch("a", invalidArrayLengthOffByOne)},
 		},
 
 		{
 			name:     "array element difference",
 			expected: `{"a": [1, 2, 3], "b": 2, "c": 3}`,
 			actual:   `{"a": [1, 2, 4], "b": 2, "c": 3}`,
-			problems: []JSONMismatch{problem("a.[2]", invalidValue)},
+			problems: []JSONMismatch{mismatch("a.[2]", invalidValue)},
 		},
 
 		{
 			name:     "array element difference",
 			expected: `{"a": [1, 2, 3]}`,
 			actual:   `{"a": [1, true, "xx"]}`,
-			problems: []JSONMismatch{problem("a.[1]", invalidType), problem("a.[2]", invalidType)},
+			problems: []JSONMismatch{mismatch("a.[1]", invalidType), mismatch("a.[2]", invalidType)},
 		},
 
 		{
 			name:     "object difference",
 			expected: `{"a": {"b": 1}, "c": 3}`,
 			actual:   `{"a": {"b": 2}, "c": 3}`,
-			problems: []JSONMismatch{problem("a.b", invalidValue)},
+			problems: []JSONMismatch{mismatch("a.b", invalidValue)},
 		},
 
 		{
 			name:     "deep path difference",
 			expected: `{"a": {"d": {"b": 1}}, "c": 3}`,
 			actual:   `{"a": {"d": {"b": 2}}, "c": 3}`,
-			problems: []JSONMismatch{problem("a.d.b", invalidValue)},
+			problems: []JSONMismatch{mismatch("a.d.b", invalidValue)},
 		},
 
 		{
 			name:     "deep path difference",
 			expected: `{"a": {"d": {"b": 1}}, "c": 3, "_ignore": 1}`,
 			actual:   `{"a": {"d": {"b": 2}}, "c": 3}`,
-			problems: []JSONMismatch{problem("a.d.b", invalidValue)},
+			problems: []JSONMismatch{mismatch("a.d.b", invalidValue)},
 		},
 
 		{
 			name:     "array sort difference ",
 			expected: `{"a": [1, 2, 3], "b": 2, "c": 3}`,
 			actual:   `{"a": [1, 3, 2], "b": 2, "c": 3}`,
-			problems: []JSONMismatch{problem("a.[1]", invalidValue), problem("a.[2]", invalidValue)},
+			problems: []JSONMismatch{mismatch("a.[1]", invalidValue), mismatch("a.[2]", invalidValue)},
 		},
 
 		{
 			name:     "array sort difference (with key extractor)",
 			expected: `{"bar": [5, 2, 3], "b": 2, "c": 3}`,
 			actual:   `{"bar": [5, 3, 2], "b": 2, "c": 3}`,
-			problems: []JSONMismatch{problem("bar", arraySortDifference)},
+			problems: []JSONMismatch{mismatch("bar", arrayKeysSortDifference)},
+		},
+
+		{
+			name:     "array sort difference ",
+			expected: `{"bar": [5, 2, 4, 2, 1, 0], "b": 2, "c": 3}`,
+			actual:   `{"bar": [5, 2, 4, 2, 1, -1], "b": 2, "c": 3}`,
+			problems: []JSONMismatch{mismatch("bar", arrayKeysDifferenceSlightly)},
 		},
 	}
 

@@ -22,12 +22,14 @@ func newType(code, message string) mismatchType {
 }
 
 var (
-	invalidType         = newType("invalid_type", "Types are not equal")
-	invalidValue        = newType("invalid_value", "Values are not equal")
-	invalidArrayLength  = newType("invalid_array_length", "Array lengths are not equal")
-	objectDifference    = newType("object_difference", "Objects are different")
-	arrayDifference     = newType("array_difference", "Array elements are different")
-	arraySortDifference = newType("array_sort_difference", "Array elements are sorted differently")
+	invalidType                 = newType("invalid_type", "Types are not equal")
+	invalidValue                = newType("invalid_value", "Values are not equal")
+	invalidArrayLength          = newType("invalid_array_length", "Array lengths are not equal")
+	invalidArrayLengthOffByOne  = newType("invalid_array_length_off_by_one", "Array lengths are off by one.")
+	objectDifference            = newType("object_difference", "Objects are different")
+	arrayKeysDifference         = newType("array_keys_difference", "Array keys are different")
+	arrayKeysDifferenceSlightly = newType("array_keys_difference_slightly", "Array keys are slightly different")
+	arrayKeysSortDifference     = newType("array_keys_sort_difference", "Array keys are sorted differently")
 )
 
 type JSONMismatch struct {
@@ -109,7 +111,6 @@ func (d *JSONDiff) isIgnoredPath() bool {
 	return false
 }
 
-
 func (d *JSONDiff) findKeyExtractor() func(any) (string, error) {
 	p := d.pathString()
 	// regexp match ?
@@ -130,7 +131,6 @@ func (d *JSONDiff) AddKeyExtractor(str string, keyExtractor func(any) (string, e
 	d.pathKeyExtractors = append(d.pathKeyExtractors, pathKeyExtractor{rx, keyExtractor})
 	return nil
 }
-
 
 func (d *JSONDiff) addMismatch(mismatchType mismatchType, expected string, actual string) {
 	m := JSONMismatch{
@@ -159,6 +159,7 @@ func (d *JSONDiff) keySet(a types.JSON) []string {
 
 func (d *JSONDiff) intersect(a, b []string) []string {
 	var c []string
+	// TODO rewrite to sth more efficient
 
 	for _, x := range a {
 		for _, y := range b {
@@ -174,7 +175,6 @@ func (d *JSONDiff) intersect(a, b []string) []string {
 
 func (d *JSONDiff) compareStringArrays(a, b []string) bool {
 
-
 	if len(a) != len(b) {
 		return false
 	}
@@ -186,6 +186,16 @@ func (d *JSONDiff) compareStringArrays(a, b []string) bool {
 	}
 
 	return true
+}
+
+func (d *JSONDiff) joinKeys(keys []string) string {
+
+	var quotedKeys []string
+	for _, k := range keys {
+		quotedKeys = append(quotedKeys, fmt.Sprintf("'%s'", k))
+	}
+
+	return strings.Join(quotedKeys, ", ")
 }
 
 func (d *JSONDiff) compareStringsArrayOmitOrder(a, b []string) bool {
@@ -209,13 +219,13 @@ func (d *JSONDiff) compareArrayByElementKeys(expected []any, actual []any) bool 
 
 	keyExtractor := d.findKeyExtractor()
 
-	if keyExtractor != nil {
+	if keyExtractor == nil {
 		return false
 	}
 
 	var expectedKeys []string
-	for _, a := range expected {
-		key, err := keyExtractor(a)
+	for _, element := range expected {
+		key, err := keyExtractor(element)
 		if err != nil {
 			return false
 		}
@@ -223,8 +233,8 @@ func (d *JSONDiff) compareArrayByElementKeys(expected []any, actual []any) bool 
 	}
 
 	var actualKeys []string
-	for _, a := range actual {
-		key, err := keyExtractor(a)
+	for _, element := range actual {
+		key, err := keyExtractor(element)
 		if err != nil {
 			return false
 		}
@@ -233,18 +243,31 @@ func (d *JSONDiff) compareArrayByElementKeys(expected []any, actual []any) bool 
 
 	commonKeys := d.intersect(expectedKeys, actualKeys)
 
-	if len(commonKeys) == 0 {
-		d.addMismatch(arrayDifference,
-			fmt.Sprintf("Keys: %s", strings.Join(expectedKeys, ", ")),
-			fmt.Sprintf("Keys: %s", strings.Join(actualKeys, ", ")))
-		return true
+	// some tests if the key sets are different
+	if len(commonKeys) != len(expectedKeys) {
+
+		if len(commonKeys) == 0 {
+			d.addMismatch(arrayKeysDifference,
+				fmt.Sprintf("Keys: %s", d.joinKeys(expectedKeys)),
+				fmt.Sprintf("Keys: %s", d.joinKeys(actualKeys)))
+			return true
+		}
+
+		// this is heuristic, if we have more keys, we would like to know if the arrays a similar, before comparing
+		// the elements
+		if len(expectedKeys) > 5 && len(commonKeys) > len(expectedKeys)-2 {
+			d.addMismatch(arrayKeysDifferenceSlightly,
+				fmt.Sprintf("Keys: %s", d.joinKeys(expectedKeys)),
+				fmt.Sprintf("Keys: %s", d.joinKeys(actualKeys)))
+			return true
+		}
 	}
 
 	if d.compareStringArrays(expectedKeys, actualKeys) == false && d.compareStringsArrayOmitOrder(expectedKeys, actualKeys) {
 
-		d.addMismatch(arraySortDifference,
-			fmt.Sprintf("Keys: %s", strings.Join(expectedKeys, ", ")),
-			fmt.Sprintf("Keys: %s", strings.Join(actualKeys, ", ")))
+		d.addMismatch(arrayKeysSortDifference,
+			fmt.Sprintf("Keys: %s", d.joinKeys(expectedKeys)),
+			fmt.Sprintf("Keys: %s", d.joinKeys(actualKeys)))
 		return true
 	}
 
@@ -253,16 +276,25 @@ func (d *JSONDiff) compareArrayByElementKeys(expected []any, actual []any) bool 
 
 func (d *JSONDiff) compareArray(expected []any, actual []any) {
 
-	if len(actual) != len(expected) {
+	lenDiff := len(actual) - len(expected)
+	if lenDiff < 0 {
+		lenDiff = -lenDiff
+	}
 
+	if lenDiff > 1 {
 		d.addMismatch(invalidArrayLength, fmt.Sprintf("%d", len(actual)), fmt.Sprintf("%d", len(expected)))
-
+		return
+	} else if lenDiff == 1 {
+		d.addMismatch(invalidArrayLengthOffByOne, fmt.Sprintf("%d", len(actual)), fmt.Sprintf("%d", len(expected)))
 		return
 	}
 
 	if len(actual) == 0 {
 		return
 	}
+
+	// before comparing the elements of the array, we can try to compare the keys of the elements
+	// if the keys are different, we can skip the comparison of the elements
 
 	if d.compareArrayByElementKeys(expected, actual) {
 		return
@@ -291,7 +323,6 @@ func (d *JSONDiff) compare(expected any, actual any) {
 	if expected == nil && actual == nil {
 		return
 	}
-
 
 	if expected == nil && actual != nil {
 		d.addMismatch(invalidValue, d.asValue(expected), d.asValue(actual))
