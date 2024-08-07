@@ -97,11 +97,13 @@ func handleTermsEnumRequest(ctx context.Context, body types.JSON, qt *queryparse
 		}
 	}
 
+	ctxValues := tracing.ExtractValues(ctx)
+
 	reqBody, _ := body.Bytes()
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
-		Id:                     ctx.Value(tracing.RequestIdCtxKey).(string),
+		Id:                     ctxValues.RequestId,
 		Path:                   path,
-		OpaqueId:               ctx.Value(tracing.OpaqueIdCtxKey).(string),
+		OpaqueId:               ctxValues.OpaqueId,
 		IncomingQueryBody:      reqBody,
 		QueryBodyTranslated:    []types.TranslatedSQLQuery{{Query: []byte(selectQuery.SelectCommand.String())}},
 		QueryTranslatedResults: result,
