@@ -222,6 +222,26 @@ func (d *JSONDiff) compareStringsArrayOmitOrder(a, b []string) bool {
 	return d.compareStringArrays(aCopy, bCopy)
 }
 
+// converts list of elements to list of keys
+func (d *JSONDiff) extractKeysFromArray(input []any, keyExtractor func(any) (string, error)) (result []string, ok bool) {
+	var keys []string
+	var keysMap = make(map[string]bool)
+	for _, element := range input {
+		key, err := keyExtractor(element)
+		if err != nil {
+			return result, false
+		}
+		keys = append(keys, key)
+		keysMap[key] = true
+	}
+	if len(keysMap) < len(keys) {
+		// some keys are duplicated
+		// we cannot compare the arrays by keys
+		return result, false
+	}
+	return keys, true
+}
+
 func (d *JSONDiff) compareArrayByElementKeys(expected []any, actual []any) bool {
 
 	keyExtractor := d.findKeyExtractor()
@@ -230,35 +250,13 @@ func (d *JSONDiff) compareArrayByElementKeys(expected []any, actual []any) bool 
 		return false
 	}
 
-	var expectedKeys []string
-	var expectedKeysSet = make(map[string]bool)
-	for _, element := range expected {
-		key, err := keyExtractor(element)
-		if err != nil {
-			return false
-		}
-		expectedKeys = append(expectedKeys, key)
-		expectedKeysSet[key] = true
-	}
-
-	if len(expectedKeysSet) < len(expectedKeys) {
-		// some keys are duplicated
-		// we cannot compare the arrays by keys
+	expectedKeys, ok := d.extractKeysFromArray(expected, keyExtractor)
+	if !ok {
 		return false
 	}
 
-	var actualKeys []string
-	var actualKeysSet = make(map[string]bool)
-	for _, element := range actual {
-		key, err := keyExtractor(element)
-		if err != nil {
-			return false
-		}
-		actualKeys = append(actualKeys, key)
-	}
-	if len(actualKeysSet) < len(actualKeys) {
-		// some keys are duplicated
-		// we cannot compare the arrays by keys
+	actualKeys, ok := d.extractKeysFromArray(actual, keyExtractor)
+	if !ok {
 		return false
 	}
 
@@ -267,6 +265,7 @@ func (d *JSONDiff) compareArrayByElementKeys(expected []any, actual []any) bool 
 	// some tests if the key sets are different
 	if len(commonKeys) != len(expectedKeys) {
 
+		// if where is no common keys, we deal with a totally different arrays
 		if len(commonKeys) == 0 {
 			d.addMismatch(arrayKeysDifference,
 				fmt.Sprintf("Keys: %s", d.joinKeys(expectedKeys)),
@@ -274,8 +273,9 @@ func (d *JSONDiff) compareArrayByElementKeys(expected []any, actual []any) bool 
 			return true
 		}
 
-		// this is heuristic, if we have more keys, we would like to know if the arrays a similar, before comparing
-		// the elements
+		// this is heuristic,
+		// for more than 5 keys eyeballing can be difficult
+		// we like to know if the arrays are similar
 		if len(expectedKeys) > 5 && len(commonKeys) > len(expectedKeys)-2 {
 			d.addMismatch(arrayKeysDifferenceSlightly,
 				fmt.Sprintf("Keys: %s", d.joinKeys(expectedKeys)),
@@ -284,6 +284,7 @@ func (d *JSONDiff) compareArrayByElementKeys(expected []any, actual []any) bool 
 		}
 	}
 
+	// here we can compare if keys are sorted differently
 	if !d.compareStringArrays(expectedKeys, actualKeys) && d.compareStringsArrayOmitOrder(expectedKeys, actualKeys) {
 
 		d.addMismatch(arrayKeysSortDifference,

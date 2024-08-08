@@ -114,8 +114,8 @@ func TestJSONDiff(t *testing.T) {
 
 		{
 			name:     "array sort difference ",
-			expected: `{"bar": [5, 2, 4, 2, 1, 0], "b": 2, "c": 3}`,
-			actual:   `{"bar": [5, 2, 4, 2, 1, -1], "b": 2, "c": 3}`,
+			expected: `{"bar": [5, 2, 4, 3, 1, 0], "b": 2, "c": 3}`,
+			actual:   `{"bar": [5, 2, 4, 3, 1, -1], "b": 2, "c": 3}`,
 			problems: []JSONMismatch{mismatch("bar", arrayKeysDifferenceSlightly)},
 		},
 	}
