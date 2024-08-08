@@ -12,11 +12,6 @@ type ResultTransformer interface {
 	Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error)
 }
 
-type QueryTransformer interface {
-	Transform(query []*model.Query) ([]*model.Query, error)
-}
-
-
 // not so legit API
 
 type FieldCapsTransformer interface {

@@ -14,7 +14,6 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/optimize"
-	"quesma/plugins"
 	"quesma/plugins/registry"
 	"quesma/queryparser"
 	"quesma/queryparser/query_util"
@@ -82,7 +81,7 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, i
 		executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult](),
 		AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext](),
 		transformationPipeline: TransformationPipeline{
-			transformers: []plugins.QueryTransformer{
+			transformers: []model.QueryTransformer{
 				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry, logManager: lm}, // this can be a part of another plugin
 			},
 		},
@@ -164,10 +163,6 @@ func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.Executio
 		logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 	}
 
-	plan.Queries, err = registry.QueryTransformerFor(table.Name, q.cfg, q.schemaRegistry).Transform(plan.Queries)
-	if err != nil {
-		logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
-	}
 }
 
 // Deprecated - this method should be examined and potentially removed

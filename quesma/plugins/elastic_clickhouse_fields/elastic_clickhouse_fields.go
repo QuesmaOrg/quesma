@@ -56,34 +56,6 @@ func (t *fieldCapsTransformer) Transform(fieldCaps map[string]map[string]model.F
 
 // query transformer
 
-type queryTransformer struct {
-	translate translateFunc
-}
-
-func newColumnNameTranslator(translate translateFunc) model.ExprVisitor {
-
-	visitor := model.NewBaseVisitor()
-
-	visitor.OverrideVisitColumnRef = func(b *model.BaseExprVisitor, e model.ColumnRef) interface{} {
-
-		return model.NewColumnRef(translate(e.ColumnName))
-	}
-
-	return visitor
-
-}
-
-func (t *queryTransformer) Transform(queries []*model.Query) ([]*model.Query, error) {
-
-	visitor := newColumnNameTranslator(t.translate)
-
-	for _, query := range queries {
-		query.SelectCommand = query.SelectCommand.Accept(visitor).(model.SelectCommand)
-	}
-
-	return queries, nil
-}
-
 //
 
 //
@@ -114,10 +86,6 @@ func (p *Dot2DoubleColons2Dot) GetTableColumnFormatter(table string, cfg config.
 		return &columNameFormatter{separator: doubleColons}
 	}
 	return nil
-}
-
-func (p *Dot2DoubleColons2Dot) ApplyQueryTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.QueryTransformer) []plugins.QueryTransformer {
-	return transformers
 }
 
 func (p *Dot2DoubleColons2Dot) ApplyResultTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.ResultTransformer) []plugins.ResultTransformer {

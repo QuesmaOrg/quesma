@@ -12,7 +12,6 @@ import (
 // Plugin changes the behavior of Quesma by changing the pipeline of transformers
 type Plugin interface {
 	ApplyFieldCapsTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.FieldCapsTransformer) []plugins.FieldCapsTransformer
-	ApplyQueryTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.QueryTransformer) []plugins.QueryTransformer
 	ApplyResultTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.ResultTransformer) []plugins.ResultTransformer
 	GetTableColumnFormatter(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.TableColumNameFormatter
 }
@@ -21,21 +20,6 @@ var registeredPlugins []Plugin
 
 func init() {
 	registeredPlugins = []Plugin{}
-}
-
-func QueryTransformerFor(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.QueryTransformer {
-
-	var transformers []plugins.QueryTransformer
-
-	for _, plugin := range registeredPlugins {
-		transformers = plugin.ApplyQueryTransformers(table, cfg, schema, transformers)
-	}
-
-	if len(transformers) == 0 {
-		return &plugins.NopQueryTransformer{}
-	}
-
-	return plugins.QueryTransformerPipeline(transformers)
 }
 
 ///

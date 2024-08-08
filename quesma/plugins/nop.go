@@ -19,10 +19,3 @@ type NopFieldCapsTransformer struct {
 func (*NopFieldCapsTransformer) Transform(fieldCaps map[string]map[string]model.FieldCapability) (map[string]map[string]model.FieldCapability, error) {
 	return fieldCaps, nil
 }
-
-type NopQueryTransformer struct {
-}
-
-func (*NopQueryTransformer) Transform(query []*model.Query) ([]*model.Query, error) {
-	return query, nil
-}

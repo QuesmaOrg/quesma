@@ -4,11 +4,10 @@ package quesma
 
 import (
 	"quesma/model"
-	"quesma/plugins"
 )
 
 type TransformationPipeline struct {
-	transformers []plugins.QueryTransformer
+	transformers []model.QueryTransformer
 }
 
 func (o *TransformationPipeline) Transform(queries []*model.Query) ([]*model.Query, error) {

@@ -6,19 +6,6 @@ import (
 	"quesma/model"
 )
 
-type QueryTransformerPipeline []QueryTransformer
-
-func (pipe QueryTransformerPipeline) Transform(query []*model.Query) ([]*model.Query, error) {
-	for _, transformer := range pipe {
-		var err error
-		query, err = transformer.Transform(query)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return query, nil
-}
-
 type ResultTransformerPipeline []ResultTransformer
 
 func (pipe ResultTransformerPipeline) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
