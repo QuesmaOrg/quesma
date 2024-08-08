@@ -4,6 +4,7 @@ package quesma
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"quesma/ab_testing"
@@ -236,17 +237,24 @@ func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.Ex
 
 	response := <-doneCh
 
-	if isAsync {
-		asyncResponse := queryparser.SearchToAsyncSearchResponse(response.response, "__quesma_alternative_plan", false, 200)
-		responseBody, err = asyncResponse.Marshal()
-		if err != nil {
-			return nil, err
+	if response.err == nil {
+		if isAsync {
+			asyncResponse := queryparser.SearchToAsyncSearchResponse(response.response, "__quesma_alternative_plan", false, 200)
+			responseBody, err = asyncResponse.Marshal()
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			responseBody, err = response.response.Marshal()
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else {
-		responseBody, err = response.response.Marshal()
-		if err != nil {
-			return nil, err
-		}
+		// TODO better error handling
+		m := make(map[string]interface{})
+		m["error"] = fmt.Sprintf("%v", response.err.Error())
+		responseBody, _ = json.MarshalIndent(m, "", "  ")
 	}
 
 	bodyAsBytes, _ := body.Bytes()
