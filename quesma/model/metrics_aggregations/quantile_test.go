@@ -33,7 +33,7 @@ func equalStrings(a, b *string) bool {
 func Test_processResult(t *testing.T) {
 	a := time.Now()
 	fmt.Println(a.Format(time.RFC3339))
-	quantile := NewQuantile(context.Background(), false, clickhouse.DateTime)
+	quantile := NewQuantile(context.Background(), []string{}, false, clickhouse.DateTime)
 	colName := "not-important"
 	wantedStr := "2024-05-02T21:58:16.297Z"
 	tests := []struct {
