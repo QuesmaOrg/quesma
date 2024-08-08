@@ -4,7 +4,6 @@ package plugins
 
 import (
 	"quesma/model"
-	"quesma/quesma/types"
 )
 
 // Legit Interfaces
@@ -17,9 +16,6 @@ type QueryTransformer interface {
 	Transform(query []*model.Query) ([]*model.Query, error)
 }
 
-type IngestTransformer interface {
-	Transform(document types.JSON) (types.JSON, error)
-}
 
 // not so legit API
 

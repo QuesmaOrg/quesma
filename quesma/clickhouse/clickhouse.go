@@ -532,7 +532,7 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 	return config, nil
 }
 
-func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []types.JSON, transformer plugins.IngestTransformer, tableFormatter plugins.TableColumNameFormatter) error {
+func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []types.JSON, transformer jsonprocessor.IngestTransformer, tableFormatter plugins.TableColumNameFormatter) error {
 	// this is pre ingest transformer
 	// here we transform the data before it's structure evaluation and insertion
 	//
@@ -573,7 +573,7 @@ func (lm *LogManager) execute(ctx context.Context, query string) error {
 }
 
 func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON,
-	config *ChTableConfig, transformer plugins.IngestTransformer) error {
+	config *ChTableConfig, transformer jsonprocessor.IngestTransformer) error {
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
 		preprocessedJson, err := transformer.Transform(jsonValue)

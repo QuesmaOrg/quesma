@@ -4,7 +4,6 @@ package plugins
 
 import (
 	"quesma/model"
-	"quesma/quesma/types"
 )
 
 type NopResultTransformer struct {
@@ -26,11 +25,4 @@ type NopQueryTransformer struct {
 
 func (*NopQueryTransformer) Transform(query []*model.Query) ([]*model.Query, error) {
 	return query, nil
-}
-
-type NopIngestTransformer struct {
-}
-
-func (*NopIngestTransformer) Transform(document types.JSON) (types.JSON, error) {
-	return document, nil
 }

@@ -5,6 +5,7 @@ package doc
 import (
 	"context"
 	"quesma/clickhouse"
+	"quesma/jsonprocessor"
 	"quesma/logger"
 	"quesma/plugins/registry"
 	"quesma/quesma/config"
@@ -31,8 +32,7 @@ func Write(ctx context.Context, tableName string, body types.JSON, lm *clickhous
 			return err
 		}
 
-		tableMap, _ := lm.GetTableDefinitions()
-		transformer := registry.IngestTransformerFor(tableName, cfg, nil, tableMap)
+		transformer := jsonprocessor.IngestTransformerFor(tableName, cfg)
 		return lm.ProcessInsertQuery(ctx, tableName, types.NDJSON{body}, transformer, nameFormatter)
 	})
 	return nil

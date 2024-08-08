@@ -4,7 +4,6 @@ package plugins
 
 import (
 	"quesma/model"
-	"quesma/quesma/types"
 )
 
 type QueryTransformerPipeline []QueryTransformer
@@ -44,17 +43,4 @@ func (pipe FieldCapsTransformerPipeline) Transform(fieldCaps map[string]map[stri
 		}
 	}
 	return fieldCaps, nil
-}
-
-type IngestTransformerPipeline []IngestTransformer
-
-func (pipe IngestTransformerPipeline) Transform(document types.JSON) (types.JSON, error) {
-	for _, transformer := range pipe {
-		var err error
-		document, err = transformer.Transform(document)
-		if err != nil {
-			return document, err
-		}
-	}
-	return document, nil
 }

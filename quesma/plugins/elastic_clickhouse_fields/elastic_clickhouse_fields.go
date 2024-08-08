@@ -4,12 +4,9 @@ package elastic_clickhouse_fields
 
 import (
 	"fmt"
-	"quesma/clickhouse"
-	"quesma/jsonprocessor"
 	"quesma/model"
 	"quesma/plugins"
 	"quesma/quesma/config"
-	"quesma/quesma/types"
 	"quesma/schema"
 	"strings"
 )
@@ -18,20 +15,11 @@ import (
 
 var doubleColons = "::"
 var dot = "."
-var sqlNative = "__"
 
 type translateFunc func(string) string
 
 func doubleColons2dot(input string) string {
 	return strings.ReplaceAll(input, doubleColons, dot)
-}
-
-func dot2SQLNative(input string) string {
-	return strings.ReplaceAll(input, dot, sqlNative)
-}
-
-func sqlNative2Dot(input string) string {
-	return strings.ReplaceAll(input, sqlNative, dot)
 }
 
 type resultTransformer struct {
@@ -98,14 +86,6 @@ func (t *queryTransformer) Transform(queries []*model.Query) ([]*model.Query, er
 
 //
 
-type ingestTransformer struct {
-	separator string
-}
-
-func (t *ingestTransformer) Transform(document types.JSON) (types.JSON, error) {
-	return jsonprocessor.FlattenMap(document, t.separator), nil
-}
-
 //
 
 type columNameFormatter struct {
@@ -121,57 +101,12 @@ func (t *columNameFormatter) Format(namespace, columnName string) string {
 
 // plugin definitions
 
-type Dot2DoubleColons struct{}
-
-func (p *Dot2DoubleColons) matches(table string) bool {
-	// TODO this breaks geo stuff,
-	// so we disable it for e-commerce data
-	return !strings.HasPrefix(table, "kibana_sample_data_ecommerce")
-}
-
-func (p *Dot2DoubleColons) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
-	if p.matches(table) {
-		transformers = append(transformers, &ingestTransformer{separator: doubleColons})
-	}
-	return transformers
-}
-
-func (p *Dot2DoubleColons) ApplyQueryTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.QueryTransformer) []plugins.QueryTransformer {
-	return transformers
-}
-
-func (p *Dot2DoubleColons) ApplyResultTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.ResultTransformer) []plugins.ResultTransformer {
-	return transformers
-}
-
-func (p *Dot2DoubleColons) ApplyFieldCapsTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.FieldCapsTransformer) []plugins.FieldCapsTransformer {
-	return transformers
-}
-
-func (p *Dot2DoubleColons) GetTableColumnFormatter(table string, cfg config.QuesmaConfiguration) plugins.TableColumNameFormatter {
-	if p.matches(table) {
-		return &columNameFormatter{separator: doubleColons}
-	}
-	return nil
-}
-
 // temporary solution for indexes stored with "::" separator
 
 type Dot2DoubleColons2Dot struct{}
 
 func (*Dot2DoubleColons2Dot) matches(table string) bool {
 	return true
-}
-
-func (*Dot2DoubleColons2Dot) IngestTransformer() plugins.IngestTransformer {
-	return &ingestTransformer{separator: doubleColons}
-}
-
-func (p *Dot2DoubleColons2Dot) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, tableMap clickhouse.TableMap, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
-	if p.matches(table) {
-		transformers = append(transformers, &ingestTransformer{separator: doubleColons})
-	}
-	return transformers
 }
 
 func (p *Dot2DoubleColons2Dot) GetTableColumnFormatter(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.TableColumNameFormatter {
@@ -193,48 +128,5 @@ func (p *Dot2DoubleColons2Dot) ApplyResultTransformers(table string, cfg config.
 }
 
 func (p *Dot2DoubleColons2Dot) ApplyFieldCapsTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.FieldCapsTransformer) []plugins.FieldCapsTransformer {
-	return transformers
-}
-
-// ultimate solution
-
-type Dot2DoubleUnderscores2Dot struct{}
-
-func (p *Dot2DoubleUnderscores2Dot) matches(table string) bool {
-	return false
-}
-
-func (p *Dot2DoubleUnderscores2Dot) ApplyIngestTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.IngestTransformer) []plugins.IngestTransformer {
-	if p.matches(table) {
-		transformers = append(transformers, &ingestTransformer{separator: doubleColons})
-	}
-	return transformers
-}
-
-func (p *Dot2DoubleUnderscores2Dot) GetTableColumnFormatter(table string, cfg config.QuesmaConfiguration) plugins.TableColumNameFormatter {
-	if p.matches(table) {
-		return &columNameFormatter{separator: sqlNative}
-	}
-	return nil
-}
-
-func (p *Dot2DoubleUnderscores2Dot) ApplyFieldCapsTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.FieldCapsTransformer) []plugins.FieldCapsTransformer {
-	if p.matches(table) {
-		transformers = append(transformers, &fieldCapsTransformer{translate: sqlNative2Dot})
-	}
-	return transformers
-}
-
-func (p *Dot2DoubleUnderscores2Dot) ApplyQueryTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.QueryTransformer) []plugins.QueryTransformer {
-	if p.matches(table) {
-		transformers = append(transformers, &queryTransformer{translate: dot2SQLNative})
-	}
-	return transformers
-}
-
-func (p *Dot2DoubleUnderscores2Dot) ApplyResultTransformers(table string, cfg config.QuesmaConfiguration, transformers []plugins.ResultTransformer) []plugins.ResultTransformer {
-	if p.matches(table) {
-		transformers = append(transformers, &resultTransformer{translate: sqlNative2Dot})
-	}
 	return transformers
 }
