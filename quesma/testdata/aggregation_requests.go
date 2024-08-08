@@ -2464,7 +2464,78 @@ var AggregationTests = []AggregationTestCase{
 				{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", "below-top-10"), model.NewQueryResultCol("doc_count", uint64(12))}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0), //make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 262),
+				model.NewQueryResultCol("metric__sample__sample_count_col_0", 262),
+				model.NewQueryResultCol("aggr__sample__top_values__key_0", "hephaestus"),
+				model.NewQueryResultCol("aggr__sample__top_values__count", 30),
+				model.NewQueryResultCol("aggr__sample__top_values__order_1", 30),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 262),
+				model.NewQueryResultCol("metric__sample__sample_count_col_0", 262),
+				model.NewQueryResultCol("aggr__sample__top_values__key_0", "poseidon"),
+				model.NewQueryResultCol("aggr__sample__top_values__count", 29),
+				model.NewQueryResultCol("aggr__sample__top_values__order_1", 29),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 262),
+				model.NewQueryResultCol("metric__sample__sample_count_col_0", 262),
+				model.NewQueryResultCol("aggr__sample__top_values__key_0", "jupiter"),
+				model.NewQueryResultCol("aggr__sample__top_values__count", 28),
+				model.NewQueryResultCol("aggr__sample__top_values__order_1", 28),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 262),
+				model.NewQueryResultCol("metric__sample__sample_count_col_0", 262),
+				model.NewQueryResultCol("aggr__sample__top_values__key_0", "selen"),
+				model.NewQueryResultCol("aggr__sample__top_values__count", 26),
+				model.NewQueryResultCol("aggr__sample__top_values__order_1", 26),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 262),
+				model.NewQueryResultCol("metric__sample__sample_count_col_0", 262),
+				model.NewQueryResultCol("aggr__sample__top_values__key_0", "demeter"),
+				model.NewQueryResultCol("aggr__sample__top_values__count", 24),
+				model.NewQueryResultCol("aggr__sample__top_values__order_1", 24),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 262),
+				model.NewQueryResultCol("metric__sample__sample_count_col_0", 262),
+				model.NewQueryResultCol("aggr__sample__top_values__key_0", "iris"),
+				model.NewQueryResultCol("aggr__sample__top_values__count", 24),
+				model.NewQueryResultCol("aggr__sample__top_values__order_1", 24),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 262),
+				model.NewQueryResultCol("metric__sample__sample_count_col_0", 262),
+				model.NewQueryResultCol("aggr__sample__top_values__key_0", "pan"),
+				model.NewQueryResultCol("aggr__sample__top_values__count", 24),
+				model.NewQueryResultCol("aggr__sample__top_values__order_1", 24),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 262),
+				model.NewQueryResultCol("metric__sample__sample_count_col_0", 262),
+				model.NewQueryResultCol("aggr__sample__top_values__key_0", "hades"),
+				model.NewQueryResultCol("aggr__sample__top_values__count", 22),
+				model.NewQueryResultCol("aggr__sample__top_values__order_1", 22),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 262),
+				model.NewQueryResultCol("metric__sample__sample_count_col_0", 262),
+				model.NewQueryResultCol("aggr__sample__top_values__key_0", "hermes"),
+				model.NewQueryResultCol("aggr__sample__top_values__count", 22),
+				model.NewQueryResultCol("aggr__sample__top_values__order_1", 22),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sample__count", 262),
+				model.NewQueryResultCol("metric__sample__sample_count_col_0", 262),
+				model.NewQueryResultCol("aggr__sample__top_values__key_0", "persephone"),
+				model.NewQueryResultCol("aggr__sample__top_values__count", 21),
+				model.NewQueryResultCol("aggr__sample__top_values__order_1", 21),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() FROM (SELECT 1 ` +
 				`FROM ` + QuotedTableName + ` ` +
@@ -2480,7 +2551,31 @@ var AggregationTests = []AggregationTestCase{
 				`GROUP BY "host.name" ` +
 				`ORDER BY count() DESC`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "aggr__sample__count", "metric__sample__sample_count_col_0",
+			  "aggr__sample__top_values__key_0", "aggr__sample__top_values__count",
+			  "aggr__sample__top_values__order_1"
+			FROM (
+			  SELECT "aggr__sample__count", "metric__sample__sample_count_col_0",
+				"aggr__sample__top_values__key_0", "aggr__sample__top_values__count",
+				"aggr__sample__top_values__order_1", dense_rank() OVER (PARTITION BY 1
+			  ORDER BY "aggr__sample__top_values__order_1" DESC,
+				"aggr__sample__top_values__key_0" ASC) AS
+				"aggr__sample__top_values__order_1_rank"
+			  FROM (
+				SELECT sum("aggr__sample__count_part") OVER (PARTITION BY 1) AS
+				  "aggr__sample__count", count() AS "metric__sample__sample_count_col_0",
+				  "host.name" AS "aggr__sample__top_values__key_0", count(*) AS
+				  "aggr__sample__top_values__count", count() AS
+				  "aggr__sample__top_values__order_1", count(*) AS
+				  "aggr__sample__count_part"
+				FROM "logs-generic-default"
+				WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z')
+				  AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z'))
+				  AND "message" iLIKE '%user%')
+				GROUP BY "host.name" AS "aggr__sample__top_values__key_0"))
+			WHERE "aggr__sample__top_values__order_1_rank"<=10
+			ORDER BY "aggr__sample__top_values__order_1_rank" ASC`,
 	},
 	{ // [12], "old" test, also can be found in testdata/requests.go TestAsyncSearch[3]
 		// Copied it also here to be more sure we do not create some regression
@@ -3886,7 +3981,20 @@ var AggregationTests = []AggregationTestCase{
 			},
 			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("doc_count", uint64(15))}}},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sampler__count", uint64(15)),
+				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1709816790000/15000)),
+				model.NewQueryResultCol("aggr__sampler__eventRate__count", 0),
+				model.NewQueryResultCol("aggr__sampler__eventRate__order_1", int64(1709816790000/15000)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__sampler__count", uint64(15)),
+				model.NewQueryResultCol("aggr__sampler__eventRate__key_0", int64(1709816805000/15000)),
+				model.NewQueryResultCol("aggr__sampler__eventRate__count", 0),
+				model.NewQueryResultCol("aggr__sampler__eventRate__order_1", int64(1709816805000/15000)),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT ` + groupBySQL("@timestamp", clickhouse.DateTime64, 15*time.Second) + `, count() ` +
 				`FROM ` + QuotedTableName + ` ` +
@@ -3898,7 +4006,29 @@ var AggregationTests = []AggregationTestCase{
 				`WHERE (toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 ` +
 				`AND toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12)`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "aggr__sampler__count", "aggr__sampler__eventRate__key_0",
+			  "aggr__sampler__eventRate__count", "aggr__sampler__eventRate__order_1"
+			FROM (
+			  SELECT "aggr__sampler__count", "aggr__sampler__eventRate__key_0",
+				"aggr__sampler__eventRate__count", "aggr__sampler__eventRate__order_1",
+				dense_rank() OVER (PARTITION BY 1
+			  ORDER BY "aggr__sampler__eventRate__order_1",
+				"aggr__sampler__eventRate__key_0" ASC) AS
+				"aggr__sampler__eventRate__order_1_rank"
+			  FROM (
+				SELECT sum("aggr__sampler__count_part") OVER (PARTITION BY 1) AS
+				  "aggr__sampler__count", toInt64(toUnixTimestamp64Milli("@timestamp") /
+				  15000) AS "aggr__sampler__eventRate__key_0", count(*) AS
+				  "aggr__sampler__eventRate__count",
+				  toInt64(toUnixTimestamp64Milli("@timestamp") / 15000) AS "aggr__sampler__eventRate__order_1",
+				  count(*) AS "aggr__sampler__count_part"
+				FROM "logs-generic-default"
+				WHERE (toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 AND
+				  toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12)
+				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 15000) AS
+				  "aggr__sampler__eventRate__key_0"))
+			ORDER BY "aggr__sampler__eventRate__order_1_rank" ASC`,
 	},
 	{ // [20]
 		TestName: "Field statistics > summary for numeric fields",

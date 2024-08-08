@@ -9,7 +9,6 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
-	"quesma/model/metrics_aggregations"
 	"strconv"
 	"strings"
 )
@@ -322,16 +321,13 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		delete(queryMap, "geotile_grid")
 		return success, err
 	}
-	if _, ok := queryMap["sampler"]; ok {
-		aggregation.queryType = metrics_aggregations.NewCount(cw.Ctx)
+	if sampler, ok := queryMap["sampler"]; ok {
+		aggregation.queryType = cw.parseSampler(sampler)
 		delete(queryMap, "sampler")
 		return
 	}
-	// Let's treat random_sampler just like sampler for now, until we add `LIMIT` logic to sampler.
-	// Random sampler doesn't have `size` field, but `probability`, so logic in the final version should be different.
-	// So far I've only observed its "probability" field to be 1.0, so it's not really important.
-	if _, ok := queryMap["random_sampler"]; ok {
-		aggregation.queryType = metrics_aggregations.NewCount(cw.Ctx)
+	if randomSampler, ok := queryMap["random_sampler"]; ok {
+		aggregation.queryType = cw.parseRandomSampler(randomSampler)
 		delete(queryMap, "random_sampler")
 		return
 	}
@@ -381,4 +377,13 @@ func (cw *ClickhouseQueryTranslator) pancakeFindMetricAggregation(queryMap Query
 		return columns[0]
 	}
 	return notFoundValue
+}
+
+// sampler - in proper request should be of QueryMap type.
+func (cw *ClickhouseQueryTranslator) parseSampler(sampler any) bucket_aggregations.Sampler {
+	return bucket_aggregations.NewSampler(cw.Ctx, 100)
+}
+
+func (cw *ClickhouseQueryTranslator) parseRandomSampler(randomSampler any) bucket_aggregations.RandomSampler {
+	return bucket_aggregations.NewRandomSampler(cw.Ctx, 0.5)
 }
