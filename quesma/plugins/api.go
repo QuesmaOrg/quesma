@@ -11,14 +11,3 @@ import (
 type ResultTransformer interface {
 	Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error)
 }
-
-// not so legit API
-
-// this one is used to format column names on table creation
-// it's too specific to be a transformer, we should have a sth different here
-// maybe whole "buildCreateTableQueryNoOurFields" should be moved to a plugin
-type TableColumNameFormatter interface {
-	Format(namespace, columnName string) string
-}
-
-///

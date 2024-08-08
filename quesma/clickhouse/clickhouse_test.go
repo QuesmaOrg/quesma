@@ -5,7 +5,6 @@ package clickhouse
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"quesma/concurrent"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
@@ -107,16 +106,6 @@ func TestInsertNonSchemaFields_2(t *testing.T) {
 	f(fieldsMap, emptyMap)
 }
 */
-type columNameFormatter struct {
-	separator string
-}
-
-func (t *columNameFormatter) Format(namespace, columnName string) string {
-	if namespace == "" {
-		return columnName
-	}
-	return fmt.Sprintf("%s%s%s", namespace, t.separator, columnName)
-}
 
 func TestAddTimestamp(t *testing.T) {
 	tableConfig := &ChTableConfig{
@@ -132,7 +121,7 @@ func TestAddTimestamp(t *testing.T) {
 		castUnsupportedAttrValueTypesToString: false,
 		preferCastingToOthers:                 false,
 	}
-	nameFormatter := &columNameFormatter{separator: "::"}
+	nameFormatter := DefaultColumnNameFormatter()
 	lm := NewLogManagerEmpty()
 	lm.schemaRegistry = schema.StaticRegistry{}
 	query, err := lm.buildCreateTableQueryNoOurFields(context.Background(), "tableName", types.MustJSON(`{"host.name":"hermes","message":"User password reset requested","service.name":"queue","severity":"info","source":"azure"}`), tableConfig, nameFormatter)

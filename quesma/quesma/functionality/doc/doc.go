@@ -6,8 +6,6 @@ import (
 	"context"
 	"quesma/clickhouse"
 	"quesma/jsonprocessor"
-	"quesma/logger"
-	"quesma/plugins/registry"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
@@ -26,12 +24,7 @@ func Write(ctx context.Context, tableName string, body types.JSON, lm *clickhous
 		if len(cfg.IndexConfig[tableName].Override) > 0 {
 			tableName = cfg.IndexConfig[tableName].Override
 		}
-		nameFormatter, err := registry.TableColumNameFormatterFor(tableName, cfg, nil)
-		if err != nil {
-			logger.Error().Msgf("Error getting table column name formatter for index %s: %v", tableName, err)
-			return err
-		}
-
+		nameFormatter := clickhouse.DefaultColumnNameFormatter()
 		transformer := jsonprocessor.IngestTransformerFor(tableName, cfg)
 		return lm.ProcessInsertQuery(ctx, tableName, types.NDJSON{body}, transformer, nameFormatter)
 	})

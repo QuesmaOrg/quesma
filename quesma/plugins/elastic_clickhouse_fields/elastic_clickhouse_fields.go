@@ -3,7 +3,6 @@
 package elastic_clickhouse_fields
 
 import (
-	"fmt"
 	"quesma/model"
 	"quesma/plugins"
 	"quesma/quesma/config"
@@ -38,17 +37,6 @@ func (t *resultTransformer) Transform(result [][]model.QueryResultRow) ([][]mode
 	return result, nil
 }
 
-type columNameFormatter struct {
-	separator string
-}
-
-func (t *columNameFormatter) Format(namespace, columnName string) string {
-	if namespace == "" {
-		return columnName
-	}
-	return fmt.Sprintf("%s%s%s", namespace, t.separator, columnName)
-}
-
 // plugin definitions
 
 // temporary solution for indexes stored with "::" separator
@@ -57,13 +45,6 @@ type Dot2DoubleColons2Dot struct{}
 
 func (*Dot2DoubleColons2Dot) matches(table string) bool {
 	return true
-}
-
-func (p *Dot2DoubleColons2Dot) GetTableColumnFormatter(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.TableColumNameFormatter {
-	if p.matches(table) {
-		return &columNameFormatter{separator: doubleColons}
-	}
-	return nil
 }
 
 func (p *Dot2DoubleColons2Dot) ApplyResultTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.ResultTransformer) []plugins.ResultTransformer {

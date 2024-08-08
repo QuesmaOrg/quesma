@@ -5,7 +5,6 @@ package clickhouse
 import (
 	"fmt"
 	"quesma/logger"
-	"quesma/plugins"
 	"quesma/schema"
 	"quesma/util"
 	"slices"
@@ -21,7 +20,7 @@ type CreateTableEntry struct {
 
 // m: unmarshalled json from HTTP request
 // Returns nicely formatted string for CREATE TABLE command
-func FieldsMapToCreateTableString(m SchemaMap, config *ChTableConfig, nameFormatter plugins.TableColumNameFormatter, schemaMapping *schema.Schema) string {
+func FieldsMapToCreateTableString(m SchemaMap, config *ChTableConfig, nameFormatter TableColumNameFormatter, schemaMapping *schema.Schema) string {
 	var result strings.Builder
 
 	columnsFromJson := JsonToColumns("", m, 1, config, nameFormatter)
@@ -60,7 +59,7 @@ func FieldsMapToCreateTableString(m SchemaMap, config *ChTableConfig, nameFormat
 	return result.String()
 }
 
-func JsonToColumns(namespace string, m SchemaMap, indentLvl int, config *ChTableConfig, nameFormatter plugins.TableColumNameFormatter) []CreateTableEntry {
+func JsonToColumns(namespace string, m SchemaMap, indentLvl int, config *ChTableConfig, nameFormatter TableColumNameFormatter) []CreateTableEntry {
 	var resultColumns []CreateTableEntry
 
 	for name, value := range m {
@@ -110,7 +109,7 @@ func JsonToColumns(namespace string, m SchemaMap, indentLvl int, config *ChTable
 	return resultColumns
 }
 
-func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter plugins.TableColumNameFormatter) map[schema.FieldName]CreateTableEntry {
+func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameFormatter) map[schema.FieldName]CreateTableEntry {
 	resultColumns := make(map[schema.FieldName]CreateTableEntry)
 
 	if schemaMapping == nil {
