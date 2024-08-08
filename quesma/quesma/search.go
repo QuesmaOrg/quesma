@@ -14,7 +14,6 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/optimize"
-	"quesma/plugins/registry"
 	"quesma/queryparser"
 	"quesma/queryparser/query_util"
 	"quesma/quesma/config"
@@ -907,7 +906,7 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 
 func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
-	transformer := registry.ResultTransformerFor(table.Name, q.cfg, q.schemaRegistry)
+	transformer := &replaceColumNamesWithFieldNames{}
 
 	res, err := transformer.Transform(results)
 

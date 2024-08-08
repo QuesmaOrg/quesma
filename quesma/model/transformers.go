@@ -5,3 +5,7 @@ package model
 type QueryTransformer interface {
 	Transform(query []*Query) ([]*Query, error)
 }
+
+type ResultTransformer interface {
+	Transform(result [][]QueryResultRow) ([][]QueryResultRow, error)
+}
