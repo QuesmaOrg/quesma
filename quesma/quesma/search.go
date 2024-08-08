@@ -251,7 +251,7 @@ func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.Ex
 
 	bodyAsBytes, _ := body.Bytes()
 	contextValues := tracing.ExtractValues(ctx)
-	pushAlternativeInfo(q.quesmaManagementConsole, contextValues.RequestId, "", contextValues.RequestPath, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
+	pushAlternativeInfo(q.quesmaManagementConsole, contextValues.RequestId, "", contextValues.OpaqueId, contextValues.RequestPath, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
 
 	return responseBody, response.err
 
@@ -261,6 +261,7 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	contextValues := tracing.ExtractValues(ctx)
 	id := contextValues.RequestId
 	path := contextValues.RequestPath
+	opaqueId := contextValues.OpaqueId
 
 	doneCh := make(chan AsyncSearchWithError, 1)
 
@@ -304,13 +305,13 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 			go func() { // Async search takes longer. Return partial results and wait for
 				recovery.LogPanicWithCtx(ctx)
 				res := <-doneCh
-				responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res, true)
+				responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res, true, opaqueId)
 				sendMainPlanResult(responseBody, err)
 			}()
 			return q.handlePartialAsyncSearch(ctx, optAsync.asyncId)
 		case res := <-doneCh:
 			responseBody, err = q.storeAsyncSearch(q.quesmaManagementConsole, id, optAsync.asyncId, optAsync.startTime, path, body, res,
-				optAsync.keepOnCompletion)
+				optAsync.keepOnCompletion, opaqueId)
 			sendMainPlanResult(responseBody, err)
 			return responseBody, err
 		}
@@ -564,7 +565,7 @@ func (q *QueryRunner) removeNotExistingTables(sourcesClickhouse []string) []stri
 }
 
 func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyncId string,
-	startTime time.Time, path string, body types.JSON, result AsyncSearchWithError, keep bool) (responseBody []byte, err error) {
+	startTime time.Time, path string, body types.JSON, result AsyncSearchWithError, keep bool, opaqueId string) (responseBody []byte, err error) {
 	took := time.Since(startTime)
 	if result.err != nil {
 		if keep {
@@ -577,6 +578,7 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 		qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 			Id:                     id,
 			AsyncId:                asyncId,
+			OpaqueId:               opaqueId,
 			Path:                   path,
 			IncomingQueryBody:      bodyAsBytes,
 			QueryBodyTranslated:    result.translatedQueryBody,
@@ -591,6 +593,7 @@ func (q *QueryRunner) storeAsyncSearch(qmc *ui.QuesmaManagementConsole, id, asyn
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     id,
 		AsyncId:                asyncId,
+		OpaqueId:               opaqueId,
 		Path:                   path,
 		IncomingQueryBody:      bodyAsBytes,
 		QueryBodyTranslated:    result.translatedQueryBody,
@@ -940,10 +943,11 @@ func pushSecondaryInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, Path string
 		SecondaryTook:          time.Since(startTime)})
 }
 
-func pushAlternativeInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []types.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
+func pushAlternativeInfo(qmc *ui.QuesmaManagementConsole, Id, AsyncId, OpaqueId, Path string, IncomingQueryBody []byte, QueryBodyTranslated []types.TranslatedSQLQuery, QueryTranslatedResults []byte, startTime time.Time) {
 	qmc.PushSecondaryInfo(&ui.QueryDebugSecondarySource{
 		Id:                     Id,
 		AsyncId:                AsyncId,
+		OpaqueId:               OpaqueId,
 		Path:                   Path,
 		IncomingQueryBody:      IncomingQueryBody,
 		QueryBodyTranslated:    QueryBodyTranslated,

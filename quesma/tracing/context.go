@@ -15,6 +15,7 @@ const (
 	RequestPath     ContextKey = "RequestPath"
 	AsyncIdCtxKey   ContextKey = "AsyncId"
 	TraceEndCtxKey  ContextKey = "TraceEnd"
+	OpaqueIdCtxKey  ContextKey = "OpaqueId"
 
 	AsyncIdPrefix = "quesma_async_"
 )
@@ -50,6 +51,7 @@ type ContextValues struct {
 	Reason      string
 	RequestPath string
 	TraceEnd    bool
+	OpaqueId    string
 }
 
 func ExtractValues(ctx context.Context) ContextValues {
@@ -68,5 +70,6 @@ func ExtractValues(ctx context.Context) ContextValues {
 		AsyncId:     str(AsyncIdCtxKey),
 		Reason:      str(ReasonCtxKey),
 		RequestPath: str(RequestPath),
+		OpaqueId:    str(OpaqueIdCtxKey),
 	}
 }
