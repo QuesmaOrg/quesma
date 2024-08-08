@@ -12,8 +12,9 @@ import (
 )
 
 type ResponseMismatch struct {
-	Mismatches string `json:"mismatches"`
-	IsMismatch bool   `json:"is_mismatch"`
+	Mismatches string `json:"mismatches"` // JSON array of differences
+	// TODO maybe we should keep more human readable list of differences
+	IsMismatch bool `json:"is_mismatch"`
 }
 
 type Collector interface {
@@ -66,6 +67,7 @@ func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessa
 			&probabilisticSampler{ratio: 1},
 			&diffTransformer{},
 			&ppPrintFanout{},
+			&mismatchedOnlyFilter{},
 			&elasticSearchFanout{
 				url:       "http://localhost:8080",
 				indexName: "ab_testing_logs",
