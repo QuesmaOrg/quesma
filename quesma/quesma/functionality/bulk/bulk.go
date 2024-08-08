@@ -54,6 +54,7 @@ type (
 		Result      string             `json:"result,omitempty"`
 		Status      int                `json:"status"`
 		Error       any                `json:"error,omitempty"`
+		Type        string             `json:"_type"` // ES 7.x Java Client requires this field
 	}
 	BulkShardsResponse struct {
 		Failed     int `json:"failed"`
@@ -224,6 +225,7 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 					Version: 0,
 					Result:  "created",
 					Status:  201,
+					Type:    "_doc",
 				}
 				if err != nil {
 					bulkSingleResponse.Result = ""

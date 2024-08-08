@@ -259,6 +259,8 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 	})
 
 	router.Register(routes.IndexPath, and(method("PUT"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		index := req.Params["index"]
+
 		body, err := types.ExpectJSON(req.ParsedBody)
 		if err != nil {
 			return nil, err
@@ -266,14 +268,14 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 
 		mappings, ok := body["mappings"]
 		if !ok {
-			logger.Warn().Msgf("no mappings found in PUT /%s request, ignoring that request.", req.Params["index"])
-			return &mux.Result{StatusCode: httpOk}, nil
+			logger.Warn().Msgf("no mappings found in PUT /%s request, ignoring that request. Full content: %s", index, req.Body)
+			return putIndexResult(index), nil
 		}
 		columns := elasticsearch.ParseMappings("", mappings.(map[string]interface{}))
 
-		sr.UpdateDynamicConfiguration(schema.TableName(req.Params["index"]), schema.Table{Columns: columns})
+		sr.UpdateDynamicConfiguration(schema.TableName(index), schema.Table{Columns: columns})
 
-		return &mux.Result{StatusCode: httpOk}, nil
+		return putIndexResult(index), nil
 	})
 
 	return router
@@ -397,6 +399,20 @@ func indexDocResult(index string, statusCode int) *mux.Result {
 	return elasticsearchInsertResult(string(body), statusCode)
 }
 
+func putIndexResult(index string) *mux.Result {
+	result := putIndexResponse{
+		Acknowledged:       true,
+		ShardsAcknowledged: true,
+		Index:              index,
+	}
+	serialized, err := json.Marshal(result)
+	if err != nil {
+		panic(err)
+	}
+
+	return &mux.Result{StatusCode: httpOk, Body: string(serialized)}
+}
+
 type (
 	indexDocResponse struct {
 		Id          string         `json:"_id"`
@@ -411,6 +427,11 @@ type (
 		Failed     int `json:"failed"`
 		Successful int `json:"successful"`
 		Total      int `json:"total"`
+	}
+	putIndexResponse struct {
+		Acknowledged       bool   `json:"acknowledged"`
+		ShardsAcknowledged bool   `json:"shards_acknowledged"`
+		Index              string `json:"index"`
 	}
 )
 
