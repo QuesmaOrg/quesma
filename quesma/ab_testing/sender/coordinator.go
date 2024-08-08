@@ -62,7 +62,7 @@ func (c *SenderCoordinator) receiveHealthStatusesLoop() {
 
 	for {
 		if inMemoryCollector == nil {
-			logger.InfoWithCtx(c.ctx).Msg("Creating InMemoryRepository")
+			logger.InfoWithCtx(c.ctx).Msg("Creating InMemoryCollector")
 			inMemoryCollector = c.newInMemoryProcessor(repoHealthQueue)
 		}
 
@@ -74,14 +74,14 @@ func (c *SenderCoordinator) receiveHealthStatusesLoop() {
 
 		case h := <-repoHealthQueue:
 
-			logger.InfoWithCtx(c.ctx).Msgf("A/B Testing Repository Health: %v", h.IsHealthy)
+			logger.DebugWithCtx(c.ctx).Msgf("A/B Testing Collector Health: %v", h.IsHealthy)
 
 			if !h.IsHealthy {
 				senderUseCollector(nil)
 
 				// we should give a chance to the collector to recover
 
-				logger.InfoWithCtx(c.ctx).Msg("Stopping  InMemoryRepository")
+				logger.InfoWithCtx(c.ctx).Msg("Stopping  InMemoryCollector")
 				inMemoryCollector.Stop()
 				inMemoryCollector = nil
 			} else {

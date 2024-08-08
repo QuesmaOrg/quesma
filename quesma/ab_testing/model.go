@@ -18,15 +18,12 @@ type Response struct {
 }
 
 type Result struct {
+	RequestID string `json:"request_id"`
+	OpaqueID  string `json:"opaque_id"`
+
 	Request Request  `json:"request"`
 	A       Response `json:"response_a"`
 	B       Response `json:"response_b"`
-	// add other fields if needed
-	// TODO add  other  fields
-	// quesma request id
-	// quesma async_id
-	RequestID string `json:"request_id"`
-	OpaqueID  string `json:"opaque_id"`
 }
 
 // Sender sends results to a destination. This one will be used in Quesma core.

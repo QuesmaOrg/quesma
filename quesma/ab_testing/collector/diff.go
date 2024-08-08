@@ -28,24 +28,21 @@ func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop
 		return in, false, err
 	}
 
-	problems, err := d.Diff(jsonA, jsonB)
+	mismatches, err := d.Diff(jsonA, jsonB)
 
 	if err != nil {
 		return in, false, err
 	}
 
-	if len(problems) > 0 {
-
-		b, err := json.MarshalIndent(problems, "", " ")
+	if len(mismatches) > 0 {
+		b, err := json.MarshalIndent(mismatches, "", " ")
 
 		if err != nil {
 			return in, false, err
-
 		}
 
 		in.Mismatch.Mismatches = string(b)
 		in.Mismatch.IsMismatch = true
-
 	} else {
 		in.Mismatch.Mismatches = "[]"
 		in.Mismatch.IsMismatch = false

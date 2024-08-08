@@ -114,7 +114,7 @@ func (d *JSONDiff) isIgnoredPath() bool {
 
 func (d *JSONDiff) findKeyExtractor() func(any) (string, error) {
 	p := d.pathString()
-	// regexp match ?
+
 	for _, x := range d.pathKeyExtractors {
 		if x.rx.MatchString(p) {
 			return x.keyExtractor
@@ -124,7 +124,6 @@ func (d *JSONDiff) findKeyExtractor() func(any) (string, error) {
 }
 
 func (d *JSONDiff) AddKeyExtractor(str string, keyExtractor func(any) (string, error)) error {
-
 	rx, err := regexp.Compile(str)
 	if err != nil {
 		return fmt.Errorf("regexp '%s' compilation failed: %v", str, err)
@@ -160,8 +159,6 @@ func (d *JSONDiff) keySet(a types.JSON) []string {
 func (d *JSONDiff) intersect(a, b []string) []string {
 	var c []string
 
-	// TODO rewrite to sth more efficient
-
 	elementCounts := make(map[string]int)
 
 	// Count all elements from slice 'a'
@@ -180,6 +177,27 @@ func (d *JSONDiff) intersect(a, b []string) []string {
 	return c
 }
 
+func (d *JSONDiff) sum(a, b []string) []string {
+	var result []string
+
+	elementCounts := make(map[string]bool)
+
+	// Count all elements from slice 'a'
+	for _, x := range a {
+		elementCounts[x] = true
+		result = append(result, x)
+	}
+
+	// Check each element in slice 'b' against the map
+	for _, y := range b {
+		if _, exists := elementCounts[y]; !exists {
+			result = append(result, y)
+		}
+	}
+
+	return result
+}
+
 func (d *JSONDiff) compareStringArrays(a, b []string) bool {
 
 	if len(a) != len(b) {
@@ -195,7 +213,7 @@ func (d *JSONDiff) compareStringArrays(a, b []string) bool {
 	return true
 }
 
-func (d *JSONDiff) joinKeys(keys []string) string {
+func (d *JSONDiff) formatListOfKeys(keys []string) string {
 
 	var quotedKeys []string
 	for _, k := range keys {
@@ -268,8 +286,8 @@ func (d *JSONDiff) compareArrayByElementKeys(expected []any, actual []any) bool 
 		// if where is no common keys, we deal with a totally different arrays
 		if len(commonKeys) == 0 {
 			d.addMismatch(arrayKeysDifference,
-				fmt.Sprintf("Keys: %s", d.joinKeys(expectedKeys)),
-				fmt.Sprintf("Keys: %s", d.joinKeys(actualKeys)))
+				fmt.Sprintf("Keys: %s", d.formatListOfKeys(expectedKeys)),
+				fmt.Sprintf("Keys: %s", d.formatListOfKeys(actualKeys)))
 			return true
 		}
 
@@ -278,8 +296,8 @@ func (d *JSONDiff) compareArrayByElementKeys(expected []any, actual []any) bool 
 		// we like to know if the arrays are similar
 		if len(expectedKeys) > 5 && len(commonKeys) > len(expectedKeys)-2 {
 			d.addMismatch(arrayKeysDifferenceSlightly,
-				fmt.Sprintf("Keys: %s", d.joinKeys(expectedKeys)),
-				fmt.Sprintf("Keys: %s", d.joinKeys(actualKeys)))
+				fmt.Sprintf("Keys: %s", d.formatListOfKeys(expectedKeys)),
+				fmt.Sprintf("Keys: %s", d.formatListOfKeys(actualKeys)))
 			return true
 		}
 	}
@@ -288,8 +306,8 @@ func (d *JSONDiff) compareArrayByElementKeys(expected []any, actual []any) bool 
 	if !d.compareStringArrays(expectedKeys, actualKeys) && d.compareStringsArrayOmitOrder(expectedKeys, actualKeys) {
 
 		d.addMismatch(arrayKeysSortDifference,
-			fmt.Sprintf("Keys: %s", d.joinKeys(expectedKeys)),
-			fmt.Sprintf("Keys: %s", d.joinKeys(actualKeys)))
+			fmt.Sprintf("Keys: %s", d.formatListOfKeys(expectedKeys)),
+			fmt.Sprintf("Keys: %s", d.formatListOfKeys(actualKeys)))
 		return true
 	}
 
@@ -354,7 +372,6 @@ func (d *JSONDiff) compare(expected any, actual any) {
 
 	if expected != nil && actual == nil {
 		d.addMismatch(invalidValue, d.asValue(expected), d.asValue(actual))
-
 		return
 	}
 
@@ -362,13 +379,10 @@ func (d *JSONDiff) compare(expected any, actual any) {
 	case map[string]any:
 
 		switch bVal := actual.(type) {
-
 		case map[string]any:
-
 			d.compareObject(aVal, bVal)
 		default:
 			d.addMismatch(invalidType, d.asType(expected), d.asType(actual))
-
 			return
 		}
 
@@ -377,7 +391,6 @@ func (d *JSONDiff) compare(expected any, actual any) {
 		case []any:
 			d.compareArray(expected.([]any), actual.([]any))
 		default:
-
 			d.addMismatch(invalidType, d.asType(expected), d.asType(actual))
 		}
 
@@ -404,7 +417,6 @@ func (d *JSONDiff) compare(expected any, actual any) {
 
 		default:
 			d.addMismatch(invalidType, d.asType(expected), d.asType(actual))
-
 		}
 
 	default:
@@ -416,7 +428,6 @@ func (d *JSONDiff) compare(expected any, actual any) {
 
 		if expected != actual {
 			d.addMismatch(invalidValue, fmt.Sprintf("%v", expected), fmt.Sprintf("%v", actual))
-
 		}
 	}
 }
@@ -433,9 +444,10 @@ func (d *JSONDiff) compareObject(expected map[string]any, actual map[string]any)
 		return
 	}
 
-	// TODO what keys should we compare?
+	allKeys := d.sum(expectedKeys, actualKeys)
+	sort.Strings(allKeys)
 
-	for _, k := range expectedKeys {
+	for _, k := range allKeys {
 		d.pushPath(k)
 		d.compare(expected[k], actual[k])
 		d.popPath()
@@ -450,5 +462,10 @@ func (d *JSONDiff) Diff(expected types.JSON, actual types.JSON) (Mismatches, err
 	actualMap := map[string]any(actual)
 
 	d.compare(expectedMap, actualMap)
+
+	// TODO do we need any limit on the number of mismatches?
+	// TODO do we need to sort the mismatches?
+	// TODO do we need to compact the mismatches?
+
 	return d.mismatches, nil
 }
