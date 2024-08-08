@@ -42,11 +42,19 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 	}
 
 	fmt.Printf("percentiles: %+v", query)
-	for i, res := range rows[0].Cols {
+	percentileIdx := -1
+	for _, res := range rows[0].Cols {
+		if !strings.HasPrefix(res.ColName, "metric") && !strings.HasPrefix(res.ColName, "quantile") {
+			// TODO remove second part of if after removing old aggregation logic!
+			continue
+		}
+		// now we're sure we're dealing with a quantile
+		percentileIdx++
+
 		// error handling is moved to processResult
 		percentile, percentileAsString, percentileIsNanOrInvalid := query.processResult(res.ColName, res.Value)
 
-		percentileNameToReturn := query.percentileNames[i]
+		percentileNameToReturn := query.percentileNames[percentileIdx]
 		// percentileName can't be an integer (doesn't work in Kibana that way), so we need to add .0 if it's missing
 		dotIndex := strings.Index(percentileNameToReturn, ".")
 		if dotIndex == -1 {
