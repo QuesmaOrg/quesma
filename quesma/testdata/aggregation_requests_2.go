@@ -543,33 +543,7 @@ var AggregationTests2 = []AggregationTestCase{
 			{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("organName", "c11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("organName", "c12"),
-					model.NewQueryResultCol("count()", 24),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("organName", "c21"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
-					model.NewQueryResultCol("organName", "c22"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("limbName", "__missing__"),
 					model.NewQueryResultCol("count()", 21),
 				}},
 				{Cols: []model.QueryResultCol{
@@ -584,7 +558,7 @@ var AggregationTests2 = []AggregationTestCase{
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("limbName", "__missing__"),
 					model.NewQueryResultCol("count()", 17),
 				}},
 			},
@@ -633,44 +607,22 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 		},
-		ExpectedSQLs: []string{ // TODO FIX THIS
-			`WITH cte_1 AS ` +
-				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200), cte_2 AS ` +
-				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
-				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
-				`LIMIT 20 BY "surname") ` +
-				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
-				`WHERE ("surname" IS NOT NULL AND "organName" IS NOT NULL) ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName", cte_1_cnt, cte_2_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), count() DESC, "organName" ` +
-				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')`,
-			`WITH cte_1 AS ` +
-				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + QuotedTableName + ` ` +
+		ExpectedSQLs: []string{
+			`WITH cte_1 AS (` +
+				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM "logs-generic-default" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
 				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`FROM "logs-generic-default" INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
 				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
 				`LIMIT 20 BY "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM "logs-generic-default" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
@@ -701,7 +653,7 @@ var AggregationTests2 = []AggregationTestCase{
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=20)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
 	},
-	{ // [43]
+	{ // [44]
 		TestName: "2x terms with nulls 2/4, nulls in the second aggregation, but no missing parameter",
 		QueryRequestJson: `
 		{
@@ -828,32 +780,6 @@ var AggregationTests2 = []AggregationTestCase{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("organName", "c11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("organName", "c12"),
-					model.NewQueryResultCol("count()", 24),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("organName", "c21"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
-					model.NewQueryResultCol("organName", "c22"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
 					model.NewQueryResultCol("count()", 21),
 				}},
 				{Cols: []model.QueryResultCol{
@@ -869,6 +795,16 @@ var AggregationTests2 = []AggregationTestCase{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
 					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a3"),
+					model.NewQueryResultCol("limbName", "b31"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a3"),
+					model.NewQueryResultCol("limbName", "b32"),
 					model.NewQueryResultCol("count()", 17),
 				}},
 			},
@@ -879,6 +815,10 @@ var AggregationTests2 = []AggregationTestCase{
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("count()", 34),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a3"),
 					model.NewQueryResultCol("count()", 34),
 				}},
 			},
@@ -960,44 +900,22 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 		},
-		ExpectedSQLs: []string{ // TODO FIX THIS
-			`WITH cte_1 AS ` +
-				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200), cte_2 AS ` +
-				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
-				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
-				`LIMIT 20 BY "surname") ` +
-				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
-				`WHERE ("surname" IS NOT NULL AND "organName" IS NOT NULL) ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName", cte_1_cnt, cte_2_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), count() DESC, "organName" ` +
-				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')`,
-			`WITH cte_1 AS ` +
-				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + QuotedTableName + ` ` +
+		ExpectedSQLs: []string{
+			`WITH cte_1 AS (` +
+				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM "logs-generic-default" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
-				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
+				`SELECT "surname", "limbName", count() ` +
+				`FROM "logs-generic-default" INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`WHERE ("surname" IS NOT NULL AND "limbName" IS NOT NULL) ` +
+				`GROUP BY "surname", "limbName", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, "limbName" ` +
 				`LIMIT 20 BY "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM "logs-generic-default" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
@@ -1026,7 +944,7 @@ var AggregationTests2 = []AggregationTestCase{
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=21)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
 	},
-	{ // [44]
+	{ // [45]
 		TestName: "2x terms with nulls 3/4, nulls in the first aggregation, with missing parameter",
 		QueryRequestJson: `
 		{
@@ -1135,38 +1053,12 @@ var AggregationTests2 = []AggregationTestCase{
 		ExpectedResults: [][]model.QueryResultRow{
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("organName", "c11"),
+					model.NewQueryResultCol("surname", "miss"),
+					model.NewQueryResultCol("limbName", "__missing__"),
 					model.NewQueryResultCol("count()", 21),
 				}},
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("organName", "c12"),
-					model.NewQueryResultCol("count()", 24),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("organName", "c21"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
-					model.NewQueryResultCol("organName", "c22"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("surname", "miss"),
 					model.NewQueryResultCol("limbName", "b12"),
 					model.NewQueryResultCol("count()", 24),
 				}},
@@ -1177,13 +1069,13 @@ var AggregationTests2 = []AggregationTestCase{
 				}},
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("limbName", "__missing__"),
 					model.NewQueryResultCol("count()", 17),
 				}},
 			},
 			{
 				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("surname", "miss"),
 					model.NewQueryResultCol("count()", 1036),
 				}},
 				{Cols: []model.QueryResultCol{
@@ -1226,47 +1118,22 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 		},
-		ExpectedSQLs: []string{ // TODO FIX THIS
-			`WITH cte_1 AS ` +
-				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200), cte_2 AS ` +
-				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
-				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
-				`LIMIT 20 BY "surname") ` +
-				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
-				`WHERE ("surname" IS NOT NULL AND "organName" IS NOT NULL) ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName", cte_1_cnt, cte_2_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), count() DESC, "organName" ` +
-				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')`,
-			`WITH cte_1 AS ` +
-				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
+		ExpectedSQLs: []string{
+			`WITH cte_1 AS (` +
+				`SELECT COALESCE("surname",'miss') AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM "logs-generic-default" ` +
+				`GROUP BY COALESCE("surname",'miss') ` +
+				`ORDER BY count() DESC, COALESCE("surname",'miss') ` +
 				`LIMIT 200) ` +
-				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
-				`LIMIT 20 BY "surname"`,
-			`SELECT "surname", count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
+				`SELECT COALESCE("surname",'miss'), COALESCE("limbName",'__missing__'), count() ` +
+				`FROM "logs-generic-default" INNER JOIN "cte_1" ON COALESCE("surname",'miss') = "cte_1_1" ` +
+				`GROUP BY COALESCE("surname",'miss'), COALESCE("limbName",'__missing__'), cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, COALESCE("surname",'miss'), count() DESC, COALESCE("limbName",'__missing__') ` +
+				`LIMIT 20 BY COALESCE("surname",'miss')`,
+			`SELECT COALESCE("surname",'miss'), count() ` +
+				`FROM "logs-generic-default" ` +
+				`GROUP BY COALESCE("surname",'miss') ` +
+				`ORDER BY count() DESC, COALESCE("surname",'miss') ` +
 				`LIMIT 200`,
 		},
 		ExpectedPancakeSQL: `
@@ -1294,7 +1161,7 @@ var AggregationTests2 = []AggregationTestCase{
 			WHERE ("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
 	},
-	{ // [45]
+	{ // [46]
 		TestName: "2x terms with nulls 4/4, nulls in the first aggregation, without missing parameter",
 		QueryRequestJson: `
 		{
@@ -1403,32 +1270,6 @@ var AggregationTests2 = []AggregationTestCase{
 				{Cols: []model.QueryResultCol{
 					model.NewQueryResultCol("surname", "a1"),
 					model.NewQueryResultCol("limbName", "b11"),
-					model.NewQueryResultCol("organName", "c11"),
-					model.NewQueryResultCol("count()", 21),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b12"),
-					model.NewQueryResultCol("organName", "c12"),
-					model.NewQueryResultCol("count()", 24),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b21"),
-					model.NewQueryResultCol("organName", "c21"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a2"),
-					model.NewQueryResultCol("limbName", "b22"),
-					model.NewQueryResultCol("organName", "c22"),
-					model.NewQueryResultCol("count()", 17),
-				}},
-			},
-			{
-				{Cols: []model.QueryResultCol{
-					model.NewQueryResultCol("surname", "a1"),
-					model.NewQueryResultCol("limbName", "b11"),
 					model.NewQueryResultCol("count()", 21),
 				}},
 				{Cols: []model.QueryResultCol{
@@ -1516,44 +1357,22 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__8__order_1", 17),
 			}},
 		},
-		ExpectedSQLs: []string{ // TODO FIX THIS
-			`WITH cte_1 AS ` +
-				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname" ` +
-				`ORDER BY count() DESC, "surname" ` +
-				`LIMIT 200), cte_2 AS ` +
-				`(SELECT "surname" AS "cte_2_1", COALESCE("limbName",'__missing__') AS "cte_2_2", count() AS "cte_2_cnt" ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__') ` +
-				`ORDER BY count() DESC, COALESCE("limbName",'__missing__') ` +
-				`LIMIT 20 BY "surname") ` +
-				`SELECT "surname", COALESCE("limbName",'__missing__'), "organName", count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`INNER JOIN "cte_2" ON "surname" = "cte_2_1" AND COALESCE("limbName",'__missing__') = "cte_2_2" ` +
-				`WHERE ("surname" IS NOT NULL AND "organName" IS NOT NULL) ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), "organName", cte_1_cnt, cte_2_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", cte_2_cnt DESC, COALESCE("limbName",'__missing__'), count() DESC, "organName" ` +
-				`LIMIT 1 BY "surname", COALESCE("limbName",'__missing__')`,
-			`WITH cte_1 AS ` +
-				`(SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
-				`FROM ` + QuotedTableName + ` ` +
+		ExpectedSQLs: []string{
+			`WITH cte_1 AS (` +
+				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM "logs-generic-default" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
 				`LIMIT 200) ` +
-				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
-				`FROM ` + QuotedTableName + ` ` +
-				`INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
-				`WHERE "surname" IS NOT NULL ` +
-				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
-				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
+				`SELECT "surname", "limbName", count() ` +
+				`FROM "logs-generic-default" INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`WHERE ("surname" IS NOT NULL AND "limbName" IS NOT NULL) ` +
+				`GROUP BY "surname", "limbName", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, "limbName" ` +
 				`LIMIT 20 BY "surname"`,
 			`SELECT "surname", count() ` +
-				`FROM ` + QuotedTableName + ` ` +
+				`FROM "logs-generic-default" ` +
 				`WHERE "surname" IS NOT NULL ` +
 				`GROUP BY "surname" ` +
 				`ORDER BY count() DESC, "surname" ` +
