@@ -4,6 +4,7 @@ package metrics_aggregations
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"quesma/clickhouse"
 	"quesma/logger"
@@ -15,13 +16,14 @@ import (
 )
 
 type Quantile struct {
-	ctx       context.Context
-	keyed     bool // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-aggregation.html#_keyed_response_6
-	fieldType clickhouse.DateTimeType
+	ctx             context.Context
+	percentileNames []string
+	keyed           bool // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-aggregation.html#_keyed_response_6
+	fieldType       clickhouse.DateTimeType
 }
 
-func NewQuantile(ctx context.Context, keyed bool, fieldType clickhouse.DateTimeType) Quantile {
-	return Quantile{ctx, keyed, fieldType}
+func NewQuantile(ctx context.Context, percentileNames []string, keyed bool, fieldType clickhouse.DateTimeType) Quantile {
+	return Quantile{ctx, percentileNames, keyed, fieldType}
 }
 
 func (query Quantile) AggregationType() model.AggregationType {
@@ -39,24 +41,24 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 		return emptyPercentilesResult
 	}
 
-	for _, res := range rows[0].Cols {
-		if strings.HasPrefix(res.ColName, "quantile") {
-			// error handling is moved to processResult
-			percentile, percentileAsString, percentileIsNanOrInvalid := query.processResult(res.ColName, res.Value)
-			percentileName, _ := strings.CutPrefix(res.ColName, "quantile_")
-			// percentileName can't be an integer (doesn't work in Kibana that way), so we need to add .0 if it's missing
-			dotIndex := strings.Index(percentileName, ".")
-			if dotIndex == -1 {
-				percentileName += ".0"
-			}
+	fmt.Printf("percentiles: %+v", query)
+	for i, res := range rows[0].Cols {
+		// error handling is moved to processResult
+		percentile, percentileAsString, percentileIsNanOrInvalid := query.processResult(res.ColName, res.Value)
 
-			if percentileIsNanOrInvalid {
-				valueMap[percentileName] = nil
-			} else {
-				valueMap[percentileName] = percentile
-				if percentileAsString != nil {
-					valueAsStringMap[percentileName] = *percentileAsString
-				}
+		percentileNameToReturn := query.percentileNames[i]
+		// percentileName can't be an integer (doesn't work in Kibana that way), so we need to add .0 if it's missing
+		dotIndex := strings.Index(percentileNameToReturn, ".")
+		if dotIndex == -1 {
+			percentileNameToReturn += ".0"
+		}
+
+		if percentileIsNanOrInvalid {
+			valueMap[percentileNameToReturn] = nil
+		} else {
+			valueMap[percentileNameToReturn] = percentile
+			if percentileAsString != nil {
+				valueAsStringMap[percentileNameToReturn] = *percentileAsString
 			}
 		}
 	}
