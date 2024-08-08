@@ -37,7 +37,6 @@ const banner = `
 `
 
 func main() {
-	fmt.Println("XXXXXXXXXXX")
 	println(banner)
 	fmt.Printf("Quesma build info: version=[%s], build hash=[%s], build date=[%s]\n",
 		buildinfo.Version, buildinfo.BuildHash, buildinfo.BuildDate)
