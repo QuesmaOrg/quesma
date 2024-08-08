@@ -382,7 +382,7 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alter
 				Time: time.Since(alternative.plan.StartTime),
 			},
 			RequestID: contextValues.RequestId,
-			OpaqueID:  "n/a",
+			OpaqueID:  contextValues.OpaqueId,
 		}
 
 		q.ABResultsSender.Send(abResult)
