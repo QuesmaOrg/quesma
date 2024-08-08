@@ -18,7 +18,7 @@ func NewElasticResponseJSONDiff() (*JSONDiff, error) {
 		switch v := element.(type) {
 		case map[string]interface{}:
 			if val, ok := v["key"]; ok {
-				return val.(string), nil
+				return fmt.Sprintf("%v", val), nil
 			}
 		}
 		return "", fmt.Errorf("could not extract key from element: %v", element)
