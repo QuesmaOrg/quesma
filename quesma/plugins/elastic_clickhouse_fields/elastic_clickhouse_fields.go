@@ -38,28 +38,6 @@ func (t *resultTransformer) Transform(result [][]model.QueryResultRow) ([][]mode
 	return result, nil
 }
 
-type fieldCapsTransformer struct {
-	translate translateFunc
-}
-
-func (t *fieldCapsTransformer) Transform(fieldCaps map[string]map[string]model.FieldCapability) (map[string]map[string]model.FieldCapability, error) {
-	for name, fields := range fieldCaps {
-		newName := t.translate(name)
-
-		if _, ok := fieldCaps[newName]; !ok {
-			fieldCaps[newName] = fields
-			delete(fieldCaps, name)
-		}
-	}
-	return fieldCaps, nil
-}
-
-// query transformer
-
-//
-
-//
-
 type columNameFormatter struct {
 	separator string
 }
@@ -92,9 +70,5 @@ func (p *Dot2DoubleColons2Dot) ApplyResultTransformers(table string, cfg config.
 	if p.matches(table) {
 		transformers = append(transformers, &resultTransformer{translate: doubleColons2dot})
 	}
-	return transformers
-}
-
-func (p *Dot2DoubleColons2Dot) ApplyFieldCapsTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.FieldCapsTransformer) []plugins.FieldCapsTransformer {
 	return transformers
 }

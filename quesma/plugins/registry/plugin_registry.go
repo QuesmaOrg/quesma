@@ -11,7 +11,6 @@ import (
 
 // Plugin changes the behavior of Quesma by changing the pipeline of transformers
 type Plugin interface {
-	ApplyFieldCapsTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.FieldCapsTransformer) []plugins.FieldCapsTransformer
 	ApplyResultTransformers(table string, cfg config.QuesmaConfiguration, schema schema.Registry, transformers []plugins.ResultTransformer) []plugins.ResultTransformer
 	GetTableColumnFormatter(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.TableColumNameFormatter
 }
@@ -40,21 +39,6 @@ func ResultTransformerFor(table string, cfg config.QuesmaConfiguration, schema s
 }
 
 ///
-
-func FieldCapsTransformerFor(table string, cfg config.QuesmaConfiguration, schema schema.Registry) plugins.FieldCapsTransformer {
-
-	var transformers []plugins.FieldCapsTransformer
-
-	for _, plugin := range registeredPlugins {
-		transformers = plugin.ApplyFieldCapsTransformers(table, cfg, schema, transformers)
-	}
-
-	if len(transformers) == 0 {
-		return &plugins.NopFieldCapsTransformer{}
-	}
-
-	return plugins.FieldCapsTransformerPipeline(transformers)
-}
 
 func TableColumNameFormatterFor(table string, cfg config.QuesmaConfiguration, schema schema.Registry) (plugins.TableColumNameFormatter, error) {
 

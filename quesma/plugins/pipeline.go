@@ -18,16 +18,3 @@ func (pipe ResultTransformerPipeline) Transform(result [][]model.QueryResultRow)
 	}
 	return result, nil
 }
-
-type FieldCapsTransformerPipeline []FieldCapsTransformer
-
-func (pipe FieldCapsTransformerPipeline) Transform(fieldCaps map[string]map[string]model.FieldCapability) (map[string]map[string]model.FieldCapability, error) {
-	for _, transformer := range pipe {
-		var err error
-		fieldCaps, err = transformer.Transform(fieldCaps)
-		if err != nil {
-			return fieldCaps, err
-		}
-	}
-	return fieldCaps, nil
-}

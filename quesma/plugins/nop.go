@@ -12,10 +12,3 @@ type NopResultTransformer struct {
 func (*NopResultTransformer) Transform(result [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 	return result, nil
 }
-
-type NopFieldCapsTransformer struct {
-}
-
-func (*NopFieldCapsTransformer) Transform(fieldCaps map[string]map[string]model.FieldCapability) (map[string]map[string]model.FieldCapability, error) {
-	return fieldCaps, nil
-}
