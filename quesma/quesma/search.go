@@ -203,13 +203,6 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 			doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
 		}
 
-		if plan.ResultAdapter != nil {
-			results, err = plan.ResultAdapter.Transform(results)
-			if err != nil {
-				doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
-			}
-		}
-
 		searchResponse := queryTranslator.MakeSearchResponse(plan.Queries, results)
 
 		doneCh <- AsyncSearchWithError{response: searchResponse, translatedQueryBody: translatedQueryBody, err: err}
@@ -522,7 +515,6 @@ func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, r
 					return &model.ExecutionPlan{
 						IndexPattern:          plan.IndexPattern,
 						QueryRowsTransformers: make([]model.QueryRowsTransfomer, len(queries)),
-						ResultAdapter:         plan.ResultAdapter,
 						Queries:               queries,
 						StartTime:             plan.StartTime,
 						Name:                  model.AlternativeExecutionPlan,

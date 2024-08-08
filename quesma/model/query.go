@@ -71,12 +71,6 @@ type (
 	}
 )
 
-// QueryResultAdapter it adadpts the result of alternative query parsers to the standard query result
-// Interface is similar to plugins.ResultTransformer
-type QueryResultAdapter interface {
-	Transform(result [][]QueryResultRow) ([][]QueryResultRow, error)
-}
-
 type QueryRowsTransfomer interface {
 	Transform(ctx context.Context, rows []QueryResultRow) []QueryResultRow
 }
@@ -92,8 +86,6 @@ type ExecutionPlan struct {
 	Queries []*Query
 
 	QueryRowsTransformers []QueryRowsTransfomer
-
-	ResultAdapter QueryResultAdapter
 
 	// add more fields here
 	// JSON renderers
