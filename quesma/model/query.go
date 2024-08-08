@@ -71,10 +71,6 @@ type (
 	}
 )
 
-type QueryRowsTransfomer interface {
-	Transform(ctx context.Context, rows []QueryResultRow) []QueryResultRow
-}
-
 const MainExecutionPlan = "main"
 const AlternativeExecutionPlan = "alternative"
 
@@ -85,7 +81,7 @@ type ExecutionPlan struct {
 
 	Queries []*Query
 
-	QueryRowsTransformers []QueryRowsTransfomer
+	QueryRowsTransformers []QueryRowsTransformer
 
 	// add more fields here
 	// JSON renderers

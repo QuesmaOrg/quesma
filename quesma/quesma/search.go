@@ -514,7 +514,7 @@ func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, r
 					queries := append(queriesWithoutAggr, pancakeQueries...)
 					return &model.ExecutionPlan{
 						IndexPattern:          plan.IndexPattern,
-						QueryRowsTransformers: make([]model.QueryRowsTransfomer, len(queries)),
+						QueryRowsTransformers: make([]model.QueryRowsTransformer, len(queries)),
 						Queries:               queries,
 						StartTime:             plan.StartTime,
 						Name:                  model.AlternativeExecutionPlan,

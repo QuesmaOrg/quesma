@@ -46,7 +46,7 @@ func (query Histogram) String() string {
 	return "histogram"
 }
 
-func (query Histogram) NewRowsTransformer() model.QueryRowsTransfomer {
+func (query Histogram) NewRowsTransformer() model.QueryRowsTransformer {
 	return &HistogramRowsTransformer{
 		interval:    query.interval,
 		minDocCount: query.minDocCount,

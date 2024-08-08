@@ -173,7 +173,7 @@ func (query *DateHistogram) getKey(row model.QueryResultRow) int64 {
 	return row.Cols[len(row.Cols)-2].Value.(int64)
 }
 
-func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransfomer {
+func (query *DateHistogram) NewRowsTransformer() model.QueryRowsTransformer {
 	return &DateHistogramRowsTransformer{minDocCount: query.minDocCount}
 }
 
