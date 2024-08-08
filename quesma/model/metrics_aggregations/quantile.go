@@ -4,7 +4,6 @@ package metrics_aggregations
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"quesma/clickhouse"
 	"quesma/logger"
@@ -17,8 +16,8 @@ import (
 
 type Quantile struct {
 	ctx             context.Context
-	percentileNames []string
-	keyed           bool // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-aggregation.html#_keyed_response_6
+	percentileNames []string // there may be multiple in one aggregation, it's a list of them in order of occurrence, e.g. ["25", "95"]
+	keyed           bool     // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-aggregation.html#_keyed_response_6
 	fieldType       clickhouse.DateTimeType
 }
 
@@ -41,13 +40,14 @@ func (query Quantile) TranslateSqlResponseToJson(rows []model.QueryResultRow, le
 		return emptyPercentilesResult
 	}
 
-	fmt.Printf("percentiles: %+v", query)
 	percentileIdx := -1
 	for _, res := range rows[0].Cols {
 		if !strings.HasPrefix(res.ColName, "metric") && !strings.HasPrefix(res.ColName, "quantile") {
 			// TODO remove second part of if after removing old aggregation logic!
+			// In the new one, all quantile columns start with just "metric"
 			continue
 		}
+
 		// now we're sure we're dealing with a quantile
 		percentileIdx++
 
