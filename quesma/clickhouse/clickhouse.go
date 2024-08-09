@@ -424,30 +424,33 @@ func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalid
 	}
 }
 
-func promoteAttributesToColumns(attrsMap map[string][]interface{}) {
+func (lm *LogManager) promoteAttributesToColumns(attrsMap map[string][]interface{}, tableName string) {
 	var keys []string
 	var values []string
 	var types []string
 	for k, v := range attrsMap {
 		if k == AttributesKeyColumn {
 			for _, val := range v {
-				keys = append(keys, fmt.Sprintf("'%s'", val))
+				keys = append(keys, fmt.Sprintf("%s", val))
 			}
 		}
 		if k == AttributesValueColumn {
 			for _, val := range v {
-				values = append(values, fmt.Sprintf("'%s': %s", val, NewType(val).String()))
+				values = append(values, fmt.Sprintf("%s", val))
 			}
 		}
 		if k == AttributesValueType {
 			for _, val := range v {
-				types = append(types, fmt.Sprintf("'%s': %s", val, NewType(val).String()))
+				types = append(types, fmt.Sprintf("%s", val))
 			}
 		}
 	}
 
 	for i := 0; i < len(keys); i++ {
-		fmt.Println("@@@:", keys[i], values[i], types[i])
+		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", tableName, keys[i], types[i])
+		err := lm.execute(context.Background(), alterTable)
+		if err != nil {
+		}
 	}
 }
 
@@ -501,6 +504,8 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	} else {
 		return "", fmt.Errorf("no attributes or others in config, but received non-schema fields: %s", mDiff)
 	}
+	lm.promoteAttributesToColumns(attrsMap, tableName)
+
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
 	// generating correct update query
@@ -523,7 +528,6 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 		}
 		nonSchemaStr += fmt.Sprintf(`"%s":%s`, othersFieldName, others)
 	}
-	promoteAttributesToColumns(attrsMap)
 	onlySchemaFields := RemoveNonSchemaFields(m, t)
 	schemaFieldsJson, err = json.Marshal(onlySchemaFields)
 	if err != nil {
@@ -577,11 +581,6 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, 
 	tableConfig, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0], tableFormatter)
 	if err != nil {
 		return err
-	}
-	alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS something String", tableName)
-	err = lm.execute(ctx, alterTable)
-	if err != nil {
-		fmt.Println("@@@@error in alter table:", err)
 	}
 	return lm.Insert(ctx, tableName, jsonData, tableConfig, transformer)
 
