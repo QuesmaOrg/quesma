@@ -15,7 +15,6 @@ import (
 	"quesma/index"
 	"quesma/jsonprocessor"
 	"quesma/logger"
-	"quesma/plugins"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
 	"quesma/quesma/types"
@@ -369,7 +368,7 @@ func findSchemaPointer(schemaRegistry schema.Registry, tableName string) *schema
 }
 
 func (lm *LogManager) buildCreateTableQueryNoOurFields(ctx context.Context, tableName string,
-	jsonData types.JSON, tableConfig *ChTableConfig, nameFormatter plugins.TableColumNameFormatter) (string, error) {
+	jsonData types.JSON, tableConfig *ChTableConfig, nameFormatter TableColumNameFormatter) (string, error) {
 
 	columns := FieldsMapToCreateTableString(jsonData, tableConfig, nameFormatter, findSchemaPointer(lm.schemaRegistry, tableName)) + Indexes(jsonData)
 
@@ -400,7 +399,7 @@ func Indexes(m SchemaMap) string {
 	return result.String()
 }
 
-func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig, tableFormatter plugins.TableColumNameFormatter) error {
+func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name string, jsonData types.JSON, config *ChTableConfig, tableFormatter TableColumNameFormatter) error {
 	// TODO fix lm.AddTableIfDoesntExist(name, jsonData)
 
 	query, err := lm.buildCreateTableQueryNoOurFields(ctx, name, jsonData, config, tableFormatter)
@@ -509,7 +508,7 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), nil
 }
 
-func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName string, jsonData types.JSON, tableFormatter plugins.TableColumNameFormatter) (*ChTableConfig, error) {
+func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName string, jsonData types.JSON, tableFormatter TableColumNameFormatter) (*ChTableConfig, error) {
 	table := lm.FindTable(tableName)
 	var config *ChTableConfig
 	if table == nil {
@@ -532,7 +531,7 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 	return config, nil
 }
 
-func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []types.JSON, transformer plugins.IngestTransformer, tableFormatter plugins.TableColumNameFormatter) error {
+func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []types.JSON, transformer jsonprocessor.IngestTransformer, tableFormatter TableColumNameFormatter) error {
 	// this is pre ingest transformer
 	// here we transform the data before it's structure evaluation and insertion
 	//
@@ -573,7 +572,7 @@ func (lm *LogManager) execute(ctx context.Context, query string) error {
 }
 
 func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON,
-	config *ChTableConfig, transformer plugins.IngestTransformer) error {
+	config *ChTableConfig, transformer jsonprocessor.IngestTransformer) error {
 	var jsonsReadyForInsertion []string
 	for _, jsonValue := range jsons {
 		preprocessedJson, err := transformer.Transform(jsonValue)

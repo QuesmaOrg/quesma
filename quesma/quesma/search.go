@@ -14,8 +14,6 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/optimize"
-	"quesma/plugins"
-	"quesma/plugins/registry"
 	"quesma/queryparser"
 	"quesma/queryparser/query_util"
 	"quesma/quesma/config"
@@ -82,7 +80,7 @@ func NewQueryRunner(lm *clickhouse.LogManager, cfg config.QuesmaConfiguration, i
 		executionCtx: ctx, cancel: cancel, AsyncRequestStorage: concurrent.NewMap[string, AsyncRequestResult](),
 		AsyncQueriesContexts: concurrent.NewMap[string, *AsyncQueryContext](),
 		transformationPipeline: TransformationPipeline{
-			transformers: []plugins.QueryTransformer{
+			transformers: []model.QueryTransformer{
 				&SchemaCheckPass{cfg: cfg.IndexConfig, schemaRegistry: schemaRegistry, logManager: lm}, // this can be a part of another plugin
 			},
 		},
@@ -164,10 +162,6 @@ func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.Executio
 		logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
 	}
 
-	plan.Queries, err = registry.QueryTransformerFor(table.Name, q.cfg, q.schemaRegistry).Transform(plan.Queries)
-	if err != nil {
-		logger.ErrorWithCtx(ctx).Msgf("error transforming queries: %v", err)
-	}
 }
 
 // Deprecated - this method should be examined and potentially removed
@@ -207,13 +201,6 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 		results, err = q.postProcessResults(table, results)
 		if err != nil {
 			doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
-		}
-
-		if plan.ResultAdapter != nil {
-			results, err = plan.ResultAdapter.Transform(results)
-			if err != nil {
-				doneCh <- AsyncSearchWithError{translatedQueryBody: translatedQueryBody, err: err}
-			}
 		}
 
 		searchResponse := queryTranslator.MakeSearchResponse(plan.Queries, results)
@@ -527,8 +514,7 @@ func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, r
 					queries := append(queriesWithoutAggr, pancakeQueries...)
 					return &model.ExecutionPlan{
 						IndexPattern:          plan.IndexPattern,
-						QueryRowsTransformers: make([]model.QueryRowsTransfomer, len(queries)),
-						ResultAdapter:         plan.ResultAdapter,
+						QueryRowsTransformers: make([]model.QueryRowsTransformer, len(queries)),
 						Queries:               queries,
 						StartTime:             plan.StartTime,
 						Name:                  model.AlternativeExecutionPlan,
@@ -912,7 +898,7 @@ func (q *QueryRunner) findNonexistingProperties(query *model.Query, table *click
 
 func (q *QueryRunner) postProcessResults(table *clickhouse.Table, results [][]model.QueryResultRow) ([][]model.QueryResultRow, error) {
 
-	transformer := registry.ResultTransformerFor(table.Name, q.cfg, q.schemaRegistry)
+	transformer := &replaceColumNamesWithFieldNames{}
 
 	res, err := transformer.Transform(results)
 
