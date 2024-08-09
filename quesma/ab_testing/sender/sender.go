@@ -44,7 +44,7 @@ func (f *sender) Start() {
 			case ctrl := <-f.controlQueue:
 
 				if f.collector != ctrl.useCollector {
-					logger.InfoWithCtx(f.ctx).Msgf("Facade: New collector: %s ", ctrl.useCollector)
+					logger.InfoWithCtx(f.ctx).Msgf("Sender: New collector: %v", ctrl.useCollector)
 					f.collector = ctrl.useCollector
 				}
 

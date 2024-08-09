@@ -5,14 +5,16 @@ package collector
 import (
 	"context"
 	"quesma/ab_testing"
+	"quesma/buildinfo"
 	"quesma/logger"
 	"quesma/quesma/recovery"
 	"time"
 )
 
-type Diff struct {
-	BodyDiff string `json:"body_diff"`
-	IsDiff   bool   `json:"is_diff"`
+type ResponseMismatch struct {
+	Mismatches string `json:"mismatches"` // JSON array of differences
+	// TODO maybe we should keep more human readable list of differences
+	IsMismatch bool `json:"is_mismatch"`
 }
 
 type Collector interface {
@@ -23,8 +25,10 @@ type Collector interface {
 type EnrichedResults struct {
 	ab_testing.Result
 
-	Timestamp string `json:"@timestamp"`
-	Diff      Diff   `json:"diff"`
+	Timestamp       string           `json:"@timestamp"`
+	Mismatch        ResponseMismatch `json:"response_mismatch"`
+	QuesmaVersion   string           `json:"quesma_version"`
+	QuesmaBuildHash string           `json:"quesma_hash"`
 }
 
 type pipelineProcessor interface {
@@ -63,6 +67,7 @@ func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessa
 			&probabilisticSampler{ratio: 1},
 			&diffTransformer{},
 			&ppPrintFanout{},
+			&mismatchedOnlyFilter{},
 			&elasticSearchFanout{
 				url:       "http://localhost:8080",
 				indexName: "ab_testing_logs",
@@ -81,7 +86,7 @@ func (r *InMemoryCollector) Stop() {
 
 func (r *InMemoryCollector) Start() {
 
-	logger.Info().Msg("Starting A/B Results Repository")
+	logger.Info().Msg("Starting A/B Results Collector")
 
 	go func() {
 		recovery.LogAndHandlePanic(r.ctx, func(err error) {
@@ -123,14 +128,14 @@ func (r *InMemoryCollector) receiveHealthAndErrorsLoop() {
 	errorCount := 0
 
 	sendHealthMessage := func() {
-		logger.InfoWithCtx(r.ctx).Msgf("Results Repository Error Count: %v", errorCount)
+		logger.DebugWithCtx(r.ctx).Msgf("Collector error count: %v", errorCount)
 		r.healthQueue <- ab_testing.HealthMessage{
 			IsHealthy: errorCount == 0,
 		}
 	}
 
 	for {
-		logger.InfoWithCtx(r.ctx).Msg("Results Repository Control Loop cycle")
+		logger.DebugWithCtx(r.ctx).Msg("Collector control loop cycle")
 
 		select {
 
@@ -147,7 +152,7 @@ func (r *InMemoryCollector) receiveHealthAndErrorsLoop() {
 			// shutdown itself
 			//
 		case <-r.ctx.Done():
-			logger.InfoWithCtx(r.ctx).Msg("Results Repository stopping control receiveIncomingResults")
+			logger.InfoWithCtx(r.ctx).Msg("Results collector stopping control loop")
 			return
 
 		case <-time.After(10 * time.Second):
@@ -160,7 +165,9 @@ func (r *InMemoryCollector) processResult(result ab_testing.Result) {
 
 	// convert raw data to a log line
 	res := EnrichedResults{
-		Result: result,
+		Result:          result,
+		QuesmaVersion:   buildinfo.Version,
+		QuesmaBuildHash: buildinfo.BuildHash,
 	}
 	res.Timestamp = time.Now().Format(time.RFC3339)
 
@@ -168,7 +175,6 @@ func (r *InMemoryCollector) processResult(result ab_testing.Result) {
 	var drop bool
 
 	for _, processor := range r.pipeline {
-		logger.InfoWithCtx(r.ctx).Msgf("Processing with %v", processor)
 		if res, drop, err = processor.process(res); err != nil {
 			r.processorErrorQueue <- processorErrorMessage{
 				processor: processor,

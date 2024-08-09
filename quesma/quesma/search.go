@@ -4,6 +4,7 @@ package quesma
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"quesma/ab_testing"
@@ -209,7 +210,7 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 	}()
 }
 
-func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON) (responseBody []byte, err error) {
+func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, isAsync bool) (responseBody []byte, err error) {
 
 	doneCh := make(chan AsyncSearchWithError, 1)
 
@@ -223,13 +224,28 @@ func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.Ex
 
 	response := <-doneCh
 
-	responseBody, err = response.response.Marshal()
-	if err != nil {
-		return nil, err
+	if response.err == nil {
+		if isAsync {
+			asyncResponse := queryparser.SearchToAsyncSearchResponse(response.response, "__quesma_alternative_plan", false, 200)
+			responseBody, err = asyncResponse.Marshal()
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			responseBody, err = response.response.Marshal()
+			if err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		// TODO better error handling
+		m := make(map[string]interface{})
+		m["error"] = fmt.Sprintf("%v", response.err.Error())
+		responseBody, _ = json.MarshalIndent(m, "", "  ")
 	}
 
-	contextValues := tracing.ExtractValues(ctx)
 	bodyAsBytes, _ := body.Bytes()
+	contextValues := tracing.ExtractValues(ctx)
 	pushAlternativeInfo(q.quesmaManagementConsole, contextValues.RequestId, "", contextValues.OpaqueId, contextValues.RequestPath, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
 
 	return responseBody, response.err
@@ -298,7 +314,10 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 }
 
 // runAlternativePlanAndComparison runs the alternative plan and comparison method in the background. It returns a channel to collect the main plan results.
-func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alternativePlan *model.ExecutionPlan, table *clickhouse.Table, body types.JSON, queryTranslator IQueryTranslator) chan<- executionPlanResult {
+func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alternativePlan *model.ExecutionPlan, table *clickhouse.Table, body types.JSON, queryTranslator IQueryTranslator, isAsync bool) chan<- executionPlanResult {
+
+	contextValues := tracing.ExtractValues(ctx)
+
 	numberOfExpectedResults := len([]string{model.MainExecutionPlan, model.AlternativeExecutionPlan})
 
 	optComparePlansCh := make(chan executionPlanResult, numberOfExpectedResults)
@@ -309,7 +328,7 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alter
 
 		// results are passed via channel
 		newCtx := tracing.NewContextWithRequest(ctx)
-		body, err := q.executeAlternativePlan(newCtx, alternativePlan, queryTranslator, table, body)
+		body, err := q.executeAlternativePlan(newCtx, alternativePlan, queryTranslator, table, body, isAsync)
 
 		optComparePlansCh <- executionPlanResult{
 			plan:         alternativePlan,
@@ -342,30 +361,26 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alter
 
 		abResult := ab_testing.Result{
 			Request: ab_testing.Request{
-				Path: "TODO",
+				Path: contextValues.RequestPath,
 				Body: string(bytes),
 			},
 
 			A: ab_testing.Response{
+				Name: "main",
 				Body: string(main.responseBody),
 				Time: time.Since(main.plan.StartTime),
 			},
 
 			B: ab_testing.Response{
+				Name: "alternative",
 				Body: string(alternative.responseBody),
 				Time: time.Since(alternative.plan.StartTime),
 			},
+			RequestID: contextValues.RequestId,
+			OpaqueID:  contextValues.OpaqueId,
 		}
 
 		q.ABResultsSender.Send(abResult)
-
-		// TODO add JSON comparison here
-		if string(alternative.responseBody) != string(main.responseBody) {
-			logger.ErrorWithCtx(ctx).Msgf("alternative plan returned different results")
-			// dump the results here, or
-		} else {
-			logger.InfoWithCtx(ctx).Msgf("alternative plan returned same results")
-		}
 
 	}(optComparePlansCh)
 
@@ -481,7 +496,7 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	var optComparePlansCh chan<- executionPlanResult
 
 	if alternativePlan != nil {
-		optComparePlansCh = q.runAlternativePlanAndComparison(ctx, alternativePlan, table, body, queryTranslator)
+		optComparePlansCh = q.runAlternativePlanAndComparison(ctx, alternativePlan, table, body, queryTranslator, optAsync != nil)
 	}
 
 	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh)

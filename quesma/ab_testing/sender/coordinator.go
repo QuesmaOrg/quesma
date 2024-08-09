@@ -30,7 +30,7 @@ func NewSenderCoordinator(cfg config.QuesmaConfiguration) *SenderCoordinator {
 		sender:     newSender(ctx),
 		ctx:        ctx,
 		cancelFunc: cancel,
-		enabled:    false, // TODO this should be read from config
+		enabled:    true, // TODO this should be read from config
 		// add quesma health monitor service here
 	}
 }
@@ -61,10 +61,8 @@ func (c *SenderCoordinator) receiveHealthStatusesLoop() {
 	}
 
 	for {
-		logger.InfoWithCtx(c.ctx).Msg("AB Testing Controller Loop")
-
 		if inMemoryCollector == nil {
-			logger.InfoWithCtx(c.ctx).Msg("Creating InMemoryRepository")
+			logger.InfoWithCtx(c.ctx).Msg("Creating InMemoryCollector")
 			inMemoryCollector = c.newInMemoryProcessor(repoHealthQueue)
 		}
 
@@ -76,14 +74,14 @@ func (c *SenderCoordinator) receiveHealthStatusesLoop() {
 
 		case h := <-repoHealthQueue:
 
-			logger.InfoWithCtx(c.ctx).Msgf("AB Testing Repository Health: %v", h.IsHealthy)
+			logger.DebugWithCtx(c.ctx).Msgf("A/B Testing Collector Health: %v", h.IsHealthy)
 
 			if !h.IsHealthy {
 				senderUseCollector(nil)
 
 				// we should give a chance to the collector to recover
 
-				logger.InfoWithCtx(c.ctx).Msg("Stopping  InMemoryRepository")
+				logger.InfoWithCtx(c.ctx).Msg("Stopping  InMemoryCollector")
 				inMemoryCollector.Stop()
 				inMemoryCollector = nil
 			} else {
@@ -99,11 +97,11 @@ func (c *SenderCoordinator) receiveHealthStatusesLoop() {
 func (c *SenderCoordinator) Start() {
 
 	if !c.enabled {
-		logger.InfoWithCtx(c.ctx).Msg("AB Testing Controller is disabled")
+		logger.InfoWithCtx(c.ctx).Msg("A/B Testing Controller is disabled")
 		return
 	}
 
-	logger.InfoWithCtx(c.ctx).Msg("Starting AB Testing Controller")
+	logger.InfoWithCtx(c.ctx).Msg("Starting A/B Testing Coordinator")
 
 	c.sender.Start()
 
@@ -117,6 +115,6 @@ func (c *SenderCoordinator) Start() {
 }
 
 func (c *SenderCoordinator) Stop() {
-	logger.InfoWithCtx(c.ctx).Msg("Stopping AB Testing Controller")
+	logger.InfoWithCtx(c.ctx).Msg("Stopping A/B Testing Controller")
 	c.cancelFunc()
 }
