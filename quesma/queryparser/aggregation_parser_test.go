@@ -845,7 +845,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 					continue
 				}
 
-				var resultTransformer model.QueryRowsTransfomer
+				var resultTransformer model.QueryRowsTransformer
 				switch agg := query.Type.(type) {
 				case bucket_aggregations.Histogram:
 

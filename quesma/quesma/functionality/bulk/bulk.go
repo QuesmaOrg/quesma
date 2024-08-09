@@ -10,8 +10,8 @@ import (
 	"io"
 	"net/http"
 	"quesma/clickhouse"
+	"quesma/jsonprocessor"
 	"quesma/logger"
-	"quesma/plugins/registry"
 	"quesma/queryparser"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
@@ -54,6 +54,7 @@ type (
 		Result      string             `json:"result,omitempty"`
 		Status      int                `json:"status"`
 		Error       any                `json:"error,omitempty"`
+		Type        string             `json:"_type"` // ES 7.x Java Client requires this field
 	}
 	BulkShardsResponse struct {
 		Failed     int `json:"failed"`
@@ -203,12 +204,9 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 				inserts[i] = document.document
 			}
 
-			nameFormatter, err := registry.TableColumNameFormatterFor(indexName, cfg, nil)
-			if err == nil {
-				tableMap, _ := lm.GetTableDefinitions()
-				transformer := registry.IngestTransformerFor(indexName, cfg, nil, tableMap)
-				err = lm.ProcessInsertQuery(ctx, indexName, inserts, transformer, nameFormatter)
-			}
+			nameFormatter := clickhouse.DefaultColumnNameFormatter()
+			transformer := jsonprocessor.IngestTransformerFor(indexName, cfg)
+			err := lm.ProcessInsertQuery(ctx, indexName, inserts, transformer, nameFormatter)
 
 			for _, document := range documents {
 				bulkSingleResponse := BulkSingleResponse{
@@ -224,6 +222,7 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 					Version: 0,
 					Result:  "created",
 					Status:  201,
+					Type:    "_doc",
 				}
 				if err != nil {
 					bulkSingleResponse.Result = ""

@@ -5,7 +5,6 @@ package optimize
 import (
 	"fmt"
 	"quesma/model"
-	"quesma/plugins"
 	"quesma/quesma/config"
 	"strings"
 	"time"
@@ -25,7 +24,7 @@ type OptimizePipeline struct {
 	optimizations []OptimizeTransformer
 }
 
-func NewOptimizePipeline(config config.QuesmaConfiguration) plugins.QueryTransformer {
+func NewOptimizePipeline(config config.QuesmaConfiguration) model.QueryTransformer {
 
 	return &OptimizePipeline{
 		config: config,

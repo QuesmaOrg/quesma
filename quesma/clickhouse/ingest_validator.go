@@ -56,11 +56,25 @@ func getTypeName(v interface{}) string {
 		if len(elem) == 0 {
 			return arrayLiteral + "(unknown)"
 		} else {
-			return arrayLiteral + "(" + getTypeName(elem[0]) + ")"
+			innerTypeName := getTypeName(elem[0])
+			// Make sure that all elements of the array have the same type
+			for _, e := range elem {
+				if getTypeName(e) != innerTypeName {
+					return arrayLiteral + "(unknown)"
+				}
+			}
+			return arrayLiteral + "(" + innerTypeName + ")"
 		}
 	case interface{}:
 		if e := reflect.ValueOf(elem); e.Kind() == reflect.Slice {
-			return arrayLiteral + "(" + getTypeName(e.Index(0).Interface()) + ")"
+			innerTypeName := getTypeName(e.Index(0).Interface())
+			// Make sure that all elements of the slice have the same type
+			for i := 1; i < e.Len(); i++ {
+				if getTypeName(e.Index(i).Interface()) != innerTypeName {
+					return arrayLiteral + "(unknown)"
+				}
+			}
+			return arrayLiteral + "(" + innerTypeName + ")"
 		}
 	}
 	return goType
