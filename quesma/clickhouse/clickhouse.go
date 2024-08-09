@@ -427,6 +427,7 @@ func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalid
 func promoteAttributesToColumns(attrsMap map[string][]interface{}) {
 	var keys []string
 	var values []string
+	var types []string
 	for k, v := range attrsMap {
 		if k == AttributesKeyColumn {
 			for _, val := range v {
@@ -438,10 +439,15 @@ func promoteAttributesToColumns(attrsMap map[string][]interface{}) {
 				values = append(values, fmt.Sprintf("'%s': %s", val, NewType(val).String()))
 			}
 		}
+		if k == AttributesValueType {
+			for _, val := range v {
+				types = append(types, fmt.Sprintf("'%s': %s", val, NewType(val).String()))
+			}
+		}
 	}
 
 	for i := 0; i < len(keys); i++ {
-		fmt.Println("@@@:", keys[i], values[i])
+		fmt.Println("@@@:", keys[i], values[i], types[i])
 	}
 }
 
