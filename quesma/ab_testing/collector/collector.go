@@ -14,7 +14,10 @@ import (
 type ResponseMismatch struct {
 	Mismatches string `json:"mismatches"` // JSON array of differences
 	// TODO maybe we should keep more human readable list of differences
-	IsMismatch bool `json:"is_mismatch"`
+	IsMismatch      bool   `json:"is_mismatch"`
+	Count           int    `json:"count"`
+	TopMismatchType string `json:"top_mismatch_type"`
+	Message         string `json:"message"`
 }
 
 type Collector interface {
@@ -65,6 +68,7 @@ func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessa
 		cancelFunc:   cancel,
 		pipeline: []pipelineProcessor{
 			&probabilisticSampler{ratio: 1},
+			&deAsyncResponse{},
 			&diffTransformer{},
 			&ppPrintFanout{},
 			&mismatchedOnlyFilter{},

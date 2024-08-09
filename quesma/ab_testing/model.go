@@ -12,9 +12,10 @@ type Request struct {
 }
 
 type Response struct {
-	Name string        `json:"name"`
-	Body string        `json:"body"`
-	Time time.Duration `json:"time"`
+	Name  string        `json:"name"`
+	Body  string        `json:"body"`
+	Time  time.Duration `json:"time"`
+	Error string        `json:"error"`
 }
 
 type Result struct {
