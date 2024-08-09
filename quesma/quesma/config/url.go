@@ -24,6 +24,11 @@ func (u *Url) Hostname() string {
 	return urlValue.Hostname()
 }
 
+func (u *Url) Port() string {
+	urlValue := url.URL(*u)
+	return urlValue.Port()
+}
+
 func (u *Url) String() string {
 	urlValue := url.URL(*u)
 	return urlValue.String()
