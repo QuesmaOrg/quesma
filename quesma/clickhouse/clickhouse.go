@@ -424,6 +424,8 @@ func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalid
 	}
 }
 
+// This function takes an attributesMap and arrayName and returns
+// the values of the array named arrayName from the attributesMap
 func getAttributesByArrayName(arrayName string,
 	attrsMap map[string][]interface{}) []string {
 	var attributes []string
@@ -437,36 +439,37 @@ func getAttributesByArrayName(arrayName string,
 	return attributes
 }
 
-func (lm *LogManager) promoteAttributesToColumns(
+// This function generates ALTER TABLE commands for adding new columns
+// to the table based on the attributesMap and the table name
+// AttributesMap contains the attributes that are not part of the schema
+func (lm *LogManager) generateNewColumns(
 	attrsMap map[string][]interface{},
-	tableName string) {
+	tableName string) []string {
+	var alterCmd []string
 	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
-	attrValues := getAttributesByArrayName(AttributesValueColumn, attrsMap)
 	attrTypes := getAttributesByArrayName(AttributesValueType, attrsMap)
-	_ = attrValues
 	for i := 0; i < len(attrKeys); i++ {
 		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", tableName, attrKeys[i], attrTypes[i])
-		err := lm.execute(context.Background(), alterTable)
-		if err != nil {
-		}
+		alterCmd = append(alterCmd, alterTable)
 	}
+	return alterCmd
 }
 
 // TODO
 // This method should be refactored to use mux.JSON instead of string
-func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValidJson types.JSON, config *ChTableConfig) (string, error) {
+func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValidJson types.JSON, config *ChTableConfig) (string, []string, error) {
 
 	jsonData, err := json.Marshal(data)
 
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	js := string(jsonData)
 
 	// we find all non-schema fields
 	m, err := types.ParseJSON(js)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	wasReplaced := replaceDotsWithSeparator(m)
@@ -474,24 +477,24 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 		if wasReplaced {
 			rawBytes, err := m.Bytes()
 			if err != nil {
-				return "", err
+				return "", nil, err
 			}
 			js = string(rawBytes)
 		}
-		return js, nil
+		return js, nil, nil
 	}
 
 	t := lm.FindTable(tableName)
 	schemaFieldsJson, err := json.Marshal(m)
 
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	mDiff := DifferenceMap(m, t) // TODO change to DifferenceMap(m, t)
 
 	if len(mDiff) == 0 && string(schemaFieldsJson) == js && len(inValidJson) == 0 { // no need to modify, just insert 'js'
-		return js, nil
+		return js, nil, nil
 	}
 	var attrsMap map[string][]interface{}
 	var othersMap SchemaMap
@@ -500,9 +503,14 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	} else if config.hasOthers {
 		othersMap = mDiff
 	} else {
-		return "", fmt.Errorf("no attributes or others in config, but received non-schema fields: %s", mDiff)
+		return "", nil, fmt.Errorf("no attributes or others in config, but received non-schema fields: %s", mDiff)
 	}
-	lm.promoteAttributesToColumns(attrsMap, tableName)
+
+	// generateNewColumns is called before adding invalid fields to attributes map
+	// otherwise it would contain invalid fields e.g. with wrong types
+	// we only want to add fields that are not part of the schema e.g we don't
+	// have columns for them
+	alterCmd := lm.generateNewColumns(attrsMap, tableName)
 
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
@@ -512,14 +520,14 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	if len(attrsMap) > 0 {
 		attrs, err := json.Marshal(attrsMap) // check probably bad, they need to be arrays
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
 		nonSchemaStr = string(attrs[1 : len(attrs)-1])
 	}
 	if len(othersMap) > 0 {
 		others, err := json.Marshal(othersMap)
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
 		if nonSchemaStr != "" {
 			nonSchemaStr += "," // need to watch out where we input commas, CH doesn't tolerate trailing ones
@@ -529,13 +537,13 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	onlySchemaFields := RemoveNonSchemaFields(m, t)
 	schemaFieldsJson, err = json.Marshal(onlySchemaFields)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	comma := ""
 	if nonSchemaStr != "" && len(schemaFieldsJson) > 2 {
 		comma = "," // need to watch out where we input commas, CH doesn't tolerate trailing ones
 	}
-	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), nil
+	return fmt.Sprintf("{%s%s%s", nonSchemaStr, comma, schemaFieldsJson[1:]), alterCmd, nil
 }
 
 func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName string, jsonData types.JSON, tableFormatter TableColumNameFormatter) (*ChTableConfig, error) {
@@ -604,6 +612,7 @@ func (lm *LogManager) execute(ctx context.Context, query string) error {
 func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON,
 	config *ChTableConfig, transformer jsonprocessor.IngestTransformer) error {
 	var jsonsReadyForInsertion []string
+	var alterCmd []string
 	for _, jsonValue := range jsons {
 		preprocessedJson, err := transformer.Transform(jsonValue)
 
@@ -623,18 +632,27 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 		// Remove invalid fields from the input JSON
 		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
 
-		insertJson, err := lm.BuildInsertJson(tableName, preprocessedJson, inValidJson, config)
+		insertJson, alter, err := lm.BuildInsertJson(tableName, preprocessedJson, inValidJson, config)
+		alterCmd = append(alterCmd, alter...)
 		if err != nil {
 			return fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)
 		}
 		jsonsReadyForInsertion = append(jsonsReadyForInsertion, insertJson)
 	}
-
-	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
 	// We expect to have date format set to `best_effort`
 	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{
 		"date_time_input_format": "best_effort",
 	}))
+
+	for _, alter := range alterCmd {
+		err := lm.execute(ctx, alter)
+		if err != nil {
+			return end_user_errors.GuessClickhouseErrorType(err).InternalDetails("alter table '%s' failed", tableName)
+		}
+	}
+
+	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
+
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertValues)
 	err := lm.execute(ctx, insert)
 	if err != nil {
