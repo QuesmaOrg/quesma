@@ -3,10 +3,14 @@
 package quesma
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/k0kubun/pp"
+	"io"
+	"net/http"
 	"quesma/ab_testing"
 	"quesma/clickhouse"
 	"quesma/concurrent"
@@ -151,6 +155,7 @@ type AsyncQuery struct {
 }
 
 type executionPlanResult struct {
+	isMain       bool
 	plan         *model.ExecutionPlan
 	err          error
 	responseBody []byte
@@ -263,8 +268,10 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	sendMainPlanResult := func(responseBody []byte, err error) {
 		if optComparePlansCh != nil {
 			optComparePlansCh <- executionPlanResult{
+
 				plan:         plan,
 				err:          err,
+				isMain:       true,
 				responseBody: responseBody,
 			}
 		}
@@ -313,8 +320,10 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	}
 }
 
+type executionPlanExecutor func(ctx context.Context) ([]byte, error)
+
 // runAlternativePlanAndComparison runs the alternative plan and comparison method in the background. It returns a channel to collect the main plan results.
-func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alternativePlan *model.ExecutionPlan, table *clickhouse.Table, body types.JSON, queryTranslator IQueryTranslator, isAsync bool) chan<- executionPlanResult {
+func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, plan *model.ExecutionPlan, alternativePlanExecutor executionPlanExecutor, body types.JSON) chan<- executionPlanResult {
 
 	contextValues := tracing.ExtractValues(ctx)
 
@@ -328,10 +337,10 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alter
 
 		// results are passed via channel
 		newCtx := tracing.NewContextWithRequest(ctx)
-		body, err := q.executeAlternativePlan(newCtx, alternativePlan, queryTranslator, table, body, isAsync)
+		body, err := alternativePlanExecutor(newCtx)
 
 		optComparePlansCh <- executionPlanResult{
-			plan:         alternativePlan,
+			plan:         plan,
 			err:          err,
 			responseBody: body,
 		}
@@ -347,16 +356,23 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alter
 		for range numberOfExpectedResults {
 			r := <-optComparePlansCh
 			logger.InfoWithCtx(ctx).Msgf("received results  %s", r.plan.Name)
-			if r.plan.Name == model.AlternativeExecutionPlan {
-				alternative = r
-			} else if r.plan.Name == model.MainExecutionPlan {
+			if r.isMain {
 				main = r
+			} else {
+				alternative = r
 			}
 		}
 
 		bytes, err := body.Bytes()
 		if err != nil {
 			bytes = []byte("error converting body to bytes")
+		}
+
+		toError := func(err error) string {
+			if err != nil {
+				return err.Error()
+			}
+			return ""
 		}
 
 		abResult := ab_testing.Result{
@@ -366,20 +382,22 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alter
 			},
 
 			A: ab_testing.Response{
-				Name: "main",
-				Body: string(main.responseBody),
-				Time: time.Since(main.plan.StartTime),
+				Name:  main.plan.Name,
+				Body:  string(main.responseBody),
+				Time:  time.Since(main.plan.StartTime),
+				Error: toError(main.err),
 			},
 
 			B: ab_testing.Response{
-				Name: "alternative",
-				Body: string(alternative.responseBody),
-				Time: time.Since(alternative.plan.StartTime),
+				Name:  alternative.plan.Name,
+				Body:  string(alternative.responseBody),
+				Time:  time.Since(alternative.plan.StartTime),
+				Error: toError(alternative.err),
 			},
 			RequestID: contextValues.RequestId,
 			OpaqueID:  contextValues.OpaqueId,
 		}
-
+		pp.Println("XXXXX Sending A/B Testing Result", abResult)
 		q.ABResultsSender.Send(abResult)
 
 	}(optComparePlansCh)
@@ -491,18 +509,67 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	plan.Name = model.MainExecutionPlan
 
 	// Some flags may trigger alternative execution plans, this is primary for dev
-	alternativePlan := q.maybeCreateAlternativeExecutionPlan(ctx, resolvedTableName, plan, queryTranslator, body)
+	alternativePlan, alternativePlanExecutor := q.maybeCreateAlternativeExecutionPlan(ctx, resolvedTableName, plan, queryTranslator, body, table, optAsync != nil)
 
 	var optComparePlansCh chan<- executionPlanResult
 
 	if alternativePlan != nil {
-		optComparePlansCh = q.runAlternativePlanAndComparison(ctx, alternativePlan, table, body, queryTranslator, optAsync != nil)
+		optComparePlansCh = q.runAlternativePlanAndComparison(ctx, alternativePlan, alternativePlanExecutor, body)
 	}
 
 	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh)
 }
 
-func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, resolvedTableName string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON) *model.ExecutionPlan {
+func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, resolvedTableName string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON, table *clickhouse.Table, isAsync bool) (*model.ExecutionPlan, executionPlanExecutor) {
+
+	//p := q.maybeCreatePancakeExecutionPlan(ctx, resolvedTableName, plan, queryTranslator, body, table, isAsync)
+	p, e := q.askElasticAsAnAlternative(ctx, resolvedTableName, plan, queryTranslator, body, table, isAsync)
+	return p, e
+}
+
+func (t *QueryRunner) askElasticAsAnAlternative(ctx context.Context, resolvedTableName string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON, table *clickhouse.Table, isAsync bool) (*model.ExecutionPlan, executionPlanExecutor) {
+
+	requestBody, err := body.Bytes()
+	if err != nil {
+		return nil, nil
+	}
+
+	alternativePlan := &model.ExecutionPlan{
+		IndexPattern:          plan.IndexPattern,
+		QueryRowsTransformers: []model.QueryRowsTransformer{},
+		Queries:               []*model.Query{},
+		StartTime:             plan.StartTime,
+		Name:                  "elastic",
+	}
+
+	url := "http://elasticsearch:9200/" + plan.IndexPattern + "/_search"
+
+	return alternativePlan, func(ctx context.Context) ([]byte, error) {
+
+		fmt.Println("XXXXXXXX calling elastic", url)
+
+		if resp, err := http.Post(url, "application/json", bytes.NewBuffer(requestBody)); err != nil {
+			return nil, err
+		} else {
+			responseBody, err := io.ReadAll(resp.Body)
+
+			if err != nil {
+				return nil, err
+			}
+
+			if err := resp.Body.Close(); err != nil {
+				return nil, err
+			}
+
+			if resp.StatusCode != http.StatusOK {
+				return nil, fmt.Errorf("error calling elastic. got error code: %d", resp.StatusCode)
+			}
+			return responseBody, nil
+		}
+	}
+}
+
+func (q *QueryRunner) maybeCreatePancakeExecutionPlan(ctx context.Context, resolvedTableName string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON, table *clickhouse.Table, isAsync bool) executionPlanExecutor {
 
 	props, enabled := q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration(queryparser.PancakeOptimizerName)
 	if enabled && props["mode"] == "alternative" {
@@ -527,13 +594,19 @@ func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, r
 				if pancakeQueries, err := chQueryTranslator.PancakeParseAggregationJson(body, addCount); err == nil {
 					logger.InfoWithCtx(ctx).Msgf("Running alternative pancake queries")
 					queries := append(queriesWithoutAggr, pancakeQueries...)
-					return &model.ExecutionPlan{
+					plan := &model.ExecutionPlan{
 						IndexPattern:          plan.IndexPattern,
 						QueryRowsTransformers: make([]model.QueryRowsTransformer, len(queries)),
 						Queries:               queries,
 						StartTime:             plan.StartTime,
-						Name:                  model.AlternativeExecutionPlan,
+						Name:                  "pancake",
 					}
+
+					return func(ctx context.Context) ([]byte, error) {
+
+						return q.executeAlternativePlan(ctx, plan, queryTranslator, table, body, false)
+					}
+
 				} else {
 					// TODO: change to info
 					logger.ErrorWithCtx(ctx).Msgf("Error parsing pancake queries: %v", err)
