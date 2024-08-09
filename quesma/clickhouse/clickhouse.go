@@ -424,30 +424,28 @@ func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalid
 	}
 }
 
-func (lm *LogManager) promoteAttributesToColumns(attrsMap map[string][]interface{}, tableName string) {
-	var keys []string
-	var values []string
-	var types []string
+func getAttributesByArrayName(arrayName string,
+	attrsMap map[string][]interface{}) []string {
+	var attributes []string
 	for k, v := range attrsMap {
-		if k == AttributesKeyColumn {
+		if k == arrayName {
 			for _, val := range v {
-				keys = append(keys, fmt.Sprintf("%s", val))
-			}
-		}
-		if k == AttributesValueColumn {
-			for _, val := range v {
-				values = append(values, fmt.Sprintf("%s", val))
-			}
-		}
-		if k == AttributesValueType {
-			for _, val := range v {
-				types = append(types, fmt.Sprintf("%s", val))
+				attributes = append(attributes, fmt.Sprintf("%s", val))
 			}
 		}
 	}
+	return attributes
+}
 
-	for i := 0; i < len(keys); i++ {
-		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", tableName, keys[i], types[i])
+func (lm *LogManager) promoteAttributesToColumns(
+	attrsMap map[string][]interface{},
+	tableName string) {
+	attrKeys := getAttributesByArrayName(AttributesKeyColumn, attrsMap)
+	attrValues := getAttributesByArrayName(AttributesValueColumn, attrsMap)
+	attrTypes := getAttributesByArrayName(AttributesValueType, attrsMap)
+	_ = attrValues
+	for i := 0; i < len(attrKeys); i++ {
+		alterTable := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN IF NOT EXISTS \"%s\" %s", tableName, attrKeys[i], attrTypes[i])
 		err := lm.execute(context.Background(), alterTable)
 		if err != nil {
 		}
