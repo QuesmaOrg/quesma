@@ -251,6 +251,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		GroupBy:     p.aliasedExprArrayToExpr(groupBys),
 		WhereClause: aggregation.whereClause,
 		FromClause:  model.NewTableRef(table.FullTableName()),
+		SampleLimit: aggregation.sampleLimit,
 	}
 
 	rankCte := model.SelectCommand{

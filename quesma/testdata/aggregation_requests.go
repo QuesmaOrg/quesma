@@ -618,7 +618,7 @@ var AggregationTests = []AggregationTestCase{
 			}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM (SELECT 1 FROM ` + QuotedTableName + ` ` +
+			`SELECT count() FROM (SELECT * FROM ` + QuotedTableName + ` ` +
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z')) ` +
 				`LIMIT 12)`,
@@ -2537,7 +2537,7 @@ var AggregationTests = []AggregationTestCase{
 			}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM (SELECT 1 ` +
+			`SELECT count() FROM (SELECT * ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) ` +
@@ -3216,7 +3216,7 @@ var AggregationTests = []AggregationTestCase{
 			}},
 		},
 		ExpectedSQLs: []string{
-			`SELECT count() FROM (SELECT 1 ` +
+			`SELECT count() FROM (SELECT * ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("order_date">=parseDateTime64BestEffort('2024-02-19T17:40:56.351Z') ` +
 				`AND "order_date"<=parseDateTime64BestEffort('2024-02-26T17:40:56.351Z')) ` +
@@ -4018,14 +4018,16 @@ var AggregationTests = []AggregationTestCase{
 				"aggr__sampler__eventRate__order_1_rank"
 			  FROM (
 				SELECT sum("aggr__sampler__count_part") OVER (PARTITION BY 1) AS
-				  "aggr__sampler__count", toInt64(toUnixTimestamp64Milli("@timestamp") /
-				  15000) AS "aggr__sampler__eventRate__key_0", count(*) AS
-				  "aggr__sampler__eventRate__count",
-				  toInt64(toUnixTimestamp64Milli("@timestamp") / 15000) AS "aggr__sampler__eventRate__order_1",
-				  count(*) AS "aggr__sampler__count_part"
-				FROM "logs-generic-default"
-				WHERE (toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 AND
-				  toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12)
+				  "aggr__sampler__count", toInt64(toUnixTimestamp64Milli("@timestamp") / 15000)
+				  AS "aggr__sampler__eventRate__key_0", count(*) AS
+				  "aggr__sampler__eventRate__count", toInt64(toUnixTimestamp64Milli("@timestamp") / 15000)
+				  AS "aggr__sampler__eventRate__order_1", count(*) AS "aggr__sampler__count_part"
+				FROM (
+				  SELECT *
+				  FROM "logs-generic-default"
+				  WHERE (toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 AND
+					toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12)
+				  LIMIT 5000)
 				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 15000) AS
 				  "aggr__sampler__eventRate__key_0"))
 			ORDER BY "aggr__sampler__eventRate__order_1_rank" ASC`,
@@ -7680,7 +7682,7 @@ var AggregationTests = []AggregationTestCase{
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
-				`FROM (SELECT 1 ` +
+				`FROM (SELECT * ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE NOT ((("abc">=0 AND "abc"<600) OR "type" iLIKE '%def%')) ` +
 				`LIMIT 10000)`,

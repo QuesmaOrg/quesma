@@ -670,7 +670,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.SearchQueryInfo{Typ: model.ListByField, RequestedFields: []string{"@timestamp"}, FieldName: "@timestamp", I2: 100},
 		[]string{
-			`SELECT count() FROM (SELECT 1 ` +
+			`SELECT count() FROM (SELECT \* ` +
 				`FROM ` + QuotedTableName + ` ` +
 				`WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
 				`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))) ` +
@@ -831,7 +831,7 @@ var TestsAsyncSearch = []AsyncSearchTestCase{
 		"no comment yet",
 		model.SearchQueryInfo{Typ: model.Normal},
 		[]string{
-			`SELECT count() FROM (SELECT 1 FROM "logs-generic-default" ` +
+			`SELECT count() FROM (SELECT \* FROM "logs-generic-default" ` +
 				`WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%') LIMIT 1)`,
 			`SELECT m..OrNull("@timestamp") FROM "logs-generic-default" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
 			`SELECT m..OrNull("@timestamp") FROM "logs-generic-default" WHERE (("message" iLIKE '%posei%' AND "message" iLIKE '%User logged out%') AND "host.name" iLIKE '%poseidon%')`,
@@ -2116,7 +2116,7 @@ var TestsSearch = []SearchTestCase{
 		model.ListAllFields,
 		//[]model.Query{newSimplestQuery()},
 		[]string{
-			`SELECT count() FROM (SELECT 1 FROM ` + QuotedTableName + ` LIMIT 10000)`,
+			`SELECT count() FROM (SELECT * FROM ` + QuotedTableName + ` LIMIT 10000)`,
 			`SELECT "message" FROM ` + QuotedTableName,
 		},
 	},

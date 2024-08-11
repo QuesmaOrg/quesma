@@ -14,6 +14,7 @@ type pancakeModel struct {
 	// invariant: len(layers) > 0 && layers[len(layers)-1].nextBucketAggregation == nil
 
 	whereClause model.Expr
+	sampleLimit int
 }
 
 type pancakeModelLayer struct {
@@ -46,6 +47,7 @@ type pancakeModelBucketAggregation struct {
 }
 
 const pancakeBucketAggregationNoLimit = 0
+const noSampleLimit = 0
 
 // Helper functions
 func (p pancakeModelBucketAggregation) InternalNameForKeyPrefix() string {

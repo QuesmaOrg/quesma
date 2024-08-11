@@ -202,7 +202,10 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 			}
 		}
 		if len(innerColumn) == 0 {
-			innerColumn = append(innerColumn, "1")
+			innerColumn = append(innerColumn, "*")
+			// FIXME we can replace * with 1 if we only need a simple count. In pancakes we (at least mostly) need *,
+			// so it's always like that for simplicity.
+			// It shouldn't be any bottleneck, unless we start seeing really big sample limits.
 		}
 		sb.WriteString(strings.Join(innerColumn, ", "))
 		sb.WriteString(" FROM ")

@@ -189,7 +189,7 @@ var KunkkaTests = []testdata.AggregationTestCase{
 		},
 		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
 		ExpectedSQLs: []string{
-			`SELECT count() FROM (SELECT 1 FROM ` + testdata.QuotedTableName + ` LIMIT 10000)`,
+			`SELECT count() FROM (SELECT * FROM ` + testdata.QuotedTableName + ` LIMIT 10000)`,
 			`SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000), sumOrNull("spent") ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 3600000) ` +

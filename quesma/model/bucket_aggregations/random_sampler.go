@@ -35,4 +35,8 @@ func (query RandomSampler) String() string {
 	return fmt.Sprintf("%s(probability: %f)", "random_sampler", query.probability)
 }
 
+func (query RandomSampler) GetSampleLimit() int {
+	return 5000
+}
+
 // TODO test with (random)sampler in the middle of request tree

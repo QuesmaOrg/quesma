@@ -28,3 +28,7 @@ func (query Sampler) TranslateSqlResponseToJson(rows []model.QueryResultRow, lev
 func (query Sampler) String() string {
 	return fmt.Sprintf("%s(size: %d)", "sampler", query.size)
 }
+
+func (query Sampler) GetSampleLimit() int {
+	return query.size
+}

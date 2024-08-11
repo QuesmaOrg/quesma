@@ -142,10 +142,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Fatal("Failed to render pancake JSON", err)
 			}
 
-			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
+			// FIXME we can quite easily remove 'probability' and 'seed' from above - just start remembering them in RandomSampler struct and print in JSON response.
 			acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma,
 				"sum_other_doc_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
-			// FIXME we can quite easily remove 'probability' and 'seed' from above - just start remembering them in RandomSampler struct and print in JSON response.
+
 			actualMinusExpected, expectedMinusActual := util.MapDifference(pancakeJson,
 				expectedAggregationsPart, acceptableDifference, true, true)
 			if len(actualMinusExpected) != 0 {
@@ -192,7 +192,7 @@ func dateRange(testName string) bool {
 func percentiles(testName string) bool {
 	t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Heat Map -> Metrics: Median, Buckets: X-Asis Range" // also range
 	t2 := testName == "Percentiles on DateTime field. Reproduce: Visualize -> Line: Metrics -> Percentiles (or Median, it's the same aggregation) @timestamp, Buckets: Add X-Asis, Aggregation: Significant Terms"
-	t3 := testName == "Field statistics > summary for numeric fields" // also filter and sampler
+	t3 := testName == "Field statistics > summary for numeric fields" // also filter
 	return t1 || t2 || t3
 }
 
@@ -236,7 +236,7 @@ func filter(testName string) bool {
 	t3 := testName == "2 sibling count aggregations"
 	t4 := testName == "simple filter/count"
 	t5 := testName == "triple nested aggs"
-	t6 := testName == "Field statistics > summary for numeric fields" // also sampler and percentiles
+	t6 := testName == "Field statistics > summary for numeric fields" // also percentiles
 	t7 := testName == "clients/kunkka/test_0, used to be broken before aggregations merge fix"+
 		"Output more or less works, but is different and worse than what Elastic returns."+
 		"If it starts failing, maybe that's a good thing"
@@ -254,14 +254,6 @@ func filters(testName string) bool {
 	t3 := testName == "complex filters"
 	t4 := testName == "clients/kunkka/test_1, used to be broken before aggregations merge fix" // also filter
 	return t1 || t2 || t3 || t4
-}
-
-// TODO remove after fix
-func sampler(testName string) bool {
-	t1 := testName == "value_count + top_values: regression test"
-	t2 := testName == "random sampler, from Explorer > Field statistics"
-	t3 := testName == "Field statistics > summary for numeric fields" // also filter and percentiles
-	return t1 || t2 || t3
 }
 
 // TODO remove after fix
