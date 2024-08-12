@@ -1,3 +1,5 @@
+// Copyright Quesma, licensed under the Elastic License 2.0.
+// SPDX-License-Identifier: Elastic-2.0
 package collector
 
 import (
@@ -31,7 +33,6 @@ func (t *deAsyncResponse) process(in EnrichedResults) (out EnrichedResults, drop
 		}
 
 		return string(b), nil
-
 	}
 
 	respA, err := deAsync(in.A.Body)
