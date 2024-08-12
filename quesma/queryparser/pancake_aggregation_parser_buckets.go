@@ -376,37 +376,44 @@ func (cw *ClickhouseQueryTranslator) parseOrder(terms, queryMap QueryMap, fieldE
 		{Exprs: []model.Expr{fieldExpression}},
 	}
 	direction := defaultDirection
-	if orderRaw, exists := terms["order"]; exists {
-		if order, ok := orderRaw.(QueryMap); ok { // TODO it can be array too, don't handle it yet
-			if len(order) == 1 {
-				for key, valueRaw := range order { // value == "asc" or "desc"
-					value, ok := valueRaw.(string)
-					if !ok {
-						logger.WarnWithCtx(cw.Ctx).Msgf("order value is not a string, but %T, value: %v. Using default (desc)", valueRaw, valueRaw)
-						value = "desc"
-					}
-					if strings.ToLower(value) == "asc" {
-						direction = model.AscOrder
-					}
 
-					if key == "_key" {
-						fullOrderBy = []model.OrderByExpr{{Exprs: []model.Expr{fieldExpression}, Direction: direction}}
-						break // mainOrderBy remains default
-					} else if key != "_count" {
-						mainOrderBy = cw.pancakeFindMetricAggregation(queryMap, key)
-					}
+	orderRaw, exists := terms["order"]
+	if !exists {
+		return fullOrderBy
+	}
 
-					fullOrderBy = []model.OrderByExpr{
-						{Exprs: []model.Expr{mainOrderBy}, Direction: direction, ExchangeToAliasInCTE: true},
-						{Exprs: []model.Expr{fieldExpression}},
-					}
-				}
-			} else {
-				logger.WarnWithCtx(cw.Ctx).Msgf("order has more than 1 key, but %d. Order: %+v. Using default", len(order), order)
-			}
-		} else {
-			logger.WarnWithCtx(cw.Ctx).Msgf("order is not a map, but %T, value: %v. Using default order", orderRaw, orderRaw)
+	order, ok := orderRaw.(QueryMap) // TODO it can be array too, don't handle it yet
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("order is not a map, but %T, value: %v. Using default order", orderRaw, orderRaw)
+		return fullOrderBy
+	}
+	if len(order) != 1 {
+		logger.WarnWithCtx(cw.Ctx).Msgf("order should have 1 key, but has %d. Order: %+v. Using default", len(order), order)
+		return fullOrderBy
+	}
+
+	for key, valueRaw := range order { // value == "asc" or "desc"
+		value, ok := valueRaw.(string)
+		if !ok {
+			logger.WarnWithCtx(cw.Ctx).Msgf("order value is not a string, but %T, value: %v. Using default (desc)", valueRaw, valueRaw)
+			value = "desc"
+		}
+		if strings.ToLower(value) == "asc" {
+			direction = model.AscOrder
+		}
+
+		if key == "_key" {
+			fullOrderBy = []model.OrderByExpr{{Exprs: []model.Expr{fieldExpression}, Direction: direction}}
+			break // mainOrderBy remains default
+		} else if key != "_count" {
+			mainOrderBy = cw.pancakeFindMetricAggregation(queryMap, key)
+		}
+
+		fullOrderBy = []model.OrderByExpr{
+			{Exprs: []model.Expr{mainOrderBy}, Direction: direction, ExchangeToAliasInCTE: true},
+			{Exprs: []model.Expr{fieldExpression}},
 		}
 	}
+
 	return fullOrderBy
 }
