@@ -80,7 +80,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if multiTerms(test.TestName) {
 				t.Skip("Fix multi terms")
 			}
-			if valueCount(test.TestName) {
+			if valueCount(test.TestName) { // DON'T FIX, I already have it fixed in another PR
 				t.Skip("Fix value count")
 			}
 
