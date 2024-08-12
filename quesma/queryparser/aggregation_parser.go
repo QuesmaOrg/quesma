@@ -28,17 +28,17 @@ type aggrQueryBuilder struct {
 }
 
 type metricsAggregation struct {
-	AggrType                   string
-	Fields                     []model.Expr            // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
-	FieldType                  clickhouse.DateTimeType // field type of FieldNames[0]. If it's a date field, a slightly different response is needed
-	Percentiles                map[string]float64      // Only for percentiles aggregation
-	Keyed                      bool                    // Only for percentiles aggregation
-	PercentileRanksColumnNames []string                // Only for percentile_ranks
-	SortBy                     string                  // Only for top_metrics
-	Size                       int                     // Only for top_metrics
-	Order                      string                  // Only for top_metrics
-	IsFieldNameCompound        bool                    // Only for a few aggregations, where we have only 1 field. It's a compound, so e.g. toHour(timestamp), not just "timestamp"
-	sigma                      float64                 // only for standard deviation
+	AggrType            string
+	Fields              []model.Expr            // on these fields we're doing aggregation. Array, because e.g. 'top_hits' can have multiple fields
+	FieldType           clickhouse.DateTimeType // field type of FieldNames[0]. If it's a date field, a slightly different response is needed
+	Percentiles         map[string]float64      // Only for percentiles aggregation
+	Keyed               bool                    // Only for percentiles aggregation
+	PercentilesArr      []string                // Only for percentile_ranks
+	SortBy              string                  // Only for top_metrics
+	Size                int                     // Only for top_metrics
+	Order               string                  // Only for top_metrics
+	IsFieldNameCompound bool                    // Only for a few aggregations, where we have only 1 field. It's a compound, so e.g. toHour(timestamp), not just "timestamp"
+	sigma               float64                 // only for standard deviation
 }
 
 func (m metricsAggregation) sortByExists() bool {
@@ -216,12 +216,10 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			}
 		}
 	case "percentile_ranks":
-		for _, cutValueAsString := range metricsAggr.Fields[1:] {
-			unquoted, _ := strconv.Unquote(model.AsString(cutValueAsString))
-			cutValue, _ := strconv.ParseFloat(unquoted, 64)
-
+		for _, cutValueAsString := range metricsAggr.PercentilesArr {
 			// full exp we create below looks like this:
 			// fmt.Sprintf("count(if(%s<=%f, 1, NULL))/count(*)*100", strconv.Quote(getFirstFieldName()), cutValue)
+			cutValue, _ := strconv.ParseFloat(cutValueAsString, 64)
 
 			ifExp := model.NewFunction(
 				"if",
@@ -298,7 +296,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "value_count":
 		query.Type = metrics_aggregations.NewValueCount(b.ctx)
 	case "percentile_ranks":
-		query.Type = metrics_aggregations.NewPercentileRanks(b.ctx, percentileRanksColumnNames, metricsAggr.Keyed)
+		query.Type = metrics_aggregations.NewPercentileRanks(b.ctx, metricsAggr.PercentilesArr, metricsAggr.Keyed)
 	case "geo_centroid":
 		query.Type = metrics_aggregations.NewGeoCentroid(b.ctx)
 	}
@@ -472,7 +470,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 		cte.SelectCommand.WhereClause = currentAggr.whereBuilder.WhereClause
 		cte.SelectCommand.Columns = append(cte.SelectCommand.Columns,
 			model.NewAliasedExpr(terms.OrderByExpr, fmt.Sprintf("cte_%d_cnt", len(currentAggr.SelectCommand.CTEs)+1))) // FIXME unify this name creation with one in model/expr_as_string
-		cte.SelectCommand.CTEs = nil // CTEs don't have CTEs themselves (so far, maybe that'll need to change)
+		cte.SelectCommand.CTEs = nil                                                                                   // CTEs don't have CTEs themselves (so far, maybe that'll need to change)
 		if len(cte.SelectCommand.OrderBy) > 2 {
 			// we can reduce nr of ORDER BYs in CTEs. Last 2 seem to be always enough. Proper ordering is done anyway in the outer SELECT.
 			cte.SelectCommand.OrderBy = cte.SelectCommand.OrderBy[len(cte.SelectCommand.OrderBy)-2:]
@@ -609,16 +607,23 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msg("no values in percentile_ranks. Using empty array.")
 		}
+
+		percentilesArray := make([]string, 0, len(cutValues))
 		for _, cutValue := range cutValues {
 			switch cutValueTyped := cutValue.(type) {
 			case float64:
-				fields = append(fields, model.NewColumnRef(strconv.FormatFloat(cutValueTyped, 'f', -1, 64)))
+				percentile := strconv.FormatFloat(cutValueTyped, 'f', -1, 64)
+				fields = append(fields, model.NewLiteral(percentile))
+				percentilesArray = append(percentilesArray, percentile)
 			case int64:
-				fields = append(fields, model.NewColumnRef(strconv.FormatInt(cutValueTyped, 10)))
+				percentile := strconv.FormatInt(cutValueTyped, 10)
+				fields = append(fields, model.NewLiteral(percentile))
+				percentilesArray = append(percentilesArray, percentile)
 			default:
 				logger.WarnWithCtx(cw.Ctx).Msgf("cutValue in percentile_ranks is not a number, but %T, value: %v. Skipping.", cutValue, cutValue)
 			}
 		}
+
 		var keyed bool
 		if keyedRaw, ok := percentileRanks.(QueryMap)["keyed"]; ok {
 			if keyed, ok = keyedRaw.(bool); !ok {
@@ -628,11 +633,13 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		} else {
 			keyed = keyedDefaultValuePercentileRanks
 		}
+		fmt.Println(percentilesArray)
 		return metricsAggregation{
-			AggrType:  "percentile_ranks",
-			Fields:    fields,
-			FieldType: metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
-			Keyed:     keyed,
+			AggrType:       "percentile_ranks",
+			Fields:         fields,
+			FieldType:      metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
+			Keyed:          keyed,
+			PercentilesArr: percentilesArray,
 		}, true
 	}
 

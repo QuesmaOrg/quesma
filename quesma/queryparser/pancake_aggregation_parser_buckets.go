@@ -365,7 +365,7 @@ func (cw *ClickhouseQueryTranslator) pancakeFindMetricAggregation(queryMap Query
 		}
 
 		// we build a temporary query only to extract the name of the metric
-		columns, err := generateMetricSelectedColumns(cw.Ctx, &agg)
+		columns, err := generateMetricSelectedColumns(cw.Ctx, agg)
 		if err != nil {
 			logger.ErrorWithCtx(cw.Ctx).Err(err).Msg("failed to generate metric selected columns")
 			return notFoundValue

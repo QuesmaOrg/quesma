@@ -14,8 +14,7 @@ import (
 	"strconv"
 )
 
-// TODO fix this new *. Stop doing that
-func generateMetricSelectedColumns(ctx context.Context, metricsAggr *metricsAggregation) (result []model.Expr, err error) {
+func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggregation) (result []model.Expr, err error) {
 	getFirstExpression := func() model.Expr {
 		if len(metricsAggr.Fields) > 0 {
 			return metricsAggr.Fields[0]
@@ -68,7 +67,7 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr *metricsAggr
 		result = make([]model.Expr, 0, len(metricsAggr.Fields[1:]))
 		columnNames := make([]string, 0, len(metricsAggr.Fields[1:]))
 		for _, cutValueAsString := range metricsAggr.Fields[1:] {
-			unquoted, _ := strconv.Unquote(model.AsString(cutValueAsString))
+			unquoted := model.AsString(cutValueAsString)
 			cutValue, _ := strconv.ParseFloat(unquoted, 64)
 
 			// full exp we create below looks like this:
@@ -87,7 +86,6 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr *metricsAggr
 			result = append(result, fullExp)
 			columnNames = append(columnNames, model.AsString(fullExp))
 		}
-		metricsAggr.PercentileRanksColumnNames = columnNames
 	case "extended_stats":
 
 		expr := getFirstExpression()
@@ -156,7 +154,7 @@ func generateMetricsType(ctx context.Context, metricsAggr metricsAggregation) mo
 	case "value_count":
 		return metrics_aggregations.NewValueCount(ctx)
 	case "percentile_ranks":
-		return metrics_aggregations.NewPercentileRanks(ctx, metricsAggr.PercentileRanksColumnNames, metricsAggr.Keyed)
+		return metrics_aggregations.NewPercentileRanks(ctx, metricsAggr.PercentilesArr, metricsAggr.Keyed)
 	case "geo_centroid":
 		return metrics_aggregations.NewGeoCentroid(ctx)
 	}
