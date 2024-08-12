@@ -61,8 +61,6 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		aggregation.selectedColumns = append(aggregation.selectedColumns, col)
 		aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExprWithoutOrder(col))
 
-		fmt.Println("orderik", aggregation.orderBy)
-
 		delete(queryMap, "histogram")
 		return success, nil
 	}
@@ -86,8 +84,6 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		sqlQuery := dateHistogramAggr.GenerateSQL()
 		aggregation.selectedColumns = append(aggregation.selectedColumns, sqlQuery)
 		aggregation.orderBy = append(aggregation.orderBy, model.NewOrderByExprWithoutOrder(sqlQuery))
-
-		fmt.Printf("orderik: %+v\n", aggregation.orderBy)
 
 		delete(queryMap, "date_histogram")
 		return success, nil
@@ -156,10 +152,8 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		const defaultSize = 10
 		size := cw.parseIntField(multiTerms, "size", defaultSize)
 
-		aggregation.orderBy = []model.OrderByExpr{model.NewSortByCountColumn(model.DescOrder)}
 		aggregation.limit = size
 
-		var firstColumn model.Expr = nil
 		var fieldsNr int
 		if termsRaw, exists := multiTerms["terms"]; exists {
 			terms, ok := termsRaw.([]any)
@@ -169,19 +163,15 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 			fieldsNr = len(terms)
 			for _, term := range terms {
 				column := cw.parseFieldField(term, "multi_terms")
-				if firstColumn == nil {
-					firstColumn = column
-				}
 				aggregation.selectedColumns = append(aggregation.selectedColumns, column)
+				aggregation.orderBy = append(aggregation.orderBy, cw.parseOrder(multiTerms, queryMap, column)...)
 			}
 		} else {
 			logger.WarnWithCtx(cw.Ctx).Msg("no terms in multi_terms")
 		}
 
-		orderBy := cw.parseOrder(multiTerms, queryMap, firstColumn) // TODO change from first column to all
 		aggregation.queryType = bucket_aggregations.NewMultiTerms(cw.Ctx, fieldsNr)
 		aggregation.limit = size
-		aggregation.orderBy = orderBy
 
 		delete(queryMap, "multi_terms")
 		return success, nil

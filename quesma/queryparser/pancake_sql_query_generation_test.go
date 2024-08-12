@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"quesma/clickhouse"
 	"quesma/concurrent"
-	"quesma/logger"
 	"quesma/model"
 	"quesma/quesma/config"
 	"quesma/quesma/types"
@@ -22,7 +21,7 @@ import (
 
 func TestPancakeQueryGeneration(t *testing.T) {
 
-	logger.InitSimpleLoggerForTests()
+	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
 		Cols: map[string]*clickhouse.Column{
 			"@timestamp":  {Name: "@timestamp", Type: clickhouse.NewBaseType("DateTime64")},
