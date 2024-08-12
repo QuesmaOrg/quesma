@@ -610,12 +610,12 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			switch cutValueTyped := cutValue.(type) {
 			case float64:
 				percentile := strconv.FormatFloat(cutValueTyped, 'f', -1, 64)
-				fields = append(fields, model.NewLiteral(percentile))
 				percentilesArray = append(percentilesArray, percentile)
+				fields = append(fields, model.NewLiteral(percentile))
 			case int64:
 				percentile := strconv.FormatInt(cutValueTyped, 10)
-				fields = append(fields, model.NewLiteral(percentile))
 				percentilesArray = append(percentilesArray, percentile)
+				fields = append(fields, model.NewLiteral(percentile))
 			default:
 				logger.WarnWithCtx(cw.Ctx).Msgf("cutValue in percentile_ranks is not a number, but %T, value: %v. Skipping.", cutValue, cutValue)
 			}
@@ -630,7 +630,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		} else {
 			keyed = keyedDefaultValuePercentileRanks
 		}
-		fmt.Println(percentilesArray)
+
 		return metricsAggregation{
 			AggrType:       "percentile_ranks",
 			Fields:         fields,
