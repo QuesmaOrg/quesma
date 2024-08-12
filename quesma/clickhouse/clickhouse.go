@@ -457,7 +457,8 @@ func (lm *LogManager) generateNewColumns(
 
 // TODO
 // This method should be refactored to use mux.JSON instead of string
-func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValidJson types.JSON, config *ChTableConfig) (string, []string, error) {
+func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValidJson types.JSON,
+	config *ChTableConfig, generateNewColumns bool) (string, []string, error) {
 
 	jsonData, err := json.Marshal(data)
 
@@ -510,7 +511,10 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	// otherwise it would contain invalid fields e.g. with wrong types
 	// we only want to add fields that are not part of the schema e.g we don't
 	// have columns for them
-	alterCmd := lm.generateNewColumns(attrsMap, tableName)
+	var alterCmd []string
+	if generateNewColumns {
+		alterCmd = lm.generateNewColumns(attrsMap, tableName)
+	}
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
 	// generating correct update query
@@ -638,6 +642,11 @@ func (lm *LogManager) executeStatements(ctx context.Context, queries []string) e
 
 func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName string, jsons []types.JSON,
 	config *ChTableConfig, transformer jsonprocessor.IngestTransformer) ([]string, error) {
+
+	// Below const tells if we should generate new columns for the table
+	// or add them to the attributes map
+	const generateNewColumns = false
+
 	var jsonsReadyForInsertion []string
 	var alterCmd []string
 	for _, jsonValue := range jsons {
@@ -657,7 +666,7 @@ func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName strin
 		// Remove invalid fields from the input JSON
 		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
 
-		insertJson, alter, err := lm.BuildInsertJson(tableName, preprocessedJson, inValidJson, config)
+		insertJson, alter, err := lm.BuildInsertJson(tableName, preprocessedJson, inValidJson, config, generateNewColumns)
 		alterCmd = append(alterCmd, alter...)
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)
