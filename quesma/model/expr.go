@@ -282,13 +282,13 @@ type ExprVisitor interface {
 }
 
 func IsColumnRefLike(expr Expr) bool {
-	switch expr.(type) {
+	switch exprTyped := expr.(type) {
 	case ColumnRef:
 		return true
 	case FunctionExpr:
-		return expr.(FunctionExpr).IsColumnRefLike
+		return exprTyped.IsColumnRefLike
 	case InfixExpr:
-		return expr.(InfixExpr).IsColumnRefLike
+		return exprTyped.IsColumnRefLike
 	default:
 		return false
 	}
