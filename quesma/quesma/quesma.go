@@ -199,7 +199,11 @@ func (r *router) reroute(ctx context.Context, w http.ResponseWriter, req *http.R
 				sendElkResponseToQuesmaConsole(ctx, elkRawResponse, r.quesmaManagementConsole)
 			}
 			if !(elkResponse.StatusCode >= 200 && elkResponse.StatusCode < 300) {
-				logger.WarnWithCtx(ctx).Msgf("Elasticsearch returned unexpected status code [%d] when calling [%s %s]", elkResponse.StatusCode, req.Method, req.URL.Path)
+
+				// elastic respond with 400 status code for our async search queries
+				if !(elkResponse.StatusCode == 400 && strings.HasPrefix(req.URL.Path, "/_async_search/quesma_async_")) {
+					logger.WarnWithCtx(ctx).Msgf("Elasticsearch returned unexpected status code [%d] when calling [%s %s]", elkResponse.StatusCode, req.Method, req.URL.Path)
+				}
 			}
 		}
 

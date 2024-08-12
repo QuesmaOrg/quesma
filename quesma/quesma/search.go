@@ -149,7 +149,6 @@ type AsyncQuery struct {
 	startTime        time.Time
 }
 
-
 func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.ExecutionPlan, table *clickhouse.Table) {
 	var err error
 	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
@@ -215,11 +214,11 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	sendMainPlanResult := func(responseBody []byte, err error) {
 		if optComparePlansCh != nil {
 			optComparePlansCh <- executionPlanResult{
-
+				isMain:       true,
 				plan:         plan,
 				err:          err,
-				isMain:       true,
 				responseBody: responseBody,
+				endTime:      time.Now(),
 			}
 		}
 	}

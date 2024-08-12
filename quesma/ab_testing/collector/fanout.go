@@ -28,8 +28,6 @@ func (t *elasticSearchFanout) process(in EnrichedResults) (out EnrichedResults, 
 
 	// TODO collect and send in bulk every 10 seconds or 1000 records for example
 
-	fmt.Println("XXXXXX A/B ElasticSearch FANOUT", in)
-
 	logBytes := []byte{}
 
 	bulkJson := fmt.Sprintf("{\"index\":{\"_index\":\"%s\"}}\n", t.indexName)

@@ -62,6 +62,10 @@ func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessa
 
 	// TODO read config here
 
+	// avoid unused struct error
+	var _ = &ppPrintFanout{}
+	var _ = &mismatchedOnlyFilter{}
+
 	return &InMemoryCollector{
 		receiveQueue: make(chan ab_testing.Result, 1000),
 		ctx:          ctx,
@@ -70,8 +74,8 @@ func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessa
 			&probabilisticSampler{ratio: 1},
 			&deAsyncResponse{},
 			&diffTransformer{},
-			&ppPrintFanout{},
-			&mismatchedOnlyFilter{},
+			//&ppPrintFanout{},
+			//&mismatchedOnlyFilter{},
 			&elasticSearchFanout{
 				url:       "http://localhost:8080",
 				indexName: "ab_testing_logs",
