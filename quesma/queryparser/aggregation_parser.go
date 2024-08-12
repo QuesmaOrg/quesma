@@ -285,7 +285,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "cardinality":
 		query.Type = metrics_aggregations.NewCardinality(b.ctx)
 	case "quantile":
-		query.Type = metrics_aggregations.NewQuantile(b.ctx, metricsAggr.Keyed, metricsAggr.FieldType)
+		query.Type = metrics_aggregations.NewQuantile(b.ctx, util.MapKeysSortedByValue(metricsAggr.Percentiles), metricsAggr.Keyed, metricsAggr.FieldType)
 	case "top_hits":
 		query.Type = metrics_aggregations.NewTopHits(b.ctx)
 	case "top_metrics":

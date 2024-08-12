@@ -56,9 +56,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if dateRange(test.TestName) {
 				t.Skip("Fix date range")
 			}
-			if percentiles(test.TestName) {
-				t.Skip("Fix percentiles")
-			}
 			if percentileRanks(test.TestName) {
 				t.Skip("Fix percentile ranks")
 			}
@@ -174,7 +171,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 
 // TODO remove after fix
 func Range(testName string) bool {
-	t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Heat Map -> Metrics: Median, Buckets: X-Asis Range" // also percentiles
+	t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Heat Map -> Metrics: Median, Buckets: X-Asis Range"
 	t2 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Sum, Buckets: Aggregation: Range"
 	t3 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range"
 	t4 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Unique Count, Buckets: Aggregation: Range"
@@ -188,15 +185,6 @@ func dateRange(testName string) bool {
 	return t1
 }
 
-// TODO remove after fix
-func percentiles(testName string) bool {
-	t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Heat Map -> Metrics: Median, Buckets: X-Asis Range" // also range
-	t2 := testName == "Percentiles on DateTime field. Reproduce: Visualize -> Line: Metrics -> Percentiles (or Median, it's the same aggregation) @timestamp, Buckets: Add X-Asis, Aggregation: Significant Terms"
-	t3 := testName == "Field statistics > summary for numeric fields" // also filter
-	return t1 || t2 || t3
-}
-
-// TODO remove after fix
 func percentileRanks(testName string) bool {
 	return testName == "Percentile_ranks keyed=false. Reproduce: Visualize -> Line -> Metrics: Percentile Ranks, Buckets: X-Asis Date Histogram"
 }
