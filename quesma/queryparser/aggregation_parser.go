@@ -470,7 +470,7 @@ func (cw *ClickhouseQueryTranslator) parseAggregation(prevAggr *aggrQueryBuilder
 		cte.SelectCommand.WhereClause = currentAggr.whereBuilder.WhereClause
 		cte.SelectCommand.Columns = append(cte.SelectCommand.Columns,
 			model.NewAliasedExpr(terms.OrderByExpr, fmt.Sprintf("cte_%d_cnt", len(currentAggr.SelectCommand.CTEs)+1))) // FIXME unify this name creation with one in model/expr_as_string
-		cte.SelectCommand.CTEs = nil                                                                                   // CTEs don't have CTEs themselves (so far, maybe that'll need to change)
+		cte.SelectCommand.CTEs = nil // CTEs don't have CTEs themselves (so far, maybe that'll need to change)
 		if len(cte.SelectCommand.OrderBy) > 2 {
 			// we can reduce nr of ORDER BYs in CTEs. Last 2 seem to be always enough. Proper ordering is done anyway in the outer SELECT.
 			cte.SelectCommand.OrderBy = cte.SelectCommand.OrderBy[len(cte.SelectCommand.OrderBy)-2:]
