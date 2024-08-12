@@ -569,7 +569,7 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 	return config, nil
 }
 
-func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []types.JSON, transformer jsonprocessor.IngestTransformer, tableFormatter TableColumNameFormatter) error {
+func (lm *LogManager) processInsertQuery(ctx context.Context, tableName string, jsonData []types.JSON, transformer jsonprocessor.IngestTransformer, tableFormatter TableColumNameFormatter) error {
 	// this is pre ingest transformer
 	// here we transform the data before it's structure evaluation and insertion
 	//
@@ -589,7 +589,10 @@ func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, 
 		return err
 	}
 	return lm.Insert(ctx, tableName, jsonData, tableConfig, transformer)
+}
 
+func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []types.JSON, transformer jsonprocessor.IngestTransformer, tableFormatter TableColumNameFormatter) error {
+	return lm.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter)
 }
 
 // This function removes fields that are part of anotherDoc from inputDoc
@@ -607,6 +610,17 @@ func (lm *LogManager) execute(ctx context.Context, query string) error {
 	_, err := lm.chDb.ExecContext(ctx, query)
 	span.End(err)
 	return err
+}
+
+func (lm *LogManager) executeStatements(ctx context.Context, queries []string) error {
+	for _, q := range queries {
+		err := lm.execute(ctx, q)
+		if err != nil {
+			logger.ErrorWithCtx(ctx).Msgf("error executing query: %v", err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON,
@@ -647,19 +661,10 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertValues)
 
-	for _, alter := range alterCmd {
-		err := lm.execute(ctx, alter)
-		if err != nil {
-			return end_user_errors.GuessClickhouseErrorType(err).InternalDetails("alter table '%s' failed", tableName)
-		}
-	}
-
-	err := lm.execute(ctx, insert)
-	if err != nil {
-		return end_user_errors.GuessClickhouseErrorType(err).InternalDetails("insert into table '%s' failed", tableName)
-	} else {
-		return nil
-	}
+	var statements []string
+	statements = append(statements, alterCmd...)
+	statements = append(statements, insert)
+	return lm.executeStatements(ctx, statements)
 }
 
 func (lm *LogManager) FindTable(tableName string) (result *Table) {
