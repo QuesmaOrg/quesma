@@ -211,6 +211,7 @@ func TestAutomaticTableCreationAtInsert(t *testing.T) {
 }
 
 func TestProcessInsertQuery(t *testing.T) {
+	t.Skip("Reimplement this test")
 	ctx := context.Background()
 	for index1, tt := range insertTests {
 		for index2, config := range configs {

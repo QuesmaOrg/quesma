@@ -250,7 +250,9 @@ func NewType(value any) Type {
 	case map[string]interface{}:
 		cols := make([]*Column, len(valueCasted))
 		for k, v := range valueCasted {
-			cols = append(cols, &Column{Name: k, Type: NewType(v), Codec: Codec{Name: ""}})
+			if v != nil {
+				cols = append(cols, &Column{Name: k, Type: NewType(v), Codec: Codec{Name: ""}})
+			}
 		}
 		return MultiValueType{Name: "Tuple", Cols: cols}
 	case []interface{}:

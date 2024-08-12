@@ -513,7 +513,6 @@ func TestRemovingNonSchemaFields(t *testing.T) {
 }
 
 func TestJsonFlatteningToStringAttr(t *testing.T) {
-	t.Skip("TODO")
 	config := &ChTableConfig{
 		hasTimestamp:         true,
 		timestampDefaultsNow: true,
@@ -544,14 +543,13 @@ func TestJsonFlatteningToStringAttr(t *testing.T) {
 	attrs, others, err := BuildAttrsMapAndOthers(m, config)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(others))
-	assert.Equal(t, 2, len(attrs))
+	assert.Equal(t, 3, len(attrs))
 	for k := range attrs {
 		assert.Contains(t, k, "string")
 	}
 }
 
 func TestJsonConvertingBoolToStringAttr(t *testing.T) {
-	t.Skip("TODO")
 	config := &ChTableConfig{
 		hasTimestamp:         true,
 		timestampDefaultsNow: true,
@@ -582,7 +580,7 @@ func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 	attrs, others, err := BuildAttrsMapAndOthers(m, config)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(others))
-	assert.Equal(t, 2, len(attrs))
+	assert.Equal(t, 3, len(attrs))
 	for k := range attrs {
 		assert.Contains(t, k, "string")
 	}

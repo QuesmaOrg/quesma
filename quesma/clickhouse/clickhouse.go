@@ -644,6 +644,9 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 		"date_time_input_format": "best_effort",
 	}))
 
+	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
+	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertValues)
+
 	for _, alter := range alterCmd {
 		err := lm.execute(ctx, alter)
 		if err != nil {
@@ -651,9 +654,6 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 		}
 	}
 
-	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
-
-	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertValues)
 	err := lm.execute(ctx, insert)
 	if err != nil {
 		return end_user_errors.GuessClickhouseErrorType(err).InternalDetails("insert into table '%s' failed", tableName)
