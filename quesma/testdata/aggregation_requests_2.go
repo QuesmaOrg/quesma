@@ -658,6 +658,973 @@ var AggregationTests2 = []AggregationTestCase{
 			LIMIT 4`,
 	},
 	{ // [44]
+		TestName: "2x terms with nulls 1/4, nulls in second aggregation, with missing parameter",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"8": {
+							"terms": {
+								"field": "limbName",
+								"missing": "__missing__",
+								"size": 20
+							}
+						}
+					},
+					"terms": {
+						"field": "surname",
+						"shard_size": 1000,
+						"size": 200
+					}
+				}
+			},
+			"fields": [],
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1720352002293,
+			"expiration_time_in_millis": 1720352062445,
+			"id": "FnpTUXdfTTZLUlBtQVo1YzBTVFBseEEcM19IaHdFWG5RN1d1eV9VaUcxenYwdzo0MTc0MA==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"2": {
+						"buckets": [
+							{
+								"8": {
+									"buckets": [
+										{
+											"doc_count": 21,
+											"key": "__missing__"
+										},
+										{
+											"doc_count": 24,
+											"key": "b12"
+										}
+									],
+									"doc_count_error_upper_bound": -1,
+									"sum_other_doc_count": 504
+								},
+								"doc_count": 1036,
+								"key": "a1"
+							},
+							{
+								"8": {
+									"buckets": [
+										{
+											"doc_count": 17,
+											"key": "b21"
+										},
+										{
+											"doc_count": 17,
+											"key": "__missing__"
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 0
+								},
+								"doc_count": 34,
+								"key": "a2"
+							}
+						],
+						"doc_count_error_upper_bound": -1,
+						"sum_other_doc_count": 33220
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 50427
+					}
+				},
+				"timed_out": false,
+				"took": 554
+			},
+			"start_time_in_millis": 1720352001739
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "__missing__"),
+					model.NewQueryResultCol("count()", 21),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("count()", 24),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "__missing__"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("count()", 1036),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("count()", 34),
+				}},
+			},
+		},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a1"),
+				model.NewQueryResultCol("aggr__2__count_1", 1036),
+				model.NewQueryResultCol("aggr__2__order_1", 1036),
+				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 21),
+				model.NewQueryResultCol("aggr__2__8__order_1", 21),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a1"),
+				model.NewQueryResultCol("aggr__2__count_1", 1036),
+				model.NewQueryResultCol("aggr__2__order_1", 1036),
+				model.NewQueryResultCol("aggr__2__8__key_0", "b12"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 24),
+				model.NewQueryResultCol("aggr__2__8__order_1", 24),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a2"),
+				model.NewQueryResultCol("aggr__2__count_1", 34),
+				model.NewQueryResultCol("aggr__2__order_1", 34),
+				model.NewQueryResultCol("aggr__2__8__key_0", "b21"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 17),
+				model.NewQueryResultCol("aggr__2__8__order_1", 17),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a2"),
+				model.NewQueryResultCol("aggr__2__count_1", 34),
+				model.NewQueryResultCol("aggr__2__order_1", 34),
+				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 17),
+				model.NewQueryResultCol("aggr__2__8__order_1", 17),
+			}},
+		},
+		ExpectedSQLs: []string{
+			`WITH cte_1 AS (` +
+				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM "logs-generic-default" ` +
+				`WHERE "surname" IS NOT NULL ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200) ` +
+				`SELECT "surname", COALESCE("limbName",'__missing__'), count() ` +
+				`FROM "logs-generic-default" INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`WHERE "surname" IS NOT NULL ` +
+				`GROUP BY "surname", COALESCE("limbName",'__missing__'), cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, COALESCE("limbName",'__missing__') ` +
+				`LIMIT 20 BY "surname"`,
+			`SELECT "surname", count() ` +
+				`FROM "logs-generic-default" ` +
+				`WHERE "surname" IS NOT NULL ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200`,
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+			  "aggr__2__8__key_0", "aggr__2__8__count", "aggr__2__8__order_1"
+			FROM (
+			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+				"aggr__2__8__key_0", "aggr__2__8__count", "aggr__2__8__order_1",
+				dense_rank() OVER (PARTITION BY 1
+			  ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__2__key_0"
+			  ORDER BY "aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
+				"aggr__2__8__order_1_rank"
+			  FROM (
+				SELECT "surname" AS "aggr__2__key_0", sum("aggr__2__count_part") OVER
+				  (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  sum("aggr__2__order_1_part") OVER (PARTITION BY "aggr__2__key_0") AS
+				  "aggr__2__order_1", COALESCE("limbName",'__missing__') AS
+				  "aggr__2__8__key_0", count(*) AS "aggr__2__8__count", count() AS
+				  "aggr__2__8__order_1", count(*) AS "aggr__2__count_part", count() AS
+				  "aggr__2__order_1_part"
+				FROM "logs-generic-default"
+				GROUP BY "surname" AS "aggr__2__key_0", COALESCE("limbName",'__missing__')
+				  AS "aggr__2__8__key_0"))
+			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=20)
+			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
+	},
+	{ // [45]
+		TestName: "2x terms with nulls 2/4, nulls in the second aggregation, but no missing parameter",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"8": {
+							"terms": {
+								"field": "limbName",
+								"size": 20
+							}
+						}
+					},
+					"terms": {
+						"field": "surname",
+						"shard_size": 1000,
+						"size": 200
+					}
+				}
+			},
+			"fields": [],
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1720352002293,
+			"expiration_time_in_millis": 1720352062445,
+			"id": "FnpTUXdfTTZLUlBtQVo1YzBTVFBseEEcM19IaHdFWG5RN1d1eV9VaUcxenYwdzo0MTc0MA==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"2": {
+						"buckets": [
+							{
+								"8": {
+									"buckets": [
+										{
+											"doc_count": 21,
+											"key": "b11"
+										},
+										{
+											"doc_count": 24,
+											"key": "b12"
+										}
+									],
+									"doc_count_error_upper_bound": -1,
+									"sum_other_doc_count": 504
+								},
+								"doc_count": 1036,
+								"key": "a1"
+							},
+							{
+								"8": {
+									"buckets": [
+										{
+											"doc_count": 17,
+											"key": "b21"
+										},
+										{
+											"doc_count": 17,
+											"key": "b22"
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 0
+								},
+								"doc_count": 34,
+								"key": "a2"
+							},
+							{
+								"8": {
+									"buckets": [
+										{
+											"doc_count": 17,
+											"key": "b31"
+										},
+										{
+											"doc_count": 17,
+											"key": "b32"
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 0
+								},
+								"doc_count": 34,
+								"key": "a3"
+							}
+						],
+						"doc_count_error_upper_bound": -1,
+						"sum_other_doc_count": 33220
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 50427
+					}
+				},
+				"timed_out": false,
+				"took": 554
+			},
+			"start_time_in_millis": 1720352001739
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("count()", 21),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("count()", 24),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a3"),
+					model.NewQueryResultCol("limbName", "b31"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a3"),
+					model.NewQueryResultCol("limbName", "b32"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("count()", 1036),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("count()", 34),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a3"),
+					model.NewQueryResultCol("count()", 34),
+				}},
+			},
+		},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			// nil in the middle
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a1"),
+				model.NewQueryResultCol("aggr__2__count_1", 1036),
+				model.NewQueryResultCol("aggr__2__order_1", 1036),
+				model.NewQueryResultCol("aggr__2__8__key_0", "b11"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 21),
+				model.NewQueryResultCol("aggr__2__8__order_1", 21),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a1"),
+				model.NewQueryResultCol("aggr__2__count_1", 1036),
+				model.NewQueryResultCol("aggr__2__order_1", 1036),
+				model.NewQueryResultCol("aggr__2__8__key_0", nil),
+				model.NewQueryResultCol("aggr__2__8__count_1", 17),
+				model.NewQueryResultCol("aggr__2__8__order_1", 17),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a1"),
+				model.NewQueryResultCol("aggr__2__count_1", 1036),
+				model.NewQueryResultCol("aggr__2__order_1", 1036),
+				model.NewQueryResultCol("aggr__2__8__key_0", "b12"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 24),
+				model.NewQueryResultCol("aggr__2__8__order_1", 24),
+			}},
+			// nil at the beginning
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a2"),
+				model.NewQueryResultCol("aggr__2__count_1", 34),
+				model.NewQueryResultCol("aggr__2__order_1", 34),
+				model.NewQueryResultCol("aggr__2__8__key_0", nil),
+				model.NewQueryResultCol("aggr__2__8__count_1", 57),
+				model.NewQueryResultCol("aggr__2__8__order_1", 57),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a2"),
+				model.NewQueryResultCol("aggr__2__count_1", 34),
+				model.NewQueryResultCol("aggr__2__order_1", 34),
+				model.NewQueryResultCol("aggr__2__8__key_0", "b21"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 17),
+				model.NewQueryResultCol("aggr__2__8__order_1", 17),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a2"),
+				model.NewQueryResultCol("aggr__2__count_1", 34),
+				model.NewQueryResultCol("aggr__2__order_1", 34),
+				model.NewQueryResultCol("aggr__2__8__key_0", "b22"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 17),
+				model.NewQueryResultCol("aggr__2__8__order_1", 17),
+			}},
+			// nil at the end
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a3"),
+				model.NewQueryResultCol("aggr__2__count_1", 34),
+				model.NewQueryResultCol("aggr__2__order_1", 34),
+				model.NewQueryResultCol("aggr__2__8__key_0", "b31"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 17),
+				model.NewQueryResultCol("aggr__2__8__order_1", 17),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a3"),
+				model.NewQueryResultCol("aggr__2__count_1", 34),
+				model.NewQueryResultCol("aggr__2__order_1", 34),
+				model.NewQueryResultCol("aggr__2__8__key_0", "b32"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 17),
+				model.NewQueryResultCol("aggr__2__8__order_1", 17),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a3"),
+				model.NewQueryResultCol("aggr__2__count_1", 34),
+				model.NewQueryResultCol("aggr__2__order_1", 34),
+				model.NewQueryResultCol("aggr__2__8__key_0", nil),
+				model.NewQueryResultCol("aggr__2__8__count_1", 17),
+				model.NewQueryResultCol("aggr__2__8__order_1", 17),
+			}},
+		},
+		ExpectedSQLs: []string{
+			`WITH cte_1 AS (` +
+				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM "logs-generic-default" ` +
+				`WHERE "surname" IS NOT NULL ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200) ` +
+				`SELECT "surname", "limbName", count() ` +
+				`FROM "logs-generic-default" INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`WHERE ("surname" IS NOT NULL AND "limbName" IS NOT NULL) ` +
+				`GROUP BY "surname", "limbName", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, "limbName" ` +
+				`LIMIT 20 BY "surname"`,
+			`SELECT "surname", count() ` +
+				`FROM "logs-generic-default" ` +
+				`WHERE "surname" IS NOT NULL ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200`,
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+			  "aggr__2__8__key_0", "aggr__2__8__count", "aggr__2__8__order_1"
+			FROM (
+			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+				"aggr__2__8__key_0", "aggr__2__8__count", "aggr__2__8__order_1",
+			    dense_rank() OVER (PARTITION BY 1
+			  ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__2__key_0"
+			  ORDER BY "aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
+				"aggr__2__8__order_1_rank"
+			  FROM (
+				SELECT "surname" AS "aggr__2__key_0", sum("aggr__2__count_part") OVER
+				  (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  sum("aggr__2__order_1_part") OVER (PARTITION BY "aggr__2__key_0") AS
+				  "aggr__2__order_1", "limbName" AS "aggr__2__8__key_0", count(*) AS
+				  "aggr__2__8__count", count() AS "aggr__2__8__order_1", count(*) AS
+				  "aggr__2__count_part", count() AS "aggr__2__order_1_part"
+				FROM "logs-generic-default"
+				GROUP BY "surname" AS "aggr__2__key_0", "limbName" AS "aggr__2__8__key_0"))
+			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=21)
+			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
+	},
+	{ // [46]
+		TestName: "2x terms with nulls 3/4, nulls in the first aggregation, with missing parameter",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"8": {
+							"terms": {
+								"field": "limbName",
+								"missing": "__missing__",
+								"size": 20
+							}
+						}
+					},
+					"terms": {
+						"field": "surname",
+						"shard_size": 1000,
+						"missing": "miss",
+						"size": 200
+					}
+				}
+			},
+			"fields": [],
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1720352002293,
+			"expiration_time_in_millis": 1720352062445,
+			"id": "FnpTUXdfTTZLUlBtQVo1YzBTVFBseEEcM19IaHdFWG5RN1d1eV9VaUcxenYwdzo0MTc0MA==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"2": {
+						"buckets": [
+							{
+								"8": {
+									"buckets": [
+										{
+											"doc_count": 21,
+											"key": "__missing__"
+										},
+										{
+											"doc_count": 24,
+											"key": "b12"
+										}
+									],
+									"doc_count_error_upper_bound": -1,
+									"sum_other_doc_count": 504
+								},
+								"doc_count": 1036,
+								"key": "miss"
+							},
+							{
+								"8": {
+									"buckets": [
+										{
+											"doc_count": 17,
+											"key": "b21"
+										},
+										{
+											"doc_count": 17,
+											"key": "__missing__"
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 0
+								},
+								"doc_count": 34,
+								"key": "a2"
+							}
+						],
+						"doc_count_error_upper_bound": -1,
+						"sum_other_doc_count": 33220
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 50427
+					}
+				},
+				"timed_out": false,
+				"took": 554
+			},
+			"start_time_in_millis": 1720352001739
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "miss"),
+					model.NewQueryResultCol("limbName", "__missing__"),
+					model.NewQueryResultCol("count()", 21),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "miss"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("count()", 24),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "__missing__"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "miss"),
+					model.NewQueryResultCol("count()", 1036),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("count()", 34),
+				}},
+			},
+		},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "miss"),
+				model.NewQueryResultCol("aggr__2__count_1", 1036),
+				model.NewQueryResultCol("aggr__2__order_1", 1036),
+				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 21),
+				model.NewQueryResultCol("aggr__2__8__order_1", 21),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "miss"),
+				model.NewQueryResultCol("aggr__2__count_1", 1036),
+				model.NewQueryResultCol("aggr__2__order_1", 1036),
+				model.NewQueryResultCol("aggr__2__8__key_0", "b12"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 24),
+				model.NewQueryResultCol("aggr__2__8__order_1", 24),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a2"),
+				model.NewQueryResultCol("aggr__2__count_1", 34),
+				model.NewQueryResultCol("aggr__2__order_1", 34),
+				model.NewQueryResultCol("aggr__2__8__key_0", "b21"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 17),
+				model.NewQueryResultCol("aggr__2__8__order_1", 17),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a2"),
+				model.NewQueryResultCol("aggr__2__count_1", 34),
+				model.NewQueryResultCol("aggr__2__order_1", 34),
+				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 17),
+				model.NewQueryResultCol("aggr__2__8__order_1", 17),
+			}},
+		},
+		ExpectedSQLs: []string{
+			`WITH cte_1 AS (` +
+				`SELECT COALESCE("surname",'miss') AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM "logs-generic-default" ` +
+				`GROUP BY COALESCE("surname",'miss') ` +
+				`ORDER BY count() DESC, COALESCE("surname",'miss') ` +
+				`LIMIT 200) ` +
+				`SELECT COALESCE("surname",'miss'), COALESCE("limbName",'__missing__'), count() ` +
+				`FROM "logs-generic-default" INNER JOIN "cte_1" ON COALESCE("surname",'miss') = "cte_1_1" ` +
+				`GROUP BY COALESCE("surname",'miss'), COALESCE("limbName",'__missing__'), cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, COALESCE("surname",'miss'), count() DESC, COALESCE("limbName",'__missing__') ` +
+				`LIMIT 20 BY COALESCE("surname",'miss')`,
+			`SELECT COALESCE("surname",'miss'), count() ` +
+				`FROM "logs-generic-default" ` +
+				`GROUP BY COALESCE("surname",'miss') ` +
+				`ORDER BY count() DESC, COALESCE("surname",'miss') ` +
+				`LIMIT 200`,
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+			  "aggr__2__8__key_0", "aggr__2__8__count", "aggr__2__8__order_1"
+			FROM (
+			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+				"aggr__2__8__key_0", "aggr__2__8__count", "aggr__2__8__order_1",
+				dense_rank() OVER (PARTITION BY 1
+			  ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__2__key_0"
+			  ORDER BY "aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
+				"aggr__2__8__order_1_rank"
+			  FROM (
+				SELECT COALESCE("surname",'miss') AS "aggr__2__key_0",
+				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
+				  "aggr__2__count", sum("aggr__2__order_1_part") OVER (PARTITION BY
+				  "aggr__2__key_0") AS "aggr__2__order_1", COALESCE("limbName",'__missing__')
+				  AS "aggr__2__8__key_0", count(*) AS "aggr__2__8__count", count() AS
+				  "aggr__2__8__order_1", count(*) AS "aggr__2__count_part", count() AS
+				  "aggr__2__order_1_part"
+				FROM "logs-generic-default"
+				GROUP BY COALESCE("surname",'miss') AS "aggr__2__key_0",
+				  COALESCE("limbName",'__missing__') AS "aggr__2__8__key_0"))
+			WHERE ("aggr__2__order_1_rank"<=200 AND "aggr__2__8__order_1_rank"<=20)
+			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
+	},
+	{ // [47]
+		TestName: "2x terms with nulls 4/4, nulls in the first aggregation, without missing parameter",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"8": {
+							"terms": {
+								"field": "limbName",
+								"size": 20
+							}
+						}
+					},
+					"terms": {
+						"field": "surname",
+						"shard_size": 1000,
+						"size": 200
+					}
+				}
+			},
+			"fields": [],
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": false
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1720352002293,
+			"expiration_time_in_millis": 1720352062445,
+			"id": "FnpTUXdfTTZLUlBtQVo1YzBTVFBseEEcM19IaHdFWG5RN1d1eV9VaUcxenYwdzo0MTc0MA==",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"2": {
+						"buckets": [
+							{
+								"8": {
+									"buckets": [
+										{
+											"doc_count": 21,
+											"key": "b11"
+										},
+										{
+											"doc_count": 24,
+											"key": "b12"
+										}
+									],
+									"doc_count_error_upper_bound": -1,
+									"sum_other_doc_count": 504
+								},
+								"doc_count": 1036,
+								"key": "a1"
+							},
+							{
+								"8": {
+									"buckets": [
+										{
+											"doc_count": 17,
+											"key": "b21"
+										},
+										{
+											"doc_count": 17,
+											"key": "b22"
+										}
+									],
+									"doc_count_error_upper_bound": 0,
+									"sum_other_doc_count": 0
+								},
+								"doc_count": 34,
+								"key": "a2"
+							}
+						],
+						"doc_count_error_upper_bound": -1,
+						"sum_other_doc_count": 33220
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 50427
+					}
+				},
+				"timed_out": false,
+				"took": 554
+			},
+			"start_time_in_millis": 1720352001739
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b11"),
+					model.NewQueryResultCol("count()", 21),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("limbName", "b12"),
+					model.NewQueryResultCol("count()", 24),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b21"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("limbName", "b22"),
+					model.NewQueryResultCol("count()", 17),
+				}},
+			},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a1"),
+					model.NewQueryResultCol("count()", 1036),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("surname", "a2"),
+					model.NewQueryResultCol("count()", 34),
+				}},
+			},
+		},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a1"),
+				model.NewQueryResultCol("aggr__2__count_1", 1036),
+				model.NewQueryResultCol("aggr__2__order_1", 1036),
+				model.NewQueryResultCol("aggr__2__8__key_0", "b11"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 21),
+				model.NewQueryResultCol("aggr__2__8__order_1", 21),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a1"),
+				model.NewQueryResultCol("aggr__2__count_1", 1036),
+				model.NewQueryResultCol("aggr__2__order_1", 1036),
+				model.NewQueryResultCol("aggr__2__8__key_0", "b12"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 24),
+				model.NewQueryResultCol("aggr__2__8__order_1", 24),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", nil),
+				model.NewQueryResultCol("aggr__2__count_1", 55),
+				model.NewQueryResultCol("aggr__2__order_1", 55),
+				model.NewQueryResultCol("aggr__2__8__key_0", "__missing__"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 21),
+				model.NewQueryResultCol("aggr__2__8__order_1", 21),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", nil),
+				model.NewQueryResultCol("aggr__2__count_1", 55),
+				model.NewQueryResultCol("aggr__2__order_1", 55),
+				model.NewQueryResultCol("aggr__2__8__key_0", "lala"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 21),
+				model.NewQueryResultCol("aggr__2__8__order_1", 21),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a2"),
+				model.NewQueryResultCol("aggr__2__count_1", 34),
+				model.NewQueryResultCol("aggr__2__order_1", 34),
+				model.NewQueryResultCol("aggr__2__8__key_0", "b21"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 17),
+				model.NewQueryResultCol("aggr__2__8__order_1", 17),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a2"),
+				model.NewQueryResultCol("aggr__2__count_1", 34),
+				model.NewQueryResultCol("aggr__2__order_1", 34),
+				model.NewQueryResultCol("aggr__2__8__key_0", nil),
+				model.NewQueryResultCol("aggr__2__8__count_1", 17),
+				model.NewQueryResultCol("aggr__2__8__order_1", 17),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "a2"),
+				model.NewQueryResultCol("aggr__2__count_1", 34),
+				model.NewQueryResultCol("aggr__2__order_1", 34),
+				model.NewQueryResultCol("aggr__2__8__key_0", "b22"),
+				model.NewQueryResultCol("aggr__2__8__count_1", 17),
+				model.NewQueryResultCol("aggr__2__8__order_1", 17),
+			}},
+		},
+		ExpectedSQLs: []string{
+			`WITH cte_1 AS (` +
+				`SELECT "surname" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM "logs-generic-default" ` +
+				`WHERE "surname" IS NOT NULL ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200) ` +
+				`SELECT "surname", "limbName", count() ` +
+				`FROM "logs-generic-default" INNER JOIN "cte_1" ON "surname" = "cte_1_1" ` +
+				`WHERE ("surname" IS NOT NULL AND "limbName" IS NOT NULL) ` +
+				`GROUP BY "surname", "limbName", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "surname", count() DESC, "limbName" ` +
+				`LIMIT 20 BY "surname"`,
+			`SELECT "surname", count() ` +
+				`FROM "logs-generic-default" ` +
+				`WHERE "surname" IS NOT NULL ` +
+				`GROUP BY "surname" ` +
+				`ORDER BY count() DESC, "surname" ` +
+				`LIMIT 200`,
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+			  "aggr__2__8__key_0", "aggr__2__8__count", "aggr__2__8__order_1"
+			FROM (
+			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+				"aggr__2__8__key_0", "aggr__2__8__count", "aggr__2__8__order_1",
+				dense_rank() OVER (PARTITION BY 1
+			  ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC) AS
+				"aggr__2__order_1_rank", dense_rank() OVER (PARTITION BY "aggr__2__key_0"
+			  ORDER BY "aggr__2__8__order_1" DESC, "aggr__2__8__key_0" ASC) AS
+				"aggr__2__8__order_1_rank"
+			  FROM (
+				SELECT "surname" AS "aggr__2__key_0", sum("aggr__2__count_part")
+				  OVER (PARTITION BY "aggr__2__key_0") AS "aggr__2__count",
+				  sum("aggr__2__order_1_part") OVER (PARTITION BY "aggr__2__key_0") AS
+				  "aggr__2__order_1", "limbName" AS "aggr__2__8__key_0", count(*) AS
+				  "aggr__2__8__count", count() AS "aggr__2__8__order_1", count(*) AS
+				  "aggr__2__count_part", count() AS "aggr__2__order_1_part"
+				FROM "logs-generic-default"
+				GROUP BY "surname" AS "aggr__2__key_0", "limbName" AS "aggr__2__8__key_0"))
+			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=21)
+			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
+	},
+	{ // [48]
 		TestName: "2x terms with sampler in the middle",
 		QueryRequestJson: `
 		{
@@ -918,7 +1885,7 @@ var AggregationTests2 = []AggregationTestCase{
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__5__order_1_rank"<=20)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__5__order_1_rank" ASC`,
 	},
-	{ // [45]
+	{ // [49]
 		TestName: "2x terms with random_sampler in the middle",
 		QueryRequestJson: `
 		{
