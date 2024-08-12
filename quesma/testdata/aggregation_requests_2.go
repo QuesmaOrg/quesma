@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Elastic-2.0
 package testdata
 
-import "quesma/model"
+import (
+	"quesma/model"
+	"quesma/util"
+	"time"
+)
 
 // Goland lags a lot when you edit aggregation_requests.go file, so let's add new tests to this one.
 
@@ -433,5 +437,224 @@ var AggregationTests2 = []AggregationTestCase{
 				`ORDER BY toInt64(toUnixTimestamp(toStartOfYear("@timestamp")))*1000`,
 		},
 		ExpectedPancakeSQL: "TODO",
+	},
+	{ // [43]
+		TestName: "Percentiles with another metric aggregation. It might get buggy after introducing pancakes.",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"aggs": {
+						"1": {
+							"percentiles": {
+								"field": "timestamp",
+								"keyed": false,
+								"percents": [1, 2]
+							}
+						},
+						"2": {
+							"sum": {
+								"field": "count"
+							}
+						}
+					},
+					"significant_terms": {
+						"field": "response.keyword",
+						"size": 3
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-04-18T00:51:15.845Z",
+									"lte": "2024-05-03T00:51:15.845Z"
+								}
+							}
+						}
+					],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"bg_count": 2786,
+					"buckets": [
+						{
+							"1": {
+								"values": [
+									{
+										"key": 1.0,
+										"value": 1713679873619.0,
+										"value_as_string": "2024-04-21T06:11:13.619Z"
+									},
+									{
+										"key": 2,
+										"value": 1713702073414.0,
+										"value_as_string": "2024-04-21T12:21:13.414Z"
+									}
+								]
+							},
+							"2": {
+								"value": 10
+							},
+							"bg_count": 2570,
+							"doc_count": 2570,
+							"key": "200",
+							"score": 2570
+						}
+					],
+					"doc_count": 2786,
+					"doc_count_error_upper_bound": 0
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 2786
+				}
+			},
+			"timed_out": false,
+			"took": 9
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("value", uint64(2786))}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("response", "200"),
+				model.NewQueryResultCol(`quantile_1`, []time.Time{util.ParseTime("2024-04-21T06:11:13.619Z")}),
+				model.NewQueryResultCol(`quantile_2`, []time.Time{util.ParseTime("2024-04-21T12:21:13.414Z")}),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("response", "200"),
+				model.NewQueryResultCol(`sumOrNull("count")`, 10),
+			}}},
+			{{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("response", "200"),
+				model.NewQueryResultCol(`doc_count`, 2570),
+			}}},
+		},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", "200"),
+				model.NewQueryResultCol("aggr__2__count", 2570),
+				model.NewQueryResultCol("aggr__2__order_1", 2570),
+				model.NewQueryResultCol("metric__2__1_col_0", []time.Time{util.ParseTime("2024-04-21T06:11:13.619Z")}),
+				model.NewQueryResultCol("metric__2__1_col_1", []time.Time{util.ParseTime("2024-04-21T12:21:13.414Z")}),
+				model.NewQueryResultCol("metric__2__2_col_0", 10),
+			}},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() FROM ` + QuotedTableName + ` ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))`,
+			`WITH cte_1 AS ` +
+				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
+				`AND "response" IS NOT NULL) ` +
+				`GROUP BY "response" ` +
+				`ORDER BY count() DESC, "response" ` +
+				`LIMIT 3) ` +
+				`SELECT "response", ` +
+				"quantiles(0.010000)(\"timestamp\") AS \"quantile_1\", " +
+				"quantiles(0.020000)(\"timestamp\") AS \"quantile_2\" " +
+				`FROM ` + QuotedTableName + ` ` +
+				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
+				`AND "response" IS NOT NULL) ` +
+				`GROUP BY "response", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "response"`,
+			`WITH cte_1 AS ` +
+				`(SELECT "response" AS "cte_1_1", count() AS "cte_1_cnt" ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
+				`AND "response" IS NOT NULL) ` +
+				`GROUP BY "response" ` +
+				`ORDER BY count() DESC, "response" ` +
+				`LIMIT 3) ` +
+				`SELECT "response", sumOrNull("count") ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`INNER JOIN "cte_1" ON "response" = "cte_1_1" ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
+				`AND "response" IS NOT NULL) ` +
+				`GROUP BY "response", cte_1_cnt ` +
+				`ORDER BY cte_1_cnt DESC, "response"`,
+			`SELECT "response", count() FROM ` + QuotedTableName + ` ` +
+				`WHERE (("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z')) ` +
+				`AND "response" IS NOT NULL) ` +
+				`GROUP BY "response" ` +
+				`ORDER BY count() DESC, "response" ` +
+				`LIMIT 3`,
+		},
+		ExpectedPancakeSQL: `
+			SELECT
+			  "response" AS "aggr__2__key_0",
+			  count(*) AS "aggr__2__count",
+			  count() AS "aggr__2__order_1",
+			  quantiles(0.010000)("timestamp") AS "quantile_1" AS "metric__2__1_col_0",
+			  quantiles(0.020000)("timestamp") AS "quantile_2" AS "metric__2__1_col_1",
+			  sumOrNull("count") AS "metric__2__2_col_0"
+			FROM "logs-generic-default"
+			WHERE ("timestamp">=parseDateTime64BestEffort('2024-04-18T00:51:15.845Z') AND
+			  "timestamp"<=parseDateTime64BestEffort('2024-05-03T00:51:15.845Z'))
+			GROUP BY "response" AS "aggr__2__key_0"
+			ORDER BY "aggr__2__order_1" DESC, "aggr__2__key_0" ASC
+			LIMIT 4`,
 	},
 }
