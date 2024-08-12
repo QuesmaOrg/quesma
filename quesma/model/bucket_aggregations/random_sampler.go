@@ -36,7 +36,5 @@ func (query RandomSampler) String() string {
 }
 
 func (query RandomSampler) GetSampleLimit() int {
-	return 5000
+	return 5000 // TODO temporary, to be fixed
 }
-
-// TODO test with (random)sampler in the middle of request tree
