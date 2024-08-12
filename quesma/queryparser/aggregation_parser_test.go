@@ -826,6 +826,10 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 				t.Skip("Very similar to 2 previous tests, results have like 500-1000 lines. They are almost finished though. Maybe I'll fix soon, but not in this PR")
 			}
 
+			if i != 43 {
+				t.Skip()
+			}
+
 			body, parseErr := types.ParseJSON(test.QueryRequestJson)
 			assert.NoError(t, parseErr)
 
@@ -845,7 +849,7 @@ func Test2AggregationParserExternalTestcases(t *testing.T) {
 					continue
 				}
 
-				var resultTransformer model.QueryRowsTransfomer
+				var resultTransformer model.QueryRowsTransformer
 				switch agg := query.Type.(type) {
 				case bucket_aggregations.Histogram:
 

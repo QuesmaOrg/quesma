@@ -103,7 +103,7 @@ func (cw *ClickhouseQueryTranslator) ParseQuery(body types.JSON) (*model.Executi
 	// we apply post query transformer for certain aggregation types
 	// this should be a part of the query parsing process
 
-	queryResultTransformers := make([]model.QueryRowsTransfomer, len(queries))
+	queryResultTransformers := make([]model.QueryRowsTransformer, len(queries))
 	for i, query := range queries {
 		switch agg := query.Type.(type) {
 		case bucket_aggregations.Histogram:

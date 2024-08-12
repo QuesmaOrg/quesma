@@ -5,7 +5,6 @@ package clickhouse
 import (
 	"fmt"
 	"quesma/logger"
-	"quesma/plugins"
 	"quesma/schema"
 	"quesma/util"
 	"slices"
@@ -21,7 +20,7 @@ type CreateTableEntry struct {
 
 // m: unmarshalled json from HTTP request
 // Returns nicely formatted string for CREATE TABLE command
-func FieldsMapToCreateTableString(m SchemaMap, config *ChTableConfig, nameFormatter plugins.TableColumNameFormatter, schemaMapping *schema.Schema) string {
+func FieldsMapToCreateTableString(m SchemaMap, config *ChTableConfig, nameFormatter TableColumNameFormatter, schemaMapping *schema.Schema) string {
 	var result strings.Builder
 
 	columnsFromJson := JsonToColumns("", m, 1, config, nameFormatter)
@@ -60,7 +59,7 @@ func FieldsMapToCreateTableString(m SchemaMap, config *ChTableConfig, nameFormat
 	return result.String()
 }
 
-func JsonToColumns(namespace string, m SchemaMap, indentLvl int, config *ChTableConfig, nameFormatter plugins.TableColumNameFormatter) []CreateTableEntry {
+func JsonToColumns(namespace string, m SchemaMap, indentLvl int, config *ChTableConfig, nameFormatter TableColumNameFormatter) []CreateTableEntry {
 	var resultColumns []CreateTableEntry
 
 	for name, value := range m {
@@ -110,7 +109,7 @@ func JsonToColumns(namespace string, m SchemaMap, indentLvl int, config *ChTable
 	return resultColumns
 }
 
-func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter plugins.TableColumNameFormatter) map[schema.FieldName]CreateTableEntry {
+func SchemaToColumns(schemaMapping *schema.Schema, nameFormatter TableColumNameFormatter) map[schema.FieldName]CreateTableEntry {
 	resultColumns := make(map[schema.FieldName]CreateTableEntry)
 
 	if schemaMapping == nil {
@@ -225,87 +224,6 @@ func DifferenceMap(sm SchemaMap, t *Table) SchemaMap {
 		}
 	}
 	return mDiff
-}
-
-func RemoveTypeMismatchSchemaFields(m SchemaMap, t *Table) SchemaMap {
-	handleType := func(col *Column, schema SchemaMap, value interface{}) {
-		kind, err := util.KindFromString(col.Type.String())
-		// All numbers in json are by default float type
-		// We don't want to filter out those that
-		// have empty decimal part
-		// "!isFloat64" -> to make e.g. string column with integer value fail, as it would in the actual insert
-		_, isFloat64 := value.(float64)
-		if err == nil && util.ValueKind(value) != kind && (!isFloat64 || !util.IsInt(value)) {
-			delete(schema, col.Name)
-		}
-	}
-	var descendRec func(_ *Column, _ SchemaMap)
-	descendRec = func(col *Column, mCur SchemaMap) {
-		switch columnType := col.Type.(type) {
-		case BaseType:
-			value := mCur[col.Name]
-			handleType(col, mCur, value)
-		case CompoundType:
-			multi, ok := columnType.BaseType.(MultiValueType)
-			if !ok {
-				return
-			}
-			for _, col := range multi.Cols {
-				value, ok := mCur[col.Name]
-				if ok {
-					handleType(col, mCur, value)
-					mCurNestedMap, ok := value.(SchemaMap)
-					if ok {
-						descendRec(col, mCurNestedMap)
-					}
-				}
-			}
-		case MultiValueType:
-			for _, col := range columnType.Cols {
-				value, ok := mCur[col.Name]
-				if ok {
-					handleType(col, mCur, value)
-					mCurNestedMap, ok := value.(SchemaMap)
-					if ok {
-						descendRec(col, mCurNestedMap)
-					}
-				}
-			}
-		}
-	}
-	for fieldName, v := range m {
-		col, ok := t.Cols[fieldName]
-		if ok && col != nil {
-			switch v := v.(type) {
-			case SchemaMap:
-				descendRec(col, v)
-
-			case []interface{}:
-				for _, arrayElement := range v {
-					vCasted, ok := arrayElement.(SchemaMap)
-					if ok {
-						descendRec(col, vCasted)
-					} else {
-						innerType, ok := col.Type.(CompoundType)
-						if ok {
-							handleType(col, m, arrayElement)
-							kind, err := util.KindFromString(innerType.BaseType.String())
-							valueKind := util.ValueKind(arrayElement)
-							if err == nil && valueKind != kind {
-								delete(m, fieldName)
-							}
-						}
-					}
-				}
-			case interface{}:
-				_, ok := col.Type.(BaseType)
-				if ok {
-					handleType(col, m, v)
-				}
-			}
-		}
-	}
-	return m
 }
 
 // removes fields from 'm' that are not in 't'

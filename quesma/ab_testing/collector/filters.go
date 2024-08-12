@@ -16,3 +16,15 @@ func (t *probabilisticSampler) process(in EnrichedResults) (out EnrichedResults,
 
 	return in, false, nil
 }
+
+type mismatchedOnlyFilter struct {
+}
+
+func (t *mismatchedOnlyFilter) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
+
+	if !in.Mismatch.IsMismatch {
+		return in, true, nil
+	}
+
+	return in, false, nil
+}

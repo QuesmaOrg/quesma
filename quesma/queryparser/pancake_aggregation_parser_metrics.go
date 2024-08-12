@@ -143,7 +143,7 @@ func generateMetricsType(ctx context.Context, metricsAggr metricsAggregation) mo
 	case "cardinality":
 		return metrics_aggregations.NewCardinality(ctx)
 	case "quantile":
-		return metrics_aggregations.NewQuantile(ctx, metricsAggr.Keyed, metricsAggr.FieldType)
+		return metrics_aggregations.NewQuantile(ctx, util.MapKeysSortedByValue(metricsAggr.Percentiles), metricsAggr.Keyed, metricsAggr.FieldType)
 	case "top_hits":
 		return metrics_aggregations.NewTopHits(ctx)
 	case "top_metrics":

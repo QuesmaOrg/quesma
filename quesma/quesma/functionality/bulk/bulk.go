@@ -10,8 +10,8 @@ import (
 	"io"
 	"net/http"
 	"quesma/clickhouse"
+	"quesma/jsonprocessor"
 	"quesma/logger"
-	"quesma/plugins/registry"
 	"quesma/queryparser"
 	"quesma/quesma/config"
 	"quesma/quesma/recovery"
@@ -204,12 +204,9 @@ func sendToClickhouse(ctx context.Context, clickhouseDocumentsToInsert map[strin
 				inserts[i] = document.document
 			}
 
-			nameFormatter, err := registry.TableColumNameFormatterFor(indexName, cfg, nil)
-			if err == nil {
-				tableMap, _ := lm.GetTableDefinitions()
-				transformer := registry.IngestTransformerFor(indexName, cfg, nil, tableMap)
-				err = lm.ProcessInsertQuery(ctx, indexName, inserts, transformer, nameFormatter)
-			}
+			nameFormatter := clickhouse.DefaultColumnNameFormatter()
+			transformer := jsonprocessor.IngestTransformerFor(indexName, cfg)
+			err := lm.ProcessInsertQuery(ctx, indexName, inserts, transformer, nameFormatter)
 
 			for _, document := range documents {
 				bulkSingleResponse := BulkSingleResponse{
