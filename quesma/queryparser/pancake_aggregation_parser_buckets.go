@@ -380,10 +380,27 @@ func (cw *ClickhouseQueryTranslator) pancakeFindMetricAggregation(queryMap Query
 }
 
 // sampler - in proper request should be of QueryMap type.
-func (cw *ClickhouseQueryTranslator) parseSampler(sampler any) bucket_aggregations.Sampler {
-	return bucket_aggregations.NewSampler(cw.Ctx, 100)
+func (cw *ClickhouseQueryTranslator) parseSampler(samplerRaw any) bucket_aggregations.Sampler {
+	const defaultSize = 100
+	sampler, ok := samplerRaw.(QueryMap)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("sampler is not a map, but %T, value: %v", samplerRaw, samplerRaw)
+		return bucket_aggregations.NewSampler(cw.Ctx, defaultSize)
+	}
+	return bucket_aggregations.NewSampler(cw.Ctx, cw.parseIntField(sampler, "shard_size", defaultSize))
 }
 
-func (cw *ClickhouseQueryTranslator) parseRandomSampler(randomSampler any) bucket_aggregations.RandomSampler {
-	return bucket_aggregations.NewRandomSampler(cw.Ctx, 0.5)
+func (cw *ClickhouseQueryTranslator) parseRandomSampler(randomSamplerRaw any) bucket_aggregations.RandomSampler {
+	const defaultProbability = 0.0 // theoretically it's required
+	const defaultSeed = 0
+	randomSampler, ok := randomSamplerRaw.(QueryMap)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("sampler is not a map, but %T, value: %v", randomSamplerRaw, randomSamplerRaw)
+		return bucket_aggregations.NewRandomSampler(cw.Ctx, defaultProbability, defaultSeed)
+	}
+	return bucket_aggregations.NewRandomSampler(
+		cw.Ctx,
+		cw.parseFloatField(randomSampler, "probability", defaultProbability),
+		cw.parseIntField(randomSampler, "seed", defaultSeed),
+	)
 }

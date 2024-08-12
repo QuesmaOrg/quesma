@@ -17,10 +17,11 @@ import (
 type RandomSampler struct {
 	ctx         context.Context
 	probability float64
+	seed        int
 }
 
-func NewRandomSampler(ctx context.Context, probability float64) RandomSampler {
-	return RandomSampler{ctx: ctx, probability: probability}
+func NewRandomSampler(ctx context.Context, probability float64, seed int) RandomSampler {
+	return RandomSampler{ctx: ctx, probability: probability, seed: seed}
 }
 
 func (query RandomSampler) AggregationType() model.AggregationType {

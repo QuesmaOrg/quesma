@@ -2359,7 +2359,7 @@ var AggregationTests = []AggregationTestCase{
 						}
 					},
 					"sampler": {
-						"shard_size": 5000
+						"shard_size": 2000
 					}
 				}
 			},

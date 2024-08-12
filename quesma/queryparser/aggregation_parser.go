@@ -1060,6 +1060,16 @@ func (cw *ClickhouseQueryTranslator) parseIntField(queryMap QueryMap, fieldName 
 	return defaultValue
 }
 
+func (cw *ClickhouseQueryTranslator) parseFloatField(queryMap QueryMap, fieldName string, defaultValue float64) float64 {
+	if valueRaw, exists := queryMap[fieldName]; exists {
+		if asFloat, ok := valueRaw.(float64); ok {
+			return asFloat
+		}
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not an float64, but %T, value: %v. Using default", fieldName, valueRaw, valueRaw)
+	}
+	return defaultValue
+}
+
 // parseFieldFieldMaybeScript is basically almost a copy of parseFieldField above, but it also handles a basic script, if "field" is missing.
 func (cw *ClickhouseQueryTranslator) parseFieldFieldMaybeScript(shouldBeMap any, aggregationType string) (field model.Expr, isFromScript bool) {
 	Map, ok := shouldBeMap.(QueryMap)
