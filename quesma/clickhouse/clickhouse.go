@@ -511,7 +511,6 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	// we only want to add fields that are not part of the schema e.g we don't
 	// have columns for them
 	alterCmd := lm.generateNewColumns(attrsMap, tableName)
-
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
 	// generating correct update query
@@ -535,7 +534,9 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 		nonSchemaStr += fmt.Sprintf(`"%s":%s`, othersFieldName, others)
 	}
 	onlySchemaFields := RemoveNonSchemaFields(m, t)
+
 	schemaFieldsJson, err = json.Marshal(onlySchemaFields)
+
 	if err != nil {
 		return "", nil, err
 	}
@@ -590,7 +591,7 @@ func (lm *LogManager) processInsertQuery(ctx context.Context, tableName string,
 	if err != nil {
 		return nil, err
 	}
-	return lm.Insert(ctx, tableName, jsonData, tableConfig, transformer)
+	return lm.GenerateSqlStatements(ctx, tableName, jsonData, tableConfig, transformer)
 }
 
 func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string,
@@ -635,7 +636,7 @@ func (lm *LogManager) executeStatements(ctx context.Context, queries []string) e
 	return nil
 }
 
-func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON,
+func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName string, jsons []types.JSON,
 	config *ChTableConfig, transformer jsonprocessor.IngestTransformer) ([]string, error) {
 	var jsonsReadyForInsertion []string
 	var alterCmd []string
