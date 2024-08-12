@@ -10,7 +10,7 @@ import (
 
 type Sampler struct {
 	ctx  context.Context
-	size int // "shard_size" from the request
+	size int // "shard_size" from the request. We do 'LIMIT size' in the SQL query (currently only if sampler is top-most aggregation)
 }
 
 func NewSampler(ctx context.Context, size int) Sampler {

@@ -181,6 +181,7 @@ func dateRange(testName string) bool {
 	return t1
 }
 
+// TODO remove after fix
 func percentileRanks(testName string) bool {
 	return testName == "Percentile_ranks keyed=false. Reproduce: Visualize -> Line -> Metrics: Percentile Ranks, Buckets: X-Asis Date Histogram"
 }

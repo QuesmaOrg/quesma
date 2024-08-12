@@ -379,7 +379,7 @@ func (cw *ClickhouseQueryTranslator) pancakeFindMetricAggregation(queryMap Query
 	return notFoundValue
 }
 
-// sampler - in proper request should be of QueryMap type.
+// samplerRaw - in a proper request should be of QueryMap type.
 func (cw *ClickhouseQueryTranslator) parseSampler(samplerRaw any) bucket_aggregations.Sampler {
 	const defaultSize = 100
 	sampler, ok := samplerRaw.(QueryMap)
@@ -390,6 +390,7 @@ func (cw *ClickhouseQueryTranslator) parseSampler(samplerRaw any) bucket_aggrega
 	return bucket_aggregations.NewSampler(cw.Ctx, cw.parseIntField(sampler, "shard_size", defaultSize))
 }
 
+// randomSamplerRaw - in a proper request should be of QueryMap type.
 func (cw *ClickhouseQueryTranslator) parseRandomSampler(randomSamplerRaw any) bucket_aggregations.RandomSampler {
 	const defaultProbability = 0.0 // theoretically it's required
 	const defaultSeed = 0

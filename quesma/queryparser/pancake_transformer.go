@@ -141,8 +141,6 @@ func (a *pancakeTransformer) aggregationTreeToPancake(topLevel pancakeAggregatio
 		})
 	}
 
-	fmt.Printf("First layer: %+v %+v", firstLayer, firstLayer.nextBucketAggregation)
-
 	sampleLimit := noSampleLimit
 	if firstLayer.nextBucketAggregation != nil {
 		if sampler, ok := firstLayer.nextBucketAggregation.queryType.(bucket_aggregations.SamplerInterface); ok {

@@ -1055,7 +1055,7 @@ func (cw *ClickhouseQueryTranslator) parseIntField(queryMap QueryMap, fieldName 
 		if asFloat, ok := valueRaw.(float64); ok {
 			return int(asFloat)
 		}
-		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not an float64, but %T, value: %v. Using default", fieldName, valueRaw, valueRaw)
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not an float64, but %T, value: %v. Using default: %d", fieldName, valueRaw, valueRaw, defaultValue)
 	}
 	return defaultValue
 }
@@ -1065,7 +1065,7 @@ func (cw *ClickhouseQueryTranslator) parseFloatField(queryMap QueryMap, fieldNam
 		if asFloat, ok := valueRaw.(float64); ok {
 			return asFloat
 		}
-		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not an float64, but %T, value: %v. Using default", fieldName, valueRaw, valueRaw)
+		logger.WarnWithCtx(cw.Ctx).Msgf("%s is not an float64, but %T, value: %v. Using default: %f", fieldName, valueRaw, valueRaw, defaultValue)
 	}
 	return defaultValue
 }
