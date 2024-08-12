@@ -4,7 +4,6 @@ package metrics_aggregations
 
 import (
 	"context"
-	"fmt"
 	"quesma/logger"
 	"quesma/model"
 	"strconv"
@@ -28,7 +27,6 @@ func (query PercentileRanks) AggregationType() model.AggregationType {
 }
 
 func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-	fmt.Println("percentile ranks", rows, level, query.percentiles)
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows in percentile ranks response")
 		return make(model.JsonMap, 0)
@@ -45,7 +43,7 @@ func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResult
 			dot := strings.Index(cutValue, ".")
 			if dot == -1 {
 				cutValue += ".0"
-			} else if len(cutValue)-dot >= len(".00") && cutValue[dot:dot+3] == ".00" {
+			} else if dot+len(".00") <= len(cutValue) && cutValue[dot:dot+3] == ".00" {
 				cutValue = cutValue[:dot+2]
 			} else {
 				cutValue = cutValue[:dot+3]
@@ -69,7 +67,7 @@ func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResult
 			dot := strings.Index(cutValue, ".")
 			if dot == -1 {
 				cutValue += ".0"
-			} else if len(cutValue)-dot >= len(".00") && cutValue[dot:dot+3] == ".00" {
+			} else if dot+len(".00") <= len(cutValue) && cutValue[dot:dot+3] == ".00" {
 				cutValue = cutValue[:dot+2]
 			} else {
 				cutValue = cutValue[:dot+3]
