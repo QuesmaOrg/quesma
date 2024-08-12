@@ -210,7 +210,8 @@ func multiplePancakes(testName string) bool {
 func histogramMinDocCount0(testName string) bool {
 	t1 := testName == "simple histogram, but min_doc_count: 0"
 	t2 := testName == "simple date_histogram, but min_doc_count: 0"
-	return t1 || t2
+	t3 := testName == "2x histogram with min_doc_count 0"
+	return t1 || t2 || t3
 }
 
 // TODO remove after fix

@@ -73,6 +73,7 @@ func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMet
 
 		if hasMoreBucketAggregations {
 			partColumnName := aliasedName + "_part"
+			fmt.Println("eh")
 			partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(column, metric.queryType)
 			if err != nil {
 				return nil, nil, err
@@ -127,9 +128,10 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 		orderBy := bucketAggregation.orderBy[0].Exprs[0]
 		orderByDirection := bucketAggregation.orderBy[0].Direction
 
-		_, isColumnRef := orderBy.(model.ColumnRef)
+		fmt.Printf("aa%+v\n", orderBy)
+		isColumnRefLike := model.IsColumnRefLike(orderBy)
 
-		if hasMoreBucketAggregations && !isColumnRef {
+		if hasMoreBucketAggregations && !isColumnRefLike {
 			partColumnName := bucketAggregation.InternalNameForOrderBy(columnId) + "_part"
 			partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderBy, nil)
 			if err != nil {

@@ -64,8 +64,9 @@ func NewArrayAccess(columnRef ColumnRef, index Expr) ArrayAccess {
 func (e ArrayAccess) Accept(v ExprVisitor) interface{} { return v.VisitArrayAccess(e) }
 
 type FunctionExpr struct {
-	Name string
-	Args []Expr
+	Name            string
+	Args            []Expr
+	IsColumnRefLike bool // ColumnRef + some simple operations, e.g. floor(column_ref_field)*200/200
 }
 
 func (e FunctionExpr) Accept(v ExprVisitor) interface{} {
@@ -101,9 +102,10 @@ func (e StringExpr) Accept(v ExprVisitor) interface{} {
 }
 
 type InfixExpr struct {
-	Left  Expr
-	Op    string
-	Right Expr
+	Left            Expr
+	Op              string
+	Right           Expr
+	IsColumnRefLike bool
 }
 
 func (e InfixExpr) Accept(v ExprVisitor) interface{} {
@@ -112,6 +114,10 @@ func (e InfixExpr) Accept(v ExprVisitor) interface{} {
 
 func NewFunction(name string, args ...Expr) FunctionExpr {
 	return FunctionExpr{Name: name, Args: args}
+}
+
+func NewFunctionColumnRefLike(name string, args ...Expr) FunctionExpr {
+	return FunctionExpr{Name: name, Args: args, IsColumnRefLike: true}
 }
 
 func NewCountFunc(args ...Expr) FunctionExpr {
@@ -191,7 +197,11 @@ func (o OrderByExpr) IsCountDesc() bool {
 }
 
 func NewInfixExpr(lhs Expr, operator string, rhs Expr) InfixExpr {
-	return InfixExpr{lhs, operator, rhs}
+	return InfixExpr{Left: lhs, Op: operator, Right: rhs}
+}
+
+func NewInfixExprColumnRefLike(lhs Expr, operator string, rhs Expr) InfixExpr {
+	return InfixExpr{Left: lhs, Op: operator, Right: rhs, IsColumnRefLike: true}
 }
 
 // AliasedExpr is an expression with an alias, e.g. `columnName AS alias` or `COUNT(x) AS sum_of_xs`
@@ -269,4 +279,17 @@ type ExprVisitor interface {
 	VisitWindowFunction(f WindowFunction) interface{}
 	VisitParenExpr(e ParenExpr) interface{}
 	VisitLambdaExpr(e LambdaExpr) interface{}
+}
+
+func IsColumnRefLike(expr Expr) bool {
+	switch expr.(type) {
+	case ColumnRef:
+		return true
+	case FunctionExpr:
+		return expr.(FunctionExpr).IsColumnRefLike
+	case InfixExpr:
+		return expr.(InfixExpr).IsColumnRefLike
+	default:
+		return false
+	}
 }
