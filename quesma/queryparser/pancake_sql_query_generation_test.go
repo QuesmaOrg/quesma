@@ -84,10 +84,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Skip("Fix value count")
 			}
 
-			if i != 19 {
-				//t.Skip()
-			}
-
 			fmt.Println("i:", i, "test:", test.TestName)
 
 			jsonp, err := types.ParseJSON(test.QueryRequestJson)
