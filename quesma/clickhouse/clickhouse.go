@@ -569,7 +569,9 @@ func (lm *LogManager) GetOrCreateTableConfig(ctx context.Context, tableName stri
 	return config, nil
 }
 
-func (lm *LogManager) processInsertQuery(ctx context.Context, tableName string, jsonData []types.JSON, transformer jsonprocessor.IngestTransformer, tableFormatter TableColumNameFormatter) error {
+func (lm *LogManager) processInsertQuery(ctx context.Context, tableName string,
+	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
+	tableFormatter TableColumNameFormatter) ([]string, error) {
 	// this is pre ingest transformer
 	// here we transform the data before it's structure evaluation and insertion
 	//
@@ -578,7 +580,7 @@ func (lm *LogManager) processInsertQuery(ctx context.Context, tableName string, 
 	for _, jsonValue := range jsonData {
 		result, err := preIngestTransformer.Transform(jsonValue)
 		if err != nil {
-			return fmt.Errorf("error while rewriting json: %v", err)
+			return nil, fmt.Errorf("error while rewriting json: %v", err)
 		}
 		processed = append(processed, result)
 	}
@@ -586,13 +588,23 @@ func (lm *LogManager) processInsertQuery(ctx context.Context, tableName string, 
 
 	tableConfig, err := lm.GetOrCreateTableConfig(ctx, tableName, jsonData[0], tableFormatter)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return lm.Insert(ctx, tableName, jsonData, tableConfig, transformer)
 }
 
-func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string, jsonData []types.JSON, transformer jsonprocessor.IngestTransformer, tableFormatter TableColumNameFormatter) error {
-	return lm.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter)
+func (lm *LogManager) ProcessInsertQuery(ctx context.Context, tableName string,
+	jsonData []types.JSON, transformer jsonprocessor.IngestTransformer,
+	tableFormatter TableColumNameFormatter) error {
+	statements, err := lm.processInsertQuery(ctx, tableName, jsonData, transformer, tableFormatter)
+	if err != nil {
+		return err
+	}
+	// We expect to have date format set to `best_effort`
+	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{
+		"date_time_input_format": "best_effort",
+	}))
+	return lm.executeStatements(ctx, statements)
 }
 
 // This function removes fields that are part of anotherDoc from inputDoc
@@ -624,21 +636,19 @@ func (lm *LogManager) executeStatements(ctx context.Context, queries []string) e
 }
 
 func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []types.JSON,
-	config *ChTableConfig, transformer jsonprocessor.IngestTransformer) error {
+	config *ChTableConfig, transformer jsonprocessor.IngestTransformer) ([]string, error) {
 	var jsonsReadyForInsertion []string
 	var alterCmd []string
 	for _, jsonValue := range jsons {
 		preprocessedJson, err := transformer.Transform(jsonValue)
-
 		if err != nil {
-			return fmt.Errorf("error IngestTransformer: %v", err)
+			return nil, fmt.Errorf("error IngestTransformer: %v", err)
 		}
-
 		// Validate the input JSON
 		// against the schema
 		inValidJson, err := lm.validateIngest(tableName, preprocessedJson)
 		if err != nil {
-			return fmt.Errorf("error validation: %v", err)
+			return nil, fmt.Errorf("error validation: %v", err)
 		}
 
 		stats.GlobalStatistics.UpdateNonSchemaValues(lm.cfg, tableName,
@@ -649,14 +659,10 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 		insertJson, alter, err := lm.BuildInsertJson(tableName, preprocessedJson, inValidJson, config)
 		alterCmd = append(alterCmd, alter...)
 		if err != nil {
-			return fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)
+			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)
 		}
 		jsonsReadyForInsertion = append(jsonsReadyForInsertion, insertJson)
 	}
-	// We expect to have date format set to `best_effort`
-	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{
-		"date_time_input_format": "best_effort",
-	}))
 
 	insertValues := strings.Join(jsonsReadyForInsertion, ", ")
 	insert := fmt.Sprintf("INSERT INTO \"%s\" FORMAT JSONEachRow %s", tableName, insertValues)
@@ -664,7 +670,7 @@ func (lm *LogManager) Insert(ctx context.Context, tableName string, jsons []type
 	var statements []string
 	statements = append(statements, alterCmd...)
 	statements = append(statements, insert)
-	return lm.executeStatements(ctx, statements)
+	return statements, nil
 }
 
 func (lm *LogManager) FindTable(tableName string) (result *Table) {
