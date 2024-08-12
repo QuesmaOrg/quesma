@@ -54,8 +54,6 @@ func (f *sender) Start() {
 
 				if f.collector != nil {
 					f.collector.Collect(result)
-				} else {
-					logger.WarnWithCtx(f.ctx).Msgf("Sender: No collector available. Dropping result: %s", result)
 				}
 
 			case <-f.ctx.Done():
