@@ -106,8 +106,6 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		return nil
 	}
 
-	var percentileRanksColumnNames []string
-
 	query := b.buildAggregationCommon(metadata)
 	switch metricsAggr.AggrType {
 	case "sum", "min", "max", "avg":
@@ -232,7 +230,6 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			fullExp := model.NewInfixExpr(twoCountsExp, "*", model.NewLiteral(100))
 
 			query.SelectCommand.Columns = append(query.SelectCommand.Columns, fullExp)
-			percentileRanksColumnNames = append(percentileRanksColumnNames, model.AsString(fullExp))
 		}
 	case "extended_stats":
 

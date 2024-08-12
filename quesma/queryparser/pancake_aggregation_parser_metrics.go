@@ -65,7 +65,6 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 		return nil, errors.New("top_hits is not implemented yet in version una")
 	case "percentile_ranks":
 		result = make([]model.Expr, 0, len(metricsAggr.Fields[1:]))
-		columnNames := make([]string, 0, len(metricsAggr.Fields[1:]))
 		for _, cutValueAsString := range metricsAggr.Fields[1:] {
 			unquoted := model.AsString(cutValueAsString)
 			cutValue, _ := strconv.ParseFloat(unquoted, 64)
@@ -84,7 +83,6 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 			fullExp := model.NewInfixExpr(twoCountsExp, "*", model.NewLiteral(100))
 
 			result = append(result, fullExp)
-			columnNames = append(columnNames, model.AsString(fullExp))
 		}
 	case "extended_stats":
 
