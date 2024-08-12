@@ -66,7 +66,7 @@ func (e ArrayAccess) Accept(v ExprVisitor) interface{} { return v.VisitArrayAcce
 type FunctionExpr struct {
 	Name            string
 	Args            []Expr
-	IsColumnRefLike bool // ColumnRef + some simple operations, e.g. floor(column_ref_field)*200/200
+	IsColumnRefLike bool // ColumnRef + some simple operations, e.g. floor(column_ref_field/200). Used to generate a proper pancake SQL.
 }
 
 func (e FunctionExpr) Accept(v ExprVisitor) interface{} {
@@ -105,7 +105,7 @@ type InfixExpr struct {
 	Left            Expr
 	Op              string
 	Right           Expr
-	IsColumnRefLike bool
+	IsColumnRefLike bool // ColumnRef + some simple operations, e.g. column_ref_field*200. Used to generate a proper pancake SQL.
 }
 
 func (e InfixExpr) Accept(v ExprVisitor) interface{} {
