@@ -299,6 +299,8 @@ func BuildAttrsMapAndOthers(m SchemaMap, config *ChTableConfig) (map[string][]in
 			if a.Type.canConvert(value) {
 				result[a.KeysArrayName] = append(result[a.KeysArrayName], name)
 				result[a.ValuesArrayName] = append(result[a.ValuesArrayName], fmt.Sprintf("%v", value))
+				result[a.TypesArrayName] = append(result[a.TypesArrayName], NewType(value).String())
+
 				matched = true
 				break
 			}
