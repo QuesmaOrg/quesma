@@ -289,9 +289,8 @@ func RemoveNonSchemaFields(m SchemaMap, t *Table) SchemaMap {
 	return m
 }
 
-func BuildAttrsMapAndOthers(m SchemaMap, config *ChTableConfig) (map[string][]interface{}, SchemaMap, error) {
+func BuildAttrsMapAndOthers(m SchemaMap, config *ChTableConfig) (map[string][]interface{}, error) {
 	result := make(map[string][]interface{}) // check if works
-	others := make(SchemaMap)
 	for _, name := range sortedKeys(m) {
 		value := m[name]
 		matched := false
@@ -306,15 +305,11 @@ func BuildAttrsMapAndOthers(m SchemaMap, config *ChTableConfig) (map[string][]in
 			}
 		}
 		if !matched {
-			if config.hasOthers {
-				others[name] = value
-			} else {
-				return nil, nil, fmt.Errorf("no attribute array matched for field %s", name)
-			}
+			return nil, fmt.Errorf("no attribute array matched for field %s", name)
 		}
 	}
 
-	return result, others, nil
+	return result, nil
 }
 
 func sortedKeys(m SchemaMap) (keys []string) {
