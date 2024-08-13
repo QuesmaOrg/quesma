@@ -60,7 +60,7 @@ func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop
 		}
 
 		in.Mismatch.Mismatches = string(b)
-		in.Mismatch.IsMismatch = true
+		in.Mismatch.IsOK = false
 		in.Mismatch.Count = len(mismatches)
 		in.Mismatch.Message = mismatches.String()
 
@@ -71,7 +71,7 @@ func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop
 
 	} else {
 		in.Mismatch.Mismatches = "[]"
-		in.Mismatch.IsMismatch = false
+		in.Mismatch.IsOK = true
 	}
 
 	return in, false, nil

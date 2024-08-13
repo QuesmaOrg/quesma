@@ -14,7 +14,7 @@ import (
 type ResponseMismatch struct {
 	Mismatches string `json:"mismatches"` // JSON array of differences
 	// TODO maybe we should keep more human readable list of differences
-	IsMismatch      bool   `json:"is_mismatch"`
+	IsOK            bool   `json:"is_ok"`
 	Count           int    `json:"count"`
 	TopMismatchType string `json:"top_mismatch_type"`
 	Message         string `json:"message"`
