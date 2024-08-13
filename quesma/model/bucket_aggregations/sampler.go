@@ -8,6 +8,8 @@ import (
 	"quesma/model"
 )
 
+const shardSizeToSampleLimitRatio = 4
+
 type Sampler struct {
 	ctx  context.Context
 	size int // "shard_size" from the request. We do 'LIMIT size' in the SQL query (currently only if sampler is top-most aggregation)
@@ -22,7 +24,7 @@ func (query Sampler) AggregationType() model.AggregationType {
 }
 
 func (query Sampler) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-	return nil
+	panic("does not create new results") // eventually we should add count
 }
 
 func (query Sampler) String() string {
@@ -30,5 +32,5 @@ func (query Sampler) String() string {
 }
 
 func (query Sampler) GetSampleLimit() int {
-	return query.size
+	return shardSizeToSampleLimitRatio * query.size
 }

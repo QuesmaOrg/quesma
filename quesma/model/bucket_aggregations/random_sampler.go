@@ -11,9 +11,8 @@ import (
 // RandomSampler
 // We're missing one functionality from ElasticSearch, but it doesn't seem of any use for most of the users.
 // Specifically, we're discarding an optional `seed` parameter of random_sample aggregation.
-// From ElasticSearch's docs: "When a seed is provided, the random subset of documents is the same between calls."
-// Same seed should be working with us, because 'SAMPLE' clause we're using in Clickhouse is also deterministic.
-// But an Elastic's user could send a request twice with different seed and obtain 2 different result sets, which is so far not possible with us.
+// Moreover, supporting truely random sampling would reduce the performance and does not make much sense in the context
+// analytical SQL. Reading 64KB cost similarly as reading 1KB and skipping 63KB.
 type RandomSampler struct {
 	ctx         context.Context
 	probability float64
@@ -29,7 +28,7 @@ func (query RandomSampler) AggregationType() model.AggregationType {
 }
 
 func (query RandomSampler) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
-	return nil
+	panic("does not create new results") // eventually we should add count
 }
 
 func (query RandomSampler) String() string {
@@ -37,5 +36,5 @@ func (query RandomSampler) String() string {
 }
 
 func (query RandomSampler) GetSampleLimit() int {
-	return 5000 // TODO temporary, to be fixed
+	return 20000 // TODO temporary, to be fixed
 }

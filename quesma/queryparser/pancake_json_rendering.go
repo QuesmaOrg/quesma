@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 	"quesma/model"
-	"quesma/queryparser/query_util"
+	"quesma/model/bucket_aggregations"
 	"quesma/util"
 	"strings"
 )
@@ -117,7 +117,8 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 	}
 
 	if layer.nextBucketAggregation != nil {
-		if query_util.IsAnySampler(layer.nextBucketAggregation.queryType) { // sampler is special
+		// sampler is special
+		if _, isSampler := layer.nextBucketAggregation.queryType.(bucket_aggregations.SamplerInterface); isSampler {
 			jsonWithOmittedSampler, err := p.layerToJSON(layerIdx+1, layers, rows)
 			if err != nil {
 				return nil, err

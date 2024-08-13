@@ -4027,7 +4027,7 @@ var AggregationTests = []AggregationTestCase{
 				  FROM "logs-generic-default"
 				  WHERE (toUnixTimestamp64Milli("@timestamp")>=1.709815794995e+12 AND
 					toUnixTimestamp64Milli("@timestamp")<=1.709816694995e+12)
-				  LIMIT 5000)
+				  LIMIT 20000)
 				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 15000) AS
 				  "aggr__sampler__eventRate__key_0"))
 			ORDER BY "aggr__sampler__eventRate__order_1_rank" ASC`,

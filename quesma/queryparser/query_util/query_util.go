@@ -6,7 +6,6 @@ import (
 	"context"
 	"quesma/logger"
 	"quesma/model"
-	"quesma/model/bucket_aggregations"
 	"quesma/model/typical_queries"
 )
 
@@ -14,16 +13,6 @@ func IsNonAggregationQuery(query *model.Query) bool {
 	switch query.Type.(type) {
 	// FIXME erase nil, always have type non-empty, but it's not that completely easy, as it seems
 	case typical_queries.Count, *typical_queries.Hits, nil:
-		return true
-	default:
-		return false
-	}
-}
-
-// IsAnySampler returns true if the queryType is Sampler/RandomSampler
-func IsAnySampler(queryType model.QueryType) bool {
-	switch queryType.(type) {
-	case bucket_aggregations.Sampler, bucket_aggregations.RandomSampler:
 		return true
 	default:
 		return false
