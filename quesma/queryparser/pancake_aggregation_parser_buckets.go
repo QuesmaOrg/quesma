@@ -50,7 +50,7 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		var col model.Expr
 		if interval != 1.0 {
 			// col as string is: fmt.Sprintf("floor(%s / %f) * %f", fieldNameProperlyQuoted, interval, interval)
-			col = model.NewInfixExprColumnRefLike(
+			col = model.NewInfixExpr(
 				model.NewFunction("floor", model.NewInfixExpr(field, "/", model.NewLiteral(interval))),
 				"*",
 				model.NewLiteral(interval),

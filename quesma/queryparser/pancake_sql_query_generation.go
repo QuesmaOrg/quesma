@@ -127,7 +127,10 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 		orderBy := bucketAggregation.orderBy[0].Exprs[0]
 		orderByDirection := bucketAggregation.orderBy[0].Direction
 
-		if hasMoreBucketAggregations && !model.IsColumnRefLike(orderBy) {
+		// TODO: fix isPartOfGroupBy
+		_, isPartOfGroupBy := orderBy.(model.ColumnRef)
+
+		if hasMoreBucketAggregations && !isPartOfGroupBy {
 			partColumnName := bucketAggregation.InternalNameForOrderBy(columnId) + "_part"
 			partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderBy, nil)
 			if err != nil {

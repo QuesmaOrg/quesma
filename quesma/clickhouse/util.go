@@ -142,7 +142,7 @@ func TimestampGroupBy(timestampField model.Expr, typ DateTimeType, groupByInterv
 			model.NewFunction(innerFuncName, timestampField),
 			" / ", // TODO nasty hack to make our string-based tests pass. Operator should not contain spaces obviously
 			model.NewLiteral(interval))
-		return model.NewFunctionColumnRefLike("toInt64", toUnixTsFunc)
+		return model.NewFunction("toInt64", toUnixTsFunc)
 	}
 
 	switch typ {
