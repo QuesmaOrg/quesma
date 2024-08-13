@@ -5,7 +5,6 @@ package queryparser
 import (
 	"context"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
 	"quesma/util"
@@ -106,7 +105,6 @@ func (p *pancakeJSONRenderer) potentiallyRemoveExtraBucket(layer *pancakeModelLa
 
 func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLayer, rows []model.QueryResultRow) (model.JsonMap, error) {
 
-	fmt.Println("-- layerToJSON", layerIdx, len(layers), layers[layerIdx].nextBucketAggregation)
 	result := model.JsonMap{}
 	if layerIdx >= len(layers) {
 		return result, nil
@@ -133,7 +131,6 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 
 		bucketRows, subAggrRows = p.potentiallyRemoveExtraBucket(layer, bucketRows, subAggrRows)
 		buckets := layer.nextBucketAggregation.queryType.TranslateSqlResponseToJson(bucketRows, layerIdx+1) // TODO: for date_histogram this layerIdx+1 layer seems correct, is it for all?
-		pp.Println("BUCKETS", buckets)
 
 		if len(buckets) == 0 { // without this we'd generate {"buckets": []} in the response, which Elastic doesn't do.
 			if layer.nextBucketAggregation.metadata != nil {
@@ -146,9 +143,9 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 		if layerIdx+1 < len(layers) { // Add subAggregation
 			if bucketArrRaw, ok := buckets["buckets"]; ok {
 				bucketArr := bucketArrRaw.([]model.JsonMap)
-				fmt.Println("Buckets:", bucketArr, subAggrRows, "lens", len(bucketArr), len(subAggrRows))
 
 				if len(bucketArr) == len(subAggrRows) {
+					// Simple case, we merge bucketArr[i] with subAggrRows[i] (if lengths are equal, keys must be equal => it's fine to not check them at all)
 					for i, bucket := range bucketArr {
 						// TODO: Maybe add model.KeyAddedByQuesma if there are more than one pancake
 						subAggr, err := p.layerToJSON(layerIdx+1, layers, subAggrRows[i])
@@ -156,28 +153,30 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 							return nil, err
 						}
 						bucketArr[i] = util.MergeMaps(context.Background(), bucket, subAggr, model.KeyAddedByQuesma)
-						pp.Println("BUCKET", bucketArr[i])
 					}
 				} else {
-					subAggrRowIdx := 0
+					// A bit harder case. Observation: len(bucketArr) > len(subAggrRows) and set(subAggrRows' keys) is a subset of set(bucketArr's keys)
+					// So if bucket[i]'s key corresponds to subAggr[subAggrIdx]'s key, we merge them.
+					// If not, we just keep bucket[i] (i++, subAggrIdx stays the same)
+					subAggrIdx := 0
 					for i, bucket := range bucketArr {
 						key, exists := bucket["key"]
 						if !exists {
 							return nil, fmt.Errorf("no key in bucket json, layer: %s", layer.nextBucketAggregation.name)
 						}
 
-						columnNameWithKey := layer.nextBucketAggregation.InternalNameForKey(0)
-						if valueForColumn(subAggrRows[subAggrRowIdx], columnNameWithKey) == key {
-							subAggr, err := p.layerToJSON(layerIdx+1, layers, subAggrRows[subAggrRowIdx])
+						columnNameWithKey := layer.nextBucketAggregation.InternalNameForKey(0) // TODO: need all ids, multi_terms will probably not work now
+						subAggrKey, found := p.valueForColumn(subAggrRows[subAggrIdx], columnNameWithKey)
+						if found && subAggrKey == key {
+							subAggr, err := p.layerToJSON(layerIdx+1, layers, subAggrRows[subAggrIdx])
 							if err != nil {
 								return nil, err
 							}
 							bucketArr[i] = util.MergeMaps(context.Background(), bucket, subAggr, model.KeyAddedByQuesma)
-							subAggrRowIdx++
+							subAggrIdx++
 						} else {
 							bucketArr[i] = bucket
 						}
-						pp.Println("BUCKET", bucketArr[i])
 					}
 				}
 			} else {
@@ -193,18 +192,19 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 	return result, nil
 }
 
-func (p *pancakeJSONRenderer) toJSON(agg *pancakeModel, rows []model.QueryResultRow) (model.JsonMap, error) {
-	return p.layerToJSON(0, agg.layers, rows)
-}
-
-func valueForColumn(rows []model.QueryResultRow, columnName string) interface{} {
-	fmt.Println("valueForColumn", rows, columnName)
-	for _, row := range rows {
-		for _, col := range row.Cols {
-			if col.ColName == columnName {
-				return col.Value
-			}
+// valueForColumn returns value for a given column name in the first row of the result set (if it exists, it's the same for all rows)
+func (p *pancakeJSONRenderer) valueForColumn(rows []model.QueryResultRow, columnName string) (value interface{}, found bool) {
+	if len(rows) == 0 {
+		return nil, false
+	}
+	for _, col := range rows[0].Cols {
+		if col.ColName == columnName {
+			return col.Value, true
 		}
 	}
-	return nil
+	return nil, false
+}
+
+func (p *pancakeJSONRenderer) toJSON(agg *pancakeModel, rows []model.QueryResultRow) (model.JsonMap, error) {
+	return p.layerToJSON(0, agg.layers, rows)
 }

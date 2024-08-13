@@ -2001,7 +2001,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  "bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0"))
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
 	},
-	{ // [50]
+	{ // [50] TODO: what about nulls in histogram? Maybe they should be treated like in terms?
 		TestName: "2x histogram with min_doc_count 0",
 		QueryRequestJson: `
 		{
