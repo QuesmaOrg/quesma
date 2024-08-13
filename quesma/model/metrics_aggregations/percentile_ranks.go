@@ -11,15 +11,15 @@ import (
 )
 
 type PercentileRanks struct {
-	ctx         context.Context
-	percentiles []string
+	ctx       context.Context
+	cutValues []string // count(if(field<$cutValue, 1, NULL))/count(*)*100
 	// defines what response should look like
 	// https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-rank-aggregation.html#_keyed_response_5
 	Keyed bool
 }
 
-func NewPercentileRanks(ctx context.Context, percentiles []string, keyed bool) PercentileRanks {
-	return PercentileRanks{ctx: ctx, percentiles: percentiles, Keyed: keyed}
+func NewPercentileRanks(ctx context.Context, cutValues []string, keyed bool) PercentileRanks {
+	return PercentileRanks{ctx: ctx, cutValues: cutValues, Keyed: keyed}
 }
 
 func (query PercentileRanks) AggregationType() model.AggregationType {
@@ -39,7 +39,7 @@ func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResult
 		for i, percentileRank := range rows[0].Cols[level:] {
 			// It always needs to have .Y or .YZ at the end, so 1 or 2 digits after the dot, and dot is mandatory.
 			// Also, can't be .00, needs to be .0
-			cutValue := query.percentiles[i]
+			cutValue := query.cutValues[i]
 			dot := strings.Index(cutValue, ".")
 			if dot == -1 {
 				cutValue += ".0"
@@ -63,7 +63,7 @@ func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResult
 		for i, percentileRank := range rows[0].Cols[level:] {
 			// It always needs to have .Y or .YZ at the end, so 1 or 2 digits after the dot, and dot is mandatory.
 			// Also, can't be .00, needs to be .0
-			cutValue := query.percentiles[i]
+			cutValue := query.cutValues[i]
 			dot := strings.Index(cutValue, ".")
 			if dot == -1 {
 				cutValue += ".0"

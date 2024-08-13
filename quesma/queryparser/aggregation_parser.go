@@ -33,7 +33,7 @@ type metricsAggregation struct {
 	FieldType           clickhouse.DateTimeType // field type of FieldNames[0]. If it's a date field, a slightly different response is needed
 	Percentiles         map[string]float64      // Only for percentiles aggregation
 	Keyed               bool                    // Only for percentiles aggregation
-	PercentilesArr      []string                // Only for percentile_ranks
+	CutValues           []string                // Only for percentile_ranks
 	SortBy              string                  // Only for top_metrics
 	Size                int                     // Only for top_metrics
 	Order               string                  // Only for top_metrics
@@ -214,20 +214,15 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 			}
 		}
 	case "percentile_ranks":
-		for _, cutValueAsString := range metricsAggr.PercentilesArr {
-			// full exp we create below looks like this:
-			// fmt.Sprintf("count(if(%s<=%f, 1, NULL))/count(*)*100", strconv.Quote(getFirstFieldName()), cutValue)
+		for _, cutValueAsString := range metricsAggr.CutValues {
+			// full exp we create below looks like this: countIf(field <= cutValue)/count(*) * 100
 			cutValue, _ := strconv.ParseFloat(cutValueAsString, 64)
 
-			ifExp := model.NewFunction(
-				"if",
-				model.NewInfixExpr(getFirstExpression(), "<=", model.NewLiteral(cutValue)),
-				model.NewLiteral(1),
-				model.NewStringExpr("NULL"),
-			)
-			firstCountExp := model.NewFunction("count", ifExp)
-			twoCountsExp := model.NewInfixExpr(firstCountExp, "/", model.NewCountFunc(model.NewWildcardExpr))
-			fullExp := model.NewInfixExpr(twoCountsExp, "*", model.NewLiteral(100))
+			countIfExp := model.NewFunction(
+				"countIf", model.NewInfixExpr(getFirstExpression(), "<=", model.NewLiteral(cutValue)))
+			// TODO replace and centralize count below
+			bothCountsExp := model.NewInfixExpr(countIfExp, "/", model.NewCountFunc(model.NewWildcardExpr))
+			fullExp := model.NewInfixExpr(bothCountsExp, "*", model.NewLiteral(100))
 
 			query.SelectCommand.Columns = append(query.SelectCommand.Columns, fullExp)
 		}
@@ -293,7 +288,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 	case "value_count":
 		query.Type = metrics_aggregations.NewValueCount(b.ctx)
 	case "percentile_ranks":
-		query.Type = metrics_aggregations.NewPercentileRanks(b.ctx, metricsAggr.PercentilesArr, metricsAggr.Keyed)
+		query.Type = metrics_aggregations.NewPercentileRanks(b.ctx, metricsAggr.CutValues, metricsAggr.Keyed)
 	case "geo_centroid":
 		query.Type = metrics_aggregations.NewGeoCentroid(b.ctx)
 	}
@@ -595,9 +590,9 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 	// I'm keeping all of them in `fieldNames' array for "simplicity".
 	if percentileRanks, ok := queryMap["percentile_ranks"]; ok {
 		fields := []model.Expr{cw.parseFieldField(percentileRanks, "percentile_ranks")}
-		var cutValues []any
+		var cutValuesRaw []any
 		if values, exists := percentileRanks.(QueryMap)["values"]; exists {
-			cutValues, ok = values.([]any)
+			cutValuesRaw, ok = values.([]any)
 			if !ok {
 				logger.WarnWithCtx(cw.Ctx).Msgf("values in percentile_ranks is not an array, but %T, value: %v. Using empty array.", values, values)
 			}
@@ -605,16 +600,16 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 			logger.WarnWithCtx(cw.Ctx).Msg("no values in percentile_ranks. Using empty array.")
 		}
 
-		percentilesArray := make([]string, 0, len(cutValues))
-		for _, cutValue := range cutValues {
+		cutValues := make([]string, 0, len(cutValuesRaw))
+		for _, cutValue := range cutValuesRaw {
 			switch cutValueTyped := cutValue.(type) {
 			case float64:
 				percentile := strconv.FormatFloat(cutValueTyped, 'f', -1, 64)
-				percentilesArray = append(percentilesArray, percentile)
+				cutValues = append(cutValues, percentile)
 				fields = append(fields, model.NewLiteral(percentile))
 			case int64:
 				percentile := strconv.FormatInt(cutValueTyped, 10)
-				percentilesArray = append(percentilesArray, percentile)
+				cutValues = append(cutValues, percentile)
 				fields = append(fields, model.NewLiteral(percentile))
 			default:
 				logger.WarnWithCtx(cw.Ctx).Msgf("cutValue in percentile_ranks is not a number, but %T, value: %v. Skipping.", cutValue, cutValue)
@@ -632,11 +627,11 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		}
 
 		return metricsAggregation{
-			AggrType:       "percentile_ranks",
-			Fields:         fields,
-			FieldType:      metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
-			Keyed:          keyed,
-			PercentilesArr: percentilesArray,
+			AggrType:  "percentile_ranks",
+			Fields:    fields,
+			FieldType: metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
+			Keyed:     keyed,
+			CutValues: cutValues,
 		}, true
 	}
 
