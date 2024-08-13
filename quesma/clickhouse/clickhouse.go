@@ -488,13 +488,12 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	if len(mDiff) == 0 && string(schemaFieldsJson) == js && len(inValidJson) == 0 { // no need to modify, just insert 'js'
 		return js, nil, nil
 	}
-	var attrsMap map[string][]interface{}
-	if len(config.attributes) > 0 {
-		attrsMap, _ = BuildAttrsMap(mDiff, config)
-	} else {
-		return "", nil, fmt.Errorf("no attributes or others in config, but received non-schema fields: %s", mDiff)
-	}
 
+	// check attributes precondition
+	if len(config.attributes) <= 0 {
+		return "", nil, fmt.Errorf("no attributes config, but received non-schema fields: %s", mDiff)
+	}
+	attrsMap, _ := BuildAttrsMap(mDiff, config)
 	// generateNewColumns is called before adding invalid fields to attributes map
 	// otherwise it would contain invalid fields e.g. with wrong types
 	// we only want to add fields that are not part of the schema e.g we don't
