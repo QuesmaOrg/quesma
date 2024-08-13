@@ -1429,8 +1429,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 		ExpectedSQLs: []string{
 			`SELECT count() FROM ` + testdata.QuotedTableName,
 			`SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 3600000), ` +
-				`count(if("AvgTicketPrice"<=0.000000,1,NULL))/count(*)*100, ` +
-				`count(if("AvgTicketPrice"<=50000.000000,1,NULL))/count(*)*100 ` +
+				`countIf("AvgTicketPrice"<=0.000000)/count(*)*100, ` +
+				`countIf("AvgTicketPrice"<=50000.000000)/count(*)*100 ` +
 				`FROM ` + testdata.QuotedTableName + ` ` +
 				`GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) ` +
 				`ORDER BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000)`,
@@ -1443,8 +1443,8 @@ var AggregationTests = []testdata.AggregationTestCase{
 			SELECT toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS "aggr__2__key_0",
 			  count(*) AS "aggr__2__count",
 			  toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS "aggr__2__order_1",
-			  count(if("AvgTicketPrice"<=0.000000,1,NULL))/count(*)*100 AS "metric__2__1_col_0",
-			  count(if("AvgTicketPrice"<=50000.000000,1,NULL))/count(*)*100 AS "metric__2__1_col_1"
+			  countIf("AvgTicketPrice"<=0.000000)/count(*)*100 AS "metric__2__1_col_0",
+			  countIf("AvgTicketPrice"<=50000.000000)/count(*)*100 AS "metric__2__1_col_1"
 			FROM "logs-generic-default"
 			GROUP BY toInt64(toUnixTimestamp64Milli("timestamp") / 3600000) AS "aggr__2__key_0"
 			ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC`,

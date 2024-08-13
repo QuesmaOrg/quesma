@@ -56,9 +56,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if dateRange(test.TestName) {
 				t.Skip("Fix date range")
 			}
-			if percentileRanks(test.TestName) {
-				t.Skip("Fix percentile ranks")
-			}
 			if topHits(test.TestName) {
 				t.Skip("Fix top_hits")
 			}
@@ -179,11 +176,6 @@ func Range(testName string) bool {
 func dateRange(testName string) bool {
 	t1 := testName == "range bucket aggregation, both keyed and not"
 	return t1
-}
-
-// TODO remove after fix
-func percentileRanks(testName string) bool {
-	return testName == "Percentile_ranks keyed=false. Reproduce: Visualize -> Line -> Metrics: Percentile Ranks, Buckets: X-Asis Date Histogram"
 }
 
 // TODO remove after fix

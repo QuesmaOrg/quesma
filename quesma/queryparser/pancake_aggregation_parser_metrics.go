@@ -64,24 +64,17 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 		// see other buildMetricsAggregation(), we don't implement it now
 		return nil, errors.New("top_hits is not implemented yet in version una")
 	case "percentile_ranks":
-		result = make([]model.Expr, 0, len(metricsAggr.Fields[1:]))
-		for _, cutValueAsString := range metricsAggr.Fields[1:] {
-			unquoted, _ := strconv.Unquote(model.AsString(cutValueAsString))
-			cutValue, _ := strconv.ParseFloat(unquoted, 64)
+		result = make([]model.Expr, 0, len(metricsAggr.CutValues))
+		for _, cutValueAsString := range metricsAggr.CutValues {
+			cutValue, _ := strconv.ParseFloat(cutValueAsString, 64)
 
-			// full exp we create below looks like this:
-			// fmt.Sprintf("count(if(%s<=%f, 1, NULL))/count(*)*100", strconv.Quote(getFirstFieldName()), cutValue)
+			// full exp we create below looks like this: countIf(field <= cutValue)/count(*) * 100
+			countIfExp := model.NewFunction(
+				"countIf", model.NewInfixExpr(getFirstExpression(), "<=", model.NewLiteral(cutValue)))
+			bothCountsExp := model.NewInfixExpr(countIfExp, "/", model.NewCountFunc(model.NewWildcardExpr))
+			fullExp := model.NewInfixExpr(bothCountsExp, "*", model.NewLiteral(100))
 
-			ifExp := model.NewFunction(
-				"if",
-				model.NewInfixExpr(getFirstExpression(), "<=", model.NewLiteral(cutValue)),
-				model.NewLiteral(1),
-				model.NewStringExpr("NULL"),
-			)
-			firstCountExp := model.NewFunction("count", ifExp)
-			twoCountsExp := model.NewInfixExpr(firstCountExp, "/", model.NewCountFunc(model.NewWildcardExpr))
-
-			result = append(result, model.NewInfixExpr(twoCountsExp, "*", model.NewLiteral(100)))
+			result = append(result, fullExp)
 		}
 	case "extended_stats":
 
@@ -151,7 +144,7 @@ func generateMetricsType(ctx context.Context, metricsAggr metricsAggregation) mo
 	case "value_count":
 		return metrics_aggregations.NewValueCount(ctx)
 	case "percentile_ranks":
-		return metrics_aggregations.NewPercentileRanks(ctx, metricsAggr.Keyed)
+		return metrics_aggregations.NewPercentileRanks(ctx, metricsAggr.CutValues, metricsAggr.Keyed)
 	case "geo_centroid":
 		return metrics_aggregations.NewGeoCentroid(ctx)
 	}
