@@ -64,10 +64,9 @@ func generateMetricSelectedColumns(ctx context.Context, metricsAggr metricsAggre
 		// see other buildMetricsAggregation(), we don't implement it now
 		return nil, errors.New("top_hits is not implemented yet in version una")
 	case "percentile_ranks":
-		result = make([]model.Expr, 0, len(metricsAggr.Fields[1:]))
-		for _, cutValueAsString := range metricsAggr.Fields[1:] {
-			unquoted := model.AsString(cutValueAsString)
-			cutValue, _ := strconv.ParseFloat(unquoted, 64)
+		result = make([]model.Expr, 0, len(metricsAggr.CutValues))
+		for _, cutValueAsString := range metricsAggr.CutValues {
+			cutValue, _ := strconv.ParseFloat(cutValueAsString, 64)
 
 			// full exp we create below looks like this: countIf(field <= cutValue)/count(*) * 100
 			countIfExp := model.NewFunction(

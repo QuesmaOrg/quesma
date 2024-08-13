@@ -12,7 +12,7 @@ import (
 
 type PercentileRanks struct {
 	ctx       context.Context
-	cutValues []string // count(if(field<$cutValue, 1, NULL))/count(*)*100
+	cutValues []string // countIf(field<=$cutValue)/count(*)*100
 	// defines what response should look like
 	// https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-rank-aggregation.html#_keyed_response_5
 	Keyed bool
@@ -29,7 +29,7 @@ func (query PercentileRanks) AggregationType() model.AggregationType {
 func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows in percentile ranks response")
-		return make(model.JsonMap, 0)
+		return make(model.JsonMap)
 	}
 	// I duplicate a lot of code in this if/else below,
 	// but I think it's worth it, as this function might get called a lot of times for a single query.

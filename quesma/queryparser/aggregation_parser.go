@@ -589,7 +589,6 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 	// Shortcut here. Percentile_ranks has "field" and a list of "values"
 	// I'm keeping all of them in `fieldNames' array for "simplicity".
 	if percentileRanks, ok := queryMap["percentile_ranks"]; ok {
-		fields := []model.Expr{cw.parseFieldField(percentileRanks, "percentile_ranks")}
 		var cutValuesRaw []any
 		if values, exists := percentileRanks.(QueryMap)["values"]; exists {
 			cutValuesRaw, ok = values.([]any)
@@ -604,13 +603,11 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 		for _, cutValue := range cutValuesRaw {
 			switch cutValueTyped := cutValue.(type) {
 			case float64:
-				percentile := strconv.FormatFloat(cutValueTyped, 'f', -1, 64)
-				cutValues = append(cutValues, percentile)
-				fields = append(fields, model.NewLiteral(percentile))
+				asFloat := strconv.FormatFloat(cutValueTyped, 'f', -1, 64)
+				cutValues = append(cutValues, asFloat)
 			case int64:
-				percentile := strconv.FormatInt(cutValueTyped, 10)
-				cutValues = append(cutValues, percentile)
-				fields = append(fields, model.NewLiteral(percentile))
+				asInt := strconv.FormatInt(cutValueTyped, 10)
+				cutValues = append(cutValues, asInt)
 			default:
 				logger.WarnWithCtx(cw.Ctx).Msgf("cutValue in percentile_ranks is not a number, but %T, value: %v. Skipping.", cutValue, cutValue)
 			}
@@ -628,7 +625,7 @@ func (cw *ClickhouseQueryTranslator) tryMetricsAggregation(queryMap QueryMap) (m
 
 		return metricsAggregation{
 			AggrType:  "percentile_ranks",
-			Fields:    fields,
+			Fields:    []model.Expr{cw.parseFieldField(percentileRanks, "percentile_ranks")},
 			FieldType: metricsAggregationDefaultFieldType, // don't need to check, it's unimportant for this aggregation
 			Keyed:     keyed,
 			CutValues: cutValues,
