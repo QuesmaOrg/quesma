@@ -4,6 +4,8 @@ package clickhouse
 
 import (
 	"errors"
+	"fmt"
+	"math"
 	"quesma/logger"
 	"quesma/quesma/types"
 	"reflect"
@@ -87,6 +89,85 @@ func removeLowCardinality(columnType string) string {
 	return columnType
 }
 
+var integerTypes = map[string]bool{
+	"UInt8":   true,
+	"UInt16":  true,
+	"UInt32":  true,
+	"UInt64":  true,
+	"UInt128": true,
+	"UInt256": true,
+	"Int8":    true,
+	"Int16":   true,
+	"Int32":   true,
+	"Int64":   true,
+	"Int128":  true,
+	"Int256":  true,
+}
+
+var integerRange = map[string]struct {
+	minAsInt64 int64 // Capped at int64 minimum value
+	maxAsInt64 int64 // Capped at int64 maximum value
+	minAsFloat float64
+	maxAsFloat float64
+}{
+	"UInt8":   {0, math.MaxUint8, 0, math.MaxUint8},
+	"UInt16":  {0, math.MaxUint16, 0, math.MaxUint16},
+	"UInt32":  {0, math.MaxUint32, 0, math.MaxUint32},
+	"UInt64":  {0, math.MaxInt64, 0, math.MaxUint64},
+	"UInt128": {0, math.MaxInt64, 0, math.Pow(2, 128) - 1},
+	"UInt256": {0, math.MaxInt64, 0, math.Pow(2, 256) - 1},
+	"Int8":    {math.MinInt8, math.MaxInt8, math.MinInt8, math.MaxInt8},
+	"Int16":   {math.MinInt16, math.MaxInt16, math.MinInt16, math.MaxInt16},
+	"Int32":   {math.MinInt32, math.MaxInt32, math.MinInt32, math.MaxInt32},
+	"Int64":   {math.MinInt64, math.MaxInt64, math.MinInt64, math.MaxInt64},
+	"Int128":  {math.MinInt64, math.MaxInt64, -math.Pow(2, 128), math.Pow(2, 128) - 1},
+	"Int256":  {math.MinInt64, math.MaxInt64, -math.Pow(2, 256), math.Pow(2, 256) - 1},
+}
+
+var floatingPointTypes = map[string]bool{
+	"Float32": true,
+	"Float64": true,
+}
+
+func isNumericType(columnType string) bool {
+	return isIntegerType(columnType) || isFloatingPointType(columnType)
+}
+
+func isIntegerType(columnType string) bool {
+	return integerTypes[columnType]
+}
+
+func isFloatingPointType(columnType string) bool {
+	return floatingPointTypes[columnType]
+}
+
+func validateNumericRange(columnType string, value interface{}) (isValid bool) {
+	columnRange, found := integerRange[columnType]
+	if !found {
+		panic(fmt.Sprintf("Unknown integer column type: %s", columnType))
+	}
+
+	switch v := value.(type) {
+	case int64:
+		return v >= columnRange.minAsInt64 && v <= columnRange.maxAsInt64
+	case float64:
+		return v >= columnRange.minAsFloat && v <= columnRange.maxAsFloat
+	default:
+		logger.Error().Msgf("Invalid value type for column of type %s: %T", columnType, value)
+		return false
+	}
+}
+
+func validateNumericType(columnType string, incomingValueType string, value interface{}) (isValid bool) {
+	if isFloatingPointType(columnType) && isNumericType(incomingValueType) {
+		return true
+	}
+	if isIntegerType(columnType) && isIntegerType(incomingValueType) {
+		return validateNumericRange(columnType, value)
+	}
+	return false
+}
+
 func validateValueAgainstType(fieldName string, value interface{}, column *Column) types.JSON {
 	const DateTimeType = "DateTime64"
 	const StringType = "String"
@@ -94,16 +175,23 @@ func validateValueAgainstType(fieldName string, value interface{}, column *Colum
 	columnType := column.Type.String()
 	columnType = removeLowCardinality(columnType)
 	incomingValueType := getTypeName(value)
+
+	// Hot path
+	if columnType == incomingValueType {
+		return deletedFields
+	}
+
 	if columnType == DateTimeType {
 		// TODO validate date format
 		// For now we store dates as strings
 		if incomingValueType != StringType {
 			deletedFields[fieldName] = value
 		}
-	} else if columnType != incomingValueType {
-		if columnType == "Float64" && (incomingValueType == "Int64" || incomingValueType == "UInt64") {
-			return deletedFields
+	} else if isNumericType(columnType) {
+		if !validateNumericType(columnType, incomingValueType, value) {
+			deletedFields[fieldName] = value
 		}
+	} else if columnType != incomingValueType {
 		deletedFields[fieldName] = value
 	}
 	return deletedFields
