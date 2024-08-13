@@ -83,6 +83,17 @@ func TestIngestValidation(t *testing.T) {
 
 		`{"int_array_field":[81,"oops",69,83,77,65]}`,
 		`{"string_array_field":["DHRFZN",15,"HLVJDR"]}`,
+
+		`{"int32_field":15}`,
+		`{"float_field":7.5}`,
+		`{"float_field":15}`,
+
+		`{"int32_field":2147483647}`,
+		`{"int32_field":2147483648}`,
+
+		`{"uint8_field":-1}`,
+		`{"uint8_field":255}`,
+		`{"uint8_field":1000}`,
 	}
 	expectedInsertJsons := []string{
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_string_key":["string_field"],"attributes_string_value":[10]}`, tableName),
@@ -101,6 +112,17 @@ func TestIngestValidation(t *testing.T) {
 
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_string_key":["int_array_field"],"attributes_string_value":[[81,"oops",69,83,77,65]]}`, tableName),
 		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_string_key":["string_array_field"],"attributes_string_value":[["DHRFZN",15,"HLVJDR"]]}`, tableName),
+
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int32_field":15}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_field":7.5}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"float_field":15}`, tableName),
+
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"int32_field":2147483647}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_string_key":["int32_field"],"attributes_string_value":[2147483648]}`, tableName),
+
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_string_key":["uint8_field"],"attributes_string_value":[-1]}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"uint8_field":255}`, tableName),
+		fmt.Sprintf(`INSERT INTO "%s" FORMAT JSONEachRow {"attributes_string_key":["uint8_field"],"attributes_string_value":[1000]}`, tableName),
 	}
 	tableMap := concurrent.NewMapWith(tableName, &Table{
 		Name:   tableName,
@@ -113,6 +135,18 @@ func TestIngestValidation(t *testing.T) {
 			"int_field": {Name: "int_field", Type: BaseType{
 				Name:   "Int64",
 				goType: NewBaseType("Int64").goType,
+			}},
+			"int32_field": {Name: "int32_field", Type: BaseType{
+				Name:   "Int32",
+				goType: NewBaseType("Int32").goType,
+			}},
+			"uint8_field": {Name: "uint8_field", Type: BaseType{
+				Name:   "UInt8",
+				goType: NewBaseType("UInt8").goType,
+			}},
+			"float_field": {Name: "float_field", Type: BaseType{
+				Name:   "Float32",
+				goType: NewBaseType("Float32").goType,
 			}},
 			"string_array_field": {Name: "string_array_field", Type: CompoundType{
 				Name: "Array",
