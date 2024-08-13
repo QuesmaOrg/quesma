@@ -30,7 +30,6 @@ import (
 
 const (
 	timestampFieldName = "@timestamp" // it's always DateTime64 for now, don't want to waste time changing that, we don't seem to use that anyway
-	othersFieldName    = "others"
 )
 
 type (
@@ -67,7 +66,6 @@ type (
 		ttl                  string // of type Interval, e.g. 3 MONTH, 1 YEAR
 		// look https://clickhouse.com/docs/en/sql-reference/data-types/special-data-types/interval
 		// "" if none
-		hasOthers bool // has additional "others" JSON field for out of schema values
 		// TODO make sure it's unique in schema (there's no other 'others' field)
 		// I (Krzysiek) can write it quickly, but don't want to waste time for it right now.
 		attributes                            []Attribute
@@ -197,7 +195,7 @@ func (lm *LogManager) ResolveIndexes(ctx context.Context, patterns string) (resu
 
 // updates also Table TODO stop updating table here, find a better solution
 func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Table) string {
-	if !config.hasOthers && len(config.attributes) == 0 {
+	if len(config.attributes) == 0 {
 		_, ok := table.Cols[timestampFieldName]
 		if !config.hasTimestamp || ok {
 			return q
@@ -205,13 +203,6 @@ func addOurFieldsToCreateTableQuery(q string, config *ChTableConfig, table *Tabl
 	}
 
 	othersStr, timestampStr, attributesStr := "", "", ""
-	if config.hasOthers {
-		_, ok := table.Cols[othersFieldName]
-		if !ok {
-			othersStr = fmt.Sprintf("%s\"%s\" JSON,\n", util.Indent(1), othersFieldName)
-			table.Cols[othersFieldName] = &Column{Name: othersFieldName, Type: NewBaseType("JSON")}
-		}
-	}
 	if config.hasTimestamp {
 		_, ok := table.Cols[timestampFieldName]
 		if !ok {
@@ -474,7 +465,7 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	}
 
 	wasReplaced := replaceDotsWithSeparator(m)
-	if !config.hasOthers && len(config.attributes) == 0 {
+	if len(config.attributes) == 0 {
 		if wasReplaced {
 			rawBytes, err := m.Bytes()
 			if err != nil {
@@ -498,11 +489,8 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 		return js, nil, nil
 	}
 	var attrsMap map[string][]interface{}
-	var othersMap SchemaMap
 	if len(config.attributes) > 0 {
-		attrsMap, othersMap, _ = BuildAttrsMapAndOthers(mDiff, config)
-	} else if config.hasOthers {
-		othersMap = mDiff
+		attrsMap, _ = BuildAttrsMap(mDiff, config)
 	} else {
 		return "", nil, fmt.Errorf("no attributes or others in config, but received non-schema fields: %s", mDiff)
 	}
@@ -526,16 +514,6 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 			return "", nil, err
 		}
 		nonSchemaStr = string(attrs[1 : len(attrs)-1])
-	}
-	if len(othersMap) > 0 {
-		others, err := json.Marshal(othersMap)
-		if err != nil {
-			return "", nil, err
-		}
-		if nonSchemaStr != "" {
-			nonSchemaStr += "," // need to watch out where we input commas, CH doesn't tolerate trailing ones
-		}
-		nonSchemaStr += fmt.Sprintf(`"%s":%s`, othersFieldName, others)
 	}
 	onlySchemaFields := RemoveNonSchemaFields(m, t)
 
@@ -756,7 +734,6 @@ func NewOnlySchemaFieldsCHConfig() *ChTableConfig {
 		partitionBy:                           "",
 		primaryKey:                            "",
 		ttl:                                   "",
-		hasOthers:                             false,
 		attributes:                            []Attribute{NewDefaultStringAttribute()},
 		castUnsupportedAttrValueTypesToString: false,
 		preferCastingToOthers:                 false,
@@ -772,7 +749,6 @@ func NewDefaultCHConfig() *ChTableConfig {
 		partitionBy:          "",
 		primaryKey:           "",
 		ttl:                  "",
-		hasOthers:            false,
 		attributes: []Attribute{
 			NewDefaultInt64Attribute(),
 			NewDefaultFloat64Attribute(),
@@ -793,7 +769,6 @@ func NewNoTimestampOnlyStringAttrCHConfig() *ChTableConfig {
 		partitionBy:          "",
 		primaryKey:           "",
 		ttl:                  "",
-		hasOthers:            false,
 		attributes: []Attribute{
 			NewDefaultStringAttribute(),
 		},
@@ -808,7 +783,6 @@ func NewChTableConfigNoAttrs() *ChTableConfig {
 		timestampDefaultsNow:                  false,
 		engine:                                "MergeTree",
 		orderBy:                               "(" + `"@timestamp"` + ")",
-		hasOthers:                             false,
 		attributes:                            []Attribute{},
 		castUnsupportedAttrValueTypesToString: true,
 		preferCastingToOthers:                 true,
@@ -821,7 +795,6 @@ func NewChTableConfigFourAttrs() *ChTableConfig {
 		timestampDefaultsNow: true,
 		engine:               "MergeTree",
 		orderBy:              "(" + "`@timestamp`" + ")",
-		hasOthers:            false,
 		attributes: []Attribute{
 			NewDefaultInt64Attribute(),
 			NewDefaultFloat64Attribute(),
@@ -840,7 +813,6 @@ func NewChTableConfigTimestampStringAttr() *ChTableConfig {
 		attributes:                            []Attribute{NewDefaultStringAttribute()},
 		engine:                                "MergeTree",
 		orderBy:                               "(" + "`@timestamp`" + ")",
-		hasOthers:                             false,
 		castUnsupportedAttrValueTypesToString: true,
 		preferCastingToOthers:                 true,
 	}

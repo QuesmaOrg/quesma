@@ -24,7 +24,6 @@ var hasOthersConfig = &ChTableConfig{
 	partitionBy:                           "",
 	primaryKey:                            "",
 	ttl:                                   "",
-	hasOthers:                             true,
 	attributes:                            []Attribute{},
 	castUnsupportedAttrValueTypesToString: false,
 	preferCastingToOthers:                 false,
@@ -55,13 +54,6 @@ func TestInsertNonSchemaFieldsToOthers_1(t *testing.T) {
 		m := make(SchemaMap)
 		err = json.Unmarshal([]byte(j), &m)
 		assert.NoError(t, err)
-		nestedJson, ok := m["others"].(SchemaMap)
-		assert.True(t, ok)
-		assert.Equal(t, 2, len(nestedJson))
-		_, ok = nestedJson["non-schema1"]
-		assert.True(t, ok)
-		_, ok = nestedJson["non-schema2"]
-		assert.True(t, ok)
 	}
 
 	// both cases need to be OK
@@ -117,7 +109,6 @@ func TestAddTimestamp(t *testing.T) {
 		partitionBy:                           "",
 		primaryKey:                            "",
 		ttl:                                   "",
-		hasOthers:                             false,
 		attributes:                            []Attribute{},
 		castUnsupportedAttrValueTypesToString: false,
 		preferCastingToOthers:                 false,
@@ -521,7 +512,6 @@ func TestJsonFlatteningToStringAttr(t *testing.T) {
 		partitionBy:          "",
 		primaryKey:           "",
 		ttl:                  "",
-		hasOthers:            false,
 		attributes: []Attribute{
 			NewDefaultInt64Attribute(),
 			NewDefaultFloat64Attribute(),
@@ -540,9 +530,8 @@ func TestJsonFlatteningToStringAttr(t *testing.T) {
 			"c": nil,
 		},
 	}
-	attrs, others, err := BuildAttrsMapAndOthers(m, config)
+	attrs, err := BuildAttrsMap(m, config)
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(others))
 	assert.Equal(t, 3, len(attrs))
 	for k := range attrs {
 		assert.Contains(t, k, "string")
@@ -558,7 +547,6 @@ func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 		partitionBy:          "",
 		primaryKey:           "",
 		ttl:                  "",
-		hasOthers:            false,
 		attributes: []Attribute{
 			NewDefaultStringAttribute(),
 		},
@@ -577,47 +565,16 @@ func TestJsonConvertingBoolToStringAttr(t *testing.T) {
 		},
 	}
 
-	attrs, others, err := BuildAttrsMapAndOthers(m, config)
+	attrs, err := BuildAttrsMap(m, config)
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(others))
 	assert.Equal(t, 3, len(attrs))
 	for k := range attrs {
 		assert.Contains(t, k, "string")
 	}
 }
 
-func TestCreateTableString_1(t *testing.T) {
-	table := Table{
-		Created: false,
-		Name:    "abc",
-		Cols:    map[string]*Column{},
-		Config: &ChTableConfig{
-			hasTimestamp:                          false,
-			timestampDefaultsNow:                  false,
-			engine:                                "MergeTree",
-			orderBy:                               "",
-			partitionBy:                           "",
-			primaryKey:                            "",
-			ttl:                                   "toDateTime(epoch_time_original / 1000000000) + toIntervalSecond(1296000)",
-			settings:                              "index_granularity = 8192, ttl_only_drop_parts = 1",
-			hasOthers:                             true,
-			attributes:                            nil,
-			castUnsupportedAttrValueTypesToString: true,
-			preferCastingToOthers:                 true,
-		},
-	}
-	expected := `CREATE TABLE IF NOT EXISTS "abc" (
-	"others" JSON
-)
-ENGINE = MergeTree
-TTL toDateTime(epoch_time_original / 1000000000) + toIntervalSecond(1296000)
-SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1
-`
-	assert.Equal(t, expected, table.createTableString())
-}
-
 // Doesn't test for 100% equality, as map iteration order isn't deterministic, but should definitely be good enough.
-func TestCreateTableString_2(t *testing.T) {
+func TestCreateTableString_1(t *testing.T) {
 	table := Table{
 		Created: false,
 		Name:    "/_bulk?refresh=false&_source_includes=originId&require_alias=true_16",
@@ -671,7 +628,6 @@ func TestCreateTableString_2(t *testing.T) {
 			partitionBy:          "",
 			primaryKey:           "",
 			ttl:                  "",
-			hasOthers:            false,
 			attributes: []Attribute{
 				NewDefaultInt64Attribute(),
 				NewDefaultStringAttribute(),
@@ -755,7 +711,6 @@ func TestCreateTableString_NewDateTypes(t *testing.T) {
 			partitionBy:          "",
 			primaryKey:           "",
 			ttl:                  "",
-			hasOthers:            true,
 			attributes: []Attribute{
 				NewDefaultInt64Attribute(),
 			},
