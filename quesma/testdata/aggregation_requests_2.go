@@ -1624,4 +1624,586 @@ var AggregationTests2 = []AggregationTestCase{
 			WHERE ("aggr__2__order_1_rank"<=201 AND "aggr__2__8__order_1_rank"<=21)
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__8__order_1_rank" ASC`,
 	},
+	{ // [48], "old" test, also can be found in testdata/requests.go TestAsyncSearch[3]
+		// Copied it also here to be more sure we do not create some regression
+		TestName: "2x date_histogram",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"date_histogram": {
+						"field": "@timestamp",
+						"fixed_interval": "30s",
+						"min_doc_count": 1,
+						"time_zone": "Europe/Warsaw"
+					},
+					"aggs": {
+						"3": {
+							"date_histogram": {
+								"field": "@timestamp",
+								"fixed_interval": "40s",
+								"min_doc_count": 1,
+								"time_zone": "Europe/Warsaw"
+							}
+						}
+					}
+				}
+			},
+			"fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				}
+			],
+			"runtime_mappings": {},
+			"script_fields": {},
+			"size": 5,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"completion_time_in_millis": 1706021899595,
+			"expiration_time_in_millis": 1706021959594,
+			"id": "FjFQMlBUNnJmUU1pWml0WkllNmJWYXcdNVFvOUloYTBUZ3U0Q25MRTJtQTA0dzoyMTEyNzI=",
+			"is_partial": false,
+			"is_running": false,
+			"response": {
+				"_shards": {
+					"failed": 0,
+					"skipped": 0,
+					"successful": 1,
+					"total": 1
+				},
+				"aggregations": {
+					"2": {
+						"buckets": [
+							{
+								"doc_count": 2,
+								"key": 1706021670000,
+								"key_as_string": "2024-01-23T14:54:30.000",
+								"3": {
+									"buckets": [
+										{
+											"doc_count": 13,
+											"key": 1706021800000,
+											"key_as_string": "2024-01-23T14:56:40.000"
+										}
+									]
+								}
+							},
+							{
+								"doc_count": 13,
+								"key": 1706021820000,
+								"key_as_string": "2024-01-23T14:57:00.000",
+								"3": {
+									"buckets": [
+										{
+											"doc_count": 2,
+											"key": 1706021640000,
+											"key_as_string": "2024-01-23T14:54:00.000"
+										}
+									]
+								}
+							}
+						]
+					}
+				},
+				"hits": {
+					"hits": [],
+					"max_score": null,
+					"total": {
+						"relation": "eq",
+						"value": 97
+					}
+				},
+				"timed_out": false,
+				"took": 1
+			},
+			"start_time_in_millis": 1706021899594
+		}`,
+		/*
+			ExpectedResults: [][]model.QueryResultRow{
+				{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(97))}}},
+				{}, // TODO non-aggregation query, maybe fill in results later: now we don't check them
+				{
+					{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021670000/30000)), model.NewQueryResultCol("doc_count", 2)}},
+					{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021700000/30000)), model.NewQueryResultCol("doc_count", 13)}},
+					{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021730000/30000)), model.NewQueryResultCol("doc_count", 14)}},
+					{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021760000/30000)), model.NewQueryResultCol("doc_count", 14)}},
+					{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021790000/30000)), model.NewQueryResultCol("doc_count", 15)}},
+					{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021820000/30000)), model.NewQueryResultCol("doc_count", 13)}},
+					{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021850000/30000)), model.NewQueryResultCol("doc_count", 15)}},
+					{Cols: []model.QueryResultCol{model.NewQueryResultCol("key", int64(1706021880000/30000)), model.NewQueryResultCol("doc_count", 11)}},
+				},
+			},
+		*/
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1706021670000/30000)),
+				model.NewQueryResultCol("aggr__2__count", 2),
+				model.NewQueryResultCol("aggr__2__order_1", int64(1706021670000/30000)),
+				model.NewQueryResultCol("aggr__2__3__key_0", int64(1706021820000/40000)),
+				model.NewQueryResultCol("aggr__2__3__count", 13),
+				model.NewQueryResultCol("aggr__2__3__order_1", int64(1706021820000/40000)),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", int64(1706021820000/30000)),
+				model.NewQueryResultCol("aggr__2__count", 13),
+				model.NewQueryResultCol("aggr__2__order_1", int64(1706021820000/30000)),
+				model.NewQueryResultCol("aggr__2__3__key_0", int64(1706021670000/40000)),
+				model.NewQueryResultCol("aggr__2__3__count", 2),
+				model.NewQueryResultCol("aggr__2__3__order_1", int64(1706021670000/40000)),
+			}},
+		},
+		/*
+			ExpectedSQLs: []string{
+				`SELECT count() ` +
+					`FROM ` + QuotedTableName + ` ` +
+					`WHERE ("message" iLIKE '%user%' ` +
+					`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
+					`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z')))`,
+				`SELECT "@timestamp" ` +
+					`FROM ` + QuotedTableName + ` ` +
+					`WHERE ("message" iLIKE '%user%' AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
+					`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))) ` +
+					`LIMIT 5`,
+				`SELECT ` + timestampGroupByClause + `, count() ` +
+					`FROM ` + QuotedTableName + ` ` +
+					`WHERE ("message" iLIKE '%user%' ` +
+					`AND ("@timestamp">=parseDateTime64BestEffort('2024-01-23T14:43:19.481Z') ` +
+					`AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T14:58:19.481Z'))) ` +
+					`GROUP BY ` + timestampGroupByClause + ` ` +
+					`ORDER BY ` + timestampGroupByClause,
+			},
+		*/
+		ExpectedPancakeSQL: `
+			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+			  "aggr__2__3__key_0", "aggr__2__3__count", "aggr__2__3__order_1"
+			FROM (
+			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+				"aggr__2__3__key_0", "aggr__2__3__count", "aggr__2__3__order_1",
+				dense_rank() OVER (PARTITION BY 1
+			  ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
+				 dense_rank() OVER (PARTITION BY "aggr__2__key_0"
+			  ORDER BY "aggr__2__3__order_1", "aggr__2__3__key_0" ASC) AS
+				"aggr__2__3__order_1_rank"
+			  FROM (
+				SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
+				  "aggr__2__key_0", sum("aggr__2__count_part") OVER (PARTITION BY
+				  "aggr__2__key_0") AS "aggr__2__count",
+				  toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS "aggr__2__order_1",
+				  toInt64(toUnixTimestamp64Milli("@timestamp") / 40000) AS "aggr__2__3__key_0",
+				  count(*) AS "aggr__2__3__count",
+				  toInt64(toUnixTimestamp64Milli("@timestamp") / 40000) AS "aggr__2__3__order_1",
+				  count(*) AS "aggr__2__count_part"
+				FROM "logs-generic-default"
+				GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 30000) AS
+				  "aggr__2__key_0", toInt64(toUnixTimestamp64Milli("@timestamp") / 40000) AS
+				   "aggr__2__3__key_0"))
+			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
+	},
+	{ // [49] TODO should null be in the response? Maybe try to replicate and see if it's fine as is.
+		TestName: "2x histogram",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"histogram": {
+						"field": "bytes",
+						"interval": 100,
+						"min_doc_count": 1
+					},
+					"aggs": {
+						"3": {
+							"histogram": {
+								"field": "bytes2",
+								"interval": 5,
+								"min_doc_count": 1
+							}
+						}
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-05-10T13:47:56.077Z",
+									"lte": "2024-05-10T14:02:56.077Z"
+								}
+							}
+						}
+					],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"doc_count": 1,
+							"key": 9100.0,
+							"3": {
+								"buckets": [
+									{
+										"key": 12,
+										"doc_count": 1
+									}
+								]
+							}
+						},
+						{
+							"doc_count": 2,
+							"key": 9700.0,
+							"3": {
+								"buckets": [
+									{
+										"key": null,
+										"doc_count": 1
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 6
+				}
+			},
+			"timed_out": false,
+			"took": 10
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(6))}}},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 9100.0),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 9700.0),
+					model.NewQueryResultCol("doc_count", 2),
+				}},
+			},
+		},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 9100.0),
+				model.NewQueryResultCol("aggr__2__count", 1),
+				model.NewQueryResultCol("aggr__2__order_1", 9100.0),
+				model.NewQueryResultCol("aggr__2__3__key_0", 12),
+				model.NewQueryResultCol("aggr__2__3__count", 1),
+				model.NewQueryResultCol("aggr__2__3__order_1", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 9700.0),
+				model.NewQueryResultCol("aggr__2__count", 2),
+				model.NewQueryResultCol("aggr__2__order_1", 9700.0),
+				model.NewQueryResultCol("aggr__2__3__key_0", nil),
+				model.NewQueryResultCol("aggr__2__3__count", 1),
+				model.NewQueryResultCol("aggr__2__3__order_1", nil),
+			}},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))`,
+			`SELECT floor("bytes"/100.000000)*100.000000, count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z')) ` +
+				`GROUP BY floor("bytes"/100.000000)*100.000000 ` +
+				`ORDER BY floor("bytes"/100.000000)*100.000000`,
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+			  "aggr__2__3__key_0", "aggr__2__3__count", "aggr__2__3__order_1"
+			FROM (
+			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+				"aggr__2__3__key_0", "aggr__2__3__count", "aggr__2__3__order_1",
+				dense_rank() OVER (PARTITION BY 1
+			  ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
+				 dense_rank() OVER (PARTITION BY "aggr__2__key_0"
+			  ORDER BY "aggr__2__3__order_1", "aggr__2__3__key_0" ASC) AS
+				"aggr__2__3__order_1_rank"
+			  FROM (
+				SELECT floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
+				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
+				  "aggr__2__count", floor("bytes"/100.000000)*100.000000 AS
+				  "aggr__2__order_1", floor("bytes2"/5.000000)*5.000000 AS
+				  "aggr__2__3__key_0", count(*) AS "aggr__2__3__count",
+				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__order_1", count(*) AS
+				  "aggr__2__count_part"
+				FROM "logs-generic-default"
+				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z')
+				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
+				GROUP BY floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0", floor(
+				  "bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0"))
+			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
+	},
+	{ // [50]
+		TestName: "2x histogram with min_doc_count 0",
+		QueryRequestJson: `
+		{
+			"_source": {
+				"excludes": []
+			},
+			"aggs": {
+				"2": {
+					"histogram": {
+						"field": "bytes",
+						"interval": 100,
+						"min_doc_count": 0
+					},
+					"aggs": {
+						"3": {
+							"histogram": {
+								"field": "bytes2",
+								"interval": 5,
+								"min_doc_count": 1
+							}
+						}
+					}
+				}
+			},
+			"docvalue_fields": [
+				{
+					"field": "@timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "timestamp",
+					"format": "date_time"
+				},
+				{
+					"field": "utc_time",
+					"format": "date_time"
+				}
+			],
+			"query": {
+				"bool": {
+					"filter": [
+						{
+							"range": {
+								"timestamp": {
+									"format": "strict_date_optional_time",
+									"gte": "2024-05-10T13:47:56.077Z",
+									"lte": "2024-05-10T14:02:56.077Z"
+								}
+							}
+						}
+					],
+					"must": [
+						{
+							"match_all": {}
+						}
+					],
+					"must_not": [],
+					"should": []
+				}
+			},
+			"script_fields": {
+				"hour_of_day": {
+					"script": {
+						"lang": "painless",
+						"source": "doc['timestamp'].value.getHour()"
+					}
+				}
+			},
+			"size": 0,
+			"stored_fields": [
+				"*"
+			],
+			"track_total_hits": true
+		}`,
+		ExpectedResponse: `
+		{
+			"_shards": {
+				"failed": 0,
+				"skipped": 0,
+				"successful": 1,
+				"total": 1
+			},
+			"aggregations": {
+				"2": {
+					"buckets": [
+						{
+							"doc_count": 1,
+							"key": 9100.0,
+							"3": {
+								"buckets": [
+									{
+										"key": 12,
+										"doc_count": 1
+									}
+								]
+							}
+						},
+						{
+							"doc_count": 0,
+							"key": 9200.0
+						},
+						{
+							"doc_count": 0,
+							"key": 9300.0
+						},
+						{
+							"doc_count": 0,
+							"key": 9400.0
+						},
+						{
+							"doc_count": 0,
+							"key": 9500.0
+						},
+						{
+							"doc_count": 0,
+							"key": 9600.0
+						},
+						{
+							"doc_count": 2,
+							"key": 9700.0
+						}
+					]
+				}
+			},
+			"hits": {
+				"hits": [],
+				"max_score": null,
+				"total": {
+					"relation": "eq",
+					"value": 6
+				}
+			},
+			"timed_out": false,
+			"took": 10
+		}`,
+		ExpectedResults: [][]model.QueryResultRow{
+			{{Cols: []model.QueryResultCol{model.NewQueryResultCol("hits", uint64(6))}}},
+			{
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 9100.0),
+					model.NewQueryResultCol("doc_count", 1),
+				}},
+				{Cols: []model.QueryResultCol{
+					model.NewQueryResultCol("key", 9700.0),
+					model.NewQueryResultCol("doc_count", 2),
+				}},
+			},
+		},
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 9100.0),
+				model.NewQueryResultCol("aggr__2__count", 1),
+				model.NewQueryResultCol("aggr__2__order_1", 9100.0),
+				model.NewQueryResultCol("aggr__2__3__key_0", 12),
+				model.NewQueryResultCol("aggr__2__3__count", 1),
+				model.NewQueryResultCol("aggr__2__3__order_1", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__2__key_0", 9700.0),
+				model.NewQueryResultCol("aggr__2__count", 2),
+				model.NewQueryResultCol("aggr__2__order_1", 9700.0),
+				model.NewQueryResultCol("aggr__2__3__key_0", nil),
+				model.NewQueryResultCol("aggr__2__3__count", 0),
+				model.NewQueryResultCol("aggr__2__3__order_1", nil),
+			}},
+		},
+		ExpectedSQLs: []string{
+			`SELECT count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))`,
+			`SELECT floor("bytes"/100.000000)*100.000000, count() ` +
+				`FROM ` + QuotedTableName + ` ` +
+				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z') ` +
+				`AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z')) ` +
+				`GROUP BY floor("bytes"/100.000000)*100.000000 ` +
+				`ORDER BY floor("bytes"/100.000000)*100.000000`,
+		},
+		ExpectedPancakeSQL: `
+			SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+			  "aggr__2__3__key_0", "aggr__2__3__count", "aggr__2__3__order_1"
+			FROM (
+			  SELECT "aggr__2__key_0", "aggr__2__count", "aggr__2__order_1",
+				"aggr__2__3__key_0", "aggr__2__3__count", "aggr__2__3__order_1",
+				dense_rank() OVER (PARTITION BY 1
+			  ORDER BY "aggr__2__order_1", "aggr__2__key_0" ASC) AS "aggr__2__order_1_rank",
+				 dense_rank() OVER (PARTITION BY "aggr__2__key_0"
+			  ORDER BY "aggr__2__3__order_1", "aggr__2__3__key_0" ASC) AS
+				"aggr__2__3__order_1_rank"
+			  FROM (
+				SELECT floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0",
+				  sum("aggr__2__count_part") OVER (PARTITION BY "aggr__2__key_0") AS
+				  "aggr__2__count", floor("bytes"/100.000000)*100.000000 AS
+				  "aggr__2__order_1", floor("bytes2"/5.000000)*5.000000 AS
+				  "aggr__2__3__key_0", count(*) AS "aggr__2__3__count",
+				  floor("bytes2"/5.000000)*5.000000 AS "aggr__2__3__order_1", count(*) AS
+				  "aggr__2__count_part"
+				FROM "logs-generic-default"
+				WHERE ("timestamp">=parseDateTime64BestEffort('2024-05-10T13:47:56.077Z')
+				  AND "timestamp"<=parseDateTime64BestEffort('2024-05-10T14:02:56.077Z'))
+				GROUP BY floor("bytes"/100.000000)*100.000000 AS "aggr__2__key_0", floor(
+				  "bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0"))
+			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
+	},
 }

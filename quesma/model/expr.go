@@ -191,7 +191,7 @@ func (o OrderByExpr) IsCountDesc() bool {
 }
 
 func NewInfixExpr(lhs Expr, operator string, rhs Expr) InfixExpr {
-	return InfixExpr{lhs, operator, rhs}
+	return InfixExpr{Left: lhs, Op: operator, Right: rhs}
 }
 
 // AliasedExpr is an expression with an alias, e.g. `columnName AS alias` or `COUNT(x) AS sum_of_xs`
