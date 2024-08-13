@@ -5,6 +5,7 @@ package model
 import (
 	"fmt"
 	"quesma/logger"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -190,24 +191,22 @@ func (v *renderer) VisitSelectCommand(c SelectCommand) interface{} {
 	//  LIMIT 12)
 	if c.SampleLimit > 0 {
 		sb.WriteString("(SELECT ")
-		innerColumn := make([]string, 0)
-		for _, col := range c.Columns {
-			if _, ok := col.(ColumnRef); ok {
-				innerColumn = append(innerColumn, AsString(col))
-			}
-			if aliased, ok := col.(AliasedExpr); ok {
-				if v, ok := aliased.Expr.(ColumnRef); ok {
-					innerColumn = append(innerColumn, AsString(v))
-				}
+		usedColumns := make(map[string]bool)
+		for _, col := range append(c.Columns, c.GroupBy...) {
+			for _, usedCol := range GetUsedColumns(col) {
+				usedColumns[AsString(usedCol)] = true
 			}
 		}
-		if len(innerColumn) == 0 {
-			innerColumn = append(innerColumn, "*")
-			// FIXME we can replace * with 1 if we only need a simple count. In pancakes we (at least mostly) need *,
-			// so it's always like that for simplicity.
-			// It shouldn't be any bottleneck, unless we start seeing really big sample limits.
+		if len(usedColumns) == 0 {
+			sb.WriteString("1") // if no columns are used, it is simple count, 1 is enough
+		} else {
+			usedKeys := make([]string, 0, len(usedColumns))
+			for key := range usedColumns {
+				usedKeys = append(usedKeys, key)
+			}
+			sort.Strings(usedKeys)
+			sb.WriteString(strings.Join(usedKeys, ", "))
 		}
-		sb.WriteString(strings.Join(innerColumn, ", "))
 		sb.WriteString(" FROM ")
 	}
 	/* HACK ALERT END */
