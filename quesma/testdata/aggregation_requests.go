@@ -5508,7 +5508,7 @@ var AggregationTests = []AggregationTestCase{
 				FROM "logs-generic-default"
 				GROUP BY floor("rspContentLen"/2000.000000)*2000.000000 AS "aggr__0__key_0",
 				   "message" AS "aggr__0__2__key_0"))
-			WHERE "aggr__0__2__order_1_rank"<=4
+			WHERE "aggr__0__2__order_1_rank"<=5
 			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__2__order_1_rank" ASC`,
 	},
 	{ // [28]

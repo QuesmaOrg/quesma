@@ -2121,7 +2121,15 @@ var AggregationTests2 = []AggregationTestCase{
 						},
 						{
 							"doc_count": 2,
-							"key": 9700.0
+							"key": 9700.0,
+							"3": {
+								"buckets": [
+									{
+										"key": null,
+										"doc_count": 1
+									}
+								]
+							}
 						}
 					]
 				}
@@ -2164,7 +2172,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 2),
 				model.NewQueryResultCol("aggr__2__order_1", 9700.0),
 				model.NewQueryResultCol("aggr__2__3__key_0", nil),
-				model.NewQueryResultCol("aggr__2__3__count", 0),
+				model.NewQueryResultCol("aggr__2__3__count", 1),
 				model.NewQueryResultCol("aggr__2__3__order_1", nil),
 			}},
 		},

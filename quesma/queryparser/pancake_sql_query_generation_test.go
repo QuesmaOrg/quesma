@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-func Test3PancakeQueryGeneration(t *testing.T) {
+func TestPancakeQueryGeneration(t *testing.T) {
 
 	// logger.InitSimpleLoggerForTests()
 	table := clickhouse.Table{
