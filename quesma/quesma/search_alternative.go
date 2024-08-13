@@ -132,7 +132,7 @@ func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, r
 	return nil, nil
 }
 
-func (t *QueryRunner) askElasticAsAnAlternative(ctx context.Context, resolvedTableName string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON, table *clickhouse.Table, isAsync bool) (*model.ExecutionPlan, executionPlanExecutor) {
+func (q *QueryRunner) askElasticAsAnAlternative(ctx context.Context, resolvedTableName string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON, table *clickhouse.Table, isAsync bool) (*model.ExecutionPlan, executionPlanExecutor) {
 
 	requestBody, err := body.Bytes()
 	if err != nil {
@@ -147,8 +147,7 @@ func (t *QueryRunner) askElasticAsAnAlternative(ctx context.Context, resolvedTab
 		Name:                  "elastic",
 	}
 
-	// TODO: read config here
-	url := "http://elasticsearch:9200/" + plan.IndexPattern + "/_search"
+	url := q.cfg.Elasticsearch.Url.JoinPath(plan.IndexPattern, "_search").String()
 
 	return alternativePlan, func(ctx context.Context) ([]byte, error) {
 
