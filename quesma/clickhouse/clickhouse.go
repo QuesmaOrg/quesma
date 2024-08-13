@@ -490,7 +490,7 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	}
 	var attrsMap map[string][]interface{}
 	if len(config.attributes) > 0 {
-		attrsMap, _ = BuildAttrsMapAndOthers(mDiff, config)
+		attrsMap, _ = BuildAttrsMap(mDiff, config)
 	} else {
 		return "", nil, fmt.Errorf("no attributes or others in config, but received non-schema fields: %s", mDiff)
 	}

@@ -289,7 +289,7 @@ func RemoveNonSchemaFields(m SchemaMap, t *Table) SchemaMap {
 	return m
 }
 
-func BuildAttrsMapAndOthers(m SchemaMap, config *ChTableConfig) (map[string][]interface{}, error) {
+func BuildAttrsMap(m SchemaMap, config *ChTableConfig) (map[string][]interface{}, error) {
 	result := make(map[string][]interface{}) // check if works
 	for _, name := range sortedKeys(m) {
 		value := m[name]
