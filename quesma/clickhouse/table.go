@@ -41,12 +41,6 @@ func (t *Table) GetFulltextFields() []string {
 
 func (t *Table) createTableOurFieldsString() []string {
 	rows := make([]string, 0)
-	if t.Config.hasOthers {
-		_, ok := t.Cols[othersFieldName]
-		if !ok {
-			rows = append(rows, fmt.Sprintf("%s\"%s\" JSON", util.Indent(1), othersFieldName))
-		}
-	}
 	if t.Config.hasTimestamp {
 		_, ok := t.Cols[timestampFieldName]
 		if !ok {
