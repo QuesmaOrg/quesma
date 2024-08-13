@@ -3,8 +3,9 @@
 package ab_testing
 
 type Request struct {
-	Path string `json:"path"`
-	Body string `json:"body"`
+	Path      string `json:"path"`
+	IndexName string `json:"index_name"`
+	Body      string `json:"body"`
 }
 
 type Response struct {

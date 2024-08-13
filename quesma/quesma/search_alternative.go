@@ -87,8 +87,9 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, plan 
 
 		abResult := ab_testing.Result{
 			Request: ab_testing.Request{
-				Path: contextValues.RequestPath,
-				Body: string(bytes),
+				Path:      contextValues.RequestPath,
+				IndexName: plan.IndexPattern,
+				Body:      string(bytes),
 			},
 
 			A: ab_testing.Response{
