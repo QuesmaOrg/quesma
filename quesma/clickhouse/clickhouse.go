@@ -416,7 +416,7 @@ func deepCopyMapSliceInterface(original map[string][]interface{}) map[string][]i
 	return copiedMap
 }
 
-// This function takes an attributesMap and updates it
+// This function takes an attributesMap, creates a copy and updates it
 // with the fields that are not valid according to the inferred schema
 func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalidJson types.JSON) map[string][]interface{} {
 	newAttrsMap := deepCopyMapSliceInterface(attrsMap)
@@ -471,9 +471,7 @@ func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, e
 	return nonSchemaStr, nil
 }
 
-// TODO
-// This method should be refactored to use mux.JSON instead of string
-func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValidJson types.JSON,
+func (lm *LogManager) BuildIngestSQLStatements(tableName string, data types.JSON, inValidJson types.JSON,
 	config *ChTableConfig, generateNewColumns bool) (string, []string, error) {
 
 	jsonData, err := json.Marshal(data)
@@ -522,7 +520,9 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 		return "", nil, fmt.Errorf("no attributes config, but received non-schema fields: %s", mDiff)
 	}
 	attrsMap, _ := BuildAttrsMap(mDiff, config)
-	// generateNewColumns is called before adding invalid fields to attributes map
+
+	// generateNewColumns is called on original attributes map
+	// before adding invalid fields to it
 	// otherwise it would contain invalid fields e.g. with wrong types
 	// we only want to add fields that are not part of the schema e.g we don't
 	// have columns for them
@@ -533,6 +533,8 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
 	// generating correct update query
+	// addInvalidJsonFieldsToAttributes returns a new map with invalid fields added
+	// this map is then used to generate non-schema fields string
 	attrsMapWithInvalidFields := addInvalidJsonFieldsToAttributes(attrsMap, inValidJson)
 	nonSchemaStr, err := generateNonSchemaFieldsString(attrsMapWithInvalidFields)
 
@@ -669,7 +671,7 @@ func (lm *LogManager) GenerateSqlStatements(ctx context.Context, tableName strin
 		// Remove invalid fields from the input JSON
 		preprocessedJson = subtractInputJson(preprocessedJson, inValidJson)
 
-		insertJson, alter, err := lm.BuildInsertJson(tableName, preprocessedJson, inValidJson, config, generateNewColumns)
+		insertJson, alter, err := lm.BuildIngestSQLStatements(tableName, preprocessedJson, inValidJson, config, generateNewColumns)
 		alterCmd = append(alterCmd, alter...)
 		if err != nil {
 			return nil, fmt.Errorf("error BuildInsertJson, tablename: '%s' json: '%s': %v", tableName, PrettyJson(insertJson), err)
