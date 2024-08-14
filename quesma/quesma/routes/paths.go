@@ -14,6 +14,7 @@ const (
 	IndexDocPath         = "/:index/_doc"
 	IndexRefreshPath     = "/:index/_refresh"
 	IndexBulkPath        = "/:index/_bulk"
+	IndexMappingPath     = "/:index/_mapping"
 	FieldCapsPath        = "/:index/_field_caps"
 	TermsEnumPath        = "/:index/_terms_enum"
 	EQLSearch            = "/:index/_eql/search"

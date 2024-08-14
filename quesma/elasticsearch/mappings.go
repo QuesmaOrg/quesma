@@ -30,6 +30,9 @@ func ParseMappings(namespace string, mappings map[string]interface{}) map[string
 
 		if typeMapping := fieldMappingAsMap["type"]; typeMapping != nil {
 			parsedType, _ := parseElasticType(typeMapping.(string))
+			if parsedType.Name == schema.TypeUnknown.Name {
+				log.Warn().Msgf("unknown type '%v' of field %s", typeMapping, fieldName)
+			}
 			result[fieldName] = schema.Column{Name: fieldName, Type: parsedType.Name}
 		} else if fieldMappingAsMap["properties"] != nil {
 			// Nested field
@@ -52,7 +55,7 @@ func parseElasticType(t string) (schema.Type, bool) {
 		return schema.TypeLong, true
 	case elasticsearch_field_types.FieldTypeDate:
 		return schema.TypeTimestamp, true
-	case elasticsearch_field_types.FieldTypeFloat, elasticsearch_field_types.FieldTypeHalfFloat:
+	case elasticsearch_field_types.FieldTypeFloat, elasticsearch_field_types.FieldTypeHalfFloat, elasticsearch_field_types.FieldTypeDouble:
 		return schema.TypeFloat, true
 	case elasticsearch_field_types.FieldTypeBoolean:
 		return schema.TypeBoolean, true

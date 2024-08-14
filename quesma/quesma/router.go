@@ -188,6 +188,21 @@ func configureRouter(cfg config.QuesmaConfiguration, sr schema.Registry, lm *cli
 		return elasticsearchQueryResult(string(responseBody), httpOk), nil
 	})
 
+	router.Register(routes.IndexMappingPath, and(method("PUT"), matchedAgainstPattern(cfg)), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
+		index := req.Params["index"]
+
+		body, err := types.ExpectJSON(req.ParsedBody)
+		if err != nil {
+			return nil, err
+		}
+
+		columns := elasticsearch.ParseMappings("", body)
+
+		sr.UpdateDynamicConfiguration(schema.TableName(index), schema.Table{Columns: columns})
+
+		return putIndexResult(index), nil
+	})
+
 	router.Register(routes.AsyncSearchIdPath, and(method("GET"), matchedAgainstAsyncId()), func(ctx context.Context, req *mux.Request) (*mux.Result, error) {
 		ctx = context.WithValue(ctx, tracing.AsyncIdCtxKey, req.Params["id"])
 		responseBody, err := queryRunner.handlePartialAsyncSearch(ctx, req.Params["id"])
