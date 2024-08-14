@@ -17,23 +17,21 @@ func (t *deAsyncResponse) process(in EnrichedResults) (out EnrichedResults, drop
 
 		asJson, err := types.ParseJSON(elasticResponse)
 
-		if asJson == nil {
+		if err != nil {
 			return "", err
 		}
 
-		if asJson["response"] == nil {
-			return elasticResponse, nil
+		if res, ok := asJson["response"]; ok {
+			b, err := json.Marshal(res)
+
+			if err != nil {
+				return "", err
+			}
+
+			return string(b), nil
 		}
 
-		res := asJson["response"]
-
-		b, err := json.Marshal(res)
-
-		if err != nil {
-			return "", nil
-		}
-
-		return string(b), nil
+		return elasticResponse, nil
 	}
 
 	respA, err := deAsync(in.A.Body)
