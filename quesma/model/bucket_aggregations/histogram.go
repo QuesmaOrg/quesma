@@ -33,8 +33,8 @@ func (query Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 	var response []model.JsonMap
 	for _, row := range rows {
 		response = append(response, model.JsonMap{
-			"key":       row.Cols[level-1].Value,
-			"doc_count": row.Cols[level].Value,
+			"key":       row.Cols[len(row.Cols)-2].Value,
+			"doc_count": row.Cols[len(row.Cols)-1].Value,
 		})
 	}
 	return model.JsonMap{

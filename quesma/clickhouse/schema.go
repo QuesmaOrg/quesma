@@ -14,6 +14,7 @@ import (
 const (
 	AttributesKeyColumn   = "attributes_string_key"
 	AttributesValueColumn = "attributes_string_value"
+	AttributesValueType   = "attributes_string_type"
 	attributesColumnType  = "Array(String)"
 )
 
@@ -249,7 +250,9 @@ func NewType(value any) Type {
 	case map[string]interface{}:
 		cols := make([]*Column, len(valueCasted))
 		for k, v := range valueCasted {
-			cols = append(cols, &Column{Name: k, Type: NewType(v), Codec: Codec{Name: ""}})
+			if v != nil {
+				cols = append(cols, &Column{Name: k, Type: NewType(v), Codec: Codec{Name: ""}})
+			}
 		}
 		return MultiValueType{Name: "Tuple", Cols: cols}
 	case []interface{}:
@@ -315,6 +318,7 @@ func NewDefaultStringAttribute() Attribute {
 	return Attribute{
 		KeysArrayName:   AttributesKeyColumn,
 		ValuesArrayName: AttributesValueColumn,
+		TypesArrayName:  AttributesValueType,
 		Type:            NewBaseType("String"),
 	}
 }
@@ -323,6 +327,7 @@ func NewDefaultInt64Attribute() Attribute {
 	return Attribute{
 		KeysArrayName:   "attributes_int64_key",
 		ValuesArrayName: "attributes_int64_value",
+		TypesArrayName:  "attributes_int64_type",
 		Type:            NewBaseType("Int64"),
 	}
 }
@@ -331,6 +336,7 @@ func NewDefaultFloat64Attribute() Attribute {
 	return Attribute{
 		KeysArrayName:   "attributes_float64_key",
 		ValuesArrayName: "attributes_float64_value",
+		TypesArrayName:  "attributes_float64_type",
 		Type:            NewBaseType("Float64"),
 	}
 }
@@ -339,6 +345,7 @@ func NewDefaultBoolAttribute() Attribute {
 	return Attribute{
 		KeysArrayName:   "attributes_bool_key",
 		ValuesArrayName: "attributes_bool_value",
+		TypesArrayName:  "attributes_bool_type",
 		Type:            NewBaseType("Bool"),
 	}
 }

@@ -9,7 +9,6 @@ import (
 	"quesma/logger"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
-	"quesma/model/metrics_aggregations"
 	"strconv"
 	"strings"
 )
@@ -322,16 +321,13 @@ func (cw *ClickhouseQueryTranslator) pancakeTryBucketAggregation(aggregation *pa
 		delete(queryMap, "geotile_grid")
 		return success, err
 	}
-	if _, ok := queryMap["sampler"]; ok {
-		aggregation.queryType = metrics_aggregations.NewCount(cw.Ctx)
+	if sampler, ok := queryMap["sampler"]; ok {
+		aggregation.queryType = cw.parseSampler(sampler)
 		delete(queryMap, "sampler")
 		return
 	}
-	// Let's treat random_sampler just like sampler for now, until we add `LIMIT` logic to sampler.
-	// Random sampler doesn't have `size` field, but `probability`, so logic in the final version should be different.
-	// So far I've only observed its "probability" field to be 1.0, so it's not really important.
-	if _, ok := queryMap["random_sampler"]; ok {
-		aggregation.queryType = metrics_aggregations.NewCount(cw.Ctx)
+	if randomSampler, ok := queryMap["random_sampler"]; ok {
+		aggregation.queryType = cw.parseRandomSampler(randomSampler)
 		delete(queryMap, "random_sampler")
 		return
 	}
@@ -381,4 +377,31 @@ func (cw *ClickhouseQueryTranslator) pancakeFindMetricAggregation(queryMap Query
 		return columns[0]
 	}
 	return notFoundValue
+}
+
+// samplerRaw - in a proper request should be of QueryMap type.
+func (cw *ClickhouseQueryTranslator) parseSampler(samplerRaw any) bucket_aggregations.Sampler {
+	const defaultSize = 100
+	sampler, ok := samplerRaw.(QueryMap)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("sampler is not a map, but %T, value: %v", samplerRaw, samplerRaw)
+		return bucket_aggregations.NewSampler(cw.Ctx, defaultSize)
+	}
+	return bucket_aggregations.NewSampler(cw.Ctx, cw.parseIntField(sampler, "shard_size", defaultSize))
+}
+
+// randomSamplerRaw - in a proper request should be of QueryMap type.
+func (cw *ClickhouseQueryTranslator) parseRandomSampler(randomSamplerRaw any) bucket_aggregations.RandomSampler {
+	const defaultProbability = 0.0 // theoretically it's required
+	const defaultSeed = 0
+	randomSampler, ok := randomSamplerRaw.(QueryMap)
+	if !ok {
+		logger.WarnWithCtx(cw.Ctx).Msgf("sampler is not a map, but %T, value: %v", randomSamplerRaw, randomSamplerRaw)
+		return bucket_aggregations.NewRandomSampler(cw.Ctx, defaultProbability, defaultSeed)
+	}
+	return bucket_aggregations.NewRandomSampler(
+		cw.Ctx,
+		cw.parseFloatField(randomSampler, "probability", defaultProbability),
+		cw.parseIntField(randomSampler, "seed", defaultSeed),
+	)
 }

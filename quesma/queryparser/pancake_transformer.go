@@ -5,6 +5,7 @@ package queryparser
 import (
 	"fmt"
 	"quesma/model"
+	"quesma/model/bucket_aggregations"
 	"sort"
 	"strings"
 )
@@ -140,9 +141,17 @@ func (a *pancakeTransformer) aggregationTreeToPancake(topLevel pancakeAggregatio
 		})
 	}
 
+	sampleLimit := noSampleLimit
+	if firstLayer.nextBucketAggregation != nil {
+		if sampler, ok := firstLayer.nextBucketAggregation.queryType.(bucket_aggregations.SamplerInterface); ok {
+			sampleLimit = sampler.GetSampleLimit()
+		}
+	}
+
 	pancakeResult = &pancakeModel{
 		layers:      layers,
 		whereClause: topLevel.whereClause,
+		sampleLimit: sampleLimit,
 	}
 
 	return

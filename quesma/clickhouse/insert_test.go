@@ -108,10 +108,10 @@ var configs = []*ChTableConfig{
 }
 
 var expectedInserts = []string{
-	`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","service::name":"frontend","severity":"debug","source":"rhel"}`,
-	`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_string_key":\["service::name","severity","source"\],"attributes_string_value":\["frontend","debug","rhel"\],"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed"}`,
-	`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","random1":\["debug"\],"random2":"random-string","severity":"frontend"}`,
-	`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_string_key":\["random1","random2","severity"\],"attributes_string_value":\["\[debug\]","random-string","frontend"\],"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed"}`,
+	EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","service::name":"frontend","severity":"debug","source":"rhel"}`),
+	EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_string_key":["service::name","severity","source"],"attributes_string_type":["String","String","String"],"attributes_string_value":["frontend","debug","rhel"],"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed"}`),
+	EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed","random1":["debug"],"random2":"random-string","severity":"frontend"}`),
+	EscapeBrackets(`INSERT INTO "` + tableName + `" FORMAT JSONEachRow {"attributes_string_key":["random1","random2","severity"],"attributes_string_type":["Array(String)","String","String"],"attributes_string_value":["[debug]","random-string","frontend"],"@timestamp":"2024-01-27T16:11:19.94Z","host::name":"hermes","message":"User password reset failed"}`),
 }
 
 type logManagerHelper struct {

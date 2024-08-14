@@ -11,14 +11,15 @@ import (
 )
 
 type PercentileRanks struct {
-	ctx context.Context
+	ctx       context.Context
+	cutValues []string // countIf(field<=$cutValue)/count(*)*100
 	// defines what response should look like
 	// https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-percentile-rank-aggregation.html#_keyed_response_5
 	Keyed bool
 }
 
-func NewPercentileRanks(ctx context.Context, keyed bool) PercentileRanks {
-	return PercentileRanks{ctx: ctx, Keyed: keyed}
+func NewPercentileRanks(ctx context.Context, cutValues []string, keyed bool) PercentileRanks {
+	return PercentileRanks{ctx: ctx, cutValues: cutValues, Keyed: keyed}
 }
 
 func (query PercentileRanks) AggregationType() model.AggregationType {
@@ -28,25 +29,21 @@ func (query PercentileRanks) AggregationType() model.AggregationType {
 func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResultRow, level int) model.JsonMap {
 	if len(rows) == 0 {
 		logger.WarnWithCtx(query.ctx).Msg("no rows in percentile ranks response")
-		return make(model.JsonMap, 0)
+		return make(model.JsonMap)
 	}
 	// I duplicate a lot of code in this if/else below,
 	// but I think it's worth it, as this function might get called a lot of times for a single query.
 	// And because of complete separation in if/else, I guess it might (should) be slightly faster (?)
 	if query.Keyed {
 		valueMap := make(model.JsonMap)
-		for _, percentileRank := range rows[0].Cols[level:] {
-			// percentileRank.ColName looks like this [...]<=X,[...]. We're extracting X.
+		for i, percentileRank := range rows[0].Cols[level:] {
 			// It always needs to have .Y or .YZ at the end, so 1 or 2 digits after the dot, and dot is mandatory.
 			// Also, can't be .00, needs to be .0
-			beg := strings.Index(percentileRank.ColName, "<=")
-			end := strings.Index(percentileRank.ColName[beg:], ",")
-			cutValue := percentileRank.ColName[beg+2 : beg+end]
-
+			cutValue := query.cutValues[i]
 			dot := strings.Index(cutValue, ".")
 			if dot == -1 {
 				cutValue += ".0"
-			} else if end-dot >= len(".00") && cutValue[dot:dot+3] == ".00" {
+			} else if dot+len(".00") <= len(cutValue) && cutValue[dot:dot+3] == ".00" {
 				cutValue = cutValue[:dot+2]
 			} else {
 				cutValue = cutValue[:dot+3]
@@ -63,18 +60,14 @@ func (query PercentileRanks) TranslateSqlResponseToJson(rows []model.QueryResult
 		}
 	} else {
 		buckets := make([]model.JsonMap, 0)
-		for _, percentileRank := range rows[0].Cols[level:] {
-			// percentileRank.ColName looks like this [...]<=X,[...]. We're extracting X.
+		for i, percentileRank := range rows[0].Cols[level:] {
 			// It always needs to have .Y or .YZ at the end, so 1 or 2 digits after the dot, and dot is mandatory.
 			// Also, can't be .00, needs to be .0
-			beg := strings.Index(percentileRank.ColName, "<=")
-			end := strings.Index(percentileRank.ColName[beg:], ",")
-			cutValue := percentileRank.ColName[beg+2 : beg+end]
-
+			cutValue := query.cutValues[i]
 			dot := strings.Index(cutValue, ".")
 			if dot == -1 {
 				cutValue += ".0"
-			} else if end-dot >= len(".00") && cutValue[dot:dot+3] == ".00" {
+			} else if dot+len(".00") <= len(cutValue) && cutValue[dot:dot+3] == ".00" {
 				cutValue = cutValue[:dot+2]
 			} else {
 				cutValue = cutValue[:dot+3]

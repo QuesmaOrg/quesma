@@ -91,6 +91,15 @@ func (p *pancakeSqlQueryGenerator) generateMetricSelects(metric *pancakeModelMet
 	return
 }
 
+func (p *pancakeSqlQueryGenerator) isPartOfGroupBy(column model.Expr, groupByColumns []model.AliasedExpr) bool {
+	for _, groupByColumn := range groupByColumns {
+		if model.PartlyImplementedIsEqual(column, groupByColumn) {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pancakeModelBucketAggregation, groupByColumns []model.AliasedExpr, hasMoreBucketAggregations bool) (
 	addSelectColumns, addPartColumns, addGroupBys, addRankColumns []model.AliasedExpr, addRankWheres []model.Expr, addRankOrderBys []model.OrderByExpr, err error) {
 
@@ -127,9 +136,7 @@ func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pan
 		orderBy := bucketAggregation.orderBy[0].Exprs[0]
 		orderByDirection := bucketAggregation.orderBy[0].Direction
 
-		_, isColumnRef := orderBy.(model.ColumnRef)
-
-		if hasMoreBucketAggregations && !isColumnRef {
+		if hasMoreBucketAggregations && !p.isPartOfGroupBy(orderBy, append(groupByColumns, addGroupBys...)) {
 			partColumnName := bucketAggregation.InternalNameForOrderBy(columnId) + "_part"
 			partColumn, aggFunctionName, err := p.generateAccumAggrFunctions(orderBy, nil)
 			if err != nil {
@@ -251,6 +258,7 @@ func (p *pancakeSqlQueryGenerator) generateSelectCommand(aggregation *pancakeMod
 		GroupBy:     p.aliasedExprArrayToExpr(groupBys),
 		WhereClause: aggregation.whereClause,
 		FromClause:  model.NewTableRef(table.FullTableName()),
+		SampleLimit: aggregation.sampleLimit,
 	}
 
 	rankCte := model.SelectCommand{

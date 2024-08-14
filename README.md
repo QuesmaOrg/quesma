@@ -66,7 +66,7 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/QuesmaOrg/quesma/main/exam
 Once it's running, you can access:
 - Kibana at [localhost:5601](http://localhost:5601/)
 - Quesma at [localhost:9999](http://localhost:9999/)
-- Clickhouse at [localhost:8123](http://localhost:8123/)
+- Clickhouse at [localhost:8123/play](http://localhost:8123/play)
 
 ### Development
 

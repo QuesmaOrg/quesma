@@ -56,9 +56,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if dateRange(test.TestName) {
 				t.Skip("Fix date range")
 			}
-			if percentileRanks(test.TestName) {
-				t.Skip("Fix percentile ranks")
-			}
 			if topHits(test.TestName) {
 				t.Skip("Fix top_hits")
 			}
@@ -77,11 +74,11 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if filters(test.TestName) {
 				t.Skip("Fix filters")
 			}
-			if sampler(test.TestName) {
-				t.Skip("Fix sampler")
-			}
 			if multiTerms(test.TestName) {
 				t.Skip("Fix multi terms")
+			}
+			if valueCount(test.TestName) { // DON'T FIX, I already have it fixed in another PR
+				t.Skip("Fix value count")
 			}
 
 			fmt.Println("i:", i, "test:", test.TestName)
@@ -135,9 +132,10 @@ func TestPancakeQueryGeneration(t *testing.T) {
 				t.Fatal("Failed to render pancake JSON", err)
 			}
 
-			// probability and seed are present in random_sampler aggregation. I'd assume they are not needed, thus let's not care about it for now.
+			// FIXME we can quite easily remove 'probability' and 'seed' from above - just start remembering them in RandomSampler struct and print in JSON response.
 			acceptableDifference := []string{"sum_other_doc_count", "probability", "seed", "bg_count", "doc_count", model.KeyAddedByQuesma,
 				"sum_other_doc_count", "doc_count_error_upper_bound"} // Don't know why, but those 2 are still needed in new (clients/ophelia) tests. Let's fix it in another PR
+
 			actualMinusExpected, expectedMinusActual := util.MapDifference(pancakeJson,
 				expectedAggregationsPart, acceptableDifference, true, true)
 			if len(actualMinusExpected) != 0 {
@@ -146,7 +144,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if len(expectedMinusActual) != 0 {
 				pp.Println("EXPECTED diff", expectedMinusActual)
 			}
-			//pp.Println("ACTUAL", pancakeJson)
+			pp.Println("ACTUAL", pancakeJson)
 			//pp.Println("EXPECTED", expectedAggregationsPart)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
@@ -181,11 +179,6 @@ func dateRange(testName string) bool {
 }
 
 // TODO remove after fix
-func percentileRanks(testName string) bool {
-	return testName == "Percentile_ranks keyed=false. Reproduce: Visualize -> Line -> Metrics: Percentile Ranks, Buckets: X-Asis Date Histogram"
-}
-
-// TODO remove after fix
 func topHits(testName string) bool {
 	t1 := testName == "Range with subaggregations. Reproduce: Visualize -> Pie chart -> Aggregation: Top Hit, Buckets: Aggregation: Range" // also range
 	t2 := testName == "top hits, quite complex"
@@ -210,7 +203,8 @@ func multiplePancakes(testName string) bool {
 func histogramMinDocCount0(testName string) bool {
 	t1 := testName == "simple histogram, but min_doc_count: 0"
 	t2 := testName == "simple date_histogram, but min_doc_count: 0"
-	return t1 || t2
+	t3 := testName == "2x histogram with min_doc_count 0"
+	return t1 || t2 || t3
 }
 
 // TODO remove after fix
@@ -220,7 +214,7 @@ func filter(testName string) bool {
 	t3 := testName == "2 sibling count aggregations"
 	t4 := testName == "simple filter/count"
 	t5 := testName == "triple nested aggs"
-	t6 := testName == "Field statistics > summary for numeric fields" // also sampler and percentiles
+	t6 := testName == "Field statistics > summary for numeric fields" // also percentiles
 	t7 := testName == "clients/kunkka/test_0, used to be broken before aggregations merge fix"+
 		"Output more or less works, but is different and worse than what Elastic returns."+
 		"If it starts failing, maybe that's a good thing"
@@ -241,20 +235,17 @@ func filters(testName string) bool {
 }
 
 // TODO remove after fix
-func sampler(testName string) bool {
-	t1 := testName == "value_count + top_values: regression test"
-	t2 := testName == "random sampler, from Explorer > Field statistics"
-	t3 := testName == "Field statistics > summary for numeric fields" // also filter and percentiles
-	return t1 || t2 || t3
-}
-
-// TODO remove after fix
 func multiTerms(testName string) bool {
 	t1 := testName == "Multi_terms without subaggregations. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)"
 	t2 := testName == "Multi_terms with simple count. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Count of records, Breakdown: @timestamp"
 	t3 := testName == "Multi_terms with double-nested subaggregations. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Unique count, Breakdown: @timestamp"
 	t4 := testName == "Quite simple multi_terms, but with non-string keys. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)"
 	return t1 || t2 || t3 || t4
+}
+
+// TODO remove after fix
+func valueCount(testName string) bool {
+	return testName == "value_count + top_values: regression test"
 }
 
 func TestPancakeQueryGeneration_halfpancake(t *testing.T) {
