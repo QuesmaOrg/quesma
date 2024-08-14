@@ -2001,7 +2001,7 @@ var AggregationTests2 = []AggregationTestCase{
 				  "bytes2"/5.000000)*5.000000 AS "aggr__2__3__key_0"))
 			ORDER BY "aggr__2__order_1_rank" ASC, "aggr__2__3__order_1_rank" ASC`,
 	},
-	{ // [50]
+	{ // [50] TODO: what about nulls in histogram? Maybe they should be treated like in terms?
 		TestName: "2x histogram with min_doc_count 0",
 		QueryRequestJson: `
 		{
@@ -2121,7 +2121,15 @@ var AggregationTests2 = []AggregationTestCase{
 						},
 						{
 							"doc_count": 2,
-							"key": 9700.0
+							"key": 9700.0,
+							"3": {
+								"buckets": [
+									{
+										"key": null,
+										"doc_count": 1
+									}
+								]
+							}
 						}
 					]
 				}
@@ -2164,7 +2172,7 @@ var AggregationTests2 = []AggregationTestCase{
 				model.NewQueryResultCol("aggr__2__count", 2),
 				model.NewQueryResultCol("aggr__2__order_1", 9700.0),
 				model.NewQueryResultCol("aggr__2__3__key_0", nil),
-				model.NewQueryResultCol("aggr__2__3__count", 0),
+				model.NewQueryResultCol("aggr__2__3__count", 1),
 				model.NewQueryResultCol("aggr__2__3__order_1", nil),
 			}},
 		},

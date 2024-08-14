@@ -5374,35 +5374,39 @@ var AggregationTests = []AggregationTestCase{
 				"total": 1
 			},
 			"aggregations": {
-				"2": {
+				"0": {
 					"buckets": [
 						{
+							"doc_count": 3,
+							"key": 0.0,
+							"2": {
+								"buckets": [
+									{
+										"doc_count": 2,
+										"key": "a"
+									},
+									{
+										"doc_count": 1,
+										"key": "b"
+									}
+								]
+							}
+						},
+						{
+							"doc_count": 0,
+							"key": 2000.0
+						},
+						{
 							"doc_count": 1,
-							"key": 9100.0
-						},
-						{
-							"doc_count": 0,
-							"key": 9200.0
-						},
-						{
-							"doc_count": 0,
-							"key": 9300.0
-						},
-						{
-							"doc_count": 0,
-							"key": 9400.0
-						},
-						{
-							"doc_count": 0,
-							"key": 9500.0
-						},
-						{
-							"doc_count": 0,
-							"key": 9600.0
-						},
-						{
-							"doc_count": 2,
-							"key": 9700.0
+							"key": 4000.0,
+							"2": {
+								"buckets": [
+									{
+										"doc_count": 1,
+										"key": "c"
+									}
+								]
+							}
 						}
 					]
 				}
@@ -5448,7 +5452,32 @@ var AggregationTests = []AggregationTestCase{
 				}},
 			},
 		},
-		ExpectedPancakeResults: make([]model.QueryResultRow, 0),
+		ExpectedPancakeResults: []model.QueryResultRow{
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", 0.0),
+				model.NewQueryResultCol("aggr__0__count", 3),
+				model.NewQueryResultCol("aggr__0__order_1", 0.0),
+				model.NewQueryResultCol("aggr__0__2__key_0", "a"),
+				model.NewQueryResultCol("aggr__0__2__count", 2),
+				model.NewQueryResultCol("aggr__0__2__order_1", 2),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", 0.0),
+				model.NewQueryResultCol("aggr__0__count", 3),
+				model.NewQueryResultCol("aggr__0__order_1", 0.0),
+				model.NewQueryResultCol("aggr__0__2__key_0", "b"),
+				model.NewQueryResultCol("aggr__0__2__count", 1),
+				model.NewQueryResultCol("aggr__0__2__order_1", 1),
+			}},
+			{Cols: []model.QueryResultCol{
+				model.NewQueryResultCol("aggr__0__key_0", 4000.0),
+				model.NewQueryResultCol("aggr__0__count", 1),
+				model.NewQueryResultCol("aggr__0__order_1", 4000.0),
+				model.NewQueryResultCol("aggr__0__2__key_0", "c"),
+				model.NewQueryResultCol("aggr__0__2__count", 1),
+				model.NewQueryResultCol("aggr__0__2__order_1", 1),
+			}},
+		},
 		ExpectedSQLs: []string{
 			`SELECT count() ` +
 				`FROM ` + QuotedTableName,
@@ -5461,7 +5490,29 @@ var AggregationTests = []AggregationTestCase{
 				`GROUP BY floor("rspContentLen" / 2000.000000) * 2000.000000 ` +
 				`ORDER BY floor("rspContentLen" / 2000.000000) * 2000.000000`,
 		},
-		ExpectedPancakeSQL: "TODO",
+		ExpectedPancakeSQL: `
+			SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
+			  "aggr__0__2__key_0", "aggr__0__2__count", "aggr__0__2__order_1"
+			FROM (
+			  SELECT "aggr__0__key_0", "aggr__0__count", "aggr__0__order_1",
+				"aggr__0__2__key_0", "aggr__0__2__count", "aggr__0__2__order_1",
+				dense_rank() OVER (PARTITION BY 1
+			  ORDER BY "aggr__0__order_1", "aggr__0__key_0" ASC) AS "aggr__0__order_1_rank",
+				 dense_rank() OVER (PARTITION BY "aggr__0__key_0"
+			  ORDER BY "aggr__0__2__order_1" DESC, "aggr__0__2__key_0" ASC) AS
+				"aggr__0__2__order_1_rank"
+			  FROM (
+				SELECT floor("rspContentLen"/2000.000000)*2000.000000 AS "aggr__0__key_0",
+				  sum("aggr__0__count_part") OVER (PARTITION BY "aggr__0__key_0") AS
+				  "aggr__0__count", floor("rspContentLen"/2000.000000)*2000.000000 AS
+				  "aggr__0__order_1", "message" AS "aggr__0__2__key_0", count(*) AS
+				  "aggr__0__2__count", count() AS "aggr__0__2__order_1", count(*) AS
+				  "aggr__0__count_part"
+				FROM "logs-generic-default"
+				GROUP BY floor("rspContentLen"/2000.000000)*2000.000000 AS "aggr__0__key_0",
+				   "message" AS "aggr__0__2__key_0"))
+			WHERE "aggr__0__2__order_1_rank"<=5
+			ORDER BY "aggr__0__order_1_rank" ASC, "aggr__0__2__order_1_rank" ASC`,
 	},
 	{ // [28]
 		TestName: "Terms, completely different tree results from 2 queries - merging them didn't work before",
