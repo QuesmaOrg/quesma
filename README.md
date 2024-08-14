@@ -57,8 +57,7 @@ In order to run it, you need to:
 - run `docker-compose up` directly from `/examples/kibana-sample-data` directory
 
 If you want to build your own image, run `./bin/build-image.sh` from the root directory
-
-Handy one-liner:
+Handy one-liner for the above:
 ```bash
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/QuesmaOrg/quesma/main/examples/run.sh)"
 ```
