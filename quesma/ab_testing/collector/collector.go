@@ -64,7 +64,6 @@ func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessa
 	// TODO read config here
 
 	// avoid unused struct error
-	var _ = &ppPrintFanout{}
 	var _ = &mismatchedOnlyFilter{}
 
 	return &InMemoryCollector{
