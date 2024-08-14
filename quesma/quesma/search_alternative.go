@@ -78,7 +78,7 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, plan 
 			bytes = []byte("error converting body to bytes")
 		}
 
-		toError := func(err error) string {
+		errorToString := func(err error) string {
 			if err != nil {
 				return err.Error()
 			}
@@ -96,14 +96,14 @@ func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, plan 
 				Name:  main.plan.Name,
 				Body:  string(main.responseBody),
 				Time:  main.endTime.Sub(main.plan.StartTime).Seconds(),
-				Error: toError(main.err),
+				Error: errorToString(main.err),
 			},
 
 			B: ab_testing.Response{
 				Name:  alternative.plan.Name,
 				Body:  string(alternative.responseBody),
 				Time:  alternative.endTime.Sub(alternative.plan.StartTime).Seconds(),
-				Error: toError(alternative.err),
+				Error: errorToString(alternative.err),
 			},
 			RequestID: contextValues.RequestId,
 			OpaqueID:  contextValues.OpaqueId,
