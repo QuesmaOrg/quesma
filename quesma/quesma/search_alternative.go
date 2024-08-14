@@ -186,37 +186,38 @@ func (q *QueryRunner) maybeCreatePancakeExecutionPlan(ctx context.Context, resol
 		}
 	}
 
-	if hasAggQuery {
-		if chQueryTranslator, ok := queryTranslator.(*queryparser.ClickhouseQueryTranslator); ok {
-
-			// TODO FIXME check if the original plan has count query
-			addCount := false
-
-			if pancakeQueries, err := chQueryTranslator.PancakeParseAggregationJson(body, addCount); err == nil {
-				logger.InfoWithCtx(ctx).Msgf("Running alternative pancake queries")
-				queries := append(queriesWithoutAggr, pancakeQueries...)
-				alternativePlan := &model.ExecutionPlan{
-					IndexPattern:          plan.IndexPattern,
-					QueryRowsTransformers: make([]model.QueryRowsTransformer, len(queries)),
-					Queries:               queries,
-					StartTime:             plan.StartTime,
-					Name:                  "pancake",
-				}
-
-				return alternativePlan, func(ctx context.Context) ([]byte, error) {
-
-					return q.executeAlternativePlan(ctx, plan, queryTranslator, table, body, false)
-				}
-
-			} else {
-				// TODO: change to info
-				logger.ErrorWithCtx(ctx).Msgf("Error parsing pancake queries: %v", err)
-			}
-		} else {
-			logger.ErrorWithCtx(ctx).Msgf("Alternative plan is not supported for non-clickhouse query translators")
-		}
+	if !hasAggQuery {
+		return nil, nil
 	}
 
+	if chQueryTranslator, ok := queryTranslator.(*queryparser.ClickhouseQueryTranslator); ok {
+
+		// TODO FIXME check if the original plan has count query
+		addCount := false
+
+		if pancakeQueries, err := chQueryTranslator.PancakeParseAggregationJson(body, addCount); err == nil {
+			logger.InfoWithCtx(ctx).Msgf("Running alternative pancake queries")
+			queries := append(queriesWithoutAggr, pancakeQueries...)
+			alternativePlan := &model.ExecutionPlan{
+				IndexPattern:          plan.IndexPattern,
+				QueryRowsTransformers: make([]model.QueryRowsTransformer, len(queries)),
+				Queries:               queries,
+				StartTime:             plan.StartTime,
+				Name:                  "pancake",
+			}
+
+			return alternativePlan, func(ctx context.Context) ([]byte, error) {
+
+				return q.executeAlternativePlan(ctx, plan, queryTranslator, table, body, false)
+			}
+
+		} else {
+			// TODO: change to info
+			logger.ErrorWithCtx(ctx).Msgf("Error parsing pancake queries: %v", err)
+		}
+	} else {
+		logger.ErrorWithCtx(ctx).Msgf("Alternative plan is not supported for non-clickhouse query translators")
+	}
 	return nil, nil
 }
 
