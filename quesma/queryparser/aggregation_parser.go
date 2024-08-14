@@ -128,7 +128,7 @@ func (b *aggrQueryBuilder) buildMetricsAggregation(metricsAggr metricsAggregatio
 		query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewCountFunc(model.NewDistinctExpr(getFirstExpression())))
 
 	case "value_count":
-		query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewCountFunc())
+		query.SelectCommand.Columns = append(query.SelectCommand.Columns, model.NewCountFunc(getFirstExpression()))
 
 	case "stats":
 		expr := getFirstExpression()

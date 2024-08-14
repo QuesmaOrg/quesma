@@ -2564,17 +2564,20 @@ var AggregationTests = []AggregationTestCase{
 				"aggr__sample__top_values__order_1_rank"
 			  FROM (
 				SELECT sum("aggr__sample__count_part") OVER (PARTITION BY 1) AS
-				  "aggr__sample__count", count() AS "metric__sample__sample_count_col_0",
-				  "host.name" AS "aggr__sample__top_values__key_0", count(*) AS
+				  "aggr__sample__count", count("host.name") AS
+				  "metric__sample__sample_count_col_0", "host.name" AS
+				  "aggr__sample__top_values__key_0", count(*) AS
 				  "aggr__sample__top_values__count", count() AS
 				  "aggr__sample__top_values__order_1", count(*) AS
 				  "aggr__sample__count_part"
-				FROM "logs-generic-default"
-				WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z')
-				  AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z'))
-				  AND "message" iLIKE '%user%')
+				FROM (
+				  SELECT "host.name"
+				  FROM "logs-generic-default"
+				  WHERE (("@timestamp">=parseDateTime64BestEffort('2024-01-23T11:27:16.820Z')
+				    AND "@timestamp"<=parseDateTime64BestEffort('2024-01-23T11:42:16.820Z')) AND "message" iLIKE '%user%')
+				  LIMIT 8000)
 				GROUP BY "host.name" AS "aggr__sample__top_values__key_0"))
-			WHERE "aggr__sample__top_values__order_1_rank"<=10
+			WHERE "aggr__sample__top_values__order_1_rank"<=11
 			ORDER BY "aggr__sample__top_values__order_1_rank" ASC`,
 	},
 	{ // [12], "old" test, also can be found in testdata/requests.go TestAsyncSearch[3]
