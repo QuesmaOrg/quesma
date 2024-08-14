@@ -16,12 +16,15 @@ type pancakeTransformer struct {
 	usedNames map[string][]string
 }
 
+func newPancakeTransformer() pancakeTransformer {
+	return pancakeTransformer{
+		usedNames: make(map[string][]string),
+	}
+}
+
 // Extremely rarely names may collide (e.g. aggregation named '1__2' and '1', '2').
 // This adds number suffix to make sure they are always unique
 func (a *pancakeTransformer) generateUniqueInternalName(origName string, aggrNames []string) string {
-	if a.usedNames == nil {
-		a.usedNames = make(map[string][]string)
-	}
 	proposedName := origName
 	for counter := 2; true; counter += 1 {
 		if prevAggr, isUsed := a.usedNames[proposedName]; !isUsed {
