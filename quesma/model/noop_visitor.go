@@ -23,3 +23,4 @@ func (NoOpVisitor) VisitSelectCommand(e SelectCommand) interface{}     { return 
 func (NoOpVisitor) VisitWindowFunction(f WindowFunction) interface{}   { return f }
 func (NoOpVisitor) VisitParenExpr(e ParenExpr) interface{}             { return e }
 func (NoOpVisitor) VisitLambdaExpr(e LambdaExpr) interface{}           { return e }
+func (NoOpVisitor) VisitJoinExpr(e JoinExpr) interface{}               { return e }

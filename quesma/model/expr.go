@@ -251,6 +251,22 @@ func (l LambdaExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitLambdaExpr(l)
 }
 
+// JoinExpr represents a JOIN expression, e.g. `table1 INNER JOIN table2 ON (table1.id = table2.id)`
+type JoinExpr struct {
+	Lhs      Expr
+	JoinType string
+	Rhs      Expr
+	On       Expr
+}
+
+func NewJoinExpr(lhs, rhs Expr, joinType string, on Expr) JoinExpr {
+	return JoinExpr{Lhs: lhs, JoinType: joinType, Rhs: rhs, On: on}
+}
+
+func (e JoinExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitJoinExpr(e)
+}
+
 type ExprVisitor interface {
 	VisitFunction(e FunctionExpr) interface{}
 	VisitMultiFunction(e MultiFunctionExpr) interface{}
@@ -269,4 +285,5 @@ type ExprVisitor interface {
 	VisitWindowFunction(f WindowFunction) interface{}
 	VisitParenExpr(e ParenExpr) interface{}
 	VisitLambdaExpr(e LambdaExpr) interface{}
+	VisitJoinExpr(e JoinExpr) interface{}
 }

@@ -321,3 +321,7 @@ func (v *renderer) VisitParenExpr(p ParenExpr) interface{} {
 func (v *renderer) VisitLambdaExpr(l LambdaExpr) interface{} {
 	return fmt.Sprintf("(%s) -> %s", strings.Join(l.Args, ", "), AsString(l.Body))
 }
+
+func (v *renderer) VisitJoinExpr(j JoinExpr) interface{} {
+	return fmt.Sprintf("%s %s JOIN %s ON (%s)", j.Lhs.Accept(v), j.JoinType, j.Rhs.Accept(v), j.On.Accept(v))
+}

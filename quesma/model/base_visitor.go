@@ -20,6 +20,7 @@ type BaseExprVisitor struct {
 	OverrideVisitWindowFunction func(b *BaseExprVisitor, f WindowFunction) interface{}
 	OverrideVisitParenExpr      func(b *BaseExprVisitor, e ParenExpr) interface{}
 	OverrideVisitLambdaExpr     func(b *BaseExprVisitor, e LambdaExpr) interface{}
+	OverrideVisitJoinExpr       func(b *BaseExprVisitor, e JoinExpr) interface{}
 }
 
 func NewBaseVisitor() *BaseExprVisitor {
@@ -201,4 +202,11 @@ func (v *BaseExprVisitor) VisitLambdaExpr(e LambdaExpr) interface{} {
 		return v.OverrideVisitLambdaExpr(v, e)
 	}
 	return NewLambdaExpr(e.Args, e.Body.Accept(v).(Expr))
+}
+
+func (v *BaseExprVisitor) VisitJoinExpr(j JoinExpr) interface{} {
+	if v.OverrideVisitJoinExpr != nil {
+		return v.OverrideVisitJoinExpr(v, j)
+	}
+	return NewJoinExpr(j.Lhs.Accept(v).(Expr), j.Rhs.Accept(v).(Expr), j.JoinType, j.On.Accept(v).(Expr))
 }
