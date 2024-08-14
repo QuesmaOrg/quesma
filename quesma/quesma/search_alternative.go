@@ -169,7 +169,7 @@ func (q *QueryRunner) askElasticAsAnAlternative(ctx context.Context, resolvedTab
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("error calling elastic. got error code: %d", resp.StatusCode)
 		}
-		
+
 		return responseBody, nil
 	}
 }
