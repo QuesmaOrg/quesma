@@ -153,12 +153,11 @@ func (q *QueryRunner) askElasticAsAnAlternative(ctx context.Context, resolvedTab
 		// TODO: add user/pass
 
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(requestBody))
-
 		if err != nil {
 			return nil, err
 		}
-		responseBody, err := io.ReadAll(resp.Body)
 
+		responseBody, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, err
 		}
@@ -170,6 +169,7 @@ func (q *QueryRunner) askElasticAsAnAlternative(ctx context.Context, resolvedTab
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("error calling elastic. got error code: %d", resp.StatusCode)
 		}
+		
 		return responseBody, nil
 	}
 }
