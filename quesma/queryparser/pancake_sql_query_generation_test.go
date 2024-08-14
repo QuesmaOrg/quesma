@@ -65,9 +65,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if multiplePancakes(test.TestName) {
 				t.Skip("Fix multiple pancakes")
 			}
-			if histogramMinDocCount0(test.TestName) {
-				t.Skip("Fix histogram min doc count 0")
-			}
 			if filter(test.TestName) {
 				t.Skip("Fix filter")
 			}
@@ -76,9 +73,6 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			}
 			if multiTerms(test.TestName) {
 				t.Skip("Fix multi terms")
-			}
-			if valueCount(test.TestName) { // DON'T FIX, I already have it fixed in another PR
-				t.Skip("Fix value count")
 			}
 
 			fmt.Println("i:", i, "test:", test.TestName)
@@ -144,7 +138,7 @@ func TestPancakeQueryGeneration(t *testing.T) {
 			if len(expectedMinusActual) != 0 {
 				pp.Println("EXPECTED diff", expectedMinusActual)
 			}
-			pp.Println("ACTUAL", pancakeJson)
+			//pp.Println("ACTUAL", pancakeJson)
 			//pp.Println("EXPECTED", expectedAggregationsPart)
 			assert.True(t, util.AlmostEmpty(actualMinusExpected, acceptableDifference))
 			assert.True(t, util.AlmostEmpty(expectedMinusActual, acceptableDifference))
@@ -200,14 +194,6 @@ func multiplePancakes(testName string) bool {
 }
 
 // TODO remove after fix
-func histogramMinDocCount0(testName string) bool {
-	t1 := testName == "simple histogram, but min_doc_count: 0"
-	t2 := testName == "simple date_histogram, but min_doc_count: 0"
-	t3 := testName == "2x histogram with min_doc_count 0"
-	return t1 || t2 || t3
-}
-
-// TODO remove after fix
 func filter(testName string) bool {
 	t1 := testName == "Terms, completely different tree results from 2 queries - merging them didn't work before"
 	t2 := testName == "Kibana Visualize -> Last Value. Used to panic" // also top_metrics
@@ -241,11 +227,6 @@ func multiTerms(testName string) bool {
 	t3 := testName == "Multi_terms with double-nested subaggregations. Visualize: Bar Vertical: Horizontal Axis: Top values (2 values), Vertical: Unique count, Breakdown: @timestamp"
 	t4 := testName == "Quite simple multi_terms, but with non-string keys. Visualize: Bar Vertical: Horizontal Axis: Date Histogram, Vertical Axis: Count of records, Breakdown: Top values (2 values)"
 	return t1 || t2 || t3 || t4
-}
-
-// TODO remove after fix
-func valueCount(testName string) bool {
-	return testName == "value_count + top_values: regression test"
 }
 
 func TestPancakeQueryGeneration_halfpancake(t *testing.T) {

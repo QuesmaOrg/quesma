@@ -143,18 +143,41 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 		if layerIdx+1 < len(layers) { // Add subAggregation
 			if bucketArrRaw, ok := buckets["buckets"]; ok {
 				bucketArr := bucketArrRaw.([]model.JsonMap)
-				if len(bucketArr) != len(subAggrRows) {
-					// TODO: Maybe handle it somehow
-					return nil, fmt.Errorf("buckets and subAggrRows should have the same length. layer: %s ", layer.nextBucketAggregation.name)
-				}
 
-				for i, bucket := range bucketArr {
-					// TODO: Maybe add model.KeyAddedByQuesma if there are more than one pancake
-					subAggr, err := p.layerToJSON(layerIdx+1, layers, subAggrRows[i])
-					if err != nil {
-						return nil, err
+				if len(bucketArr) == len(subAggrRows) {
+					// Simple case, we merge bucketArr[i] with subAggrRows[i] (if lengths are equal, keys must be equal => it's fine to not check them at all)
+					for i, bucket := range bucketArr {
+						// TODO: Maybe add model.KeyAddedByQuesma if there are more than one pancake
+						subAggr, err := p.layerToJSON(layerIdx+1, layers, subAggrRows[i])
+						if err != nil {
+							return nil, err
+						}
+						bucketArr[i] = util.MergeMaps(context.Background(), bucket, subAggr, model.KeyAddedByQuesma)
 					}
-					bucketArr[i] = util.MergeMaps(context.Background(), bucket, subAggr, model.KeyAddedByQuesma)
+				} else {
+					// A bit harder case. Observation: len(bucketArr) > len(subAggrRows) and set(subAggrRows' keys) is a subset of set(bucketArr's keys)
+					// So if bucket[i]'s key corresponds to subAggr[subAggrIdx]'s key, we merge them.
+					// If not, we just keep bucket[i] (i++, subAggrIdx stays the same)
+					subAggrIdx := 0
+					for i, bucket := range bucketArr {
+						key, exists := bucket["key"]
+						if !exists {
+							return nil, fmt.Errorf("no key in bucket json, layer: %s", layer.nextBucketAggregation.name)
+						}
+
+						columnNameWithKey := layer.nextBucketAggregation.InternalNameForKey(0) // TODO: need all ids, multi_terms will probably not work now
+						subAggrKey, found := p.valueForColumn(subAggrRows[subAggrIdx], columnNameWithKey)
+						if found && subAggrKey == key {
+							subAggr, err := p.layerToJSON(layerIdx+1, layers, subAggrRows[subAggrIdx])
+							if err != nil {
+								return nil, err
+							}
+							bucketArr[i] = util.MergeMaps(context.Background(), bucket, subAggr, model.KeyAddedByQuesma)
+							subAggrIdx++
+						} else {
+							bucketArr[i] = bucket
+						}
+					}
 				}
 			} else {
 				return nil, fmt.Errorf("no buckets key in bucket json, layer: %s", layer.nextBucketAggregation.name)
@@ -167,6 +190,19 @@ func (p *pancakeJSONRenderer) layerToJSON(layerIdx int, layers []*pancakeModelLa
 		result[layer.nextBucketAggregation.name] = buckets
 	}
 	return result, nil
+}
+
+// valueForColumn returns value for a given column name in the first row of the result set (if it exists, it's the same for all rows)
+func (p *pancakeJSONRenderer) valueForColumn(rows []model.QueryResultRow, columnName string) (value interface{}, found bool) {
+	if len(rows) == 0 {
+		return nil, false
+	}
+	for _, col := range rows[0].Cols {
+		if col.ColName == columnName {
+			return col.Value, true
+		}
+	}
+	return nil, false
 }
 
 func (p *pancakeJSONRenderer) toJSON(agg *pancakeModel, rows []model.QueryResultRow) (model.JsonMap, error) {

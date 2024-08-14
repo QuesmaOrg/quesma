@@ -30,6 +30,11 @@ func (query Histogram) TranslateSqlResponseToJson(rows []model.QueryResultRow, l
 				"%d, level: %d", len(rows[0].Cols), level,
 		)
 	}
+
+	if query.minDocCount == 0 {
+		rows = query.NewRowsTransformer().Transform(query.ctx, rows)
+	}
+
 	var response []model.JsonMap
 	for _, row := range rows {
 		response = append(response, model.JsonMap{
