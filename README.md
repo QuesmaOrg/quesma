@@ -61,7 +61,7 @@ Handy one-liner for above commands:
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/QuesmaOrg/quesma/main/examples/run.sh)"
 ```
 
-If you want to build your own image, run `./bin/build-image.sh` from the root directory
+The example above uses the latest Quesma Docker image published in DockerHub. In case you want to build Quesma Docker image from the sources, run `./bin/build-image.sh` from the root directory
 
 
 
