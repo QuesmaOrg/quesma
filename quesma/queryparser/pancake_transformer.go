@@ -6,21 +6,43 @@ import (
 	"fmt"
 	"quesma/model"
 	"quesma/model/bucket_aggregations"
+	"reflect"
 	"sort"
 	"strings"
 )
 
 // 2. Translate aggregation tree into pancake model.
 type pancakeTransformer struct {
+	usedNames map[string][]string
 }
 
-// TODO: check for collisions
+// Extremely rarely names may collide (e.g. aggregation named '1__2' and '1', '2').
+// This adds number suffix to make sure they are always unique
+func (a *pancakeTransformer) generateUniqueInternalName(origName string, aggrNames []string) string {
+	if a.usedNames == nil {
+		a.usedNames = make(map[string][]string)
+	}
+	proposedName := origName
+	for counter := 2; true; counter += 1 {
+		if prevAggr, isUsed := a.usedNames[proposedName]; !isUsed {
+			a.usedNames[proposedName] = aggrNames
+			return proposedName
+		} else if reflect.DeepEqual(prevAggr, aggrNames) {
+			return proposedName
+		}
+		proposedName = fmt.Sprintf("%s%d", origName, counter)
+	}
+	return origName
+}
+
 func (a *pancakeTransformer) generateMetricInternalName(aggrNames []string) string {
-	return fmt.Sprintf("metric__%s", strings.Join(aggrNames, "__"))
+	origName := fmt.Sprintf("metric__%s", strings.Join(aggrNames, "__"))
+	return a.generateUniqueInternalName(origName, aggrNames)
 }
 
 func (a *pancakeTransformer) generateBucketInternalName(aggrNames []string) string {
-	return fmt.Sprintf("aggr__%s__", strings.Join(aggrNames, "__"))
+	origName := fmt.Sprintf("aggr__%s__", strings.Join(aggrNames, "__"))
+	return a.generateUniqueInternalName(origName, aggrNames)
 }
 
 func (a *pancakeTransformer) metricAggregationTreeNodeToModel(previousAggrNames []string, metric *pancakeAggregationTreeNode) (metricModel *pancakeModelMetricAggregation, err error) {
