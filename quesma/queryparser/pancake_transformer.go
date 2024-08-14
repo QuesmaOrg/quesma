@@ -14,6 +14,15 @@ import (
 type pancakeTransformer struct {
 }
 
+// TODO: check for collisions
+func (a *pancakeTransformer) generateMetricInternalName(aggrNames []string) string {
+	return fmt.Sprintf("metric__%s", strings.Join(aggrNames, "__"))
+}
+
+func (a *pancakeTransformer) generateBucketInternalName(aggrNames []string) string {
+	return fmt.Sprintf("aggr__%s__", strings.Join(aggrNames, "__"))
+}
+
 func (a *pancakeTransformer) metricAggregationTreeNodeToModel(previousAggrNames []string, metric *pancakeAggregationTreeNode) (metricModel *pancakeModelMetricAggregation, err error) {
 	if metric == nil {
 		return nil, fmt.Errorf("metric aggregation is nil")
@@ -24,9 +33,8 @@ func (a *pancakeTransformer) metricAggregationTreeNodeToModel(previousAggrNames 
 	}
 
 	return &pancakeModelMetricAggregation{
-		name: metric.name,
-		// TODO: check for collisions
-		internalName:    fmt.Sprintf("metric__%s", strings.Join(append(previousAggrNames, metric.name), "__")),
+		name:            metric.name,
+		internalName:    a.generateMetricInternalName(append(previousAggrNames, metric.name)),
 		queryType:       metric.queryType,
 		selectedColumns: metric.selectedColumns,
 
@@ -44,9 +52,8 @@ func (a *pancakeTransformer) bucketAggregationToLayer(previousAggrNames []string
 	}
 
 	return &pancakeModelBucketAggregation{
-		name: bucket.name,
-		// TODO: check for collisions
-		internalName:    fmt.Sprintf("aggr__%s__", strings.Join(append(previousAggrNames, bucket.name), "__")),
+		name:            bucket.name,
+		internalName:    a.generateBucketInternalName(append(previousAggrNames, bucket.name)),
 		queryType:       bucket.queryType,
 		selectedColumns: bucket.selectedColumns,
 
