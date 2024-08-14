@@ -7,6 +7,7 @@ import (
 	"quesma/quesma/types"
 )
 
+// deAsyncResponse is a processor that processes that removes async "wrapper" from the response
 type deAsyncResponse struct {
 }
 

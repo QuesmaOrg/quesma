@@ -17,6 +17,7 @@ func (t *probabilisticSampler) process(in EnrichedResults) (out EnrichedResults,
 	return in, false, nil
 }
 
+// mismatchedOnlyFilter is a filter results that only allows mismatched results to pass
 type mismatchedOnlyFilter struct {
 }
 

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/k0kubun/pp"
 	"net/http"
 	"quesma/logger"
 )
@@ -14,7 +15,7 @@ type ppPrintFanout struct {
 }
 
 func (t *ppPrintFanout) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
-	//pp.Println("A/B Testing FANOUT", in)
+	pp.Println("A/B Testing FANOUT", in)
 	return in, false, nil
 }
 

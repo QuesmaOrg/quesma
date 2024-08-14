@@ -12,12 +12,13 @@ import (
 )
 
 type ResponseMismatch struct {
+	IsOK bool `json:"is_ok"` // true if responses are the same
+
 	Mismatches string `json:"mismatches"` // JSON array of differences
-	// TODO maybe we should keep more human readable list of differences
-	IsOK            bool   `json:"is_ok"`
-	Count           int    `json:"count"`
-	TopMismatchType string `json:"top_mismatch_type"`
-	Message         string `json:"message"`
+	Message    string `json:"message"`    // human readable variant of the array above
+
+	Count           int    `json:"count"`             // number of differences
+	TopMismatchType string `json:"top_mismatch_type"` // most common difference type
 }
 
 type Collector interface {
