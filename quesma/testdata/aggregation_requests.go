@@ -934,7 +934,7 @@ var AggregationTests = []AggregationTestCase{
 				`WHERE ("timestamp">=parseDateTime64BestEffort('2024-02-02T13:47:16.029Z') ` +
 				`AND "timestamp"<=parseDateTime64BestEffort('2024-02-09T13:47:16.029Z'))`,
 		},
-		ExpectedPancakeSQL: `SELECT count(DISTINCT "OriginCityName") AS "metric__unique_terms_col_0", ` +
+		ExpectedPancakeSQL: `SELECT uniq("OriginCityName") AS "metric__unique_terms_col_0", ` +
 			`"OriginCityName" AS "aggr__suggestions__key_0", ` +
 			`count(*) AS "aggr__suggestions__count", ` +
 			`count() AS "aggr__suggestions__order_1" ` +
@@ -4961,7 +4961,7 @@ var AggregationTests = []AggregationTestCase{
 			SELECT toInt64(toUnixTimestamp64Milli("@timestamp") / 79200000) AS
 			  "aggr__timeseries__key_0", count(*) AS "aggr__timeseries__count", toInt64(
 			  toUnixTimestamp64Milli("@timestamp") / 79200000) AS
-			  "aggr__timeseries__order_1", count(DISTINCT "host.name") AS
+			  "aggr__timeseries__order_1", uniq("host.name") AS
 			  "metric__timeseries__61ca57f2-469d-11e7-af02-69e470af7417_col_0"
 			FROM "logs-generic-default"
 			GROUP BY toInt64(toUnixTimestamp64Milli("@timestamp") / 79200000) AS

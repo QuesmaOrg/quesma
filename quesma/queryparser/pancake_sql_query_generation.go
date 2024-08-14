@@ -45,17 +45,19 @@ func (p *pancakeSqlQueryGenerator) generatePartitionBy(groupByColumns []model.Al
 	return partitionBy
 }
 
-// TODO: Implement all functions
+// TODO: Implement more if needed.
 func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Expr, queryType model.QueryType) (accumExpr model.Expr, aggrFuncName string, err error) {
 	switch origFunc := origExpr.(type) {
 	case model.FunctionExpr:
 		switch origFunc.Name {
-		case "sumOrNull", "minOrNull", "maxOrNull":
+		case "sum", "sumOrNull", "min", "minOrNull", "max", "maxOrNull":
 			return origExpr, origFunc.Name, nil
-		case "avgOrNull":
-			return model.NewFunction("avgState", origFunc.Args...), "avgMerge", nil
-		case "count":
-			return model.NewFunction("count", origFunc.Args...), "sum", nil
+		case "count", "countIf":
+			return model.NewFunction(origFunc.Name, origFunc.Args...), "sum", nil
+		case "avg", "avgOrNull", "varPop", "varSamp", "stddevPop", "stddevSamp", "uniq":
+			// TODO: I debate whether make that default
+			// This is ClickHouse specific: https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators
+			return model.NewFunction(origFunc.Name+"State", origFunc.Args...), origFunc.Name + "Merge", nil
 		}
 	}
 	debugQueryType := "<nil>"
