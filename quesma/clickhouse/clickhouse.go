@@ -458,6 +458,19 @@ func (lm *LogManager) generateNewColumns(
 	return alterCmd
 }
 
+func generateNonSchemaFieldsString(attrsMap map[string][]interface{}) (string, error) {
+	var nonSchemaStr string
+	if len(attrsMap) <= 0 {
+		return nonSchemaStr, nil
+	}
+	attributesBytes, err := json.Marshal(attrsMap) // check probably bad, they need to be arrays
+	if err != nil {
+		return "", err
+	}
+	nonSchemaStr = string(attributesBytes[1 : len(attributesBytes)-1])
+	return nonSchemaStr, nil
+}
+
 // TODO
 // This method should be refactored to use mux.JSON instead of string
 func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValidJson types.JSON,
@@ -477,15 +490,18 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	}
 
 	wasReplaced := replaceDotsWithSeparator(jsonMap)
+
 	if len(config.attributes) == 0 {
-		if wasReplaced {
-			rawBytes, err := jsonMap.Bytes()
-			if err != nil {
-				return "", nil, err
-			}
-			jsonDataAsString = string(rawBytes)
+		// if we don't have any attributes, and it wasn't replaced,
+		// we don't need to modify the json
+		if !wasReplaced {
+			return jsonDataAsString, nil, nil
 		}
-		return jsonDataAsString, nil, nil
+		rawBytes, err := jsonMap.Bytes()
+		if err != nil {
+			return "", nil, err
+		}
+		return string(rawBytes), nil, nil
 	}
 
 	table := lm.FindTable(tableName)
@@ -518,14 +534,12 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	// to not lose them and be able to store them later by
 	// generating correct update query
 	attrsMapWithInvalidFields := addInvalidJsonFieldsToAttributes(attrsMap, inValidJson)
-	nonSchemaStr := ""
-	if len(attrsMapWithInvalidFields) > 0 {
-		attrs, err := json.Marshal(attrsMapWithInvalidFields) // check probably bad, they need to be arrays
-		if err != nil {
-			return "", nil, err
-		}
-		nonSchemaStr = string(attrs[1 : len(attrs)-1])
+	nonSchemaStr, err := generateNonSchemaFieldsString(attrsMapWithInvalidFields)
+
+	if err != nil {
+		return "", nil, err
 	}
+
 	onlySchemaFields := RemoveNonSchemaFields(jsonMap, table)
 
 	schemaFieldsJson, err = json.Marshal(onlySchemaFields)
