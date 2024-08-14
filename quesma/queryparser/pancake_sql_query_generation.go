@@ -45,7 +45,7 @@ func (p *pancakeSqlQueryGenerator) generatePartitionBy(groupByColumns []model.Al
 	return partitionBy
 }
 
-// TODO: Implement all functions
+// TODO: Implement more if needed.
 func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Expr, queryType model.QueryType) (accumExpr model.Expr, aggrFuncName string, err error) {
 	switch origFunc := origExpr.(type) {
 	case model.FunctionExpr:
@@ -55,6 +55,7 @@ func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Exp
 		case "count", "countIf":
 			return model.NewFunction(origFunc.Name, origFunc.Args...), "sum", nil
 		case "avg", "avgOrNull", "varPop", "varSamp", "stddevPop", "stddevSamp", "uniq":
+			// TODO: I debate whether make that default
 			return model.NewFunction(origFunc.Name+"State", origFunc.Args...), origFunc.Name + "Merge", nil
 		}
 	}
