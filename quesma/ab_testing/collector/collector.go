@@ -72,7 +72,7 @@ func NewCollector(ctx context.Context, healthQueue chan<- ab_testing.HealthMessa
 		cancelFunc:   cancel,
 		pipeline: []pipelineProcessor{
 			&probabilisticSampler{ratio: 1},
-			&deAsyncResponse{},
+			&unifySyncAsyncResponse{},
 			&diffTransformer{},
 			//&ppPrintFanout{},
 			//&mismatchedOnlyFilter{},

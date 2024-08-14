@@ -7,11 +7,11 @@ import (
 	"quesma/quesma/types"
 )
 
-// deAsyncResponse is a processor that processes that removes async "wrapper" from the response
-type deAsyncResponse struct {
+// unifySyncAsyncResponse is a processor that processes that removes async "wrapper" from the response
+type unifySyncAsyncResponse struct {
 }
 
-func (t *deAsyncResponse) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
+func (t *unifySyncAsyncResponse) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
 
 	deAsync := func(elasticResponse string) (string, error) {
 
