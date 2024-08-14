@@ -52,7 +52,7 @@ func (cw *ClickhouseQueryTranslator) PancakeParseAggregationJson(body types.JSON
 	}
 
 	// Phase 2: Translate aggregation tree into pancake model
-	transformer := &pancakeTransformer{}
+	transformer := newPancakeTransformer()
 	pancakeQueries, err := transformer.aggregationTreeToPancake(topLevel)
 
 	if err != nil {

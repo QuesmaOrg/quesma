@@ -125,7 +125,7 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			transformer := &pancakeTransformer{}
+			transformer := newPancakeTransformer()
 
 			pan, err := transformer.aggregationTreeToPancake(*tt.tree)
 
@@ -156,5 +156,38 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func Test_pancakeNameCollision(t *testing.T) {
+	namesA := []string{"nested", "name"}
+	namesB := []string{"nested__name"}
+	p := newPancakeTransformer()
+	bucketInternalNameA := p.generateBucketInternalName(namesA)
+	bucketInternalNameB := p.generateBucketInternalName(namesB)
+	assert.NotEqual(t, bucketInternalNameA, bucketInternalNameB)
+
+	repeatName := []string{"nested__name"}
+	bucketInternalName := p.generateBucketInternalName(repeatName)
+	assert.Equal(t, bucketInternalNameB, bucketInternalName)
+}
+
+func Test_pancakeNameCollisionHard(t *testing.T) {
+	namesA := []string{"a", "b", "c"}
+	namesB := []string{"a__b", "c"}
+	namesC := []string{"a", "b__c"}
+	namesD := []string{"a__b__c"}
+	names := [][]string{namesA, namesB, namesC, namesD}
+	p := newPancakeTransformer()
+	for i, v1 := range names {
+		for j, v2 := range names {
+			bucketInternalNameFirst := p.generateBucketInternalName(v1)
+			bucketInternalNameSecond := p.generateBucketInternalName(v2)
+			if i != j {
+				assert.NotEqual(t, bucketInternalNameFirst, bucketInternalNameSecond)
+			} else {
+				assert.Equal(t, bucketInternalNameFirst, bucketInternalNameSecond)
+			}
+		}
 	}
 }
