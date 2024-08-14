@@ -158,3 +158,16 @@ func Test_pancakeTranslateFromAggregationToLayered(t *testing.T) {
 		})
 	}
 }
+
+func Test_pancakeNameCollision(t *testing.T) {
+	namesA := []string{"nested", "name"}
+	namesB := []string{"nested__name"}
+	p := pancakeTransformer{}
+	bucketInternalNameA := p.generateBucketInternalName(namesA)
+	bucketInternalNameB := p.generateBucketInternalName(namesB)
+	assert.NotEqual(t, bucketInternalNameA, bucketInternalNameB)
+
+	repeatName := []string{"nested__name"}
+	bucketInternalName := p.generateBucketInternalName(repeatName)
+	assert.Equal(t, bucketInternalNameB, bucketInternalName)
+}
