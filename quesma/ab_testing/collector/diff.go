@@ -11,6 +11,24 @@ import (
 type diffTransformer struct {
 }
 
+func (t *diffTransformer) mostCommonMismatchType(mismatches []jsondiff.JSONMismatch) (string, int) {
+
+	currentMax := 0
+	maxType := ""
+	m := make(map[string]int)
+
+	for _, mismatch := range mismatches {
+		m[mismatch.Type]++
+		if m[mismatch.Type] > currentMax {
+			currentMax = m[mismatch.Type]
+			maxType = mismatch.Type
+		}
+	}
+
+	return maxType, currentMax
+
+}
+
 func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop bool, err error) {
 
 	d, err := jsondiff.NewElasticResponseJSONDiff()
@@ -42,10 +60,18 @@ func (t *diffTransformer) process(in EnrichedResults) (out EnrichedResults, drop
 		}
 
 		in.Mismatch.Mismatches = string(b)
-		in.Mismatch.IsMismatch = true
+		in.Mismatch.IsOK = false
+		in.Mismatch.Count = len(mismatches)
+		in.Mismatch.Message = mismatches.String()
+
+		topMismatchType, _ := t.mostCommonMismatchType(mismatches)
+		if topMismatchType != "" {
+			in.Mismatch.TopMismatchType = topMismatchType
+		}
+
 	} else {
 		in.Mismatch.Mismatches = "[]"
-		in.Mismatch.IsMismatch = false
+		in.Mismatch.IsOK = true
 	}
 
 	return in, false, nil

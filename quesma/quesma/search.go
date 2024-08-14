@@ -4,7 +4,6 @@ package quesma
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"quesma/ab_testing"
@@ -150,12 +149,6 @@ type AsyncQuery struct {
 	startTime        time.Time
 }
 
-type executionPlanResult struct {
-	plan         *model.ExecutionPlan
-	err          error
-	responseBody []byte
-}
-
 func (q *QueryRunner) transformQueries(ctx context.Context, plan *model.ExecutionPlan, table *clickhouse.Table) {
 	var err error
 	plan.Queries, err = q.transformationPipeline.Transform(plan.Queries)
@@ -210,48 +203,6 @@ func (q *QueryRunner) runExecutePlanAsync(ctx context.Context, plan *model.Execu
 	}()
 }
 
-func (q *QueryRunner) executeAlternativePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, isAsync bool) (responseBody []byte, err error) {
-
-	doneCh := make(chan AsyncSearchWithError, 1)
-
-	q.transformQueries(ctx, plan, table)
-
-	if resp, err := q.checkProperties(ctx, plan, table, queryTranslator); err != nil {
-		return resp, err
-	}
-
-	q.runExecutePlanAsync(ctx, plan, queryTranslator, table, doneCh, nil)
-
-	response := <-doneCh
-
-	if response.err == nil {
-		if isAsync {
-			asyncResponse := queryparser.SearchToAsyncSearchResponse(response.response, "__quesma_alternative_plan", false, 200)
-			responseBody, err = asyncResponse.Marshal()
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			responseBody, err = response.response.Marshal()
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		// TODO better error handling
-		m := make(map[string]interface{})
-		m["error"] = fmt.Sprintf("%v", response.err.Error())
-		responseBody, _ = json.MarshalIndent(m, "", "  ")
-	}
-
-	bodyAsBytes, _ := body.Bytes()
-	contextValues := tracing.ExtractValues(ctx)
-	pushAlternativeInfo(q.quesmaManagementConsole, contextValues.RequestId, "", contextValues.OpaqueId, contextValues.RequestPath, bodyAsBytes, response.translatedQueryBody, responseBody, plan.StartTime)
-
-	return responseBody, response.err
-
-}
-
 func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, table *clickhouse.Table, body types.JSON, optAsync *AsyncQuery, optComparePlansCh chan<- executionPlanResult) (responseBody []byte, err error) {
 	contextValues := tracing.ExtractValues(ctx)
 	id := contextValues.RequestId
@@ -263,9 +214,11 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 	sendMainPlanResult := func(responseBody []byte, err error) {
 		if optComparePlansCh != nil {
 			optComparePlansCh <- executionPlanResult{
+				isMain:       true,
 				plan:         plan,
 				err:          err,
 				responseBody: responseBody,
+				endTime:      time.Now(),
 			}
 		}
 	}
@@ -311,80 +264,6 @@ func (q *QueryRunner) executePlan(ctx context.Context, plan *model.ExecutionPlan
 			return responseBody, err
 		}
 	}
-}
-
-// runAlternativePlanAndComparison runs the alternative plan and comparison method in the background. It returns a channel to collect the main plan results.
-func (q *QueryRunner) runAlternativePlanAndComparison(ctx context.Context, alternativePlan *model.ExecutionPlan, table *clickhouse.Table, body types.JSON, queryTranslator IQueryTranslator, isAsync bool) chan<- executionPlanResult {
-
-	contextValues := tracing.ExtractValues(ctx)
-
-	numberOfExpectedResults := len([]string{model.MainExecutionPlan, model.AlternativeExecutionPlan})
-
-	optComparePlansCh := make(chan executionPlanResult, numberOfExpectedResults)
-
-	// run alternative plan in the background (generator)
-	go func(optComparePlansCh chan<- executionPlanResult) {
-		defer recovery.LogPanic()
-
-		// results are passed via channel
-		newCtx := tracing.NewContextWithRequest(ctx)
-		body, err := q.executeAlternativePlan(newCtx, alternativePlan, queryTranslator, table, body, isAsync)
-
-		optComparePlansCh <- executionPlanResult{
-			plan:         alternativePlan,
-			err:          err,
-			responseBody: body,
-		}
-
-	}(optComparePlansCh)
-
-	// collector
-	go func(optComparePlansCh <-chan executionPlanResult) {
-		defer recovery.LogPanic()
-		var alternative executionPlanResult
-		var main executionPlanResult
-
-		for range numberOfExpectedResults {
-			r := <-optComparePlansCh
-			logger.InfoWithCtx(ctx).Msgf("received results  %s", r.plan.Name)
-			if r.plan.Name == model.AlternativeExecutionPlan {
-				alternative = r
-			} else if r.plan.Name == model.MainExecutionPlan {
-				main = r
-			}
-		}
-
-		bytes, err := body.Bytes()
-		if err != nil {
-			bytes = []byte("error converting body to bytes")
-		}
-
-		abResult := ab_testing.Result{
-			Request: ab_testing.Request{
-				Path: contextValues.RequestPath,
-				Body: string(bytes),
-			},
-
-			A: ab_testing.Response{
-				Name: "main",
-				Body: string(main.responseBody),
-				Time: time.Since(main.plan.StartTime),
-			},
-
-			B: ab_testing.Response{
-				Name: "alternative",
-				Body: string(alternative.responseBody),
-				Time: time.Since(alternative.plan.StartTime),
-			},
-			RequestID: contextValues.RequestId,
-			OpaqueID:  contextValues.OpaqueId,
-		}
-
-		q.ABResultsSender.Send(abResult)
-
-	}(optComparePlansCh)
-
-	return optComparePlansCh
 }
 
 func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern string, body types.JSON, optAsync *AsyncQuery, queryLanguage QueryLanguage) ([]byte, error) {
@@ -491,59 +370,15 @@ func (q *QueryRunner) handleSearchCommon(ctx context.Context, indexPattern strin
 	plan.Name = model.MainExecutionPlan
 
 	// Some flags may trigger alternative execution plans, this is primary for dev
-	alternativePlan := q.maybeCreateAlternativeExecutionPlan(ctx, resolvedTableName, plan, queryTranslator, body)
+	alternativePlan, alternativePlanExecutor := q.maybeCreateAlternativeExecutionPlan(ctx, resolvedTableName, plan, queryTranslator, body, table, optAsync != nil)
 
 	var optComparePlansCh chan<- executionPlanResult
 
 	if alternativePlan != nil {
-		optComparePlansCh = q.runAlternativePlanAndComparison(ctx, alternativePlan, table, body, queryTranslator, optAsync != nil)
+		optComparePlansCh = q.runAlternativePlanAndComparison(ctx, alternativePlan, alternativePlanExecutor, body)
 	}
 
 	return q.executePlan(ctx, plan, queryTranslator, table, body, optAsync, optComparePlansCh)
-}
-
-func (q *QueryRunner) maybeCreateAlternativeExecutionPlan(ctx context.Context, resolvedTableName string, plan *model.ExecutionPlan, queryTranslator IQueryTranslator, body types.JSON) *model.ExecutionPlan {
-
-	props, enabled := q.cfg.IndexConfig[resolvedTableName].GetOptimizerConfiguration(queryparser.PancakeOptimizerName)
-	if enabled && props["mode"] == "alternative" {
-
-		hasAggQuery := false
-		queriesWithoutAggr := make([]*model.Query, 0)
-		for _, query := range plan.Queries {
-			switch query.Type.AggregationType() {
-			case model.MetricsAggregation, model.BucketAggregation, model.PipelineAggregation:
-				hasAggQuery = true
-			default:
-				queriesWithoutAggr = append(queriesWithoutAggr, query)
-			}
-		}
-
-		if hasAggQuery {
-			if chQueryTranslator, ok := queryTranslator.(*queryparser.ClickhouseQueryTranslator); ok {
-
-				// TODO FIXME check if the original plan has count query
-				addCount := false
-
-				if pancakeQueries, err := chQueryTranslator.PancakeParseAggregationJson(body, addCount); err == nil {
-					logger.InfoWithCtx(ctx).Msgf("Running alternative pancake queries")
-					queries := append(queriesWithoutAggr, pancakeQueries...)
-					return &model.ExecutionPlan{
-						IndexPattern:          plan.IndexPattern,
-						QueryRowsTransformers: make([]model.QueryRowsTransformer, len(queries)),
-						Queries:               queries,
-						StartTime:             plan.StartTime,
-						Name:                  model.AlternativeExecutionPlan,
-					}
-				} else {
-					// TODO: change to info
-					logger.ErrorWithCtx(ctx).Msgf("Error parsing pancake queries: %v", err)
-				}
-			} else {
-				logger.ErrorWithCtx(ctx).Msgf("Alternative plan is not supported for non-clickhouse query translators")
-			}
-		}
-	}
-	return nil
 }
 
 func (q *QueryRunner) removeNotExistingTables(sourcesClickhouse []string) []string {

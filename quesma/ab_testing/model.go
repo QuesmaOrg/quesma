@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Elastic-2.0
 package ab_testing
 
-import (
-	"time"
-)
-
 type Request struct {
-	Path string `json:"path"`
-	Body string `json:"body"`
+	Path      string `json:"path"`
+	IndexName string `json:"index_name"`
+	Body      string `json:"body"`
 }
 
 type Response struct {
-	Name string        `json:"name"`
-	Body string        `json:"body"`
-	Time time.Duration `json:"time"`
+	Name  string  `json:"name"`
+	Body  string  `json:"body"`
+	Time  float64 `json:"time"`
+	Error string  `json:"error"`
 }
 
 type Result struct {
