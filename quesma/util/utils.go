@@ -427,7 +427,7 @@ func AssertSqlEqual(t *testing.T, expected, actual string) {
 				break
 			}
 		}
-		t.Errorf("Expected: %s, got: %s", expected, actual)
+		t.Errorf("Expected: %s\n\nactual: %s", expected, actual)
 	}
 }
 
