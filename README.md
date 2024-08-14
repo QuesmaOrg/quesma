@@ -56,12 +56,14 @@ In order to run it, you need to:
 - clone this repository: `git clone git@github.com:QuesmaOrg/quesma.git`
 - run `docker-compose up` directly from `/examples/kibana-sample-data` directory
 
-If you want to build your own image, run `./bin/build-image.sh` from the root directory
-
-Handy one-liner:
+Handy one-liner for above commands:
 ```bash
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/QuesmaOrg/quesma/main/examples/run.sh)"
 ```
+
+If you want to build your own image, run `./bin/build-image.sh` from the root directory
+
+
 
 Once it's running, you can access:
 - Kibana at [localhost:5601](http://localhost:5601/)
