@@ -171,3 +171,23 @@ func Test_pancakeNameCollision(t *testing.T) {
 	bucketInternalName := p.generateBucketInternalName(repeatName)
 	assert.Equal(t, bucketInternalNameB, bucketInternalName)
 }
+
+func Test_pancakeNameCollisionHard(t *testing.T) {
+	namesA := []string{"a", "b", "c"}
+	namesB := []string{"a__b", "c"}
+	namesC := []string{"a", "b__c"}
+	namesD := []string{"a__b__c"}
+	names := [][]string{namesA, namesB, namesC, namesD}
+	p := pancakeTransformer{}
+	for i, v1 := range names {
+		for j, v2 := range names {
+			bucketInternalNameFirst := p.generateBucketInternalName(v1)
+			bucketInternalNameSecond := p.generateBucketInternalName(v2)
+			if i != j {
+				assert.NotEqual(t, bucketInternalNameFirst, bucketInternalNameSecond)
+			} else {
+				assert.Equal(t, bucketInternalNameFirst, bucketInternalNameSecond)
+			}
+		}
+	}
+}
