@@ -406,13 +406,25 @@ func (lm *LogManager) CreateTableFromInsertQuery(ctx context.Context, name strin
 	return nil
 }
 
+func deepCopyMapSliceInterface(original map[string][]interface{}) map[string][]interface{} {
+	copiedMap := make(map[string][]interface{}, len(original))
+	for key, value := range original {
+		copiedSlice := make([]interface{}, len(value))
+		copy(copiedSlice, value) // Copy the slice contents
+		copiedMap[key] = copiedSlice
+	}
+	return copiedMap
+}
+
 // This function takes an attributesMap and updates it
 // with the fields that are not valid according to the inferred schema
-func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalidJson types.JSON) {
+func addInvalidJsonFieldsToAttributes(attrsMap map[string][]interface{}, invalidJson types.JSON) map[string][]interface{} {
+	newAttrsMap := deepCopyMapSliceInterface(attrsMap)
 	for k, v := range invalidJson {
-		attrsMap[AttributesKeyColumn] = append(attrsMap[AttributesKeyColumn], k)
-		attrsMap[AttributesValueColumn] = append(attrsMap[AttributesValueColumn], v)
+		newAttrsMap[AttributesKeyColumn] = append(newAttrsMap[AttributesKeyColumn], k)
+		newAttrsMap[AttributesValueColumn] = append(newAttrsMap[AttributesValueColumn], v)
 	}
+	return newAttrsMap
 }
 
 // This function takes an attributesMap and arrayName and returns
@@ -456,37 +468,37 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	if err != nil {
 		return "", nil, err
 	}
-	js := string(jsonData)
+	jsonDataAsString := string(jsonData)
 
 	// we find all non-schema fields
-	m, err := types.ParseJSON(js)
+	jsonMap, err := types.ParseJSON(jsonDataAsString)
 	if err != nil {
 		return "", nil, err
 	}
 
-	wasReplaced := replaceDotsWithSeparator(m)
+	wasReplaced := replaceDotsWithSeparator(jsonMap)
 	if len(config.attributes) == 0 {
 		if wasReplaced {
-			rawBytes, err := m.Bytes()
+			rawBytes, err := jsonMap.Bytes()
 			if err != nil {
 				return "", nil, err
 			}
-			js = string(rawBytes)
+			jsonDataAsString = string(rawBytes)
 		}
-		return js, nil, nil
+		return jsonDataAsString, nil, nil
 	}
 
-	t := lm.FindTable(tableName)
-	schemaFieldsJson, err := json.Marshal(m)
+	table := lm.FindTable(tableName)
+	schemaFieldsJson, err := json.Marshal(jsonMap)
 
 	if err != nil {
 		return "", nil, err
 	}
 
-	mDiff := DifferenceMap(m, t) // TODO change to DifferenceMap(m, t)
+	mDiff := DifferenceMap(jsonMap, table) // TODO change to DifferenceMap(m, t)
 
-	if len(mDiff) == 0 && string(schemaFieldsJson) == js && len(inValidJson) == 0 { // no need to modify, just insert 'js'
-		return js, nil, nil
+	if len(mDiff) == 0 && string(schemaFieldsJson) == jsonDataAsString && len(inValidJson) == 0 { // no need to modify, just insert 'js'
+		return jsonDataAsString, nil, nil
 	}
 
 	// check attributes precondition
@@ -505,16 +517,16 @@ func (lm *LogManager) BuildInsertJson(tableName string, data types.JSON, inValid
 	// If there are some invalid fields, we need to add them to the attributes map
 	// to not lose them and be able to store them later by
 	// generating correct update query
-	addInvalidJsonFieldsToAttributes(attrsMap, inValidJson)
+	attrsMapWithInvalidFields := addInvalidJsonFieldsToAttributes(attrsMap, inValidJson)
 	nonSchemaStr := ""
-	if len(attrsMap) > 0 {
-		attrs, err := json.Marshal(attrsMap) // check probably bad, they need to be arrays
+	if len(attrsMapWithInvalidFields) > 0 {
+		attrs, err := json.Marshal(attrsMapWithInvalidFields) // check probably bad, they need to be arrays
 		if err != nil {
 			return "", nil, err
 		}
 		nonSchemaStr = string(attrs[1 : len(attrs)-1])
 	}
-	onlySchemaFields := RemoveNonSchemaFields(m, t)
+	onlySchemaFields := RemoveNonSchemaFields(jsonMap, table)
 
 	schemaFieldsJson, err = json.Marshal(onlySchemaFields)
 
