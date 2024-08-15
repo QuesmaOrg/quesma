@@ -58,10 +58,6 @@ func (p *pancakeSqlQueryGenerator) generateAccumAggrFunctions(origExpr model.Exp
 			// TODO: I debate whether make that default
 			// This is ClickHouse specific: https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators
 			return model.NewFunction(origFunc.Name+"State", origFunc.Args...), origFunc.Name + "Merge", nil
-			//default:
-			// FIXME default should probably be an error, seems working now but it's a hackish solution...
-			// if we return error, there's problem with multi_terms. I have a general idea what/how to fix it.
-			//return model.NewFunction("count", origFunc.Args...), "sum", nil
 		}
 	}
 	debugQueryType := "<nil>"
