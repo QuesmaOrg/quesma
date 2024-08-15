@@ -6,6 +6,7 @@ import (
 	"context"
 	"quesma/logger"
 	"quesma/model"
+	"quesma/model/bucket_aggregations"
 	"quesma/model/typical_queries"
 )
 
@@ -17,6 +18,16 @@ func IsNonAggregationQuery(query *model.Query) bool {
 	default:
 		return false
 	}
+}
+
+func IsTerms(queryType model.QueryType) bool {
+	if _, ok := queryType.(bucket_aggregations.Terms); ok {
+		return true
+	}
+	if _, ok := queryType.(bucket_aggregations.MultiTerms); ok {
+		return true
+	}
+	return false
 }
 
 /* FIXME use this in MakeSearchResponse to stop relying on order of queries

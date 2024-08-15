@@ -65,3 +65,7 @@ func (p pancakeModelBucketAggregation) InternalNameForOrderBy(id int) string {
 func (p pancakeModelBucketAggregation) InternalNameForCount() string {
 	return fmt.Sprintf("%scount", p.internalName)
 }
+
+func (p pancakeModelBucketAggregation) InternalNameForParentCount() string {
+	return fmt.Sprintf("%sparent_count", p.internalName)
+}

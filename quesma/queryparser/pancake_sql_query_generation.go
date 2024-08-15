@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"quesma/clickhouse"
 	"quesma/model"
+	"quesma/queryparser/query_util"
 	"strconv"
 )
 
@@ -104,6 +105,16 @@ func (p *pancakeSqlQueryGenerator) isPartOfGroupBy(column model.Expr, groupByCol
 
 func (p *pancakeSqlQueryGenerator) generateBucketSqlParts(bucketAggregation *pancakeModelBucketAggregation, groupByColumns []model.AliasedExpr, hasMoreBucketAggregations bool) (
 	addSelectColumns, addPartColumns, addGroupBys, addRankColumns []model.AliasedExpr, addRankWheres []model.Expr, addRankOrderBys []model.OrderByExpr, err error) {
+
+	if query_util.IsTerms(bucketAggregation.queryType) {
+		parentCountColumn := model.WindowFunction{Name: "sum",
+			Args:        []model.Expr{model.NewFunction("count", model.NewLiteral("*"))}, // TODO for sure?
+			PartitionBy: p.generatePartitionBy(addGroupBys),
+			OrderBy:     []model.OrderByExpr{},
+		}
+		parentCountAliasedColumn := model.AliasedExpr{Expr: parentCountColumn, Alias: bucketAggregation.InternalNameForParentCount()}
+		addSelectColumns = append(addSelectColumns, parentCountAliasedColumn)
+	}
 
 	// TODO: ...
 	for columnId, column := range bucketAggregation.selectedColumns {
